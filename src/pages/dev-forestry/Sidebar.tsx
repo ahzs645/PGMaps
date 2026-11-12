@@ -478,6 +478,8 @@ type SidebarProps = {
   wildlifeTreePatches?: ReactNode
   /** Step 3: private land from ParcelMap BC, added by the reviewer as private-land masks. */
   privateLand?: ReactNode
+  /** Step 3: FTEN gross, planned net and net of RESULTS group reserves, reserves added as retained masks. */
+  netFootprints?: ReactNode
   /** Step 5: a saved view composed as a VIA analysis sheet in a figure style. */
   figureSheet?: ReactNode
   /** Step 3: the landform design review. */
@@ -557,6 +559,7 @@ export function Sidebar({
   localSources,
   wildlifeTreePatches,
   privateLand,
+  netFootprints,
   figureSheet,
   designReview,
   designComparisons,
@@ -1660,6 +1663,7 @@ export function Sidebar({
         </ToolSection>
         {wildlifeTreePatches}
         {privateLand}
+        {netFootprints}
         {result && (
           <ToolSection title="Results">
             {runRevision}
@@ -1772,6 +1776,59 @@ export function Sidebar({
               Adds VRI rank-1&apos;s projected stand height to the ground along each sightline, so a block behind mature
               timber reads as hidden. Openings and the proposal itself are treated as cleared. Full-landscape coverage,
               and a slow query — it fetches every inventory polygon over the run&apos;s extent.
+            </InfoTip>
+          </div>
+          {settings.screeningEnabled && (
+            <NumberField
+              label="Timber cleared round the eye"
+              suffix="m"
+              value={settings.screeningEyeClearingMeters ?? 50}
+              min={0}
+              max={150}
+              step={10}
+              info="VRI stand polygons run over roads, beaches and shorelines, so without a clearing the eye stands inside a stand and sees nothing. In the November 2026 study 50 m restored most views; some roadside views needed 150 m. The screened figure is withheld when screening hides more than three quarters of the landform the bare ground shows."
+              onChange={(value) => onSettingsChange({ ...settings, screeningEyeClearingMeters: value })}
+            />
+          )}
+          <label className="flex items-center justify-between gap-2 text-xs">
+            <span className="flex items-center gap-1">
+              Perspective denominator
+              <InfoTip label="About the perspective denominator">
+                Non-vegetated out (the default) leaves rock, water and ice (VRI BCLCS level 1 N) out of the landform, as
+                a VIA's &ldquo;net of rock&rdquo; does; burns, shrub and herb stay in. Non-treed out uses the 1998
+                procedure's green (forested) portion, as the planimetric figure always does. In the November 2026 study
+                the non-vegetated rule moved the figure closer to the printed VIAs (case-balanced, 1.97 points for the
+                named VSU, 1.02 for the terrain landform).
+              </InfoTip>
+            </span>
+            <StyledSelect
+              aria-label="Perspective denominator"
+              className={SELECT_CLASS}
+              value={settings.perspectiveDenominator ?? 'non-vegetated-out'}
+              onChange={(event) =>
+                onSettingsChange({
+                  ...settings,
+                  perspectiveDenominator: event.target.value as NonNullable<AnalysisSettings['perspectiveDenominator']>,
+                })
+              }
+            >
+              <option value="non-vegetated-out">Non-vegetated out</option>
+              <option value="non-treed-out">Non-treed out (1998)</option>
+            </StyledSelect>
+          </label>
+          <div className="flex items-start gap-1">
+            <CheckboxField
+              className="flex-1"
+              label={<span className="text-2xs font-medium">Private land out of the landform</span>}
+              checked={settings.privateLandOutOfDenominator === true}
+              onCheckedChange={(privateLandOutOfDenominator) =>
+                onSettingsChange({ ...settings, privateLandOutOfDenominator })
+              }
+            />
+            <InfoTip label="About private land and the denominator">
+              VIAs print (landform − private land). With this on, private-land masks leave both denominators; their
+              timber still screens. Off, private land stays in the landform and only carries no alteration. Private land
+              comes from masks you draw or ParcelMap BC parcels you add in step 3.
             </InfoTip>
           </div>
           <NumberField

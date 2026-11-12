@@ -49,6 +49,11 @@ export const MAX_TOTAL_SIGHTLINES = 250_000
 export type TerrainInfo = { tileCount: number; missingTileCount: number; resolutionMeters: number }
 export type AnalysisContext = {
   vegetation?: InventoryEvidence
+  /**
+   * VRI non-vegetated ground (BCLCS level 1 `N`: rock, water, ice) from the same read as the treed
+   * ground: what the perspective denominator leaves out by default.
+   */
+  nonVegetatedGround?: PolygonGeometry[]
   inspection?: { targetId: string; sampleIndex: number; stationIndex: number }
 }
 export type PreparedTarget = {
@@ -240,9 +245,16 @@ export function computeAnalysis(
       : null
   const baseCanopy: CanopySource | null =
     input.settings.screeningEnabled && localCanopy ? rasterSampler(localCanopy) : inventoryCanopy
+  // VRI stands run over roads, beaches and shores, so the timber right round the eye is cleared:
+  // without it, 20 of 44 study views saw no landform at all (docs/forestry-visual-quality.md).
+  const nearEye = eyeClearing(
+    stations,
+    input.settings.screeningEnabled ? (input.settings.screeningEyeClearingMeters ?? 50) : 0,
+  )
   const canopy: CanopySource | null = baseCanopy
     ? {
         heightAtMercator(x, y) {
+          if (nearEye(x, y)) return 0
           const [lng, lat] = mercatorToLngLat(x, y),
             m = maskAt(lng, lat)
           if (m.excludeGreen) return 0
@@ -330,6 +342,9 @@ export function computeAnalysis(
     .filter((t) => t.siteDisturbance && t.alterationWeight > 0)
     .map((t) => ({ contains: bounded(t.geometry), id: t.id }))
   const treed = forestedGround.map(bounded)
+  const nonVegetated = (context.nonVegetatedGround ?? []).map(bounded)
+  const perspectiveRule = input.settings.perspectiveDenominator ?? 'non-vegetated-out'
+  const privateOut = input.settings.privateLandOutOfDenominator === true
   // Supplied forest alterations, including access roads, remain in the assessable
   // land base after clearing. The operator must exclude natural non-forest ground.
   const historicForest = prepared.filter((t) => t.role !== 'landscape').map((t) => bounded(t.geometry))
@@ -354,19 +369,27 @@ export function computeAnalysis(
       const disturbance =
         mask.excludeAlteration || mask.excludeGreen || mask.retained ? [] : roads.filter((o) => o.contains(sample))
       for (const item of [...existing, ...proposed, ...disturbance]) hits.set(item.id, (hits.get(item.id) ?? 0) + 1)
+      // In the landform at all: natural non-green ground never is, private land only while it counts.
+      const assessable = !mask.excludeGreen && !(privateOut && mask.privateLand)
+      const kept = (onBasis: () => boolean) =>
+        assessable &&
+        (!verifiedGreen ||
+          input.settings.greenAreaConfirmed ||
+          (mask.forceGreen && !(privateOut && mask.privateLand)) ||
+          onBasis() ||
+          historicForest.some((contains) => contains(sample)))
+      const green = kept(() => treed.some((contains) => contains(sample)))
       return {
         ...unionContributions(
           existing.map((o) => o.weight),
           proposed.length > 0,
           disturbance.length > 0,
         ),
-        green:
-          !mask.excludeGreen &&
-          (!verifiedGreen ||
-            input.settings.greenAreaConfirmed ||
-            mask.forceGreen ||
-            treed.some((contains) => contains(sample)) ||
-            historicForest.some((contains) => contains(sample))),
+        // The planimetric figure's 1998 "green (forested)" portion.
+        green,
+        // The perspective figure's: net of non-vegetated ground by default, or the same as `green`.
+        perspectiveGreen:
+          perspectiveRule === 'non-treed-out' ? green : kept(() => !nonVegetated.some((contains) => contains(sample))),
       }
     }) ?? []
   let greenArea = 0
@@ -390,7 +413,7 @@ export function computeAnalysis(
       missing = false
     const sum = zero()
     ledger.forEach((cell, i) => {
-      if (!cell.green) return
+      if (!cell.perspectiveGreen) return
       const visible = land.matrix[s * ledger.length + i]
       if (visible === 2) {
         missing = true
@@ -658,7 +681,17 @@ export function computeAnalysis(
   if (land && !(greenArea > 0)) warnings.push('No assessable green landform area is available as a denominator.')
   if (land && !perspectiveByStation.some((value) => value !== null))
     warnings.push('No selected station has a complete visible landform denominator.')
+  // Screening that hides most of the landform the bare ground shows turns the ratio into noise
+  // (one study view went 10.6% to 56.6%): withhold the screened figure.
+  const screenedShare =
+    input.settings.screeningEnabled && land ? screenedLandformShare(land.any, land.bareEarth, land.areas) : null
+  const screeningCollapsed = screenedShare !== null && screenedShare < MIN_SCREENED_LANDFORM_SHARE
+  if (screeningCollapsed)
+    warnings.push(
+      `Screening hides ${Math.round((1 - screenedShare!) * 100)}% of the landform the bare ground shows, so the screened figure is withheld. Turn screening off, or clear more timber round the eye.`,
+    )
   const numericalReady =
+    !screeningCollapsed &&
     input.settings.targetOffsetMeters === 0 &&
     !!land &&
     greenArea > 0 &&
@@ -728,5 +761,46 @@ export function computeAnalysis(
       numericalReady,
       warnings,
     },
+  }
+}
+
+/** Least share of the bare-earth visible landform that screening may leave before its figure is withheld. */
+export const MIN_SCREENED_LANDFORM_SHARE = 0.25
+
+/** Visible landform area with screening over the area the bare ground shows, from any station. */
+export function screenedLandformShare(any: Uint8Array, bareEarth: Uint8Array, areas: ArrayLike<number>): number | null {
+  let screened = 0,
+    bare = 0
+  for (let i = 0; i < any.length; i++) {
+    if (bareEarth[i]) bare += areas[i]
+    if (any[i] === 1) screened += areas[i]
+  }
+  return bare > 0 ? screened / bare : null
+}
+
+/**
+ * A test for Mercator points within `radiusMeters` of any station, hashed so a sightline's canopy
+ * reads stay cheap. Always false for a radius of 0.
+ */
+export function eyeClearing(stations: ReadonlyArray<{ lng: number; lat: number }>, radiusMeters: number) {
+  if (!(radiusMeters > 0) || !stations.length) return () => false
+  const lat = stations[0].lat
+  // Web Mercator units per metre at the stations' latitude.
+  const r = radiusMeters / (40_075_016.686 * Math.cos((lat * Math.PI) / 180))
+  const cells = new Map<string, Array<[number, number]>>()
+  for (const station of stations) {
+    const [x, y] = lngLatToMercator(station.lng, station.lat)
+    const key = `${Math.floor(x / r)},${Math.floor(y / r)}`
+    const list = cells.get(key) ?? []
+    list.push([x, y])
+    cells.set(key, list)
+  }
+  return (x: number, y: number) => {
+    const cx = Math.floor(x / r),
+      cy = Math.floor(y / r)
+    for (let i = cx - 1; i <= cx + 1; i++)
+      for (let j = cy - 1; j <= cy + 1; j++)
+        for (const [sx, sy] of cells.get(`${i},${j}`) ?? []) if (Math.hypot(sx - x, sy - y) <= r) return true
+    return false
   }
 }

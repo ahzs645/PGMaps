@@ -56,7 +56,12 @@ export function alterationWeight(
 ): number {
   if (target.role === 'landscape') return 0
   if (target.role === 'block' || target.siteDisturbance) return 1
-  const clearcut = target.clearcutPercent == null ? 1 : Math.min(1, Math.max(0, target.clearcutPercent / 100))
+  // RESULTS records retention-system harvests (RETEN) at 0 % clearcut. Such an opening is still an
+  // opening to the eye, so 0 counts it whole rather than dropping it out of the existing line.
+  const clearcut =
+    target.clearcutPercent == null || target.clearcutPercent <= 0
+      ? 1
+      : Math.min(1, Math.max(0, target.clearcutPercent / 100))
   if (target.harvestYear != null && target.harvestYear > assessmentYear) return 0
   const recovery = appliedFieldGreenUp(target.fieldGreenUp, assessmentYear) ?? target.recoveryPercent
   if (recovery != null) return clearcut * (1 - Math.min(1, Math.max(0, recovery / 100)))

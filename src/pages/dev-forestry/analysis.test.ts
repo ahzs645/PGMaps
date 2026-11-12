@@ -239,7 +239,14 @@ describe('visually effective green-up height', () => {
 describe('the planimetric denominator', () => {
   const BLOCK = box(-0.004, -0.004, 0.004, 0.004)
 
-  function planimetric(forested: GeoJSON.Polygon[]) {
+  function planimetric(
+    forested: GeoJSON.Polygon[],
+    extra: {
+      settings?: Partial<AnalysisInput['settings']>
+      nonVegetated?: GeoJSON.Polygon[]
+      masks?: AnalysisInput['masks']
+    } = {},
+  ) {
     const input: AnalysisInput = {
       viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]] },
       targets: [
@@ -260,10 +267,14 @@ describe('the planimetric denominator', () => {
         // Every figure now comes off the landform's own ledger, so it needs the
         // resolution the block used to bring on its own grid.
         sampleBudget: 10000,
+        ...extra.settings,
       },
       assessmentYear: 2026,
+      ...(extra.masks ? { masks: extra.masks } : {}),
     }
-    return computeAnalysis(FLAT, input, TERRAIN, undefined, [], forested)
+    return computeAnalysis(FLAT, input, TERRAIN, undefined, [], forested, {
+      nonVegetatedGround: extra.nonVegetated ?? [],
+    })
   }
 
   it('divides by the whole landform when no inventory answered, and says the base is unverified', () => {
@@ -298,14 +309,50 @@ describe('the planimetric denominator', () => {
     expect(result.planimetricAlteration!.cumulativePercent).toBeGreaterThan(shareOfLandform(BLOCK))
   })
 
-  it('applies the same green base to the perspective figure', () => {
-    // The perspective ratio divides by the visible green face, on the same
-    // ledger as the planimetric figure, so ground the inventory does not call
-    // green leaves both denominators together.
+  it('applies the same green base to the perspective figure under the non-treed rule', () => {
+    // Under the 1998 rule the perspective ratio divides by the visible green face, on the same
+    // ledger as the planimetric figure, so ground the inventory does not call green leaves both.
     const treedHalf = box(-0.02, -0.01, 0, 0.01)
-    const whole = planimetric([]).perspectiveAlteration!.cumulativePercent
-    const green = planimetric([treedHalf]).perspectiveAlteration!.cumulativePercent
+    const rule = { settings: { perspectiveDenominator: 'non-treed-out' as const } }
+    const whole = planimetric([], rule).perspectiveAlteration!.cumulativePercent
+    const green = planimetric([treedHalf], rule).perspectiveAlteration!.cumulativePercent
     expect(green).toBeGreaterThan(whole)
+  })
+
+  it('nets only non-vegetated ground out of the perspective figure by default', () => {
+    // Half the landform is untreed but vegetated (a burn, shrubs): it stays in the perspective
+    // denominator, as a VIA's "net of rock" keeps it; the planimetric figure still drops it.
+    const treedHalf = box(-0.02, -0.01, 0, 0.01)
+    const byDefault = planimetric([treedHalf])
+    const gross = planimetric([], { settings: { greenAreaConfirmed: true } })
+    expect(byDefault.perspectiveAlteration!.cumulativePercent).toBeCloseTo(
+      gross.perspectiveAlteration!.cumulativePercent,
+      1,
+    )
+    expect(byDefault.planimetricAlteration!.cumulativePercent).toBeGreaterThan(
+      gross.planimetricAlteration!.cumulativePercent,
+    )
+    // Rock in the other half leaves the perspective denominator, so the block's share rises.
+    const rock = box(-0.02, -0.01, -0.01, 0.01)
+    const netOfRock = planimetric([treedHalf], { nonVegetated: [rock] })
+    expect(netOfRock.perspectiveAlteration!.cumulativePercent).toBeGreaterThan(
+      byDefault.perspectiveAlteration!.cumulativePercent,
+    )
+  })
+
+  it('takes private land out of the denominators only when asked', () => {
+    const treed = box(-1, -1, 1, 1)
+    const privateHalf = {
+      id: 'private',
+      name: 'Private land',
+      kind: 'private' as const,
+      geometry: box(-0.02, -0.01, -0.01, 0.01),
+      source: 'test',
+    }
+    const kept = planimetric([treed], { masks: [privateHalf] })
+    const out = planimetric([treed], { masks: [privateHalf], settings: { privateLandOutOfDenominator: true } })
+    expect(out.perspectiveAlteration!.cumulativePercent).toBeGreaterThan(kept.perspectiveAlteration!.cumulativePercent)
+    expect(out.landformForestedAreaMeters!).toBeLessThan(kept.landformForestedAreaMeters!)
   })
 })
 

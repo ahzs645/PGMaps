@@ -10,6 +10,7 @@ import {
   fetchVegetationStands,
   forestedGeometries,
   clampVegetationBounds,
+  nonVegetatedGeometries,
   nonVegetatedNear,
 } from './bcVegetationInventory'
 import type { CanopyStand } from './canopy'
@@ -109,6 +110,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   let canopyStands: CanopyStand[] = []
   let forestedGround: PolygonGeometry[] = []
   let nonVegetatedGround: PolygonGeometry[] = []
+  let nonVegetatedAll: PolygonGeometry[] = []
   let vegetation: import('./types').InventoryEvidence = { status: 'not-requested' }
   if (vegetationRequest) {
     const queryBounds = clampVegetationBounds(bounds)
@@ -129,6 +131,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
       }
       if (wantsGreenArea) {
         forestedGround = forestedGeometries(stands)
+        nonVegetatedAll = nonVegetatedGeometries(stands)
         // Rock for VIA figures, around the landforms only: display, never a figure.
         const landforms = input.targets
           .filter((target) => target.role === 'landscape')
@@ -180,7 +183,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     (progress) => post({ type: 'progress', requestId, progress }),
     canopyStands,
     forestedGround,
-    { vegetation, inspection: request.inspection },
+    { vegetation, inspection: request.inspection, nonVegetatedGround: nonVegetatedAll },
   )
   if (nonVegetatedGround.length) result.nonVegetatedGround = nonVegetatedGround
   result.sourceNotes =

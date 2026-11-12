@@ -67,6 +67,8 @@ export type VriStand = {
    * water. What a VIA figure draws as rock or non-vegetated ground. Absent on stands parsed before it.
    */
   nonVegetatedLand?: boolean
+  /** BCLCS level 1 `N`: non-vegetated ground of any kind, water and ice included. */
+  nonVegetated?: boolean
   /** Leading species as the inventory spells it — `SX`, `PLI`, `BL`, `AT`. */
   speciesCode: string | null
   /** Projected height of the leading species, in metres. */
@@ -167,6 +169,7 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
       {
         featureId: finiteNumber(properties.FEATURE_ID),
         treed: trimmed(properties.BCLCS_LEVEL_2)?.toUpperCase() === 'T',
+        nonVegetated: trimmed(properties.BCLCS_LEVEL_1)?.toUpperCase() === 'N',
         nonVegetatedLand:
           trimmed(properties.BCLCS_LEVEL_1)?.toUpperCase() === 'N' &&
           trimmed(properties.BCLCS_LEVEL_2)?.toUpperCase() === 'L',
@@ -188,6 +191,11 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
 /** Just the treed ground, which is what the denudation denominator divides by. */
 export function forestedGeometries(stands: ReadonlyArray<VriStand>): PolygonGeometry[] {
   return stands.filter((stand) => stand.treed).map((stand) => stand.geometry)
+}
+
+/** Non-vegetated ground of any kind (rock, water, ice): what the perspective denominator leaves out. */
+export function nonVegetatedGeometries(stands: ReadonlyArray<VriStand>): PolygonGeometry[] {
+  return stands.filter((stand) => stand.nonVegetated).map((stand) => stand.geometry)
 }
 
 /**
