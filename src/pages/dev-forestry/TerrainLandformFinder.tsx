@@ -73,6 +73,12 @@ export const LANDFORM_METHOD_LABELS: Record<LandformMethod, string> = {
   facing: 'Face turned to the view',
 }
 const METHODS: LandformMethod[] = ['visible-face', 'ridge-layer', 'facing']
+/** The switch's own labels: three full names do not fit one row of the sidebar. */
+const METHOD_SHORT_LABELS: Record<LandformMethod, string> = {
+  'visible-face': 'Visible face',
+  'ridge-layer': 'Ridge layer',
+  facing: 'Facing',
+}
 
 /** A place to read the landform from other than the road: an inventory viewpoint or rec site. */
 export type LandformVantage = {
@@ -522,7 +528,7 @@ export function TerrainLandformFinder({
             value={methodOf(candidate)}
             options={METHODS.map((method) => ({
               value: method,
-              label: LANDFORM_METHOD_LABELS[method],
+              label: METHOD_SHORT_LABELS[method],
               disabled: !byMethod(method),
             }))}
             onChange={onFocus}

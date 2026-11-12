@@ -1516,7 +1516,11 @@ through `horizonSafePitch`, roll 0), sets the frame's vertical field, reads the
 display and the class pass from the frame's window of the canvas, joins the
 frames, and puts the camera and field back. Callouts and lines are placed by a
 pinhole from the same eye (`projectToFrames`), which needs no map once the camera
-is restored. The sheet prints the lens, field and bearings.
+is restored. The sheet prints the lens, field and bearings. A very large landform seen
+as a thin, distant band (Tabor Mountain's 4,489 ha sample landform, 3–11 km out,
+takes two frames across 79°) still leaves the 4:1 strip mostly sky: the frame
+does not stretch the picture to fill it. Adopting the visible-face candidate
+(below) gives the smaller landform the sheets draw, and a frame to match.
 
 **The inventory circle** (`inventoryBadge.ts`, from the prototype's `vsuBadge.ts`)
 is filled from the page's live visual inventory read, which now also asks for
