@@ -1413,6 +1413,127 @@ map (`capturePlanMap`), which is a map of its own and stays a plan whether or
 not the road view is open. exceljs and jsPDF load on demand and are passed in,
 so `blockNote.test.ts` writes and reads back real files.
 
+## Figure styles and analysis sheets
+
+BC VIA packages draw the same few things on their perspective figures — the
+landform outline, the proposed blocks, existing openings not yet greened up,
+private land, rock, VSU boundaries, block callouts, a legend and a percent
+alteration box — each licensee and district in its own look. The page carries
+those looks as **figure styles** and uses them in two places: draped on the road
+view, and composed onto a saved view as an exported analysis sheet.
+`docs/forestry-visual-quality-simulation-formats.md` describes the reference
+formats; `/dev/forestry/block-sheets` → *VIA figure styles* shows every style's
+legend beside its source values and a sample figure.
+
+**The catalogue.** `src/lib/forestry/viaFigure/presets.ts` holds twelve presets
+(analysis sheets with a magenta, orange or purple landform; existing / proposed /
+analysed panels; a board triptych; a district greyscale analysis with lines of
+force; a referral montage; calculation-on-photo; forest-plan time-step ramps;
+small extras). Each drawn thing is a `SheetSymbol` with a `spec` string citing
+the reference document by number and the value read from it (PDF drawing
+operators where the figure is vector, the median of the ink's pixels where it is
+raster). Names are generic: no company or agency name, logo or title-block
+artwork reaches a preset, and the analysis sheet's logo slot is the user's own.
+`presets.test.ts` checks every colour parses, every legend role has a symbol,
+and every printed string fits the PDF fonts.
+
+**In the road view** (step 2, *Figure style*), `FigureStyleLayers.tsx` drapes the
+roles the scene has data for through `areaSymbolPaint` / `lineSymbolPaint`, so
+the live view and the exported sheet read the same symbol objects. Draped layers
+sit in the terrain texture, so nearer terrain hides them exactly as it hides the
+blocks. Strokes are drawn `LIVE_STROKE_SCALE` (1.6×) wider than print, because a
+stroke draped at a grazing angle reads thinner than one printed flat. The choice
+is `DriveState.figureStyle`: display only, never in `sceneFingerprint` or
+`AnalysisInput`, like block colours. Hatched and stippled areas (rock, treated
+ground) need a `fill-pattern`, which the toolkit's `MapFillLayer` does not take
+yet: the road view draws their outline and fill colour, and the export hatches
+them (follow-up below).
+
+**The class pass.** *Save viewpoint* takes the screenshot as before, then a class
+pass of the same camera (`captureClassPass`, `mapCapture.ts`): every style layer
+hidden, the sky and its terrain fog off, and each class painted as one flat,
+unblended colour over a flat terrain colour (`CLASS_PALETTE`, built by
+`figureClassPass.ts`). Blocks, counting openings, private land and rock are split
+at the landform's edge with polygon clipping, and stacked in the VIA precedence
+(block over opening over private land over rock over landform). The pass is read
+back unsmoothed at the screenshot's size and decoded (`decodeClassRaster`); an
+edge pixel blended between two classes takes its neighbours' class, never a
+third. This capture is the one place the page adds MapLibre layers itself: it is
+a capture recipe, not a map look, and the map is put back as it was, even on
+failure. The road view shows the flat colours for the frames the pass takes.
+
+**Composing** (`src/lib/forestry/viaFigure/composeFigure.ts`, no DOM or network
+access) traces each role's pixels to rings with `contours.ts`, so outlines follow
+the *visible* edge of each class, including the edge a nearer ridge cuts — what
+the reference figures draw, and what a line draped on the polygon's ground edge
+cannot. Callouts come from the run, not the picture (`figureCallouts.ts`): a
+block the station sees anchors at the screen centroid of its visible samples, a
+hidden one at its footprint, with the run's own status (Visible; Possible
+Glimpses under `GLIMPSE_PERCENT`; Likely Not Visible; Unknown where terrain is
+missing). Boxes go above the skyline over their anchor and are moved clear of
+each other (`placeClear`, `src/lib/mapSheet/callouts.ts`). The legend lists only
+the roles drawn, each swatch drawn by `swatchOps` from the preset's own symbol.
+
+**Two figures, side by side.** The calculation box prints the preset's own
+pixel calculation from the class pass — gross, net of private land, or net of
+rock, as the preset words it — and beside it PGMaps' sightline figure for the
+station, which stays the assessment's number. They measure different things:
+the pixel figure is what this one picture shows at this lens; the sightline
+figure is the run's terrain sightlines in perspective. Neither replaces the
+other, and the panel says so.
+
+**Exports.** Step 5's *Analysis sheet* composes a saved view in any style as PDF
+(`renderPdf.ts`) or PNG (`sheetPng.ts`), with a preview. Family A styles print
+the tabloid analysis sheet (title block, figure, facts, visual inventory key,
+calculation, legend); the others print the analysed figure on a page of its own
+with the legend inset and the calculation under it. *Use these figures in the
+block note* puts each view's analysed figure in the block note in place of its
+screenshot; `blockNote.ts` embeds PNG as well as JPEG, so the planner's Excel
+and PDF layouts do not change. A view saved before the class pass existed, or
+whose pass failed, still exports, without outlines or pixel figure, and says so.
+The figure is drawn over the saved screenshot: save with the figure style off for
+a sheet with only its traced outlines.
+
+**Data each role reads.**
+
+| Role | Source |
+| --- | --- |
+| Landform | The active landform |
+| Proposed block, treated ground | The scene's blocks |
+| Existing opening (NonV.E.G.) | Openings with `alterationWeight` above zero |
+| Private land | Private-land masks: drawn, or ParcelMap BC parcels the reviewer adds (step 3, *Private land*) |
+| Rock / non-vegetated | VRI rank-1 `BCLCS_LEVEL_1 = N`, `BCLCS_LEVEL_2 = L` round the landform, from the run's own VRI read (`nonVegetatedGround`) |
+| VSU boundary | The sensitivity units the inventory lookup read |
+| Sub-landform divider | Candidate: `subLandforms.ts` splits at VSU boundaries in the landform |
+| Line of force | Candidate: `terrainLines.ts`, ridges and draws by D8 flow on the road view's DEM with a curvature check |
+
+**Private land** (`parcelMapPrivateLand.ts`) is read live from the ParcelMap BC
+parcel fabric (`WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW`, `OWNER_TYPE =
+'Private'`) round the landform, with the box in `CQL_FILTER` longitude first and
+a narrow `propertyName`, like the vegetation read. Parcels are candidates: each
+one the reviewer adds becomes a `private` assessment mask, which the run already
+keeps out of the alteration, so adding one stales the run. A failed lookup is an
+error with a retry, never "no private land".
+
+**Rock** is VRI non-vegetated land (rock, rubble, exposed soil, not water). It
+is display and figure only: no number in the run reads it, and the pixel
+calculation's net-of-rock figure is labelled as the preset's own.
+
+**Candidates, never figures.** Sub-landform dividers and lines of force are
+designer aids. They are drawn when a style defines them, cut in exports to where
+the class pass shows the landform (a nearer part of the same landform can still
+hide them unseen), and never adopted into the scene or fed into a number.
+Per-sub-landform figures, FWA creek barriers, the far-ridge rule
+(`depthLayers`) and the prototype's landform framing are not ported: they need
+the prototype's own renderer (per-pixel ground position and distance), which
+MapLibre does not give. Lines of force are drawn without their arrowheads, live
+and in exports: a draped arrow needs an arrowhead icon in `icons.ts` and an
+end-only `LineMarker`.
+
+**Toolkit follow-up.** An opt-in `pattern` prop on the toolkit's `MapFillLayer`
+(`ahzs645/geo-toolkit`, `map/layers/fill.tsx`), fed by `keepSymbolImages`, would
+let the road view hatch rock and stipple treated ground as the exports do.
+
 ## The Hwy 16 · Purden Lake sample
 
 *Start from → Hwy 16 · Purden Lake* (`purdenLakeScenario.ts`) is the worked
