@@ -601,6 +601,8 @@ export interface FigureInput {
   facts: ReadonlyArray<{ label: string; value: string }>
   /** Rating code of the landform's sensitivity unit, when the inventory gives one. */
   rating?: { vsu?: string; vsc?: string; vac?: string; evc?: string; vqo?: string } | null
+  /** Which rule chose the rating's unit, printed small under the inventory circle. */
+  ratingNote?: string | null
   generatedAt: Date
 }
 
@@ -829,9 +831,15 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
       values.vqo ?? badge.lines[3],
     ]
     filled.forEach((line, i) => ops.push(...textOps(cx, cy - 12 + i * 9.4, line, badge.text, 'center')))
+    if (input.ratingNote)
+      wrapText(input.ratingNote, 5.5, inventory.w - 10)
+        .slice(0, 2)
+        .forEach((line, i) =>
+          ops.push(...textOps(cx, inventory.y + 88 + i * 6.4, line, { size: 5.5, color: '#595959' }, 'center')),
+        )
     badge.keyLines.forEach((line, i) =>
       ops.push(
-        ...textOps(inventory.x + 8, inventory.y + 98.5 + i * 9.2, line, {
+        ...textOps(inventory.x + 8, inventory.y + 102 + i * 8.6, line, {
           ...badge.key,
           size: Math.min(badge.key.size, 7),
         }),

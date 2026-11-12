@@ -107,7 +107,14 @@ describe('buildInventoryWfsUrl', () => {
     expect(url.searchParams.get('bbox')).toBeNull()
     expect(url.searchParams.get('CQL_FILTER')).toBe("BBOX(GEOMETRY,-121.94,53.92,-121.92,53.935,'EPSG:4326')")
     expect(url.searchParams.get('propertyName')?.split(',')).toEqual(
-      expect.arrayContaining(['OBJECTID', 'VLI_POLYGON_NO', 'REC_EVQO_CODE', 'GEOMETRY']),
+      expect.arrayContaining([
+        'OBJECTID',
+        'VLI_POLYGON_NO',
+        'REC_EVQO_CODE',
+        'REC_EVC_FINAL_VALUE_CODE',
+        'VSU_NUMBER',
+        'GEOMETRY',
+      ]),
     )
   })
 

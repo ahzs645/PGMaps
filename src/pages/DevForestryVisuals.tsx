@@ -113,7 +113,10 @@ import {
   type BlockNote,
   type NoteImage,
 } from './dev-forestry/blockNote'
-import { captureClassPass, captureMapImage, capturePlanMap } from './dev-forestry/mapCapture'
+import { captureClassPass, captureFramed, captureMapImage, capturePlanMap } from './dev-forestry/mapCapture'
+import { HFOV_50_MM, landformAngularExtent, planFraming, projectToFrames } from './dev-forestry/figureFraming'
+import { inventoryBadge } from './dev-forestry/inventoryBadge'
+import type { DrivePose } from './dev-forestry/driveController'
 import { classPassLayers, type ClassPassInput } from './dev-forestry/figureClassPass'
 import { blockCallouts, type BlockSight } from './dev-forestry/figureCallouts'
 import type { FigureStyleData } from './dev-forestry/FigureStyleLayers'
@@ -141,7 +144,7 @@ import {
 } from './dev-forestry/viewpointInventory'
 import { EVQO_CODE_FOR_CLASS, viewCaption, type EvqoCode, type ViewpointFinding } from './dev-forestry/visualsNarrative'
 import { distanceAlongRoad, hazeRings, roadPath, roadPlacement } from './dev-forestry/driveMath'
-import { metersPerDegree, pointInPolygon, polygonInteriorPoint } from './dev-forestry/visibility'
+import { metersPerDegree, pointInPolygon, polygonInteriorPoint, type PolygonGeometry } from './dev-forestry/visibility'
 import {
   createEmptyScene,
   createId,
@@ -301,6 +304,9 @@ function DevForestryVisuals() {
   const [lowFrameRate, setLowFrameRate] = useState(false)
   const [restoreLook, setRestoreLook] = useState({ yaw: 0, tilt: 0 })
   const cameraLook = useRef({ yaw: 0, tilt: 0 })
+  // The drive's last pose, exactly: the analysis sheet's framed capture stands the eye here. A ref,
+  // never state, so a pose report does not re-render the page.
+  const drivePoseRef = useRef<DrivePose | null>(null)
   const [preliminaryDrive, setPreliminaryDrive] = useState(false)
   const [drive, setDrive] = useState<DriveState>(DEFAULT_DRIVE)
   const driveRef = useRef(drive)
@@ -2374,27 +2380,72 @@ function DevForestryVisuals() {
    */
   const captureViewFigure = async (
     map: NonNullable<typeof eyeMapRef.current>,
-    at: { stationIndex: number; eye: { lng: number; lat: number } | null; fov: number; name: string },
+    at: {
+      stationIndex: number
+      eye: { lng: number; lat: number } | null
+      fov: number
+      name: string
+      /** The drive's own pose: the eye's exact place and height. */
+      pose: DrivePose | null
+      /** A field photo's horizontal field, when the view is lined up on one. */
+      photoHfov: number | null
+    },
   ): Promise<SavedFigure> => {
-    const pass = await captureClassPass(map, figureClasses.layers)
-    const classes = decodeClassRaster(pass.data, pass.width, pass.height)
-    const canvas = map.getCanvas()
-    const scale = pass.width / Math.max(1, canvas.clientWidth)
-    const bearing = map.getBearing()
-    // MapLibre projects a point behind the camera onto the screen too; those are left out.
-    const project = (lng: number, lat: number): [number, number] | null => {
-      if (at.eye) {
-        const turn = ((bearingDegrees(at.eye, { lng, lat }) - bearing + 540) % 360) - 180
-        if (Math.abs(turn) > 89) return null
+    const ground = previewTerrain.source
+    const eye = at.pose ? { lng: at.pose.lng, lat: at.pose.lat, elevation: at.pose.eyeElevationMeters } : null
+    // Frame the landform (or, with none, the blocks) as the reference sheets crop it, then put the
+    // reviewer's camera back (figureFraming.ts, captureFramed).
+    const blocksOnly = scene.targets.filter((target) => target.role === 'block')
+    const subject: PolygonGeometry | null =
+      sceneLandform?.geometry ??
+      (blocksOnly.length
+        ? {
+            type: 'MultiPolygon',
+            coordinates: blocksOnly.flatMap((block) =>
+              block.geometry.type === 'Polygon' ? [block.geometry.coordinates] : block.geometry.coordinates,
+            ),
+          }
+        : null)
+    const extent = eye && ground && subject ? landformAngularExtent(ground, eye, subject) : null
+    const plan = extent ? planFraming(extent, { lensHfovDeg: at.photoHfov ?? HFOV_50_MM }) : null
+    let classes: ReturnType<typeof decodeClassRaster>
+    let frameImage: NoteImage | undefined
+    let project: (lng: number, lat: number, elevation: number) => [number, number] | null
+    let lens: string
+    let hfovDeg = at.fov
+    if (plan && eye) {
+      const framed = await captureFramed(map, plan, eye, figureClasses.layers)
+      if (!framed.classes) throw new Error('The class pass of the framed view could not be taken.')
+      classes = decodeClassRaster(framed.classes.data, framed.classes.width, framed.classes.height)
+      frameImage = { ...framed.image, caption: `${at.name}.` }
+      project = projectToFrames(plan.frames, eye, { frameWidth: framed.frameWidth, height: framed.image.height })
+      lens = `framed: ${plan.label}`
+      hfovDeg = plan.totalHfovDeg
+    } else {
+      // No pose or no terrain yet: the class pass of the view as it stands.
+      const pass = await captureClassPass(map, figureClasses.layers)
+      classes = decodeClassRaster(pass.data, pass.width, pass.height)
+      const canvas = map.getCanvas()
+      const scale = pass.width / Math.max(1, canvas.clientWidth)
+      const bearing = map.getBearing()
+      // MapLibre projects a point behind the camera onto the screen too; those are left out.
+      project = (lng, lat) => {
+        if (at.eye) {
+          const turn = ((bearingDegrees(at.eye, { lng, lat }) - bearing + 540) % 360) - 180
+          if (Math.abs(turn) > 89) return null
+        }
+        const point = map.project([lng, lat])
+        return [point.x * scale, point.y * scale]
       }
-      const point = map.project([lng, lat])
-      return [point.x * scale, point.y * scale]
+      const focal = 18 / Math.tan((at.fov * Math.PI) / 360)
+      lens = `road view, ${Math.round(at.fov)}° horizontal (${Math.round(focal)} mm full-frame equivalent), facing ${Math.round((bearing + 360) % 360)}°`
     }
-    const callouts = blockCallouts(blockSights, at.stationIndex, project, pass)
-    // Dividers and lines of force, cut to where the picture shows the landform.
+    const callouts = blockCallouts(blockSights, at.stationIndex, project, classes)
+    // Dividers and lines of force, cut to where the picture shows the landform. Their ground height
+    // comes from the terrain, so the pinhole projector of a framed capture places them on it.
     const lines: Overlay[] = figureLines.flatMap((line) => {
       const parts = visibleLineParts(
-        line.points.map(([lng, lat]) => project(lng, lat)),
+        line.points.map(([lng, lat]) => project(lng, lat, ground?.elevationAt(lng, lat) ?? 0)),
         classes,
         inLandform,
       )
@@ -2403,22 +2454,31 @@ function DevForestryVisuals() {
     const breakdown = result?.perspectiveByStation[at.stationIndex] ?? null
     const percent = breakdown ? breakdown.cumulativePercent : null
     const station = result?.stations[at.stationIndex]
-    const focal = 18 / Math.tan((at.fov * Math.PI) / 360)
-    const unit = sceneLandform?.inventoryUnitId
-      ? inventory.units.find((entry) => entry.id === sceneLandform.inventoryUnitId)
-      : null
+    const visibleBlockPoints = blockSights.flatMap((sight) => {
+      const row = at.stationIndex * sight.sampleCount
+      const points: Array<[number, number]> = []
+      for (let i = 0; i < sight.sampleCount; i++)
+        if (sight.visibleByStation[row + i] === 1) points.push([sight.positions[i * 2], sight.positions[i * 2 + 1]])
+      return points
+    })
+    const badge = inventoryBadge(inventory.units, {
+      visibleBlockPoints,
+      landformUnitId: sceneLandform?.inventoryUnitId ?? null,
+      landform: sceneLandform?.geometry ?? null,
+    })
     const nearest = callouts
       .map((callout) => result?.targets.find((target) => target.targetId === callout.blockId))
       .flatMap((target) => (target?.nearestVisibleDistanceMeters != null ? [target.nearestVisibleDistanceMeters] : []))
     return {
       classes,
+      ...(frameImage ? { frameImage } : {}),
       callouts,
       stationIndex: at.stationIndex,
       sightlinePercent: percent,
       sightlineClass: percent === null ? null : (table2Class(percent)?.label ?? null),
-      lens: `road view, ${Math.round(at.fov)}° horizontal (${Math.round(focal)} mm full-frame equivalent), facing ${Math.round((bearing + 360) % 360)}°`,
+      lens,
       distanceKm: nearest.length ? Math.min(...nearest) / 1000 : null,
-      hfovDeg: at.fov,
+      hfovDeg,
       facts: [
         {
           label: 'Viewpoint',
@@ -2429,14 +2489,8 @@ function DevForestryVisuals() {
           ? [{ label: 'Distance to block', value: `${(Math.min(...nearest) / 1000).toFixed(1)} km` }]
           : []),
       ],
-      rating: unit
-        ? {
-            vsu: unit.polygonNumber,
-            vsc: unit.vsc ?? undefined,
-            vac: unit.vac ?? undefined,
-            vqo: unit.objectiveId ? visualQualityClass(unit.objectiveId).code : undefined,
-          }
-        : null,
+      rating: badge.unit ? badge.values : null,
+      ratingNote: badge.note,
       area: sceneLandform?.name ?? 'Landform',
       viewpoint: at.name,
       splitFailed: figureClasses.failed,
@@ -2470,7 +2524,14 @@ function DevForestryVisuals() {
     if (map) {
       const caption = `${view.name}.`
       const savedAt = Date.now()
-      const at = { stationIndex: driveStationIndex, eye: cameraEye, fov: viewerFov, name: view.name }
+      const at = {
+        stationIndex: driveStationIndex,
+        eye: cameraEye,
+        fov: viewerFov,
+        name: view.name,
+        pose: drivePoseRef.current,
+        photoHfov: photoLook ? fieldPhoto.viewHfov : null,
+      }
       void (async () => {
         let image: Awaited<ReturnType<typeof captureMapImage>>
         try {
@@ -3571,7 +3632,9 @@ function DevForestryVisuals() {
                                     }
                                     lookAt={preliminaryDrive ? null : lookAtTarget}
                                     spotBearing={spotBearing}
-                                    onPosition={({ distanceMeters, stationIndex, lng, lat, bearing }) => {
+                                    onPosition={(pose) => {
+                                      drivePoseRef.current = pose
+                                      const { distanceMeters, stationIndex, lng, lat, bearing } = pose
                                       setDriveStationIndex(stationIndex)
                                       // Rounded, so a slow turn does not re-render the page every report.
                                       setLookBearing((current) =>

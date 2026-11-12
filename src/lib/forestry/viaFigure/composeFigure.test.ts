@@ -212,11 +212,20 @@ describe('figure composition', () => {
     expect(all).toContain('Logo (your own)')
     expect(all).toContain('Private Land')
     expect(all).toContain('Block 1')
-    // The orange preset's rating code under the landform label.
+    // The orange preset's rating code under the landform label, and why that unit.
     expect(all).toContain('L  /  R')
     expect(sheet.drawn).toEqual(expect.arrayContaining(['landform', 'privateLand', 'proposedBlock', 'existingNonVeg']))
     for (const text of all) expect(pdfTextUnfolded(text), text).toEqual([])
     expect(() => analysisSheet(input('board-triptych'))).toThrow()
+  })
+
+  it('prints which rule chose the inventory unit under the circle', () => {
+    const sheet = analysisSheet({
+      ...input('analysis-sheet-magenta'),
+      ratingNote: "VSU 12: under the blocks' visible ground",
+    })
+    expect(texts(sheet.ops)).toContain("VSU 12: under the blocks' visible ground")
+    expect(texts(sheet.ops)).toContain('VSU 12')
   })
 
   it('prints without a class pass, and says what is missing', () => {

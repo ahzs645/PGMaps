@@ -24,8 +24,13 @@ import type { BlockCallout } from './figureCallouts'
 
 /** What a saved view's VIA figure is composed from, kept with its screenshot for the session. */
 export type SavedFigure = {
-  /** The class pass of the saved camera, the screenshot's size. */
+  /** The class pass of the figure's camera, `frameImage`'s size (or the screenshot's, unframed). */
   classes: ClassRaster
+  /**
+   * The view framed for the sheet (`captureFramed`): the landform mid-frame through one or more
+   * frames of the lens. Absent when the view could not be framed, and the screenshot is used.
+   */
+  frameImage?: NoteImage
   callouts: BlockCallout[]
   stationIndex: number
   /** The run's perspective alteration at that station, percent, and its Table 2 class. */
@@ -37,6 +42,8 @@ export type SavedFigure = {
   hfovDeg: number
   facts: Array<{ label: string; value: string }>
   rating: FigureInput['rating']
+  /** Which rule chose the inventory unit (`inventoryBadge.ts`). */
+  ratingNote?: string
   area: string
   viewpoint: string
   /** A landform split fell back: some class may be counted inside the landform that is not. */
@@ -73,10 +80,12 @@ async function decodedImage(image: NoteImage): Promise<RasterImage> {
 
 /** The composer's input for a saved view in `preset`. */
 export async function figureInput(
-  image: NoteImage,
+  screenshot: NoteImage,
   figure: SavedFigure | undefined,
   preset: ViaStylePreset,
 ): Promise<FigureInput> {
+  // The framed view when the figure has one, with the screenshot's caption.
+  const image = figure?.frameImage ? { ...figure.frameImage, caption: screenshot.caption } : screenshot
   return {
     preset,
     image:
@@ -98,6 +107,7 @@ export async function figureInput(
     },
     facts: figure?.facts ?? [],
     rating: figure?.rating ?? null,
+    ratingNote: figure?.ratingNote ?? null,
     generatedAt: new Date(),
   }
 }

@@ -370,6 +370,8 @@ export function useFieldPhoto({
     ? { horizontal: own.pose.hfov, vertical: verticalFovFromHorizontal(own.pose.hfov, own.width, own.height) }
     : null
   const viewFov = image?.isPano ? PANO_VIEW_FOV : (fov?.vertical ?? ownFov?.vertical ?? null)
+  /** The photo's own horizontal field, degrees: the lens an analysis sheet framed on it takes. */
+  const viewHfov = image?.isPano ? null : (fov?.horizontal ?? ownFov?.horizontal ?? null)
   const ownOnRoad = useMemo(
     () =>
       ownLng !== null && ownLat !== null && road.length ? nearestPointOnLine(road, { lng: ownLng, lat: ownLat }) : null,
@@ -720,6 +722,7 @@ export function useFieldPhoto({
     autoAlign,
     look,
     viewFov,
+    viewHfov,
     panoFrame,
     setViewAspect,
     startMatch,
