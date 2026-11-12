@@ -347,7 +347,9 @@ cutblocks and the results report existing + proposed = cumulative.
   most recorded harvest is 2003–2005, which sits right on a 20-year default —
   moving it to 25 flips those openings back into the count.
 - **Partial cuts.** `PERCENT_CLEARCUT` scales the contribution, so an opening
-  that was 40% clearcut counts 40%.
+  that was 40% clearcut counts 40%. A recorded 0% is a retention-system harvest
+  (RESULTS `RETEN`), which is still an opening to the eye, so it counts whole
+  (`alterationWeight`, see *Evidence for the defaults*).
 - **No double counting.** A proposed block laid over an opening that still
   counts is not charged for that ground again; ground under a *recovered*
   opening is free for the proposal to claim.
@@ -388,7 +390,15 @@ denominator is the landform's treed area, not all of it.
 That comes from **VRI rank-1** (`WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY`),
 queried live from DataBC's WFS. `BCLCS_LEVEL_2` is exactly the distinction the
 procedure turns on: `T` for treed ground, anything else for water, rock, or
-clearing. It is not in the ArcGIS map service the rest of this page uses — that
+clearing.
+
+The **perspective** figure divides differently by default. A VIA nets rock out of
+the landform ("VLU net of rock / private land"), not every non-treed polygon, so
+the perspective denominator leaves out only VRI non-vegetated ground
+(`BCLCS_LEVEL_1 = 'N'`: rock, water, ice); burns, shrub and herb stay in.
+*Simulation settings → Perspective denominator* switches it back to the treed
+rule (`perspectiveDenominator: 'non-treed-out'`). The planimetric figure always
+keeps the treed rule. See *Evidence for the defaults*. It is not in the ArcGIS map service the rest of this page uses — that
 service publishes only the VRI *Dead* layer — which is why there are two service
 clients here.
 
@@ -430,6 +440,13 @@ it — but switching it on is now a real answer rather than a partial one.
 Stands more open than a crown-closure threshold do not screen at all. The
 inventory carries no transmission model, so that cut-off is a stated assumption
 rather than a published figure.
+
+VRI stand polygons run over roads, beaches and shorelines, so with screening on
+the timber within `screeningEyeClearingMeters` (50 m, up to 150 m) of each station
+is cleared; without it 20 of 44 study views saw no landform at all. And when
+screening hides more than three quarters of the landform the bare ground shows
+(`MIN_SCREENED_LANDFORM_SHARE`), the screened figure is withheld: the denominator
+has collapsed and the ratio is noise (one study view went from 10.6% to 56.6%).
 
 ## What it does not model
 
@@ -1482,6 +1499,32 @@ the pixel figure is what this one picture shows at this lens; the sightline
 figure is the run's terrain sightlines in perspective. Neither replaces the
 other, and the panel says so.
 
+**Framing.** The figure is not the reviewer's road-view screenshot (that stays the
+block note's). At *Save viewpoint* the page reads, from the drive's exact pose
+over the DEM, the bearings and elevation angles of the landform ground the eye
+sees (`landformAngularExtent`, `figureFraming.ts`), and plans the capture as the
+reference sheets crop it (`planFraming`, ported from the prototype's
+`framing.ts`): the landform mid-frame, about a fifth of the height sky above the
+skyline, at most about 12% ground below its base, small side margins, never
+stretched. The lens is a 50 mm full-frame equivalent (39.6° across), or a field
+photo's own lens when the view is lined up on one; a landform wider than one
+frame takes up to four frames of the lens side by side across its bearings (the
+consultants' renders are 60–141° panoramas), and a long, low landform makes a
+strip up to 4:1. `captureFramed` (`mapCapture.ts`) stands the eye map at the pose
+on each frame (`calculateCameraOptionsFromTo` to a target 40 m ahead, pitch
+through `horizonSafePitch`, roll 0), sets the frame's vertical field, reads the
+display and the class pass from the frame's window of the canvas, joins the
+frames, and puts the camera and field back. Callouts and lines are placed by a
+pinhole from the same eye (`projectToFrames`), which needs no map once the camera
+is restored. The sheet prints the lens, field and bearings.
+
+**The inventory circle** (`inventoryBadge.ts`, from the prototype's `vsuBadge.ts`)
+is filled from the page's live visual inventory read, which now also asks for
+`REC_EVC_FINAL_VALUE_CODE` and `VSU_NUMBER`: the unit under the blocks' visible
+ground at the view's station (dominant by visible samples), else the unit the
+landform was adopted from, else the unit holding most of the landform. The rule
+that chose it is printed small under the circle.
+
 **Exports.** Step 5's *Analysis sheet* composes a saved view in any style as PDF
 (`renderPdf.ts`) or PNG (`sheetPng.ts`), with a preview. Family A styles print
 the tabloid analysis sheet (title block, figure, facts, visual inventory key,
@@ -1523,16 +1566,87 @@ calculation's net-of-rock figure is labelled as the preset's own.
 designer aids. They are drawn when a style defines them, cut in exports to where
 the class pass shows the landform (a nearer part of the same landform can still
 hide them unseen), and never adopted into the scene or fed into a number.
-Per-sub-landform figures, FWA creek barriers, the far-ridge rule
-(`depthLayers`) and the prototype's landform framing are not ported: they need
-the prototype's own renderer (per-pixel ground position and distance), which
-MapLibre does not give. Lines of force are drawn without their arrowheads, live
+Per-sub-landform figures, FWA creek barriers and the far-ridge rule
+(`depthLayers`) are not ported: they need the prototype's own renderer
+(per-pixel ground position and distance), which MapLibre does not give. Callouts
+are drawn on the exported sheet only, not live on the road view. Lines of force are drawn without their arrowheads, live
 and in exports: a draped arrow needs an arrowhead icon in `icons.ts` and an
 end-only `LineMarker`.
 
 **Toolkit follow-up.** An opt-in `pattern` prop on the toolkit's `MapFillLayer`
 (`ahzs645/geo-toolkit`, `map/layers/fill.tsx`), fed by `keepSymbolImages`, would
 let the road view hatch rock and stipple treated ground as the exports do.
+
+## The visible face from the viewpoint
+
+A study of BC VIA sheets (November 2026: 31 landforms on 15 sheets, back-projected
+from the sheets' own vector outlines onto the ground through a camera registered
+to the DEM skyline) found the consultants' landform is the **visible face of one
+ridge mass, seen from the viewpoint**, and small: median 1/25 of the named VSU,
+1/11 of the face reading, 1/5 of the ridge layer. Its edges, by share of outline:
+shoreline 25% (water is never landform), open slope 23% (the toe above the
+foreground), skyline 21%, spurs 10%, a crest with farther ground behind 7%, draws
+7%, the VSU boundary only 3%. A farther ridge seen behind is a separate landform;
+a hidden block is assessed against the face in front of it; nothing outside the
+rendered frame is included.
+
+*Find a landform from the terrain* therefore offers a third candidate,
+**Visible face from the viewpoint** (`visibleFaceLandform`, `ridgeLayers.ts`). It
+reads from one station only (the assessment viewpoint, or the chosen vantage),
+across a viewing frame (`VISIBLE_FACE_DEFAULTS.hfovDeg`, 60°, the narrowest
+panorama on the sheets, centred on the block). Rays keep a running horizon;
+visible land joins along a ray and across neighbouring rays; a hidden run breaks a
+ray; water (the basemap's polygons, or ground at `waterLevelMeters`) never joins,
+so the bottom is the shoreline; ground within 300 m is foreground. The landform is
+the band holding most of the block's visible ground, or, with the block hidden,
+the band of the last land seen in front of it on each ray (`seededBy:
+'in-front'`). Hidden pockets are filled. In the study this rule took the mean
+ground IoU with the consultants' landforms from 0.24 (ridge layer) to 0.42 and the
+median size from 5.4× theirs to 1.8×. `visibleFace.test.ts` holds a regression
+fixture generated from one study sheet (doc 22, p027: its back-projected landform,
+the block, the registered camera and a 60 m Terrarium grid; no image): IoU 0.57
+against the sheet's landform, against 0.54 for the ridge layer.
+
+Two options are **off by default**, because each helped some sheets and hurt
+others in the study: *stop at the first crest* (a stretch that reappears behind a
+hidden gap joins only at the same run order; it took one lakeside face from 0.23
+to 0.61 IoU but cut long faces apart elsewhere), and *split at major draws* (1 km²
+upstream; a planner's choice of sub-landforms, which helped one sheet and hurt
+another). Like every terrain reading it is a candidate the reviewer adopts or
+not.
+
+**Visible net block.** The sheets draw only the visible, net part of a block: in
+image pixels FTEN blocks covered 1.6–16× the consultants' drawn blocks. Step 4
+lists each block's share of footprint seen from the assessment station beside X
+(`visibleNetBlocks.ts`), as a reading, not a figure in X.
+
+## Evidence for the defaults (November 2026 accuracy study)
+
+A variant study ran the page's perspective figure against printed VIA figures:
+seven cases, 87 viewpoint × landform pairs, one input changed at a time, scored by
+the change in |PGMaps − printed| (case-balanced, percentage points, negative is
+closer). The baseline was above the printed figure in 76 of 87 pairs, mostly
+because of the landform (previous section), so a change that lowers the figure
+scores as closer whether or not a VIA works that way; each change below was
+adopted only where it is also how a VIA is done, or fixes a defect.
+
+| Change | Evidence (VSU / terrain landform) | On this page |
+| --- | --- | --- |
+| Block footprint net of RESULTS group reserves | −1.50 / −0.67 pp, −31% at one case; reproduced that VIA's printed net block areas to 0.1 ha (13.1 / 26.9 / 17.1 / 31.2 against 13.1 / 26.9 / 17.1 / 31.3) | Step 3 *Net block footprints*: FTEN gross, FTEN planned net and net of reserves side by side; reserves added as `retained` masks by the reviewer (`resultsReserves.ts`). Dispersed retention stays in. |
+| Perspective denominator net of non-vegetated ground, not non-treed | −1.97 / −1.02 pp; a 2009–2010 burn is non-treed in VRI and lifted one viewpoint from 22% to 37% under the treed rule | Default `perspectiveDenominator: 'non-vegetated-out'`; planimetric keeps the treed rule. |
+| Private land out of the denominator | VIAs print (LF − PL), PL up to 35% of the landform; scored +1.13 / +1.01 pp only because the baseline is high | Option `privateLandOutOfDenominator`, off by default; ParcelMap parcels stay reviewer-added. |
+| Existing openings judged greened up by eye | VIAs printed 0 existing non-VEG in four of six cases; counting none moved −1.39 / −1.64 pp | One-click *Judged visually greened up from the viewpoint photo* per opening (dated, observer required). The 20-year age rule stays the default: the handbook counts every alteration not visually greened up. |
+| Screening with a clearing round the eye, withheld on collapse | Off: 20 views had no landform with VRI stands over the eye; 50 m cleared most, some needed 150 m; one view's ratio went 10.6% → 56.6% | Screening stays off by default; when on, `screeningEyeClearingMeters` (50) and the 25% withhold rule. |
+| 0% clearcut openings counted | Retention-system harvests are 0 in RESULTS; one case's existing share dropped by a third | `alterationWeight` counts 0% as a whole opening. |
+
+**Not adopted:** a z14 DEM (no effect, 0.15 pp), the printed viewpoint elevation
+as ground (template lake levels bury the eye), automatic shore-to-water snapping
+(no consistent direction), a shorter green-up age (closer to VIA outcomes but not
+a VIA rule), and green-up by height (the procedure's own test, but stricter than
+the VIAs were; worth showing beside the age rule later). **Deferred:** replacing
+the diagnostics' ±0.5 m eye check with a ±100 m position check that flags
+position-sensitive viewpoints (the study found 100 m moves close, enclosed views
+by more than the gap studied).
 
 ## The Hwy 16 · Purden Lake sample
 
@@ -1707,7 +1821,10 @@ none establishes a completed field visit or verified VQO achievement.
 - **Step 3 — masks and sources:** import classified polygons, or copy an outline
   drawn with the existing map controls. Natural non-green areas leave numerator
   and denominator; private land and permanent non-forestry disturbance remain in
-  the assessable land base but contribute no forestry alteration. Retained patches
+  the assessable land base but contribute no forestry alteration, unless
+  *Private land out of the landform* is on (`privateLandOutOfDenominator`), which
+  takes private land out of both denominators as a VIA's (LF − PL) does while its
+  timber still screens. Retained patches
   remain green, are excluded from cleared canopy and alteration, and suppress a
   second Table 5 retention credit. Clearings, thinning and cut-surface fill in the
   drive also exclude retained/private/permanent polygons; natural non-green masks
