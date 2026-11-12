@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { InfoTip } from '@/components/ui/info-tip'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { cn } from '@/lib/utils'
 
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import type { ForestryScene } from './scene'
@@ -236,7 +238,7 @@ export function VisualsParagraphPanel({
       {blocks.length > 1 && (
         <StyledSelect
           aria-label="Block the paragraph is for"
-          className="w-full rounded border bg-background p-1"
+          className="w-full rounded-md border bg-background p-1"
           value={block.id}
           onChange={(event) => setChosen(event.target.value)}
         >
@@ -308,7 +310,7 @@ export function VisualsParagraphPanel({
           </div>
           <ol className="space-y-1.5" aria-label="Draft sentences">
             {narrative.sentences.map((sentence) => (
-              <li key={sentence.id} className="rounded border border-border/60 p-2">
+              <li key={sentence.id} className={cn(insetBox(), 'border-border/60')}>
                 <p className="text-foreground">{sentence.text}</p>
                 <p className="mt-0.5 text-3xs leading-4 text-muted-foreground">{sentence.basis}</p>
               </li>
@@ -392,7 +394,7 @@ export function VisualsParagraphPanel({
             <p className="text-2xs font-medium text-muted-foreground">Screenshot captions</p>
             <CopyButton
               text={captions.join('\n')}
-              className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'h-7 px-2 text-2xs' })}
+              className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-2xs' })}
             >
               Copy
             </CopyButton>

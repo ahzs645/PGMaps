@@ -173,6 +173,7 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 ## Shared UI
 
 - `docs/shared-ui.md` lists the shared sidebar, list, dialog, legend and formatting building blocks. Use them before hand-rolling markup; when a page needs something they cannot express, add an opt-in prop to the shared piece instead of copying it.
+- Design tokens (corner radius, status colours, type sizes, control heights) follow `docs/shared-ui.md`, **Design tokens**: names in the toolkit's `tailwind-theme.mjs`, values only in `src/index.css`, whose rules also target `.geo-toolkit` so they reach inside workspaces. Never write a pixel radius, a `dark:` partner for a status colour, or an `h-*` override on a `Button`; the forestry tools' lint rule rejects the class forms.
 - Dropdowns use the shared styled select (`StyledSelect`, or `SelectField` around it; `docs/shared-ui.md`, **Dropdowns**); a native `<select>` only for multi-select. E2E specs drive them with `tests/e2e/styled-select.ts`, not `selectOption`.
 - Shared toolkit implementations now live in `packages/geo-toolkit`; the existing application paths are compatibility exports or PG Maps adapters. Read `docs/toolkit-extraction.md` before changing package boundaries. Keep the package free of imports back into PG Maps, application aliases, data preparation and domain defaults.
 - Build the toolkit with `npm run toolkit:build` before running PG Maps against changed package source. Vite consumes compiled exports; TypeScript/Vitest use local source for checks.

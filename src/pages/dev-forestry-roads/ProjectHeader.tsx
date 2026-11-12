@@ -34,7 +34,7 @@ export function ProjectName({
         onFocus={(event) => event.currentTarget.select()}
         aria-label="Project name"
         data-testid="road-project-name-field"
-        className="h-6 min-w-0 max-w-64 flex-1 rounded border border-input bg-background px-1.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-6 min-w-0 max-w-64 flex-1 rounded-md border border-input bg-background px-1.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
         value={draft}
         maxLength={200}
         onChange={(event) => setDraft(event.target.value)}
@@ -52,7 +52,7 @@ export function ProjectName({
       data-testid="road-project-name"
       title={`${name} · click to rename the project`}
       aria-label={`Project: ${name}. Rename`}
-      className="group flex min-w-[5rem] max-w-[14rem] items-center gap-1 rounded px-1 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60"
+      className="group flex min-w-[5rem] max-w-[14rem] items-center gap-1 rounded-md px-1 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60"
       onClick={() => setDraft(name)}
     >
       <span className="truncate">{name || 'Untitled road project'}</span>
@@ -186,10 +186,10 @@ export function ExampleStartNotice({
       message="Explore it, or start your own project. Your work is saved in this browser as you go."
       actions={
         <>
-          <Button size="sm" className="h-7 text-xs" onClick={onNewProject}>
+          <Button size="xs" onClick={onNewProject}>
             New project
           </Button>
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onOpenFile}>
+          <Button size="xs" variant="outline" onClick={onOpenFile}>
             Open a project file
           </Button>
         </>

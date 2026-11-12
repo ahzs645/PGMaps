@@ -14,6 +14,41 @@ See [interface motion](interface-motion.md) for interruptible sheets/cards,
 desktop panel lifecycles, selection framing, reduced motion, and dialog close
 callback timing.
 
+## Design tokens
+
+Token **names** live in the toolkit's `src/tailwind-theme.mjs`; both Tailwind builds
+(the toolkit's and `tailwind.config.js`) extend it, so a class means the same inside
+and outside a map workspace. Token **values** live in `src/index.css`. Its rules also
+name `.geo-toolkit` with the toolkit stylesheet's own selectors and load after it, so
+one edit there reaches every page and every workspace. `src/designTokens.test.ts`
+fails if the toolkit gains a token the app does not set, in either theme.
+
+- **Corners.** `--radius` (0.5rem) drives every step: `rounded-sm`/`rounded` 4 px,
+  `rounded-md` 6, `rounded-lg` 8, `rounded-xl` 12, `rounded-2xl` 16. Pick by role:
+  `rounded-sm` for small marks (swatches, tags, map labels), `rounded-md` for controls
+  and bordered boxes, `rounded-lg` for cards, popovers and floating panels,
+  `rounded-full` for pills and dots. Plain CSS uses `calc(var(--radius) ± n)`, never a
+  pixel value.
+- **Status colours.** `warning`, `danger`, `success` and `info`: `text-warning` for text
+  and icons on the page; `border-warning-border bg-warning-surface text-warning-foreground`
+  for a tinted box. They carry their own dark values, so never pair them with `dark:`.
+  `destructive` stays the fill of a destructive button. Category colours (a layer's or a
+  feature's identity, legend swatches) are not status and stay in their palettes, such as
+  `planLegendModel.ts`.
+- **Type.** `text-3xs` (10 px), `text-2xs` (11 px), `text-xs`, `text-sm`; no `text-[Npx]`.
+  A fixed-size SVG that needs smaller text uses its `fontSize` attribute.
+- **Control heights.** `Button` sizes `xs` (28 px) for dense tool panels, `2xs` (24 px)
+  for an action inside a row, `field` (32 px) for a button sharing a row with a dense
+  form field (`roadFieldClass`), and `icon-xs`/`icon-2xs`; no `h-*` override on a `Button`.
+- **Bordered groups.** `insetBox({ padding, tone })` (`inset-box.tsx`) on any element, or
+  `<InsetBox>`: one radius and padding scale for a fieldset, details block, figure or
+  bordered list inside a section. Notes and warnings use `InlineAlert`.
+
+The forestry tools (`/dev/forestry/*` and `src/components/interfaces`) enforce these with a
+lint rule (`designTokenSelectors` in `eslint.config.js`): no plain `rounded`, arbitrary
+radius, pixel font size or palette status text in a className or `cn` call. Other pages
+can join by adding their folders to its `files` list once swept.
+
 ## Sidebars
 
 Basemap appearance: `buildBasemapStyle` (`map-styles.ts`) recolors a supplied

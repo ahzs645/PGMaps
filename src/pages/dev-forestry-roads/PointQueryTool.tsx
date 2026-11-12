@@ -154,7 +154,7 @@ export function PointQueryTool({
         >
           <MarkerContent>
             <div
-              className="pointer-events-none whitespace-nowrap rounded border border-violet-300 bg-background/95 px-1.5 py-0.5 text-3xs font-medium tabular-nums shadow"
+              className="pointer-events-none whitespace-nowrap rounded-sm border border-violet-300 bg-background/95 px-1.5 py-0.5 text-3xs font-medium tabular-nums shadow"
               data-testid="road-point-query-label"
             >
               {formatRoadStation(result.chainage)} · {formatOffset(result.offset)}
@@ -265,7 +265,7 @@ export function PointQueryPanel({
           precision={3}
           onChange={setOffset}
         />
-        <Button size="sm" variant="outline" className="h-8" type="submit" title={`Locate on ${activeRoadName}`}>
+        <Button size="field" variant="outline" type="submit" title={`Locate on ${activeRoadName}`}>
           Go to
         </Button>
       </form>

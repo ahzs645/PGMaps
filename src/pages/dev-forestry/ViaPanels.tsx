@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { ChevronRight } from 'lucide-react'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { StatGroup, type StatItem } from '@/components/ui/stat-group'
 
@@ -516,7 +517,7 @@ export function FinalRatingFields({
   return (
     <div className="space-y-3" aria-label="Final rating">
       {rating ? (
-        <div className="rounded-md border border-border p-3">
+        <div className={insetBox({ padding: 'lg' })}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold text-foreground">{rating.label}</p>
             <Badge tone={rating.tone}>{assessment.objective.code} objective</Badge>

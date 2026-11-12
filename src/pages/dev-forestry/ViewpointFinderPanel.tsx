@@ -2,6 +2,7 @@ import { Loader2, MapPin, Radar } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
@@ -113,7 +114,7 @@ export function ViewpointFinderPanel({
               Standing at <span className="font-medium text-foreground">{standingName}</span>
             </span>
             {onBack && backName && (
-              <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 px-2 text-2xs" onClick={onBack}>
+              <Button type="button" variant="outline" size="xs" className="shrink-0 text-2xs" onClick={onBack}>
                 Back to {backName}
               </Button>
             )}
@@ -157,7 +158,7 @@ export function ViewpointFinderPanel({
       )}
       {shown.length > 0 && (
         <ul
-          className="divide-y divide-border overflow-hidden rounded-md border border-border"
+          className={cn(insetBox({ padding: 'none' }), 'divide-y divide-border overflow-hidden')}
           aria-label="Inventory viewpoints near the block"
         >
           {shown.map((candidate) => {
@@ -239,8 +240,8 @@ export function ViewpointFinderPanel({
                     )}
                     <Button
                       type="button"
-                      size="sm"
-                      className="h-8 w-full text-xs"
+                      size="xs"
+                      className="w-full"
                       title="Run the assessment from here and open the road view"
                       onClick={() => onUse(candidate, arrow)}
                     >

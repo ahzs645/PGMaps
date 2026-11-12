@@ -2909,8 +2909,8 @@ function DevForestryVisuals() {
                                           />
                                           <Button
                                             variant="outline"
-                                            size="sm"
-                                            className="h-8 px-2 touch:h-10"
+                                            size="xs"
+                                            className="touch:h-10"
                                             disabled={!canSaveView}
                                             aria-label="Save viewpoint"
                                             title="Save this spot, look and harvest phase; it is captioned for the planning note"
@@ -2921,8 +2921,8 @@ function DevForestryVisuals() {
                                           </Button>
                                           <Button
                                             variant="outline"
-                                            size="sm"
-                                            className="h-8 px-2 touch:h-10"
+                                            size="xs"
+                                            className="touch:h-10"
                                             disabled={!canSaveView}
                                             aria-label="Download image"
                                             title="Download this view as a captioned PNG"
@@ -3144,8 +3144,8 @@ function DevForestryVisuals() {
                                   <div className="mt-1 flex gap-1.5">
                                     <Button
                                       variant="outline"
-                                      size="sm"
-                                      className="h-7 px-2 text-2xs touch:h-9"
+                                      size="xs"
+                                      className="text-2xs touch:h-9"
                                       onClick={() =>
                                         updateDrive({
                                           positionMeters: 600,
@@ -3158,8 +3158,8 @@ function DevForestryVisuals() {
                                     </Button>
                                     <Button
                                       variant="outline"
-                                      size="sm"
-                                      className="h-7 px-2 text-2xs touch:h-9"
+                                      size="xs"
+                                      className="text-2xs touch:h-9"
                                       onClick={() =>
                                         updateDrive({ positionMeters: 200, lookAtTargetId: null, playing: true })
                                       }

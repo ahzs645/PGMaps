@@ -11,6 +11,8 @@ import {
   type BcCutblockSearchRecord,
   type BcCutblockSearchResult,
 } from './bcAccessSearch'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const SEARCH_FIELDS = [
   { key: 'openingId', label: 'Opening ID', placeholder: 'e.g. 60677' },
@@ -286,7 +288,7 @@ function CutblockSearchRecord({
     ['Administrative status', record.lifecycleStatus],
   ] as const
   return (
-    <article className="min-w-0 space-y-3 rounded-lg border p-3" data-cutblock-record={record.id}>
+    <article className={cn(insetBox({ padding: 'lg' }), 'min-w-0 space-y-3')} data-cutblock-record={record.id}>
       <div className="min-w-0">
         <h4 className="break-words text-sm font-semibold">
           {record.openingId

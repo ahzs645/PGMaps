@@ -54,16 +54,15 @@ export function Sentinel2Panel({ state, onClose }: { state: Sentinel2State; onCl
           is the share of the terrain window whose scene classification sees ground (not cloud, shadow or snow).
         </InfoTip>
         <Button
-          size="icon"
+          size="icon-2xs"
           variant="ghost"
-          className="size-6"
           aria-label={folded ? 'Show Sentinel-2 settings' : 'Fold Sentinel-2 settings'}
           aria-expanded={!folded}
           onClick={() => setFolded(!folded)}
         >
           {folded ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />}
         </Button>
-        <Button size="icon" variant="ghost" className="size-6" aria-label="Hide Sentinel-2 imagery" onClick={onClose}>
+        <Button size="icon-2xs" variant="ghost" aria-label="Hide Sentinel-2 imagery" onClick={onClose}>
           <X className="size-3" />
         </Button>
       </div>
@@ -94,7 +93,7 @@ export function Sentinel2Panel({ state, onClose }: { state: Sentinel2State; onCl
             <InlineAlert tone="error">
               <span>{state.failure.message}</span>
               {state.failure.retry && (
-                <Button size="sm" variant="outline" className="mt-1 h-6 w-full" onClick={state.retry}>
+                <Button size="2xs" variant="outline" className="mt-1 w-full" onClick={state.retry}>
                   <RotateCcw className="size-3" />
                   Retry
                 </Button>
@@ -133,7 +132,7 @@ export function Sentinel2Panel({ state, onClose }: { state: Sentinel2State; onCl
                     <li key={scene.id}>
                       <button
                         type="button"
-                        className={`flex w-full items-baseline justify-between gap-2 rounded px-1.5 py-1 text-left hover:bg-accent ${state.sceneId === scene.id ? 'bg-accent font-medium text-accent-foreground' : ''}`}
+                        className={`flex w-full items-baseline justify-between gap-2 rounded-md px-1.5 py-1 text-left hover:bg-accent ${state.sceneId === scene.id ? 'bg-accent font-medium text-accent-foreground' : ''}`}
                         aria-pressed={state.sceneId === scene.id}
                         data-scene-id={scene.id}
                         onClick={() => state.setSceneId(scene.id)}

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { formatRoadStation } from './Charts'
 import { pinnedSectionOutline, pinnedShiftLabel, pinnedShiftText } from './sectionFrame'
 import {
@@ -161,7 +163,7 @@ export function SectionPaneTools({
     commit(plan)
   }
   const small = 'h-6 px-2 text-3xs'
-  const field = 'w-20 rounded border bg-background px-1 py-0.5 font-mono text-3xs'
+  const field = 'w-20 rounded-md border bg-background px-1 py-0.5 font-mono text-3xs'
   const pinnedOutline = pinned && station ? pinnedSectionOutline(pinned, station, terrainOnly) : null
   const formOpen = !!range?.open && !!source
   return (
@@ -252,7 +254,7 @@ export function SectionPaneTools({
             <div
               role="group"
               aria-label="Use this section for a station range"
-              className="space-y-1 rounded border p-1.5"
+              className={cn(insetBox({ padding: 'sm' }), 'space-y-1')}
               data-testid="road-section-range"
             >
               <div className="flex flex-wrap items-center gap-1">
@@ -384,7 +386,7 @@ export function SectionPaneTools({
                           <button
                             key={chainage}
                             type="button"
-                            className="rounded border px-1 font-mono underline-offset-2 hover:underline"
+                            className="rounded-sm border px-1 font-mono underline-offset-2 hover:underline"
                             title={text}
                             aria-label={`Go to ${formatRoadStation(chainage)}: ${text}`}
                             onClick={() => onStation(chainage)}

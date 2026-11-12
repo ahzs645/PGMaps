@@ -48,7 +48,7 @@ export function TerrainCaveats({
               "touch:after:absolute touch:after:-inset-2.5 touch:after:content-['']",
             )}
           >
-            <TriangleAlert className="size-3.5 text-amber-500 dark:text-amber-400" aria-hidden="true" />
+            <TriangleAlert className="size-3.5 text-warning" aria-hidden="true" />
           </button>
         }
         footer={

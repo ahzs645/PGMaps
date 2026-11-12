@@ -212,8 +212,8 @@ export function BalanceWhatIfPanel({
           ref={openButton}
           type="button"
           variant="outline"
-          size="sm"
-          className="h-6 px-2 text-3xs"
+          size="2xs"
+          className="text-3xs"
           onClick={onOpen}
           data-testid="road-mass-whatif-open"
           disabled={range[1] - range[0] <= 0}
@@ -250,14 +250,14 @@ export function BalanceWhatIfPanel({
             onChange={(value) => onLevel(Math.max(range[0], Math.min(range[1], value)))}
           />
         </div>
-        <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-3xs" onClick={() => onLevel(0)}>
+        <Button type="button" variant="outline" size="2xs" className="text-3xs" onClick={() => onLevel(0)}>
           Reset to 0
         </Button>
         <Button
           type="button"
           variant="ghost"
-          size="sm"
-          className="h-6 px-2 text-3xs"
+          size="2xs"
+          className="text-3xs"
           onClick={onClose}
           data-testid="road-mass-whatif-close"
         >

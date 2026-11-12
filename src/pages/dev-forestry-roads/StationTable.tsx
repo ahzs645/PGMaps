@@ -91,7 +91,7 @@ export function StationTable({
   const columns = available.filter((c) => !hidden.includes(c.id))
   const narrowed = range.start > 0.001 || end < analysis.length - 0.001
   const clearRange = () => setRange({ start: 0, end: null })
-  const field = 'w-full min-w-0 rounded border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
+  const field = 'w-full min-w-0 rounded-md border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
   // In a panel the two buttons join its header; only active filters take a row above the table.
   // Inside the road data schedule they join its tab row instead.
   const panelHeader = useChartHeaderControls()

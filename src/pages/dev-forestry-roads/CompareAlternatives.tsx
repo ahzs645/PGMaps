@@ -95,7 +95,7 @@ export function CompareAlternatives({
           Compared with
           <RoadSelect
             ariaLabel="Comparison baseline"
-            className="min-w-0 max-w-48 rounded border bg-background px-1 text-base md:text-xs"
+            className="min-w-0 max-w-48 rounded-md border bg-background px-1 text-base md:text-xs"
             value={baselineAlignment.id}
             onValueChange={(value) => setBaselineId(value)}
           >
@@ -112,7 +112,7 @@ export function CompareAlternatives({
           allowance in Find the best route, and the complete connected-access and delivered-supply comparison.
         </InfoTip>
         {onCompareCompleteCosts && (
-          <Button size="sm" variant="ghost" className="ml-auto h-7 px-2 text-xs" onClick={onCompareCompleteCosts}>
+          <Button size="xs" variant="ghost" className="ml-auto" onClick={onCompareCompleteCosts}>
             Complete access & supply costs
           </Button>
         )}
@@ -149,7 +149,7 @@ export function CompareAlternatives({
                     />
                     <span className="truncate">{names.get(a.id)}</span>
                     {a.mappedRoad && (
-                      <span className="shrink-0 rounded bg-violet-100 px-1 text-3xs text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+                      <span className="shrink-0 rounded-sm bg-violet-100 px-1 text-3xs text-violet-800 dark:bg-violet-950 dark:text-violet-200">
                         mapped
                       </span>
                     )}

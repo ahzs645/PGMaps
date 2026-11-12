@@ -16,6 +16,8 @@ import {
 } from './drainageSensitivity'
 import { Field, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const number = (v: number, digits = 3) => v.toLocaleString('en-CA', { maximumFractionDigits: digits })
 const delta = (v: number | null, unit: string) =>
@@ -123,7 +125,7 @@ export function DrainageSensitivityPanel({
               return (
                 <article
                   key={id}
-                  className="min-w-0 space-y-2 rounded border p-2"
+                  className={cn(insetBox(), 'min-w-0 space-y-2')}
                   aria-label={`Comparison ${record.label}`}
                 >
                   <div className="flex min-w-0 items-start justify-between gap-2">

@@ -161,10 +161,10 @@ export function RiggingSetPicker({
               <p className="mt-0.5 text-2xs text-destructive">{nameError ?? error}</p>
             )}
           </div>
-          <Button size="sm" className="h-8" disabled={!!nameError} onClick={finish}>
+          <Button size="field" disabled={!!nameError} onClick={finish}>
             {editing.mode === 'rename' ? 'Rename' : updating ? 'Update' : 'Save'}
           </Button>
-          <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditing(null)}>
+          <Button size="field" variant="ghost" onClick={() => setEditing(null)}>
             Cancel
           </Button>
         </div>

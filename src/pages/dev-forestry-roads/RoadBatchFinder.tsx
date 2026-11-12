@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { runCooperatively } from './cooperative'
 import { parseProject } from './project'
@@ -309,7 +311,7 @@ export function RoadBatchFinder({
         )}
         {current && network && (
           <>
-            <div className="max-h-64 overflow-auto overscroll-none rounded border">
+            <div className={cn(insetBox({ padding: 'none' }), 'max-h-64 overflow-auto overscroll-none')}>
               <EngineeringTable rowHeaders compact data-testid="road-batch-table">
                 <thead className="sticky top-0">
                   <tr>

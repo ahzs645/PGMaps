@@ -3,6 +3,8 @@ import { Download, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { InfoTip } from '@/components/ui/info-tip'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { downloadText } from '@/lib/download'
 import { DEFAULT_BLOCK_SHEET, type BlockSheetSettings } from './blockSheet'
 import { Field, roadFieldClass, RoadSelect } from './Controls'
@@ -153,7 +155,7 @@ export function SheetSetupLibrary({
   }
   const heading = 'text-3xs font-semibold uppercase tracking-wide text-muted-foreground'
   return (
-    <section className="space-y-2 rounded-md border bg-muted/20 p-2.5 text-xs" data-testid="sheet-setup-library">
+    <section className={cn(insetBox({ tone: 'muted' }), 'space-y-2 text-xs')} data-testid="sheet-setup-library">
       <div className="flex items-center gap-2">
         <h4 className={heading}>Saved setups</h4>
         <InfoTip label="About saved setups">
@@ -172,7 +174,7 @@ export function SheetSetupLibrary({
               options={library.setups.map((setup) => ({ value: setup.name, label: setup.name }))}
               ariaLabel="Saved sheet setup"
             />
-            <Button size="sm" variant="outline" className="h-8" onClick={apply}>
+            <Button size="field" variant="outline" onClick={apply}>
               Apply
             </Button>
             <Button
@@ -224,7 +226,7 @@ export function SheetSetupLibrary({
             }}
           />
         </Field>
-        <Button size="sm" variant="outline" className="h-8" disabled={!name.trim()} onClick={save}>
+        <Button size="field" variant="outline" disabled={!name.trim()} onClick={save}>
           Save
         </Button>
         <FileButton

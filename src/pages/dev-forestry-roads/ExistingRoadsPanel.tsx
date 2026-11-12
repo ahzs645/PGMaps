@@ -32,6 +32,8 @@ import {
   roadHistoryStyle,
 } from './roadHistory'
 import { DEFAULT_LOCALE } from '@/lib/format'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 /** The next search after a road's own surroundings come back empty. */
 const WIDE_SEARCH_KM = 10
@@ -226,9 +228,9 @@ export function ExistingRoadsPanel({
             </span>
             {emptySearch.paddingKm < WIDE_SEARCH_KM && (
               <Button
-                size="sm"
+                size="xs"
                 variant="outline"
-                className="h-7 shrink-0 text-xs"
+                className="shrink-0"
                 disabled={loading || !!w.busy}
                 onClick={() => void load(emptySearch.fsrOnly, WIDE_SEARCH_KM)}
               >
@@ -289,7 +291,7 @@ export function ExistingRoadsPanel({
             </div>
             {/* The record as label/value rows under its condition; the caveat about dates sits behind (i). */}
             <div
-              className="space-y-2 rounded-md border bg-muted/20 p-2.5 text-xs"
+              className={cn(insetBox({ tone: 'muted' }), 'space-y-2 text-xs')}
               data-testid="road-existing-road-evidence"
             >
               <p className="flex items-center gap-1.5 font-medium">

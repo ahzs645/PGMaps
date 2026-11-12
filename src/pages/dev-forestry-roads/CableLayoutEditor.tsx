@@ -63,6 +63,8 @@ import {
 import { layoutKey } from './cableLayout/useCableLayout'
 import { useEditedLayoutCheck, withEdited } from './cableLayout/useLayoutEdit'
 import type { CableLine, TerrainSource } from './types'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 type OnEdit = (change: (line: CableLine) => CableLine) => void
 
@@ -397,13 +399,13 @@ export function CableLayoutEditor({
         </tbody>
       </EngineeringTable>
       <div className="space-y-1" data-testid="cable-edit-supports">
-        <div className="space-y-1 rounded border p-1.5" data-testid="cable-edit-start">
+        <div className={cn(insetBox({ padding: 'sm' }), 'space-y-1')} data-testid="cable-edit-start">
           <div className="flex items-center justify-between gap-1 text-xs">
             <span className="font-medium">Start · 0 m</span>
             <Button
               variant="ghost"
-              size="sm"
-              className="h-6 shrink-0 px-2 text-xs"
+              size="2xs"
+              className="shrink-0 text-xs"
               disabled={full}
               aria-label="Add a support after the start"
               onClick={() => add(-1)}
@@ -434,7 +436,7 @@ export function CableLayoutEditor({
           const [low, high] = stationBounds(edited, i, lengthM)
           const asFound = edited.origin === 'found' && matchesFound(settings.saved, s)
           return (
-            <div key={i} className="space-y-1 rounded border p-1.5" data-testid="cable-edit-support">
+            <div key={i} className={cn(insetBox({ padding: 'sm' }), 'space-y-1')} data-testid="cable-edit-support">
               <div className="flex items-center justify-between gap-1 text-xs">
                 <span className="font-medium">
                   Support {i + 1}
@@ -445,8 +447,8 @@ export function CableLayoutEditor({
                 <span className="flex shrink-0">
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
+                    size="2xs"
+                    className="text-xs"
                     disabled={full}
                     aria-label={`Add a support after support ${i + 1}`}
                     onClick={() => add(i)}
@@ -455,8 +457,7 @@ export function CableLayoutEditor({
                   </Button>
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="size-6"
+                    size="icon-2xs"
                     aria-label={`Delete support ${i + 1}`}
                     onClick={() => set(removeSupport(edited, i))}
                   >
@@ -494,7 +495,7 @@ export function CableLayoutEditor({
             </div>
           )
         })}
-        <div className="space-y-1 rounded border p-1.5" data-testid="cable-edit-end">
+        <div className={cn(insetBox({ padding: 'sm' }), 'space-y-1')} data-testid="cable-edit-end">
           <span className="text-xs font-medium">End · {n0(lengthM)} m</span>
           {endText ? (
             <p className="text-2xs text-muted-foreground">{endText}</p>
@@ -520,7 +521,7 @@ export function CableLayoutEditor({
         </Button>
       </div>
       {shown && (
-        <div className="max-h-40 overflow-auto overscroll-none rounded border">
+        <div className={cn(insetBox({ padding: 'none' }), 'max-h-40 overflow-auto overscroll-none')}>
           <EngineeringTable compact data-testid="cable-edit-spans">
             <SpanColumns />
             <tbody>

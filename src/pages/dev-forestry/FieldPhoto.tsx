@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { CheckboxField, FORM_INPUT_CLASS, FormField } from '@/components/ui/form-field'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { MAP_OVERLAY_Z } from '@/components/ui/map-overlay'
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
@@ -93,7 +94,7 @@ export function FieldPhotoPanel({
               <li key={candidate.id}>
                 <button
                   type="button"
-                  className="block w-full overflow-hidden rounded border border-border text-left hover:border-primary/60"
+                  className="block w-full overflow-hidden rounded-md border border-border text-left hover:border-primary/60"
                   aria-label={`Load photo ${candidate.id}`}
                   onClick={() => void photo.load(candidate.id)}
                 >
@@ -126,9 +127,9 @@ export function FieldPhotoPanel({
         }}
       />
       {image && (
-        <div className="space-y-2 rounded-md border border-border p-2">
+        <div className={cn(insetBox(), 'space-y-2')}>
           {image.thumbUrl && (
-            <img src={image.thumbUrl} alt="Street-level photo from Mapillary" className="w-full rounded" />
+            <img src={image.thumbUrl} alt="Street-level photo from Mapillary" className="w-full rounded-sm" />
           )}
           <p className="text-3xs text-muted-foreground">
             Photo: <Credit photo={image} />
@@ -274,8 +275,8 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            className="h-7 px-2 touch:h-10"
+            size="xs"
+            className="touch:h-10"
             onClick={() => photo.setMatch(null)}
             aria-label="Stop comparing"
           >
@@ -326,8 +327,8 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="h-7 px-2 touch:h-10"
+            size="xs"
+            className="touch:h-10"
             aria-label="Turn left"
             onClick={() => nudge(-0.5, 0)}
           >
@@ -336,8 +337,8 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="h-7 px-2 touch:h-10"
+            size="xs"
+            className="touch:h-10"
             aria-label="Turn right"
             onClick={() => nudge(0.5, 0)}
           >
@@ -346,8 +347,8 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="h-7 px-2 touch:h-10"
+            size="xs"
+            className="touch:h-10"
             aria-label="Tilt up"
             onClick={() => nudge(0, 0.25)}
           >
@@ -356,8 +357,8 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="h-7 px-2 touch:h-10"
+            size="xs"
+            className="touch:h-10"
             aria-label="Tilt down"
             onClick={() => nudge(0, -0.25)}
           >
@@ -366,8 +367,8 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-2xs touch:h-10"
+            size="xs"
+            className="text-2xs touch:h-10"
             onClick={() => set({ nudge: { bearing: 0, pitch: 0 } })}
           >
             Reset
@@ -376,8 +377,8 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
         <Button
           type="button"
           variant="outline"
-          size="sm"
-          className="h-7 w-full text-2xs touch:h-10"
+          size="xs"
+          className="w-full text-2xs touch:h-10"
           disabled={!photo.skylineReady || photo.alignment.status === 'working'}
           onClick={() => void photo.autoAlign()}
         >
@@ -450,13 +451,7 @@ export function StreetPhotoInset({
           {near.alongMeters >= positionMeters ? 'ahead' : 'back'}
           {near.isPano ? ' · 360°' : ''}
         </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-6 shrink-0 px-2 text-2xs"
-          onClick={() => onLineUp(near.id)}
-        >
+        <Button type="button" variant="outline" size="2xs" className="shrink-0" onClick={() => onLineUp(near.id)}>
           Line up
         </Button>
       </div>

@@ -10,6 +10,8 @@ import {
   type RoadPlanSource,
 } from './fullCostPlanning'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 export function FullCostSourcesEditor({
   planning,
@@ -141,7 +143,7 @@ export function FullCostSourcesEditor({
               <option value="waste">Waste disposal only (bank m³)</option>
             </RoadSelect>
           </Field>
-          <fieldset className="space-y-2 rounded border p-2">
+          <fieldset className={cn(insetBox(), 'space-y-2')}>
             <legend className="px-1 text-xs font-medium">Material classes and quality</legend>
             <p className="text-2xs text-muted-foreground">
               A general suitability confirmation does not identify an exact material or quality class. Select the

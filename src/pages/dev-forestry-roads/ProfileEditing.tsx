@@ -609,7 +609,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                 <h3 className="font-semibold">
                   Tangent V{editorTangent + 1}–V{editorTangent + 2}
                 </h3>
-                <Button size="icon" variant="ghost" className="size-6" aria-label="Close" onClick={closeGrade}>
+                <Button size="icon-2xs" variant="ghost" aria-label="Close" onClick={closeGrade}>
                   <X className="size-3.5" />
                 </Button>
               </div>
@@ -667,7 +667,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                 <h3 className="truncate font-semibold">
                   {junction.otherRoadName} {junction.kind}
                 </h3>
-                <Button size="icon" variant="ghost" className="size-6" aria-label="Close" onClick={closeJunction}>
+                <Button size="icon-2xs" variant="ghost" aria-label="Close" onClick={closeJunction}>
                   <X className="size-3.5" />
                 </Button>
               </div>
@@ -698,9 +698,9 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                 </p>
               ) : (
                 <Button
-                  size="sm"
+                  size="xs"
                   variant="outline"
-                  className="h-7 w-full"
+                  className="w-full"
                   data-autofocus
                   disabled={!options.onAddControl || junction.level === null || controlsFull}
                   onClick={() => {
@@ -726,7 +726,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
         </AnchoredPopover>
         <p
           role="status"
-          className="pointer-events-none absolute max-w-[70%] rounded bg-background/90 px-1.5 text-2xs text-foreground shadow-sm empty:hidden"
+          className="pointer-events-none absolute max-w-[70%] rounded-sm bg-background/90 px-1.5 text-2xs text-foreground shadow-sm empty:hidden"
           style={{ left: f.left + 4, top: f.top + f.plotHeight - 18 }}
           data-testid="road-profile-edit-status"
         >

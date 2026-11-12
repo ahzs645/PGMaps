@@ -10,6 +10,7 @@ import {
   type ConstraintTreatment,
 } from './constraints'
 import type { ContextFeature } from './types'
+import { insetBox } from '@/components/ui/inset-box'
 
 /** A recorded planning decision, scoped to this feature and its current evidence. */
 export function ConstraintPolicyEditor({
@@ -90,7 +91,7 @@ export function ConstraintPolicyEditor({
               onChange={(event) => onChange({ ...policy, condition: event.target.value })}
             />
           </Field>
-          <details className="rounded border">
+          <details className={insetBox({ padding: 'none' })}>
             <summary className="cursor-pointer px-2 py-1 text-xs">Review conditional use</summary>
             <div className="space-y-2 border-t p-2">
               <p className="text-2xs text-muted-foreground">

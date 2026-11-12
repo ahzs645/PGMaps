@@ -48,6 +48,8 @@ import type {
   StratumAssignment,
   TemplateAssignment,
 } from './types'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const uid = () => crypto.randomUUID()
 type NumericField<T> = { key: keyof T; label: string; min?: number; max?: number; step?: number; hint?: string }
@@ -213,7 +215,7 @@ function Name({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
-      <Button variant="ghost" size="icon" className="size-7 shrink-0" aria-label={`Remove ${value}`} onClick={onDelete}>
+      <Button variant="ghost" size="icon-xs" className="shrink-0" aria-label={`Remove ${value}`} onClick={onDelete}>
         <Trash2 className="size-3" />
       </Button>
     </div>
@@ -490,7 +492,7 @@ export function EngineeringControls({
             { value: 'haul', label: 'Haul' },
           ]}
         />
-        <Button size="sm" variant="ghost" className="h-7 w-full justify-between px-2 text-xs" onClick={onQuantities}>
+        <Button size="xs" variant="ghost" className="w-full justify-between" onClick={onQuantities}>
           Show quantities & cost breakdown
           <ArrowRight className="size-3" />
         </Button>
@@ -735,7 +737,7 @@ export function EngineeringControls({
                   surfaces={project.terrain.referenceSurfaces}
                   onChange={(value) => updateTemplate(value)}
                 />
-                <details className="rounded border p-2">
+                <details className={insetBox()}>
                   <summary className="cursor-pointer text-xs">Rock cut · {rockCutSummary(candidate)}</summary>
                   <div className="pt-2">
                     <RockCutFields
@@ -747,7 +749,7 @@ export function EngineeringControls({
                     />
                   </div>
                 </details>
-                <details className="rounded border p-2">
+                <details className={insetBox()}>
                   <summary className="cursor-pointer text-xs">Independent left / right components</summary>
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-1 pt-2">
@@ -795,9 +797,8 @@ export function EngineeringControls({
                           />
                         </div>
                         <Button
-                          size="sm"
+                          size="field"
                           variant="ghost"
-                          className="h-8"
                           disabled={candidate[field.key] === undefined}
                           onClick={() => updateTemplate({ [field.key]: undefined })}
                         >
@@ -903,7 +904,7 @@ export function EngineeringControls({
               </p>
             )}
             {design.assignments.map((a, index) => (
-              <div key={a.id} className="mt-2 space-y-2 rounded border p-2">
+              <div key={a.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
                 <div className="flex items-center justify-between">
                   <button
                     className="text-xs underline"
@@ -1002,7 +1003,7 @@ export function EngineeringControls({
               Add ground material
             </Button>
             {design.materials.map((m) => (
-              <div key={m.id} className="mt-2 space-y-2 rounded border p-2">
+              <div key={m.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
                 <Name
                   value={m.name}
                   label="Ground material name"
@@ -1153,7 +1154,7 @@ export function EngineeringControls({
               Add material horizon
             </Button>
             {design.strata.map((s, index) => (
-              <div key={s.id} className="mt-2 space-y-2 rounded border p-2">
+              <div key={s.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
                 <div className="flex items-center justify-between">
                   <button
                     className="text-xs underline"
@@ -1261,7 +1262,7 @@ export function EngineeringControls({
           {design.culverts.map((c, index) => {
             const result = analysis.engineering?.culverts.find((x) => x.id === c.id)
             return (
-              <div key={c.id} className="mt-3 space-y-2 rounded border p-2">
+              <div key={c.id} className={cn(insetBox(), 'mt-3 space-y-2')}>
                 <Name
                   value={c.name}
                   label={`Culvert ${index + 1} name`}
@@ -1432,7 +1433,7 @@ export function EngineeringControls({
       {activeTab === 'haul' && (
         <>
           <div className="p-3">
-            <div className="space-y-1.5 rounded border bg-muted/20 p-2" data-testid="road-aggregate-summary">
+            <div className={cn(insetBox({ tone: 'muted' }), 'space-y-1.5')} data-testid="road-aggregate-summary">
               <p className="text-2xs text-muted-foreground">
                 {design.surfacingSupply?.enabled ? (
                   <>
@@ -1457,7 +1458,7 @@ export function EngineeringControls({
               </Button>
             </div>
           </div>
-          <div className="m-3 space-y-2 rounded-lg border p-3">
+          <div className={cn(insetBox({ padding: 'lg' }), 'm-3 space-y-2')}>
             <label className="mb-3 flex items-center gap-2 text-xs">
               <input
                 type="checkbox"
@@ -1574,7 +1575,7 @@ export function EngineeringControls({
                 ))}
               </div>
               {design.sites.map((s, index) => (
-                <div key={s.id} className="mt-2 space-y-2 rounded border p-2">
+                <div key={s.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
                   <label className="flex items-center gap-1 text-xs">
                     <input
                       type="checkbox"

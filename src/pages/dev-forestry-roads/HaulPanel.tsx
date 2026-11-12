@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
@@ -178,7 +180,7 @@ export function HaulPanel({
         </div>
       )}
       {review.status === 'assessed' && (
-        <div className="space-y-1.5 rounded-md border p-2 text-xs" data-testid="road-haul-junction">
+        <div className={cn(insetBox(), 'space-y-1.5 text-xs')} data-testid="road-haul-junction">
           <div className="flex items-center gap-1">
             <span className="font-medium">
               Junction at the road {review.junction.end}
@@ -210,9 +212,9 @@ export function HaulPanel({
           </p>
           {standardsDirection !== review.loadedDirection && (
             <Button
-              size="sm"
+              size="xs"
               variant="outline"
-              className="h-7 w-full text-xs"
+              className="w-full"
               title="The loaded direction in Design standards is shared by every road in this project"
               onClick={() =>
                 update((x) => ({
@@ -226,7 +228,7 @@ export function HaulPanel({
           )}
         </div>
       )}
-      <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={() => setEditing(true)}>
+      <Button size="xs" variant="outline" className="w-full" onClick={() => setEditing(true)}>
         Speeds, times and junction rule
       </Button>
       <RoadSettingsDialog title="Haul speeds and times" open={editing} onOpenChange={setEditing} busy={false}>

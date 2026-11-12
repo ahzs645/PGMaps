@@ -3,6 +3,8 @@ import { Bookmark, History as HistoryIcon, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { ToolbarPopover } from '@/components/ui/toolbar-popover'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { roadFieldClass } from './Controls'
 import { MAX_CHECKPOINT_NAME, MAX_UNDO_STEPS, splitHistoryLabel, type HistoryRow } from './undoHistory'
 
@@ -50,7 +52,12 @@ export function UndoHistoryPanel({
         {list.length <= 1 ? (
           <p className="text-muted-foreground">No edits to undo yet.</p>
         ) : (
-          <ol className="max-h-64 divide-y overflow-y-auto overscroll-none rounded-md border bg-background">
+          <ol
+            className={cn(
+              insetBox({ padding: 'none', tone: 'background' }),
+              'max-h-64 divide-y overflow-y-auto overscroll-none',
+            )}
+          >
             {list.map((row) => {
               const now = row.offset === 0
               const { change, road } = splitHistoryLabel(row.label)
@@ -114,7 +121,7 @@ export function UndoHistoryPanel({
             disabled={disabled}
             onChange={(event) => setName(event.target.value)}
           />
-          <Button type="submit" size="sm" variant="outline" className="h-8 shrink-0" disabled={disabled}>
+          <Button type="submit" size="field" variant="outline" className="shrink-0" disabled={disabled}>
             <Bookmark className="size-3.5" />
             Save
           </Button>
@@ -125,7 +132,7 @@ export function UndoHistoryPanel({
           </p>
         )}
         {checkpoints.length > 0 && (
-          <ul className="divide-y rounded-md border bg-background">
+          <ul className={cn(insetBox({ padding: 'none', tone: 'background' }), 'divide-y')}>
             {checkpoints.map((checkpoint) => (
               <li key={checkpoint.id} className="flex items-center gap-1 py-0.5 pl-2 pr-0.5">
                 <span className="min-w-0 flex-1 truncate" title={checkpoint.name}>
@@ -133,9 +140,8 @@ export function UndoHistoryPanel({
                 </span>
                 <span className="shrink-0 tabular-nums text-3xs text-muted-foreground">{time(checkpoint.at)}</span>
                 <Button
-                  size="sm"
+                  size="xs"
                   variant="ghost"
-                  className="h-7 px-2"
                   disabled={disabled}
                   aria-label={`Return to checkpoint ${checkpoint.name}`}
                   onClick={() => onRestoreCheckpoint(checkpoint.id)}
@@ -143,9 +149,8 @@ export function UndoHistoryPanel({
                   Return
                 </Button>
                 <Button
-                  size="icon"
+                  size="icon-xs"
                   variant="ghost"
-                  className="size-7"
                   aria-label={`Delete checkpoint ${checkpoint.name}`}
                   title="Delete checkpoint"
                   onClick={() => onDeleteCheckpoint(checkpoint.id)}

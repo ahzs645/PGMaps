@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CollapsibleSection } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { createBridgeLoadRatingEvidence, createRoadNetworkEvidence } from './roadNetwork'
 import type { BridgeLoadRatingEvidence, RoadNetworkEvidence } from './roadNetworkTypes'
@@ -153,7 +155,7 @@ export function RoadNetworkEditor({
           </Field>
         </div>
         {network.bridgeStatus === 'reviewed' && (
-          <div className="space-y-2 rounded border p-2" data-testid="bridge-load-rating-evidence">
+          <div className={cn(insetBox(), 'space-y-2')} data-testid="bridge-load-rating-evidence">
             <OptionalNumberField
               label="Lowest confirmed bridge load limit (tonnes)"
               value={network.bridgeLoadTonnes}
@@ -324,7 +326,7 @@ export function RoadNetworkEditor({
           traversed portions. Split a road into separate features when a structure allowance only applies to one
           portion.
         </p>
-        <div className="space-y-2 rounded border p-2">
+        <div className={cn(insetBox(), 'space-y-2')}>
           <p className="text-xs font-medium">Declared at-grade junctions</p>
           <p className="text-2xs text-muted-foreground">
             Use the same ID and location on each connecting road. Crossing lines remain disconnected without this

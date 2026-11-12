@@ -33,7 +33,7 @@ export function RoadRemovedNotice({
       title={`Deleted ${removed.road.name}`}
       message={shownName === null ? 'No roads left: peg or sketch one.' : `Now showing ${shownName}.`}
       action={
-        <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={onUndo}>
+        <Button size="xs" variant="outline" className="shrink-0" onClick={onUndo}>
           Undo
         </Button>
       }

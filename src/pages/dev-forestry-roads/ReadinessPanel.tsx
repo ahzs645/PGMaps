@@ -3,6 +3,8 @@ import { AlertTriangle, CheckCircle2, ChevronDown, CircleDashed, OctagonAlert } 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ResultRow } from '@/components/ui/result-list'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { formatRoadStation } from './Charts'
 import {
   CROSSING_SOURCE_LABELS,
@@ -94,12 +96,7 @@ export function ReadinessList({
           <div className="flex items-start gap-2">
             <p className={`min-w-0 flex-1 ${open ? '' : 'line-clamp-2'}`}>{row.measured}</p>
             {row.action && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 shrink-0 px-1.5 text-2xs"
-                onClick={() => onAction(row.action!)}
-              >
+              <Button size="2xs" variant="outline" className="shrink-0 px-1.5" onClick={() => onAction(row.action!)}>
                 {row.action.label}
               </Button>
             )}
@@ -118,7 +115,7 @@ export function ReadinessList({
     members.length > 0 && (
       <section key={label} aria-label={`${label} checks`}>
         <h4 className="mb-1 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</h4>
-        <ul className="divide-y rounded-md border">{members.map(item)}</ul>
+        <ul className={cn(insetBox({ padding: 'none' }), 'divide-y')}>{members.map(item)}</ul>
       </section>
     )
   /** A folded group: its summary line gives the count, and its rows keep the list's own grouping. */
@@ -198,7 +195,7 @@ export function CrossingRegisterList({
       </p>
     )
   return (
-    <ul className="divide-y rounded-md border" data-testid="road-crossing-register">
+    <ul className={cn(insetBox({ padding: 'none' }), 'divide-y')} data-testid="road-crossing-register">
       {register.rows.map((row) => (
         <li key={row.id} data-crossing-source={row.source}>
           <ResultRow

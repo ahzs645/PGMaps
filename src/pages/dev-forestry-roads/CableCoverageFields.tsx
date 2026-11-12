@@ -192,8 +192,8 @@ export function CableCoverageFields({
             <span className="min-w-0 flex-1">{applied.setName} applied to the yarder</span>
             <Button
               variant="ghost"
-              size="sm"
-              className="h-6 px-1.5 text-2xs"
+              size="2xs"
+              className="px-1.5"
               onClick={() => {
                 onRule((r) => ({ ...r, ...applied.before }))
                 setApplied(null)

@@ -86,7 +86,7 @@ export function FirstRoadPanel({
             )}
             <ul className="max-h-64 space-y-1 overflow-y-auto overscroll-none" aria-label="Mapped roads to load">
               {shown.map(({ feature, lengthM, parts }) => (
-                <li key={feature.id} className="flex items-center justify-between gap-2 rounded border px-2 py-1">
+                <li key={feature.id} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1">
                   <div className="min-w-0 text-xs">
                     <div className="truncate font-medium">{feature.name}</div>
                     <div className="text-muted-foreground tabular-nums">
@@ -95,9 +95,9 @@ export function FirstRoadPanel({
                     </div>
                   </div>
                   <Button
-                    size="sm"
+                    size="xs"
                     variant="outline"
-                    className="h-7 shrink-0 gap-1 px-2 text-xs"
+                    className="shrink-0 gap-1"
                     aria-label={`Load ${feature.name} as a road`}
                     onClick={() => onLoadMappedRoad(feature.id)}
                   >

@@ -1621,7 +1621,7 @@ function Layers(
                 />
               ) : (
                 <button
-                  className={`rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${feature.properties?.selected === true ? 'font-semibold ring-2 ring-red-600' : ''}`}
+                  className={`rounded-sm border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${feature.properties?.selected === true ? 'font-semibold ring-2 ring-red-600' : ''}`}
                   data-route-stop={
                     feature.properties?.kind === 'route-search-stop' ? feature.properties.role : undefined
                   }
@@ -1641,7 +1641,7 @@ function Layers(
         <MapMarker longitude={cableCursor[0]} latitude={cableCursor[1]}>
           <MarkerContent>
             <div
-              className="pointer-events-none rounded border-2 border-white bg-violet-700 px-1 py-0.5 text-3xs text-white shadow"
+              className="pointer-events-none rounded-sm border-2 border-white bg-violet-700 px-1 py-0.5 text-3xs text-white shadow"
               data-testid="road-active-cable-position"
               data-distance={props.cableDistance}
             >
@@ -1673,7 +1673,7 @@ function Layers(
           >
             <MarkerContent>
               <button
-                className="rounded border border-violet-400 bg-violet-50 px-1 py-0.5 text-3xs text-violet-800 shadow-sm"
+                className="rounded-sm border border-violet-400 bg-violet-50 px-1 py-0.5 text-3xs text-violet-800 shadow-sm"
                 title={`${support.role}: ${support.height.toFixed(1)} m above the selected terrain`}
                 aria-label={`Inspect ${support.role.toLowerCase()} support`}
                 onClick={() => props.onCableDistance?.(support.distance)}
@@ -1885,7 +1885,7 @@ function Layers(
             >
               <MarkerContent>
                 <button
-                  className={`rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${selected ? 'border-rose-600 text-rose-700 ring-2 ring-rose-400/50' : culvert.warnings.length ? 'border-amber-600 text-warning' : 'border-sky-600 text-sky-800'}`}
+                  className={`rounded-sm border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${selected ? 'border-rose-600 text-rose-700 ring-2 ring-rose-400/50' : culvert.warnings.length ? 'border-warning text-warning' : 'border-sky-600 text-sky-800'}`}
                   aria-label={`Inspect structure ${culvert.name}`}
                   aria-pressed={selected}
                   onClick={() => {
@@ -2317,10 +2317,7 @@ export function PlanView(input: PlanProps) {
               className="pointer-events-none z-20"
             >
               <MarkerContent>
-                <span
-                  aria-hidden="true"
-                  className="block size-5 rounded-full border-2 border-rose-600 bg-rose-500/20"
-                />
+                <span aria-hidden="true" className="block size-5 rounded-full border-2 border-danger bg-danger/20" />
               </MarkerContent>
             </MapMarker>
             <MapMarker
@@ -2334,7 +2331,7 @@ export function PlanView(input: PlanProps) {
                 <span
                   role="status"
                   data-plan-edit-refusal={previewRefusal.kind}
-                  className="whitespace-nowrap rounded border border-rose-300 bg-background px-1.5 py-0.5 text-2xs font-medium text-rose-700 shadow-sm"
+                  className="whitespace-nowrap rounded-sm border border-danger-border bg-background px-1.5 py-0.5 text-2xs font-medium text-danger shadow-sm"
                 >
                   Not allowed · {previewRefusal.label}
                 </span>
@@ -2464,9 +2461,8 @@ export function PlanView(input: PlanProps) {
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-xs font-semibold">Map settings</h3>
               <Button
-                size="icon"
+                size="icon-2xs"
                 variant="ghost"
-                className="size-6"
                 aria-label="Close map settings"
                 onClick={() => setSettingsOpen(false)}
               >
@@ -2594,9 +2590,9 @@ export function PlanView(input: PlanProps) {
           >
             <span className="min-w-0 flex-1">Drag a number to move that point. Drag a + to bend the road.</span>
             <Button
-              size="icon"
+              size="icon-2xs"
               variant="ghost"
-              className="size-6 shrink-0"
+              className="shrink-0"
               aria-label="Hide editing hint"
               title="Hide editing hint"
               onClick={() => showEditHelp(false)}
@@ -2606,9 +2602,9 @@ export function PlanView(input: PlanProps) {
           </div>
         ) : (
           <Button
-            size="icon"
+            size="icon-xs"
             variant="outline"
-            className="absolute left-2 top-12 z-20 size-7 bg-background/95 shadow-sm"
+            className="absolute left-2 top-12 z-20 bg-background/95 shadow-sm"
             aria-label="Show editing hint"
             title="Show editing hint"
             onClick={() => showEditHelp(true)}

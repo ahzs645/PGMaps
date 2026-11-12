@@ -13,6 +13,8 @@ import type { HistoricalCoverageSummary } from './accessHistorySummary'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 import type { ContextFeature, Coordinate } from './types'
 import { Field, roadFieldClass } from './Controls'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const codeLabel = (label: string, comparison: SourceCodeComparison) =>
   comparison === 'same'
@@ -125,7 +127,10 @@ export function AccessHistoryCandidates({
               )}
             </div>
           </Field>
-          <div className="max-h-72 overflow-y-auto overscroll-none rounded border" data-map-sidebar-scroll="true">
+          <div
+            className={cn(insetBox({ padding: 'none' }), 'max-h-72 overflow-y-auto overscroll-none')}
+            data-map-sidebar-scroll="true"
+          >
             <ListHeader
               count={filtered.length}
               noun={['candidate within 1 km', 'candidates within 1 km']}

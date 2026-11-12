@@ -5,6 +5,8 @@ import type { AccessHistoryQueryStatus, AccessHistorySelection } from './AccessH
 import { Field, RoadSelect } from './Controls'
 import { AccessHistoryCandidates } from './AccessHistoryCandidates'
 import type { ContextFeature, Coordinate } from './types'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const sourceNames: Record<string, string> = {
   'results-opening': 'RESULTS opening',
@@ -74,7 +76,7 @@ export function AccessHistoryOverview({
     selection && ['road', 'structure'].includes(selection.kind) ? `${selection.kind}:${selection.id}` : ''
   const latestQuery = query && (!query.blockId || query.blockId === block?.id) ? query : null
   return (
-    <div className="space-y-3 rounded-md border bg-muted/20 p-2.5 text-xs" data-testid="history-block-overview">
+    <div className={cn(insetBox({ tone: 'muted' }), 'space-y-3 text-xs')} data-testid="history-block-overview">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="break-words font-medium">{block?.name ?? 'Connect a block to its source records'}</p>

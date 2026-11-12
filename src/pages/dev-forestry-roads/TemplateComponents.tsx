@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { NumberField } from './Controls'
 import { copyTemplateSide, ditchSideSlope, ditchTopWidthForSlope, ditchWidthRange, sideValue } from './templates'
 import { SectionAssemblyEditor } from './SectionAssemblyEditor'
@@ -146,7 +148,7 @@ export function TemplateComponents({
           </div>
         ))}
       </div>
-      <div className="rounded-md border p-2">
+      <div className={insetBox()}>
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-xs font-medium">{label(selected.kind, selected.side)}</p>
           <InfoTip label={`About the ${SHORT[selected.kind].toLowerCase()}`}>{component.rule}</InfoTip>
@@ -282,7 +284,7 @@ function TemplateSketch({ template, selected }: { template: RoadTemplate; select
   return (
     <svg
       viewBox="0 0 200 80"
-      className="w-full rounded border bg-muted/20"
+      className={cn(insetBox({ padding: 'none', tone: 'muted' }), 'w-full')}
       role="img"
       aria-label="Template component sketch, looking up-station"
     >

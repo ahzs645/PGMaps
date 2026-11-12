@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { CableChart } from './Charts'
 import type { CableLineRecord } from './cableCoverage'
 import type { CableCoverageRule } from './cableCoverageRule'
@@ -79,7 +81,7 @@ export function SuggestedCableLine({
   const supports = record.points.length - 2
   const shown = overlay?.loadPath.length ? overlay : undefined
   return (
-    <div className="space-y-1.5 rounded border p-2" data-testid="suggested-cable-line">
+    <div className={cn(insetBox(), 'space-y-1.5')} data-testid="suggested-cable-line">
       <div className="flex flex-wrap items-center justify-between gap-1">
         <p className="text-2xs font-medium">
           Line {record.id} · {Math.round(record.horizontalM)} m · {supports} support{supports === 1 ? '' : 's'} ·

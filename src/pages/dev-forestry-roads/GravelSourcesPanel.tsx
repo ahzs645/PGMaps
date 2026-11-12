@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
@@ -118,7 +120,7 @@ export function GravelSourcesPanel({
               {lookup.message}
             </p>
             {lookup.candidates.map((candidate) => (
-              <div key={candidate.id} className="rounded border p-2 text-xs">
+              <div key={candidate.id} className={cn(insetBox(), 'text-xs')}>
                 <p>
                   {candidate.name} · {candidate.use} · {candidate.status}
                 </p>

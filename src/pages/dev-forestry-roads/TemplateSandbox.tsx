@@ -8,6 +8,7 @@ import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import { sectionSampleAt } from './sectionGeometry'
 import { createEngineeringDesign } from './engineeringTypes'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
 import type { Alignment, GroundMaterial, RoadTemplate, TerrainSource } from './types'
 
 /**
@@ -111,7 +112,7 @@ export function TemplateSandbox({
         </p>
         <div className="grid gap-3 md:grid-cols-2">
           {cases.map((c) => (
-            <section key={c.label} className="rounded border p-2" data-preview-focused={!!c.focused}>
+            <section key={c.label} className={insetBox()} data-preview-focused={!!c.focused}>
               <h3 className="text-xs font-medium">{c.label}</h3>
               {c.station ? (
                 <div className="h-[260px]">

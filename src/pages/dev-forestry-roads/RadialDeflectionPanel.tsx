@@ -4,6 +4,8 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { MaxReachPanel } from './MaxReachPanel'
 import { CableChart } from './Charts'
 import { terrainDisplayName } from './terrainName'
@@ -208,7 +210,7 @@ export function RadialDeflectionPanel({
         summary={`${settings.radiusM} m radius · ${settings.bearingStepDeg}° step · ${settings.deflectionPercent}% sag`}
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        className="mb-2 rounded-md border"
+        className={cn(insetBox({ padding: 'none' }), 'mb-2')}
         contentClassName="space-y-3 px-3 pb-3"
         actions={
           <InfoTip label="About the settings">
@@ -283,7 +285,7 @@ export function RadialDeflectionPanel({
             </p>
           ))}
           <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(130px,0.65fr)_minmax(0,1fr)]">
-            <div className="max-h-64 overflow-auto overscroll-none rounded border">
+            <div className={cn(insetBox({ padding: 'none' }), 'max-h-64 overflow-auto overscroll-none')}>
               <EngineeringTable className="whitespace-normal" data-testid="radial-spoke-table">
                 <thead className="sticky top-0">
                   <tr>

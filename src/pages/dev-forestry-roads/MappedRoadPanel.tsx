@@ -170,7 +170,7 @@ export function MappedRoadPanel({
               <li key={range.start}>
                 <button
                   type="button"
-                  className="tabular-nums text-danger underline decoration-dotted underline-offset-2 dark:text-red-400"
+                  className="tabular-nums text-danger underline decoration-dotted underline-offset-2"
                   onClick={() => onStation(range.start)}
                 >
                   {formatRoadStation(range.start)}–{formatRoadStation(range.end)} · up to{' '}

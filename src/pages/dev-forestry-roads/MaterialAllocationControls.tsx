@@ -1,3 +1,5 @@
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
@@ -107,7 +109,7 @@ export function MaterialAllocationControls({
           </p>
         )}
         {(e.fillRequirements ?? []).map((r, index) => (
-          <div key={r.id} className="mt-2 space-y-2 rounded border p-2">
+          <div key={r.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-medium">Requirement {index + 1}</span>
               <Button
@@ -215,7 +217,7 @@ export function MaterialAllocationControls({
               Add direction range
             </Button>
             {(e.haul.directionRanges ?? []).map((r, index) => (
-              <div key={r.id} className="mt-2 space-y-2 rounded border p-2">
+              <div key={r.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
                 <div className="grid grid-cols-2 gap-2">
                   <NumberField
                     label={`Direction ${index + 1} start (m)`}
@@ -290,7 +292,7 @@ export function MaterialAllocationControls({
               </p>
             )}
             {(e.haul.sidecastRanges ?? []).map((r, index) => (
-              <div key={r.id} className="mt-2 space-y-2 rounded border p-2">
+              <div key={r.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
                 <div className="grid grid-cols-2 gap-2">
                   <NumberField
                     label={`Sidecast ${index + 1} start (m)`}

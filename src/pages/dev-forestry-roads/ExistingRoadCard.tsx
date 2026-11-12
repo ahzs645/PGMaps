@@ -55,17 +55,17 @@ export function ExistingRoadCard({
           (onReview || onAccessHistory || onLoadAsRoad) && (
             <div className="grid w-full gap-1.5">
               {onLoadAsRoad && (
-                <Button size="sm" className="h-7 w-full text-xs" onClick={onLoadAsRoad}>
+                <Button size="xs" className="w-full" onClick={onLoadAsRoad}>
                   Load as road
                 </Button>
               )}
               {onReview && (
-                <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onReview}>
+                <Button size="xs" variant="outline" className="w-full" onClick={onReview}>
                   Review road
                 </Button>
               )}
               {onAccessHistory && (
-                <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onAccessHistory}>
+                <Button size="xs" variant="outline" className="w-full" onClick={onAccessHistory}>
                   Access evidence
                 </Button>
               )}

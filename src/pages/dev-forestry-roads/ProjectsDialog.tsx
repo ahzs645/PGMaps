@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Copy, FolderOpen, LibraryBig, Mountain, Plus, Search, Trash2, Upload } from 'lucide-react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -225,7 +227,7 @@ export function ProjectsDialog({
         view === 'list' ? undefined : (
           <button
             type="button"
-            className="-ml-1 inline-flex items-center gap-1 rounded px-1 py-0.5 normal-case tracking-normal hover:bg-accent hover:text-foreground touch:min-h-10"
+            className="-ml-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 normal-case tracking-normal hover:bg-accent hover:text-foreground touch:min-h-10"
             onClick={() => setView('list')}
           >
             <ArrowLeft className="size-3.5" aria-hidden="true" />
@@ -315,7 +317,7 @@ export function ProjectsDialog({
               ]}
             />
             <ListHeader count={savedEntries.length} noun={['saved project', 'saved projects']} sticky={false} />
-            <ul className="divide-y rounded-lg border" aria-label="Saved projects">
+            <ul className={cn(insetBox({ padding: 'none' }), 'divide-y')} aria-label="Saved projects">
               {savedEntries.map((entry) => {
                 const current = entry.id === activeId
                 return (
@@ -325,7 +327,7 @@ export function ProjectsDialog({
                       <p className="break-words text-sm font-medium">
                         {entry.name}
                         {current && (
-                          <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-3xs font-semibold text-primary">
+                          <span className="ml-2 rounded-sm bg-primary/10 px-1.5 py-0.5 text-3xs font-semibold text-primary">
                             Open now
                           </span>
                         )}
@@ -343,9 +345,8 @@ export function ProjectsDialog({
                       <span className="flex w-full shrink-0 items-center justify-end gap-1 sm:w-auto">
                         <span className="text-xs">Delete?</span>
                         <Button
-                          size="sm"
+                          size="xs"
                           variant="destructive"
-                          className="h-7"
                           onClick={() => {
                             onDelete(entry.id)
                             setConfirm(null)
@@ -353,7 +354,7 @@ export function ProjectsDialog({
                         >
                           Delete
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-7" onClick={() => setConfirm(null)}>
+                        <Button size="xs" variant="ghost" onClick={() => setConfirm(null)}>
                           Keep
                         </Button>
                       </span>
@@ -361,9 +362,8 @@ export function ProjectsDialog({
                       <span className="flex w-full shrink-0 items-center justify-end gap-1 sm:w-auto">
                         {!current && (
                           <Button
-                            size="sm"
+                            size="xs"
                             variant="outline"
-                            className="h-7"
                             aria-label={`Open ${entry.name}`}
                             onClick={() => {
                               onOpen(entry.id)
@@ -374,9 +374,8 @@ export function ProjectsDialog({
                           </Button>
                         )}
                         <Button
-                          size="icon"
+                          size="icon-xs"
                           variant="ghost"
-                          className="size-7"
                           aria-label={`Duplicate ${entry.name}`}
                           title="Duplicate"
                           onClick={() => onDuplicate(entry.id)}
@@ -384,9 +383,8 @@ export function ProjectsDialog({
                           <Copy className="size-3.5" />
                         </Button>
                         <Button
-                          size="icon"
+                          size="icon-xs"
                           variant="ghost"
-                          className="size-7"
                           aria-label={`Delete ${entry.name}`}
                           title={current ? 'Open another project before deleting this one' : 'Delete'}
                           disabled={current}
@@ -459,7 +457,7 @@ export function ProjectsDialog({
               {examples.map((example) => (
                 <article
                   key={example.id}
-                  className="flex min-w-0 flex-col gap-2 rounded-lg border border-emerald-600/30 bg-emerald-600/5 p-3"
+                  className="flex min-w-0 flex-col gap-2 rounded-lg border border-success-border bg-success-surface p-3"
                   data-scenario={example.id}
                   data-cutblocks="mapped"
                 >
@@ -586,7 +584,7 @@ export function ProjectsDialog({
               ))}
             </div>
             {kind === 'regional' && (
-              <div className="space-y-2 rounded-lg border p-3">
+              <div className={cn(insetBox({ padding: 'lg' }), 'space-y-2')}>
                 <Field label="Place">
                   <RoadSelect
                     ariaLabel="Place"
@@ -623,7 +621,7 @@ export function ProjectsDialog({
               </InlineAlert>
             )}
             {standards && (
-              <section className="space-y-2 rounded-lg border p-3" aria-label="Design standards">
+              <section className={cn(insetBox({ padding: 'lg' }), 'space-y-2')} aria-label="Design standards">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-medium">Design standards</h3>
                   <InfoTip label="About design standards">
@@ -675,8 +673,8 @@ function ContentChip({ kind, content }: { kind: keyof typeof CONTENT_LABELS; con
         content === 'none'
           ? 'border-dashed text-muted-foreground'
           : content === 'mapped'
-            ? 'border-emerald-600/30 bg-emerald-600/10 text-success'
-            : 'border-amber-500/40 bg-amber-500/10 text-warning'
+            ? 'border-success-border bg-success-surface text-success-foreground'
+            : 'border-warning-border bg-warning-surface text-warning-foreground'
       }`}
     >
       {CONTENT_LABELS[kind][content]}

@@ -1,6 +1,8 @@
 import { StationValue, useStationReader } from './roadStation'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { formatRoadStation } from './Charts'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
@@ -294,7 +296,7 @@ export function TerrainPreparationPanel({
             </p>
           )}
           {raster && metadata.preparation?.tin && (
-            <details className="rounded border p-2">
+            <details className={insetBox()}>
               <summary className="cursor-pointer text-xs font-medium">Edit retained source TIN</summary>
               <p className="mt-2 text-2xs text-muted-foreground">
                 Edit a vertex elevation while retaining breakline topology. The grid is rebuilt from the edited
@@ -369,7 +371,7 @@ export function TerrainPreparationPanel({
             </details>
           )}
           {!!metadata.referenceSurfaces?.length && (
-            <details className="rounded border p-2">
+            <details className={insetBox()}>
               <summary className="cursor-pointer text-xs font-medium">Named analytical reference surfaces</summary>
               <p className="mt-2 text-2xs text-muted-foreground">
                 Section components can target these earlier ground surfaces. Remove a snapshot only after changing
@@ -397,7 +399,7 @@ export function TerrainPreparationPanel({
               ))}
             </details>
           )}
-          <details className="rounded border p-2">
+          <details className={insetBox()}>
             <summary className="cursor-pointer text-xs font-medium">Grade a pad at the selected station</summary>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {(
@@ -561,7 +563,7 @@ export function TerrainPreparationPanel({
             Import canopy / orthophoto GeoTIFF
           </Button>
           {(metadata.backgrounds ?? []).map((layer) => (
-            <div key={layer.id} className="space-y-1 rounded border p-2">
+            <div key={layer.id} className={cn(insetBox(), 'space-y-1')}>
               <label className="flex min-w-0 items-center gap-2 text-xs">
                 <input
                   type="checkbox"

@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
 import { ToolSection } from '@/components/ui/tool-section'
 import { ExternalLink } from '@/components/ui/text-button'
+import { cn } from '@/lib/utils'
 import { formatPct } from './measureFormat'
 import type { AnalysisResult } from './types'
 
@@ -48,7 +50,7 @@ export function LandformDesignPanel({
             force lines.
           </p>
           {review.blocks.map((block) => (
-            <div className="space-y-1 rounded-md border p-2" key={block.id}>
+            <div className={cn(insetBox(), 'space-y-1')} key={block.id}>
               <p className="font-medium">{block.name}</p>
               <p>
                 Visible ground at {block.visibleStations} of {block.stationCount} road stations.

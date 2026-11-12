@@ -3,6 +3,8 @@ import { ROAD_LIMIT_MESSAGE } from './roadLimits'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { formatRoadStation } from './Charts'
 import { parseProject } from './project'
@@ -34,7 +36,7 @@ function Sketch({ result }: { result: SwitchbackSketch }) {
   return (
     <svg
       viewBox="0 0 290 150"
-      className="w-full rounded border bg-muted/20"
+      className={cn(insetBox({ padding: 'none', tone: 'muted' }), 'w-full')}
       role="img"
       aria-label="Switchback plan sketch: two 90 degree curves connected by a straight"
     >
@@ -274,7 +276,11 @@ export function SwitchbackTools({
               <dd>{number(result.endElevationM)} m</dd>
             </dl>
             <div
-              className={`space-y-1.5 rounded-md border p-2 text-xs ${sweptTurn && !sweptTurn.fits ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40' : 'bg-muted/30'}`}
+              className={cn(
+                insetBox(),
+                'space-y-1.5 text-xs',
+                sweptTurn && !sweptTurn.fits ? 'border-danger-border bg-danger-surface' : 'bg-muted/30',
+              )}
               data-testid="road-switchback-swept"
             >
               <p className="font-medium" role="status">

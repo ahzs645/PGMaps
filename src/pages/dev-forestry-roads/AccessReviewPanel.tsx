@@ -36,6 +36,7 @@ import { departureBearingAt } from './haulDestination'
 import { projectHaulField } from './haulReview'
 import type { JunctionOrientation } from './junctionOrientation'
 import type { Coordinate, RoadProject, TerrainSource } from './types'
+import { insetBox } from '@/components/ui/inset-box'
 
 const MAX_ROADS = 20
 const CORRIDOR_HALF_WIDTH_M = 180
@@ -490,6 +491,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
               <div className="min-w-0 flex-1">
                 <RoadSelect
                   ariaLabel="Harvest block"
+                  className="h-7"
                   value={block?.id ?? ''}
                   onValueChange={setChosenBlock}
                   options={blocks.map((candidate) => {
@@ -506,7 +508,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
                 />
               </div>
               {p.onDrawBlock && (
-                <Button size="sm" variant="outline" className="h-8 shrink-0" disabled={full} onClick={p.onDrawBlock}>
+                <Button size="xs" variant="outline" className="shrink-0" disabled={full} onClick={p.onDrawBlock}>
                   Draw block
                 </Button>
               )}
@@ -514,9 +516,9 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
           ) : (
             <div className="flex items-center gap-2">
               <Button
-                size="sm"
+                size="xs"
                 variant={picking === 'end' ? 'default' : 'outline'}
-                className="h-8 gap-1"
+                className="gap-1"
                 disabled={full || !onPickOnPlan}
                 aria-pressed={picking === 'end'}
                 onClick={() => pick('end')}
@@ -601,13 +603,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
               )}
               {p.onLoadFsrsNear && (
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2 text-xs"
-                    disabled={!end || full}
-                    onClick={() => void findNearby()}
-                  >
+                  <Button size="xs" variant="ghost" disabled={!end || full} onClick={() => void findNearby()}>
                     Find nearby FSRs
                   </Button>
                   {scope && <span className="min-w-0 flex-1 text-2xs text-muted-foreground">{scope}</span>}
@@ -626,9 +622,8 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
           {ROUTE_GOALS.map((goal) => (
             <Button
               key={goal.id}
-              size="sm"
+              size="xs"
               variant={goals.includes(goal.id) ? 'default' : 'outline'}
-              className="h-7 px-2 text-xs"
               aria-pressed={goals.includes(goal.id)}
               title={goal.help}
               onClick={() =>
@@ -664,8 +659,8 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
           </InfoTip>
         </label>
         <Button
-          size="sm"
-          className="h-8 w-full"
+          size="xs"
+          className="w-full"
           disabled={!end || !mode || !goals.length || full || pickedUnavailable || !!p.drawing}
           title={p.drawing ? 'Finish the road being drawn on the plan first' : undefined}
           onClick={() => void compare()}
@@ -689,7 +684,11 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
                 const color = ACCESS_START_COLORS[startIndex % ACCESS_START_COLORS.length]
                 const startRows = rows.filter((row) => row.startIndex === startIndex)
                 return (
-                  <div key={startIndex} className="overflow-hidden rounded-md border" data-access-start={startIndex}>
+                  <div
+                    key={startIndex}
+                    className={cn(insetBox({ padding: 'none' }), 'overflow-hidden')}
+                    data-access-start={startIndex}
+                  >
                     <div className="flex items-center gap-1.5 bg-muted/40 px-2 py-1.5">
                       <span className="size-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
                       <span className="min-w-0 flex-1 truncate font-medium" title={attempt.start.target.name}>
@@ -724,7 +723,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
                           {row.overallBest.map((goal) => (
                             <span
                               key={goal}
-                              className="shrink-0 rounded bg-amber-100 px-1 text-3xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+                              className="shrink-0 rounded-sm bg-warning/15 px-1 text-3xs font-semibold text-warning-foreground"
                               title={`Leads ${GOAL_LABEL[goal].toLowerCase()} across every start`}
                             >
                               ★ {GOAL_LABEL[goal]}
@@ -764,15 +763,15 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
             </div>
             <div className="flex items-center gap-1">
               <Button
-                size="sm"
-                className="h-8 flex-1 gap-1"
+                size="xs"
+                className="flex-1 gap-1"
                 disabled={!selectedRow || full}
                 onClick={() => selectedRow && void add(selectedRow)}
               >
                 <Plus className="size-3.5" />
                 Add as road
               </Button>
-              <Button size="sm" variant="ghost" className="h-8" onClick={() => setRun(null)}>
+              <Button size="xs" variant="ghost" onClick={() => setRun(null)}>
                 Clear
               </Button>
               <InfoTip label="About adding an access road">
@@ -784,7 +783,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
           </div>
         )}
         {record && (
-          <div className="space-y-1.5 rounded-md border p-2.5 text-2xs" data-testid="road-fsr-connection-record">
+          <div className={cn(insetBox(), 'space-y-1.5 text-2xs')} data-testid="road-fsr-connection-record">
             <p className="font-medium">Recorded FSR connection: {record.targetName}</p>
             <p className="text-muted-foreground">
               {length(record.straightLineDistanceM)} straight-line · {length(record.routeLengthM)} road at creation.{' '}
@@ -796,7 +795,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
               </InlineAlert>
             )}
             {p.onCompareCompleteCosts && (
-              <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={p.onCompareCompleteCosts}>
+              <Button size="xs" variant="outline" className="w-full" onClick={p.onCompareCompleteCosts}>
                 Review final checks & complete costs
               </Button>
             )}

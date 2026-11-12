@@ -114,6 +114,7 @@ import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
 import { FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { RoadSummary, RoadSummarySettings } from './dev-forestry-roads/RoadSummary'
@@ -129,6 +130,7 @@ import { TabBar } from '@/components/ui/tab-bar'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import './dev-forestry-roads/workspace.css'
 import { downloadBlob, downloadText } from '@/lib/download'
+import { cn } from '@/lib/utils'
 import {
   CableChart,
   ChartHeader,
@@ -2847,9 +2849,9 @@ export default function DevForestryRoads({
       actions={
         <>
           <Button
-            size="sm"
+            size="xs"
             variant="ghost"
-            className="mr-auto h-7"
+            className="mr-auto"
             disabled={!draft.length}
             title={`Undo point (${shortcutKeys.undo})`}
             aria-keyshortcuts={shortcutKeys.undoAria}
@@ -2857,7 +2859,7 @@ export default function DevForestryRoads({
           >
             Undo point
           </Button>
-          <Button size="sm" className="h-7" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
+          <Button size="xs" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
             {mode === 'extend'
               ? 'Finish extension'
               : `Finish ${mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}`}
@@ -3298,7 +3300,7 @@ export default function DevForestryRoads({
       aria-label={saveState.detail}
       title={saveState.detail}
       data-testid="road-save-mark"
-      className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'}`}
+      className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-warning' : 'bg-danger'}`}
     />
   )
   // The registry's Switch interface command, showing the interface in use. The header line names
@@ -3442,7 +3444,7 @@ export default function DevForestryRoads({
           <span
             title={planningBasis}
             data-testid="road-planning-basis"
-            className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-warning sm:block"
+            className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-warning-border bg-warning-surface px-2 py-1 text-3xs text-warning-foreground sm:block"
           >
             {/* One wording at a time, so the badge's text is what it shows: the short one on a
                 header narrower than a wide desktop. */}
@@ -3866,9 +3868,9 @@ export default function DevForestryRoads({
                   progress: w.busyProgress ?? undefined,
                   action: w.busyCancel ? (
                     <Button
-                      size="sm"
+                      size="xs"
                       variant="outline"
-                      className="h-7 shrink-0 px-2 text-xs"
+                      className="shrink-0"
                       aria-label={w.busyCancel.label}
                       onClick={w.busyCancel.onCancel}
                     >
@@ -4103,7 +4105,7 @@ export default function DevForestryRoads({
                       <div
                         role="status"
                         data-testid="road-live-route-preview"
-                        className="flex flex-wrap items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs"
                       >
                         <span>
                           {routePreview.error
@@ -4114,7 +4116,7 @@ export default function DevForestryRoads({
                     )}
                     {!investigation && costPreview && (
                       <div
-                        className="flex flex-wrap items-center justify-between gap-2 rounded border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
                         data-testid="full-cost-map-preview"
                       >
                         <span>
@@ -4133,7 +4135,7 @@ export default function DevForestryRoads({
                       </div>
                     )}
                     {terrainProfile && (
-                      <div className="flex items-center justify-between rounded border border-sky-600/40 bg-sky-600/10 px-3 py-1 text-xs">
+                      <div className="flex items-center justify-between rounded-md border border-sky-600/40 bg-sky-600/10 px-3 py-1 text-xs">
                         <span>Terrain profile: {terrainProfile.name} · ground elevations and slopes only</span>
                         <Button size="sm" variant="outline" onClick={() => save('csv')}>
                           Profile CSV
@@ -4147,13 +4149,16 @@ export default function DevForestryRoads({
                       </div>
                     )}
                     {!investigation && numericPegAlignment && !draftAlignment && !terrainProfile && (
-                      <div role="status" className="rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs">
+                      <div
+                        role="status"
+                        className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs"
+                      >
                         Numeric peg preview · plan, profile, section and leg table use the proposed endpoint. Add peg to
                         save it, or cancel the preview in the peg controls.
                       </div>
                     )}
                     {!investigation && templatePreview && (
-                      <div className="flex flex-wrap items-center justify-between gap-1 rounded border border-violet-600/40 bg-violet-600/10 px-3 py-1 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-1 rounded-md border border-violet-600/40 bg-violet-600/10 px-3 py-1 text-xs">
                         <span>
                           Template preview: {templatePreview.name} · current terrain and station · assignments
                           temporarily omitted
@@ -4186,7 +4191,7 @@ export default function DevForestryRoads({
                       <div
                         role="status"
                         data-testid="road-feature-selection"
-                        className="flex items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs"
+                        className="flex items-center justify-between gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs"
                       >
                         <span>
                           {selectedRange.label} · {formatRoadStation(selectedRange.start)}
@@ -4714,7 +4719,7 @@ export default function DevForestryRoads({
                                         <div className="flex h-full min-h-0 flex-col">
                                           <RoadSelect
                                             ariaLabel="Active D-line"
-                                            className="mb-1 rounded border bg-background text-xs"
+                                            className="mb-1 rounded-md border bg-background text-xs"
                                             value={cableLine.id}
                                             onValueChange={(value) => selectCable(value)}
                                           >
@@ -4726,7 +4731,7 @@ export default function DevForestryRoads({
                                           </RoadSelect>
                                           {cableResult.summary && (
                                             <details
-                                              className="mb-1 rounded border px-2 py-1 text-2xs"
+                                              className={cn(insetBox({ padding: 'none' }), 'mb-1 px-2 py-1 text-2xs')}
                                               data-testid="road-cable-summary"
                                             >
                                               <summary className="cursor-pointer">
@@ -4876,9 +4881,8 @@ export default function DevForestryRoads({
                           />
                         )}
                         <Button
-                          size="icon"
+                          size="icon-xs"
                           variant="outline"
-                          className="size-7"
                           aria-label={playing ? 'Pause station playback' : 'Play station playback'}
                           onClick={() => {
                             if (station >= displayedAnalysis.length) w.setStation(0)
@@ -4888,7 +4892,7 @@ export default function DevForestryRoads({
                           {playing ? <Pause className="size-3" /> : <Play className="size-3" />}
                         </Button>
                         <button
-                          className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
+                          className="rounded-md border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
                           aria-label="Previous road station"
                           onClick={() =>
                             w.setStation(
@@ -4916,7 +4920,7 @@ export default function DevForestryRoads({
                           }
                         />
                         <button
-                          className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
+                          className="rounded-md border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
                           aria-label="Next road station"
                           onClick={() =>
                             w.setStation(

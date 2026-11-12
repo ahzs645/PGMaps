@@ -40,6 +40,8 @@ import { AccessHistoryOverview } from './AccessHistoryOverview'
 import { AccessHistoryRecord } from './AccessHistoryRecord'
 import { assessHistoricalCoverage, type HistoricalCoverageNextStep } from './accessHistorySummary'
 import type { AccessHistoryQueryStatus, AccessHistorySelection, AccessHistoryWorkspace } from './AccessHistorySelection'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const relationshipLabels: Record<HistoricalRelationship, string> = {
   proximity: 'Nearby only',
@@ -413,7 +415,7 @@ export function AccessHistoryPanel({
           </p>
         )}
         {trace && (
-          <div className="space-y-2 rounded-md border p-2 text-xs" data-testid="history-trace-results">
+          <div className={cn(insetBox(), 'space-y-2 text-xs')} data-testid="history-trace-results">
             <p className="font-medium">
               {trace.paths.length} candidates · {trace.excludedRoads.length} excluded roads
             </p>
@@ -455,7 +457,7 @@ export function AccessHistoryPanel({
           </div>
         )}
         {selectedPath && assessment && (
-          <div className="space-y-2 rounded-md border bg-muted/20 p-2.5" data-testid="history-selected-path">
+          <div className={cn(insetBox({ tone: 'muted' }), 'space-y-2')} data-testid="history-selected-path">
             <Field label="Historical route">
               <RoadSelect
                 ariaLabel="Historical route"
@@ -624,7 +626,7 @@ export function AccessHistoryPanel({
             }}
           />
           {pending && (
-            <div className="space-y-2 rounded border p-2" data-testid="history-import-preview">
+            <div className={cn(insetBox(), 'space-y-2')} data-testid="history-import-preview">
               <p>
                 {pending.name}: {pending.bundle.context.length} map features ·{' '}
                 {pending.bundle.accessHistory.paths.length} assertions.

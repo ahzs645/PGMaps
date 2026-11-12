@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -180,7 +182,7 @@ export function MaxReachPanel({
         summary={`${settings.minLengthM}–${settings.maxLengthM} m · ${settings.bearingStepDeg}° step · ${rigging ? 'rope and load' : `${sag.deflectionPercent}% sag`}`}
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        className="mb-2 rounded-md border"
+        className={cn(insetBox({ padding: 'none' }), 'mb-2')}
         contentClassName="space-y-3 px-3 pb-3"
         actions={
           <InfoTip label="About the reach search">
@@ -282,7 +284,7 @@ export function MaxReachPanel({
             </p>
           ))}
           <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(170px,0.75fr)_minmax(0,1fr)]">
-            <div className="max-h-64 overflow-auto overscroll-none rounded border">
+            <div className={cn(insetBox({ padding: 'none' }), 'max-h-64 overflow-auto overscroll-none')}>
               <EngineeringTable className="whitespace-normal" data-testid="radial-reach-table">
                 <thead className="sticky top-0">
                   <tr>

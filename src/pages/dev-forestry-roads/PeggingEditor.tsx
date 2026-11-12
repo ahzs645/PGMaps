@@ -1,8 +1,10 @@
 import { PegMeasurementHelp } from './PegMeasurementHelp'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { insetBox } from '@/components/ui/inset-box'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable, engineeringPinnedColumnClass } from '@/components/ui/engineering-table'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { cn } from '@/lib/utils'
 import { CellNumberField, NumberField } from './Controls'
 import { formatRoadStation } from './Charts'
 import { distance, offsetCoordinate } from './engine'
@@ -227,12 +229,11 @@ export function PeggingEditor({
           </div>
         )}
         <div className="flex items-center gap-1.5">
-          <Button size="sm" variant="outline" className="h-8" onClick={preview}>
+          <Button size="field" variant="outline" onClick={preview}>
             Preview next peg
           </Button>
           <Button
-            size="sm"
-            className="h-8"
+            size="field"
             disabled={!currentCandidate}
             onClick={() => {
               if (!currentCandidate) return
@@ -248,7 +249,7 @@ export function PeggingEditor({
             Add peg
           </Button>
           {currentCandidate && (
-            <Button size="sm" variant="ghost" className="h-8" onClick={clearPreview}>
+            <Button size="field" variant="ghost" onClick={clearPreview}>
               Cancel peg preview
             </Button>
           )}
@@ -266,7 +267,7 @@ export function PeggingEditor({
         </p>
       )}
       {/* Distance, bearing and radius edit in place, like spreadsheet cells; the rest are results. */}
-      <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-none rounded-md border">
+      <div className={cn(insetBox({ padding: 'none' }), 'min-h-0 min-w-0 flex-1 overflow-auto overscroll-none')}>
         <EngineeringTable>
           <thead className="sticky top-0 z-10">
             <tr>

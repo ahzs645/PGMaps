@@ -9,6 +9,8 @@ import { CommandButton, type CommandPresentation } from '@/components/interfaces
 import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { FolderTree, Map as MapIcon, Mountain, Truck } from 'lucide-react'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from '../Controls'
 import { HaulGradeFields } from '../HaulGradeFields'
@@ -65,8 +67,8 @@ export function DesignTab(p: SidebarProps) {
         title="Road"
         actions={
           <Button
-            size="icon"
-            className="size-7 shrink-0"
+            size="icon-xs"
+            className="shrink-0"
             variant="ghost"
             aria-label="Delete active alignment"
             title="Delete this road"
@@ -618,9 +620,9 @@ function HorizontalPoints(p: SidebarProps) {
     >
       {straight.length > 0 && (
         <Button
-          size="sm"
+          size="xs"
           variant="outline"
-          className="mb-2 h-7 w-full text-xs"
+          className="mb-2 w-full"
           onClick={() => {
             updateAlignment((a) => ({ ...a, points: a.points.filter((x) => !straight.includes(x.id)) }))
             p.onPoint(null)
@@ -651,9 +653,8 @@ function HorizontalPoints(p: SidebarProps) {
           ))}
         </RoadSelect>
         <Button
-          size="sm"
+          size="field"
           variant="outline"
-          className="h-8 px-2 text-xs"
           aria-label="Select start"
           title="Select the start point"
           onClick={() => {
@@ -664,9 +665,8 @@ function HorizontalPoints(p: SidebarProps) {
           Start
         </Button>
         <Button
-          size="sm"
+          size="field"
           variant="outline"
-          className="h-8 px-2 text-xs"
           aria-label="Select end"
           title="Select the end point"
           onClick={() => {
@@ -678,7 +678,7 @@ function HorizontalPoints(p: SidebarProps) {
         </Button>
       </div>
       {point && (
-        <div className="mt-2 space-y-2 rounded-md border p-2">
+        <div className={cn(insetBox(), 'mt-2 space-y-2')}>
           <div className="grid grid-cols-2 gap-2">
             <NumberField
               label="Longitude"
@@ -913,8 +913,8 @@ function VerticalAlignment(p: SidebarProps) {
                 ))}
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="size-6 touch:size-9"
+                  size="icon-2xs"
+                  className="touch:size-9"
                   aria-label={`Remove PVI ${i + 1}`}
                   onClick={() => updateAlignment((a) => ({ ...a, vertical: a.vertical.filter((x) => x.id !== v.id) }))}
                 >

@@ -39,7 +39,7 @@ export const RouteFailureRow = forwardRef<
   )
   return (
     <div
-      className={`rounded-md border border-dashed px-2 py-1.5 text-xs ${selected ? 'border-red-600 bg-red-50/60 dark:bg-red-950/30' : ''}`}
+      className={`rounded-md border border-dashed px-2 py-1.5 text-xs ${selected ? 'border-danger bg-danger-surface/60' : ''}`}
       data-route-row={goals[0].goal}
     >
       {stop ? (
@@ -73,9 +73,9 @@ export const RouteFailureRow = forwardRef<
         stop &&
         grades.length > 0 && (
           <Button
-            size="sm"
+            size="xs"
             variant="outline"
-            className="mt-1 h-7 px-2 text-xs"
+            className="mt-1"
             disabled={busy}
             onClick={onTrySteeper}
             data-testid="road-route-try-steeper"

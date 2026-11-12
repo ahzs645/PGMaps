@@ -1,5 +1,7 @@
 import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import type { ContextFeature, GroundMaterial, RoadTemplate, SectionComponent, SectionLayer } from './types'
 import { ComponentLibrary } from './ComponentLibrary'
@@ -99,7 +101,7 @@ export function SectionAssemblyEditor({
         )}
       </div>
       {components.map((c, i) => (
-        <div key={c.id} className="space-y-2 rounded border p-2">
+        <div key={c.id} className={cn(insetBox(), 'space-y-2')}>
           <Field label={`Component ${i + 1} name`}>
             <input
               className={roadFieldClass}
@@ -212,7 +214,7 @@ export function SectionAssemblyEditor({
           </div>
           {material(c.materialId, (materialId) => update(c.id, { materialId }), `Component ${i + 1} fill material`)}
           {c.kind !== 'key' && (
-            <details className="rounded border p-2">
+            <details className={insetBox()}>
               <summary className="cursor-pointer text-xs">Reference feature or surface</summary>
               <p className="my-1 text-2xs text-muted-foreground">
                 A feature anchors the outward endpoint where it crosses this section. A surface supplies its elevation;
@@ -348,7 +350,7 @@ export function SectionAssemblyEditor({
         )}
       </div>
       {layers.map((l, i) => (
-        <div key={l.id} className="space-y-2 rounded border p-2">
+        <div key={l.id} className={cn(insetBox(), 'space-y-2')}>
           <Field label={`Course ${i + 1} name`}>
             <input
               className={roadFieldClass}

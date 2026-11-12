@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import {
@@ -50,7 +52,7 @@ function EstimateItems({
         item.id !== activeId
           ? []
           : [
-              <fieldset key={item.id} className="space-y-2 rounded border p-2">
+              <fieldset key={item.id} className={cn(insetBox(), 'space-y-2')}>
                 <legend className="px-1 text-xs font-medium">
                   {shared ? 'Shared item' : 'Estimate item'} {index + 1}
                 </legend>

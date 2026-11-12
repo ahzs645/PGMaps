@@ -8,6 +8,7 @@ import { hasCompleteCoverage } from './analysisResult'
 import { materialPlanMissing } from './engineeringTypes'
 import { formatRoadStation } from './Charts'
 import type { CulvertAnalysis, RoadAnalysis, RoadSettings } from './types'
+import { insetBox } from '@/components/ui/inset-box'
 
 const fmt = (value: number | null | undefined, digits = 1) =>
   value == null || !Number.isFinite(value) ? '—' : value.toLocaleString('en-CA', { maximumFractionDigits: digits })
@@ -40,7 +41,7 @@ function CulvertProfile({ culvert }: { culvert: CulvertAnalysis }) {
       .join(' ')
   }
   return (
-    <div className="rounded border p-2" data-testid="culvert-profile">
+    <div className={insetBox()} data-testid="culvert-profile">
       <p className="text-xs font-medium">{culvert.name} · along-barrel profile</p>
       <svg viewBox="0 0 650 195" className="w-full" role="img" aria-label={`Culvert profile for ${culvert.name}`}>
         <path d="M48 20V160H628" fill="none" stroke="#94a3b8" />
@@ -428,7 +429,7 @@ export function EngineeringSummary({
           </>
         )}
         {result?.warnings.map((warning, index) => (
-          <p key={index} className="mt-2 border-l-2 border-amber-500 pl-2 text-2xs">
+          <p key={index} className="mt-2 border-l-2 border-warning pl-2 text-2xs">
             {warning}
           </p>
         ))}

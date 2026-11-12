@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { LocateFixed, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { referenceShape, type ReferenceFeature, type ReferenceShape } from './referenceFeatures'
@@ -83,7 +85,10 @@ export function ReferencePanel({
         </Button>
         {features.length > 0 && (
           // An import can hold 500 features: only the rows in view are mounted, in a list of bounded height.
-          <div className="max-h-80 overflow-y-auto overscroll-none rounded border" data-map-sidebar-scroll="true">
+          <div
+            className={cn(insetBox({ padding: 'none' }), 'max-h-80 overflow-y-auto overscroll-none')}
+            data-map-sidebar-scroll="true"
+          >
             <VirtualResultList
               items={features}
               getKey={(feature) => feature.id}
@@ -108,9 +113,9 @@ export function ReferencePanel({
                       />
                       {onLocate && (
                         <Button
-                          size="icon"
+                          size="icon-xs"
                           variant="ghost"
-                          className="size-7 shrink-0"
+                          className="shrink-0"
                           aria-label={`Show ${feature.name} on the plan`}
                           title="Show on plan"
                           onClick={() => onLocate(feature)}
@@ -119,9 +124,9 @@ export function ReferencePanel({
                         </Button>
                       )}
                       <Button
-                        size="icon"
+                        size="icon-xs"
                         variant="ghost"
-                        className="size-7 shrink-0"
+                        className="shrink-0"
                         aria-label={`Remove reference ${feature.name}`}
                         title="Remove"
                         onClick={() => change(features.filter((f) => f.id !== feature.id))}
@@ -137,9 +142,9 @@ export function ReferencePanel({
                       <div className="grid grid-cols-3 gap-1">
                         {onPegAt && (
                           <Button
-                            size="sm"
+                            size="xs"
                             variant="outline"
-                            className="h-7 min-w-0 px-1 text-xs"
+                            className="min-w-0 px-1"
                             title={
                               pegging
                                 ? 'Add this point to the road being pegged'
@@ -155,9 +160,9 @@ export function ReferencePanel({
                           (['start', 'end'] as const).map((end) => (
                             <Button
                               key={end}
-                              size="sm"
+                              size="xs"
                               variant="outline"
-                              className="h-7 min-w-0 px-1 text-xs"
+                              className="min-w-0 px-1"
                               disabled={fixedRoad || pegging}
                               title={
                                 fixedRoad

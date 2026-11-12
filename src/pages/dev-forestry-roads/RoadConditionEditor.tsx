@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import {
   assessRoadCondition,
@@ -101,7 +103,7 @@ export function RoadConditionEditor({
   )
   return (
     <section
-      className="space-y-2 rounded-lg border p-2.5"
+      className={cn(insetBox(), 'space-y-2')}
       aria-label={`Dated condition evidence for ${roadName}`}
       data-testid="road-condition-editor"
     >
@@ -164,7 +166,7 @@ export function RoadConditionEditor({
           </div>
         )}
         {!!estimate?.records.length && (
-          <ul className="divide-y rounded border" aria-label="Dated road observations">
+          <ul className={cn(insetBox({ padding: 'none' }), 'divide-y')} aria-label="Dated road observations">
             {estimate.records.map(({ observation, status, ageDays, reason }) => (
               <li key={observation.id} className="space-y-1 p-2 text-2xs">
                 <div className="flex items-start gap-2">
@@ -179,9 +181,9 @@ export function RoadConditionEditor({
                     </p>
                   </div>
                   <Button
-                    size="sm"
+                    size="2xs"
                     variant="ghost"
-                    className="h-6 px-1 text-2xs"
+                    className="px-1"
                     aria-label={`Remove observation ${observation.id}`}
                     onClick={() =>
                       onChangeObservations(
@@ -225,7 +227,7 @@ export function RoadConditionEditor({
             ))}
           </ul>
         )}
-        <details className="rounded border">
+        <details className={insetBox({ padding: 'none' })}>
           <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Add an inspection or imagery</summary>
           <div className="space-y-2 border-t p-2">
             <div className="grid grid-cols-2 gap-2">
@@ -376,7 +378,7 @@ export function RoadConditionEditor({
         {needsAgeLimit && (
           <InlineAlert tone="warning">Set a maximum age below so your records count towards the estimate.</InlineAlert>
         )}
-        <details className="rounded border" open={needsAgeLimit || undefined}>
+        <details className={insetBox({ padding: 'none' })} open={needsAgeLimit || undefined}>
           <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Assessment date & evidence age</summary>
           <div className="space-y-2 border-t p-2">
             <Field label="Assess condition as of">

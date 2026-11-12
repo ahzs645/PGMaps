@@ -14,6 +14,8 @@ import {
 } from './sweptPath'
 import type { Alignment, DesignVehicle, LoadSpan, VehicleCheck, VehicleUnit } from './types'
 import { InfoTip } from '@/components/ui/info-tip'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { JunctionTurnPanel, type JunctionTurnProps } from './JunctionTurnPanel'
 import { steeringGeometry, type SteeringGiven } from './vehicleKinematics'
 import { DrivePathPanel, type DrivenPath } from './DrivePathPanel'
@@ -101,7 +103,7 @@ function TurnCard({
   ]
   return (
     <li
-      className={`rounded-md border p-2 text-xs ${bad ? 'border-red-300 dark:border-red-900' : ''}`}
+      className={cn(insetBox(), 'text-xs', bad && 'border-danger-border')}
       data-testid="road-swept-turn"
       data-fits={t.fits}
       data-lock-exceeded={t.lockExceeded === true}
@@ -112,7 +114,7 @@ function TurnCard({
           {Math.abs(Math.abs(t.deflectionDegrees) - 180) < 20 ? ' · switchback' : ''}
         </span>
         <span
-          className={`rounded px-1.5 py-0.5 text-3xs font-medium ${bad ? 'bg-red-100 text-danger dark:bg-red-950 dark:text-red-300' : 'bg-emerald-100 text-success dark:bg-emerald-950 dark:text-emerald-300'}`}
+          className={`rounded-sm px-1.5 py-0.5 text-3xs font-medium ${bad ? 'bg-danger/15 text-danger-foreground' : 'bg-success/15 text-success-foreground'}`}
         >
           {bad
             ? [t.fits ? '' : `Widen ${m(need(t))}`, t.lockExceeded ? 'Beyond steering lock' : '']
@@ -159,7 +161,7 @@ function UnitFields({
 }) {
   const name = unit.name || `Unit ${index + 1}`
   return (
-    <fieldset className="min-w-0 rounded-md border p-2">
+    <fieldset className={cn(insetBox(), 'min-w-0')}>
       <legend className="px-1 text-2xs font-medium">{name}</legend>
       <div className="grid grid-cols-2 gap-2">
         <NumberField
@@ -240,7 +242,7 @@ function SteeringFields({
     }
   }
   return (
-    <fieldset className="min-w-0 rounded-md border p-2" aria-label="Steering lock and turning radius">
+    <fieldset className={cn(insetBox(), 'min-w-0')} aria-label="Steering lock and turning radius">
       <legend className="px-1 text-2xs font-medium">Steering</legend>
       <OptionalNumberField
         label="Steering lock (°)"
@@ -318,7 +320,7 @@ function LoadFields({
     onChange({ loads: loads.map((load, i) => (i === index ? { ...load, ...patch } : load)) })
   const unitName = (index: number) => units[index]?.name || `Unit ${index + 1}`
   return (
-    <fieldset className="min-w-0 space-y-2 rounded-md border p-2" aria-label="Loads spanning two units">
+    <fieldset className={cn(insetBox(), 'min-w-0 space-y-2')} aria-label="Loads spanning two units">
       <legend className="px-1 text-2xs font-medium">Load on two units</legend>
       {loads.map((load, i) => (
         <div key={i} className="grid grid-cols-2 gap-2">
@@ -613,7 +615,10 @@ export function SweptPathPanel({
     <div className="min-w-0 space-y-3 p-1 text-xs" data-testid="road-swept-path">
       <div
         role="status"
-        className={`rounded-md border p-2 ${failing.length ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200' : 'bg-muted/30'}`}
+        className={cn(
+          insetBox(),
+          failing.length ? 'border-danger-border bg-danger-surface text-danger-foreground' : 'bg-muted/30',
+        )}
         data-testid="road-swept-summary"
       >
         <p className="font-medium">
@@ -664,11 +669,11 @@ export function SweptPathPanel({
       {result?.warnings
         .filter((w) => !w.startsWith('No fitted'))
         .map((w) => (
-          <p key={w} className="border-l-2 border-amber-500 pl-2 text-2xs text-warning">
+          <p key={w} className="border-l-2 border-warning pl-2 text-2xs text-warning">
             {w}
           </p>
         ))}
-      <details className="rounded-md border">
+      <details className={insetBox({ padding: 'none' })}>
         <summary className="cursor-pointer p-2 font-medium">Vehicle, direction & clearance</summary>
         <div className="space-y-2 border-t p-2">
           <Field label="Starting configuration">

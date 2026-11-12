@@ -28,6 +28,8 @@ import { Field, roadFieldClass, RoadSelect } from './Controls'
 import { existingRoadQueryBounds } from './existingRoads'
 import { parseProject } from './project'
 import type { ContextFeature, Coordinate, RoadProject } from './types'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const message = (cause: unknown) => (cause instanceof Error ? cause.message : 'Could not load source records.')
 const canonical = (value: unknown) =>
@@ -380,7 +382,7 @@ export function AccessHistorySourcesPanel({
         </Button>
       )}
       {pilot && (
-        <div className="space-y-2 rounded-md border p-2" data-testid="history-pilot-preview">
+        <div className={cn(insetBox(), 'space-y-2')} data-testid="history-pilot-preview">
           <p className="font-medium">Opening {pilot.result.openingId} · actual source records</p>
           <p>
             {pilot.result.blocks.length} block polygons · {pilot.result.roads.length} road records ·{' '}
@@ -504,7 +506,7 @@ export function AccessHistorySourcesPanel({
           </InlineAlert>
         )}
         {identity && (
-          <div className="space-y-2 rounded border p-2" data-testid="history-block-identity">
+          <div className={cn(insetBox(), 'space-y-2')} data-testid="history-block-identity">
             <p className="font-medium">
               Opening {identity.openingId} · {identity.records.length} records · {identity.matches.length} identity
               matches

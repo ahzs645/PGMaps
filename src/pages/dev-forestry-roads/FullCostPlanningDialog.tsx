@@ -14,6 +14,8 @@ import { FullCostSourcesEditor } from './FullCostSourcesEditor'
 import { parseProject } from './project'
 import type { Alignment, RoadProject, TerrainSource } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 type Review = { run: FullCostRun; project: RoadProject; source: TerrainSource }
 export type FullCostPreview = {
@@ -288,7 +290,7 @@ export function FullCostPlanningDialog({
                   return (
                     <section
                       key={result.id}
-                      className="space-y-2 rounded-lg border p-3"
+                      className={cn(insetBox({ padding: 'lg' }), 'space-y-2')}
                       data-testid={`full-cost-candidate-${result.id}`}
                       data-status={result.status}
                       data-recommended={String(result.id === review.run.comparison.winnerId)}
@@ -396,7 +398,7 @@ export function FullCostPlanningDialog({
                   )
                 })}
                 {review.run.network.excludedRoads.length > 0 && (
-                  <details open className="rounded border p-3 text-xs">
+                  <details open className={cn(insetBox({ padding: 'lg' }), 'text-xs')}>
                     <summary>
                       Roads unavailable for connected access ({review.run.network.excludedRoads.length})
                     </summary>

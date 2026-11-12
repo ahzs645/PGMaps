@@ -281,7 +281,7 @@ export function TerrainLandformFinder({
         <span className="mb-1 block text-2xs font-medium text-muted-foreground">Read from</span>
         <StyledSelect
           aria-label="Read the landform from"
-          className="w-full rounded border bg-background p-1"
+          className="w-full rounded-md border bg-background p-1"
           value={vantageValue}
           onChange={(event) => {
             const value = event.target.value
@@ -314,8 +314,8 @@ export function TerrainLandformFinder({
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="h-7 shrink-0 px-2 text-2xs"
+            size="xs"
+            className="shrink-0 text-2xs"
             onClick={picking ? cancelPick : pick}
           >
             {picking ? 'Cancel' : vantage.point ? 'Pick again' : 'Pick on map'}
@@ -330,7 +330,7 @@ export function TerrainLandformFinder({
       {blocks.length > 1 && (
         <StyledSelect
           aria-label="Block to read the landform around"
-          className="w-full rounded border bg-background p-1"
+          className="w-full rounded-md border bg-background p-1"
           value={block?.id}
           onChange={(event) => setBlockId(event.target.value)}
         >
@@ -357,7 +357,7 @@ export function TerrainLandformFinder({
           <span className="flex items-center justify-between gap-2">
             <span>Now assessing against the terrain landform. It replaced {replaced}.</span>
             {onUndo && (
-              <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 px-2 text-2xs" onClick={onUndo}>
+              <Button type="button" variant="outline" size="xs" className="shrink-0 text-2xs" onClick={onUndo}>
                 Undo
               </Button>
             )}

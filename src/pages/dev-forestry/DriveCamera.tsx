@@ -342,7 +342,7 @@ export function DriveCamera(props: Props) {
             <StyledSelect
               aria-label="Driving speed"
               title="Preview speed; posted limits are not loaded"
-              className="h-8 shrink-0 rounded border bg-background px-1 touch:h-10"
+              className="h-7 shrink-0 rounded-md border bg-background px-1 touch:h-10"
               value={props.speedKmh}
               onChange={(e) => props.onSpeedChange?.(Number(e.target.value))}
             >
@@ -356,9 +356,9 @@ export function DriveCamera(props: Props) {
 
           <Button
             variant="outline"
-            size="sm"
+            size="xs"
             // Wherever the view is narrow, a phone or a pane beside the plan, not only below `md`.
-            className={narrowView ? 'h-8 px-2 touch:h-10' : 'h-8 px-2 md:hidden touch:h-10'}
+            className={narrowView ? 'touch:h-10' : 'md:hidden touch:h-10'}
             aria-expanded={optionsExpanded}
             onClick={() => setOptionsChoice(!optionsExpanded)}
           >
@@ -366,10 +366,10 @@ export function DriveCamera(props: Props) {
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon-xs"
             aria-label="Reset look"
             title="Reset look (R)"
-            className="h-8 w-8 p-0 touch:h-10 touch:w-10"
+            className="touch:h-10 touch:w-10"
             onClick={() => setView({ yaw: 0, tilt: 0 })}
           >
             <RotateCcw className="h-4 w-4" />
@@ -381,10 +381,10 @@ export function DriveCamera(props: Props) {
           </InfoTip>
           <Button
             variant="ghost"
-            size="sm"
+            size="icon-xs"
             aria-label="Return to map"
             title="Return to map (Esc)"
-            className="h-8 w-8 p-0 touch:h-10 touch:w-10"
+            className="touch:h-10 touch:w-10"
             onClick={props.onExit}
           >
             <X className="h-4 w-4" />

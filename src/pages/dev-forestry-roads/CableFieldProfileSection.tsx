@@ -17,6 +17,8 @@ import {
 } from './dline/fieldProfile'
 import { dLineFrame } from './dline/frame'
 import type { CableLine, TerrainSource } from './types'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 type Method = CableFieldProfile['method']
 const n1 = (v: number | null) => (v === null ? '–' : v.toFixed(1))
@@ -162,7 +164,7 @@ export function CableFieldProfileSection({
                   onChange={setStartElevation}
                 />
               </div>
-              <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={terrainAtStart}>
+              <Button size="field" variant="outline" onClick={terrainAtStart}>
                 Terrain
               </Button>
             </div>
@@ -245,7 +247,7 @@ export function CableFieldProfileSection({
               line; the terrain is read outside them.
             </p>
           )}
-          <div className="max-h-40 overflow-auto overscroll-none rounded border">
+          <div className={cn(insetBox({ padding: 'none' }), 'max-h-40 overflow-auto overscroll-none')}>
             <EngineeringTable compact data-testid="cable-field-table">
               <thead className="sticky top-0">
                 <tr>

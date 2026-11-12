@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { fitGeometry, type ExportPreview } from './exportCatalog'
 import { previewPick, PREVIEW_PICK_SELECTOR, type PickedElement, type PreviewPick } from './previewPick'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const LAYER_COLORS = ['#0d9488', '#d97706', '#2563eb', '#be123c', '#7c3aed', '#4d7c0f']
 const GEOMETRY_WIDTH = 640,
@@ -137,7 +139,12 @@ export function ExportPreviewView({
     case 'table':
       return (
         <div className="flex h-full min-h-0 flex-col gap-1.5">
-          <div className="min-h-0 flex-1 overflow-auto overscroll-none rounded-md border bg-background">
+          <div
+            className={cn(
+              insetBox({ padding: 'none', tone: 'background' }),
+              'min-h-0 flex-1 overflow-auto overscroll-none',
+            )}
+          >
             <EngineeringTable variant="text" className="min-w-full whitespace-nowrap text-2xs tabular-nums">
               <thead className="sticky top-0 z-10">
                 <tr>
@@ -180,7 +187,7 @@ export function ExportPreviewView({
           .join('')
       return (
         <div className="flex h-full min-h-0 flex-col gap-1.5">
-          <div className="min-h-0 flex-1 rounded-md border bg-background p-1">
+          <div className={cn(insetBox({ padding: 'sm', tone: 'background' }), 'min-h-0 flex-1')}>
             {project ? (
               <svg
                 viewBox={`0 0 ${GEOMETRY_WIDTH} ${GEOMETRY_HEIGHT}`}
@@ -232,7 +239,12 @@ export function ExportPreviewView({
     case 'text':
       return (
         <div className="flex h-full min-h-0 flex-col gap-1.5">
-          <pre className="min-h-0 flex-1 overflow-auto overscroll-none rounded-md border bg-background p-2 font-mono text-3xs leading-4">
+          <pre
+            className={cn(
+              insetBox({ tone: 'background' }),
+              'min-h-0 flex-1 overflow-auto overscroll-none font-mono text-3xs leading-4',
+            )}
+          >
             {preview.text}
           </pre>
           <p className="shrink-0 text-2xs tabular-nums text-muted-foreground">

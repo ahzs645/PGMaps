@@ -42,6 +42,7 @@ import { formatMeasure, formatNumber, formatPercentValue } from '@/lib/format'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Notification } from '@/components/ui/notification'
 import { EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
 import { StepMarker, stepStatusText } from '@/components/ui/step-section'
@@ -623,7 +624,7 @@ export function Sidebar({
     // Fields under the row, lined up with its title; tinted with it while selected.
     const Detail = selected ? ResultRowDetail : PlainRowDetail
     return (
-      <li key={target.id} className="overflow-hidden rounded-md border border-border">
+      <li key={target.id} className={cn(insetBox({ padding: 'none' }), 'overflow-hidden')}>
         <div className="flex items-start">
           <ResultRow
             className="min-w-0 flex-1 px-2 py-2"
@@ -657,8 +658,8 @@ export function Sidebar({
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="mt-1 h-7 w-7 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+            size="icon-xs"
+            className="mt-1 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
             onClick={() => onZoomToTarget(target.id)}
             aria-label={`Zoom to ${target.name}`}
             title="Zoom to polygon"
@@ -668,8 +669,8 @@ export function Sidebar({
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="mr-1 mt-1 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive touch:h-10 touch:w-10"
+            size="icon-xs"
+            className="mr-1 mt-1 shrink-0 text-muted-foreground hover:text-destructive touch:h-10 touch:w-10"
             onClick={() => onRemoveTarget(target.id)}
             aria-label={`Remove ${target.name}`}
             title="Remove polygon"
@@ -732,8 +733,8 @@ export function Sidebar({
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                className="h-7 px-2 text-2xs"
+                size="xs"
+                className="text-2xs"
                 onClick={() => onActivateLandform(target.id)}
               >
                 Assess against this landform
@@ -866,7 +867,12 @@ export function Sidebar({
               )}
             </div>
             {hasViewpoint && (
-              <div className="flex items-center gap-1.5 rounded-md border bg-muted/20 py-1 pl-2.5 pr-1 text-xs">
+              <div
+                className={cn(
+                  insetBox({ padding: 'none', tone: 'muted' }),
+                  'flex items-center gap-1.5 py-1 pl-2.5 pr-1 text-xs',
+                )}
+              >
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">
                   {viewpoint.mode === 'spot'
                     ? `${formatMeasure(viewpoint.coordinates[0][1], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}, ${formatMeasure(viewpoint.coordinates[0][0], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
@@ -875,8 +881,8 @@ export function Sidebar({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+                  size="icon-xs"
+                  className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
                   onClick={onSnapToRoad}
                   aria-label="Snap to the nearest road"
                   title="Snap to the nearest road"
@@ -886,8 +892,8 @@ export function Sidebar({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+                  size="icon-xs"
+                  className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
                   onClick={() => onViewpointChange({ ...viewpoint, coordinates: [] })}
                   aria-label={viewpoint.mode === 'spot' ? 'Clear the viewpoint' : 'Clear the road'}
                   title="Clear the viewpoint"
@@ -944,7 +950,7 @@ export function Sidebar({
           )}
 
           {reverse.result && reverse.result.roads.length > 0 && (
-            <div className="overflow-hidden rounded-md border border-border">
+            <div className={cn(insetBox({ padding: 'none' }), 'overflow-hidden')}>
               <ListHeader
                 count={reverse.result.roads.length}
                 noun={['road', 'roads']}
@@ -1080,7 +1086,7 @@ export function Sidebar({
           help="Provincial sensitivity units read live from DataBC, plus harvest and forest-cover context. Boundaries are candidates: review the visible landform before adopting one."
           actions={
             inventory.units.length > 0 && (
-              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-2xs" onClick={onToggleInventory}>
+              <Button type="button" variant="ghost" size="xs" className="text-2xs" onClick={onToggleInventory}>
                 {showInventory ? 'Hide' : 'Show'}
               </Button>
             )
@@ -1120,7 +1126,7 @@ export function Sidebar({
                   {inventory.stands.length > 0 ? ` · ${inventory.stands.length} surveyed stands` : ''}
                 </p>
                 <ul
-                  className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-md border border-border"
+                  className={cn(insetBox({ padding: 'none' }), 'mt-2 max-h-56 divide-y divide-border overflow-y-auto')}
                   aria-label="Inventory units in this view"
                 >
                   {ratedUnits.map((unit) => (
@@ -1715,8 +1721,8 @@ export function Sidebar({
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-2xs text-muted-foreground"
+            size="xs"
+            className="text-2xs text-muted-foreground"
             onClick={() => onThresholdsChange({ ...DEFAULT_VISUAL_QUALITY_THRESHOLDS })}
           >
             Reset to guidebook defaults

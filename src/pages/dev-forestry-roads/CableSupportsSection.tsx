@@ -30,6 +30,8 @@ import {
   useCableLayoutEntry,
 } from './cableLayout/useCableLayout'
 import type { CableLine, TerrainSource } from './types'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 type NumericKey = keyof typeof SUPPORT_LAYOUT_LIMITS
 const SEARCH: NumericKey[] = [
@@ -200,13 +202,13 @@ export function CableSupportsSection({
           </RoadSelect>
         </Field>
       </div>
-      <details className="rounded border p-2">
+      <details className={insetBox()}>
         <summary className="cursor-pointer text-xs">
           Search · {settings.minSupportHeightM}–{settings.maxSupportHeightM} m every {settings.candidateSpacingM} m
         </summary>
         <div className="mt-2 grid grid-cols-2 gap-1">{SEARCH.map(field)}</div>
       </details>
-      <details className="rounded border p-2">
+      <details className={insetBox()}>
         <summary className="cursor-pointer text-xs">
           Limits · clearance zones {settings.clearanceFromStartM}/{settings.clearanceBeforeEndM} m · loaded{' '}
           {settings.maxLoadedDeg}°/{settings.maxLoadedEndDeg}°
@@ -222,8 +224,8 @@ export function CableSupportsSection({
           <span>Fixed supports · {settings.fixedSupports.length}</span>
           <Button
             variant="ghost"
-            size="sm"
-            className="h-6 shrink-0 px-2 text-xs"
+            size="2xs"
+            className="shrink-0 text-xs"
             disabled={lengthM <= 0}
             onClick={() => set({ fixedSupports: [...settings.fixedSupports, { stationM: Math.round(lengthM / 2) }] })}
           >
@@ -259,8 +261,7 @@ export function CableSupportsSection({
             />
             <Button
               variant="ghost"
-              size="icon"
-              className="size-6"
+              size="icon-2xs"
               aria-label={`Remove fixed support at ${f.stationM} m`}
               onClick={() => set({ fixedSupports: settings.fixedSupports.filter((_, j) => j !== i) })}
             >
@@ -274,8 +275,8 @@ export function CableSupportsSection({
           <span>No-support sectors · {settings.noSupportSectors.length}</span>
           <Button
             variant="ghost"
-            size="sm"
-            className="h-6 shrink-0 px-2 text-xs"
+            size="2xs"
+            className="shrink-0 text-xs"
             disabled={lengthM <= 0}
             onClick={() => {
               const mid = Math.round(lengthM / 2)
@@ -309,8 +310,7 @@ export function CableSupportsSection({
             ))}
             <Button
               variant="ghost"
-              size="icon"
-              className="size-6"
+              size="icon-2xs"
               aria-label={`Remove no-support sector ${r.fromM}–${r.toM} m`}
               onClick={() => set({ noSupportSectors: settings.noSupportSectors.filter((_, j) => j !== i) })}
             >
@@ -392,7 +392,7 @@ export function CableSupportsSection({
               ))}
             </tbody>
           </EngineeringTable>
-          <div className="max-h-56 overflow-auto overscroll-none rounded border">
+          <div className={cn(insetBox({ padding: 'none' }), 'max-h-56 overflow-auto overscroll-none')}>
             <EngineeringTable data-testid="cable-supports-table">
               <thead className="sticky top-0">
                 <tr>
@@ -423,7 +423,7 @@ export function CableSupportsSection({
               </tbody>
             </EngineeringTable>
           </div>
-          <div className="max-h-40 overflow-auto overscroll-none rounded border">
+          <div className={cn(insetBox({ padding: 'none' }), 'max-h-40 overflow-auto overscroll-none')}>
             <EngineeringTable compact data-testid="cable-spans-table">
               <SpanColumns />
               <tbody>

@@ -16,6 +16,8 @@ import type { SweptPathResult } from './sweptPath'
 import type { Alignment, RoadAnalysis, TerrainMetadata } from './types'
 import { InfoTip } from '@/components/ui/info-tip'
 import { ScheduleToolbar } from './scheduleToolbar'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const number = (value: number | null | undefined, digits = 2) =>
   value == null || !Number.isFinite(value) ? '—' : value.toLocaleString('en-CA', { maximumFractionDigits: digits })
@@ -138,7 +140,10 @@ export function CurveReviewPanel({
         </Button>
       </ScheduleToolbar>
       {/* The table scrolls in its own box so its sticky header stays visible above the review. */}
-      <div className="max-h-48 overflow-auto overscroll-none rounded-md border" data-testid="road-curve-table-scroll">
+      <div
+        className={cn(insetBox({ padding: 'none' }), 'max-h-48 overflow-auto overscroll-none')}
+        data-testid="road-curve-table-scroll"
+      >
         <EngineeringTable data-testid="road-horizontal-curve-table">
           <thead className="sticky top-0 z-10">
             <tr>
@@ -205,7 +210,7 @@ export function CurveReviewPanel({
         </p>
       )}
       {active && (
-        <section className="rounded-md border" aria-label={`Curve ${active.id} review`}>
+        <section className={insetBox({ padding: 'none' })} aria-label={`Curve ${active.id} review`}>
           <button
             className="flex w-full items-center justify-between gap-2 p-2 text-left text-xs font-medium"
             aria-expanded={expanded}
@@ -225,9 +230,9 @@ export function CurveReviewPanel({
                 {active.events.map((event) => (
                   <Button
                     key={event.label}
-                    size="sm"
+                    size="xs"
                     variant="outline"
-                    className="h-7 px-2 tabular-nums"
+                    className="tabular-nums"
                     aria-label={`${active.id} ${event.label} station`}
                     onClick={() => onStation(event.chainage)}
                   >
@@ -239,7 +244,7 @@ export function CurveReviewPanel({
               {(active.warnings.length > 0 || active.innerEdgeGradeReason) && (
                 <div className="space-y-1 text-2xs">
                   {active.warnings.map((warning) => (
-                    <p key={warning} className="border-l-2 border-amber-500 pl-2 text-warning">
+                    <p key={warning} className="border-l-2 border-warning pl-2 text-warning">
                       {warning}
                     </p>
                   ))}
@@ -272,7 +277,7 @@ export function CurveReviewPanel({
                           }`}
                     </p>
                     {onOpenSwept && (
-                      <Button size="sm" variant="outline" className="h-7 px-2" onClick={onOpenSwept}>
+                      <Button size="xs" variant="outline" onClick={onOpenSwept}>
                         {runs.length ? 'Swept path' : 'Check a vehicle'}
                       </Button>
                     )}
