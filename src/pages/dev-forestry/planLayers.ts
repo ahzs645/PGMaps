@@ -1,3 +1,4 @@
+import type { ImageryBasemap } from '@/components/ui/map-satellite-imagery'
 import type { AssessmentMaskKind } from './types'
 import type { EvqoCode } from './visualsNarrative'
 import type { VisualQualityClassId } from './vqo'
@@ -10,7 +11,8 @@ import type { VisualQualityClassId } from './vqo'
  *
  * Kept free of DOM access: the legend, the layers and the tests share it.
  */
-export type PlanBasemap = 'map' | 'satellite'
+/** The shared Map / Satellite choice (`map-satellite-imagery.tsx`); a type import only, so this file stays DOM-free. */
+export type PlanBasemap = ImageryBasemap
 
 /** One legend row's switch. Grouped rows (`mask:`, `unit:`, …) filter one layer's features. */
 export type PlanLegendKey =

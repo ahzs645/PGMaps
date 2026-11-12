@@ -1,20 +1,6 @@
-import area from '@turf/area'
 import bbox from '@turf/bbox'
-import { distanceKm } from '@/lib/geo'
 import { neighbourhoodFeatures, parkFeatures, routeFeatures } from './data'
 import type { InteractFeature, InteractFeatureProperties, LayerId, YearRange } from './types'
-import { formatNumber, formatSquareKm } from '@/lib/format'
-
-export function formatArea(squareMeters: number): string {
-  const squareKm = squareMeters / 1_000_000
-  if (squareKm >= 1) return formatSquareKm(squareKm, { digits: 2 })
-  return `${formatNumber(squareMeters / 10_000, { maximumFractionDigits: 1 })} ha`
-}
-
-export function formatDistance(km: number): string {
-  if (km >= 1) return `${formatNumber(km, { maximumFractionDigits: 2 })} km`
-  return `${formatNumber(Math.round(km * 1000))} m`
-}
 
 export function layerLabel(layer: LayerId): string {
   if (layer === 'parks') return 'Parks'
@@ -68,47 +54,6 @@ export function relatedFeaturesAtPoint(
   }
 
   return related
-}
-
-export function closeRing(points: [number, number][]): [number, number][] {
-  if (points.length === 0) return points
-  const first = points[0]
-  const last = points[points.length - 1]
-  if (first[0] === last[0] && first[1] === last[1]) return points
-  return [...points, first]
-}
-
-export function measurementCanClose(points: [number, number][]): boolean {
-  return points.length >= 3
-}
-
-export function lineLengthKm(coordinates: [number, number][]): number {
-  return coordinates
-    .slice(1)
-    .reduce((total, coordinate, index) => total + distanceKm(coordinates[index], coordinate), 0)
-}
-
-export function measurementStats(points: [number, number][], complete: boolean) {
-  if (points.length < 2) return null
-  const lineCoordinates = complete ? closeRing(points) : points
-  const perimeter = lineLengthKm(lineCoordinates)
-  const areaValue =
-    points.length >= 3
-      ? area({
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'Polygon', coordinates: [closeRing(points)] },
-        })
-      : 0
-  return { perimeter, area: areaValue }
-}
-
-export function circleMeasurementStats(center: [number, number] | null, edge: [number, number] | null) {
-  if (!center || !edge) return null
-  const radius = lineLengthKm([center, edge])
-  const perimeter = 2 * Math.PI * radius
-  const areaValue = Math.PI * (radius * 1000) ** 2
-  return { radius, perimeter, area: areaValue }
 }
 
 function boundsContainPoint(bounds: [number, number, number, number], point: [number, number]): boolean {

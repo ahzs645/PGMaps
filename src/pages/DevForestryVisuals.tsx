@@ -23,6 +23,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { MapTableBridge } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { Map, MapControls, MapLayersControl, type MapRef } from '@/components/ui/map'
+import { MapMeasureControl, MapMeasurePanel, useMeasureKeys } from '@/components/ui/map-measure'
+import { MapSketch, useMapSketch } from '@/components/ui/map-sketch'
 import { MapOverlay } from '@/components/ui/map-panels'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { TextButton } from '@/components/ui/text-button'
@@ -104,7 +106,7 @@ import {
 import { Sidebar, type DrawMode, type DriveState } from './dev-forestry/Sidebar'
 import { TerrainSupport } from './dev-forestry/TerrainSupport'
 import { readShapeFile } from './dev-forestry/shapeImport'
-import { SATELLITE_ATTRIBUTION } from './dev-forestry/SatelliteImagery'
+import { IMAGERY_BASEMAPS, SATELLITE_ATTRIBUTION } from '@/components/ui/map-satellite-imagery'
 import {
   VIEWPOINT_ROAD_CLASSES,
   arrowLabel,
@@ -215,11 +217,6 @@ import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-fores
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
 
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-/** Both maps' basemaps: imagery goes in under the labels, never as a `styles` swap (see `SatelliteImagery`). */
-const PLAN_BASEMAPS: ReadonlyArray<{ value: PlanBasemap; label: string; description?: string }> = [
-  { value: 'map', label: 'Map' },
-  { value: 'satellite', label: 'Satellite', description: 'Esri World Imagery' },
-]
 const NO_TARGETS: TargetPolygon[] = []
 const NO_CANDIDATES: ViewpointCandidate[] = []
 
@@ -315,6 +312,10 @@ function DevForestryVisuals() {
   const eyeMapRef = useRef<MapRef>(null)
   const { scene, setScene, warning: sceneStorageWarning } = usePersistentScene(loadInitialScene)
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
+  // The shared measure tool (`map-measure.tsx`) on the plan map; drawing a shape puts it down.
+  const measure = useMapSketch()
+  const measuring = measure.state.mode !== 'idle'
+  const { clear: clearMeasure, start: startMeasure } = measure
   const [draftCoordinates, setDraftCoordinates] = useState<Array<[number, number]>>([])
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(
     () => scene.targets.find((target) => target.role === 'block')?.id ?? null,
@@ -609,16 +610,20 @@ function DevForestryVisuals() {
     setDrawMode('none')
   }, [addTarget, draftCoordinates, drawMode, setScene])
 
-  const handleDrawModeChange = useCallback((mode: DrawMode) => {
-    // A tree-free area is drawn on the plan while the road view stays open, to see the timber go.
-    setDrive((current) =>
-      mode === 'tree-free' || mode === 'wildlife-tree-patch'
-        ? { ...current, playing: false }
-        : { ...current, active: false, playing: false },
-    )
-    setDraftCoordinates([])
-    setDrawMode(mode)
-  }, [])
+  const handleDrawModeChange = useCallback(
+    (mode: DrawMode) => {
+      if (mode !== 'none') clearMeasure()
+      // A tree-free area is drawn on the plan while the road view stays open, to see the timber go.
+      setDrive((current) =>
+        mode === 'tree-free' || mode === 'wildlife-tree-patch'
+          ? { ...current, playing: false }
+          : { ...current, active: false, playing: false },
+      )
+      setDraftCoordinates([])
+      setDrawMode(mode)
+    },
+    [clearMeasure],
+  )
 
   const handleImportFile = useCallback(
     async (file: File) => {
@@ -854,6 +859,17 @@ function DevForestryVisuals() {
   )
   // One click on the map for a tool that asked for a point (the landform's vantage).
   const [mapPick, setMapPick] = useState<{ onPoint: (point: [number, number]) => void } | null>(null)
+  // A sidebar tool that asks for a point on the plan takes the click from the measure tool.
+  if (mapPick && measuring) clearMeasure()
+  const toggleMeasure = () => {
+    if (measuring) {
+      clearMeasure()
+      return
+    }
+    setMapPick(null)
+    startMeasure('line')
+  }
+  useMeasureKeys(measure, { active: measuring, onClose: clearMeasure })
   // Where "Find a landform from the terrain" reads from, marked on the plan.
   const [landformVantage, setLandformVantage] = useState<LandformVantagePoint | null>(null)
   // The bands of an adopted ridge-layer landform, kept while that landform is
@@ -1650,8 +1666,6 @@ function DevForestryVisuals() {
         : { type: 'FeatureCollection' as const, features: [] },
     [scene.viewpoint],
   )
-  const draftLine = useMemo(() => draftLineToGeoJson(draftCoordinates), [draftCoordinates])
-  const draftVertices = useMemo(() => pointsToGeoJson(draftCoordinates), [draftCoordinates])
   const stationCollection = useMemo(() => stationsToGeoJson(result), [result])
   const landformClues = useMemo<GeoJSON.FeatureCollection>(
     () => ({
@@ -3134,8 +3148,8 @@ function DevForestryVisuals() {
     corridorExposureCollection,
     stationCollection,
     spotCollection,
-    draftLine,
-    draftVertices,
+    draftCoordinates,
+    measuring,
     inventoryHoverHtml,
     viewpointHoverHtml,
     targetHoverHtml,
@@ -3591,8 +3605,18 @@ function DevForestryVisuals() {
                         maxPitch={85}
                         controls={
                           <MapControls position="top-right" showZoom showCompass showFullscreen>
+                            <MapMeasureControl
+                              active={measuring}
+                              onToggle={toggleMeasure}
+                              disabled={drawMode !== 'none'}
+                              title={
+                                drawMode !== 'none'
+                                  ? 'Measure · finish or cancel the drawing first'
+                                  : 'Measure a distance, an area or a circle'
+                              }
+                            />
                             <MapLayersControl
-                              basemaps={PLAN_BASEMAPS}
+                              basemaps={IMAGERY_BASEMAPS}
                               basemap={planShow.basemap}
                               onBasemapChange={(value: PlanBasemap) =>
                                 setPlanShow((current) => ({ ...current, basemap: value }))
@@ -3636,9 +3660,19 @@ function DevForestryVisuals() {
                         />
                         <VisualQualityLayers mode="plan" data={layerData} />
                         <MapViewerCone viewer={planViewer} />
+                        <MapSketch sketch={measure} testId="visuals-measure" />
+                        {measuring && (
+                          <MapOverlay
+                            position="top-left"
+                            clearChrome
+                            className="w-72 max-w-[calc(100%-4.5rem)] border-0 bg-transparent shadow-none backdrop-blur-none"
+                          >
+                            <MapMeasurePanel sketch={measure} onClose={clearMeasure} />
+                          </MapOverlay>
+                        )}
                         <PlanClickToMove
                           onMove={
-                            drive.active && seekFromPlan && drawMode === 'none' && !mapPick
+                            drive.active && seekFromPlan && drawMode === 'none' && !mapPick && !measuring
                               ? (point) => seekFromPlan([point.lng, point.lat])
                               : null
                           }
@@ -3770,7 +3804,7 @@ function DevForestryVisuals() {
                             controls={
                               <MapControls position="top-right" showZoom showCompass showFullscreen>
                                 <MapLayersControl
-                                  basemaps={PLAN_BASEMAPS}
+                                  basemaps={IMAGERY_BASEMAPS}
                                   basemap={drive.imagery ? 'satellite' : 'map'}
                                   onBasemapChange={(value: PlanBasemap) =>
                                     setDrive((current) => ({ ...current, imagery: value === 'satellite' }))

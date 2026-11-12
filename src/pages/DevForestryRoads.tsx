@@ -92,6 +92,8 @@ import {
   Minimize,
   type LucideIcon,
 } from 'lucide-react'
+import { measureHint, measureReadout } from '@/components/ui/map-measure'
+import { sketchStats } from '@/lib/geo/mapSketch'
 import { MapToolPanel } from '@/components/ui/map-tool-panel'
 import { leavesDrawingOnEscape } from './dev-forestry-roads/PlanTools'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
@@ -2841,9 +2843,11 @@ export default function DevForestryRoads({
       aria-label="Drawing"
       data-testid="pegging-feedback"
       hint={
-        draft.length
-          ? undefined
-          : `${shortRibbon ? 'Tap' : 'Click'} the plan to add points${mode === 'extend' ? ' from the nearer road end' : ''}.`
+        mode === 'avoid'
+          ? measureHint('polygon', true, draft.length, shortRibbon)
+          : draft.length
+            ? undefined
+            : `${shortRibbon ? 'Tap' : 'Click'} the plan to add points${mode === 'extend' ? ' from the nearer road end' : ''}.`
       }
       onClose={() => beginMode('inspect')}
       closeLabel="Cancel drawing"
@@ -2872,17 +2876,25 @@ export default function DevForestryRoads({
       <ReadoutGrid
         data-testid="pegging-readout"
         minColumnWidth="6.5rem"
-        items={[
-          { label: 'Points', value: draft.length },
-          draft.length > 0 && { label: 'Leg', value: `${number(leg)} m` },
-          draft.length > 0 && { label: 'Ground', value: `${number(zb)} m` },
-          draft.length > 0 && {
-            label: 'Grade',
-            value: `${number(pegGrade)}%`,
-            tone: overGradeLimit ? 'warning' : 'default',
-            title: overGradeLimit ? `Over the ${project.settings.maxGradePercent}% grade limit` : undefined,
-          },
-        ]}
+        items={
+          mode === 'avoid'
+            ? [
+                { label: 'Points', value: draft.length },
+                // As the measure tool reads a polygon: the perimeter so far, the area closed back to the first point.
+                ...measureReadout('polygon', sketchStats('polygon', draft, false)),
+              ]
+            : [
+                { label: 'Points', value: draft.length },
+                draft.length > 0 && { label: 'Leg', value: `${number(leg)} m` },
+                draft.length > 0 && { label: 'Ground', value: `${number(zb)} m` },
+                draft.length > 0 && {
+                  label: 'Grade',
+                  value: `${number(pegGrade)}%`,
+                  tone: overGradeLimit ? 'warning' : 'default',
+                  title: overGradeLimit ? `Over the ${project.settings.maxGradePercent}% grade limit` : undefined,
+                },
+              ]
+        }
       />
     </MapToolPanel>
   ) : null
@@ -4325,6 +4337,8 @@ export default function DevForestryRoads({
                                 mode={investigation || costPreview ? 'inspect' : mode}
                                 draft={draft}
                                 onDraw={onDraw}
+                                onFinishDraw={finishDraw}
+                                drawHover={mode === 'avoid' ? hover : null}
                                 snapLines={snapLines}
                                 onSnap={onSnap}
                                 onSketch={onSketch}

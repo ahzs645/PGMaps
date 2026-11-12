@@ -1,10 +1,19 @@
-# Plan tools: pegging at grade, point query, grade colours and follow station
+# Plan tools: pegging at grade, point query, measure, grade colours and follow station
 
-The plan's toolbar, beside **Inspect** and **Edit points**, holds two tools of its own:
+The plan's toolbar, beside **Inspect** and **Edit points**, holds three tools of its own:
 
 - **Peg at grade** (footprints icon) lays a grade line from the active road's end with the mouse.
 - **Query a point** (magnifier icon) reads the station, offset and levels of any point, and goes
   to a typed station and offset.
+- **Measure** (ruler icon) measures a distance, an area or a circle. It is the shared measure tool
+  (`map-measure.tsx`, the one `/dev/interact` uses; see `docs/shared-ui.md`, **Drawing and
+  measuring on a map**), and it stays available in an access investigation and on terrain alone,
+  where Peg and Query are hidden.
+
+The plan's **Layers** button, under the zoom buttons, switches the basemap between Map and
+Satellite, the same choice as the visual-quality maps (`map-satellite-imagery.tsx`), remembered in
+this browser. The imagery sits under the plan's layers and labels; over it the hillshade drops to
+half opacity so the imagery reads through, while slope, aspect and elevation stay as they were.
 
 **Map display settings** (the sliders button) adds two plan options: **Colour by grade** and
 **Follow station**. Both are remembered in this browser.
@@ -106,6 +115,20 @@ Unknown stays unknown:
 - Beyond the catch points there is no design surface, so no design level and no depth.
 - A road whose section cannot be evaluated there (an invalid input) has no design level.
 - A point before the road's start or past its end is measured from that end and says so.
+
+## Measure
+
+The tool opens measuring a distance; **Distance**, **Area** and **Circle** in its card start again
+with that shape. Click to add points: a polygon closes on a click on its first point, a
+double-click or **Close polygon**; a line ends on a double-click or **Finish line**; a circle takes
+its centre, then its edge. Backspace takes the last point back, Escape puts the tool down, and
+nothing is saved. Distances are great-circle on the map and areas are plan areas: neither follows
+the terrain, so a slope distance is longer than the one read here.
+
+**Draw area** and **Draw block** draw with the same interaction (numbered points, a rubber band
+back to the first point, close on it or double-click), and their card reads the perimeter and area
+as it goes. The plan's own click handler still places those points, so they are drawn where they
+are clicked, without snapping, as before.
 
 ## Colour by grade
 

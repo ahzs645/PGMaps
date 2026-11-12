@@ -1,7 +1,15 @@
+/**
+ * `/dev/interact`'s measurement surfaces for a sketch kept by `useMapSketch`: a card in the map's
+ * lower right on a desktop, and on a phone a sheet with an **Add point** button that places a vertex
+ * at the map's centre (a circle gets a drag handle on its edge). Render it inside `<Map>` beside
+ * `<MapSketch>`; pages that show tool cards elsewhere use `MapMeasurePanel` instead.
+ */
 import { Navigation, Redo, Undo, X } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMap } from '@/components/ui/map'
+import { measureHint, measureReadout } from '@/components/ui/map-measure'
+import type { MapSketchController } from '@/components/ui/map-sketch'
 import {
   MOBILE_MAP_SHEET_COLLAPSE_EVENT,
   MobileFeatureCard,
@@ -10,98 +18,80 @@ import {
 import { StatGroup } from '@/components/ui/stat-group'
 import { useWorkspaceInteractions } from '@pgmaps/geo-toolkit/workspace/workspace-context'
 import { cn } from '@/lib/utils'
-import { formatArea, formatDistance, measurementCanClose } from './geo'
-import type { MeasurementMode, MeasurementStats } from './types'
+import {
+  formatSketchDistance,
+  type LngLat,
+  type SketchMode,
+  type SketchShape,
+  type SketchStats,
+} from '@/lib/geo/mapSketch'
 
 // Each sheet opens at the height of its contents, so it has no taller detent to drag to.
 const CIRCLE_SHEET_HEIGHT = 190
 const AREA_SHEET_HEIGHT = 310
 
-export function MeasurementOverlay({
-  measurementMode,
-  measurementShape,
-  measurementStats,
-  measurementPoints,
-  measurementCursor,
-  canUndo,
-  canRedo,
-  onAddPoint,
-  onPreviewPoint,
-  onSetCircleRadiusPoint,
-  onUndo,
-  onRedo,
-  onClearMeasurement,
-  onFinishMeasurement,
-}: {
-  measurementMode: MeasurementMode
-  measurementShape: 'polygon' | 'circle'
-  measurementStats: MeasurementStats
-  measurementPoints: [number, number][]
-  measurementCursor: [number, number] | null
-  canUndo: boolean
-  canRedo: boolean
-  onAddPoint: (point: [number, number]) => void
-  onPreviewPoint: (point: [number, number] | null) => void
-  onSetCircleRadiusPoint: (point: [number, number]) => void
-  onUndo: () => void
-  onRedo: () => void
-  onClearMeasurement: () => void
-  onFinishMeasurement: () => void
-}) {
+const SHAPE_TITLES: Record<SketchShape, string> = {
+  polygon: 'Polygon measurement',
+  line: 'Distance measurement',
+  circle: 'Circle measurement',
+}
+
+export function MapMeasureOverlay({ sketch }: { sketch: MapSketchController }) {
   const { map } = useMap()
+  const { state, cursor, stats } = sketch
+  const { mode, shape, points } = state
+  const { setCursor } = sketch
 
+  // On a phone the circle's edge follows the map's centre until it is placed.
   useEffect(() => {
-    if (!map || measurementMode !== 'drawing' || measurementShape !== 'circle' || measurementPoints.length !== 1) return
-
+    if (!map || mode !== 'drawing' || shape !== 'circle' || points.length !== 1) return
     const updatePreviewPoint = () => {
       const center = map.getCenter()
-      onPreviewPoint([center.lng, center.lat])
+      setCursor([center.lng, center.lat])
     }
-
     updatePreviewPoint()
     map.on('move', updatePreviewPoint)
     return () => {
       map.off('move', updatePreviewPoint)
-      onPreviewPoint(null)
+      setCursor(null)
     }
-  }, [map, measurementMode, measurementPoints.length, measurementShape, onPreviewPoint])
+  }, [map, mode, points.length, shape, setCursor])
 
-  if (measurementMode === 'idle') return null
+  if (mode === 'idle') return null
 
-  const canClose =
-    measurementShape === 'circle' ? measurementPoints.length >= 2 : measurementCanClose(measurementPoints)
   const addCenterPoint = () => {
     const center = map?.getCenter()
     if (!center) return
-    onAddPoint([center.lng, center.lat])
+    sketch.add([center.lng, center.lat])
   }
 
   return (
     <>
       <MobileMeasurementSheet
-        measurementMode={measurementMode}
-        measurementShape={measurementShape}
-        measurementStats={measurementStats}
-        measurementPoints={measurementPoints}
-        measurementCursor={measurementCursor}
-        canClose={canClose}
-        canUndo={canUndo}
-        canRedo={canRedo}
+        measurementMode={mode}
+        measurementShape={shape}
+        measurementStats={stats}
+        measurementPoints={points}
+        measurementCursor={cursor}
+        canClose={sketch.canFinish || mode === 'complete'}
+        canUndo={sketch.canUndo}
+        canRedo={sketch.canRedo}
         onAddPoint={addCenterPoint}
-        onPreviewPoint={onPreviewPoint}
-        onSetCircleRadiusPoint={onSetCircleRadiusPoint}
-        onUndo={onUndo}
-        onRedo={onRedo}
-        onClearMeasurement={onClearMeasurement}
-        onFinishMeasurement={onFinishMeasurement}
+        onPreviewPoint={setCursor}
+        onSetCircleRadiusPoint={sketch.setRadius}
+        onUndo={sketch.undo}
+        onRedo={sketch.redo}
+        onClearMeasurement={sketch.clear}
+        onFinishMeasurement={sketch.finish}
       />
       <DesktopMeasurementCard
-        measurementMode={measurementMode}
-        measurementShape={measurementShape}
-        measurementStats={measurementStats}
-        canClose={canClose}
-        onClearMeasurement={onClearMeasurement}
-        onFinishMeasurement={onFinishMeasurement}
+        measurementMode={mode}
+        measurementShape={shape}
+        measurementStats={stats}
+        pointCount={points.length}
+        canClose={sketch.canFinish}
+        onClearMeasurement={sketch.clear}
+        onFinishMeasurement={sketch.finish}
       />
     </>
   )
@@ -111,13 +101,15 @@ function DesktopMeasurementCard({
   measurementMode,
   measurementShape,
   measurementStats,
+  pointCount,
   canClose,
   onClearMeasurement,
   onFinishMeasurement,
 }: {
-  measurementMode: MeasurementMode
-  measurementShape: 'polygon' | 'circle'
-  measurementStats: MeasurementStats
+  measurementMode: SketchMode
+  measurementShape: SketchShape
+  measurementStats: SketchStats | null
+  pointCount: number
   canClose: boolean
   onClearMeasurement: () => void
   onFinishMeasurement: () => void
@@ -126,15 +118,9 @@ function DesktopMeasurementCard({
     <div className="absolute bottom-4 right-4 z-20 hidden w-[min(22rem,calc(100vw-1.5rem))] rounded-lg border border-border bg-background/95 p-3 shadow-xl backdrop-blur md:block">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold">
-            {measurementShape === 'circle' ? 'Circle measurement' : 'Polygon measurement'}
-          </div>
+          <div className="text-sm font-semibold">{SHAPE_TITLES[measurementShape]}</div>
           <div className="mt-1 text-xs text-muted-foreground">
-            {measurementMode === 'drawing'
-              ? measurementShape === 'circle'
-                ? 'Click once for center, then click again to set radius.'
-                : 'Click to add points. Click the first point or double-click to close.'
-              : 'Measurement is visible only in this session.'}
+            {measureHint(measurementShape, measurementMode === 'drawing', pointCount)}
           </div>
         </div>
         <button
@@ -152,23 +138,11 @@ function DesktopMeasurementCard({
         align="start"
         columns={2}
         className="mt-3"
-        items={[
-          ...(measurementShape === 'circle'
-            ? [{ label: 'Radius', value: measurementStats?.radius ? formatDistance(measurementStats.radius) : '-' }]
-            : []),
-          {
-            label: measurementShape === 'circle' ? 'Circumference' : 'Perimeter',
-            value: measurementStats ? formatDistance(measurementStats.perimeter) : '-',
-          },
-          {
-            label: 'Area',
-            value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-',
-          },
-        ]}
+        items={measureReadout(measurementShape, measurementStats)}
       />
       {measurementMode === 'drawing' && (
         <Button size="sm" className="mt-3 w-full" disabled={!canClose} onClick={onFinishMeasurement}>
-          {measurementShape === 'circle' ? 'Set circle' : 'Close polygon'}
+          {measurementShape === 'circle' ? 'Set circle' : measurementShape === 'line' ? 'Finish line' : 'Close polygon'}
         </Button>
       )}
     </div>
@@ -244,17 +218,17 @@ function MobileMeasurementSheet({
   onClearMeasurement,
   onFinishMeasurement,
 }: {
-  measurementMode: MeasurementMode
-  measurementShape: 'polygon' | 'circle'
-  measurementStats: MeasurementStats
-  measurementPoints: [number, number][]
-  measurementCursor: [number, number] | null
+  measurementMode: SketchMode
+  measurementShape: SketchShape
+  measurementStats: SketchStats | null
+  measurementPoints: readonly LngLat[]
+  measurementCursor: LngLat | null
   canClose: boolean
   canUndo: boolean
   canRedo: boolean
   onAddPoint: () => void
-  onPreviewPoint: (point: [number, number] | null) => void
-  onSetCircleRadiusPoint: (point: [number, number]) => void
+  onPreviewPoint: (point: LngLat | null) => void
+  onSetCircleRadiusPoint: (point: LngLat) => void
   onUndo: () => void
   onRedo: () => void
   onClearMeasurement: () => void
@@ -343,7 +317,7 @@ function MobileMeasurementSheet({
       </div>
 
       <MeasurementCard
-        title="Area measurement"
+        title={measurementShape === 'line' ? 'Distance measurement' : 'Area measurement'}
         subtitle={
           measurementMode === 'drawing'
             ? `${measurementPoints.length} point${measurementPoints.length === 1 ? '' : 's'} placed`
@@ -366,13 +340,7 @@ function MobileMeasurementSheet({
               align="start"
               columns={2}
               className={cn(measurementMode === 'drawing' && 'mt-3')}
-              items={[
-                { label: 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
-                {
-                  label: 'Area',
-                  value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-',
-                },
-              ]}
+              items={measureReadout(measurementShape, measurementStats)}
             />
           </div>
 
@@ -408,12 +376,12 @@ function MobileCircleCanvas({
   onPreviewPoint,
   onSetCircleRadiusPoint,
 }: {
-  measurementMode: MeasurementMode
-  measurementPoints: [number, number][]
-  measurementCursor: [number, number] | null
-  measurementStats: MeasurementStats
-  onPreviewPoint: (point: [number, number] | null) => void
-  onSetCircleRadiusPoint: (point: [number, number]) => void
+  measurementMode: SketchMode
+  measurementPoints: readonly LngLat[]
+  measurementCursor: LngLat | null
+  measurementStats: SketchStats | null
+  onPreviewPoint: (point: LngLat | null) => void
+  onSetCircleRadiusPoint: (point: LngLat) => void
 }) {
   const { map } = useMap()
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -487,7 +455,7 @@ function MobileCircleCanvas({
       drawHandle(context, edgeScreen.x, edgeScreen.y, '#ec4899', 8)
 
       if (measurementStats?.radius) {
-        const label = formatDistance(measurementStats.radius)
+        const label = formatSketchDistance(measurementStats.radius)
         const labelX = (centerScreen.x + edgeScreen.x) / 2
         const labelY = (centerScreen.y + edgeScreen.y) / 2
         context.font = '700 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
@@ -520,7 +488,7 @@ function MobileCircleCanvas({
     }
   }, [map, measurementCursor, measurementPoints, measurementStats])
 
-  const pointFromEvent = (event: ReactPointerEvent<HTMLElement>): [number, number] | null => {
+  const pointFromEvent = (event: ReactPointerEvent<HTMLElement>): LngLat | null => {
     if (!map || !canvasRef.current) return null
     const rect = canvasRef.current.getBoundingClientRect()
     const point = map.unproject([event.clientX - rect.left, event.clientY - rect.top])

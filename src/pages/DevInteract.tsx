@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point as turfPoint } from '@turf/helpers'
-import { Map, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
+import { Map, MapControls, MapPopup } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { CENTER, YEAR_FILTER_DOMAIN, neighbourhoodFeatures, parkFeatures, routeFeatures } from './dev-interact/data'
 import { DesktopFeaturePopup } from './dev-interact/DesktopFeaturePopup'
@@ -12,29 +11,16 @@ import { MapTableBridge, useMapTable } from '@/components/map/useMapTable'
 import { interactTableSources } from './dev-interact/tableSources'
 import { MobileFeatureInspector } from './dev-interact/FeatureInspector'
 import {
-  circleMeasurementStats,
   featureBounds,
   featureMatchesYearRange,
   filterCollection,
   layerLabel,
-  measurementCanClose,
-  measurementStats,
   relatedFeaturesAtPoint,
 } from './dev-interact/geo'
-import {
-  CollapseInspectorOnMapDrag,
-  DismissSelectionOnMapClick,
-  MapClickCapture,
-  ZoomToFeature,
-} from './dev-interact/MapBehaviors'
+import { CollapseInspectorOnMapDrag, DismissSelectionOnMapClick, ZoomToFeature } from './dev-interact/MapBehaviors'
 import { MapSearchSheet } from './dev-interact/MapSearchSheet'
-import { MeasurementOverlay } from './dev-interact/MeasurementOverlay'
-import {
-  measurementCircle,
-  measurementLine,
-  measurementPolygon,
-  measurementPreviewLine,
-} from './dev-interact/measurement'
+import { MapMeasureOverlay } from '@/components/ui/map-measure-overlay'
+import { MapSketch, useMapSketch } from '@/components/ui/map-sketch'
 import { Scale } from './dev-interact/Scale'
 import { DevInteractSidebar } from './dev-interact/Sidebar'
 import type {
@@ -42,9 +28,6 @@ import type {
   InteractFeature,
   InteractFeatureProperties,
   LayerId,
-  MeasurementMapAction,
-  MeasurementMode,
-  MeasurementShape,
   ScalePosition,
   YearRange,
 } from './dev-interact/types'
@@ -169,11 +152,8 @@ function DevInteract() {
   const [searchMounted, setSearchMounted] = useState(false)
   const [zoomFeature, setZoomFeature] = useState<{ feature: InteractFeature; nonce: number } | null>(null)
   const [yearRange, setYearRange] = useState<YearRange>(YEAR_FILTER_DOMAIN)
-  const [measurementMode, setMeasurementMode] = useState<MeasurementMode>('idle')
-  const [measurementShape, setMeasurementShape] = useState<MeasurementShape>('polygon')
-  const [measurementPoints, setMeasurementPoints] = useState<[number, number][]>([])
-  const [redoMeasurementPoints, setRedoMeasurementPoints] = useState<[number, number][]>([])
-  const [measurementCursor, setMeasurementCursor] = useState<[number, number] | null>(null)
+  const measurement = useMapSketch()
+  const measurementMode = measurement.state.mode
   const isMobileViewport = useIsMobile()
   const skipNextMapDismiss = useRef(false)
   const skipMapDismissUntil = useRef(0)
@@ -191,31 +171,6 @@ function DevInteract() {
     : mobileControlsDocked
       ? MOBILE_CONTROLS_DOCKED_VISIBLE_HEIGHT
       : undefined
-
-  const measurementPolygonData = useMemo(() => measurementPolygon(measurementPoints), [measurementPoints])
-  const measurementLineData = useMemo(
-    () => measurementLine(measurementPoints, measurementMode),
-    [measurementMode, measurementPoints],
-  )
-  const measurementPreviewLineData = useMemo(
-    () => measurementPreviewLine(measurementPoints, measurementCursor, measurementMode),
-    [measurementCursor, measurementMode, measurementPoints],
-  )
-  const circleEdge =
-    measurementShape === 'circle'
-      ? (measurementPoints[1] ?? (measurementMode === 'drawing' ? measurementCursor : null))
-      : null
-  const measurementCircleData = useMemo(
-    () => measurementCircle(measurementShape === 'circle' ? (measurementPoints[0] ?? null) : null, circleEdge),
-    [circleEdge, measurementPoints, measurementShape],
-  )
-  const currentMeasurementStats = useMemo(
-    () =>
-      measurementShape === 'circle'
-        ? circleMeasurementStats(measurementPoints[0] ?? null, measurementPoints[1] ?? measurementCursor)
-        : measurementStats(measurementPoints, measurementMode === 'complete'),
-    [measurementCursor, measurementMode, measurementPoints, measurementShape],
-  )
 
   const filteredNeighbourhoodFeatures = useMemo(
     () => filterCollection(neighbourhoodFeatures, hiddenFeatureIds, isolatedFeatureId, yearRange),
@@ -464,122 +419,16 @@ function DevInteract() {
     })
   }, [])
 
+  const { start: startSketch, clear: clearMeasurement, finish: finishMeasurement } = measurement
   const startMeasurement = useCallback(() => {
     clearSelection()
-    setMeasurementShape('polygon')
-    setMeasurementMode('drawing')
-    setMeasurementPoints([])
-    setRedoMeasurementPoints([])
-    setMeasurementCursor(null)
-  }, [clearSelection])
+    startSketch('polygon')
+  }, [clearSelection, startSketch])
 
   const startCircleMeasurement = useCallback(() => {
     clearSelection()
-    setMeasurementShape('circle')
-    setMeasurementMode('drawing')
-    setMeasurementPoints([])
-    setRedoMeasurementPoints([])
-    setMeasurementCursor(null)
-  }, [clearSelection])
-
-  const clearMeasurement = useCallback(() => {
-    setMeasurementMode('idle')
-    setMeasurementShape('polygon')
-    setMeasurementPoints([])
-    setRedoMeasurementPoints([])
-    setMeasurementCursor(null)
-  }, [])
-
-  const finishMeasurement = useCallback(() => {
-    setMeasurementMode((current) => {
-      if (current !== 'drawing') return current
-      return measurementShape === 'circle'
-        ? measurementPoints.length >= 2
-          ? 'complete'
-          : current
-        : measurementCanClose(measurementPoints)
-          ? 'complete'
-          : current
-    })
-    setRedoMeasurementPoints([])
-    setMeasurementCursor(null)
-  }, [measurementPoints, measurementShape])
-
-  const addMeasurementPoint = useCallback((point: [number, number]) => {
-    setMeasurementPoints((current) => [...current, point])
-    setRedoMeasurementPoints([])
-  }, [])
-
-  const undoMeasurementPoint = useCallback(() => {
-    setMeasurementPoints((current) => {
-      if (current.length === 0) return current
-      const next = current.slice(0, -1)
-      const removed = current[current.length - 1]
-      setRedoMeasurementPoints((redo) => [removed, ...redo])
-      return next
-    })
-    setMeasurementMode((current) => (current === 'complete' ? 'drawing' : current))
-  }, [])
-
-  const redoMeasurementPoint = useCallback(() => {
-    setRedoMeasurementPoints((current) => {
-      if (current.length === 0) return current
-      const [restored, ...nextRedo] = current
-      setMeasurementPoints((points) => [...points, restored])
-      return nextRedo
-    })
-  }, [])
-
-  const handleMeasurementMapAction = useCallback(
-    (action: MeasurementMapAction) => {
-      if (action.type === 'close') {
-        setMeasurementMode((current) => {
-          if (current !== 'drawing') return current
-          return measurementShape === 'circle'
-            ? measurementPoints.length >= 2
-              ? 'complete'
-              : current
-            : measurementCanClose(measurementPoints)
-              ? 'complete'
-              : current
-        })
-        setRedoMeasurementPoints([])
-        setMeasurementCursor(null)
-        return
-      }
-
-      if (measurementShape === 'circle') {
-        setMeasurementPoints((current) => {
-          if (current.length === 0) {
-            setRedoMeasurementPoints([])
-            return [action.point]
-          }
-          setMeasurementMode('complete')
-          setMeasurementCursor(null)
-          setRedoMeasurementPoints([])
-          return [current[0], action.point]
-        })
-        return
-      }
-
-      addMeasurementPoint(action.point)
-    },
-    [addMeasurementPoint, measurementPoints, measurementShape],
-  )
-
-  const setCircleRadiusPoint = useCallback(
-    (point: [number, number]) => {
-      if (measurementShape !== 'circle') return
-      setMeasurementPoints((current) => {
-        if (current.length === 0) return current
-        return [current[0], point]
-      })
-      setMeasurementMode('complete')
-      setMeasurementCursor(null)
-      setRedoMeasurementPoints([])
-    },
-    [measurementShape],
-  )
+    startSketch('circle')
+  }, [clearSelection, startSketch])
 
   const handleFeatureAction = useCallback(
     (action: FeatureAction, feature: InteractFeature) => {
@@ -617,8 +466,8 @@ function DevInteract() {
       className={MAP_SIDEBAR_CLASS}
       visibleLayers={visibleLayers}
       measurementMode={measurementMode}
-      measurementStats={currentMeasurementStats}
-      measurementPointCount={measurementPoints.length}
+      measurementStats={measurement.stats}
+      measurementPointCount={measurement.state.points.length}
       onToggleLayer={toggleLayer}
       onIsolateLayer={isolateLayer}
       yearRange={yearRange}
@@ -679,7 +528,7 @@ function DevInteract() {
               {selectedFeature && mobileControlsExpanded
                 ? layerLabel(selectedFeature.properties.layer)
                 : measurementMode === 'drawing'
-                  ? `${measurementPoints.length} measurement points`
+                  ? `${measurement.state.points.length} measurement points`
                   : 'Legend, actions, and popup cards'}
             </span>
           </button>
@@ -703,13 +552,6 @@ function DevInteract() {
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
           <MapTableBridge table={table} />
-          <MapClickCapture
-            measurementMode={measurementMode}
-            measurementShape={measurementShape}
-            measurementPoints={measurementPoints}
-            onMeasurementAction={handleMeasurementMapAction}
-            onMeasurementCursor={setMeasurementCursor}
-          />
           {zoomFeature && <ZoomToFeature feature={zoomFeature.feature} nonce={zoomFeature.nonce} />}
           <CollapseInspectorOnMapDrag
             enabled={measurementMode !== 'drawing'}
@@ -761,91 +603,8 @@ function DevInteract() {
             onFeatureClick={measurementMode === 'drawing' ? undefined : (id) => selectRoute(id)}
           />
 
-          <MapFillLayer
-            data={measurementPolygonData}
-            fillColor="#f97316"
-            fillOpacity={0.18}
-            lineColor="#ea580c"
-            lineWidth={2}
-            visible={measurementShape === 'polygon' && measurementPoints.length >= 3}
-          />
-          <MapLineLayer
-            data={measurementLineData}
-            color="#ea580c"
-            width={2.5}
-            opacity={1}
-            dashArray={measurementMode === 'drawing' ? [2, 1.3] : undefined}
-            visible={measurementShape === 'polygon' && measurementPoints.length > 1}
-          />
-          <MapLineLayer
-            data={measurementPreviewLineData}
-            color="#ea580c"
-            width={2}
-            opacity={0.72}
-            dashArray={[1.2, 1.2]}
-            visible={measurementShape === 'polygon' && measurementMode === 'drawing' && measurementPoints.length > 0}
-          />
-          <MapFillLayer
-            data={measurementCircleData}
-            fillColor="#ffffff"
-            fillOpacity={0.04}
-            lineColor="#ffffff"
-            lineWidth={0}
-            visible={measurementShape === 'circle' && measurementCircleData.features.length > 0}
-          />
-
-          {measurementShape === 'polygon' &&
-            measurementPoints.map((point, index) => (
-              <MapMarker
-                key={`${point[0]}:${point[1]}:${index}`}
-                longitude={point[0]}
-                latitude={point[1]}
-                onClick={(event) => {
-                  if (
-                    measurementShape !== 'polygon' ||
-                    measurementMode !== 'drawing' ||
-                    index !== 0 ||
-                    !measurementCanClose(measurementPoints)
-                  )
-                    return
-                  event.preventDefault()
-                  event.stopPropagation()
-                  finishMeasurement()
-                }}
-              >
-                <MarkerContent>
-                  <button
-                    type="button"
-                    className={cn(
-                      'flex size-5 items-center justify-center rounded-full border-2 border-white bg-orange-500 text-xs font-semibold text-white shadow-lg transition-transform',
-                      measurementShape === 'polygon' &&
-                        measurementMode === 'drawing' &&
-                        index === 0 &&
-                        measurementCanClose(measurementPoints) &&
-                        'size-6 cursor-pointer ring-4 ring-orange-500/20 hover:scale-110',
-                    )}
-                    onClick={(event) => {
-                      if (
-                        measurementShape !== 'polygon' ||
-                        measurementMode !== 'drawing' ||
-                        index !== 0 ||
-                        !measurementCanClose(measurementPoints)
-                      )
-                        return
-                      event.stopPropagation()
-                      finishMeasurement()
-                    }}
-                    aria-label={
-                      measurementShape === 'polygon' && index === 0 && measurementCanClose(measurementPoints)
-                        ? 'Close polygon'
-                        : `Measurement point ${index + 1}`
-                    }
-                  >
-                    {index + 1}
-                  </button>
-                </MarkerContent>
-              </MapMarker>
-            ))}
+          {/* On a phone the circle draws itself in MapMeasureOverlay, with a handle on its edge. */}
+          <MapSketch sketch={measurement} circleOutline={!isMobileViewport} testId="measurement" />
 
           {measurementMode !== 'drawing' && selectedFeature && selectedLngLat && !isMobileViewport && (
             <MapPopup
@@ -878,22 +637,7 @@ function DevInteract() {
             </MapPopup>
           )}
 
-          <MeasurementOverlay
-            measurementMode={measurementMode}
-            measurementShape={measurementShape}
-            measurementStats={currentMeasurementStats}
-            measurementPoints={measurementPoints}
-            measurementCursor={measurementCursor}
-            canUndo={measurementPoints.length > 0}
-            canRedo={redoMeasurementPoints.length > 0}
-            onAddPoint={(point) => handleMeasurementMapAction({ type: 'add', point })}
-            onPreviewPoint={setMeasurementCursor}
-            onSetCircleRadiusPoint={setCircleRadiusPoint}
-            onUndo={undoMeasurementPoint}
-            onRedo={redoMeasurementPoint}
-            onClearMeasurement={clearMeasurement}
-            onFinishMeasurement={finishMeasurement}
-          />
+          <MapMeasureOverlay sketch={measurement} />
           {scaleVisible && <Scale position={scalePosition} />}
         </Map>
 

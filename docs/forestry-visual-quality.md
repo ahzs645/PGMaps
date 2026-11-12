@@ -73,9 +73,20 @@ simulation first if it needs to; and the header carries no icon buttons —
 
 ### Map layers, landform readings and viewpoint arrows
 
+- **Measure and draw on the plan.** The plan's Measure button, above Layers,
+  is the shared measure tool (`map-measure.tsx`): a distance, an area or a
+  circle, read in a card at the top left, not saved. Drawing a block, a
+  landform, a tree-free area, a wildlife tree patch or the road uses the same
+  sketch (`MapSketchDraft`): numbered points, a rubber band to the pointer, an
+  area closed by a click on its first point, a double-click or Finish. While
+  either is in hand a plan click is only a point: blocks are not selected,
+  units not adopted, samples not inspected and the road view does not move.
+  Measure is off while a shape is being drawn, starting a drawing puts it down,
+  and a sidebar pick on the plan takes the click from it.
 - **Basemap and overlays: each map's Layers button.** Both maps carry a
   `MapLayersControl` under their zoom buttons: Map or Satellite (imagery under
-  the labels, `SatelliteImagery`, never a `styles` swap). The plan's adds
+  the labels, `SatelliteImagery` in `src/components/ui/map-satellite-imagery.tsx`,
+  shared with the road-design plan, never a `styles` swap). The plan's adds
   Hillshade and the established VQO polygons, read from the inventory only once
   ticked. The road view's satellite choice is `drive.imagery`, so the note
   screenshot look still switches it on.
@@ -1112,7 +1123,8 @@ never shipped.
 | `src/pages/dev-forestry/WildlifeTreePatchPanel.tsx` | Step 3's *Draw a wildlife tree patch* and the patches in the scene |
 | `src/pages/dev-forestry/viewpointInventory.ts`, `ViewpointFinderPanel.tsx` | VLI viewpoints and arrows, rec sites, screenings and tenure road names around a block |
 | `src/pages/dev-forestry/ridgeLayers.ts` | A candidate landform as the ridge layer seen from the road |
-| `src/pages/dev-forestry/SatelliteImagery.tsx` | Satellite imagery under the page's layers |
+| `src/components/ui/map-satellite-imagery.tsx` | Satellite imagery under the page's layers (shared with the road-design plan) |
+| `src/components/ui/map-sketch.tsx`, `map-measure.tsx`, `src/lib/geo/mapSketch.ts` | The plan's Measure tool and the drawing of roads and areas (shared with `/dev/interact` and the road-design plan) |
 
 `terrain.ts`, `visibility.ts`, `vqo.ts`, `via.ts`, `photoPose.ts`, `skylineFit.ts`, `landformFromTerrain.ts`, `ridgeLayers.ts`, `visualsNarrative.ts`, `fieldChecklist.ts`, `fieldBrief.ts`, `basemapContext.ts`, `shapeImport.ts`, `reverseViewshed.ts`,
 `roadSnap.ts`, and `forest.ts` are pure and carry unit tests; `analysis.ts` takes an `ElevationSource`, so a run can be driven
@@ -1349,7 +1361,7 @@ clicking it or R walks back as well as resetting the look. Play, a seek, or
 facing another block puts the walker back on the road too.
 
 **Satellite imagery**, the Satellite basemap in each map's Layers button, drapes
-Esri World Imagery under every layer the page draws, below the basemap's first label layer (`SatelliteImagery.tsx`), never as
+Esri World Imagery under every layer the page draws, below the basemap's first label layer (`map-satellite-imagery.tsx`), never as
 a new `styles` object, which would `setStyle` the 3D timber away. Its source
 stops at z18: rural BC has no z19 imagery, and Esri's grey "Map data not yet
 available" tile otherwise filled the ground under the eye-level camera.

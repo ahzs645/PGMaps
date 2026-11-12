@@ -11,8 +11,11 @@ import type {
   MapTouchEvent,
 } from 'maplibre-gl'
 import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, StickyNote, Table2, Waves, X } from 'lucide-react'
-import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
+import { Map, MapControls, MapLayersControl, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
+import { IMAGERY_BASEMAPS, SatelliteImagery, useStoredImageryBasemap } from '@/components/ui/map-satellite-imagery'
 import { MapLineLayer } from '@/components/ui/map-layers'
+import { MapSketchLayers } from '@/components/ui/map-sketch'
+import { canFinishSketch, nearFirstVertex } from '@/lib/geo/mapSketch'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
 import { MapIconButton } from '@/components/ui/map-icon-button'
@@ -138,6 +141,13 @@ interface PlanProps {
   draft: Coordinate[]
   onDraw: (coordinate: Coordinate) => void
   /**
+   * Closes a drawn area (Draw area / Draw block): a click on its first point or a double-click, as
+   * the shared sketch (`map-sketch.tsx`) closes a measured polygon.
+   */
+  onFinishDraw?: () => void
+  /** The pointer while drawing, for the area's rubber band back to its first point. */
+  drawHover?: Coordinate | null
+  /**
    * Roads a pegged point snaps onto while drawing a road (`drawSnap.ts`). A click within
    * `DRAW_SNAP_PX` of one lands exactly on its line, so the new road starts or ends on it.
    */
@@ -235,9 +245,18 @@ function placeOn(alignment: Alignment, chainage: number) {
   }
 }
 
+/** The DEM display over the basemap; a hillshade over satellite imagery is lighter. */
+const TERRAIN_OPACITY = 0.82
+const IMAGERY_HILLSHADE_OPACITY = 0.5
+
+/** The plan's drawing colour: a pegged road's draft line and a drawn area's sketch. */
+const DRAFT_COLOR = '#0d9488'
+
 function Layers(
   props: PlanProps & {
     terrainLayer: TerrainLayer
+    /** Satellite imagery under the plan: the hillshade is lightened so the imagery reads through. */
+    imagery?: boolean
     showContours: boolean
     showLabels: boolean
     showEarthwork: boolean
@@ -305,6 +324,12 @@ function Layers(
     planToolActive,
   } = props
   const draftLength = props.draft.length
+  // An area is drawn with the shared sketch: its vertices, rubber band and closing click.
+  const areaDrawing = mode === 'avoid'
+  const latestDraw = useRef({ draft: props.draft, onFinishDraw: props.onFinishDraw })
+  useEffect(() => {
+    latestDraw.current = { draft: props.draft, onFinishDraw: props.onFinishDraw }
+  })
   // Pegging a new road snaps to every road; extending one snaps to every road but itself.
   const snapRoads = useMemo(
     () =>
@@ -735,7 +760,10 @@ function Layers(
       ),
     [resolvedCables, props.activeCableId],
   )
-  const draft = useMemo(() => fc(props.draft.length > 1 ? [line(props.draft)] : []), [props.draft])
+  const draft = useMemo(
+    () => fc(props.draft.length > 1 && props.mode !== 'avoid' ? [line(props.draft)] : []),
+    [props.draft, props.mode],
+  )
   const structures = useMemo(
     () =>
       fc(
@@ -941,7 +969,7 @@ function Layers(
           id: 'road-terrain',
           type: 'raster',
           source: 'road-terrain',
-          paint: { 'raster-opacity': 0.82, 'raster-fade-duration': 0 },
+          paint: { 'raster-opacity': TERRAIN_OPACITY, 'raster-fade-duration': 0 },
         })
     }
     const add = (layer: Parameters<typeof map.addLayer>[0]) => {
@@ -1108,7 +1136,7 @@ function Layers(
       id: 'road-draft',
       type: 'line',
       source: 'road-draft',
-      paint: { 'line-color': '#0d9488', 'line-width': 3, 'line-dasharray': [2, 1] },
+      paint: { 'line-color': DRAFT_COLOR, 'line-width': 3, 'line-dasharray': [2, 1] },
     })
     add({
       id: 'road-sketch',
@@ -1302,8 +1330,15 @@ function Layers(
         'circle-stroke-color': '#ffffff',
       },
     })
-    if (map.getLayer('road-terrain'))
+    if (map.getLayer('road-terrain')) {
       map.setLayoutProperty('road-terrain', 'visibility', props.terrainLayer === 'none' ? 'none' : 'visible')
+      // Slope, aspect and elevation are read by colour, so they stay opaque over imagery.
+      map.setPaintProperty(
+        'road-terrain',
+        'raster-opacity',
+        props.imagery && props.terrainLayer === 'hillshade' ? IMAGERY_HILLSHADE_OPACITY : TERRAIN_OPACITY,
+      )
+    }
     // Sheet symbols replace the plan's context colours. The context fill stays, transparent, so a
     // click on a harvest area still finds it.
     for (const id of PLAN_SHEET_LAYER_IDS)
@@ -1374,6 +1409,7 @@ function Layers(
     ticks,
     display,
     props.terrainLayer,
+    props.imagery,
     props.showContours,
     props.showEarthwork,
     props.terrainOnly,
@@ -1425,6 +1461,17 @@ function Layers(
         return
       }
       if (mode === 'sketch') return
+      if (areaDrawing) {
+        // The second click of a double-click adds nothing; the double-click closes the area.
+        if (e.originalEvent.detail > 1) return
+        const { draft, onFinishDraw } = latestDraw.current
+        if (onFinishDraw && canFinishSketch('polygon', draft) && nearFirstVertex(map.project(draft[0]), e.point)) {
+          onFinishDraw()
+          return
+        }
+        onDraw([e.lngLat.lng, e.lngLat.lat])
+        return
+      }
       if (!['inspect', 'edit'].includes(mode)) {
         const snap = snapAt(e)
         onDraw(snap?.coordinate ?? [e.lngLat.lng, e.lngLat.lat])
@@ -1555,13 +1602,21 @@ function Layers(
     if (!noteTool && !planToolActive)
       map.getCanvas().style.cursor =
         pourPointPicking || !['inspect', 'edit'].includes(mode) ? 'crosshair' : hover.engaged ? 'pointer' : ''
+    const doubleClick = (e: MapMouseEvent) => {
+      const { draft, onFinishDraw } = latestDraw.current
+      if (!areaDrawing || !onFinishDraw || !canFinishSketch('polygon', draft)) return
+      e.preventDefault()
+      onFinishDraw()
+    }
     map.doubleClickZoom.disable()
     map.on('click', click)
+    map.on('dblclick', doubleClick)
     map.on('mousemove', move)
     map.on('mouseout', leave)
     map.on('move', viewMoved)
     return () => {
       map.off('click', click)
+      map.off('dblclick', doubleClick)
       map.off('mousemove', move)
       map.off('mouseout', leave)
       map.off('move', viewMoved)
@@ -1571,6 +1626,7 @@ function Layers(
     map,
     isLoaded,
     mode,
+    areaDrawing,
     investigation,
     onDraw,
     snapRoads,
@@ -1851,13 +1907,29 @@ function Layers(
           </MarkerContent>
         </MapMarker>
       )}
-      {props.draft.map((coordinate, i) => (
-        <MapMarker key={i} longitude={coordinate[0]} latitude={coordinate[1]}>
-          <MarkerContent>
-            <span className="block size-3 rounded-full border-2 border-white bg-teal-600" />
-          </MarkerContent>
-        </MapMarker>
-      ))}
+      {props.mode === 'avoid' ? (
+        <MapSketchLayers
+          shape="polygon"
+          mode="drawing"
+          points={props.draft}
+          cursor={props.drawHover ?? null}
+          // The plan's own click handler places the points, so a pick, a note or a tool can still
+          // take the click first; the sketch draws them.
+          capture={false}
+          onAdd={props.onDraw}
+          onFinish={() => props.onFinishDraw?.()}
+          color={DRAFT_COLOR}
+          testId="road-area-draft"
+        />
+      ) : (
+        props.draft.map((coordinate, i) => (
+          <MapMarker key={i} longitude={coordinate[0]} latitude={coordinate[1]}>
+            <MarkerContent>
+              <span className="block size-3 rounded-full border-2 border-white bg-teal-600" />
+            </MarkerContent>
+          </MapMarker>
+        ))
+      )}
       {analysis.crossings
         .filter((c) => c.kind === 'stream' && !props.hiddenContextKinds.includes('stream'))
         .map((crossing) => (
@@ -2094,6 +2166,8 @@ export function PlanView(input: PlanProps) {
     props.project.sharedCrossingCosts,
   ])
   const [terrainLayer, setTerrainLayer] = useState<TerrainLayer>('hillshade')
+  // The same Map / Satellite choice as the visual-quality maps, under the plan's own layers.
+  const [basemap, setBasemap] = useStoredImageryBasemap('pgmaps-road-basemap')
   const { showContours, setShowContours, showLabels, setShowLabels, showEarthwork, setShowEarthwork, fitRequest, fit } =
     props.display
   const [sheetSymbols, setSheetSymbols] = useState(false)
@@ -2284,12 +2358,15 @@ export function PlanView(input: PlanProps) {
                 <Mountain className="size-4" />
               </Button>
             </div>
-            <MapControls position="top-right" showZoom showCompass={false} className="road-map-controls top-12" />
+            <MapControls position="top-right" showZoom showCompass={false} className="road-map-controls top-12">
+              <MapLayersControl basemaps={IMAGERY_BASEMAPS} basemap={basemap} onBasemapChange={setBasemap} />
+            </MapControls>
           </>
         }
         showLoadingOverlay={false}
       >
         <MapTableBridge table={table} />
+        <SatelliteImagery visible={basemap === 'satellite'} />
         {showSentinel && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
         <Layers
           {...props}
@@ -2308,6 +2385,7 @@ export function PlanView(input: PlanProps) {
           }}
           fitRequest={fitRequest}
           terrainLayer={terrainLayer}
+          imagery={basemap === 'satellite'}
           showContours={showContours}
           showLabels={showLabels}
           showEarthwork={showEarthwork}

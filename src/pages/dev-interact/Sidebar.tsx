@@ -7,8 +7,8 @@ import { StatGroup } from '@/components/ui/stat-group'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { actionRows, mapDatasetMeta } from './data'
-import { formatArea, formatDistance } from './geo'
-import type { LayerId, MeasurementMode, MeasurementStats, ScalePosition, YearRange } from './types'
+import { formatSketchArea, formatSketchDistance, type SketchMode, type SketchStats } from '@/lib/geo/mapSketch'
+import type { LayerId, ScalePosition, YearRange } from './types'
 import { YearFilterWidget } from './YearFilterWidget'
 
 const scalePositionOptions: Array<{ value: ScalePosition; label: string }> = [
@@ -44,8 +44,8 @@ export function DevInteractSidebar({
 }: {
   className?: string
   visibleLayers: Record<LayerId, boolean>
-  measurementMode: MeasurementMode
-  measurementStats: MeasurementStats
+  measurementMode: SketchMode
+  measurementStats: SketchStats | null
   measurementPointCount: number
   onToggleLayer: (layer: LayerId) => void
   onIsolateLayer: (layer: LayerId) => void
@@ -206,10 +206,10 @@ export function DevInteractSidebar({
             columns={2}
             className="mt-3"
             items={[
-              { label: 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
+              { label: 'Perimeter', value: measurementStats ? formatSketchDistance(measurementStats.length) : '-' },
               {
                 label: 'Area',
-                value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-',
+                value: measurementStats && measurementStats.area > 0 ? formatSketchArea(measurementStats.area) : '-',
               },
             ]}
           />

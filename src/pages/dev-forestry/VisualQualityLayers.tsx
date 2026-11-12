@@ -6,7 +6,8 @@ import { BasemapContextProbe, type BasemapContext } from './BasemapContextProbe'
 import { FigureStyleLayers, type FigureStyleData } from './FigureStyleLayers'
 import { ForestOverlay, type ForestStatus } from './ForestOverlay'
 import { MapDrawCapture } from './MapDrawCapture'
-import { SatelliteImagery } from './SatelliteImagery'
+import { MapSketchDraft } from '@/components/ui/map-sketch'
+import { SatelliteImagery } from '@/components/ui/map-satellite-imagery'
 import type { LandformVantagePoint } from './TerrainLandformFinder'
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import {
@@ -125,8 +126,10 @@ export type SceneLayerData = {
   corridorExposureCollection: Collection
   stationCollection: Collection
   spotCollection: Collection
-  draftLine: Collection
-  draftVertices: Collection
+  /** The shape being drawn, as the shared sketch draws it (`map-sketch.tsx`). */
+  draftCoordinates: Array<[number, number]>
+  /** The measure tool is in hand: plan clicks are its points, not selections. */
+  measuring: boolean
   inventoryHoverHtml: (properties: Record<string, unknown>) => string | null
   viewpointHoverHtml: (properties: Record<string, unknown>) => string | null
   targetHoverHtml: (properties: Record<string, unknown>) => string | null
@@ -142,6 +145,9 @@ export type SceneLayerData = {
   /** A click on the plan's road line, while the road view can seek along it. */
   onRoadClick?: (lngLat: [number, number]) => void
 }
+
+/** A shape being drawn on the plan, dark so it reads over the imagery and the scene's colours. */
+const DRAFT_COLOR = '#111827'
 
 /**
  * The scene's map layers, drawn once in each map: `mode="plan"` in the 2D overview, `mode="eye"` in
@@ -196,8 +202,8 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     corridorExposureCollection,
     stationCollection,
     spotCollection,
-    draftLine,
-    draftVertices,
+    draftCoordinates,
+    measuring,
     inventoryHoverHtml,
     viewpointHoverHtml,
     targetHoverHtml,
@@ -212,6 +218,14 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     onInspectSample,
     onRoadClick,
   } = data
+  // While a shape is being drawn or measured, a click on the plan is a vertex: nothing under it is
+  // selected, adopted or inspected.
+  const planBusy = !eye && (measuring || drawMode !== 'none')
+  const whenFree =
+    <A extends unknown[]>(handler: (...args: A) => unknown) =>
+    (...args: A) => {
+      if (!planBusy) handler(...args)
+    }
   // The plan's legend rows hide features by class; the road view draws every feature.
   const hidden = eye ? NOTHING_HIDDEN : planShow.hidden
   const shown = (key: Parameters<typeof hidden.has>[0]) => !hidden.has(key)
@@ -238,7 +252,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
   const planSamples = useMemo(() => withoutHiddenFeatures(samples, hidden, sampleLegendKey), [samples, hidden])
   const roadClick = onRoadClick
     ? (_id: string, event: { lngLat: [number, number] | null }) => {
-        if (event.lngLat) onRoadClick(event.lngLat)
+        if (event.lngLat && !planBusy) onRoadClick(event.lngLat)
       }
     : undefined
   return (
@@ -398,11 +412,19 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
               </MarkerContent>
             </MapMarker>
           )}
-          <MapDrawCapture
-            active={drawMode !== 'none'}
-            onPoint={handleMapPoint}
-            onFinish={drawMode === 'spot' ? undefined : finishDraft}
-          />
+          {/* A viewpoint is one click; a road or an area is drawn as the measure tool draws: numbered
+            points, a rubber band to the pointer, closed on its first point or a double-click. */}
+          <MapDrawCapture active={drawMode === 'spot'} onPoint={handleMapPoint} />
+          {drawMode !== 'none' && drawMode !== 'spot' && (
+            <MapSketchDraft
+              shape={drawMode === 'corridor' ? 'line' : 'polygon'}
+              points={draftCoordinates}
+              onAdd={handleMapPoint}
+              onFinish={finishDraft}
+              color={DRAFT_COLOR}
+              testId="visuals-draft"
+            />
+          )}
           {/* A one-off point a sidebar tool asked for, such as where a landform is read from. */}
           <MapDrawCapture
             active={!!mapPick && drawMode === 'none'}
@@ -426,9 +448,9 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         idProperty="id"
         visible={showInventory && inventory.units.length > 0 && (!eye || drive.showAnalysis)}
         // With the road view open a click on the plan moves it; adopting a unit is step 1's job.
-        onFeatureClick={(id) => {
+        onFeatureClick={whenFree((id) => {
           if (eye || !drive.active) handleAdoptUnit(id)
-        }}
+        })}
         hoverHtml={inventoryHoverHtml}
       />
       {/* Both terrain readings, coloured by reading; the one in front filled and drawn heavier. */}
@@ -516,10 +538,10 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             strokeWidth={1.5}
             idProperty="id"
             hoverHtml={viewpointHoverHtml}
-            onFeatureClick={(id) => {
+            onFeatureClick={whenFree((id) => {
               const candidate = viewpointCandidates.find((entry) => entry.key === id)
               if (candidate) handleUseViewpoint(candidate)
-            }}
+            })}
           />
           <MapCircleLayer
             data={planClues}
@@ -546,7 +568,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         lineOpacity={0.8}
         idProperty="id"
         selectedId={selectedTargetId}
-        onFeatureClick={(id) => setSelectedTargetId(id)}
+        onFeatureClick={whenFree((id) => setSelectedTargetId(id))}
         hoverHtml={targetHoverHtml}
       />
       {/* The established VQO polygons draped under everything else in the road view. */}
@@ -571,7 +593,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         lineOpacity={0.8}
         idProperty="id"
         selectedId={selectedTargetId}
-        onFeatureClick={(id) => setSelectedTargetId(id)}
+        onFeatureClick={whenFree((id) => setSelectedTargetId(id))}
         hoverHtml={targetHoverHtml}
       />
       <MapFillLayer
@@ -599,7 +621,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         idProperty="id"
         selectedId={selectedTargetId}
         selectionColor={eye && !drive.showAnalysis ? '#b69a70' : '#111827'}
-        onFeatureClick={(id) => setSelectedTargetId(id)}
+        onFeatureClick={whenFree((id) => setSelectedTargetId(id))}
         hoverHtml={targetHoverHtml}
       />
 
@@ -658,15 +680,16 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       {/* Sample points carry the answer: red is ground the road can see. */}
       <MapCircleLayer
         data={planSamples}
-        onFeatureClick={(_id, _event, properties) =>
-          // On the plan, a click moves the open road view instead.
-          (eye || !drive.active) &&
-          onInspectSample(
-            String(properties.targetId),
-            Number(properties.sampleIndex),
-            eye ? driveStationIndex : (result?.assessmentStationIndex ?? 0),
-          )
-        }
+        onFeatureClick={whenFree(
+          (_id, _event, properties) =>
+            // On the plan, a click moves the open road view instead.
+            (eye || !drive.active) &&
+            onInspectSample(
+              String(properties.targetId),
+              Number(properties.sampleIndex),
+              eye ? driveStationIndex : (result?.assessmentStationIndex ?? 0),
+            ),
+        )}
         visible={!preliminaryDrive && (!eye || (drive.showAnalysis && drive.harvestPhase === 'after'))}
         color={[
           'case',
@@ -732,9 +755,6 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             strokeColor="#ffffff"
             strokeWidth={2}
           />
-
-          <MapLineLayer data={draftLine} color="#111827" width={2} dashArray={[2, 1.5]} opacity={0.9} />
-          <MapCircleLayer data={draftVertices} color="#111827" radius={4} strokeColor="#ffffff" strokeWidth={1.2} />
         </>
       )}
     </>

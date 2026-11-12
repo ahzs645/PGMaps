@@ -1,5 +1,6 @@
 /**
- * The plan's own tools beside Inspect and Edit: grade-held pegging and point query, with the plan
+ * The plan's own tools beside Inspect and Edit: grade-held pegging, point query and the shared
+ * measure tool (`map-measure.tsx`, the one `/dev/interact` measures with), with the plan
  * display options they bring (colour by grade class, follow the selected station). The plan keeps
  * only the tool in hand; each tool keeps its own state, so a cursor move redraws the tool and not
  * the plan. Calculation lives in `pegCursor.ts`, `pointQuery.ts`, `gradeClasses.ts` and
@@ -7,10 +8,13 @@
  */
 import type { SnapLine } from './drawSnap'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl'
-import { Footprints, ScanSearch } from 'lucide-react'
+import { Footprints, Ruler, ScanSearch } from 'lucide-react'
 import { useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
+import { MapMeasurePanel, useMeasureKeys } from '@/components/ui/map-measure'
+import { MapSketch, useMapSketch } from '@/components/ui/map-sketch'
 import { nearestStation } from './engine'
 import { followDelay, FOLLOW_HOLD_AFTER_USER_MS, FOLLOW_PAN_MS, outsideFollowBox } from './followStation'
 import { PegTool } from './PegTool'
@@ -20,7 +24,7 @@ import type { DrawMode } from './PlanView'
 import type { Alignment, Coordinate, RoadAnalysis, RoadProject, RoadStation, TerrainSource } from './types'
 import './planTools.css'
 
-export type PlanTool = 'peg' | 'query'
+export type PlanTool = 'peg' | 'query' | 'measure'
 
 const STORAGE = { gradeColours: 'pgmaps-road-grade-colours', follow: 'pgmaps-road-follow-station' }
 function useStoredFlag(key: string): [boolean, (value: boolean) => void] {
@@ -104,6 +108,7 @@ export function usePlanTools(input: PlanToolsInput) {
   const [gradeColoursOn, setGradeColours] = useStoredFlag(STORAGE.gradeColours)
   const [followOn, setFollow] = useStoredFlag(STORAGE.follow)
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
+  // Pegging and query read a design road; measuring needs only the map.
   const available = !input.investigation && !input.terrainOnly
   const roadDrawing = !['inspect', 'edit'].includes(input.mode)
   // A road drawing mode, a note tool or a plan pick puts the tool down; so does leaving Inspect.
@@ -112,7 +117,7 @@ export function usePlanTools(input: PlanToolsInput) {
     setSeenMode(input.mode)
     if (input.mode !== 'inspect' && tool) setTool(null)
   }
-  const suppressed = !available || roadDrawing || !!input.noteTool || !!input.pourPointPicking
+  const suppressed = (!available && tool !== 'measure') || roadDrawing || !!input.noteTool || !!input.pourPointPicking
   if (tool && suppressed) setTool(null)
   if (tool === 'peg' && !input.onPeg) setTool(null)
   const pick = (next: PlanTool) => {
@@ -125,9 +130,9 @@ export function usePlanTools(input: PlanToolsInput) {
     setTool(next)
   }
   const active = suppressed ? null : tool
-  const toolbar: ReactNode = available ? (
-    <PlanToolButtons tool={active} onPick={pick} pegDisabled={!input.onPeg} />
-  ) : null
+  const toolbar: ReactNode = (
+    <PlanToolButtons tool={active} onPick={pick} pegDisabled={!input.onPeg} roadTools={available} />
+  )
   const panelSlot: ReactNode = active ? (
     <div
       ref={setPanelHost}
@@ -157,10 +162,13 @@ export function PlanToolButtons({
   tool,
   onPick,
   pegDisabled,
+  roadTools = true,
 }: {
   tool: PlanTool | null
   onPick: (tool: PlanTool) => void
   pegDisabled: boolean
+  /** Peg and query; off in an access investigation or on terrain alone, where Measure stays. */
+  roadTools?: boolean
 }) {
   const button = (value: PlanTool, label: string, title: string, Icon: typeof Footprints, disabled = false) => (
     <Button
@@ -178,16 +186,19 @@ export function PlanToolButtons({
   )
   return (
     <div className="flex shrink-0 gap-1" role="group" aria-label="Plan tools">
-      {button(
-        'peg',
-        'Peg at grade',
-        pegDisabled
-          ? 'Peg at grade · needs a design road you can edit'
-          : 'Peg at grade · the cursor aims, each click adds a leg at the target grade',
-        Footprints,
-        pegDisabled,
-      )}
-      {button('query', 'Query a point', 'Query a point · station, offset, ground and design levels', ScanSearch)}
+      {roadTools &&
+        button(
+          'peg',
+          'Peg at grade',
+          pegDisabled
+            ? 'Peg at grade · needs a design road you can edit'
+            : 'Peg at grade · the cursor aims, each click adds a leg at the target grade',
+          Footprints,
+          pegDisabled,
+        )}
+      {roadTools &&
+        button('query', 'Query a point', 'Query a point · station, offset, ground and design levels', ScanSearch)}
+      {button('measure', 'Measure', 'Measure a distance, an area or a circle on the plan', Ruler)}
     </div>
   )
 }
@@ -217,6 +228,7 @@ function PlanToolLayer(
         panelHost={props.panelHost}
       />
     )
+  if (props.tool === 'measure') return <PlanMeasureTool onClose={props.onClose} panelHost={props.panelHost} />
   if (props.tool === 'query')
     return (
       <PointQueryTool
@@ -230,6 +242,21 @@ function PlanToolLayer(
       />
     )
   return null
+}
+
+/**
+ * The shared measure tool on the plan: it opens measuring a distance, keeps the plan's clicks while
+ * in hand (the plan stands aside through `planToolActive`), and Escape puts it down.
+ */
+function PlanMeasureTool({ onClose, panelHost }: { onClose: () => void; panelHost: HTMLElement | null }) {
+  const sketch = useMapSketch('line')
+  useMeasureKeys(sketch, { active: true, onClose, accepts: isPlanToolKey })
+  return (
+    <>
+      <MapSketch sketch={sketch} testId="road-measure" />
+      {panelHost && createPortal(<MapMeasurePanel sketch={sketch} onClose={onClose} />, panelHost)}
+    </>
+  )
 }
 
 /** Pans the plan to keep `coordinate` in view, by the rules in `followStation.ts`. */

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { useMap } from '@/components/ui/map'
 import { MapRasterLayer } from '@/components/ui/map-layers'
@@ -9,15 +9,54 @@ export const SATELLITE_TILES = [
 ]
 export const SATELLITE_ATTRIBUTION = 'Imagery © Esri — Esri, Vantor, Earthstar Geographics, and the GIS User Community'
 
+/** A basemap a page's Layers control offers: the vector map, or Esri imagery under its labels. */
+export type ImageryBasemap = 'map' | 'satellite'
+
+/**
+ * The basemap choices for `MapLayersControl` (`basemaps`), shared so every page that offers
+ * imagery names it the same. The page applies the choice by rendering `SatelliteImagery`.
+ */
+export const IMAGERY_BASEMAPS: ReadonlyArray<{ value: ImageryBasemap; label: string; description?: string }> = [
+  { value: 'map', label: 'Map' },
+  { value: 'satellite', label: 'Satellite', description: 'Esri World Imagery' },
+]
+
+/**
+ * The basemap choice, kept in this browser under `storageKey` so the page opens on it again.
+ * Storage that is unavailable leaves the choice for this session.
+ */
+export function useStoredImageryBasemap(storageKey: string): [ImageryBasemap, (value: ImageryBasemap) => void] {
+  const [basemap, setBasemap] = useState<ImageryBasemap>(() => {
+    try {
+      return localStorage.getItem(storageKey) === 'satellite' ? 'satellite' : 'map'
+    } catch {
+      return 'map'
+    }
+  })
+  const choose = useCallback(
+    (value: ImageryBasemap) => {
+      setBasemap(value)
+      try {
+        localStorage.setItem(storageKey, value)
+      } catch {
+        /* The choice still holds for this session. */
+      }
+    },
+    [storageKey],
+  )
+  return [basemap, choose]
+}
+
 /**
  * Satellite imagery under everything the page draws, the way a planner's
- * Google Earth screenshot drapes the photo over the hills.
+ * Google Earth screenshot drapes the photo over the hills. Used by the
+ * forestry visual-quality maps and the road-design plan.
  *
  * It goes in as a layer, not as a new `styles` object: a style swap calls
  * `setStyle`, which would drop the 3D timber layer the road view mounts. It
  * sits just below the basemap's first label layer, so labels stay readable and
- * every data layer added after the style (blocks, landforms, samples) stays on
- * top whatever order they mounted in.
+ * every data layer added after the style (blocks, landforms, samples, roads)
+ * stays on top whatever order they mounted in.
  */
 export function SatelliteImagery({ visible }: { visible: boolean }) {
   const { map, isLoaded } = useMap()

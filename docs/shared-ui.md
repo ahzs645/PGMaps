@@ -597,6 +597,42 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   collections use this worker-tiled renderer with their original GeoJSON.
   The raster comparison mode does not alter native vector data.
 
+- Satellite basemap: `IMAGERY_BASEMAPS` and `SatelliteImagery`
+  (`map-satellite-imagery.tsx`) are the Map / Satellite choice the forestry
+  visual-quality maps and the road-design plan share. Pass `IMAGERY_BASEMAPS` to
+  `MapLayersControl`'s `basemaps` and render `<SatelliteImagery visible />`
+  inside the map: Esri World Imagery as a raster layer under the basemap's
+  first label layer, capped at z18, re-added on `style.load`. Never a `styles`
+  swap, which `setStyle`s away every layer a page added.
+  `useStoredImageryBasemap(key)` remembers the choice in this browser.
+
+- Drawing and measuring on a map: `src/lib/geo/mapSketch.ts` holds the rules
+  (DOM-free, unit-tested) and `map-sketch.tsx` the map side, lifted from
+  `/dev/interact`. A polygon closes on a click on its first point (within
+  18 px), a double-click or Finish once it has three points; a line finishes on
+  a double-click or Finish; a circle takes its centre, then its edge. Vertices
+  are numbered markers, a dashed rubber band runs to the pointer (and back to
+  the first point once a polygon can close), Undo/Redo take points back.
+  - **Measure tool.** `useMapSketch()` keeps the sketch; render
+    `<MapSketch sketch />` inside the map and `MapMeasurePanel` (a
+    `MapToolPanel`: Distance / Area / Circle, the values, Undo / Redo / Finish)
+    where the page's tool cards go. `MapMeasureControl` is a Measure button for
+    `MapControls`; `useMeasureKeys` gives Escape, Backspace and Enter.
+    `/dev/interact` keeps its phone sheets through `MapMeasureOverlay`.
+  - **Drawing a polygon the page keeps** (a block, an avoidance area, a
+    retention patch): keep the draft in the page and render
+    `<MapSketchDraft shape="polygon" points onAdd onFinish />`, which captures
+    the clicks and tracks the pointer itself so the page's other layers do not
+    re-render on every move. `onFinish` is the page's own Finish (parse the
+    ring with `sketchPolygon`, commit, clear the draft). Where the page's own
+    click handler must keep placing points (the road plan, so a pick or a note
+    can still take the click), use `MapSketchLayers capture={false}` to draw it
+    and close with `nearFirstVertex` / `canFinishSketch` in that handler.
+  - While a sketch is drawing, the page's own click actions stand aside
+    (selecting, adopting, inspecting, moving the road view): a vertex click must
+    do nothing else. Read areas with `sketchStats` and print them with
+    `formatSketchArea` / `formatSketchDistance`.
+
 - Tool cards: `MapToolPanel` (`map-tool-panel.tsx`) is the card a map tool shows while it
   is in hand (pegging, extending, sketching, measuring a point). It floats over the map, so
   starting a tool moves nothing: a header with the tool's name, its explanation behind an (i)
