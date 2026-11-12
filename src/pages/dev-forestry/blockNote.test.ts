@@ -6,6 +6,7 @@ import {
   blockNoteFileName,
   blockNotePdf,
   blockNoteWorkbook,
+  isPngImage,
   paragraphForLayout,
   type BlockNote,
   type NoteImage,
@@ -184,5 +185,24 @@ describe('block note export', () => {
     // The reviewer's own wording is left alone.
     const own = { text: 'Photos are attached separately.', drafted: false }
     expect(paragraphForLayout(note({ visuals: own }), 'pdf')).toBe(own.text)
+  })
+})
+
+describe('composed VIA figures in the note', () => {
+  /** A 4 × 4 white PNG. */
+  const PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAD0lEQVR4nGP4jwQYiOMAANuQL9FuRbCyAAAAAElFTkSuQmCC'
+
+  it('embeds a PNG figure as PNG in both the workbook and the PDF', async () => {
+    const figure: NoteImage = { caption: 'Analysis figure.', dataUrl: PNG, width: 4, height: 4 }
+    expect(isPngImage(figure)).toBe(true)
+    expect(isPngImage(image('x'))).toBe(false)
+    const withFigure = note({ views: [figure, image('Second view.')] })
+    const buffer = await blockNoteWorkbook(withFigure, ExcelJS)
+    const book = new ExcelJS.Workbook()
+    await book.xlsx.load(buffer)
+    const media = (book.model as unknown as { media: Array<{ extension: string }> }).media
+    expect(media.map((m) => m.extension)).toEqual(expect.arrayContaining(['png', 'jpeg']))
+    expect(blockNotePdf(withFigure, jspdf).byteLength).toBeGreaterThan(1000)
   })
 })

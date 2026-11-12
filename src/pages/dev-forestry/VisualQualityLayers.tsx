@@ -3,6 +3,7 @@ import { MapMarker, MapScaleBar, MarkerContent } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { ViewshedOverlay, VIEWSHED_COLORS } from '@/features/terrain-viewshed'
 import { BasemapContextProbe, type BasemapContext } from './BasemapContextProbe'
+import { FigureStyleLayers, type FigureStyleData } from './FigureStyleLayers'
 import { ForestOverlay, type ForestStatus } from './ForestOverlay'
 import { MapDrawCapture } from './MapDrawCapture'
 import { SatelliteImagery } from './SatelliteImagery'
@@ -92,6 +93,8 @@ export type SceneLayerData = {
   harvestedGroundColor: unknown
   maskCollection: Collection
   hazeCollection: Collection
+  /** The scene's data by VIA figure role, for the road view's figure style (`drive.figureStyle`). */
+  figureStyleData: FigureStyleData
   /** Every station's union, for the plan; the road view's own station, for the eye. */
   sampleCollection: Collection
   eyeSampleCollection: Collection
@@ -592,6 +595,8 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
           lineWidth={0}
         />
       )}
+      {/* A VIA figure style, draped over everything but the sample points. Display only. */}
+      {eye && drive.figureStyle && <FigureStyleLayers styleId={drive.figureStyle} data={data.figureStyleData} />}
       {/* Sample points carry the answer: red is ground the road can see. */}
       <MapCircleLayer
         data={planSamples}

@@ -70,6 +70,7 @@ import {
   ViewpointTypeField,
 } from './ViaPanels'
 import { layoutStageOf } from './fieldChecklist'
+import { LIVE_PRESETS } from '@/lib/forestry/viaFigure/presets'
 import { VIA_STEPS, type ViaAssessment, type ViaReview, type ViaStepId, type ViaStepStatus } from './via'
 import {
   ALTERATION_BASIS_LABELS,
@@ -142,6 +143,11 @@ export type DriveState = {
   showLandform: boolean
   /** Stronger distance haze, so ridge layers separate as they do in real air. Display only. */
   haze: boolean
+  /**
+   * A VIA figure style (`src/lib/forestry/viaFigure/presets.ts`) draped on the road view, and the
+   * style the analysis sheet is composed in. Display only, like block colours: never in the run.
+   */
+  figureStyle: string | null
 }
 
 const VIA_CLASS_CODES = {
@@ -470,6 +476,10 @@ type SidebarProps = {
   localSources?: ReactNode
   /** Step 3: draw wildlife tree patches (retained masks), under the run. */
   wildlifeTreePatches?: ReactNode
+  /** Step 3: private land from ParcelMap BC, added by the reviewer as private-land masks. */
+  privateLand?: ReactNode
+  /** Step 5: a saved view composed as a VIA analysis sheet in a figure style. */
+  figureSheet?: ReactNode
   /** Step 3: the landform design review. */
   designReview: ReactNode
   /** Saved design alternatives and their comparisons: step 3's, unlike the reading in Resources. */
@@ -546,6 +556,8 @@ export function Sidebar({
   landformScope,
   localSources,
   wildlifeTreePatches,
+  privateLand,
+  figureSheet,
   designReview,
   designComparisons,
   runRevision,
@@ -1222,7 +1234,10 @@ export function Sidebar({
                   you can see which band of the mountain the block takes a share of. Distance haze fades each ridge a
                   little more than the one in front, as real air does; it changes only the picture. Note screenshot look
                   is how planning-note screenshots are taken in Google Earth: imagery, the proposed blocks filled white,
-                  no drawn timber or points. Turn timber back on to see what roadside trees would screen.
+                  no drawn timber or points. Turn timber back on to see what roadside trees would screen. Figure style
+                  drapes the outlines of a BC VIA figure style (landform, blocks, openings, private land, rock) over the
+                  terrain, which hides them behind nearer ridges; a saved view's analysis sheet (step 5) is drawn in the
+                  same style. Hatched rock is outlined here and hatched in the sheet.
                 </>
               }
             >
@@ -1336,6 +1351,22 @@ export function Sidebar({
                     </p>
                   )}
                 </div>
+                <label className="flex items-center justify-between gap-2 text-xs">
+                  Figure style
+                  <StyledSelect
+                    aria-label="Figure style"
+                    className={SELECT_CLASS}
+                    value={drive.figureStyle ?? ''}
+                    onChange={(event) => onDriveChange({ figureStyle: event.target.value || null })}
+                  >
+                    <option value="">None</option>
+                    {LIVE_PRESETS.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.name}
+                      </option>
+                    ))}
+                  </StyledSelect>
+                </label>
                 <label className="flex items-center justify-between gap-2 text-xs">
                   Display quality
                   <StyledSelect
@@ -1628,6 +1659,7 @@ export function Sidebar({
           </div>
         </ToolSection>
         {wildlifeTreePatches}
+        {privateLand}
         {result && (
           <ToolSection title="Results">
             {runRevision}
@@ -1879,6 +1911,16 @@ export function Sidebar({
         >
           {report}
         </ToolSection>
+        {figureSheet && (
+          <ToolSection
+            title="Analysis sheet"
+            summary="VIA figure styles"
+            toggleProps={{ 'data-forestry-disclosure': 'analysis-sheet' }}
+            help="A saved view drawn as a perspective viewpoint analysis in the style of a BC VIA figure: outlines traced from the view's class pass (what each pixel shows), block callouts from the run, a legend of what was drawn, and the pixel percent printed beside the run's sightline percent. The sightline figure is the assessment's; the pixel figure is what this picture shows."
+          >
+            {figureSheet}
+          </ToolSection>
+        )}
         {evidence}
         {/* Secondary to the FS1252 above: the worked figures, and the scene to reopen later. */}
         <ToolSection title="Also download">

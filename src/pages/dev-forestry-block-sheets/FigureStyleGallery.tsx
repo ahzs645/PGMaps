@@ -39,12 +39,12 @@ function FigurePreview({ preset }: { preset: ViaStylePreset }) {
         <img
           src={src.url}
           alt={`${preset.name}, composed over a synthetic view`}
-          className="w-full rounded border bg-white"
+          className="w-full rounded-md border bg-white"
           style={{ aspectRatio: String(src.ratio) }}
           data-testid="figure-style-preview"
         />
       ) : (
-        <div className="flex aspect-[17/11] items-center justify-center rounded border bg-muted/40 text-xs text-muted-foreground">
+        <div className="flex aspect-[17/11] items-center justify-center rounded-md border bg-muted/40 text-xs text-muted-foreground">
           {seen ? 'Drawing…' : 'Waiting to draw'}
         </div>
       )}
@@ -55,7 +55,7 @@ function FigurePreview({ preset }: { preset: ViaStylePreset }) {
 function PresetLegend({ preset }: { preset: ViaStylePreset }) {
   const roles = Object.keys(preset.symbols) as ViaRole[]
   return (
-    <ul className="divide-y rounded border">
+    <ul className="divide-y rounded-md border">
       {roles.map((role) => {
         const entry = preset.symbols[role]!
         const label = preset.legend.order.find((o) => o.role === role)?.label ?? entry.symbol.label
@@ -67,7 +67,7 @@ function PresetLegend({ preset }: { preset: ViaStylePreset }) {
               heightPt={15}
               scale={2}
               background="#ffffff"
-              className="rounded border"
+              className="rounded-md border"
             />
             <div className="min-w-0 space-y-0.5 text-xs">
               <div className="flex flex-wrap items-center gap-2">
