@@ -61,6 +61,20 @@ export function isPlanToolKey(event: Pick<KeyboardEvent, 'key' | 'target'>): boo
   return target.tagName === 'BODY' || target.tagName === 'HTML' || !!target.closest('[data-testid="road-plan-view"]')
 }
 
+/**
+ * Whether Escape puts down the drawing tool in hand (Peg road, Sketch, Extend, Draw …). It does
+ * from anywhere but a field, a dialog or an open menu, which keep Escape for themselves: the tool is
+ * often picked from the ribbon, whose button still has focus when Escape is pressed.
+ */
+export function leavesDrawingOnEscape(event: Pick<KeyboardEvent, 'key' | 'target' | 'defaultPrevented'>): boolean {
+  if (event.key !== 'Escape' || event.defaultPrevented) return false
+  const target = event.target as Element | null
+  if (!target || typeof target.closest !== 'function') return true
+  return !target.closest(
+    'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"], [role="listbox"]',
+  )
+}
+
 export interface PlanToolsInput {
   project: RoadProject
   /** The active road as the plan shows it. */

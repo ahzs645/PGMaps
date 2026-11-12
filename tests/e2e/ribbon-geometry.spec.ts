@@ -36,3 +36,63 @@ for (const width of [1440, 1024, 390]) {
     }
   })
 }
+
+test('the ribbon stays put while a pane is open, a tool is pegging, or a caption changes', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
+  await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
+  const ribbon = page.getByRole('region', { name: 'Command ribbon' })
+  const tab = (name: string) =>
+    ribbon.getByRole('tablist', { name: 'Ribbon tabs' }).getByRole('tab', { name, exact: true })
+  const quickUndo = ribbon.locator('.lp-quick-access [data-ribbon-item="undo"]')
+  const groupWidths = () =>
+    ribbon.locator('.lp-command-group').evaluateAll((groups) => groups.map((g) => Math.round(g.clientWidth)))
+
+  // Opening a comparison is not an edit: nothing to undo afterwards.
+  await expect(quickUndo).toBeDisabled()
+  await tab('Engineering').click()
+  await ribbon.getByRole('button', { name: 'Compare route costs', exact: true }).click()
+  await page.keyboard.press('Escape')
+  await expect(quickUndo).toBeDisabled()
+
+  // All settings holds the tab's fields; the strip keeps inert copies in their places.
+  await tab('Section').click()
+  const strip = await groupWidths()
+  await ribbon.getByRole('button', { name: 'All settings' }).click()
+  await expect(ribbon.locator('.lp-quick-setting[data-mirror]').first()).toBeVisible()
+  expect(await groupWidths()).toEqual(strip)
+  await expect(ribbon.getByRole('spinbutton', { name: 'Left half-width (m)', exact: true })).toHaveCount(0)
+  await ribbon.getByRole('button', { name: 'Close settings' }).click()
+
+  // "Undo point" while pegging keeps Undo's width, and Escape puts the tool down from the ribbon.
+  await tab('Road').click()
+  const undo = ribbon.locator('.lp-group-items [data-ribbon-item="undo"]')
+  const before = (await undo.boundingBox())!.width
+  const peg = ribbon.getByRole('button', { name: 'Peg road', exact: true })
+  await peg.click()
+  const plan = (await page.getByTestId('road-plan-view').boundingBox())!
+  await page.mouse.click(plan.x + plan.width * 0.4, plan.y + plan.height * 0.5)
+  await expect(undo).toHaveAccessibleName('Undo point')
+  expect((await undo.boundingBox())!.width).toBe(before)
+  await peg.focus()
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('pegging-feedback')).toBeHidden()
+  await expect(peg).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('a narrow ribbon folds quick access and the interface switch into More', async ({ page }) => {
+  await page.setViewportSize({ width: 600, height: 900 })
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
+  const ribbon = page.getByRole('region', { name: 'Command ribbon' })
+  await expect(ribbon.getByRole('group', { name: 'Quick access' })).toBeHidden()
+  await expect(ribbon.getByRole('button', { name: 'Switch workspace interface' })).toBeHidden()
+  await ribbon.getByRole('button', { name: 'More workspace commands' }).click()
+  await expect(page.getByRole('menuitem')).toHaveText(['Save project file', /^Undo/, /^Redo/, 'Switch interface'])
+})

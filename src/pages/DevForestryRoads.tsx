@@ -52,7 +52,7 @@ import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
 import { InfoTip } from '@/components/ui/info-tip'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
-import { ProjectFileConflictDialog, RoadRemovedNotice } from './dev-forestry-roads/LifecycleNotices'
+import { OpenSampleDialog, ProjectFileConflictDialog, RoadRemovedNotice } from './dev-forestry-roads/LifecycleNotices'
 import { distinctProjectName, removeRoad, restoreRoad, type RemovedRoad } from './dev-forestry-roads/roadLifecycle'
 import type { LibraryEntry } from './dev-forestry-roads/projectLibrary'
 import {
@@ -93,6 +93,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { MapToolPanel } from '@/components/ui/map-tool-panel'
+import { leavesDrawingOnEscape } from './dev-forestry-roads/PlanTools'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
@@ -165,7 +166,6 @@ import { referenceBounds, type ReferenceFeature } from './dev-forestry-roads/ref
 import type { EngineeringInputTab, PointCloudChoice, SidebarTab } from './dev-forestry-roads/DesignSidebarBody'
 import { FullCostPlanningDialog, type FullCostPreview } from './dev-forestry-roads/FullCostPlanningDialog'
 import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialog'
-import { createTotalCostPlanningDefaults } from './dev-forestry-roads/fullCostPlanning'
 import { isFullCostRecordCurrent } from './dev-forestry-roads/fullCostRecord'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
 import { usePlanSightlines } from './dev-forestry-roads/planSightlines'
@@ -760,11 +760,8 @@ export default function DevForestryRoads({
     setFitRevision((revision) => revision + 1)
   }, [investigation, w.projectId, setCollapsed, setControlsOpen, setFocusPane])
   const [roadReviewRequest, setRoadReviewRequest] = useState<{ id?: string; sequence: number }>()
-  const openCompleteCosts = () => {
-    if (!project.totalCostPlanning)
-      update((current) => ({ ...current, totalCostPlanning: createTotalCostPlanningDefaults() }))
-    setCompleteCostOpen(true)
-  }
+  // Opening the comparison is not an edit: the dialog shows the defaults and writes them only when one is changed.
+  const openCompleteCosts = () => setCompleteCostOpen(true)
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
   const pendingStandards = useRef<JobStandards | null>(null)
@@ -1843,6 +1840,10 @@ export default function DevForestryRoads({
       w.setError(error instanceof Error ? error.message : 'Could not export drainage comparisons.')
     }
   }
+  // A sample replaces the open project, so it is asked first; the regional DEM only changes this one's terrain.
+  const [sampleRequest, setSampleRequest] = useState<'lidar' | 'demo' | null>(null)
+  const requestTerrain = (kind: 'lidar' | 'regional' | 'demo') =>
+    kind === 'regional' ? loadTerrain(kind) : setSampleRequest(kind)
   const loadTerrain = (kind: 'lidar' | 'regional' | 'demo') =>
     void run('Loading terrain…', async (signal) => {
       if (kind === 'demo') {
@@ -2890,12 +2891,20 @@ export default function DevForestryRoads({
     mode === 'edit' && displayedAlignment === alignment && !isMappedRoad(alignment) && alignment.points.length > 2
       ? (selectedPoint ?? null)
       : null
-  const historyKeys = useRef({ w, busy, undo, canUndo, canRedo, removablePoint })
+  // Escape puts down the drawing tool in hand, as its card's Cancel drawing / Done sketching does.
+  const leaveDrawing = mode !== 'inspect' && !investigation ? () => beginMode('inspect') : null
+  const historyKeys = useRef({ w, busy, undo, canUndo, canRedo, removablePoint, leaveDrawing })
   useEffect(() => {
-    historyKeys.current = { w, busy, undo, canUndo, canRedo, removablePoint }
+    historyKeys.current = { w, busy, undo, canUndo, canRedo, removablePoint, leaveDrawing }
   })
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const { leaveDrawing: leave } = historyKeys.current
+      if (leave && leavesDrawingOnEscape(event)) {
+        event.preventDefault()
+        leave()
+        return
+      }
       if (!event.defaultPrevented && isRemoveKey(event) && !keepsNativeUndo(event.target)) {
         const { w: workspace, busy: working, removablePoint: id } = historyKeys.current
         const index = workspace.alignment.points.findIndex((point) => point.id === id)
@@ -3173,7 +3182,7 @@ export default function DevForestryRoads({
     stationLabels: () => togglePlanOption(planDisplay.setShowLabels),
     sentinel2: () => togglePlanOption(planDisplay.setShowSentinel),
     earthworks: () => togglePlanOption(planDisplay.setShowEarthwork),
-    lidar: () => loadTerrain('lidar'),
+    lidar: () => requestTerrain('lidar'),
     regional: () => loadTerrain('regional'),
     peg: () => drawFromRibbon('road'),
     extend: () => drawFromRibbon('extend'),
@@ -3557,6 +3566,7 @@ export default function DevForestryRoads({
         states={commandStates}
         leading={distributed && <ForestryBackLink />}
         quickTools={distributed && undoHistory}
+        narrowMenu={distributed ? ['chooseInterface'] : undefined}
         switcher={
           distributed && (
             <>
@@ -3861,6 +3871,17 @@ export default function DevForestryRoads({
           setRemovedRoad(null)
         }}
       />
+      <OpenSampleDialog
+        sample={sampleRequest}
+        projectName={project.name}
+        portalContainer={ref.current}
+        onCancel={() => setSampleRequest(null)}
+        onOpen={() => {
+          const kind = sampleRequest
+          setSampleRequest(null)
+          if (kind) loadTerrain(kind)
+        }}
+      />
       <ProjectFileConflictDialog
         conflict={fileConflict}
         portalContainer={ref.current}
@@ -3998,7 +4019,7 @@ export default function DevForestryRoads({
                                 : null
                             }
                             onFile={requestFile}
-                            onTerrain={loadTerrain}
+                            onTerrain={requestTerrain}
                             verticalReference={verticalReference}
                             onVerticalReference={setVerticalReference}
                             pointCloud={pointCloud}

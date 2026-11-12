@@ -87,6 +87,11 @@ interface CommandDef {
   icon: LucideIcon
   /** What the command does when its label alone cannot say it; every surface shows it as the tooltip. */
   description?: string
+  /**
+   * Other captions the workspace's state gives it while you work ("Undo point" while pegging). A
+   * ribbon button keeps room for the longest, so a caption change never shifts its neighbours.
+   */
+  altLabels?: readonly string[]
   kind?: 'pane' | 'editor'
   editor?: WorkflowEditor
   investigation?: boolean
@@ -115,7 +120,7 @@ export const workspaceCommands = {
   drawStream: { label: 'Draw stream', icon: Waves },
   drawAvoid: { label: 'Draw avoidance area', icon: Shapes, description: 'Draw an area route searches keep out of.' },
   importAlignment: { label: 'Import road line', icon: FileUp },
-  duplicateRoad: { label: 'Duplicate road', icon: Copy },
+  duplicateRoad: { label: 'Duplicate road', icon: Copy, altLabels: ['Copy as design'] },
   deleteRoad: { label: 'Delete road', icon: Trash2 },
   traceRoad: { label: 'Trace existing road', icon: Footprints },
   inspect: { label: 'Inspect map', icon: MousePointer2 },
@@ -171,7 +176,7 @@ export const workspaceCommands = {
     description: "Load every mapped road in the plan's view as its own road, each in its own colour.",
     investigation: true,
   },
-  undo: { label: 'Undo', icon: Undo2, investigation: true },
+  undo: { label: 'Undo', icon: Undo2, altLabels: ['Undo point'], investigation: true },
   redo: { label: 'Redo', icon: Redo2, investigation: true },
   engineering: { label: 'Engineering inputs', icon: HardHat, kind: 'editor', editor: 'engineering' },
   quantities: { label: 'Quantities', icon: Sigma },
@@ -180,7 +185,7 @@ export const workspaceCommands = {
   plan: { label: 'Plan view', icon: PlanMap, investigation: true },
   terrain3d: { label: '3D terrain', icon: Box },
   controls: { label: 'Road controls', icon: PanelLeft, investigation: true },
-  fullscreen: { label: 'Full screen', icon: Maximize, investigation: true },
+  fullscreen: { label: 'Full screen', icon: Maximize, altLabels: ['Exit full screen'], investigation: true },
   summarySettings: { label: 'Road summary settings', icon: Settings2, kind: 'pane' },
   summary: { label: 'Road summary', icon: BarChart3 },
   projects: { label: 'Project library', icon: LibraryBig, investigation: true },
@@ -233,6 +238,8 @@ export function resolveCommand(id: WorkspaceCommand, state: CommandState | undef
     pressed: state?.pressed,
     hidden: !!state?.hidden,
     description: def.description,
+    // Every caption this command can show, so a renderer can keep room for the longest.
+    captions: [def.label, ...((def as CommandDef).altLabels ?? [])],
     shortcut: state?.shortcut,
     reason: off ? state?.reason : undefined,
   }

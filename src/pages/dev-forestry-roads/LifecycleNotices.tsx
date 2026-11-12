@@ -103,3 +103,48 @@ export function ProjectFileConflictDialog({
     </PanelDialog>
   )
 }
+
+const SAMPLE_NAMES = { lidar: 'the BC LiDAR sample', demo: 'the training example' } as const
+
+/**
+ * A sample opens as a new project in place of the open one. The open project stays in Projects,
+ * but the switch is not undoable, so it is asked first.
+ */
+export function OpenSampleDialog({
+  sample,
+  projectName,
+  onOpen,
+  onCancel,
+  portalContainer,
+}: {
+  sample: keyof typeof SAMPLE_NAMES | null
+  projectName: string
+  onOpen: () => void
+  onCancel: () => void
+  portalContainer?: HTMLElement | null
+}) {
+  const name = sample ? SAMPLE_NAMES[sample] : ''
+  return (
+    <PanelDialog
+      open={!!sample}
+      onOpenChange={(open) => !open && onCancel()}
+      title={`Open ${name}?`}
+      size="md"
+      portalContainer={portalContainer}
+      contentProps={{ 'data-testid': 'road-open-sample' }}
+      footer={
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={onOpen}>Open as a new project</Button>
+        </div>
+      }
+    >
+      <p className="text-sm">
+        It opens as a new project in place of <span className="font-medium">{projectName || 'this project'}</span>,
+        which stays saved under Projects. Undo does not switch back.
+      </p>
+    </PanelDialog>
+  )
+}

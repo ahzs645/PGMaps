@@ -32,7 +32,10 @@ for (const width of [390, 1108, 1440]) {
     await expect(
       ribbon.getByRole('group', { name: 'Data exchange' }).getByRole('button', { name: 'Save and export' }),
     ).toBeVisible()
-    await expect(ribbon.getByRole('button', { name: 'Switch workspace interface' })).toBeVisible()
+    // Below 900 px the interface switch folds into the tab row's More menu.
+    await expect(
+      ribbon.getByRole('button', { name: width < 900 ? 'More workspace commands' : 'Switch workspace interface' }),
+    ).toBeVisible()
     await page.getByRole('button', { name: 'Project library', exact: true }).click()
     await expect(page.getByRole('dialog')).toBeVisible()
     await page.keyboard.press('Escape')
@@ -57,7 +60,10 @@ for (const width of [390, 1108, 1440]) {
     await station.press('Enter')
     const road = await page.title()
     const switchMode = page.getByRole('button', { name: 'Switch workspace interface' })
-    await switchMode.click()
+    if (width < 900) {
+      await ribbon.getByRole('button', { name: 'More workspace commands' }).click()
+      await page.getByRole('menuitem', { name: 'Switch interface' }).click()
+    } else await switchMode.click()
     await page.getByRole('button', { name: 'Open Guided map', exact: true }).click()
     await expect(header).toBeVisible()
     await expect(
@@ -290,7 +296,10 @@ for (const width of [390, 1440]) {
       .getByRole('dialog', { name: 'Save & export' })
       .getByRole('button', { name: 'Close', exact: true })
       .click()
-    await ribbon.getByRole('button', { name: 'Switch workspace interface' }).click()
+    if (width < 900) {
+      await ribbon.getByRole('button', { name: 'More workspace commands' }).click()
+      await page.getByRole('menuitem', { name: 'Switch interface' }).click()
+    } else await ribbon.getByRole('button', { name: 'Switch workspace interface' }).click()
     await page.getByRole('button', { name: 'Open Engineering workbench', exact: true }).click()
     const sidebar = page.getByRole('complementary', { name: 'Road design controls' })
     if (!(await sidebar.isVisible()))

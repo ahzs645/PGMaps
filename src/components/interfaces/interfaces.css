@@ -657,6 +657,24 @@
     visibility: hidden;
   }
 }
+/* A field the open editor pane holds: kept in place, inert, so the strip does not reflow. */
+.lp-quick-setting[data-mirror] {
+  opacity: 0.5;
+}
+/* A command whose caption changes while you work keeps the width of its longest caption. */
+.lp-command-caption {
+  display: inline-grid;
+  text-align: start;
+}
+.lp-command[data-primary] .lp-command-caption {
+  text-align: center;
+}
+.lp-command-caption > * {
+  grid-area: 1 / 1;
+}
+.lp-caption-reserve {
+  visibility: hidden;
+}
 /* Holds a status mark (unsaved, training) in the tab row whether or not one shows. */
 .lp-status-slot {
   display: inline-grid;
@@ -1091,10 +1109,34 @@
   }
 }
 
+/* Quick access shows where the tab row has room for it; below that, its commands
+   and the interface switch fold into one More menu (`narrowMenu`). */
 .lp-quick-access {
   display: none;
 }
-@media (min-width: 1120px) {
+.lp-ribbon-more {
+  display: contents;
+}
+.lp-ribbon-more .lp-ribbon-more-trigger {
+  display: inline-grid;
+  flex: none;
+  place-content: center;
+  width: var(--ribbon-tab-tool-size, 28px);
+  height: var(--ribbon-tab-tool-size, 28px);
+  border-radius: calc(var(--radius) - 4px);
+}
+.lp-ribbon-more .lp-ribbon-more-trigger:hover {
+  background: hsl(var(--accent));
+}
+@media (max-width: 899px) {
+  .lp-ribbon-tabs > [data-command='chooseInterface'] {
+    display: none;
+  }
+}
+@media (min-width: 900px) {
+  .lp-ribbon-more {
+    display: none;
+  }
   .lp-quick-access {
     display: flex;
     flex: 0 1 auto;

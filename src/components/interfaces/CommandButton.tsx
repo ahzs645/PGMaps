@@ -123,7 +123,22 @@ export function CommandButton({
       title={tooltip}
     >
       <Icon size={quick ? 16 : 18} strokeWidth={1.65} aria-hidden="true" />
-      {!quick && command.label}
+      {!quick &&
+        (command.captions.length > 1 ? (
+          // The captions stack in one cell; only the current one shows, the others hold its width.
+          <span className="lp-command-caption">
+            <span>{command.label}</span>
+            {command.captions
+              .filter((caption) => caption !== command.label)
+              .map((caption) => (
+                <span key={caption} className="lp-caption-reserve" aria-hidden="true">
+                  {caption}
+                </span>
+              ))}
+          </span>
+        ) : (
+          command.label
+        ))}
     </button>
   )
 }

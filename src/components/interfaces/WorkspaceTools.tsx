@@ -13,6 +13,7 @@ import {
 } from './ribbonToolCatalog'
 import { resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
 import { CommandButton } from './CommandButton'
+import { CommandMenu } from './CommandMenu'
 import { layoutIcons, type WorkspaceToolbar, type WorkspaceWidget } from './workspaceLayouts'
 
 export type { CommandState }
@@ -27,6 +28,7 @@ export function WorkspaceTools({
   widgets,
   leading,
   quickTools,
+  narrowMenu = [],
   switcher,
   states,
   groupName,
@@ -55,6 +57,11 @@ export function WorkspaceTools({
   leading?: ReactNode
   /** Right after quick access and shown at every width, e.g. the edit history beside undo and redo. */
   quickTools?: ReactNode
+  /**
+   * Commands whose tab-row buttons fold into the More menu on narrow screens, with quick access
+   * (see `.lp-ribbon-more` in interfaces.css), e.g. the interface switch.
+   */
+  narrowMenu?: WorkspaceCommand[]
   /** The end of the tab row, e.g. the save status and the interface switch. */
   switcher?: ReactNode
   states: Partial<Record<WorkspaceCommand, CommandState>>
@@ -110,10 +117,6 @@ export function WorkspaceTools({
   const compact = toolbar.dock === 'top' && toolbar.compact
   const findTools = toolbar.dock === 'top' && (toolbar.findTools ?? compact)
   const quickAccess = toolbar.dock === 'top' ? (toolbar.quickAccess?.filter(visible) ?? []) : []
-  function visibleInStrip(id: ToolId) {
-    // An open editor already shows every field, inline or in its pane: one live input per value.
-    return visible(id) && !(detailed && isQuickField(id))
-  }
 
   function searchEntries(): RibbonResult[] {
     const ordered = [group, ...groups.filter((candidate) => candidate !== group)]
@@ -162,20 +165,29 @@ export function WorkspaceTools({
   }
   function item(id: ToolId, surface: 'strip' | 'pane', primary?: WorkspaceCommand) {
     const inSettings = surface === 'pane'
-    if (!(inSettings ? visible(id) : visibleInStrip(id))) return null
-    if (isQuickField(id))
+    if (!visible(id)) return null
+    if (isQuickField(id)) {
+      // An open editor shows every field, so there is one live input per value: the strip keeps an
+      // inert copy in place, hidden from assistive technology, so the strip does not reflow.
+      const mirror = !inSettings && detailed
       return (
         <fieldset
           className={inSettings ? 'lp-group-setting' : 'lp-quick-setting'}
           disabled={disabled}
           key={id}
-          data-field={id}
-          data-ribbon-item={id}
-          tabIndex={-1}
+          data-field={mirror ? undefined : id}
+          data-ribbon-item={mirror ? undefined : id}
+          data-mirror={mirror || undefined}
+          aria-hidden={mirror || undefined}
+          ref={(node) => {
+            if (node) node.inert = mirror
+          }}
+          tabIndex={mirror ? undefined : -1}
         >
           {widgets[id]}
         </fieldset>
       )
+    }
     if (!isCommand(id))
       return (
         <div key={id} className="lp-ribbon-field" data-ribbon-item={id} tabIndex={-1}>
@@ -228,7 +240,7 @@ export function WorkspaceTools({
     <div className={group.sections ? 'lp-tools lp-grouped-tools' : 'lp-tools'}>
       {group.hint && <span className="lp-hint">{group.hint}</span>}
       {group.sections?.map((section, index) => {
-        const hasInline = section.items.some(visibleInStrip)
+        const hasInline = section.items.some(visible)
         const hasSettings = section.more?.some(visible)
         if (!hasInline && !hasSettings) return null
         const open = settingsVisible && settings?.sectionIndex === index
@@ -323,6 +335,17 @@ export function WorkspaceTools({
           </div>
         )}
         {quickTools}
+        {(quickAccess.length > 0 || narrowMenu.length > 0) && (
+          <span className="lp-ribbon-more">
+            <CommandMenu
+              commands={[...quickAccess, ...narrowMenu]}
+              states={states}
+              disabled={disabled}
+              onCommand={onCommand}
+              triggerClassName="lp-ribbon-more-trigger"
+            />
+          </span>
+        )}
         {findTools && <RibbonFinder entries={searchEntries} onPick={pick} />}
         {switcher}
         {compact && (
