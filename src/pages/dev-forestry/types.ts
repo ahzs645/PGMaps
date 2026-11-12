@@ -222,6 +222,11 @@ export type AnalysisResult = {
   largestVisibleAreaStationIndex?: number
   quality?: AnalysisQuality
   actualSightlineCount?: number
+  /**
+   * VRI non-vegetated land (rock, rubble, exposed soil) around the landform, from the run's own
+   * vegetation read: the rock a VIA figure draws. Display only; no figure reads it.
+   */
+  nonVegetatedGround?: Array<GeoJSON.Polygon | GeoJSON.MultiPolygon>
   renderStands?: Array<{
     geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
     heightMeters: number

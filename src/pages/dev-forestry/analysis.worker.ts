@@ -6,7 +6,12 @@
  */
 
 import { analysisBounds, buildStations, computeAnalysis } from './analysis'
-import { fetchVegetationStands, forestedGeometries, clampVegetationBounds } from './bcVegetationInventory'
+import {
+  fetchVegetationStands,
+  forestedGeometries,
+  clampVegetationBounds,
+  nonVegetatedNear,
+} from './bcVegetationInventory'
 import type { CanopyStand } from './canopy'
 import { loadElevationGrid } from './demLoader'
 import { localRasterResolution, rasterSampler } from './localRaster'
@@ -103,6 +108,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   // costs accuracy, not the whole run — so each degrades on its own.
   let canopyStands: CanopyStand[] = []
   let forestedGround: PolygonGeometry[] = []
+  let nonVegetatedGround: PolygonGeometry[] = []
   let vegetation: import('./types').InventoryEvidence = { status: 'not-requested' }
   if (vegetationRequest) {
     const queryBounds = clampVegetationBounds(bounds)
@@ -121,7 +127,20 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
         retrievedAt: new Date().toISOString(),
         source: 'BC VRI rank-1 WFS',
       }
-      if (wantsGreenArea) forestedGround = forestedGeometries(stands)
+      if (wantsGreenArea) {
+        forestedGround = forestedGeometries(stands)
+        // Rock for VIA figures, around the landforms only: display, never a figure.
+        const landforms = input.targets
+          .filter((target) => target.role === 'landscape')
+          .map((t) => polygonBounds(t.geometry))
+        if (landforms.length)
+          nonVegetatedGround = nonVegetatedNear(stands, [
+            Math.min(...landforms.map((b) => b[0])),
+            Math.min(...landforms.map((b) => b[1])),
+            Math.max(...landforms.map((b) => b[2])),
+            Math.max(...landforms.map((b) => b[3])),
+          ])
+      }
       // Keep the same stand records for rendering even when numerical screening is off.
       canopyStands = stands.flatMap((stand) =>
         stand.treed && stand.heightMeters !== null && stand.heightMeters > 0
@@ -163,6 +182,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     forestedGround,
     { vegetation, inspection: request.inspection },
   )
+  if (nonVegetatedGround.length) result.nonVegetatedGround = nonVegetatedGround
   result.sourceNotes =
     input.localRasters?.map(
       (r) =>

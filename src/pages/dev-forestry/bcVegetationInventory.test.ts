@@ -4,9 +4,11 @@ import {
   MAX_VEGETATION_FEATURES,
   clampVegetationBounds,
   forestedGeometries,
+  nonVegetatedNear,
   parseVegetationStands,
   vegetationQueryUrl,
 } from './bcVegetationInventory'
+import { polygonBounds } from './visibility'
 
 const TABOR: [number, number, number, number] = [-122.65, 53.86, -122.45, 53.95]
 
@@ -118,6 +120,16 @@ describe('parseVegetationStands', () => {
     })
 
     expect(stands.map((stand) => stand.treed)).toEqual([false, false, true])
+    // Only non-vegetated *land* is rock for a figure; water is not.
+    expect(stands.map((stand) => stand.nonVegetatedLand)).toEqual([false, false, false])
+    const rock = parseVegetationStands({
+      type: 'FeatureCollection',
+      features: [standFeature({ BCLCS_LEVEL_1: 'N', BCLCS_LEVEL_2: 'L' })],
+    }).stands
+    expect(rock[0].nonVegetatedLand).toBe(true)
+    const [w, s, e, n] = polygonBounds(rock[0].geometry)
+    expect(nonVegetatedNear(rock, [w, s, e, n])).toHaveLength(1)
+    expect(nonVegetatedNear(rock, [e + 1, n + 1, e + 2, n + 2])).toEqual([])
   })
 
   it('leaves missing attributes null rather than guessing', () => {
