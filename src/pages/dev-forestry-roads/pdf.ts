@@ -262,7 +262,7 @@ export async function exportMapPdf(
     pdf.text(attribution, 12, height - 14, { maxWidth: width - 24 })
   }
   pdf.setFontSize(7)
-  pdf.text('Current plan view | Preliminary planning - not for construction', 12, height - 8)
+  pdf.text('DDC Access | Current plan view | Preliminary planning - not for construction', 12, height - 8)
   throwIfAborted(signal)
   downloadBlob(pdf.output('blob'), filename)
 }
@@ -432,7 +432,7 @@ export async function exportReportPdf(html: string, filename: string) {
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(7)
     pdf.setTextColor(100)
-    pdf.text(`Preliminary planning | ${n} / ${count}`, margin, 290)
+    pdf.text(`DDC Access | Preliminary planning | ${n} / ${count}`, margin, 290)
   }
   downloadBlob(pdf.output('blob'), filename)
 }

@@ -19,6 +19,7 @@ import {
   type EditorCommand,
   type WorkspaceCommand,
 } from '@/components/interfaces/workspaceCommands'
+import { AccessLockup } from '@/components/interfaces/AccessLockup'
 import { DEFAULT_HEADER_TOOLS, WorkspaceHeader } from '@/components/interfaces/WorkspaceHeader'
 import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
 import { type CommandState, WorkspaceTools } from '@/components/interfaces/WorkspaceTools'
@@ -3527,10 +3528,14 @@ export default function DevForestryRoads({
   }
   const heading = (
     <>
-      <h1 className="text-sm font-semibold md:hidden">{workspaceTitle}</h1>
+      <div className="flex items-center gap-2 md:hidden">
+        <AccessLockup compact />
+        <h1 className="text-sm font-semibold">{workspaceTitle}</h1>
+      </div>
       <div className="road-workspace-heading hidden min-w-0 flex-1 items-center gap-2 md:flex">
         <ForestryBackLink />
         <div className="road-workspace-title min-w-0">
+          <AccessLockup compact />
           {/* The project's name is the line's title; the tool's name stays a heading for screen readers. */}
           <div className="flex min-w-0 items-center gap-1">
             <h1 className="sr-only">{workspaceTitle}</h1>

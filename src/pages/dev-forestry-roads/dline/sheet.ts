@@ -539,7 +539,7 @@ export function buildDLineSheet(input: DLineSheetInput): DLineSheet {
   const leftW = width - 2 * m - right - 14
   const { line, extras } = input
   // Header.
-  text(ops, m, m + 6, 'PGMAPS · D-LINE SHEET', 6.5, { color: COLORS.muted, style: 'bold' })
+  text(ops, m, m + 6, 'DDC Access · D-line sheet', 6.5, { color: COLORS.muted, style: 'bold' })
   text(ops, m, m + 24, fitText(line.name, 16, leftW), 16, { style: 'bold' })
   text(ops, m, m + 36, fitText(input.projectName, 8, leftW), 8, { color: COLORS.muted })
   const stampLines = [

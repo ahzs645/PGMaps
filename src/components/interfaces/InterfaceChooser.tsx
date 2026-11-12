@@ -1,3 +1,4 @@
+import { AccessLockup } from './AccessLockup'
 import { X } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
 import { layoutIcons, type WorkspaceLayout } from './workspaceLayouts'
@@ -37,10 +38,13 @@ export function InterfaceChooser({
     >
       <div className="lp-launcher">
         <div className="lp-launch-head">
+          <div className="lp-mast">
+            <AccessLockup />
+            <h2 id={titleId}>Choose your workspace</h2>
+          </div>
           <a href={`${import.meta.env.BASE_URL}help/index.html`} target="_blank" rel="noopener">
             Workflow help
           </a>
-          <h2 id={titleId}>Choose your workspace</h2>
           <button className="lp-close" onClick={onCancel} aria-label="Close interface chooser">
             <X size={18} />
           </button>

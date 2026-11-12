@@ -48,6 +48,7 @@ test('Save contains project actions and downloads real map and report PDFs', asy
   const errors = await prepare(page)
   await expect(page.getByRole('tab', { name: 'Files', exact: true })).toHaveCount(0)
   const header = page.getByTestId('road-workspace-header')
+  await expect(header.getByRole('img', { name: 'DDC Access' })).toBeVisible()
   await expect(header.getByRole('button', { name: 'Projects', exact: true })).toBeVisible()
   // The header names the open project; its name is a button that renames it.
   await expect(header.getByTestId('road-project-name')).toContainText('synthetic training project')
@@ -62,6 +63,7 @@ test('Save contains project actions and downloads real map and report PDFs', asy
   expect(map.file.suggestedFilename()).toBe('Road-workspace-review-map.pdf')
   expect(map.bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(map.bytes.length).toBeGreaterThan(10000)
+  expect(pdfContents(map.bytes)).toContain('DDC Access | Current plan view')
   await map.file.saveAs(testInfo.outputPath('map.pdf'))
   await expect(await chooseExport(page, 'Report PDF')).toBeEnabled()
   const report = await download(page, 'Download Report PDF')
@@ -70,6 +72,7 @@ test('Save contains project actions and downloads real map and report PDFs', asy
   expect(report.bytes.length).toBeGreaterThan(10000)
   const contents = pdfContents(report.bytes)
   for (const label of [
+    'DDC Access | Preliminary planning',
     'Source:',
     'Vertical reference:',
     'Sampling interval:',
