@@ -189,3 +189,61 @@
   font-size: 12px;
   line-height: 1.4;
 }
+/* A row's qualifier ("perspective scale", "whole road") sits on its own line under the label. */
+.metric-summary-qualifier {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.3;
+  opacity: 0.85;
+}
+/* Pane cards are plain cells of one height, ruled by hairlines, with labels that wrap rather than
+   truncate. Toolkit utilities are scoped under `.geo-toolkit`, so these selectors carry the extra
+   specificity to override the tile's `truncate`, border and radius. Detail clamps to three lines;
+   the row's tooltip has all of it. */
+.metric-summary-panel[data-variant='pane'] .metric-summary:not([hidden]) {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  /* Rows take their content's height even when the pane is shorter than the cards, and scroll. */
+  grid-auto-rows: minmax(min-content, auto);
+  border-top: 1px solid hsl(var(--border));
+}
+.metric-summary-panel[data-variant='pane'] .metric-summary dl {
+  display: flex;
+  min-width: 0;
+  /* Tall enough for a label, a qualifier and a value, so cards without a qualifier match the rest. */
+  min-height: 4rem;
+  /* Hairlines to the right and below; the pane's edge clips those on its outer cards. */
+  box-shadow:
+    1px 0 0 hsl(var(--border)),
+    0 1px 0 hsl(var(--border));
+}
+.metric-summary-panel[data-variant='pane'] .metric-summary dl > div {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  gap: 1px;
+  padding: 7px 10px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.metric-summary-panel[data-variant='pane'] .metric-summary dt {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.metric-summary-panel[data-variant='pane'] .metric-summary dd {
+  white-space: normal;
+  overflow: visible;
+  font-size: 14px;
+  line-height: 1.3;
+}
+.metric-summary-panel[data-variant='pane'] .metric-summary dl > div > div {
+  display: -webkit-box;
+  flex: none;
+  margin-top: 3px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}

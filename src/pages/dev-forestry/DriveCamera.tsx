@@ -2,20 +2,22 @@ import { StyledSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import type { ElevationSource } from './terrain'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, TriangleAlert, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { useMap } from '@/components/ui/map'
 import { MapOverlay } from '@/components/ui/map-panels'
 import { PlaybackControls } from '@/components/ui/playback-controls'
-import { TextButton } from '@/components/ui/text-button'
+import { cn } from '@/lib/utils'
 import { DriveController, type DriveMap, type DriveOptions, type DrivePose, type DriveStatus } from './driveController'
+import { offsetFrom } from './exifPose'
 import { PreviewFrameBudget } from './previewState'
 import {
   DRIVE_SPEEDS_KMH,
   NO_WALK,
   WALK_SPEEDS,
   roadPath,
+  roadPlacement,
   walkStep,
   type DriveLookAt,
   type DriveStation,
@@ -64,6 +66,12 @@ type Props = {
   fixedLook?: { bearing: number; pitch: number } | null
   /** Match a photo's lens while comparing against it; MapLibre's own default otherwise. */
   verticalFovDegrees?: number | null
+  /**
+   * Stand the eye here while paused, off the road if need be: where the
+   * reviewer's own field photo was taken. It holds the walker there, so walking
+   * and Reset do not move it; playback ignores it, as it does a walk.
+   */
+  standAt?: { lng: number; lat: number } | null
 }
 /** Below this map width the controls open folded to the player row, as on a phone. */
 const NARROW_VIEW_PX = 640
@@ -193,7 +201,9 @@ export function DriveCamera(props: Props) {
           } else setWalkHeld(true)
         }
       }
-      const options: DriveOptions = { ...current, ...viewRef.current, walk: walkRef.current, onStatus: setStatus }
+      const standRoad = current.standAt && !current.playing ? roadPlacement(path, current.seekMeters) : null
+      const walk = standRoad && current.standAt ? offsetFrom(standRoad, current.standAt) : walkRef.current
+      const options: DriveOptions = { ...current, ...viewRef.current, walk, onStatus: setStatus }
       controller.tick(time, options)
       frame = requestAnimationFrame(render)
     }
@@ -242,8 +252,13 @@ export function DriveCamera(props: Props) {
         event.preventDefault()
         if (propsRef.current.playing) propsRef.current.onPause?.()
         else if (propsRef.current.forestReady) propsRef.current.onPlay?.()
-      } else if (event.key.toLowerCase() === 'r') setView({ yaw: 0, tilt: 0 })
-      else if (event.key.startsWith('Arrow')) {
+      } else if (event.key.toLowerCase() === 'r') {
+        // As the button: off the road, R walks back too.
+        walkRef.current = NO_WALK
+        setOffRoadMeters(0)
+        setWalkHeld(false)
+        setView({ yaw: 0, tilt: 0 })
+      } else if (event.key.startsWith('Arrow')) {
         event.preventDefault()
         setView((v) => ({
           yaw: v.yaw + (event.key === 'ArrowRight' ? 3 : event.key === 'ArrowLeft' ? -3 : 0),
@@ -285,6 +300,18 @@ export function DriveCamera(props: Props) {
   }, [props.active, map, isLoaded, path, props.stations, props.elevation])
   if (!props.active) return null
   const km = (metres: number) => (metres / 1000).toFixed(2)
+  // Where the eye walks back to: the road, or the spot a viewpoint stands it on.
+  const home = props.spot ? 'viewpoint' : 'road'
+  const offRoad =
+    offRoadMeters > 0
+      ? `${offRoadMeters} m off the ${home}${walkHeld ? ' · the loaded ground ends here' : ''}. Red ground is still the ${props.spot ? 'viewpoint' : 'nearest road station'}'s view, not this spot's.`
+      : null
+  const resetLook = () => {
+    walkRef.current = NO_WALK
+    setOffRoadMeters(0)
+    setWalkHeld(false)
+    setView({ yaw: 0, tilt: 0 })
+  }
   const statusText =
     status === 'waiting-for-terrain'
       ? 'Waiting for terrain at the camera. Playback is held.'
@@ -364,15 +391,22 @@ export function DriveCamera(props: Props) {
           >
             {optionsExpanded ? 'Hide options' : 'Show options'}
           </Button>
+          {/* Off the road, the reset also walks back, and turns amber to say the
+            red ground is still the nearest station's view rather than this spot's. */}
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Reset look"
-            title="Reset look (R)"
-            className="touch:h-10 touch:w-10"
-            onClick={() => setView({ yaw: 0, tilt: 0 })}
+            aria-label={offRoad ? `Back to the ${home} and reset the look. ${offRoad}` : 'Reset look'}
+            title={offRoad ? `${offRoad}\nClick (or R) to go back to the ${home}.` : 'Reset look (R)'}
+            data-off-road={offRoadMeters > 0 ? offRoadMeters : undefined}
+            className={cn(
+              'relative touch:h-10 touch:w-10',
+              offRoadMeters > 0 &&
+                'bg-warning-surface text-warning-foreground hover:bg-warning/15 hover:text-warning-foreground',
+            )}
+            onClick={resetLook}
           >
-            <RotateCcw className="h-4 w-4" />
+            {offRoadMeters > 0 ? <TriangleAlert className="h-4 w-4" /> : <RotateCcw className="h-4 w-4" />}
           </Button>
           <InfoTip label="Keys and gestures">
             Drag to look around. Arrow keys turn and tilt; R resets the look; Space plays or pauses; Escape returns to
@@ -424,26 +458,9 @@ export function DriveCamera(props: Props) {
         </div>
       )}
 
-      {(statusText || offRoadMeters > 0 || props.status) && (
+      {(statusText || props.status) && (
         <div className="mt-1.5 space-y-1 border-t border-border/60 pt-1.5 text-2xs leading-4" role="status">
           {statusText && <p>{statusText}</p>}
-          {offRoadMeters > 0 && (
-            <p className="flex flex-wrap items-center gap-x-2 text-warning">
-              <span>
-                {offRoadMeters} m off the road{walkHeld ? ' · the loaded ground ends here' : ''} · red ground is still
-                the nearest road station's view
-              </span>
-              <TextButton
-                onClick={() => {
-                  walkRef.current = NO_WALK
-                  setOffRoadMeters(0)
-                  setWalkHeld(false)
-                }}
-              >
-                Back to the road
-              </TextButton>
-            </p>
-          )}
           {props.status}
         </div>
       )}

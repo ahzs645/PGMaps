@@ -6,7 +6,7 @@ import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
-import { formatMeasure, formatPercentValue } from '@/lib/format'
+import { formatPercentValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import type { ReverseRoadResult } from './reverseViewshed'
@@ -15,6 +15,7 @@ import {
   type CandidateArrow,
   type ViewpointCandidate,
   type ViewpointInventory,
+  viewpointCandidateSummary,
 } from './viewpointInventory'
 import { compassPoint } from './visualsNarrative'
 
@@ -173,21 +174,7 @@ export function ViewpointFinderPanel({
                   onClick={() => select(candidate)}
                   title={<span className="text-xs">{candidate.name}</span>}
                   subtitle={
-                    <span className="whitespace-normal text-3xs leading-4">
-                      {candidate.kind === 'rec-site' ? 'Rec site' : 'VLI viewpoint'} ·{' '}
-                      {formatMeasure(candidate.distanceMeters / 1000, 'km', {
-                        minimumFractionDigits: 1,
-                        maximumFractionDigits: 1,
-                      })}{' '}
-                      {compassPoint(candidate.bearingToBlock + 180)} of the block
-                      {candidate.arrows.length > 1
-                        ? ` · ${candidate.arrows.length} arrows${candidate.arrows.some((entry) => entry.aims) ? ', one at it' : ''}`
-                        : candidate.arrow
-                          ? candidate.arrow.aims
-                            ? ' · arrow points at it'
-                            : ` · arrow points ${compassPoint(candidate.arrow.bearing)}, ${Math.round(candidate.arrow.offsetDegrees)}° off`
-                          : ''}
-                    </span>
+                    <span className="whitespace-normal text-3xs leading-4">{viewpointCandidateSummary(candidate)}</span>
                   }
                   trailing={
                     row && (

@@ -14,8 +14,27 @@ export type MetricSummaryPlacement = 'left' | 'top'
 export interface MetricSummaryItem extends StatItem {
   key: string
   label: string
+  /**
+   * A short line under the label saying what the value is measured on or over, e.g. "perspective
+   * scale" or "whole road". It is part of the row's name, so keep the label itself short.
+   */
+  qualifier?: string
   value: string
   note: string
+}
+
+/** A row's full name: its label and qualifier, as the settings, the tooltip and assistive technology read it. */
+export function metricName(metric: Pick<MetricSummaryItem, 'label' | 'qualifier'>) {
+  return metric.qualifier ? `${metric.label} · ${metric.qualifier}` : metric.label
+}
+
+function MetricLabel({ metric }: { metric: MetricSummaryItem }) {
+  return (
+    <>
+      {metric.label}
+      {metric.qualifier && <span className="metric-summary-qualifier">{metric.qualifier}</span>}
+    </>
+  )
 }
 
 export interface MetricSummaryOptions {
@@ -136,8 +155,9 @@ export function MetricSummaryLayout({
 /**
  * A titled stack of headline measurements. Each row is a keyed `StatItem`, shown as hidden, value,
  * or value and detail per the preferences; a right-click (or Shift+F10) on a row offers the settings.
+ * A row's tooltip carries its full name and, while only its value shows, its detail.
  * `variant="pane"` fills a tiled pane instead of standing beside the views: the rows flow into as many
- * columns as fit and the heading has no collapse.
+ * columns as fit, every card the same height, and the heading has no collapse.
  */
 export function MetricSummary({
   title,
@@ -226,31 +246,41 @@ export function MetricSummary({
               onExpand?.()
           }}
         >
-          {shown.map((metric) => (
-            <dl
-              key={metric.key}
-              data-metric={metric.key}
-              tabIndex={metric.onToggle ? -1 : 0}
-              aria-label={metric.label}
-              aria-haspopup="menu"
-              onContextMenu={(event) => {
-                event.preventDefault()
-                openMenu(event.currentTarget, metric)
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+          {shown.map((metric) => {
+            const detailed = preferences.metrics[metric.key] === 'detailed'
+            const name = metricName(metric)
+            return (
+              <dl
+                key={metric.key}
+                data-metric={metric.key}
+                tabIndex={metric.onToggle ? -1 : 0}
+                title={detailed || !metric.note ? name : `${name}\n${metric.note}`}
+                aria-label={name}
+                aria-haspopup="menu"
+                onContextMenu={(event) => {
                   event.preventDefault()
                   openMenu(event.currentTarget, metric)
-                }
-              }}
-            >
-              <StatTileBody
-                size="sm"
-                align="start"
-                item={{ ...metric, note: preferences.metrics[metric.key] === 'detailed' ? metric.note : undefined }}
-              />
-            </dl>
-          ))}
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+                    event.preventDefault()
+                    openMenu(event.currentTarget, metric)
+                  }
+                }}
+              >
+                <StatTileBody
+                  size="sm"
+                  align="start"
+                  item={{
+                    ...metric,
+                    label: <MetricLabel metric={metric} />,
+                    toggleLabel: metric.toggleLabel ?? name,
+                    note: detailed ? metric.note : undefined,
+                  }}
+                />
+              </dl>
+            )
+          })}
         </div>
       )}
       <AnchoredPopover
@@ -258,7 +288,7 @@ export function MetricSummary({
         anchorRef={anchor}
         onClose={closeMenu}
         role="menu"
-        ariaLabel={menu ? `Options for ${menu.metric.label}` : undefined}
+        ariaLabel={menu ? `Options for ${metricName(menu.metric)}` : undefined}
         width={204}
         container={menu?.container}
         className="p-1"
@@ -332,7 +362,7 @@ export function MetricSummarySettings({
   children,
 }: {
   title: string
-  metrics: Pick<MetricSummaryItem, 'key' | 'label'>[]
+  metrics: Pick<MetricSummaryItem, 'key' | 'label' | 'qualifier'>[]
   controls: MetricSummaryControls
   /** The row whose control takes focus first. */
   selected?: string
@@ -372,10 +402,10 @@ export function MetricSummarySettings({
         <legend>Measurements</legend>
         {metrics.map((metric) => (
           <div key={metric.key} className="metric-summary-level">
-            <span>{metric.label}</span>
+            <span>{metricName(metric)}</span>
             <MetricSummarySelect
               triggerRef={metric.key === selected ? initialControl : undefined}
-              ariaLabel={`Display for ${metric.label}`}
+              ariaLabel={`Display for ${metricName(metric)}`}
               value={preferences.metrics[metric.key] ?? 'value'}
               onValueChange={(value) => change({ metrics: { [metric.key]: value as MetricLevel } })}
               options={LEVELS}

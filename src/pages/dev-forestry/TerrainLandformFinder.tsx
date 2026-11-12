@@ -1,4 +1,6 @@
 import { StyledSelect } from '@/components/ui/form-field'
+import { Loader2, MapPin } from 'lucide-react'
+import { ResultRow } from '@/components/ui/result-list'
 import { useEffect, useRef, useState } from 'react'
 
 import { ToolSection } from '@/components/ui/tool-section'
@@ -65,7 +67,20 @@ export const LANDFORM_METHOD_LABELS: Record<LandformMethod, string> = {
 const METHODS: LandformMethod[] = ['ridge-layer', 'facing']
 
 /** A place to read the landform from other than the road: an inventory viewpoint or rec site. */
-export type LandformVantage = { key: string; name: string; lng: number; lat: number }
+export type LandformVantage = {
+  key: string
+  name: string
+  lng: number
+  lat: number
+  /** One line under the name: kind, distance and side of the block, arrows. */
+  summary?: string
+}
+
+/** The point a reading is taken from, for the map to mark; null for the road, which is already drawn. */
+export type LandformVantagePoint = { lng: number; lat: number; label: string; picking?: boolean }
+
+/** Inventory rows listed before *Show all*. */
+const VANTAGES_SHOWN = 6
 
 type Vantage = { kind: 'road' } | { kind: 'viewpoint'; key: string } | { kind: 'pick'; point: [number, number] | null }
 
@@ -92,6 +107,10 @@ export function TerrainLandformFinder({
   onPickPoint,
   replaced = null,
   onUndo,
+  vantagesStatus = 'idle',
+  onLoadVantages,
+  onVantagePoint,
+  pickActive = true,
 }: {
   scene: ForestryScene
   result: AnalysisResult | null
@@ -110,13 +129,22 @@ export function TerrainLandformFinder({
   /** The name of the landform the last adoption replaced, while it can still be put back. */
   replaced?: string | null
   onUndo?: () => void
+  /** The viewpoint inventory's load, so the list can be read in here without the section above. */
+  vantagesStatus?: 'idle' | 'loading' | 'ready' | 'error'
+  onLoadVantages?: () => void
+  /** Where the reading is taken from, for the map to mark: a picked point or a viewpoint. */
+  onVantagePoint?: (point: LandformVantagePoint | null) => void
+  /** Whether the map is still waiting for the point asked for. */
+  pickActive?: boolean
 }) {
   const blocks = scene.targets.filter((target) => target.role === 'block')
   const [blockId, setBlockId] = useState('')
   const block = blocks.find((entry) => entry.id === blockId) ?? blocks[0]
   const [status, setStatus] = useState<{ state: 'idle' | 'working' | 'failed'; message?: string }>({ state: 'idle' })
   const [vantage, setVantage] = useState<Vantage>({ kind: 'road' })
-  const [picking, setPicking] = useState(false)
+  const [pickRequested, setPicking] = useState(false)
+  // The map's own Cancel ends a pick too.
+  const picking = pickRequested && pickActive
   const controller = useRef<AbortController | null>(null)
   // A read still loading when the step closes lands nowhere, and a pick still open is cancelled.
   useEffect(
@@ -128,6 +156,16 @@ export function TerrainLandformFinder({
   const road = scene.viewpoint.coordinates
   const activeLandform = findSceneLandform(scene)
   const chosenViewpoint = vantage.kind === 'viewpoint' ? vantages.find((entry) => entry.key === vantage.key) : null
+  const [allVantages, setAllVantages] = useState(false)
+
+  // The map marks where the reading is taken from, and clears the mark when this closes.
+  const markLng = vantage.kind === 'pick' ? vantage.point?.[0] : chosenViewpoint?.lng
+  const markLat = vantage.kind === 'pick' ? vantage.point?.[1] : chosenViewpoint?.lat
+  const markLabel = vantage.kind === 'pick' ? 'Landform read from here' : (chosenViewpoint?.name ?? '')
+  useEffect(() => {
+    onVantagePoint?.(markLng != null && markLat != null ? { lng: markLng, lat: markLat, label: markLabel } : null)
+  }, [onVantagePoint, markLng, markLat, markLabel])
+  useEffect(() => () => onVantagePoint?.(null), [onVantagePoint])
 
   const pick = () => {
     if (!onPickPoint) return
@@ -232,7 +270,12 @@ export function TerrainLandformFinder({
 
   const byMethod = (method: LandformMethod) => candidates.find((entry) => methodOf(entry) === method) ?? null
   const candidate = byMethod(focused) ?? candidates[0] ?? null
-  const vantageValue = vantage.kind === 'road' ? 'road' : vantage.kind === 'pick' ? 'pick' : `viewpoint:${vantage.key}`
+  const choose = (next: Vantage) => {
+    onCandidates([])
+    if (picking && next.kind !== 'pick') cancelPick()
+    setVantage(next)
+  }
+  const shownVantages = allVantages ? vantages : vantages.slice(0, VANTAGES_SHOWN)
   const edgeSummary = (entry: TerrainCandidate | null) => {
     if (!entry) return '—'
     const top = (Object.entries(entry.boundedBy) as Array<[LandformBoundary, number]>)
@@ -277,56 +320,123 @@ export function TerrainLandformFinder({
       defaultOpen={candidates.length > 0}
       className="text-xs"
     >
-      <label className="block">
-        <span className="mb-1 block text-2xs font-medium text-muted-foreground">Read from</span>
-        <StyledSelect
-          aria-label="Read the landform from"
-          className="w-full rounded-md border bg-background p-1"
-          value={vantageValue}
-          onChange={(event) => {
-            const value = event.target.value
-            onCandidates([])
-            if (value === 'road') setVantage({ kind: 'road' })
-            else if (value === 'pick') {
-              setVantage({ kind: 'pick', point: null })
-              pick()
-            } else setVantage({ kind: 'viewpoint', key: value.slice('viewpoint:'.length) })
-          }}
-        >
-          <option value="road">The road</option>
-          {vantages.map((entry) => (
-            <option key={entry.key} value={`viewpoint:${entry.key}`}>
-              {entry.name}
-            </option>
+      <div role="radiogroup" aria-label="Read the landform from" className="space-y-1">
+        <span className="block text-2xs font-medium text-muted-foreground">Read from</span>
+        <ul className="divide-y divide-border overflow-hidden rounded-md border border-border">
+          <li>
+            <ResultRow
+              role="radio"
+              aria-pressed={undefined}
+              aria-checked={vantage.kind === 'road'}
+              className="px-2 py-1.5"
+              selected={vantage.kind === 'road'}
+              onClick={() => choose({ kind: 'road' })}
+              title={<span className="text-xs">The road</span>}
+              subtitle={
+                <span className="text-3xs">
+                  {road.length ? 'Every station that sees the block' : 'Draw the road first'}
+                </span>
+              }
+            />
+          </li>
+          {onPickPoint && (
+            <li>
+              <div className="flex items-center">
+                <ResultRow
+                  role="radio"
+                  aria-pressed={undefined}
+                  aria-checked={vantage.kind === 'pick'}
+                  className="min-w-0 flex-1 px-2 py-1.5"
+                  selected={vantage.kind === 'pick'}
+                  onClick={() => {
+                    if (vantage.kind === 'pick' && vantage.point) return
+                    choose({ kind: 'pick', point: null })
+                    pick()
+                  }}
+                  title={<span className="text-xs">A point I pick on the map</span>}
+                  subtitle={
+                    <span className={cn('text-3xs', picking && 'font-medium text-sky-700 dark:text-sky-300')}>
+                      {picking
+                        ? 'Click the map where the landform is seen from…'
+                        : vantage.kind === 'pick' && vantage.point
+                          ? `${vantage.point[1].toFixed(4)}, ${vantage.point[0].toFixed(4)} · marked on the map`
+                          : 'Stand anywhere, e.g. a lookout or a lake'}
+                    </span>
+                  }
+                />
+                {vantage.kind === 'pick' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    className="mr-1.5 shrink-0 text-2xs"
+                    onClick={picking ? cancelPick : pick}
+                  >
+                    {picking ? 'Cancel' : vantage.point ? 'Pick again' : 'Pick'}
+                  </Button>
+                )}
+              </div>
+            </li>
+          )}
+          {shownVantages.map((entry) => (
+            <li key={entry.key}>
+              <ResultRow
+                role="radio"
+                aria-pressed={undefined}
+                aria-checked={vantage.kind === 'viewpoint' && vantage.key === entry.key}
+                className="px-2 py-1.5"
+                selected={vantage.kind === 'viewpoint' && vantage.key === entry.key}
+                onClick={() => choose({ kind: 'viewpoint', key: entry.key })}
+                title={<span className="text-xs">{entry.name}</span>}
+                subtitle={
+                  entry.summary && <span className="whitespace-normal text-3xs leading-4">{entry.summary}</span>
+                }
+              />
+            </li>
           ))}
-          {onPickPoint && <option value="pick">A point I pick on the map</option>}
-        </StyledSelect>
-      </label>
-      {vantage.kind === 'pick' && (
-        <div className="flex items-center gap-1.5">
-          <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">
-            {picking
-              ? 'Click the map where the landform is seen from…'
-              : vantage.point
-                ? `${vantage.point[1].toFixed(4)}, ${vantage.point[0].toFixed(4)}`
-                : 'No point picked'}
-          </span>
-          <Button
+        </ul>
+        {vantages.length > VANTAGES_SHOWN && (
+          <button
             type="button"
-            variant="outline"
-            size="xs"
-            className="shrink-0 text-2xs"
-            onClick={picking ? cancelPick : pick}
+            className="text-2xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            onClick={() => setAllVantages(!allVantages)}
           >
-            {picking ? 'Cancel' : vantage.point ? 'Pick again' : 'Pick on map'}
-          </Button>
-        </div>
-      )}
-      {!vantages.length && (
-        <p className="text-3xs leading-4 text-muted-foreground">
-          Load the viewpoints and rec sites above to read the landform from one of them.
-        </p>
-      )}
+            {allVantages ? 'Show fewer' : `Show all ${vantages.length} viewpoints and rec sites`}
+          </button>
+        )}
+        {!vantages.length && (
+          <div className="flex items-center gap-1.5">
+            <span className="min-w-0 flex-1 text-3xs leading-4 text-muted-foreground">
+              {vantagesStatus === 'ready'
+                ? 'No inventory viewpoint or rec site within 12 km.'
+                : vantagesStatus === 'error'
+                  ? 'DataBC viewpoints did not load.'
+                  : 'Or read it from a BC inventory viewpoint or rec site near the block.'}
+            </span>
+            {onLoadVantages && vantagesStatus !== 'ready' && (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                className="shrink-0 text-2xs"
+                disabled={vantagesStatus === 'loading' || !block}
+                onClick={onLoadVantages}
+              >
+                {vantagesStatus === 'loading' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <MapPin className="h-3.5 w-3.5" />
+                )}
+                {vantagesStatus === 'loading'
+                  ? 'Reading DataBC…'
+                  : vantagesStatus === 'error'
+                    ? 'Retry'
+                    : 'Load viewpoints'}
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
       {blocks.length > 1 && (
         <StyledSelect
           aria-label="Block to read the landform around"

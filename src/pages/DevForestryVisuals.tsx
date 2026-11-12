@@ -22,14 +22,14 @@ import { TileLayoutPicker, readSavedTileLayouts, resolveTileLayout } from '@/com
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { MapTableBridge } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
-import { Map, WORKSPACE_MAP_CONTROLS, type MapRef } from '@/components/ui/map'
+import { Map, MapControls, MapLayersControl, type MapRef } from '@/components/ui/map'
 import { MapOverlay } from '@/components/ui/map-panels'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { TextButton } from '@/components/ui/text-button'
 import { PG_CENTER } from '@/components/ui/map-styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { downloadBlob, downloadText } from '@/lib/download'
-import { Bookmark, ImageDown } from 'lucide-react'
+import { Bookmark, Crosshair, ImageDown, Loader2 } from 'lucide-react'
 import { InfoTip } from '@/components/ui/info-tip'
 
 import {
@@ -44,9 +44,16 @@ import { usePersistentScene } from './dev-forestry/usePersistentScene'
 import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
 import { ToolSourcesPanel } from './dev-forestry/ToolSourcesPanel'
+import { WildlifeTreePatchPanel } from './dev-forestry/WildlifeTreePatchPanel'
+import { withDrawnMask } from './dev-forestry/assessmentMasks'
 import { LandformDesignPanel } from './dev-forestry/LandformDesignPanel'
 import { LandformSuggestions } from './dev-forestry/LandformSuggestions'
-import { TerrainLandformFinder, type LandformMethod, type TerrainCandidate } from './dev-forestry/TerrainLandformFinder'
+import {
+  TerrainLandformFinder,
+  type LandformMethod,
+  type LandformVantagePoint,
+  type TerrainCandidate,
+} from './dev-forestry/TerrainLandformFinder'
 import type { RidgeLayer } from './dev-forestry/ridgeLayers'
 import type { CanopyStand } from './dev-forestry/canopy'
 import { createRoadsideDriveScene, ROADSIDE_DEMO_ID, roadsideDriveCue } from './dev-forestry/driveScenario'
@@ -65,6 +72,7 @@ import { DriveCamera } from './dev-forestry/DriveCamera'
 import { AssessmentPanel } from './dev-forestry/AssessmentPanel'
 import { buildSceneInput, sceneFingerprint, findSceneLandform } from './dev-forestry/sceneInput'
 import { alterationWeight, resultMatchesInput } from './dev-forestry/integrity'
+import { carryFieldGreenUp } from './dev-forestry/greenUp'
 import { useForestHistory } from './dev-forestry/useForestHistory'
 import { RegrowthControls } from './dev-forestry/RegrowthControls'
 import { buildRegrowthStands, DEFAULT_REGROWTH, type ForestHistoryRecord } from './dev-forestry/regrowth'
@@ -96,6 +104,8 @@ import {
   type ViewpointInventoryState,
 } from './dev-forestry/ViewpointFinderPanel'
 import { VisualsParagraphPanel, type BlockNoteParts } from './dev-forestry/VisualsParagraphPanel'
+import { FieldBriefPanel } from './dev-forestry/FieldBriefPanel'
+import { layoutStageLabel, layoutStageOf } from './dev-forestry/fieldChecklist'
 import {
   blockNoteFileName,
   blockNotePdf,
@@ -109,11 +119,12 @@ import {
   pulloutThrough,
   PULLOUT_METERS,
   viewpointsNearBlock,
+  viewpointCandidateSummary,
   VIEWPOINT_SEARCH_METERS,
   type CandidateArrow,
   type ViewpointCandidate,
 } from './dev-forestry/viewpointInventory'
-import { EVQO_CODE_FOR_CLASS, viewCaption, type ViewpointFinding } from './dev-forestry/visualsNarrative'
+import { EVQO_CODE_FOR_CLASS, viewCaption, type EvqoCode, type ViewpointFinding } from './dev-forestry/visualsNarrative'
 import { distanceAlongRoad, hazeRings, roadPath, roadPlacement } from './dev-forestry/driveMath'
 import { metersPerDegree, polygonInteriorPoint } from './dev-forestry/visibility'
 import {
@@ -133,7 +144,10 @@ import {
   type ForestryScene,
 } from './dev-forestry/scene'
 import type { ReverseInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
-import { DEFAULT_PLAN_SHOW, PlanMapLegend, type PlanShow } from './dev-forestry/PlanMapLegend'
+import { PlanMapLegend } from './dev-forestry/PlanMapLegend'
+import { PlanClickToMove, PlanViewerHandles } from './dev-forestry/PlanViewerHandles'
+import { MAX_TREE_FREE_AREAS, treeFreeAreasToGeoJson } from './dev-forestry/treeFreeAreas'
+import { DEFAULT_PLAN_SHOW, togglePlanLegendKey, type PlanBasemap, type PlanShow } from './dev-forestry/planLayers'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { useVisualQualityTable } from './dev-forestry/useVisualQualityTable'
 import { ViewpointSummary, useViewpointSummaryPreferences } from './dev-forestry/ViewpointSummary'
@@ -152,6 +166,11 @@ import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-fores
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
 
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+/** Both maps' basemaps: imagery goes in under the labels, never as a `styles` swap (see `SatelliteImagery`). */
+const PLAN_BASEMAPS: ReadonlyArray<{ value: PlanBasemap; label: string; description?: string }> = [
+  { value: 'map', label: 'Map' },
+  { value: 'satellite', label: 'Satellite', description: 'Esri World Imagery' },
+]
 const NO_TARGETS: TargetPolygon[] = []
 const NO_CANDIDATES: ViewpointCandidate[] = []
 
@@ -248,6 +267,9 @@ function DevForestryVisuals() {
   )
   const [importMessage, setImportMessage] = useState<string | null>(null)
   const [pendingPreview, setPendingPreview] = useState<{ key: string; view?: SavedDriveView } | null>(null)
+  // Swapping viewpoints with the road view open keeps its map (WebGL context, style, tiles, terrain and
+  // the drawn stand) while the new run is made, rather than closing it and building it all again.
+  const [roadViewHeld, setRoadViewHeld] = useState(false)
   const [saved, setSaved] = useState<{ key: string | null; views: SavedDriveView[] }>(() => {
     try {
       const stored = parsePreview(JSON.parse(localStorage.getItem(PREVIEW_STORAGE_KEY) ?? 'null'))
@@ -321,7 +343,8 @@ function DevForestryVisuals() {
   // Timber is kept off mapped water, and the roadside clearing follows the
   // road's class until the reviewer sets a width of their own.
   const [basemap, setBasemap] = useState<BasemapContext>({ water: [], roadClass: null })
-  // The plan map's own Show switches (its legend); the road view keeps its set on `drive`.
+  // The plan map's basemap and overlays (its Layers button) and the legend rows hidden;
+  // the road view keeps its set on `drive`.
   const [planShow, setPlanShow] = useState<PlanShow>(DEFAULT_PLAN_SHOW)
   const [seenRoadClass, setSeenRoadClass] = useState<string | null>(null)
   const [autoClearing, setAutoClearing] = useState(DEFAULT_DRIVE.roadClearWidthMeters)
@@ -484,6 +507,31 @@ function DevForestryVisuals() {
           viewpoint: { ...current.viewpoint, mode: 'corridor', coordinates: draftCoordinates },
         }))
       }
+    } else if (drawMode === 'wildlife-tree-patch') {
+      // A retained mask, checked by the same parser a saved scene goes through.
+      const geometry = ringToPolygon(draftCoordinates)
+      const id = createId('mask')
+      if (geometry)
+        setScene((current) => {
+          try {
+            return { ...current, masks: withDrawnMask(current.masks ?? [], { id, kind: 'retained', geometry }) }
+          } catch {
+            return current
+          }
+        })
+    } else if (drawMode === 'tree-free') {
+      const geometry = ringToPolygon(draftCoordinates)
+      if (geometry)
+        setScene((current) => {
+          const areas = current.treeFreeAreas ?? []
+          return {
+            ...current,
+            treeFreeAreas: [
+              ...areas,
+              { id: createId('tree-free'), name: `Tree-free area ${areas.length + 1}`, geometry },
+            ].slice(-MAX_TREE_FREE_AREAS),
+          }
+        })
     } else if (drawMode === 'block' || drawMode === 'landscape') {
       const geometry = ringToPolygon(draftCoordinates)
       if (geometry) {
@@ -505,7 +553,12 @@ function DevForestryVisuals() {
   }, [addTarget, draftCoordinates, drawMode, setScene])
 
   const handleDrawModeChange = useCallback((mode: DrawMode) => {
-    setDrive((current) => ({ ...current, active: false, playing: false }))
+    // A tree-free area is drawn on the plan while the road view stays open, to see the timber go.
+    setDrive((current) =>
+      mode === 'tree-free' || mode === 'wildlife-tree-patch'
+        ? { ...current, playing: false }
+        : { ...current, active: false, playing: false },
+    )
     setDraftCoordinates([])
     setDrawMode(mode)
   }, [])
@@ -642,17 +695,23 @@ function DevForestryVisuals() {
         },
         targets: [
           ...kept,
-          ...harvest.value.areas.map((area) => ({
-            id: createId('harvested'),
-            name: area.name,
-            role: 'harvested' as const,
-            objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
-            vac: null,
-            harvestYear: area.harvestYear,
-            clearcutPercent: area.clearcutPercent,
-            geometry: area.geometry,
-            source: HARVEST_SOURCE,
-          })),
+          // A field green-up check follows its opening across the refresh (`carryFieldGreenUp`).
+          ...carryFieldGreenUp(
+            current.targets.filter((t) => t.role === 'harvested' && t.source === HARVEST_SOURCE),
+            harvest.value.areas.map(
+              (area): TargetPolygon => ({
+                id: createId('harvested'),
+                name: area.name,
+                role: 'harvested' as const,
+                objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
+                vac: null,
+                harvestYear: area.harvestYear,
+                clearcutPercent: area.clearcutPercent,
+                geometry: area.geometry,
+                source: HARVEST_SOURCE,
+              }),
+            ),
+          ),
         ],
       }
     })
@@ -738,6 +797,8 @@ function DevForestryVisuals() {
   )
   // One click on the map for a tool that asked for a point (the landform's vantage).
   const [mapPick, setMapPick] = useState<{ onPoint: (point: [number, number]) => void } | null>(null)
+  // Where "Find a landform from the terrain" reads from, marked on the plan.
+  const [landformVantage, setLandformVantage] = useState<LandformVantagePoint | null>(null)
   // The bands of an adopted ridge-layer landform, kept while that landform is
   // in the scene so the road view can drape them.
   const [adoptedRidge, setAdoptedRidge] = useState<{ landformId: string; layers: RidgeLayer[] } | null>(null)
@@ -844,6 +905,7 @@ function DevForestryVisuals() {
   }, [runForScene, scene])
   const cancelPreview = useCallback(() => {
     setPendingPreview(null)
+    setRoadViewHeld(false)
     cancelAnalysis()
   }, [cancelAnalysis])
   const openPreview = useCallback(
@@ -872,6 +934,7 @@ function DevForestryVisuals() {
     }
     if (analysis.state.status === 'error') {
       setPendingPreview(null)
+      setRoadViewHeld(false)
       return
     }
     if (!result) return
@@ -1063,6 +1126,7 @@ function DevForestryVisuals() {
         mode: 'corridor',
         coordinates: pulloutThrough(candidate, centre),
       })
+      if (driveRef.current.active) setRoadViewHeld(true)
       setDrive((current) => ({ ...current, active: false, playing: false }))
       setSnapMessage(null)
       setStandRequest((current) => ({
@@ -1105,9 +1169,11 @@ function DevForestryVisuals() {
       }
       const note: BlockNote = {
         blockName: block?.name ?? 'Block',
-        header: parts.header,
+        // The VIA's stage after the block's own rows (`fieldChecklist.ts`).
+        header: [...parts.header, { label: 'VIA stage', value: layoutStageLabel(layoutStageOf(scene.viaReview)) }],
         visuals: parts.visuals,
         sentences: parts.sentences,
+        measures: parts.measures,
         landform: parts.landform,
         // In the order they were saved, whichever place they were saved at.
         views: views
@@ -1141,6 +1207,7 @@ function DevForestryVisuals() {
       road.length > 1 ? nearestPointOnLine(road, { lng: standing.point[0], lat: standing.point[1] }) : null
     moveViewpoint(standing.previous)
     setStanding(null)
+    if (driveRef.current.active) setRoadViewHeld(true)
     setDrive((current) => ({ ...current, active: false, playing: false }))
     setStandRequest((current) => ({
       serial: (current?.serial ?? 0) + 1,
@@ -1455,7 +1522,16 @@ function DevForestryVisuals() {
       })
     return () => abort.abort()
   }, [evqoKey, evqoDisplay?.key])
+  const evqoCurrent = evqoKey && evqoDisplay?.key === evqoKey ? evqoDisplay : null
+  const planEvqoCodes = useMemo(
+    () =>
+      planShow.evqo && evqoCurrent
+        ? [...new Set(evqoCurrent.collection.features.map((feature) => feature.properties?.code as EvqoCode))]
+        : [],
+    [planShow.evqo, evqoCurrent],
+  )
   const landscapeCollection = useMemo(() => targetsToGeoJson(scene.targets, 'landscape'), [scene.targets])
+  const treeFreeCollection = useMemo(() => treeFreeAreasToGeoJson(scene.treeFreeAreas ?? []), [scene.treeFreeAreas])
   const harvestedCollection = useMemo(() => targetsToGeoJson(scene.targets, 'harvested'), [scene.targets])
   const corridorCollection = useMemo(
     () =>
@@ -1715,6 +1791,24 @@ function DevForestryVisuals() {
       harvestPhase: 'before',
     })
   }
+  // The reviewer's own photo: the road view seeks to the nearest road point and
+  // DriveCamera's `standAt` stands the eye on the photo's spot, off the road if need be.
+  const lineUpOwnPhoto = (at: { lng: number; lat: number }) => {
+    const onRoad = nearestPointOnLine(scene.viewpoint.coordinates, at)
+    if (!fieldPhoto.own || !onRoad) return
+    if (!fieldPhoto.match) fieldPhoto.startOwnMatch()
+    openPreview({
+      id: 'field-photo',
+      name: 'Field photo',
+      positionMeters: onRoad.distanceAlongMeters,
+      lookAtTargetId: null,
+      yaw: 0,
+      tilt: 0,
+      treeHeightMeters: drive.treeHeightMeters,
+      roadClearWidthMeters: drive.roadClearWidthMeters,
+      harvestPhase: 'before',
+    })
+  }
   const liveForest = useForestHistory(
     preparePreview && !preliminaryDrive && drive.existingForest,
     scene.viewpoint.coordinates,
@@ -1839,9 +1933,10 @@ function DevForestryVisuals() {
       ...openings,
       ...basemap.water,
       ...(scene.masks ?? []).filter((m) => m.kind === 'natural').map((m) => m.geometry),
+      ...(scene.treeFreeAreas ?? []).map((area) => area.geometry),
       ...(corridor ? [corridor] : []),
     ]
-  }, [forestOpenings, drive.roadClearWidthMeters, scene.viewpoint, scene.masks, basemap.water])
+  }, [forestOpenings, drive.roadClearWidthMeters, scene.viewpoint, scene.masks, scene.treeFreeAreas, basemap.water])
 
   const forestConfiguration = useMemo(
     () => ({
@@ -2296,23 +2391,27 @@ function DevForestryVisuals() {
   )
   const phone = useMediaQuery('(max-width: 767px)')
   const [phonePane, setPhonePane] = useState<VisualsPane>('map')
-  const paneAvailable = { road: drive.active, summary: !!result }
+  // Held through a viewpoint swap until the new run opens it again (or fails, or is cancelled).
+  if (roadViewHeld && drive.active) setRoadViewHeld(false)
+  const roadViewOpen = drive.active || roadViewHeld
+  const paneAvailable = { road: roadViewOpen, summary: !!result }
   const leaveRoadView = () => {
+    setRoadViewHeld(false)
     setPreliminaryDrive(false)
     setDrive((current) => ({ ...current, active: false, playing: false }))
   }
   // Opening the road view shows its pane, whatever the layout last hid; on a phone it takes the screen.
-  const [seenRoadView, setSeenRoadView] = useState(drive.active)
-  if (seenRoadView !== drive.active) {
-    setSeenRoadView(drive.active)
-    setPhonePane(drive.active ? 'road' : 'map')
-    if (drive.active && storedHiddenPanes.includes('road'))
+  const [seenRoadView, setSeenRoadView] = useState(roadViewOpen)
+  if (seenRoadView !== roadViewOpen) {
+    setSeenRoadView(roadViewOpen)
+    setPhonePane(roadViewOpen ? 'road' : 'map')
+    if (roadViewOpen && storedHiddenPanes.includes('road'))
       setStoredHiddenPanes(storedHiddenPanes.filter((id) => id !== 'road'))
   }
   // A layout without the road view closes it: the road view has no life off screen.
   const changeHiddenPanes = (hidden: VisualsPane[]) => {
     setStoredHiddenPanes(hidden)
-    if (hidden.includes('road') && drive.active) leaveRoadView()
+    if (hidden.includes('road') && roadViewOpen) leaveRoadView()
   }
   const selectLayout = (value: string, saved = savedLayouts) => {
     const next = resolveTileLayout(VISUALS_WORKSPACE, value, saved)
@@ -2344,14 +2443,17 @@ function DevForestryVisuals() {
     setPhonePane(pane)
   }
   // The eye-level map exists only while it can be seen: a second WebGL context costs the drive frames.
-  const eyeMapShown = drive.active && !hiddenPanes.includes('road') && (!phone || focusedPane === 'road')
+  const eyeMapOnScreen = !hiddenPanes.includes('road') && (!phone || focusedPane === 'road')
+  const eyeMapShown = drive.active && eyeMapOnScreen
+  // Through a swap the map, its terrain and its layers stay; only the camera waits for the new run.
+  const eyeMapKept = roadViewOpen && eyeMapOnScreen
   // Closing it takes two commits: its layers, terrain, timber and camera unmount first, while the map
   // still exists, and the map one commit later. React runs a removed tree's cleanups parent first, so
   // removing them together removed MapLibre before MapTerrain and ForestOverlay could clean up, and
   // they threw on the removed map, taking the page down.
   const [eyeMapLingers, setEyeMapLingers] = useState(false)
-  useEffect(() => setEyeMapLingers(eyeMapShown), [eyeMapShown])
-  const eyeMapMounted = eyeMapShown || eyeMapLingers
+  useEffect(() => setEyeMapLingers(eyeMapKept), [eyeMapKept])
+  const eyeMapMounted = eyeMapKept || eyeMapLingers
   const paneClose = (pane: VisualsPane) =>
     phone ? null : pane === 'road' ? (
       // Closing the road view's pane leaves the road view, as Return to map does; it comes back
@@ -2407,6 +2509,8 @@ function DevForestryVisuals() {
     forestPatches,
     facedArrowGeometry,
     previewTerrainMessage: previewTerrain.message,
+    treeFreeCollection,
+    landformVantage,
     forestGround,
     previewRoad,
     basemapBounds,
@@ -2483,8 +2587,18 @@ function DevForestryVisuals() {
                   ])
                 }
               }}
-              vantages={viewpointCandidates.map(({ key, name, lng, lat }) => ({ key, name, lng, lat }))}
+              vantages={viewpointCandidates.map((candidate) => ({
+                key: candidate.key,
+                name: candidate.name,
+                lng: candidate.lng,
+                lat: candidate.lat,
+                summary: viewpointCandidateSummary(candidate),
+              }))}
+              vantagesStatus={viewpointInventory.status}
+              onLoadVantages={() => void loadViewpoints()}
+              onVantagePoint={setLandformVantage}
               onPickPoint={(onPoint) => setMapPick(onPoint ? { onPoint } : null)}
+              pickActive={!!mapPick}
               onAdopt={adoptTerrainCandidate}
               replaced={
                 replacedLandform && scene.targets.some((target) => target.id === replacedLandform.adoptedId)
@@ -2529,6 +2643,19 @@ function DevForestryVisuals() {
       }
       landformScope={<AssessmentPanel part="scope" {...assessmentProps} />}
       localSources={<ToolSourcesPanel scene={scene} onChange={setScene} selectedTargetId={selectedTargetId} />}
+      wildlifeTreePatches={
+        <WildlifeTreePatchPanel
+          masks={scene.masks ?? []}
+          drawing={drawMode === 'wildlife-tree-patch'}
+          onDraw={(on) => handleDrawModeChange(on ? 'wildlife-tree-patch' : 'none')}
+          drawControls={<PreviewWorkflow part="setup" {...previewProps} />}
+          onRemove={(id) =>
+            setScene((current) => ({ ...current, masks: (current.masks ?? []).filter((mask) => mask.id !== id) }))
+          }
+          stale={isStale}
+        />
+      }
+      runRevision={tools.revision}
       designReview={
         <>
           <LandformDesignPanel
@@ -2542,9 +2669,9 @@ function DevForestryVisuals() {
               })
             }
           />
-          {tools.design}
         </>
       }
+      designComparisons={tools.design}
       fieldPhoto={
         <FieldPhotoPanel
           photo={fieldPhoto}
@@ -2555,6 +2682,33 @@ function DevForestryVisuals() {
             !previewInputError(scene)
           }
           onLineUp={() => lineUpPhoto()}
+          own={{
+            records: tools.photoRecords,
+            roadView:
+              drive.active && cameraEye
+                ? { lng: cameraEye.lng, lat: cameraEye.lat, bearing: lookBearing, hfov: viewerFov }
+                : null,
+            canLineUp: !previewInputError(scene),
+            onLineUp: lineUpOwnPhoto,
+            onPickPoint: (onPoint) => setMapPick(onPoint ? { onPoint } : null),
+            pickActive: !!mapPick,
+            onSaveToRecord: tools.updateFieldRecord,
+          }}
+        />
+      }
+      fieldBrief={
+        <FieldBriefPanel
+          scene={scene}
+          result={result}
+          stale={isStale}
+          assessment={viaAssessment}
+          review={scene.viaReview ?? {}}
+          onReviewChange={updateViaReview}
+          selectedTargetId={selectedTargetId}
+          landform={sceneLandform}
+          savedViews={savedViews}
+          otherViews={shelvedViews.flatMap((entry) => entry.views)}
+          images={viewImages}
         />
       }
       report={
@@ -2571,6 +2725,12 @@ function DevForestryVisuals() {
       onThresholdsChange={(thresholds) => setScene((current) => ({ ...current, thresholds }))}
       onTargetChange={handleTargetChange}
       onRemoveTarget={handleRemoveTarget}
+      onRemoveTreeFreeArea={(areaId) =>
+        setScene((current) => ({
+          ...current,
+          treeFreeAreas: (current.treeFreeAreas ?? []).filter((area) => area.id !== areaId),
+        }))
+      }
       onZoomToTarget={handleZoomToTarget}
       drawMode={drawMode}
       onDrawModeChange={handleDrawModeChange}
@@ -2667,6 +2827,7 @@ function DevForestryVisuals() {
             view.name.endsWith('.') ? view.name : `${view.name}.`,
           )}
           landform={sceneLandform}
+          assessment={viaAssessment}
           onExportNote={exportBlockNote}
         />
       }
@@ -2772,13 +2933,70 @@ function DevForestryVisuals() {
                         center={PG_CENTER}
                         zoom={9}
                         maxPitch={85}
-                        controls={WORKSPACE_MAP_CONTROLS}
+                        controls={
+                          <MapControls position="top-right" showZoom showCompass showFullscreen>
+                            <MapLayersControl
+                              basemaps={PLAN_BASEMAPS}
+                              basemap={planShow.basemap}
+                              onBasemapChange={(value: PlanBasemap) =>
+                                setPlanShow((current) => ({ ...current, basemap: value }))
+                              }
+                              overlays={[
+                                {
+                                  id: 'hillshade',
+                                  label: 'Hillshade',
+                                  checked: planShow.hillshade,
+                                  onCheckedChange: (checked) =>
+                                    setPlanShow((current) => ({ ...current, hillshade: checked })),
+                                },
+                                {
+                                  id: 'evqo',
+                                  label: 'Established VQO polygons',
+                                  description: !planShow.evqo
+                                    ? 'BC visual landscape inventory'
+                                    : !evqoCurrent
+                                      ? 'Loading…'
+                                      : evqoCurrent.error
+                                        ? `Unavailable: ${evqoCurrent.error}`
+                                        : evqoCurrent.collection.features.length
+                                          ? `${evqoCurrent.collection.features.length} polygons around the scene`
+                                          : 'None established around the scene',
+                                  checked: planShow.evqo,
+                                  onCheckedChange: (checked) =>
+                                    setPlanShow((current) => ({ ...current, evqo: checked })),
+                                },
+                              ]}
+                            />
+                          </MapControls>
+                        }
                         deferResize={table.deferResize}
                       >
                         <MapTableBridge table={table} />
-                        <TerrainSupport terrain={false} exaggeration={1} hillshade hillshadeIntensity={0.45} />
+                        <TerrainSupport
+                          terrain={false}
+                          exaggeration={1}
+                          hillshade={planShow.hillshade}
+                          hillshadeIntensity={0.45}
+                        />
                         <VisualQualityLayers mode="plan" data={layerData} />
                         <MapViewerCone viewer={planViewer} />
+                        <PlanClickToMove
+                          onMove={
+                            drive.active && seekFromPlan && drawMode === 'none' && !mapPick
+                              ? (point) => seekFromPlan([point.lng, point.lat])
+                              : null
+                          }
+                        />
+                        {drive.active && cameraEye && !preliminaryDrive && (
+                          <PlanViewerHandles
+                            eye={cameraEye}
+                            bearing={lookBearing}
+                            onMove={seekFromPlan ? (point) => seekFromPlan([point.lng, point.lat]) : null}
+                            onLook={(bearing) =>
+                              updateDrive({ lookAtTargetId: null, lookBearing: Math.round(bearing) % 360 })
+                            }
+                          />
+                        )}
                         {drawMode !== 'none' && (
                           <MapOverlay
                             position="top-left"
@@ -2813,6 +3031,26 @@ function DevForestryVisuals() {
                                 Cancel drawing
                               </Button>
                             </div>
+                          </MapOverlay>
+                        )}
+                        {mapPick && drawMode === 'none' && (
+                          <MapOverlay
+                            position="top-left"
+                            clearChrome
+                            className="flex items-center gap-2 px-3 py-2"
+                            role="status"
+                            data-testid="map-pick-hint"
+                          >
+                            <Crosshair className="h-4 w-4 shrink-0 text-sky-600" aria-hidden="true" />
+                            <span className="text-xs">Click the map to pick the point</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-2xs touch:h-10"
+                              onClick={() => setMapPick(null)}
+                            >
+                              Cancel
+                            </Button>
                           </MapOverlay>
                         )}
                       </Map>
@@ -2852,10 +3090,10 @@ function DevForestryVisuals() {
                               : null
                           }
                           masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
-                          show={{
-                            state: planShow,
-                            onToggle: (key) => setPlanShow((current) => ({ ...current, [key]: !current[key] })),
-                          }}
+                          treeFreeAreas={(scene.treeFreeAreas ?? []).length > 0}
+                          evqo={planEvqoCodes}
+                          hidden={planShow.hidden}
+                          onToggle={(key) => setPlanShow((current) => togglePlanLegendKey(current, key))}
                         />
                       }
                     </div>
@@ -2873,9 +3111,19 @@ function DevForestryVisuals() {
                             center={driveEye ? [driveEye.lng, driveEye.lat] : PG_CENTER}
                             zoom={14}
                             maxPitch={85}
-                            controls={WORKSPACE_MAP_CONTROLS}
+                            controls={
+                              <MapControls position="top-right" showZoom showCompass showFullscreen>
+                                <MapLayersControl
+                                  basemaps={PLAN_BASEMAPS}
+                                  basemap={drive.imagery ? 'satellite' : 'map'}
+                                  onBasemapChange={(value: PlanBasemap) =>
+                                    setDrive((current) => ({ ...current, imagery: value === 'satellite' }))
+                                  }
+                                />
+                              </MapControls>
+                            }
                           >
-                            {eyeMapShown && (
+                            {eyeMapKept && (
                               <>
                                 <TerrainSupport terrain exaggeration={1} hillshade hillshadeIntensity={0.25} />
                                 <VisualQualityLayers mode="eye" data={layerData} />
@@ -3020,6 +3268,7 @@ function DevForestryVisuals() {
                                     onSpeedChange={(speedKmh) => updateDrive({ speedKmh })}
                                     fixedLook={photoLook}
                                     verticalFovDegrees={photoLook ? fieldPhoto.viewFov : null}
+                                    standAt={photoLook ? fieldPhoto.standAt : null}
                                     elevation={previewTerrain.source}
                                     active={drive.active}
                                     playing={drive.playing}
@@ -3035,7 +3284,9 @@ function DevForestryVisuals() {
                                     eyeHeightMeters={
                                       preliminaryDrive
                                         ? 150
-                                        : (result?.settings.observerHeightMeters ?? scene.settings.observerHeightMeters)
+                                        : ((photoLook ? fieldPhoto.standEyeHeightMeters : null) ??
+                                          result?.settings.observerHeightMeters ??
+                                          scene.settings.observerHeightMeters)
                                     }
                                     lookAt={preliminaryDrive ? null : lookAtTarget}
                                     spotBearing={spotBearing}
@@ -3047,8 +3298,14 @@ function DevForestryVisuals() {
                                           ? current
                                           : Math.round(bearing),
                                       )
+                                      // To about 10 m: every consumer (the plan's viewer, the stand's centre, haze)
+                                      // works at that grain, and a raw position re-rendered the page every report.
+                                      const eyeLng = Math.round(lng * 1e4) / 1e4,
+                                        eyeLat = Math.round(lat * 1e4) / 1e4
                                       setCameraEye((current) =>
-                                        current?.lng === lng && current?.lat === lat ? current : { lng, lat },
+                                        current?.lng === eyeLng && current?.lat === eyeLat
+                                          ? current
+                                          : { lng: eyeLng, lat: eyeLat },
                                       )
                                       // The plan's view cone is as wide as the road view's frame.
                                       const eyeMap = eyeMapRef.current
@@ -3077,6 +3334,18 @@ function DevForestryVisuals() {
                               </>
                             )}
                           </Map>
+                          {eyeMapKept && !drive.active && (
+                            <MapOverlay
+                              position="top-left"
+                              clearChrome
+                              className="flex max-w-[20rem] items-center gap-1.5 px-2.5 py-1.5 text-xs"
+                              role="status"
+                              data-testid="road-view-moving"
+                            >
+                              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+                              Moving to {scene.viewpoint.name || 'the new viewpoint'}…
+                            </MapOverlay>
+                          )}
                           {eyeMapShown && (
                             <MapOverlay
                               position="top-left"

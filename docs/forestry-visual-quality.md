@@ -27,10 +27,15 @@ is typed survives switching.
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
 | 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (spot or length of road, draw, import, snap); folded *Which roads see the block* and *Viewpoints and rec sites*; **Cutblocks** with their objective and harvest system; **Landform and objective**; folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view its settings (**Road view**, folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**); **Saved views**; folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1) |
-| 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces*, *Landform design review* (Appendix 5) and *Design comparisons* |
+| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view its settings (**Road view**, folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**); **Saved views**; folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Field brief and crew checklist* |
+| 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
 | 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **FS1252 package**: whether its numbers are usable, the viewpoints it carries, **one** *Export filled FS1252 PDF*, and folded beneath it the viewpoint picker, run diagnostics and office fields; folded *VIA evidence package*; the worksheet and scene file under *Also download* |
+
+Under every step, after step 5, a folded **Resources** section holds reading
+rather than controls: links to the VIA Handbook and FPPR, the five FPPR s. 1.1
+visually altered landscape categories (the `VISUAL_QUALITY_CLASSES`
+descriptions), and *Landform design review* (Appendix 5).
 
 The sidebar is laid out like the road designer's: the step tabs at the top of
 the scroll, then flat `ToolSection`s (`src/components/ui/tool-section.tsx`)
@@ -60,19 +65,30 @@ simulation first if it needs to; and the header carries no icon buttons —
 
 ### Map layers, landform readings and viewpoint arrows
 
-- **Show, on both maps.** The road view's *Show* tiles (step 2) and the plan
-  map's legend (*Show* section, `PlanMapLegend` `show`) switch the same kinds
-  of layer: analysis points, satellite imagery, EVQO polygons, landform. Each
-  view keeps its own set — the plan map's in `planShow`, the road view's on
-  `DriveState` — because their defaults differ (the plan shows analysis points
-  from the start; the road view does not). Note screenshot look and distance
-  haze are road-view only.
+- **Basemap and overlays: each map's Layers button.** Both maps carry a
+  `MapLayersControl` under their zoom buttons: Map or Satellite (imagery under
+  the labels, `SatelliteImagery`, never a `styles` swap). The plan's adds
+  Hillshade and the established VQO polygons, read from the inventory only once
+  ticked. The road view's satellite choice is `drive.imagery`, so the note
+  screenshot look still switches it on.
+- **The plan legend hides what it lists.** Every legend row is a button
+  (`PlanMapLegend` `hidden`/`onToggle`, keys in `planLayers.ts`): a struck-through
+  row is off the plan map. Rows that share one layer (visible / hidden / unknown
+  samples, mask kinds, sensitivity-unit objectives, landform clues, EVQO
+  classes) filter that layer's features through `withoutHiddenFeatures`, which
+  hands back the same collection while nothing is hidden. The plan's set is
+  `planShow` (`PlanShow`); the road view keeps its *Show* tiles on `DriveState`
+  because their defaults differ. Note screenshot look and distance haze are
+  road-view only.
 - **Both terrain readings at once.** *Find a landform from the terrain* reads
   the ridge layer seen and the face turned to the view in one terrain load,
   draws both (green and orange, `LANDFORM_METHOD_COLORS`), and compares them
   in a table. The one in front is filled and the one *Use* adopts. **Read from**
   takes the road (the ridge layer joins every station), an inventory viewpoint
-  or rec site, or a point picked on the map; from a point both readings use
+  or rec site (listed in the section with the same one-line summary as
+  *Viewpoints and rec sites*, `viewpointCandidateSummary`, and loadable from
+  there), or a point picked on the map — the plan shows a *Click the map* hint
+  while it waits, and marks the chosen point or viewpoint; from a point both readings use
   that point alone, and the adopted landform's source names it.
 - **Viewpoint arrows.** Each inventory viewpoint keeps every arrow it carries
   (`ViewpointCandidate.arrows`, nearest the block first). The list opens one
@@ -89,7 +105,9 @@ simulation first if it needs to; and the header carries no icon buttons —
 
 **The headline** shows the Table 7 rating once both measures exist, and until
 then the objective, the measured figure X, and the adjusted figure. It also
-carries the one "scene changed — rerun" notice.
+carries the one "scene changed — rerun" notice, and the VIA's **stage**
+(Pre-layout / Post-layout), the one place it is set; see
+[Pre-layout VIA: the field brief and crew checklist](#pre-layout-via-the-field-brief-and-crew-checklist).
 
 ### How the rating is reached
 
@@ -333,6 +351,32 @@ cutblocks and the results report existing + proposed = cumulative.
 - **No double counting.** A proposed block laid over an opening that still
   counts is not charged for that ground again; ground under a *recovered*
   opening is free for the proposal to claim.
+- **Field-confirmed green-up.** Step 3's *Existing-opening green-up* lists each
+  opening with the share the model gives it — a supplied recovery estimate,
+  else the green-up age — and an optional **field check**: greened up, not
+  greened up, or a share, with the date, who checked it and a note
+  (`TargetPolygon.fieldGreenUp`, rules in `greenUp.ts`). Once it has a share, a
+  date and an observer it overrides the model in the cumulative ledger, on both
+  scales; the modelled share is kept and shown beside it. A draft check, or one
+  dated after the assessment year, leaves the model in charge and says why. The
+  share is of the opening, like the handbook's "70% greened up still counts 30%",
+  and is scaled by `PERCENT_CLEARCUT` as the estimate is; it is not fed through
+  Table 6. Every place line c is printed names what it rests on — "Green-up
+  modelled", "Green-up field-confirmed 12 Nov 2026 by J. Smith", or "field-confirmed
+  for 1 of 3 openings (…), modelled for 2": the Results tiles, step 4's line c,
+  the Viewpoint summary's verdict note, the FS1252 appendix (which also lists
+  each checked opening's field and modelled shares) and the Markdown worksheet.
+  Those labels are read from the run's own input snapshot (`runGreenUpBasis`),
+  so they always describe the figure beside them; openings that reach no
+  landform sample are left out of the count.
+- **A field check is a run input.** A complete check (share, date, observer)
+  goes into `AnalysisInput` and the scene fingerprint, so completing or changing
+  one stales the run — unlike `viaReview`. Its note does not, and neither does
+  a draft. Scenes saved before the field check load unchanged
+  (`parseFieldGreenUp` drops anything unreadable). "Look up this view" replaces
+  every inventory opening with a new id; a check follows the one opening with
+  the same name (`carryFieldGreenUp`), never one named from the feature's
+  position (`cutblock-N`).
 
 ## The green area, and where it comes from
 
@@ -507,6 +551,40 @@ the scrubber. Facing a block pitches the camera at it, and the sample points
 narrow to what *that* point on the road can see — red ground appears and
 disappears as ridges pass in front of it.
 
+**Steering from the plan.** While the road view is open the plan's viewer is
+two handles (`PlanViewerHandles`): drag the dot along the road to move the road
+view there (snapped by `distanceAlongRoad`, seeking at most every 120 ms), and
+drag the tip of the view cone to turn it, which sets `drive.lookBearing` exactly
+as facing an inventory arrow does (*Where to look* then reads "Turned on the
+map"). A plain click anywhere on the plan moves the road view to the nearest
+point on the road (`PlanClickToMove`), so you can look at one area, click the
+next and look again. A click on an inventory viewpoint or rec site still stands
+you there, and while the road view is open sample points and sensitivity units
+do not take plan clicks (inspecting a sample and adopting a unit are steps 1 and
+3's jobs). Drawing and point picks own the clicks while they run.
+
+**Swapping viewpoints keeps the road view.** Standing at an inventory
+viewpoint, or going back to the road, changes the scene's viewpoint, so the
+run is made again. While it runs the road view's map stays mounted
+(`roadViewHeld`): its WebGL context, style, tiles, terrain and layers are kept,
+only the camera waits, and a "Moving to …" note shows over it. Before, the map
+was destroyed and rebuilt (style, fonts, tiles, DEM, shaders) for each swap. The
+drawn stand still regrows, because its patch grid is anchored on the viewpoint.
+
+**Off the road.** Walking off the road (W A S D) no longer adds a status line to
+the road view's bar: the *Reset look* button turns amber with a warning
+triangle, its tooltip says how far off the road (or viewpoint) you are and that
+the red ground is still the nearest station's view, and clicking it (or R)
+walks back as well as resetting the look.
+
+**Tree-free areas.** *Drawn timber → Draw a tree-free area* traces a polygon on
+the plan, with the road view left open, where the drawn stand leaves its stems
+out: a pullout, a cleared stretch of roadside, a field. They join the stand's
+clearings beside the road strip and natural-opening masks, are kept on the scene
+(`treeFreeAreas`, `treeFreeAreas.ts`), and are display only: out of
+`AnalysisInput` and out of `sceneFingerprint`, so drawing one never stales the
+run. The ground under one stays forest floor, not cut soil.
+
 Two MapLibre details this depends on:
 
 - The camera is placed from an explicit position, altitude, and rotation
@@ -560,7 +638,7 @@ that while driving, but a measuring harness should not either.
 Handbook 3.2 photographs each viewpoint, and 3.3.4 checks the simulation
 against the photo: viewpoint coordinates, view direction, focal length, tree
 heights, past alterations. Step 2's **Field photo** does this with a
-street-level photo from Mapillary.
+street-level photo from Mapillary, or with a photo of your own.
 
 - **Find photos facing the cutblock** searches Mapillary along the road
   (in boxes of 0.01°, at most 24, so a long corridor is sampled, and says so)
@@ -616,8 +694,47 @@ street-level photo from Mapillary.
   camera is looking, with how far ahead or back it was taken; **Line up**
   jumps to it. It stays hidden while a photo is lined up.
 
-Limits: the eye stands on the road centreline, not the photo's recorded spot (the panel says how far apart they are, and refuses
-beyond 60 m); photo dates are the camera's clock and can be wrong (that image
+- **A photo of your own.** *Line up a photo of my own* (under the Mapillary
+  part, and available without a Mapillary token) opens a JPEG, PNG or WebP
+  in the browser as an object URL — nothing is uploaded or stored — or
+  **Open** takes a *Field records* photograph (kind `photo`) from its stored
+  copy. It lives in the Field photo panel rather than in Field records because
+  the overlay, the nudge controls and the road view's line-up are all here.
+  The starting pose (`exifPose.ts`, DOM-free, unit-tested) comes from the
+  field record's camera first, then EXIF (read with `exifr`, already used by
+  Field records), then the road view as it stands, then defaults:
+  - position from `GPSLatitude`/`GPSLongitude` (a 0, 0 fix is ignored);
+  - heading from `GPSImgDirection`. A `T` reference is true north and used as
+    is. `M` (magnetic), or no reference, starts the view on the recorded value
+    but is labelled not-true-north and offers a declination field (degrees
+    east, added to the recorded heading); nothing models declination for you;
+  - field of view from `FocalLengthIn35mmFormat`, split along the frame's own
+    diagonal (43.27 mm), or else `FocalLength` with the sensor size from
+    `FocalPlaneX/YResolution` and the pixel dimensions, turned with a
+    quarter-turn `Orientation`; it is the vertical field of view that sets
+    MapLibre's lens;
+  - `DateTimeOriginal` shown as the camera clock, and GPS altitude shown for
+    reference only. The eye is placed at the ground under the spot plus the
+    eye height, never at GPS altitude.
+  Pitch and roll start level (EXIF records neither); eye height starts at the
+  settings' observer height. Every value is editable — latitude and longitude
+  typed or **Pick on the plan**, heading, pitch, roll, field of view and eye
+  height — and each says where it came from. The overlay adds narrower/wider
+  field-of-view buttons beside the turn and tilt arrows; with an own photo the
+  arrows and *Auto-align* change the pose itself, and Reset returns heading and
+  pitch to where they started. **Save this pose to the field record** writes
+  the camera back to the record it came from (altitude as road-view ground
+  plus eye height) and leaves its "I checked…" box unticked for the reviewer.
+- **Standing off the road.** An own photo's eye stands on its recorded spot,
+  not the road line: the road view seeks to the nearest road point and
+  `DriveCamera`'s `standAt` holds the walker's offset on the photo's position
+  (the same walk as W A S D, which it overrides while compared). It refuses a
+  spot more than 2 km (`MAX_WALK_METERS`) from the road line or outside the
+  road view's loaded terrain. Red ground is still the nearest road station's
+  view. The Mapillary path is unchanged and still stands on the road line.
+
+Limits: a Mapillary photo's eye stands on the road centreline, not the photo's recorded spot (the panel says how far apart they are, and refuses
+beyond 60 m); an own photo's lens is assumed distortion-free and uncropped; photo dates are the camera's clock and can be wrong (that image
 says January 2016 on a 2020 camera, in summer). Photos are CC BY-SA 4.0 and
 every view credits the photographer. The client token lives in `.env.local` as
 `VITE_MAPILLARY_TOKEN` — a client token is built for browsers. No client
@@ -848,11 +965,14 @@ matrix that projected the ground under them.
 | `src/pages/dev-forestry/treeLayer.ts` | The MapLibre custom layer that draws the stand |
 | `src/pages/dev-forestry/ForestOverlay.tsx` | Which ground to grow, and when to regrow it |
 | `src/pages/dev-forestry/visualsNarrative.ts`, `VisualsParagraphPanel.tsx` | Step 5's planning-note summary and the drafted Visuals paragraph |
+| `src/pages/dev-forestry/fieldChecklist.ts`, `fieldBrief.ts`, `FieldBriefPanel.tsx` | The VIA stage, the crew checklist, and step 2's one-page field brief |
+| `src/pages/dev-forestry/visualMeasures.ts` | The drafted visual measures for the Site Plan and Logging Plan (pure) |
+| `src/pages/dev-forestry/WildlifeTreePatchPanel.tsx` | Step 3's *Draw a wildlife tree patch* and the patches in the scene |
 | `src/pages/dev-forestry/viewpointInventory.ts`, `ViewpointFinderPanel.tsx` | VLI viewpoints and arrows, rec sites, screenings and tenure road names around a block |
 | `src/pages/dev-forestry/ridgeLayers.ts` | A candidate landform as the ridge layer seen from the road |
 | `src/pages/dev-forestry/SatelliteImagery.tsx` | Satellite imagery under the page's layers |
 
-`terrain.ts`, `visibility.ts`, `vqo.ts`, `via.ts`, `photoPose.ts`, `skylineFit.ts`, `landformFromTerrain.ts`, `ridgeLayers.ts`, `visualsNarrative.ts`, `basemapContext.ts`, `shapeImport.ts`, `reverseViewshed.ts`,
+`terrain.ts`, `visibility.ts`, `vqo.ts`, `via.ts`, `photoPose.ts`, `skylineFit.ts`, `landformFromTerrain.ts`, `ridgeLayers.ts`, `visualsNarrative.ts`, `fieldChecklist.ts`, `fieldBrief.ts`, `basemapContext.ts`, `shapeImport.ts`, `reverseViewshed.ts`,
 `roadSnap.ts`, and `forest.ts` are pure and carry unit tests; `analysis.ts` takes an `ElevationSource`, so a run can be driven
 against synthetic terrain or real tiles outside a browser. `demLoader.ts` takes
 an injectable decoder for the same reason — the browser path uses
@@ -1038,12 +1158,15 @@ the landform against the planimetric range, the objective and whether the
 inventory established (EVQO) or recommended it, nearest and farthest visible
 ground with their viewing zones, the VIA rating with X and the adjusted
 figure, mean slope with the run's slope-class green-up height, and whether the
-run is provisional. Every percentage names its scale, both alteration figures
-are withheld from a provisional run as the results panel does, and the visible
-distances, which the run holds only over the whole road, say so. Right-click a
-row (or Shift+F10) or use the gear for its settings: each row hidden, value, or
-value and detail. It is a readout; every control it describes stays in the
-sidebar.
+run is provisional. Each card keeps a short label and names its scale (or
+*whole road*, *this station*) on the line under it, so every percentage says
+what it was measured on; the visible distances, which the run holds only over
+the whole road, say so there. Both alteration figures are withheld from a
+provisional run as the results panel does, and only the **Numerical figures**
+row says why. Rows open as values, with their detail on the card's tooltip.
+Right-click a row (or Shift+F10) or use the gear for its settings: each row
+hidden, value, or value and detail. It is a readout; every control it
+describes stays in the sidebar.
 
 ## The road view's layout
 
@@ -1094,6 +1217,98 @@ CHU_26_1" when the view turns more than 45° off the road — and Step 5 lists t
 captions to copy. Saving a view no longer waits for the 3D stand when no timber
 is drawn.
 
+## Visual measures for the Site Plan and Logging Plan
+
+Practitioners write the visual measures into the site plan and the logging
+plan, so the crew knows how the objective is to be achieved and when to stop
+if it will not be. Under the Visuals paragraph, step 5's *Planning note ·
+Visuals* drafts that list (`visualMeasures.ts`), each measure with what it was
+written from:
+
+1. **Objective** — the landform's EVQO and Table 2 range, the viewpoint, VAC,
+   and the run's X with the adjusted figure when step 4 has one. Over the range
+   reads "do not start harvesting until the block is redesigned and
+   reassessed"; in the top fifth of it (`percentStanding`), "little room for
+   change in the field". A stale run's figures are left out.
+2. **Wildlife tree patches** — every *Wildlife tree patch / retention* mask in
+   or within 500 m of the block, by name, area and place (inside, on the block
+   boundary, beside it; read from its outline's vertices). Six are named; any
+   more are summed. The basis gives the patches' share of the block.
+3. **Harvest system** — dispersed retention's share left standing; a partial
+   cut's volume removed and residual height (whatever is recorded).
+4. **Design** — only what the design relies on, from step 4's ratings as used
+   (the reviewer's, else measured): feathered and irregular edges (good or
+   moderate), force lines, natural character and position (good). A poor
+   rating is not something the crew can hold to, so it writes nothing. The
+   opening's flagged area is always stated, with "any boundary change needs the
+   visuals reassessed".
+5. **Skyline** — when the run's landform design review puts the block near the
+   silhouette from any station. **Roads** — when step 4 rates them visible.
+6. **Stop work** — always last: stop in the affected area and contact the
+   visual specialist or planning forester if the patches, edges, skyline band or
+   retention prescription cannot be kept, or if the boundary has to move or the
+   opening would grow past its flagged area (and so could exceed the objective).
+
+Like the paragraph it is a draft the reviewer signs: their list
+(`viaReview.visualMeasures`, one measure per line, up to 4,000 characters) is
+kept once written and never overwritten from the draft; *Use the draft
+measures* copies it in, and the draft stays beside it. Typed bullets and
+numbers are taken off (`measureItems`) because the files number the list.
+`viaReview` stays out of the scene fingerprint, so editing it never stales a run.
+
+## Pre-layout VIA: the field brief and crew checklist
+
+Practitioners run the VIA before block layout and share it with the layout
+crew, who then place strategic wildlife tree patches and leave trees where the
+block is seen, run the boundary along natural features, confirm the
+neighbouring openings have visually greened up, and ground-truth the
+viewpoints — which saves a second trip to the field.
+
+- **Stage.** `viaReview.layoutStage` is `pre-layout` or `post-layout`, set in
+  the headline. Absent reads as **pre-layout** (`layoutStageOf`,
+  `fieldChecklist.ts`): every run here is a desk run on a drawn or imported
+  boundary, and post-layout claims the boundary was traversed, which only the
+  reviewer can say. Scenes saved before the stage existed read as pre-layout.
+  The stage is printed on the field brief and as a *VIA stage* row on the
+  block note (Excel *Block* sheet and PDF header). The FS1252 PDF and the
+  Markdown worksheet do not carry it yet.
+- **Where.** Step 2, *Field brief and crew checklist*, last in the step: the
+  handbook's 3.2 is the field visit, and the brief is what goes to the field;
+  its summary row reads "Pre-layout · 3 of 6 checked · 1 flagged".
+- **The brief** (`fieldBrief.ts`, one page, letter portrait): block, licence
+  and permit, area, stage, landform, objective with its Table 2 range (the
+  landform's, else the block's), the measured figure X — or "Not yet run",
+  "Withheld: the run is provisional", "Not current: the scene changed" — and
+  the rating when there is one. Then the viewpoints to ground-truth: the
+  road's assessment station (or the road's start before a run), each saved
+  view on this road at its position along it, and views saved while standing
+  elsewhere (no position on this road), each with latitude/longitude, the
+  bearing to face and *Reachable / Not reachable* tick boxes; up to three of
+  the saved views' screenshots (taken at *Save viewpoint*), numbered as their
+  rows. *What to look for* prompts strategic WTP placement, leave trees,
+  natural boundary shapes, skyline notches and edge feathering, plus a line
+  for a P, R or PR objective, a foreground view, and the run's share of the
+  block in view. The checklist lists the existing openings nearest the block
+  with *Greened up / Not yet* boxes, ruled lines for where the boundary can
+  follow natural features, and *Checked by* / *Date*. Limits are
+  `FIELD_BRIEF_LIMITS` (6 viewpoints, 3 images, 8 openings); a later page is
+  added only if notes overflow.
+- **The checklist** (`viaReview.fieldChecklist`): per viewpoint (keys
+  `station:<viewpoint id>`, `view:<saved view id>`) and per opening (target
+  id) a yes/no and a note; one boundary note. Each answer is stamped with the
+  panel's *Checked by* and the local date (`updateFieldCheck`), and an entry
+  with neither answer nor note is removed. Answers for viewpoints no longer
+  listed are kept but not counted. Filled answers are printed in the brief's
+  boxes with their stamps. Green-up here is only confirmed / not and a note;
+  a numeric field-confirmed green-up belongs on the opening itself.
+- Photos from the visit go in *Field records* (the panel links to it), not
+  in a second upload control.
+- Like the rest of `viaReview`, the stage and checklist stay out of
+  `sceneFingerprint`, so recording them never stales a run. `parseViaReview`
+  adds them only when present, so a review saved before them reads back
+  unchanged. `fieldChecklist.ts` and `fieldBrief.ts` are DOM-free (jsPDF is
+  passed in; text goes through `pdfText`) and carry the unit tests.
+
 ## The block note: Excel or PDF
 
 Step 5's *Planning note · Visuals* ends with **Download Excel** and **Download
@@ -1108,10 +1323,18 @@ and a plan map framed on the block and viewpoint.
   Considerations* sheet with "Visuals" in B2 and the paragraph in C2, the
   screenshots and captions below, so the row pastes into their workbook; a
   *Block* sheet with the header and figures; a *Basis* sheet with the
-  measurement behind each drafted sentence.
+  measurement behind each drafted sentence and measure.
+- **Visual measures** go on a sheet of their own, second, in the same layout —
+  "Visual measures" in B2, one numbered measure per row from C2, "Draft from the
+  assessment — not yet reviewed." under them until the list is the reviewer's —
+  so *Other Considerations* keeps B2, C2 and its screenshots exactly where they
+  were, and the rows paste into the site plan and logging plan. No measures, no
+  sheet.
 - **PDF** (letter, landscape) puts the first view large with the header and
   paragraph beside it, in the style of the report a GIS analyst produced at
-  Canfor, then the other views and the plan map two to a page.
+  Canfor, then the other views and the plan map two to a page. The measures
+  follow the paragraph in the side column when the whole list fits there;
+  otherwise they open the next page, after any paragraph overflow.
 
 The draft's closing "See screenshots below." is reworded for where the file
 puts them (`paragraphForLayout`): kept in Excel, where they are below; "See the
@@ -1281,6 +1504,14 @@ none establishes a completed field visit or verified VQO achievement.
   Camera elevation must use the analysis terrain's vertical reference. Crops,
   panoramas, magnetic headings and uncertain altitude need manual calibration.
   Stored images are resized to at most 1600 pixels on the longer side; keep originals.
+- **Step 3 — wildlife tree patches:** *Draw a wildlife tree patch* (under
+  **Simulation**) traces a polygon on the plan map and adds it as a `retained`
+  mask, named "Wildlife tree patch n", through `withDrawnMask` — the same
+  `parseMasks` check, and 100-mask limit, a saved scene goes through. The road
+  view stays open while drawing, as for a tree-free area. Run again to test the
+  crew's placement from the viewpoint. The kind is labelled *Wildlife tree patch
+  / retention* everywhere it is shown; the stored value stays `retained`, so
+  saved scenes load unchanged.
 - **Step 3 — masks and sources:** import classified polygons, or copy an outline
   drawn with the existing map controls. Natural non-green areas leave numerator
   and denominator; private land and permanent non-forestry disturbance remain in
@@ -1299,6 +1530,18 @@ none establishes a completed field visit or verified VQO achievement.
   An alternative supplies its proposed blocks and retained patches; the current
   scene supplies the common landform, existing openings, other masks, sources and
   settings. Applying a different design invalidates the current numerical run.
+- **Step 3 — since the previous run:** after a rerun, the top of **Results**
+  sets the previous run's landform figures beside this run's, per scale —
+  "Modification 14.2% → Partial retention 6.1% · now within partial retention
+  (≤ 7%)" — and lists what changed between the two runs' inputs (proposed
+  blocks, existing openings, masks, viewpoint, settings, assessment year) and,
+  when the blocks match a saved alternative, its name. The page keeps only the
+  previous run's headline (`runRevision.ts`: each scale's cumulative percent,
+  the class it read as, and the objective's range), never the result, so it
+  needs no extra run. Every figure is one a run reported, read against its own
+  scale's range the way the Results tiles read it; a provisional run's figures
+  are withheld and not compared. A run on another landform, objective, VAC or
+  range starts the comparison over; a rerun of the same inputs keeps it.
 - **Step 3 — matrix:** select recorded viewpoints and reviewed landforms. Each
   viewpoint/landform pair is a separate job with its own denominator, worst station
   and pending reviewer judgments. Results are never pooled across landforms.

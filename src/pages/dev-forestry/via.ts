@@ -27,6 +27,7 @@ import type { AlterationBreakdown, AnalysisResult, TargetPolygon } from './types
 import { designDistanceScore, visibleProposalCentre } from './vqe'
 import { haversineMeters } from './visibility'
 import { assessmentMaskSampler } from './assessmentMasks'
+import { parseFieldChecklist, parseLayoutStage, type FieldChecklist, type LayoutStage } from './fieldChecklist'
 import {
   DEFAULT_VISUAL_QUALITY_THRESHOLDS,
   partialCutEquivalentPercent,
@@ -618,6 +619,15 @@ export type ViaReview = {
    * is kept and the draft only offered beside it.
    */
   visualsNote?: string
+  /**
+   * The visual measures for the Site Plan and Logging Plan as the reviewer
+   * signed them, one per line. Drafted by `visualMeasures.ts`; kept once written.
+   */
+  visualMeasures?: string
+  /** Before or after field layout; absent reads as pre-layout (`layoutStageOf`, `fieldChecklist.ts`). */
+  layoutStage?: LayoutStage | null
+  /** What the layout crew found, answered back from the field brief (`fieldChecklist.ts`). */
+  fieldChecklist?: FieldChecklist
 }
 
 export type DesignSuggestion = { rating: DesignRating; basis: string }
@@ -815,6 +825,8 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
   }
   const roads = value.roads
   const viewpointType = value.viewpointType
+  const layoutStage = parseLayoutStage(value.layoutStage)
+  const fieldChecklist = parseFieldChecklist(value.fieldChecklist)
   return {
     ocular: {
       visibleness: member(VISIBLENESS_IDS, ocularRaw.visibleness),
@@ -832,6 +844,12 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
         : null,
     rationale: typeof value.rationale === 'string' ? value.rationale.slice(0, 4000) : '',
     visualsNote: typeof value.visualsNote === 'string' ? value.visualsNote.slice(0, 4000) : '',
+    ...(typeof value.visualMeasures === 'string' && value.visualMeasures
+      ? { visualMeasures: value.visualMeasures.slice(0, 4000) }
+      : {}),
+    // Only when recorded, so a review saved before them reads back unchanged.
+    ...(layoutStage ? { layoutStage } : {}),
+    ...(fieldChecklist ? { fieldChecklist } : {}),
   }
 }
 

@@ -401,9 +401,9 @@ test.describe('forestry visual quality', () => {
     // Both scales are reported, each against its own thresholds. Collapsing
     // them into one number is the mistake this page previously made.
     await expect(page.getByText('Alteration in perspective view')).toBeVisible()
-    // Exact: the viewpoint summary's row adds its scale to the same words.
+    // Exact: the results panel's heading, not a viewpoint summary card.
     await expect(page.getByText('Planimetric denudation', { exact: true })).toBeVisible()
-    await expect(page.getByText('Bare-earth terrain only', { exact: false })).toBeVisible()
+    await expect(page.getByText('Bare earth only', { exact: true })).toBeVisible()
   })
 
   test('walks the handbook steps to a Table 7 rating', async ({ page }) => {

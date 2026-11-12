@@ -1,11 +1,4 @@
-import {
-  CheckboxField,
-  FORM_INPUT_CLASS,
-  FormField,
-  StyledSelect,
-  NullableNumberField,
-  NumberField,
-} from '@/components/ui/form-field'
+import { CheckboxField, FORM_INPUT_CLASS, FormField, StyledSelect, NumberField } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import { ChevronDown, Eye } from 'lucide-react'
 import { ToolDisclosure } from '@/components/ui/tool-section'
@@ -22,6 +15,7 @@ import { findSceneLandform } from './sceneInput'
 import { resolveThreshold } from './integrity'
 import { downloadFs1252, type FormMetadata, type FormReview } from './pdf/fs1252'
 import { formatKm, formatPct } from './measureFormat'
+import { ExistingOpeningGreenUp, greenUpSummary } from './ExistingOpeningGreenUp'
 /**
  * `scope` is handbook 3.3.2 — which landform the run measures against and what
  * counts as its green area. `report` is 4.0 — the FS1252 draft package.
@@ -164,36 +158,11 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
           </p>
         )}
         <ToolDisclosure
-          label="Existing-opening recovery overrides"
-          summary="Green-up age unless set"
+          label="Existing-opening green-up"
+          summary={greenUpSummary(scene)}
           toggleProps={{ 'data-forestry-disclosure': 'recovery-overrides' }}
         >
-          <p className="text-muted-foreground">
-            Empty uses the stated green-up-age assumption. A percentage is a supplied recovery estimate, not an
-            automatically observed value. An opening 70% greened up still counts 30% of its area (handbook 3.4.2).
-          </p>
-          {scene.targets
-            .filter((t) => t.role === 'harvested' && !t.siteDisturbance)
-            .map((t) => (
-              <NullableNumberField
-                key={t.id}
-                label={<span className="truncate">{t.name}</span>}
-                aria-label={`Recovery percent for ${t.name}`}
-                contentClassName={INLINE_FIELD}
-                inputClassName={cn(FORM_INPUT_CLASS, 'w-20')}
-                suffix="%"
-                placeholder="Age"
-                min={0}
-                max={100}
-                value={t.recoveryPercent ?? null}
-                onValueChange={(recoveryPercent) =>
-                  onChange({
-                    ...scene,
-                    targets: scene.targets.map((x) => (x.id === t.id ? { ...x, recoveryPercent } : x)),
-                  })
-                }
-              />
-            ))}
+          <ExistingOpeningGreenUp scene={scene} onChange={onChange} />
         </ToolDisclosure>
       </section>
     )

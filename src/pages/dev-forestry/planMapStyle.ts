@@ -14,6 +14,8 @@ export const SCREENED_COLOR = '#0f766e'
 export const UNKNOWN_COLOR = '#71717a'
 export const ASSESSMENT_VIEWPOINT_COLOR = '#facc15'
 export const ROAD_COLOR = '#1d4ed8'
+/** Tree-free areas: ground the road view draws without timber. */
+export const TREE_FREE_COLOR = '#65a30d'
 
 /**
  * Exposure along a road, by the share of the block in view from it (%), cold

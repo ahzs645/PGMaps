@@ -3,6 +3,7 @@ import type { AnalysisResult, TargetPolygon } from './types'
 import type { VisualQualityThresholds } from './vqo'
 import { resolveThreshold } from './integrity'
 import { formClass } from './pdf/fs1252'
+import { greenUpBasisLine, runGreenUpBasis } from './greenUp'
 export type ReportInventoryUnit = { polygonNumber: string; vsc: string | null; scenicArea: boolean }
 export type ReportInput = {
   result: AnalysisResult
@@ -59,6 +60,7 @@ export function buildReport({
     '## 2.2.1 Viewpoints and 2.3.2 Initial numerical VQC',
     '',
     'Percentages are estimated apparent alteration in perspective, NOT planimetric percentages. a is used for the proposal in this simulation draft; the historical form labels it recent openings.',
+    `c existing: ${greenUpBasisLine(runGreenUpBasis(result))}.`,
     '| Station | Longitude | Latitude | Ground elevation (m) | a proposed % | b outside disturbance % | c existing % | X total % | Initial numerical VQC |',
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ]

@@ -1,7 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import type { FieldRecord } from './assessmentTools'
 import { loadElevationGrid } from './demLoader'
-import { nearestStation } from './driveMath'
+import { MAX_WALK_METERS, nearestStation } from './driveMath'
+import {
+  clampFov,
+  normalizeHeading,
+  ownPhotoPose,
+  readExif,
+  startingPose,
+  trueHeadingFromMagnetic,
+  verticalFovFromHorizontal,
+  type ExifReading,
+  type HeadingReference,
+  type OwnPose,
+  type OwnPoseSources,
+  type PoseSource,
+  type RoadViewPose,
+} from './exifPose'
 import {
   fetchMapillaryImage,
   mapillaryToken,
@@ -30,6 +46,49 @@ const SKYLINE_ZOOM = 11
 const PANO_VIEW_FOV = 60
 /** Height of that cut view, in pixels; its width follows the map's shape. */
 const PANO_VIEW_HEIGHT = 720
+/** The largest own photo read; the same limit as a field record's import. */
+const OWN_PHOTO_MAX_BYTES = 25_000_000
+
+/**
+ * The reviewer's own photo, lined up like a Mapillary one. It is read in the
+ * browser and never leaves it: a picked file is an object URL, a field record
+ * its stored copy. Every pose value is a suggestion the reviewer can change.
+ */
+export type OwnPhoto = {
+  id: string
+  name: string
+  src: string
+  /** Whether `src` is an object URL this hook made and must revoke. */
+  objectUrl: boolean
+  width: number
+  height: number
+  /** The field record it came from, so a confirmed pose can be saved back. */
+  recordId: string | null
+  exif: ExifReading | null
+  pose: OwnPose
+  sources: OwnPoseSources
+  /** The pose it was opened with, for Reset. */
+  start: { pose: OwnPose; sources: OwnPoseSources }
+  /** The heading's reference when it came from EXIF; anything but `true` needs a declination. */
+  headingReference: HeadingReference | null
+  /** Degrees east added to a magnetic EXIF heading, when the reviewer gives one. */
+  declinationEast: number | null
+}
+
+/** Whether the road view can stand where the own photo was taken, and why not. */
+export type OwnStand =
+  | { status: 'no-position' }
+  | { status: 'too-far'; offRoadMeters: number }
+  | { status: 'no-terrain'; offRoadMeters: number }
+  | { status: 'ok'; offRoadMeters: number; alongMeters: number }
+
+const decodeImage = async (src: string) => {
+  const picture = new Image()
+  picture.src = src
+  await picture.decode()
+  // Natural size is after the EXIF orientation, as the photo is shown.
+  return { width: picture.naturalWidth, height: picture.naturalHeight }
+}
 
 export type PhotoMatch = {
   /** Degrees added to the photo's own bearing and pitch while lining it up. */
@@ -75,6 +134,11 @@ export function useFieldPhoto({
   ground: ElevationSource | null
   eyeHeightMeters: number
 }) {
+  const [own, setOwn] = useState<OwnPhoto | null>(null)
+  const [ownStatus, setOwnStatus] = useState<{ loading: boolean; error: string | null }>({
+    loading: false,
+    error: null,
+  })
   const token = mapillaryToken()
   const [input, setInput] = useState('')
   const [image, setImage] = useState<MapillaryImage | null>(null)
@@ -123,6 +187,7 @@ export function useFieldPhoto({
       try {
         const next = await fetchMapillaryImage(id, token, { signal: controller.signal })
         if (controller.signal.aborted) return
+        setOwn(null)
         setImage(next)
         setInput(next.pageUrl)
         setStatus({ loading: false, error: null })
@@ -184,27 +249,46 @@ export function useFieldPhoto({
     }
   }, [token, road, scene.targets, result])
 
+  // The point the skyline terrain is loaded around: the Mapillary photo, or the
+  // own photo's position to about a kilometre (moving it further reloads).
+  const ownLng = own?.pose.lng ?? null,
+    ownLat = own?.pose.lat ?? null
+  const skylineCentre = image
+    ? { id: image.id, lng: image.lng, lat: image.lat }
+    : own && ownLng !== null && ownLat !== null
+      ? { id: `${own.id}@${ownLng.toFixed(2)},${ownLat.toFixed(2)}`, lng: ownLng, lat: ownLat }
+      : null
+  const skylineId = skylineCentre?.id ?? null
+  const skylineSource = skylineGround && skylineGround.id === skylineId ? skylineGround.source : null
+
   // Coarse terrain out to 25 km around the photo, for the skyline: the preview's
   // own mosaic stops a kilometre or two past the road, short of most ridgelines.
   useEffect(() => {
-    if (!image || !match) return
-    if (skylineGround?.id === image.id) return
+    if (!skylineCentre || !match) return
+    if (skylineGround?.id === skylineCentre.id) return
+    const { id, lng, lat } = skylineCentre
     const controller = new AbortController()
     const degLat = SKYLINE_RADIUS_METERS / 110574
-    const degLng = SKYLINE_RADIUS_METERS / (111320 * Math.cos((image.lat * Math.PI) / 180))
-    const range = demTileRange(
-      [image.lng - degLng, image.lat - degLat, image.lng + degLng, image.lat + degLat],
-      SKYLINE_ZOOM,
-    )
+    const degLng = SKYLINE_RADIUS_METERS / (111320 * Math.cos((lat * Math.PI) / 180))
+    const range = demTileRange([lng - degLng, lat - degLat, lng + degLng, lat + degLat], SKYLINE_ZOOM)
     loadElevationGrid({ range, signal: controller.signal, concurrency: 4 })
       .then(({ grid }) => {
-        if (!controller.signal.aborted) setSkylineGround({ id: image.id, source: grid })
+        if (!controller.signal.aborted) setSkylineGround({ id, source: grid })
       })
       .catch(() => {
         /* The skyline is a guide; without terrain it is simply not drawn. */
       })
     return () => controller.abort()
-  }, [image, match, skylineGround?.id])
+    // The centre is rebuilt each render; its id names it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skylineId, match === null, skylineGround?.id])
+
+  // A picked file's object URL lives as long as the photo is open.
+  const ownObjectUrl = own?.objectUrl ? own.src : null
+  useEffect(() => {
+    if (!ownObjectUrl) return
+    return () => URL.revokeObjectURL(ownObjectUrl)
+  }, [ownObjectUrl])
 
   // A 360° photo's pixels, to cut views from. Mapillary's image host allows
   // cross-origin reads, so the canvas stays readable.
@@ -241,7 +325,9 @@ export function useFieldPhoto({
           bearing: image.bearing + match.nudge.bearing,
           pitch: (image.isPano ? 0 : image.pitch) + match.nudge.pitch,
         }
-      : null
+      : own && match
+        ? { bearing: own.pose.bearing, pitch: own.pose.pitch }
+        : null
   const panoView =
     image?.isPano && look
       ? {
@@ -280,30 +366,59 @@ export function useFieldPhoto({
   }
 
   const fov = image ? photoFieldOfView(image) : null
-  const viewFov = image?.isPano ? PANO_VIEW_FOV : (fov?.vertical ?? null)
-  const station = result && onRoad ? nearestStation(result.stations, onRoad.distanceAlongMeters) : null
+  const ownFov = own
+    ? { horizontal: own.pose.hfov, vertical: verticalFovFromHorizontal(own.pose.hfov, own.width, own.height) }
+    : null
+  const viewFov = image?.isPano ? PANO_VIEW_FOV : (fov?.vertical ?? ownFov?.vertical ?? null)
+  const ownOnRoad = useMemo(
+    () =>
+      ownLng !== null && ownLat !== null && road.length ? nearestPointOnLine(road, { lng: ownLng, lat: ownLat }) : null,
+    [ownLng, ownLat, road],
+  )
+  const photoOnRoad = image ? onRoad : ownOnRoad
+  const station = result && photoOnRoad ? nearestStation(result.stations, photoOnRoad.distanceAlongMeters) : null
+
+  /** Whether the road view can stand where the own photo was taken: on loaded ground, within a walk of the road. */
+  const ownStand = useMemo<OwnStand | null>(() => {
+    if (!own) return null
+    if (ownLng === null || ownLat === null) return { status: 'no-position' }
+    const offRoadMeters = ownOnRoad?.offsetMeters ?? 0
+    if (!ownOnRoad || offRoadMeters > MAX_WALK_METERS) return { status: 'too-far', offRoadMeters }
+    const z = ground?.elevationAt(ownLng, ownLat)
+    // Before the road view's terrain is loaded there is nothing to check against yet.
+    if (ground && (z === undefined || !Number.isFinite(z))) return { status: 'no-terrain', offRoadMeters }
+    return { status: 'ok', offRoadMeters, alongMeters: ownOnRoad.distanceAlongMeters }
+  }, [own, ownLng, ownLat, ownOnRoad, ground])
 
   const drawing = useMemo<PhotoDrawing | null>(() => {
-    if (!image || !match) return null
-    const far = skylineGround?.id === image.id ? skylineGround.source : null
+    if ((!image && !own) || !match) return null
+    const far = skylineSource
     const groundAt = (lng: number, lat: number) => {
       const near = ground?.elevationAt(lng, lat)
       if (near !== undefined && Number.isFinite(near)) return near
       const coarse = far?.elevationAt(lng, lat)
       return coarse !== undefined && Number.isFinite(coarse) ? coarse : Number.NaN
     }
-    const base = groundAt(image.lng, image.lat)
-    if (!Number.isFinite(base)) return null
-    const at = { lng: image.lng, lat: image.lat, altitudeMeters: base + eyeHeightMeters }
-    const photo = image.isPano
-      ? panoView
-        ? panoViewPose(at, panoView)
-        : null
-      : photoPoseFor(image, base + eyeHeightMeters)
-    if (!photo) return null
-    const pose = image.isPano
-      ? photo
-      : { ...photo, bearing: photo.bearing + match.nudge.bearing, pitch: photo.pitch + match.nudge.pitch }
+    let pose: PhotoPose | null = null
+    if (image) {
+      const base = groundAt(image.lng, image.lat)
+      if (!Number.isFinite(base)) return null
+      const at = { lng: image.lng, lat: image.lat, altitudeMeters: base + eyeHeightMeters }
+      const photo = image.isPano
+        ? panoView
+          ? panoViewPose(at, panoView)
+          : null
+        : photoPoseFor(image, base + eyeHeightMeters)
+      if (!photo) return null
+      pose = image.isPano
+        ? photo
+        : { ...photo, bearing: photo.bearing + match.nudge.bearing, pitch: photo.pitch + match.nudge.pitch }
+    } else if (own && own.pose.lng !== null && own.pose.lat !== null) {
+      const base = groundAt(own.pose.lng, own.pose.lat)
+      if (!Number.isFinite(base)) return null
+      pose = ownPhotoPose({ ...own.pose, lng: own.pose.lng, lat: own.pose.lat }, base, own.width, own.height)
+    }
+    if (!pose) return null
     const skyline =
       far && match.showSkyline
         ? terrainSkyline(pose, far, { columns: 160, maxDistanceMeters: SKYLINE_RADIUS_METERS })
@@ -356,8 +471,9 @@ export function useFieldPhoto({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     image,
+    own,
     match,
-    skylineGround,
+    skylineSource,
     ground,
     eyeHeightMeters,
     scene.targets,
@@ -370,9 +486,9 @@ export function useFieldPhoto({
 
   /** Reads the photo's own skyline and searches heading and pitch to lay it on the terrain's. */
   const autoAlign = useCallback(async () => {
-    if (!image || !match || !drawing) return
-    const far = skylineGround?.id === image.id ? skylineGround.source : null
-    const src = image.thumbUrl
+    if ((!image && !own) || !match || !drawing) return
+    const far = skylineSource
+    const src = image ? image.thumbUrl : own!.src
     if (!far || !src) {
       setAlignment({ status: 'failed', fit: null, message: 'The skyline terrain is still loading.' })
       return
@@ -382,7 +498,7 @@ export function useFieldPhoto({
       // The photo's own pixels, or for a panorama the view cut from it; either
       // way in the frame `drawing.pose` describes.
       let pixels: { width: number; height: number; data: Uint8ClampedArray }
-      if (image.isPano) {
+      if (image?.isPano) {
         if (!panoFrame) throw new Error('the panorama is still loading')
         pixels = panoFrame
       } else {
@@ -423,10 +539,25 @@ export function useFieldPhoto({
         })
         return
       }
-      setMatch({
-        ...match,
-        nudge: { bearing: match.nudge.bearing + fit.nudge.bearing, pitch: match.nudge.pitch + fit.nudge.pitch },
-      })
+      if (image)
+        setMatch({
+          ...match,
+          nudge: { bearing: match.nudge.bearing + fit.nudge.bearing, pitch: match.nudge.pitch + fit.nudge.pitch },
+        })
+      else
+        setOwn((current) =>
+          current
+            ? {
+                ...current,
+                pose: {
+                  ...current.pose,
+                  bearing: normalizeHeading(current.pose.bearing + fit.nudge.bearing),
+                  pitch: current.pose.pitch + fit.nudge.pitch,
+                },
+                sources: { ...current.sources, heading: 'skyline', pitch: 'skyline' },
+              }
+            : current,
+        )
       setAlignment({ status: 'done', fit, message: null })
     } catch (error) {
       setAlignment({
@@ -435,7 +566,154 @@ export function useFieldPhoto({
         message: `Could not read the photo: ${error instanceof Error ? error.message : String(error)}`,
       })
     }
-  }, [image, match, drawing, skylineGround, panoFrame])
+  }, [image, own, match, drawing, skylineSource, panoFrame])
+
+  /** Opens the reviewer's own photo, read here and kept here, with its EXIF as the starting pose. */
+  const openOwnFile = useCallback(
+    async (file: File, roadView: RoadViewPose | null) => {
+      if (file.size > OWN_PHOTO_MAX_BYTES) {
+        setOwnStatus({ loading: false, error: 'Use a photo smaller than 25 MB.' })
+        return
+      }
+      setOwnStatus({ loading: true, error: null })
+      const src = URL.createObjectURL(file)
+      try {
+        let tags: Record<string, unknown> | null = null
+        try {
+          const exifr = await import('exifr')
+          tags = ((await exifr.parse(file, { translateValues: false })) as Record<string, unknown> | undefined) ?? null
+        } catch {
+          /* No readable EXIF: every value starts from the road view. */
+        }
+        const size = await decodeImage(src)
+        const exif = readExif(tags, size)
+        const start = startingPose({ exif, roadView, eyeHeightMeters })
+        abort.current?.abort()
+        setImage(null)
+        setMatch(null)
+        setAlignment({ status: 'idle', fit: null, message: null })
+        setOwn({
+          id: `own-${Date.now().toString(36)}`,
+          name: file.name.slice(0, 200),
+          src,
+          objectUrl: true,
+          ...size,
+          recordId: null,
+          exif,
+          pose: start.pose,
+          sources: start.sources,
+          start: { pose: start.pose, sources: start.sources },
+          headingReference: start.headingReference,
+          declinationEast: null,
+        })
+        setOwnStatus({ loading: false, error: null })
+      } catch (error) {
+        URL.revokeObjectURL(src)
+        setOwnStatus({
+          loading: false,
+          error: `Could not read the photo: ${error instanceof Error ? error.message : String(error)}`,
+        })
+      }
+    },
+    [eyeHeightMeters],
+  )
+
+  /** Opens a field record's stored photo, starting from the camera the record holds. */
+  const openOwnRecord = useCallback(
+    (record: FieldRecord, roadView: RoadViewPose | null) => {
+      const start = startingPose({ exif: null, record, roadView, eyeHeightMeters })
+      abort.current?.abort()
+      setImage(null)
+      setMatch(null)
+      setAlignment({ status: 'idle', fit: null, message: null })
+      setOwnStatus({ loading: false, error: null })
+      setOwn({
+        id: `record-${record.id}`,
+        name: record.name,
+        src: record.image,
+        objectUrl: false,
+        width: record.width,
+        height: record.height,
+        recordId: record.id,
+        exif: null,
+        pose: start.pose,
+        sources: start.sources,
+        start: { pose: start.pose, sources: start.sources },
+        headingReference: start.headingReference,
+        declinationEast: null,
+      })
+    },
+    [eyeHeightMeters],
+  )
+
+  /** The reviewer's change to the pose; each changed value is marked as theirs (or `source`). */
+  const setOwnPose = useCallback((patch: Partial<OwnPose>, source: PoseSource = 'reviewer') => {
+    setOwn((current) => {
+      if (!current) return current
+      const pose = { ...current.pose, ...patch }
+      if (patch.bearing !== undefined) pose.bearing = normalizeHeading(patch.bearing)
+      if (patch.hfov !== undefined) pose.hfov = clampFov(patch.hfov)
+      const sources = { ...current.sources }
+      if (patch.lng !== undefined || patch.lat !== undefined) sources.position = source
+      if (patch.bearing !== undefined) sources.heading = source
+      if (patch.pitch !== undefined) sources.pitch = source
+      if (patch.roll !== undefined) sources.roll = source
+      if (patch.hfov !== undefined) sources.fov = source
+      if (patch.eyeHeightMeters !== undefined) sources.eyeHeight = source
+      return { ...current, pose, sources }
+    })
+  }, [])
+
+  /** A declination for a magnetic EXIF heading: the heading becomes the recorded one plus it. */
+  const setDeclination = useCallback((declinationEast: number | null) => {
+    setOwn((current) => {
+      const recorded = current?.exif?.heading
+      if (!current || !recorded) return current
+      return {
+        ...current,
+        declinationEast,
+        pose: { ...current.pose, bearing: trueHeadingFromMagnetic(recorded.degrees, declinationEast ?? 0) },
+        sources: { ...current.sources, heading: 'exif' },
+      }
+    })
+  }, [])
+
+  /** Turns and tilts the compared view: the Mapillary photo's nudge, or the own photo's pose itself. */
+  const nudge = (bearing: number, pitch: number) => {
+    if (!match) return
+    if (image) {
+      setMatch({ ...match, nudge: { bearing: match.nudge.bearing + bearing, pitch: match.nudge.pitch + pitch } })
+      return
+    }
+    if (!own) return
+    setOwnPose({
+      ...(bearing ? { bearing: own.pose.bearing + bearing } : {}),
+      ...(pitch ? { pitch: own.pose.pitch + pitch } : {}),
+    })
+  }
+  const resetNudge = () => {
+    if (!match) return
+    if (image) setMatch({ ...match, nudge: { bearing: 0, pitch: 0 } })
+    else
+      setOwn((current) =>
+        current
+          ? {
+              ...current,
+              pose: { ...current.pose, bearing: current.start.pose.bearing, pitch: current.start.pose.pitch },
+              sources: {
+                ...current.sources,
+                heading: current.start.sources.heading,
+                pitch: current.start.sources.pitch,
+              },
+            }
+          : current,
+      )
+  }
+  const startOwnMatch = () => {
+    setAlignment({ status: 'idle', fit: null, message: null })
+    setMatch({ nudge: { bearing: 0, pitch: 0 }, opacity: 0.5, showSkyline: true, showBlock: true })
+  }
+  const comparingOwn = !!own && !!match && ownStand?.status === 'ok'
 
   return {
     alignment,
@@ -460,12 +738,31 @@ export function useFieldPhoto({
     onRoad,
     fov,
     drawing,
-    skylineReady: !!image && skylineGround?.id === image.id,
+    skylineReady: !!skylineSource,
+    own,
+    ownStatus,
+    ownFov,
+    ownOnRoad,
+    ownStand,
+    openOwnFile,
+    openOwnRecord,
+    setOwnPose,
+    setDeclination,
+    nudge,
+    resetNudge,
+    startOwnMatch,
+    /** Where the road view's eye stands while an own photo is compared; null on the road. */
+    standAt:
+      comparingOwn && own.pose.lng !== null && own.pose.lat !== null ? { lng: own.pose.lng, lat: own.pose.lat } : null,
+    /** The own photo's eye height while it is compared; the settings' otherwise. */
+    standEyeHeightMeters: comparingOwn ? own.pose.eyeHeightMeters : null,
     clear: () => {
       abort.current?.abort()
       setImage(null)
+      setOwn(null)
       setMatch(null)
       setStatus({ loading: false, error: null })
+      setOwnStatus({ loading: false, error: null })
     },
   }
 }

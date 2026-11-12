@@ -233,3 +233,23 @@ export function hazeRings(
   })
   return { type: 'FeatureCollection', features }
 }
+
+/** Compass bearing from one point to another, 0–360° clockwise from north, on a local flat earth. */
+export function bearingBetween(from: { lng: number; lat: number }, to: { lng: number; lat: number }): number {
+  const east = (to.lng - from.lng) * 111_320 * Math.cos((from.lat * Math.PI) / 180)
+  const north = (to.lat - from.lat) * 110_574
+  return ((Math.atan2(east, north) * 180) / Math.PI + 360) % 360
+}
+
+/** The point `meters` out from `origin` along a compass bearing, on a local flat earth. */
+export function pointAlongBearing(
+  origin: { lng: number; lat: number },
+  bearing: number,
+  meters: number,
+): { lng: number; lat: number } {
+  const radians = (bearing * Math.PI) / 180
+  return {
+    lng: origin.lng + (Math.sin(radians) * meters) / (111_320 * Math.cos((origin.lat * Math.PI) / 180)),
+    lat: origin.lat + (Math.cos(radians) * meters) / 110_574,
+  }
+}

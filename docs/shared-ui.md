@@ -470,8 +470,11 @@ track grows to the longest cell in any column.
 - Headline measurements beside a workspace: `MetricSummary` (`metric-summary.tsx`) is a titled stack
   of keyed `StatItem` rows (`MetricSummaryItem`), each hidden, value, or value and detail; a
   right-click or Shift+F10 on a row opens its settings, and on a small screen the heading collapses
-  it. `MetricSummaryLayout` puts it beside (`left`) or above (`top`) the views; `variant="pane"`
-  fills a tiled pane instead. `MetricSummarySettings` is the settings form for the tool's own frame
+  it. An optional `qualifier` ("perspective scale", "whole road") prints under the label and joins
+  it in the row's name (`metricName`), so keep labels short; a row's tooltip carries its name and,
+  while only its value shows, its note. `MetricSummaryLayout` puts it beside (`left`) or above
+  (`top`) the views; `variant="pane"` fills a tiled pane instead, as hairline-ruled cards of one
+  height whose labels wrap rather than truncate. `MetricSummarySettings` is the settings form for the tool's own frame
   (ribbon task pane, dialog), with `MetricSummaryReset` as its footer and `children` for a tool's
   own option; leave out `visibility`/`placement` where a preset decides them.
   `useMetricSummaryPreferences(storageKey, defaults, parse?)` keeps the choices on this device. The
@@ -508,12 +511,28 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
 
 ## Map overlays
 
+- Basemap and overlays: `MapLayersControl` (`map-layers-control.tsx`) is a
+  Layers button that opens a small panel on hover, tap or keyboard focus: a
+  radio list of `basemaps` (`basemap`, `onBasemapChange`) and a checkbox list
+  of `overlays` (`{ id, label, checked, onCheckedChange, description? }`), plus
+  any `children`. Put it inside `MapControls` as a child, which stacks it under
+  the zoom, compass and fullscreen buttons and opens the panel towards the
+  map's middle (`MapControls` now takes `children`). The control only reports
+  choices; the page applies them, as a `styles` swap or, where a `setStyle`
+  would drop layers, as a raster layer under the labels. Escape or a press
+  outside closes it. Clickable legend rows (`LegendItem` `onClick` + `active`)
+  stay the place to hide what the page itself draws.
+
 - Chart/panel expansion: `FullscreenPanel` provides a titled frame and full-window
   expansion button; its render child receives the fullscreen state for layout.
   Opt into `compact` for a single-row header with smaller chrome and truncated
   long titles. `FullscreenButton` also accepts `compact` for a 32px icon button.
   `useElementFullscreen` and `FullscreenButton` support an existing dashboard
   frame. The content stays mounted; Escape or the exit button restores it.
+
+- `MapFillLayer` accepts `interactive={false}` (fixed at mount), as
+  `MapLineLayer` does: no click or hover listeners. Use it for drawn-only fills
+  on a 3D-terrain map, where each hover query is a synchronous GPU readback.
 
 - `MapCircleLayer` accepts `hoverEnabled={false}` to dismiss and suspend hover
   cards during marker dragging or another external interaction. Normal hovering
