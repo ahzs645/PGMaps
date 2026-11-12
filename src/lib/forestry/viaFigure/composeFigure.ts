@@ -11,13 +11,25 @@
  * ("units of area measured in pixels"). The page's sightline figure is printed beside the pixel one
  * and stays the assessment's number. No DOM or network access: images arrive as data.
  */
-import { calloutOps, calloutSize, leaderOps, lineHeight, placeClear, textOps, type Box } from '@/lib/mapSheet/callouts'
+import {
+  calloutOps,
+  calloutText,
+  labelOps,
+  lineHeight,
+  placeClear,
+  textOps,
+  type Box,
+  type LabelStyleId,
+  type SheetTextStyle,
+} from '@/lib/mapSheet/callouts'
 import { gridContours } from '@/lib/mapSheet/contours'
 import { rectRing, type DrawOp, type Point, type RasterImage, type StrokeStyle } from '@/lib/mapSheet/drawOps'
 import { areaSymbolOps, lineSymbolOps, swatchOps, type SheetSymbol } from '@/lib/mapSheet/symbols'
 import { fitText, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
+import { cameraInfoLines, type CameraInfo } from './cameraInfo'
 import {
   legendEntries,
+  VQO_ZONE_ROLES,
   type CalloutStyle,
   type LegendStyle,
   type TextStyle,
@@ -77,12 +89,17 @@ export const CLASS_MATCH_DISTANCE = 30
  * near one palette colour takes its class; one between colours (a blended edge) takes the most
  * common class of its resolved neighbours, and only failing that its nearest colour.
  */
-export function decodeClassRaster(rgba: ArrayLike<number>, width: number, height: number): ClassRaster {
+export function decodeClassRaster(
+  rgba: ArrayLike<number>,
+  width: number,
+  height: number,
+  palette: ReadonlyArray<{ code: number; rgb: readonly number[] }> = (
+    Object.entries(CLASS_PALETTE) as Array<[Exclude<FigureClass, 'sky'>, readonly number[]]>
+  ).map(([name, rgb]) => ({ code: FIGURE_CLASS[name], rgb })),
+): ClassRaster {
   const n = width * height
   if (rgba.length < n * 4) throw new Error('The class pass is smaller than its stated size.')
-  const entries = (Object.entries(CLASS_PALETTE) as Array<[Exclude<FigureClass, 'sky'>, readonly number[]]>).map(
-    ([name, rgb]) => ({ code: FIGURE_CLASS[name], rgb }),
-  )
+  const entries = palette
   const UNRESOLVED = 255
   const codes = new Uint8Array(n)
   const nearest = new Uint8Array(n)
@@ -129,6 +146,23 @@ export function decodeClassRaster(rgba: ArrayLike<number>, width: number, height
   for (let k = 0; k < n; k++) if (codes[k] === UNRESOLVED) codes[k] = nearest[k]
   return { width, height, codes }
 }
+
+/**
+ * The VQO zone pass: each established objective's polygons in a flat colour, terrain else, sky
+ * clear. Codes 1–5 are P, R, PR, M, MM (`VQO_ZONE_ROLES` order), 6 other terrain, 0 sky.
+ */
+export const ZONE_PALETTE: ReadonlyArray<{ code: number; rgb: readonly [number, number, number] }> = [
+  { code: 1, rgb: [255, 0, 0] },
+  { code: 2, rgb: [0, 0, 255] },
+  { code: 3, rgb: [255, 230, 0] },
+  { code: 4, rgb: [0, 200, 0] },
+  { code: 5, rgb: [200, 0, 200] },
+  { code: 6, rgb: [96, 96, 96] },
+]
+export const zoneColor = (code: number) =>
+  `#${ZONE_PALETTE.find((entry) => entry.code === code)!
+    .rgb.map((v) => v.toString(16).padStart(2, '0'))
+    .join('')}`
 
 const IN_LANDFORM = new Set<number>([
   FIGURE_CLASS.landform,
@@ -301,6 +335,15 @@ export interface Overlay {
 }
 
 /** The traced outline of every role the preset draws and the class pass holds, landform first. */
+/** Each VQO zone the preset tints and the zone pass holds, traced to rings. */
+export function zoneOverlays(preset: ViaStylePreset, zones: ClassRaster): Overlay[] {
+  return VQO_ZONE_ROLES.flatMap(([role], i) => {
+    if (!preset.symbols[role]) return []
+    const parts = maskRings(zones, (code) => code === i + 1, 20)
+    return parts.length ? [{ role, parts }] : []
+  })
+}
+
 export function roleOverlays(preset: ViaStylePreset, raster: ClassRaster): Overlay[] {
   const order: ViaRole[] = ['landform', 'rockNonVeg', 'privateLand', 'existingNonVeg', 'treatedGround', 'proposedBlock']
   return order.flatMap((role) => {
@@ -556,6 +599,8 @@ export interface FigureCallout {
   anchor: Point
   /** Highlight it (the board triptych's yellow focus box). */
   focus?: boolean
+  /** A secondary feature (an existing opening): smaller and plainer in the boxless styles. */
+  secondary?: boolean
 }
 
 /** Gap kept between a callout box and the skyline above its anchor, points. */
@@ -584,7 +629,7 @@ export function layoutCallouts(
   let dropped = 0
   for (const callout of [...callouts].sort((a, b) => a.anchor[0] - b.anchor[0])) {
     const anchor = P(callout.anchor)
-    const { w, h } = calloutSize(style, callout.title, callout.body)
+    const { w, h } = calloutText(style, callout.title, callout.body, Math.max(60, frame.w * MAX_LABEL_WIDTH_SHARE))
     const ceiling = raster ? P([callout.anchor[0], skylineRow(raster, callout.anchor[0])])[1] : anchor[1]
     const lean = style.pointer.kind === 'wedge' ? w * 0.35 : 0
     const x = anchor[0] - w / 2 - lean
@@ -623,6 +668,7 @@ export function figureCalloutOps(
       callout.title,
       callout.body,
       callout.focus && style.focus ? { box: style.focus.box, leader: style.focus.leader } : {},
+      calloutText(style, callout.title, callout.body, Math.max(60, frame.w * MAX_LABEL_WIDTH_SHARE)),
     ),
   )
 }
@@ -642,6 +688,14 @@ export interface FigureInput {
    * where they fall on the landform: `visibleLineParts`.
    */
   lines?: readonly Overlay[]
+  /** How features are named; the preset's own style when absent. */
+  labelStyle?: LabelStyleId
+  /** The VQO zone pass of the same camera (`ZONE_PALETTE` codes), when EVQO polygons were loaded. */
+  zones?: ClassRaster | null
+  /** What the camera information block prints; null when unknown. */
+  camera?: CameraInfo | null
+  /** Print the camera information block on the image; the preset's own choice when absent. */
+  cameraInfo?: boolean
   /** The page's sightline alteration at this station, percent: the assessment's figure. */
   sightlinePercent: number | null
   /** Its Table 2 class name, if any. */
@@ -651,8 +705,8 @@ export interface FigureInput {
   hfovDeg?: number | null
   /** Caption of the camera: lens, field of view, bearing. */
   lens: string
-  /** Title fields: `{area}`, `{viewpoint}`, `{n}`, `{licence}`. */
-  titles: { area: string; viewpoint: string; n?: string; licence?: string }
+  /** Title fields: `{area}`, `{viewpoint}`, `{n}`, `{licence}`, `{blocks}`. */
+  titles: { area: string; viewpoint: string; n?: string; licence?: string; blocks?: string }
   /** Footer facts, label and value. */
   facts: ReadonlyArray<{ label: string; value: string }>
   /** Rating code of the landform's sensitivity unit, when the inventory gives one. */
@@ -725,7 +779,11 @@ export function presetPercent(preset: ViaStylePreset, counts: FigureCounts | nul
 function figurePanel(input: FigureInput, frame: Frame, calloutArea?: Box) {
   const { preset } = input
   const ops: DrawOp[] = [{ op: 'image', ...frame, image: tonedImage(input.image, preset.tone) }]
-  const overlays = [...(input.classes ? roleOverlays(preset, input.classes) : []), ...(input.lines ?? [])]
+  const overlays = [
+    ...(input.zones ? zoneOverlays(preset, input.zones) : []),
+    ...(input.classes ? roleOverlays(preset, input.classes) : []),
+    ...(input.lines ?? []),
+  ]
   const { ops: drawnOps, drawn } = overlayOps(preset, overlays, frame)
   ops.push(...drawnOps)
   const centroid = input.classes ? landformCentroid(input.classes) : null
@@ -740,26 +798,79 @@ function figurePanel(input: FigureInput, frame: Frame, calloutArea?: Box) {
         if (!/\{\w+\}/.test(text)) ops.push(...textOps(x, y + (i + 1) * lineHeight(rating), text, rating, 'center'))
       })
   }
-  if (preset.callout && input.callouts.length)
-    ops.push(...figureCalloutOps(input.callouts, preset.callout, frame, input.classes, calloutArea))
-  else if (preset.labels?.block && input.callouts.length) {
-    // Bare labels with leaders (no box): each above its anchor.
-    const style = preset.labels.block
-    const P = toPage(frame)
-    const placed: Box[] = []
-    for (const callout of input.callouts) {
-      const anchor = P(callout.anchor)
-      const w = textWidth(callout.title, style.size, style.style ?? 'normal') + 4
-      const box = placeClear({ x: anchor[0] - w / 2, y: anchor[1] - 40, w, h: style.size * 1.3 }, placed, frame)
-      if (!box) continue
-      placed.push(box)
-      if (style.box) ops.push(...areaSymbolOps([rectRing(box.x - 2, box.y - 1, box.w + 4, box.h + 2)], style.box, 1))
-      if (style.leader) ops.push(...leaderOps([box.x + box.w / 2, box.y + box.h], anchor, style.leader, 2))
-      ops.push(...textOps(box.x + box.w / 2, box.y + style.size, callout.title, style, 'center'))
-    }
-  }
+  const placedLabels = input.callouts.length
+    ? figureLabelOps(input, frame, calloutArea ?? { x: frame.x + 4, y: frame.y + 4, w: frame.w - 8, h: frame.h - 8 })
+    : { ops: [], key: [] }
+  ops.push(...placedLabels.ops)
+  if ((input.cameraInfo ?? preset.cameraInfo ?? false) && input.camera) ops.push(...cameraInfoOps(input.camera, frame))
   ops.push(rectStroke(frame, { color: '#bfbfbf', width: 0.4 }))
-  return { ops, drawn }
+  return { ops, drawn, key: placedLabels.key }
+}
+
+/** The camera information block, white text with a dark halo, at the image's bottom left. */
+export function cameraInfoOps(camera: CameraInfo, frame: Frame): DrawOp[] {
+  const lines = cameraInfoLines(camera)
+  const size = Math.max(5, Math.min(7.5, frame.h / 16))
+  const style: SheetTextStyle = { size, color: '#ffffff', halo: { color: '#1f2937', width: size * 0.22 } }
+  const bottom = frame.y + frame.h - 6
+  return lines.flatMap((line, i) =>
+    textOps(frame.x + 6, bottom - (lines.length - 1 - i) * size * 1.25, fitText(line, size, frame.w - 12), style),
+  )
+}
+
+/** The label style a figure uses: the one asked for, else the preset's own. */
+export function figureLabelStyle(input: Pick<FigureInput, 'preset' | 'labelStyle'>): LabelStyleId {
+  return input.labelStyle ?? input.preset.labelStyle ?? (input.preset.callout ? 'box' : 'halo')
+}
+
+/** Widest a label may be, as a share of the image's width on the page. */
+export const MAX_LABEL_WIDTH_SHARE = 0.28
+
+/** The figure's labels in its label style (`labelOps`), above the skyline the class pass gives. */
+export function figureLabelOps(input: FigureInput, frame: Frame, area: Box) {
+  const P = toPage(frame)
+  const raster = input.classes
+  const style = figureLabelStyle(input)
+  const block = input.preset.labels?.block
+  const text: SheetTextStyle | undefined = block
+    ? {
+        size: block.size,
+        color: block.color,
+        ...(block.style ? { style: block.style } : {}),
+        halo: block.halo ?? { color: block.color.toLowerCase() === '#ffffff' ? '#000000' : '#ffffff', width: 1.8 },
+      }
+    : undefined
+  return labelOps(
+    input.callouts.map((callout) => ({ ...callout, anchor: P(callout.anchor) })),
+    {
+      style,
+      area,
+      maxWidth: Math.max(60, frame.w * MAX_LABEL_WIDTH_SHARE),
+      ...(raster
+        ? {
+            ceilingAt: (x: number) =>
+              frame.y +
+              skylineRow(raster, Math.max(0, Math.min(raster.width - 1, (x - frame.x) / frame.scale))) * frame.scale,
+          }
+        : {}),
+      gap: input.preset.callout?.placement === 'above-skyline' || !input.preset.callout ? CALLOUT_SKY_GAP : 20,
+      ...(input.preset.callout ? { box: input.preset.callout } : {}),
+      ...(text ? { text } : {}),
+      ...(block?.leader ? { leader: block.leader } : {}),
+    },
+  )
+}
+
+/** A numbered style's key, as lines of text from `y` down in `box`. */
+function labelKeyOps(key: ReadonlyArray<{ n: number; text: string }>, box: Box, y: number): DrawOp[] {
+  const ops: DrawOp[] = []
+  const size = 7
+  for (const entry of key) {
+    if (y > box.y + box.h - 2) break
+    ops.push(...textOps(box.x + 6, y, fitText(`${entry.n}  ${entry.text}`, size, box.w - 12), { size, color: BLACK }))
+    y += size * 1.3
+  }
+  return ops
 }
 
 /** The calculation lines, bold where a line starts with `**`, then PGMaps' own figures beside them. */
@@ -941,8 +1052,15 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
     ops.push(
       ...textOps(calcCell.x + 10.8, calcCell.y + calcCell.h - 4.6, preset.calc.footnote.text, preset.calc.footnote),
     )
-  // Legend.
-  ops.push(...legendOps(preset, panel.drawn, cell('legend')))
+  // Legend, and a numbered style's key under it.
+  const legendCell = cell('legend')
+  ops.push(...legendOps(preset, panel.drawn, legendCell))
+  if (panel.key.length) {
+    const rows = legendEntries(preset, panel.drawn).length
+    const top =
+      legendCell.y + 4 + (preset.legend.title ? preset.legend.title.size * 2 : 0) + rows * preset.legend.rowPitch + 10
+    ops.push(...labelKeyOps(panel.key, legendCell, top))
+  }
   ops.push(...textOps(W / 2, H - 4, footerLine(preset, input.generatedAt), FOOTER, 'center'))
   return { width: W, height: H, ops, frame, drawn: [...panel.drawn], counts, notes: notesFor(input, panel.drawn) }
 }
@@ -1003,6 +1121,10 @@ export function analysedFigure(input: FigureInput, width = 612): ComposedFigure 
   ops.push(rectStroke(frame, { color: BLACK, width: 1.2 }))
   const counts = input.classes ? countClasses(input.classes) : null
   let y = frame.y + frame.h + 18
+  if (panel.key.length) {
+    ops.push(...labelKeyOps(panel.key, { x: margin, y, w: width - margin * 2, h: panel.key.length * 9.1 + 4 }, y))
+    y += panel.key.length * 9.1 + 8
+  }
   const calc = calcOps(input, counts, width / 2, y, 'center')
   ops.push(...calc.ops)
   y = calc.bottom + 6
@@ -1016,8 +1138,55 @@ export function analysedFigure(input: FigureInput, width = 612): ComposedFigure 
 }
 
 /** The sheet a preset prints on: the analysis sheet for family A, the analysed figure otherwise. */
+/**
+ * The perspective view with everything on the image (family I): the picture fills a tabloid page,
+ * the title sits in its sky at top centre, the legend panel at its top left, the camera block at
+ * its bottom left, and PGMaps' two figures in a line under it.
+ */
+export function overlaySheet(input: FigureInput): ComposedFigure {
+  const { preset } = input
+  const W = 1224,
+    margin = 18
+  // Fitted to the width and set at the top: a wide view leaves no band of white above it.
+  const fitted = fitFrame(input.image, { x: margin, y: margin, w: W - margin * 2, h: 792 - margin * 2 - 40 })
+  const frame = { ...fitted, y: margin }
+  const panel = figurePanel({ ...input, cameraInfo: input.cameraInfo ?? preset.cameraInfo ?? true }, frame)
+  const ops: DrawOp[] = [...panel.ops]
+  let ty = frame.y + 10
+  for (const line of preset.titles?.lines ?? []) {
+    const text = fillTemplate(line.text, { ...input.titles, n: input.titles.n ?? '1' })
+    if (/\{\w+\}/.test(text) || !text.trim()) continue
+    ty += line.size * 1.2
+    ops.push(...textOps(frame.x + frame.w / 2, ty, text, line, 'center'))
+  }
+  ops.push(...legendOps(preset, panel.drawn, { x: frame.x + 8, y: frame.y + 8, w: frame.w / 3, h: frame.h / 2 }))
+  if (panel.key.length)
+    ops.push(
+      ...labelKeyOps(panel.key, { x: frame.x, y: frame.y + frame.h + 6, w: frame.w, h: 30 }, frame.y + frame.h + 14),
+    )
+  const counts = input.classes ? countClasses(input.classes) : null
+  const height = Math.ceil(frame.y + frame.h + 18 + (panel.key.length ? panel.key.length * 9.1 + 4 : 0) + 30)
+  let y = height - 26
+  ops.push(
+    ...textOps(
+      W / 2,
+      y,
+      measureLines(input, counts).slice(0, 2).join('   ·   '),
+      { size: 8, color: '#1d4ed8' },
+      'center',
+    ),
+  )
+  y += 12
+  ops.push(...textOps(W / 2, y, footerLine(preset, input.generatedAt), FOOTER, 'center'))
+  return { width: W, height, ops, frame, drawn: [...panel.drawn], counts, notes: notesFor(input, panel.drawn) }
+}
+
 export const composeFigure = (input: FigureInput): ComposedFigure =>
-  input.preset.family === 'A' && input.preset.sheet?.cells ? analysisSheet(input) : analysedFigure(input)
+  input.preset.family === 'A' && input.preset.sheet?.cells
+    ? analysisSheet(input)
+    : input.preset.family === 'I'
+      ? overlaySheet(input)
+      : analysedFigure(input)
 
 function notesFor(input: FigureInput, drawn: ReadonlySet<ViaRole>): string[] {
   const notes: string[] = []

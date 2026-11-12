@@ -8,12 +8,16 @@ import { downloadBlob } from '@/lib/download'
 import {
   analysedFigure,
   composeFigure,
+  cropRasterRows,
+  figureLabelStyle,
   type ClassRaster,
   type ComposedFigure,
   type FigureInput,
   type Overlay,
 } from '@/lib/forestry/viaFigure/composeFigure'
 import { findPreset, VIA_STYLE_PRESETS, type ViaStylePreset } from '@/lib/forestry/viaFigure/presets'
+import type { CameraInfo } from '@/lib/forestry/viaFigure/cameraInfo'
+import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
 import { encodeSheetImages } from '@/lib/mapSheet/png'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
@@ -21,6 +25,7 @@ import { svgDataUrl } from '@/lib/mapSheet/symbolSvg'
 
 import type { NoteImage } from './blockNote'
 import type { BlockCallout } from './figureCallouts'
+import { cropImageRows } from './mapCapture'
 
 /** What a saved view's VIA figure is composed from, kept with its screenshot for the session. */
 export type SavedFigure = {
@@ -50,6 +55,27 @@ export type SavedFigure = {
   splitFailed: boolean
   /** Sub-landform dividers and lines of force (candidates), projected and cut to the landform. */
   lines?: Overlay[]
+  /** The VQO zone pass of the same frames, when EVQO polygons were loaded. */
+  zones?: ClassRaster
+  /**
+   * The landform's rows (`landformCropRows`): applied at export by styles that crop to the
+   * landform, so one saved view serves a strip and a full frame with the title in its sky.
+   */
+  crop?: { y: number; height: number }
+  /** What the camera information block prints. */
+  camera?: CameraInfo
+}
+
+/** How an export names features and whether it prints the camera block; the style's own when absent. */
+export type FigureOptions = { labelStyle?: LabelStyleId | null; cameraInfo?: boolean | null }
+
+/** A callout moved into a crop's rows, or null when it falls outside them. */
+function shiftCallout<T extends { anchor: [number, number] }>(
+  callout: T,
+  crop: { y: number; height: number },
+): T | null {
+  const y = callout.anchor[1] - crop.y
+  return y >= 0 && y < crop.height ? { ...callout, anchor: [callout.anchor[0], y] } : null
 }
 
 export type FigureView = { id: string; name: string; image: (NoteImage & { figure?: SavedFigure }) | undefined }
@@ -83,26 +109,54 @@ export async function figureInput(
   screenshot: NoteImage,
   figure: SavedFigure | undefined,
   preset: ViaStylePreset,
+  options: FigureOptions = {},
 ): Promise<FigureInput> {
-  // The framed view when the figure has one, with the screenshot's caption.
-  const image = figure?.frameImage ? { ...figure.frameImage, caption: screenshot.caption } : screenshot
+  // The framed view when the figure has one, with the screenshot's caption; cropped to the landform
+  // (the same rows of the picture, the class and zone passes, the callouts and lines) unless the
+  // style keeps its sky.
+  let image = figure?.frameImage ? { ...figure.frameImage, caption: screenshot.caption } : screenshot
+  const crop = figure?.frameImage && figure.crop && preset.cropToLandform !== false ? figure.crop : null
+  if (crop) image = { ...(await cropImageRows(image, crop)), caption: image.caption }
+  const callouts = (figure?.callouts ?? []).flatMap((callout) => {
+    const moved = crop ? shiftCallout(callout, crop) : callout
+    return moved ? [moved] : []
+  })
+  const lines = (figure?.lines ?? []).flatMap((line) => {
+    if (!crop) return [line]
+    const parts = line.parts
+      .map((part) =>
+        part
+          .filter(([, y]) => y >= crop.y && y < crop.y + crop.height)
+          .map(([x, y]) => [x, y - crop.y] as [number, number]),
+      )
+      .filter((part) => part.length > 1)
+    return parts.length ? [{ ...line, parts }] : []
+  })
   return {
+    ...(options.labelStyle ? { labelStyle: options.labelStyle } : {}),
+    ...(options.cameraInfo != null ? { cameraInfo: options.cameraInfo } : {}),
+    zones: figure?.zones ? (crop ? cropRasterRows(figure.zones, crop) : figure.zones) : null,
+    camera: figure?.camera ?? null,
     preset,
     image:
       preset.tone === 'greyscale'
         ? await decodedImage(image)
         : { kind: 'url', url: image.dataUrl, format: 'JPEG', width: image.width, height: image.height },
-    classes: figure?.classes ?? null,
-    callouts: figure?.callouts ?? [],
-    lines: figure?.lines ?? [],
+    classes: figure?.classes ? (crop ? cropRasterRows(figure.classes, crop) : figure.classes) : null,
+    callouts,
+    lines,
     sightlinePercent: figure?.sightlinePercent ?? null,
     sightlineClass: figure?.sightlineClass ?? null,
-    lens: figure?.lens ?? image.caption,
+    lens: figure ? `${figure.lens}${crop ? ', cropped to the landform' : ''}` : image.caption,
     distanceKm: figure?.distanceKm ?? null,
     hfovDeg: figure?.hfovDeg ?? null,
     titles: {
       area: figure?.area ?? 'Landform',
       viewpoint: figure?.viewpoint ?? image.caption.replace(/\.$/, ''),
+      blocks: (figure?.callouts ?? [])
+        .filter((callout) => !callout.secondary)
+        .map((callout) => callout.title)
+        .join(', '),
       n: '1',
     },
     facts: figure?.facts ?? [],
@@ -136,9 +190,10 @@ async function figurePdf(figure: ComposedFigure): Promise<Blob> {
 export async function figureNoteImage(
   image: NoteImage & { figure?: SavedFigure },
   styleId: string,
+  options: FigureOptions = {},
 ): Promise<NoteImage> {
   const preset = findPreset(styleId) ?? findPreset(DEFAULT_FIGURE_STYLE)!
-  const figure = analysedFigure(await figureInput(image, image.figure, preset))
+  const figure = analysedFigure(await figureInput(image, image.figure, preset, options))
   const blob = await figurePng(figure)
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -169,12 +224,15 @@ const safeName = (text: string) =>
 export function FigureSheetPanel({
   views,
   styleId,
+  labelStyleId = null,
   noteFigures,
   onNoteFiguresChange,
 }: {
   views: readonly FigureView[]
   /** The road view's figure style, the starting choice here. */
   styleId: string | null
+  /** The road view's label style; the figure style's own when null. */
+  labelStyleId?: LabelStyleId | null
   /** Whether the block note uses each view's figure instead of its screenshot. */
   noteFigures: boolean
   onNoteFiguresChange: (on: boolean) => void
@@ -185,14 +243,19 @@ export function FigureSheetPanel({
   const style = chosenStyle ?? styleId ?? DEFAULT_FIGURE_STYLE
   const preset = findPreset(style) ?? findPreset(DEFAULT_FIGURE_STYLE)!
   const view = ready.find((entry) => entry.id === viewId) ?? ready.at(-1)
+  const [chosenLabels, setChosenLabels] = useState<LabelStyleId | null>(null)
+  const labelStyle = chosenLabels ?? labelStyleId ?? figureLabelStyle({ preset })
+  const [chosenCameraInfo, setChosenCameraInfo] = useState<boolean | null>(null)
+  const cameraInfo = chosenCameraInfo ?? preset.cameraInfo ?? false
+  const options: FigureOptions = { labelStyle, cameraInfo }
   const [busy, setBusy] = useState<'pdf' | 'png' | 'preview' | null>(null)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState<{ key: string; src: string; notes: string[] } | null>(null)
-  const key = view ? `${view.id}:${preset.id}:${view.image?.figure ? 'f' : 'n'}` : ''
+  const key = view ? `${view.id}:${preset.id}:${labelStyle}:${cameraInfo}:${view.image?.figure ? 'f' : 'n'}` : ''
   const shown = preview?.key === key ? preview : null
   useEffect(() => setError(''), [key])
 
-  const compose = async () => composeFigure(await figureInput(view!.image!, view!.image!.figure, preset))
+  const compose = async () => composeFigure(await figureInput(view!.image!, view!.image!.figure, preset, options))
   const run = async (kind: 'pdf' | 'png' | 'preview') => {
     if (!view?.image) return
     setBusy(kind)
@@ -253,6 +316,22 @@ export function FigureSheetPanel({
           ))}
         </StyledSelect>
       </label>
+      <label className="block">
+        <span className="mb-1 block text-2xs font-medium text-muted-foreground">Label style</span>
+        <StyledSelect
+          aria-label="Analysis sheet label style"
+          className="w-full"
+          value={labelStyle}
+          onChange={(event) => setChosenLabels(event.target.value as LabelStyleId)}
+        >
+          {LABEL_STYLES.map((entry) => (
+            <option key={entry.id} value={entry.id}>
+              {entry.name}
+            </option>
+          ))}
+        </StyledSelect>
+      </label>
+      <CheckboxField label="Camera info on image" checked={cameraInfo} onCheckedChange={setChosenCameraInfo} />
       {view && !view.image?.figure && (
         <InlineAlert>
           This view was saved without a class pass, so the sheet has no traced outlines or pixel figure. Save the view

@@ -46,3 +46,15 @@ describe('class pass layers', () => {
     expect(layers.find((l) => l.id === 'rock')!.data.features).toHaveLength(1)
   })
 })
+
+describe('the zone pass', () => {
+  it('paints each established objective in its zone colour', async () => {
+    const { zonePassLayers } = await import('./figureClassPass')
+    const { zoneColor } = await import('@/lib/forestry/viaFigure/composeFigure')
+    const feature = (code: string): GeoJSON.Feature => ({ type: 'Feature', properties: { code }, geometry: LANDFORM })
+    const layers = zonePassLayers({ type: 'FeatureCollection', features: [feature('PR'), feature('R'), feature('PR')] })
+    expect(layers.map((l) => l.id)).toEqual(['zone-R', 'zone-PR'])
+    expect(layers[1].color).toBe(zoneColor(3))
+    expect(layers[1].data.features).toHaveLength(2)
+  })
+})

@@ -14,7 +14,7 @@
  * Names are generic: no company names, logos or wording that claims to be the original, and no
  * title-block artwork (the logo slot is the user's). No DOM or network access.
  */
-import type { LeaderStyle, SheetTextStyle } from '@/lib/mapSheet/callouts'
+import type { LabelStyleId, LeaderStyle, SheetTextStyle } from '@/lib/mapSheet/callouts'
 import type { StrokeStyle } from '@/lib/mapSheet/drawOps'
 import type { AreaSymbol, LineSymbol, SheetSymbol } from '@/lib/mapSheet/symbols'
 
@@ -37,6 +37,20 @@ export type ViaRole =
   | 'areaOfAlteration'
   | 'neighbouringWoodland'
   | 'measureGrid'
+  | 'vqoPreservation'
+  | 'vqoRetention'
+  | 'vqoPartialRetention'
+  | 'vqoModification'
+  | 'vqoMaximumModification'
+
+/** The VQO zone roles, in class order, with the inventory code each draws. */
+export const VQO_ZONE_ROLES = [
+  ['vqoPreservation', 'P'],
+  ['vqoRetention', 'R'],
+  ['vqoPartialRetention', 'PR'],
+  ['vqoModification', 'M'],
+  ['vqoMaximumModification', 'MM'],
+] as const satisfies ReadonlyArray<readonly [ViaRole, string]>
 
 /** Type on a figure: size in points, optional halo and underline (`src/lib/mapSheet/callouts.ts`). */
 export type TextStyle = SheetTextStyle
@@ -112,7 +126,7 @@ export interface Entry<S extends SheetSymbol = SheetSymbol> {
 export interface ViaStylePreset {
   id: string
   name: string
-  family: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H'
+  family: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
   /** Reference documents by number, with page and crop id. */
   sources: string[]
   /** How the base image is toned before symbols go on. */
@@ -139,6 +153,12 @@ export interface ViaStylePreset {
   legend: LegendStyle
   panelLabels?: PanelLabelStyle
   calc?: CalcBlockStyle
+  /** How the figure names its features by default (`labelOps`); the reviewer may pick another. */
+  labelStyle?: LabelStyleId
+  /** Print the camera information block on the image (handbook Appendix 7) by default. */
+  cameraInfo?: boolean
+  /** Crop the framed strip to the landform; false keeps the sky (a title drawn in it). Default true. */
+  cropToLandform?: boolean
   /** Footer facts (A sheets: viewpoint, location, distance), bold italic in the originals. */
   facts?: TextStyle
   /** Title block text (A sheets) or figure title (B/D/E). */
@@ -1031,6 +1051,92 @@ export const EXTRAS: ViaStylePreset = {
   gaps: ['Values sampled from JPEG crops, so colours are ±10 per channel.'],
 }
 
+// ---------------------------------------------------------------- family I: perspective view, text on the image
+
+const zone = (label: string, fill: string, code: string): Entry => ({
+  symbol: { kind: 'area', label, fill, fillOpacity: 0.14, outline: [{ color: fill, width: 0.5, opacity: 0.5 }] },
+  spec: `${code}: a subtle tint over the terrain, 14 % opacity, hairline edge (structure of a licensee's perspective view render, November 2026; colours PGMaps' own)`,
+  data: {
+    source: `EVQO polygons coded ${code} (REC_VISUAL_LANDSCAPE_INVENTORY, live WFS), traced from their own class pass`,
+  },
+})
+
+/**
+ * A perspective view with everything on the image: the title in the sky, a VQO legend panel and the
+ * camera information block over the picture, underlined labels above the skyline. Modelled on the
+ * structure of a licensee's perspective view render supplied for review (no logos or names).
+ */
+export const PERSPECTIVE_OVERLAY: ViaStylePreset = {
+  id: 'perspective-overlay',
+  name: 'Perspective view · overlay text',
+  family: 'I',
+  sources: [
+    '27, a licensee perspective view render supplied for review (structure only: title in the sky, VQO legend panel, camera information block, underlined labels)',
+  ],
+  tone: 'colour',
+  labelStyle: 'underlined',
+  cameraInfo: true,
+  cropToLandform: false,
+  symbols: {
+    vqoPreservation: zone('Preservation (P)', '#7f1d1d', 'P'),
+    vqoRetention: zone('Retention (R)', '#2563eb', 'R'),
+    vqoPartialRetention: zone('Partial Retention (PR)', '#a16207', 'PR'),
+    vqoModification: zone('Modification (M)', '#0d9488', 'M'),
+    vqoMaximumModification: zone('Maximum Modification (MM)', '#64748b', 'MM'),
+    proposedBlock: {
+      symbol: fillArea('Proposed block', '#e3c35a', 0.92),
+      spec: 'Proposed blocks filled yellow-tan over the render, no outline (structure of the reference render)',
+      data: { source: 'Proposed blocks, visible part' },
+    },
+    existingNonVeg: {
+      symbol: fillArea('Existing opening', '#e8dcb8', 0.85),
+      spec: 'Other blocks and existing openings in a paler tan (structure of the reference render)',
+      data: { source: 'Existing openings still counting' },
+    },
+  },
+  legend: {
+    where: 'inset-top-left',
+    title: { text: 'Visual Quality Objective Legend', size: 8, style: 'bold', color: BLACK },
+    entry: { size: 7, color: BLACK },
+    swatch: { w: 18, h: 9, gap: 4 },
+    rowPitch: 12,
+    box: {
+      kind: 'area',
+      label: 'Legend panel',
+      fill: WHITE,
+      fillOpacity: 0.85,
+      outline: [{ color: '#7f7f7f', width: 0.5 }],
+    },
+    order: [
+      { role: 'vqoPreservation', label: 'Preservation (P)' },
+      { role: 'vqoRetention', label: 'Retention (R)' },
+      { role: 'vqoPartialRetention', label: 'Partial Retention (PR)' },
+      { role: 'vqoModification', label: 'Modification (M)' },
+      { role: 'vqoMaximumModification', label: 'Maximum Modification (MM)' },
+    ],
+  },
+  titles: {
+    align: 'center',
+    lines: [
+      {
+        text: 'Visual Impact Assessment',
+        size: 15,
+        style: 'bold',
+        color: '#f8fafc',
+        halo: { color: '#1f2937', width: 1.6 },
+      },
+      { text: '{area}', size: 12, color: '#f8fafc', halo: { color: '#1f2937', width: 1.4 } },
+      { text: '{blocks}', size: 11, color: '#f8fafc', halo: { color: '#1f2937', width: 1.4 } },
+      { text: 'Perspective View', size: 11, style: 'bold', color: '#f8fafc', halo: { color: '#1f2937', width: 1.4 } },
+      { text: 'Viewpoint {n}', size: 11, color: '#f8fafc', halo: { color: '#1f2937', width: 1.4 } },
+    ],
+  },
+  gaps: [
+    'The reference render is a textured 3D model; PGMaps composes over its own road view.',
+    "Secondary features (existing openings) are labelled in small white text; roads and other licensees' blocks are not yet labelled.",
+  ],
+}
+
 export const VIA_STYLE_PRESETS: readonly ViaStylePreset[] = [
   ANALYSIS_SHEET_MAGENTA,
   ANALYSIS_SHEET_ORANGE,
@@ -1044,6 +1150,7 @@ export const VIA_STYLE_PRESETS: readonly ViaStylePreset[] = [
   CALCULATION_ON_PHOTO,
   TIME_STEP_RAMPS,
   EXTRAS,
+  PERSPECTIVE_OVERLAY,
 ]
 
 export const presetById = (id: string) => {
@@ -1079,6 +1186,11 @@ export const ROLE_NAMES: Record<ViaRole, string> = {
   areaOfAlteration: 'Area of alteration',
   neighbouringWoodland: 'Neighbouring woodland',
   measureGrid: 'Measurement grid',
+  vqoPreservation: 'VQO zone: Preservation',
+  vqoRetention: 'VQO zone: Retention',
+  vqoPartialRetention: 'VQO zone: Partial Retention',
+  vqoModification: 'VQO zone: Modification',
+  vqoMaximumModification: 'VQO zone: Maximum Modification',
 }
 
 /**
@@ -1087,6 +1199,11 @@ export const ROLE_NAMES: Record<ViaRole, string> = {
  * alteration and neighbouring woodland have no live data (see the doc).
  */
 export const LIVE_ROLES: readonly ViaRole[] = [
+  'vqoPreservation',
+  'vqoRetention',
+  'vqoPartialRetention',
+  'vqoModification',
+  'vqoMaximumModification',
   'landform',
   'vsuLine',
   'rockNonVeg',

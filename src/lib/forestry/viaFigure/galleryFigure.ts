@@ -3,7 +3,7 @@
  * pass with a landform, two blocks (one hidden), an existing opening, private land and rock. Nothing
  * here is real data or a real photograph. No DOM or network access.
  */
-import { CLASS_PALETTE, decodeClassRaster, type FigureClass, type FigureInput } from './composeFigure'
+import { CLASS_PALETTE, decodeClassRaster, type ClassRaster, type FigureClass, type FigureInput } from './composeFigure'
 import type { ViaStylePreset } from './presets'
 
 export const GALLERY_FIGURE_SIZE = { width: 480, height: 200 } as const
@@ -66,6 +66,28 @@ export function galleryFigureInput(preset: ViaStylePreset): FigureInput {
       { label: 'Distance to block', value: '2.1 km' },
     ],
     rating: { vsu: '12', vsc: '2', vac: 'L', evc: 'R', vqo: 'PR' },
+    zones: galleryZones(),
+    camera: {
+      frames: 1,
+      focalMm: 50,
+      fovDeg: 39.6,
+      observerHeightM: 1.6,
+      above: 'ground',
+      lng: -122.6,
+      lat: 53.9,
+      elevationM: 700,
+      azimuthDeg: 112,
+      maxTreeHeightM: 25,
+      renderedOn: new Date('2026-11-11T12:00:00Z'),
+    },
     generatedAt: new Date('2026-11-11T12:00:00Z'),
   }
+}
+
+/** Synthetic VQO zones over the gallery view's terrain: Retention west of the middle, Partial Retention east. */
+function galleryZones(): ClassRaster {
+  const { width: w, height: h } = GALLERY_FIGURE_SIZE
+  const codes = new Uint8Array(w * h)
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (y >= ridge(x, w)) codes[y * w + x] = x < w * 0.55 ? 2 : 3
+  return { width: w, height: h, codes }
 }

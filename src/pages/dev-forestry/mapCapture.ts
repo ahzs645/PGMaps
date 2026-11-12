@@ -196,6 +196,8 @@ export type FramedCapture = {
   image: CapturedImage
   /** The class pass of the same frames, joined the same way; null when it failed. */
   classes: { data: Uint8ClampedArray; width: number; height: number } | null
+  /** The zone pass (VQO polygons) of the same frames, when zone layers were given and it was taken. */
+  zones: { data: Uint8ClampedArray; width: number; height: number } | null
   /** Width of each frame in the joined images, pixels. */
   frameWidth: number
 }
@@ -212,6 +214,7 @@ export async function captureFramed(
   plan: FramingPlan,
   eye: { lng: number; lat: number; elevation: number },
   layers: readonly ClassPassLayer[] | null,
+  zoneLayers: readonly ClassPassLayer[] | null = null,
 ): Promise<FramedCapture> {
   const centre = map.getCenter()
   const before = {
@@ -235,6 +238,9 @@ export async function captureFramed(
   joined.height = height
   const joinedContext = joined.getContext('2d')
   if (!joinedContext) throw new Error('No 2D canvas for the capture.')
+  let zones: FramedCapture['zones'] = zoneLayers?.length
+    ? { data: new Uint8ClampedArray(joined.width * height * 4), width: joined.width, height }
+    : null
   let classes: FramedCapture['classes'] = layers
     ? { data: new Uint8ClampedArray(joined.width * height * 4), width: joined.width, height }
     : null
@@ -261,22 +267,32 @@ export async function captureFramed(
       const region: CaptureRegion = { crop: window_.crop, width: frameWidth, height }
       const display = await readSettledFrame(map, () => drawCanvas(map, region, true).canvas, 'The framed view')
       joinedContext.drawImage(display, i * frameWidth, 0)
+      const join = (target: { data: Uint8ClampedArray }, pass: { data: Uint8ClampedArray }) => {
+        for (let row = 0; row < height; row++)
+          target.data.set(
+            pass.data.subarray(row * frameWidth * 4, (row + 1) * frameWidth * 4),
+            (row * joined.width + i * frameWidth) * 4,
+          )
+      }
       if (classes && layers) {
         try {
-          const pass = await captureClassPass(map, layers, region)
-          for (let row = 0; row < height; row++)
-            classes.data.set(
-              pass.data.subarray(row * frameWidth * 4, (row + 1) * frameWidth * 4),
-              (row * joined.width + i * frameWidth) * 4,
-            )
+          join(classes, await captureClassPass(map, layers, region))
         } catch {
           classes = null
+        }
+      }
+      if (zones && zoneLayers?.length) {
+        try {
+          join(zones, await captureClassPass(map, zoneLayers, region))
+        } catch {
+          zones = null
         }
       }
     }
     return {
       image: { dataUrl: joined.toDataURL('image/jpeg', 0.88), width: joined.width, height },
       classes,
+      zones,
       frameWidth,
     }
   } finally {

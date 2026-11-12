@@ -113,17 +113,17 @@ import {
   type BlockNote,
   type NoteImage,
 } from './dev-forestry/blockNote'
+import { captureClassPass, captureFramed, captureMapImage, capturePlanMap } from './dev-forestry/mapCapture'
 import {
-  captureClassPass,
-  captureFramed,
-  captureMapImage,
-  capturePlanMap,
-  cropImageRows,
-} from './dev-forestry/mapCapture'
-import { HFOV_50_MM, landformAngularExtent, planFraming, projectToFrames } from './dev-forestry/figureFraming'
+  focalForHfov,
+  HFOV_50_MM,
+  landformAngularExtent,
+  planFraming,
+  projectToFrames,
+} from './dev-forestry/figureFraming'
 import { inventoryBadge } from './dev-forestry/inventoryBadge'
 import type { DrivePose } from './dev-forestry/driveController'
-import { classPassLayers, type ClassPassInput } from './dev-forestry/figureClassPass'
+import { classPassLayers, zonePassLayers, type ClassPassInput } from './dev-forestry/figureClassPass'
 import { blockCallouts, type BlockSight } from './dev-forestry/figureCallouts'
 import type { FigureStyleData } from './dev-forestry/FigureStyleLayers'
 import {
@@ -139,12 +139,12 @@ import { parcelMaskFields } from './dev-forestry/parcelMapPrivateLand'
 import {
   decodeClassRaster,
   inLandform,
-  visibleLineParts,
-  type Overlay,
-  cropRasterRows,
   landformCropRows,
+  type Overlay,
+  visibleLineParts,
+  ZONE_PALETTE,
 } from '@/lib/forestry/viaFigure/composeFigure'
-import { findPreset as findFigurePreset } from '@/lib/forestry/viaFigure/presets'
+import { findPreset as findFigurePreset, VQO_ZONE_ROLES } from '@/lib/forestry/viaFigure/presets'
 import { splitLandform, subLandformDividers } from './dev-forestry/subLandforms'
 import { terrainLines } from './dev-forestry/terrainLines'
 import {
@@ -234,6 +234,7 @@ const DEFAULT_DRIVE: DriveState = {
   showLandform: false,
   haze: false,
   figureStyle: null,
+  labelStyle: null,
 }
 
 const HARVEST_PHASE_OPTIONS = [
@@ -1229,7 +1230,9 @@ function DevForestryVisuals() {
             .sort((a, b) => a.savedAt - b.savedAt)
             .map((image) =>
               noteFigures
-                ? figureNoteImage(image, drive.figureStyle ?? DEFAULT_FIGURE_STYLE).catch(() => image)
+                ? figureNoteImage(image, drive.figureStyle ?? DEFAULT_FIGURE_STYLE, {
+                    labelStyle: drive.labelStyle,
+                  }).catch(() => image)
                 : image,
             ),
         ),
@@ -1251,7 +1254,7 @@ function DevForestryVisuals() {
       }
       return { views: note.views.length, missing: note.missingViews.length, planMap: !!planMap }
     },
-    [scene, savedViews, shelvedViews, viewImages, noteFigures, drive.figureStyle],
+    [scene, savedViews, shelvedViews, viewImages, noteFigures, drive.figureStyle, drive.labelStyle],
   )
   /** Back to the road the first stand replaced, at the point on it nearest where you stood. */
   const handleBackToRoad = useCallback(() => {
@@ -1526,7 +1529,12 @@ function DevForestryVisuals() {
   // The established VQO polygons around the scene, coloured by class when the
   // road view drapes them. Read from the inventory only once switched on.
   // The plan map and the road view each drape EVQO by their own switch; either one loads it.
-  const showEvqo = planShow.evqo || (drive.active && drive.showEvqo)
+  // A figure style that tints the VQO zones needs them too, for its road-view drape and zone pass.
+  const figureZones = (() => {
+    const preset = findFigurePreset(drive.figureStyle)
+    return !!preset && VQO_ZONE_ROLES.some(([role]) => preset.symbols[role])
+  })()
+  const showEvqo = planShow.evqo || (drive.active && (drive.showEvqo || figureZones))
   const evqoKey = useMemo(() => {
     if (!showEvqo) return null
     const bounds = sceneBounds(scene)
@@ -2160,6 +2168,16 @@ function DevForestryVisuals() {
       privateLand: multi(figureClassInput.privateLand),
       ...(rock ? { rockNonVeg: rock } : {}),
       vsuLine: inventoryCollection,
+      // Each established objective's polygons, for the styles that tint the zones.
+      ...Object.fromEntries(
+        VQO_ZONE_ROLES.map(([role, code]) => [
+          role,
+          {
+            type: 'FeatureCollection',
+            features: (evqoCurrent?.collection.features ?? []).filter((feature) => feature.properties?.code === code),
+          } satisfies GeoJSON.FeatureCollection,
+        ]),
+      ),
       ...Object.fromEntries(
         (['subLandform', 'forceConvex', 'forceConcave'] as const).map((role) => [
           role,
@@ -2177,7 +2195,35 @@ function DevForestryVisuals() {
         ]),
       ),
     }
-  }, [drive.figureStyle, figureClassInput, figureClasses, blockCollection, inventoryCollection, figureLines])
+  }, [
+    drive.figureStyle,
+    figureClassInput,
+    figureClasses,
+    blockCollection,
+    inventoryCollection,
+    figureLines,
+    evqoCurrent,
+  ])
+  /** Existing openings still counting, by their sightlines: a saved view's secondary labels. */
+  const openingSights = useMemo<BlockSight[]>(
+    () =>
+      (result?.targets ?? []).flatMap((target) => {
+        const opening = scene.targets.find((entry) => entry.id === target.targetId && entry.role === 'harvested')
+        if (!opening || !(target.alterationWeight > 0)) return []
+        return [
+          {
+            id: opening.id,
+            name: opening.name,
+            positions: target.positions,
+            elevations: target.elevations,
+            sampleCount: target.sampleCount,
+            visibleByStation: target.visibleByStation,
+            interior: null,
+          },
+        ]
+      }),
+    [result, scene.targets],
+  )
   /** Each block's sightlines, for the callouts of a saved view. */
   const blockSights = useMemo<BlockSight[]>(
     () =>
@@ -2432,27 +2478,26 @@ function DevForestryVisuals() {
     let project: (lng: number, lat: number, elevation: number) => [number, number] | null
     let lens: string
     let hfovDeg = at.fov
+    let zones: ReturnType<typeof decodeClassRaster> | null = null
+    // The crop to the landform is kept, not applied: each style decides (FigureSheetPanel).
+    let crop: { y: number; height: number } | null = null
+    let frames = 1
+    let azimuth = map.getBearing()
+    const zoneLayers = evqoCurrent ? zonePassLayers(evqoCurrent.collection) : []
     if (plan && eye) {
-      const framed = await captureFramed(map, plan, eye, figureClasses.layers)
+      const framed = await captureFramed(map, plan, eye, figureClasses.layers, zoneLayers.length ? zoneLayers : null)
       if (!framed.classes) throw new Error('The class pass of the framed view could not be taken.')
       classes = decodeClassRaster(framed.classes.data, framed.classes.width, framed.classes.height)
-      const whole = projectToFrames(plan.frames, eye, { frameWidth: framed.frameWidth, height: framed.image.height })
-      // Crop the strip to the landform, as the sheets do: the same rows of the picture and the class
-      // pass, never stretched; the projector moves with the crop.
-      const crop = landformCropRows(classes)
-      if (crop) {
-        classes = cropRasterRows(classes, crop)
-        frameImage = { ...(await cropImageRows(framed.image, crop)), caption: `${at.name}.` }
-        project = (lng, lat, elevation) => {
-          const point = whole(lng, lat, elevation)
-          return point && point[1] >= crop.y && point[1] < crop.y + crop.height ? [point[0], point[1] - crop.y] : null
-        }
-      } else {
-        frameImage = { ...framed.image, caption: `${at.name}.` }
-        project = whole
-      }
-      lens = `framed: ${plan.label}${crop ? ', cropped to the landform' : ''}`
+      if (framed.zones)
+        zones = decodeClassRaster(framed.zones.data, framed.zones.width, framed.zones.height, ZONE_PALETTE)
+      project = projectToFrames(plan.frames, eye, { frameWidth: framed.frameWidth, height: framed.image.height })
+      crop = landformCropRows(classes)
+      frameImage = { ...framed.image, caption: `${at.name}.` }
+      lens = `framed: ${plan.label}`
       hfovDeg = plan.totalHfovDeg
+      frames = plan.frames.length
+      // The centre line of all the frames together.
+      azimuth = plan.frames[0].bearingDeg + (plan.totalHfovDeg - plan.frames[0].hfovDeg) / 2
     } else {
       // No pose or no terrain yet: the class pass of the view as it stands.
       const pass = await captureClassPass(map, figureClasses.layers)
@@ -2472,7 +2517,14 @@ function DevForestryVisuals() {
       const focal = 18 / Math.tan((at.fov * Math.PI) / 360)
       lens = `road view, ${Math.round(at.fov)}° horizontal (${Math.round(focal)} mm full-frame equivalent), facing ${Math.round((bearing + 360) % 360)}°`
     }
-    const callouts = blockCallouts(blockSights, at.stationIndex, project, classes)
+    const callouts = [
+      ...blockCallouts(blockSights, at.stationIndex, project, classes),
+      // Existing openings the station sees, as secondary labels (small and plain in the boxless styles).
+      ...blockCallouts(openingSights, at.stationIndex, project, classes, '')
+        .filter((callout) => callout.status === 'visible' || callout.status === 'possible glimpses')
+        .slice(0, 6)
+        .map((callout) => ({ ...callout, body: undefined, secondary: true })),
+    ]
     // Dividers and lines of force, cut to where the picture shows the landform. Their ground height
     // comes from the terrain, so the pinhole projector of a framed capture places them on it.
     const lines: Overlay[] = figureLines.flatMap((line) => {
@@ -2499,6 +2551,7 @@ function DevForestryVisuals() {
       landform: sceneLandform?.geometry ?? null,
     })
     const nearest = callouts
+      .filter((callout) => !callout.secondary)
       .map((callout) => result?.targets.find((target) => target.targetId === callout.blockId))
       .flatMap((target) => (target?.nearestVisibleDistanceMeters != null ? [target.nearestVisibleDistanceMeters] : []))
     return {
@@ -2527,6 +2580,24 @@ function DevForestryVisuals() {
       viewpoint: at.name,
       splitFailed: figureClasses.failed,
       lines,
+      ...(zones ? { zones } : {}),
+      ...(crop ? { crop } : {}),
+      camera: {
+        frames,
+        focalMm: focalForHfov(hfovDeg / frames),
+        fovDeg: hfovDeg,
+        observerHeightM: scene.settings.observerHeightMeters,
+        above: eye && basemap.water.some((water) => pointInPolygon(water, eye.lng, eye.lat)) ? 'lake level' : 'ground',
+        lng: eye?.lng ?? at.eye?.lng ?? scene.viewpoint.coordinates[0]?.[0] ?? 0,
+        lat: eye?.lat ?? at.eye?.lat ?? scene.viewpoint.coordinates[0]?.[1] ?? 0,
+        elevationM: eye?.elevation ?? 0,
+        azimuthDeg: azimuth,
+        maxTreeHeightM:
+          drive.forest && result?.renderStands?.length
+            ? Math.max(...result.renderStands.map((stand) => stand.heightMeters))
+            : null,
+        renderedOn: new Date(),
+      },
     }
   }
   const saveView = () => {
@@ -3047,6 +3118,7 @@ function DevForestryVisuals() {
             image: viewImages[view.id],
           }))}
           styleId={drive.figureStyle}
+          labelStyleId={drive.labelStyle}
           noteFigures={noteFigures}
           onNoteFiguresChange={setNoteFigures}
         />

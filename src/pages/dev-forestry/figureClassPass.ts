@@ -7,7 +7,8 @@
  * VIA precedence (a block on private land is a block). No DOM or network access.
  */
 import clipping, { type MultiPolygon } from 'polygon-clipping'
-import { classColor, type FigureClass } from '@/lib/forestry/viaFigure/composeFigure'
+import { classColor, zoneColor, type FigureClass } from '@/lib/forestry/viaFigure/composeFigure'
+import { VQO_ZONE_ROLES } from '@/lib/forestry/viaFigure/presets'
 import type { PolygonGeometry } from './visibility'
 
 export type ClassPassInput = {
@@ -23,7 +24,8 @@ export type ClassPassInput = {
 }
 
 export type ClassPassLayer = {
-  id: Exclude<FigureClass, 'sky' | 'terrain'>
+  /** A figure class, or a VQO zone (`zone-P` …) in the zone pass. */
+  id: Exclude<FigureClass, 'sky' | 'terrain'> | `zone-${string}`
   color: string
   data: GeoJSON.FeatureCollection
 }
@@ -74,7 +76,7 @@ export function splitAtLandform(
 
 /** The class pass's layers, bottom first, and whether any split had to fall back. */
 export function classPassLayers(input: ClassPassInput): { layers: ClassPassLayer[]; failed: boolean } {
-  const layer = (id: ClassPassLayer['id'], parts: MultiPolygon): ClassPassLayer => ({
+  const layer = (id: Exclude<FigureClass, 'sky' | 'terrain'>, parts: MultiPolygon): ClassPassLayer => ({
     id,
     color: classColor(id),
     data: collection(parts),
@@ -94,4 +96,18 @@ export function classPassLayers(input: ClassPassInput): { layers: ClassPassLayer
     layer('proposedIn', blocks.inside),
   ].filter((entry) => entry.data.features.length)
   return { layers, failed: [rock, privateLand, existing, blocks].some((split) => split.failed) }
+}
+
+/**
+ * The zone pass's layers: the established VQO polygons (features with a `code` of P, R, PR, M or
+ * MM) each in its zone colour, so the figure can tint the objectives the view shows. The pass's
+ * background is the same flat terrain colour as the class pass's.
+ */
+export function zonePassLayers(evqo: GeoJSON.FeatureCollection): ClassPassLayer[] {
+  return VQO_ZONE_ROLES.flatMap(([, code], i) => {
+    const features = evqo.features.filter((feature) => feature.properties?.code === code)
+    return features.length
+      ? [{ id: `zone-${code}` as const, color: zoneColor(i + 1), data: { type: 'FeatureCollection', features } }]
+      : []
+  })
 }

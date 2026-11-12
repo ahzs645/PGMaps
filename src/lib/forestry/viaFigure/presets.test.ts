@@ -87,7 +87,7 @@ describe('VIA figure style presets', () => {
   })
 
   it('name every role, and offer the road view only presets it can drape', () => {
-    expect(Object.keys(ROLE_NAMES)).toHaveLength(13)
+    expect(Object.keys(ROLE_NAMES)).toHaveLength(18)
     expect(LIVE_PRESETS.length).toBeGreaterThan(5)
     for (const preset of LIVE_PRESETS) expect(LIVE_ROLES.some((role) => preset.symbols[role])).toBe(true)
     // The time-step ramps have nothing the road view can drape.

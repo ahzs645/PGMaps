@@ -1525,8 +1525,9 @@ pinhole from the same eye (`projectToFrames`), which needs no map once the camer
 is restored. The sheet prints the lens, field and bearings. A very large landform seen
 as a thin, distant band (Tabor Mountain's 4,489 ha sample landform, 3–11 km out,
 takes two frames across 79°) would still leave the strip mostly sky, so after the
-capture the strip is cropped to the landform's rows in the class pass
-(`landformCropRows`): about a fifth of the height above its top, at most 12% below
+capture the landform's rows in the class pass are kept with the view
+(`landformCropRows`) and the strip is cropped to them at export by every style that crops
+(all but the overlay style, which keeps its sky for the title): about a fifth of the height above its top, at most 12% below
 its base, the full width kept, never stretched, and the class pass cropped by the
 same rows so the pixel counts match. The lens line then says "cropped to the
 landform". The sheet fits the strip into its image box at its own aspect,
@@ -1540,6 +1541,39 @@ landform was adopted from, else the unit holding most of the landform. The rule
 that chose it is printed small under the circle. With no unit under the landform or
 the blocks, the cell holds one line saying so, not a circle of placeholder
 labels; the VSU / VSC / VAC / EVC / VQO key is printed only with a circle.
+
+**Label styles** (`LABEL_STYLES`, `labelOps` in `src/lib/mapSheet/callouts.ts`) are
+independent of the figure style, which only supplies the default; *Label style* sits beside
+*Figure style* in the road view's settings and in the export panel. *Box* is the filled
+callout box (cyan, white or red by style). *Underlined label* has no box: bold dark text,
+underlined, above the skyline, with a thin leader dropping straight down to the block where it
+can. *Halo text* is text with a white (or dark) halo and a leader. *Numbered markers* puts small
+numbered circles on the features and their names in a key in the legend cell, for crowded views.
+In the boxless styles existing openings the station sees are labelled too, in small white text
+with a thin white leader and arrowhead. Every label is sized from its measured text as it prints
+(the PDF folds "—" to " - ", so the text is folded before it is measured or drawn), with padding
+all round; a line wider than 28% of the image wraps at words (at most two title lines and one
+body line), then shrinks one step, and only then is cut with "...". The placement then keeps
+every label clear of the others and inside the image, or the sheet's image band when the strip
+is cropped to the landform, with the leader leaving the edge nearest its anchor.
+
+**Camera information on the image.** Any style can print, at the image's bottom left in white
+text with a dark halo, the six lines a licensee's perspective view render prints and the
+handbook's Appendix 7 recommends for a simulation: "Composite of *n* simulated *mm* mm camera
+images: FOV *deg* degrees", "Observer height: *h* metres above ground" (or "lake level" when the
+eye stands on mapped water), "Observer position (UTM zone *z*): *x*, *y*, *z* metres" (WGS84 UTM
+through proj4, `cameraInfo.ts`), "Viewline azimuth: *deg* degrees", "Maximum tree height: *m*
+metres" (the tallest VRI stand drawn, or "trees not modelled" when the road view drew none), and
+"Date of rendering". *Camera info on image* turns it on; the overlay style has it on by default.
+
+**Perspective view · overlay text** (`perspective-overlay`, family I) is modelled on the
+structure of a licensee's perspective view render (no logo or name): the full framed view (the
+strip is not cropped, so the title has its sky) on a tabloid page, the title drawn in the sky at
+top centre, a "Visual Quality Objective Legend" panel at top left listing the objectives in view,
+the established VQO polygons tinted subtly over the terrain from a second zone pass of the same
+frames (`zonePassLayers`, `ZONE_PALETTE`, so a nearer ridge hides them as it hides the blocks),
+proposed blocks filled yellow-tan, existing openings paler tan, underlined labels, and the
+camera block. The EVQO polygons load whenever this style is chosen.
 
 **Exports.** Step 5's *Analysis sheet* composes a saved view in any style as PDF
 (`renderPdf.ts`) or PNG (`sheetPng.ts`), with a preview. Family A styles print

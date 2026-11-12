@@ -330,6 +330,71 @@ describe('figure composition', () => {
   })
 })
 
+describe('the perspective overlay and the camera block', () => {
+  const camera = {
+    frames: 2,
+    focalMm: 50,
+    fovDeg: 79.2,
+    observerHeightM: 1.6,
+    above: 'ground' as const,
+    lng: -122.6,
+    lat: 53.9,
+    elevationM: 700,
+    azimuthDeg: 112,
+    maxTreeHeightM: 24.5,
+    renderedOn: new Date('2026-11-12T00:00:00Z'),
+  }
+  /** Left half of the terrain Retention, right half Partial Retention. */
+  const zones = () => {
+    const codes = new Uint8Array(W * H)
+    for (let y = 20; y < H; y++) for (let x = 0; x < W; x++) codes[y * W + x] = x < 50 ? 2 : 3
+    return { width: W, height: H, codes }
+  }
+
+  it('puts the title in the sky, the VQO legend, underlined labels and the camera block on the image', () => {
+    const sheet = composeFigure({
+      ...input('perspective-overlay'),
+      zones: zones(),
+      camera,
+      titles: { area: 'Sample Creek', viewpoint: 'VP1', n: '1', blocks: 'Block 1, Block 2' },
+    })
+    const all = texts(sheet.ops)
+    expect(all).toEqual(
+      expect.arrayContaining([
+        'Visual Impact Assessment',
+        'Sample Creek',
+        'Block 1, Block 2',
+        'Perspective View',
+        'Viewpoint 1',
+        'Visual Quality Objective Legend',
+        'Retention (R)',
+        'Partial Retention (PR)',
+        'Composite of 2 simulated 50 mm camera images: FOV 79.2 degrees',
+        'Maximum tree height: 24.5 metres',
+      ]),
+    )
+    // No objective that is not in view, and an unfilled title line is left out.
+    expect(all).not.toContain('Preservation (P)')
+    expect(all.some((t) => t.includes('{'))).toBe(false)
+    expect(sheet.drawn).toEqual(expect.arrayContaining(['vqoRetention', 'vqoPartialRetention', 'proposedBlock']))
+    // Underlined labels by default: the label text is bold, with no callout box behind it.
+    expect(sheet.ops.some((op) => op.op === 'text' && op.text === 'Block 1' && op.style === 'bold')).toBe(true)
+  })
+
+  it('prints the camera block on other styles only when asked', () => {
+    const plain = texts(analysisSheet({ ...input('analysis-sheet-magenta'), camera }).ops)
+    expect(plain.some((t) => t.startsWith('Composite of'))).toBe(false)
+    const asked = texts(analysisSheet({ ...input('analysis-sheet-magenta'), camera, cameraInfo: true }).ops)
+    expect(asked.some((t) => t.startsWith('Observer position (UTM zone 10)'))).toBe(true)
+  })
+
+  it('takes a label style other than the preset’s', () => {
+    const numbered = analysisSheet({ ...input('analysis-sheet-magenta'), labelStyle: 'numbered' })
+    expect(numbered.ops.filter((op) => op.op === 'circle').length).toBeGreaterThanOrEqual(2)
+    expect(texts(numbered.ops).some((t) => t.startsWith('1  Block 1'))).toBe(true)
+  })
+})
+
 describe('the gallery view', () => {
   it('composes every preset over the synthetic view with its classes counted', async () => {
     const { galleryFigureInput } = await import('./galleryFigure')

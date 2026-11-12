@@ -71,6 +71,7 @@ import {
 } from './ViaPanels'
 import { layoutStageOf } from './fieldChecklist'
 import { LIVE_PRESETS } from '@/lib/forestry/viaFigure/presets'
+import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
 import { VIA_STEPS, type ViaAssessment, type ViaReview, type ViaStepId, type ViaStepStatus } from './via'
 import {
   ALTERATION_BASIS_LABELS,
@@ -148,6 +149,8 @@ export type DriveState = {
    * style the analysis sheet is composed in. Display only, like block colours: never in the run.
    */
   figureStyle: string | null
+  /** How the analysis sheet names features (`LABEL_STYLES`); the figure style's own when null. Display only. */
+  labelStyle: LabelStyleId | null
 }
 
 const VIA_CLASS_CODES = {
@@ -1366,6 +1369,24 @@ export function Sidebar({
                     {LIVE_PRESETS.map((preset) => (
                       <option key={preset.id} value={preset.id}>
                         {preset.name}
+                      </option>
+                    ))}
+                  </StyledSelect>
+                </label>
+                <label className="flex items-center justify-between gap-2 text-xs">
+                  Label style
+                  <StyledSelect
+                    aria-label="Label style"
+                    className={SELECT_CLASS}
+                    value={drive.labelStyle ?? ''}
+                    onChange={(event) =>
+                      onDriveChange({ labelStyle: (event.target.value || null) as LabelStyleId | null })
+                    }
+                  >
+                    <option value="">The figure style's own</option>
+                    {LABEL_STYLES.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
                       </option>
                     ))}
                   </StyledSelect>
