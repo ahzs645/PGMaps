@@ -18,6 +18,7 @@ import { MapSketchLayers } from '@/components/ui/map-sketch'
 import { canFinishSketch, nearFirstVertex } from '@/lib/geo/mapSketch'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
+import { StyledSelect } from '@/components/ui/styled-select'
 import { MapIconButton } from '@/components/ui/map-icon-button'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
@@ -2179,7 +2180,23 @@ export function PlanView(input: PlanProps) {
   const [basemap, setBasemap] = useStoredImageryBasemap('pgmaps-road-basemap')
   const { showContours, setShowContours, showLabels, setShowLabels, showEarthwork, setShowEarthwork, fitRequest, fit } =
     props.display
-  const [sheetSymbols, setSheetSymbols] = useState(false)
+  const [symbolStyle, setSymbolStyle] = useState<'road-plan' | 'block-sheet'>(() => {
+    try {
+      return localStorage.getItem('pgmaps-road-symbol-style') === 'block-sheet' ? 'block-sheet' : 'road-plan'
+    } catch {
+      return 'road-plan'
+    }
+  })
+  const sheetSymbols = symbolStyle === 'block-sheet'
+  const chooseSymbolStyle = (value: string) => {
+    const style = value === 'block-sheet' ? 'block-sheet' : 'road-plan'
+    setSymbolStyle(style)
+    try {
+      localStorage.setItem('pgmaps-road-symbol-style', style)
+    } catch {
+      /* Keep the choice for this session when browser storage is unavailable. */
+    }
+  }
   const [editHelpVisible, setEditHelpVisible] = useState(() => {
     try {
       return localStorage.getItem('pgmaps-road-edit-help') !== 'hidden'
@@ -2573,7 +2590,6 @@ export function PlanView(input: PlanProps) {
                 ...(reference.length ? [['Reference layers', referenceVisible, setReferenceVisible] as const] : []),
                 ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
                 ...tools.settingsRows,
-                ['Block sheet symbols', sheetSymbols, setSheetSymbols],
               ] as const
             ).map(([label, checked, set]) => (
               <label key={label} className="flex items-center justify-between py-2 text-xs">
@@ -2581,6 +2597,20 @@ export function PlanView(input: PlanProps) {
                 <input type="checkbox" checked={checked} onChange={(event) => set(event.target.checked)} />
               </label>
             ))}
+            <label className="mt-2 grid gap-1 border-t pt-2 text-xs">
+              Legend and map symbols
+              <StyledSelect
+                value={symbolStyle}
+                onChange={(event) => chooseSymbolStyle(event.target.value)}
+                aria-label="Legend and map symbols"
+              >
+                <option value="road-plan">Standard road plan</option>
+                <option value="block-sheet">Block sheet forestry</option>
+              </StyledSelect>
+              <span className="text-2xs text-muted-foreground">
+                The map and legend use the same symbols. Choice saved in this browser.
+              </span>
+            </label>
             {contextKinds.length > 0 && (
               <fieldset className="mt-2 border-t pt-2" data-testid="road-context-visibility">
                 <legend className="text-xs font-medium">Context</legend>
@@ -2669,7 +2699,7 @@ export function PlanView(input: PlanProps) {
         !notesOpen &&
         (editHelpVisible ? (
           <div
-            className="absolute left-2 top-12 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow"
+            className="absolute left-2 top-20 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow sm:top-12"
             data-testid="road-edit-help"
           >
             <span className="min-w-0 flex-1">Drag a number to move that point. Drag a + to bend the road.</span>
@@ -2688,7 +2718,7 @@ export function PlanView(input: PlanProps) {
           <Button
             size="icon-xs"
             variant="outline"
-            className="absolute left-2 top-12 z-20 bg-background/95 shadow-sm"
+            className="absolute left-2 top-20 z-20 bg-background/95 shadow-sm sm:top-12"
             aria-label="Show editing hint"
             title="Show editing hint"
             onClick={() => showEditHelp(true)}

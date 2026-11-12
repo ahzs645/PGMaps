@@ -60,6 +60,10 @@ Expand **Legend** to see the styles present in the loaded map: the active road's
 named alternative roads, visible streams/roads/harvest/review areas, earthworks, culverts,
 cables, drainage results, station controls and temporary planning overlays. Reused access,
 loaded material haul and empty return paths have separate entries when those paths are drawn.
+Under **Map settings → Legend and map symbols**, choose **Standard road plan** or **Block sheet
+forestry**. Both symbol sets remain available; the map context and its legend change together.
+The choice is remembered in this browser across reloads and interface changes, independently of
+branding. Map PDFs capture the selected symbols and any visible legend.
 The list follows the displayed layer data and visibility switches; it does not filter entries
 when you pan away from a feature. Scroll inside the expanded legend for additional sections.
 

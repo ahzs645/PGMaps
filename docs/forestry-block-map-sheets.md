@@ -226,11 +226,13 @@ RGBA pixels at the device pixel ratio, without a canvas, and `keepSymbolImages` 
 `styleimagemissing`, so they come back after a style reload or theme change.
 
 A point is 96/72 CSS pixels, as for line widths, so on screen a pattern matches the print at the
-sheet's scale on a 96 dpi display. The road plan offers this as **Map settings → Block sheet
-symbols**: the context (avoid areas, harvest areas, the riparian screen, streams and mapped roads)
+sheet's scale on a 96 dpi display. The road plan offers **Map settings → Legend and map symbols**,
+with **Standard road plan** and **Block sheet forestry** choices saved in this browser. Choosing
+**Block sheet forestry** means the context (avoid areas, harvest areas, the riparian screen, streams and mapped roads)
 then draws with the sheet symbols, classed by `contextSheetKey` exactly as the sheet classes it, and
 the legend lists those symbols with swatches drawn by `SheetSymbolSwatch`. The plan's own context
-colours come back when it is off.
+colours come back with **Standard road plan**. The active map and any visible legend are captured
+in map PDFs. Printed block-map sheets keep their sheet symbols.
 
 Where the map cannot match the print:
 

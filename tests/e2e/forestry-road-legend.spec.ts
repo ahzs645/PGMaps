@@ -39,6 +39,11 @@ async function mapData(page: Page) {
           overlay: features('road-overlay').map((feature) => feature.properties),
           drainage: features('road-drainage').map((feature) => feature.properties?.role),
           terrain: map.getLayer('road-terrain') ? map.getLayoutProperty('road-terrain', 'visibility') : null,
+          symbols: {
+            standard: map.getLayoutProperty('road-context-line', 'visibility'),
+            sheet: map.getLayoutProperty('road-sheet-stream-0', 'visibility'),
+            fillOpacity: map.getPaintProperty('road-context-fill', 'fill-opacity'),
+          },
         }
       }
     }
@@ -52,6 +57,45 @@ async function expandLegend(page: Page) {
     await legend.getByRole('button', { name: 'Expand legend', exact: true }).click()
   return page.getByTestId('road-plan-legend-content')
 }
+
+test('users can choose either symbol set and the map and legend keep that choice after reload', async ({ page }) => {
+  await prepare(page)
+  let content = await expandLegend(page)
+  await expect(content.getByText('Streams', { exact: true })).toBeVisible()
+  await expect(content.locator('[data-sheet-symbol]')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
+  const selector = page.getByRole('combobox', { name: 'Legend and map symbols', exact: true })
+  await expect(selector).toHaveAttribute('data-value', 'road-plan')
+  await choose(selector, 'block-sheet')
+  await expect(content.locator('[data-sheet-symbol="Stream"]')).toBeVisible()
+  await expect
+    .poll(async () => (await mapData(page))?.symbols)
+    .toEqual({ standard: 'none', sheet: 'visible', fillOpacity: 0 })
+  await page.getByRole('button', { name: 'Close map settings', exact: true }).click()
+  await page.reload()
+  await selectWorkbench(page)
+  await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
+  content = await expandLegend(page)
+  await expect(content.locator('[data-sheet-symbol="Stream"]')).toBeVisible()
+  await expect
+    .poll(async () => (await mapData(page))?.symbols)
+    .toEqual({ standard: 'none', sheet: 'visible', fillOpacity: 0 })
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
+  await expect(selector).toHaveAttribute('data-value', 'block-sheet')
+  await choose(selector, 'road-plan')
+  await expect(content.locator('[data-sheet-symbol]')).toHaveCount(0)
+  await expect(content.getByText('Streams', { exact: true })).toBeVisible()
+  await expect
+    .poll(async () => (await mapData(page))?.symbols)
+    .toEqual({ standard: 'visible', sheet: 'none', fillOpacity: 0.18 })
+  await page.getByRole('button', { name: 'Close map settings', exact: true }).click()
+  await page.reload()
+  await selectWorkbench(page)
+  await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
+  content = await expandLegend(page)
+  await expect(content.getByText('Streams', { exact: true })).toBeVisible()
+  await expect(content.locator('[data-sheet-symbol]')).toHaveCount(0)
+})
 
 test('legend follows alternative road colours, context visibility, earthworks and labels even with terrain switched off', async ({
   page,
