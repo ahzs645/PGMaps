@@ -71,10 +71,10 @@ const n1 = (v: number | null) => (v === null ? '–' : v.toFixed(1))
 
 function StateIcon({ state }: { state: LayoutLimitState | null }) {
   if (state === null) return null
-  if (state === 'met') return <CheckCircle2 className="size-3 text-emerald-600" role="img" aria-label="Met" />
+  if (state === 'met') return <CheckCircle2 className="size-3 text-success" role="img" aria-label="Met" />
   if (state === 'not-assessed')
     return <CircleDashed className="size-3 text-muted-foreground" role="img" aria-label="Not assessed" />
-  return <OctagonAlert className="size-3 text-red-600 dark:text-red-400" role="img" aria-label="Not met" />
+  return <OctagonAlert className="size-3 text-danger" role="img" aria-label="Not met" />
 }
 
 /**
@@ -382,7 +382,7 @@ export function CableLayoutEditor({
                   {row.current}
                   {row.changed && (
                     <span
-                      className="text-amber-700 dark:text-amber-400"
+                      className="text-warning"
                       role="img"
                       aria-label="changed"
                       title="Changed from the found layout"

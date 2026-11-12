@@ -1418,11 +1418,7 @@ export function TerrainPreview({
       </div>
       <div className="shrink-0 text-3xs">
         {!terrainOnly && active && !active.complete && (
-          <p
-            role="status"
-            data-testid="road-3d-incomplete-section"
-            className="border-t px-2 py-1 text-amber-800 dark:text-amber-200"
-          >
+          <p role="status" data-testid="road-3d-incomplete-section" className="border-t px-2 py-1 text-warning">
             {formatRoadStation(active.chainage)} ·{' '}
             {active.flags.some(isBeyondReachFlag)
               ? 'Batter extends beyond the sampled section reach. Increase “Section reach each side (m)” in Review, or revise the PVI elevations.'

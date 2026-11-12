@@ -715,7 +715,7 @@ export function EngineeringControls({
                   }}
                 />
                 <p
-                  className={`text-2xs leading-4 ${templateDirty ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                  className={`text-2xs leading-4 ${templateDirty ? 'text-warning' : 'text-muted-foreground'}`}
                   data-testid="template-candidate-status"
                   role="status"
                 >
@@ -1418,7 +1418,7 @@ export function EngineeringControls({
                     {result.coverM?.toFixed(2) ?? '—'} m · required span {result.requiredLengthM?.toFixed(1) ?? '—'} m
                     {' · '}inclined barrel {result.barrelLengthM?.toFixed(2) ?? 'unknown'} m
                     {result.warnings.map((warning) => (
-                      <span key={warning} className="mt-1 block text-amber-700 dark:text-amber-400">
+                      <span key={warning} className="mt-1 block text-warning">
                         {warning}
                       </span>
                     ))}

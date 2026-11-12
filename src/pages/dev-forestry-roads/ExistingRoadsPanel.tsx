@@ -492,7 +492,7 @@ export function ExistingRoadsPanel({
               <span>Allow this road in the reuse cost scenario</span>
             </label>
             {evidence.reuseAllowed && evidence.conditionBasis !== 'field-verified' && (
-              <p className="text-2xs text-amber-700 dark:text-amber-300">
+              <p className="text-2xs text-warning">
                 Reuse is an unverified planning assumption. Rehabilitation, bridge capacity and legal access are not
                 established.
               </p>

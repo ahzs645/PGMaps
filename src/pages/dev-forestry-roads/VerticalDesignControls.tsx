@@ -673,7 +673,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           </div>
         )}
         {designed && checks.length === 0 && (standards !== EMPTY_VERTICAL_STANDARDS || controls.length > 0) && (
-          <p className="mt-2 text-2xs text-emerald-700 dark:text-emerald-400" data-testid="road-vertical-checks-pass">
+          <p className="mt-2 text-2xs text-success" data-testid="road-vertical-checks-pass">
             The profile meets every set standard and control.
           </p>
         )}

@@ -465,9 +465,7 @@ export function ProjectsDialog({
                 >
                   <div>
                     <h3 className="break-words text-sm font-semibold">{example.title}</h3>
-                    <p className="mt-0.5 text-xs font-medium text-emerald-800 dark:text-emerald-300">
-                      Actual BC record investigation
-                    </p>
+                    <p className="mt-0.5 text-xs font-medium text-success">Actual BC record investigation</p>
                   </div>
                   <ul className="flex flex-wrap gap-1" aria-label={`${example.title} contents`}>
                     <ContentChip kind="cutblocks" content="mapped" />
@@ -677,8 +675,8 @@ function ContentChip({ kind, content }: { kind: keyof typeof CONTENT_LABELS; con
         content === 'none'
           ? 'border-dashed text-muted-foreground'
           : content === 'mapped'
-            ? 'border-emerald-600/30 bg-emerald-600/10 text-emerald-800 dark:text-emerald-300'
-            : 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+            ? 'border-emerald-600/30 bg-emerald-600/10 text-success'
+            : 'border-amber-500/40 bg-amber-500/10 text-warning'
       }`}
     >
       {CONTENT_LABELS[kind][content]}

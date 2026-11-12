@@ -464,7 +464,7 @@ export function PegToolPanel(props: {
         <p
           role="status"
           aria-live="polite"
-          className={props.statusOk ? 'text-foreground' : 'text-amber-800 dark:text-amber-300'}
+          className={props.statusOk ? 'text-foreground' : 'text-warning'}
           data-testid="road-peg-tool-status"
         >
           {props.note || `Next leg: ${props.status}`}

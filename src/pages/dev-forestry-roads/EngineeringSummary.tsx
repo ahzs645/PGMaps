@@ -291,7 +291,7 @@ export function EngineeringSummary({
                   ]}
                 />
                 {(result.haul.unallocatedBorrowM3 > 0 || result.haul.unallocatedWasteM3 > 0) && (
-                  <p role="status" className="my-2 text-xs text-amber-700 dark:text-amber-400">
+                  <p role="status" className="my-2 text-xs text-warning">
                     Unallocated: {fmt(result.haul.unallocatedBorrowM3)} compacted m³ borrow ·{' '}
                     {fmt(result.haul.unallocatedWasteM3)} bank m³ waste. Adjust site capacities or add sites.
                   </p>
@@ -413,7 +413,7 @@ export function EngineeringSummary({
                   <div className="mt-2 space-y-2">
                     <CulvertProfile culvert={selectedCulvert} />
                     {selectedCulvert.warnings.map((warning) => (
-                      <p key={warning} className="text-xs text-amber-700 dark:text-amber-400">
+                      <p key={warning} className="text-xs text-warning">
                         {warning}
                       </p>
                     ))}

@@ -46,7 +46,7 @@ function TurnRow({ row, selected, onSelect }: { row: Row; selected: boolean; onS
         <p className="font-medium">
           {kind === 'in' ? 'In' : 'Out'} · {route}
         </p>
-        <p className="mt-0.5 text-2xs text-amber-800 dark:text-amber-300">{outcome.error}</p>
+        <p className="mt-0.5 text-2xs text-warning">{outcome.error}</p>
       </li>
     )
   const bad = !outcome.fits || outcome.lockExceeded
@@ -71,7 +71,7 @@ function TurnRow({ row, selected, onSelect }: { row: Row; selected: boolean; onS
             {Math.abs(outcome.deflectionDegrees).toFixed(0)}° · {turnSeverity(outcome.deflectionDegrees)}
           </span>
           <span
-            className={`rounded px-1.5 py-0.5 text-3xs font-medium ${bad ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}`}
+            className={`rounded px-1.5 py-0.5 text-3xs font-medium ${bad ? 'bg-red-100 text-danger dark:bg-red-950 dark:text-red-300' : 'bg-emerald-100 text-success dark:bg-emerald-950 dark:text-emerald-300'}`}
           >
             {badge}
           </span>
@@ -250,7 +250,7 @@ export function JunctionTurnPanel({
               </button>
             </div>
             {junction.widthAssumed && (
-              <p className="text-2xs text-amber-800 dark:text-amber-300">
+              <p className="text-2xs text-warning">
                 {junction.otherRoadName}’s width is not known: {m(assumedHalfWidthM)} each side is assumed.
               </p>
             )}

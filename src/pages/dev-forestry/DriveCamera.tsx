@@ -428,7 +428,7 @@ export function DriveCamera(props: Props) {
         <div className="mt-1.5 space-y-1 border-t border-border/60 pt-1.5 text-2xs leading-4" role="status">
           {statusText && <p>{statusText}</p>}
           {offRoadMeters > 0 && (
-            <p className="flex flex-wrap items-center gap-x-2 text-amber-800 dark:text-amber-200">
+            <p className="flex flex-wrap items-center gap-x-2 text-warning">
               <span>
                 {offRoadMeters} m off the road{walkHeld ? ' · the loaded ground ends here' : ''} · red ground is still
                 the nearest road station's view

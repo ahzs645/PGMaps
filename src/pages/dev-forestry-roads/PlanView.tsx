@@ -1760,7 +1760,7 @@ function Layers(
                   title={`${index === 0 ? 'Start' : index === props.alignment.points.length - 1 ? 'End' : `Control ${index + 1}`} · drag to move`}
                   aria-pressed={props.selectedPoint === p.id}
                   data-compact={compact || undefined}
-                  className={`cursor-grab touch-none rounded-full border-2 bg-background font-bold shadow active:cursor-grabbing ${compact ? 'size-3 border-amber-600 touch:size-4' : `size-7 text-3xs ${props.selectedPoint === p.id ? 'border-rose-500 text-rose-600' : 'border-amber-600 text-amber-700'}`}`}
+                  className={`cursor-grab touch-none rounded-full border-2 bg-background font-bold shadow active:cursor-grabbing ${compact ? 'size-3 border-amber-600 touch:size-4' : `size-7 text-3xs ${props.selectedPoint === p.id ? 'border-rose-500 text-rose-600' : 'border-amber-600 text-warning'}`}`}
                 >
                   {compact ? null : index + 1}
                 </button>
@@ -1885,7 +1885,7 @@ function Layers(
             >
               <MarkerContent>
                 <button
-                  className={`rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${selected ? 'border-rose-600 text-rose-700 ring-2 ring-rose-400/50' : culvert.warnings.length ? 'border-amber-600 text-amber-800' : 'border-sky-600 text-sky-800'}`}
+                  className={`rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${selected ? 'border-rose-600 text-rose-700 ring-2 ring-rose-400/50' : culvert.warnings.length ? 'border-amber-600 text-warning' : 'border-sky-600 text-sky-800'}`}
                   aria-label={`Inspect structure ${culvert.name}`}
                   aria-pressed={selected}
                   onClick={() => {

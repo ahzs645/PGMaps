@@ -3432,7 +3432,7 @@ export default function DevForestryRoads({
           </div>
           {projectStatus}
           {layoutsFallback && (
-            <p role="status" className="truncate text-2xs text-amber-700 dark:text-amber-400">
+            <p role="status" className="truncate text-2xs text-warning">
               Workspace layouts could not be loaded: using the built-in engineering workbench.
             </p>
           )}
@@ -3442,7 +3442,7 @@ export default function DevForestryRoads({
           <span
             title={planningBasis}
             data-testid="road-planning-basis"
-            className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
+            className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-warning sm:block"
           >
             {/* One wording at a time, so the badge's text is what it shows: the short one on a
                 header narrower than a wide desktop. */}
@@ -4948,11 +4948,7 @@ export default function DevForestryRoads({
                           onChange={(e) => w.setStation(Number(e.target.value))}
                         />
                         {typedNote && (
-                          <span
-                            role="status"
-                            className="text-xs text-amber-800 dark:text-amber-300"
-                            data-testid="road-station-limited"
-                          >
+                          <span role="status" className="text-xs text-warning" data-testid="road-station-limited">
                             {typedNote}
                           </span>
                         )}
@@ -4963,7 +4959,7 @@ export default function DevForestryRoads({
                         >
                           {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
                             <span
-                              className="block text-left font-sans text-amber-800 dark:text-amber-300"
+                              className="block text-left font-sans text-warning"
                               data-testid="road-station-terrain-gap"
                               title="The selected terrain has missing data here. Hatched chart areas and holes in the 3D ground show those gaps."
                             >

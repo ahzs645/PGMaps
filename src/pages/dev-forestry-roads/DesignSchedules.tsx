@@ -253,7 +253,7 @@ export function DesignSchedules({
                           ))}
                           <td>{fmt(curve?.k)}</td>
                           <td
-                            className={`text-left ${status === 'Unfitted' ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                            className={`text-left ${status === 'Unfitted' ? 'text-warning' : 'text-muted-foreground'}`}
                             title={
                               status === 'Tangent'
                                 ? 'Tangent break: no vertical curve'

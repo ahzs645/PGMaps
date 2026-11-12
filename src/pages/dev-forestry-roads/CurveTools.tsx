@@ -377,7 +377,7 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
                     const inside = sectionCrossfall(resolved, r.direction, fitted)
                     const outside = sectionCrossfall(resolved, r.direction === 'left' ? 'right' : 'left', fitted)
                     return (
-                      <tr key={i} className={c.warnings.length ? 'text-amber-700 dark:text-amber-400' : ''}>
+                      <tr key={i} className={c.warnings.length ? 'text-warning' : ''}>
                         <td title={`Full deflection ${r.deflectionDegrees.toFixed(1)}° including spirals`}>
                           {r.radius.toFixed(1)} m
                         </td>

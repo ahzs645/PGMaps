@@ -112,7 +112,7 @@ function TurnCard({
           {Math.abs(Math.abs(t.deflectionDegrees) - 180) < 20 ? ' · switchback' : ''}
         </span>
         <span
-          className={`rounded px-1.5 py-0.5 text-3xs font-medium ${bad ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}`}
+          className={`rounded px-1.5 py-0.5 text-3xs font-medium ${bad ? 'bg-red-100 text-danger dark:bg-red-950 dark:text-red-300' : 'bg-emerald-100 text-success dark:bg-emerald-950 dark:text-emerald-300'}`}
         >
           {bad
             ? [t.fits ? '' : `Widen ${m(need(t))}`, t.lockExceeded ? 'Beyond steering lock' : '']
@@ -664,7 +664,7 @@ export function SweptPathPanel({
       {result?.warnings
         .filter((w) => !w.startsWith('No fitted'))
         .map((w) => (
-          <p key={w} className="border-l-2 border-amber-500 pl-2 text-2xs text-amber-800 dark:text-amber-300">
+          <p key={w} className="border-l-2 border-amber-500 pl-2 text-2xs text-warning">
             {w}
           </p>
         ))}
@@ -702,7 +702,7 @@ export function SweptPathPanel({
           {tools && (
             <VehicleLibraryActions vehicle={check.vehicle} library={library} onLibraryChange={tools.onLibraryChange} />
           )}
-          <p className="text-2xs text-amber-800 dark:text-amber-300">
+          <p className="text-2xs text-warning">
             Presets are example or transcribed dimensions, not approvals: the source below says which values to confirm.
             Enter your fleet’s truck, trailer and load before relying on a result.
           </p>

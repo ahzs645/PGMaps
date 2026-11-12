@@ -249,7 +249,7 @@ export function DrainagePanel({
             record and settings travel with this project; full flow grids are recomputed.
           </p>
           {stale && (
-            <p role="status" className="text-amber-800 dark:text-amber-300">
+            <p role="status" className="text-warning">
               Saved drainage evidence is out of date. Re-run before using or exporting current results.
             </p>
           )}
@@ -337,13 +337,7 @@ export function DrainagePanel({
                   { label: 'Selected outlet', value: run.catchment.snappedCoordinate.map((v) => n(v, 6)).join(', ') },
                 ]}
               />
-              <p
-                className={
-                  run.catchment.feature.properties.truncated
-                    ? 'text-amber-800 dark:text-amber-300'
-                    : 'text-muted-foreground'
-                }
-              >
+              <p className={run.catchment.feature.properties.truncated ? 'text-warning' : 'text-muted-foreground'}>
                 {run.catchment.feature.properties.truncated
                   ? 'Boundary contact: contributing area may continue beyond the sampled grid or a terrain gap.'
                   : 'No sampled edge or no-data contact. This is a raster drainage boundary, not a surveyed watershed.'}
@@ -378,9 +372,7 @@ export function DrainagePanel({
                         <td className="text-left">{station(c.chainage)}</td>
                         <td>{n(c.areaHa, 2)}</td>
                         <td>{station(c.exitChainage)}</td>
-                        <td className={bad ? 'font-medium text-red-700 dark:text-red-400' : undefined}>
-                          {n(c.divertedM)}
-                        </td>
+                        <td className={bad ? 'font-medium text-danger' : undefined}>{n(c.divertedM)}</td>
                         <td className="text-left">
                           {c.throughCulvertId
                             ? 'Passes through'
@@ -452,9 +444,7 @@ export function DrainagePanel({
                       <p className="break-words font-medium">
                         {c.name} · {station(c.chainage)}
                       </p>
-                      <p
-                        className={c.adequate ? 'text-muted-foreground' : 'font-medium text-red-700 dark:text-red-400'}
-                      >
+                      <p className={c.adequate ? 'text-muted-foreground' : 'font-medium text-danger'}>
                         {c.adequate ? 'Capacity carries the modeled peak' : 'Modeled peak exceeds pipe capacity'}
                       </p>
                       <ReadoutGrid
@@ -500,9 +490,7 @@ export function DrainagePanel({
                             {n(c.designAreaHa, 2)} / {n(c.existingAreaHa, 2)}
                           </td>
                           <td>{n(c.designFlowM3s, 3)}</td>
-                          <td className={c.adequate ? undefined : 'font-medium text-red-700 dark:text-red-400'}>
-                            {n(c.capacityM3s, 3)}
-                          </td>
+                          <td className={c.adequate ? undefined : 'font-medium text-danger'}>{n(c.capacityM3s, 3)}</td>
                           <td title={c.slopeAssumed ? 'Assumed: inverts missing or not falling' : undefined}>
                             {n(c.slope * 100, 1)}
                             {c.slopeAssumed ? '*' : ''}
@@ -523,7 +511,7 @@ export function DrainagePanel({
             )}
           </section>
           {run.warnings.length > 0 && (
-            <ul className="list-disc pl-4 text-amber-800 dark:text-amber-300">
+            <ul className="list-disc pl-4 text-warning">
               {run.warnings.map((w) => (
                 <li key={w}>{w}</li>
               ))}

@@ -50,10 +50,10 @@ const n0 = (v: number | null) => (v === null ? '–' : Math.round(v).toLocaleStr
 const n1 = (v: number | null) => (v === null ? '–' : v.toFixed(1))
 
 function LimitIcon({ state }: { state: LayoutLimitState }) {
-  if (state === 'met') return <CheckCircle2 className="size-3.5 text-emerald-600" role="img" aria-label="Met" />
+  if (state === 'met') return <CheckCircle2 className="size-3.5 text-success" role="img" aria-label="Met" />
   if (state === 'not-assessed')
     return <CircleDashed className="size-3.5 text-muted-foreground" role="img" aria-label="Not assessed" />
-  return <OctagonAlert className="size-3.5 text-red-600 dark:text-red-400" role="img" aria-label="Not met" />
+  return <OctagonAlert className="size-3.5 text-danger" role="img" aria-label="Not met" />
 }
 
 const KIND_TEXT = { yarder: 'Yarder', support: 'Support', 'ground-anchor': 'Ground anchor', anchor: 'Anchor' }
@@ -351,7 +351,7 @@ export function CableSupportsSection({
       </div>
       {!prepError && runError && <InlineAlert tone="error">{runError}</InlineAlert>}
       {!result && entry && entry.key !== key && entry.status === 'done' && (
-        <p role="status" className="text-2xs text-amber-700 dark:text-amber-400">
+        <p role="status" className="text-2xs text-warning">
           The D-line, rigging, terrain or settings changed. Find supports again, or check the saved layout.
         </p>
       )}

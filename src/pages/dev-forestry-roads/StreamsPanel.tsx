@@ -251,12 +251,12 @@ function StreamDetails({
           </p>
         ))}
         {suggestion.outstanding.map((line) => (
-          <p key={line} className="text-amber-700 dark:text-amber-400">
+          <p key={line} className="text-warning">
             Outstanding: {line.toLowerCase()}
           </p>
         ))}
         {assessment.importedClass && (
-          <p className={importedDiffers ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}>
+          <p className={importedDiffers ? 'text-warning' : 'text-muted-foreground'}>
             Source file says {assessment.importedClass}
             {importedDiffers ? `, the rules give ${shown}` : ''}
           </p>

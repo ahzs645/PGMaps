@@ -184,7 +184,7 @@ export function CurveReviewPanel({
                     {c.events.at(-1)!.label} {formatRoadStation(c.fullEnd)}
                   </button>
                 </td>
-                <td className={c.warnings.length ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}>
+                <td className={c.warnings.length ? 'text-warning' : 'text-muted-foreground'}>
                   {c.warnings.length
                     ? `${c.warnings.length} review flag${c.warnings.length === 1 ? '' : 's'}`
                     : 'Screen only'}
@@ -239,7 +239,7 @@ export function CurveReviewPanel({
               {(active.warnings.length > 0 || active.innerEdgeGradeReason) && (
                 <div className="space-y-1 text-2xs">
                   {active.warnings.map((warning) => (
-                    <p key={warning} className="border-l-2 border-amber-500 pl-2 text-amber-800 dark:text-amber-300">
+                    <p key={warning} className="border-l-2 border-amber-500 pl-2 text-warning">
                       {warning}
                     </p>
                   ))}
@@ -260,7 +260,7 @@ export function CurveReviewPanel({
                 return (
                   <div className="flex flex-wrap items-center justify-between gap-2 text-2xs">
                     <p
-                      className={runs.length && widen > 0 ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground'}
+                      className={runs.length && widen > 0 ? 'text-danger' : 'text-muted-foreground'}
                       data-testid="road-curve-swept-status"
                     >
                       {!runs.length
@@ -306,7 +306,7 @@ export function CurveReviewPanel({
       {analysis.warnings
         .filter((warning) => /curve|radius|horizontal PI/i.test(warning))
         .map((warning) => (
-          <p key={warning} className="text-xs text-amber-700 dark:text-amber-400">
+          <p key={warning} className="text-xs text-warning">
             {warning}
           </p>
         ))}

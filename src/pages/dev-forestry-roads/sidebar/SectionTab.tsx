@@ -289,7 +289,7 @@ function Widenings(p: SidebarProps) {
                         Cancel
                       </Button>
                     </div>
-                    <p className={`text-xs ${result.error ? 'text-red-600' : 'text-muted-foreground'}`} role="status">
+                    <p className={`text-xs ${result.error ? 'text-danger' : 'text-muted-foreground'}`} role="status">
                       {result.error ??
                         `Copy at ${formatRoadStation(result.copy.start)}–${formatRoadStation(result.copy.end)}`}
                     </p>
@@ -361,12 +361,12 @@ function Widenings(p: SidebarProps) {
               </p>
             )}
             {limited?.id === v.id && v[`${limited.side}TaperM`] === limited.taperM && (
-              <p role="status" className="text-xs text-amber-800 dark:text-amber-300" data-testid="road-taper-note">
+              <p role="status" className="text-xs text-warning" data-testid="road-taper-note">
                 {limited.note}
               </p>
             )}
             {v.end <= v.start && (
-              <p role="alert" className="text-xs text-red-600">
+              <p role="alert" className="text-xs text-danger">
                 End station must be after start.
               </p>
             )}

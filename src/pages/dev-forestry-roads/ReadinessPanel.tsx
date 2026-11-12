@@ -21,27 +21,27 @@ import { RoadSection } from './SidebarParts'
 
 const GROUPS = Object.keys(READINESS_GROUP_LABELS) as ReadinessGroup[]
 const VERDICT_CLASS = {
-  danger: 'text-red-700 dark:text-red-400',
-  warning: 'text-amber-700 dark:text-amber-400',
+  danger: 'text-danger',
+  warning: 'text-warning',
   neutral: 'text-foreground',
-  success: 'text-emerald-700 dark:text-emerald-400',
+  success: 'text-success',
 }
 
 function StateIcon({ row }: { row: ReadinessRow }) {
   if (row.state === 'met')
-    return <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-600" role="img" aria-label="Met" />
+    return <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success" role="img" aria-label="Met" />
   if (row.state === 'not-assessed')
     return (
       <CircleDashed className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" role="img" aria-label="Not assessed" />
     )
   return row.severity === 'limit' ? (
     <OctagonAlert
-      className="mt-0.5 size-3.5 shrink-0 text-red-600 dark:text-red-400"
+      className="mt-0.5 size-3.5 shrink-0 text-danger"
       role="img"
       aria-label="Needs attention: outside a limit"
     />
   ) : (
-    <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-amber-600" role="img" aria-label="Needs attention: to do" />
+    <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" role="img" aria-label="Needs attention: to do" />
   )
 }
 

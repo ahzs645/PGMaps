@@ -119,9 +119,7 @@ export function AccessHistoryRecord({
           {structures.length} structure record{structures.length === 1 ? ' names' : 's name'} this road;{' '}
           {structures.length === 1 ? 'its' : 'their'} attachment and dates need their own review.
         </p>
-        {assessment.status !== 'compatible' && (
-          <p className="text-2xs text-amber-800 dark:text-amber-300">{assessment.reasons.join(' ')}</p>
-        )}
+        {assessment.status !== 'compatible' && <p className="text-2xs text-warning">{assessment.reasons.join(' ')}</p>}
         {evidence?.sourceUrl && (
           <a href={evidence.sourceUrl} target="_blank" rel="noreferrer" className="inline-block underline">
             Open road data source
@@ -208,7 +206,7 @@ export function AccessHistoryRecord({
         ) : (
           <p>No dated closure, restriction or load-rating report is attached.</p>
         )}
-        <p className="text-2xs text-amber-800 dark:text-amber-300">{assessment.reasons.join(' ')}</p>
+        <p className="text-2xs text-warning">{assessment.reasons.join(' ')}</p>
         <Sources sources={sources} />
         {onLocate && (
           <Button size="sm" variant="outline" onClick={() => onLocate([structure.coordinate])}>

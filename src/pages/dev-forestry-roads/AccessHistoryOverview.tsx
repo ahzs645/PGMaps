@@ -208,10 +208,7 @@ export function AccessHistoryOverview({
             </li>
           </ul>
           {coverage.findings.map((finding) => (
-            <p
-              key={finding.id}
-              className={finding.tone === 'warning' ? 'text-amber-800 dark:text-amber-300' : 'text-muted-foreground'}
-            >
+            <p key={finding.id} className={finding.tone === 'warning' ? 'text-warning' : 'text-muted-foreground'}>
               {finding.message}
             </p>
           ))}

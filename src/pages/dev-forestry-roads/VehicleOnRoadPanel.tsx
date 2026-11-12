@@ -200,7 +200,7 @@ export function VehicleOnRoadPanel({
                   Widest left {m(t.leftM)} at {formatRoadStation(t.leftStation)} · right {m(t.rightM)} at{' '}
                   {formatRoadStation(t.rightStation)}
                 </p>
-                <p className={t.beyondStation === null ? 'text-muted-foreground' : 'text-red-700 dark:text-red-300'}>
+                <p className={t.beyondStation === null ? 'text-muted-foreground' : 'text-danger'}>
                   {t.beyondStation === null
                     ? 'Stays over the formation.'
                     : `Past the formation edge by ${m(Math.max(t.beyondLeftM, t.beyondRightM))} at ${formatRoadStation(t.beyondStation)}.`}

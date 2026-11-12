@@ -319,19 +319,19 @@ export function SwitchbackTools({
               )}
             </div>
             {radiusM < project.settings.minRadius && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
+              <p className="text-xs text-warning">
                 Radius is below your {number(project.settings.minRadius)} m review threshold.
               </p>
             )}
             {Math.abs(gradePercent) > project.settings.maxGradePercent && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
+              <p className="text-xs text-warning">
                 Initial grade exceeds your {number(project.settings.maxGradePercent)}% review threshold.
               </p>
             )}
           </>
         )}
         {staged.error && (
-          <p role="status" className="text-xs text-amber-700 dark:text-amber-400">
+          <p role="status" className="text-xs text-warning">
             {staged.error}
           </p>
         )}

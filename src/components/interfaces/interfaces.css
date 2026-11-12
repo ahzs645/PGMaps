@@ -55,7 +55,7 @@
   flex-direction: column;
   text-align: left;
   border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) * 2);
+  border-radius: calc(var(--radius) + 8px);
   overflow: hidden;
   background: hsl(var(--card));
   color: hsl(var(--card-foreground));
@@ -115,7 +115,7 @@
 }
 .lp-current {
   margin-left: auto;
-  border-radius: 999px;
+  border-radius: 9999px;
   background: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
   padding: 1px 8px;
@@ -134,7 +134,7 @@
   overflow: auto;
   overscroll-behavior: none;
   border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) * 2);
+  border-radius: calc(var(--radius) + 8px);
   margin: auto;
   padding: 0;
   background: hsl(var(--background));

@@ -259,14 +259,14 @@ export function StationTable({
                   {columns.map((c) => (
                     <td
                       key={c.id}
-                      className={partial && c.sum ? 'text-amber-700 dark:text-amber-400' : undefined}
+                      className={partial && c.sum ? 'text-warning' : undefined}
                       title={partial && c.sum ? flags[0] : undefined}
                     >
                       {fixed(c.value(row), c.decimals)}
                     </td>
                   ))}
                   <td
-                    className="max-w-64 truncate text-left text-amber-700 dark:text-amber-400"
+                    className="max-w-64 truncate text-left text-warning"
                     title={flags.join('; ')}
                     data-partial={partial || undefined}
                   >
@@ -283,7 +283,7 @@ export function StationTable({
                 {columns.map((c) => (
                   <td key={c.id}>{c.sum ? number(totals[c.sum]) : ''}</td>
                 ))}
-                <td className="text-left font-normal text-amber-700 dark:text-amber-400">{totalsNote(totals)}</td>
+                <td className="text-left font-normal text-warning">{totalsNote(totals)}</td>
               </tr>
             </tfoot>
           )}

@@ -322,7 +322,7 @@ export function DrivePathPanel({
               ))}
             </dl>
             {result.lockRuns.map((r) => (
-              <p key={r.startS} className="text-red-700 dark:text-red-300">
+              <p key={r.startS} className="text-danger">
                 Beyond the lock from {r.startS.toFixed(1)} to {r.endS.toFixed(1)} m: {steerText(r.maxSteerDeg)}
               </p>
             ))}
@@ -330,7 +330,7 @@ export function DrivePathPanel({
               <p className="text-muted-foreground">No footprint chosen: the swept area is not compared with any.</p>
             )}
             {result.warnings.map((w) => (
-              <p key={w} className="border-l-2 border-amber-500 pl-2 text-amber-800 dark:text-amber-300">
+              <p key={w} className="border-l-2 border-amber-500 pl-2 text-warning">
                 {w}
               </p>
             ))}
@@ -445,10 +445,7 @@ function TemplateSummary({ template: t, fit }: { template: TurningTemplate; fit:
   return (
     <div className="space-y-1 rounded-md border p-2 text-2xs" data-testid="road-turning-template">
       {fit && (
-        <p
-          className={`font-medium ${fit.fits ? 'text-emerald-800 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
-          data-fits={fit.fits}
-        >
+        <p className={`font-medium ${fit.fits ? 'text-success' : 'text-danger'}`} data-fits={fit.fits}>
           {fit.fits
             ? `Loop turnaround fits: the area holds R ${m(fit.disc!.radiusM)}, the loop needs R ${m(fit.neededRadiusM)}.`
             : `Loop turnaround does not fit: it needs R ${m(fit.neededRadiusM)}, the area holds ${fit.disc ? `R ${m(fit.disc.radiusM)}` : 'no circle'} (${m(fit.shortM)} short).`}
@@ -471,9 +468,7 @@ function TemplateSummary({ template: t, fit }: { template: TurningTemplate; fit:
           </div>
         ))}
       </dl>
-      {t.lockExceeded && (
-        <p className="text-red-700 dark:text-red-300">That radius needs more than the steering lock.</p>
-      )}
+      {t.lockExceeded && <p className="text-danger">That radius needs more than the steering lock.</p>}
     </div>
   )
 }

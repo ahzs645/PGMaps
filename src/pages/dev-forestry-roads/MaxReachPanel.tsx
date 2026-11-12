@@ -250,7 +250,7 @@ export function MaxReachPanel({
       </div>
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
       {!result && record && !error && !progress && (
-        <p role="status" className="mb-2 text-xs text-amber-700 dark:text-amber-400">
+        <p role="status" className="mb-2 text-xs text-warning">
           Landing, terrain or settings changed. Run again to replace the previous preview.
         </p>
       )}
@@ -277,7 +277,7 @@ export function MaxReachPanel({
             </span>
           </div>
           {result.warnings.map((warning) => (
-            <p key={warning} className="mb-2 text-3xs text-amber-700 dark:text-amber-400">
+            <p key={warning} className="mb-2 text-3xs text-warning">
               {warning}
             </p>
           ))}

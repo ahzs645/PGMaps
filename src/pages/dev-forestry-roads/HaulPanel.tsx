@@ -192,7 +192,7 @@ export function HaulPanel({
             </InfoTip>
           </div>
           {measure ? (
-            <p className={measure.state === 'sharp' ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}>
+            <p className={measure.state === 'sharp' ? 'text-warning' : 'text-muted-foreground'}>
               Loaded turn {Math.round(measure.turnDeg)}° toward {review.destination.name} ·{' '}
               {measure.state === 'preferred'
                 ? 'mild'

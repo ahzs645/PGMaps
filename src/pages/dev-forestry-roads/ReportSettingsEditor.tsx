@@ -250,7 +250,7 @@ export function ReportSettingsEditor({
         </div>
       </section>
       {error && (
-        <p role="alert" className="text-amber-700 dark:text-amber-400">
+        <p role="alert" className="text-warning">
           {error}
         </p>
       )}
@@ -458,9 +458,7 @@ function DrawingLabelField({
           }}
         />
       </Field>
-      <p className={`mt-1 ${error ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
-        {error ?? `Preview: ${preview}`}
-      </p>
+      <p className={`mt-1 ${error ? 'text-warning' : 'text-muted-foreground'}`}>{error ?? `Preview: ${preview}`}</p>
     </div>
   )
 }

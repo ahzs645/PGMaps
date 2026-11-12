@@ -742,7 +742,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
                               'mt-0.5 block tabular-nums',
                               row.junction.turnDeg !== null &&
                                 row.junction.turnDeg > (project.haulDestination?.junction.maxTurnDeg ?? 90)
-                                ? 'text-amber-700 dark:text-amber-400'
+                                ? 'text-warning'
                                 : 'text-muted-foreground',
                             )}
                           >
@@ -755,9 +755,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
                               : ' · nearest point'}
                           </span>
                         )}
-                        {row.blockers[0] && (
-                          <span className="mt-0.5 block text-amber-700 dark:text-amber-400">{row.blockers[0]}</span>
-                        )}
+                        {row.blockers[0] && <span className="mt-0.5 block text-warning">{row.blockers[0]}</span>}
                       </button>
                     ))}
                   </div>

@@ -377,7 +377,7 @@ export function RoadBatchFinder({
                 </InfoTip>
               </p>
               {warnings.length > 0 && (
-                <ul className="space-y-0.5 text-amber-700 dark:text-amber-300" aria-label="Junctions to check">
+                <ul className="space-y-0.5 text-warning" aria-label="Junctions to check">
                   {warnings.slice(0, 8).map((j, i) => (
                     <li key={i}>{j.message}</li>
                   ))}

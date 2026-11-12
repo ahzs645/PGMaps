@@ -474,17 +474,13 @@ export function CostBreakdown({
                     <td className="font-mono">
                       {/* A line with nothing priced on it says so; a part-priced line keeps its amount. */}
                       {row.amountText ? (
-                        <span className="font-sans font-medium text-amber-700 dark:text-amber-400">
-                          {row.amountText}
-                        </span>
+                        <span className="font-sans font-medium text-warning">{row.amountText}</span>
                       ) : missing.length > 0 && row.amount === 0 ? (
-                        <span className="font-sans font-medium text-amber-700 dark:text-amber-400">No rate</span>
+                        <span className="font-sans font-medium text-warning">No rate</span>
                       ) : (
                         <>
                           {missing.length > 0 && (
-                            <span className="mr-1 font-sans text-3xs font-medium text-amber-700 dark:text-amber-400">
-                              part unpriced
-                            </span>
+                            <span className="mr-1 font-sans text-3xs font-medium text-warning">part unpriced</span>
                           )}
                           {money(row.amount, 2)}
                         </>
@@ -519,7 +515,7 @@ export function CostBreakdown({
                   {change !== 0 && (
                     <span
                       data-testid="road-cost-change"
-                      className={`ml-2 font-normal ${change > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}
+                      className={`ml-2 font-normal ${change > 0 ? 'text-warning' : 'text-success'}`}
                     >
                       {`${change > 0 ? '+' : '−'}${money(Math.abs(change))} since opened`}
                     </span>

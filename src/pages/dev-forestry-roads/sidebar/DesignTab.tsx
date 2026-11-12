@@ -782,7 +782,7 @@ function HorizontalPoints(p: SidebarProps) {
                     <td>{length.toFixed(1)}</td>
                     <td
                       className={
-                        grade !== null && Math.abs(grade) > project.settings.maxGradePercent ? 'text-red-600' : ''
+                        grade !== null && Math.abs(grade) > project.settings.maxGradePercent ? 'text-danger' : ''
                       }
                     >
                       {grade?.toFixed(1) ?? '—'}
@@ -870,7 +870,7 @@ function VerticalAlignment(p: SidebarProps) {
               <div key={v.id} className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_1.5rem] items-center gap-1">
                 {fitNotes.get(v.id) && (
                   <p
-                    className="order-last col-span-full text-2xs text-amber-800 dark:text-amber-300"
+                    className="order-last col-span-full text-2xs text-warning"
                     role="status"
                     data-testid="road-pvi-curve-note"
                   >

@@ -77,11 +77,7 @@ export function SaveStateLine({ browser, file }: { browser: BrowserSave; file: F
       data-save={browser.kind}
       title={state.detail}
       className={`block truncate text-xs ${
-        state.tone === 'danger'
-          ? 'text-red-600 dark:text-red-400'
-          : state.tone === 'warning'
-            ? 'text-amber-700 dark:text-amber-400'
-            : 'text-muted-foreground'
+        state.tone === 'danger' ? 'text-danger' : state.tone === 'warning' ? 'text-warning' : 'text-muted-foreground'
       }`}
     >
       {/* Beside the road switcher the line is narrow below a wide desktop; the short form fits it. */}

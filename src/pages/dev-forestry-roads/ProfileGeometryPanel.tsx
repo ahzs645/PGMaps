@@ -158,7 +158,7 @@ export function ProfileGeometryPanel({ workspace }: { workspace: RoadWorkspace }
             <li key={`${stretch.fromM}-${stretch.kind}`}>
               <button
                 type="button"
-                className="tabular-nums text-red-700 underline decoration-dotted underline-offset-2 dark:text-red-400"
+                className="tabular-nums text-danger underline decoration-dotted underline-offset-2 dark:text-red-400"
                 onClick={() => setStation(stretch.worstChainage)}
               >
                 {formatRoadStation(stretch.worstChainage)} · {stretch.kind.replace('-', ' ')} {n(stretch.depthM, 2)} m

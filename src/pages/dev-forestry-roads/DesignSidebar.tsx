@@ -208,13 +208,7 @@ export function DesignSidebar(props: SidebarProps) {
                       <td>{value(candidate)}</td>
                       <td
                         data-change={better === null ? 'neutral' : better ? 'better' : 'worse'}
-                        className={
-                          better === null
-                            ? 'text-muted-foreground'
-                            : better
-                              ? 'text-emerald-700 dark:text-emerald-400'
-                              : 'text-amber-700 dark:text-amber-400'
-                        }
+                        className={better === null ? 'text-muted-foreground' : better ? 'text-success' : 'text-warning'}
                       >
                         {change === null
                           ? '—'

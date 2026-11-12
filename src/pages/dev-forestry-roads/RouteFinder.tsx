@@ -595,9 +595,7 @@ function RouteResult({
         <span className="shrink-0 text-right font-semibold tabular-nums">
           {row.totalCost !== null ? money(row.totalCost) : '—'}
           {saving !== null && saving !== 0 && (
-            <span
-              className={`ml-1 font-normal ${saving < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}
-            >
+            <span className={`ml-1 font-normal ${saving < 0 ? 'text-success' : 'text-muted-foreground'}`}>
               {saving > 0 ? '+' : '−'}
               {Math.abs(saving)}%
             </span>
@@ -623,7 +621,7 @@ function RouteResult({
           {row.best.map((goal) => (
             <span
               key={goal}
-              className="rounded bg-emerald-100 px-1 text-2xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+              className="rounded bg-emerald-100 px-1 text-2xs text-success dark:bg-emerald-950 dark:text-emerald-300"
             >
               {GOAL_LABEL[goal]}
             </span>
@@ -631,7 +629,7 @@ function RouteResult({
         </span>
       )}
       {row.blockers.map((blocker) => (
-        <span key={blocker} className="mt-0.5 block text-2xs leading-4 text-amber-700 dark:text-amber-400">
+        <span key={blocker} className="mt-0.5 block text-2xs leading-4 text-warning">
           {blocker}
         </span>
       ))}

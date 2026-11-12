@@ -56,7 +56,7 @@ export const RouteFailureRow = forwardRef<
           data-testid="road-route-failure"
         >
           {text}
-          <span className="block text-2xs leading-4 text-red-700 dark:text-red-400" data-testid="road-route-stop">
+          <span className="block text-2xs leading-4 text-danger" data-testid="road-route-stop">
             {selected ? 'Highlighted on the plan' : 'Highlight on the plan'}: where it stopped
             {stop.remainingM >= 1 ? `, ${whole(stop.remainingM)} m short of the end` : ''}
             {stop.named ? `; ${stop.named.label.toLowerCase()}` : ''}.

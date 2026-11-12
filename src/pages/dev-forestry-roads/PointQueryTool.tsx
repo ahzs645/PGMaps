@@ -244,7 +244,7 @@ export function PointQueryPanel({
         />
       )}
       {(note || notes.length > 0) && (
-        <p role="status" className="text-amber-800 dark:text-amber-300" data-testid="road-point-query-note">
+        <p role="status" className="text-warning" data-testid="road-point-query-note">
           {[note, ...notes].filter(Boolean).join(' ')}
         </p>
       )}

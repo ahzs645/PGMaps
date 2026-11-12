@@ -54,7 +54,7 @@ export function FullCostRecordSummary({
           </Button>
         )}
       </div>
-      <p role="status" className={current ? 'text-muted-foreground' : 'text-amber-700 dark:text-amber-300'}>
+      <p role="status" className={current ? 'text-muted-foreground' : 'text-warning'}>
         {current
           ? 'Inputs match this saved comparison. Cost and condition assumptions still require review.'
           : 'Saved comparison is stale. Inputs changed; recalculate before relying on this total.'}

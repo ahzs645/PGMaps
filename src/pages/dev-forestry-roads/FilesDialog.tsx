@@ -269,7 +269,7 @@ export function FilesDialog({
                 />
                 {stamped && today && (
                   <span
-                    className={`text-xs ${stamp.missing.length ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                    className={`text-xs ${stamp.missing.length ? 'text-warning' : 'text-muted-foreground'}`}
                     data-testid="road-issue-line"
                   >
                     {issueLine(stamp)}

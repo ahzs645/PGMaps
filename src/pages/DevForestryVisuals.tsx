@@ -3101,9 +3101,7 @@ function DevForestryVisuals() {
                                   </span>
                                   {currentExposure &&
                                     ((currentExposure.unknownPercent ?? 0) > 0 ? (
-                                      <span className="text-amber-700 dark:text-amber-300">
-                                        · terrain incomplete here
-                                      </span>
+                                      <span className="text-warning">· terrain incomplete here</span>
                                     ) : (
                                       <span>
                                         ·{' '}

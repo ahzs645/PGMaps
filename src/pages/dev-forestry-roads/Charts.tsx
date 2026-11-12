@@ -2166,11 +2166,7 @@ export function CrossSectionChart({
           )}
           {/* An incomplete section is left out of every quantity, so its reason is stated, not implied. */}
           {incompleteLabel && (
-            <p
-              role="status"
-              data-testid="road-section-incomplete"
-              className="text-3xs leading-4 text-amber-700 dark:text-amber-400"
-            >
+            <p role="status" data-testid="road-section-incomplete" className="text-3xs leading-4 text-warning">
               {incompleteLabel}. It is left out of quantities.
             </p>
           )}
@@ -2247,7 +2243,7 @@ export function CrossSectionChart({
               aria-label={`Select section culvert ${c.name}`}
               aria-pressed={selectedCulvertId === c.id}
               onClick={() => onSelectCulvert?.(c.id)}
-              className={`block w-full rounded border px-1 py-0.5 text-left text-3xs ${selectedCulvertId === c.id ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300' : c.warnings.length ? 'border-transparent text-amber-700 dark:text-amber-400' : 'border-transparent text-muted-foreground'}`}
+              className={`block w-full rounded border px-1 py-0.5 text-left text-3xs ${selectedCulvertId === c.id ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300' : c.warnings.length ? 'border-transparent text-warning' : 'border-transparent text-muted-foreground'}`}
             >
               {c.name}: projected barrel · cover {format(c.coverM)} m · pipe grade {format(c.gradePercent)}% ·{' '}
               {c.complete ? 'sampled geometry complete' : 'incomplete levels or terrain'}. {c.warnings.join(' ')}

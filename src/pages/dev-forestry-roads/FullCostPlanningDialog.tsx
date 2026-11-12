@@ -298,7 +298,7 @@ export function FullCostPlanningDialog({
                         <strong>{result.status === 'infeasible' ? 'Not feasible' : money(result.totalCost)}</strong>
                       </div>
                       {result.id === review.run.comparison.winnerId && (
-                        <p className="text-xs font-semibold text-emerald-700">
+                        <p className="text-xs font-semibold text-success">
                           Lowest complete access cost among the checked candidates
                         </p>
                       )}

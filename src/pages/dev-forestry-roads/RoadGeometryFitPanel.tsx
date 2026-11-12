@@ -136,7 +136,7 @@ export function RoadGeometryFitPanel({
                         <td>{formatRoadStation(bend.chainage)}</td>
                         {corner ? (
                           <>
-                            <td className={corner.poorlyDetermined ? 'text-amber-700 dark:text-amber-400' : undefined}>
+                            <td className={corner.poorlyDetermined ? 'text-warning' : undefined}>
                               {n(corner.radiusM)}
                               {corner.poorlyDetermined ? '?' : ''}
                             </td>

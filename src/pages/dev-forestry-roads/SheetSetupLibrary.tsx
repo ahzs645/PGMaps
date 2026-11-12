@@ -240,7 +240,7 @@ export function SheetSetupLibrary({
       {message && (
         <p
           role={message.error ? 'alert' : 'status'}
-          className={message.error ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}
+          className={message.error ? 'text-warning' : 'text-muted-foreground'}
         >
           {message.text}
           {message.undo && (

@@ -264,19 +264,19 @@ export function VerticalAlternativesEditor({
           </div>
         )}
         {valid.some((entry) => entry.analysis.coveragePercent < 99.99999) && (
-          <p className="text-xs text-amber-700 dark:text-amber-400">
+          <p className="text-xs text-warning">
             Some profiles have incomplete sections. Their covered subtotals cannot establish the cheapest complete
             design.
           </p>
         )}
         {valid.some((entry) => alternativeCostStatus(entry.analysis) === 'infeasible') && (
-          <p className="text-xs text-amber-700 dark:text-amber-400">
+          <p className="text-xs text-warning">
             A profile has no feasible material supply/movement prescription. Its subtotal is excluded from cost
             comparison even where terrain coverage is complete.
           </p>
         )}
         {error && (
-          <p role="alert" className="text-xs text-amber-700 dark:text-amber-400">
+          <p role="alert" className="text-xs text-warning">
             {error}
           </p>
         )}

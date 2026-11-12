@@ -240,7 +240,7 @@ export function CableFieldProfileSection({
             {comparison.flagged ? ` · ${comparison.flagged} over ${FIELD_DIFFERENCE_FLAG_M} m` : ''}.
           </p>
           {!comparison.coversLine && (
-            <p className="text-2xs text-amber-700 dark:text-amber-400">
+            <p className="text-2xs text-warning">
               Shots cover {n1(comparison.coveredFromM)}–{n1(comparison.coveredToM)} m of the {n1(comparison.lengthM)} m
               line; the terrain is read outside them.
             </p>
