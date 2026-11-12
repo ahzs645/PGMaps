@@ -289,8 +289,9 @@ test('a drag that would make the road cross itself is refused before and after t
   await expect(page.locator('[data-plan-edit-refusal]')).toHaveCount(0)
   await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('would cross itself')
   expect(pointsOf(await save(page))).toEqual(pointsOf(project))
-  // The handle goes back to where the road still has it.
-  const back = await centre(4)
-  expect(Math.hypot(back.x - end.x, back.y - end.y)).toBeLessThan(3)
+  // The handle goes back to where the road still has it, read against point 1: the plan can shift on
+  // the page by a few pixels while the test runs, which moves every marker together.
+  const [back, firstBack] = [await centre(4), await centre(1)]
+  expect(Math.hypot(back.x - firstBack.x - (end.x - first.x), back.y - firstBack.y - (end.y - first.y))).toBeLessThan(3)
   expect(errors).toEqual([])
 })
