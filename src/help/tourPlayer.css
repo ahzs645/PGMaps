@@ -14,7 +14,7 @@ body {
   max-width: 64rem;
   font-family: var(--brand-body);
   border-color: var(--tk-border);
-  border-radius: 12px;
+  border-radius: calc(var(--radius) + 4px);
 }
 
 .tour-nav + #root {
@@ -85,7 +85,7 @@ body {
 }
 .tk-capture-step-number {
   font: 400 0.875rem var(--brand-label);
-  border-radius: 5px;
+  border-radius: calc(var(--radius) - 2px);
 }
 .tk-capture-complete-icon {
   color: white;
@@ -110,7 +110,7 @@ body {
 .tk-capture-player .tk-capture-button {
   min-height: 2.65rem;
   border: 1px solid hsl(var(--access-text) / 0.52);
-  border-radius: 5px;
+  border-radius: calc(var(--radius) - 2px);
   padding: 0.55rem 0.9rem;
   color: var(--tk-ink);
   background: white;
@@ -218,7 +218,7 @@ body {
   padding: 0.85rem clamp(1rem, 2.5vw, 2rem);
   color: white;
   background: hsl(var(--ddc-midnight));
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 calc(var(--radius) + 4px) calc(var(--radius) + 4px);
   font: 600 0.94rem/1.5 var(--brand-body);
   text-decoration: none;
 }

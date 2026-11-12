@@ -21,6 +21,7 @@ import {
   Container,
   Database,
   SplinePointer,
+  Palette,
   BookOpen,
   Footprints,
   MountainSnow,
@@ -166,6 +167,12 @@ const additionalExportIcons: Partial<Record<RoadExport, LucideIcon>> = {
 }
 
 export const workspaceCommands = {
+  branding: {
+    label: 'Branding',
+    icon: Palette,
+    description: 'Import a Brandkit brand and choose where to use it.',
+    investigation: true,
+  },
   ...commandRecord(ribbonExports, (entry) => ({
     label: entry.label,
     icon: additionalExportIcons[entry.kind] ?? Download,

@@ -20,6 +20,10 @@ import {
   type WorkspaceCommand,
 } from '@/components/interfaces/workspaceCommands'
 import { AccessLockup } from '@/components/interfaces/AccessLockup'
+import { BrandingDialog } from '@/branding/BrandingDialog'
+import { useBranding } from '@/branding/useBranding'
+import { exportBrand } from '@/branding/store'
+import { brandedHtml } from '@/branding/presentation'
 import { DEFAULT_HEADER_TOOLS, WorkspaceHeader } from '@/components/interfaces/WorkspaceHeader'
 import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
 import { type CommandState, WorkspaceTools } from '@/components/interfaces/WorkspaceTools'
@@ -395,6 +399,9 @@ export default function DevForestryRoads({
     setFocusPane,
   } = useWorkspaceLayout(initialInterface)
   const [choosingInterface, setChoosingInterface] = useState(false)
+  const [brandingOpen, setBrandingOpen] = useState(false)
+  const branding = useBranding()
+  const selectedExportBrand = exportBrand(branding)
   const [customizingRibbon, setCustomizingRibbon] = useState(false)
   const [paneHost, setPaneHost] = useState<HTMLDivElement | null>(null)
   const ribbonPreferences = useRibbonPreferences(active)
@@ -1208,7 +1215,7 @@ export default function DevForestryRoads({
       downloadText(
         kind === 'csv'
           ? cableProfileCsv(cableLine, cableAnalysis, project.terrain, extras)
-          : cableProfileHtml(cableLine, cableAnalysis, project.terrain, extras),
+          : brandedHtml(cableProfileHtml(cableLine, cableAnalysis, project.terrain, extras), selectedExportBrand),
         kind === 'csv' ? 'd-line-profile.csv' : 'd-line-profile.html',
         kind === 'csv' ? 'text/csv;charset=utf-8' : 'text/html;charset=utf-8',
       )
@@ -2284,9 +2291,12 @@ export default function DevForestryRoads({
     return { safe, basename }
   }
   const reportHtml = (safe: RoadProject) =>
-    terrainProfile
-      ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
-      : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale })
+    brandedHtml(
+      terrainProfile
+        ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
+        : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
+      selectedExportBrand,
+    )
   /**
    * One output's file, built the same way for its download and its preview. The PDFs are not here:
    * they render and download in one step, and preview through the report page and the plan map.
@@ -2296,7 +2306,10 @@ export default function DevForestryRoads({
   ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
     const { safe, basename } = exportBasis(kind)
     const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
-      content,
+      content:
+        mime.startsWith('text/html') && !content.includes('id="pgmaps-export-brand"')
+          ? brandedHtml(content, selectedExportBrand)
+          : content,
       filename,
       mime,
       notice,
@@ -2377,6 +2390,7 @@ export default function DevForestryRoads({
         }
         return text(
           plotBookHtml({
+            branding: selectedExportBrand,
             projectName: safe.name,
             settings: safe.reportSettings,
             issue: safe.issue,
@@ -2507,7 +2521,7 @@ export default function DevForestryRoads({
       if (kind === 'dline-sheet-pdf') {
         void run('Building the D-line sheet…', async (signal) => {
           const { dLineSheetPdf } = await import('./dev-forestry-roads/dline/sheetExport')
-          const blob = await dLineSheetPdf({ ...dLineSheetRequest(safe), signal })
+          const blob = await dLineSheetPdf({ ...dLineSheetRequest(safe), signal, branding: selectedExportBrand })
           const name = (cableLine?.name ?? 'd-line').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'd-line'
           downloadBlob(blob, `${basename}-${name.slice(0, 40)}-sheet.pdf`)
           w.setNotice('D-line sheet downloaded.')
@@ -2521,7 +2535,10 @@ export default function DevForestryRoads({
             import('./dev-forestry-roads/plotBookPdf'),
           ])
           const paper = parseRoadReportSettings(safe.reportSettings).paper
-          downloadBlob(await plotBookPdf(book.content as string, paper, signal), `${basename}-plot-book.pdf`)
+          downloadBlob(
+            await plotBookPdf(book.content as string, paper, signal, selectedExportBrand),
+            `${basename}-plot-book.pdf`,
+          )
           w.setNotice(
             book.notice
               .replace(/^Plot book downloaded/, 'Plot book PDF downloaded')
@@ -2533,7 +2550,11 @@ export default function DevForestryRoads({
       if (kind === 'block-sheet-pdf') {
         void run('Building block map sheet…', async (signal) => {
           const { blockSheetPdf } = await import('./dev-forestry-roads/blockSheet')
-          const { blob, built } = await blockSheetPdf({ ...blockSheetRun(kind, safe), signal })
+          const { blob, built } = await blockSheetPdf({
+            ...blockSheetRun(kind, safe),
+            signal,
+            branding: selectedExportBrand,
+          })
           downloadBlob(blob, `${basename}-${blockSheet.settings.kind}.pdf`)
           w.setNotice(['Block map sheet downloaded.', ...built.missing].join(' '))
         })
@@ -2558,8 +2579,9 @@ export default function DevForestryRoads({
               }`,
               `${basename}-map.pdf`,
               signal,
+              selectedExportBrand,
             )
-          } else await exportReportPdf(reportHtml(safe), `${basename}-report.pdf`)
+          } else await exportReportPdf(reportHtml(safe), `${basename}-report.pdf`, selectedExportBrand)
           w.setNotice(kind === 'map-pdf' ? 'Map PDF downloaded.' : 'Report PDF downloaded.')
         })
         return
@@ -2596,6 +2618,7 @@ export default function DevForestryRoads({
       roadScope,
       sheet: blockSheet.settings,
       logo: blockSheet.logo,
+      branding,
     }),
     [
       project,
@@ -2607,6 +2630,7 @@ export default function DevForestryRoads({
       roadScope,
       blockSheet.settings,
       blockSheet.logo,
+      branding,
     ],
   )
   /** What the Save & export dialog shows for one output, from the content its download writes. */
@@ -2617,12 +2641,12 @@ export default function DevForestryRoads({
     if (kind === 'plotbook-pdf') return { type: 'html', html: (await exportFile('plotbook')).content as string }
     if (kind === 'dline-sheet-pdf') {
       const { dLineSheetPreview } = await import('./dev-forestry-roads/dline/sheetExport')
-      const preview = await dLineSheetPreview({ ...dLineSheetRequest(safe), signal })
+      const preview = await dLineSheetPreview({ ...dLineSheetRequest(safe), signal, branding: selectedExportBrand })
       return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
     }
     if (kind === 'block-sheet-pdf') {
       const { blockSheetPreview } = await import('./dev-forestry-roads/blockSheet')
-      const preview = await blockSheetPreview({ ...blockSheetRun(kind, safe), signal })
+      const preview = await blockSheetPreview({ ...blockSheetRun(kind, safe), signal, branding: selectedExportBrand })
       return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
     }
     if (kind === 'map-pdf') {
@@ -3185,6 +3209,7 @@ export default function DevForestryRoads({
     dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
   }
   const commands: Record<WorkspaceCommand, () => void> = {
+    branding: () => setBrandingOpen(true),
     ...commandRecord(ribbonExports, (output) => () => openExport(output.kind)),
     ...commandRecord(roadDetailViews, (view) => () => showDetailPane(view.value)),
     zoomIn: () => zoomPlan(1),
@@ -3271,6 +3296,7 @@ export default function DevForestryRoads({
   const resultsReason =
     lockedReason ?? noRoadReason ?? (terrainProfile ? 'Not available while a terrain profile is open.' : undefined)
   const commandStates: Partial<Record<WorkspaceCommand, CommandState>> = {
+    branding: { disabled: false },
     ...commandRecord(ribbonExports, (output) => ({
       disabled: !!busy || !!exportUnavailable(output.kind, exportContext),
     })),
@@ -3693,6 +3719,7 @@ export default function DevForestryRoads({
       data-focus-mode={focusMode || undefined}
       data-tiny-height={tinyHeight || undefined}
     >
+      {brandingOpen && branding.ready && <BrandingDialog onClose={() => setBrandingOpen(false)} />}
       {!distributed && !toolbar?.includeProjectHeader && projectHeader}
       {toolbar?.dock === 'top' && workspaceTools}
       {choosingInterface && (

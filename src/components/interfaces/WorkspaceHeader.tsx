@@ -17,6 +17,7 @@ export const DEFAULT_HEADER_TOOLS: HeaderTool[] = [
   'loadMapped',
   'summarySettings',
   'presets',
+  'branding',
   'saveState',
   'controls',
   'undo',
@@ -37,6 +38,7 @@ const HEADER_OVERFLOW: Partial<Record<HeaderTool, WorkspaceCommand>> = {
   summarySettings: 'summarySettings',
   projects: 'projects',
   fullscreen: 'fullscreen',
+  branding: 'branding',
 }
 
 /**

@@ -1,3 +1,5 @@
+import type { ExportBrand, BrandRecord } from '@/branding/model'
+import { brandLogoSvg } from '@/branding/presentation'
 /**
  * A printable plot book in the RoadEng multi-plot shape: chapter 1 is plan-and-profile sheets
  * with a mass-haul strip, one sheet per window of road; chapter 2 is cross-section sheets at a
@@ -84,6 +86,8 @@ function titleBlock(
   scale: string,
   stamp: IssueStamp,
   W: number,
+  brand?: BrandRecord,
+  unitsPerMm = 96 / 25.4,
 ) {
   const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text)
   const x = W - 640,
@@ -91,7 +95,7 @@ function titleBlock(
     split = x + 470
   const author = [stamp.preparedBy, stamp.organisation].filter(Boolean).join(', ')
   const revision = stamp.revision ? `Rev ${stamp.revision.replace(/^rev(ision)?\.?\s*/i, '')}` : 'Rev not recorded'
-  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="620" height="114" fill="#fff" stroke="#111827"/><line x1="${x}" x2="${x + 620}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + 114}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" font-size="16" font-weight="700">${html(clip(project, 44))}</text><text x="${x + 610}" y="${y + 21}" font-size="13" font-weight="700" text-anchor="end" data-role="revision">${html(clip(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" font-size="12">${html(clip(road, 62))}</text><text x="${x + 10}" y="${y + 60}" font-size="12" font-weight="600">${html(clip(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" font-size="10" fill="#4b5563">${html(clip(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" font-size="10" data-role="prepared-by">${html(clip(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" font-size="10">${html(clip(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text><text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text></g>`
+  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="620" height="114" fill="#fff" stroke="#111827"/><line x1="${x}" x2="${x + 620}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + 114}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" font-size="16" font-weight="700">${html(clip(project, 44))}</text><text x="${x + 610}" y="${y + 21}" font-size="13" font-weight="700" text-anchor="end" data-role="revision">${html(clip(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" font-size="12">${html(clip(road, 62))}</text><text x="${x + 10}" y="${y + 60}" font-size="12" font-weight="600">${html(clip(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" font-size="10" fill="#4b5563">${html(clip(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" font-size="10" data-role="prepared-by">${html(clip(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" font-size="10">${html(clip(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text>${brand ? brandLogoSvg(brand, split + 10, y + 82, 130, 28, unitsPerMm) : `<text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text>`}</g>`
 }
 
 /** One plan-and-profile sheet for the stations between `start` and `end`. */
@@ -512,8 +516,10 @@ export function plotBookHtml({
   issue,
   today,
   gradeLimits,
+  branding,
 }: {
   projectName: string
+  branding?: ExportBrand
   alignment: Alignment
   analysis: RoadAnalysis
   terrain: TerrainMetadata
@@ -670,7 +676,7 @@ export function plotBookHtml({
   const pages = sheets
     .map(
       (sheet, i) =>
-        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"${sheet.chapter ? ` data-chapter="${html(sheet.chapter)}"` : ''}><rect width="${W}" height="${H}" fill="#fff"/><rect x="20" y="16" width="${W - 40}" height="${H - 32}" fill="none" stroke="#111827" stroke-width="1.5"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp, W)}</svg></section>`,
+        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"${sheet.chapter ? ` data-chapter="${html(sheet.chapter)}"` : ''}><rect width="${W}" height="${H}" fill="#fff"/><rect x="20" y="16" width="${W - 40}" height="${H - 32}" fill="none" stroke="#111827" stroke-width="1.5"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp, W, branding?.brand, W / REPORT_PAPERS[settings.paper].widthMm)}</svg></section>`,
     )
     .join('')
   const paper = REPORT_PAPERS[settings.paper]

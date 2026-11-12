@@ -113,6 +113,9 @@ export default defineConfig({
   ],
   resolve: {
     alias: [
+      { find: /^brandkit\/consumer$/, replacement: path.resolve(__dirname, 'vendor/brandkit/src/engine/consumer.js') },
+      { find: /^brandkit\/fonts$/, replacement: path.resolve(__dirname, 'vendor/brandkit/src/fonts/provider.js') },
+      { find: /^brandkit\/pack\/host$/, replacement: path.resolve(__dirname, 'vendor/brandkit/src/pack/host.js') },
       { find: '@', replacement: path.resolve(__dirname, './src') },
       // MapLibre 6 locates its worker at run time in a way Vite cannot follow;
       // the entry sets the worker URL first (see src/lib/maplibre-gl-entry.ts).
@@ -128,7 +131,7 @@ export default defineConfig({
     // trial bench is a separate project with its own packages (EZ-Tree,
     // maplibre-gl-three, Giro3D); scanned from here they fail to resolve and
     // stop the dev server.
-    entries: ['**/*.html', '!docs/forestry-visual-tools-trial/**'],
+    entries: ['**/*.html', '!docs/forestry-visual-tools-trial/**', '!vendor/brandkit/**'],
   },
   build: {
     rollupOptions: {

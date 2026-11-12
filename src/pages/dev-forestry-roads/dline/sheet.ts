@@ -48,6 +48,7 @@ const COLORS = {
 }
 
 export interface DLineSheetInput {
+  brandName?: string
   projectName: string
   line: CableLine
   /** The profile on the line's own ground. */
@@ -539,7 +540,10 @@ export function buildDLineSheet(input: DLineSheetInput): DLineSheet {
   const leftW = width - 2 * m - right - 14
   const { line, extras } = input
   // Header.
-  text(ops, m, m + 6, 'DDC Access · D-line sheet', 6.5, { color: COLORS.muted, style: 'bold' })
+  text(ops, input.brandName ? m + 185 : m, m + 6, `${input.brandName ?? 'DDC Access'} · D-line sheet`, 6.5, {
+    color: COLORS.muted,
+    style: 'bold',
+  })
   text(ops, m, m + 24, fitText(line.name, 16, leftW), 16, { style: 'bold' })
   text(ops, m, m + 36, fitText(input.projectName, 8, leftW), 8, { color: COLORS.muted })
   const stampLines = [

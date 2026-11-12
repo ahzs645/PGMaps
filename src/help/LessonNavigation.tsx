@@ -24,7 +24,7 @@ export function LessonNavigation({ lesson, view, ribbon }: Props) {
   return (
     <nav className="tour-nav" aria-label="Help navigation" data-lesson={lesson} data-view={view}>
       <a className="tour-home" href={hub} aria-label="DDC Access Help">
-        <AccessLockup />
+        <AccessLockup surface="help" />
       </a>
       <details className="tour-workspace">
         <summary aria-label={'Tutorial workspace, ' + (ribbon?.name ?? 'Engineering workbench')}>

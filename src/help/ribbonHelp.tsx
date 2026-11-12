@@ -6,7 +6,11 @@ import { useRibbonPreferences } from '../components/interfaces/ribbonPreferences
 import { ribbonRoutes } from './ribbonRoutes'
 import { resolveSteps, type LessonStep } from './ribbonSteps'
 import { buildCapture, exportPlayer, type Capture } from './ribbonCapture'
+import { parseCapture } from './parseCapture'
 import './ribbonExcerpt.css'
+import { getBrandingState, initializeBranding } from '../branding/store'
+import { BrandScope } from '../branding/BrandScope'
+import { brandVariables, fontCss } from '../branding/presentation'
 
 const params = new URLSearchParams(location.search)
 const id = params.get('lesson') ?? 'sketch-road'
@@ -36,7 +40,7 @@ async function loadLesson(): Promise<Capture> {
   const archive = await JSZip.loadAsync(await response.arrayBuffer())
   const json = await archive.file('capture.json')?.async('string')
   if (!json) throw new Error('The TourKit package is missing capture.json.')
-  return JSON.parse(json) as Capture
+  return parseCapture(json)
 }
 let playerTemplate: Promise<Document> | undefined
 function portablePlayer(capture: Capture) {
@@ -47,7 +51,14 @@ function portablePlayer(capture: Capture) {
   return playerTemplate.then((template) => {
     const next = template.querySelector<HTMLAnchorElement>('.tour-continue a')?.dataset.nextLesson
     const destination = new URL(next ? link('tour', next) : hub, location.href)
-    return exportPlayer(template, capture, destination.href)
+    const { brands, settings } = getBrandingState()
+    const brand = settings.help && brands.find((brand) => brand.key === settings.selected)
+    return exportPlayer(
+      template,
+      capture,
+      destination.href,
+      brand ? { brand, typography: settings.typography, pdfFonts: false } : null,
+    )
   })
 }
 
@@ -105,7 +116,14 @@ function sharedGuide(step: LessonStep, guide: Document) {
 function Player({ html, title }: { html: string; title: string }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const observer = useRef<ResizeObserver>()
-  useEffect(() => () => observer.current?.disconnect(), [])
+  const resizeFrame = useRef<number>()
+  useEffect(
+    () => () => {
+      observer.current?.disconnect()
+      if (resizeFrame.current !== undefined) cancelAnimationFrame(resizeFrame.current)
+    },
+    [],
+  )
   return (
     <iframe
       className="ribbon-player"
@@ -118,7 +136,11 @@ function Player({ html, title }: { html: string; title: string }) {
         const body = el?.contentDocument?.body
         if (!el || !body) return
         const resize = () => {
-          el.style.height = Math.ceil(body.getBoundingClientRect().height + 2) + 'px'
+          if (resizeFrame.current !== undefined) cancelAnimationFrame(resizeFrame.current)
+          resizeFrame.current = requestAnimationFrame(() => {
+            const height = Math.ceil(body.getBoundingClientRect().height + 2) + 'px'
+            if (el.style.height !== height) el.style.height = height
+          })
         }
         observer.current = new ResizeObserver(resize)
         observer.current.observe(body)
@@ -142,7 +164,18 @@ function Help({ layout, guide, capture }: Sources) {
       try {
         if (!stage.current?.contentDocument || !toolbar) return
         const sequence = resolveSteps(id, capture.steps, toolbar)
-        const data = buildCapture(capture, sequence, stage.current.contentDocument)
+        const radius = getComputedStyle(document.documentElement).getPropertyValue('--radius')
+        const { brands, settings } = getBrandingState()
+        const brand = settings.help && brands.find((brand) => brand.key === settings.selected)
+        const theme = brand
+          ? (settings.typography ? fontCss(brand) : '') +
+            ':root{' +
+            Object.entries(brandVariables(brand, settings.typography, true))
+              .map(([k, v]) => `${k}:${v}`)
+              .join(';') +
+            '}'
+          : ''
+        const data = buildCapture(capture, sequence, stage.current.contentDocument, radius, theme)
         const player = playing ? await portablePlayer(data) : ''
         if (active) {
           setError('')
@@ -170,7 +203,9 @@ function Help({ layout, guide, capture }: Sources) {
     .querySelector('main header h1 + p')
     ?.textContent?.replace(/(?:the )?Engineering workbench/gi, 'the Ribbon')
   const title = capture.title
-  document.title = title + ' · Ribbon · DDC Access Help'
+  const branding = getBrandingState()
+  const helpBrand = branding.settings.help && branding.brands.find((b) => b.key === branding.settings.selected)
+  document.title = title + ' · Ribbon · ' + (helpBrand ? helpBrand.profile.name : 'DDC Access') + ' Help'
   async function editable() {
     if (!lesson) return
     try {
@@ -279,6 +314,12 @@ function Help({ layout, guide, capture }: Sources) {
 }
 
 const root = createRoot(document.getElementById('ribbon-help')!)
-readSources()
-  .then((s) => root.render(<Help {...s} />))
+Promise.all([readSources(), initializeBranding()])
+  .then(([s]) =>
+    root.render(
+      <BrandScope surface="help">
+        <Help {...s} />
+      </BrandScope>,
+    ),
+  )
   .catch((e) => root.render(<ErrorMessage message={String(e)} />))

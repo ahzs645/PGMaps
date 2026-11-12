@@ -1,3 +1,5 @@
+@import url('./designTokens.css');
+
 :root {
   color-scheme: light;
   --ink: hsl(var(--ddc-midnight));
@@ -45,17 +47,17 @@ h3 { font-size: 1.18rem; letter-spacing: -.02em }
 .catalog-intro p { max-width: 64ch }
 .workspace { flex: none }
 .workspace .label { display: block; margin-bottom: .55rem; color: var(--muted) }
-.workspace-choice { display: inline-flex; align-items: stretch; gap: 2px; padding: 3px; border: 1px solid var(--rule); background: white; border-radius: 7px }
+.workspace-choice { display: inline-flex; align-items: stretch; gap: 2px; padding: 3px; border: 1px solid var(--rule); background: white; border-radius: var(--radius) }
 .workspace-choice a, .actions a, .links a { display: inline-flex; align-items: center; justify-content: center; gap: .45rem }
-.workspace-choice a { padding: .55rem .75rem; border-radius: 4px; color: var(--ink); font-size: .85rem; text-decoration: none }
+.workspace-choice a { padding: .55rem .75rem; border-radius: calc(var(--radius) - 4px); color: var(--ink); font-size: .85rem; text-decoration: none }
 .workspace-choice a:hover { background: hsl(var(--ddc-ice) / .42) }
 .workspace-choice [aria-current=page] { background: var(--ink); color: white }
 .workspace-choice [aria-current=page]:hover { background: var(--ink) }
 .actions { display: flex; gap: .6rem 1.25rem; align-items: center; flex-wrap: wrap; margin-top: 1.35rem; font-size: .9rem }
 .actions a { min-height: 2.7rem }
-.primary { display: inline-flex; align-items: center; min-height: 2.7rem; padding: .58rem 1rem; background: var(--link); border-radius: 5px; color: white; font-weight: 600; text-decoration: none }
+.primary { display: inline-flex; align-items: center; min-height: 2.7rem; padding: .58rem 1rem; background: var(--link); border-radius: calc(var(--radius) - 2px); color: white; font-weight: 600; text-decoration: none }
 .primary:hover { background: var(--ink) }
-.feature { display: grid; grid-template-columns: 1fr 1fr; background: var(--ink); color: white; border-radius: 12px; overflow: hidden }
+.feature { display: grid; grid-template-columns: 1fr 1fr; background: var(--ink); color: white; border-radius: calc(var(--radius) + 4px); overflow: hidden }
 .feature-copy { align-self: center; padding: clamp(1.55rem, 3.2vw, 3rem) }
 .feature .label { color: hsl(var(--ddc-ice)); margin-bottom: .85rem }
 .feature h2 { font-size: clamp(2.15rem, 3.3vw, 3.1rem) }
@@ -65,7 +67,7 @@ h3 { font-size: 1.18rem; letter-spacing: -.02em }
 .feature .actions .primary:hover { background: hsl(var(--ddc-ice)) }
 .feature figure { position: relative; display: grid; align-items: center; overflow: hidden; background: #cfdfdc }
 .feature img { display: block; width: 100%; height: 100%; object-fit: cover; position: absolute }
-.feature figcaption { position: absolute; left: 28%; bottom: .8rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); font: 400 .66rem/1.4 var(--brand-label); border: 1px solid var(--rule); border-radius: 3px }
+.feature figcaption { position: absolute; left: 28%; bottom: .8rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); font: 400 .66rem/1.4 var(--brand-label); border: 1px solid var(--rule); border-radius: calc(var(--radius) - 4px) }
 .feature figcaption span { color: var(--link); padding: 0 .18em }
 .catalog { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(0, 3.9fr); gap: clamp(1.5rem, 4vw, 4rem); margin: clamp(2rem, 4vw, 3.5rem) 0 4rem }
 .topics { position: sticky; top: 1.5rem; align-self: start; display: grid; gap: .15rem }
@@ -84,9 +86,9 @@ h3 { font-size: 1.18rem; letter-spacing: -.02em }
 .links .icon { width: .92rem; height: .92rem }
 .guide-step { border-top: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(1.25rem, 5vw, 4rem); padding: clamp(1.5rem, 3vw, 2.5rem) 0; align-items: center }
 .guide-step p { margin-top: .75rem; max-width: 55ch; color: var(--muted) }
-.guide-step img { display: block; width: 100%; height: auto; border-radius: 4px; outline: 1px solid var(--rule) }
+.guide-step img { display: block; width: 100%; height: auto; border-radius: calc(var(--radius) - 4px); outline: 1px solid var(--rule) }
 .detail { position: relative }
-.focus-mark { position: absolute; pointer-events: none; outline: 2px solid var(--link); outline-offset: 1px; border-radius: .2rem; box-shadow: 0 0 0 4px #ffffffbc }
+.focus-mark { position: absolute; pointer-events: none; outline: 2px solid var(--link); outline-offset: 1px; border-radius: calc(var(--radius) - 4px); box-shadow: 0 0 0 4px #ffffffbc }
 .guide-step figcaption { font-size: .78rem; color: var(--muted); margin-top: .45rem }
 .guide-end { display: flex; align-items: baseline; flex-wrap: wrap; gap: .8rem 1.65rem; border-top: 1px solid var(--rule); padding: 1.4rem 0 2.5rem; font-size: .9rem }
 .guide-end button { cursor: pointer; font: inherit; color: var(--link); background: none; padding: 0; border: 0; text-decoration: underline; text-underline-offset: .2em }

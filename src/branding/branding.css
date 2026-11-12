@@ -1,0 +1,75 @@
+.brand-scope {
+  display: contents;
+}
+.brand-scope[data-brand-id] .geo-toolkit {
+  --primary: var(--brand-ui-primary);
+  --primary-foreground: var(--brand-ui-foreground);
+  --ring: var(--brand-ui-primary);
+}
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  max-width: 12rem;
+  min-width: 0;
+}
+.brand-logo img {
+  width: auto;
+  max-width: 100%;
+  height: 2.5rem;
+  object-fit: contain;
+}
+.brand-logo[data-compact] img {
+  height: 1.5rem;
+  max-width: 9rem;
+}
+.brand-logo-dark {
+  display: none;
+}
+.dark .brand-logo-light,
+.tour-nav .brand-logo-light {
+  display: none;
+}
+.dark .brand-logo-dark,
+.tour-nav .brand-logo-dark {
+  display: block;
+}
+[data-brand-typography] .lp-launcher,
+[data-brand-typography] .road-workspace {
+  font-family: var(--brand-body);
+}
+[data-brand-typography] .road-workspace :is(h1, h2, h3) {
+  font-family: var(--brand-display);
+  font-weight: var(--brand-heading-weight);
+}
+html[data-brand-typography] :is(h1, h2, h3) {
+  font-family: var(--brand-display);
+  font-weight: var(--brand-heading-weight);
+}
+[data-brand-typography] .lp-group-label {
+  font-family: var(--brand-label);
+  font-weight: var(--brand-label-weight);
+}
+.brand-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.brand-preview > div {
+  display: grid;
+  place-items: center;
+  min-height: 7rem;
+  padding: 1rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+.brand-preview > div:last-child {
+  background: #26313b;
+}
+.brand-preview img {
+  width: 100%;
+  max-width: 14rem;
+  height: 5rem;
+  object-fit: contain;
+}

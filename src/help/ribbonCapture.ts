@@ -1,6 +1,8 @@
 import { createMirror, snapshot } from 'rrweb-snapshot'
 import type { LessonStep, SourceStep } from './ribbonSteps'
 import excerptCss from './ribbonExcerpt.css?inline'
+import type { ExportBrand } from '../branding/model'
+import { snapshotHelpBrand } from '../branding/helpDocument'
 
 type CaptureEvent = { type: number; timestamp: number; data: Record<string, unknown> }
 export type Capture = {
@@ -11,7 +13,13 @@ export type Capture = {
   steps: SourceStep[]
 }
 /** Adapt the existing portable export. Its official TourKit player, captured result screens and assets stay together. */
-export function buildCapture(original: Capture, sequence: LessonStep[], stage: Document): Capture {
+export function buildCapture(
+  original: Capture,
+  sequence: LessonStep[],
+  stage: Document,
+  radius: string,
+  theme = '',
+): Capture {
   const start = original.events[0].timestamp
   const events: CaptureEvent[] = [{ ...original.events[0], timestamp: start }]
   const steps: SourceStep[] = []
@@ -19,9 +27,12 @@ export function buildCapture(original: Capture, sequence: LessonStep[], stage: D
   const viewport = { ...original.viewport, height: Math.max(original.viewport.height, 370) }
   events[0].data = { ...events[0].data, ...viewport }
   stage.head.replaceChildren()
+  // Documents inside iframes do not inherit the help page's custom properties.
+  stage.documentElement.style.setProperty('--radius', radius)
   const style = stage.createElement('style')
   style.textContent =
-    'body{margin:0;background:#f8f9f5;color:#20332d;font:15px/1.4 system-ui,sans-serif}main{padding:14px}h2{font-size:18px;margin:0 0 12px}' +
+    theme +
+    'body{margin:0;background:var(--brand-paper,#f8f9f5);color:var(--brand-ink,#20332d);font:15px/1.4 var(--brand-body,system-ui,sans-serif)}main{padding:14px}h2{font-size:18px;margin:0 0 12px}' +
     excerptCss
   stage.head.append(style)
   for (const [index, item] of sequence.entries()) {
@@ -82,7 +93,12 @@ export function buildCapture(original: Capture, sequence: LessonStep[], stage: D
   return { ...original, id: original.id + '-ribbon', title: original.title + ' · Ribbon', viewport, steps, events }
 }
 
-export function exportPlayer(template: Document, capture: Capture, continueUrl: string) {
+export function exportPlayer(
+  template: Document,
+  capture: Capture,
+  continueUrl: string,
+  brand: ExportBrand | null = null,
+) {
   const copy = template.cloneNode(true) as Document
   copy.body.querySelector('.tour-nav')?.remove()
   copy.getElementById('tour-workspace-context')?.remove()
@@ -92,6 +108,7 @@ export function exportPlayer(template: Document, capture: Capture, continueUrl: 
     continuation.target = '_top'
   }
   copy.title = capture.title + ' · TourKit'
+  snapshotHelpBrand(copy, brand)
   copy.getElementById('tourkit-capture-data')!.textContent = JSON.stringify(capture).replace(/</g, '\\u003c')
   return '<!doctype html>\n' + copy.documentElement.outerHTML
 }

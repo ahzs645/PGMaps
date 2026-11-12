@@ -13,3 +13,6 @@
 [submodule "vendor/pgmaps-lidar-data"]
 	path = vendor/pgmaps-lidar-data
 	url = https://github.com/ahzs645/pgmaps-lidar-data.git
+[submodule "vendor/brandkit"]
+	path = vendor/brandkit
+	url = https://github.com/ahzs645/brandkit.git
