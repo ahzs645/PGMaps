@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type MapLibreGL from 'maplibre-gl'
+import type * as MapLibreGL from 'maplibre-gl'
 import { observeMarkerSource, sameMarkerPosition } from './map-marker-reconciliation'
 
 function mapProbe() {

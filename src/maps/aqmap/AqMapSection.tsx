@@ -92,7 +92,7 @@ import {
 import { MonitorPlotPanel, type NearbyFem } from './components/MonitorPlotPanel'
 import { WindCanvasLayer } from './components/WindCanvasLayer'
 import { VectorWindBarbLayer } from './components/VectorWindBarbLayer'
-import type maplibregl from 'maplibre-gl'
+import type * as maplibregl from 'maplibre-gl'
 import { withBase } from '@/lib/dataUrl'
 
 type ForecastZoneCollection = GeoJSON.FeatureCollection<

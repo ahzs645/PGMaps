@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { MVTLayer, TileLayer } from '@deck.gl/geo-layers'
 import { BitmapLayer, GeoJsonLayer } from '@deck.gl/layers'
 import type { Layer } from '@deck.gl/core'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { Eye, EyeOff, Grid2X2, Image, Layers, RadioTower, Shapes } from 'lucide-react'
 
 import { numberColumn, textColumn } from '@/components/map/tableColumns'

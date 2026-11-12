@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import MapLibreGL from 'maplibre-gl'
+import * as MapLibreGL from 'maplibre-gl'
 import { MapRasterLayer } from '@/components/ui/map-layers'
 import { suitabilityColor } from './palette'
 import type { GeoTIFFImage } from './raster'

@@ -192,7 +192,7 @@
     "jszip": "^3.10.2",
     "laz-perf": "0.0.7",
     "lucide-react": "^0.562.0",
-    "maplibre-gl": "^5.15.0",
+    "maplibre-gl": "^6.18.0",
     "maplibre-gl-lidar": "^0.21.0",
     "next-themes": "^0.4.6",
     "pbf": "^4.0.1",

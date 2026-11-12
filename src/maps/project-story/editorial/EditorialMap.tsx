@@ -1,4 +1,4 @@
-import type MapLibreGL from 'maplibre-gl'
+import type * as MapLibreGL from 'maplibre-gl'
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { Map as NativeMap } from '@/components/ui/map'
@@ -243,7 +243,12 @@ export function EditorialMap(props: EditorialMapProps) {
         const original = document.style.layers.find((entry) => entry.id === rendered.id)
         map.setLayoutProperty(rendered.id, 'visibility', visible ? (original?.layout?.visibility ?? 'visible') : 'none')
         if (['raster', 'fill'].includes(rendered.type))
-          map.setPaintProperty(rendered.id, `${rendered.type}-opacity`, override?.opacity ?? layer.opacity ?? 1)
+          map.setPaintProperty(
+            rendered.id,
+            `${rendered.type as 'raster' | 'fill'}-opacity`,
+            // Story documents are untyped JSON; MapLibre validates the value itself.
+            (override?.opacity ?? layer.opacity ?? 1) as number,
+          )
       }
     }
     moveToAuthored(map, settings, true)

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { BitmapLayer } from '@deck.gl/layers'
 import { useMap } from '@/components/ui/map'
 import { useDeckOverlay } from '@/components/ui/map-deck'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 
 type WalkabilityImageCoordinates = [[number, number], [number, number], [number, number], [number, number]]
 

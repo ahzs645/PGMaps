@@ -1,6 +1,6 @@
 import { StyledSelect } from '@/components/ui/form-field'
 import { useClipboardText } from '@/hooks/useClipboardText'
-import type MapLibreGL from 'maplibre-gl'
+import type * as MapLibreGL from 'maplibre-gl'
 import {
   Check,
   Copy,

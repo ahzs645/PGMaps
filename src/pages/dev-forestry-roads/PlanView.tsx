@@ -2,7 +2,14 @@ import { RoadSelect } from './Controls'
 import type { FitRequest, usePlanDisplay } from './usePlanDisplay'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent, MapTouchEvent } from 'maplibre-gl'
+import type {
+  ExpressionSpecification,
+  Map as MapLibreMap,
+  GeoJSONSource,
+  ImageSource,
+  MapMouseEvent,
+  MapTouchEvent,
+} from 'maplibre-gl'
 import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, StickyNote, Table2, Waves, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
@@ -1392,7 +1399,7 @@ function Layers(
   }, [map, isLoaded, reference])
   useEffect(() => {
     if (!map || !isLoaded) return
-    const located = ['==', ['get', 'id'], props.focusedReferenceId ?? '']
+    const located: ExpressionSpecification = ['==', ['get', 'id'], props.focusedReferenceId ?? '']
     for (const { id } of REFERENCE_LAYERS)
       if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', props.referenceVisible ? 'visible' : 'none')
     if (map.getLayer('road-reference-line'))

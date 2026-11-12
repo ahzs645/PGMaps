@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type MapLibreGL from 'maplibre-gl'
+import type * as MapLibreGL from 'maplibre-gl'
 import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
 import { ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'

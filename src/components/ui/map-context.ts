@@ -5,7 +5,7 @@ import {
   dispatchMobileMapBlankClick as dispatchBlankClick,
   dispatchMobileMapInteraction as dispatchInteraction,
 } from '@pgmaps/geo-toolkit/map/map-context'
-import type MapLibreGL from 'maplibre-gl'
+import type * as MapLibreGL from 'maplibre-gl'
 import {
   MOBILE_MAP_FEATURE_CLICK_EVENT,
   MOBILE_MAP_BLANK_CLICK_EVENT,

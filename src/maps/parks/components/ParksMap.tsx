@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import MapLibreGL from 'maplibre-gl'
+import * as MapLibreGL from 'maplibre-gl'
 import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
 import { MapClusterLayer, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'

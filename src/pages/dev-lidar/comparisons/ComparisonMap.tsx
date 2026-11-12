@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import maplibregl, { type GeoJSONSource, type ImageSource, type LayerSpecification } from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import { type GeoJSONSource, type ImageSource, type LayerSpecification } from 'maplibre-gl'
 import type { FeatureCollection } from 'geojson'
 import {
   initialLidarStyle,

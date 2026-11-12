@@ -11,10 +11,11 @@ const CANUE_GRID_PRELOAD_RADIUS = 2
 /** Outlasts MapLibre's default 300 ms paint transition, so the fade can finish. */
 const CANUE_GRID_OUTGOING_MS = 400
 
+/** The fields of MapLibre's `sourcedata` event this layer reads. MapLibre 6 types `source` as the full source spec. */
 interface SourceDataEvent {
   tile?: unknown
   sourceId?: string
-  source?: { url?: string }
+  source?: object
 }
 
 interface CanueGridLayersProps {
@@ -69,7 +70,9 @@ export function CanueGridLayers({ selection, timelineSelections, scale }: CanueG
   useEffect(() => {
     if (!map || !isLoaded) return
     const recordTile = (event: SourceDataEvent) => {
-      if (event.tile && event.sourceId && event.source?.url) tiledSources.current.set(event.source.url, event.sourceId)
+      const url =
+        event.source && 'url' in event.source && typeof event.source.url === 'string' ? event.source.url : null
+      if (event.tile && event.sourceId && url) tiledSources.current.set(url, event.sourceId)
     }
     map.on('sourcedata', recordTile)
     return () => {

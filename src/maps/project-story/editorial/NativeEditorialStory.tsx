@@ -1,7 +1,7 @@
 import { useTheme } from 'next-themes'
 import { WorkspaceProvider } from '@pgmaps/geo-toolkit/workspace/workspace-context'
 import { useEffect, useState, useMemo, useRef } from 'react'
-import type MapLibre from 'maplibre-gl'
+import type * as MapLibre from 'maplibre-gl'
 import type { ProjectPackage } from '@/lib/projectPackages'
 import { useStorySources } from '../useStorySources'
 import { MapSwipe } from '@/components/ui/map-swipe'

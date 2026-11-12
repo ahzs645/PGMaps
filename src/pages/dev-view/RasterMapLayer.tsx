@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import { useMap } from '@/components/ui/map'
 import { MapRasterLayer } from '@/components/ui/map-layers'
@@ -79,7 +79,7 @@ export function RasterMapLayer({
       // A style can be ready while its background imagery is still downloading.
       if (map.getStyle()) fit()
     }
-    const error = (event: { sourceId?: string; error?: Error }) => {
+    const error = (event: { sourceId?: string; error?: { message: string } }) => {
       if (event.sourceId && ids.includes(event.sourceId)) {
         onError(
           'Some map tiles could not load. Retry the map or check that its URL permits cross-origin range requests.',

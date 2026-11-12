@@ -80,7 +80,9 @@ const data: FeatureCollection = {
   })),
 }
 function evaluate(expression: unknown, properties: Record<string, unknown>, spec?: StylePropertySpecification) {
-  const parsed = createExpression(expression, spec)
+  // MapLibre 6's style spec takes the expression's key path in the style
+  // second, for its error messages, and refuses an empty one.
+  const parsed = createExpression(expression, 'layers[0].paint.circle-color', spec)
   if (parsed.result === 'error') throw new Error(parsed.value.map((item) => item.message).join('; '))
   return parsed.value.evaluateWithoutErrorHandling({ zoom: 5 }, { type: 'Point', properties })
 }

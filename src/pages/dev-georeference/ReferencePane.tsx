@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import maplibregl, { type StyleSpecification } from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
+import { type StyleSpecification } from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import { Map as AppMap, useMap } from '@/components/ui/map'
 import { MapCanvasLayer, MapImageLayer, MapLineLayer, MapRasterLayer } from '@/components/ui/map-layers'

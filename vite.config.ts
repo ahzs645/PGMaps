@@ -90,13 +90,24 @@ export default defineConfig({
     waterTempDevDataPlugin(),
   ],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // MapLibre 6 locates its worker at run time in a way Vite cannot follow;
+      // the entry sets the worker URL first (see src/lib/maplibre-gl-entry.ts).
+      // Exact match only, so `maplibre-gl/dist/...` still reaches the package.
+      { find: /^maplibre-gl$/, replacement: path.resolve(__dirname, './src/lib/maplibre-gl-entry.ts') },
+    ],
   },
   // Only imported dynamically from a worker; pre-bundle at startup so the first LAZ import does
   // not hit a mid-session re-optimisation ("Failed to fetch dynamically imported module").
-  optimizeDeps: { include: ['whitebox-wasm', 'whitebox-wasm/tools', 'laz-perf'] },
+  optimizeDeps: {
+    include: ['whitebox-wasm', 'whitebox-wasm/tools', 'laz-perf'],
+    // Vite scans every HTML file for imports to pre-bundle. The visual tools
+    // trial bench is a separate project with its own packages (EZ-Tree,
+    // maplibre-gl-three, Giro3D); scanned from here they fail to resolve and
+    // stop the dev server.
+    entries: ['**/*.html', '!docs/forestry-visual-tools-trial/**'],
+  },
   build: {
     rollupOptions: {
       output: {

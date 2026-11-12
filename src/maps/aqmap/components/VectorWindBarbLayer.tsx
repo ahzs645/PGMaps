@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { IconLayer } from '@deck.gl/layers'
 import { useMap } from '@/components/ui/map'
 import { useDeckOverlay } from '@/components/ui/map-deck'
-import type maplibregl from 'maplibre-gl'
+import type * as maplibregl from 'maplibre-gl'
 import { windBarbIconForSpeed, type WindBarbIconKey } from '../lib/windBarbIcons'
 
 type AsciiGrid = {
