@@ -1,0 +1,17 @@
+{
+  "name": "pgmaps-visual-tools-bench-giro3d",
+  "private": true,
+  "type": "module",
+  "description": "Giro3D trial with LidarBC DEM/DSM (three 0.180)",
+  "scripts": {
+    "dev": "vite --port 5200"
+  },
+  "dependencies": {
+    "@giro3d/giro3d": "^2.0.7",
+    "geotiff": "^3.0.5",
+    "ol": "~10.8.0",
+    "proj4": "^2.22.0",
+    "three": "^0.180.0",
+    "vite": "^8.3.8"
+  }
+}

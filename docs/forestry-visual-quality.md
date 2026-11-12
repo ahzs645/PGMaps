@@ -2,6 +2,8 @@
 
 > **Planner review:** [November 2026](forestry-visual-quality-planner-review-2026-11-10.md) — what a BCTS planner asked for in a recorded walkthrough, what is built, how the view compares with human sight, and what is left.
 
+> **Tools trial:** [12 November 2026](forestry-visual-tools-trial-2026-11-12.md) — EZ-Tree, maplibre-landmarks, maplibre-gl-three, Giro3D, OpenForest4D and FORA run against Prince George LiDAR and this page's tree renderer.
+
 > **Work log:** [September 2026 round](forestry-visual-quality-worklog.md) — the handbook steps as tabs, map scale, field photos, retention and partial cuts, inventory-calibrated forest density, terrain landforms, and what each turned up.
 
 # Forestry visual quality (`/dev/forestry/visual-quality`)

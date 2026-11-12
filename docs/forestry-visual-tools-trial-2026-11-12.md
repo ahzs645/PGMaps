@@ -1,0 +1,207 @@
+# Forestry visual tools — hands-on trial, 12 November 2026
+
+A shortlist of browser projects was proposed for the visual quality (VQO / VIA)
+tool on `/dev/forestry/visual-quality`: EZ-Tree, maplibre-landmarks,
+maplibre-gl-three, Giro3D/Piero, OpenForest4D, FORA, WSL Virtual Forest and the
+ArcGIS viewshed sample. This note records what happened when each was actually
+run, and where possible run against Prince George data and PGMaps' own tree
+renderer. The question throughout is the VIA one: does it help show, honestly,
+how much of a proposed block a viewer would see?
+
+Evidence images are in `forestry-visual-tools-trial/evidence/`; the scripts
+that produced them are in `forestry-visual-tools-trial/bench/` (see its README).
+
+**Test conditions.** Headless Chromium with WebGL2 on SwiftShader (CPU). Every
+page rendered correctly, but frame times are CPU raster times — useful as
+ratios between two scenes, not as what a GPU laptop would do. Real data was
+LidarBC tile `093g097_1_2_1` (2024, 1 m DEM and DSM, 8 pts/m² LAZ), a mixed
+urban/river/forest tile in Prince George.
+
+## Summary
+
+| Project | Ran? | Against PG data / PGMaps? | Verdict for the VIA tool |
+|---|---|---|---|
+| EZ-Tree 1.1.0 | Yes | Yes — stand vs `treeGeometry.ts` | Useful for near trees, **only with B.C. presets and a screening calibration** |
+| maplibre-landmarks 0.6.0 | Yes | Yes — 240 ha stand, terrain, eye level | **Not suitable as-is**: thins to 4,000 trees; eye level crashes with thinning off; no per-stem height |
+| maplibre-gl-three 3.0.2 | Yes | Yes — trees on terrain, eye-level camera | **Works where deck.gl did not.** Candidate for near-field meshes after a MapLibre 6 upgrade |
+| Giro3D 2.0.7 / Piero | Yes | Yes — LidarBC DEM and DSM, EPSG:3157 | Works after re-encoding the LidarBC GeoTIFFs; good companion view, separate bundle |
+| OpenForest4D CHM viewer | Yes | Yes — PG CHM tile | Works after two edits; canopy on flat ground only; overlaps `dev-lidar` |
+| FORA 1.9.2 | Yes | Yes — full 294 MB LidarBC LAZ | Produces a per-tree CSV PGMaps could draw; ground model needs the LidarBC DEM |
+| WSL Virtual Forest | Yes | No (Unity WebGL, no API) | UX reference only; 350 MB download |
+| ArcGIS viewshed sample | Yes | No (Esri SceneView) | UX reference for observer placement |
+| EnergyPlanner, CesiumJS + ion SDK, Biosphere3D | Not run | — | Commercial, SDK-gated or desktop; not testable here |
+
+## 1. EZ-Tree against PGMaps' near-tree mesh
+
+`bench/maplibre/eztree.js`. 490 stems (600 stems/ha, a 200 m × 40 m strip
+starting 12 m from the road), heights 22 m × U(0.55, 1.3), viewed from 1.6 m.
+Crown width set the way `forest.ts` sets it: `crownWidthForClosure(45 %,
+600/ha)` = 3.56 m. Three versions of the same stand:
+
+| | Triangles | Frame (CPU, ratio) | Screen covered by trees |
+|---|---|---|---|
+| PGMaps `roadsideTreeMesh('pine')` | 0.35 M | 1× | **61.8 %** |
+| EZ-Tree *Pine Medium*, width forced to 3.56 m | 3.64 M | 8× | **51.6 %** |
+| EZ-Tree *Pine Medium*, its own proportions | 3.64 M | 13× | **73.2 %** |
+
+![EZ-Tree vs PGMaps stand](forestry-visual-tools-trial/evidence/eztree-vs-pgmaps-stand.jpg)
+
+**Found.**
+- **The tree drawing is not neutral.** At the same location, density and
+  crown closure, swapping the asset moved the share of the view hidden behind
+  trees by 10 points one way or 11 the other. For a VIA, where screening
+  decides whether a block is visible, a new asset needs calibrating (against a
+  matched field photo or LiDAR) before it replaces the current one.
+- EZ-Tree's presets are not B.C. trees. *Pine* has a crown width/height of
+  0.46–0.65 with foliage from 5 % of the height; PGMaps' pine is 0.14 with the
+  live crown from 50 %. Lodgepole, spruce, subalpine fir and aspen presets
+  would have to be made.
+- The npm library (1.1.0) has no LOD; the Full/LOD1/LOD2 switch is in the
+  editor app only. Halving sections, segments and leaves by hand cut branch
+  triangles 4× (10,032 → 2,508).
+- Its leaf material is not instancing-safe (instanced copies drew bare
+  stems); a plain alpha-tested material was needed. PGMaps would use its own
+  shader anyway.
+- Generation is fast (5–22 ms per tree) and seeded, so variants can be built
+  at load rather than shipped.
+
+## 2. maplibre-landmarks TreesLayer at a forestry view
+
+`bench/maplibre/landmarks.js`. A synthetic 2.0 × 1.2 km forest polygon south of
+Prince George (240 ha; at 600/ha that is ≈144,000 stems) on Terrarium terrain.
+
+| Settings | Eye level (pitch 84°) | Oblique (60°) | Plan |
+|---|---|---|---|
+| Defaults (`scatter.forest = 600/ha`) | 4,000 drawn of 10,510 scattered | 4,000 drawn | 4,000 drawn |
+| `farCutoff:false, thinBeyondM:∞, maxTrees:200k, density:1` | **RangeError, 0 drawn** | 143,646 drawn (update 389 ms) | 143,633 drawn |
+
+![landmarks default vs strict](forestry-visual-tools-trial/evidence/landmarks-trees-default-vs-strict.jpg)
+
+**Found.**
+- Defaults draw a disc of 4,000 trees round the view centre and leave the rest
+  of the stand as a flat fill (top right). A block outside that disc would read
+  as open ground. Its own default forest density is 83 stems/ha.
+- With every limit off, the eye-level view throws `Maximum call stack size
+  exceeded` in `scatter` (`n.push(...c)` spreading a large per-tile array) and
+  draws nothing. That is an upstream bug, easy to fix, but it is the view a VIA
+  needs.
+- Trees carry only a key and a position (`MappedTree`); size comes from the
+  model. Inventory height and crown width per stem cannot be passed without
+  forking.
+- Requires MapLibre ≥ 6.13 and three ≥ 0.186.
+
+## 3. maplibre-gl-three at eye level on terrain
+
+`bench/maplibre/three.js`. 160 EZ-Tree pines placed with
+`map.queryTerrainElevation`, positioned through `getEcefMatrix` /
+`lngLatAltToEcef`, camera from `calculateCameraOptionsFromTo` 1.6 m above the
+drawn ground.
+
+![maplibre-gl-three eye level](forestry-visual-tools-trial/evidence/maplibre-gl-three-eye-level.jpg)
+
+**Found.** Trees sit on the drawn ground and stay locked to it from eye level —
+the case `treeLayer.ts` documents deck.gl failing. The library handles the
+EGM96 vertical datum itself. Its tuple `LngLat` (`[lng, lat]`) differs from
+MapLibre's object form. Peer range is `three ^0.186.1`, which **excludes
+0.187**, and MapLibre `^6.12`. Visibility analysis would still be our own; the
+library only draws.
+
+## 4. Giro3D with LidarBC rasters
+
+`bench/giro3d/main.js`. DEM and DSM of tile `093g097_1_2_1` in EPSG:3157
+(registered with a proj4 string), same camera.
+
+![Giro3D DEM vs DSM](forestry-visual-tools-trial/evidence/giro3d-lidarbc-dem-vs-dsm.jpg)
+
+**Found.**
+- **LidarBC GeoTIFFs are not cloud-optimised**: LZW, one row per strip, no
+  overviews, header at the end of the file. `nrs.objectstore.gov.bc.ca` honours
+  range requests but sends **no CORS header**, so no browser app can read it
+  directly; it needs our proxy or a copy.
+- Giro3D's `GeoTIFFSource` failed on the original files ("ran off the end of
+  the buffer before finding EOI_CODE"; also with workers off and an 8 MB block
+  size). The same rasters re-encoded uncompressed loaded at once. Converting
+  imports to COG (`gdal_translate -of COG`) on the way in would avoid both
+  problems for any viewer.
+- Peer `three ^0.180` cannot share a bundle with landmarks or
+  maplibre-gl-three (0.186). It would have to be its own route or lazy chunk.
+- From a low viewpoint the DSM (right) hides the hill the DEM (left) shows:
+  the terrain-agreement gap in the planner review, item 4, is not cosmetic.
+- Canopy height on this tile (DSM − DEM): 38.8 % of cells over 2 m, P90
+  14.3 m, P99 26.5 m, max 42.4 m.
+
+Piero itself returned 502 on the first attempt and loaded on the second.
+
+## 5. OpenForest4D with a Prince George canopy tile
+
+![OpenForest4D PG CHM](forestry-visual-tools-trial/evidence/openforest4d-prince-george-chm.jpg)
+
+Ran on a 1 km PG CHM tile after two edits: UTM zone 11 is hard-coded in
+`js/utils.js` (PG is zone 10), and `js/tile_meta_data.js` lists the tiles.
+It draws canopy height on a flat plane — no ground — and needs exact 1 km
+tiles. `dev-lidar` already covers canopy heat maps and tree isolation, so this
+adds little beyond a reference for the height-distribution chart.
+
+## 6. FORA on a full LidarBC point cloud
+
+`bench/browser/fora2.cjs` drives the hosted app with the 294 MB LAZ.
+
+![FORA PG segmentation](forestry-visual-tools-trial/evidence/fora-prince-george-segmentation.jpg)
+
+**Found.**
+- Loaded in ~37–45 s; read 49.23 M points and **kept 4.92 M (10 %)** for
+  display and analysis. Heights normalised at load against its own grid-min-Z
+  ground.
+- Segmentation (defaults) took ~10 s: 18,100 candidates, 15,479 trees kept.
+  Height P10/P50/P90 4.2 / 14.2 / 27.0 m; crown diameter 2.5 / 7.4 / 12.5 m.
+- **Max height 62.2 m against a 42.4 m DSM − DEM maximum**: the automatic
+  ground is wrong in places. The LidarBC DEM should be supplied as the external
+  DTM.
+- Species allometry defaults to Scots pine (European list); biomass and DBH
+  are not B.C. figures. Height, crown and position are what is useful.
+- The CSV has `CenterX`, `CenterY` (EPSG:3157), `H_auto`, `CD_auto` — exactly a
+  `TreeInstance` (position, height, crown width). PGMaps' "surveyed" stands are
+  VRI polygons, so per-tree LiDAR input to the visual-quality forest would be
+  new. The same could come from `dev-lidar`'s tree isolation instead.
+
+## 7. Reference applications
+
+![Demo contact sheet](forestry-visual-tools-trial/evidence/demos-contact-sheet.jpg)
+
+- **WSL Virtual Forest** — loaded 17,208 tree records (15,146 matched to a
+  species model) and ~350 MB; under 1 fps on CPU. Good to see what a
+  walk-through should feel like; nothing to integrate.
+- **ArcGIS viewshed sample** — observer placement, direction, both angles and
+  a preview inset all worked (1,275 requests). The clearest UX reference for
+  placing a viewpoint.
+- **EZ-Tree editor, landmarks demo, Giro3D oriented images, FORA, Piero** all
+  loaded.
+
+## 8. What a MapLibre 6 upgrade would touch
+
+Landmarks and maplibre-gl-three both need MapLibre 6.
+
+- 88 files import `maplibre-gl`; 5 use the default import, which v6 removed
+  (`AqMapDeckLayers.tsx`, `AqMapLayers.tsx`, `WalkabilityDeckHeatmapLayer.tsx`,
+  `DevNetworks.tsx`, `dev-view/RasterMapLayer.tsx`).
+- v6 ships a separate worker module; under Vite the worker failed to load until
+  `maplibre-gl` was excluded from `optimizeDeps`.
+- geo-toolkit already allows `^5.15.0 || ^6.0.0`; `maplibre-gl-lidar` 0.21
+  allows `^6`.
+
+## 9. Recommendation, revised by the trial
+
+1. **Feed real trees to the existing renderer.** Import a per-tree list
+   (FORA CSV or `dev-lidar` tree isolation, with the LidarBC DEM as ground)
+   for the near band along the road, keep VRI-driven stands beyond it. Small,
+   and improves the screening evidence directly.
+2. **Draw the LiDAR ground the analysis uses** (planner review item 4). Convert
+   imported rasters to COG and serve them through the proxy; the Giro3D DEM/DSM
+   comparison shows how much the horizon moves.
+3. **Calibrate before changing tree shape.** Add a screen-cover check (the
+   mask method in `eztree.js`) to the regression suite, then build B.C. EZ-Tree
+   presets and accept one only where it matches a matched field photo.
+4. **MapLibre 6 trial on a branch, with maplibre-gl-three for near-field
+   meshes.** Skip maplibre-landmarks for the VIA tool.
+5. **Giro3D as an optional detail view** on its own route, if the inspection
+   value is wanted beyond `dev-lidar`.
