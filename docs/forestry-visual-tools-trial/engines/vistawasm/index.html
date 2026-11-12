@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>PGMaps forest scene · VistaWASM trial</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #9cc4e4; font: 12px/1.4 ui-monospace, monospace; }
+      #vista { width: 100%; height: 100%; display: block; }
+      #hud { position: fixed; left: 12px; top: 12px; color: #fff; background: #0008; padding: 8px 10px; border-radius: 6px; white-space: pre; }
+      #file { position: fixed; left: 12px; top: 48px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="vista"></canvas>
+    <div id="hud">loading…</div>
+    <input id="file" type="file" accept="application/json" hidden />
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

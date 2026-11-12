@@ -97,15 +97,17 @@ function meshArea(species: TreeSpeciesId): number {
  * Side-on area of each species' drawing, in units of its height squared.
  * Pinned on 12 November 2026 when the detailed mesh and Douglas-fir were
  * added; the detailed fir, Douglas-fir and spruce were tuned to their cards
- * against this test (first draft: 0.79, 1.20 and 0.88 of the card).
+ * against this test (first draft: 0.79, 1.20 and 0.88 of the card). Re-pinned
+ * the same day when the detailed mesh was normalised to exactly unit height
+ * (some seeds had stood up to 6% taller than the stem's recorded height).
  */
 const PINNED: Record<TreeSpeciesId, { card: number; mesh: number }> = {
-  pine: { card: 0.037, mesh: 0.0343 },
-  spruce: { card: 0.0664, mesh: 0.0602 },
-  fir: { card: 0.045, mesh: 0.0429 },
-  douglasFir: { card: 0.0466, mesh: 0.0504 },
-  aspen: { card: 0.0831, mesh: 0.0807 },
-  birch: { card: 0.0689, mesh: 0.0676 },
+  pine: { card: 0.037, mesh: 0.0341 },
+  spruce: { card: 0.0664, mesh: 0.06 },
+  fir: { card: 0.045, mesh: 0.0426 },
+  douglasFir: { card: 0.0466, mesh: 0.0503 },
+  aspen: { card: 0.0831, mesh: 0.0787 },
+  birch: { card: 0.0689, mesh: 0.0662 },
 }
 
 describe('screen coverage of the drawn trees', () => {

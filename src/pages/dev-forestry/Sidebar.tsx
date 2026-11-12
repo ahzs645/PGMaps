@@ -415,6 +415,8 @@ type SidebarProps = {
 
   drive: DriveState
   onDriveChange: (patch: Partial<DriveState>) => void
+  /** Writes the road view's scene (terrain, the drawn stems, openings, camera) for other renderers to read. */
+  onDownloadScenePackage?: () => void
 
   onImportFile: (file: File) => void
   importMessage: string | null
@@ -507,6 +509,7 @@ export function Sidebar({
   onSelectTarget,
   drive,
   onDriveChange,
+  onDownloadScenePackage,
   onImportFile,
   importMessage,
   inventory,
@@ -1352,6 +1355,22 @@ export function Sidebar({
                     <option value="250">Within 250 m</option>
                   </StyledSelect>
                 </label>
+                {onDownloadScenePackage && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-1">
+                      3D scene for other renderers
+                      <InfoTip label="About the 3D scene file">
+                        The road view as a file: the ground, every tree drawn within 600 m (species, height and crown
+                        width), the cut ground with its slash, road scars, and where the eye stands and looks. The
+                        renderer trials in the visual tools notes read it, so another engine draws the same stand.
+                        Display only.
+                      </InfoTip>
+                    </span>
+                    <Button size="sm" variant="outline" onClick={onDownloadScenePackage}>
+                      Download
+                    </Button>
+                  </div>
+                )}
               </div>
             </ToolSection>
 

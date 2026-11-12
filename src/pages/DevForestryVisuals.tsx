@@ -79,6 +79,7 @@ import {
   type InventoryStand,
 } from './dev-forestry/forest'
 import { roadScar } from './dev-forestry/harvestedGround'
+import { buildScenePackage } from './dev-forestry/scenePackage'
 import type { BasemapContext } from './dev-forestry/BasemapContextProbe'
 import { FieldPhotoPanel, PhotoOverlay, StreetPhotoInset } from './dev-forestry/FieldPhoto'
 import { useFieldPhoto } from './dev-forestry/useFieldPhoto'
@@ -2307,6 +2308,32 @@ function DevForestryVisuals() {
     setSaved({ key, views: [...savedViews, view] })
     setPreviewMessage(`Saved ${view.name}. Download preview to keep or share this comparison.`)
   }
+  /** The road view's scene for the renderer trials (`scenePackage.ts`). */
+  const downloadScenePackage = () => {
+    const map = eyeMapRef.current
+    const ground = previewTerrain.source
+    if (!map || !ground || !driveEye) {
+      setPreviewMessage('Open the road view and let its terrain load before downloading the 3D scene.')
+      return
+    }
+    const scenePackage = buildScenePackage({
+      eye: driveEye,
+      eyeHeightMeters: result?.settings.observerHeightMeters ?? 1.5,
+      bearingDegrees: map.getBearing(),
+      // MapLibre's pitch is 90° at the horizon.
+      pitchDegrees: map.getPitch() - 90,
+      verticalFovDegrees: map.getVerticalFieldOfView(),
+      forest: forestConfiguration,
+      elevation: ground,
+      roadScars: previewRoadScar,
+      notes: [
+        `${scene.viewpoint.name || 'Viewpoint'}, ${(drive.positionMeters / 1000).toFixed(2)} km along the road, ${drive.harvestPhase} harvest.`,
+        'Terrain: the road view’s drawn ground (AWS Open Data CDEM/SRTM). Trees: VRI where recorded, the regional stand elsewhere.',
+      ],
+    })
+    downloadText(JSON.stringify(scenePackage), 'forestry-scene-package.json', 'application/json')
+    setPreviewMessage(`Downloaded the 3D scene: ${scenePackage.trees.count.toLocaleString()} trees.`)
+  }
   const reopenPreviousPreview = () => {
     try {
       const previous = localStorage.getItem(PREVIEW_STORAGE_KEY)
@@ -2827,6 +2854,7 @@ function DevForestryVisuals() {
       onSelectTarget={setSelectedTargetId}
       drive={preliminaryDrive ? { ...drive, active: false } : drive}
       onDriveChange={updateDrive}
+      onDownloadScenePackage={downloadScenePackage}
       onImportFile={(file) => void handleImportFile(file)}
       importMessage={importMessage}
       inventory={inventory}

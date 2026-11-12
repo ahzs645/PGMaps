@@ -908,10 +908,33 @@ the layer is added, the model is built and instanced, `render` is called, and
 render call sidesteps the question — the trees are projected by exactly the
 matrix that projected the ground under them.
 
+### The scene for other renderers
+
+Sidebar → **3D scene for other renderers** writes `forestry-scene-package.json`
+(`scenePackage.ts`, format `pgmaps-forest-scene` v1). It holds the road view's
+scene, renderer-neutral and display only:
+
+- every stem the road view draws (the same patches and seeds as
+  `ForestOverlay`; each band up to the middle of its overlap, so no stem is
+  written twice);
+- the drawn ground on a grid;
+- openings, slash and road scars;
+- the eye, bearing, pitch and vertical field of view;
+- each species' own detailed model.
+
+The models are `detailedTreeMesh`, which stands exactly one unit tall, so a
+stem's recorded height is the height it is drawn at.
+
+Other engines read the package through adapters kept outside the app
+(`docs/forestry-visual-tools-trial/engines/`). Nothing in `src/` depends on
+them. The VistaWASM bench (AGPL-3.0) is installed only in its own folder and is
+never shipped.
+
 ## Files
 
 | Path | Role |
 | --- | --- |
+| `src/pages/dev-forestry/scenePackage.ts` | The road view's scene as a renderer-neutral file, for the other-renderer trial |
 | `src/pages/DevForestryVisuals.tsx` | Page: scene state, the tiled workspace and its two maps, drawing, import/export |
 | `src/pages/dev-forestry/VisualQualityLayers.tsx` | The scene's map layers, drawn in the plan map (`mode="plan"`) and the road view (`mode="eye"`) |
 | `src/pages/dev-forestry/visualsWorkspace.ts` | The workspace's panes, presets and which panes show before the road view opens |

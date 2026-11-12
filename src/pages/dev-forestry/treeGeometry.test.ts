@@ -19,8 +19,8 @@ describe('detailed tree meshes', () => {
           bottom = Math.min(bottom, positions[i])
         }
         expect(bottom).toBeCloseTo(0, 2)
-        expect(top).toBeGreaterThan(0.95)
-        expect(top).toBeLessThan(1.06)
+        // Exactly: a stem is drawn at its recorded height.
+        expect(top).toBeCloseTo(1, 6)
       })
 
       it('is as wide as the near mesh it stands in for, so a crown width means the same', () => {
@@ -50,6 +50,12 @@ describe('detailed tree meshes', () => {
 
       it('is the same tree every time for the same seed, and a different one for another', () => {
         expect(detailedTreeMesh(species, 1).attributes.positions.value).toEqual(positions)
+        for (const seed of [2, 3, 4, 5, 6]) {
+          const other = detailedTreeMesh(species, seed).attributes.positions.value
+          let highest = 0
+          for (let i = 2; i < other.length; i += 3) highest = Math.max(highest, other[i])
+          expect(highest).toBeCloseTo(1, 6)
+        }
         expect(detailedTreeMesh(species, 2).attributes.positions.value).not.toEqual(positions)
       })
     })

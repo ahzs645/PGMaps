@@ -306,6 +306,13 @@ export function detailedTreeMesh(species: TreeSpeciesId, seed = 1): ForestMesh {
     spray([0, 0, 0.975], [0, 0, 1], 0.03, 0.022, crownCentre)
   }
 
+  // Exactly unit height: the layer scales a stem by its recorded height, so a
+  // leader tuft or a top spray poking past 1 drew the tree that much taller
+  // (up to 6% for some seeds) than the inventory says it is.
+  let top = 0
+  for (let i = 2; i < positions.length; i += 3) top = Math.max(top, positions[i])
+  if (top > 0) for (let i = 2; i < positions.length; i += 3) positions[i] /= top
+
   return {
     attributes: {
       positions: { size: 3, value: new Float32Array(positions) },

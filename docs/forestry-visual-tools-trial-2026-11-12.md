@@ -287,3 +287,48 @@ The visual-quality browser suite passes 21 of its 27 tests on MapLibre 6. The
 other six also fail, the same way (controls not ready within their timeouts on
 SwiftShader), on an untouched MapLibre 5 checkout of `main` run on this
 machine; they were not a regression of the upgrade.
+
+## 12. Other renderers fed our own scene
+
+The second round found no engine that takes the inventory's stand. Rather than
+adopt one, the road view now writes its scene out as a renderer-neutral file,
+and each engine gets a small adapter, so the engines stay outside the app and
+all draw the same evidence. Details and run instructions:
+`forestry-visual-tools-trial/engines/README.md`.
+
+- **The scene package** (`src/pages/dev-forestry/scenePackage.ts`, Sidebar →
+  _3D scene for other renderers_): local metres, the terrain grid, every stem
+  the road view draws (same patches and seeds; tested to match within 2 cm, no
+  stem twice), openings, slash, road scars, the eye and lens, and each species'
+  own detailed model. The roadside demo writes 15,945 stems, 802 slash piles and
+  a 401 × 401 ground grid, 3.2 MB with models.
+- **threejs-worldgen** (Apache-2.0), forked as a patch: its scatter now accepts
+  fixed instances, and an example draws the package. It rendered the roadside
+  demo from the road view's eye on WebGL2 (15,945 stems, 15,903 drawn).
+  Its far impostors look like grey posts on SwiftShader; this needs a check on
+  a real GPU.
+
+![PGMaps road view and threejs-worldgen from the same package](forestry-visual-tools-trial/evidence/scene-package-pgmaps-vs-worldgen.jpg)
+
+- **Nanite Forest** (MIT), forked as a patch: an example builds one Nanite type
+  per species from the package's own models and places the package's stems.
+  It typechecks against the library and runs its frame loop here. SwiftShader's
+  WebGPU canvas reads back blank, though, and GPU stats never return, the same
+  as Nanite's own examples. Not yet seen.
+- **VistaWASM** (AGPL-3.0) is a **trial bench only**. A page of ours drives its
+  public API with the package: `loadRawHeightmap`, `setTreeModel` with our
+  models, `setTreeInstances` and `setCamera`. VistaWASM is installed by
+  `npm install` in that folder only. It is never committed, never a dependency
+  of the app and never deployed. The engine accepted the data, then lost its
+  WebGPU device on this machine.
+- **What the package loses in other engines.** VistaWASM and Nanite take one
+  uniform scale per instance. A stem there keeps its height, but its crown
+  width becomes its species' median. worldgen and PGMaps keep both.
+- **EZ-Tree, again.** The forks use our own species models, not EZ-Tree's. EZ-Tree's
+  geometry generator is MIT. Its bark textures were collected from texture sites,
+  and its leaf textures state no source. Using its geometry with textures of our
+  own would be fine; shipping its bundled textures would not (`AGENTS.md`).
+- **Forks on GitHub.** This session's GitHub access covers only PGMaps and
+  geo-toolkit, so creating the forks was refused. The patches and their base
+  commits are in the repository instead. Forking the two upstreams and running
+  `git am` makes them real forks.
