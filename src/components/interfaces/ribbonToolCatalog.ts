@@ -8,6 +8,7 @@ export const ribbonWidgetLabels: Record<WorkspaceWidget, string> = {
   projectInfo: 'Project name and status',
   roadSelector: 'Active road',
   presets: 'Screen presets and panels',
+  terrainDisplay: 'Terrain display',
   terrainSource: 'Terrain source',
   interfaceSwitch: 'Workspace interface',
   history: 'Edit history',

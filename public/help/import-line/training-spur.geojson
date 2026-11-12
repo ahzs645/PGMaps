@@ -1,0 +1,27 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Training spur"
+  },
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [
+        -122.718,
+        53.891
+      ],
+      [
+        -122.714,
+        53.892
+      ],
+      [
+        -122.71,
+        53.894
+      ],
+      [
+        -122.708,
+        53.8945
+      ]
+    ]
+  }
+}

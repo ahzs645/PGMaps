@@ -4,7 +4,7 @@ import { setPaneResizing } from './pane-resize'
 import { readStoredSizes, writeStoredSizes } from './pane-sizes'
 import './panel-corner.css'
 
-const wideGuide = '(min-width: 900px), (min-width: 700px) and (max-height: 599px)'
+const wideGuide = '(min-width: 900px), (min-width: 560px) and (max-height: 599px)'
 const hint = 'Drag to resize or use the arrow keys. Double-click or press Enter to restore the default size.'
 
 /** The grip sits inside the existing panel so its map, forms and fullscreen state stay mounted. */

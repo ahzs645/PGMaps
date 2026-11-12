@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect } from 'react'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { SheetSymbolSwatch } from '@/components/ui/sheet-symbol-swatch'
 import {
@@ -36,14 +36,10 @@ function LineSwatch({ entry }: { entry: PlanLegendEntry }) {
  * the tool's panel shares the plan's lower edge, and an open legend covered its fields and Finish.
  * The reader can still open it while the tool is up.
  */
-export function useLegendFold(toolOpen: boolean) {
-  const [collapsed, setCollapsed] = useState(true)
-  const [seenToolOpen, setSeenToolOpen] = useState(toolOpen)
-  if (seenToolOpen !== toolOpen) {
-    setSeenToolOpen(toolOpen)
-    if (toolOpen) setCollapsed(true)
-  }
-  return [collapsed, setCollapsed] as const
+export function useLegendFold(toolOpen: boolean, setExpanded: (open: boolean) => void) {
+  useEffect(() => {
+    if (toolOpen) setExpanded(false)
+  }, [toolOpen, setExpanded])
 }
 
 export function PlanLegend({
@@ -53,6 +49,8 @@ export function PlanLegend({
   showContours,
   terrainName,
   toolOpen = false,
+  expanded,
+  onExpandedChange,
 }: {
   sections: PlanLegendSection[]
   display: TerrainDisplay | null
@@ -60,9 +58,11 @@ export function PlanLegend({
   showContours: boolean
   terrainName: string
   /** A plan tool's panel is up (`PlanTools.tsx`); picking one folds the legend. */
+  expanded: boolean
+  onExpandedChange: (expanded: boolean) => void
   toolOpen?: boolean
 }) {
-  const [collapsed, setCollapsed] = useLegendFold(toolOpen)
+  useLegendFold(toolOpen, onExpandedChange)
   const contours = !!display && showContours && display.contours.features.length > 0
   const terrain = !!display && (terrainLayer !== 'none' || contours)
   if (!sections.length && !terrain) return null
@@ -71,8 +71,8 @@ export function PlanLegend({
       <MapLegendPanel
         title="Legend"
         collapsible
-        collapsed={collapsed}
-        onCollapsedChange={setCollapsed}
+        collapsed={!expanded}
+        onCollapsedChange={(value) => onExpandedChange(!value)}
         width="sm"
         className={
           // Corners, shadow and the folded height match the plan's other 32 px controls. While a plan

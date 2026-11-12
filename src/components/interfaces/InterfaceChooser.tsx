@@ -1,6 +1,8 @@
+import { AccessLockup } from './AccessLockup'
 import { X } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
 import { layoutIcons, type WorkspaceLayout } from './workspaceLayouts'
+import { workspaceHelpSearch } from './interfacePreference'
 import './interfaces.css'
 
 /** The dialog behind "Switch workspace": one card per layout, the open one marked current. */
@@ -37,7 +39,17 @@ export function InterfaceChooser({
     >
       <div className="lp-launcher">
         <div className="lp-launch-head">
-          <h2 id={titleId}>Choose your workspace</h2>
+          <div className="lp-mast">
+            <AccessLockup />
+            <h2 id={titleId}>Choose your workspace</h2>
+          </div>
+          <a
+            href={`${import.meta.env.BASE_URL}help/index.html?${workspaceHelpSearch(current)}`}
+            target="_blank"
+            rel="noopener"
+          >
+            Workflow help
+          </a>
           <button className="lp-close" onClick={onCancel} aria-label="Close interface chooser">
             <X size={18} />
           </button>

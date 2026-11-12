@@ -1,4 +1,4 @@
-import { RoadSelect } from './Controls'
+import { TerrainLayerSelect, type TerrainLayer } from './TerrainLayerSelect'
 import type { FitRequest, usePlanDisplay } from './usePlanDisplay'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -18,6 +18,7 @@ import { MapSketchLayers } from '@/components/ui/map-sketch'
 import { canFinishSketch, nearFirstVertex } from '@/lib/geo/mapSketch'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
+import { StyledSelect } from '@/components/ui/styled-select'
 import { MapIconButton } from '@/components/ui/map-icon-button'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
@@ -114,7 +115,6 @@ export type DrawMode =
   | 'trace'
 /** A sketch stroke keeps detail down to this many screen pixels before it becomes a road. */
 export const SKETCH_CAPTURE_PX = 1.5
-type TerrainLayer = 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'
 const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   stream: 'Streams',
   'existing-road': 'Existing roads',
@@ -914,7 +914,15 @@ function Layers(
         : coordinates.length
           ? extent(coordinates)
           : null
-    if (fitBounds) map.fitBounds(fitBounds, { padding: 45, maxZoom: 16, duration: 0 })
+    const launch = new URLSearchParams(window.location.search)
+    if (
+      !previousFit.current &&
+      launch.get('example') === 'training' &&
+      launch.get('lesson') === 'sketch-road' &&
+      props.project.terrain.kind === 'demo'
+    ) {
+      map.jumpTo({ center: [-122.7265, 53.887], zoom: 16.7 })
+    } else if (fitBounds) map.fitBounds(fitBounds, { padding: 45, maxZoom: 16, duration: 0 })
     previousFit.current = key
     previousManualFit.current = props.fitRequest.revision
   }, [map, isLoaded, bounds, props.alignment, props.project, props.fitRevision, props.fitRequest, investigation])
@@ -2056,6 +2064,8 @@ function Layers(
         showContours={props.showContours}
         terrainName={props.project.terrain.name}
         toolOpen={!!planToolActive}
+        expanded={props.display.legendOpen}
+        onExpandedChange={props.display.setLegendOpen}
       />
     </>
   )
@@ -2165,12 +2175,28 @@ export function PlanView(input: PlanProps) {
     props.project.context,
     props.project.sharedCrossingCosts,
   ])
-  const [terrainLayer, setTerrainLayer] = useState<TerrainLayer>('hillshade')
+  const { terrainLayer, setTerrainLayer, settingsOpen, setSettingsOpen } = props.display
   // The same Map / Satellite choice as the visual-quality maps, under the plan's own layers.
   const [basemap, setBasemap] = useStoredImageryBasemap('pgmaps-road-basemap')
   const { showContours, setShowContours, showLabels, setShowLabels, showEarthwork, setShowEarthwork, fitRequest, fit } =
     props.display
-  const [sheetSymbols, setSheetSymbols] = useState(false)
+  const [symbolStyle, setSymbolStyle] = useState<'road-plan' | 'block-sheet'>(() => {
+    try {
+      return localStorage.getItem('pgmaps-road-symbol-style') === 'block-sheet' ? 'block-sheet' : 'road-plan'
+    } catch {
+      return 'road-plan'
+    }
+  })
+  const sheetSymbols = symbolStyle === 'block-sheet'
+  const chooseSymbolStyle = (value: string) => {
+    const style = value === 'block-sheet' ? 'block-sheet' : 'road-plan'
+    setSymbolStyle(style)
+    try {
+      localStorage.setItem('pgmaps-road-symbol-style', style)
+    } catch {
+      /* Keep the choice for this session when browser storage is unavailable. */
+    }
+  }
   const [editHelpVisible, setEditHelpVisible] = useState(() => {
     try {
       return localStorage.getItem('pgmaps-road-edit-help') !== 'hidden'
@@ -2300,10 +2326,9 @@ export function PlanView(input: PlanProps) {
     } else props.onContextSelect?.(feature)
   }
   const hasTerrainBounds = !!terrainBounds(props.project.terrain)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsButton = useRef<HTMLButtonElement>(null)
   const settingsPanel = useRef<HTMLDivElement>(null)
-  const closeSettings = useCallback(() => setSettingsOpen(false), [])
+  const closeSettings = useCallback(() => setSettingsOpen(false), [setSettingsOpen])
   useEffect(() => {
     if (!settingsOpen) return
     // The panel renders at the end of the body, so Tab from the button no longer reaches it.
@@ -2510,19 +2535,7 @@ export function PlanView(input: PlanProps) {
         className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-110px)] items-center gap-1"
         data-map-export-ignore
       >
-        <RoadSelect
-          value={terrainLayer}
-          onValueChange={(value) => setTerrainLayer(value as TerrainLayer)}
-          ariaLabel="Terrain display"
-          className="h-8 w-24 min-w-0 bg-background/95 sm:w-32"
-          options={[
-            { value: 'hillshade', label: 'Hillshade' },
-            { value: 'slope', label: 'Slope' },
-            { value: 'aspect', label: 'Aspect' },
-            { value: 'elevation', label: 'Elevation' },
-            { value: 'none', label: 'Basemap' },
-          ]}
-        />
+        <TerrainLayerSelect value={terrainLayer} onChange={setTerrainLayer} />
         <div className="shrink-0">
           <Button
             ref={settingsButton}
@@ -2577,7 +2590,6 @@ export function PlanView(input: PlanProps) {
                 ...(reference.length ? [['Reference layers', referenceVisible, setReferenceVisible] as const] : []),
                 ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
                 ...tools.settingsRows,
-                ['Block sheet symbols', sheetSymbols, setSheetSymbols],
               ] as const
             ).map(([label, checked, set]) => (
               <label key={label} className="flex items-center justify-between py-2 text-xs">
@@ -2585,6 +2597,20 @@ export function PlanView(input: PlanProps) {
                 <input type="checkbox" checked={checked} onChange={(event) => set(event.target.checked)} />
               </label>
             ))}
+            <label className="mt-2 grid gap-1 border-t pt-2 text-xs">
+              Legend and map symbols
+              <StyledSelect
+                value={symbolStyle}
+                onChange={(event) => chooseSymbolStyle(event.target.value)}
+                aria-label="Legend and map symbols"
+              >
+                <option value="road-plan">Standard road plan</option>
+                <option value="block-sheet">Block sheet forestry</option>
+              </StyledSelect>
+              <span className="text-2xs text-muted-foreground">
+                The map and legend use the same symbols. Choice saved in this browser.
+              </span>
+            </label>
             {contextKinds.length > 0 && (
               <fieldset className="mt-2 border-t pt-2" data-testid="road-context-visibility">
                 <legend className="text-xs font-medium">Context</legend>
@@ -2673,7 +2699,7 @@ export function PlanView(input: PlanProps) {
         !notesOpen &&
         (editHelpVisible ? (
           <div
-            className="absolute left-2 top-12 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow"
+            className="absolute left-2 top-20 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow sm:top-12"
             data-testid="road-edit-help"
           >
             <span className="min-w-0 flex-1">Drag a number to move that point. Drag a + to bend the road.</span>
@@ -2692,7 +2718,7 @@ export function PlanView(input: PlanProps) {
           <Button
             size="icon-xs"
             variant="outline"
-            className="absolute left-2 top-12 z-20 bg-background/95 shadow-sm"
+            className="absolute left-2 top-20 z-20 bg-background/95 shadow-sm sm:top-12"
             aria-label="Show editing hint"
             title="Show editing hint"
             onClick={() => showEditHelp(true)}

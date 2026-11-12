@@ -1,8 +1,25 @@
 import { MousePointer2, Pencil } from 'lucide-react'
-import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Button } from '@/components/ui/button'
 import type { DrawMode } from './PlanView'
 
-/** The plan's inspection/editing switch stays available when the phone sidebar is closed. */
+const mapToolButtonClass =
+  'road-map-icon-action size-8 shrink-0 bg-background/95 shadow-sm aria-pressed:bg-accent aria-pressed:text-accent-foreground'
+
+const tools = [
+  {
+    mode: 'inspect',
+    label: 'Inspect',
+    icon: MousePointer2,
+    title: 'Inspect · select stations and roads without moving controls',
+  },
+  {
+    mode: 'edit',
+    label: 'Edit points',
+    icon: Pencil,
+    title: 'Edit points · drag start/end controls, or drag a + to bend the road',
+  },
+] as const
+
 export function RoadMapTools({
   mode,
   onMode,
@@ -13,31 +30,23 @@ export function RoadMapTools({
   disabled?: boolean
 }) {
   return (
-    <SegmentedControl
-      label="Road map tool"
-      size="sm"
-      value={mode}
-      onChange={onMode}
-      fullWidth={false}
-      className="road-map-tool"
-      options={[
-        {
-          value: 'inspect',
-          label: 'Inspect',
-          icon: MousePointer2,
-          iconOnly: true,
-          disabled,
-          title: 'Inspect · select stations and roads without moving controls',
-        },
-        {
-          value: 'edit',
-          label: 'Edit points',
-          icon: Pencil,
-          iconOnly: true,
-          disabled,
-          title: 'Edit points · drag start/end controls, or drag a + to bend the road',
-        },
-      ]}
-    />
+    <div role="group" aria-label="Road map tool" className="flex flex-col gap-1">
+      {tools.map(({ mode: toolMode, label, icon: Icon, title }) => (
+        <Button
+          key={toolMode}
+          type="button"
+          size="icon"
+          variant="outline"
+          className={mapToolButtonClass}
+          aria-label={label}
+          aria-pressed={mode === toolMode}
+          title={title}
+          disabled={disabled}
+          onClick={() => onMode(toolMode)}
+        >
+          <Icon className="size-4" aria-hidden="true" />
+        </Button>
+      ))}
+    </div>
   )
 }

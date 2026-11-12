@@ -7,7 +7,7 @@
     "preview": "ribbon.webp",
     "preset": "split",
     "sidebar": "collapsed",
-    "summary": { "visible": true, "placement": "left" },
+    "summary": { "visible": true, "placement": "top" },
     "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
     "toolbar": {
       "dock": "top",
@@ -30,8 +30,19 @@
               "items": ["newProject", "open", "saveProject", "projects"]
             },
             { "label": "Current project", "items": ["projectInfo"] },
-            { "label": "Drawing packages", "rows": 2, "items": ["plotbook", "reportPdf"] },
-            { "label": "Data exchange", "primary": "export", "rows": 2, "items": ["export", "stakeout", "exportGis"] }
+            {
+              "label": "Drawing packages",
+              "collect": "documentExports",
+              "rows": 2,
+              "items": ["plotbook", "reportPdf"]
+            },
+            {
+              "label": "Data exchange",
+              "collect": "dataExports",
+              "primary": "export",
+              "rows": 2,
+              "items": ["export", "stakeout", "exportGis"]
+            }
           ]
         },
         {
@@ -43,7 +54,7 @@
               "primary": "import",
               "rows": 2,
               "items": ["import", "terrainSource"],
-              "more": ["lidar", "regional"]
+              "more": ["lidar", "regional", "terrain"]
             },
             {
               "label": "Import settings",
@@ -76,7 +87,7 @@
               "primary": "peg",
               "rows": 2,
               "items": ["peg", "sketch", "duplicateRoad", "startDesign", "loadMapped"],
-              "more": ["importAlignment", "traceRoad"]
+              "more": ["importAlignment", "traceRoad", "peggingData", "alignment"]
             },
             {
               "label": "Edit alignment",
@@ -106,7 +117,7 @@
               "label": "Station sections",
               "rows": 2,
               "items": ["crossSection", "templates"],
-              "more": ["stationInterval", "crossSectionHalfWidth", "sectionCsv"]
+              "more": ["stationInterval", "crossSectionHalfWidth", "sectionCsv", "section"]
             }
           ]
         },
@@ -128,13 +139,19 @@
               "items": ["drainage", "rainfallMmPerHr", "runoffCoefficient", "culverts"],
               "more": ["manningN", "streamThresholdHa", "bufferM"]
             },
-            { "label": "Forest access", "primary": "network", "rows": 2, "items": ["network", "landing", "cable"] },
+            {
+              "label": "Forest access",
+              "primary": "network",
+              "rows": 2,
+              "items": ["network", "landing", "cable"],
+              "more": ["cableProfile"]
+            },
             {
               "label": "Cost estimate",
               "primary": "fullCosts",
               "rows": 2,
               "items": ["fullCosts", "cutRate", "fillRate"],
-              "more": ["surfacingRate", "clearingRate"]
+              "more": ["surfacingRate", "clearingRate", "haulInputs", "engineering"]
             }
           ]
         },
@@ -161,8 +178,19 @@
         {
           "label": "View",
           "sections": [
-            { "label": "Map extent", "primary": "fitRoad", "rows": 2, "items": ["fitRoad", "fitAll", "fitTerrain"] },
-            { "label": "Map layers", "rows": 2, "items": ["contours", "stationLabels", "sentinel2", "earthworks"] },
+            {
+              "label": "Map extent",
+              "primary": "fitRoad",
+              "rows": 2,
+              "items": ["fitRoad", "fitAll", "fitTerrain"],
+              "more": ["zoomIn", "zoomOut"]
+            },
+            {
+              "label": "Map layers",
+              "rows": 2,
+              "items": ["contours", "stationLabels", "sentinel2", "earthworks"],
+              "more": ["terrainDisplay", "mapSettings", "mapLegend"]
+            },
             {
               "label": "Drawing views",
               "primary": "plan",
@@ -172,6 +200,7 @@
             { "label": "Road summary", "rows": 2, "items": ["summary", "summarySettings"] },
             {
               "label": "Workspace",
+              "collect": "remainingTools",
               "rows": 2,
               "items": ["chooseInterface", "presets", "customizeRibbon", "fullscreen"]
             }
@@ -188,7 +217,7 @@
     "preview": "guided.webp",
     "preset": "linked",
     "view": "focused",
-    "summary": { "visible": true, "placement": "left" },
+    "summary": { "visible": true, "placement": "top" },
     "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
     "toolbar": {
       "dock": "side",
@@ -225,13 +254,13 @@
   },
   {
     "id": "workbench",
-    "name": "Engineering workbench",
-    "shortName": "Workbench",
+    "name": "Guided mode",
+    "shortName": "Guided mode",
     "description": "Edit a station with its plan, profile and cross-section linked side by side.",
     "icon": "panels",
     "preview": "workbench.webp",
     "preset": "linked",
-    "summary": { "visible": true, "placement": "left" },
+    "summary": { "visible": true, "placement": "top" },
     "panelFrame": { "background": "white", "inset": 12, "gap": 14, "resizeCorners": true }
   },
   {
@@ -270,6 +299,7 @@
       "projects",
       "open",
       "export",
+      "branding",
       "fullscreen"
     ]
   }

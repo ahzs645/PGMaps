@@ -1,6 +1,6 @@
 import { ribbonFields } from './dev-forestry-roads/SharedRoadFields'
 import { MAX_PROJECT_ROADS, roadCount } from './dev-forestry-roads/roadLimits'
-import { detailTitle, type DetailView } from './dev-forestry-roads/detailViews'
+import { detailTitle, roadDetailViews, type DetailView } from './dev-forestry-roads/detailViews'
 import { roadSnapLines, snapNotice, type DrawSnap } from './dev-forestry-roads/drawSnap'
 import { createPortal } from 'react-dom'
 import { useWorkflowPlacement } from '@/components/interfaces/useWorkflowPlacement'
@@ -9,17 +9,26 @@ import { CustomizeRibbonPane } from '@/components/interfaces/CustomizeRibbonPane
 import { useRibbonPreferences } from '@/components/interfaces/ribbonPreferences'
 import { InterfaceChooser } from '@/components/interfaces/InterfaceChooser'
 import { useWorkspaceLayout } from '@/components/interfaces/useWorkspaceLayout'
+import { DEFAULT_INTERFACE_NAME, workspaceHelpSearch } from '@/components/interfaces/interfacePreference'
 import { layoutIcons, type WorkspaceLayout, type WorkspaceWidget } from '@/components/interfaces/workspaceLayouts'
 import {
+  commandRecord,
+  ribbonExports,
   commandDef,
   designOnlyCommands,
   workspaceCommandIds,
   type EditorCommand,
   type WorkspaceCommand,
 } from '@/components/interfaces/workspaceCommands'
+import { AccessLockup } from '@/components/interfaces/AccessLockup'
+import { BrandingDialog } from '@/branding/BrandingDialog'
+import { useBranding } from '@/branding/useBranding'
+import { exportBrand } from '@/branding/store'
+import { brandedHtml } from '@/branding/presentation'
 import { DEFAULT_HEADER_TOOLS, WorkspaceHeader } from '@/components/interfaces/WorkspaceHeader'
 import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
 import { type CommandState, WorkspaceTools } from '@/components/interfaces/WorkspaceTools'
+import { TerrainLayerSelect } from './dev-forestry-roads/TerrainLayerSelect'
 import { RoadSelect } from './dev-forestry-roads/Controls'
 import { AccessHistoryPanel } from './dev-forestry-roads/AccessHistoryPanel'
 import { loadBcAccessPilotScenario } from './dev-forestry-roads/bcAccessPilotScenario'
@@ -76,6 +85,8 @@ import {
 } from 'react'
 import {
   ChartNoAxesCombined,
+  CircleHelp,
+  LibraryBig,
   Download,
   PanelLeftClose,
   PanelLeftOpen,
@@ -106,6 +117,7 @@ import {
   csvPreview,
   EXPORT_ITEMS,
   exportRoads,
+  exportUnavailable,
   geoJsonPreview,
   INVALID_INPUT_RULES,
   MULTI_ROAD_EXPORTS,
@@ -388,10 +400,12 @@ export default function DevForestryRoads({
     setFocusPane,
   } = useWorkspaceLayout(initialInterface)
   const [choosingInterface, setChoosingInterface] = useState(false)
+  const [brandingOpen, setBrandingOpen] = useState(false)
+  const branding = useBranding()
+  const selectedExportBrand = exportBrand(branding)
   const [customizingRibbon, setCustomizingRibbon] = useState(false)
   const [paneHost, setPaneHost] = useState<HTMLDivElement | null>(null)
   const ribbonPreferences = useRibbonPreferences(active)
-  const InterfaceIcon = layoutIcons[active.icon]
   const w = useRoadWorkspace()
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const investigation = isAccessInvestigation(project)
@@ -785,13 +799,18 @@ export default function DevForestryRoads({
   const [newProjectRequest, setNewProjectRequest] = useState(0)
   const planMap = useRef<MapLibreMap | null>(null)
   const pendingLocate = useRef<ContextFeature | null>(null)
-  const onPlanReady = useCallback((map: MapLibreMap | null) => {
-    planMap.current = map
-    if (map && pendingLocate.current) {
-      fitContextFeature(map, pendingLocate.current)
-      pendingLocate.current = null
-    }
-  }, [])
+  const { setNavigationMap } = planDisplay
+  const onPlanReady = useCallback(
+    (map: MapLibreMap | null) => {
+      planMap.current = map
+      setNavigationMap(map)
+      if (map && pendingLocate.current) {
+        fitContextFeature(map, pendingLocate.current)
+        pendingLocate.current = null
+      }
+    },
+    [setNavigationMap],
+  )
   /** Brings the plan forward and fits it to a context feature, once the plan map exists. */
   const showOnPlan = useCallback(
     (feature: ContextFeature) => {
@@ -1197,7 +1216,7 @@ export default function DevForestryRoads({
       downloadText(
         kind === 'csv'
           ? cableProfileCsv(cableLine, cableAnalysis, project.terrain, extras)
-          : cableProfileHtml(cableLine, cableAnalysis, project.terrain, extras),
+          : brandedHtml(cableProfileHtml(cableLine, cableAnalysis, project.terrain, extras), selectedExportBrand),
         kind === 'csv' ? 'd-line-profile.csv' : 'd-line-profile.html',
         kind === 'csv' ? 'text/csv;charset=utf-8' : 'text/html;charset=utf-8',
       )
@@ -2273,9 +2292,12 @@ export default function DevForestryRoads({
     return { safe, basename }
   }
   const reportHtml = (safe: RoadProject) =>
-    terrainProfile
-      ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
-      : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale })
+    brandedHtml(
+      terrainProfile
+        ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
+        : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
+      selectedExportBrand,
+    )
   /**
    * One output's file, built the same way for its download and its preview. The PDFs are not here:
    * they render and download in one step, and preview through the report page and the plan map.
@@ -2285,7 +2307,10 @@ export default function DevForestryRoads({
   ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
     const { safe, basename } = exportBasis(kind)
     const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
-      content,
+      content:
+        mime.startsWith('text/html') && !content.includes('id="pgmaps-export-brand"')
+          ? brandedHtml(content, selectedExportBrand)
+          : content,
       filename,
       mime,
       notice,
@@ -2366,6 +2391,7 @@ export default function DevForestryRoads({
         }
         return text(
           plotBookHtml({
+            branding: selectedExportBrand,
             projectName: safe.name,
             settings: safe.reportSettings,
             issue: safe.issue,
@@ -2496,7 +2522,7 @@ export default function DevForestryRoads({
       if (kind === 'dline-sheet-pdf') {
         void run('Building the D-line sheet…', async (signal) => {
           const { dLineSheetPdf } = await import('./dev-forestry-roads/dline/sheetExport')
-          const blob = await dLineSheetPdf({ ...dLineSheetRequest(safe), signal })
+          const blob = await dLineSheetPdf({ ...dLineSheetRequest(safe), signal, branding: selectedExportBrand })
           const name = (cableLine?.name ?? 'd-line').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'd-line'
           downloadBlob(blob, `${basename}-${name.slice(0, 40)}-sheet.pdf`)
           w.setNotice('D-line sheet downloaded.')
@@ -2510,7 +2536,10 @@ export default function DevForestryRoads({
             import('./dev-forestry-roads/plotBookPdf'),
           ])
           const paper = parseRoadReportSettings(safe.reportSettings).paper
-          downloadBlob(await plotBookPdf(book.content as string, paper, signal), `${basename}-plot-book.pdf`)
+          downloadBlob(
+            await plotBookPdf(book.content as string, paper, signal, selectedExportBrand),
+            `${basename}-plot-book.pdf`,
+          )
           w.setNotice(
             book.notice
               .replace(/^Plot book downloaded/, 'Plot book PDF downloaded')
@@ -2522,7 +2551,11 @@ export default function DevForestryRoads({
       if (kind === 'block-sheet-pdf') {
         void run('Building block map sheet…', async (signal) => {
           const { blockSheetPdf } = await import('./dev-forestry-roads/blockSheet')
-          const { blob, built } = await blockSheetPdf({ ...blockSheetRun(kind, safe), signal })
+          const { blob, built } = await blockSheetPdf({
+            ...blockSheetRun(kind, safe),
+            signal,
+            branding: selectedExportBrand,
+          })
           downloadBlob(blob, `${basename}-${blockSheet.settings.kind}.pdf`)
           w.setNotice(['Block map sheet downloaded.', ...built.missing].join(' '))
         })
@@ -2547,8 +2580,9 @@ export default function DevForestryRoads({
               }`,
               `${basename}-map.pdf`,
               signal,
+              selectedExportBrand,
             )
-          } else await exportReportPdf(reportHtml(safe), `${basename}-report.pdf`)
+          } else await exportReportPdf(reportHtml(safe), `${basename}-report.pdf`, selectedExportBrand)
           w.setNotice(kind === 'map-pdf' ? 'Map PDF downloaded.' : 'Report PDF downloaded.')
         })
         return
@@ -2585,6 +2619,7 @@ export default function DevForestryRoads({
       roadScope,
       sheet: blockSheet.settings,
       logo: blockSheet.logo,
+      branding,
     }),
     [
       project,
@@ -2596,6 +2631,7 @@ export default function DevForestryRoads({
       roadScope,
       blockSheet.settings,
       blockSheet.logo,
+      branding,
     ],
   )
   /** What the Save & export dialog shows for one output, from the content its download writes. */
@@ -2606,12 +2642,12 @@ export default function DevForestryRoads({
     if (kind === 'plotbook-pdf') return { type: 'html', html: (await exportFile('plotbook')).content as string }
     if (kind === 'dline-sheet-pdf') {
       const { dLineSheetPreview } = await import('./dev-forestry-roads/dline/sheetExport')
-      const preview = await dLineSheetPreview({ ...dLineSheetRequest(safe), signal })
+      const preview = await dLineSheetPreview({ ...dLineSheetRequest(safe), signal, branding: selectedExportBrand })
       return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
     }
     if (kind === 'block-sheet-pdf') {
       const { blockSheetPreview } = await import('./dev-forestry-roads/blockSheet')
-      const preview = await blockSheetPreview({ ...blockSheetRun(kind, safe), signal })
+      const preview = await blockSheetPreview({ ...blockSheetRun(kind, safe), signal, branding: selectedExportBrand })
       return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
     }
     if (kind === 'map-pdf') {
@@ -3077,6 +3113,10 @@ export default function DevForestryRoads({
     setPolygonKind(kind)
     drawFromRibbon('avoid')
   }
+  function zoomPlan(step: number) {
+    showPane('plan')
+    planDisplay.zoom?.(step)
+  }
   function fitPlan(target: FitRequest['target']) {
     showPane('plan')
     planDisplay.fit(target)
@@ -3158,14 +3198,32 @@ export default function DevForestryRoads({
       return editor ? [[id, () => showControls(editor)]] : []
     }),
   ) as Record<EditorCommand, () => void>
+  const exportContext = {
+    designPreview: !!(draftAlignment || numericPegAlignment || templatePreview || costPreview),
+    hasResults: displayedAnalysis.stations.length > 0,
+    invalidInput: exportInvalidInput,
+    terrainProfile: !!terrainProfile,
+    hasTerrainGrid: !!project.terrain.raster,
+    hasProvincialEvidence: !!project.provincialStreamData,
+    hasNotes: !!project.notes?.length,
+    hasStreams: project.context.some((feature) => feature.kind === 'stream'),
+    dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
+  }
   const commands: Record<WorkspaceCommand, () => void> = {
+    branding: () => setBrandingOpen(true),
+    ...commandRecord(ribbonExports, (output) => () => openExport(output.kind)),
+    ...commandRecord(roadDetailViews, (view) => () => showDetailPane(view.value)),
+    zoomIn: () => zoomPlan(1),
+    zoomOut: () => zoomPlan(-1),
+    mapSettings: () => {
+      showPane('plan')
+      planDisplay.setSettingsOpen(true)
+    },
+    mapLegend: () => togglePlanOption(planDisplay.setLegendOpen),
+    haulInputs: () => showEngineeringInputs('haul'),
     customizeRibbon: () => setCustomizingRibbon(true),
     newProject: openNewProject,
     saveProject: () => save('project'),
-    plotbook: () => openExport('plotbook'),
-    stakeout: () => openExport('stakeout'),
-    reportPdf: () => openExport('report-pdf'),
-    exportGis: () => openExport('geojson'),
     fieldNotes: () => togglePlanOption(planDisplay.setNotesOpen),
     importReference: () => requestFile('reference'),
     drawBlock: () => drawArea('harvest'),
@@ -3177,16 +3235,12 @@ export default function DevForestryRoads({
     deleteRoad,
     traceRoad: () => drawFromRibbon('trace'),
     inspect: () => drawFromRibbon('inspect'),
-    crossSection: () => showDetailPane('section'),
     sectionCsv: saveSection,
     templates: () => showEngineeringInputs('templates'),
     materials: () => showEngineeringInputs('materials'),
-    massHaul: () => showDetailPane('mass'),
     fullCosts: openCompleteCosts,
     network: () => setNetworkOpen(true),
-    sweptPath: () => showDetailPane('swept'),
     cable: () => drawFromRibbon('cable'),
-    landing: () => showDetailPane('landing'),
     fitRoad: () => fitPlan('active'),
     fitAll: () => fitPlan('roads'),
     fitTerrain: () => fitPlan('terrain'),
@@ -3218,10 +3272,6 @@ export default function DevForestryRoads({
     summarySettings: () => showSummarySettings(),
     fullscreen: toggle,
     plan: () => showPane('plan'),
-    terrain3d: () => showDetailPane('terrain'),
-    stations: () => showDetailPane('table'),
-    quantities: () => showDetailPane('engineering'),
-    drainage: () => showDetailPane('drainage'),
     projects: () => setProjectsOpen(true),
     open: () => requestFile('project'),
     export: () => (investigation ? save('project') : openExport('project')),
@@ -3229,7 +3279,6 @@ export default function DevForestryRoads({
     ...editorCommands,
     chooseInterface: () => setChoosingInterface(true),
     profile: () => showPane('profile'),
-    compare: () => showDetailPane('compare'),
     sketch: () => drawFromRibbon('sketch'),
   }
   const runCommand = (id: WorkspaceCommand) => commands[id]()
@@ -3248,6 +3297,18 @@ export default function DevForestryRoads({
   const resultsReason =
     lockedReason ?? noRoadReason ?? (terrainProfile ? 'Not available while a terrain profile is open.' : undefined)
   const commandStates: Partial<Record<WorkspaceCommand, CommandState>> = {
+    branding: { disabled: false },
+    ...commandRecord(ribbonExports, (output) => ({
+      disabled: !!busy || !!exportUnavailable(output.kind, exportContext),
+    })),
+    ...commandRecord(roadDetailViews, (view) => ({
+      disabled: 'roadOnly' in view ? designResultsUnavailable : editLocked,
+    })),
+    zoomIn: { disabled: !planDisplay.zoom },
+    zoomOut: { disabled: !planDisplay.zoom },
+    mapSettings: { disabled: false },
+    mapLegend: { disabled: false, pressed: planDisplay.legendOpen },
+    haulInputs: { disabled: editLocked || noRoad },
     customizeRibbon: { hidden: !toolbar?.groups.some((group) => group.sections?.length), disabled: false },
     newProject: { disabled: !!busy, reason: busyReason },
     saveProject: { disabled: !!busy, reason: busyReason },
@@ -3352,6 +3413,7 @@ export default function DevForestryRoads({
       className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-warning' : 'bg-danger'}`}
     />
   )
+  const InterfaceIcon = layoutIcons[active.icon]
   // The registry's Switch interface command, showing the interface in use. The header line names
   // it only on the widest screens, so the page title keeps its room beside the road switcher.
   const interfaceSwitch = (captionFrom: 'lg' | '2xl') => (
@@ -3375,6 +3437,20 @@ export default function DevForestryRoads({
     />
   )
   const interfaceSwitcher = interfaceSwitch('2xl')
+  const ribbonHelp = active.toolbar?.dock === 'top'
+  const helpLayout = workspaceHelpSearch(active)
+  const workflowHelp = (
+    <a
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-muted focus-visible:outline"
+      href={`${import.meta.env.BASE_URL}help/index.html?${helpLayout}`}
+      target="_blank"
+      rel="noopener"
+      aria-label="Workflow help (opens in a new tab)"
+      title="Workflow help"
+    >
+      <LibraryBig aria-hidden="true" className="size-4" />
+    </a>
+  )
   const projectNameControl = (
     <ProjectName name={project.name} disabled={!!busy} onRename={(name) => update((p) => ({ ...p, name }))} />
   )
@@ -3454,6 +3530,7 @@ export default function DevForestryRoads({
       </span>
     ),
     presets: investigation ? null : presetPicker,
+    terrainDisplay: <TerrainLayerSelect value={planDisplay.terrainLayer} onChange={planDisplay.setTerrainLayer} />,
     terrainSource: (
       <div className="lp-source-field" title={`${project.terrain.name}\n\n${planningBasis}`}>
         {(() => {
@@ -3478,10 +3555,14 @@ export default function DevForestryRoads({
   }
   const heading = (
     <>
-      <h1 className="text-sm font-semibold md:hidden">{workspaceTitle}</h1>
+      <div className="flex items-center gap-2 md:hidden">
+        <AccessLockup compact />
+        <h1 className="text-sm font-semibold">{workspaceTitle}</h1>
+      </div>
       <div className="road-workspace-heading hidden min-w-0 flex-1 items-center gap-2 md:flex">
         <ForestryBackLink />
         <div className="road-workspace-title min-w-0">
+          <AccessLockup compact />
           {/* The project's name is the line's title; the tool's name stays a heading for screen readers. */}
           <div className="flex min-w-0 items-center gap-1">
             <h1 className="sr-only">{workspaceTitle}</h1>
@@ -3490,7 +3571,7 @@ export default function DevForestryRoads({
           {projectStatus}
           {layoutsFallback && (
             <p role="status" className="truncate text-2xs text-warning">
-              Workspace layouts could not be loaded: using the built-in engineering workbench.
+              Workspace layouts could not be loaded: using the built-in {DEFAULT_INTERFACE_NAME}.
             </p>
           )}
         </div>
@@ -3552,7 +3633,12 @@ export default function DevForestryRoads({
   const projectHeader = (
     <WorkspaceHeader
       heading={heading}
-      roadSwitcher={!investigation && !awaitingFirstRoad(project) && roadSwitcher}
+      roadSwitcher={
+        <>
+          {!investigation && !awaitingFirstRoad(project) && roadSwitcher}
+          {workflowHelp}
+        </>
+      }
       tools={active.headerTools ?? DEFAULT_HEADER_TOOLS}
       widgets={workspaceWidgets}
       states={headerStates}
@@ -3573,6 +3659,7 @@ export default function DevForestryRoads({
         onToggleMinimized={toggleMinimized}
         onGroupChange={selectGroup}
         editorsAvailable={!investigation}
+        editorHost={editorHost}
         editorMount={inlineWorkflow ? attachEditor : undefined}
         disabled={editLocked}
         states={commandStates}
@@ -3586,6 +3673,7 @@ export default function DevForestryRoads({
               {/* A fixed slot: the mark coming and going never moves the tools beside it. */}
               <span className="lp-status-slot">{saveMark}</span>
               {interfaceSwitch('lg')}
+              {workflowHelp}
             </>
           )
         }
@@ -3632,6 +3720,7 @@ export default function DevForestryRoads({
       data-focus-mode={focusMode || undefined}
       data-tiny-height={tinyHeight || undefined}
     >
+      {brandingOpen && branding.ready && <BrandingDialog onClose={() => setBrandingOpen(false)} />}
       {!distributed && !toolbar?.includeProjectHeader && projectHeader}
       {toolbar?.dock === 'top' && workspaceTools}
       {choosingInterface && (
@@ -3772,17 +3861,7 @@ export default function DevForestryRoads({
         onRoadScope={setRoadScope}
         busy={!!busy}
         portalContainer={ref.current}
-        context={{
-          designPreview: !!(draftAlignment || numericPegAlignment || templatePreview || costPreview),
-          hasResults: displayedAnalysis.stations.length > 0,
-          invalidInput: exportInvalidInput,
-          terrainProfile: !!terrainProfile,
-          hasTerrainGrid: !!project.terrain.raster,
-          hasProvincialEvidence: !!project.provincialStreamData,
-          hasStreams: project.context.some((feature) => feature.kind === 'stream'),
-          hasNotes: !!project.notes?.length,
-          dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
-        }}
+        context={exportContext}
         buildPreview={buildExportPreview}
         previewVersion={exportPreviewVersion}
         setupViews={{ 'block-sheet-pdf': blockSheet.setup }}
@@ -4498,19 +4577,11 @@ export default function DevForestryRoads({
                                     className="min-w-0 h-8 w-32"
                                     value={detail}
                                     onValueChange={(value) => setDetail(value as typeof detail)}
-                                    options={[
-                                      { value: 'section', label: 'Section' },
-                                      { value: 'terrain', label: '3D' },
-                                      { value: 'mass', label: 'Mass haul', disabled: !!terrainProfile },
-                                      { value: 'table', label: 'Stations' },
-                                      { value: 'compare', label: 'Compare' },
-                                      { value: 'cable', label: 'D-line' },
-                                      { value: 'pegs', label: 'Pegs', disabled: !!terrainProfile },
-                                      { value: 'engineering', label: 'Quantities', disabled: !!terrainProfile },
-                                      { value: 'landing', label: 'Landing' },
-                                      { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
-                                      { value: 'swept', label: 'Swept path', disabled: !!terrainProfile },
-                                    ]}
+                                    options={roadDetailViews.map((view) => ({
+                                      value: view.value,
+                                      label: view.label,
+                                      disabled: 'roadOnly' in view && !!terrainProfile,
+                                    }))}
                                     ariaLabel="Road detail view"
                                   />
                                   {detail === 'section' && !terrainProfile && (
@@ -5042,6 +5113,16 @@ export default function DevForestryRoads({
                             </>
                           )}
                         </output>
+                        <a
+                          href={`${import.meta.env.BASE_URL}help/${ribbonHelp ? 'ribbon.html?lesson=station-200&' + helpLayout : 'station-200/index.html?' + helpLayout}`}
+                          target="_blank"
+                          rel="noopener"
+                          aria-label="Station help: read the cut depth (opens in a new tab)"
+                          title="Station help: read the cut depth"
+                          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline"
+                        >
+                          <CircleHelp className="size-4" aria-hidden="true" />
+                        </a>
                       </div>
                     )}
                   </main>

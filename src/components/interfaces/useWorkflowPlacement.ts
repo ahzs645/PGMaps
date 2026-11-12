@@ -28,7 +28,14 @@ export function useWorkflowPlacement(layout: WorkspaceLayout, investigation: boo
     minimized?: boolean
     workflow: WorkflowEditor
     sidebar: boolean
-  }>({ layoutId: layout.id, workflow: 'design', sidebar: false })
+  }>(() => {
+    const params = new URLSearchParams(window.location.search)
+    const requested =
+      params.get('example') === 'training' && params.get('interface') === layout.id
+        ? toolbar?.groups.find((item) => item.label === params.get('ribbonTab'))
+        : undefined
+    return { layoutId: layout.id, group: requested?.label, workflow: 'design', sidebar: false }
+  })
   const groupName =
     (location.layoutId === layout.id && location.group) || toolbar?.startGroup || toolbar?.groups[0].label
   const group = toolbar?.groups.find((group) => group.label === groupName)

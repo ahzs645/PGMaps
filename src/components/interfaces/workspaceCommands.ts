@@ -1,4 +1,27 @@
+import { EXPORT_ITEMS, type RoadExport } from '@/pages/dev-forestry-roads/exportCatalog'
 import {
+  ZoomIn,
+  ZoomOut,
+  Sheet,
+  FileChartColumn,
+  MapPinCheck,
+  MapPinHouse,
+  Cable,
+  FileCode2,
+  DraftingCompass,
+  FolderArchive,
+  BookCopy,
+  FileImage,
+  Grid3X3,
+  WavesArrowDown,
+  Files,
+  NotebookPen,
+  SlidersHorizontal,
+  ListTree,
+  Container,
+  Database,
+  SplinePointer,
+  Palette,
   BookOpen,
   Footprints,
   MountainSnow,
@@ -97,7 +120,72 @@ interface CommandDef {
   investigation?: boolean
 }
 
+/** Keep existing layout and preference IDs for the original export shortcuts. */
+function exportCommandId(kind: RoadExport) {
+  switch (kind) {
+    case 'project':
+      return 'saveProject'
+    case 'geojson':
+      return 'exportGis'
+    case 'report-pdf':
+      return 'reportPdf'
+    case 'plotbook':
+      return 'plotbook'
+    case 'stakeout':
+      return 'stakeout'
+    default:
+      return `export-${kind}` as const
+  }
+}
+
+export const ribbonExports = EXPORT_ITEMS.map(
+  (output) => ({ ...output, command: exportCommandId(output.kind) }) as const,
+)
+
+/** Index a catalog without losing the finite command IDs used by layout validation. */
+export function commandRecord<T extends { command: string }, V>(entries: readonly T[], value: (entry: T) => V) {
+  return Object.fromEntries(entries.map((entry) => [entry.command, value(entry)])) as Record<T['command'], V>
+}
+
+/** Layouts reference these commands by ID. The road workspace supplies their behavior. */
+
+const additionalExportIcons: Partial<Record<RoadExport, LucideIcon>> = {
+  csv: Sheet,
+  report: FileChartColumn,
+  'map-pdf': MapPinCheck,
+  'block-sheet-pdf': MapPinHouse,
+  'dline-sheet-pdf': Cable,
+  landxml: FileCode2,
+  dxf: DraftingCompass,
+  shapefile: FolderArchive,
+  'plotbook-pdf': BookCopy,
+  'terrain-landxml': FileImage,
+  'terrain-ascii': Grid3X3,
+  'streams-csv': WavesArrowDown,
+  'provincial-evidence': Files,
+  notes: NotebookPen,
+}
+
 export const workspaceCommands = {
+  branding: {
+    label: 'Branding',
+    icon: Palette,
+    description: 'Import a Brandkit brand and choose where to use it.',
+    investigation: true,
+  },
+  ...commandRecord(ribbonExports, (entry) => ({
+    label: entry.label,
+    icon: additionalExportIcons[entry.kind] ?? Download,
+    description: entry.description,
+  })),
+  cableProfile: { label: 'D-line clearance', icon: SplinePointer },
+  peggingData: { label: 'Pegging data', icon: Database },
+  zoomIn: { label: 'Zoom in', icon: ZoomIn },
+  zoomOut: { label: 'Zoom out', icon: ZoomOut },
+  mapSettings: { label: 'Map display settings', icon: SlidersHorizontal },
+  mapLegend: { label: 'Map legend', icon: ListTree },
+  haulInputs: { label: 'Material haul & cost inputs', icon: Container },
+
   customizeRibbon: { label: 'Customize ribbon', icon: LayoutPanelTop, kind: 'pane', investigation: true },
   newProject: { label: 'New project', icon: FilePlus2, investigation: true },
   saveProject: { label: 'Save project file', icon: Save, investigation: true },

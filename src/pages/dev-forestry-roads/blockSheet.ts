@@ -34,6 +34,7 @@ import { contextSheetKey, isDeactivatedRoad, riparianSheetKey } from './planShee
 import { riparianMapFeatures } from './riparian'
 import { distinctRoadColors } from './roadColors'
 import type { RoadAnalysis, RoadProject, TerrainSource } from './types'
+import type { ExportBrand } from '@/branding/model'
 
 export interface BlockSheetSettings {
   kind: SheetKind
@@ -189,6 +190,7 @@ export function canopySurfaceId(names: readonly { id: string; name: string }[]):
 }
 
 export interface BlockSheetRun {
+  branding?: ExportBrand
   settings: BlockSheetSettings
   project: RoadProject
   analyses: ReadonlyMap<string, RoadAnalysis>
@@ -261,6 +263,9 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
       ? `contours ${products.contours.result.interval} m${products.contours.result.widened ? ' (widened to fit)' : ''}`
       : '',
   ].filter(Boolean)
+  const logo =
+    run.logo ??
+    (run.branding ? await (await import('@/branding/raster')).brandLogoRaster(run.branding.brand) : undefined)
   const sheet = composeSheet({
     frame,
     layers,
@@ -270,12 +275,21 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
     terrainName: run.terrainName,
     fields: settings.fields,
     issue: run.issue,
-    logo: run.logo,
+    logo,
     comments: settings.comments,
     sourceLine: sourceParts.join('; '),
     stamp: run.stamp,
     caveat: run.caveat,
   })
+  if (run.branding && !run.logo && logo) {
+    const placement = sheet.ops.find((op) => op.op === 'image' && op.image === logo)
+    const minimum = run.branding.brand.profile.identity?.minimumLogoWidthMm ?? 0
+    const clear = run.branding.brand.profile.identity?.logo?.clearSpaceRatio ?? 0
+    if (!placement || placement.op !== 'image' || ((placement.w / (1 + 2 * clear)) * 25.4) / 72 < minimum)
+      throw Error(
+        'This sheet has insufficient room for the selected brand logo. Choose a larger sheet or turn export branding off.',
+      )
+  }
   return { sheet, facts, missing: products.missing }
 }
 
@@ -290,7 +304,9 @@ export async function blockSheetPdf(run: BlockSheetRun): Promise<{ blob: Blob; b
   const ops = await encodeSheetImages(built.sheet.ops)
   if (run.signal?.aborted) throw new DOMException('Block sheet cancelled.', 'AbortError')
   const pdf = createSheetPdf(jspdf, built.sheet.width, built.sheet.height)
-  drawSheetPdf(pdf, jspdf, ops)
+  const { configurePdfBrand } = await import('@/branding/pdf')
+  const fonts = configurePdfBrand(pdf, run.branding)
+  drawSheetPdf(pdf, jspdf, ops, run.branding ? fonts : undefined)
   return { blob: pdf.output('blob'), built }
 }
 

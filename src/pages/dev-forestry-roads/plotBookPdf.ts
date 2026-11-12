@@ -6,6 +6,8 @@
 
 import { pdfText } from '@/lib/mapSheet/renderPdf'
 import { REPORT_PAPERS, type ReportPaper } from './reportSettings'
+import type { ExportBrand } from '@/branding/model'
+import { configurePdfBrand } from '@/branding/pdf'
 
 function throwIfAborted(signal?: AbortSignal) {
   if (signal?.aborted) throw new DOMException('Plot book PDF cancelled.', 'AbortError')
@@ -26,13 +28,19 @@ export function prepareSheetText(svg: SVGSVGElement) {
   }
 }
 
-export async function plotBookPdf(html: string, paper: ReportPaper, signal?: AbortSignal): Promise<Blob> {
+export async function plotBookPdf(
+  html: string,
+  paper: ReportPaper,
+  signal?: AbortSignal,
+  branding?: ExportBrand,
+): Promise<Blob> {
   const size = REPORT_PAPERS[paper]
   const sheets = [...new DOMParser().parseFromString(html, 'text/html').querySelectorAll('section.sheet > svg')]
   if (!sheets.length) throw Error('The plot book has no sheets to print.')
   const [{ jsPDF }, { svg2pdf }] = await Promise.all([import('jspdf'), import('svg2pdf.js')])
   throwIfAborted(signal)
   const pdf = new jsPDF({ unit: 'mm', format: [size.widthMm, size.heightMm], orientation: 'landscape', compress: true })
+  const fonts = configurePdfBrand(pdf, branding)
   // svg2pdf measures text through the DOM, so each sheet is laid out off screen while it is drawn.
   const host = document.createElement('div')
   host.setAttribute('aria-hidden', 'true')
@@ -43,6 +51,12 @@ export async function plotBookPdf(html: string, paper: ReportPaper, signal?: Abo
       throwIfAborted(signal)
       const svg = document.importNode(source, true) as SVGSVGElement
       prepareSheetText(svg)
+      if (branding)
+        for (const text of svg.querySelectorAll('text')) {
+          const heading = text.getAttribute('font-weight') === 'bold'
+          text.setAttribute('font-family', heading ? fonts.heading : fonts.body)
+          if (fonts.custom) text.setAttribute('font-weight', 'normal')
+        }
       host.replaceChildren(svg)
       if (index) pdf.addPage([size.widthMm, size.heightMm], 'landscape')
       await svg2pdf(svg, pdf, { x: 0, y: 0, width: size.widthMm, height: size.heightMm })

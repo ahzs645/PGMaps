@@ -1,4 +1,4 @@
-import { createElement, useEffect, type ReactNode } from 'react'
+import { createElement, useEffect, useState, type ReactNode } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_PEG_TOOL, type PegToolSettings } from './pegCursor'
@@ -240,7 +240,10 @@ describe('the plan legend beside a tool', () => {
   it('folds when a tool is picked, and the reader can open it again', () => {
     const seen: { collapsed: boolean; set: (value: boolean) => void }[] = []
     function Probe({ toolOpen }: { toolOpen: boolean }) {
-      const [collapsed, set] = useLegendFold(toolOpen)
+      const [expanded, setExpanded] = useState(false)
+      useLegendFold(toolOpen, setExpanded)
+      const collapsed = !expanded
+      const set = (folded: boolean) => setExpanded(!folded)
       useEffect(() => {
         seen.push({ collapsed, set })
       })

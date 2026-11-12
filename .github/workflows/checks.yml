@@ -33,6 +33,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run ci:prepare
+      - run: npm run help:check
       - run: node scripts/sync-bcdatamapper-data.mjs
       - run: npx tsc -b
       - run: npm run lint -- --max-warnings=0

@@ -47,7 +47,12 @@ export function createSheetPdf(module: JsPdfModule, width: number, height: numbe
 }
 
 /** Draws `ops` onto the current page of `pdf`. */
-export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly DrawOp[]) {
+export function drawSheetPdf(
+  pdf: JsPdf,
+  module: JsPdfModule,
+  ops: readonly DrawOp[],
+  fonts?: { body: string; heading: string; custom: boolean },
+) {
   const opacity = (fill?: number, stroke?: number) => {
     pdf.setGState(
       new module.GState({
@@ -98,7 +103,10 @@ export function drawSheetPdf(pdf: JsPdf, module: JsPdfModule, ops: readonly Draw
         break
       }
       case 'text': {
-        pdf.setFont(op.family ?? 'helvetica', op.style ?? 'normal')
+        pdf.setFont(
+          fonts ? (op.style === 'bold' ? fonts.heading : fonts.body) : (op.family ?? 'helvetica'),
+          fonts?.custom ? 'normal' : (op.style ?? 'normal'),
+        )
         pdf.setFontSize(op.size)
         const options = {
           align: op.align ?? 'left',

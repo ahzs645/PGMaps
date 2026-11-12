@@ -1,0 +1,252 @@
+body {
+  --tour-width: min(calc(100% - 2rem), 64rem);
+  margin: 0;
+  background: hsl(var(--ddc-paper));
+  font-family: var(--brand-body);
+}
+
+.tk-capture-player {
+  --tk-ink: hsl(var(--ddc-midnight));
+  --tk-muted: hsl(var(--ddc-graphite));
+  --tk-border: hsl(var(--ddc-midnight) / 0.18);
+  --accent: hsl(var(--access-text));
+  --ice: hsl(var(--ddc-ice) / 0.45);
+  max-width: 64rem;
+  font-family: var(--brand-body);
+  border-color: var(--tk-border);
+  border-radius: calc(var(--radius) + 4px);
+}
+
+.tour-nav + #root {
+  width: var(--tour-width);
+  margin: clamp(1rem, 2.5vw, 2rem) auto;
+}
+
+.tk-capture-player-header {
+  padding: 0.5rem clamp(1rem, 2.5vw, 2rem);
+}
+.tk-capture-lesson-card {
+  min-height: 0;
+  padding: clamp(1rem, 2.5vw, 1.75rem);
+}
+
+.tk-capture-player-header h1,
+.tk-capture-lesson-copy h2 {
+  color: var(--tk-ink);
+  font: 500 clamp(1.25rem, 1.8vw, 1.6rem)/1.15 var(--brand-display);
+  letter-spacing: -0.04em;
+}
+
+.tk-capture-player-header h1 {
+  margin: 0.125rem 0 0;
+}
+.tk-capture-player-header .tk-capture-eyebrow {
+  display: block;
+}
+.tk-capture-eyebrow {
+  color: var(--accent);
+  font: 400 0.68rem/1.5 var(--brand-label);
+  letter-spacing: 0.1em;
+}
+
+.tk-capture-player > .tk-capture-replay-viewport {
+  background-color: hsl(var(--ddc-paper));
+  background-image:
+    linear-gradient(var(--ice) 1px, transparent 1px), linear-gradient(90deg, var(--ice) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.tk-capture-replay-canvas {
+  outline: 1px solid var(--tk-border);
+  box-shadow: 0 3px 12px hsl(var(--ddc-midnight) / 0.08);
+}
+.tk-capture-target-ring {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px hsl(var(--access-blue) / 0.2);
+}
+.tk-capture-stage-message:not(.tk-capture-stage-error) {
+  color: var(--tk-muted);
+  background: hsl(var(--ddc-paper) / 0.96);
+}
+
+.tk-capture-lesson-card {
+  border-top: 1px solid var(--tk-border);
+  background: white;
+}
+.tk-capture-lesson-card:has(.tk-capture-complete-icon) {
+  background: hsl(var(--ddc-ice) / 0.22);
+  box-shadow: inset 4px 0 var(--accent);
+}
+.tk-capture-complete-icon,
+.tk-capture-step-number {
+  color: var(--tk-ink);
+  background: var(--ice);
+  flex-shrink: 0;
+}
+.tk-capture-step-number {
+  font: 400 0.875rem var(--brand-label);
+  border-radius: calc(var(--radius) - 2px);
+}
+.tk-capture-complete-icon {
+  color: white;
+  background: var(--accent);
+}
+.tk-capture-lesson-copy p {
+  /* The exported player sets its text colours with !important. */
+  color: var(--tk-muted) !important;
+}
+.tk-capture-lesson-copy p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+.tk-capture-player-footer {
+  display: none;
+}
+.tk-capture-player-notice {
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+
+.tk-capture-player .tk-capture-button {
+  min-height: 2.65rem;
+  border: 1px solid hsl(var(--access-text) / 0.52);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 0.55rem 0.9rem;
+  color: var(--tk-ink);
+  background: white;
+  font-size: 0.875rem;
+  box-shadow: none;
+}
+.tk-capture-player .tk-capture-button.is-icon {
+  width: 2.65rem;
+  padding: 0;
+}
+.tk-capture-player .tk-capture-button:hover:not(:disabled) {
+  color: var(--tk-ink);
+  border-color: var(--accent);
+  background: var(--ice);
+}
+.tk-capture-player .tk-capture-button.is-primary {
+  color: white;
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.tk-capture-player .tk-capture-button.is-primary:hover:not(:disabled) {
+  color: white;
+  border-color: var(--tk-ink);
+  background: var(--tk-ink);
+}
+.tk-capture-player .tk-capture-button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (min-width: 50rem) {
+  .tk-capture-player {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+  .tk-capture-player-header {
+    grid-column: 1 / -1;
+  }
+  .tk-capture-player > .tk-capture-replay-viewport {
+    min-width: 0;
+    display: grid;
+    align-items: center;
+  }
+  .tk-capture-lesson-card {
+    display: grid;
+    align-content: center;
+    justify-items: start;
+    gap: 1rem;
+    border-top: 0;
+    border-left: 1px solid var(--tk-border);
+  }
+  .tk-capture-lesson-actions {
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+  .tk-capture-lesson-copy h2 {
+    margin-block: 0.3rem 0.5rem;
+  }
+}
+
+@media (max-width: 42rem) {
+  body {
+    --tour-width: calc(100% - 1.5rem);
+  }
+  .tk-capture-lesson-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+  }
+  .tk-capture-lesson-actions,
+  .tk-capture-lesson-card > button {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+  .tk-capture-player-header {
+    gap: 0.65rem;
+  }
+}
+
+.tour-continue {
+  display: none;
+}
+#root:has(.tk-capture-complete-icon) + .tour-continue {
+  display: block;
+  max-width: 64rem;
+  margin: 0 auto;
+}
+.tour-nav ~ .tour-continue {
+  width: var(--tour-width);
+  margin-bottom: 1.5rem;
+}
+.tk-capture-player:has(.tk-capture-complete-icon) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.tour-nav + #root:has(.tk-capture-complete-icon) {
+  margin-bottom: 0;
+}
+.tour-continue a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 1rem;
+  max-width: 100%;
+  padding: 0.85rem clamp(1rem, 2.5vw, 2rem);
+  color: white;
+  background: hsl(var(--ddc-midnight));
+  border-radius: 0 0 calc(var(--radius) + 4px) calc(var(--radius) + 4px);
+  font: 600 0.94rem/1.5 var(--brand-body);
+  text-decoration: none;
+}
+.tour-continue a::after {
+  content: '→' / '';
+  grid-column: 3;
+}
+.tour-continue a span {
+  grid-column: 1;
+  color: hsl(var(--ddc-ice));
+  font: 400 0.68rem/1.6 var(--brand-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tour-continue a:hover {
+  background: hsl(var(--access-text));
+}
+.tour-continue a:focus-visible {
+  outline: 3px solid hsl(var(--access-text));
+  outline-offset: 2px;
+}
+
+@media (max-width: 42rem) {
+  .tour-continue a {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .tour-continue a::after {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+}

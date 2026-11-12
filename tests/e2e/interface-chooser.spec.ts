@@ -78,7 +78,7 @@ for (const width of [390, 1108, 1440]) {
     await page.keyboard.press('Escape')
     await expect(steps).toBeVisible()
     await switchMode.click()
-    await page.getByRole('button', { name: 'Open Engineering workbench', exact: true }).click()
+    await page.getByRole('button', { name: 'Open Guided mode', exact: true }).click()
     await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'workbench')
     await expect(station).toHaveValue('200')
     await expect(page).toHaveTitle(road)
@@ -166,7 +166,7 @@ test('an invalid layout configuration opens the built-in workbench and says so',
   await page.route('**/workspace-layouts.json', (route) => route.fulfill({ json: [{ id: 'unknown' }] }))
   await page.goto('/dev/forestry/road-design')
   await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'workbench')
-  await expect(page.getByTestId('road-workspace-header')).toContainText('built-in engineering workbench')
+  await expect(page.getByTestId('road-workspace-header')).toContainText('built-in Guided mode')
 })
 
 test('a link or the last choice opens its interface directly', async ({ page }) => {
@@ -300,7 +300,7 @@ for (const width of [390, 1440]) {
       await ribbon.getByRole('button', { name: 'More workspace commands' }).click()
       await page.getByRole('menuitem', { name: 'Switch interface' }).click()
     } else await ribbon.getByRole('button', { name: 'Switch workspace interface' }).click()
-    await page.getByRole('button', { name: 'Open Engineering workbench', exact: true }).click()
+    await page.getByRole('button', { name: 'Open Guided mode', exact: true }).click()
     const sidebar = page.getByRole('complementary', { name: 'Road design controls' })
     if (!(await sidebar.isVisible()))
       await page.getByRole('button', { name: 'Show road controls', exact: true }).click()

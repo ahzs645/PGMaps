@@ -203,7 +203,7 @@ test.describe('field navigation', () => {
     // On a phone the interface switch is in the tab row's More menu.
     await button(commands, 'More workspace commands').tap()
     await page.getByRole('menuitem', { name: 'Switch interface' }).tap()
-    await page.getByRole('button', { name: 'Open Engineering workbench', exact: true }).tap()
+    await page.getByRole('button', { name: 'Open Guided mode', exact: true }).tap()
     await page.getByRole('button', { name: 'Undo road edit', exact: true }).tap()
     await page.getByRole('button', { name: 'Switch workspace interface' }).tap()
     await page.getByRole('button', { name: 'Open Ribbon', exact: true }).tap()
@@ -282,6 +282,8 @@ test('the finder respects the available work in an access investigation and an e
   const dialog = page.getByRole('dialog', { name: 'Find ribbon tools' })
   const search = dialog.getByRole('combobox', { name: 'Search ribbon tools' })
   await search.fill('Duplicate road')
+  await expect(dialog.getByRole('status')).toHaveText('No matching ribbon tools.')
+  await search.fill('Survey field book')
   await expect(dialog.getByRole('status')).toHaveText('No matching ribbon tools.')
   await search.fill('Start design')
   await search.press('Enter')
@@ -387,4 +389,45 @@ test('a configured survey shortcut downloads stakeout coordinates from another t
     expect(Number(easting)).toBeGreaterThan(0)
     expect(Number(northing)).toBeGreaterThan(0)
   }
+})
+
+test('Find tools opens a live workflow section, an export from the catalog, and a shared map control', async ({
+  page,
+}) => {
+  test.setTimeout(90_000)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openRibbon(page)
+  const find = button(ribbon(page), 'Find tools')
+  const finder = page.getByRole('dialog', { name: 'Find ribbon tools' })
+  async function pick(text: string) {
+    await find.click()
+    await finder.getByRole('combobox').fill(text)
+    const result = finder.getByRole('option').filter({ has: page.getByText(text, { exact: true }) })
+    await expect(result).toHaveCount(1)
+    await result.click()
+  }
+
+  await pick('Survey field book')
+  const settings = page.getByRole('complementary', { name: 'Terrain settings', exact: true })
+  const survey = settings.getByRole('button', { name: /^Survey field book/ })
+  await expect(survey).toHaveAttribute('aria-expanded', 'true')
+  await expect(survey).toBeFocused()
+  await expect(survey).toBeInViewport()
+  await button(settings, 'Close Terrain settings').click()
+
+  await pick('Station CSV')
+  await expect(page.getByRole('region', { name: 'Station CSV preview' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await pick('Map legend')
+  const map = page.getByTestId('road-plan-view')
+  await expect(button(map, 'Collapse legend')).toBeVisible()
+  await button(map, 'Collapse legend').click()
+  await tab(page, 'View').click()
+  await button(ribbon(page), 'Open Map layers settings').click()
+  const layers = page.getByRole('complementary', { name: 'Map layers settings' })
+  await expect(button(layers, 'Map legend')).toHaveAttribute('aria-pressed', 'false')
+  await choose(layers.getByRole('combobox', { name: 'Terrain display' }), 'slope')
+  await expect(map.getByRole('combobox', { name: 'Terrain display' })).toHaveAttribute('data-value', 'slope')
+  await button(layers, 'Map display settings').click()
+  await expect(page.getByRole('dialog', { name: 'Map display settings' })).toBeVisible()
 })

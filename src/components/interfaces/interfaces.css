@@ -31,13 +31,17 @@
   gap: 16px;
   margin-bottom: 20px;
 }
+.lp-launch-head .lp-mast {
+  flex: 1;
+}
 .lp-launch-head h2 {
+  margin-top: 6px;
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .lp-close {
-  margin-left: auto;
+  flex-shrink: 0;
   border: 1px solid hsl(var(--border));
   border-radius: 50%;
   padding: 6px;

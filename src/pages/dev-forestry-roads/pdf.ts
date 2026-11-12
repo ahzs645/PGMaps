@@ -1,5 +1,7 @@
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { downloadBlob } from '@/lib/download'
+import type { ExportBrand } from '@/branding/model'
+import { configurePdfBrand, drawPdfBrandLogo, setPdfBrandFont } from '@/branding/pdf'
 
 const text = (value: string) =>
   value.replace(/−/g, '-').replace(/[–—]/g, ' - ').replace(/→/g, ' to ').replace(/Σ/g, 'Sum ')
@@ -222,6 +224,7 @@ export async function exportMapPdf(
   datum: string,
   filename: string,
   signal?: AbortSignal,
+  branding?: ExportBrand,
 ) {
   throwIfAborted(signal)
   if (map.getCanvas().clientWidth < 1 || map.getCanvas().clientHeight < 1)
@@ -236,14 +239,18 @@ export async function exportMapPdf(
   })
   const width = pdf.internal.pageSize.getWidth(),
     height = pdf.internal.pageSize.getHeight()
+  const fonts = configurePdfBrand(pdf, branding)
+  await drawPdfBrandLogo(pdf, branding, width - 58, 8, 46, 20)
+  if (branding) setPdfBrandFont(pdf, fonts, true)
   pdf.setFontSize(16)
-  const title: string[] = pdf.splitTextToSize(text(name), width - 24)
+  const title: string[] = pdf.splitTextToSize(text(name), width - (branding ? 84 : 24))
   pdf.text(title, 12, 18)
   pdf.setFontSize(8)
-  const metadata: string[] = pdf.splitTextToSize(text(`${terrain} | ${datum}`), width - 24)
+  if (branding) setPdfBrandFont(pdf, fonts)
+  const metadata: string[] = pdf.splitTextToSize(text(`${terrain} | ${datum}`), width - (branding ? 84 : 24))
   const metadataY = 18 + title.length * 7
   pdf.text(metadata, 12, metadataY)
-  const imageY = metadataY + metadata.length * 4 + 5
+  const imageY = Math.max(metadataY + metadata.length * 4 + 5, branding ? 34 : 0)
   const scale = Math.min((width - 24) / capture.width, (height - imageY - 22) / capture.height)
   const w = capture.width * scale,
     h = capture.height * scale
@@ -262,7 +269,11 @@ export async function exportMapPdf(
     pdf.text(attribution, 12, height - 14, { maxWidth: width - 24 })
   }
   pdf.setFontSize(7)
-  pdf.text('Current plan view | Preliminary planning - not for construction', 12, height - 8)
+  pdf.text(
+    `${branding?.brand.profile.name ?? 'DDC Access'} | Current plan view | Preliminary planning - not for construction`,
+    12,
+    height - 8,
+  )
   throwIfAborted(signal)
   downloadBlob(pdf.output('blob'), filename)
 }
@@ -296,14 +307,23 @@ async function svgImage(element: Element) {
 }
 
 /** The existing report is the content contract; write its text/tables as paginated PDF text. */
-export async function exportReportPdf(html: string, filename: string) {
+export async function exportReportPdf(html: string, filename: string, branding?: ExportBrand) {
   const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
+  const fonts = configurePdfBrand(pdf, branding)
   const document = new DOMParser().parseFromString(html, 'text/html')
   const margin = 14,
     width = 182,
     bottom = 280
   let y = margin
+  if (branding) {
+    await drawPdfBrandLogo(pdf, branding, margin, y, 70, 28)
+    y += 32
+    pdf.setProperties({
+      subject: branding.brand.profile.provenance.status,
+      creator: 'PGMaps / Brandkit ' + branding.brand.profile.id,
+    })
+  }
   const page = () => {
     pdf.addPage()
     y = margin
@@ -312,7 +332,7 @@ export async function exportReportPdf(html: string, filename: string) {
     if (y + height > bottom) page()
   }
   const paragraph = (value: string, size = 9, bold = false) => {
-    pdf.setFont('helvetica', bold ? 'bold' : 'normal')
+    setPdfBrandFont(pdf, fonts, bold)
     pdf.setFontSize(size)
     pdf.setTextColor(35)
     const lines: string[] = pdf.splitTextToSize(text(value.trim()), width)
@@ -334,7 +354,7 @@ export async function exportReportPdf(html: string, filename: string) {
       columns >= 6 ? (i === columns - 1 ? width * 0.3 : (width * 0.7) / (columns - 1)) : width / columns,
     )
     const draw = (row: string[], heading: boolean, offset = 0, limit = Infinity) => {
-      pdf.setFont('helvetica', heading ? 'bold' : 'normal')
+      setPdfBrandFont(pdf, fonts, heading)
       pdf.setFontSize(7)
       const cells: string[][] = row.map((cell, i) =>
         pdf.splitTextToSize(cell, widths[i] - 3).slice(offset, offset + limit),
@@ -358,7 +378,7 @@ export async function exportReportPdf(html: string, filename: string) {
     ensure(18)
     draw(heading, true)
     for (const row of rows.slice(1)) {
-      pdf.setFont('helvetica', 'normal')
+      setPdfBrandFont(pdf, fonts)
       pdf.setFontSize(7)
       const lines = Math.max(...row.map((cell, i) => pdf.splitTextToSize(cell, widths[i] - 3).length), 1)
       const height = lines * 3.1 + 3
@@ -385,6 +405,7 @@ export async function exportReportPdf(html: string, filename: string) {
     y += 5
   }
   const render = async (element: Element): Promise<void> => {
+    if (branding && element.hasAttribute('data-brand-header')) return
     const tag = element.tagName.toLowerCase()
     const inlineText = () =>
       [...element.childNodes]
@@ -429,10 +450,10 @@ export async function exportReportPdf(html: string, filename: string) {
   const count = pdf.getNumberOfPages()
   for (let n = 1; n <= count; n++) {
     pdf.setPage(n)
-    pdf.setFont('helvetica', 'normal')
+    setPdfBrandFont(pdf, fonts)
     pdf.setFontSize(7)
     pdf.setTextColor(100)
-    pdf.text(`Preliminary planning | ${n} / ${count}`, margin, 290)
+    pdf.text(`${branding?.brand.profile.name ?? 'DDC Access'} | Preliminary planning | ${n} / ${count}`, margin, 290)
   }
   downloadBlob(pdf.output('blob'), filename)
 }

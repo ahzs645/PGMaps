@@ -3,12 +3,21 @@
  * URL search string and the stored choice, so the rule is unit-testable.
  *
  * The designer never stops at a chooser. It opens, in order of precedence, the interface named
- * by `?interface=` (a shared link), the one this browser last used, the engineering workbench
+ * by `?interface=` (a shared link), the one this browser last used, Guided mode
  * (the view the designer had before interfaces were configurable), or the first served layout.
  */
 const INTERFACE_STORAGE_KEY = 'pgmaps-road-interface'
 const INTERFACE_PARAM = 'interface'
 const DEFAULT_INTERFACE = 'workbench'
+export const DEFAULT_INTERFACE_NAME = 'Guided mode'
+
+/** Keep the launching workspace in help links, including layouts without a Ribbon. */
+export function workspaceHelpSearch(layout: { id: string; toolbar?: { dock: 'top' | 'side' } }) {
+  const params = new URLSearchParams({ interface: layout.id })
+  if (layout.toolbar?.dock === 'top') params.set('layout', 'ribbon')
+  else params.set('ribbonInterface', 'ribbon')
+  return params.toString()
+}
 
 export function initialInterfaceId(
   layouts: readonly { id: string }[],

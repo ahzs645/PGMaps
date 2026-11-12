@@ -44,6 +44,7 @@ export interface LayoutVocabulary<I extends string, C extends string, W extends 
 interface LayoutSection<C extends string = string, W extends string = string> {
   label: string
   rows?: 1 | 2 | 3
+  collect?: 'documentExports' | 'dataExports' | 'remainingTools'
   primary?: C
   items: (C | W)[]
   more?: (C | W)[]
@@ -298,7 +299,7 @@ function parseSection<C extends string, W extends string>(
   vocabulary: LayoutVocabulary<string, C, W>,
   groupLabel: string,
 ): LayoutSection<C, W> {
-  const source = strictObject(value, `${groupLabel} section`, ['label', 'rows', 'primary', 'items', 'more'])
+  const source = strictObject(value, `${groupLabel} section`, ['label', 'rows', 'primary', 'items', 'more', 'collect'])
   const label = `${groupLabel} section "${text(source.label, `${groupLabel} section label`)}"`
   const tools: readonly (C | W)[] = [...vocabulary.widgets, ...vocabulary.commands]
   const items = (key: string) =>
@@ -307,10 +308,14 @@ function parseSection<C extends string, W extends string>(
     label: text(source.label, label),
     rows: optional(source, 'rows', (v) => oneOf(v, `${label} rows`, [1, 2, 3] as const)),
     primary: optional(source, 'primary', (v) => oneOf(v, `${label} primary`, vocabulary.commands)),
+    collect: optional(source, 'collect', (v) =>
+      oneOf(v, label, ['documentExports', 'dataExports', 'remainingTools'] as const),
+    ),
     items: items('items') ?? [],
     more: items('more'),
   })
-  if (!section.items.length && !section.more?.length) throw Error(`${label} needs at least one tool.`)
+  if (!section.collect && !section.items.length && !section.more?.length)
+    throw Error(`${label} needs at least one tool.`)
   if (section.primary && !section.items.includes(section.primary))
     throw Error(`${label}: the primary command must be in its section.`)
   return section

@@ -5,8 +5,7 @@ import { isApplePlatform } from '@/lib/platform'
 import type { WorkspaceCommand } from './workspaceCommands'
 import type { WorkspaceWidget } from './workspaceLayouts'
 
-export interface RibbonResult {
-  id: WorkspaceCommand | WorkspaceWidget
+interface SearchLocation {
   label: string
   tab: string
   section?: string
@@ -15,6 +14,10 @@ export interface RibbonResult {
   disabled: boolean
   icon?: LucideIcon
 }
+
+export type ToolResult = SearchLocation & { id: WorkspaceCommand | WorkspaceWidget; target?: undefined }
+export type EditorResult = SearchLocation & { id: string; target: HTMLElement }
+export type RibbonResult = ToolResult | EditorResult
 
 function ToolSearch({
   entries,

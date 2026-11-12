@@ -2,7 +2,9 @@ import { ribbonFieldLabels, type RibbonFieldId } from '@/pages/dev-forestry-road
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronUp, ChevronDown, PanelRightOpen, PanelRightClose } from 'lucide-react'
 import { TabBar } from '@/components/ui/tab-bar'
-import { RibbonFinder, type RibbonResult } from './RibbonFinder'
+import { AccessLockup } from './AccessLockup'
+import { RibbonFinder, type RibbonResult, type ToolResult } from './RibbonFinder'
+import { editorSections, revealEditorSection } from './ribbonEditorSections'
 import { RibbonGroupSettings, focusRibbonItem, settingsTitleFor } from './RibbonGroupSettings'
 import { RibbonTaskPane } from './RibbonTaskPane'
 import { RibbonStrip, RibbonTabs } from './RibbonNavigation'
@@ -34,6 +36,7 @@ export function WorkspaceTools({
   groupName,
   onGroupChange,
   editorMount,
+  editorHost,
   editorsAvailable,
   folded,
   onToggleFold,
@@ -47,6 +50,7 @@ export function WorkspaceTools({
   minimized: boolean
   onToggleMinimized: () => void
   editorsAvailable: boolean
+  editorHost?: HTMLElement
   editorMount?: (node: HTMLDivElement | null) => void
   children?: ReactNode
   toolbar: WorkspaceToolbar
@@ -68,7 +72,7 @@ export function WorkspaceTools({
 }) {
   const panel = useRef<HTMLDivElement>(null)
   const editorLauncher = useRef<HTMLButtonElement>(null)
-  const [focusResult, setFocusResult] = useState<RibbonResult | null>(null)
+  const [focusResult, setFocusResult] = useState<ToolResult | null>(null)
   const [settings, setSettings] = useState<OpenSettings | null>(null)
   useLayoutEffect(() => {
     if (!focusResult || !panel.current) return
@@ -106,11 +110,19 @@ export function WorkspaceTools({
     activeSection?.label === settings.label &&
     !!activeSection.more?.some(visible)
   if (settings && !settingsVisible) setSettings(null)
+  const productLogo = toolbar.header === 'controls' && <AccessLockup compact />
   if (!group)
     return (
       <>
         {children}
-        {switcher}
+        {productLogo ? (
+          <div className="lp-ribbon-tabs">
+            {productLogo}
+            {switcher}
+          </div>
+        ) : (
+          switcher
+        )}
       </>
     )
 
@@ -145,11 +157,17 @@ export function WorkspaceTools({
         entries.push({ id, tab: group.label, section: 'Quick access', label, icon, disabled: off })
       }
     }
+    if (editorHost && editorsAvailable) entries.push(...editorSections(editorHost, ordered, disabled))
     return entries
   }
   function pick(entry: RibbonResult) {
     if (entry.disabled) return
-    if (isCommand(entry.id)) {
+    if (entry.target) {
+      setSettings(null)
+      onGroupChange(entry.tab, false)
+      const target = entry.target
+      requestAnimationFrame(() => revealEditorSection(target))
+    } else if (isCommand(entry.id)) {
       setSettings(null)
       onGroupChange(entry.tab)
       onCommand(entry.id)
@@ -304,6 +322,7 @@ export function WorkspaceTools({
         }
       >
         {leading}
+        {productLogo}
         {compact ? (
           <RibbonTabs names={groups.map((tab) => tab.label)} active={group.label} onChoose={onGroupChange}>
             {tabs}
