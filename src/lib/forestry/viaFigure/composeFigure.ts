@@ -15,7 +15,7 @@ import { calloutOps, calloutSize, leaderOps, lineHeight, placeClear, textOps, ty
 import { gridContours } from '@/lib/mapSheet/contours'
 import { rectRing, type DrawOp, type Point, type RasterImage, type StrokeStyle } from '@/lib/mapSheet/drawOps'
 import { areaSymbolOps, lineSymbolOps, swatchOps, type SheetSymbol } from '@/lib/mapSheet/symbols'
-import { textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
+import { fitText, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
 import {
   legendEntries,
   type CalloutStyle,
@@ -590,6 +590,9 @@ export interface FigureInput {
   sightlinePercent: number | null
   /** Its Table 2 class name, if any. */
   sightlineClass?: string | null
+  /** Distance to the nearest block seen, km, and the view's horizontal field of view, degrees. */
+  distanceKm?: number | null
+  hfovDeg?: number | null
   /** Caption of the camera: lens, field of view, bearing. */
   lens: string
   /** Title fields: `{area}`, `{viewpoint}`, `{n}`, `{licence}`. */
@@ -704,7 +707,11 @@ function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: 
   const calc = input.preset.calc
   const ops: DrawOp[] = []
   if (!calc) return { ops, bottom: y }
-  const values = calcValues(counts, input.titles.n)
+  const values = {
+    ...calcValues(counts, input.titles.n),
+    ...(input.distanceKm != null ? { distanceKm: input.distanceKm.toFixed(1) } : {}),
+    ...(input.hfovDeg != null ? { hfov: Math.round(input.hfovDeg) } : {}),
+  }
   if (calc.title.text) {
     ops.push(...textOps(x, y, calc.title.text, calc.title, align))
     y += lineHeight(calc.title) * 1.6
@@ -715,7 +722,10 @@ function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: 
     if (bold && !previousBold) y += 4
     previousBold = bold
     const style = bold ? (calc.emphasis ?? calc.line) : calc.line
-    ops.push(...textOps(x, y, fillTemplate(bold ? template.slice(2) : template, values), style, align))
+    const text = fillTemplate(bold ? template.slice(2) : template, values)
+    // A field the view cannot fill leaves its line out rather than printing braces.
+    if (/\{\w+\}/.test(text)) continue
+    ops.push(...textOps(x, y, text, style, align))
     y += lineHeight(style)
   }
   return { ops, bottom: y }
@@ -758,12 +768,19 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
   // Title block, centred; the logo slot on the right is the user's own.
   const title = sheet.title ? R(sheet.title) : { x: 0, y: 0, w: W, h: 130 }
   const lines = preset.titles?.lines ?? []
-  let ty = title.y + 49
-  for (const line of lines) {
-    const text = fillTemplate(line.text, { ...input.titles, n: input.titles.n ?? '1' })
-    ops.push(...textOps(W / 2, ty, text, line, 'center'))
-    ty += line.size * 1.75
-  }
+  // Baselines as the reference title blocks set them (22 p27: 63.6, 106.2 and 131.7 pt on the page).
+  const BASELINES = [49.2, 91.8, 117.3]
+  lines.forEach((line, i) => {
+    const text = fitText(
+      fillTemplate(line.text, { ...input.titles, n: input.titles.n ?? '1' }),
+      line.size,
+      title.w - 420,
+      line.style ?? 'normal',
+    )
+    ops.push(
+      ...textOps(W / 2, title.y + (BASELINES[i] ?? 117.3 + (i - 2) * 22) * (title.h / 129.6), text, line, 'center'),
+    )
+  })
   const logo = { x: title.x + title.w - 190, y: title.y + 10, w: 170, h: 46 }
   ops.push(rectStroke(logo, { color: '#bfbfbf', width: 0.5, dash: [3, 2] }))
   ops.push(
@@ -826,16 +843,18 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
   const counts = input.classes ? countClasses(input.classes) : null
   const calc = calcOps(input, counts, calcCell.x + 10.8, calcCell.y + 15.5, 'left')
   ops.push(...calc.ops)
-  measureLines(input, counts).forEach((line, i) =>
-    ops.push(
-      ...textOps(
-        calcCell.x + calcCell.w * 0.52,
-        calcCell.y + 37 + i * 11.5,
-        line,
-        i === 2 ? { ...OWN, size: 7.92 } : OWN,
-      ),
-    ),
-  )
+  // PGMaps' own two figures in the cell's right half, wrapped to it.
+  const measureX = calcCell.x + calcCell.w * 0.5
+  const measureWidth = calcCell.x + calcCell.w - measureX - 8
+  let my = calcCell.y + 37
+  measureLines(input, counts).forEach((line, i) => {
+    const style = i === 2 ? { ...OWN, size: 7.92 } : OWN
+    for (const wrapped of wrapText(line, style.size, measureWidth)) {
+      ops.push(...textOps(measureX, my, wrapped, style))
+      my += lineHeight(style)
+    }
+    my += 2
+  })
   if (preset.calc?.footnote)
     ops.push(
       ...textOps(calcCell.x + 10.8, calcCell.y + calcCell.h - 4.6, preset.calc.footnote.text, preset.calc.footnote),

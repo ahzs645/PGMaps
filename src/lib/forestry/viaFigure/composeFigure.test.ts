@@ -241,6 +241,15 @@ describe('figure composition', () => {
     expect(texts(figure.ops)).toContain('Rock= 20 px')
   })
 
+  it('fills the viewing distance and field of view, and leaves out a line it cannot fill', () => {
+    const filled = texts(composeFigure({ ...input('district-greyscale'), distanceKm: 3.26, hfovDeg: 38.4 }).ops)
+    expect(filled).toContain(
+      'scaled to viewing distance (3.3 km) for comparison with other viewpoints with 38 deg. field of view',
+    )
+    const unfilled = texts(composeFigure(input('district-greyscale')).ops)
+    expect(unfilled.some((t) => t.includes('{'))).toBe(false)
+  })
+
   it('tones the frame grey for greyscale styles only', () => {
     const image = { kind: 'rgba' as const, data: new Uint8ClampedArray([255, 0, 0, 255]), width: 1, height: 1 }
     const grey = tonedImage(image, 'greyscale')

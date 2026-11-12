@@ -2417,6 +2417,8 @@ function DevForestryVisuals() {
       sightlinePercent: percent,
       sightlineClass: percent === null ? null : (table2Class(percent)?.label ?? null),
       lens: `road view, ${Math.round(at.fov)}° horizontal (${Math.round(focal)} mm full-frame equivalent), facing ${Math.round((bearing + 360) % 360)}°`,
+      distanceKm: nearest.length ? Math.min(...nearest) / 1000 : null,
+      hfovDeg: at.fov,
       facts: [
         {
           label: 'Viewpoint',

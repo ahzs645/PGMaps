@@ -32,6 +32,9 @@ export type SavedFigure = {
   sightlinePercent: number | null
   sightlineClass: string | null
   lens: string
+  /** Nearest visible block, km, and the view's horizontal field of view, degrees. */
+  distanceKm: number | null
+  hfovDeg: number
   facts: Array<{ label: string; value: string }>
   rating: FigureInput['rating']
   area: string
@@ -86,6 +89,8 @@ export async function figureInput(
     sightlinePercent: figure?.sightlinePercent ?? null,
     sightlineClass: figure?.sightlineClass ?? null,
     lens: figure?.lens ?? image.caption,
+    distanceKm: figure?.distanceKm ?? null,
+    hfovDeg: figure?.hfovDeg ?? null,
     titles: {
       area: figure?.area ?? 'Landform',
       viewpoint: figure?.viewpoint ?? image.caption.replace(/\.$/, ''),
