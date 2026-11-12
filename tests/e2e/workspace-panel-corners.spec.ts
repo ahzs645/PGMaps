@@ -6,9 +6,16 @@ test.beforeEach(async ({ page }) => {
   )
 })
 
+const INTERFACE_IDS: Record<string, string> = {
+  Ribbon: 'ribbon',
+  'Guided map': 'guided',
+  'Engineering workbench': 'workbench',
+  Dashboard: 'dashboard',
+}
+
+// The designer opens straight into the interface a link names; there is no chooser in front of it.
 async function openWorkspace(page: Page, name: string) {
-  await page.goto('/dev/forestry/road-design?example=training')
-  await page.getByRole('button', { name: `Open ${name}`, exact: true }).click()
+  await page.goto(`/dev/forestry/road-design?interface=${INTERFACE_IDS[name]}&example=training`)
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
 }
 

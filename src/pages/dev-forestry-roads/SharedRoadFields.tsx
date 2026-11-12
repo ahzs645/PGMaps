@@ -197,10 +197,10 @@ export function ribbonFields(
     fields.retainTin = <TerrainImportField {...terrain} field="retainTin" compact />
   const standards = jobStandardsOf(workspace.project)
   for (const field of fieldIds(STANDARD_LABELS)) {
-    if (field === 'adverseGradePercent' && !standards.standards.loadedDirection) continue
     fields[field] = (
       <DesignStandardField
         field={field}
+        keepPlace
         value={standards}
         onChange={(next) => workspace.update((project) => withJobStandards(project, next))}
       />

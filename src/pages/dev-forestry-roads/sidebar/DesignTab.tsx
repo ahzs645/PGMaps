@@ -142,10 +142,6 @@ export function DesignTab(p: SidebarProps) {
                 id="loadMapped"
                 surface="sidebar"
                 state={p.commandStates?.loadMapped}
-                presentation={{
-                  caption: 'Load mapped roads in view',
-                  title: "Load every mapped road in the plan's view as its own road, each in its own colour",
-                }}
                 onRun={(command) => p.onCommand?.(command)}
               />
             </div>

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { ActionMenu } from '@/components/ui/action-menu'
 
@@ -77,6 +77,20 @@ export function RibbonTabs({
 export function RibbonStrip({ children }: { children: ReactNode }) {
   const frame = useRef<HTMLDivElement>(null)
   const { previous, next } = useScrollEdges(frame, '.lp-tools')
+  // The strip shows no scrollbar (it would change the band's height), so a vertical wheel scrolls it sideways.
+  useEffect(() => {
+    const viewport = frame.current?.querySelector<HTMLElement>('.lp-tools')
+    if (!viewport) return
+    const wheel = (event: WheelEvent) => {
+      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+      if (viewport.scrollWidth <= viewport.clientWidth + 1) return
+      if ((event.target as Element | null)?.closest('input, textarea, select, [role="combobox"]')) return
+      viewport.scrollLeft += event.deltaY
+      event.preventDefault()
+    }
+    viewport.addEventListener('wheel', wheel, { passive: false })
+    return () => viewport.removeEventListener('wheel', wheel)
+  }, [])
   function step(direction: number) {
     const viewport = frame.current?.querySelector<HTMLElement>('.lp-tools')
     if (!viewport) return

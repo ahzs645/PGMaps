@@ -3216,17 +3216,28 @@ export default function DevForestryRoads({
   const editLocked = !!busy || !!costPreview
   const roadLimitReached = roadCount(project) >= MAX_PROJECT_ROADS
   const designResultsUnavailable = editLocked || noRoad || !!terrainProfile
+  // Why a command is unavailable, in the order a user would have to clear them; shown in its tooltip.
+  const busyReason = busy ? 'Wait for the current task to finish.' : undefined
+  const lockedReason = busyReason ?? (costPreview ? 'Close the cost preview first.' : undefined)
+  const noRoadReason = noRoad ? 'Peg or sketch a road first.' : undefined
+  const roadLimitReason = roadLimitReached ? `A project holds at most ${MAX_PROJECT_ROADS} roads.` : undefined
+  const mappedReason = isMappedRoad(alignment)
+    ? 'A mapped road is a record: copy it as a design to edit it.'
+    : undefined
+  const resultsReason =
+    lockedReason ?? noRoadReason ?? (terrainProfile ? 'Not available while a terrain profile is open.' : undefined)
   const commandStates: Partial<Record<WorkspaceCommand, CommandState>> = {
     customizeRibbon: { hidden: !toolbar?.groups.some((group) => group.sections?.length), disabled: false },
-    newProject: { disabled: !!busy },
-    saveProject: { disabled: !!busy },
+    newProject: { disabled: !!busy, reason: busyReason },
+    saveProject: { disabled: !!busy, reason: busyReason },
     duplicateRoad: {
       disabled: editLocked || noRoad || roadLimitReached,
+      reason: lockedReason ?? noRoadReason ?? roadLimitReason,
       label: isMappedRoad(alignment) ? 'Copy as design' : undefined,
     },
-    deleteRoad: { disabled: editLocked || investigation || noRoad },
-    importAlignment: { disabled: editLocked || roadLimitReached },
-    fitRoad: { disabled: noRoad },
+    deleteRoad: { disabled: editLocked || investigation || noRoad, reason: lockedReason ?? noRoadReason },
+    importAlignment: { disabled: editLocked || roadLimitReached, reason: lockedReason ?? roadLimitReason },
+    fitRoad: { disabled: noRoad, reason: noRoadReason },
     fitTerrain: { disabled: !terrainBounds(project.terrain) },
     fitAll: { label: investigation ? 'Fit study records' : undefined },
     contours: { disabled: false, pressed: planDisplay.showContours },
@@ -3243,35 +3254,52 @@ export default function DevForestryRoads({
     sectionCsv: {
       disabled: designResultsUnavailable || !at || !!(draftAlignment || numericPegAlignment || templatePreview),
     },
-    templates: { disabled: editLocked || noRoad },
-    materials: { disabled: editLocked || noRoad },
-    culverts: { disabled: editLocked || noRoad },
-    massHaul: { disabled: designResultsUnavailable },
-    sweptPath: { disabled: designResultsUnavailable },
-    peg: { disabled: editLocked || roadLimitReached, pressed: mode === 'road' },
-    sketch: { disabled: editLocked, pressed: mode === 'sketch' },
-    extend: { disabled: editLocked || isMappedRoad(alignment) || noRoad, pressed: mode === 'extend' },
-    editPoints: { disabled: editLocked || isMappedRoad(alignment) || noRoad, pressed: mode === 'edit' },
-    undo: { disabled: !canUndo, label: hasDraftPoint ? 'Undo point' : undefined },
-    redo: { disabled: !canRedo },
+    templates: { disabled: editLocked || noRoad, reason: lockedReason ?? noRoadReason },
+    materials: { disabled: editLocked || noRoad, reason: lockedReason ?? noRoadReason },
+    culverts: { disabled: editLocked || noRoad, reason: lockedReason ?? noRoadReason },
+    massHaul: { disabled: designResultsUnavailable, reason: resultsReason },
+    sweptPath: { disabled: designResultsUnavailable, reason: resultsReason },
+    peg: {
+      disabled: editLocked || roadLimitReached,
+      reason: lockedReason ?? roadLimitReason,
+      pressed: mode === 'road',
+    },
+    sketch: { disabled: editLocked, reason: lockedReason, pressed: mode === 'sketch' },
+    extend: {
+      disabled: editLocked || isMappedRoad(alignment) || noRoad,
+      reason: lockedReason ?? noRoadReason ?? mappedReason,
+      pressed: mode === 'extend',
+    },
+    editPoints: {
+      disabled: editLocked || isMappedRoad(alignment) || noRoad,
+      reason: lockedReason ?? noRoadReason ?? mappedReason,
+      pressed: mode === 'edit',
+    },
+    undo: {
+      disabled: !canUndo,
+      reason: 'Nothing to undo.',
+      shortcut: shortcutKeys.undo,
+      label: hasDraftPoint ? 'Undo point' : undefined,
+    },
+    redo: { disabled: !canRedo, reason: 'Nothing to redo.', shortcut: shortcutKeys.redo },
     projects: { disabled: !!busy },
     chooseInterface: { disabled: false },
     // Views and files of a road's results need a road; a terrain profile has its own stations and section.
-    stations: { disabled: noRoad && !terrainProfile },
-    crossSection: { disabled: noRoad && !terrainProfile },
-    profile: { disabled: noRoad && !terrainProfile },
-    landing: { disabled: designResultsUnavailable },
-    compare: { disabled: roadCount(project) < 2 },
-    cable: { disabled: editLocked, pressed: mode === 'cable' },
-    network: { disabled: noRoad },
-    fullCosts: { disabled: editLocked || noRoad },
-    stakeout: { disabled: !!busy || noRoad },
-    plotbook: { disabled: !!busy || noRoad },
-    reportPdf: { disabled: !!busy || noRoad },
-    exportGis: { disabled: !!busy || noRoad },
-    import: { disabled: !!busy },
-    lidar: { disabled: !!busy },
-    regional: { disabled: !!busy },
+    stations: { disabled: noRoad && !terrainProfile, reason: noRoadReason },
+    crossSection: { disabled: noRoad && !terrainProfile, reason: noRoadReason },
+    profile: { disabled: noRoad && !terrainProfile, reason: noRoadReason },
+    landing: { disabled: designResultsUnavailable, reason: resultsReason },
+    compare: { disabled: roadCount(project) < 2, reason: 'Needs two or more roads.' },
+    cable: { disabled: editLocked, reason: lockedReason, pressed: mode === 'cable' },
+    network: { disabled: noRoad, reason: noRoadReason },
+    fullCosts: { disabled: editLocked || noRoad, reason: lockedReason ?? noRoadReason },
+    stakeout: { disabled: !!busy || noRoad, reason: busyReason ?? noRoadReason },
+    plotbook: { disabled: !!busy || noRoad, reason: busyReason ?? noRoadReason },
+    reportPdf: { disabled: !!busy || noRoad, reason: busyReason ?? noRoadReason },
+    exportGis: { disabled: !!busy || noRoad, reason: busyReason ?? noRoadReason },
+    import: { disabled: !!busy, reason: busyReason },
+    lidar: { disabled: !!busy, reason: busyReason },
+    regional: { disabled: !!busy, reason: busyReason },
 
     open: { disabled: !!busy },
     export: { disabled: !!busy, label: investigation ? 'Save project' : undefined },
@@ -3289,8 +3317,8 @@ export default function DevForestryRoads({
     summary: { disabled: !summaryAvailable, pressed: summaryControls.preferences.visible },
     summarySettings: { disabled: !summaryAvailable },
     fullscreen: { disabled: false, pressed: fullscreen, label: fullscreen ? 'Exit full screen' : 'Full screen' },
-    drainage: { disabled: designResultsUnavailable },
-    quantities: { disabled: designResultsUnavailable },
+    drainage: { disabled: designResultsUnavailable, reason: resultsReason },
+    quantities: { disabled: designResultsUnavailable, reason: resultsReason },
   }
   // An access investigation has evidence but no design yet: only commands the registry marks for it stay.
   if (investigation) for (const id of designOnlyCommands) commandStates[id] = { hidden: true }
@@ -3335,7 +3363,9 @@ export default function DevForestryRoads({
   const roadSwitcher = (
     <RoadSwitcher
       // It grows from a small basis to its full width, so the title keeps its floor beside it.
-      className={distributed ? 'w-44' : 'order-last w-full md:order-none md:w-auto md:max-w-[26rem] md:flex-[1_1_8rem]'}
+      className={
+        distributed ? 'w-full' : 'order-last w-full md:order-none md:w-auto md:max-w-[26rem] md:flex-[1_1_8rem]'
+      }
       alignments={project.alignments}
       analyses={w.analyses}
       activeId={project.activeAlignmentId}
@@ -3348,6 +3378,7 @@ export default function DevForestryRoads({
     <LayoutPicker
       compact={!distributed && (compact || focusMode)}
       showButtonLabel={distributed}
+      size={distributed ? 'ribbon' : 'default'}
       hiddenPanels={hiddenPanels}
       onHiddenPanels={setHiddenPanels}
       selection={layoutSelection}
@@ -3393,10 +3424,13 @@ export default function DevForestryRoads({
         {projectStatus}
       </div>
     ),
+    // The road's name is its own field beside this one, so a lone road says so rather than repeating it.
     roadSelector: investigation ? null : project.alignments.length >= 2 ? (
       roadSwitcher
     ) : (
-      <span>{awaitingFirstRoad(project) ? 'No road selected' : alignment.name}</span>
+      <span className="lp-ribbon-note">
+        {awaitingFirstRoad(project) ? 'No road yet' : 'The only road in this project'}
+      </span>
     ),
     presets: investigation ? null : presetPicker,
     terrainSource: (
@@ -3464,25 +3498,14 @@ export default function DevForestryRoads({
   const controlsCaption = commandStates.controls?.label ?? 'Road controls'
   const headerPresentations: Partial<Record<WorkspaceCommand, CommandPresentation>> = {
     startDesign: { captionFrom: 'always' },
-    loadMapped: {
-      captionFrom: 'always',
-      title: "Load every mapped road in the plan's view as its own road, to read and compare their profiles",
-    },
+    loadMapped: { captionFrom: 'always' },
     controls: {
       ariaLabel: `${controlsShown ? 'Hide' : 'Show'} ${controlsCaption.toLowerCase()}`,
       expanded: controlsShown,
       icon: controlsShown ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />,
     },
-    undo: {
-      ariaLabel: 'Undo road edit',
-      title: `Undo (${shortcutKeys.undo})`,
-      keyShortcuts: shortcutKeys.undoAria,
-    },
-    redo: {
-      ariaLabel: 'Redo road edit',
-      title: `Redo (${shortcutKeys.redo})`,
-      keyShortcuts: shortcutKeys.redoAria,
-    },
+    undo: { ariaLabel: 'Undo road edit', keyShortcuts: shortcutKeys.undoAria },
+    redo: { ariaLabel: 'Redo road edit', keyShortcuts: shortcutKeys.redoAria },
     projects: {
       ariaLabel: 'Projects',
       title: `Projects · ${project.name}`,
@@ -3532,13 +3555,14 @@ export default function DevForestryRoads({
         editorMount={inlineWorkflow ? attachEditor : undefined}
         disabled={editLocked}
         states={commandStates}
+        leading={distributed && <ForestryBackLink />}
+        quickTools={distributed && undoHistory}
         switcher={
           distributed && (
             <>
-              <ForestryBackLink />
-              {undoHistory}
               {!summaryTab && summarySettingsButton}
-              {saveMark}
+              {/* A fixed slot: the mark coming and going never moves the tools beside it. */}
+              <span className="lp-status-slot">{saveMark}</span>
               {interfaceSwitch('lg')}
             </>
           )

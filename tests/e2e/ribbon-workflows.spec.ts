@@ -11,8 +11,8 @@ async function openRibbon(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
-  await page.getByRole('button', { name: 'Open Ribbon', exact: true }).click()
+  // The designer opens straight into the interface a link names; there is no chooser in front of it.
+  await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
 }
 

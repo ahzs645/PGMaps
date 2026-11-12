@@ -1,5 +1,18 @@
 import {
   BookOpen,
+  Footprints,
+  MountainSnow,
+  PenTool,
+  RulerDimensionLine,
+  ChartArea,
+  ChartSpline,
+  Cylinder,
+  Droplets,
+  FileJson,
+  LayoutPanelTop,
+  MapPlus,
+  Radar,
+  Sigma,
   ChartNoAxesCombined,
   Copy,
   Crosshair,
@@ -28,7 +41,7 @@ import {
   Undo2,
   Waypoints,
   Plus,
-  Layers,
+  Layers2,
   MapPin,
   Redo2,
   HardHat,
@@ -64,45 +77,69 @@ import type { WorkflowEditor } from './workspaceLayoutSchema'
  *
  * - `kind: 'pane'` opens a task pane, so a renderer closes its own open group settings first.
  * - `kind: 'editor'` shows one of the workflow editors; the workspace derives its handler from `editor`.
+ * - Each command has its own icon, so two commands never look alike side by side
+ *   (`workspaceCommands.test.ts`).
  * - `investigation: true` keeps the command available while the project is an access investigation
  *   (evidence only, no design yet); every other command is hidden there.
  */
 interface CommandDef {
   label: string
   icon: LucideIcon
+  /** What the command does when its label alone cannot say it; every surface shows it as the tooltip. */
+  description?: string
   kind?: 'pane' | 'editor'
   editor?: WorkflowEditor
   investigation?: boolean
 }
 
 export const workspaceCommands = {
-  customizeRibbon: { label: 'Customize ribbon', icon: Settings2, kind: 'pane', investigation: true },
+  customizeRibbon: { label: 'Customize ribbon', icon: LayoutPanelTop, kind: 'pane', investigation: true },
   newProject: { label: 'New project', icon: FilePlus2, investigation: true },
   saveProject: { label: 'Save project file', icon: Save, investigation: true },
-  plotbook: { label: 'Plot book', icon: BookOpen },
-  stakeout: { label: 'Stakeout CSV', icon: Crosshair },
-  reportPdf: { label: 'Report PDF', icon: FileText },
-  exportGis: { label: 'Road GeoJSON', icon: Layers },
+  plotbook: { label: 'Plot book', icon: BookOpen, description: 'Opens Save and export with the plot book chosen.' },
+  stakeout: {
+    label: 'Stakeout CSV',
+    icon: Crosshair,
+    description: 'Opens Save and export with the stakeout CSV chosen.',
+  },
+  reportPdf: { label: 'Report PDF', icon: FileText, description: 'Opens Save and export with the PDF report chosen.' },
+  exportGis: {
+    label: 'Road GeoJSON',
+    icon: FileJson,
+    description: 'Opens Save and export with the road GeoJSON chosen.',
+  },
   fieldNotes: { label: 'Field notes', icon: StickyNote, investigation: true },
   importReference: { label: 'Import GIS layer', icon: Layers3 },
-  drawProfile: { label: 'Draw terrain profile', icon: ChartNoAxesCombined },
+  drawProfile: { label: 'Draw terrain profile', icon: ChartArea },
   drawBlock: { label: 'Draw cutblock', icon: Trees },
   drawStream: { label: 'Draw stream', icon: Waves },
-  drawAvoid: { label: 'Mark avoidance area', icon: Shapes },
+  drawAvoid: { label: 'Draw avoidance area', icon: Shapes, description: 'Draw an area route searches keep out of.' },
   importAlignment: { label: 'Import road line', icon: FileUp },
   duplicateRoad: { label: 'Duplicate road', icon: Copy },
   deleteRoad: { label: 'Delete road', icon: Trash2 },
-  traceRoad: { label: 'Trace existing road', icon: Route },
+  traceRoad: { label: 'Trace existing road', icon: Footprints },
   inspect: { label: 'Inspect map', icon: MousePointer2 },
   crossSection: { label: 'Cross-section', icon: ScanLine },
   sectionCsv: { label: 'Export section CSV', icon: FileSpreadsheet },
-  templates: { label: 'Template library', icon: FileStack },
+  templates: {
+    label: 'Template library',
+    icon: FileStack,
+    description: 'Named section templates and the stations they apply to, in Engineering settings.',
+  },
   materials: { label: 'Ground materials', icon: Shovel },
   massHaul: { label: 'Mass haul', icon: ChartNoAxesCombined },
-  fullCosts: { label: 'Compare costs', icon: Calculator },
-  network: { label: 'Access network', icon: Network },
+  fullCosts: {
+    label: 'Compare route costs',
+    icon: Calculator,
+    description: 'The complete cost of each route: build, haul and the work this road leaves for others.',
+  },
+  network: {
+    label: 'Network planning',
+    icon: Network,
+    description: 'Plan the roads that reach the blocks as one network.',
+  },
   sweptPath: { label: 'Vehicle swept path', icon: Truck },
-  cable: { label: 'Draw D-line', icon: Spline },
+  cable: { label: 'Draw D-line', icon: Spline, description: 'Draw a cable yarding line and check its deflection.' },
   landing: { label: 'Landing deflection', icon: LandPlot },
   fitRoad: { label: 'Fit selected road', icon: Locate },
   fitAll: { label: 'Fit all roads', icon: MapPinned, investigation: true },
@@ -110,21 +147,36 @@ export const workspaceCommands = {
   contours: { label: 'Contours', icon: WavesLadder, investigation: true },
   stationLabels: { label: 'Station labels', icon: Tags },
   sentinel2: { label: 'Sentinel-2 imagery', icon: Satellite, investigation: true },
-  earthworks: { label: 'Earthworks', icon: Layers },
-  lidar: { label: 'BC LiDAR', icon: Layers },
-  regional: { label: 'Regional DEM', icon: Mountain },
+  earthworks: { label: 'Earthworks', icon: Layers2 },
+  lidar: {
+    label: 'BC LiDAR sample',
+    icon: Radar,
+    description:
+      'Opens the classified-ground 1 m LiDAR DTM near Prince George as a new project, in place of the open one.',
+  },
+  regional: {
+    label: 'Regional DEM',
+    icon: MountainSnow,
+    description:
+      'Puts coarse regional terrain under this project, for reconnaissance only. Undo returns the terrain it had.',
+  },
   peg: { label: 'Peg road', icon: Plus },
   extend: { label: 'Extend road', icon: Waypoints },
   editPoints: { label: 'Edit points', icon: MapPin },
-  culverts: { label: 'Culverts', icon: Waves },
-  startDesign: { label: 'Start design', icon: PencilLine, investigation: true },
-  loadMapped: { label: 'Load roads in view', icon: PlanMap, investigation: true },
+  culverts: { label: 'Culverts', icon: Cylinder },
+  startDesign: { label: 'Start design', icon: PenTool, investigation: true },
+  loadMapped: {
+    label: 'Load mapped roads in view',
+    icon: MapPlus,
+    description: "Load every mapped road in the plan's view as its own road, each in its own colour.",
+    investigation: true,
+  },
   undo: { label: 'Undo', icon: Undo2, investigation: true },
   redo: { label: 'Redo', icon: Redo2, investigation: true },
   engineering: { label: 'Engineering inputs', icon: HardHat, kind: 'editor', editor: 'engineering' },
-  quantities: { label: 'Quantities', icon: Calculator },
+  quantities: { label: 'Quantities', icon: Sigma },
   stations: { label: 'Station table', icon: ListOrdered },
-  drainage: { label: 'Drainage', icon: Waves },
+  drainage: { label: 'Drainage', icon: Droplets },
   plan: { label: 'Plan view', icon: PlanMap, investigation: true },
   terrain3d: { label: '3D terrain', icon: Box },
   controls: { label: 'Road controls', icon: PanelLeft, investigation: true },
@@ -138,10 +190,10 @@ export const workspaceCommands = {
   import: { label: 'Import terrain', icon: FileInput },
   sketch: { label: 'Sketch a road', icon: PencilLine },
   alignment: { label: 'Alignment tools', icon: Route, kind: 'editor', editor: 'design' },
-  section: { label: 'Road template', icon: ScanLine, kind: 'editor', editor: 'template' },
+  section: { label: 'Road template', icon: RulerDimensionLine, kind: 'editor', editor: 'template' },
   review: { label: 'Design checks', icon: ClipboardCheck, kind: 'editor', editor: 'review' },
   compare: { label: 'Compare roads', icon: Table2 },
-  profile: { label: 'Road profile', icon: Spline },
+  profile: { label: 'Road profile', icon: ChartSpline },
   chooseInterface: { label: 'Switch interface', icon: LayoutTemplate, kind: 'pane', investigation: true },
 } satisfies Record<string, CommandDef>
 export type WorkspaceCommand = keyof typeof workspaceCommands
@@ -151,8 +203,18 @@ export type EditorCommand = {
 }[WorkspaceCommand]
 export const workspaceCommandIds = Object.keys(workspaceCommands) as WorkspaceCommand[]
 
-/** What the workspace reports for each command at render time. */
-export type CommandState = { disabled?: boolean; pressed?: boolean; hidden?: boolean; label?: string }
+/**
+ * What the workspace reports for each command at render time. `reason` says why a disabled
+ * command cannot run, and `shortcut` names its keys; both join the description in the tooltip.
+ */
+export type CommandState = {
+  disabled?: boolean
+  pressed?: boolean
+  hidden?: boolean
+  label?: string
+  reason?: string
+  shortcut?: string
+}
 
 export const commandDef = (id: WorkspaceCommand): CommandDef => workspaceCommands[id]
 export const isWorkspaceCommand = (id: string): id is WorkspaceCommand =>
@@ -161,15 +223,30 @@ export const isWorkspaceCommand = (id: string): id is WorkspaceCommand =>
 /** The label, icon and availability a renderer shows for one command, from the definition and its state. */
 export function resolveCommand(id: WorkspaceCommand, state: CommandState | undefined, disabled = false) {
   const def = commandDef(id)
+  const off = state?.disabled ?? disabled
   return {
     id,
     label: state?.label ?? def.label,
     icon: def.icon,
     kind: def.kind,
-    disabled: state?.disabled ?? disabled,
+    disabled: off,
     pressed: state?.pressed,
     hidden: !!state?.hidden,
+    description: def.description,
+    shortcut: state?.shortcut,
+    reason: off ? state?.reason : undefined,
   }
+}
+
+/**
+ * The tooltip every surface gives a command: its label (where the label is not shown, or may be
+ * cut short), what it does, its keys, and why it is unavailable.
+ */
+export function commandTooltip(command: ReturnType<typeof resolveCommand>, withLabel = true) {
+  const keys = command.shortcut ? ` (${command.shortcut})` : ''
+  return [withLabel ? `${command.label}${keys}` : keys.trim(), command.description, command.reason]
+    .filter(Boolean)
+    .join('\n')
 }
 
 /** Commands that must stay out of an access investigation, which has evidence but no design yet. */

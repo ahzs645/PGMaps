@@ -1,6 +1,6 @@
 import { ribbonFieldLabels, type RibbonFieldId } from '@/pages/dev-forestry-roads/roadFieldDefinitions'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { ChevronUp, ChevronDown, PanelTopClose, PanelTopOpen, PanelRightOpen, PanelRightClose } from 'lucide-react'
+import { ChevronUp, ChevronDown, PanelRightOpen, PanelRightClose } from 'lucide-react'
 import { TabBar } from '@/components/ui/tab-bar'
 import { RibbonFinder, type RibbonResult } from './RibbonFinder'
 import { RibbonGroupSettings, focusRibbonItem, settingsTitleFor } from './RibbonGroupSettings'
@@ -25,6 +25,8 @@ export function WorkspaceTools({
   onCommand,
   children,
   widgets,
+  leading,
+  quickTools,
   switcher,
   states,
   groupName,
@@ -49,6 +51,11 @@ export function WorkspaceTools({
   disabled: boolean
   onCommand: (action: WorkspaceCommand) => void
   widgets: Partial<Record<WorkspaceWidget, ReactNode>>
+  /** Before the tabs, e.g. the way back out of the tool. */
+  leading?: ReactNode
+  /** Right after quick access and shown at every width, e.g. the edit history beside undo and redo. */
+  quickTools?: ReactNode
+  /** The end of the tab row, e.g. the save status and the interface switch. */
   switcher?: ReactNode
   states: Partial<Record<WorkspaceCommand, CommandState>>
 }) {
@@ -277,7 +284,14 @@ export function WorkspaceTools({
     >
       {children}
       {toolbar.title && <h2 className="lp-guide-title">{toolbar.title}</h2>}
-      <div className={switcher || compact || findTools || quickAccess.length ? 'lp-ribbon-tabs' : 'contents'}>
+      <div
+        className={
+          switcher || leading || quickTools || compact || findTools || quickAccess.length
+            ? 'lp-ribbon-tabs'
+            : 'contents'
+        }
+      >
+        {leading}
         {compact ? (
           <RibbonTabs names={groups.map((tab) => tab.label)} active={group.label} onChoose={onGroupChange}>
             {tabs}
@@ -285,12 +299,7 @@ export function WorkspaceTools({
         ) : (
           tabs
         )}
-        {quickAccess.length > 0 && (
-          <div role="group" aria-label="Quick access" className="lp-quick-access">
-            {quickAccess.map((id) => commandButton(id, 'quick'))}
-          </div>
-        )}
-        {findTools && <RibbonFinder entries={searchEntries} onPick={pick} />}
+        {/* The tab's own settings sit beside the tabs: tools to the right stay put when a tab has none. */}
         {group.editor && editorMount && !minimized && (
           <button
             ref={editorLauncher}
@@ -308,6 +317,14 @@ export function WorkspaceTools({
             <EditorIcon size={16} aria-hidden="true" />
           </button>
         )}
+        {quickAccess.length > 0 && (
+          <div role="group" aria-label="Quick access" className="lp-quick-access">
+            {quickAccess.map((id) => commandButton(id, 'quick'))}
+          </div>
+        )}
+        {quickTools}
+        {findTools && <RibbonFinder entries={searchEntries} onPick={pick} />}
+        {switcher}
         {compact && (
           <button
             type="button"
@@ -317,10 +334,9 @@ export function WorkspaceTools({
             title={minimized ? 'Show ribbon tools' : 'Minimize ribbon'}
             onClick={onToggleMinimized}
           >
-            {minimized ? <PanelTopOpen size={16} /> : <PanelTopClose size={16} />}
+            {minimized ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
           </button>
         )}
-        {switcher}
       </div>
       <div
         ref={panel}

@@ -21,6 +21,7 @@ export function LayoutPicker(props: {
   hiddenPanels: RoadPaneId[]
   compact?: boolean
   showButtonLabel?: boolean
+  size?: 'default' | 'ribbon'
   onHiddenPanels: (hidden: RoadPaneId[]) => void
   onSelect: (selection: string, saved?: SavedLayout[]) => void
   saved: SavedLayout[]

@@ -19,7 +19,7 @@ Three places load a mapped road:
   from an investigation with that road as its first road.
 - The **Mapped roads in this project** list in a design that has no road yet.
 
-**Load roads in view** (beside Start design in an investigation, under the Road buttons in a
+**Load mapped roads in view** (beside Start design in an investigation, under the Road buttons in a
 design, and in the empty design's list) loads every mapped road with a part in the plan's current
 view, each as its own road in its own colour, and the **Viewing road** switcher moves between
 them. Roads already loaded are skipped. The project's 20-road and 2,000-point limits are shared

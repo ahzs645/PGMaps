@@ -28,8 +28,7 @@ for (const width of [1440, 390]) {
       await route.fulfill({ json: layouts })
     })
     const open = async () => {
-      await page.goto('/dev/forestry/road-design?example=training')
-      await page.getByRole('button', { name: 'Open Ribbon', exact: true }).click()
+      await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
       await expect(page.getByRole('region', { name: 'Command ribbon' })).toBeVisible()
     }
     await open()

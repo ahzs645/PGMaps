@@ -111,11 +111,9 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           {sourceTool('lidar', {
             caption: 'BC LiDAR',
             ariaLabel: 'Load BC 1 m LiDAR sample',
-            title: 'Classified-ground 1 m LiDAR DTM near Prince George',
           })}
           {sourceTool('regional', {
             caption: 'Regional DEM',
-            title: 'Coarse reconnaissance terrain, not a 1 m LiDAR source',
           })}
           <Button
             variant="outline"

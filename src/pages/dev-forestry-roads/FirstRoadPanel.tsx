@@ -66,13 +66,7 @@ export function FirstRoadPanel({
           <div className="space-y-1.5">
             <p className="text-xs font-semibold">Mapped roads in this project · {roads.length}</p>
             <div className="grid">
-              <CommandButton
-                id="loadMapped"
-                surface="sidebar"
-                state={commandStates?.loadMapped}
-                presentation={{ caption: 'Load all roads in view' }}
-                onRun={onCommand}
-              />
+              <CommandButton id="loadMapped" surface="sidebar" state={commandStates?.loadMapped} onRun={onCommand} />
             </div>
             {roads.length > 6 && (
               <input
