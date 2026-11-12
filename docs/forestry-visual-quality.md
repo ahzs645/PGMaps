@@ -1200,11 +1200,14 @@ off the road while paused, along where the camera looks: 6 m/s, 30 m/s with
 Shift, at most 2 km out. The eye stands on the same fixed ground mosaic as on
 the road (`renderedGroundSource`), and `DriveController.canStand` refuses a step
 onto ground the mosaic does not hold rather than dropping the eye. Red ground
-still shows what the nearest road station sees, and the panel says so; Play, a
-seek, or facing another block puts the walker back on the road.
+still shows what the nearest road station sees. That used to be a status line
+in the bar; now the *Reset look* button turns amber with a warning triangle and
+says it in its tooltip ("… m off the road" or "off the viewpoint"), and
+clicking it or R walks back as well as resetting the look. Play, a seek, or
+facing another block puts the walker back on the road too.
 
-**Satellite imagery** drapes Esri World Imagery under every layer the page
-draws, below the basemap's first label layer (`SatelliteImagery.tsx`), never as
+**Satellite imagery**, the Satellite basemap in each map's Layers button, drapes
+Esri World Imagery under every layer the page draws, below the basemap's first label layer (`SatelliteImagery.tsx`), never as
 a new `styles` object, which would `setStyle` the 3D timber away. Its source
 stops at z18: rural BC has no z19 imagery, and Esri's grey "Map data not yet
 available" tile otherwise filled the ground under the eye-level camera.
@@ -1309,6 +1312,66 @@ viewpoints — which saves a second trip to the field.
   unchanged. `fieldChecklist.ts` and `fieldBrief.ts` are DOM-free (jsPDF is
   passed in; text goes through `pdfText`) and carry the unit tests.
 
+## Why the field workflow is shaped this way
+
+The pre-layout brief, the crew checklist, visual measures, wildlife tree
+patches, field-confirmed green-up, own-photo line-up and the before/after
+readout came from reading a practitioner's account of doing VIAs for a BC
+licensee ("Considering Visual Objectives at All Stages of Block Development",
+Cabin Resource Management, December 2024): practice, not guidance; the legal
+basis it cites is FPPR s. 1.1. Each feature answers one point in it:
+
+| Their practice | Here |
+| --- | --- |
+| Consider visuals at planning, before layout | Pre-layout / post-layout stage in the headline (pre-layout by default: only the reviewer can say a boundary was walked) |
+| Share a pre-layout VIA with the field crew | One-page field brief PDF (`fieldBrief.ts`) |
+| Crew places strategic wildlife tree patches, leave trees, natural boundaries | Brief's "what to look for"; *Draw a wildlife tree patch* (the `retained` mask, relabelled) |
+| Crew confirms adjacent blocks have greened up and ground-truths viewpoints | Crew checklist (`fieldChecklist.ts`, in `viaReview`); per-opening field-confirmed green-up (`greenUp.ts`) |
+| Composite a field photo with the simulation (VNS + Photoshop, "very tedious") | Line up a photo of my own (`exifPose.ts`, `OwnFieldPhoto.tsx`) |
+| Amend blocks when the basic VQC misses the EVQO, before going back out | Before/after readout of the verdict across runs (`runRevision.ts`) |
+| Write the measures and a stop-work trigger into the Site Plan and Logging Plan | Visual measures (`visualMeasures.ts`) in the block note |
+| Everyone should know FPPR s. 1.1's categories | Resources: the five categories and the regulation |
+
+What each one may change follows one rule: a review record (stage, checklist,
+measures, the Visuals paragraph) lives in `viaReview` and never stales the run;
+an input to the figures (a complete field green-up check, a wildlife tree patch
+mask) is in `AnalysisInput` and stales it; a picture-only setting (tree-free
+areas, the basemap, legend switches) touches neither.
+
+## Road view performance (November 2026 traces)
+
+Two DevTools traces against the dev server, read in November 2026 (dev React
+inflates React's share; MapLibre's is the same in production):
+
+- **Looking around and walking (49 s):** the main thread, not the GPU, is the
+  limit: 87–97% busy while walking, the GPU process 16%. Eye-map frames took
+  12.7 s (p50 4.5 ms, p99 23 ms; label placement 1.4 s, tile masks 1.2 s, one
+  `uniformMatrix4fv` per draw 2.4 s). React re-rendered the whole page about 20
+  times a second from pose reports (7.3 s). Hover queries on the eye map's fills
+  forced synchronous GPU readbacks (`readPixels` 1.6 s). DEM tiles were fetched
+  twice, once for the hillshade source and once for terrain (150 requests, 57
+  URLs).
+- **Swapping viewpoints (4 s):** the road view's map was destroyed and rebuilt
+  (WebGL context, style, fonts, 13 vector and 22 DEM tiles, shaders), the
+  analysis worker restarted, the stand regrew from nothing, and the narrative's
+  EVQO lookup blocked for about 250 ms twice.
+
+Done: the map stays mounted through a swap (`roadViewHeld`); the pose's eye is
+rounded to about 10 m before it reaches page state; drawn-only eye-map fills
+pass `interactive={false}`; the narrative's EVQO class lookup prepares each unit
+once (`preparePolygons`, equivalence pinned by `visualsNarrativeClasses.test.ts`).
+
+Not done, in the order the traces suggest: anchor the stand's patch grid
+somewhere stable so a swap reuses patches rather than regrowing them (it is
+anchored on the viewpoint; placement must stay deterministic and calibrated);
+memoize the sidebar and `layerData` as the road designer does
+(`memoWithLatestHandlers`), and keep the drive position out of page state
+during playback; hide basemap labels the forest floor covers on the eye map
+(one style object passed as both styles, never `setStyle`); share or drop the
+eye map's second DEM source; reuse an idle analysis worker instead of
+terminating it per run. Re-profile against a production build
+(`vite build && vite preview`) before ranking React costs again.
+
 ## The block note: Excel or PDF
 
 Step 5's *Planning note · Visuals* ends with **Download Excel** and **Download
@@ -1384,7 +1447,15 @@ collapsed on phones, with a row for each layer on the map now: blocks,
 landform, existing openings and masks; the road and, after a run, the ground
 classes, the assessment viewpoint and the exposure ramp; terrain candidates,
 other ridge layers and landform clues; sensitivity units, VLI viewpoints,
-viewing directions, rec sites and screenings. Layers and rows read one set of
+viewing directions, rec sites and screenings; tree-free areas and, while the
+Layers button has them on, the established VQO classes. **Every row is a
+button** that hides what it lists (struck through while hidden): rows sharing
+one layer filter its features through `withoutHiddenFeatures` (`planLayers.ts`),
+which returns the same collection while nothing is hidden, so a layer only
+re-uploads when a row changes. A new plan layer needs a `PlanLegendKey` and a
+row, or it cannot be hidden. The basemap and reference overlays (Satellite,
+Hillshade, established VQO) are not legend rows: they are chosen from the map's
+Layers button (`MapLayersControl`). Layers and rows read one set of
 colours, `planMapStyle.ts`; sensitivity units are drawn in their objective's
 colour, the colour their sidebar rows show. Map hovers are `mapTooltipHtml`
 cards. The road view keeps its own status panel and has no legend; the plan
