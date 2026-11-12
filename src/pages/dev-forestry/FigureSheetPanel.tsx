@@ -10,6 +10,7 @@ import {
   composeFigure,
   cropRasterRows,
   figureLabelStyle,
+  rgbaLuminance,
   type ClassRaster,
   type ComposedFigure,
   type FigureInput,
@@ -132,15 +133,23 @@ export async function figureInput(
       .filter((part) => part.length > 1)
     return parts.length ? [{ ...line, parts }] : []
   })
+  // The arrow labels read the frame's brightness to colour their leaders: decode the frame for that
+  // only, and keep drawing the JPEG itself so the sheet stays small.
+  const greyscale = preset.tone === 'greyscale'
+  const decoded =
+    greyscale || figureLabelStyle({ preset, labelStyle: options.labelStyle ?? undefined }) === 'underlined-arrow'
+      ? await decodedImage(image)
+      : null
   return {
     ...(options.labelStyle ? { labelStyle: options.labelStyle } : {}),
     ...(options.cameraInfo != null ? { cameraInfo: options.cameraInfo } : {}),
+    ...(decoded?.kind === 'rgba' && !greyscale ? { luminance: rgbaLuminance(decoded) } : {}),
     zones: figure?.zones ? (crop ? cropRasterRows(figure.zones, crop) : figure.zones) : null,
     camera: figure?.camera ?? null,
     preset,
     image:
-      preset.tone === 'greyscale'
-        ? await decodedImage(image)
+      greyscale && decoded
+        ? decoded
         : { kind: 'url', url: image.dataUrl, format: 'JPEG', width: image.width, height: image.height },
     classes: figure?.classes ? (crop ? cropRasterRows(figure.classes, crop) : figure.classes) : null,
     callouts,

@@ -1,6 +1,7 @@
 import { GState, jsPDF } from 'jspdf'
 import { describe, expect, it, vi } from 'vitest'
 import {
+  ARROW_LABEL,
   arrowHeadOps,
   balloonRing,
   CALLOUT_MAX_TITLE_LINES,
@@ -17,6 +18,7 @@ import {
   textOps,
   type CalloutBoxStyle,
 } from './callouts'
+import { CONTRAST, contrastRuns, INK_COLOR, inkStates } from './contrastRuns'
 import type { DrawOp, Point } from './drawOps'
 import { createSheetPdf, drawSheetPdf, pdfText } from './renderPdf'
 import { sheetSvg } from './renderSvg'
@@ -225,6 +227,112 @@ describe('callout text sizing and label styles', () => {
     })
     expect(ops.some((op) => op.op === 'text' && op.color === '#ffffff' && op.size === 7)).toBe(true)
     expect(ops.some((op) => op.op === 'path' && op.closed && op.fill === '#ffffff')).toBe(true)
+  })
+
+  describe('underlined label with an arrow', () => {
+    const one = (anchor: Point, luminanceAt?: (x: number, y: number) => number | null) =>
+      labelOps([{ title: 'TFL18 I121', anchor }], {
+        style: 'underlined-arrow',
+        area,
+        maxWidth: 160,
+        ceilingAt: () => 120,
+        ...(luminanceAt ? { luminanceAt } : {}),
+      })
+    const strokes = (ops: DrawOp[]) => paths(ops).filter((op) => !op.closed && op.stroke)
+
+    it('runs the underline past the text and starts the leader at its right end', () => {
+      const { ops, boxes } = one([200, 220])
+      const text = ops.find((op) => op.op === 'text' && op.text === 'TFL18 I121') as Extract<DrawOp, { op: 'text' }>
+      expect(text.style).toBe('bold')
+      const textW = textWidth('TFL18 I121', ARROW_LABEL.title.size, 'bold')
+      // Over no picture the underline and the leader are one dark stroke: underline, turn, down.
+      const [line] = strokes(ops)
+      const [start, turn, end] = line.parts[0]
+      expect(start[0]).toBeCloseTo(text.x)
+      expect(turn[1]).toBeCloseTo(start[1])
+      expect(turn[0] - start[0]).toBeGreaterThanOrEqual(textW)
+      expect(turn[0] - start[0]).toBeCloseTo(textW + ARROW_LABEL.overhang)
+      // Room above the anchor: the turn sits over it and the leader runs straight down.
+      expect(turn[0]).toBeCloseTo(200)
+      expect(end[0]).toBeCloseTo(200)
+      expect(end[1]).toBeGreaterThan(turn[1])
+      expect(boxes[0].y + boxes[0].h).toBeLessThanOrEqual(120)
+    })
+
+    it('ends the leader in an arrowhead at the anchor', () => {
+      const { ops } = one([200, 220])
+      const head = paths(ops).find((op) => op.closed && op.fill)!
+      const tip = head.parts[0][1]
+      expect(Math.hypot(tip[0] - 200, tip[1] - 220)).toBeLessThan(1.5)
+      expect(head.fill).toBe(INK_COLOR.dark)
+    })
+
+    it('turns the leader white over dark ground and back to dark, the head taking the last colour', () => {
+      // Light sky to y 150, dark forest to 190, a pale block below.
+      const ground = (_x: number, y: number) => (y < 150 ? 0.85 : y < 190 ? 0.12 : 0.8)
+      const { ops } = one([200, 220], ground)
+      const leader = strokes(ops).filter((op) => op.parts[0].some(([, y]) => y > 125))
+      expect(leader.map((op) => op.stroke!.color)).toEqual([INK_COLOR.dark, INK_COLOR.light, INK_COLOR.dark])
+      expect(leader[1].parts[0][0][1]).toBeCloseTo(150, -1)
+      expect(leader[2].parts[0][0][1]).toBeCloseTo(190, -1)
+      expect(paths(ops).find((op) => op.closed && op.fill)!.fill).toBe(INK_COLOR.dark)
+      // Ending over the forest, the head is white.
+      const forest = one([200, 220], (_x, y) => (y < 150 ? 0.85 : 0.12))
+      expect(paths(forest.ops).find((op) => op.closed && op.fill)!.fill).toBe(INK_COLOR.light)
+    })
+
+    it('writes white text and underline over a dark background, with a halo where it is busy', () => {
+      const { ops } = one([200, 220], (x) => (Math.floor(x / 3) % 2 ? 0.05 : 0.3))
+      const text = ops.find((op) => op.op === 'text' && op.text === 'TFL18 I121') as Extract<DrawOp, { op: 'text' }>
+      expect(text.color).toBe(INK_COLOR.light)
+      expect(text.halo?.color).toBe(ARROW_LABEL.halo.light)
+      const calm = one([200, 220], () => 0.9)
+      const plain = calm.ops.find((op) => op.op === 'text') as Extract<DrawOp, { op: 'text' }>
+      expect(plain.color).toBe(INK_COLOR.dark)
+      expect(plain.halo).toBeUndefined()
+    })
+  })
+
+  describe('contrast runs', () => {
+    it('splits a leader over light, dark and light ground into dark, white and dark runs', () => {
+      const line: Point[] = [
+        [0, 0],
+        [0, 90],
+      ]
+      const runs = contrastRuns(line, (_x, y) => (y < 30 ? 0.9 : y < 60 ? 0.1 : 0.9))
+      expect(runs.map((run) => run.ink)).toEqual(['dark', 'light', 'dark'])
+      expect(runs[0].parts[0]).toEqual([0, 0])
+      expect(runs.at(-1)!.parts.at(-1)).toEqual([0, 90])
+      for (let i = 1; i < runs.length; i++) expect(runs[i].parts[0]).toEqual(runs[i - 1].parts.at(-1))
+      expect(inkStates([0.9, 0.9, 0.9, 0.1, 0.1, 0.1, 0.9, 0.9, 0.9])).toEqual([
+        'dark',
+        'dark',
+        'dark',
+        'light',
+        'light',
+        'light',
+        'dark',
+        'dark',
+        'dark',
+      ])
+    })
+
+    it('holds its colour through a one-sample flicker and inside the band', () => {
+      expect(inkStates([0.9, 0.9, 0.1, 0.9, 0.9])).toEqual(['dark', 'dark', 'dark', 'dark', 'dark'])
+      // Between the band's edges nothing changes, whichever side it started.
+      const mid = (CONTRAST.toLight + CONTRAST.toDark) / 2
+      expect(new Set(inkStates([0.9, mid, mid, mid, mid]))).toEqual(new Set(['dark']))
+      expect(new Set(inkStates([0.1, mid, mid, mid, mid]))).toEqual(new Set(['light']))
+      expect(
+        contrastRuns(
+          [
+            [0, 0],
+            [0, 40],
+          ],
+          (_x, y) => (Math.abs(y - 20) < 1 ? 0.05 : 0.9),
+        ),
+      ).toHaveLength(1)
+    })
   })
 
   it('numbers markers and returns their key for the legend', () => {

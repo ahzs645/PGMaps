@@ -23,6 +23,7 @@ import {
   type SheetTextStyle,
 } from '@/lib/mapSheet/callouts'
 import { gridContours } from '@/lib/mapSheet/contours'
+import type { LuminanceSampler } from '@/lib/mapSheet/contrastRuns'
 import { rectRing, type DrawOp, type Point, type RasterImage, type StrokeStyle } from '@/lib/mapSheet/drawOps'
 import { areaSymbolOps, lineSymbolOps, swatchOps, type SheetSymbol } from '@/lib/mapSheet/symbols'
 import { fitText, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
@@ -690,6 +691,12 @@ export interface FigureInput {
   lines?: readonly Overlay[]
   /** How features are named; the preset's own style when absent. */
   labelStyle?: LabelStyleId
+  /**
+   * Brightness of the display frame at an image pixel, 0–1, for a frame that arrives encoded (a
+   * JPEG data URL the composer cannot read). The page decodes it (`rgbaLuminance`); an RGBA frame is
+   * read directly. Only the `underlined-arrow` labels use it.
+   */
+  luminance?: ((x: number, y: number) => number | null) | null
   /** The VQO zone pass of the same camera (`ZONE_PALETTE` codes), when EVQO polygons were loaded. */
   zones?: ClassRaster | null
   /** What the camera information block prints; null when unknown. */
@@ -823,6 +830,70 @@ export function figureLabelStyle(input: Pick<FigureInput, 'preset' | 'labelStyle
   return input.labelStyle ?? input.preset.labelStyle ?? (input.preset.callout ? 'box' : 'halo')
 }
 
+/** Rec. 601 luma of a `#rrggbb` colour, 0–1. */
+const hexLuma = (hex: string) => {
+  const v = parseInt(hex.replace('#', '').slice(0, 6), 16)
+  return Number.isFinite(v) ? (0.299 * ((v >> 16) & 255) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255)) / 255 : null
+}
+
+/** Brightness of an RGBA image at a pixel, 0–1, averaged over the 3 × 3 pixels round it; null off the image. */
+export function rgbaLuminance(image: { data: ArrayLike<number>; width: number; height: number }) {
+  return (x: number, y: number): number | null => {
+    const cx = Math.floor(x),
+      cy = Math.floor(y)
+    if (!(cx >= 0 && cy >= 0 && cx < image.width && cy < image.height)) return null
+    let sum = 0,
+      n = 0
+    for (let j = Math.max(0, cy - 1); j <= Math.min(image.height - 1, cy + 1); j++)
+      for (let i = Math.max(0, cx - 1); i <= Math.min(image.width - 1, cx + 1); i++) {
+        const o = (j * image.width + i) * 4
+        sum += 0.299 * image.data[o] + 0.587 * image.data[o + 1] + 0.114 * image.data[o + 2]
+        n++
+      }
+    return sum / n / 255
+  }
+}
+
+/**
+ * Brightness of the figure as printed under a page point: the frame's own (`input.luminance`, or an
+ * RGBA frame read directly), with the preset's area fills for the zone and class under that pixel
+ * laid over it in drawing order, so a leader that reaches a pale block fill turns dark over it.
+ * Null when the frame cannot be read.
+ */
+export function figureLuminance(input: FigureInput, frame: Frame): LuminanceSampler | null {
+  const base = input.luminance ?? (input.image.kind === 'rgba' ? rgbaLuminance(input.image) : null)
+  if (!base) return null
+  const fillOf = (role: ViaRole) => {
+    const symbol = input.preset.symbols[role]?.symbol
+    if (symbol?.kind !== 'area' || !symbol.fill) return null
+    const l = hexLuma(symbol.fill)
+    return l === null ? null : { l, a: symbol.fillOpacity ?? 1 }
+  }
+  const zoneFills = VQO_ZONE_ROLES.map(([role]) => fillOf(role))
+  const order: ViaRole[] = ['landform', 'rockNonVeg', 'privateLand', 'existingNonVeg', 'treatedGround', 'proposedBlock']
+  const classFills = new Map<number, Array<{ l: number; a: number }>>()
+  for (const role of order) {
+    const fill = fillOf(role)
+    if (fill) for (const code of ROLE_CLASSES[role] ?? []) classFills.set(code, [...(classFills.get(code) ?? []), fill])
+  }
+  const codeAt = (raster: ClassRaster | null | undefined, x: number, y: number) =>
+    raster && x >= 0 && y >= 0 && x < raster.width && y < raster.height
+      ? raster.codes[Math.floor(y) * raster.width + Math.floor(x)]
+      : null
+  return (px, py) => {
+    const x = (px - frame.x) / frame.scale,
+      y = (py - frame.y) / frame.scale
+    let l = base(x, y)
+    if (l === null) return null
+    const zone = codeAt(input.zones, x, y)
+    const zoneFill = zone ? zoneFills[zone - 1] : null
+    if (zoneFill) l = l * (1 - zoneFill.a) + zoneFill.l * zoneFill.a
+    const code = codeAt(input.classes, x, y)
+    for (const fill of code === null ? [] : (classFills.get(code) ?? [])) l = l * (1 - fill.a) + fill.l * fill.a
+    return l
+  }
+}
+
 /** Widest a label may be, as a share of the image's width on the page. */
 export const MAX_LABEL_WIDTH_SHARE = 0.28
 
@@ -857,6 +928,7 @@ export function figureLabelOps(input: FigureInput, frame: Frame, area: Box) {
       ...(input.preset.callout ? { box: input.preset.callout } : {}),
       ...(text ? { text } : {}),
       ...(block?.leader ? { leader: block.leader } : {}),
+      ...(style === 'underlined-arrow' ? { luminanceAt: figureLuminance(input, frame) } : {}),
     },
   )
 }

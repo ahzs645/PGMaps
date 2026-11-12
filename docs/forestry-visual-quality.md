@@ -1547,7 +1547,20 @@ independent of the figure style, which only supplies the default; *Label style* 
 *Figure style* in the road view's settings and in the export panel. *Box* is the filled
 callout box (cyan, white or red by style). *Underlined label* has no box: bold dark text,
 underlined, above the skyline, with a thin leader dropping straight down to the block where it
-can. *Halo text* is text with a white (or dark) halo and a leader. *Numbered markers* puts small
+can. *Underlined label · arrow* (`underlined-arrow`, the overlay style's default) runs the
+underline a little past the name's right end and turns it down there into the leader, one line
+like an inverted L, ending in an arrowhead at the block; the label sits with that turn over its
+block when there is room, above the skyline along its whole width, with the status line small
+above the name. Its colours follow the picture as printed (`figureLuminance`: the frame's
+brightness with the style's zone and block fills laid over it): the leader is split into runs
+(`contrastRuns`, `src/lib/mapSheet/contrastRuns.ts`) that are near-black over light sky or ground
+and white over dark forest, the arrowhead taking the last run's colour, and the name and its
+underline take whichever of the two reads over the area behind them, with a subtle halo when that
+area is busy. A change of colour needs the ground to cross a band (darker than 0.36 to turn white,
+lighter than 0.5 to turn back) and stay across it for three samples 2 points apart, so tree
+texture does not make the line flicker. The composer cannot read a JPEG, so the page decodes the
+frame for this style only (`rgbaLuminance`) and still embeds the JPEG.
+*Halo text* is text with a white (or dark) halo and a leader. *Numbered markers* puts small
 numbered circles on the features and their names in a key in the legend cell, for crowded views.
 In the boxless styles existing openings the station sees are labelled too, in small white text
 with a thin white leader and arrowhead. Every label is sized from its measured text as it prints
@@ -1572,8 +1585,9 @@ strip is not cropped, so the title has its sky) on a tabloid page, the title dra
 top centre, a "Visual Quality Objective Legend" panel at top left listing the objectives in view,
 the established VQO polygons tinted subtly over the terrain from a second zone pass of the same
 frames (`zonePassLayers`, `ZONE_PALETTE`, so a nearer ridge hides them as it hides the blocks),
-proposed blocks filled yellow-tan, existing openings paler tan, underlined labels, and the
-camera block. The EVQO polygons load whenever this style is chosen.
+proposed blocks filled yellow-tan, existing openings paler tan, underlined labels with
+arrowed leaders that turn white over the forest (*Underlined label · arrow*; plain *Underlined
+label* stays available), and the camera block. The EVQO polygons load whenever this style is chosen.
 
 **Exports.** Step 5's *Analysis sheet* composes a saved view in any style as PDF
 (`renderPdf.ts`) or PNG (`sheetPng.ts`), with a preview. Family A styles print

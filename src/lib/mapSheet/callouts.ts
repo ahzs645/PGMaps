@@ -4,6 +4,7 @@
  * outline. Built from the same drawing operations and area symbols as every sheet, so the PDF, the
  * SVG preview and the PNG agree. No DOM or network access.
  */
+import { boxLuminance, contrastRuns, inkOver, INK_COLOR, type Ink, type LuminanceSampler } from './contrastRuns'
 import { boxesMeet, rectRing, type DrawOp, type Point, type StrokeStyle } from './drawOps'
 import { areaSymbolOps, type AreaSymbol } from './symbols'
 import { pdfText } from './renderPdf'
@@ -332,11 +333,12 @@ export function placeClear(box: Box, placed: readonly Box[], bounds: Box, gap = 
 // ---------------------------------------------------------------- label styles
 
 /** How a figure names its features. Independent of the figure's symbols; a preset gives the default. */
-export type LabelStyleId = 'box' | 'underlined' | 'halo' | 'numbered'
+export type LabelStyleId = 'box' | 'underlined' | 'underlined-arrow' | 'halo' | 'numbered'
 
 export const LABEL_STYLES: ReadonlyArray<{ id: LabelStyleId; name: string }> = [
   { id: 'box', name: 'Box' },
   { id: 'underlined', name: 'Underlined label' },
+  { id: 'underlined-arrow', name: 'Underlined label · arrow' },
   { id: 'halo', name: 'Halo text' },
   { id: 'numbered', name: 'Numbered markers' },
 ]
@@ -367,6 +369,12 @@ export type LabelOptions = {
   /** Text styles for the boxless styles; sensible defaults when absent. */
   text?: SheetTextStyle
   leader?: LeaderStyle
+  /**
+   * Brightness of the picture under a page point (`contrastRuns.ts`). The `underlined-arrow` style
+   * reads it to colour its text and to split each leader into dark and white runs; without it
+   * everything is dark.
+   */
+  luminanceAt?: LuminanceSampler | null
 }
 
 const DARK = '#1a1a1a'
@@ -382,6 +390,21 @@ const SECONDARY_LEADER: LeaderStyle = {
   stroke: { color: '#ffffff', width: 0.6 },
   head: { length: 3.5, width: 3, filled: true },
 }
+
+/** The `underlined-arrow` style: type, how far the underline runs past the text, the leader and its head. */
+export const ARROW_LABEL = {
+  title: { size: 9.5, style: 'bold', color: INK_COLOR.dark } satisfies SheetTextStyle,
+  /** The status line printed small above the underlined name. */
+  bodyScale: 0.8,
+  /** How far the underline runs past the text's right end, points: where the leader turns down. */
+  overhang: 5,
+  underline: 0.7,
+  leader: 0.8,
+  head: { length: 6, width: 4.6, filled: true },
+  /** Brightness spread over the text's box above which the text takes a halo. */
+  busySpread: 0.12,
+  halo: { dark: '#f4f4f4', light: '#1a1a1a', width: 1.3 },
+} as const
 
 /** Numbered markers' circle radius, points. */
 export const MARKER_RADIUS = 6
@@ -461,6 +484,10 @@ export function labelOps(
       )
       continue
     }
+    if (options.style === 'underlined-arrow' && !label.secondary) {
+      if (!arrowLabel(label, ceiling, gap, options, placed, ops)) dropped++
+      continue
+    }
     // Boxless: underlined, halo, and every style's secondary labels.
     const underlined = options.style === 'underlined' && !label.secondary
     const base: SheetTextStyle = label.secondary
@@ -509,4 +536,96 @@ export function labelOps(
       }
   }
   return { ops, key, boxes: placed, dropped }
+}
+
+/**
+ * One `underlined-arrow` label: the status small above, the name bold and underlined, the underline
+ * running a little past the name's right end and turning down there into the leader, so the two read
+ * as one line, ending in an arrowhead at the feature. The label sits with that turn over the anchor
+ * when there is room (a vertical leader), above the skyline. Text and underline take the ink that
+ * reads over the picture behind them, with a halo where that picture is busy; the leader changes ink
+ * along its length (`contrastRuns`) and the head takes its last run's. False when it found no room.
+ */
+function arrowLabel(
+  label: FigureLabel,
+  ceiling: number,
+  gap: number,
+  options: LabelOptions,
+  placed: Box[],
+  ops: DrawOp[],
+): boolean {
+  const spec = ARROW_LABEL
+  const title = fitCalloutLines(label.title, spec.title, options.maxWidth - spec.overhang, CALLOUT_MAX_TITLE_LINES)
+  const body = label.body
+    ? fitCalloutLines(
+        label.body,
+        { size: spec.title.size * spec.bodyScale, color: spec.title.color },
+        options.maxWidth - spec.overhang,
+        1,
+      )
+    : null
+  const widthOf = (block: { lines: string[]; style: SheetTextStyle }) =>
+    Math.max(...block.lines.map((line) => textWidth(line, block.style.size, block.style.style ?? 'normal')))
+  const titleW = widthOf(title)
+  const underlineW = titleW + spec.overhang
+  const w = Math.max(underlineW, body ? widthOf(body) : 0)
+  const blocks = [...(body ? [body] : []), title]
+  const h = blocks.reduce((sum, b) => sum + b.lines.length * lineHeight(b.style), 0)
+  // The label reaches left of its anchor: keep it above the skyline along its whole width.
+  let top = ceiling
+  if (options.ceilingAt)
+    for (let i = 0; i <= 8; i++) top = Math.min(top, options.ceilingAt(label.anchor[0] - (underlineW * i) / 8))
+  const box = placeClear({ x: label.anchor[0] - underlineW, y: top - gap - h, w, h }, placed, options.area)
+  if (!box) return false
+  placed.push(box)
+
+  const sample = options.luminanceAt ?? null
+  const behind = sample ? boxLuminance(sample, box) : null
+  const ink: Ink = behind ? inkOver(behind.mean) : 'dark'
+  const halo = behind && behind.spread > spec.busySpread ? { color: spec.halo[ink], width: spec.halo.width } : undefined
+  let y = box.y
+  let baseline = y
+  for (const block of blocks)
+    for (const line of block.lines) {
+      baseline = y + block.style.size * 0.92
+      ops.push(...textOps(box.x, baseline, line, { ...block.style, color: INK_COLOR[ink], ...(halo ? { halo } : {}) }))
+      y += lineHeight(block.style)
+    }
+  const under = baseline + title.style.size * 0.14
+  const start: Point = [box.x, under]
+  const turn: Point = [box.x + underlineW, under]
+
+  // The leader from the underline's end to the anchor; the shaft stops inside the filled head.
+  const dx = label.anchor[0] - turn[0],
+    dy = label.anchor[1] - turn[1]
+  const length = Math.hypot(dx, dy)
+  const shorten = 1
+  const underline: DrawOp = {
+    op: 'path',
+    parts: [[start, turn]],
+    closed: false,
+    stroke: { color: INK_COLOR[ink], width: spec.underline, cap: 'butt' },
+  }
+  if (!(length > shorten + spec.head.length)) {
+    ops.push(underline)
+    return true
+  }
+  const ux = dx / length,
+    uy = dy / length
+  const tip: Point = [label.anchor[0] - ux * shorten, label.anchor[1] - uy * shorten]
+  const shaftEnd: Point = [tip[0] - ux * spec.head.length * 0.6, tip[1] - uy * spec.head.length * 0.6]
+  const runs = contrastRuns([turn, shaftEnd], sample)
+  // Where the underline and the leader's first run share an ink they are one stroke, mitred at the turn.
+  if (runs[0]?.ink === ink) runs[0] = { ink, parts: [start, ...runs[0].parts] }
+  else ops.push(underline)
+  for (const run of runs)
+    ops.push({
+      op: 'path',
+      parts: [run.parts],
+      closed: false,
+      stroke: { color: INK_COLOR[run.ink], width: spec.leader, cap: 'butt', join: 'miter' },
+    })
+  const last = runs.at(-1)?.ink ?? 'dark'
+  ops.push(...arrowHeadOps(turn, tip, spec.head, INK_COLOR[last], spec.leader))
+  return true
 }

@@ -1071,10 +1071,10 @@ export const PERSPECTIVE_OVERLAY: ViaStylePreset = {
   name: 'Perspective view · overlay text',
   family: 'I',
   sources: [
-    '27, a licensee perspective view render supplied for review (structure only: title in the sky, VQO legend panel, camera information block, underlined labels)',
+    '27, a licensee perspective view render supplied for review (structure only: title in the sky, VQO legend panel, camera information block, underlined labels whose underline turns down into a leader that changes from dark to white over the slope)',
   ],
   tone: 'colour',
-  labelStyle: 'underlined',
+  labelStyle: 'underlined-arrow',
   cameraInfo: true,
   cropToLandform: false,
   symbols: {

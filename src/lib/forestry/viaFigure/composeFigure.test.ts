@@ -1,5 +1,6 @@
 import { GState, jsPDF } from 'jspdf'
 import { describe, expect, it } from 'vitest'
+import { INK_COLOR } from '@/lib/mapSheet/contrastRuns'
 import type { DrawOp } from '@/lib/mapSheet/drawOps'
 import { createSheetPdf, drawSheetPdf, pdfTextUnfolded } from '@/lib/mapSheet/renderPdf'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
@@ -11,6 +12,7 @@ import {
   countClasses,
   decodeClassRaster,
   FIGURE_CLASS,
+  figureLuminance,
   fillTemplate,
   fitFrame,
   inLandform,
@@ -21,6 +23,7 @@ import {
   layoutCallouts,
   maskRings,
   presetPercent,
+  rgbaLuminance,
   ringArea,
   roleOverlays,
   skylineRow,
@@ -379,6 +382,47 @@ describe('the perspective overlay and the camera block', () => {
     expect(sheet.drawn).toEqual(expect.arrayContaining(['vqoRetention', 'vqoPartialRetention', 'proposedBlock']))
     // Underlined labels by default: the label text is bold, with no callout box behind it.
     expect(sheet.ops.some((op) => op.op === 'text' && op.text === 'Block 1' && op.style === 'bold')).toBe(true)
+  })
+
+  /** A pale sky over the top 20 rows and dark forest below, as the synthetic class pass draws. */
+  const skyAndForest = () => {
+    const data = new Uint8ClampedArray(W * H * 4)
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) {
+        const v = y < 20 ? 225 : 35
+        data.set([v, v, v, 255], (y * W + x) * 4)
+      }
+    return { kind: 'rgba' as const, data, width: W, height: H }
+  }
+
+  it('draws arrow labels by default, their leaders dark over the sky and white over the forest', () => {
+    const sheet = composeFigure({ ...input('perspective-overlay'), image: skyAndForest() })
+    const strokes = sheet.ops.filter(
+      (op): op is Extract<DrawOp, { op: 'path' }> => op.op === 'path' && !op.closed && !!op.stroke,
+    )
+    const colours = new Set(strokes.map((op) => op.stroke!.color))
+    expect(colours).toContain(INK_COLOR.dark)
+    expect(colours).toContain(INK_COLOR.light)
+    // The name sits in the sky in dark type.
+    const name = sheet.ops.find((op) => op.op === 'text' && op.text === 'Block 1') as Extract<DrawOp, { op: 'text' }>
+    expect(name.color).toBe(INK_COLOR.dark)
+  })
+
+  it('reads the printed brightness: the frame with the preset’s fills over it', () => {
+    const image = skyAndForest()
+    expect(rgbaLuminance(image)(50, 5)).toBeCloseTo(225 / 255)
+    expect(rgbaLuminance(image)(-1, 5)).toBeNull()
+    const frame = fitFrame(image, { x: 0, y: 0, w: W, h: H })
+    const sample = figureLuminance({ ...input('perspective-overlay'), image }, frame)!
+    // Plain forest stays dark; the pale yellow-tan block fill over it reads light.
+    expect(sample(90, 50)!).toBeLessThan(0.2)
+    expect(sample(35, 35)!).toBeGreaterThan(0.6)
+    // A JPEG frame without a decoded sampler cannot be read.
+    const encoded = { kind: 'url' as const, url: 'data:,', format: 'JPEG' as const, width: W, height: H }
+    expect(figureLuminance({ ...input('perspective-overlay'), image: encoded }, frame)).toBeNull()
+    expect(
+      figureLuminance({ ...input('perspective-overlay'), image: encoded, luminance: () => 0.5 }, frame)!(10, 10),
+    ).toBeCloseTo(0.5)
   })
 
   it('prints the camera block on other styles only when asked', () => {
