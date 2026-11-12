@@ -1,0 +1,134 @@
+.ribbon-excerpt {
+  box-sizing: border-box;
+  background: #f7f6f3;
+  color: #0b2b4a;
+  font:
+    14px/1.35 Inter,
+    Arial,
+    sans-serif;
+  border: 1px solid #d9dcdf;
+  border-radius: 6px;
+  padding: 8px;
+}
+.ribbon-excerpt * {
+  box-sizing: border-box;
+}
+.ribbon-excerpt section {
+  display: block;
+}
+.ribbon-excerpt [hidden],
+.ribbon-excerpt .lp-minimize,
+.ribbon-excerpt .lp-all-tabs,
+.ribbon-excerpt .lp-fold-editors,
+.ribbon-excerpt .lp-editor-slot {
+  display: none;
+}
+.ribbon-excerpt .lp-ribbon-tabs,
+.ribbon-excerpt [role='tablist'],
+.ribbon-excerpt .lp-group-items,
+.ribbon-excerpt .lp-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ribbon-excerpt .lp-ribbon-tabs {
+  padding-bottom: 6px;
+}
+.ribbon-excerpt button,
+.ribbon-excerpt input {
+  color: inherit;
+  font: inherit;
+}
+.ribbon-excerpt button,
+.ribbon-excerpt .lp-quick-setting,
+.ribbon-excerpt .lp-ribbon-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: white;
+  border: 1px solid #c8d7e8;
+  border-radius: 4px;
+  padding: 6px;
+  margin: 0;
+  min-width: 0;
+}
+.ribbon-excerpt button[role='tab'] {
+  background: transparent;
+  border: 0;
+  padding: 4px;
+}
+.ribbon-excerpt button[role='tab'][aria-selected='true'] {
+  background: white;
+  box-shadow: inset 0 -2px #337f9e;
+}
+.ribbon-excerpt .lp-command-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  background: #fff;
+  padding: 8px;
+  max-width: 100%;
+}
+.ribbon-excerpt .lp-group-label {
+  text-align: center;
+  font-size: 12px;
+  color: #4b4f56;
+}
+.ribbon-excerpt .lp-group-items {
+  align-items: stretch;
+}
+.ribbon-excerpt label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.ribbon-excerpt input {
+  border: 1px solid #c8d7e8;
+  border-radius: 3px;
+  padding: 3px 5px;
+  max-width: 100%;
+  width: 12ch;
+  background: white;
+}
+.ribbon-excerpt strong {
+  font-size: 13px;
+}
+.ribbon-excerpt svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.ribbon-excerpt.stage-tab [role='tabpanel'],
+.ribbon-excerpt.stage-editor [role='tabpanel'] {
+  display: none;
+}
+.ribbon-excerpt.stage-editor .lp-fold-editors {
+  display: inline-flex;
+}
+.ribbon-excerpt [data-lesson-target] {
+  outline: 2px solid #307795;
+  outline-offset: 1px;
+}
+.ribbon-player {
+  width: 100%;
+  display: block;
+  border: 0;
+  min-height: 280px;
+  margin: 0 0 1.5rem;
+}
+.ribbon-excerpt .lesson-group-pane {
+  background: white;
+  padding: 12px;
+  border-left: 3px solid #698898;
+}
+.ribbon-excerpt .lesson-group-pane h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.ribbon-excerpt .lesson-group-pane .lp-group-items {
+  flex-direction: column;
+  align-items: stretch;
+}

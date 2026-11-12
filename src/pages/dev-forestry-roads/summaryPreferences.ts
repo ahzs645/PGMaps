@@ -17,7 +17,7 @@ export function useSummaryPreferences(layout: WorkspaceLayout) {
     storageKey(layout.id),
     {
       visible: layout.summary?.visible ?? true,
-      placement: layout.summary?.placement ?? 'left',
+      placement: layout.summary?.placement ?? 'top',
       metrics: { ...layout.summary?.metrics },
       curveNote: layout.summary?.curveNote ?? 'full',
     },

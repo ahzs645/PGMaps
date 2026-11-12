@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="../../brand/access.svg" type="image/svg+xml"><link rel="stylesheet" href="../../brand/access.css"><title>Open Hillside access and choose a workspace · DDC Access Help</title>
+  <link rel="stylesheet" href="../help.css">
+  <style>
+    .lesson { max-width: 54rem; padding-bottom: 2rem }
+    .lesson h1 { max-width: 20ch }
+    .steps { padding-left: 2rem; margin: 0 }
+    .steps li { border-top: 1px solid var(--rule); padding: 1.2rem 0 1.5rem .45rem }
+    .steps li::marker { color: var(--link); font-weight: 700 }
+    .steps p { margin-top: .65rem }
+    .steps img { display: block; max-width: 100%; height: auto; margin-top: 1rem }
+    .steps figcaption { color: var(--muted); font-size: .8rem; margin-top: .35rem }
+    @media print { .steps li { break-inside: avoid } }
+  </style>
+</head>
+<body>
+  <main class="lesson">
+    <header class="intro">
+      <p>DDC Access · Lesson 1</p>
+      <h1>Open Hillside access and choose a workspace</h1>
+      <p>Open the training road, find a point 200 metres from its start, and try viewing it in two workspaces. Finish by saving a copy you can reopen.</p>
+    </header>
+    <ol class="steps">
+      <li>
+        <h2>Open the Hillside access training project</h2>
+        <p>Open the Hillside access training project in a new tab. The link opens the PGMaps Engineering workbench. Keep this guide open alongside it.</p>
+        <div class="actions"><a class="primary" href="../../dev/forestry/road-design?example=training&amp;interface=workbench" target="_blank" rel="noopener">Open Hillside access</a></div>
+      </li>
+      <li>
+        <h2>Find the workspace switcher</h2>
+        <p>Use <strong>Switch workspace interface</strong> to see the available layouts. The Engineering workbench shows the selected station on the map and road drawings. You can also choose Ribbon, Guided map or Dashboard.</p>
+        <img src="workspaces.png" width="1158" height="446" alt="Ribbon, Guided map and Engineering workbench cards in the recorded training example.">
+      </li>
+      <li>
+        <h2>Find the active road</h2>
+        <p>Look for the <strong>Synthetic training</strong> badge in the header. The project is called <strong>Hillside access · synthetic training project</strong>. It contains two roads. Open the road selector beside the coloured dot and choose <strong>Hillside access</strong> if <strong>Contour alternative</strong> is showing.</p>
+        <img src="header.png" width="1372" height="44" alt="Workbench header with the training badge, road selector, Workbench switcher, Linked overview, Open, and Save.">
+      </li>
+      <li>
+        <h2>Mark a station you can recognize</h2>
+        <p>In the header’s screen preset menu, choose <strong>Linked overview</strong>. Below the drawing, enter <strong>200</strong> in the <strong>Station</strong> field and press <strong>Enter</strong>. Look for the red point labelled <strong>0+200.0</strong> on the plan. That is 200 metres along Hillside access, measured from the road’s start.</p>
+        <figure><img src="../station-200/plan.webp" width="648" height="435" alt="The orange road with its start marked and the selected station 0+200.0 highlighted in red."><figcaption>Plan view of the training road · Basemap © OpenStreetMap contributors, © CARTO</figcaption></figure>
+      </li>
+      <li>
+        <h2>Try another workspace</h2>
+        <p>Select <strong>Workbench</strong> in the header, then choose <strong>Guided map</strong>. Find the <strong>Terrain</strong>, <strong>Alignment</strong>, and <strong>Checks</strong> steps. Check that the active road is still <strong>Hillside access</strong> and the station still reads <strong>200</strong>. Use the workspace switcher again and return to <strong>Engineering workbench</strong>.</p>
+      </li>
+      <li>
+        <h2>Save a copy and reopen it</h2>
+        <p>A reload starts this training link fresh. To keep your design, choose <strong>Save</strong> in the Workbench header. In <strong>Save &amp; export</strong>, select <strong>Project file</strong>, then choose <strong>Save</strong> beside the file preview. Your browser downloads a file ending in <strong>.road.json</strong>.</p>
+        <img src="../save-project/project.webp" alt="Project file preview. The Save button is at the top right, beside the .road.json file type.">
+        <p>Close the export window. Choose <strong>Open</strong> in the header and select the file you just downloaded. Look for the <strong>Opened</strong> message with your filename and check that both roads are available in the road selector.</p>
+      </li>
+    </ol>
+    <footer class="guide-end"><a href="../station-200/index.html">Next lesson · Read the cut depth at station 0+200</a></footer>
+  </main>
+</body>
+</html>

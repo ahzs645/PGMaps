@@ -18,10 +18,15 @@ function earlyLearningDevDataPlugin(): Plugin {
       server.middlewares.use('/__dev_early_learning', (req, res) => {
         const filename = (req.url ?? '').split('?')[0].replace(/^\//, '')
         if (!/^(latest\.json|releases\/[a-f0-9]{64}\.json|blobs\/[a-f0-9]{64}\.json\.gz)$/.test(filename)) {
-          res.statusCode = 404; res.end('Unknown EDI product'); return
+          res.statusCode = 404
+          res.end('Unknown EDI product')
+          return
         }
         const stream = fs.createReadStream(path.join(root, filename))
-        stream.on('error', () => { res.statusCode = 404; res.end('Run the local EDI normalizer first.') })
+        stream.on('error', () => {
+          res.statusCode = 404
+          res.end('Run the local EDI normalizer first.')
+        })
         stream.on('open', () => {
           res.setHeader('content-type', 'application/json')
           res.setHeader('cache-control', 'no-store')
@@ -74,6 +79,23 @@ export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
   plugins: [
     react(),
+    {
+      name: 'forestry-help-index',
+      configureServer(server) {
+        const base = server.config.base
+        server.middlewares.use((request, response, next) => {
+          const url = new URL(request.url ?? '/', 'http://localhost')
+          const relative = url.pathname.slice(base.length)
+          if (url.pathname.startsWith(base) && relative === 'help') {
+            response.writeHead(302, { Location: url.pathname + '/' + url.search }).end()
+            return
+          }
+          if (url.pathname.startsWith(base) && /^help\/(?:[a-z0-9-]+\/)?$/.test(relative))
+            request.url = url.pathname + 'index.html' + url.search
+          next()
+        })
+      },
+    },
     webUpdateNotice({
       versionType: 'git_commit_hash',
       checkInterval: 5 * 60 * 1000,
@@ -110,6 +132,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: { app: 'index.html', ribbonHelp: 'help/ribbon.html' },
       output: {
         manualChunks(id) {
           // The trailing slash matters: without it maplibre-gl-lidar, and the

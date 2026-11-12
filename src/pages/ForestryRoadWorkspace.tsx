@@ -7,6 +7,7 @@ const RoadDesign = lazy(() => import('./DevForestryRoads'))
 export default function ForestryRoadWorkspace() {
   return (
     <div className="h-full pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-0">
+      <link rel="stylesheet" href={`${import.meta.env.BASE_URL}brand/access.css`} />
       <RoadWorkspaceLoader />
     </div>
   )

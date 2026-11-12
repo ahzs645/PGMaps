@@ -1,0 +1,122 @@
+:root {
+  color-scheme: light;
+  --ink: hsl(var(--ddc-midnight));
+  --muted: hsl(var(--ddc-graphite));
+  --rule: hsl(var(--ddc-midnight) / .16);
+  --link: hsl(var(--access-text));
+  --paper: hsl(var(--ddc-paper));
+  font: 100%/1.55 var(--brand-body);
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box }
+body { margin: 0 }
+main, .mast nav {
+  width: min(100% - clamp(2rem, 9vw, 9rem), 76rem);
+  margin-inline: auto;
+}
+a { color: var(--link); text-underline-offset: .2em }
+a:hover { text-decoration-thickness: 2px }
+:where(a, button):focus-visible { outline: 3px solid currentColor; outline-offset: 3px }
+.skip { position: absolute; left: 1rem; top: -4rem; z-index: 1; background: white; padding: .6rem 1rem }
+.skip:focus { top: .5rem }
+.icon { width: 1.05rem; height: 1.05rem; flex: none }
+.mast { background: var(--ink); color: white }
+.mast nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 4.5rem }
+.mast a { color: inherit; text-decoration: none }
+.mast .brand { display: inline-flex; align-items: center; gap: 1rem; color: hsl(var(--ddc-ice)); font: 400 .76rem var(--brand-label); text-transform: uppercase; letter-spacing: .1em }
+.brand .access-lockup { --mark-height: 1.65rem; --mark-rule: hsl(var(--access-on-dark)); color: white; text-transform: none }
+.brand .access-lockup-compact { --mark-height: 1.45rem }
+.mast .back { display: inline-flex; align-items: center; gap: .55rem; min-height: 2.5rem; font-size: .875rem }
+.mast .back:hover { text-decoration: underline }
+h1, h2, h3, p, figure { margin: 0 }
+h1, h2, h3 { font-family: var(--brand-display); font-weight: 500; text-wrap: balance; line-height: 1.1 }
+h1 { font-size: clamp(2.45rem, 4.65vw, 4.15rem); letter-spacing: -.052em; max-width: 24ch }
+h2 { font-size: clamp(1.55rem, 2.45vw, 2.1rem); letter-spacing: -.04em }
+h3 { font-size: 1.18rem; letter-spacing: -.02em }
+.label, .intro .ribbon-context, .lesson .intro > p:first-child {
+  font: 400 .71rem/1.45 var(--brand-label); letter-spacing: .095em; text-transform: uppercase;
+}
+.intro { padding: clamp(2rem, 4vw, 3.5rem) 0 clamp(1.7rem, 3vw, 2.5rem) }
+.intro p { margin-top: .9rem; max-width: 63ch; color: var(--muted); font-size: 1.04rem }
+.intro .ribbon-context, .lesson .intro > p:first-child { margin: 0 0 .85rem; color: var(--link) }
+.catalog-intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem }
+.catalog-intro h1 { max-width: none }
+.catalog-intro p { max-width: 64ch }
+.workspace { flex: none }
+.workspace .label { display: block; margin-bottom: .55rem; color: var(--muted) }
+.workspace-choice { display: inline-flex; align-items: stretch; gap: 2px; padding: 3px; border: 1px solid var(--rule); background: white; border-radius: 7px }
+.workspace-choice a, .actions a, .links a { display: inline-flex; align-items: center; justify-content: center; gap: .45rem }
+.workspace-choice a { padding: .55rem .75rem; border-radius: 4px; color: var(--ink); font-size: .85rem; text-decoration: none }
+.workspace-choice a:hover { background: hsl(var(--ddc-ice) / .42) }
+.workspace-choice [aria-current=page] { background: var(--ink); color: white }
+.workspace-choice [aria-current=page]:hover { background: var(--ink) }
+.actions { display: flex; gap: .6rem 1.25rem; align-items: center; flex-wrap: wrap; margin-top: 1.35rem; font-size: .9rem }
+.actions a { min-height: 2.7rem }
+.primary { display: inline-flex; align-items: center; min-height: 2.7rem; padding: .58rem 1rem; background: var(--link); border-radius: 5px; color: white; font-weight: 600; text-decoration: none }
+.primary:hover { background: var(--ink) }
+.feature { display: grid; grid-template-columns: 1fr 1fr; background: var(--ink); color: white; border-radius: 12px; overflow: hidden }
+.feature-copy { align-self: center; padding: clamp(1.55rem, 3.2vw, 3rem) }
+.feature .label { color: hsl(var(--ddc-ice)); margin-bottom: .85rem }
+.feature h2 { font-size: clamp(2.15rem, 3.3vw, 3.1rem) }
+.feature h2 + p { margin-top: .72rem; max-width: 42ch; color: hsl(var(--ddc-ice)) }
+.feature .actions a { color: white }
+.feature .actions .primary { color: var(--ink); background: white }
+.feature .actions .primary:hover { background: hsl(var(--ddc-ice)) }
+.feature figure { position: relative; display: grid; align-items: center; overflow: hidden; background: #cfdfdc }
+.feature img { display: block; width: 100%; height: 100%; object-fit: cover; position: absolute }
+.feature figcaption { position: absolute; left: 28%; bottom: .8rem; padding: .3rem .55rem; background: var(--paper); color: var(--ink); font: 400 .66rem/1.4 var(--brand-label); border: 1px solid var(--rule); border-radius: 3px }
+.feature figcaption span { color: var(--link); padding: 0 .18em }
+.catalog { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(0, 3.9fr); gap: clamp(1.5rem, 4vw, 4rem); margin: clamp(2rem, 4vw, 3.5rem) 0 4rem }
+.topics { position: sticky; top: 1.5rem; align-self: start; display: grid; gap: .15rem }
+.topics h2 { color: var(--muted); margin: .15rem 0 .75rem }
+.topics a { display: flex; align-items: center; gap: .7rem; color: var(--ink); font-size: .9rem; text-decoration: none; padding: .46rem 0 }
+.topics .icon { color: var(--link) }
+.topics a:hover { text-decoration: underline }
+.group { scroll-margin-top: 1.5rem }
+.group + .group { margin-top: 2.3rem }
+.group > h2 { padding: 0 0 .85rem; border-bottom: 2px solid var(--ink) }
+.entry { border-bottom: 1px solid var(--rule); padding: 1.2rem 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1.5rem; align-items: center }
+.entry p { font-size: .91rem; color: var(--muted); margin-top: .35rem; max-width: 65ch }
+.links { display: flex; gap: .9rem }
+.links a { min-height: 2.5rem; font-size: .84rem; font-weight: 600; text-decoration: none }
+.links a:hover { text-decoration: underline }
+.links .icon { width: .92rem; height: .92rem }
+.guide-step { border-top: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(1.25rem, 5vw, 4rem); padding: clamp(1.5rem, 3vw, 2.5rem) 0; align-items: center }
+.guide-step p { margin-top: .75rem; max-width: 55ch; color: var(--muted) }
+.guide-step img { display: block; width: 100%; height: auto; border-radius: 4px; outline: 1px solid var(--rule) }
+.detail { position: relative }
+.focus-mark { position: absolute; pointer-events: none; outline: 2px solid var(--link); outline-offset: 1px; border-radius: .2rem; box-shadow: 0 0 0 4px #ffffffbc }
+.guide-step figcaption { font-size: .78rem; color: var(--muted); margin-top: .45rem }
+.guide-end { display: flex; align-items: baseline; flex-wrap: wrap; gap: .8rem 1.65rem; border-top: 1px solid var(--rule); padding: 1.4rem 0 2.5rem; font-size: .9rem }
+.guide-end button { cursor: pointer; font: inherit; color: var(--link); background: none; padding: 0; border: 0; text-decoration: underline; text-underline-offset: .2em }
+@media (max-width: 60rem) {
+  .catalog-intro { display: grid; gap: 1.2rem }
+  .entry { grid-template-columns: 1fr; gap: .3rem }
+  .feature-copy { padding: 1.65rem }
+  .feature img { position: static; height: auto; object-fit: contain }
+}
+@media (max-width: 44rem) {
+  .mast nav { min-height: 3.7rem }
+  .brand .access-lockup { --mark-height: 1.3rem }
+  .mast .brand { gap: .6rem }
+  .mast .back { font-size: .8rem }
+  .feature, .guide-step, .catalog { grid-template-columns: 1fr }
+  .feature figure { aspect-ratio: 1240 / 580 }
+  .feature img { width: 100%; height: 100%; object-fit: cover; position: absolute }
+  .feature figcaption { left: 25%; bottom: .48rem; font-size: .58rem }
+  .feature .actions { margin-top: 1rem }
+  .catalog { gap: 1.6rem; margin-top: 1.75rem }
+  .topics { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .1rem .5rem }
+  .topics h2 { grid-column: 1 / -1; margin-bottom: .4rem }
+  .topics a { font-size: .83rem; gap: .4rem }
+  .entry { padding-block: 1rem }
+  .guide-step { gap: 1rem }
+}
+@media print {
+  :root { background: white }
+  .mast, .actions, .guide-end, .topics, .workspace, .skip { display: none }
+  .catalog { display: block }
+  .guide-step, .entry { break-inside: avoid }
+  main { width: 100% }
+}

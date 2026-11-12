@@ -1,20 +1,73 @@
-/**
- * The road workspace's detail pane views, defined once: the pane's title and the tab label come
- * from here, so a new view is one entry rather than another branch in the page. No DOM access.
- */
-export const DETAIL_VIEWS = {
-  section: { title: 'Cross-section' },
-  terrain: { title: '3D terrain' },
-  mass: { title: 'Mass haul' },
-  table: { title: 'Station schedule' },
-  compare: { title: 'Compare alternatives' },
-  cable: { title: 'D-line clearance' },
-  pegs: { title: 'Pegging data' },
-  engineering: { title: 'Engineering quantities' },
-  landing: { title: 'Landing deflection explorer' },
-  drainage: { title: 'Drainage · existing vs design surface' },
-  swept: { title: 'Design vehicle swept path' },
-} as const satisfies Record<string, { title: string }>
+/** The detail picker and ribbon open the same set of road views. */
+export const roadDetailViews = [
+  {
+    value: 'section',
+    label: 'Section',
+    title: 'Cross-section',
+    command: 'crossSection',
+  },
+  { value: 'terrain', label: '3D', title: '3D terrain', command: 'terrain3d' },
+  {
+    value: 'mass',
+    label: 'Mass haul',
+    title: 'Mass haul',
+    command: 'massHaul',
+    roadOnly: true,
+  },
+  {
+    value: 'table',
+    label: 'Stations',
+    title: 'Station schedule',
+    command: 'stations',
+  },
+  {
+    value: 'compare',
+    label: 'Compare',
+    title: 'Compare alternatives',
+    command: 'compare',
+  },
+  {
+    value: 'cable',
+    label: 'D-line',
+    title: 'D-line clearance',
+    command: 'cableProfile',
+  },
+  {
+    value: 'pegs',
+    label: 'Pegs',
+    title: 'Pegging data',
+    command: 'peggingData',
+    roadOnly: true,
+  },
+  {
+    value: 'engineering',
+    label: 'Quantities',
+    title: 'Engineering quantities',
+    command: 'quantities',
+    roadOnly: true,
+  },
+  {
+    value: 'landing',
+    label: 'Landing',
+    title: 'Landing deflection explorer',
+    command: 'landing',
+  },
+  {
+    value: 'drainage',
+    label: 'Drainage',
+    title: 'Drainage · existing vs design surface',
+    command: 'drainage',
+    roadOnly: true,
+  },
+  {
+    value: 'swept',
+    label: 'Swept path',
+    title: 'Design vehicle swept path',
+    command: 'sweptPath',
+    roadOnly: true,
+  },
+] as const
 
-export type DetailView = keyof typeof DETAIL_VIEWS
-export const detailTitle = (view: DetailView) => DETAIL_VIEWS[view].title
+export type DetailView = (typeof roadDetailViews)[number]['value']
+
+export const detailTitle = (view: DetailView) => roadDetailViews.find((item) => item.value === view)!.title

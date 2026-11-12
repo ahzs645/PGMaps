@@ -1,0 +1,55 @@
+.tour-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem clamp(.9rem, 3vw, 2rem);
+  padding: .8rem max(4.5vw, calc((100% - 76rem) / 2));
+  box-sizing: border-box;
+  min-height: 4.3rem;
+  margin: 0;
+  font: 400 1rem/1.5 var(--brand-body);
+  background: hsl(var(--ddc-midnight));
+  color: white;
+}
+
+.tour-nav a { color: inherit; font-size: .875rem; text-underline-offset: .22em }
+.tour-guide {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 5px;
+}
+.tour-guide:hover { background: hsl(var(--ddc-ice) / .14) }
+.tour-guide:focus-visible { outline: 2px solid currentColor; outline-offset: 2px }
+.tour-nav .access-lockup { --mark-height: 1.4rem; --mark-rule: hsl(var(--access-on-dark)); }
+
+.tour-nav .tour-home { margin-right: auto; display: inline-flex; text-decoration: none }
+.tour-workspace { position: relative }
+.tour-workspace summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; min-height: 44px; font-size: .875rem; list-style: none }
+.tour-workspace summary::-webkit-details-marker { display: none }
+.tour-workspace[open] summary svg { transform: rotate(180deg) }
+.tour-workspace > div {
+  position: absolute; z-index: 2; top: 100%; right: 0;
+  width: max-content; max-width: 90vw; padding: .3rem;
+  border: 1px solid hsl(var(--ddc-ice)); border-radius: 6px;
+  background: white; color: hsl(var(--ddc-midnight)); box-shadow: 0 4px 12px hsl(var(--ddc-midnight) / .12);
+}
+.tour-workspace a { display: block; padding: .55rem .75rem; border-radius: 3px; text-decoration: none }
+.tour-workspace a:hover, .tour-workspace a:focus-visible { text-decoration: underline }
+.tour-workspace a[aria-current="page"] { background: hsl(var(--ddc-ice) / .45) }
+@media (max-width: 42rem) {
+  .tour-nav { gap: .65rem; padding-inline: .9rem }
+  .tour-nav .access-lockup { --mark-height: 1rem }
+  .tour-nav a { font-size: .8rem }
+  .tour-guide span { display: none }
+  .tour-workspace summary { font-size: .8rem }
+  .tour-workspace > div { left: 0; right: auto }
+}
+@media (max-width: 26rem) {
+  .tour-nav { gap: .3rem; padding-inline: .65rem }
+  .tour-nav .access-lockup::before { width: var(--mark-height); mask: url('../brand/six-dot-micro.svg') center / contain no-repeat }
+}
+@media print { .tour-nav { display: none } }

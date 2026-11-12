@@ -1,6 +1,6 @@
 import { ribbonFields } from './dev-forestry-roads/SharedRoadFields'
 import { MAX_PROJECT_ROADS, roadCount } from './dev-forestry-roads/roadLimits'
-import { detailTitle, type DetailView } from './dev-forestry-roads/detailViews'
+import { detailTitle, roadDetailViews, type DetailView } from './dev-forestry-roads/detailViews'
 import { roadSnapLines, snapNotice, type DrawSnap } from './dev-forestry-roads/drawSnap'
 import { createPortal } from 'react-dom'
 import { useWorkflowPlacement } from '@/components/interfaces/useWorkflowPlacement'
@@ -11,6 +11,8 @@ import { InterfaceChooser } from '@/components/interfaces/InterfaceChooser'
 import { useWorkspaceLayout } from '@/components/interfaces/useWorkspaceLayout'
 import { layoutIcons, type WorkspaceLayout, type WorkspaceWidget } from '@/components/interfaces/workspaceLayouts'
 import {
+  commandRecord,
+  ribbonExports,
   commandDef,
   designOnlyCommands,
   workspaceCommandIds,
@@ -20,6 +22,7 @@ import {
 import { DEFAULT_HEADER_TOOLS, WorkspaceHeader } from '@/components/interfaces/WorkspaceHeader'
 import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
 import { type CommandState, WorkspaceTools } from '@/components/interfaces/WorkspaceTools'
+import { TerrainLayerSelect } from './dev-forestry-roads/TerrainLayerSelect'
 import { RoadSelect } from './dev-forestry-roads/Controls'
 import { AccessHistoryPanel } from './dev-forestry-roads/AccessHistoryPanel'
 import { loadBcAccessPilotScenario } from './dev-forestry-roads/bcAccessPilotScenario'
@@ -76,6 +79,8 @@ import {
 } from 'react'
 import {
   ChartNoAxesCombined,
+  CircleHelp,
+  LibraryBig,
   Download,
   PanelLeftClose,
   PanelLeftOpen,
@@ -106,6 +111,7 @@ import {
   csvPreview,
   EXPORT_ITEMS,
   exportRoads,
+  exportUnavailable,
   geoJsonPreview,
   INVALID_INPUT_RULES,
   MULTI_ROAD_EXPORTS,
@@ -391,7 +397,6 @@ export default function DevForestryRoads({
   const [customizingRibbon, setCustomizingRibbon] = useState(false)
   const [paneHost, setPaneHost] = useState<HTMLDivElement | null>(null)
   const ribbonPreferences = useRibbonPreferences(active)
-  const InterfaceIcon = layoutIcons[active.icon]
   const w = useRoadWorkspace()
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const investigation = isAccessInvestigation(project)
@@ -785,13 +790,18 @@ export default function DevForestryRoads({
   const [newProjectRequest, setNewProjectRequest] = useState(0)
   const planMap = useRef<MapLibreMap | null>(null)
   const pendingLocate = useRef<ContextFeature | null>(null)
-  const onPlanReady = useCallback((map: MapLibreMap | null) => {
-    planMap.current = map
-    if (map && pendingLocate.current) {
-      fitContextFeature(map, pendingLocate.current)
-      pendingLocate.current = null
-    }
-  }, [])
+  const { setNavigationMap } = planDisplay
+  const onPlanReady = useCallback(
+    (map: MapLibreMap | null) => {
+      planMap.current = map
+      setNavigationMap(map)
+      if (map && pendingLocate.current) {
+        fitContextFeature(map, pendingLocate.current)
+        pendingLocate.current = null
+      }
+    },
+    [setNavigationMap],
+  )
   /** Brings the plan forward and fits it to a context feature, once the plan map exists. */
   const showOnPlan = useCallback(
     (feature: ContextFeature) => {
@@ -3077,6 +3087,10 @@ export default function DevForestryRoads({
     setPolygonKind(kind)
     drawFromRibbon('avoid')
   }
+  function zoomPlan(step: number) {
+    showPane('plan')
+    planDisplay.zoom?.(step)
+  }
   function fitPlan(target: FitRequest['target']) {
     showPane('plan')
     planDisplay.fit(target)
@@ -3158,14 +3172,31 @@ export default function DevForestryRoads({
       return editor ? [[id, () => showControls(editor)]] : []
     }),
   ) as Record<EditorCommand, () => void>
+  const exportContext = {
+    designPreview: !!(draftAlignment || numericPegAlignment || templatePreview || costPreview),
+    hasResults: displayedAnalysis.stations.length > 0,
+    invalidInput: exportInvalidInput,
+    terrainProfile: !!terrainProfile,
+    hasTerrainGrid: !!project.terrain.raster,
+    hasProvincialEvidence: !!project.provincialStreamData,
+    hasNotes: !!project.notes?.length,
+    hasStreams: project.context.some((feature) => feature.kind === 'stream'),
+    dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
+  }
   const commands: Record<WorkspaceCommand, () => void> = {
+    ...commandRecord(ribbonExports, (output) => () => openExport(output.kind)),
+    ...commandRecord(roadDetailViews, (view) => () => showDetailPane(view.value)),
+    zoomIn: () => zoomPlan(1),
+    zoomOut: () => zoomPlan(-1),
+    mapSettings: () => {
+      showPane('plan')
+      planDisplay.setSettingsOpen(true)
+    },
+    mapLegend: () => togglePlanOption(planDisplay.setLegendOpen),
+    haulInputs: () => showEngineeringInputs('haul'),
     customizeRibbon: () => setCustomizingRibbon(true),
     newProject: openNewProject,
     saveProject: () => save('project'),
-    plotbook: () => openExport('plotbook'),
-    stakeout: () => openExport('stakeout'),
-    reportPdf: () => openExport('report-pdf'),
-    exportGis: () => openExport('geojson'),
     fieldNotes: () => togglePlanOption(planDisplay.setNotesOpen),
     importReference: () => requestFile('reference'),
     drawBlock: () => drawArea('harvest'),
@@ -3177,16 +3208,12 @@ export default function DevForestryRoads({
     deleteRoad,
     traceRoad: () => drawFromRibbon('trace'),
     inspect: () => drawFromRibbon('inspect'),
-    crossSection: () => showDetailPane('section'),
     sectionCsv: saveSection,
     templates: () => showEngineeringInputs('templates'),
     materials: () => showEngineeringInputs('materials'),
-    massHaul: () => showDetailPane('mass'),
     fullCosts: openCompleteCosts,
     network: () => setNetworkOpen(true),
-    sweptPath: () => showDetailPane('swept'),
     cable: () => drawFromRibbon('cable'),
-    landing: () => showDetailPane('landing'),
     fitRoad: () => fitPlan('active'),
     fitAll: () => fitPlan('roads'),
     fitTerrain: () => fitPlan('terrain'),
@@ -3218,10 +3245,6 @@ export default function DevForestryRoads({
     summarySettings: () => showSummarySettings(),
     fullscreen: toggle,
     plan: () => showPane('plan'),
-    terrain3d: () => showDetailPane('terrain'),
-    stations: () => showDetailPane('table'),
-    quantities: () => showDetailPane('engineering'),
-    drainage: () => showDetailPane('drainage'),
     projects: () => setProjectsOpen(true),
     open: () => requestFile('project'),
     export: () => (investigation ? save('project') : openExport('project')),
@@ -3229,7 +3252,6 @@ export default function DevForestryRoads({
     ...editorCommands,
     chooseInterface: () => setChoosingInterface(true),
     profile: () => showPane('profile'),
-    compare: () => showDetailPane('compare'),
     sketch: () => drawFromRibbon('sketch'),
   }
   const runCommand = (id: WorkspaceCommand) => commands[id]()
@@ -3248,6 +3270,17 @@ export default function DevForestryRoads({
   const resultsReason =
     lockedReason ?? noRoadReason ?? (terrainProfile ? 'Not available while a terrain profile is open.' : undefined)
   const commandStates: Partial<Record<WorkspaceCommand, CommandState>> = {
+    ...commandRecord(ribbonExports, (output) => ({
+      disabled: !!busy || !!exportUnavailable(output.kind, exportContext),
+    })),
+    ...commandRecord(roadDetailViews, (view) => ({
+      disabled: 'roadOnly' in view ? designResultsUnavailable : editLocked,
+    })),
+    zoomIn: { disabled: !planDisplay.zoom },
+    zoomOut: { disabled: !planDisplay.zoom },
+    mapSettings: { disabled: false },
+    mapLegend: { disabled: false, pressed: planDisplay.legendOpen },
+    haulInputs: { disabled: editLocked || noRoad },
     customizeRibbon: { hidden: !toolbar?.groups.some((group) => group.sections?.length), disabled: false },
     newProject: { disabled: !!busy, reason: busyReason },
     saveProject: { disabled: !!busy, reason: busyReason },
@@ -3352,6 +3385,7 @@ export default function DevForestryRoads({
       className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-warning' : 'bg-danger'}`}
     />
   )
+  const InterfaceIcon = layoutIcons[active.icon]
   // The registry's Switch interface command, showing the interface in use. The header line names
   // it only on the widest screens, so the page title keeps its room beside the road switcher.
   const interfaceSwitch = (captionFrom: 'lg' | '2xl') => (
@@ -3375,6 +3409,20 @@ export default function DevForestryRoads({
     />
   )
   const interfaceSwitcher = interfaceSwitch('2xl')
+  const ribbonHelp = active.toolbar?.dock === 'top'
+  const helpLayout = new URLSearchParams({ layout: 'ribbon', interface: active.id })
+  const workflowHelp = (
+    <a
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-muted focus-visible:outline"
+      href={`${import.meta.env.BASE_URL}help/index.html${ribbonHelp ? '?' + helpLayout : ''}`}
+      target="_blank"
+      rel="noopener"
+      aria-label="Workflow help (opens in a new tab)"
+      title="Workflow help"
+    >
+      <LibraryBig aria-hidden="true" className="size-4" />
+    </a>
+  )
   const projectNameControl = (
     <ProjectName name={project.name} disabled={!!busy} onRename={(name) => update((p) => ({ ...p, name }))} />
   )
@@ -3454,6 +3502,7 @@ export default function DevForestryRoads({
       </span>
     ),
     presets: investigation ? null : presetPicker,
+    terrainDisplay: <TerrainLayerSelect value={planDisplay.terrainLayer} onChange={planDisplay.setTerrainLayer} />,
     terrainSource: (
       <div className="lp-source-field" title={`${project.terrain.name}\n\n${planningBasis}`}>
         {(() => {
@@ -3552,7 +3601,12 @@ export default function DevForestryRoads({
   const projectHeader = (
     <WorkspaceHeader
       heading={heading}
-      roadSwitcher={!investigation && !awaitingFirstRoad(project) && roadSwitcher}
+      roadSwitcher={
+        <>
+          {!investigation && !awaitingFirstRoad(project) && roadSwitcher}
+          {workflowHelp}
+        </>
+      }
       tools={active.headerTools ?? DEFAULT_HEADER_TOOLS}
       widgets={workspaceWidgets}
       states={headerStates}
@@ -3573,6 +3627,7 @@ export default function DevForestryRoads({
         onToggleMinimized={toggleMinimized}
         onGroupChange={selectGroup}
         editorsAvailable={!investigation}
+        editorHost={editorHost}
         editorMount={inlineWorkflow ? attachEditor : undefined}
         disabled={editLocked}
         states={commandStates}
@@ -3586,6 +3641,7 @@ export default function DevForestryRoads({
               {/* A fixed slot: the mark coming and going never moves the tools beside it. */}
               <span className="lp-status-slot">{saveMark}</span>
               {interfaceSwitch('lg')}
+              {workflowHelp}
             </>
           )
         }
@@ -3772,17 +3828,7 @@ export default function DevForestryRoads({
         onRoadScope={setRoadScope}
         busy={!!busy}
         portalContainer={ref.current}
-        context={{
-          designPreview: !!(draftAlignment || numericPegAlignment || templatePreview || costPreview),
-          hasResults: displayedAnalysis.stations.length > 0,
-          invalidInput: exportInvalidInput,
-          terrainProfile: !!terrainProfile,
-          hasTerrainGrid: !!project.terrain.raster,
-          hasProvincialEvidence: !!project.provincialStreamData,
-          hasStreams: project.context.some((feature) => feature.kind === 'stream'),
-          hasNotes: !!project.notes?.length,
-          dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
-        }}
+        context={exportContext}
         buildPreview={buildExportPreview}
         previewVersion={exportPreviewVersion}
         setupViews={{ 'block-sheet-pdf': blockSheet.setup }}
@@ -4498,19 +4544,11 @@ export default function DevForestryRoads({
                                     className="min-w-0 h-8 w-32"
                                     value={detail}
                                     onValueChange={(value) => setDetail(value as typeof detail)}
-                                    options={[
-                                      { value: 'section', label: 'Section' },
-                                      { value: 'terrain', label: '3D' },
-                                      { value: 'mass', label: 'Mass haul', disabled: !!terrainProfile },
-                                      { value: 'table', label: 'Stations' },
-                                      { value: 'compare', label: 'Compare' },
-                                      { value: 'cable', label: 'D-line' },
-                                      { value: 'pegs', label: 'Pegs', disabled: !!terrainProfile },
-                                      { value: 'engineering', label: 'Quantities', disabled: !!terrainProfile },
-                                      { value: 'landing', label: 'Landing' },
-                                      { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
-                                      { value: 'swept', label: 'Swept path', disabled: !!terrainProfile },
-                                    ]}
+                                    options={roadDetailViews.map((view) => ({
+                                      value: view.value,
+                                      label: view.label,
+                                      disabled: 'roadOnly' in view && !!terrainProfile,
+                                    }))}
                                     ariaLabel="Road detail view"
                                   />
                                   {detail === 'section' && !terrainProfile && (
@@ -5042,6 +5080,16 @@ export default function DevForestryRoads({
                             </>
                           )}
                         </output>
+                        <a
+                          href={`${import.meta.env.BASE_URL}help/${ribbonHelp ? 'ribbon.html?lesson=station-200&' + helpLayout : 'station-200/index.html'}`}
+                          target="_blank"
+                          rel="noopener"
+                          aria-label="Station help: read the cut depth (opens in a new tab)"
+                          title="Station help: read the cut depth"
+                          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline"
+                        >
+                          <CircleHelp className="size-4" aria-hidden="true" />
+                        </a>
                       </div>
                     )}
                   </main>

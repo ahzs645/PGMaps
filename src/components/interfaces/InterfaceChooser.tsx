@@ -37,6 +37,9 @@ export function InterfaceChooser({
     >
       <div className="lp-launcher">
         <div className="lp-launch-head">
+          <a href={`${import.meta.env.BASE_URL}help/index.html`} target="_blank" rel="noopener">
+            Workflow help
+          </a>
           <h2 id={titleId}>Choose your workspace</h2>
           <button className="lp-close" onClick={onCancel} aria-label="Close interface chooser">
             <X size={18} />

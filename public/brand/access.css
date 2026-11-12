@@ -1,0 +1,79 @@
+@font-face {
+  font-family: Inter;
+  src: url('./Inter-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: Inter;
+  src: url('./Inter-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter Display';
+  src: url('./InterDisplay-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Space Mono';
+  src: url('./SpaceMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  /* HSL channels also feed the workspace's Tailwind colour utilities. */
+  --ddc-midnight: 210 74.1% 16.7%;
+  --ddc-paper: 45 20% 96.1%;
+  --ddc-graphite: 218.2 6.8% 31.6%;
+  --ddc-ice: 211.9 41% 84.7%;
+  --access-blue: 197.4 51.2% 41%;
+  --access-text: 197.8 51.3% 38.6%;
+  --access-on-dark: 197.3 35.3% 53.9%;
+  --brand-body: Inter, Arial, sans-serif;
+  --brand-display: 'Inter Display', Inter, sans-serif;
+  --brand-label: 'Space Mono', monospace;
+}
+
+/* A1 Rule. The parent SVG includes a 16-unit inset around its 424 × 120 artwork. */
+.access-lockup {
+  --mark-height: 36px;
+  --mark-rule: hsl(var(--access-blue));
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(var(--mark-height) * .3);
+  flex: none;
+  font: 500 calc(var(--mark-height) * .9)/1 var(--brand-display);
+  letter-spacing: -.04em;
+  white-space: nowrap;
+}
+.access-lockup::before {
+  content: '';
+  width: calc(var(--mark-height) * 424 / 120);
+  height: var(--mark-height);
+  background: currentColor;
+  mask: url('./ddc-horizontal.svg') center / auto 126.667% no-repeat;
+}
+.access-lockup::after {
+  content: '';
+  order: 1;
+  height: var(--mark-height);
+  width: max(1px, calc(var(--mark-height) / 48));
+  background: var(--mark-rule);
+}
+.access-lockup > span { order: 2 }
+.access-lockup-compact { --mark-height: 18px }
+.access-lockup-compact::before {
+  width: var(--mark-height);
+  mask: url('./six-dot-micro.svg') center / contain no-repeat;
+}
+
+@media (max-width: 760px) {
+  .lp-mast .access-lockup { --mark-height: 25px }
+  .lp-mast .access-lockup::before {
+    width: var(--mark-height);
+    mask: url('./six-dot-micro.svg') center / contain no-repeat;
+  }
+}

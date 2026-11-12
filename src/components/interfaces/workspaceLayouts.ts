@@ -1,6 +1,6 @@
 import { ribbonFieldIds } from '@/pages/dev-forestry-roads/roadFieldDefinitions'
-import { Compass, LayoutDashboard, Map, PanelsLeftBottom, PanelsTopLeft, Route, Ruler } from 'lucide-react'
-import { workspaceCommandIds, type WorkspaceCommand } from './workspaceCommands'
+import { Compass, LayoutDashboard, Map as MapIcon, PanelsLeftBottom, PanelsTopLeft, Route, Ruler } from 'lucide-react'
+import { ribbonExports, workspaceCommandIds, type WorkspaceCommand } from './workspaceCommands'
 import {
   parseLayout,
   parseWorkspaceLayouts,
@@ -14,7 +14,7 @@ export type { WorkflowEditor } from './workspaceLayoutSchema'
 export const layoutIcons = {
   compass: Compass,
   dashboard: LayoutDashboard,
-  map: Map,
+  map: MapIcon,
   panels: PanelsLeftBottom,
   ribbon: PanelsTopLeft,
   route: Route,
@@ -31,6 +31,7 @@ export const workspaceWidgets = [
   'roadSelector',
   'presets',
   'terrainSource',
+  'terrainDisplay',
   'interfaceSwitch',
   'history',
   'saveState',
@@ -47,7 +48,49 @@ const vocabulary: LayoutVocabulary<LayoutIcon, WorkspaceCommand, WorkspaceWidget
 export type WorkspaceLayout = LayoutConfig<LayoutIcon, WorkspaceCommand, WorkspaceWidget>
 export type WorkspaceToolbar = LayoutToolbar<LayoutIcon, WorkspaceCommand, WorkspaceWidget>
 
-export const parseLayoutCatalog = (value: unknown) => parseWorkspaceLayouts(value, vocabulary)
+export const parseLayoutCatalog = (value: unknown) =>
+  parseWorkspaceLayouts(value, vocabulary).map((layout) =>
+    layout.toolbar ? { ...layout, toolbar: resolveToolbar(layout.toolbar) } : layout,
+  )
+
+/** Hosted placements win. Expand catalog-backed groups before applying personal ribbon preferences. */
+export function resolveToolbar(toolbar: WorkspaceToolbar): WorkspaceToolbar {
+  const sections = toolbar.groups.flatMap((tab) => tab.sections ?? [])
+  if (!sections.some((section) => section.collect)) return toolbar
+  const placed = new Set<WorkspaceCommand | WorkspaceWidget>([
+    ...toolbar.groups.flatMap((tab) => tab.commands ?? []),
+    ...sections.flatMap((section) => [...section.items, ...(section.more ?? [])]),
+  ])
+  const additions = new Map<(typeof sections)[number], (WorkspaceCommand | WorkspaceWidget)[]>()
+  const collect = (source: (WorkspaceCommand | WorkspaceWidget)[], section: (typeof sections)[number]) => {
+    const missing = source.filter((id) => !placed.has(id))
+    missing.forEach((id) => placed.add(id))
+    additions.set(section, missing)
+  }
+  for (const section of sections) {
+    if (section.collect === 'documentExports' || section.collect === 'dataExports') {
+      const documents = section.collect === 'documentExports'
+      collect(
+        ribbonExports.filter((item) => (item.group === 'documents') === documents).map((item) => item.command),
+        section,
+      )
+    }
+  }
+  for (const section of sections) {
+    if (section.collect === 'remainingTools') {
+      collect([...workspaceCommandIds, ...workspaceWidgets], section)
+    }
+  }
+  return {
+    ...toolbar,
+    groups: toolbar.groups.map((tab) => ({
+      ...tab,
+      sections: tab.sections?.map((section) =>
+        additions.has(section) ? { ...section, more: [...(section.more ?? []), ...additions.get(section)!] } : section,
+      ),
+    })),
+  }
+}
 
 // Keep one usable view even when the editable file is missing or contains invalid JSON.
 const recoveryLayout = parseLayout(

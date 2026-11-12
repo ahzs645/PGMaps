@@ -1,4 +1,4 @@
-import { RoadSelect } from './Controls'
+import { TerrainLayerSelect, type TerrainLayer } from './TerrainLayerSelect'
 import type { FitRequest, usePlanDisplay } from './usePlanDisplay'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -114,7 +114,6 @@ export type DrawMode =
   | 'trace'
 /** A sketch stroke keeps detail down to this many screen pixels before it becomes a road. */
 export const SKETCH_CAPTURE_PX = 1.5
-type TerrainLayer = 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'
 const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   stream: 'Streams',
   'existing-road': 'Existing roads',
@@ -914,7 +913,15 @@ function Layers(
         : coordinates.length
           ? extent(coordinates)
           : null
-    if (fitBounds) map.fitBounds(fitBounds, { padding: 45, maxZoom: 16, duration: 0 })
+    const launch = new URLSearchParams(window.location.search)
+    if (
+      !previousFit.current &&
+      launch.get('example') === 'training' &&
+      launch.get('lesson') === 'sketch-road' &&
+      props.project.terrain.kind === 'demo'
+    ) {
+      map.jumpTo({ center: [-122.7265, 53.887], zoom: 16.7 })
+    } else if (fitBounds) map.fitBounds(fitBounds, { padding: 45, maxZoom: 16, duration: 0 })
     previousFit.current = key
     previousManualFit.current = props.fitRequest.revision
   }, [map, isLoaded, bounds, props.alignment, props.project, props.fitRevision, props.fitRequest, investigation])
@@ -2056,6 +2063,8 @@ function Layers(
         showContours={props.showContours}
         terrainName={props.project.terrain.name}
         toolOpen={!!planToolActive}
+        expanded={props.display.legendOpen}
+        onExpandedChange={props.display.setLegendOpen}
       />
     </>
   )
@@ -2165,7 +2174,7 @@ export function PlanView(input: PlanProps) {
     props.project.context,
     props.project.sharedCrossingCosts,
   ])
-  const [terrainLayer, setTerrainLayer] = useState<TerrainLayer>('hillshade')
+  const { terrainLayer, setTerrainLayer, settingsOpen, setSettingsOpen } = props.display
   // The same Map / Satellite choice as the visual-quality maps, under the plan's own layers.
   const [basemap, setBasemap] = useStoredImageryBasemap('pgmaps-road-basemap')
   const { showContours, setShowContours, showLabels, setShowLabels, showEarthwork, setShowEarthwork, fitRequest, fit } =
@@ -2300,10 +2309,9 @@ export function PlanView(input: PlanProps) {
     } else props.onContextSelect?.(feature)
   }
   const hasTerrainBounds = !!terrainBounds(props.project.terrain)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsButton = useRef<HTMLButtonElement>(null)
   const settingsPanel = useRef<HTMLDivElement>(null)
-  const closeSettings = useCallback(() => setSettingsOpen(false), [])
+  const closeSettings = useCallback(() => setSettingsOpen(false), [setSettingsOpen])
   useEffect(() => {
     if (!settingsOpen) return
     // The panel renders at the end of the body, so Tab from the button no longer reaches it.
@@ -2510,19 +2518,7 @@ export function PlanView(input: PlanProps) {
         className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-110px)] items-center gap-1"
         data-map-export-ignore
       >
-        <RoadSelect
-          value={terrainLayer}
-          onValueChange={(value) => setTerrainLayer(value as TerrainLayer)}
-          ariaLabel="Terrain display"
-          className="h-8 w-24 min-w-0 bg-background/95 sm:w-32"
-          options={[
-            { value: 'hillshade', label: 'Hillshade' },
-            { value: 'slope', label: 'Slope' },
-            { value: 'aspect', label: 'Aspect' },
-            { value: 'elevation', label: 'Elevation' },
-            { value: 'none', label: 'Basemap' },
-          ]}
-        />
+        <TerrainLayerSelect value={terrainLayer} onChange={setTerrainLayer} />
         <div className="shrink-0">
           <Button
             ref={settingsButton}
