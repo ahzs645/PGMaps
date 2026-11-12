@@ -108,13 +108,14 @@ describe('atlasCell', () => {
   const atlas = {
     columns: VARIANTS_PER_SPECIES,
     rows: TREE_SPECIES_IDS.length,
-    speciesRow: { pine: 0, spruce: 1, fir: 2, aspen: 3, birch: 4 } as Record<TreeSpeciesId, number>,
+    speciesRow: { pine: 0, spruce: 1, fir: 2, douglasFir: 3, aspen: 4, birch: 5 } as Record<TreeSpeciesId, number>,
   }
 
   it('puts each species on its own row and each variant in its own column', () => {
+    // Six species down: pine, spruce, fir, Douglas-fir, aspen, birch.
     expect(atlasCell(atlas, 'pine', 0)).toEqual([0, 0])
-    expect(atlasCell(atlas, 'aspen', 0)).toEqual([0, 0.6])
-    expect(atlasCell(atlas, 'spruce', 2)).toEqual([0.5, 0.2])
+    expect(atlasCell(atlas, 'aspen', 0)).toEqual([0, 4 / 6])
+    expect(atlasCell(atlas, 'spruce', 2)).toEqual([0.5, 1 / 6])
   })
 
   it('wraps a variant outside the atlas rather than reading past it', () => {

@@ -19,6 +19,12 @@ export type SavedDriveView = {
   projectRecordedHeights?: boolean
   growthMetersPerYear?: number
   regenerationLagYears?: number
+  /**
+   * The saved design alternative the view was taken under (`matchingDesign`),
+   * or absent for an unsaved design. Lets a report pair the same view before
+   * and after a redesign.
+   */
+  designName?: string
 }
 export const PREVIEW_STORAGE_KEY = 'pgmaps.forestry-driving-views.v1'
 
@@ -143,6 +149,9 @@ export function parsePreview(input: unknown): { scene: ForestryScene; views: Sav
         roadClearWidthMeters: v.roadClearWidthMeters,
         harvestPhase: v.harvestPhase === 'before' ? 'before' : 'after',
         ...(typeof v.existingForest === 'boolean' ? { existingForest: v.existingForest } : {}),
+        ...(typeof v.designName === 'string' && v.designName.trim()
+          ? { designName: v.designName.trim().slice(0, 120) }
+          : {}),
         ...(typeof v.projectRecordedHeights === 'boolean' ? { projectRecordedHeights: v.projectRecordedHeights } : {}),
         ...(Number.isFinite(v.growthMetersPerYear) && v.growthMetersPerYear! >= 0.1 && v.growthMetersPerYear! <= 1
           ? { growthMetersPerYear: v.growthMetersPerYear }

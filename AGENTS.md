@@ -59,6 +59,9 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - Anything that needs the camera's ground position during a drive must take the viewing station, not `map.getCenter()`. Pitched at the horizon from eye level, the map centre is kilometres away on the skyline.
 - MapLibre publishes no camera position — `getFreeCameraOptions` is Mapbox-only and `transform.cameraPosition` is internal. `treeLayer.ts` takes the view direction from the projection matrix's w-row gradient instead, which cannot disagree with the matrix that drew the ground.
 - The tree silhouettes in `impostor.ts` are generated, not assets. Keep it that way: it is what makes the stand redrawable for a different species mix, and it keeps third-party vegetation assets and their licences out of the repo.
+- `screenCoverage.test.ts` pins how much of the view each species' far card and detailed mesh (`detailedTreeMesh`) covers, and holds the mesh within 15% of its card. A drawn shape is screening evidence, not styling: the trial measured shape alone moving a stand's screening by 10–12 points. Change those figures only on purpose, saying why. Tree shading (`look: 'lit'`) and the atlas mipmaps (`atlasMips.ts`, coverage-preserving) must never change which pixels a tree covers.
+- *Detail when stopped* replaces the near cards with meshes of the **same** stems (positions, heights, crown widths) only while the frame's matrix is unchanged for `DETAIL_SETTLE_MS`; never let it place stems of its own or stay on while the view moves.
+- A stand's species come from its whole VRI record (`SPECIES_CD_1…6`/`SPECIES_PCT_1…6`, `speciesMixFromInventory`), and non-treed VRI ground grows no regional mix (`groundCoverFromBclcs`). Slash, edge rows and road scars (`harvestedGround.ts`) are display only; keep them out of every reported figure.
 - Green-up height is area-weighted over slope classes, per the 1998 procedure's Step 5 — not `vegHeightForSlope(meanSlope)`. Table 6 is a step function, so the two disagree on mixed ground. `analysis.ts` accumulates it per sample; do not recompute it from `meanSlopePercent` in a panel.
 - The planimetric denominator is the landform's **treed** area, per the 1998 procedure's "total green (forested) portion". It comes from VRI rank-1's `BCLCS_LEVEL_2`, live from DataBC's WFS (`bcVegetationInventory.ts`) — not the ArcGIS service, which carries only the VRI _Dead_ layer. Dividing by the whole landform reads the figure about 27% low at Tabor Mountain, enough to cross a class.
 - In `bcVegetationInventory.ts` the bounding box goes in `CQL_FILTER`, never the WFS `bbox` parameter: WFS 2.0 with `EPSG:4326` is latitude-first, CQL's `BBOX` is longitude-first, and mixing them silently returns the wrong part of BC. Keep `propertyName` narrow too — the layer has 189 attributes and GeoServer will not generalise geometry.
@@ -169,6 +172,11 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - The first three workbook sheets mirror `Dunkley_Volume_Summary_All_Blocks.xlsx` (sheet order, row 5 headers, `G`/`K` formulas, Management Summary `SUMIFS` on `K = "OK"`) so rows paste between them; change `workbookRows.ts` and `excel.ts` together.
 - Every gdal3.js call goes through `gdal.ts` (`exclusive` queue, one WORKERFS mount for all inputs). Type geodatabase columns through `layerGeoJson`, not SQLite-dialect CASTs, which type computed columns from the first row.
 - Keep `geometry.ts`, `slope.ts`, `overlay.ts`, `report.ts`, `run.ts`, `inputs.ts`, `workbookRows.ts`, `outputs.ts` and `projection.ts` free of DOM and network access.
+
+## MapLibre 6
+
+- Import MapLibre as a namespace (`import * as maplibregl from 'maplibre-gl'`); v6 has no default export, and a test mock must export names, not `default`.
+- `vite.config.ts` aliases the bare `maplibre-gl` to `src/lib/maplibre-gl-entry.ts`, which sets the worker URL before any map exists. MapLibre 6 locates its worker at run time in a way Vite cannot see; without the alias no map loads a tile. Keep the alias exact (`/^maplibre-gl$/`) so `maplibre-gl/dist/...` still reaches the package.
 
 ## Shared UI
 

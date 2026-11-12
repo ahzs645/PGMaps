@@ -685,11 +685,105 @@ mix, and the panel says how much did. Run "Look up this view" first to have any
 of it.
 
 The silhouettes are generated in `impostor.ts` rather than shipped as assets:
-five BC interior species (lodgepole pine's long clean bole and short crown,
-interior spruce's spire, subalpine fir narrower still, trembling aspen's rounded
-crown over a pale stem, paper birch's over a white one), four drawn variants
-each, into one 20-cell atlas. Nothing to license, nothing to download, and the
-stand can be redrawn for a different species mix without an art pipeline.
+six BC interior species (lodgepole pine's long clean bole and short crown,
+interior spruce's spire, subalpine fir narrower still, interior Douglas-fir's
+broad, open, level-limbed crown, trembling aspen's rounded crown over a pale
+stem, paper birch's over a white one), four drawn variants each, into one
+24-cell atlas. Nothing to license, nothing to download, and the stand can be
+redrawn for a different species mix without an art pipeline.
+
+### Species from the whole inventory record
+
+VRI records up to six species per stand with their percentages
+(`SPECIES_CD_1…6`, `SPECIES_PCT_1…6`) and the projected heights of the leading
+two. The run reads them all (`bcVegetationInventory.ts`), and each stem in a
+surveyed stand draws its species from that mix (`speciesMixFromInventory`,
+`placeTrees`), at its own species' height where VRI records one and the
+stand's elsewhere. Around Prince George this matters: a stand led by 30%
+cottonwood is 70% spruce, birch and subalpine fir, and drawn by its lead alone
+it was a cottonwood stand. Crown widths still come from the stand's closure
+(`crownWidthForClosure`); the mix only shares that width out by species.
+
+Douglas-fir (`FD`, `FDI`) is its own species rather than drawn as subalpine
+fir: it leads or shares about a quarter of the stands around Prince George
+(51 of 189 polygons in a November 2026 query south of the city), and its broad,
+open crown reads nothing like a fir's spire.
+
+### Ground the inventory says is not forest
+
+VRI also says what non-treed ground is (BC Land Cover Classification, levels
+2–5). `groundCoverFromBclcs` reads it as water, wetland, rock, herb, low shrub
+or tall shrub. None of these grows the regional mix any more — before, every
+meadow and rock face the inventory recorded fell through to it and drew as
+mature timber. Tall shrub grows a low broadleaf thicket (3 m, dense); the rest
+grow nothing, and the road view colours the ground by cover (meadow paler than
+forest floor, rock grey, wetland olive). Display only: the green-area
+denominator still reads level 2 as before, and screening still reads treed
+stands only.
+
+### Tree shading, and detail when the view is still
+
+Two settings beside *Display quality*, both display only:
+
+- **Tree shading.** *Lit* (the default) shades each card as the crown it
+  pictures: a normal bent outward from the card's centre line so the sunny side
+  of the crown is lit and the far side is not, the lower crown in its own
+  shade, light through the needles when the eye looks toward the sun, and a
+  little brightness and saturation variety per tree. Solid stems get wrapped
+  light and crown-depth shading. *Flat* is the drawing's own colours, as
+  before. Lighting never changes which pixels a tree covers.
+- **Detail when stopped.** While the view moves every stem is a card, which
+  keeps driving smooth. Once the camera has held still for half a second
+  (`DETAIL_SETTLE_MS`, read off the frame's own matrix, so turning the head
+  counts as moving), the stems within 80, 150 (default) or 250 m are drawn
+  again as detailed meshes (`detailedTreeMesh`: branches in whorls with uneven
+  extension and gaps, lower limbs drooping more than upper ones, foliage
+  sprays from a third of the way out, normals bent outward so a crown shades as
+  a volume). The same stems at the same positions, heights and crown widths;
+  the cards step back from that ring for the frame. *Faster* turns it off.
+
+These follow techniques surveyed in `forestry-visual-tools-trial-2026-11-12.md`
+§10 (Sylva's canopy cards, VistaWASM's wrap and back-light, OpenWorldGen-SDK's
+crown occlusion, BakedVoxelLighting's whorls), re-implemented here; no code or
+asset from those projects is copied.
+
+**Screening is pinned.** The trial measured that a tree's drawn shape alone
+moves the share of a view a stand hides by 10–12 points at the same density and
+closure. `screenCoverage.test.ts` rasterises every species' far card and its
+detailed mesh side-on and pins both areas to within half a percent, and holds
+the detailed mesh within 15% of its card, so stopping cannot change the
+screening a viewer sees. Change a silhouette or the mesh and that test fails:
+update its figures only on purpose. The first draft of the detailed fir covered
+0.79 of its card and the Douglas-fir 1.20; both were tuned against the test.
+
+**Distant crowns keep their coverage.** The atlas's mipmaps are built on the
+CPU (`atlasMips.ts`) with each cell's alpha rescaled so the share of texels
+past the cut-out threshold matches the full-size cell's. A GPU box filter
+thins a ragged crown with distance, and a thinner far canopy would screen less
+of a block than the stand it stands for.
+
+### Harvested ground
+
+After harvest a block's ground is soil; three more things make it read as a
+cutblock from a road (`harvestedGround.ts`, display only):
+
+- **Slash and stumps.** Piles of lying logs and stumps, about one per 12 m
+  square, on cut ground within 600 m of the eye (`placeDebris`, `debrisMesh`),
+  seeded per absolute cell so they never move.
+- **A hard edge.** Up close the stand is drawn stem for stem and a block's edge
+  is already a wall. Past about 250 m each drawn stem stands for several and
+  the edge went ragged by half a band's spacing, so the coarse bands also stand
+  a row of edge stems just inside the timber along every opening
+  (`placeEdgeTrees`), each the species and height the inventory records there.
+- **Road cut and fill.** Across a side slope the road leaves a cut bank uphill
+  and a fill slope downhill, bare and paler than the forest floor. `roadScar`
+  works out each from a bench section (1:1 cut, 1.5:1 fill, capped at 30 m)
+  and the drawn ground's cross-slope; no timber grows on either.
+
+Retention patches left inside a block are standing timber when the block
+carries them as holes (an inner ring), which is how a block with group
+retention imports; `harvestedGround.test.ts` pins it. Existing openings are
+drawn at their regrowth height (`regrowth.ts`, *Existing forest*), as before.
 
 ### How dense the stand is drawn
 
@@ -1120,6 +1214,24 @@ puts them (`paragraphForLayout`): kept in Excel, where they are below; "See the
 view at left and the others on the next page" in the PDF, where the first sits
 beside the paragraph; dropped when the note has no screenshot. Only that
 sentence changes; the rest of the reviewer's text is theirs.
+
+**Viewpoint pages.** Each saved view also keeps its viewpoint record: the
+design alternative it was taken under (`matchingDesign`, by the blocks and
+retained patches the scene shows), the harvest phase, and what produced the
+simulation (position along the road, facing and tilt, eye height, lens, the
+timber's source, tree shading and detail, terrain). Where a field photo was
+lined up when the view was saved, the photo is captured with it
+(`captureImageUrl`). The PDF then gives each viewpoint a page in the layout
+consultants' VIA reports use (Forsite's Logan Lake assessment, pp. 8–11): the
+field photograph above the simulation from the same eye, the settings beside
+them. The workbook gets a *Viewpoints* sheet with the same settings per view.
+
+**Before and after a redesign.** Views saved under one design are shelved, not
+overwritten, when another is applied in step 3's *Design comparisons*, and come
+back when that design is applied again. Two views from the same place along the
+road (within 10 m), facing the same way (within 5°) and in the same harvest
+phase, under different designs, get a comparison page of their own
+(`designComparisonPairs`) — the planner review's item 8.
 
 Screenshots are taken when *Save viewpoint* is pressed (`captureMapImage`,
 JPEG, 1600 px on the long side), because the frame being saved is the one the

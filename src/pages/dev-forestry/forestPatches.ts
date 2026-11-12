@@ -1,5 +1,7 @@
 /** Stable geographic tiles, independent of the eye and of browser/network state. */
 import { placeTrees, type TreeInstance, type TreePlacementOptions } from './forest'
+import { placeEdgeTrees } from './harvestedGround'
+import type { PolygonGeometry } from './visibility'
 import type { ElevationSource } from './terrain'
 import { haversineMeters } from './visibility'
 
@@ -65,22 +67,44 @@ export function forestPatches(
 export function growForestPatch(
   patch: ForestPatch,
   band: ForestBand,
-  inputs: Pick<TreePlacementOptions, 'stands' | 'clearings' | 'thinnings' | 'inventory' | 'heightMeters'>,
+  inputs: Pick<TreePlacementOptions, 'stands' | 'clearings' | 'thinnings' | 'inventory' | 'heightMeters'> & {
+    /** Cut ground: the coarse bands stand a row of edge stems along it (`placeEdgeTrees`). */
+    openings?: ReadonlyArray<PolygonGeometry>
+  },
   elevation: ElevationSource,
   anchorLatitude: number,
 ): TreeInstance[] {
   const [west, south, east, north] = patch.bounds
-  return placeTrees({
-    ...inputs,
-    centre: patch.centre,
-    radiusMeters: patch.radius,
-    spacingMeters: band.spacing,
-    maxTrees: 10000,
-    seed: patch.band + 1,
-    anchorLatitude,
-    // The patch is a square tile: grow only it, not the circle around it.
-    bounds: [west, south, east, north],
-  }).flatMap((tree) => {
+  // In the coarse bands a drawn stem stands for many and a block's edge goes
+  // ragged by half the spacing (12 m and more); a row of edge stems keeps it a
+  // wall. Not in the nearer bands: there the edge is already within a few
+  // metres, and a second row dithering in over the first speckles the crowns.
+  const edges =
+    band.spacing >= 20 && inputs.openings?.length
+      ? placeEdgeTrees({
+          openings: inputs.openings,
+          clearings: inputs.clearings,
+          bounds: patch.bounds,
+          inventory: inputs.inventory,
+          heightMeters: inputs.heightMeters,
+          spacingMeters: Math.min(12, band.spacing * 0.6),
+          seed: patch.band + 1,
+        })
+      : []
+  return [
+    ...placeTrees({
+      ...inputs,
+      centre: patch.centre,
+      radiusMeters: patch.radius,
+      spacingMeters: band.spacing,
+      maxTrees: 10000,
+      seed: patch.band + 1,
+      anchorLatitude,
+      // The patch is a square tile: grow only it, not the circle around it.
+      bounds: [west, south, east, north],
+    }),
+    ...edges,
+  ].flatMap((tree) => {
     const height = elevation.elevationAt(tree.lng, tree.lat)
     return Number.isFinite(height) ? [{ ...tree, elevationMeters: height }] : []
   })

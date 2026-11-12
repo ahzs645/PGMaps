@@ -676,5 +676,14 @@ export function useAssessmentTools({
       </div>
     </ToolSection>
   )
-  return { field, design, report, inspect, cancel: runner.cancel, running: runner.running }
+  return {
+    field,
+    design,
+    report,
+    inspect,
+    cancel: runner.cancel,
+    running: runner.running,
+    /** Saved design alternatives, so a saved view can say which one it shows. */
+    designOptions: d.options,
+  }
 }

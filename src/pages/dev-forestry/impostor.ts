@@ -103,6 +103,18 @@ export const TREE_SPECIES_DRAWING: Record<TreeSpeciesId, SpeciesDrawing> = {
     foliage: [38, 72, 60],
     bark: [86, 78, 70],
   },
+  douglasFir: {
+    label: 'Interior Douglas-fir',
+    crownRatio: SPECIES_CROWN_RATIO.douglasFir,
+    // An open-grown interior fir keeps live limbs low; in a stand about the
+    // top 60%. Fewer, longer tiers than a spruce, held level rather than
+    // drooping, which is what gives it a ragged, layered outline.
+    crownBase: 0.36,
+    tiers: 9,
+    droop: 0.45,
+    foliage: [48, 84, 58],
+    bark: [104, 82, 66],
+  },
   aspen: {
     label: 'Trembling aspen',
     crownRatio: SPECIES_CROWN_RATIO.aspen,

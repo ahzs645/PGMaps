@@ -281,6 +281,34 @@ export function comparisonScene(base: ForestryScene, option: ForestryScene): For
     viaReview: {},
   }
 }
+/**
+ * What a design is: its proposed blocks (geometry and harvest system) and its
+ * retained patches — exactly what `comparisonScene` takes from an alternative.
+ */
+function designSignature(scene: ForestryScene): string {
+  return JSON.stringify([
+    scene.targets
+      .filter((target) => target.role === 'block')
+      .map((target) => [
+        target.geometry,
+        target.harvestSystem ?? null,
+        target.retentionPercent ?? null,
+        target.volumeRemovedPercent ?? null,
+      ]),
+    (scene.masks ?? []).filter((mask) => mask.kind === 'retained').map((mask) => mask.geometry),
+  ])
+}
+
+/**
+ * The saved design alternative the scene currently shows, by name, or null
+ * when it shows none of them (an unsaved or edited design). A saved view
+ * records it, so a report can set the same view under two designs side by side.
+ */
+export function matchingDesign(scene: ForestryScene, options: ReadonlyArray<ToolOption>): ToolOption | null {
+  const current = designSignature(scene)
+  return options.find((option) => designSignature(option.scene) === current) ?? null
+}
+
 export function matrixJobs(base: ForestryScene, views: ToolView[], landformIds: string[]): ToolJob[] {
   if (!views.length || !landformIds.length || views.length * landformIds.length > MAX_TOOL_JOBS)
     throw new Error(`Select viewpoints and landforms for at most ${MAX_TOOL_JOBS} independent assessments.`)

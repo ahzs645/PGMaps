@@ -223,6 +223,15 @@ export type AnalysisResult = {
     crownClosurePercent: number | null
     speciesCode?: string | null
     stemsPerHa?: number | null
+    speciesComposition?: Array<{ code: string; percent: number; heightMeters: number | null }>
+  }>
+  /**
+   * Non-treed inventory ground in the view (water, rock, shrub, herb), for
+   * drawing only: the road view grows no timber on it. Not used by any figure.
+   */
+  renderCover?: Array<{
+    geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
+    cover: import('./forest').GroundCover
   }>
 }
 export type AnalysisProgress = { phase: 'terrain' | 'sightlines'; completed: number; total: number }

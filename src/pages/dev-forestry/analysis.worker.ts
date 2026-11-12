@@ -7,6 +7,7 @@
 
 import { analysisBounds, buildStations, computeAnalysis } from './analysis'
 import { fetchVegetationStands, forestedGeometries, clampVegetationBounds } from './bcVegetationInventory'
+import { groundCoverFromBclcs } from './forest'
 import type { CanopyStand } from './canopy'
 import { loadElevationGrid } from './demLoader'
 import { localRasterResolution, rasterSampler } from './localRaster'
@@ -102,6 +103,8 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   // which is what screens a view. Both are optional context — a failed query
   // costs accuracy, not the whole run — so each degrades on its own.
   let canopyStands: CanopyStand[] = []
+  // Non-treed inventory ground, for the road view only: no figure reads it.
+  let renderCover: NonNullable<import('./types').AnalysisResult['renderCover']> = []
   let forestedGround: PolygonGeometry[] = []
   let vegetation: import('./types').InventoryEvidence = { status: 'not-requested' }
   if (vegetationRequest) {
@@ -122,6 +125,17 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
         source: 'BC VRI rank-1 WFS',
       }
       if (wantsGreenArea) forestedGround = forestedGeometries(stands)
+      renderCover = stands.flatMap((stand) => {
+        const cover = stand.landCover
+          ? groundCoverFromBclcs(
+              stand.landCover.level2,
+              stand.landCover.level3,
+              stand.landCover.level4,
+              stand.landCover.level5,
+            )
+          : null
+        return cover ? [{ geometry: stand.geometry, cover }] : []
+      })
       // Keep the same stand records for rendering even when numerical screening is off.
       canopyStands = stands.flatMap((stand) =>
         stand.treed && stand.heightMeters !== null && stand.heightMeters > 0
@@ -131,6 +145,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
                 crownClosurePercent: stand.crownClosurePercent,
                 speciesCode: stand.speciesCode,
                 stemsPerHa: stand.stemsPerHa ?? null,
+                speciesComposition: stand.speciesComposition,
                 geometry: stand.geometry,
               },
             ]
@@ -163,6 +178,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     forestedGround,
     { vegetation, inspection: request.inspection },
   )
+  result.renderCover = renderCover
   result.sourceNotes =
     input.localRasters?.map(
       (r) =>

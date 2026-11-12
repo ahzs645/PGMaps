@@ -34,6 +34,25 @@ type Collection = GeoJSON.FeatureCollection
 const EMPTY_COLLECTION: Collection = { type: 'FeatureCollection', features: [] }
 /** Lakes and rivers in the road view: a still-water blue, with a lighter shoreline. */
 const ROAD_VIEW_WATER_COLOR = '#3f6f99'
+/**
+ * Inventory ground cover as the road view draws it, as MapLibre `match`
+ * pairs. Meadow and herb are paler than forest floor, rock grey, wetland a
+ * dull olive, shrub a mid green; water matches the mapped lakes.
+ */
+const GROUND_COVER_FILL = [
+  'water',
+  ROAD_VIEW_WATER_COLOR,
+  'wetland',
+  '#6b6f45',
+  'rock',
+  '#8f8b84',
+  'herb',
+  '#8b9a5a',
+  'shrubLow',
+  '#6d7f48',
+  'shrubTall',
+  '#4f6a3c',
+]
 const ROAD_VIEW_SHORE_COLOR = '#9cc0d8'
 
 /** Everything the scene's layers draw, built once by the page and handed to both maps. */
@@ -56,8 +75,10 @@ export type SceneLayerData = {
   forestPatches: ComponentProps<typeof ForestOverlay>['patches']
   facedArrowGeometry: GeoJSON.Polygon | null
   previewTerrainMessage: string | null
-  forestGround: { floor: Collection; soil: Collection; water: Collection }
+  forestGround: { floor: Collection; soil: Collection; water: Collection; cover: Collection }
   previewRoad: Collection
+  /** The road's cut bank and fill slope, by `kind`. */
+  previewRoadScar: Collection
   basemapBounds: [number, number, number, number] | null
   mapPick: { onPoint: (point: [number, number]) => void } | null
   inventoryCollection: Collection
@@ -129,6 +150,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     facedArrowGeometry,
     forestGround,
     previewRoad,
+    previewRoadScar,
     basemapBounds,
     mapPick,
     inventoryCollection,
@@ -260,6 +282,13 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             visible={drive.forest && !drive.imagery}
           />
           <MapFillLayer
+            data={forestGround.cover}
+            fillColor={['match', ['get', 'cover'], ...GROUND_COVER_FILL, '#4a5a3c']}
+            fillOpacity={0.9}
+            lineWidth={0}
+            visible={drive.forest && !drive.imagery}
+          />
+          <MapFillLayer
             data={forestGround.soil}
             fillColor="#a7977d"
             fillOpacity={0.95}
@@ -274,6 +303,13 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             lineColor={ROAD_VIEW_SHORE_COLOR}
             lineWidth={drive.imagery ? 0 : 1}
             lineOpacity={0.8}
+          />
+          {/* Cut banks read paler than the fill spilled below the road. */}
+          <MapFillLayer
+            data={previewRoadScar}
+            fillColor={['match', ['get', 'kind'], 'cut', '#b9a888', '#9d8b6c']}
+            fillOpacity={drive.imagery ? 0.6 : 0.95}
+            lineWidth={0}
           />
           <MapFillLayer data={previewRoad} fillColor="#a7977d" fillOpacity={1} lineColor="#c0b397" lineWidth={1} />
         </>

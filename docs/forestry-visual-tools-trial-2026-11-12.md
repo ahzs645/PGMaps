@@ -205,3 +205,85 @@ Landmarks and maplibre-gl-three both need MapLibre 6.
    meshes.** Skip maplibre-landmarks for the VIA tool.
 5. **Giro3D as an optional detail view** on its own route, if the inspection
    value is wanted beyond `dev-lidar`.
+
+## 10. Second round: whole-forest renderers (12 November, afternoon)
+
+A second shortlist proposed complete forest engines rather than parts:
+threejs-worldgen, Nanite Forest, BakedVoxelLighting, VistaWASM, Sylva,
+OpenWorldGen-SDK, Inkwell WebGPU Trees and yomotsu/vegetation. Each demo was
+loaded (WebGPU works here on SwiftShader, so the WebGPU paths ran) and each
+repository's source was read for how it builds species, lights foliage, draws
+distant trees and takes data. Scripts: `bench/browser/demos2.cjs`, `gl2.cjs`,
+`gpu.cjs`.
+
+![WebGPU demos](forestry-visual-tools-trial/evidence/renderers-webgpu-contact-sheet.jpg)
+![worldgen and Sylva on WebGL2](forestry-visual-tools-trial/evidence/renderers-webgl2-worldgen-sylva.jpg)
+
+| Project | Licence (LICENSE file) | Ran here | Takes our DEM and tree list? | Verdict |
+|---|---|---|---|---|
+| threejs-worldgen | Apache-2.0 | Yes; WebGPU canvas reads back blank, `?webgl` draws (24,684 instances, 82 draw calls) | Height function yes; tree list no (Poisson placement) | Borrow species parameters and crown-depth AO |
+| Nanite Forest | MIT (Lucy model non-commercial) | **Startup failed** on SwiftShader | No | Borrow coverage-preserving mip alpha |
+| BakedVoxelLighting | MIT (generated textures, provenance unstated) | Loaded (88 MB), still baking at capture | No | Borrow whorl-group conifers, relit atlases |
+| VistaWASM | **AGPL-3.0** | **GPU device lost**, 3.1 s a frame | **Yes**: `loadDemFromArrayBuffer`, `setTreeInstances` | Best design reference; AGPL and WebGPU-only, so ideas only |
+| Sylva | MIT | WebGL2, 0.7 fps on CPU (6.3 M triangles) | No (noise terrain) | Native GLSL: card volume normals, crown self-shadow, HG transmission |
+| OpenWorldGen-SDK | MIT | Demo URL 404 | DEM import yes; tree list no | Douglas-fir, aspen, birch parameters; crown AO |
+| Inkwell WebGPU Trees | MIT | Demo URL 404 | No | Counter-example: thins distant trees without compensation |
+| yomotsu/vegetation | MIT | Demo URL 404 | No | Fir frond geometry; a second coverage-preserving mip implementation |
+
+**Conclusion.** None replaces the road view. Only VistaWASM takes a real DEM
+and our own tree list, and it is AGPL and WebGPU-only (and could not hold a
+frame on this machine). The engines are procedural worlds; the work that
+matters for a VIA — the inventory's stand, the block, the eye — is ours either
+way. So their techniques were re-implemented in the existing WebGL2 layer
+rather than any engine adopted, as selectable renderers:
+
+- **Lit shading** (Sylva's card normals and crown self-shadow; VistaWASM's wrap
+  and back-light; crown-depth occlusion from OpenWorldGen-SDK and worldgen).
+- **Detail when stopped**: our own detailed mesh generator (BakedVoxelLighting's
+  whorl groups, VistaWASM's drooping spruce), drawn for the near stems only
+  while the view holds still. EZ-Tree was not used at run time: its bark
+  textures come from texture sites and its leaf textures carry no source, and
+  `AGENTS.md` keeps third-party vegetation assets out of the app.
+- **Coverage-preserving mipmaps** (Nanite Forest, yomotsu/vegetation).
+- A pinned **screen-coverage test**, because two of the first detailed meshes
+  changed screening by 20% and only the test showed it.
+
+The contract (`forestry-visual-quality.md`) describes each.
+
+![Road view: flat, lit, lit with detail, before harvest](forestry-visual-tools-trial/evidence/road-view-looks-roadside-demo.jpg)
+
+The roadside demo's opening from the same eye: *Flat* (top left), *Lit* (top
+right), *Lit* with detail when stopped (bottom left: the nearest 1,779 stems
+drawn as meshes) and before harvest (bottom right). After harvest the block
+carries slash and stumps against a hard timber edge. The dotted crowns along
+the far edge are the existing cross-fade between the 0–300 m and 250–600 m
+bands; an A/B with GPU-built mipmaps showed the same, so it is not the new
+coverage-preserving mipmaps. It was left as it was.
+
+## 11. MapLibre 6: done
+
+PGMaps and geo-toolkit now run MapLibre 6.18. What it took:
+
+- 30 files' default imports (`import maplibregl from 'maplibre-gl'`, `import
+  type MapLibreGL …`) became namespace imports; three test mocks lost their
+  `default` wrapper.
+- About ten stricter types: `error` events carry `{ message }` rather than `Error`,
+  `sourcedata`'s `source` is the full source spec, `createExpression` takes a
+  key path, paint-property names and filter expressions are typed.
+- **The worker.** MapLibre 6 finds its worker with a run-time
+  `new URL('./maplibre-gl-worker.mjs', import.meta.url)` that neither Vite's
+  dev pre-bundle nor the build can follow. `vite.config.ts` aliases the bare
+  `maplibre-gl` to `src/lib/maplibre-gl-entry.ts`, which sets the worker URL
+  from a `?url` import before any map exists, for every importer (toolkit,
+  maplibre-gl-lidar, deck.gl) and without pulling MapLibre into the main chunk.
+- geo-toolkit's dev dependency moved to `^6.18.0` (its peer range already took
+  6); with it at 5, the workspace kept a second MapLibre and every exported Map
+  type clashed. Its own check, lint, format and 231 tests pass on 6.18.
+- The trial bench's HTML pages are excluded from Vite's dependency scan: the
+  first commit of this trial put them where the scan found them, and their
+  imports (EZ-Tree, maplibre-gl-three) stopped the dev server.
+
+The visual-quality browser suite passes 21 of its 27 tests on MapLibre 6. The
+other six also fail, the same way (controls not ready within their timeouts on
+SwiftShader), on an untouched MapLibre 5 checkout of `main` run on this
+machine; they were not a regression of the upgrade.

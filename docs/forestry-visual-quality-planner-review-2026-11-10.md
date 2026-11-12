@@ -39,7 +39,7 @@ left.
 | Old Forest, Patch Size, Watershed, Arch, Migratory Bird, Fisher paragraphs | **Not built**; Old Forest and Patch Size need the LOWG analysis tables | See *Left to do* |
 | Google Earth's elevation exaggeration | **Not built, on purpose**: the run and the view are 1×, so a screenshot is never steeper than the ground | — |
 | Sun direction / time of day | **Not in this tool** (the viewshed page has it) | See *Left to do* |
-| Screenshot before and after a redesign | Partly: design alternatives exist in step 3, but a saved view is not tied to one | See *Left to do* |
+| Screenshot before and after a redesign | Done (12 Nov): a saved view records its design alternative, views are kept across designs, and the PDF pairs the same view under two designs | `designComparisonPairs`, `matchingDesign` |
 | Run ahead of time rather than loading from the ministry each time | Partly: EVQO polygons come from the bcdatamapper snapshot; viewpoints, arrows, rec sites, screenings and tenure roads are live WFS | See *Left to do* |
 
 ## How the view compares with what a person sees
@@ -122,8 +122,7 @@ In rough order of value to the planner:
 7. **The other "Other Considerations" paragraphs.** Watershed, Arch, Migratory
    Bird and Fisher are layer overlaps the same generator can word; Old Forest and
    Patch Size need the LOWG tables from the planner.
-8. **A saved view tied to a design alternative**, for before-and-after-redesign
-   screenshots.
+8. ~~**A saved view tied to a design alternative**~~ — done 12 November 2026; see the contract's *The block note* section.
 9. **Viewpoint layers in a bcdatamapper snapshot**, so a block loads without the
    live WFS. Sized below; kept live for now.
 10. **Sun position**, reusing the viewshed page's solar code.

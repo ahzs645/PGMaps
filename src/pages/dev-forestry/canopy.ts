@@ -33,6 +33,8 @@ export type CanopyStand = {
   speciesCode?: string | null
   /** Live stems per hectare, for drawing only; screening does not use it. */
   stemsPerHa?: number | null
+  /** Recorded species with percentages and heights, for drawing only. */
+  speciesComposition?: Array<{ code: string; percent: number; heightMeters: number | null }>
   geometry: PolygonGeometry
 }
 

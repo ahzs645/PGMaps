@@ -18,9 +18,9 @@ import { pointInPolygon, preparePolygons, type PolygonGeometry } from './visibil
 import type { TargetPolygon } from './types'
 
 /** The species a BC interior stand is actually made of. */
-export type TreeSpeciesId = 'pine' | 'spruce' | 'fir' | 'aspen' | 'birch'
+export type TreeSpeciesId = 'pine' | 'spruce' | 'fir' | 'douglasFir' | 'aspen' | 'birch'
 
-export const TREE_SPECIES_IDS: TreeSpeciesId[] = ['pine', 'spruce', 'fir', 'aspen', 'birch']
+export const TREE_SPECIES_IDS: TreeSpeciesId[] = ['pine', 'spruce', 'fir', 'douglasFir', 'aspen', 'birch']
 
 /** Broadleaves draw as a rounded crown on a pale stem rather than as tiers. */
 export const isBroadleaf = (species: TreeSpeciesId) => species === 'aspen' || species === 'birch'
@@ -39,7 +39,8 @@ export const VARIANTS_PER_SPECIES = 4
  */
 export const DEFAULT_SPECIES_MIX: ReadonlyArray<{ species: TreeSpeciesId; share: number }> = [
   { species: 'spruce', share: 0.37 },
-  { species: 'fir', share: 0.23 },
+  { species: 'fir', share: 0.17 },
+  { species: 'douglasFir', share: 0.06 },
   { species: 'aspen', share: 0.21 },
   { species: 'birch', share: 0.13 },
   { species: 'pine', share: 0.06 },
@@ -65,6 +66,9 @@ export const SPECIES_CROWN_RATIO: Record<TreeSpeciesId, number> = {
   pine: 0.14,
   spruce: 0.17,
   fir: 0.12,
+  // Interior Douglas-fir carries long, level limbs on an open, irregular crown:
+  // the broadest conifer of the five from a road.
+  douglasFir: 0.2,
   aspen: 0.22,
   birch: 0.2,
 }
@@ -137,12 +141,14 @@ export type TreeInstance = {
 }
 
 /**
- * BC inventory species codes, onto the four the page draws.
+ * BC inventory species codes, onto the six the page draws.
  *
- * The inventory records dozens of species and this draws four silhouettes, so
- * each code maps to the one it most resembles from a road: anything spire-like
- * and shade-tolerant reads as fir, the true firs and Douglas-fir included;
- * broadleaves read as aspen. A drawing decision, not a taxonomy.
+ * The inventory records dozens of species and this draws six silhouettes, so
+ * each code maps to the one it most resembles from a road: the true firs,
+ * hemlock and cedar read as subalpine fir's spire; Douglas-fir has its own
+ * broad, open crown (it leads or shares about a quarter of the stands around
+ * Prince George); broadleaves read as aspen or birch. A drawing decision, not
+ * a taxonomy.
  */
 const SPECIES_CODE_MAP: Record<string, TreeSpeciesId> = {
   // Pines
@@ -164,9 +170,10 @@ const SPECIES_CODE_MAP: Record<string, TreeSpeciesId> = {
   B: 'fir',
   BA: 'fir',
   BG: 'fir',
-  FD: 'fir',
-  FDI: 'fir',
-  F: 'fir',
+  FD: 'douglasFir',
+  FDI: 'douglasFir',
+  FDC: 'douglasFir',
+  F: 'douglasFir',
   HW: 'fir',
   H: 'fir',
   CW: 'fir',
@@ -191,6 +198,19 @@ export function speciesFromCode(code: string | null | undefined): TreeSpeciesId 
   // Codes carry a leading-species suffix in places (`PLI`, `FDI`); try the full
   // code, then the two-letter stem, then the genus letter.
   return SPECIES_CODE_MAP[key] ?? SPECIES_CODE_MAP[key.slice(0, 2)] ?? SPECIES_CODE_MAP[key.slice(0, 1)] ?? null
+}
+
+/** Which entry of a mix a value in [0, 1) lands on. */
+function speciesIndexFromMix(value: number, mix: ReadonlyArray<{ share: number }>): number {
+  const total = mix.reduce((sum, entry) => sum + Math.max(0, entry.share), 0)
+  if (!(total > 0)) return 0
+  let running = 0
+  const target = Math.max(0, Math.min(0.999999, value)) * total
+  for (let index = 0; index < mix.length; index += 1) {
+    running += Math.max(0, mix[index].share)
+    if (target < running) return index
+  }
+  return mix.length - 1
 }
 
 /** Picks a species from a mix, given a value in [0, 1). */
@@ -422,6 +442,122 @@ export type InventoryStand = {
   /** VRI's live stems per hectare and crown closure, where it recorded them. */
   stemsPerHa?: number | null
   crownClosurePercent?: number | null
+  /**
+   * Every species the inventory recorded in the stand, with its share and,
+   * where recorded, its own height (VRI gives the leading two). Where present
+   * it decides each stem's species in place of `species`, so a stand recorded
+   * as 30% cottonwood, 25% spruce, 25% birch and 20% fir is drawn as that and
+   * not as cottonwood throughout.
+   */
+  speciesMix?: ReadonlyArray<StandSpeciesShare>
+  /**
+   * What covers ground the inventory does not call treed. Water, rock, herb
+   * and low shrub grow no trees; tall shrub grows a low broadleaf thicket.
+   * Absent on treed stands.
+   */
+  cover?: GroundCover | null
+}
+
+export type StandSpeciesShare = { species: TreeSpeciesId; share: number; heightMeters?: number | null }
+
+/** Non-forest ground, from VRI's BC Land Cover Classification (levels 2–5). */
+export type GroundCover = 'water' | 'wetland' | 'rock' | 'herb' | 'shrubLow' | 'shrubTall' | 'other'
+
+/**
+ * BCLCS onto the ground the road view draws. Level 2 is `T` treed, `N`
+ * non-treed, `W` water; level 4 names the cover (`ST`/`SL` tall and low shrub,
+ * `HE`/`HF`/`HG` herb, `BY`/`BM`/`BL` bryoid, `RO`/`EL` rock and exposed land);
+ * level 5 names water and the exposed land kind (`LA` lake, `RI` river, `RE`
+ * reservoir, `GL` glacier). Level 3 `W` is wetland.
+ */
+export function groundCoverFromBclcs(
+  level2: string | null | undefined,
+  level3: string | null | undefined,
+  level4: string | null | undefined,
+  level5: string | null | undefined,
+): GroundCover | null {
+  const l2 = level2?.trim().toUpperCase() ?? ''
+  const l4 = level4?.trim().toUpperCase() ?? ''
+  const l5 = level5?.trim().toUpperCase() ?? ''
+  if (l2 === 'T') return null
+  if (l2 === 'W' || ['LA', 'RI', 'RE', 'OC', 'LL', 'RS'].includes(l5)) return 'water'
+  if (l4 === 'ST') return 'shrubTall'
+  if (l4 === 'SL') return 'shrubLow'
+  if (
+    ['RO', 'EL', 'SI'].includes(l4) ||
+    [
+      'RO',
+      'GL',
+      'SN',
+      'TA',
+      'GB',
+      'MZ',
+      'LB',
+      'RS',
+      'ES',
+      'LS',
+      'RM',
+      'BE',
+      'BU',
+      'RZ',
+      'MU',
+      'CB',
+      'MN',
+      'GP',
+      'TZ',
+      'UR',
+      'AP',
+      'MI',
+      'OT',
+    ].includes(l5)
+  )
+    return 'rock'
+  if (level3?.trim().toUpperCase() === 'W') return 'wetland'
+  if (['HE', 'HF', 'HG', 'BY', 'BL', 'BM'].includes(l4)) return 'herb'
+  return l2 === 'N' ? 'other' : null
+}
+
+/** Ground covers that grow no drawn trees at all. */
+const TREELESS_COVER: ReadonlySet<GroundCover> = new Set(['water', 'wetland', 'rock', 'herb', 'shrubLow', 'other'])
+
+/** A tall-shrub thicket, drawn as low broadleaf stems: alder and willow, 3 m, dense. */
+export const TALL_SHRUB_STAND = { heightMeters: 3, stemsPerHa: 1200, crownClosurePercent: 60 } as const
+
+/**
+ * A VRI stand's recorded species, up to six codes with percentages, merged
+ * onto the drawn species. Codes the page does not draw are dropped and the
+ * remaining shares renormalised; heights follow the code they were recorded
+ * for (VRI records `PROJ_HEIGHT_1` and `PROJ_HEIGHT_2`).
+ */
+export function speciesMixFromInventory(
+  entries: ReadonlyArray<{
+    code: string | null | undefined
+    percent: number | null | undefined
+    heightMeters?: number | null
+  }>,
+): StandSpeciesShare[] {
+  const merged = new Map<TreeSpeciesId, { share: number; heightWeighted: number; heightShare: number }>()
+  for (const entry of entries) {
+    const species = speciesFromCode(entry.code)
+    const percent = typeof entry.percent === 'number' && Number.isFinite(entry.percent) ? entry.percent : 0
+    if (!species || percent <= 0) continue
+    const current = merged.get(species) ?? { share: 0, heightWeighted: 0, heightShare: 0 }
+    current.share += percent
+    if (typeof entry.heightMeters === 'number' && entry.heightMeters > 0) {
+      current.heightWeighted += entry.heightMeters * percent
+      current.heightShare += percent
+    }
+    merged.set(species, current)
+  }
+  const total = [...merged.values()].reduce((sum, entry) => sum + entry.share, 0)
+  if (!(total > 0)) return []
+  return [...merged.entries()]
+    .map(([species, entry]) => ({
+      species,
+      share: entry.share / total,
+      heightMeters: entry.heightShare > 0 ? entry.heightWeighted / entry.heightShare : null,
+    }))
+    .sort((a, b) => b.share - a.share)
 }
 
 const METERS_PER_DEGREE_LAT = 111_320
@@ -531,6 +667,10 @@ export function placeTrees({
 
       // Where the province has surveyed this ground, draw what it recorded.
       const surveyed = inventory.length > 0 ? surveyedAt(lng, lat) : null
+      // Ground the inventory says is not forest grows none (a lake, a rock
+      // face, a meadow), or a low thicket where it is tall shrub.
+      if (surveyed?.cover && TREELESS_COVER.has(surveyed.cover)) continue
+      const thicket = surveyed?.cover === 'shrubTall'
 
       // Each cell holds a stem with the chance that gives the stand its stem
       // count at this spacing. A coarse band cannot hold them all, so it keeps
@@ -538,20 +678,38 @@ export function placeTrees({
       // crowns below to close the canopy the same amount.
       // A recorded 0 on ground the inventory calls treed is a gap in the
       // record, not a bare stand, so it falls back like a missing value.
-      const standStems = surveyed?.stemsPerHa && surveyed.stemsPerHa > 0 ? surveyed.stemsPerHa : stemsPerHa
+      const standStems = thicket
+        ? TALL_SHRUB_STAND.stemsPerHa
+        : surveyed?.stemsPerHa && surveyed.stemsPerHa > 0
+          ? surveyed.stemsPerHa
+          : stemsPerHa
       const keep = Math.min(0.94, (standStems * spacing * spacing) / 10_000)
       if (random() >= keep) continue
-      const recordedClosure =
-        surveyed?.crownClosurePercent && surveyed.crownClosurePercent > 0 ? surveyed.crownClosurePercent : null
+      const recordedClosure = thicket
+        ? TALL_SHRUB_STAND.crownClosurePercent
+        : surveyed?.crownClosurePercent && surveyed.crownClosurePercent > 0
+          ? surveyed.crownClosurePercent
+          : null
 
       // Its own draw, so thinning one block leaves every other stem in place.
       const thinned = thinnings.length > 0 ? thinnedAt(lng, lat) : null
       if (thinned && mulberry32(seedForCell(cellX, cellY, seed + 7919))() >= thinned.keepFraction) continue
 
-      const species = surveyed?.species ?? speciesFromMix(random(), speciesMix)
+      // A recorded mix wins over the leading species alone; the leading
+      // species over the regional mix. Its own draw, so adding a species to a
+      // stand does not reshuffle every other stem's jitter and height.
+      const standMix = surveyed?.speciesMix && surveyed.speciesMix.length > 0 ? surveyed.speciesMix : null
+      const speciesDraw = mulberry32(seedForCell(cellX, cellY, seed + 104_729))()
+      const mixEntry = standMix ? standMix[speciesIndexFromMix(speciesDraw, standMix)] : null
+      const species = thicket
+        ? 'aspen'
+        : (mixEntry?.species ?? surveyed?.species ?? speciesFromMix(random(), speciesMix))
       const fraction = surveyed?.regenerationFraction ?? 1
       const retained = fraction < 1 && random() >= fraction
-      const standHeight = thinned?.heightMeters ?? (retained ? heightMeters : (surveyed?.heightMeters ?? heightMeters))
+      const surveyedHeight = thicket
+        ? TALL_SHRUB_STAND.heightMeters
+        : (mixEntry?.heightMeters ?? surveyed?.heightMeters ?? null)
+      const standHeight = thinned?.heightMeters ?? (retained ? heightMeters : (surveyedHeight ?? heightMeters))
       if (standHeight <= 0) continue
       // A partial cut's residuals are mature trees, only shorter: they keep the stand's closure.
       const standClosure =
@@ -568,7 +726,11 @@ export function placeTrees({
       // Species shares the stand's width out: relative to the mix's own mean
       // where the mix chose it, and not at all where a surveyed stand is one
       // species throughout — its crowns are the stand's crowns.
-      const speciesShare = surveyed?.species ? 1 : SPECIES_CROWN_RATIO[species] / mixRatio
+      const speciesShare = standMix
+        ? SPECIES_CROWN_RATIO[species] / meanCrownRatio(standMix)
+        : surveyed?.species || thicket
+          ? 1
+          : SPECIES_CROWN_RATIO[species] / mixRatio
       trees.push({
         lng,
         lat,
