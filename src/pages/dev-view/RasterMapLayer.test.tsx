@@ -27,7 +27,7 @@ const { map } = vi.hoisted(() => ({
 }))
 vi.mock('@/components/ui/map', () => ({ useMap: () => ({ map, isLoaded: false }) }))
 vi.mock('../../../packages/geo-toolkit/src/map/map-context', () => ({ useMap: () => ({ map, isLoaded: false }) }))
-vi.mock('maplibre-gl', () => ({ default: { addProtocol: vi.fn() } }))
+vi.mock('maplibre-gl', () => ({ addProtocol: vi.fn() }))
 vi.mock('pmtiles', () => ({
   Protocol: class {
     tile = vi.fn()

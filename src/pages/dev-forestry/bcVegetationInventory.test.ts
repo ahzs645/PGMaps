@@ -42,14 +42,63 @@ describe('vegetationQueryUrl', () => {
     expect(filter).toBe("BBOX(GEOMETRY,-122.65,53.86,-122.45,53.95,'EPSG:4326')")
   })
 
-  it('asks for the seven fields it uses, not all 189', () => {
+  it('asks for the two dozen fields it uses, not all 189', () => {
     const fields = new URL(vegetationQueryUrl(TABOR)).searchParams.get('propertyName')!.split(',')
 
     expect(fields).toContain('BCLCS_LEVEL_2')
     expect(fields).toContain('SPECIES_CD_1')
     expect(fields).toContain('PROJ_HEIGHT_1')
     expect(fields).toContain('GEOMETRY')
-    expect(fields.length).toBeLessThan(12)
+    // The whole composition for the drawn mix, and the land cover classes
+    // that say what non-treed ground is.
+    expect(fields).toContain('SPECIES_CD_6')
+    expect(fields).toContain('SPECIES_PCT_6')
+    expect(fields).toContain('BCLCS_LEVEL_5')
+    expect(fields.length).toBeLessThan(30)
+  })
+
+  it('reads every recorded species with its share, and the land cover', () => {
+    const { stands } = parseVegetationStands({
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [
+              [
+                [0, 0],
+                [1, 0],
+                [1, 1],
+                [0, 0],
+              ],
+            ],
+          },
+          properties: {
+            BCLCS_LEVEL_2: 'T',
+            BCLCS_LEVEL_4: 'TM',
+            SPECIES_CD_1: 'AC',
+            SPECIES_PCT_1: 30,
+            SPECIES_CD_2: 'SX',
+            SPECIES_PCT_2: 25,
+            SPECIES_CD_3: 'EP',
+            SPECIES_PCT_3: 25,
+            SPECIES_CD_4: 'BL',
+            SPECIES_PCT_4: 20,
+            SPECIES_CD_5: null,
+            PROJ_HEIGHT_1: 35.1,
+            PROJ_HEIGHT_2: 33.5,
+          },
+        },
+      ],
+    })
+    expect(stands[0].speciesComposition).toEqual([
+      { code: 'AC', percent: 30, heightMeters: 35.1 },
+      { code: 'SX', percent: 25, heightMeters: 33.5 },
+      { code: 'EP', percent: 25, heightMeters: null },
+      { code: 'BL', percent: 20, heightMeters: null },
+    ])
+    expect(stands[0].landCover).toEqual({ level2: 'T', level3: null, level4: 'TM', level5: null })
   })
 
   it('narrows to treed ground when only the canopy is wanted', () => {

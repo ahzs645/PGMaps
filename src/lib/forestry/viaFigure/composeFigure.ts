@@ -974,12 +974,17 @@ function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: 
   return { ops, bottom: y }
 }
 
-/** PGMaps' two figures side by side, and what each one is. */
+/**
+ * PGMaps' two figures side by side, and what each one is. Drawn timber hides the ground behind it
+ * in the class pass, so a pixel measure taken over drawn trees is not comparable with the
+ * (bare-earth) sightline figure: the line says which it was, when the camera record knows.
+ */
 function measureLines(input: FigureInput, counts: FigureCounts | null): string[] {
   const pixel = presetPercent(input.preset, counts)
+  const ground = !input.camera ? '' : input.camera.maxTreeHeightM !== null ? ', drawn timber in front' : ', bare earth'
   return [
     `Sightline measure (PGMaps run, the assessment figure): ${fixed(input.sightlinePercent)}%${input.sightlineClass ? ` (${input.sightlineClass})` : ''}`,
-    `Pixel measure, this image: ${fixed(pixel)}%`,
+    `Pixel measure, this image${ground}: ${fixed(pixel)}%`,
     `View: ${input.lens}`,
   ]
 }

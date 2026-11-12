@@ -1,0 +1,18 @@
+{
+  "name": "pgmaps-visual-tools-bench-maplibre",
+  "private": true,
+  "type": "module",
+  "description": "EZ-Tree, maplibre-landmarks and maplibre-gl-three trials (MapLibre 6, three 0.186)",
+  "scripts": {
+    "dev": "vite --port 5199"
+  },
+  "dependencies": {
+    "@dgreenheck/ez-tree": "^1.1.0",
+    "3d-tiles-renderer": "^0.5.4",
+    "maplibre-gl": "^6.18.0",
+    "maplibre-gl-three": "^3.0.2",
+    "maplibre-landmarks": "^0.6.0",
+    "three": "^0.186.1",
+    "vite": "^8.3.8"
+  }
+}

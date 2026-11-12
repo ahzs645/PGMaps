@@ -1,0 +1,9 @@
+{
+  "name": "pgmaps-trial-vistawasm",
+  "private": true,
+  "type": "module",
+  "description": "Trial only: a PGMaps forest scene package drawn by VistaWASM through its public API. VistaWASM is AGPL-3.0 and is installed here, never committed or shipped with PGMaps.",
+  "scripts": { "dev": "vite --port 5312" },
+  "dependencies": { "@vista-wasm/vista-wasm": "2.0.0" },
+  "devDependencies": { "vite": "^8.0.0" }
+}

@@ -1,4 +1,4 @@
-import type MapLibreGL from 'maplibre-gl'
+import type * as MapLibreGL from 'maplibre-gl'
 import { expect, it } from 'vitest'
 import { registerMapLayerOrder } from './map-layer-order'
 it('restores package order when a lower layer arrives late, and releases registrations', () => {

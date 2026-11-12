@@ -1,0 +1,536 @@
+From 3a8efbf9d689fe47041b98b97dce30ec38b35216 Mon Sep 17 00:00:00 2001
+From: PGMaps trial <noreply@anthropic.com>
+Date: Thu, 12 Nov 2026 05:17:28 +0000
+Subject: [PATCH] scatter: fixed instances; example: a PGMaps forest scene
+
+PlacementRules.instances takes a fixed list (x, z, yaw, width scale,
+height scale) in place of blue-noise points, so an existing inventory
+can be drawn with the scatter's streaming, levels of detail and
+impostors. Tiles take the instances inside them; a new list regenerates
+them (keyed by identity, never serialised). Optional, so every existing
+layer is unchanged.
+
+example/pgmaps-scene.html draws a PGMaps forest scene package: the
+package's ground, its stems as fixed instances on B.C. species built
+from the spruce, pine, fir and birch presets with PGMaps' crown bases,
+its slash, and its camera. &still stops on a streamed-in frame.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ example/pgmaps-scene.html             |  18 ++
+ example/pgmaps-scene.ts               | 318 ++++++++++++++++++++++++++
+ packages/scatter/src/index.ts         |   9 +-
+ packages/scatter/src/placement.ts     |  40 +++-
+ packages/scatter/src/scatter.ts       |   4 +-
+ packages/scatter/test/scatter.test.ts |  39 ++++
+ 6 files changed, 424 insertions(+), 4 deletions(-)
+ create mode 100644 example/pgmaps-scene.html
+ create mode 100644 example/pgmaps-scene.ts
+
+diff --git a/example/pgmaps-scene.html b/example/pgmaps-scene.html
+new file mode 100644
+index 0000000..c63bc28
+--- /dev/null
++++ b/example/pgmaps-scene.html
+@@ -0,0 +1,18 @@
++<!doctype html>
++<html lang="en">
++  <head>
++    <meta charset="utf-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1" />
++    <title>PGMaps forest scene · threejs-scatter + threejs-trees</title>
++    <style>
++      html, body { margin: 0; height: 100%; overflow: hidden; background: #9cc4e4; font: 12px/1.4 ui-monospace, monospace; }
++      #hud { position: fixed; left: 12px; top: 12px; color: #fff; background: #0008; padding: 8px 10px; border-radius: 6px; z-index: 10; white-space: pre; }
++      #file { position: fixed; left: 12px; top: 48px; z-index: 10; }
++    </style>
++  </head>
++  <body>
++    <div id="hud">loading…</div>
++    <input id="file" type="file" accept="application/json" hidden />
++    <script type="module" src="./pgmaps-scene.ts"></script>
++  </body>
++</html>
+diff --git a/example/pgmaps-scene.ts b/example/pgmaps-scene.ts
+new file mode 100644
+index 0000000..5d9e00b
+--- /dev/null
++++ b/example/pgmaps-scene.ts
+@@ -0,0 +1,318 @@
++// A PGMaps forest scene package (https://github.com/ahzs645/PGMaps, src/pages/dev-forestry/scenePackage.ts) drawn
++// with threejs-scatter + threejs-trees: the inventory's own stems, on the package's own ground, from its eye.
++//   pgmaps-scene.html?scene=<url of a package JSON>   (or pick a file)
++//   add &webgl to force the WebGL2 backend, &noimpostors to skip impostor baking
++//
++// The package is local metres: x east, y north, z up (heights absolute). three.js here is y up with north at −z,
++// so a package point (x, y, z) is drawn at (x, z, −y).
++import * as THREE from 'three/webgpu'
++import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
++import { FIXED_INSTANCE_STRIDE, Scatter, disposeLayers, type ScatterLayer } from 'threejs-scatter'
++import { createVegetationLayers, setTreeEnvironment, species as presets, type TreeParams } from 'threejs-trees'
++import { createEnvironment } from './shared'
++
++type ScenePackage = {
++  format: 'pgmaps-forest-scene'
++  version: 1
++  terrain: {
++    west: number
++    south: number
++    spacing: number
++    columns: number
++    rows: number
++    heights: Array<number | null>
++  }
++  trees: { fields: string[]; species: string[]; count: number; data: number[] }
++  species: Record<string, { label: string; crownRatio: number; crownBase: number; broadleaf: boolean }>
++  openings: Array<{ rings: Array<Array<[number, number]>> }>
++  debris: { count: number; data: number[] }
++  roadScars: Array<{ kind: 'cut' | 'fill'; ring: Array<[number, number]> }>
++  camera: {
++    position: [number, number, number]
++    bearingDegrees: number
++    pitchDegrees: number
++    verticalFovDegrees: number
++  }
++  treeRadiusMeters: number
++}
++
++const params = new URLSearchParams(location.search)
++const hud = document.getElementById('hud')!
++const status = (text: string) => {
++  hud.textContent = text
++}
++
++async function loadScene(): Promise<ScenePackage> {
++  const url = params.get('scene')
++  if (url) return (await fetch(url)).json()
++  status('choose a PGMaps scene package (forestry-scene-package.json)')
++  const input = document.getElementById('file') as HTMLInputElement
++  input.hidden = false
++  return new Promise((resolve) => {
++    input.onchange = async () => resolve(JSON.parse(await input.files![0].text()))
++  })
++}
++
++const scenePackage = await loadScene()
++if (scenePackage.format !== 'pgmaps-forest-scene' || scenePackage.version !== 1)
++  throw new Error('Not a PGMaps forest scene package (v1).')
++status('building the ground…')
++
++// ---------------------------------------------------------------- ground
++const { west, south, spacing, columns, rows } = scenePackage.terrain
++// Gaps (no source DEM there) take the nearest known height along their row, then their column, so the mesh stays
++// whole; the trees and the eye are all inside the known area.
++const heights = scenePackage.terrain.heights.slice()
++const fill = (index: (i: number, j: number) => number, outer: number, inner: number) => {
++  for (let i = 0; i < outer; i++) {
++    let last: number | null = null
++    for (let j = 0; j < inner; j++) last = heights[index(i, j)] ?? last ?? null
++    for (let j = inner - 1; j >= 0; j--) {
++      const k = index(i, j)
++      if (heights[k] === null) heights[k] = last
++      else last = heights[k]
++    }
++  }
++}
++fill((r, c) => r * columns + c, rows, columns)
++fill((c, r) => r * columns + c, columns, rows)
++// A loop, not Math.min(...): spreading a 160,000-cell grid overflows the call stack.
++let base = Infinity
++for (const h of heights) if (h !== null && h < base) base = h
++const at = (column: number, row: number) => heights[row * columns + column] ?? base
++
++/** Ground height at a package point (x east, y north), bilinear. */
++function groundAt(x: number, y: number): number {
++  const gx = Math.min(columns - 1.0001, Math.max(0, (x - west) / spacing))
++  const gy = Math.min(rows - 1.0001, Math.max(0, (y - south) / spacing))
++  const x0 = Math.floor(gx)
++  const y0 = Math.floor(gy)
++  const fx = gx - x0
++  const fy = gy - y0
++  return (
++    at(x0, y0) * (1 - fx) * (1 - fy) +
++    at(x0 + 1, y0) * fx * (1 - fy) +
++    at(x0, y0 + 1) * (1 - fx) * fy +
++    at(x0 + 1, y0 + 1) * fx * fy
++  )
++}
++/** The scatter's terrain: three.js (x, z) is package (x, −z). */
++const height = (x: number, z: number) => groundAt(x, -z)
++
++function inRing(ring: Array<[number, number]>, x: number, y: number) {
++  let inside = false
++  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
++    const [xi, yi] = ring[i]
++    const [xj, yj] = ring[j]
++    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
++  }
++  return inside
++}
++const cut = (x: number, y: number) =>
++  scenePackage.openings.some((o) => inRing(o.rings[0], x, y) && !o.rings.slice(1).some((r) => inRing(r, x, y)))
++const scar = (x: number, y: number) => scenePackage.roadScars.some((s) => inRing(s.ring, x, y))
++
++// A finer mesh near the eye, where the ground is read most closely.
++function groundMesh(size: number, step: number) {
++  const n = Math.round(size / step)
++  const geometry = new THREE.PlaneGeometry(size, size, n, n).rotateX(-Math.PI / 2)
++  const position = geometry.attributes.position
++  const colors = new Float32Array(position.count * 3)
++  const floor = new THREE.Color('#3f4f33')
++  const soil = new THREE.Color('#9c8664')
++  const bank = new THREE.Color('#b5a585')
++  for (let i = 0; i < position.count; i++) {
++    const x = position.getX(i)
++    const y = -position.getZ(i)
++    position.setY(i, groundAt(x, y))
++    ;(cut(x, y) ? soil : scar(x, y) ? bank : floor).toArray(colors, i * 3)
++  }
++  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
++  geometry.computeVertexNormals()
++  return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }))
++}
++
++const renderer = new THREE.WebGPURenderer({ antialias: true, forceWebGL: params.has('webgl') })
++renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))
++renderer.setSize(innerWidth, innerHeight)
++document.body.appendChild(renderer.domElement)
++await renderer.init()
++
++const scene = new THREE.Scene()
++const { camera: eye } = scenePackage
++const camera = new THREE.PerspectiveCamera(eye.verticalFovDegrees, innerWidth / innerHeight, 0.3, 8000)
++camera.position.set(eye.position[0], eye.position[2], -eye.position[1])
++const bearing = THREE.MathUtils.degToRad(eye.bearingDegrees)
++const pitch = THREE.MathUtils.degToRad(eye.pitchDegrees)
++const target = camera.position
++  .clone()
++  .add(
++    new THREE.Vector3(
++      Math.sin(bearing) * Math.cos(pitch),
++      Math.sin(pitch),
++      -Math.cos(bearing) * Math.cos(pitch)
++    ).multiplyScalar(100)
++  )
++const controls = new OrbitControls(camera, renderer.domElement)
++controls.target.copy(target)
++controls.update()
++const env = createEnvironment(renderer, scene, camera)
++// The demo's haze is a scenic choice (about 70% at 400 m). A visual impact assessment wants the haze of a clear
++// day, which is what PGMaps draws (Koschmieder's law at 60 km visibility); `&haze=` overrides the density.
++scene.fog = new THREE.FogExp2(
++  scene.fog instanceof THREE.FogExp2 ? scene.fog.color : '#aebfcc',
++  Number(params.get('haze') ?? 0.00025)
++)
++
++const near = groundMesh(1400, 5)
++const far = groundMesh(Math.min(columns, rows) * spacing - spacing, spacing * 2)
++far.position.y = -0.3 // under the near mesh where they overlap
++near.receiveShadow = far.receiveShadow = true
++scene.add(near, far)
++
++// ---------------------------------------------------------------- trees
++// PGMaps' species on worldgen's presets: the nearest preset, with the crown base PGMaps draws, so a stem's live
++// crown starts where it does in the road view. Width and height are then each stem's own, per instance.
++const recipe: Record<string, { preset: keyof typeof presets; params?: Partial<TreeParams> }> = {
++  pine: { preset: 'pine' },
++  spruce: { preset: 'spruce' },
++  fir: { preset: 'fir' },
++  douglasFir: {
++    preset: 'fir',
++    params: { crownShape: 'ellipsoid', tropism: [0, 0.02, 0], jitter: 0.25, leafColor: '#30513a' }
++  },
++  aspen: { preset: 'birch', params: { barkColor: '#cfd2c3', leafColor: '#6d8f3c' } },
++  birch: { preset: 'birch' }
++}
++const treeSpecies = scenePackage.trees.species
++const used = treeSpecies.filter((_, index) => {
++  for (let i = 0; i < scenePackage.trees.count; i++) if (scenePackage.trees.data[i * 7 + 3] === index) return true
++  return false
++})
++const variants = 3
++status(`generating ${used.length} species × ${variants} variants…`)
++const layers: ScatterLayer[] = (await createVegetationLayers({
++  species: used.map((name) => {
++    const { preset, params: extra } = recipe[name] ?? { preset: 'spruce' as const }
++    const p = presets[preset] as TreeParams
++    const crownBase = scenePackage.species[name]?.crownBase ?? 0.3
++    return {
++      name,
++      density: 0,
++      params: { ...p, ...extra, trunkHeight: p.height * crownBase, crownHeight: p.height * (1 - crownBase) }
++    }
++  }),
++  variants,
++  seed: 7,
++  renderer: params.has('noimpostors') ? null : renderer,
++  castShadow: true
++})) as ScatterLayer[]
++
++// Each species' stems, shared out among its variants and scaled from each variant's own size to the stem's height
++// and crown width: the same stems, heights and crowns the road view draws.
++const stride = scenePackage.trees.fields.length
++for (const layer of layers) {
++  const [name, variant] = layer.name.split('#')
++  const speciesIndex = treeSpecies.indexOf(name)
++  const box = new THREE.Box3().setFromBufferAttribute(
++    layer.lods[0].geometry.attributes.position as THREE.BufferAttribute
++  )
++  const tall = box.max.y
++  const wide = Math.max(box.max.x - box.min.x, box.max.z - box.min.z)
++  const list: number[] = []
++  for (let i = 0; i < scenePackage.trees.count; i++) {
++    const o = i * stride
++    if (scenePackage.trees.data[o + 3] !== speciesIndex) continue
++    // A stable variant per stem, from its position.
++    const pick =
++      Math.abs(Math.floor(scenePackage.trees.data[o] * 7.3 + scenePackage.trees.data[o + 1] * 3.1)) % variants
++    if (pick !== Number(variant)) continue
++    const yaw = (scenePackage.trees.data[o + 6] * 6.283185) % 6.283185
++    list.push(
++      scenePackage.trees.data[o],
++      -scenePackage.trees.data[o + 1],
++      yaw,
++      scenePackage.trees.data[o + 5] / wide,
++      scenePackage.trees.data[o + 4] / tall
++    )
++  }
++  layer.instances = new Float32Array(list)
++  layer.colorVariation = 0.1
++  if (list.length === 0) layer.lods = layer.lods.slice(0, 1)
++}
++console.log(`fixed instances: ${layers.reduce((n, l) => n + (l.instances?.length ?? 0) / FIXED_INSTANCE_STRIDE, 0)}`)
++
++const scatter = Scatter.create({
++  camera,
++  scene,
++  terrain: height,
++  layers,
++  seed: 1,
++  maxDistance: scenePackage.treeRadiusMeters + 50
++})
++
++// ---------------------------------------------------------------- slash
++// Logs lying on the cut ground, as PGMaps draws its piles: a few per pile, any direction.
++const logs: THREE.Matrix4[] = []
++const m = new THREE.Matrix4()
++for (let i = 0; i < scenePackage.debris.count; i++) {
++  const [x, y, , footprint] = scenePackage.debris.data.slice(i * 4, i * 4 + 4)
++  for (let k = 0; k < 6; k++) {
++    const a = (i * 7 + k * 13) % 17
++    const px = x + ((a / 17 - 0.5) * footprint) / 2
++    const py = y + ((((a * 5) % 17) / 17 - 0.5) * footprint) / 2
++    const length = footprint * (0.25 + (((a * 3) % 17) / 17) * 0.35)
++    m.compose(
++      new THREE.Vector3(px, groundAt(px, py) + 0.1, -py),
++      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, (a / 17) * Math.PI * 2, Math.PI / 2)),
++      new THREE.Vector3(1, length, 1)
++    )
++    logs.push(m.clone())
++  }
++}
++const logMesh = new THREE.InstancedMesh(
++  new THREE.CylinderGeometry(0.12, 0.15, 1, 6),
++  new THREE.MeshStandardMaterial({ color: '#6f6150', roughness: 1 }),
++  logs.length
++)
++logs.forEach((matrix, i) => {
++  logMesh.setMatrixAt(i, matrix)
++})
++logMesh.castShadow = logMesh.receiveShadow = true
++scene.add(logMesh)
++
++setTreeEnvironment({ windStrength: 0.15 })
++let frames = 0
++let last = performance.now()
++let fps = 30
++Object.assign(window, { pgmaps: { scene, camera, scatter, ready: false } })
++renderer.setAnimationLoop(() => {
++  const now = performance.now()
++  fps = fps * 0.9 + (1000 / Math.max(1, now - last)) * 0.1
++  last = now
++  controls.update()
++  env.follow(controls.target)
++  setTreeEnvironment({ sun: env.sun })
++  scatter.update()
++  env.render()
++  const s = scatter.stats
++  status(
++    `${fps.toFixed(0)} fps · ${scenePackage.trees.count} stems in the package · instances ${s.instances} · drawn ${s.visible} · meshes ${s.meshes}`
++  )
++  // `&still`: once the stand has streamed in, stop on that frame (for screenshots and comparisons).
++  frames += 1
++  if (params.has('still') && frames > 4 && s.instances >= scenePackage.trees.count) {
++    renderer.setAnimationLoop(null)
++    ;(window as unknown as { pgmaps: { ready: boolean } }).pgmaps.ready = true
++  } else if (!params.has('still') && frames === 60)
++    (window as unknown as { pgmaps: { ready: boolean } }).pgmaps.ready = true
++})
++addEventListener('beforeunload', () => {
++  scatter.dispose()
++  disposeLayers(layers)
++})
++addEventListener('resize', () => {
++  camera.aspect = innerWidth / innerHeight
++  camera.updateProjectionMatrix()
++  renderer.setSize(innerWidth, innerHeight)
++})
+diff --git a/packages/scatter/src/index.ts b/packages/scatter/src/index.ts
+index 26c792b..7d3d48b 100644
+--- a/packages/scatter/src/index.ts
++++ b/packages/scatter/src/index.ts
+@@ -15,7 +15,14 @@ export type {
+   ScatterSettings,
+   ScatterStats
+ } from './scatter.ts'
+-export { DEFAULT_PLACEMENT, INSTANCE_STRIDE, clusterFactor, groupSeed, placeTile } from './placement.ts'
++export {
++  DEFAULT_PLACEMENT,
++  FIXED_INSTANCE_STRIDE,
++  INSTANCE_STRIDE,
++  clusterFactor,
++  groupSeed,
++  placeTile
++} from './placement.ts'
+ export type { DensityFn, PlacementRules, ScatterCluster } from './placement.ts'
+ export { poissonDisk } from './poisson.ts'
+ export { selectLod } from './lod.ts'
+diff --git a/packages/scatter/src/placement.ts b/packages/scatter/src/placement.ts
+index 7de5313..c3f1e94 100644
+--- a/packages/scatter/src/placement.ts
++++ b/packages/scatter/src/placement.ts
+@@ -59,8 +59,19 @@ export interface PlacementRules {
+    * three.js multiplies in after `colorNode`.
+    */
+   colorVariation: number
++  /**
++   * Fixed placements instead of blue-noise points: {@link FIXED_INSTANCE_STRIDE} floats per instance —
++   * `x, z, yaw, widthScale, heightScale` — each stood on the terrain at (x, z). For drawing an inventory or any
++   * other existing list of objects (survey trees, mapped boulders) with the scatter's streaming, levels of detail
++   * and impostors. A layer with instances takes no blue-noise points, and its density, slope, height, cluster,
++   * scale and yaw rules do not apply; `sink` and `colorVariation` still do. `null` (the default) scatters as usual.
++   */
++  instances?: Float32Array | null
+ }
+ 
++/** Floats per fixed instance in {@link PlacementRules.instances}: x, z, yaw, width scale, height scale. */
++export const FIXED_INSTANCE_STRIDE = 5
++
+ /** Defaults for every {@link PlacementRules} field except `name`. */
+ export const DEFAULT_PLACEMENT: Omit<PlacementRules, 'name'> = {
+   spacing: 4,
+@@ -75,7 +86,8 @@ export const DEFAULT_PLACEMENT: Omit<PlacementRules, 'name'> = {
+   randomYaw: true,
+   tilt: 0,
+   sink: 0,
+-  colorVariation: 0
++  colorVariation: 0,
++  instances: null
+ }
+ 
+ /**
+@@ -118,6 +130,30 @@ export function placeTile(
+ ): Float32Array[] {
+   const out = layers.map(() => [] as number[])
+   if (!layers.length) return out.map(() => new Float32Array(0))
++  // Fixed instances first: the ones inside this tile, stood on the terrain.
++  layers.forEach((l, i) => {
++    const list = l.instances
++    if (!list) return
++    for (let k = 0; k + FIXED_INSTANCE_STRIDE <= list.length; k += FIXED_INSTANCE_STRIDE) {
++      const x = list[k]
++      const z = list[k + 1]
++      if (x < x0 || x >= x0 + size || z < z0 || z >= z0 + size) continue
++      const y = height(x, z)
++      if (y !== y) continue
++      const yaw = list[k + 2]
++      const width = list[k + 3]
++      const tall = list[k + 4]
++      const u = hash(Math.floor(x * 1000), Math.floor(z * 1000), seed) / 4294967296
++      const tint = 1 + (u * 2 - 1) * l.colorVariation
++      _q.setFromAxisAngle(UP, yaw)
++      _m.compose(_p.set(x, y - l.sink, z), _q, _s.set(width, tall, width))
++      const o = out[i]
++      for (let e = 0; e < 16; e++) o.push(_m.elements[e])
++      // Impostors scale uniformly: by the height, which sets their size on screen.
++      o.push(yaw, tall, tint, u)
++    }
++  })
++  if (layers.every((l) => l.instances)) return out.map((a) => new Float32Array(a))
+   const points = poissonDisk(x0, z0, size, layers[0].spacing, seed)
+   const needNormal = layers.some((l) => l.minSlope > 0 || Number.isFinite(l.maxSlope) || l.align > 0)
+   const clusterSeeds = layers.map((l) => hash(seed, hashString(l.name), 7))
+@@ -143,7 +179,7 @@ export function placeTile(
+     for (let i = 0; i < layers.length; i++) {
+       const l = layers[i]
+       let d = 0
+-      if (slope >= l.minSlope && slope <= l.maxSlope && y >= l.minHeight && y <= l.maxHeight) {
++      if (!l.instances && slope >= l.minSlope && slope <= l.maxSlope && y >= l.minHeight && y <= l.maxHeight) {
+         d = typeof l.density === 'number' ? l.density : l.density(x, z)
+         if (d > 0 && l.cluster && l.cluster.strength > 0) d *= clusterFactor(l.cluster, x, z, clusterSeeds[i])
+       }
+diff --git a/packages/scatter/src/scatter.ts b/packages/scatter/src/scatter.ts
+index 2001c02..ecda98e 100644
+--- a/packages/scatter/src/scatter.ts
++++ b/packages/scatter/src/scatter.ts
+@@ -661,7 +661,9 @@ function placementKey(l: ScatterLayer): unknown[] {
+     l.randomYaw,
+     l.tilt,
+     l.sink,
+-    l.colorVariation
++    l.colorVariation,
++    // A new fixed list regenerates the tiles; keyed by identity, so a large list is never serialised.
++    l.instances ? `instances:${idOf(l.instances)}` : null
+   ].map((v) => (v === Infinity ? 'inf' : v === -Infinity ? '-inf' : v))
+ }
+ 
+diff --git a/packages/scatter/test/scatter.test.ts b/packages/scatter/test/scatter.test.ts
+index df841ef..a8cd4c3 100644
+--- a/packages/scatter/test/scatter.test.ts
++++ b/packages/scatter/test/scatter.test.ts
+@@ -350,3 +350,42 @@ test('bakeImpostor: the surface carries normal, roughness and mask, and the mate
+   assert.equal(impostor.material.roughnessNode, impostor.surface.roughness)
+   impostor.dispose()
+ })
++
++test('fixed instances: each tile takes the ones inside it, stood on the terrain at their own size', () => {
++  // x, z, yaw, width scale, height scale
++  const instances = new Float32Array([5, 5, 0.5, 3, 20, 25, 12, 0, 4, 30, 35, 5, 0, 2, 10])
++  const slope = (x: number) => x * 0.1
++  const tile = placeTile([layer('stand', { instances })], 0, 0, 30, 9, slope)[0]
++  // The third lies in the next tile.
++  assert.equal(tile.length / INSTANCE_STRIDE, 2)
++  const next = placeTile([layer('stand', { instances })], 30, 0, 30, 9, slope)[0]
++  assert.equal(next.length / INSTANCE_STRIDE, 1)
++  // Translation on the terrain, height scale in y, width scale in x and z.
++  assert.deepEqual(
++    [tile[12], tile[13], tile[14]].map((v) => +v.toFixed(4)),
++    [5, 0.5, 5]
++  )
++  const column = (o: number, c: number) => Math.hypot(tile[o + c * 4], tile[o + c * 4 + 1], tile[o + c * 4 + 2])
++  assert.equal(+column(0, 0).toFixed(4), 3)
++  assert.equal(+column(0, 1).toFixed(4), 20)
++  assert.equal(+column(0, 2).toFixed(4), 3)
++  // Yaw and the height (the impostor's scale) in the trailing params.
++  assert.equal(+tile[16].toFixed(4), 0.5)
++  assert.equal(tile[17], 20)
++})
++
++test('fixed instances: a layer with a list takes no blue-noise points, and the others in its group still do', () => {
++  const instances = new Float32Array([5, 5, 0, 1, 1])
++  const [fixed, scattered] = placeTile(
++    [layer('fixed', { group: 'g', instances }), layer('free', { group: 'g' })],
++    0,
++    0,
++    30,
++    9,
++    flat
++  )
++  assert.equal(fixed.length / INSTANCE_STRIDE, 1)
++  assert.ok(scattered.length / INSTANCE_STRIDE > 50)
++  // Gaps in the terrain drop a fixed instance just as they drop a point.
++  assert.equal(placeTile([layer('fixed', { instances })], 0, 0, 30, 9, () => Number.NaN)[0].length, 0)
++})
+-- 
+2.43.0
+

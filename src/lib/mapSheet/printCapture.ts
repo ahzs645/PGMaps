@@ -39,7 +39,7 @@ export async function captureBasemap(
   signal?: AbortSignal,
   dpi = PRINT_CAPTURE_DPI,
 ): Promise<{ image: RasterImage; attribution: string; dpi: number }> {
-  const { default: maplibregl } = await import('maplibre-gl')
+  const maplibregl = await import('maplibre-gl')
   const size = captureSize(projection.frame.w, projection.frame.h, dpi)
   const container = document.createElement('div')
   // Laid out but off screen: MapLibre needs a real size, and the page must not show it.

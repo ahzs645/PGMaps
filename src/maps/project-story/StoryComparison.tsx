@@ -1,4 +1,4 @@
-import type MapLibreGL from 'maplibre-gl'
+import type * as MapLibreGL from 'maplibre-gl'
 import { useEffect, useState, type ComponentProps, type MutableRefObject, type ReactNode } from 'react'
 
 import { Map } from '@/components/ui/map'

@@ -18,7 +18,12 @@
  *   sentence and measure.
  * - **PDF** puts the first view large with the header and paragraph beside it,
  *   the measures under the paragraph when they fit (else on the next page),
- *   then the other views and the plan map.
+ *   then the other views and the plan map. Where views carry their viewpoint
+ *   record, a page per viewpoint follows in the layout consultants' VIA
+ *   reports use (Forsite's Logan Lake assessment, pp. 8–11): the field
+ *   photograph above the simulation from the same eye, with the settings that
+ *   produced it beside them. Two views from the same pose under different
+ *   design alternatives get a before-and-after page of their own.
  *
  * No DOM: the images arrive as JPEG (or, for a composed VIA figure, PNG) data
  * URLs with their pixel size, and
@@ -36,6 +41,62 @@ export type NoteImage = {
 
 /** Whether a note image is a PNG (a composed figure) rather than a JPEG screenshot. */
 export const isPngImage = (image: Pick<NoteImage, 'dataUrl'>) => image.dataUrl.startsWith('data:image/png')
+
+/** A saved view's record for its own report page. */
+export type ViewpointPage = {
+  /** The view's caption, "View from <road> going <direction>". */
+  title: string
+  /** The design alternative the view was taken under, or null for the current design. */
+  design: string | null
+  harvestPhase: 'before' | 'after'
+  /** Metres along the road, and the way the camera faced, for pairing views. */
+  positionMeters: number
+  bearingDegrees: number | null
+  /** The road view as saved. */
+  simulation: NoteImage
+  /** The lined-up field photograph from the same eye, where one was showing. */
+  photo: NoteImage | null
+  /** What produced the simulation: eye height, lens, timber, shading and so on. */
+  settings: Array<{ label: string; value: string }>
+}
+
+/**
+ * Pairs of viewpoint pages from the same eye, looking the same way, under two
+ * different designs — the before-and-after a redesign is judged on. Same
+ * place within `positionToleranceMeters` along the road and the same facing
+ * within `bearingToleranceDegrees`; each page pairs at most once, with the
+ * first other design found, in the order the views were saved.
+ */
+export function designComparisonPairs(
+  pages: ReadonlyArray<ViewpointPage>,
+  positionToleranceMeters = 10,
+  bearingToleranceDegrees = 5,
+): Array<[ViewpointPage, ViewpointPage]> {
+  const used = new Set<number>()
+  const pairs: Array<[ViewpointPage, ViewpointPage]> = []
+  const facing = (a: number | null, b: number | null) => {
+    if (a === null || b === null) return a === b
+    const difference = Math.abs(((((a - b) % 360) + 540) % 360) - 180)
+    return difference <= bearingToleranceDegrees
+  }
+  pages.forEach((page, i) => {
+    if (used.has(i)) return
+    const j = pages.findIndex(
+      (other, k) =>
+        k > i &&
+        !used.has(k) &&
+        other.design !== page.design &&
+        other.harvestPhase === page.harvestPhase &&
+        Math.abs(other.positionMeters - page.positionMeters) <= positionToleranceMeters &&
+        facing(other.bearingDegrees, page.bearingDegrees),
+    )
+    if (j < 0) return
+    used.add(i)
+    used.add(j)
+    pairs.push([page, pages[j]])
+  })
+  return pairs
+}
 
 export type BlockNote = {
   blockName: string
@@ -63,6 +124,11 @@ export type BlockNote = {
   /** Saved views without a screenshot (saved before screenshots were kept). */
   missingViews: string[]
   planMap: NoteImage | null
+  /**
+   * Each saved view with its viewpoint record, for the per-viewpoint pages.
+   * Optional: a note built without them prints as before.
+   */
+  viewpoints?: ViewpointPage[]
   /** Provenance lines printed at the foot. */
   notes: string[]
   generatedAt: Date
@@ -207,6 +273,28 @@ export async function blockNoteWorkbook(note: BlockNote, ExcelJS: ExcelModule): 
   block.addRow([])
   for (const line of note.notes) block.addRow([line]).getCell(1).font = { italic: true, color: { argb: 'FF6B7280' } }
   block.addRow([`Generated ${DATE(note.generatedAt)} by PGMaps visual quality.`])
+
+  if (note.viewpoints?.length) {
+    // One row per viewpoint: what produced each simulation, beside its caption.
+    const sheet = workbook.addWorksheet('Viewpoints')
+    const labels = [...new Set(note.viewpoints.flatMap((page) => page.settings.map((entry) => entry.label)))]
+    sheet.getColumn(1).width = 46
+    sheet.getColumn(2).width = 22
+    sheet.getColumn(3).width = 10
+    sheet.getColumn(4).width = 14
+    labels.forEach((_, i) => (sheet.getColumn(5 + i).width = 18))
+    sheet.addRow(['View', 'Design', 'Phase', 'Field photo', ...labels]).font = { bold: true }
+    for (const page of note.viewpoints) {
+      const values = new Map(page.settings.map((entry) => [entry.label, entry.value]))
+      sheet.addRow([
+        page.title,
+        page.design ?? 'Current design',
+        page.harvestPhase === 'after' ? 'After' : 'Before',
+        page.photo ? 'Lined up' : '—',
+        ...labels.map((label) => values.get(label) ?? ''),
+      ])
+    }
+  }
 
   const basis = workbook.addWorksheet('Basis')
   basis.getColumn(1).width = 70
@@ -405,6 +493,106 @@ export function blockNotePdf(note: BlockNote, { jsPDF }: PdfModule): ArrayBuffer
     }
     cursor = drawImage(pdf, item, margin, cursor, width - 2 * margin, maxHeight)
   }
+  // A page per viewpoint, field photograph over simulation, settings beside.
+  const heading = (text: string, sub: string) => {
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(13)
+    pdf.text(text, margin, margin + 4)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(9)
+    pdf.setTextColor(75, 85, 99)
+    pdf.text(sub, margin, margin + 9)
+    pdf.setTextColor(17, 24, 39)
+  }
+  const settingsTable = (page: ViewpointPage, x: number, y: number, tableWidth: number) => {
+    pdf.setFontSize(8.5)
+    for (const entry of [
+      { label: 'Design', value: page.design ?? 'Current design' },
+      { label: 'Harvest', value: page.harvestPhase === 'after' ? 'After harvest (simulated)' : 'Before harvest' },
+      ...page.settings,
+    ]) {
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(entry.label, x, y + 3)
+      pdf.setFont('helvetica', 'normal')
+      const value = pdf.splitTextToSize(entry.value, tableWidth - 32)
+      pdf.text(value, x + 32, y + 3)
+      y += Math.max(1, value.length) * 3.8 + 1.2
+    }
+    return y
+  }
+  const viewpointPages = note.viewpoints ?? []
+  viewpointPages.forEach((page, index) => {
+    pdf.addPage()
+    heading(
+      `Viewpoint ${index + 1} · ${page.title}`,
+      page.photo
+        ? 'Field photograph (top) and simulation from the same eye (bottom).'
+        : 'Simulation. No field photograph was lined up when this view was saved.',
+    )
+    const top = margin + 14
+    const tableWidth = 84
+    const imageWidth = width - 2 * margin - tableWidth - 6
+    const available = height - top - margin - 14
+    if (page.photo) {
+      const half = available / 2 - 6
+      const next = drawImage(
+        pdf,
+        { ...page.photo, caption: `Field photograph. ${page.photo.caption}` },
+        margin,
+        top,
+        imageWidth,
+        half,
+      )
+      drawImage(
+        pdf,
+        { ...page.simulation, caption: `Simulation. ${page.simulation.caption}` },
+        margin,
+        next,
+        imageWidth,
+        half,
+      )
+    } else {
+      drawImage(
+        pdf,
+        { ...page.simulation, caption: `Simulation. ${page.simulation.caption}` },
+        margin,
+        top,
+        imageWidth,
+        available - 8,
+      )
+    }
+    settingsTable(page, width - margin - tableWidth, top, tableWidth)
+    footer()
+  })
+
+  // Before and after a redesign, from the same eye.
+  for (const [first, second] of designComparisonPairs(viewpointPages)) {
+    pdf.addPage()
+    heading(
+      `Design comparison · ${first.title}`,
+      `${first.design ?? 'Current design'} (top) and ${second.design ?? 'current design'} (bottom), from the same eye.`,
+    )
+    const top = margin + 14
+    const half = (height - top - margin - 14) / 2 - 6
+    const next = drawImage(
+      pdf,
+      { ...first.simulation, caption: `${first.design ?? 'Current design'}. ${first.simulation.caption}` },
+      margin,
+      top,
+      width - 2 * margin,
+      half,
+    )
+    drawImage(
+      pdf,
+      { ...second.simulation, caption: `${second.design ?? 'Current design'}. ${second.simulation.caption}` },
+      margin,
+      next,
+      width - 2 * margin,
+      half,
+    )
+    footer()
+  }
+
   if (note.missingViews.length) {
     pdf.addPage()
     pdf.setFont('helvetica', 'italic')

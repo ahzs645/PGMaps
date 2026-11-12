@@ -13,7 +13,10 @@ import {
   placeTrees,
   speciesFromCode,
   speciesFromMix,
+  speciesMixFromInventory,
+  groundCoverFromBclcs,
   viewingGapToward,
+  type InventoryStand,
 } from './forest'
 import { pointInPolygon, polygonAreaMeters } from './visibility'
 
@@ -254,7 +257,9 @@ describe('speciesFromMix', () => {
     // Spruce-leading, pine a trace since the beetle — VRI around Prince George.
     expect(counts.get('spruce')! / 10_000).toBeCloseTo(0.37, 2)
     expect(counts.get('pine')! / 10_000).toBeCloseTo(0.06, 2)
-    expect(new Set(counts.keys()).size).toBe(5)
+    // Douglas-fir is drawn as its own species, its 6% taken from the firs.
+    expect(counts.get('douglasFir')! / 10_000).toBeCloseTo(0.06, 2)
+    expect(new Set(counts.keys()).size).toBe(6)
   })
 
   it('handles the ends and a mix that adds to nothing', () => {
@@ -308,7 +313,8 @@ describe('speciesFromCode', () => {
     expect(speciesFromCode('SX')).toBe('spruce')
     expect(speciesFromCode('SE')).toBe('spruce')
     expect(speciesFromCode('BL')).toBe('fir')
-    expect(speciesFromCode('FDI')).toBe('fir')
+    expect(speciesFromCode('FDI')).toBe('douglasFir')
+    expect(speciesFromCode('HW')).toBe('fir')
     expect(speciesFromCode('AT')).toBe('aspen')
     expect(speciesFromCode('EP')).toBe('birch')
   })
@@ -551,5 +557,84 @@ describe('viewing gap toward a block', () => {
     expect(viewingGapToward(CENTRE, far)!.lengthMeters).toBe(1500)
     const around = box(CENTRE.lng - 0.01, CENTRE.lat - 0.01, CENTRE.lng + 0.01, CENTRE.lat + 0.01)
     expect(viewingGapToward(CENTRE, around)).toBeNull()
+  })
+})
+
+describe('species-true stands from the inventory', () => {
+  const centre = { lng: -122.6, lat: 53.9 }
+  const scale = { lng: 111_320 * Math.cos((53.9 * Math.PI) / 180), lat: 111_320 }
+  const around = (meters: number): GeoJSON.Polygon => ({
+    type: 'Polygon',
+    coordinates: [
+      [
+        [centre.lng - meters / scale.lng, centre.lat - meters / scale.lat],
+        [centre.lng + meters / scale.lng, centre.lat - meters / scale.lat],
+        [centre.lng + meters / scale.lng, centre.lat + meters / scale.lat],
+        [centre.lng - meters / scale.lng, centre.lat + meters / scale.lat],
+        [centre.lng - meters / scale.lng, centre.lat - meters / scale.lat],
+      ],
+    ],
+  })
+  const grow = (stand: Partial<InventoryStand>) =>
+    placeTrees({
+      stands: [],
+      clearings: [],
+      centre,
+      radiusMeters: 150,
+      spacingMeters: 4,
+      inventory: [{ geometry: around(400), species: null, heightMeters: null, ...stand }],
+    })
+
+  it('merges the recorded codes onto the drawn species and renormalises', () => {
+    const mix = speciesMixFromInventory([
+      { code: 'AC', percent: 30, heightMeters: 35 },
+      { code: 'SX', percent: 25, heightMeters: 33 },
+      { code: 'EP', percent: 25 },
+      { code: 'BL', percent: 15 },
+      { code: 'ZZ', percent: 5 },
+    ])
+    // Cottonwood draws as aspen; the unknown code is dropped and the rest renormalised.
+    expect(mix.map((entry) => entry.species)).toEqual(['aspen', 'spruce', 'birch', 'fir'])
+    expect(mix.reduce((sum, entry) => sum + entry.share, 0)).toBeCloseTo(1, 6)
+    expect(mix[0]).toMatchObject({ species: 'aspen', heightMeters: 35 })
+    expect(mix[2].heightMeters).toBeNull()
+  })
+
+  it('draws a mixed stand mixed, each species at its recorded height', () => {
+    const trees = grow({
+      species: 'aspen',
+      heightMeters: 30,
+      speciesMix: [
+        { species: 'aspen', share: 0.3, heightMeters: 30 },
+        { species: 'spruce', share: 0.7, heightMeters: 20 },
+      ],
+    })
+    const spruce = trees.filter((tree) => tree.species === 'spruce')
+    const aspen = trees.filter((tree) => tree.species === 'aspen')
+    expect(spruce.length / trees.length).toBeGreaterThan(0.62)
+    expect(spruce.length / trees.length).toBeLessThan(0.78)
+    const mean = (list: typeof trees) => list.reduce((sum, tree) => sum + tree.heightMeters, 0) / list.length
+    // Stems are drawn at height × U(0.55, 1.3), a mean of 0.925.
+    expect(mean(spruce)).toBeCloseTo(20 * 0.925, 0)
+    expect(mean(aspen)).toBeCloseTo(30 * 0.925, 0)
+  })
+
+  it('grows nothing on lake, rock or meadow, and a low thicket on tall shrub', () => {
+    expect(grow({ cover: 'water' })).toHaveLength(0)
+    expect(grow({ cover: 'rock' })).toHaveLength(0)
+    expect(grow({ cover: 'herb' })).toHaveLength(0)
+    const thicket = grow({ cover: 'shrubTall' })
+    expect(thicket.length).toBeGreaterThan(0)
+    expect(Math.max(...thicket.map((tree) => tree.heightMeters))).toBeLessThan(4)
+  })
+
+  it('reads BC land cover onto the ground the road view draws', () => {
+    expect(groundCoverFromBclcs('T', 'U', 'TC', 'OP')).toBeNull()
+    expect(groundCoverFromBclcs('W', null, null, 'LA')).toBe('water')
+    expect(groundCoverFromBclcs('N', 'U', 'ST', 'DE')).toBe('shrubTall')
+    expect(groundCoverFromBclcs('N', 'U', 'SL', 'OP')).toBe('shrubLow')
+    expect(groundCoverFromBclcs('N', 'U', 'HE', 'DE')).toBe('herb')
+    expect(groundCoverFromBclcs('N', 'W', 'HG', null)).toBe('wetland')
+    expect(groundCoverFromBclcs('N', 'U', 'RO', null)).toBe('rock')
   })
 })

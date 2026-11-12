@@ -188,7 +188,7 @@ function Identify({
         clearTimeout(timeout)
       }
     }
-    const fail = (event: { error: Error }) => onMapError(event.error.message)
+    const fail = (event: { error: { message: string } }) => onMapError(event.error.message)
     map.on('click', click)
     map.on('error', fail)
     return () => {

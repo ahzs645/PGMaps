@@ -27,65 +27,63 @@ interface StyleInput {
   style: { layers: Array<{ id: string }>; sources: Record<string, unknown> }
 }
 vi.mock('maplibre-gl', () => ({
-  default: {
-    Map: class {
-      handlers = new Map()
-      layers = new Map()
-      sources = new Map()
-      removed = false
-      resize = vi.fn()
-      fitBounds = vi.fn()
-      easeTo = vi.fn()
-      setLayoutProperty = vi.fn()
-      setPaintProperty = vi.fn()
-      setGlyphs = vi.fn()
-      setSprite = vi.fn()
-      constructor(options: StyleInput) {
-        state.map = this as unknown as MockMap
-        for (const l of options.style.layers) this.layers.set(l.id, l)
-        for (const [id, source] of Object.entries(options.style.sources)) this.sources.set(id, source)
-      }
-      on(event: string, cb: () => void) {
-        this.handlers.set(event, cb)
-      }
-      addSource(id: string, source: object) {
-        if (this.sources.has(id)) throw Error('duplicate source')
-        this.sources.set(id, { ...source, setData: vi.fn() })
-      }
-      addLayer(layer: { id: string }, before?: string) {
-        if (this.layers.has(layer.id)) throw Error('duplicate layer')
-        if (before && !this.layers.has(before)) throw Error('Missing anchor: ' + before)
-        this.layers.set(layer.id, layer)
-      }
-      getSource(id: string) {
-        return this.sources.get(id)
-      }
-      getLayer(id: string) {
-        return this.layers.get(id)
-      }
-      removeLayer(id: string) {
-        this.layers.delete(id)
-      }
-      removeSource(id: string) {
-        this.sources.delete(id)
-      }
-      getContainer() {
-        return undefined
-      }
-      addControl() {}
-      removeControl() {}
-      remove() {
-        this.removed = true
-      }
-    },
-    NavigationControl: class {},
-    ScaleControl: class {},
+  Map: class {
+    handlers = new Map()
+    layers = new Map()
+    sources = new Map()
+    removed = false
+    resize = vi.fn()
+    fitBounds = vi.fn()
+    easeTo = vi.fn()
+    setLayoutProperty = vi.fn()
+    setPaintProperty = vi.fn()
+    setGlyphs = vi.fn()
+    setSprite = vi.fn()
+    constructor(options: StyleInput) {
+      state.map = this as unknown as MockMap
+      for (const l of options.style.layers) this.layers.set(l.id, l)
+      for (const [id, source] of Object.entries(options.style.sources)) this.sources.set(id, source)
+    }
+    on(event: string, cb: () => void) {
+      this.handlers.set(event, cb)
+    }
+    addSource(id: string, source: object) {
+      if (this.sources.has(id)) throw Error('duplicate source')
+      this.sources.set(id, { ...source, setData: vi.fn() })
+    }
+    addLayer(layer: { id: string }, before?: string) {
+      if (this.layers.has(layer.id)) throw Error('duplicate layer')
+      if (before && !this.layers.has(before)) throw Error('Missing anchor: ' + before)
+      this.layers.set(layer.id, layer)
+    }
+    getSource(id: string) {
+      return this.sources.get(id)
+    }
+    getLayer(id: string) {
+      return this.layers.get(id)
+    }
+    removeLayer(id: string) {
+      this.layers.delete(id)
+    }
+    removeSource(id: string) {
+      this.sources.delete(id)
+    }
+    getContainer() {
+      return undefined
+    }
+    addControl() {}
+    removeControl() {}
+    remove() {
+      this.removed = true
+    }
   },
+  NavigationControl: class {},
+  ScaleControl: class {},
 }))
 // The toolkit map's own lifecycle has its own tests; this file pins the layers ImportMap adds.
 vi.mock('@/components/ui/map', async () => {
   const { useEffect } = await import('react')
-  const { default: maplibre } = await import('maplibre-gl')
+  const maplibre = await import('maplibre-gl')
   const Map = ({
     styles,
     onMapCreate,

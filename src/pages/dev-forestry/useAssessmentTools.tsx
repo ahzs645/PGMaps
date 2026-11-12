@@ -702,5 +702,7 @@ export function useAssessmentTools({
     running: runner.running,
     photoRecords,
     updateFieldRecord,
+    /** Saved design alternatives, so a saved view can say which one it shows. */
+    designOptions: d.options,
   }
 }

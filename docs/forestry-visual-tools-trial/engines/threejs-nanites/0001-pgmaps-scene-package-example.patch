@@ -1,0 +1,321 @@
+From e844075b4a84fcdd400e1de95ed9a1aa5657fb73 Mon Sep 17 00:00:00 2001
+From: PGMaps trial <noreply@anthropic.com>
+Date: Thu, 12 Nov 2026 05:37:52 +0000
+Subject: [PATCH] Draw a PGMaps forest scene package: package ground, one type
+ per species from its models, its stems as instances
+
+---
+ examples/pgmaps-scene.html |  18 +++
+ examples/pgmaps-scene.ts   | 275 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 293 insertions(+)
+ create mode 100644 examples/pgmaps-scene.html
+ create mode 100644 examples/pgmaps-scene.ts
+
+diff --git a/examples/pgmaps-scene.html b/examples/pgmaps-scene.html
+new file mode 100644
+index 0000000..da96da7
+--- /dev/null
++++ b/examples/pgmaps-scene.html
+@@ -0,0 +1,18 @@
++<!doctype html>
++<html lang="en">
++  <head>
++    <meta charset="utf-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1" />
++    <title>PGMaps forest scene · Nanite library</title>
++    <link rel="icon" href="data:," />
++    <style>
++      html, body { margin: 0; height: 100%; overflow: hidden; background: #9fb8cf; }
++      canvas { display: block; width: 100%; height: 100%; }
++      #info { position: fixed; top: 10px; left: 10px; padding: 8px 10px; white-space: pre; color: #e8eef2; background: rgb(3 13 15 / 70%); font: 12px/1.5 ui-monospace, Consolas, monospace; border-radius: 4px; pointer-events: none; }
++    </style>
++  </head>
++  <body>
++    <div id="info">Loading...</div>
++    <script type="module" src="./pgmaps-scene.ts"></script>
++  </body>
++</html>
+diff --git a/examples/pgmaps-scene.ts b/examples/pgmaps-scene.ts
+new file mode 100644
+index 0000000..716f90e
+--- /dev/null
++++ b/examples/pgmaps-scene.ts
+@@ -0,0 +1,275 @@
++// A PGMaps forest scene package (https://github.com/ahzs645/PGMaps, src/pages/dev-forestry/scenePackage.ts) through
++// the library on its own, as examples/gltf.ts does: the package's ground, one Nanite type per B.C. species built from
++// the model the package carries (PGMaps' own detailed tree, opaque: bark and foliage are both "bark" here, told apart
++// by colour), and the package's stems as instances, seen from its eye.
++//   examples/pgmaps-scene.html?scene=<url of a package JSON>   (or pick a file). Needs WebGPU (compute).
++//
++// The package is local metres: x east, y north, z up (heights absolute). Here y is up and north is −z.
++// Instances take one uniform scale, so a stem keeps its height but its crown width is its species' median
++// (PGMaps draws each stem's own).
++import * as THREE from 'three/webgpu';
++import { Fn, texture, attribute, float, vec3, smoothstep } from 'three/tsl';
++import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
++import {
++  NaniteRenderer, buildDag, createAtlas, bakeImpostors, impostorCoverage, makeLeafAlpha, defaultLook,
++  IMPOSTOR_CUT, PHASE2_LAYER, type NaniteType, type NaniteTextures, type Float, type Vec3,
++} from '../src/nanite-lib/index.ts';
++
++type ScenePackage = {
++  format: 'pgmaps-forest-scene';
++  version: 1;
++  terrain: { west: number; south: number; spacing: number; columns: number; rows: number; heights: Array<number | null> };
++  trees: { fields: string[]; species: string[]; count: number; data: number[] };
++  models?: Record<string, { positions: number[]; normals: number[]; bark: number[] }>;
++  camera: { position: [number, number, number]; bearingDegrees: number; pitchDegrees: number; verticalFovDegrees: number };
++};
++
++const SKY = new THREE.Color(0x9fb8cf);
++/** Each model is built this tall and scaled to its stem's height. */
++const MODEL_HEIGHT = 20;
++/** Bark and foliage colours per species, as PGMaps draws them (impostor.ts). */
++const COLOURS: Record<string, [string, string]> = {
++  pine: ['#5c4a3a', '#3e603c'],
++  spruce: ['#524034', '#2c5240'],
++  fir: ['#564e46', '#26483c'],
++  douglasFir: ['#68523f', '#30543a'],
++  aspen: ['#c6c6b8', '#708e44'],
++  birch: ['#e2ded4', '#60843e'],
++};
++const info = document.getElementById('info')!;
++const params = new URLSearchParams(location.search);
++
++async function loadScene(): Promise<ScenePackage> {
++  const url = params.get('scene');
++  if (url) return (await fetch(url)).json();
++  info.textContent = 'choose a PGMaps scene package (forestry-scene-package.json)';
++  const input = document.getElementById('file') as HTMLInputElement;
++  input.hidden = false;
++  return new Promise((resolve) => {
++    input.onchange = async () => resolve(JSON.parse(await input.files![0].text()));
++  });
++}
++
++/** The package's ground, gaps filled from their nearest known neighbour along the row, then the column. */
++function groundOf(scene: ScenePackage): { mesh: THREE.Mesh; heightAt: (x: number, y: number) => number } {
++  const { west, south, spacing, columns, rows } = scene.terrain;
++  const h = scene.terrain.heights.slice();
++  const fill = (index: (i: number, j: number) => number, outer: number, inner: number): void => {
++    for (let i = 0; i < outer; i++) {
++      let last: number | null = null;
++      for (let j = 0; j < inner; j++) last = h[index(i, j)] ?? last;
++      for (let j = inner - 1; j >= 0; j--) {
++        const k = index(i, j);
++        if (h[k] === null) h[k] = last;
++        else last = h[k];
++      }
++    }
++  };
++  fill((r, c) => r * columns + c, rows, columns);
++  fill((c, r) => r * columns + c, columns, rows);
++  const at = (c: number, r: number): number => h[r * columns + c] ?? 0;
++  const heightAt = (x: number, y: number): number => {
++    const gx = Math.min(columns - 1.0001, Math.max(0, (x - west) / spacing));
++    const gy = Math.min(rows - 1.0001, Math.max(0, (y - south) / spacing));
++    const x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0;
++    return at(x0, y0) * (1 - fx) * (1 - fy) + at(x0 + 1, y0) * fx * (1 - fy) + at(x0, y0 + 1) * (1 - fx) * fy + at(x0 + 1, y0 + 1) * fx * fy;
++  };
++  const size = (columns - 1) * spacing;
++  const geometry = new THREE.PlaneGeometry(size, size, columns - 1, rows - 1).rotateX(-Math.PI / 2);
++  const p = geometry.attributes.position;
++  for (let i = 0; i < p.count; i++) p.setY(i, heightAt(p.getX(i), -p.getZ(i)));
++  geometry.computeVertexNormals();
++  return { mesh: new THREE.Mesh(geometry, new THREE.MeshStandardNodeMaterial({ color: 0x4a573a, roughness: 1 })), heightAt };
++}
++
++async function main(): Promise<void> {
++  const scene = await loadScene();
++  if (scene.format !== 'pgmaps-forest-scene' || scene.version !== 1) throw new Error('Not a PGMaps forest scene package (v1).');
++  if (!scene.models) throw new Error('This package has no species models; export it again from PGMaps.');
++
++  const renderer = new THREE.WebGPURenderer({ antialias: false });
++  await renderer.init();
++  if (!(renderer.backend as unknown as { isWebGPUBackend?: boolean }).isWebGPUBackend) throw new Error('this example needs WebGPU (compute)');
++  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
++  renderer.setSize(innerWidth, innerHeight);
++  renderer.shadowMap.enabled = true;
++  renderer.toneMapping = THREE.ACESFilmicToneMapping;
++  document.body.appendChild(renderer.domElement);
++
++  const three = new THREE.Scene();
++  renderer.setClearColor(SKY);
++  const { camera: eye } = scene;
++  const camera = new THREE.PerspectiveCamera(eye.verticalFovDegrees, innerWidth / innerHeight, 0.3, 8000);
++  camera.position.set(eye.position[0], eye.position[2], -eye.position[1]);
++  const bearing = THREE.MathUtils.degToRad(eye.bearingDegrees), pitch = THREE.MathUtils.degToRad(eye.pitchDegrees);
++  const controls = new OrbitControls(camera as never, renderer.domElement);
++  controls.target.copy(camera.position).add(new THREE.Vector3(Math.sin(bearing) * Math.cos(pitch), Math.sin(pitch), -Math.cos(bearing) * Math.cos(pitch)).multiplyScalar(100));
++  controls.update();
++  const hemi = new THREE.HemisphereLight(0xdfeaf5, 0x51493f, 1.4);
++  const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
++  sun.castShadow = true;
++  sun.shadow.mapSize.set(2048, 2048);
++  Object.assign(sun.shadow.camera, { left: -150, right: 150, top: 150, bottom: -150, near: 1, far: 800 });
++  sun.shadow.camera.layers.set(1);
++  for (const l of [hemi, sun]) l.layers.enable(PHASE2_LAYER), three.add(l);
++  three.add(sun.target);
++  const ground = groundOf(scene);
++  ground.mesh.receiveShadow = true;
++  three.add(ground.mesh);
++
++  // ---------------------------------------------------------------- one type per species, from the package's model
++  const stride = scene.trees.fields.length;
++  const used = scene.trees.species.filter((_, index) => {
++    for (let i = 0; i < scene.trees.count; i++) if (scene.trees.data[i * stride + 3] === index) return true;
++    return false;
++  });
++  const none = new Float32Array(0);
++  const types: NaniteType[] = [];
++  for (const [id, name] of used.entries()) {
++    const model = scene.models[name];
++    const index = scene.trees.species.indexOf(name);
++    const ratios: number[] = [];
++    for (let i = 0; i < scene.trees.count; i++) {
++      const o = i * stride;
++      if (scene.trees.data[o + 3] === index) ratios.push(scene.trees.data[o + 5] / scene.trees.data[o + 4]);
++    }
++    ratios.sort((a, b) => a - b);
++    const across = MODEL_HEIGHT * ratios[Math.floor(ratios.length / 2)];
++    const n = model.positions.length / 3;
++    const pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), uv = new Float32Array(n * 2);
++    let radius = 0;
++    for (let v = 0; v < n; v++) {
++      const x = model.positions[v * 3] * across, y = model.positions[v * 3 + 2] * MODEL_HEIGHT, z = -model.positions[v * 3 + 1] * across;
++      pos.set([x, y, z], v * 3);
++      nrm.set([model.normals[v * 3], model.normals[v * 3 + 2], -model.normals[v * 3 + 1]], v * 3);
++      // Wood samples the left half of the species' texture layer, foliage the right.
++      uv.set([model.bark[v] ? 0.25 : 0.75, 0.5], v * 2);
++      radius = Math.max(radius, Math.hypot(x, y - MODEL_HEIGHT / 2, z));
++    }
++    const idx = Uint32Array.from({ length: n }, (_, i) => i);
++    const bark = { pos, nrm, uv, idx };
++    const leaves = { pos: none, nrm: none, uv: none, vpl: 4 };
++    const dag = await buildDag({ id, bark, leaves });
++    types.push({ ...dag, name, radius, height: MODEL_HEIGHT, impostorSolid: true, src: { bark, leaves } });
++  }
++
++  // ---------------------------------------------------------------- the stems: a = (x, y, z, scale), b = (cos, sin, type, user)
++  const order = Array.from({ length: scene.trees.count }, (_, i) => i).sort(
++    (a, b) => scene.trees.data[a * stride + 3] - scene.trees.data[b * stride + 3],
++  );
++  const a = new Float32Array(scene.trees.count * 4), b = new Float32Array(scene.trees.count * 4);
++  order.forEach((i, k) => {
++    const o = i * stride;
++    const type = used.indexOf(scene.trees.species[scene.trees.data[o + 3]]);
++    const yaw = scene.trees.data[o + 6] * Math.PI * 2;
++    a.set([scene.trees.data[o], scene.trees.data[o + 2], -scene.trees.data[o + 1], scene.trees.data[o + 4] / MODEL_HEIGHT], k * 4);
++    b.set([Math.cos(yaw), Math.sin(yaw), type, 0], k * 4);
++  });
++
++  // One 4 × 4 texture layer per species: bark colour on the left, foliage on the right.
++  const pixels = new Uint8Array(4 * 4 * 4 * used.length);
++  used.forEach((name, layer) => {
++    const [wood, leaf] = (COLOURS[name] ?? ['#5c4a3a', '#3e603c']).map((c) => new THREE.Color(c));
++    for (let y = 0; y < 4; y++)
++      for (let x = 0; x < 4; x++) {
++        const c = x < 2 ? wood : leaf, o = ((layer * 4 + y) * 4 + x) * 4;
++        pixels.set([c.r * 255, c.g * 255, c.b * 255, 255], o);
++      }
++  });
++  const barkTexture = new THREE.DataArrayTexture(pixels, 4, 4, used.length);
++  barkTexture.colorSpace = THREE.SRGBColorSpace;
++  barkTexture.needsUpdate = true;
++  barkTexture.userData.levels = 1;
++  barkTexture.userData.alphaScales = [1];
++  const leafTexture = new THREE.DataArrayTexture(new Uint8Array(4 * 4 * 4).fill(255), 4, 4, 1);
++  leafTexture.needsUpdate = true;
++  leafTexture.userData.levels = 1;
++  leafTexture.userData.alphaScales = [1];
++  const textures: NaniteTextures = {
++    bark: barkTexture,
++    leaf: leafTexture,
++    barkLayerOf: (type) => float(type),
++    leafLayerOf: () => float(0),
++    alphaToCoverage: false,
++    leafDither: false,
++    softLeafDither: false,
++    impostorDither: false,
++  };
++  const look = defaultLook();
++  const nanite = new NaniteRenderer(renderer, types, { a, b }, textures, look);
++  nanite.u.maxDist.value = 6000;
++  const fog = (_pos: Vec3, viewZ: Float) => ({ color: vec3(SKY.r, SKY.g, SKY.b), factor: smoothstep(2500, 6000, viewZ) });
++  const shading = { fadeShadow: () => Fn(([shadow]: [Float]) => shadow), fog };
++  nanite.group.add(nanite.sw.buildResolveMesh(shading));
++  const atlas = createAtlas(types.length);
++  const impostors = nanite.buildImpostorMesh(atlas, types.map(() => ({ side: [1, 1, 1] as [number, number, number], top: [1, 1, 1] as [number, number, number] })));
++  impostors.receiveShadow = true;
++  nanite.group.add(impostors, nanite.splats.build(atlas, { ...shading, shadow: () => Fn(([shadow]: [Float]) => shadow) }), nanite.buildImpostorShadowMesh(atlas));
++  bakeImpostors(renderer, atlas, types, { bark: textures.bark, leaf: textures.leaf, barkLayers: types.map((_, i) => i), leafLayers: types.map(() => 0), leafAlpha: makeLeafAlpha(textures.leaf, attribute('uv', 'vec2')) }, look, nanite.u.impostorPx.value);
++  await impostorCoverage(renderer, atlas, IMPOSTOR_CUT);
++  nanite.impostorsBaked(atlas, types.map(() => [1, 1] as [number, number]));
++  nanite.splats.enabled.value = 1;
++  three.add(nanite.group);
++  three.fog = new THREE.Fog(SKY, 2500, 6000);
++
++  // ---------------------------------------------------------------- the frame, as examples/gltf.ts draws it
++  const target = new THREE.RenderTarget(1, 1, { type: THREE.HalfFloatType, depthBuffer: true });
++  target.depthTexture = new THREE.DepthTexture(1, 1, THREE.FloatType);
++  nanite.setDepthSource(target.depthTexture, 1);
++  const present = new THREE.QuadMesh(new THREE.MeshBasicNodeMaterial({ colorNode: texture(target.texture) }));
++  const size = new THREE.Vector2();
++  const resize = (): void => {
++    camera.aspect = innerWidth / innerHeight;
++    camera.updateProjectionMatrix();
++    renderer.setSize(innerWidth, innerHeight);
++    renderer.getDrawingBufferSize(size);
++    target.setSize(size.x, size.y);
++  };
++  addEventListener('resize', resize);
++  resize();
++
++  const t0 = performance.now();
++  let lastStats = 0;
++  const state = { frames: 0, nanite, camera, controls, ready: false };
++  Object.assign(window, { pgmaps: state });
++  renderer.setAnimationLoop(async () => {
++    state.frames++;
++    const time = (performance.now() - t0) / 1000;
++    controls.update();
++    camera.updateMatrixWorld();
++    look.viewer.copy(camera.position);
++    sun.position.set(camera.position.x - 160, camera.position.y + 220, camera.position.z - 60);
++    sun.target.position.set(camera.position.x, camera.position.y, camera.position.z);
++    sun.updateMatrixWorld();
++    sun.target.updateMatrixWorld();
++    sun.shadow.camera.updateMatrixWorld();
++    nanite.update(camera, size, time, sun.shadow.camera);
++    renderer.setRenderTarget(target);
++    camera.layers.set(0);
++    renderer.render(three, camera);
++    nanite.occlusion(camera, size.x, size.y);
++    nanite.rasterize(camera, size.x, size.y);
++    const autoClear = renderer.autoClear;
++    renderer.autoClear = false;
++    sun.shadow.autoUpdate = false;
++    camera.layers.set(PHASE2_LAYER);
++    renderer.render(three, camera);
++    camera.layers.set(0);
++    sun.shadow.autoUpdate = true;
++    renderer.autoClear = autoClear;
++    renderer.setRenderTarget(null);
++    present.render(renderer);
++    if (time - lastStats > 0.5) {
++      lastStats = time;
++      const s = await nanite.readStats();
++      info.textContent = `${scene.trees.count.toLocaleString()} stems from the package, ${types.length} species\n` +
++        `drawn: ${s.instances.toLocaleString()} as clusters, ${s.impostors.toLocaleString()} impostors, ${(s.splats ?? 0).toLocaleString()} splats`;
++      state.ready = state.frames > 10;
++    }
++  });
++}
++
++main().catch((error: unknown) => {
++  info.textContent = `failed: ${error instanceof Error ? error.message : String(error)}`;
++  Object.assign(window, { pgmaps: { ready: true, error: String(error) } });
++});
+-- 
+2.43.0
+

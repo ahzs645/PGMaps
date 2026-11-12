@@ -43,6 +43,30 @@ export function captureMapImage(map: MapLibreMap, maxSide = MAX_SIDE): Promise<C
 }
 
 /**
+ * A photograph from a URL as a JPEG, for the report's field-photo panel.
+ * Null when it cannot be read (no CORS, offline): the page then says the
+ * view was saved without its photograph rather than failing the save.
+ */
+export async function captureImageUrl(url: string, maxSide = MAX_SIDE): Promise<CapturedImage | null> {
+  try {
+    const response = await fetch(url, { mode: 'cors' })
+    if (!response.ok) return null
+    const bitmap = await createImageBitmap(await response.blob())
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * scale)
+    canvas.height = Math.round(bitmap.height * scale)
+    const context = canvas.getContext('2d')
+    if (!context) return null
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    return { dataUrl: canvas.toDataURL('image/jpeg', 0.85), width: canvas.width, height: canvas.height }
+  } catch {
+    return null
+  }
+}
+
+/**
  * The plan map framed on `bounds`, then put back where it was. Waits for the
  * tiles to load (or 15 s) so the capture is not half drawn.
  */

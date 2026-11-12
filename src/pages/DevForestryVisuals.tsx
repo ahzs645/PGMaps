@@ -79,7 +79,15 @@ import { buildRegrowthStands, DEFAULT_REGROWTH, type ForestHistoryRecord } from 
 import { useDriveTerrain } from './dev-forestry/useDriveTerrain'
 import type { ForestStatus } from './dev-forestry/ForestOverlay'
 import type { TreeInstance } from './dev-forestry/forest'
-import { blockThinning, bufferLine, speciesFromCode, type InventoryStand } from './dev-forestry/forest'
+import {
+  blockThinning,
+  bufferLine,
+  speciesFromCode,
+  speciesMixFromInventory,
+  type InventoryStand,
+} from './dev-forestry/forest'
+import { roadScar } from './dev-forestry/harvestedGround'
+import { buildScenePackage } from './dev-forestry/scenePackage'
 import type { BasemapContext } from './dev-forestry/BasemapContextProbe'
 import { FieldPhotoPanel, PhotoOverlay, StreetPhotoInset } from './dev-forestry/FieldPhoto'
 import { useFieldPhoto } from './dev-forestry/useFieldPhoto'
@@ -112,8 +120,16 @@ import {
   blockNoteWorkbook,
   type BlockNote,
   type NoteImage,
+  type ViewpointPage,
 } from './dev-forestry/blockNote'
-import { captureClassPass, captureFramed, captureMapImage, capturePlanMap } from './dev-forestry/mapCapture'
+import {
+  captureClassPass,
+  captureFramed,
+  captureImageUrl,
+  captureMapImage,
+  capturePlanMap,
+} from './dev-forestry/mapCapture'
+import { matchingDesign } from './dev-forestry/assessmentTools'
 import {
   focalForHfov,
   HFOV_50_MM,
@@ -225,6 +241,9 @@ const DEFAULT_DRIVE: DriveState = {
   // Facing a block from the road otherwise shows the roadside trees, not the block.
   viewingGap: true,
   treeStyle: 'hybrid',
+  treeLook: 'lit',
+  // Stopped, the nearest trees are drawn in full; moving, every tree is a card.
+  detailRadiusMeters: 150,
   harvestPhase: 'after',
   showAnalysis: false,
   quality: 'auto',
@@ -1106,11 +1125,23 @@ function DevForestryVisuals() {
   // each place's saved views are shelved while you are elsewhere.
   const [standing, setStanding] = useState<{ previous: Viewpoint; name: string; point: [number, number] } | null>(null)
   const [shelvedViews, setShelvedViews] = useState<Array<{ key: string; views: SavedDriveView[] }>>([])
+  // Back to a design (or a road) whose views were shelved: they come back.
+  useEffect(() => {
+    if (!key || saved.key === key) return
+    const arriving = shelvedViews.find((entry) => entry.key === key)
+    if (!arriving) return
+    setShelvedViews((current) => [
+      ...current.filter((entry) => entry.key !== key && entry.key !== saved.key),
+      ...(saved.key && saved.views.length ? [{ key: saved.key, views: saved.views }] : []),
+    ])
+    setSaved({ key, views: arriving.views })
+  }, [key, saved, shelvedViews])
   // Screenshots taken when views were saved, by view id, for the block note. This session only.
-  // With each, the class pass, callouts and run figures its VIA figure is composed from (`FigureSheetPanel`).
-  const [viewImages, setViewImages] = useState<Record<string, NoteImage & { savedAt: number; figure?: SavedFigure }>>(
-    {},
-  )
+  // With each, the class pass, callouts and run figures its VIA figure is composed from (`FigureSheetPanel`),
+  // and its viewpoint record (design, settings, any lined-up field photo) for the report's per-viewpoint pages.
+  const [viewImages, setViewImages] = useState<
+    Record<string, NoteImage & { savedAt: number; figure?: SavedFigure; viewpoint?: Omit<ViewpointPage, 'simulation'> }>
+  >({})
   // The block note's views as composed VIA figures (FigureSheetPanel) rather than plain screenshots.
   const [noteFigures, setNoteFigures] = useState(false)
   // Where the road view opens after a stand or a step back. Entering the view
@@ -1237,6 +1268,16 @@ function DevForestryVisuals() {
             ),
         ),
         missingViews: views.filter((view) => !viewImages[view.id]).map((view) => view.name),
+        // A page per view that carries its viewpoint record, in the order saved.
+        viewpoints: views
+          .flatMap((view) => {
+            const image = viewImages[view.id]
+            if (!image?.viewpoint) return []
+            const { viewpoint, savedAt, ...simulation } = image
+            return [{ savedAt, page: { ...viewpoint, simulation } }]
+          })
+          .sort((a, b) => a.savedAt - b.savedAt)
+          .map((entry) => entry.page),
         planMap,
         notes,
         generatedAt: new Date(),
@@ -1907,6 +1948,29 @@ function DevForestryVisuals() {
     drive.projectRecordedHeights,
   ])
 
+  // The road's cut bank and fill slope, bare ground either side of it on a
+  // side slope (`roadScar`). Display only.
+  const previewRoadScar = useMemo(() => {
+    const ground = previewTerrain.source
+    if (scene.viewpoint.mode !== 'corridor' || !ground || scene.viewpoint.coordinates.length < 2) return []
+    return roadScar(
+      scene.viewpoint.coordinates as Array<[number, number]>,
+      (lng, lat) => ground.elevationAt(lng, lat),
+      { roadWidthMeters: 2 * Math.min(8, drive.roadClearWidthMeters / 2) },
+    )
+  }, [scene.viewpoint.mode, scene.viewpoint.coordinates, previewTerrain.source, drive.roadClearWidthMeters])
+  const previewRoadScarCollection = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: previewRoadScar.map((strip) => ({
+        type: 'Feature',
+        properties: { kind: strip.kind },
+        geometry: strip.geometry,
+      })),
+    }),
+    [previewRoadScar],
+  )
+
   const previewRoad = useMemo<GeoJSON.FeatureCollection>(() => {
     const shape = bufferLine(scene.viewpoint.coordinates, Math.min(8, drive.roadClearWidthMeters / 2))
     return { type: 'FeatureCollection', features: shape ? [{ type: 'Feature', properties: {}, geometry: shape }] : [] }
@@ -1928,9 +1992,28 @@ function DevForestryVisuals() {
         heightMeters: stand.heightMeters > 0 ? stand.heightMeters : null,
         crownClosurePercent: stand.crownClosurePercent,
         stemsPerHa: 'stemsPerHa' in stand ? stand.stemsPerHa : null,
+        // The stand's whole recorded composition, so a mixed stand is drawn mixed.
+        speciesMix:
+          'speciesComposition' in stand && stand.speciesComposition
+            ? speciesMixFromInventory(
+                stand.speciesComposition.map((entry) => ({
+                  code: entry.code,
+                  percent: entry.percent,
+                  heightMeters: entry.heightMeters,
+                })),
+              )
+            : undefined,
+      })),
+      // Lakes, rock, meadow and shrub the inventory recorded: no regional mix
+      // is grown on them.
+      ...(result?.renderCover ?? []).map((ground) => ({
+        geometry: ground.geometry,
+        species: null,
+        heightMeters: null,
+        cover: ground.cover,
       })),
     ],
-    [regrowth.stands, inventory.stands, result?.renderStands],
+    [regrowth.stands, inventory.stands, result?.renderStands, result?.renderCover],
   )
 
   const clipAlteration = useMemo(() => assessmentAlterationClipper(scene.masks ?? []), [scene.masks])
@@ -1997,14 +2080,25 @@ function DevForestryVisuals() {
       ...(scene.masks ?? []).filter((m) => m.kind === 'natural').map((m) => m.geometry),
       ...(scene.treeFreeAreas ?? []).map((area) => area.geometry),
       ...(corridor ? [corridor] : []),
+      // A fresh cut bank or fill slope grows no timber.
+      ...previewRoadScar.map((strip) => strip.geometry),
     ]
-  }, [forestOpenings, drive.roadClearWidthMeters, scene.viewpoint, scene.masks, scene.treeFreeAreas, basemap.water])
+  }, [
+    forestOpenings,
+    drive.roadClearWidthMeters,
+    scene.viewpoint,
+    scene.masks,
+    scene.treeFreeAreas,
+    basemap.water,
+    previewRoadScar,
+  ])
 
   const forestConfiguration = useMemo(
     () => ({
       anchorLatitude: scene.viewpoint.coordinates[0]?.[1],
       stands: forestStands,
       clearings: forestClearings,
+      openings: forestOpenings,
       thinnings: forestThinnings,
       standHeightMeters: drive.treeHeightMeters,
       inventory: forestInventory,
@@ -2014,6 +2108,9 @@ function DevForestryVisuals() {
           : drive.quality === 'detailed'
             ? ('hybrid' as const)
             : drive.treeStyle,
+      look: drive.treeLook,
+      // Faster means cards only, stopped or not.
+      detailRadiusMeters: drive.quality === 'fast' ? 0 : drive.detailRadiusMeters,
       elevation: previewTerrain.source,
       farRadiusMeters: previewTerrain.radius,
     }),
@@ -2021,11 +2118,14 @@ function DevForestryVisuals() {
       scene.viewpoint.coordinates,
       forestStands,
       forestClearings,
+      forestOpenings,
       forestThinnings,
       drive.treeHeightMeters,
       forestInventory,
       drive.quality,
       drive.treeStyle,
+      drive.treeLook,
+      drive.detailRadiusMeters,
       previewTerrain.source,
       previewTerrain.radius,
     ],
@@ -2049,7 +2149,7 @@ function DevForestryVisuals() {
   const forestGround = useMemo(() => {
     const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
     const bounds = sceneBounds(scene)
-    if (!drive.active || !bounds) return { floor: empty, soil: empty, water: empty }
+    if (!drive.active || !bounds) return { floor: empty, soil: empty, water: empty, cover: empty }
     const padLat = previewTerrain.radius / 111_320
     const padLng = padLat / Math.max(0.2, Math.cos((((bounds[1] + bounds[3]) / 2) * Math.PI) / 180))
     const [w, s, e, n] = [bounds[0] - padLng, bounds[1] - padLat, bounds[2] + padLng, bounds[3] + padLat]
@@ -2076,8 +2176,19 @@ function DevForestryVisuals() {
       // cutblock: widened to see past the roadside timber it stays forest floor.
       soil: { type: 'FeatureCollection', features: forestOpenings.map(feature) } as GeoJSON.FeatureCollection,
       water: { type: 'FeatureCollection', features: basemap.water.map(feature) } as GeoJSON.FeatureCollection,
+      // Non-forest ground the inventory recorded — meadow, rock, wetland,
+      // shrub, and water the basemap may not carry — in its own colour, so an
+      // open slope reads as open ground rather than as dark forest floor.
+      cover: {
+        type: 'FeatureCollection',
+        features: (result?.renderCover ?? []).map((ground) => ({
+          type: 'Feature',
+          properties: { cover: ground.cover },
+          geometry: ground.geometry,
+        })),
+      } as GeoJSON.FeatureCollection,
     }
-  }, [drive.active, scene, previewTerrain.radius, forestOpenings, basemap.water])
+  }, [drive.active, scene, previewTerrain.radius, forestOpenings, basemap.water, result?.renderCover])
 
   // On the map, show what the whole road can see. Driving narrows it to the one
   // point the camera is standing at, which is the thing worth watching change.
@@ -2606,8 +2717,11 @@ function DevForestryVisuals() {
       setPreviewMessage('Twelve comparisons are saved. Remove one or download this preview before starting another.')
       return
     }
+    // Which saved design alternative this is, so the report can set it beside the same view under another.
+    const design = matchingDesign(scene, tools.designOptions)
     const view: SavedDriveView = {
       id: createId('view'),
+      ...(design ? { designName: design.name } : {}),
       // The caption without its full stop: it is also the option label "… · 0.60 km".
       name: captionForView(eyeMapRef.current?.getBearing() ?? null).replace(/\.$/, ''),
       positionMeters: drive.positionMeters,
@@ -2621,12 +2735,41 @@ function DevForestryVisuals() {
       growthMetersPerYear: drive.growthMetersPerYear,
       regenerationLagYears: drive.regenerationLagYears,
     }
-    // The screenshot for the block note, taken from the frame being saved, then the class pass of
-    // the same camera for its VIA figure (FigureSheetPanel).
+    // The screenshot for the block note, taken from the frame being saved, with what produced it
+    // and, where a field photo is lined up, the photo itself; then the class pass of the same camera
+    // for its VIA figure (FigureSheetPanel).
     const map = eyeMapRef.current
     if (map) {
       const caption = `${view.name}.`
       const savedAt = Date.now()
+      const bearing = ((Math.round(map.getBearing()) % 360) + 360) % 360
+      const photo = fieldPhoto.match && fieldPhoto.image?.thumbUrl ? fieldPhoto.image : null
+      const viewpoint: Omit<ViewpointPage, 'simulation'> = {
+        title: view.name,
+        design: design?.name ?? null,
+        harvestPhase: view.harvestPhase,
+        positionMeters: view.positionMeters,
+        bearingDegrees: bearing,
+        photo: null,
+        settings: [
+          {
+            label: 'Position',
+            value: `${(view.positionMeters / 1000).toFixed(2)} km along ${scene.viewpoint.name || 'the road'}`,
+          },
+          { label: 'Facing', value: `${bearing}°, tilt ${Math.round(view.tilt)}°` },
+          { label: 'Eye height', value: `${result?.settings.observerHeightMeters ?? '—'} m above the road` },
+          { label: 'Lens', value: `${Math.round(map.getVerticalFieldOfView())}° vertical field of view` },
+          {
+            label: 'Timber',
+            value: `VRI species mix and heights where recorded; ${view.treeHeightMeters} m elsewhere`,
+          },
+          {
+            label: 'Tree drawing',
+            value: `${drive.treeLook === 'lit' ? 'Lit' : 'Flat'} shading${drive.detailRadiusMeters > 0 && drive.quality !== 'fast' ? `, full 3D trees within ${drive.detailRadiusMeters} m` : ''}`,
+          },
+          { label: 'Terrain', value: 'AWS Open Data (CDEM/SRTM) at 1×' },
+        ],
+      }
       const at = {
         stationIndex: driveStationIndex,
         eye: cameraEye,
@@ -2643,7 +2786,7 @@ function DevForestryVisuals() {
           setPreviewMessage(`Saved ${view.name}, but its screenshot could not be taken.`)
           return
         }
-        setViewImages((current) => ({ ...current, [view.id]: { ...image, caption, savedAt } }))
+        setViewImages((current) => ({ ...current, [view.id]: { ...image, caption, savedAt, viewpoint } }))
         try {
           const figure = await captureViewFigure(map, at)
           setViewImages((current) =>
@@ -2655,11 +2798,54 @@ function DevForestryVisuals() {
           )
         }
       })()
+      if (photo?.thumbUrl) {
+        void captureImageUrl(photo.thumbUrl).then((image) => {
+          if (!image) return
+          const photoCaption = `Mapillary ${photo.capturedAt?.slice(0, 10) ?? 'photo'}${photo.creator ? ` by ${photo.creator}` : ''}, facing ${Math.round(photo.bearing)}°.`
+          setViewImages((current) => {
+            const entry = current[view.id]
+            const withPhoto = { ...viewpoint, photo: { ...image, caption: photoCaption } }
+            return entry ? { ...current, [view.id]: { ...entry, viewpoint: withPhoto } } : current
+          })
+        })
+      }
     }
     updateDrive({ playing: false, positionMeters: view.positionMeters })
     setRestoreLook({ yaw: view.yaw, tilt: view.tilt })
+    // Views saved under another design (or another road) are shelved, not
+    // overwritten: the report sets the same view under two designs side by side.
+    if (saved.key && saved.key !== key && saved.views.length) {
+      const previous = { key: saved.key, views: saved.views }
+      setShelvedViews((current) => [...current.filter((entry) => entry.key !== previous.key), previous])
+    }
     setSaved({ key, views: [...savedViews, view] })
     setPreviewMessage(`Saved ${view.name}. Download preview to keep or share this comparison.`)
+  }
+  /** The road view's scene for the renderer trials (`scenePackage.ts`). */
+  const downloadScenePackage = () => {
+    const map = eyeMapRef.current
+    const ground = previewTerrain.source
+    if (!map || !ground || !driveEye) {
+      setPreviewMessage('Open the road view and let its terrain load before downloading the 3D scene.')
+      return
+    }
+    const scenePackage = buildScenePackage({
+      eye: driveEye,
+      eyeHeightMeters: result?.settings.observerHeightMeters ?? 1.5,
+      bearingDegrees: map.getBearing(),
+      // MapLibre's pitch is 90° at the horizon.
+      pitchDegrees: map.getPitch() - 90,
+      verticalFovDegrees: map.getVerticalFieldOfView(),
+      forest: forestConfiguration,
+      elevation: ground,
+      roadScars: previewRoadScar,
+      notes: [
+        `${scene.viewpoint.name || 'Viewpoint'}, ${(drive.positionMeters / 1000).toFixed(2)} km along the road, ${drive.harvestPhase} harvest.`,
+        'Terrain: the road view’s drawn ground (AWS Open Data CDEM/SRTM). Trees: VRI where recorded, the regional stand elsewhere.',
+      ],
+    })
+    downloadText(JSON.stringify(scenePackage), 'forestry-scene-package.json', 'application/json')
+    setPreviewMessage(`Downloaded the 3D scene: ${scenePackage.trees.count.toLocaleString()} trees.`)
   }
   const reopenPreviousPreview = () => {
     try {
@@ -2922,6 +3108,7 @@ function DevForestryVisuals() {
     landformVantage,
     forestGround,
     previewRoad,
+    previewRoadScar: previewRoadScarCollection,
     basemapBounds,
     mapPick,
     inventoryCollection,
@@ -3305,6 +3492,7 @@ function DevForestryVisuals() {
       onSelectTarget={setSelectedTargetId}
       drive={preliminaryDrive ? { ...drive, active: false } : drive}
       onDriveChange={updateDrive}
+      onDownloadScenePackage={downloadScenePackage}
       onImportFile={(file) => void handleImportFile(file)}
       importMessage={importMessage}
       inventory={inventory}

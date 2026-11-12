@@ -1,4 +1,4 @@
-import type maplibregl from 'maplibre-gl'
+import type * as maplibregl from 'maplibre-gl'
 import { downloadBlob } from '@/lib/download'
 
 export type ExportFormat = 'png' | 'pngOverlay' | 'jpeg' | 'pdf'

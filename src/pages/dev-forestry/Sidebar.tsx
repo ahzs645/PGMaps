@@ -55,7 +55,7 @@ import { ResultsPanel } from './ResultsPanel'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
 import { MAX_DEM_ZOOM, MIN_DEM_ZOOM, demResolutionMeters } from './terrain'
 import type { AnalysisSettings, HarvestSystem, TargetPolygon, TargetRole, Viewpoint } from './types'
-import type { TreeStyle } from './treeLayer'
+import type { TreeLook, TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
 import { findSceneLandform } from './sceneInput'
 import { lineLengthMeters } from './visibility'
@@ -134,6 +134,13 @@ export type DriveState = {
   harvestPhase: 'before' | 'after'
   showAnalysis: boolean
   treeStyle: TreeStyle
+  /** Tree shading: the drawing's own colours, or lit as crown volumes. Display only. */
+  treeLook: TreeLook
+  /**
+   * Draw the stems within this many metres in detail once the view holds
+   * still; 0 never. Moving, every stem stays a card. Display only.
+   */
+  detailRadiusMeters: number
   /** Satellite imagery draped over the ground, as in a Google Earth screenshot. */
   imagery: boolean
   /** Draw proposed blocks solid white for a planning-note screenshot. */
@@ -429,6 +436,8 @@ type SidebarProps = {
 
   drive: DriveState
   onDriveChange: (patch: Partial<DriveState>) => void
+  /** Writes the road view's scene (terrain, the drawn stems, openings, camera) for other renderers to read. */
+  onDownloadScenePackage?: () => void
 
   onImportFile: (file: File) => void
   importMessage: string | null
@@ -536,6 +545,7 @@ export function Sidebar({
   onSelectTarget,
   drive,
   onDriveChange,
+  onDownloadScenePackage,
   onImportFile,
   importMessage,
   inventory,
@@ -1404,6 +1414,65 @@ export function Sidebar({
                     <option value="fast">Faster</option>
                   </StyledSelect>
                 </label>
+                <label className="flex items-center justify-between gap-2 text-xs">
+                  <span className="flex items-center gap-1">
+                    Tree shading
+                    <InfoTip label="About tree shading">
+                      Lit shades each tree as a crown: the sunny side brighter, the lower crown in its own shade, light
+                      through the needles when you look toward the sun. Flat draws each tree in the drawing's own
+                      colours. Either way every tree covers the same part of the view, so screening and every number are
+                      unchanged.
+                    </InfoTip>
+                  </span>
+                  <StyledSelect
+                    aria-label="Tree shading"
+                    className={SELECT_CLASS}
+                    value={drive.treeLook}
+                    onChange={(event) => onDriveChange({ treeLook: event.target.value as DriveState['treeLook'] })}
+                  >
+                    <option value="lit">Lit</option>
+                    <option value="flat">Flat</option>
+                  </StyledSelect>
+                </label>
+                <label className="flex items-center justify-between gap-2 text-xs">
+                  <span className="flex items-center gap-1">
+                    Detail when stopped
+                    <InfoTip label="About detail when stopped">
+                      While the view moves, every tree is a picture card, which keeps walking and driving smooth. Once
+                      it holds still for half a second, the trees within this distance are drawn again as full 3D trees
+                      (branches in whorls, foliage sprays) for a better still frame and screenshot. The same trees in
+                      the same places, at the same heights and crown widths: nothing about the stand or the numbers
+                      changes.
+                    </InfoTip>
+                  </span>
+                  <StyledSelect
+                    aria-label="Detail when stopped"
+                    className={SELECT_CLASS}
+                    value={String(drive.detailRadiusMeters)}
+                    onChange={(event) => onDriveChange({ detailRadiusMeters: Number(event.target.value) })}
+                  >
+                    <option value="0">Off</option>
+                    <option value="80">Within 80 m</option>
+                    <option value="150">Within 150 m</option>
+                    <option value="250">Within 250 m</option>
+                  </StyledSelect>
+                </label>
+                {onDownloadScenePackage && (
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-1">
+                      3D scene for other renderers
+                      <InfoTip label="About the 3D scene file">
+                        The road view as a file: the ground, every tree drawn within 600 m (species, height and crown
+                        width), the cut ground with its slash, road scars, and where the eye stands and looks. The
+                        renderer trials in the visual tools notes read it, so another engine draws the same stand.
+                        Display only.
+                      </InfoTip>
+                    </span>
+                    <Button size="sm" variant="outline" onClick={onDownloadScenePackage}>
+                      Download
+                    </Button>
+                  </div>
+                )}
               </div>
             </ToolSection>
 

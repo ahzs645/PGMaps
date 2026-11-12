@@ -425,6 +425,15 @@ describe('the perspective overlay and the camera block', () => {
     ).toBeCloseTo(0.5)
   })
 
+  it('says whether the pixel measure was taken over drawn timber', () => {
+    const line = (maxTreeHeightM: number | null) =>
+      texts(analysisSheet({ ...input('analysis-sheet-magenta'), camera: { ...camera, maxTreeHeightM } }).ops).find(
+        (t) => t.startsWith('Pixel measure'),
+      )
+    expect(line(24.5)).toMatch(/^Pixel measure, this image, drawn timber in front: /)
+    expect(line(null)).toMatch(/^Pixel measure, this image, bare earth: /)
+  })
+
   it('prints the camera block on other styles only when asked', () => {
     const plain = texts(analysisSheet({ ...input('analysis-sheet-magenta'), camera }).ops)
     expect(plain.some((t) => t.startsWith('Composite of'))).toBe(false)

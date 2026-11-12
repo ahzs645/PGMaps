@@ -7,9 +7,11 @@ import {
   blockNotePdf,
   blockNoteWorkbook,
   isPngImage,
+  designComparisonPairs,
   paragraphForLayout,
   type BlockNote,
   type NoteImage,
+  type ViewpointPage,
 } from './blockNote'
 
 /** A 16 × 9 grey-green JPEG. */
@@ -204,5 +206,83 @@ describe('composed VIA figures in the note', () => {
     const media = (book.model as unknown as { media: Array<{ extension: string }> }).media
     expect(media.map((m) => m.extension)).toEqual(expect.arrayContaining(['png', 'jpeg']))
     expect(blockNotePdf(withFigure, jspdf).byteLength).toBeGreaterThan(1000)
+  })
+})
+
+const viewpoint = (extra: Partial<ViewpointPage> = {}): ViewpointPage => ({
+  title: 'View from Hwy 97 going west',
+  design: null,
+  harvestPhase: 'after',
+  positionMeters: 600,
+  bearingDegrees: 271,
+  simulation: image('View from Hwy 97 going west · 0.60 km.'),
+  photo: null,
+  settings: [
+    { label: 'Eye height', value: '1.5 m' },
+    { label: 'Lens', value: '50 mm equivalent (40° wide)' },
+  ],
+  ...extra,
+})
+
+/** How many pages a PDF has, read from its page tree. */
+const pageCount = (buffer: ArrayBuffer) => {
+  const text = new TextDecoder('latin1').decode(new Uint8Array(buffer))
+  return (text.match(/\/Type \/Page\b/g) ?? []).length
+}
+
+describe('viewpoint pages and design comparisons', () => {
+  it('pairs views from the same eye under two designs, and only those', () => {
+    const pages = [
+      viewpoint({ design: 'Original layout' }),
+      viewpoint({ design: 'Original layout', positionMeters: 1400 }),
+      viewpoint({ design: 'Feathered edge', positionMeters: 604, bearingDegrees: 268 }),
+      // Same place, but looking another way: not a comparison.
+      viewpoint({ design: 'Feathered edge', positionMeters: 1400, bearingDegrees: 90 }),
+      // Same design twice is not a redesign.
+      viewpoint({ design: 'Original layout', positionMeters: 601 }),
+    ]
+    const pairs = designComparisonPairs(pages)
+    expect(pairs).toHaveLength(1)
+    expect(pairs[0].map((page) => page.design)).toEqual(['Original layout', 'Feathered edge'])
+  })
+
+  it('treats a bearing either side of north as the same facing', () => {
+    expect(
+      designComparisonPairs([
+        viewpoint({ design: 'A', bearingDegrees: 358 }),
+        viewpoint({ design: 'B', bearingDegrees: 2 }),
+      ]),
+    ).toHaveLength(1)
+  })
+
+  it('adds a page per viewpoint and one per before-and-after pair to the PDF', () => {
+    const plain = pageCount(blockNotePdf(note(), jspdf))
+    const pages = [
+      viewpoint({ design: 'Original layout', photo: image('Mapillary 2025-07-02, facing 271°.') }),
+      viewpoint({ design: 'Feathered edge' }),
+    ]
+    const withViewpoints = pageCount(blockNotePdf(note({ viewpoints: pages }), jspdf))
+    // Two viewpoint pages and one comparison page.
+    expect(withViewpoints - plain).toBe(3)
+  })
+
+  it('lists every viewpoint with its settings in the workbook', async () => {
+    const buffer = await blockNoteWorkbook(
+      note({ viewpoints: [viewpoint({ design: 'Feathered edge', photo: image('Photo.') })] }),
+      ExcelJS,
+    )
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(buffer)
+    const sheet = workbook.getWorksheet('Viewpoints')!
+    expect(sheet.getRow(1).values).toEqual([undefined, 'View', 'Design', 'Phase', 'Field photo', 'Eye height', 'Lens'])
+    expect(sheet.getRow(2).values).toEqual([
+      undefined,
+      'View from Hwy 97 going west',
+      'Feathered edge',
+      'After',
+      'Lined up',
+      '1.5 m',
+      '50 mm equivalent (40° wide)',
+    ])
   })
 })

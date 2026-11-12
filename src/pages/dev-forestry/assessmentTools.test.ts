@@ -6,6 +6,7 @@ import {
   comparisonScene,
   emptyTools,
   heightAtAge,
+  matchingDesign,
   matrixJobs,
   parseGrowthCurve,
   parseTools,
@@ -15,7 +16,7 @@ import {
   timelineScene,
 } from './assessmentTools'
 import { localRasterResolution, parseRasters, rasterSampler } from './localRaster'
-import { createEmptyScene, parseScene, serializeScene, type ForestryScene } from './scene'
+import { createEmptyScene, createSampleScene, parseScene, serializeScene, type ForestryScene } from './scene'
 import { buildSceneInput, sceneFingerprint } from './sceneInput'
 import { traceSightlineProfile } from './sightlineProfile'
 import { buildEvidenceHtml, evidenceGaps } from './toolEvidence'
@@ -300,5 +301,46 @@ describe('sightline and evidence outputs', () => {
     expect(html).not.toContain('<img src=x')
     expect(html).toContain('matching simulation image missing')
     expect(html).toContain('distinct from the historical FS1252')
+  })
+})
+
+describe('which design a scene shows', () => {
+  it('names the saved alternative whose blocks and retained patches the scene carries', () => {
+    const base = createSampleScene()
+    const moved: ForestryScene = {
+      ...base,
+      targets: base.targets.map((target) =>
+        target.role === 'block' && target.geometry.type === 'Polygon'
+          ? {
+              ...target,
+              geometry: {
+                type: 'Polygon',
+                coordinates: target.geometry.coordinates.map((ring) => ring.map(([lng, lat]) => [lng + 0.001, lat])),
+              },
+            }
+          : target,
+      ),
+    }
+    const options = [
+      { id: 'a', name: 'Original layout', scene: structuredClone(base) },
+      { id: 'b', name: 'Moved east', scene: structuredClone(moved) },
+    ]
+    expect(matchingDesign(base, options)?.name).toBe('Original layout')
+    expect(matchingDesign(comparisonScene(base, moved), options)?.name).toBe('Moved east')
+    // Anything else in the scene — the road, the settings — is not the design.
+    expect(matchingDesign({ ...moved, viewpoint: { ...moved.viewpoint, name: 'Elsewhere' } }, options)?.name).toBe(
+      'Moved east',
+    )
+  })
+
+  it('names none when the blocks have been edited since', () => {
+    const base = createSampleScene()
+    const edited: ForestryScene = {
+      ...base,
+      targets: base.targets.map((target) =>
+        target.role === 'block' ? { ...target, harvestSystem: 'partial' } : target,
+      ),
+    }
+    expect(matchingDesign(edited, [{ id: 'a', name: 'Original layout', scene: base }])).toBeNull()
   })
 })

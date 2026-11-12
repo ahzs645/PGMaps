@@ -30,16 +30,22 @@ export const BC_VEGETATION_WFS = 'https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST
 const TYPE_NAME = 'pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY'
 
 /**
- * The layer carries 189 attributes. Asking for seven of them is the difference
- * between a query worth running from a browser and one that is not.
+ * The layer carries 189 attributes. Asking for the two dozen the page uses is
+ * the difference between a query worth running from a browser and one that is
+ * not: geometry is most of the payload, and these add about a tenth to it.
  */
 const FIELDS = [
   'FEATURE_ID',
   'BCLCS_LEVEL_1',
   'BCLCS_LEVEL_2',
+  'BCLCS_LEVEL_3',
   'BCLCS_LEVEL_4',
-  'SPECIES_CD_1',
+  'BCLCS_LEVEL_5',
+  // The whole recorded composition, not just the lead: around Prince George a
+  // stand led by 30% cottonwood is 70% spruce, birch and fir.
+  ...[1, 2, 3, 4, 5, 6].flatMap((rank) => [`SPECIES_CD_${rank}`, `SPECIES_PCT_${rank}`]),
   'PROJ_HEIGHT_1',
+  'PROJ_HEIGHT_2',
   'CROWN_CLOSURE',
   'VRI_LIVE_STEMS_PER_HA',
   'PROJ_AGE_1',
@@ -71,6 +77,13 @@ export type VriStand = {
   nonVegetated?: boolean
   /** Leading species as the inventory spells it — `SX`, `PLI`, `BL`, `AT`. */
   speciesCode: string | null
+  /**
+   * Every species recorded, ranked, with its percentage (`SPECIES_CD_n`,
+   * `SPECIES_PCT_n`). Rank 1 and 2 carry their projected heights.
+   */
+  speciesComposition?: Array<{ code: string; percent: number; heightMeters: number | null }>
+  /** BCLCS levels 2–5, which say what non-treed ground is (water, rock, shrub, herb). */
+  landCover?: { level2: string | null; level3: string | null; level4: string | null; level5: string | null }
   /** Projected height of the leading species, in metres. */
   heightMeters: number | null
   crownClosurePercent: number | null
@@ -165,6 +178,13 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
     if (geometry?.type !== 'Polygon' && geometry?.type !== 'MultiPolygon') return []
 
     const properties = feature.properties ?? {}
+    const speciesComposition = [1, 2, 3, 4, 5, 6].flatMap((rank) => {
+      const code = trimmed(properties[`SPECIES_CD_${rank}`])
+      const percent = finiteNumber(properties[`SPECIES_PCT_${rank}`])
+      if (!code || percent === null || percent <= 0) return []
+      const height = rank <= 2 ? finiteNumber(properties[`PROJ_HEIGHT_${rank}`]) : null
+      return [{ code, percent, heightMeters: height }]
+    })
     return [
       {
         featureId: finiteNumber(properties.FEATURE_ID),
@@ -178,6 +198,13 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
         crownClosurePercent: finiteNumber(properties.CROWN_CLOSURE),
         stemsPerHa: finiteNumber(properties.VRI_LIVE_STEMS_PER_HA),
         ageYears: finiteNumber(properties.PROJ_AGE_1),
+        speciesComposition,
+        landCover: {
+          level2: trimmed(properties.BCLCS_LEVEL_2),
+          level3: trimmed(properties.BCLCS_LEVEL_3),
+          level4: trimmed(properties.BCLCS_LEVEL_4),
+          level5: trimmed(properties.BCLCS_LEVEL_5),
+        },
         geometry,
       },
     ]

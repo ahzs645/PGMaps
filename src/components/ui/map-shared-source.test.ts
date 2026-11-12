@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import type MapLibreGL from 'maplibre-gl'
+import type * as MapLibreGL from 'maplibre-gl'
 import { releaseGeoJsonSource, retainGeoJsonSource, updateGeoJsonSource } from './map-shared-source'
 it('indexes shared data once and keeps it until the last style is removed', () => {
   const source = { setData: vi.fn() }

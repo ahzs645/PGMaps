@@ -1,6 +1,6 @@
 import { useLayoutEffect } from 'react'
 import { useTheme } from 'next-themes'
-import type MapLibreGL from 'maplibre-gl'
+import type * as MapLibreGL from 'maplibre-gl'
 import type { NativeWebMap } from './adapters/arcgisWebMap'
 import type { EditorialBasemap } from './editorialBasemap'
 
@@ -45,8 +45,10 @@ export function useEditorialBasemapTheme(
           | undefined
         for (const [property, light] of Object.entries(paint)) {
           const value = resolvedTheme === 'dark' ? original?.[property] : light
-          if (value !== undefined && map.getPaintProperty(id, property) !== value)
-            map.setPaintProperty(id, property, value)
+          // Keys come from the story's own paint objects, so they are paint properties by construction.
+          const key = property as Parameters<typeof map.setPaintProperty>[1]
+          if (value !== undefined && map.getPaintProperty(id, key) !== value)
+            map.setPaintProperty(id, key, value as Parameters<typeof map.setPaintProperty>[2])
         }
       }
     }

@@ -1,6 +1,6 @@
 import { escapeHtml } from '@/lib/escapeHtml'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type MapLibre from 'maplibre-gl'
+import type * as MapLibre from 'maplibre-gl'
 import { Map as PGMap } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MapMarker, MarkerContent } from '@/components/ui/map-markers'

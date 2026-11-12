@@ -4,7 +4,7 @@ import { PG_CENTER } from '@/components/ui/map-styles'
 import { useIsMobile } from '@/hooks/useIsMobile'
 // @ts-expect-error - turf types issue with package exports
 import * as turf from '@turf/turf'
-import type maplibregl from 'maplibre-gl'
+import type * as maplibregl from 'maplibre-gl'
 import type { SourceLocation } from '../../types'
 
 interface RouletteLocationPickerProps {
