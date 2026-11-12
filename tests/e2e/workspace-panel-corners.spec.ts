@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 const INTERFACE_IDS: Record<string, string> = {
   Ribbon: 'ribbon',
   'Guided map': 'guided',
-  'Engineering workbench': 'workbench',
+  'Guided mode': 'workbench',
   Dashboard: 'dashboard',
 }
 
@@ -148,7 +148,7 @@ for (const width of [1440, 390]) {
 
 test('workbench controls and engineering views each have an independent corner', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openWorkspace(page, 'Engineering workbench')
+  await openWorkspace(page, 'Guided mode')
   await expect(page.getByTestId('road-workspace')).toHaveCSS('padding-left', '24px')
   const presets = page.getByRole('button', { name: 'Screen presets & panels', exact: true })
   await presets.click()
@@ -167,6 +167,6 @@ test('workbench controls and engineering views each have an independent corner',
   expect(resized.width).toBeCloseTo(initial.width - 30, 0)
   expect(resized.height).toBeCloseTo(initial.height - 40, 0)
   expect((await map.boundingBox())!.width).toBeCloseTo(mapWidth, 0)
-  await openWorkspace(page, 'Engineering workbench')
+  await openWorkspace(page, 'Guided mode')
   expect((await controls.boundingBox())!.width).toBeCloseTo(resized.width, 0)
 })

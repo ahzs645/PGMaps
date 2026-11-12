@@ -9,6 +9,7 @@ import { CustomizeRibbonPane } from '@/components/interfaces/CustomizeRibbonPane
 import { useRibbonPreferences } from '@/components/interfaces/ribbonPreferences'
 import { InterfaceChooser } from '@/components/interfaces/InterfaceChooser'
 import { useWorkspaceLayout } from '@/components/interfaces/useWorkspaceLayout'
+import { DEFAULT_INTERFACE_NAME, workspaceHelpSearch } from '@/components/interfaces/interfacePreference'
 import { layoutIcons, type WorkspaceLayout, type WorkspaceWidget } from '@/components/interfaces/workspaceLayouts'
 import {
   commandRecord,
@@ -3437,11 +3438,11 @@ export default function DevForestryRoads({
   )
   const interfaceSwitcher = interfaceSwitch('2xl')
   const ribbonHelp = active.toolbar?.dock === 'top'
-  const helpLayout = new URLSearchParams({ layout: 'ribbon', interface: active.id })
+  const helpLayout = workspaceHelpSearch(active)
   const workflowHelp = (
     <a
       className="inline-flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-muted focus-visible:outline"
-      href={`${import.meta.env.BASE_URL}help/index.html${ribbonHelp ? '?' + helpLayout : ''}`}
+      href={`${import.meta.env.BASE_URL}help/index.html?${helpLayout}`}
       target="_blank"
       rel="noopener"
       aria-label="Workflow help (opens in a new tab)"
@@ -3570,7 +3571,7 @@ export default function DevForestryRoads({
           {projectStatus}
           {layoutsFallback && (
             <p role="status" className="truncate text-2xs text-warning">
-              Workspace layouts could not be loaded: using the built-in engineering workbench.
+              Workspace layouts could not be loaded: using the built-in {DEFAULT_INTERFACE_NAME}.
             </p>
           )}
         </div>
@@ -5113,7 +5114,7 @@ export default function DevForestryRoads({
                           )}
                         </output>
                         <a
-                          href={`${import.meta.env.BASE_URL}help/${ribbonHelp ? 'ribbon.html?lesson=station-200&' + helpLayout : 'station-200/index.html'}`}
+                          href={`${import.meta.env.BASE_URL}help/${ribbonHelp ? 'ribbon.html?lesson=station-200&' + helpLayout : 'station-200/index.html?' + helpLayout}`}
                           target="_blank"
                           rel="noopener"
                           aria-label="Station help: read the cut depth (opens in a new tab)"

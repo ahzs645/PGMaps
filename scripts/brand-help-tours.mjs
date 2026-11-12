@@ -64,9 +64,13 @@ await generated(
 const introductionFile = new URL('open-hillside/index.html', helpDir)
 const introduction = await readFile(introductionFile, 'utf8')
 const introductionBrandScript = '<script defer src="../branding.js"></script>'
+const introductionContextScript = '<script defer src="../workspaceContext.js"></script>'
 await generated(
   introductionFile,
-  introduction.replace(introductionBrandScript, '').replace('</head>', introductionBrandScript + '</head>'),
+  introduction
+    .replace(introductionBrandScript, '')
+    .replace(introductionContextScript, '')
+    .replace('</head>', introductionBrandScript + introductionContextScript + '</head>'),
   introduction,
 )
 const { parseCapture } = await tsImport('../src/help/parseCapture.ts', import.meta.url)

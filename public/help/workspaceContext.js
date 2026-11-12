@@ -1,12 +1,13 @@
-// A Workbench URL can carry the Ribbon layout to return to when switching back.
+// Keep the launching workspace and the available Ribbon tutorial in every help link.
 (() => {
   const params = new URLSearchParams(location.search)
   const id = params.get('interface')
+  const ribbonId = params.get('ribbonInterface') || id
   if (location.protocol === 'file:') return
   const nav = document.querySelector('.tour-nav[data-lesson]')
   if (nav && params.get('layout') === 'ribbon') {
     const target = new URL(nav.querySelector('a[href*="ribbon.html?"]').href)
-    if (id) target.searchParams.set('interface', id)
+    if (ribbonId) target.searchParams.set('interface', ribbonId)
     location.replace(target)
     return
   }
@@ -16,8 +17,12 @@
     if (a.hasAttribute('download') || raw.startsWith('#')) continue
     const url = new URL(raw, location.href)
     const helpPage = /\/(?:tour|ribbon|index)\.html$/.test(url.pathname) || raw.startsWith('?layout=')
-    if (url.origin !== location.origin || !helpPage) continue
-    url.searchParams.set('interface', id)
+    const workspace = /\/dev\/forestry\/road-design\/?$/.test(url.pathname)
+    if (url.origin !== location.origin || (!helpPage && !workspace)) continue
+    const ribbon = /\/ribbon\.html$/.test(url.pathname) || url.searchParams.get('layout') === 'ribbon'
+    url.searchParams.set('interface', ribbon ? ribbonId : id)
+    if (!ribbon && !workspace && params.has('ribbonInterface'))
+      url.searchParams.set('ribbonInterface', ribbonId)
     a.href = url.href
   }
 })()

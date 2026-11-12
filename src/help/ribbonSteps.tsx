@@ -6,6 +6,7 @@ import { WorkspaceTools } from '../components/interfaces/WorkspaceTools'
 import { isRibbonCommand, ribbonToolLabel, type RibbonTool } from '../components/interfaces/ribbonToolCatalog'
 import type { WorkspaceToolbar, WorkspaceWidget } from '../components/interfaces/workspaceLayouts'
 import { ribbonRoutes, type RibbonAction } from './ribbonRoutes'
+import { DEFAULT_INTERFACE_NAME } from '../components/interfaces/interfacePreference'
 
 type Tab = WorkspaceToolbar['groups'][number]
 type Group = NonNullable<Tab['sections']>[number]
@@ -47,7 +48,7 @@ function locate(toolbar: WorkspaceToolbar, action: RibbonAction): Location {
   if (extra) return extra
   const name = action.tool ? ribbonToolLabel(action.tool) : action.editor + ' settings'
   throw new Error(
-    `Your active Ribbon layout does not include ${name}. Choose the Engineering workbench guide or restore a layout containing this tool.`,
+    `Your active Ribbon layout does not include ${name}. Choose the ${DEFAULT_INTERFACE_NAME} guide or restore a layout containing this tool.`,
   )
 }
 

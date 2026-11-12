@@ -1,4 +1,5 @@
 import { ribbonFieldIds } from '@/pages/dev-forestry-roads/roadFieldDefinitions'
+import { DEFAULT_INTERFACE_NAME } from './interfacePreference'
 import { Compass, LayoutDashboard, Map as MapIcon, PanelsLeftBottom, PanelsTopLeft, Route, Ruler } from 'lucide-react'
 import { ribbonExports, workspaceCommandIds, type WorkspaceCommand } from './workspaceCommands'
 import {
@@ -96,8 +97,8 @@ export function resolveToolbar(toolbar: WorkspaceToolbar): WorkspaceToolbar {
 const recoveryLayout = parseLayout(
   {
     id: 'workbench',
-    name: 'Engineering workbench',
-    shortName: 'Workbench',
+    name: DEFAULT_INTERFACE_NAME,
+    shortName: DEFAULT_INTERFACE_NAME,
     description: 'Open the road design tools with linked plan, profile and cross-section views.',
     preview: 'workbench.webp',
   },
@@ -114,7 +115,7 @@ export async function loadWorkspaceLayouts(signal: AbortSignal) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     return { layouts: parseLayoutCatalog(await response.json()), fallback: false }
   } catch (error) {
-    if (!signal.aborted) console.warn('Using the built-in engineering workbench.', error)
+    if (!signal.aborted) console.warn('Using the built-in ' + DEFAULT_INTERFACE_NAME + '.', error)
     return { layouts: [recoveryLayout], fallback: true }
   }
 }

@@ -254,8 +254,8 @@
   },
   {
     "id": "workbench",
-    "name": "Engineering workbench",
-    "shortName": "Workbench",
+    "name": "Guided mode",
+    "shortName": "Guided mode",
     "description": "Edit a station with its plan, profile and cross-section linked side by side.",
     "icon": "panels",
     "preview": "workbench.webp",

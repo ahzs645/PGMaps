@@ -154,7 +154,7 @@ test('lesson navigation keeps the topic, view and custom Ribbon across workspace
   await expect(page.locator('.ribbon-player')).toBeVisible()
   await header.getByRole('link', { name: 'Open written guide' }).click()
   await header.locator('summary').click()
-  await header.getByRole('link', { name: 'Engineering workbench' }).click()
+  await header.getByRole('link', { name: 'Guided mode' }).click()
   await expect(page).toHaveURL(/\/help\/import-line\/index\.html\?interface=field-team$/)
   await header.getByRole('link', { name: 'Play interactive lesson' }).click()
   await expect(page.getByRole('heading', { name: 'Import a road line', exact: true })).toBeVisible()

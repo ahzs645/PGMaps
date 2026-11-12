@@ -203,7 +203,7 @@ test.describe('field navigation', () => {
     // On a phone the interface switch is in the tab row's More menu.
     await button(commands, 'More workspace commands').tap()
     await page.getByRole('menuitem', { name: 'Switch interface' }).tap()
-    await page.getByRole('button', { name: 'Open Engineering workbench', exact: true }).tap()
+    await page.getByRole('button', { name: 'Open Guided mode', exact: true }).tap()
     await page.getByRole('button', { name: 'Undo road edit', exact: true }).tap()
     await page.getByRole('button', { name: 'Switch workspace interface' }).tap()
     await page.getByRole('button', { name: 'Open Ribbon', exact: true }).tap()

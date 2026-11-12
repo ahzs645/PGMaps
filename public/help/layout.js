@@ -1,6 +1,6 @@
 // One catalog supplies the links for both workspace styles.
 const params = new URLSearchParams(location.search)
-const layoutId = params.get('interface') || 'ribbon'
+const layoutId = params.get('ribbonInterface') || params.get('interface') || 'ribbon'
 function ribbonUrl(lesson, view, prefix = '') {
   return prefix + 'ribbon.html?' + new URLSearchParams({ lesson, view, interface: layoutId })
 }

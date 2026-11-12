@@ -1,5 +1,6 @@
 import { BookOpen, ChevronDown, Play } from 'lucide-react'
 import { AccessLockup } from '../components/interfaces/AccessLockup'
+import { DEFAULT_INTERFACE_NAME } from '../components/interfaces/interfacePreference'
 
 type Props = {
   lesson: string
@@ -27,12 +28,12 @@ export function LessonNavigation({ lesson, view, ribbon }: Props) {
         <AccessLockup surface="help" />
       </a>
       <details className="tour-workspace">
-        <summary aria-label={'Tutorial workspace, ' + (ribbon?.name ?? 'Engineering workbench')}>
-          {ribbon?.name ?? 'Workbench'} <ChevronDown size={14} aria-hidden="true" />
+        <summary aria-label={'Tutorial workspace, ' + (ribbon?.name ?? DEFAULT_INTERFACE_NAME)}>
+          {ribbon?.name ?? DEFAULT_INTERFACE_NAME} <ChevronDown size={14} aria-hidden="true" />
         </summary>
         <div>
           <a href={workbenchUrl(view)} aria-current={ribbon ? undefined : 'page'}>
-            Engineering workbench
+            {DEFAULT_INTERFACE_NAME}
           </a>
           <a href={ribbonUrl(view)} aria-current={ribbon ? 'page' : undefined}>
             {ribbon?.name ?? 'Ribbon'}

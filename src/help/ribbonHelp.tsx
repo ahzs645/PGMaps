@@ -11,6 +11,7 @@ import './ribbonExcerpt.css'
 import { getBrandingState, initializeBranding } from '../branding/store'
 import { BrandScope } from '../branding/BrandScope'
 import { brandVariables, fontCss } from '../branding/presentation'
+import { DEFAULT_INTERFACE_NAME } from '../components/interfaces/interfacePreference'
 
 const params = new URLSearchParams(location.search)
 const id = params.get('lesson') ?? 'sketch-road'
@@ -82,7 +83,7 @@ function ErrorMessage({ message }: { message: string }) {
     <main className="intro">
       <h1>Ribbon workflow help</h1>
       <p role="alert">{message}</p>
-      <a href={fallback}>Read the Engineering workbench guide</a>
+      <a href={fallback}>Read the {DEFAULT_INTERFACE_NAME} guide</a>
     </main>
   )
 }
@@ -201,7 +202,7 @@ function Help({ layout, guide, capture }: Sources) {
   const training = '../dev/forestry/road-design?' + start
   const setup = guide
     .querySelector('main header h1 + p')
-    ?.textContent?.replace(/(?:the )?Engineering workbench/gi, 'the Ribbon')
+    ?.textContent?.replace(/(?:the )?(?:Engineering workbench|Guided mode)/gi, 'the Ribbon')
   const title = capture.title
   const branding = getBrandingState()
   const helpBrand = branding.settings.help && branding.brands.find((b) => b.key === branding.settings.selected)
@@ -298,7 +299,7 @@ function Help({ layout, guide, capture }: Sources) {
                 </>
               )}
               <a href={id + '/index.html?' + new URLSearchParams({ interface: layoutId })}>
-                Engineering workbench guide
+                {DEFAULT_INTERFACE_NAME} guide
               </a>
               {!playing && nextGuide && (
                 <a rel="next" href={link('guide', nextGuide.dataset.nextLesson)}>
