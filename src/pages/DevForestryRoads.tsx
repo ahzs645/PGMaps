@@ -1330,14 +1330,14 @@ export default function DevForestryRoads({
     },
     [setStation, setWorkflowTab],
   )
-  /** Refuses a plan edit that crosses the road or leaves a curve that cannot fit, and says why. */
+  /** Refuses a plan edit the road could not be built to (`planEditCheck.ts`), and says why. */
   const refusedPlanEdit = useCallback(
     (next: Alignment) => {
-      const refusal = checkPlanEdit(alignment, next, project.settings.minRadius)
+      const refusal = checkPlanEdit(alignment, next, project.settings.minRadius, { context: project.context })
       if (refusal) setNotice(refusal.message)
       return !!refusal
     },
-    [alignment, project.settings.minRadius, setNotice],
+    [alignment, project.settings.minRadius, project.context, setNotice],
   )
   const movePoint = useCallback(
     (id: string, coordinate: Coordinate) => {

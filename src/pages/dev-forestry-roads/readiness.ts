@@ -19,6 +19,13 @@ import { MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M } from './connectorCheckOptions
 import { CONSTRAINT_LABELS, resolveConstraint } from './constraints'
 import { assessCostReadiness, type CostReadinessAssessment } from './costReadiness'
 import { buildCrossingRegister, type CrossingRegister } from './crossingRegister'
+import {
+  CROSSING_APPROACH_TANGENT_M,
+  CROSSING_SKEW_SCREEN_DEG,
+  crossingGeometry,
+  crossingNeedsReview,
+  riparianStretches,
+} from './streamCrossingReview'
 import { gradeRule, gradeRuleText, gradeSpanOf, reviewGrades, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
@@ -1217,6 +1224,124 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
           .join(' · ') || undefined,
       judgedOn: 'A class S1 to S6 reviewed by a person (FPPR s. 47)',
     })
+
+  // Crossings square to the stream with straight approaches (Engineering Manual §2.3.3.1), and the
+  // road kept out of riparian areas away from them (FPPR s. 50). `streamCrossingReview.ts`.
+  const mappedCrossings = crossed.map((row) => ({
+    featureId: row.mapped!.featureId,
+    name: row.mapped!.name,
+    chainage: row.mapped!.chainage,
+  }))
+  const approachRule = `Engineering Manual §2.3.3.1: at right angles, with at least ${CROSSING_APPROACH_TANGENT_M} m of straight each side. No skew limit is published; more than ${CROSSING_SKEW_SCREEN_DEG}° off square is flagged as a screen`
+  const squareCheck = 'Stream crossings square, with straight approaches'
+  if (!streams.length || !calculated)
+    add({
+      id: 'crossing-approach',
+      group: 'water',
+      check: squareCheck,
+      state: 'not-assessed',
+      result: !streams.length
+        ? 'No stream lines are in the project'
+        : 'No sections were calculated, so crossings were not found',
+      judgedOn: approachRule,
+    })
+  else if (!crossed.length)
+    add({
+      id: 'crossing-approach',
+      group: 'water',
+      check: squareCheck,
+      state: 'met',
+      result: `The road crosses none of the ${plural(streams.length, 'mapped stream')}`,
+      judgedOn: approachRule,
+    })
+  else {
+    const shapes = crossingGeometry(alignment, context, mappedCrossings)
+    const describeShape = (c: (typeof shapes)[number]) =>
+      `${station(c.chainage)} ${c.name}: ${c.skewDegrees === null ? 'angle unknown' : `${num(c.skewDegrees)}° off square`}, ${c.onCurve ? 'on a curve' : `${trim(c.backM)} m / ${trim(c.aheadM)} m straight`}`
+    const short = shapes.filter(crossingNeedsReview)
+    const unknown = shapes.filter((c) => c.skewDegrees === null)
+    if (short.length)
+      add({
+        id: 'crossing-approach',
+        group: 'water',
+        check: squareCheck,
+        state: 'attention',
+        severity: 'todo',
+        result: `${plural(short.length, 'crossing is', 'crossings are')} skewed or short of straight approach`,
+        measured: short.slice(0, 3).map(describeShape).join(' · '),
+        judgedOn: approachRule,
+        action: { label: `Go to ${station(short[0].chainage)}`, target: 'streams', chainage: short[0].chainage },
+      })
+    else if (unknown.length || shapes.length < crossed.length)
+      add({
+        id: 'crossing-approach',
+        group: 'water',
+        check: squareCheck,
+        state: 'not-assessed',
+        result: `${plural(Math.max(unknown.length, crossed.length - shapes.length), 'crossing')} could not be measured against the stream line`,
+        judgedOn: approachRule,
+      })
+    else
+      add({
+        id: 'crossing-approach',
+        group: 'water',
+        check: squareCheck,
+        state: 'met',
+        result: `${every(shapes.length, 'crossing is', 'crossings are')} within the screen with straight approaches`,
+        measured: shapes.slice(0, 3).map(describeShape).join(' · '),
+        judgedOn: approachRule,
+      })
+  }
+
+  const riparianRule =
+    'FPPR s. 50(1): no road in a riparian management area unless it is part of a crossing or a stated reason applies, judged on the preliminary horizontal screens (100 m where the class or channel width is unresolved)'
+  const riparianCheck = 'Road kept out of riparian areas except at crossings'
+  if (!streams.length || !calculated)
+    add({
+      id: 'riparian-areas',
+      group: 'water',
+      check: riparianCheck,
+      state: 'not-assessed',
+      result: !streams.length
+        ? 'No stream lines are in the project'
+        : 'No sections were calculated, so the areas were not tested',
+      judgedOn: riparianRule,
+      action: streams.length ? undefined : { label: 'Add streams', target: 'streams' },
+    })
+  else {
+    const stretches = riparianStretches(stations, context, mappedCrossings)
+    const alongside = stretches.filter((stretch) => !stretch.crossing)
+    const open = alongside.filter((stretch) => !stretch.reviewed)
+    const describeStretch = (stretch: (typeof stretches)[number]) =>
+      `${stretch.name} (${stretch.uncertain ? 'unresolved, 100 m screen' : stretch.riparianClass}) at ${span(stretch)}`
+    if (open.length)
+      add({
+        id: 'riparian-areas',
+        group: 'water',
+        check: riparianCheck,
+        state: 'attention',
+        // On an unresolved 100 m screen, classifying the stream may clear it; on a reviewed class it is the rule.
+        severity: open.every((stretch) => stretch.uncertain) ? 'todo' : 'limit',
+        result: `The road runs inside ${plural(new Set(open.map((stretch) => stretch.featureId)).size, 'riparian area')} away from a crossing`,
+        measured: open.slice(0, 3).map(describeStretch).join(' · '),
+        judgedOn: riparianRule,
+        action: { label: `Go to ${station(open[0].start)}`, target: 'streams', chainage: open[0].start },
+      })
+    else
+      add({
+        id: 'riparian-areas',
+        group: 'water',
+        check: riparianCheck,
+        state: 'met',
+        result: alongside.length
+          ? `The road is in riparian areas only at crossings or under a current recorded review`
+          : stretches.length
+            ? `The road enters riparian areas only at its ${plural(stretches.length, 'crossing')}`
+            : 'The road stays outside every riparian screening area',
+        measured: alongside.length ? alongside.slice(0, 3).map(describeStretch).join(' · ') : undefined,
+        judgedOn: riparianRule,
+      })
+  }
 
   const record = input.drainage?.record
   if (!record || input.drainage?.stale)

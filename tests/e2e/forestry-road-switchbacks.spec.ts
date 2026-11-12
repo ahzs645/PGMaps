@@ -201,7 +201,7 @@ async function openExample(page: Page) {
     mimeType: 'application/json',
     buffer: readFileSync(EXAMPLE),
   })
-  await expect(page.locator('dl').filter({ hasText: 'Coverage' }).first()).toContainText('1,695 m')
+  await expect(page.locator('#road-summary-measurements')).toContainText('1,695 m')
 }
 
 test('a design vehicle swept path checks the switchback as one turn, frames it, and saves', async ({ page }) => {
@@ -285,7 +285,7 @@ test('the documented switchback example opens with three complete alternatives',
   })
   await expect.poll(() => countRoads(page)).toBe(3)
   await expect(activeRoad(page)).toContainText('Left return')
-  const summary = page.locator('dl').filter({ hasText: 'Coverage' }).first()
+  const summary = page.locator('#road-summary-measurements')
   await expect(summary).toContainText('1,695 m')
   await expect(summary).toContainText('100%')
   await choose(activeRoad(page), { label: 'Baseline hillside road · synthetic training' })
@@ -335,7 +335,7 @@ for (const viewport of [
       await press(create)
       // Phones close the controls after creation so the new road is visible on the map.
       await expect(page.getByRole('button', { name: 'Show road controls', exact: true })).toBeVisible()
-      await expect(page.locator('dl').filter({ hasText: 'Coverage' }).first()).toContainText('1,695 m')
+      await expect(page.locator('#road-summary-measurements')).toContainText('1,695 m')
       await press(page.getByRole('button', { name: 'Show road controls', exact: true }))
       await expect.poll(() => countRoads(page)).toBe(roadCount + 1)
       await expect(activeRoad(page)).toContainText('right switchback R40')

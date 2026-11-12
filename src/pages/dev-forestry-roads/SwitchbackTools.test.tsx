@@ -175,8 +175,17 @@ describe('switchback sketch adoption', () => {
     expect(h.state.error).toBe('')
   })
 
+  it('stages nothing while folded: the sketch and its swept path wait until the panel opens', async () => {
+    const h = await mounted()
+    expect(h.createButton().props.disabled).toBe(true)
+    expect(h.text()).not.toContain('offtracking')
+    await act(async () => h.toggle())
+    expect(h.createButton().props.disabled).toBe(false)
+  })
+
   it('rejects a missing calculated end formation without changing project or cursor', async () => {
     const h = await mounted()
+    await act(async () => h.toggle())
     const original = h.state.project
     const analysis = structuredClone(h.state.analysis)
     analysis.stations.at(-1)!.designElevation = null
@@ -250,6 +259,7 @@ describe('switchback sketch adoption', () => {
 
   it('checks the immediate project before committing a sketch from an older render', async () => {
     const h = await mounted()
+    await act(async () => h.toggle())
     const edited = { ...h.state.project, name: 'Changed before the next render' }
     h.replace({ project: edited }, false)
     await act(async () => h.createButton().props.onClick())
