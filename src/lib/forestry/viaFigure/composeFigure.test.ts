@@ -14,6 +14,9 @@ import {
   fillTemplate,
   fitFrame,
   inLandform,
+  NO_INVENTORY_UNIT,
+  landformCropRows,
+  cropRasterRows,
   landformCentroid,
   layoutCallouts,
   maskRings,
@@ -171,6 +174,54 @@ describe('lines on the figure', () => {
   })
 })
 
+describe('cropping the strip to the landform', () => {
+  /** A 100 × 200 strip: sky to row 150, the landform on rows 150–159, ground below. */
+  const tall = () => {
+    const codes = new Uint8Array(100 * 200)
+    for (let y = 150; y < 200; y++)
+      for (let x = 0; x < 100; x++) codes[y * 100 + x] = y < 160 ? FIGURE_CLASS.landform : FIGURE_CLASS.terrain
+    return { width: 100, height: 200, codes }
+  }
+
+  it('keeps about a fifth sky above the landform and at most 12 % ground below, full width', () => {
+    const crop = landformCropRows(tall())!
+    // A 10-row band in a window of 10 / 0.68 rows.
+    expect(crop.height).toBe(15)
+    const sky = (150 - crop.y) / crop.height,
+      ground = (crop.y + crop.height - 160) / crop.height
+    expect(sky).toBeGreaterThanOrEqual(0.15)
+    expect(sky).toBeLessThanOrEqual(0.25)
+    expect(ground).toBeLessThanOrEqual(0.15)
+    const cropped = cropRasterRows(tall(), crop)
+    expect(cropped).toMatchObject({ width: 100, height: 15 })
+    expect(countClasses(cropped).landform).toBe(countClasses(tall()).landform)
+  })
+
+  it('puts a cropped strip’s callouts in the sheet’s band above the strip, clear of the landform', () => {
+    const strip = { ...input('analysis-sheet-magenta') }
+    // A strip with no sky: every column's skyline is row 0.
+    const codes = new Uint8Array(W * 10).fill(FIGURE_CLASS.landform)
+    const sheet = analysisSheet({
+      ...strip,
+      image: { kind: 'rgba', data: new Uint8ClampedArray(W * 10 * 4).fill(200), width: W, height: 10 },
+      classes: { width: W, height: 10, codes },
+      callouts: [{ title: 'Block 1', body: 'Visible', anchor: [50, 5] }],
+    })
+    const titleOp = sheet.ops.find((op) => op.op === 'text' && op.text === 'Block 1') as { y: number }
+    expect(titleOp.y).toBeLessThan(sheet.frame.y)
+  })
+
+  it('never reaches past the image, and leaves a landform that fills it alone', () => {
+    const codes = new Uint8Array(10 * 10).fill(FIGURE_CLASS.landform)
+    expect(landformCropRows({ width: 10, height: 10, codes })).toBeNull()
+    expect(landformCropRows({ width: 10, height: 10, codes: new Uint8Array(100) })).toBeNull()
+    // A landform at the very top: the window starts at row 0.
+    const top = new Uint8Array(100 * 200)
+    for (let y = 0; y < 10; y++) for (let x = 0; x < 100; x++) top[y * 100 + x] = FIGURE_CLASS.landform
+    expect(landformCropRows({ width: 100, height: 200, codes: top })!.y).toBe(0)
+  })
+})
+
 describe('figure composition', () => {
   it('fits the image without stretching it', () => {
     const frame = fitFrame({ width: 200, height: 100 }, { x: 0, y: 0, w: 100, h: 100 })
@@ -217,6 +268,18 @@ describe('figure composition', () => {
     expect(sheet.drawn).toEqual(expect.arrayContaining(['landform', 'privateLand', 'proposedBlock', 'existingNonVeg']))
     for (const text of all) expect(pdfTextUnfolded(text), text).toEqual([])
     expect(() => analysisSheet(input('board-triptych'))).toThrow()
+  })
+
+  it('draws no empty inventory circle: one line when no unit is known', () => {
+    const sheet = analysisSheet({ ...input('analysis-sheet-magenta'), rating: null })
+    const all = texts(sheet.ops)
+    expect(all.join(' ')).toContain(NO_INVENTORY_UNIT)
+    expect(all).not.toContain('Visual Inventory Legend')
+    expect(all.some((t) => t.startsWith('VSU - Visual Sensitivity Unit'))).toBe(false)
+    expect(sheet.ops.some((op) => op.op === 'circle')).toBe(false)
+    // With a unit, the circle, its values (unknown ones as "?") and the key.
+    const known = texts(analysisSheet({ ...input('analysis-sheet-magenta'), rating: { vsu: '12', vqo: 'PR' } }).ops)
+    expect(known).toEqual(expect.arrayContaining(['VSU 12', '?', '?  /  ?', 'PR', 'VSU - Visual Sensitivity Unit']))
   })
 
   it('prints which rule chose the inventory unit under the circle', () => {

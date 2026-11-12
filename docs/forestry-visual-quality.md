@@ -4,6 +4,12 @@
 
 > **Work log:** [September 2026 round](forestry-visual-quality-worklog.md) — the handbook steps as tabs, map scale, field photos, retention and partial cuts, inventory-calibrated forest density, terrain landforms, and what each turned up.
 
+> **Report survey:** [November 2026](forestry-visual-quality-report-survey-2026-11-11.md) — what 26 real visual-quality assessments ask of the page.
+
+> **Criteria reference:** [wording, tables, factors and criteria](forestry-visual-quality-criteria-reference.md) — every definition, table, conversion factor and decision rule found in those assessments.
+
+> **Simulation formats:** [the simulation and report formats to remake](forestry-visual-quality-simulation-formats.md) — the figure and sheet formats the analysis sheet's styles reproduce.
+
 # Forestry visual quality (`/dev/forestry/visual-quality`)
 
 A screening tool for the question a visual landscape assessment starts from:
@@ -1518,16 +1524,22 @@ frames, and puts the camera and field back. Callouts and lines are placed by a
 pinhole from the same eye (`projectToFrames`), which needs no map once the camera
 is restored. The sheet prints the lens, field and bearings. A very large landform seen
 as a thin, distant band (Tabor Mountain's 4,489 ha sample landform, 3–11 km out,
-takes two frames across 79°) still leaves the 4:1 strip mostly sky: the frame
-does not stretch the picture to fill it. Adopting the visible-face candidate
-(below) gives the smaller landform the sheets draw, and a frame to match.
+takes two frames across 79°) would still leave the strip mostly sky, so after the
+capture the strip is cropped to the landform's rows in the class pass
+(`landformCropRows`): about a fifth of the height above its top, at most 12% below
+its base, the full width kept, never stretched, and the class pass cropped by the
+same rows so the pixel counts match. The lens line then says "cropped to the
+landform". The sheet fits the strip into its image box at its own aspect,
+centred.
 
 **The inventory circle** (`inventoryBadge.ts`, from the prototype's `vsuBadge.ts`)
 is filled from the page's live visual inventory read, which now also asks for
 `REC_EVC_FINAL_VALUE_CODE` and `VSU_NUMBER`: the unit under the blocks' visible
 ground at the view's station (dominant by visible samples), else the unit the
 landform was adopted from, else the unit holding most of the landform. The rule
-that chose it is printed small under the circle.
+that chose it is printed small under the circle. With no unit under the landform or
+the blocks, the cell holds one line saying so, not a circle of placeholder
+labels; the VSU / VSC / VAC / EVC / VQO key is printed only with a circle.
 
 **Exports.** Step 5's *Analysis sheet* composes a saved view in any style as PDF
 (`renderPdf.ts`) or PNG (`sheetPng.ts`), with a preview. Family A styles print

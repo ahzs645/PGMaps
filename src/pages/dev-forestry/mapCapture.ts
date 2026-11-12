@@ -285,3 +285,17 @@ export async function captureFramed(
     map.triggerRepaint()
   }
 }
+
+/** Rows `y` to `y + height` of a captured image, as a new JPEG of the same width. Never stretched. */
+export async function cropImageRows(image: CapturedImage, crop: { y: number; height: number }): Promise<CapturedImage> {
+  const element = new Image()
+  element.src = image.dataUrl
+  await element.decode()
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width
+  canvas.height = crop.height
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('No 2D canvas to crop the capture.')
+  context.drawImage(element, 0, crop.y, image.width, crop.height, 0, 0, image.width, crop.height)
+  return { dataUrl: canvas.toDataURL('image/jpeg', 0.88), width: image.width, height: crop.height }
+}

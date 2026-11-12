@@ -113,7 +113,13 @@ import {
   type BlockNote,
   type NoteImage,
 } from './dev-forestry/blockNote'
-import { captureClassPass, captureFramed, captureMapImage, capturePlanMap } from './dev-forestry/mapCapture'
+import {
+  captureClassPass,
+  captureFramed,
+  captureMapImage,
+  capturePlanMap,
+  cropImageRows,
+} from './dev-forestry/mapCapture'
 import { HFOV_50_MM, landformAngularExtent, planFraming, projectToFrames } from './dev-forestry/figureFraming'
 import { inventoryBadge } from './dev-forestry/inventoryBadge'
 import type { DrivePose } from './dev-forestry/driveController'
@@ -130,7 +136,14 @@ import { PrivateLandPanel } from './dev-forestry/PrivateLandPanel'
 import { NetFootprintPanel } from './dev-forestry/NetFootprintPanel'
 import { reserveMaskFields } from './dev-forestry/resultsReserves'
 import { parcelMaskFields } from './dev-forestry/parcelMapPrivateLand'
-import { decodeClassRaster, inLandform, visibleLineParts, type Overlay } from '@/lib/forestry/viaFigure/composeFigure'
+import {
+  decodeClassRaster,
+  inLandform,
+  visibleLineParts,
+  type Overlay,
+  cropRasterRows,
+  landformCropRows,
+} from '@/lib/forestry/viaFigure/composeFigure'
 import { findPreset as findFigurePreset } from '@/lib/forestry/viaFigure/presets'
 import { splitLandform, subLandformDividers } from './dev-forestry/subLandforms'
 import { terrainLines } from './dev-forestry/terrainLines'
@@ -2423,9 +2436,22 @@ function DevForestryVisuals() {
       const framed = await captureFramed(map, plan, eye, figureClasses.layers)
       if (!framed.classes) throw new Error('The class pass of the framed view could not be taken.')
       classes = decodeClassRaster(framed.classes.data, framed.classes.width, framed.classes.height)
-      frameImage = { ...framed.image, caption: `${at.name}.` }
-      project = projectToFrames(plan.frames, eye, { frameWidth: framed.frameWidth, height: framed.image.height })
-      lens = `framed: ${plan.label}`
+      const whole = projectToFrames(plan.frames, eye, { frameWidth: framed.frameWidth, height: framed.image.height })
+      // Crop the strip to the landform, as the sheets do: the same rows of the picture and the class
+      // pass, never stretched; the projector moves with the crop.
+      const crop = landformCropRows(classes)
+      if (crop) {
+        classes = cropRasterRows(classes, crop)
+        frameImage = { ...(await cropImageRows(framed.image, crop)), caption: `${at.name}.` }
+        project = (lng, lat, elevation) => {
+          const point = whole(lng, lat, elevation)
+          return point && point[1] >= crop.y && point[1] < crop.y + crop.height ? [point[0], point[1] - crop.y] : null
+        }
+      } else {
+        frameImage = { ...framed.image, caption: `${at.name}.` }
+        project = whole
+      }
+      lens = `framed: ${plan.label}${crop ? ', cropped to the landform' : ''}`
       hfovDeg = plan.totalHfovDeg
     } else {
       // No pose or no terrain yet: the class pass of the view as it stands.

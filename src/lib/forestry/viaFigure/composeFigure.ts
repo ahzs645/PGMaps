@@ -348,6 +348,56 @@ export function visibleLineParts(
   return parts
 }
 
+/**
+ * The rows to keep so the landform sits as the reference sheets crop it: about `skyShare` of the
+ * height above its top, at most `groundShare` below its base, the full width kept. A crop only:
+ * the window never reaches past the image, so where there is not enough sky or ground the shares
+ * come out smaller. Null when no landform is in the picture or the crop would keep everything.
+ * A trimmed share of the landform's rows is ignored at each end, so a stray pixel does not widen it.
+ */
+export function landformCropRows(
+  raster: ClassRaster,
+  options: { skyShare?: number; groundShare?: number; trim?: number } = {},
+): { y: number; height: number } | null {
+  const sky = options.skyShare ?? 0.2,
+    ground = options.groundShare ?? 0.12,
+    trim = options.trim ?? 0.005
+  const perRow = new Uint32Array(raster.height)
+  let total = 0
+  for (let y = 0; y < raster.height; y++)
+    for (let x = 0; x < raster.width; x++)
+      if (IN_LANDFORM.has(raster.codes[y * raster.width + x])) {
+        perRow[y]++
+        total++
+      }
+  if (!total) return null
+  const skip = Math.floor(total * trim)
+  let top = 0,
+    seen = 0
+  while (top < raster.height - 1 && seen + perRow[top] <= skip) seen += perRow[top++]
+  let bottom = raster.height - 1
+  seen = 0
+  while (bottom > top && seen + perRow[bottom] <= skip) seen += perRow[bottom--]
+  const band = bottom - top + 1
+  const height = Math.min(raster.height, Math.ceil(band / (1 - sky - ground)))
+  let y = Math.round(top - sky * height)
+  y = Math.max(0, Math.min(raster.height - height, y))
+  // Keep at most `ground` below the base, in whole rows: the window moves down only as far as the image allows.
+  const groundRows = Math.round(ground * height)
+  if (y + height - 1 - bottom > groundRows)
+    y = Math.max(0, Math.min(raster.height - height, bottom + 1 + groundRows - height))
+  return height >= raster.height ? null : { y, height }
+}
+
+/** The rows `y` to `y + height` of a class raster. */
+export function cropRasterRows(raster: ClassRaster, crop: { y: number; height: number }): ClassRaster {
+  return {
+    width: raster.width,
+    height: crop.height,
+    codes: raster.codes.slice(crop.y * raster.width, (crop.y + crop.height) * raster.width),
+  }
+}
+
 /** Centroid of the visible landform, in image pixels; null when none is visible. */
 export function landformCentroid(raster: ClassRaster): Point | null {
   let sx = 0,
@@ -521,9 +571,14 @@ export function layoutCallouts(
   style: CalloutStyle,
   frame: Frame,
   raster: ClassRaster | null,
+  /**
+   * Where boxes may go, points: the frame by default. A sheet with room round a strip cropped to
+   * the landform passes its whole image band, so the boxes sit in the white above the skyline.
+   */
+  area: Box = { x: frame.x + 4, y: frame.y + 4, w: frame.w - 8, h: frame.h - 8 },
 ): { boxes: Array<{ callout: FigureCallout; box: Box; anchor: Point }>; dropped: number } {
   const P = toPage(frame)
-  const bounds = { x: frame.x + 4, y: frame.y + 4, w: frame.w - 8, h: frame.h - 8 }
+  const bounds = area
   const placed: Box[] = []
   const boxes: Array<{ callout: FigureCallout; box: Box; anchor: Point }> = []
   let dropped = 0
@@ -557,8 +612,9 @@ export function figureCalloutOps(
   style: CalloutStyle,
   frame: Frame,
   raster: ClassRaster | null,
+  area?: Box,
 ): DrawOp[] {
-  const { boxes } = layoutCallouts(callouts, style, frame, raster)
+  const { boxes } = layoutCallouts(callouts, style, frame, raster, area)
   return boxes.flatMap(({ callout, box, anchor }) =>
     calloutOps(
       style,
@@ -619,6 +675,8 @@ export interface ComposedFigure {
 }
 
 const BLACK = '#000000'
+/** What the analysis sheet's inventory cell says when no unit is under the landform or the blocks. */
+export const NO_INVENTORY_UNIT = 'No visual sensitivity unit under the landform or blocks'
 const FOOTER: TextStyle = { size: 6, color: '#6b6b6b' }
 const NOTE: TextStyle = { size: 7, color: '#595959' }
 const OWN: TextStyle = { size: 9, color: '#1d4ed8' }
@@ -664,7 +722,7 @@ export function presetPercent(preset: ViaStylePreset, counts: FigureCounts | nul
 }
 
 /** The image, its outlines, labels and callouts in `frame`. Shared by every sheet form. */
-function figurePanel(input: FigureInput, frame: Frame) {
+function figurePanel(input: FigureInput, frame: Frame, calloutArea?: Box) {
   const { preset } = input
   const ops: DrawOp[] = [{ op: 'image', ...frame, image: tonedImage(input.image, preset.tone) }]
   const overlays = [...(input.classes ? roleOverlays(preset, input.classes) : []), ...(input.lines ?? [])]
@@ -683,7 +741,7 @@ function figurePanel(input: FigureInput, frame: Frame) {
       })
   }
   if (preset.callout && input.callouts.length)
-    ops.push(...figureCalloutOps(input.callouts, preset.callout, frame, input.classes))
+    ops.push(...figureCalloutOps(input.callouts, preset.callout, frame, input.classes, calloutArea))
   else if (preset.labels?.block && input.callouts.length) {
     // Bare labels with leaders (no box): each above its anchor.
     const style = preset.labels.block
@@ -762,7 +820,8 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
   const ops: DrawOp[] = []
   const band = R(sheet.image)
   const frame = fitFrame(input.image, { x: band.x + 54, y: band.y + 16, w: band.w - 108, h: band.h - 32 })
-  const panel = figurePanel(input, frame)
+  // Callouts may use the whole band: a strip cropped to the landform leaves its sky above the frame.
+  const panel = figurePanel(input, frame, { x: band.x + 8, y: band.y + 8, w: band.w - 16, h: band.h - 16 })
   ops.push(...panel.ops)
   if (sheet.neatline) ops.push(rectStroke(R(sheet.neatline.rect), sheet.neatline.stroke))
   ops.push(rectStroke(band, sheet.rule))
@@ -810,7 +869,21 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
   // Visual inventory key.
   const inventory = cell('inventory')
   const badge = preset.vsuBadge
-  if (badge) {
+  if (badge && !input.rating) {
+    // No unit to show: one line, not a circle of placeholder labels.
+    wrapText(NO_INVENTORY_UNIT, 7.92, inventory.w - 16).forEach((line, i, all) =>
+      ops.push(
+        ...textOps(
+          inventory.x + inventory.w / 2,
+          inventory.y + inventory.h / 2 - ((all.length - 1) * 9.4) / 2 + i * 9.4,
+          line,
+          { size: 7.92, color: '#595959' },
+          'center',
+          'middle',
+        ),
+      ),
+    )
+  } else if (badge && input.rating) {
     const cx = inventory.x + inventory.w / 2
     ops.push(
       ...textOps(
@@ -823,12 +896,13 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
     )
     const cy = inventory.y + 52.8
     ops.push({ op: 'circle', x: cx, y: cy, r: badge.diameter / 2, fill: badge.fill, stroke: badge.stroke })
-    const values = input.rating ?? {}
+    const values = input.rating
+    // The unit's own values; a value the inventory does not hold prints "?", never the key's label.
     const filled = [
-      values.vsu ? `VSU ${values.vsu}` : badge.lines[0],
-      values.vsc ?? badge.lines[1],
-      values.vac && values.evc ? `${values.vac}  /  ${values.evc}` : badge.lines[2],
-      values.vqo ?? badge.lines[3],
+      values.vsu ? `VSU ${values.vsu}` : 'VSU ?',
+      values.vsc ?? '?',
+      `${values.vac ?? '?'}  /  ${values.evc ?? '?'}`,
+      values.vqo ?? '?',
     ]
     filled.forEach((line, i) => ops.push(...textOps(cx, cy - 12 + i * 9.4, line, badge.text, 'center')))
     if (input.ratingNote)
