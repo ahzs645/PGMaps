@@ -11,6 +11,7 @@ import {
   type ClassRaster,
   type ComposedFigure,
   type FigureInput,
+  type Overlay,
 } from '@/lib/forestry/viaFigure/composeFigure'
 import { findPreset, VIA_STYLE_PRESETS, type ViaStylePreset } from '@/lib/forestry/viaFigure/presets'
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
@@ -37,6 +38,8 @@ export type SavedFigure = {
   viewpoint: string
   /** A landform split fell back: some class may be counted inside the landform that is not. */
   splitFailed: boolean
+  /** Sub-landform dividers and lines of force (candidates), projected and cut to the landform. */
+  lines?: Overlay[]
 }
 
 export type FigureView = { id: string; name: string; image: (NoteImage & { figure?: SavedFigure }) | undefined }
@@ -79,6 +82,7 @@ export async function figureInput(
         : { kind: 'url', url: image.dataUrl, format: 'JPEG', width: image.width, height: image.height },
     classes: figure?.classes ?? null,
     callouts: figure?.callouts ?? [],
+    lines: figure?.lines ?? [],
     sightlinePercent: figure?.sightlinePercent ?? null,
     sightlineClass: figure?.sightlineClass ?? null,
     lens: figure?.lens ?? image.caption,

@@ -1,6 +1,6 @@
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { findPreset, LIVE_ROLES, type ViaRole } from '@/lib/forestry/viaFigure/presets'
-import { areaSymbolPaint } from '@/lib/mapSheet/mapSymbols'
+import { areaSymbolPaint, lineSymbolLayout, lineSymbolPaint } from '@/lib/mapSheet/mapSymbols'
 
 type Collection = GeoJSON.FeatureCollection
 
@@ -32,7 +32,26 @@ export function FigureStyleLayers({ styleId, data }: { styleId: string | null; d
       {LIVE_ROLES.flatMap((role) => {
         const entry = preset.symbols[role]
         const collection = data[role]
-        if (!entry || entry.symbol.kind !== 'area' || !collection?.features.length) return []
+        if (!entry || !collection?.features.length) return []
+        const liveWidth = (px: number) => Math.max(MIN_LIVE_STROKE_PX, px * LIVE_STROKE_SCALE)
+        if (entry.symbol.kind === 'line') {
+          // Sub-landform dividers and lines of force: candidates, drawn as the preset's line.
+          const layouts = lineSymbolLayout(entry.symbol)
+          return lineSymbolPaint(entry.symbol).map((paint, i) => (
+            <MapLineLayer
+              key={`${role}-line-${i}`}
+              data={collection}
+              interactive={false}
+              color={paint['line-color']}
+              width={liveWidth(paint['line-width'])}
+              opacity={paint['line-opacity'] ?? 1}
+              dashArray={paint['line-dasharray']}
+              lineCap={layouts[i]['line-cap']}
+              lineJoin={layouts[i]['line-join']}
+            />
+          ))
+        }
+        if (entry.symbol.kind !== 'area') return []
         const paint = areaSymbolPaint(entry.symbol)
         const fill = entry.symbol.fill
         return [
@@ -47,7 +66,7 @@ export function FigureStyleLayers({ styleId, data }: { styleId: string | null; d
             />
           ) : null,
           ...paint.outline.map((outline, i) => {
-            const width = Math.max(MIN_LIVE_STROKE_PX, (outline['line-width'] as number) * LIVE_STROKE_SCALE)
+            const width = liveWidth(outline['line-width'] as number)
             const stroke = entry.symbol.kind === 'area' ? entry.symbol.outline[i] : null
             return (
               <MapLineLayer

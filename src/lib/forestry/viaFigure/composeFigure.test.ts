@@ -13,6 +13,7 @@ import {
   FIGURE_CLASS,
   fillTemplate,
   fitFrame,
+  inLandform,
   landformCentroid,
   layoutCallouts,
   maskRings,
@@ -21,6 +22,7 @@ import {
   roleOverlays,
   skylineRow,
   tonedImage,
+  visibleLineParts,
   type ClassRaster,
   type FigureClass,
   type FigureInput,
@@ -122,6 +124,50 @@ describe('the class pass', () => {
     // The block role traces blocks in and out of the landform.
     expect(overlays.find((o) => o.role === 'proposedBlock')!.parts).toHaveLength(2)
     expect(landformCentroid(r)![0]).toBeCloseTo(50, 0)
+  })
+})
+
+describe('lines on the figure', () => {
+  it('keeps the runs of a projected line that fall on the landform', () => {
+    const r = raster()
+    const points: Array<[number, number] | null> = [
+      [10, 40], // terrain, outside the landform
+      [25, 40],
+      [45, 40],
+      null, // behind the camera
+      [50, 45],
+      [60, 45],
+      [90, 45], // outside again
+    ]
+    const parts = visibleLineParts(points, r, inLandform)
+    expect(parts).toEqual([
+      [
+        [25, 40],
+        [45, 40],
+      ],
+      [
+        [50, 45],
+        [60, 45],
+      ],
+    ])
+  })
+
+  it('draws line overlays in their own symbol', () => {
+    const figure = composeFigure({
+      ...input('district-greyscale'),
+      lines: [
+        {
+          role: 'forceConvex',
+          parts: [
+            [
+              [25, 40],
+              [45, 40],
+            ],
+          ],
+        },
+      ],
+    })
+    expect(figure.drawn).toContain('forceConvex')
   })
 })
 

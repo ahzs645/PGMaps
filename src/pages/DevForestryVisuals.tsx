@@ -125,7 +125,10 @@ import {
 } from './dev-forestry/FigureSheetPanel'
 import { PrivateLandPanel } from './dev-forestry/PrivateLandPanel'
 import { parcelMaskFields } from './dev-forestry/parcelMapPrivateLand'
-import { decodeClassRaster } from '@/lib/forestry/viaFigure/composeFigure'
+import { decodeClassRaster, inLandform, visibleLineParts, type Overlay } from '@/lib/forestry/viaFigure/composeFigure'
+import { findPreset as findFigurePreset } from '@/lib/forestry/viaFigure/presets'
+import { splitLandform, subLandformDividers } from './dev-forestry/subLandforms'
+import { terrainLines } from './dev-forestry/terrainLines'
 import {
   fetchViewpointInventory,
   pulloutThrough,
@@ -138,7 +141,7 @@ import {
 } from './dev-forestry/viewpointInventory'
 import { EVQO_CODE_FOR_CLASS, viewCaption, type EvqoCode, type ViewpointFinding } from './dev-forestry/visualsNarrative'
 import { distanceAlongRoad, hazeRings, roadPath, roadPlacement } from './dev-forestry/driveMath'
-import { metersPerDegree, polygonInteriorPoint } from './dev-forestry/visibility'
+import { metersPerDegree, pointInPolygon, polygonInteriorPoint } from './dev-forestry/visibility'
 import {
   createEmptyScene,
   createId,
@@ -2070,6 +2073,53 @@ function DevForestryVisuals() {
     }
   }, [scene.targets, scene.masks, scene.assessmentYear, scene.settings.greenUpAgeYears, sceneLandform, result])
   const figureClasses = useMemo(() => classPassLayers(figureClassInput), [figureClassInput])
+  // Terrain candidates a figure style can draw: sub-landform dividers at the VSU boundaries in the
+  // landform, and lines of force from the road view's DEM. Designer aids: never adopted, never a figure.
+  const figurePreset = findFigurePreset(drive.figureStyle)
+  const wantsDividers = !!figurePreset?.symbols.subLandform
+  const wantsForces = !!(figurePreset?.symbols.forceConvex || figurePreset?.symbols.forceConcave)
+  const figureLines = useMemo(() => {
+    const lines: Array<{ role: 'subLandform' | 'forceConvex' | 'forceConcave'; points: [number, number][] }> = []
+    if (!sceneLandform) return lines
+    if (wantsDividers && inventory.units.length) {
+      const [lng, lat] = scene.viewpoint.coordinates[0] ?? polygonBounds(sceneLandform.geometry).slice(0, 2)
+      try {
+        const split = splitLandform({
+          landform: sceneLandform.geometry,
+          landformName: '1',
+          vsus: inventory.units.map((unit) => ({
+            id: unit.polygonNumber,
+            evqo: unit.objectiveId,
+            geometry: unit.geometry,
+          })),
+          barriers: [],
+          viewpoint: { lng, lat },
+          cellMeters: 30,
+        })
+        for (const points of subLandformDividers(split)) lines.push({ role: 'subLandform', points })
+      } catch {
+        // A landform the grid cannot hold draws no dividers.
+      }
+    }
+    const ground = previewTerrain.source
+    if (wantsForces && ground) {
+      const [w, s, e, n] = polygonBounds(sceneLandform.geometry)
+      try {
+        const found = terrainLines(ground, {
+          bounds: [w - 0.005, s - 0.005, e + 0.005, n + 0.005],
+          inside: (x, y) => pointInPolygon(sceneLandform.geometry, x, y),
+        })
+        for (const line of found.lines)
+          lines.push({
+            role: line.kind === 'convex' ? 'forceConvex' : 'forceConcave',
+            points: line.points.map((p) => [p.lng, p.lat]),
+          })
+      } catch {
+        // No lines of force where the terrain cannot be read.
+      }
+    }
+    return lines
+  }, [sceneLandform, wantsDividers, wantsForces, inventory.units, scene.viewpoint.coordinates, previewTerrain.source])
   const figureStyleData = useMemo<FigureStyleData>(() => {
     if (!drive.figureStyle) return {}
     const multi = (geometries: ReadonlyArray<GeoJSON.Polygon | GeoJSON.MultiPolygon>): GeoJSON.FeatureCollection => ({
@@ -2085,8 +2135,24 @@ function DevForestryVisuals() {
       privateLand: multi(figureClassInput.privateLand),
       ...(rock ? { rockNonVeg: rock } : {}),
       vsuLine: inventoryCollection,
+      ...Object.fromEntries(
+        (['subLandform', 'forceConvex', 'forceConcave'] as const).map((role) => [
+          role,
+          {
+            type: 'FeatureCollection',
+            features: figureLines
+              .filter((line) => line.role === role)
+              .map((line, i) => ({
+                type: 'Feature',
+                id: i,
+                properties: {},
+                geometry: { type: 'LineString', coordinates: line.points },
+              })),
+          } satisfies GeoJSON.FeatureCollection,
+        ]),
+      ),
     }
-  }, [drive.figureStyle, figureClassInput, figureClasses, blockCollection, inventoryCollection])
+  }, [drive.figureStyle, figureClassInput, figureClasses, blockCollection, inventoryCollection, figureLines])
   /** Each block's sightlines, for the callouts of a saved view. */
   const blockSights = useMemo<BlockSight[]>(
     () =>
@@ -2325,6 +2391,15 @@ function DevForestryVisuals() {
       return [point.x * scale, point.y * scale]
     }
     const callouts = blockCallouts(blockSights, at.stationIndex, project, pass)
+    // Dividers and lines of force, cut to where the picture shows the landform.
+    const lines: Overlay[] = figureLines.flatMap((line) => {
+      const parts = visibleLineParts(
+        line.points.map(([lng, lat]) => project(lng, lat)),
+        classes,
+        inLandform,
+      )
+      return parts.length ? [{ role: line.role, parts }] : []
+    })
     const breakdown = result?.perspectiveByStation[at.stationIndex] ?? null
     const percent = breakdown ? breakdown.cumulativePercent : null
     const station = result?.stations[at.stationIndex]
@@ -2363,6 +2438,7 @@ function DevForestryVisuals() {
       area: sceneLandform?.name ?? 'Landform',
       viewpoint: at.name,
       splitFailed: figureClasses.failed,
+      lines,
     }
   }
   const saveView = () => {

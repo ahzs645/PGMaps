@@ -313,6 +313,41 @@ export function roleOverlays(preset: ViaStylePreset, raster: ClassRaster): Overl
   })
 }
 
+/**
+ * A ground line's projected points cut to the runs that fall on pixels `keep` accepts (the
+ * landform, for a divider or a line of force): where the class pass shows something else in front,
+ * the line is hidden. A nearer part of the same class can still hide it unseen, so this is the
+ * figure's approximation, not the drape's exact occlusion. Null points (behind the camera) cut too.
+ */
+export function visibleLineParts(
+  points: ReadonlyArray<Point | null>,
+  raster: ClassRaster,
+  keep: (code: number) => boolean,
+): Point[][] {
+  const parts: Point[][] = []
+  let run: Point[] = []
+  const flush = () => {
+    if (run.length > 1) parts.push(run)
+    run = []
+  }
+  for (const point of points) {
+    const x = point ? Math.floor(point[0]) : -1,
+      y = point ? Math.floor(point[1]) : -1
+    if (
+      !point ||
+      x < 0 ||
+      y < 0 ||
+      x >= raster.width ||
+      y >= raster.height ||
+      !keep(raster.codes[y * raster.width + x])
+    )
+      flush()
+    else run.push(point)
+  }
+  flush()
+  return parts
+}
+
 /** Centroid of the visible landform, in image pixels; null when none is visible. */
 export function landformCentroid(raster: ClassRaster): Point | null {
   let sx = 0,
@@ -546,6 +581,11 @@ export interface FigureInput {
   /** The class pass of the same camera, the same size as `image`; null draws no outlines or counts. */
   classes: ClassRaster | null
   callouts: readonly FigureCallout[]
+  /**
+   * Line roles projected into the image (sub-landform dividers, lines of force), already cut to
+   * where they fall on the landform: `visibleLineParts`.
+   */
+  lines?: readonly Overlay[]
   /** The page's sightline alteration at this station, percent: the assessment's figure. */
   sightlinePercent: number | null
   /** Its Table 2 class name, if any. */
@@ -622,7 +662,7 @@ export function presetPercent(preset: ViaStylePreset, counts: FigureCounts | nul
 function figurePanel(input: FigureInput, frame: Frame) {
   const { preset } = input
   const ops: DrawOp[] = [{ op: 'image', ...frame, image: tonedImage(input.image, preset.tone) }]
-  const overlays = input.classes ? roleOverlays(preset, input.classes) : []
+  const overlays = [...(input.classes ? roleOverlays(preset, input.classes) : []), ...(input.lines ?? [])]
   const { ops: drawnOps, drawn } = overlayOps(preset, overlays, frame)
   ops.push(...drawnOps)
   const centroid = input.classes ? landformCentroid(input.classes) : null

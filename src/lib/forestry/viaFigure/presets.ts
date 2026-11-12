@@ -402,7 +402,8 @@ export const ANALYSIS_SHEET_PURPLE: ViaStylePreset = {
       symbol: line('Sub-landform', '#c500ff', 0.96, { dash: [9.8, 4.1] }),
       spec: '#c500ff 0.96 pt, dashes ≈ 9.8 on / 4.1 off as separate strokes (23 p19 drawings 0–25)',
       data: {
-        missing: 'Sub-landform dividers: not in the run; would be reviewer-drawn lines or landformFromTerrain splits.',
+        source:
+          'Candidate dividers from subLandforms.ts (VSU boundaries in the landform); a candidate, never adopted, and no per-sub-landform figures yet',
       },
     },
     proposedBlock: PROPOSED_BLOCK_A,
@@ -722,14 +723,17 @@ export const DISTRICT_GREYSCALE: ViaStylePreset = {
       symbol: line('Visual Force Convexity', '#a8a8a8', 0.7),
       spec: 'Grey ≈ #a8a8a8 (legend tone 168), ≈ 2 px = 0.7 pt, filled arrowhead; drawn freehand along convex ridges',
       data: {
-        missing:
-          'Lines of force are a designer judgement; a terrain-derived ridge/valley line (curvature of the DEM) could seed candidates.',
+        source:
+          'Candidate ridges from terrainLines.ts (D8 on the inverted DEM, convex curvature); a designer aid, never a figure',
       },
     },
     forceConcave: {
       symbol: line('Visual Force Concavity', '#a8a8a8', 0.7, { dash: [3, 2] }),
       spec: 'Same grey in the scan; PGMaps dashes concavity so the two read apart (the scan cannot tell them apart)',
-      data: { missing: 'As convexity: designer-drawn or derived from DEM curvature.' },
+      data: {
+        source:
+          'Candidate draws from terrainLines.ts (D8 flow accumulation, concave curvature); a designer aid, never a figure',
+      },
     },
     areaOfAlteration: {
       symbol: outlineArea('Area of Alteration', BLACK, 0.75),
@@ -1078,8 +1082,9 @@ export const ROLE_NAMES: Record<ViaRole, string> = {
 }
 
 /**
- * Roles the page has data for and drapes on the road view, in draw order (bottom first). The others
- * (sub-landforms, lines of force, grids, ramps) are export-only or still need data; see the doc.
+ * Roles the page has data for and drapes on the road view, in draw order (bottom first). Sub-landform
+ * dividers and lines of force are terrain candidates, never adopted; grids, ramps, areas of
+ * alteration and neighbouring woodland have no live data (see the doc).
  */
 export const LIVE_ROLES: readonly ViaRole[] = [
   'landform',
@@ -1089,6 +1094,9 @@ export const LIVE_ROLES: readonly ViaRole[] = [
   'existingNonVeg',
   'treatedGround',
   'proposedBlock',
+  'subLandform',
+  'forceConvex',
+  'forceConcave',
 ]
 
 /** Presets with at least one role the road view can drape: what the road view's picker offers. */
