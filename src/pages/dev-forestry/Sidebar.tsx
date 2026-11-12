@@ -42,7 +42,6 @@ import { formatMeasure, formatNumber, formatPercentValue } from '@/lib/format'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Notification } from '@/components/ui/notification'
 import { BC_DESIGN_HANDBOOK } from './LandformDesignPanel'
-import { compassPoint, EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
@@ -70,8 +69,8 @@ import {
   ViewpointTypeField,
 } from './ViaPanels'
 import { layoutStageOf } from './fieldChecklist'
-import { LIVE_PRESETS } from '@/lib/forestry/viaFigure/presets'
-import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
+import type { LabelStyleId } from '@/lib/mapSheet/callouts'
+import type { VisualsExport } from './visualsExports'
 import { VIA_STEPS, type ViaAssessment, type ViaReview, type ViaStepId, type ViaStepStatus } from './via'
 import {
   ALTERATION_BASIS_LABELS,
@@ -436,8 +435,6 @@ type SidebarProps = {
 
   drive: DriveState
   onDriveChange: (patch: Partial<DriveState>) => void
-  /** Writes the road view's scene (terrain, the drawn stems, openings, camera) for other renderers to read. */
-  onDownloadScenePackage?: () => void
 
   onImportFile: (file: File) => void
   importMessage: string | null
@@ -459,9 +456,8 @@ type SidebarProps = {
   /** A road-view preview is being prepared or is open; the sidebar shows step 2, where it is. */
   roadViewOpening?: boolean
   onClearScene: () => void
-  onExport: () => void
-  /** Downloads the run as a worksheet; null until there is a run to write up. */
-  onExportReport: (() => void) | null
+  /** Opens Save & export, on one output or the first. */
+  onOpenExport: (kind?: VisualsExport) => void
   /** Adds the on-screen roads inside the landform as FS1252 line (b) disturbance. */
   onAddRoadDisturbance: () => void
 
@@ -492,29 +488,20 @@ type SidebarProps = {
   privateLand?: ReactNode
   /** Step 3: FTEN gross, planned net and net of RESULTS group reserves, reserves added as retained masks. */
   netFootprints?: ReactNode
-  /** Step 5: a saved view composed as a VIA analysis sheet in a figure style. */
-  figureSheet?: ReactNode
   /** Step 3: the landform design review. */
   designReview: ReactNode
   /** Saved design alternatives and their comparisons: step 3's, unlike the reading in Resources. */
   designComparisons?: ReactNode
   /** Step 3, heading the Results: the previous run's verdict beside this one's (`runRevision.ts`). */
   runRevision?: ReactNode
-  /** Step 5: the FS1252 draft package. */
-  report: ReactNode
   /** Step 5: the VIA evidence package and workspace, a folded section of its own. */
   evidence?: ReactNode
   /** Step 1: inventory viewpoints and rec sites near the block. */
   viewpointFinder?: ReactNode
-  /** Step 2, in the road view: jump to a spot the block is seen from. */
-  roadViewJump?: ReactNode
   /** Step 2, in the road view: the existing forest and regrowth records the timber is drawn from. */
   roadViewForest?: ReactNode
   /** Step 5: the block's planning-note summary and Visuals paragraph. */
   visualsParagraph?: ReactNode
-
-  /** Standing at an inventory viewpoint: its arrows, each a direction the road view can face. */
-  lookArrows?: ReadonlyArray<{ id: string; label: string; bearing: number }>
 
   /** What the basemap said about the road and water, for the drive panel's clearing note. */
   roadClearing?: { roadClass: string | null; widthMeters: number; waterPolygons: number }
@@ -545,7 +532,6 @@ export function Sidebar({
   onSelectTarget,
   drive,
   onDriveChange,
-  onDownloadScenePackage,
   onImportFile,
   importMessage,
   inventory,
@@ -560,8 +546,7 @@ export function Sidebar({
   onActivateLandform,
   roadViewOpening = false,
   onClearScene,
-  onExport,
-  onExportReport,
+  onOpenExport,
   onAddRoadDisturbance,
   setup,
   landformFinder,
@@ -573,17 +558,13 @@ export function Sidebar({
   wildlifeTreePatches,
   privateLand,
   netFootprints,
-  figureSheet,
   designReview,
   designComparisons,
   runRevision,
-  report,
   evidence,
   viewpointFinder,
-  roadViewJump,
   roadViewForest,
   visualsParagraph,
-  lookArrows = [],
   roadClearing,
 }: SidebarProps) {
   // Which scale the threshold editor is showing. Purely a view concern — both
@@ -1235,247 +1216,10 @@ export function Sidebar({
       {/* Step 2 — 3.2: travel the road as a visitor would and record the views. */}
       <div {...stepPanelProps('visit')}>
         <StepIntro id="visit" status={via.statuses.visit} summary={summaries.visit} />
-        {/* The map's bar plays, saves and exits; everything about how the view
-          looks is here, once. */}
+        {/* The map's bar plays, saves and exits, and its View options hold how the view
+          looks (`RoadViewOptions.tsx`); what is drawn here is the stand and its records. */}
         {result && drive.active && (
           <>
-            <ToolSection
-              title="Road view"
-              help={
-                <>
-                  Analysis points are the block ground the terrain lets the nearest station see. Satellite imagery (the
-                  road view&apos;s Layers button) drapes the photo over the hills. EVQO polygons drape the established
-                  objectives over the ground, coloured by class, as a planner&apos;s Google Earth layer does. Landform
-                  drapes the landform being assessed (light blue) and the other ridge layers read for it (purple), so
-                  you can see which band of the mountain the block takes a share of. Distance haze fades each ridge a
-                  little more than the one in front, as real air does; it changes only the picture. Note screenshot look
-                  is how planning-note screenshots are taken in Google Earth: imagery, the proposed blocks filled white,
-                  no drawn timber or points. Turn timber back on to see what roadside trees would screen. Figure style
-                  drapes the outlines of a BC VIA figure style (landform, blocks, openings, private land, rock) over the
-                  terrain, which hides them behind nearer ridges; a saved view's analysis sheet (step 5) is drawn in the
-                  same style. Hatched rock is outlined here and hatched in the sheet.
-                </>
-              }
-            >
-              <div className="space-y-3">
-                <Field label="Where to look">
-                  <StyledSelect
-                    className={cn(SELECT_CLASS, 'w-full')}
-                    value={
-                      drive.lookAtTargetId ??
-                      (drive.lookBearing !== null
-                        ? (() => {
-                            const arrow = lookArrows.find((entry) => Math.abs(entry.bearing - drive.lookBearing!) < 0.5)
-                            return arrow ? `arrow:${arrow.id}` : 'bearing'
-                          })()
-                        : '')
-                    }
-                    onChange={(event) => {
-                      const value = event.target.value
-                      if (value === 'bearing') return
-                      const arrow = value.startsWith('arrow:')
-                        ? lookArrows.find((entry) => `arrow:${entry.id}` === value)
-                        : null
-                      onDriveChange(
-                        arrow
-                          ? { lookAtTargetId: null, lookBearing: arrow.bearing }
-                          : { lookAtTargetId: value || null, lookBearing: null },
-                      )
-                    }}
-                    aria-label="Where to look"
-                  >
-                    <option value="">Along the road</option>
-                    {blocks.map((block) => (
-                      <option key={block.id} value={block.id}>
-                        Face {block.name}
-                      </option>
-                    ))}
-                    {lookArrows.map((arrow) => (
-                      <option key={arrow.id} value={`arrow:${arrow.id}`}>
-                        {arrow.label}
-                      </option>
-                    ))}
-                    {/* Set by turning the view cone on the plan; picking it again keeps that bearing. */}
-                    {drive.lookBearing !== null &&
-                      !lookArrows.some((arrow) => Math.abs(arrow.bearing - drive.lookBearing!) < 0.5) && (
-                        <option value="bearing">
-                          Turned on the map · {compassPoint(drive.lookBearing)} ({Math.round(drive.lookBearing)}°)
-                        </option>
-                      )}
-                  </StyledSelect>
-                </Field>
-                {roadViewJump}
-                <div>
-                  <p className="mb-1 text-2xs font-medium text-muted-foreground">Show</p>
-                  <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Show in the road view">
-                    <ToggleRow
-                      layout="tile"
-                      tone="primary"
-                      label="Analysis points"
-                      active={drive.showAnalysis}
-                      onClick={() => onDriveChange({ showAnalysis: !drive.showAnalysis })}
-                    />
-                    <ToggleRow
-                      layout="tile"
-                      tone="primary"
-                      label="Note screenshot look"
-                      active={drive.reportLook}
-                      onClick={() =>
-                        onDriveChange(
-                          drive.reportLook
-                            ? { reportLook: false }
-                            : {
-                                reportLook: true,
-                                harvestPhase: 'after',
-                                showAnalysis: false,
-                                imagery: true,
-                                forest: false,
-                              },
-                        )
-                      }
-                    />
-                    <ToggleRow
-                      layout="tile"
-                      tone="primary"
-                      label="EVQO polygons"
-                      active={drive.showEvqo}
-                      onClick={() => onDriveChange({ showEvqo: !drive.showEvqo })}
-                    />
-                    <ToggleRow
-                      layout="tile"
-                      tone="primary"
-                      label="Landform"
-                      active={drive.showLandform}
-                      onClick={() => onDriveChange({ showLandform: !drive.showLandform })}
-                    />
-                    <ToggleRow
-                      layout="tile"
-                      tone="primary"
-                      label="Distance haze"
-                      active={drive.haze}
-                      onClick={() => onDriveChange({ haze: !drive.haze })}
-                    />
-                  </div>
-                  {drive.showEvqo && (
-                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-3xs text-muted-foreground">
-                      {(Object.entries(EVQO_COLORS) as Array<[EvqoCode, string]>).map(([code, color]) => (
-                        <span key={code} className="inline-flex items-center gap-1" title={EVQO_NAMES[code]}>
-                          <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: color }} />
-                          {code}
-                        </span>
-                      ))}
-                    </p>
-                  )}
-                </div>
-                <label className="flex items-center justify-between gap-2 text-xs">
-                  Figure style
-                  <StyledSelect
-                    aria-label="Figure style"
-                    className={SELECT_CLASS}
-                    value={drive.figureStyle ?? ''}
-                    onChange={(event) => onDriveChange({ figureStyle: event.target.value || null })}
-                  >
-                    <option value="">None</option>
-                    {LIVE_PRESETS.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.name}
-                      </option>
-                    ))}
-                  </StyledSelect>
-                </label>
-                <label className="flex items-center justify-between gap-2 text-xs">
-                  Label style
-                  <StyledSelect
-                    aria-label="Label style"
-                    className={SELECT_CLASS}
-                    value={drive.labelStyle ?? ''}
-                    onChange={(event) =>
-                      onDriveChange({ labelStyle: (event.target.value || null) as LabelStyleId | null })
-                    }
-                  >
-                    <option value="">The figure style's own</option>
-                    {LABEL_STYLES.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
-                        {entry.name}
-                      </option>
-                    ))}
-                  </StyledSelect>
-                </label>
-                <label className="flex items-center justify-between gap-2 text-xs">
-                  Display quality
-                  <StyledSelect
-                    aria-label="Display quality"
-                    className={SELECT_CLASS}
-                    value={drive.quality}
-                    onChange={(event) => onDriveChange({ quality: event.target.value as DriveState['quality'] })}
-                  >
-                    <option value="auto">Default</option>
-                    <option value="detailed">Detailed</option>
-                    <option value="fast">Faster</option>
-                  </StyledSelect>
-                </label>
-                <label className="flex items-center justify-between gap-2 text-xs">
-                  <span className="flex items-center gap-1">
-                    Tree shading
-                    <InfoTip label="About tree shading">
-                      Lit shades each tree as a crown: the sunny side brighter, the lower crown in its own shade, light
-                      through the needles when you look toward the sun. Flat draws each tree in the drawing's own
-                      colours. Either way every tree covers the same part of the view, so screening and every number are
-                      unchanged.
-                    </InfoTip>
-                  </span>
-                  <StyledSelect
-                    aria-label="Tree shading"
-                    className={SELECT_CLASS}
-                    value={drive.treeLook}
-                    onChange={(event) => onDriveChange({ treeLook: event.target.value as DriveState['treeLook'] })}
-                  >
-                    <option value="lit">Lit</option>
-                    <option value="flat">Flat</option>
-                  </StyledSelect>
-                </label>
-                <label className="flex items-center justify-between gap-2 text-xs">
-                  <span className="flex items-center gap-1">
-                    Detail when stopped
-                    <InfoTip label="About detail when stopped">
-                      While the view moves, every tree is a picture card, which keeps walking and driving smooth. Once
-                      it holds still for half a second, the trees within this distance are drawn again as full 3D trees
-                      (branches in whorls, foliage sprays) for a better still frame and screenshot. The same trees in
-                      the same places, at the same heights and crown widths: nothing about the stand or the numbers
-                      changes.
-                    </InfoTip>
-                  </span>
-                  <StyledSelect
-                    aria-label="Detail when stopped"
-                    className={SELECT_CLASS}
-                    value={String(drive.detailRadiusMeters)}
-                    onChange={(event) => onDriveChange({ detailRadiusMeters: Number(event.target.value) })}
-                  >
-                    <option value="0">Off</option>
-                    <option value="80">Within 80 m</option>
-                    <option value="150">Within 150 m</option>
-                    <option value="250">Within 250 m</option>
-                  </StyledSelect>
-                </label>
-                {onDownloadScenePackage && (
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="flex items-center gap-1">
-                      3D scene for other renderers
-                      <InfoTip label="About the 3D scene file">
-                        The road view as a file: the ground, every tree drawn within 600 m (species, height and crown
-                        width), the cut ground with its slash, road scars, and where the eye stands and looks. The
-                        renderer trials in the visual tools notes read it, so another engine draws the same stand.
-                        Display only.
-                      </InfoTip>
-                    </span>
-                    <Button size="sm" variant="outline" onClick={onDownloadScenePackage}>
-                      Download
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </ToolSection>
-
             {blocks.length > 0 && (
               <ToolSection
                 title="Block colours"
@@ -2058,38 +1802,49 @@ export function Sidebar({
             {visualsParagraph}
           </ToolSection>
         )}
+        {/* The files themselves are written from Save & export, which lists what goes into each. */}
         <ToolSection
-          title="FS1252 package"
-          help="Handbook 4.0: map, views, simulation, design analysis, and a summary per viewpoint. The PDF takes the ocular class and ratings recorded in step 4; field photographs, the final decision and the signature are still the reviewer's to add."
+          title="Package"
+          help="Handbook 4.0: map, views, simulation, design analysis, and a summary per viewpoint. Save & export writes the block note, the FS1252 draft, the analysis sheet, the field brief, the worksheet and the evidence package, and lists what goes into each: the landform, the viewpoints and saved views with their settings, the blocks and the run. Field photographs, the final decision and the signature are still the reviewer's to add."
         >
-          {report}
-        </ToolSection>
-        {figureSheet && (
-          <ToolSection
-            title="Analysis sheet"
-            summary="VIA figure styles"
-            toggleProps={{ 'data-forestry-disclosure': 'analysis-sheet' }}
-            help="A saved view drawn as a perspective viewpoint analysis in the style of a BC VIA figure: outlines traced from the view's class pass (what each pixel shows), block callouts from the run, a legend of what was drawn, and the pixel percent printed beside the run's sightline percent. The sightline figure is the assessment's; the pixel figure is what this picture shows."
-          >
-            {figureSheet}
-          </ToolSection>
-        )}
-        {evidence}
-        {/* Secondary to the FS1252 above: the worked figures, and the scene to reopen later. */}
-        <ToolSection title="Also download">
           <div className="grid grid-cols-2 gap-1.5">
-            {onExportReport && (
-              <Button type="button" variant="outline" size="sm" className={GRID_BUTTON} onClick={onExportReport}>
-                <FileText className="h-3.5 w-3.5" />
-                Download the worksheet
-              </Button>
-            )}
-            <Button type="button" variant="outline" size="sm" className={GRID_BUTTON} onClick={onExport}>
+            <Button type="button" size="sm" className={GRID_BUTTON} onClick={() => onOpenExport('block-note')}>
               <Download className="h-3.5 w-3.5" />
-              Export the scene (JSON)
+              Save &amp; export…
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={GRID_BUTTON}
+              onClick={() => onOpenExport('fs1252')}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              FS1252 form…
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={GRID_BUTTON}
+              onClick={() => onOpenExport('analysis-sheet')}
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Analysis sheet…
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={GRID_BUTTON}
+              onClick={() => onOpenExport('scene')}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Save the scene…
             </Button>
           </div>
         </ToolSection>
+        {evidence}
       </div>
 
       {/* Reading, not controls: kept folded under every step rather than inside one. */}

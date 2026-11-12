@@ -77,7 +77,8 @@ export function buildEvidenceHtml(d: ToolsDocument): string {
       '',
     )}${d.fields.map((f) => `<section><h2>${e(f.name)} — ${e(f.kind)}</h2><p>Viewpoint: ${e(d.views.find((v) => v.id === f.viewId)?.name ?? 'not linked')} · recorded date: ${e(f.captured || 'not recorded')}</p><figure><div class="photo"><img src="${f.image}" alt="${e(f.name)}"><svg viewBox="0 0 ${f.width} ${f.height}" xmlns="http://www.w3.org/2000/svg">${f.annotations.map((a) => `<g><circle cx="${a.x * f.width}" cy="${a.y * f.height}" r="5" fill="#fbbf24"/><text x="${a.x * f.width + 8}" y="${a.y * f.height}" font-size="22" fill="white" stroke="black" stroke-width="0.6">${e(a.label)}</text></g>`).join('')}</svg></div><figcaption>${e(camera(f))}</figcaption></figure><p>${e(f.notes)}</p><p>Evidence copy resized for this package. Original: ${e(f.originalName)}. Preserve original high-resolution files.</p></section>`).join('')}<section><h2>Sources and methods</h2><p>BC Visual Impact Assessment Handbook (May 2022), sections 3–4 and Appendices 4, 7, 8. <a href="https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/visual-resource-mgmt/visual_impact_assessment_handbook.pdf">Handbook</a></p><p>Map/simulation attribution: AWS Open Data terrain (SRTM/CDEM), CARTO and OpenStreetMap contributors where those layers are shown. Imported data retain their recorded sources. No completed field visit, signature or authorization is inferred.</p></section></body></html>`
 }
-export async function exportEvidencePdf(d: ToolsDocument) {
+/** The evidence package as a PDF. */
+export async function evidencePdfBlob(d: ToolsDocument): Promise<Blob> {
   const { jsPDF } = await import('jspdf'),
     pdf = new jsPDF({ unit: 'mm', format: 'a4' }),
     margin = 16,
@@ -158,5 +159,5 @@ export async function exportEvidencePdf(d: ToolsDocument) {
     pdf.setTextColor(100)
     pdf.text(`Forestry VIA evidence record - page ${i} of ${pages}`, margin, 289)
   }
-  pdf.save('forestry-via-evidence.pdf')
+  return pdf.output('blob')
 }

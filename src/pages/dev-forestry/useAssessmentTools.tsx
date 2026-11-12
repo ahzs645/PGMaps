@@ -10,7 +10,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ToolDisclosure, ToolSection } from '@/components/ui/tool-section'
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
-import { downloadText } from '@/lib/download'
 import { formatMeasure } from '@/lib/format'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolFieldPanel } from './ToolFieldPanel'
@@ -35,7 +34,7 @@ import {
 } from './assessmentTools'
 import { loadTools, saveTools } from './toolsStorage'
 import { useToolRunner } from './useToolRunner'
-import { buildEvidenceHtml, evidenceGaps, exportEvidencePdf } from './toolEvidence'
+import { buildEvidenceHtml, evidenceGaps, evidencePdfBlob } from './toolEvidence'
 import type { AnalysisResult, Viewpoint } from './types'
 import type { SightlineProfile } from './sightlineProfile'
 import { RunRevisionReadout, useRunRevision } from './RunRevisionReadout'
@@ -48,6 +47,8 @@ type Props = {
   onRun: (scene: ForestryScene) => void
   analysisRunning: boolean
   onImportScene: (scene: ForestryScene) => void
+  /** Opens Save & export on one of its outputs. */
+  onOpenExport?: (kind: 'evidence' | 'workspace') => void
 }
 const hectares = (value: number) => formatMeasure(value, 'ha', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -59,6 +60,7 @@ export function useAssessmentTools({
   onRun,
   analysisRunning,
   onImportScene,
+  onOpenExport,
 }: Props) {
   const [d, setDocument] = useState<ToolsDocument>(emptyTools),
     [loaded, setLoaded] = useState(false),
@@ -75,8 +77,7 @@ export function useAssessmentTools({
   const [profile, setProfile] = useState<SightlineProfile | null>(null),
     [inspectTarget, setInspectTarget] = useState(''),
     [inspectIndex, setInspectIndex] = useState(0),
-    [inspectStation, setInspectStation] = useState(0),
-    [exporting, setExporting] = useState(false)
+    [inspectStation, setInspectStation] = useState(0)
   const documentRef = useRef(d),
     saveQueue = useRef(Promise.resolve())
   documentRef.current = d
@@ -587,9 +588,10 @@ export function useAssessmentTools({
           in step 2. Use the road view’s existing image download for a simulation attachment.
           <br />
           The workspace JSON holds saved inputs, local rasters, hashes, results, judgments and resized attachments. It
-          is stored on this device in IndexedDB; export a backup before clearing browser data. Imported results are
-          historical records, not verified new calculations. This native VIA evidence report is separate from the
-          historical FS1252 form.
+          is stored on this device in IndexedDB; save a backup (Save & export, Assessment workspace) before clearing
+          browser data. Imported results are historical records, not verified new calculations. This native VIA evidence
+          report is separate from the historical FS1252 form. The package's PDF and printable copy are written from Save
+          & export.
         </>
       }
     >
@@ -625,49 +627,12 @@ export function useAssessmentTools({
             {!evidenceGaps(d).length && <li>Expected evidence categories present. Check content and adequacy.</li>}
           </ul>
         </ToolDisclosure>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            disabled={!loaded || exporting}
-            onClick={() => {
-              setExporting(true)
-              setError(null)
-              void Promise.resolve()
-                .then(() => exportEvidencePdf(parseTools(d)))
-                .catch((e) => setError(String(e)))
-                .finally(() => setExporting(false))
-            }}
-          >
-            Export VIA evidence PDF
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!loaded}
-            onClick={() =>
-              perform(() => downloadText(buildEvidenceHtml(parseTools(d)), 'forestry-via-evidence.html', 'text/html'))
-            }
-          >
-            Export printable evidence
-          </Button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!loaded}
-            onClick={() =>
-              perform(() =>
-                downloadText(
-                  serializeTools({ ...d, currentScene: scene }),
-                  'forestry-assessment-workspace.json',
-                  'application/json',
-                ),
-              )
-            }
-          >
-            Export assessment workspace
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {onOpenExport && (
+            <Button size="sm" variant="outline" disabled={!loaded} onClick={() => onOpenExport('evidence')}>
+              Export the package…
+            </Button>
+          )}
           <FileButton
             label="Import assessment workspace"
             accept=".json"
@@ -692,10 +657,20 @@ export function useAssessmentTools({
     [change],
   )
   const revision = revisionReadout ? <RunRevisionReadout readout={revisionReadout} /> : null
+  /** The package and the workspace backup for Save & export, written from the stored document. */
+  const evidence = {
+    loaded,
+    gaps: evidenceGaps(d),
+    counts: { views: d.views.length, runs: d.runs.length, fields: d.fields.length },
+    pdf: () => evidencePdfBlob(parseTools(documentRef.current)),
+    html: () => buildEvidenceHtml(parseTools(documentRef.current)),
+    workspaceJson: () => serializeTools({ ...documentRef.current, currentScene: scene }),
+  }
   return {
     field,
     design,
     report,
+    evidence,
     revision,
     inspect,
     cancel: runner.cancel,

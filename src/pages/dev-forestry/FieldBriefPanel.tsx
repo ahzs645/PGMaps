@@ -1,22 +1,12 @@
 import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TextButton } from '@/components/ui/text-button'
 import { ToolSection } from '@/components/ui/tool-section'
-import { downloadBlob } from '@/lib/download'
 
-import type { NoteImage } from './blockNote'
-import {
-  briefOpenings,
-  briefViewpoints,
-  buildFieldBrief,
-  fieldBriefFileName,
-  fieldBriefPdf,
-  formatLatLng,
-} from './fieldBrief'
+import { briefOpenings, briefViewpoints, formatLatLng } from './fieldBrief'
 import {
   FIELD_CHECK_LABELS,
   fieldChecklistProgress,
@@ -34,8 +24,8 @@ import {
 import { formatKm } from './measureFormat'
 import type { SavedDriveView } from './previewState'
 import type { ForestryScene } from './scene'
-import type { AnalysisResult, TargetPolygon } from './types'
-import type { ViaAssessment, ViaReview } from './via'
+import type { AnalysisResult } from './types'
+import type { ViaReview } from './via'
 
 /** Openings listed for the green-up check in the sidebar; the brief prints fewer. */
 const PANEL_OPENINGS = 12
@@ -109,40 +99,41 @@ export function FieldBriefPanel({
   scene,
   result,
   stale,
-  assessment,
   review,
   onReviewChange,
   selectedTargetId,
-  landform,
   savedViews,
   otherViews,
-  images,
+  blockId,
+  onBlockId,
+  onOpenExport,
 }: {
   scene: ForestryScene
   /** The current run; null when there is none or it is stale. */
   result: AnalysisResult | null
   stale: boolean
-  assessment: ViaAssessment | null
   review: ViaReview
   onReviewChange: (patch: Partial<ViaReview>) => void
   selectedTargetId: string | null
-  landform: TargetPolygon | null
   /** Views saved on the road the scene has now, in order. */
   savedViews: ReadonlyArray<SavedDriveView>
   /** Views saved while standing at other viewpoints. */
   otherViews: ReadonlyArray<SavedDriveView>
-  /** Screenshots taken at *Save viewpoint*, by view id. */
-  images: Readonly<Record<string, NoteImage>>
+  /** The block the brief and checklist are for (shared with Save & export); the selected one when null. */
+  blockId: string | null
+  onBlockId: (id: string) => void
+  /** Opens Save & export on the field brief. */
+  onOpenExport?: () => void
 }) {
-  const blocks = scene.targets.filter((target) => target.role === 'block')
-  const [chosen, setChosen] = useState<string | null>(null)
-  const block =
-    blocks.find((entry) => entry.id === chosen) ??
-    blocks.find((entry) => entry.id === selectedTargetId) ??
-    blocks[0] ??
-    null
-  const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null)
-  const [busy, setBusy] = useState(false)
+  const blocks = useMemo(() => scene.targets.filter((target) => target.role === 'block'), [scene.targets])
+  const block = useMemo(
+    () =>
+      blocks.find((entry) => entry.id === blockId) ??
+      blocks.find((entry) => entry.id === selectedTargetId) ??
+      blocks[0] ??
+      null,
+    [blocks, blockId, selectedTargetId],
+  )
 
   const briefViews = useMemo(
     () => [
@@ -166,40 +157,6 @@ export function FieldBriefPanel({
   const today = () => localIsoDate(new Date())
   const answer = (group: FieldCheckGroup, key: string, patch: { answer?: FieldCheckAnswer | null; note?: string }) =>
     onReviewChange({ fieldChecklist: updateFieldCheck(checklist, group, key, patch, today()) })
-
-  const download = async () => {
-    if (!block) return
-    setBusy(true)
-    setMessage(null)
-    try {
-      const brief = buildFieldBrief({
-        block,
-        targets: scene.targets,
-        viewpoint: scene.viewpoint,
-        landform,
-        result,
-        stale,
-        assessment,
-        review,
-        savedViews: briefViews,
-        images,
-        notes: [
-          'A desk screening from terrain (AWS Open Data CDEM/SRTM) and drawn timber; confirm every viewpoint and figure in the field.',
-        ],
-        generatedAt: new Date(),
-      })
-      const jspdf = await import('jspdf')
-      downloadBlob(new Blob([fieldBriefPdf(brief, jspdf)], { type: 'application/pdf' }), fieldBriefFileName(brief))
-      setMessage({
-        tone: 'info',
-        text: `Downloaded with ${brief.viewpoints.length} viewpoint${brief.viewpoints.length === 1 ? '' : 's'} and ${brief.images.length} screenshot${brief.images.length === 1 ? '' : 's'}.`,
-      })
-    } catch (error) {
-      setMessage({ tone: 'error', text: `Brief failed: ${error instanceof Error ? error.message : String(error)}` })
-    } finally {
-      setBusy(false)
-    }
-  }
 
   return (
     <ToolSection
@@ -232,7 +189,7 @@ export function FieldBriefPanel({
                 aria-label="Block the brief is for"
                 className="w-full rounded-md border bg-background p-1"
                 value={block.id}
-                onChange={(event) => setChosen(event.target.value)}
+                onChange={(event) => onBlockId(event.target.value)}
               >
                 {blocks.map((entry) => (
                   <option key={entry.id} value={entry.id}>
@@ -242,14 +199,13 @@ export function FieldBriefPanel({
               </StyledSelect>
             )}
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => void download()} disabled={busy}>
-                {busy ? 'Writing…' : 'Download field brief (PDF)'}
+              <Button size="sm" variant="outline" disabled={!onOpenExport} onClick={onOpenExport}>
+                Download the field brief…
               </Button>
               <span className="text-3xs text-muted-foreground">
                 {result ? '' : stale ? 'Run is out of date: the brief says so.' : 'Not run yet: the brief says so.'}
               </span>
             </div>
-            {message && <InlineAlert tone={message.tone === 'error' ? 'error' : 'info'}>{message.text}</InlineAlert>}
 
             <FormField label="Checked by" hint="Stamped on each answer you record, with today’s date.">
               <input

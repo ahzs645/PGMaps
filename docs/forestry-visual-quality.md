@@ -35,10 +35,10 @@ is typed survives switching.
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
 | 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (spot or length of road, draw, import, snap); folded *Which roads see the block* and *Viewpoints and rec sites*; **Cutblocks** with their objective and harvest system; **Landform and objective**; folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view its settings (**Road view**, folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**); **Saved views**; folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Field brief and crew checklist* |
+| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view the stand (folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*); **Saved views**; folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Field brief and crew checklist* |
 | 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
 | 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
-| 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **FS1252 package**: whether its numbers are usable, the viewpoints it carries, **one** *Export filled FS1252 PDF*, and folded beneath it the viewpoint picker, run diagnostics and office fields; folded *VIA evidence package*; the worksheet and scene file under *Also download* |
+| 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **Package**: buttons that open *Save & export* on the block note, the FS1252 form, the analysis sheet or the scene; folded *VIA evidence package* (recording a run and the evidence checklist) |
 
 Under every step, after step 5, a folded **Resources** section holds reading
 rather than controls: links to the VIA Handbook and FPPR, the five FPPR s. 1.1
@@ -69,7 +69,47 @@ Each job has one place. Playback (play, speed, position) is on the road-view
 panel over the map, not repeated in the sidebar; drawing a road or a block is
 in its own section, not also in a setup card; one *Look from the road* runs the
 simulation first if it needs to; and the header carries no icon buttons —
-*New site* and *Export the scene* are in steps 1 and 5.
+*New site* is in step 1. Every file the page writes is written from one place,
+*Save & export* (below).
+
+### Save & export
+
+The workspace's toolbar has a **Save & export** button, laid out like the road
+designer's dialog (`VisualsExportDialog.tsx`, state and builders in
+`useVisualsExport.tsx`, the catalogue in `visualsExports.ts`, DOM-free). The
+sidebar keeps the work — the paragraph, the crew checklist, the step 4 record —
+and its buttons only open the dialog on an output (*Export the block note…*,
+*Download the field brief…*, *Save views…*, *Export the package…*, step 5's
+*Package*).
+
+| Group | Output | Formats | Options in the dialog |
+| --- | --- | --- | --- |
+| Assessment documents | Block note | Excel, PDF | Each view as its analysis-sheet figure |
+| | FS1252 form | PDF | Stations, each one's reviewer inputs, run diagnostics, office fields |
+| | Analysis sheet | PDF, PNG | Saved view, figure style, label style, camera block |
+| | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
+| | Worksheet | Markdown | — |
+| | VIA evidence package | PDF, printable HTML | — |
+| Save and reopen | Scene, Saved views, Assessment workspace, 3D scene | JSON | — |
+
+Each output's pane has two views. **What goes in** lists, from the same state the
+file is written from, the parts it carries: the landform (name, objective, VAC,
+area, source), the viewpoint, every saved view with the settings it was saved
+with (position, facing, eye height, lens, timber, harvest phase, design), the
+blocks and masks, the run's status and figures, the run settings and the
+review — each with *Change in step N*, which closes the dialog on that step.
+**Preview** builds the file itself and shows it (a PDF in the browser's viewer,
+an image, HTML in a sandboxed frame, text); *Download* saves that same file. An
+output that cannot be written yet says why in the list (no block, no run, a
+stale run, no saved view, the road view closed).
+
+Rules: the dialog never writes to the scene except the FS1252 office fields
+(`reportMetadata`, as before) and the field brief's block; its other choices
+(stations, figure style) last while the page is open and reset with the run as
+the sidebar's did. Closed, `useVisualsExport` returns before building anything:
+the page re-renders several times a second while the road view moves. Add a new
+file to `VISUALS_EXPORTS`, `exportUnavailable`, `exportContents` and the
+hook's `build` together, never as a download button in the sidebar.
 
 ### Map layers, landform readings and viewpoint arrows
 
@@ -1061,7 +1101,7 @@ matrix that projected the ground under them.
 
 ### The scene for other renderers
 
-Sidebar → **3D scene for other renderers** writes `forestry-scene-package.json`
+*Save & export* → **3D scene** writes `forestry-scene-package.json` while the road view is open
 (`scenePackage.ts`, format `pgmaps-forest-scene` v1). It holds the road view's
 scene, renderer-neutral and display only:
 
@@ -1322,16 +1362,46 @@ Right-click a row (or Shift+F10) or use the gear for its settings: each row
 hidden, value, or value and detail. It is a readout; every control it
 describes stays in the sidebar.
 
+Two groups of cards follow the station's rows; in the gear's settings each can
+be shown, and most start hidden so the stack stays short.
+
+- **Results** (`runResultMetrics`), the step 3 Results panel's figures read
+  from the run: the landform's alteration at the assessment station (*perspective
+  · the run*, shown by default) and its existing + proposed parts, block ground
+  seen and apparent size in view over the whole road, landform seen, the
+  forested area the planimetric figure divides by, screening, and the viewing
+  stations.
+- **Land checks** (`landStatusChecks.ts`, run by `useLandChecks`): one card,
+  shown by default, sums nine checks — treaty land, Indian reserves, private
+  land (ParcelMap BC), parks and protected areas, community watersheds, legal
+  OGMAs, ungulate winter range, wildlife habitat areas and recreation sites or
+  trails — and each has a card of its own (hidden by default) saying how many
+  hectares of which block overlap which feature, or that it lies only in the
+  landform, or none. Each layer is read live from DataBC's WFS for the box
+  around the blocks and landform (the blocks alone when that box is wider than
+  0.4°), 800 ms after the shapes last change, with the box in `CQL_FILTER`,
+  longitude first, and the geometry field named in `propertyName`. Overlaps
+  under 0.05 ha are boundary slivers and are not counted. A check is a screen,
+  not a legal determination: it never writes a mask or changes a figure (add
+  private land as a mask in step 3 for that), and a layer that fails says *Not
+  read* rather than *None*. On the Tabor sample in November 2026 it found the
+  blocks inside ungulate winter range u‑7‑022 (conditional harvest zone) and
+  the Tabor Mountain recreation area, and 797 ha of private parcels in the
+  landform.
+
 ## The road view's layout
 
 The bar over the map plays: play and pause, the route position with 10 m
-steps, speed, the harvest phase, **Save** and **Image**, reset look, the keys
-behind an (i), and the way back to the map. Everything about how the view looks
-— where to look, a jump to a view of the block, analysis points, satellite
-imagery, the note screenshot look, block colours, EVQO polygons, the landform, distance haze,
-the drawn timber, existing forest and regrowth, display quality — is step 2's
-**Road view** section, which comes first
-in that step while the road view is open. One status line over the map reads the
+steps, speed, the harvest phase, **Save**, **Image** and **View options**, reset
+look, the keys behind an (i), and the way back to the map. *View options*
+(`RoadViewOptions.tsx`, the shared `ToolbarPopover`) holds how the view looks,
+in four groups: **Look** (where to look, a jump to a view of the block),
+**Show** (analysis points, the note screenshot look, EVQO polygons, the landform,
+distance haze), **Figure** (figure and label style) and **Drawing** (display
+quality, tree shading, detail when stopped). Its badge counts what is drawn over
+the plain view. Satellite imagery is the road view's Layers button. What the
+stand is drawn from — block colours, the drawn timber, existing forest and
+regrowth — stays in step 2, first in that step while the road view is open. One status line over the map reads the
 harvest phase and the share of the block's ground in view; its assumptions are
 behind an (i). Loading, saving and data issues share one status line under the
 bar and are absent when there is nothing to say. On a phone the bar opens to the
@@ -1528,8 +1598,8 @@ terminating it per run. Re-profile against a production build
 
 ## The block note: Excel or PDF
 
-Step 5's *Planning note · Visuals* ends with **Download Excel** and **Download
-PDF** (`blockNote.ts`). Both carry the header (block, licence, permit, opening,
+*Save & export* → **Block note** writes it as Excel or PDF (`blockNote.ts`) from
+the text step 5's *Planning note · Visuals* holds. Both carry the header (block, licence, permit, opening,
 area, EVQO classes under the block), the viewpoint, the landform with its percent
 alteration in perspective view against its Table 2 range, the Visuals paragraph
 — the reviewer's, or the draft flagged "not yet reviewed" — every saved view's
@@ -1738,12 +1808,12 @@ proposed blocks filled yellow-tan, existing openings paler tan, underlined label
 arrowed leaders that turn white over the forest (*Underlined label · arrow*; plain *Underlined
 label* stays available), and the camera block. The EVQO polygons load whenever this style is chosen.
 
-**Exports.** Step 5's *Analysis sheet* composes a saved view in any style as PDF
+**Exports.** *Save & export* → **Analysis sheet** composes a saved view in any style as PDF
 (`renderPdf.ts`) or PNG (`sheetPng.ts`), with a preview. Family A styles print
 the tabloid analysis sheet (title block, figure, facts, visual inventory key,
 calculation, legend); the others print the analysed figure on a page of its own
-with the legend inset and the calculation under it. *Use these figures in the
-block note* puts each view's analysed figure in the block note in place of its
+with the legend inset and the calculation under it. The block note's option *Use each
+view's analysis-sheet figure* puts each view's analysed figure in the block note in place of its
 screenshot; `blockNote.ts` embeds PNG as well as JPEG, so the planner's Excel
 and PDF layouts do not change. A view saved before the class pass existed, or
 whose pass failed, still exports, without outlines or pixel figure, and says so.
@@ -1932,9 +2002,8 @@ the VQO polygons, and stand at the viewpoints.
   Each place's saved views are shelved while you are elsewhere and come back
   with it, and step 5 lists the captions from every place ("View of CHU_26_1
   from Davie Lake South Rec Site."). Saved views are kept for the session;
-  *Download preview* keeps the current place's.
-- **Block colours**: in step 2's *Road view* section, beside the note
-  screenshot look, one swatch per block opens a colour picker with screenshot
+  *Save & export* → **Saved views** keeps the current place's.
+- **Block colours**: in step 2 while the road view is open, one swatch per block opens a colour picker with screenshot
   presets (white, yellow, orange, magenta, cyan, purple, black); the (×)
   resets it. It lives there, and only there, because the colour is chosen while
   composing a screenshot: in step 1 it was a tab hop away from the view it

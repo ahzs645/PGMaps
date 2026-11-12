@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Download, Loader2 } from 'lucide-react'
+import { useMemo } from 'react'
 
-import { Button } from '@/components/ui/button'
 import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { downloadBlob } from '@/lib/download'
 import {
   analysedFigure,
   composeFigure,
@@ -225,83 +222,88 @@ const safeName = (text: string) =>
     .replace(/^-|-$/g, '')
     .slice(0, 60) || 'view'
 
+/** The analysis sheet's choices in Save & export; null keeps the road view's (or the style's) own. */
+export type FigureChoice = {
+  viewId: string | null
+  styleId: string | null
+  labelStyle: LabelStyleId | null
+  cameraInfo: boolean | null
+}
+export const NO_FIGURE_CHOICE: FigureChoice = { viewId: null, styleId: null, labelStyle: null, cameraInfo: null }
+
+/** A choice with its defaults filled in: the last saved view, the road view's style, the style's labels. */
+export type ResolvedFigure = {
+  view: FigureView | null
+  preset: ViaStylePreset
+  labelStyle: LabelStyleId
+  cameraInfo: boolean
+}
+
+export function resolveFigureChoice(
+  choice: FigureChoice,
+  views: readonly FigureView[],
+  roadView: { styleId: string | null; labelStyle: LabelStyleId | null },
+): ResolvedFigure {
+  const ready = views.filter((view) => view.image)
+  const preset =
+    findPreset(choice.styleId ?? roadView.styleId ?? DEFAULT_FIGURE_STYLE) ?? findPreset(DEFAULT_FIGURE_STYLE)!
+  return {
+    view: ready.find((entry) => entry.id === choice.viewId) ?? ready.at(-1) ?? null,
+    preset,
+    labelStyle: choice.labelStyle ?? roadView.labelStyle ?? figureLabelStyle({ preset }),
+    cameraInfo: choice.cameraInfo ?? preset.cameraInfo ?? false,
+  }
+}
+
+const composeResolved = async ({ view, preset, labelStyle, cameraInfo }: ResolvedFigure) => {
+  if (!view?.image) throw new Error('Save a viewpoint in the road view first.')
+  return composeFigure(await figureInput(view.image, view.image.figure, preset, { labelStyle, cameraInfo }))
+}
+
+/** The analysis sheet as a file, composed exactly as its preview is. */
+export async function analysisSheetFile(
+  resolved: ResolvedFigure,
+  format: 'pdf' | 'png',
+): Promise<{ blob: Blob; fileName: string }> {
+  const figure = await composeResolved(resolved)
+  const blob = format === 'pdf' ? await figurePdf(figure) : await figurePng(figure)
+  return { blob, fileName: `via-analysis-${safeName(resolved.view?.name ?? 'view')}-${resolved.preset.id}.${format}` }
+}
+
+/** The analysis sheet as an SVG image for the preview, with the composer's notes. */
+export async function analysisSheetPreview(resolved: ResolvedFigure): Promise<{ src: string; notes: string[] }> {
+  const figure = await composeResolved(resolved)
+  const ops = await encodeSheetImages(figure.ops)
+  return { src: svgDataUrl(sheetSvg(ops, figure.width, figure.height)), notes: figure.notes }
+}
+
 /**
- * Step 5: a saved view composed as a VIA analysis sheet in one of the figure styles. The class
- * pass taken at *Save viewpoint* gives the outlines (the visible edge of each class) and the pixel
- * counts; the run's sightline figure is printed beside the pixel one and stays the assessment's.
+ * The analysis sheet's options in Save & export: which saved view, the figure style, the label
+ * style and the camera block. The class pass taken at *Save viewpoint* gives the outlines (the
+ * visible edge of each class) and the pixel counts; the run's sightline figure is printed beside
+ * the pixel one and stays the assessment's.
  */
-export function FigureSheetPanel({
+export function AnalysisSheetOptions({
   views,
-  styleId,
-  labelStyleId = null,
-  noteFigures,
-  onNoteFiguresChange,
+  resolved,
+  onChange,
 }: {
   views: readonly FigureView[]
-  /** The road view's figure style, the starting choice here. */
-  styleId: string | null
-  /** The road view's label style; the figure style's own when null. */
-  labelStyleId?: LabelStyleId | null
-  /** Whether the block note uses each view's figure instead of its screenshot. */
-  noteFigures: boolean
-  onNoteFiguresChange: (on: boolean) => void
+  resolved: ResolvedFigure
+  onChange: (patch: Partial<FigureChoice>) => void
 }) {
   const ready = views.filter((view) => view.image)
-  const [viewId, setViewId] = useState<string | null>(null)
-  const [chosenStyle, setChosenStyle] = useState<string | null>(null)
-  const style = chosenStyle ?? styleId ?? DEFAULT_FIGURE_STYLE
-  const preset = findPreset(style) ?? findPreset(DEFAULT_FIGURE_STYLE)!
-  const view = ready.find((entry) => entry.id === viewId) ?? ready.at(-1)
-  const [chosenLabels, setChosenLabels] = useState<LabelStyleId | null>(null)
-  const labelStyle = chosenLabels ?? labelStyleId ?? figureLabelStyle({ preset })
-  const [chosenCameraInfo, setChosenCameraInfo] = useState<boolean | null>(null)
-  const cameraInfo = chosenCameraInfo ?? preset.cameraInfo ?? false
-  const options: FigureOptions = { labelStyle, cameraInfo }
-  const [busy, setBusy] = useState<'pdf' | 'png' | 'preview' | null>(null)
-  const [error, setError] = useState('')
-  const [preview, setPreview] = useState<{ key: string; src: string; notes: string[] } | null>(null)
-  const key = view ? `${view.id}:${preset.id}:${labelStyle}:${cameraInfo}:${view.image?.figure ? 'f' : 'n'}` : ''
-  const shown = preview?.key === key ? preview : null
-  useEffect(() => setError(''), [key])
-
-  const compose = async () => composeFigure(await figureInput(view!.image!, view!.image!.figure, preset, options))
-  const run = async (kind: 'pdf' | 'png' | 'preview') => {
-    if (!view?.image) return
-    setBusy(kind)
-    setError('')
-    try {
-      const figure = await compose()
-      if (kind === 'preview') {
-        const ops = await encodeSheetImages(figure.ops)
-        setPreview({ key, src: svgDataUrl(sheetSvg(ops, figure.width, figure.height)), notes: figure.notes })
-      } else {
-        const blob = kind === 'pdf' ? await figurePdf(figure) : await figurePng(figure)
-        downloadBlob(blob, `via-analysis-${safeName(view.name)}-${preset.id}.${kind}`)
-      }
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The analysis sheet could not be made.')
-    } finally {
-      setBusy(null)
-    }
-  }
   const styleOptions = useMemo(() => VIA_STYLE_PRESETS.filter((entry) => entry.family !== 'G'), [])
-
-  if (!ready.length)
-    return (
-      <p className="text-2xs text-muted-foreground">
-        Save a viewpoint in the road view (step 2) first: its screenshot and class pass are what the sheet is drawn
-        from.
-      </p>
-    )
+  const { view, preset, labelStyle, cameraInfo } = resolved
   return (
-    <div className="space-y-2 text-xs" data-testid="figure-sheet-panel">
+    <div className="grid gap-2 text-xs sm:grid-cols-2" data-testid="figure-sheet-panel">
       <label className="block">
         <span className="mb-1 block text-2xs font-medium text-muted-foreground">Saved view</span>
         <StyledSelect
           aria-label="Saved view for the analysis sheet"
           className="w-full"
           value={view?.id ?? ''}
-          onChange={(event) => setViewId(event.target.value)}
+          onChange={(event) => onChange({ viewId: event.target.value })}
         >
           {ready.map((entry) => (
             <option key={entry.id} value={entry.id}>
@@ -316,7 +318,7 @@ export function FigureSheetPanel({
           aria-label="Analysis sheet figure style"
           className="w-full"
           value={preset.id}
-          onChange={(event) => setChosenStyle(event.target.value)}
+          onChange={(event) => onChange({ styleId: event.target.value })}
         >
           {styleOptions.map((entry) => (
             <option key={entry.id} value={entry.id}>
@@ -331,7 +333,7 @@ export function FigureSheetPanel({
           aria-label="Analysis sheet label style"
           className="w-full"
           value={labelStyle}
-          onChange={(event) => setChosenLabels(event.target.value as LabelStyleId)}
+          onChange={(event) => onChange({ labelStyle: event.target.value as LabelStyleId })}
         >
           {LABEL_STYLES.map((entry) => (
             <option key={entry.id} value={entry.id}>
@@ -340,49 +342,25 @@ export function FigureSheetPanel({
           ))}
         </StyledSelect>
       </label>
-      <CheckboxField label="Camera info on image" checked={cameraInfo} onCheckedChange={setChosenCameraInfo} />
+      <div className="flex items-end pb-1">
+        <CheckboxField
+          label="Camera info on image"
+          checked={cameraInfo}
+          onCheckedChange={(on) => onChange({ cameraInfo: on })}
+        />
+      </div>
       {view && !view.image?.figure && (
-        <InlineAlert>
+        <InlineAlert className="sm:col-span-2">
           This view was saved without a class pass, so the sheet has no traced outlines or pixel figure. Save the view
           again to add them.
         </InlineAlert>
       )}
       {view?.image?.figure?.splitFailed && (
-        <InlineAlert>
+        <InlineAlert className="sm:col-span-2">
           A shape could not be split at the landform edge; its pixels count as inside the landform.
         </InlineAlert>
       )}
-      <div className="grid grid-cols-3 gap-1.5">
-        <Button type="button" variant="outline" size="sm" disabled={!!busy} onClick={() => void run('preview')}>
-          {busy === 'preview' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          Preview
-        </Button>
-        <Button type="button" variant="outline" size="sm" disabled={!!busy} onClick={() => void run('pdf')}>
-          {busy === 'pdf' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-          PDF
-        </Button>
-        <Button type="button" variant="outline" size="sm" disabled={!!busy} onClick={() => void run('png')}>
-          {busy === 'png' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-          PNG
-        </Button>
-      </div>
-      {error && <InlineAlert tone="error">{error}</InlineAlert>}
-      {shown && (
-        <figure className="space-y-1">
-          <img src={shown.src} alt={`Analysis sheet of ${view?.name}`} className="w-full rounded-md border bg-white" />
-          {shown.notes.map((note) => (
-            <figcaption key={note} className="text-3xs text-muted-foreground">
-              {note}
-            </figcaption>
-          ))}
-        </figure>
-      )}
-      <CheckboxField
-        label="Use these figures in the block note"
-        checked={noteFigures}
-        onCheckedChange={onNoteFiguresChange}
-      />
-      <p className="text-3xs text-muted-foreground">
+      <p className="text-3xs text-muted-foreground sm:col-span-2">
         Pixel figures count what this picture shows; the sightline figure is the run&apos;s and stays the
         assessment&apos;s. Both are printed side by side.
       </p>

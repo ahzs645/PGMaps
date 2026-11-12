@@ -1,6 +1,6 @@
 import { CheckboxField, FORM_INPUT_CLASS, StyledSelect } from '@/components/ui/form-field'
 import { formatMeasure, formatPercentValue } from '@/lib/format'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button, buttonVariants } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
@@ -78,7 +78,8 @@ export function VisualsParagraphPanel({
   captions,
   landform,
   assessment,
-  onExportNote,
+  onParts,
+  onOpenExport,
 }: {
   scene: ForestryScene
   /** The current run; null when there is none or it is stale. */
@@ -94,11 +95,10 @@ export function VisualsParagraphPanel({
   otherViewpointsBlockId: string | null
   /** Captions of the saved views, in order. */
   captions: ReadonlyArray<string>
-  /** Writes the block note; the page adds the screenshots and the plan map. */
-  onExportNote?: (
-    format: 'xlsx' | 'pdf',
-    parts: BlockNoteParts,
-  ) => Promise<{ views: number; missing: number; planMap: boolean }>
+  /** The note's text as it stands, for the block note in Save & export; null without a block. */
+  onParts?: (parts: BlockNoteParts | null) => void
+  /** Opens Save & export on the block note. */
+  onOpenExport?: () => void
   landform: TargetPolygon | null
   /** Step 4's assessment against the landform, for the visual measures; null without a landform. */
   assessment?: ViaAssessment | null
@@ -141,10 +141,6 @@ export function VisualsParagraphPanel({
     [allOtherViewpoints, otherViewpointsBlockId, block],
   )
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set())
-  const [exporting, setExporting] = useState<{ format: 'xlsx' | 'pdf' | null; message: string | null }>({
-    format: null,
-    message: null,
-  })
   const included = useMemo(
     () => otherViewpoints.filter((finding) => !excluded.has(finding.name)),
     [otherViewpoints, excluded],
@@ -191,7 +187,13 @@ export function VisualsParagraphPanel({
     [block, scene.masks, landform, assessment, result, stale, scene.viewpoint.name],
   )
 
-  if (!block) return <p className="text-2xs text-muted-foreground">Add a cutblock to draft its note.</p>
+  if (!block)
+    return (
+      <>
+        <ReportParts parts={null} onParts={onParts} />
+        <p className="text-2xs text-muted-foreground">Add a cutblock to draft its note.</p>
+      </>
+    )
 
   const note = review.visualsNote ?? ''
   const draft = narrative?.paragraph ?? ''
@@ -240,41 +242,22 @@ export function VisualsParagraphPanel({
       ]
     : [{ label: 'Landform', value: 'None adopted' }]
   const viewpointRow = { label: 'Viewpoint', value: scene.viewpoint.name || 'Unnamed' }
-  const exportNote = async (format: 'xlsx' | 'pdf') => {
-    if (!onExportNote) return
-    setExporting({ format, message: null })
-    try {
-      const outcome = await onExportNote(format, {
-        blockId: block.id,
-        header: headerRows,
-        visuals: { text: note || draft, drafted: !note },
-        sentences: narrative?.sentences ?? [],
-        landform: [viewpointRow, ...landformRows],
-        measures: {
-          items: measureItems(measures || measuresText),
-          drafted: !measures,
-          basis: measuresDraft?.measures ?? [],
-        },
-      })
-      setExporting({
-        format: null,
-        message:
-          `Downloaded with ${outcome.views} screenshot${outcome.views === 1 ? '' : 's'}` +
-          (outcome.planMap ? ' and the plan map' : '') +
-          (outcome.missing
-            ? `; ${outcome.missing} saved view${outcome.missing === 1 ? ' has' : 's have'} no screenshot`
-            : '') +
-          '.',
-      })
-    } catch (error) {
-      setExporting({
-        format: null,
-        message: `Export failed: ${error instanceof Error ? error.message : String(error)}`,
-      })
-    }
+  const parts: BlockNoteParts = {
+    blockId: block.id,
+    header: headerRows,
+    visuals: { text: note || draft, drafted: !note },
+    sentences: narrative?.sentences ?? [],
+    landform: [viewpointRow, ...landformRows],
+    measures: {
+      items: measureItems(measures || measuresText),
+      drafted: !measures,
+      basis: measuresDraft?.measures ?? [],
+    },
   }
+
   return (
     <div className="space-y-3 text-xs" aria-label="Visuals paragraph">
+      <ReportParts parts={parts} onParts={onParts} />
       {blocks.length > 1 && (
         <StyledSelect
           aria-label="Block the paragraph is for"
@@ -448,7 +431,10 @@ export function VisualsParagraphPanel({
         )}
       </div>
 
-      <div className="space-y-1.5 border-t border-border/60 pt-3" aria-label="Block note export">
+      <div
+        className="flex items-center justify-between gap-2 border-t border-border/60 pt-3"
+        aria-label="Block note export"
+      >
         <p className="flex items-center gap-1 text-2xs font-medium text-muted-foreground">
           Block note
           <InfoTip label="About the block note">
@@ -456,34 +442,12 @@ export function VisualsParagraphPanel({
             landform and its percent alteration, every saved view's screenshot with its caption — from every place you
             stood — and a plan map of the block and viewpoint. Excel follows the planner's report: Visuals in column B,
             the paragraph in C, the screenshots below, so the row pastes into their workbook. PDF puts the first view
-            large with the note beside it. Screenshots are taken when a view is saved and kept for this session.
+            large with the note beside it. Written from Save &amp; export, which lists what goes in.
           </InfoTip>
         </p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!onExportNote || exporting.format !== null}
-            onClick={() => void exportNote('xlsx')}
-          >
-            {exporting.format === 'xlsx' ? 'Preparing…' : 'Download Excel'}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!onExportNote || exporting.format !== null}
-            onClick={() => void exportNote('pdf')}
-          >
-            {exporting.format === 'pdf' ? 'Preparing…' : 'Download PDF'}
-          </Button>
-        </div>
-        {exporting.message && (
-          <p className="text-3xs text-muted-foreground" role="status">
-            {exporting.message}
-          </p>
-        )}
+        <Button type="button" size="sm" variant="outline" disabled={!onOpenExport} onClick={onOpenExport}>
+          Export the block note…
+        </Button>
       </div>
 
       {captions.length > 0 && (
@@ -506,4 +470,24 @@ export function VisualsParagraphPanel({
       )}
     </div>
   )
+}
+
+/** Hands the note's text up whenever it changes, by value, so the page's copy never loops a render. */
+function ReportParts({
+  parts,
+  onParts,
+}: {
+  parts: BlockNoteParts | null
+  onParts?: (parts: BlockNoteParts | null) => void
+}) {
+  const key = JSON.stringify(parts)
+  const latest = useRef({ parts, onParts })
+  useEffect(() => {
+    latest.current = { parts, onParts }
+  })
+  useEffect(() => {
+    latest.current.onParts?.(latest.current.parts)
+  }, [key])
+  useEffect(() => () => latest.current.onParts?.(null), [])
+  return null
 }

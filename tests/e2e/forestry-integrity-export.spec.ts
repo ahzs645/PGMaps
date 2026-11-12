@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { demoInput } from '../../src/pages/dev-forestry/regression/scenario.mjs'
 import { DEFAULT_VISUAL_QUALITY_THRESHOLDS } from '../../src/pages/dev-forestry/vqo'
+import { downloadVisualsExport, openVisualsExport } from './visuals-export'
 
 test.use({ serviceWorkers: 'block' })
 const routePath = '/dev/forestry/visual-quality'
@@ -70,19 +71,23 @@ test('a scenario edit withholds stale PDF export until a new run', async ({ page
   await openScenario(page)
   await page.getByRole('spinbutton', { name: 'Assessment year', exact: true }).fill('2027')
   await expect(page.getByText(/Scene changed — rerun the analysis/)).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Export filled FS1252 PDF', exact: true })).toHaveCount(0)
+  const dialog = await openVisualsExport(page, 'FS1252 form')
+  await expect(dialog.getByRole('button', { name: 'Download FS1252 form', exact: true })).toBeDisabled()
+  await expect(dialog.getByText(/The run is out of date/).first()).toBeVisible()
 })
 
 test('PDF button downloads the historical template with embedded scenario record', async ({ page }) => {
   test.setTimeout(180_000)
   await openScenario(page)
   await page.locator('[data-via-step="rate"]').click()
-  await expect(page.getByRole('region', { name: 'Assessment integrity and PDF export' })).toBeVisible()
-  await page.getByText('FS1252 office information', { exact: true }).click()
-  await page.getByLabel('Forest district', { exact: true }).fill('Interface PDF test district')
-  const pending = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export filled FS1252 PDF', exact: true }).click()
-  const downloaded = await pending
+  // Step 5 opens Save & export on the form, with its stations and office fields.
+  await page.getByRole('button', { name: 'FS1252 form…', exact: true }).click()
+  const dialog = page.getByTestId('visuals-export-dialog')
+  await expect(dialog.getByRole('region', { name: 'FS1252 options' })).toBeVisible()
+  await expect(dialog.getByRole('list', { name: 'Viewpoints in the PDF' })).toBeVisible()
+  await dialog.getByText('FS1252 office information', { exact: true }).click()
+  await dialog.getByLabel('Forest district', { exact: true }).fill('Interface PDF test district')
+  const downloaded = await downloadVisualsExport(page, 'FS1252 form')
   const location = await downloaded.path()
   expect(location).not.toBeNull()
   const bytes = await readFile(location!)

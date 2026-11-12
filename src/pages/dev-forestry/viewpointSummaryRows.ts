@@ -234,3 +234,111 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
   })
   return rows
 }
+
+const hectares = (meters: number) =>
+  formatMeasure(meters / 10_000, 'ha', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+/**
+ * The run's own results as cards, the figures step 3's Results panel shows: the landform's
+ * alteration at the assessment station with its existing and proposed parts, how much of the
+ * block and landform the whole road sees, the denudation base, and how the run was made. Read from
+ * the run, never recomputed. Only `result-alteration` shows by default (`ViewpointSummary`).
+ */
+export function runResultMetrics(
+  input: Pick<ViewpointSummaryInput, 'result' | 'block' | 'landform' | 'thresholds'>,
+): MetricSummaryItem[] {
+  const { result, landform, thresholds } = input
+  const numericalReady = !!result.quality?.numericalReady
+  const corridor = result.stations.length > 1
+  const whole = corridor ? 'whole road' : 'the viewpoint'
+  const block =
+    result.targets.find((target) => target.targetId === input.block?.targetId && target.role === 'block') ??
+    result.targets.find((target) => target.role === 'block')
+  const blockName = input.block?.targetId === block?.targetId ? input.block?.name : 'the block'
+  const landscape = result.targets.find((target) => target.role === 'landscape')
+  const station = result.stations[result.assessmentStationIndex]
+  const rows: MetricSummaryItem[] = []
+
+  const perspective = result.perspectiveAlteration
+  if (landform && perspective) {
+    const verdict = numericalReady
+      ? verdictNote(result, perspective, 'perspective', landform.objectiveId, landform.vac, thresholds)
+      : null
+    rows.push({
+      key: 'result-alteration',
+      label: 'Landform alteration',
+      qualifier: 'perspective · the run',
+      value: verdict ? formatPct(perspective.cumulativePercent) : 'Withheld',
+      note: verdict
+        ? `The run's figure, from the assessment station${station ? ` at ${km(station.distanceAlongMeters)}` : ''} · ${verdict.note}`
+        : 'Withheld while the run is provisional; see Numerical figures',
+      tone: verdict ? (verdict.met ? 'default' : 'warning') : 'muted',
+    })
+    if (numericalReady)
+      rows.push({
+        key: 'result-split',
+        label: 'Existing + proposed',
+        qualifier: 'perspective · the run',
+        value: `${formatPct(perspective.existingPercent)} + ${formatPct(perspective.proposedPercent)}`,
+        note: `Already harvested and not greened up (green-up ${runGreenUpBasis(result).label}), plus what this proposal adds; the objective is met or missed by the total`,
+      })
+  }
+
+  if (block && !block.outOfRange) {
+    rows.push({
+      key: 'result-block-seen',
+      label: 'Block ground seen',
+      qualifier: whole,
+      value: `${hectares(block.visibleAreaMeters)} of ${hectares(block.areaMeters)}`,
+      note: `${blockName}: ground seen from anywhere on the ${corridor ? 'road' : 'viewpoint'}, flat map area`,
+    })
+    rows.push({
+      key: 'result-apparent',
+      label: 'Apparent size in view',
+      qualifier: whole,
+      value: formatPct(block.apparentVisiblePercent),
+      note: `${blockName}: the share of its apparent size (solid angle) the terrain leaves in view`,
+    })
+  }
+
+  if (landscape) {
+    rows.push({
+      key: 'result-landform-seen',
+      label: 'Landform seen',
+      qualifier: whole,
+      value: `${hectares(landscape.visibleAreaMeters)} (${formatPct(landscape.visiblePercent, 0)})`,
+      note: `${landform?.name ?? 'The landform'}: ${hectares(landscape.areaMeters)} in all`,
+    })
+    rows.push({
+      key: 'result-forested',
+      label: 'Forested area',
+      qualifier: 'denudation base',
+      value:
+        landscape.forestedAreaMeters !== null
+          ? `${hectares(landscape.forestedAreaMeters)} (${formatPct((landscape.forestedAreaMeters / Math.max(1, landscape.areaMeters)) * 100, 0)})`
+          : 'Whole landform',
+      note:
+        landscape.forestedAreaMeters !== null
+          ? 'The treed part of the landform (VRI), which the planimetric figure divides by'
+          : 'No vegetation inventory: the planimetric figure divides by the whole landform and reads low',
+      tone: landscape.forestedAreaMeters !== null ? 'default' : 'warning',
+    })
+  }
+
+  rows.push({
+    key: 'result-screening',
+    label: 'Screening',
+    value: result.canopyCoverageFraction === null ? 'Bare earth' : 'Terrain + stands',
+    note:
+      result.canopyCoverageFraction === null
+        ? 'Standing timber is not modelled, so screened blocks read as visible'
+        : 'Terrain plus inventory stand height; understorey, roadside cover and retention inside a block are not modelled',
+  })
+  rows.push({
+    key: 'result-stations',
+    label: 'Viewing stations',
+    value: corridor ? `${result.stations.length} over ${km(result.corridorLengthMeters)}` : '1 (spot)',
+    note: `Terrain at ${metres(result.demResolutionMeters)} per sample from ${result.demTileCount} tiles`,
+  })
+  return rows
+}

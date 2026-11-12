@@ -4,7 +4,6 @@
  * Original vector text and the three reference pages are retained. No OCR,
  * image tracing, third-party fonts, server upload or runtime PDF dependency.
  */
-import { downloadBlob } from '@/lib/download'
 import { canonicalInput } from '../integrity'
 import { greenUpBasis, greenUpBasisLine, runGreenUpReadings } from '../greenUp'
 import { templateManifest as m } from './templateManifest'
@@ -493,13 +492,13 @@ export async function exportFs1252(request: ExportRequest): Promise<Uint8Array> 
   }
   return output
 }
-/** Browser entry point, local template, no remote PDF service. */
-export async function downloadFs1252(request: Omit<ExportRequest, 'template'>): Promise<void> {
+/** Browser entry point, local template, no remote PDF service: the filled form and its file name. */
+export async function buildFs1252(request: Omit<ExportRequest, 'template'>): Promise<{ blob: Blob; fileName: string }> {
   const response = await fetch(`${import.meta.env.BASE_URL}forms/fs1252-2008-04.pdf`)
   if (!response.ok) throw new Error(`Could not load the local FS1252 template (${response.status}).`)
   const bytes = await exportFs1252({ ...request, template: new Uint8Array(await response.arrayBuffer()) })
-  downloadBlob(
-    new Blob([new Uint8Array(bytes).buffer], { type: 'application/pdf' }),
-    `FS1252-simulation-${request.generatedAt.slice(0, 10)}.pdf`,
-  )
+  return {
+    blob: new Blob([new Uint8Array(bytes).buffer], { type: 'application/pdf' }),
+    fileName: `FS1252-simulation-${request.generatedAt.slice(0, 10)}.pdf`,
+  }
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { AlterationBreakdown, AnalysisResult } from './types'
 import { assessVia } from './via'
-import { viewpointSummaryMetrics, type ViewpointSummaryInput } from './viewpointSummaryRows'
+import { runResultMetrics, viewpointSummaryMetrics, type ViewpointSummaryInput } from './viewpointSummaryRows'
 import { DEFAULT_VISUAL_QUALITY_THRESHOLDS } from './vqo'
 
 const breakdown = (proposedPercent: number, existingPercent = 0): AlterationBreakdown => ({
@@ -122,5 +122,58 @@ describe('viewpoint summary rows', () => {
     expect(row(viewpointSummaryMetrics(input({ objectiveSource: 'chosen' })), 'objective')?.note).toMatch(
       /not read from the inventory/,
     )
+  })
+})
+
+describe('the run results as summary cards', () => {
+  const withAreas = (numericalReady = true) => {
+    const result = run({ numericalReady }) as unknown as {
+      targets: Array<Record<string, unknown>>
+      perspectiveAlteration: AlterationBreakdown
+      canopyCoverageFraction: number | null
+      corridorLengthMeters: number
+      demResolutionMeters: number
+      demTileCount: number
+    }
+    Object.assign(result.targets[0], { areaMeters: 400_000, visibleAreaMeters: 250_000, apparentVisiblePercent: 41 })
+    result.targets.push({
+      targetId: 'lf',
+      role: 'landscape',
+      areaMeters: 2_000_000,
+      visibleAreaMeters: 1_200_000,
+      visiblePercent: 60,
+      forestedAreaMeters: 1_500_000,
+    })
+    result.perspectiveAlteration = breakdown(6, 2)
+    result.canopyCoverageFraction = null
+    result.corridorLengthMeters = 1250
+    result.demResolutionMeters = 30
+    result.demTileCount = 4
+    return result as unknown as AnalysisResult
+  }
+  const rows = (numericalReady = true) => {
+    const { result, block, landform, thresholds } = input({ result: withAreas(numericalReady) })
+    return runResultMetrics({ result, block, landform, thresholds })
+  }
+  const row = (key: string, numericalReady = true) => rows(numericalReady).find((entry) => entry.key === key)
+
+  it("reads the landform's alteration and its parts from the run", () => {
+    expect(row('result-alteration')?.value).toBe('8.0%')
+    expect(row('result-alteration')?.qualifier).toBe('perspective · the run')
+    expect(row('result-split')?.value).toBe('2.0% + 6.0%')
+  })
+
+  it('withholds the figures from a provisional run and leaves out their parts', () => {
+    expect(row('result-alteration', false)?.value).toBe('Withheld')
+    expect(row('result-split', false)).toBeUndefined()
+  })
+
+  it('names how much of the block and landform the whole road sees, and the denudation base', () => {
+    expect(row('result-block-seen')?.value).toBe('25.0 ha of 40.0 ha')
+    expect(row('result-block-seen')?.qualifier).toBe('whole road')
+    expect(row('result-landform-seen')?.value).toBe('120.0 ha (60%)')
+    expect(row('result-forested')?.value).toBe('150.0 ha (75%)')
+    expect(row('result-screening')?.value).toBe('Bare earth')
+    expect(row('result-stations')?.value).toBe('2 over 1.25 km')
   })
 })

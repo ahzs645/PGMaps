@@ -9,6 +9,8 @@ import {
   type MetricSummaryPreferences,
 } from '@/components/ui/metric-summary'
 
+import { LAND_CHECKS } from './landStatusChecks'
+
 const TITLE = 'Viewpoint summary'
 
 /**
@@ -18,7 +20,20 @@ const TITLE = 'Viewpoint summary'
 const DEFAULTS: MetricSummaryPreferences = {
   visible: true,
   placement: 'left',
-  metrics: {},
+  // The run's headline result and the land checks' sum show; the rest of the results and each check's
+  // own card wait in the settings, so the stack stays short until the reviewer asks for more.
+  metrics: Object.fromEntries(
+    [
+      'result-split',
+      'result-block-seen',
+      'result-apparent',
+      'result-landform-seen',
+      'result-forested',
+      'result-screening',
+      'result-stations',
+      ...LAND_CHECKS.map((check) => `check-${check.id}`),
+    ].map((key) => [key, 'hidden' as const]),
+  ),
 }
 
 export function useViewpointSummaryPreferences() {

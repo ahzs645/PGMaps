@@ -2,6 +2,8 @@ import { readFile, writeFile } from 'node:fs/promises'
 import zlib from 'node:zlib'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { choose, expectSelected, optionLabels } from './styled-select'
+import { closeVisualsExport, downloadVisualsExport, openVisualsExport } from './visuals-export'
+import { LAND_CHECKS } from '../../src/pages/dev-forestry/landStatusChecks'
 
 // Production-preview caching would serve around the stubbed sources below.
 test.use({ serviceWorkers: 'block' })
@@ -81,6 +83,14 @@ const FLAT_TILE = flatTerrariumTile(800)
 async function stubBasemap(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  // The land status checks read nine DataBC layers; offline, each answers with nothing there.
+  // A test that wants a layer's features routes it after this, which takes precedence.
+  const landLayers = new Set(LAND_CHECKS.map((check) => check.typeName))
+  await page.route('**/geo/pub/wfs?**', (route) =>
+    landLayers.has(new URL(route.request().url()).searchParams.get('typeNames') ?? '')
+      ? route.fulfill({ json: { type: 'FeatureCollection', features: [], numberMatched: 0 } })
+      : route.fallback(),
   )
 }
 
@@ -308,6 +318,16 @@ async function showRoadOptions(controls: Locator) {
   if (await show.isVisible()) await show.click()
 }
 
+/** How the road view looks is in its bar's View options panel; this opens it and returns the panel. */
+async function openViewOptions(page: Page) {
+  const controls = page.getByRole('region', { name: 'Road view controls' })
+  await showRoadOptions(controls)
+  await controls.getByRole('button', { name: /^View options/ }).click()
+  const panel = page.getByTestId('road-view-options')
+  await expect(panel).toBeVisible()
+  return panel
+}
+
 async function setNumberField(page: Page, label: string, value: string) {
   const field = page.locator('label', { hasText: label }).locator('input[type="number"]')
   await field.fill(value)
@@ -377,7 +397,7 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByText('Provisional result — PDF numerical fields withheld')).toBeVisible({
       timeout: 120_000,
     })
-    await expect(page.getByText('Alteration in perspective view')).toHaveCount(0)
+    await expect(page.getByText('Alteration in perspective view', { exact: true })).toHaveCount(0)
 
     // Stating them also changes the scene, so the earlier result is withdrawn
     // until a run matches it.
@@ -385,7 +405,7 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByText(/Scene changed — rerun the analysis/)).toBeVisible()
     await showStep(page, 'design')
     await page.getByRole('button', { name: 'Run visibility' }).click()
-    await expect(page.getByText('Alteration in perspective view')).toBeVisible({
+    await expect(page.getByText('Alteration in perspective view', { exact: true })).toBeVisible({
       timeout: 120_000,
     })
     await expect(page.getByText('Scenario numerical fields available')).toBeVisible()
@@ -395,12 +415,12 @@ test.describe('forestry visual quality', () => {
     // 40 km view distance above makes this the heaviest run in the file, and
     // the per-block rows land after the headline under parallel load, so these
     // get more than the default expect budget.
-    await expect(page.getByText('131.2 ha of 131.2 ha')).toHaveCount(2, { timeout: 60_000 })
-    await expect(page.getByText('100.0%')).toHaveCount(2, { timeout: 60_000 })
+    await expect(page.getByText('131.2 ha of 131.2 ha', { exact: true })).toHaveCount(2, { timeout: 60_000 })
+    await expect(page.getByText('100.0%', { exact: true })).toHaveCount(2, { timeout: 60_000 })
 
     // Both scales are reported, each against its own thresholds. Collapsing
     // them into one number is the mistake this page previously made.
-    await expect(page.getByText('Alteration in perspective view')).toBeVisible()
+    await expect(page.getByText('Alteration in perspective view', { exact: true })).toBeVisible()
     // Exact: the results panel's heading, not a viewpoint summary card.
     await expect(page.getByText('Planimetric denudation', { exact: true })).toBeVisible()
     await expect(page.getByText('Bare earth only', { exact: true })).toBeVisible()
@@ -617,19 +637,22 @@ test.describe('forestry visual quality', () => {
     await openPage(page)
 
     // Nothing to download before there is a run to write up.
-    await expect(page.getByRole('button', { name: 'Download the worksheet' })).toHaveCount(0)
+    const dialog = await openVisualsExport(page, 'Worksheet')
+    await expect(dialog.getByRole('button', { name: 'Download Worksheet', exact: true })).toBeDisabled()
+    await closeVisualsExport(page)
 
     // Well above the default 1.6 m, and inside the field's own 100 m ceiling.
     await setNumberField(page, 'Eye height above the road', '90')
     await confirmScenarioAssumptions(page)
     await showStep(page, 'design')
     await page.getByRole('button', { name: 'Run visibility' }).click()
-    await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
+    await expect(page.getByText('Alteration in perspective view', { exact: true })).toBeVisible({ timeout: 120_000 })
 
-    const downloaded = page.waitForEvent('download')
-    await showStep(page, 'rate')
-    await page.getByRole('button', { name: 'Download the worksheet' }).click()
-    const download = await downloaded
+    // The land checks sum up in the summary: with every layer empty, the blocks are clear.
+    const summary = page.getByRole('complementary', { name: 'Viewpoint summary', exact: true })
+    await expect(summary.locator('[data-metric="checks"]')).toContainText('Clear', { timeout: 30_000 })
+    await expect(summary.locator('[data-metric="result-alteration"]')).toContainText('perspective · the run')
+    const download = await downloadVisualsExport(page, 'Worksheet')
     expect(download.suggestedFilename()).toMatch(/^visual-quality-worksheet-\d{4}-\d{2}-\d{2}\.md$/)
 
     const text = await readFile(await download.path(), 'utf8')
@@ -659,7 +682,7 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByLabel('Design and simulate').getByText(/terrain tiles loaded/)).toBeVisible({
       timeout: 120_000,
     })
-    await expect(page.getByText('Alteration in perspective view')).toHaveCount(0)
+    await expect(page.getByText('Alteration in perspective view', { exact: true })).toHaveCount(0)
   })
 
   test('adopts a BC inventory unit as the landform with its own rating', async ({ page }) => {
@@ -758,7 +781,7 @@ test.describe('forestry visual quality', () => {
     await confirmScenarioAssumptions(page)
     await showStep(page, 'design')
     await page.getByRole('button', { name: 'Run visibility' }).click()
-    await expect(page.getByText('Alteration in perspective view')).toBeVisible({
+    await expect(page.getByText('Alteration in perspective view', { exact: true })).toBeVisible({
       timeout: 120_000,
     })
 
@@ -814,7 +837,7 @@ test.describe('forestry visual quality', () => {
     await confirmScenarioAssumptions(page)
     await showStep(page, 'design')
     await page.getByRole('button', { name: 'Run visibility' }).click()
-    await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
+    await expect(page.getByText('Alteration in perspective view', { exact: true })).toBeVisible({ timeout: 120_000 })
 
     await showStep(page, 'visit')
     await page.getByRole('button', { name: 'Look from the road' }).click()
@@ -855,13 +878,14 @@ test.describe('forestry visual quality', () => {
     await confirmScenarioAssumptions(page)
     await showStep(page, 'design')
     await page.getByRole('button', { name: 'Run visibility' }).click()
-    await expect(page.getByText('Alteration in perspective view')).toBeVisible({ timeout: 120_000 })
+    await expect(page.getByText('Alteration in perspective view', { exact: true })).toBeVisible({ timeout: 120_000 })
 
     // Preview defaults to forward-facing driving and illustrative timber.
     await showStep(page, 'visit')
     await page.getByRole('button', { name: 'Look from the road' }).click()
+    await expectSelected((await openViewOptions(page)).getByLabel('Where to look'), '')
+    await page.keyboard.press('Escape')
     await showStep(page, 'visit')
-    await expectSelected(page.getByLabel('Where to look'), '')
     await expect(page.getByRole('button', { name: 'Stable silhouettes' })).toBeVisible()
     // The region's mature median height from VRI (REGIONAL_STAND).
     await expect(page.getByLabel(/Stand height/)).toHaveValue('25')
@@ -941,8 +965,8 @@ test.describe('forestry visual quality', () => {
     expect((await readMapState(page))?.forestError).toBeNull()
     await page.getByRole('button', { name: 'Replay approach', exact: true }).click()
     await expect(controls.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
-    await showStep(page, 'visit')
-    await expectSelected(page.getByLabel('Where to look'), '')
+    await expectSelected((await openViewOptions(page)).getByLabel('Where to look'), '')
+    await page.keyboard.press('Escape')
     await controls.getByRole('button', { name: 'Pause', exact: true }).click()
     await expect(page.getByText(/Opening on your right in/)).toBeVisible()
   })
@@ -989,10 +1013,18 @@ test.describe('forestry visual quality', () => {
     await downloadedImage.saveAs(test.info().outputPath('saved-view.png'))
     const imageBytes = await readFile((await downloadedImage.path())!)
     expect(imageBytes.subarray(1, 4).toString()).toBe('PNG')
-    const download = page.waitForEvent('download')
     await showStep(page, 'visit')
-    await page.getByRole('button', { name: 'Download preview', exact: true }).click()
-    const preview = await download
+    // The saved views' Save button opens Save & export on them.
+    await page.getByRole('button', { name: 'Save views…', exact: true }).click()
+    // What goes in: the view, with the settings it was saved with, and the landform it is read against.
+    const dialog = await openVisualsExport(page, 'Saved views')
+    const views = dialog.getByRole('region', { name: 'Saved views' })
+    await expect(views.getByRole('listitem')).toHaveCount(1)
+    await expect(views.getByText('Harvest phase', { exact: true })).toBeVisible()
+    // The roadside demo has no landform, and the dialog says where one is chosen.
+    await expect(dialog.getByRole('region', { name: 'Landform' }).getByText(/None chosen/)).toBeVisible()
+    const preview = await downloadVisualsExport(page, 'Saved views')
+    await closeVisualsExport(page)
     const json = JSON.parse(await readFile((await preview.path())!, 'utf8'))
     expect(json.views).toHaveLength(1)
     expect(json.scene.settings.greenAreaConfirmed).toBe(false)
@@ -1242,10 +1274,9 @@ test.describe('forestry visual quality', () => {
     await showRoadOptions(controls)
     await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
     await controls.getByRole('button', { name: 'Save viewpoint', exact: true }).click()
-    const download = page.waitForEvent('download')
-    await showStep(page, 'visit')
-    await page.getByRole('button', { name: 'Download preview', exact: true }).click()
-    const data = JSON.parse(await readFile((await (await download).path())!, 'utf8'))
+    const download = await downloadVisualsExport(page, 'Saved views')
+    await closeVisualsExport(page)
+    const data = JSON.parse(await readFile((await download.path())!, 'utf8'))
     expect(data.views[0].growthMetersPerYear).toBe(0.5)
     expect(data.scene.targets.filter((t: { role: string }) => t.role === 'harvested')).toHaveLength(0)
     expect(data.scene.settings.greenAreaConfirmed).toBe(false)
@@ -1369,7 +1400,7 @@ test.describe('forestry visual quality', () => {
 
       // One scroll container: the assessment panel is inside it, not above it.
       const scroll = page.locator('[data-map-sidebar-scroll]')
-      await expect(scroll.locator('section[aria-label="Assessment integrity and PDF export"]')).toHaveCount(1)
+      await expect(scroll.locator('section[aria-label="Assessment landform"]')).toHaveCount(1)
 
       const measure = () =>
         page.evaluate(() => {
@@ -1397,7 +1428,7 @@ test.describe('forestry visual quality', () => {
       await scroll.evaluate((element) => {
         element.scrollTop = element.scrollHeight
       })
-      await expect(page.getByRole('button', { name: 'Export the scene (JSON)' })).toBeInViewport()
+      await expect(page.getByRole('button', { name: 'Save the scene…' })).toBeInViewport()
     })
   }
 
@@ -1532,9 +1563,7 @@ test.describe('forestry assessment workspace tools', () => {
       label: 'Public road turnout',
     })
     await page.getByRole('button', { name: 'Record current assessment', exact: true }).click()
-    const workspaceDownload = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Export assessment workspace', exact: true }).click()
-    const workspace = await workspaceDownload,
+    const workspace = await downloadVisualsExport(page, 'Assessment workspace'),
       body = JSON.parse(await readFile((await workspace.path())!, 'utf8'))
     expect(body.views[0].notes).toBe('Public stopping place with a clear view of the hillside.')
     expect(body.options).toHaveLength(2)
@@ -1543,17 +1572,13 @@ test.describe('forestry assessment workspace tools', () => {
     expect(body.currentScene.activeLandformId).toBe('tool-land')
     expect(body.fields[0]).toMatchObject({ bearing: 90, alignmentChecked: true, captured: '2026-09-30' })
     expect(body.fields[0].annotations).toHaveLength(1)
-    const pdfDownload = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Export VIA evidence PDF', exact: true }).click()
-    const pdf = await pdfDownload
+    const pdf = await downloadVisualsExport(page, 'VIA evidence package', { format: 'PDF' })
     expect(pdf.suggestedFilename()).toBe('forestry-via-evidence.pdf')
     expect((await readFile((await pdf.path())!)).subarray(0, 5).toString()).toBe('%PDF-')
     await pdf.saveAs('/private/tmp/pgmaps-forestry-tools-evidence.pdf')
-    const printableDownload = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Export printable evidence', exact: true }).click()
-    expect(await readFile((await (await printableDownload).path())!, 'utf8')).toContain(
-      'matching simulation image missing',
-    )
+    const printable = await downloadVisualsExport(page, 'VIA evidence package', { format: 'Printable HTML' })
+    expect(await readFile((await printable.path())!, 'utf8')).toContain('matching simulation image missing')
+    await closeVisualsExport(page)
     await page.reload()
     await openAllSteps(page)
     await expect(page.getByRole('button', { name: 'Remove Design A', exact: true })).toBeVisible()
@@ -1633,9 +1658,9 @@ test.describe('forestry assessment workspace tools', () => {
     await page.getByRole('button', { name: 'Run visibility', exact: true }).click()
     await expect(page.getByText('Scenario numerical fields available')).toBeVisible({ timeout: 60_000 })
     await showStep(page, 'rate')
-    const promise = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Export assessment workspace', exact: true }).click()
-    const saved = JSON.parse(await readFile((await (await promise).path())!, 'utf8'))
+    const promise = await downloadVisualsExport(page, 'Assessment workspace')
+    const saved = JSON.parse(await readFile((await promise.path())!, 'utf8'))
+    await closeVisualsExport(page)
     expect(saved.localRasterPool[0].raster.values).toEqual(Array(64).fill(900))
     expect(saved.currentScene.masks[0].kind).toBe('retained')
     expect(saved.localRasterPool[0].raster.sha256).toHaveLength(64)
@@ -1671,9 +1696,9 @@ test('runs viewpoint matrix, sensitivity and recovery jobs, then cancels a pendi
     timeout: 60_000,
   })
   await showStep(page, 'rate')
-  const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export assessment workspace', exact: true }).click()
-  const workspace = JSON.parse(await readFile((await (await download).path())!, 'utf8'))
+  const download = await downloadVisualsExport(page, 'Assessment workspace')
+  const workspace = JSON.parse(await readFile((await download.path())!, 'utf8'))
+  await closeVisualsExport(page)
   expect(workspace.runs.map((r: { year: number }) => r.year)).toEqual([2027, 2028, 2038])
   expect(workspace.runs[0].scene.targets.some((t: { role: string }) => t.role === 'block')).toBe(false)
   expect(workspace.runs[2].scene.targets.find((t: { id: string }) => t.id === 'tool-block')).toMatchObject({

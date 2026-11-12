@@ -167,7 +167,7 @@ export function PreviewWorkflow(props: Props) {
         ))}
         <div className="grid grid-cols-2 gap-1.5">
           <ActionButton disabled={!!error} onClick={props.onExport}>
-            Download preview
+            Save views…
           </ActionButton>
           <FileButton
             label="Import preview geometry"
