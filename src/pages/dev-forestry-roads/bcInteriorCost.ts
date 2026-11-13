@@ -8,7 +8,7 @@ export const BC_INTERIOR_COST_SOURCE = {
   url: 'https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/interior-appraisal-manual/iam_2026_master_b.pdf',
   effectiveDate: '2026-07-01',
   costBaseYear: 2024,
-  reviewedDate: '2026-10-26',
+  reviewedDate: '2026-11-12',
   sections: '4.3.2.2–4.3.2.4, Table 4-2; 4.3.6(8)',
 } as const
 
@@ -158,6 +158,40 @@ const SUBGRADE_EQUATIONS: Readonly<Record<number, Equation>> = {
   10: { base: 9017, essf: 6129 },
   11: { base: 31715, essf: 2078 },
   12: { base: 18975, essf: 6353 },
+}
+
+// IAM 4.3.4.1(1), printed p4-22: constant + 0*D + 4277*RRQR. D, the distance from the source to the
+// section midpoint, carries a zero coefficient in this edition.
+const STABILIZATION_CONSTANTS: Readonly<Record<number, number>> = {
+  2: 26848,
+  3: 23582,
+  4: 24910,
+  5: 23233,
+  6: 32391,
+  7: 43682,
+  8: 28260,
+  9: 28260,
+  10: 35760,
+  11: 35760,
+  12: 35760,
+}
+export const INTERIOR_STABILIZATION_ROCK_ADD_CAD_PER_KM = 4277
+
+/**
+ * The separate stabilizing-material allowance in CAD/km for road groups 2–12, where imported gravel
+ * or broken rock is needed. Null for group 1 and for snow and ice roads, which have no such
+ * allowance. It is never part of the subgrade figure and a real haul is not free because the
+ * published distance coefficient is zero.
+ */
+export function interiorStabilizationPerKm(
+  roadGroup: number | null,
+  roadType: InteriorRoadType | null,
+  rippedOrQuarryRock: boolean,
+): number | null {
+  if (roadGroup === null || roadType === 'snow-ice') return null
+  const constant = STABILIZATION_CONSTANTS[roadGroup]
+  if (constant === undefined) return null
+  return constant + (rippedOrQuarryRock ? INTERIOR_STABILIZATION_ROCK_ADD_CAD_PER_KM : 0)
 }
 
 /**

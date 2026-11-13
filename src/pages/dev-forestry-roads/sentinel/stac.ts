@@ -199,7 +199,10 @@ export function timeoutSignal(signal: AbortSignal | undefined, ms: number) {
   }
 }
 
-export type FetchLike = (input: string, init?: RequestInit) => Promise<Pick<Response, 'ok' | 'status' | 'json'>>
+export type FetchLike = (
+  input: string,
+  init?: RequestInit,
+) => Promise<Pick<Response, 'ok' | 'status' | 'json'> & Partial<Pick<Response, 'headers'>>>
 
 /** Search Earth Search for scenes over `window`, newest first. Throws a SentinelError with a stated reason. */
 export async function searchSentinelScenes({

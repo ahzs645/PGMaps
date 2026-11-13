@@ -8,14 +8,15 @@ Every command is defined once, in [workspaceCommands.ts](../../src/components/in
 
 - `preset` sets the initial panel arrangement: `linked`, `split`, `plan`, `engineering`, or `pegging`. A user's saved preset takes precedence.
 - `view` can be `responsive` or `focused` (one pane at a time). `sidebar` can be `open` or `collapsed` on wide screens.
-- `panelFrame` configures the panel canvas per interface. `background` is `default`, `gray` or `white`. Ribbon, Guided map and Dashboard use `{"background":"gray","grayPercent":19,"inset":12,"gap":14,"resizeCorners":true}`; raise `grayPercent` for stronger contrast against the panel cards. The Guided mode uses `"white"`, the page's own background (dark in the dark theme). The inset sets the outer side margins in pixels and adapts on phones. The gap separates the guide or docked settings from the working view. Maps, charts, data panels and settings share the same dotted corner grip. Drag it to resize, or focus it and use the arrow keys. Double-click or press Enter to reset. Named screen layouts keep their own sizes.
-- **View → Road summary settings** controls the measurements around the drawing. Ribbon, Guided map and Guided mode start with the measurements above the drawing. Right-click a measurement to open its display setting. Choose **Hidden**, **Value**, or **Value and detail** for each measurement, switch between **Left stack** and **Top row**, or hide the whole summary. On narrow or short screens, **Road summary** expands the measurements. Guided map, Guided mode and Dashboard also provide a settings button on the header line.
-- Each interface can set its own defaults, for example `"summary": {"visible":true,"placement":"left","metrics":{"length":"detailed","cost":"hidden"}}`. Supported measurement keys are `length`, `elevation`, `grade`, `grade-range`, `earthworks`, `cost`, and `coverage`. Available measurements depend on the selected road. Browser preferences are saved per interface, and **Restore defaults** reapplies the layout configuration.
+- `panelFrame` configures the panel canvas per interface. `background` is `default`, `gray` or `white`. Ribbon, Guided map and Dashboard use `{"background":"gray","grayPercent":19,"inset":12,"gap":14,"resizeCorners":true}`; raise `grayPercent` for stronger contrast against the panel cards. The Guided mode uses `"white"`, the page's own background (dark in the dark theme). The inset sets the outer side margins in pixels and adapts on phones. The gap separates the guide from the working view. Drag the separator between the drawing and a docked task pane to resize its column. Arrow keys resize it, and double-click restores its default width. Maps, charts, data panels and settings share the same dotted corner grip. Drag it to resize, or focus it and use the arrow keys. Double-click or press Enter to reset. Named screen layouts keep their own sizes.
+- **View → Road summary settings** controls the measurements around the drawing. The measurements start in a stack to the left of the drawing. Right-click the card for **Road summary settings**, or right-click a measurement to focus its display setting. Choose **Hidden**, **Value**, or **Value and detail** for each measurement, switch between **Left stack** and **Top row**, or hide the whole summary. On narrow or short screens, **Road summary** expands the measurements. Guided map, Guided mode and Dashboard also provide a settings button on the header line.
+- Each interface can set its own defaults, for example `"summary": {"visible":true,"placement":"left","metrics":{"length":"detailed","cost":"hidden"}}`. Supported measurement keys are `length`, `elevation`, `grade`, `overall-grade`, `grade-range`, `earthworks`, `cost`, and `coverage`. **Overall grade** is the signed start-to-end elevation change divided by horizontal road length, in percent: positive uphill and negative downhill in increasing station order. It uses design elevations, or ground elevations for a ground-only road, and reads **Missing** without elevations at both ends or a non-zero length. Available measurements depend on the selected road. Browser preferences are saved per interface, and **Restore defaults** reapplies the layout configuration.
 - `toolbar` is optional. Set `dock` to `top` or `side`, then list groups and command IDs in display order. Set `toolbar.fullWidth` to `true` to extend a top ribbon to both side edges. When the ribbon is the first row, it sits flush with the top of the workspace. The panels below use their configured inset. For an Office-style ribbon, use `header: "controls"`. Give each tab named `sections` of `items` to arrange commands alongside the `projectInfo`, `roadSelector`, `terrainSource`, and `presets` controls. The interface switch stays beside the tabs. Older configurations using `includeProjectHeader` still support the single header row. Reuse IDs from the [shared command catalog](../../src/components/interfaces/workspaceCommands.ts). The workspace owns execution, editing history and file handling.
-- A compact ribbon (`toolbar.compact`) has a fixed geometry, so changing tabs never moves the panes below or the tools beside the tabs. The `--ribbon-*` tokens on `.lp-ribbon[data-compact-ribbon]` in `interfaces.css` set it: two rows of 25 px (32 px on touch screens), 24 px controls, a 22 px caption under each section and a 38 px tab row. Everything placed in a section fits one row or, for a section's `primary` command and the project and terrain widgets, the whole stack; it never grows the band. Number boxes, text boxes and dropdowns each have one width whether or not they carry a unit, so they line up down a section. A field's range note floats over the row below and fades once the field is left. A field that does not apply yet, such as the adverse limit before a loaded direction is chosen, stays in place disabled. The tool strip shows no scrollbar (it would add its height); its edge buttons and the mouse wheel scroll it. `tests/e2e/ribbon-geometry.spec.ts` checks every tab at three widths.
+- A compact ribbon (`toolbar.compact`) has a fixed geometry, so changing tabs never moves the panes below or the tools beside the tabs. The `--ribbon-*` tokens on `.lp-ribbon[data-compact-ribbon]` in `interfaces.css` set it: two rows of 25 px (32 px on touch screens), 24 px controls, a 22 px caption under each section and a 38 px tab row. Everything placed in a section fits one row or, for a section's `primary` command and the project and terrain widgets, the whole stack; it never grows the band. Number boxes, text boxes and dropdowns each have one width whether or not they carry a unit, so they line up down a section. A field's range note floats over the row below and fades once the field is left. A field that does not apply yet, such as the adverse limit before a loaded direction is chosen, stays in place disabled. The tool strip shows no scrollbar (it would add its height); its edge buttons and the mouse wheel scroll it. An edge button appears only while there are more tools in its direction; both disappear when every tool fits. The arrows overlay the strip edges, so showing or hiding one never changes the scroll viewport or shifts the tools during a wheel gesture. `tests/e2e/ribbon-geometry.spec.ts` checks every tab at three widths.
 - While **All settings** is open, the tab's fields stay on the strip as inert, dimmed copies hidden from assistive technology, so the strip does not reflow; the pane holds the only live input for each value.
 - A command whose caption changes while you work ("Undo point" while pegging, "Copy as design" on a mapped road, "Exit full screen") lists those captions as `altLabels` in the registry, and its ribbon button keeps the width of the longest.
-- The tab row reads, left to right: the way back to the forestry tools, the tabs, the selected tab's **All settings**, quick access with the edit history, **Find tools**, the save status, the interface switch and **Minimize ribbon**. **All settings** sits beside the tabs because only editor tabs have it; the tools to its right stay put. Icon tools are plain and the two captioned controls that open a dialog are boxed.
+- The tab row reads, left to right: the way back to the forestry tools, the tabs, the selected tab's **All settings**, quick access with the edit history, **Find tools**, configured `toolbar.tabTools`, the save status, the interface switch and **Minimize ribbon**. Ribbon places **Detached panels** in `tabTools`, so it consumes no row above the views. The button becomes an icon with its accessible count on narrow screens. **All settings** sits beside the tabs because only editor tabs have it; the tools to its right stay put.
+- `toolbar.tabTools` is an ordered list of command or widget IDs rendered beside the tabs regardless of the selected tab, for example `"tabTools": ["detachedPanels"]`. Other interfaces can put the same `detachedPanels` widget in `headerTools` or a ribbon section. If the layout gives it no home, it appears above the views so open and saved windows remain recoverable. Include `detachedPanels` only once on a surface; collected tools leave out those already assigned to the tab row.
 - Set `toolbar.compact` to `true` to start editor tabs with their horizontal control strip. Set `toolbar.editorPlacement` to `pane` for **All settings** to open the shared editor at the right. Earlier layouts use the inline editor by default. In each section, `rows` (1, 2, or 3) determines how items stack before continuing horizontally. Use field IDs such as `importDatum`, `roadName`, `leftWidth`, `cutRate`, or `stationInterval` together with command IDs. Change the section labels and item order to regroup them. Available field IDs are listed in [roadFieldDefinitions.ts](../../src/pages/dev-forestry-roads/roadFieldDefinitions.ts).
 - Choose a large leading button by setting a section's `primary` to one of its command IDs. For example, `{"label":"Earthworks","primary":"quantities","rows":2,"items":["quantities","massHaul","materials"]}` puts the quantities action beside mass haul and ground materials. Set `toolbar.quickAccess` to an ordered list of commands for shortcuts across tabs. They show in the tab row from 900 px wide; below that they fold, with the interface switch (`narrowMenu`), into the row's **More** menu, built by the same `CommandMenu` that holds the header line's overflow.
 - Put daily controls in a section’s `items` array and secondary controls in `more`. Selecting the group caption opens its settings beside the map on desktop and in a right-hand drawer on phones. For example, `{"label":"Formation","rows":2,"items":["leftWidth","rightWidth"],"more":["crossfallPercent","surfaceDepth"]}` shows both widths on the ribbon and opens crossfall and surfacing depth in its task pane.
@@ -23,11 +24,64 @@ Every command is defined once, in [workspaceCommands.ts](../../src/components/in
 - **Find tools** (Alt+Q, or Option+Q on Mac) searches the current layout's available commands, settings and group names. Choosing a setting selects its tab, opens its group pane if needed, and focuses the live field. Set `toolbar.findTools` to enable or disable search. Narrow screens offer a tab picker and scroll arrows. **Minimize ribbon** leaves the tabs visible above the map.
 - On short landscape screens, compact ribbons start minimized and return to tabs when you choose a map or chart command. Set `toolbar.minimizeOnShortScreens` to `false` to keep the tools open.
 - A top toolbar tab can host a live workflow form with `editor`. For example, `{ "label": "Road", "editor": "design" }` places the road editor in that tab. The other editor IDs are `terrain`, `template`, `engineering`, and `review`. Assign each editor to at most one tab. A tab may also include command groups above its form. Editors without a ribbon assignment remain available through the sidebar.
-- `headerTools` lists the commands and widgets on the header line, in order, for layouts without `header: "controls"`. Widgets are `interfaceSwitch`, `history`, `presets`, `saveState`, `projectInfo`, `roadSelector`, `terrainSource` and the field IDs. Without it the header shows the Guided mode's line. From 768 to 1023 px wide, Switch interface, Road summary settings, Project library and Full screen fold into a **More** menu (Open and Save stay on the line), so the line stays one row beside the title and road switcher. The `dashboard` layout uses it for a shorter line above a top row of detailed measurements and the four-pane `engineering` preset.
+- `headerTools` lists the commands and widgets on the header line, in order, for layouts without `header: "controls"`. Widgets are `interfaceSwitch`, `history`, `presets`, `saveState`, `projectInfo`, `roadSelector`, `terrainSource` and the field IDs. Without it the header shows the Guided mode's line. From 768 to 1023 px wide, Switch interface, Road summary settings, Project library and Full screen fold into a **More** menu (Open and Save stay on the line), so the line stays one row beside the title and road switcher. The `dashboard` layout uses it for a shorter header, detailed measurements in the left stack, and the four-pane `engineering` preset. Below 768 px, the header keeps Controls, Screen presets & panels, Save and More on one icon row; More holds the remaining configured commands, edit history, save status and workflow help. Access identifies a single-road workspace without repeating the tool title. When several roads are loaded, the road switcher takes that space on the same row.
 - `summary.curveNote` is `full` ("· curve-corrected") or `short` ("· curve"), the wording of the note on cut and fill when curvature correction is applied. The note itself is always shown: every surface that shows a volume says how it was measured. Users change the wording under **Road summary settings**.
 - `preview` is an optional filename in `interface-previews/`. A layout without a screenshot uses its icon.
 
 If the served configuration is unavailable or invalid, the chooser offers the built-in Guided mode.
+
+## Separate windows and tabs
+
+Each connected view's title bar has **Open panel separately**, beside its
+fullscreen button. Choose **Open in new window** to move the plan, profile,
+detail view or station data onto another monitor, or **Open in new tab**. This
+works in Ribbon, Guided map, Guided mode and Dashboard. Multiple panels can be
+open separately at once. They share the current project, road, station and
+editing callbacks with the main workspace; a profile selection updates the
+other views immediately. Detaching removes the panel's original slot and its
+resize dividers, so the remaining panels expand into the space. In single-pane
+mode, a remaining view becomes active. **Detached panels** in Ribbon's tab row
+(or the other interfaces' header) offers
+**Show** and **Return to workspace**, without a placeholder occupying the grid.
+Closing or reloading a detached view returns it automatically. Detaching does
+not change the saved preset, hidden-panel choices or pane sizes.
+
+**Save current layout** in **Screen presets & panels** saves which panels are
+detached, whether each uses a window or tab, and each window's size and desktop
+position. Choosing that named layout reuses matching open panels and returns
+others to the workspace. For missing panels, **Open saved panels** offers an
+**Open in window** / **Open in tab** button for each one. Each click opens one
+panel, as browsers require; a blocked attempt can be retried there. Closing a
+restored panel does not queue it again. Choosing a normal preset uses the
+interface's popup defaults, or docks every panel when none are set. The saved layout remains available after a reload, even if
+the ribbon's View tab is not selected. Screen layouts are browser preferences,
+separate from the road project file. Browser settings can adjust a requested
+window position or size.
+
+An interface in `public/workspace-layouts.json` can also set popup defaults:
+
+```json
+"panelWindows": [
+  { "slot": "plan", "mode": "window", "width": 1400, "height": 900, "left": -1600, "top": 20 },
+  { "slot": "profile", "mode": "tab" }
+]
+```
+
+Slots are `plan`, `profile`, `detail` and `data`; choose a screen preset that
+contains the named panels. A saved layout's own windows override these defaults.
+Window dimensions and positions are CSS pixels, with negative coordinates
+allowed for a screen to the left or above the main one. URLs and panel data are
+never saved in this configuration.
+Keep the main workspace open; leaving or refreshing it closes its detached
+views. A view is recreated when moved, so local map camera and chart zoom can
+reset. Pop-up permissions and window/tab placement follow the browser's settings.
+
+The reusable implementation is Geo Toolkit's opt-in `FullscreenPanel detachable`
+and `usePanelWindow`, with `PanelWindowProvider` / `PanelWindowSlot` letting a
+layout reclaim the space and `PanelWindowControls` managing the detached views,
+rather than a second road-design app or a project copied
+through browser storage. Nested controls use their element's `ownerDocument`
+so menus stay on the screen that opened them.
 
 ## Workflow help
 

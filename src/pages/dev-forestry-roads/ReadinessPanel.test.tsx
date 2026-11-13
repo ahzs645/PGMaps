@@ -79,8 +79,13 @@ describe('the Review readiness list', () => {
     })
     const item = renderer!.root.findByProps({ 'data-check': 'radius' })
     expect(text(item)).not.toContain('Judged on')
-    await act(async () => item.findByProps({ 'aria-expanded': false }).props.onClick())
+    const trigger = item.findByProps({ 'aria-expanded': false })
+    expect(trigger.props.className).not.toContain('bg-danger-surface')
+    await act(async () => trigger.props.onClick())
     expect(text(item)).toContain('Check: Check radius. Judged on: Limit radius')
+    expect(trigger.props.className).toContain('bg-danger-surface')
+    await act(async () => trigger.props.onClick())
+    expect(trigger.props.className).not.toContain('bg-danger-surface')
   })
 
   it('says so when nothing needs attention, without reading clear over unmade checks', async () => {

@@ -29,7 +29,7 @@ export interface ProfilePlotFrame {
 }
 
 export const GRADE_TROUBLE_COLOR = '#dc2626'
-const SHORT_PITCH_COLOR = '#ca8a04'
+export const SHORT_PITCH_COLOR = '#ca8a04'
 // The profile's cut and fill colours (`ROAD_CHART_COLORS`, `Charts.tsx`).
 const CUT_COLOR = '#d97706'
 const FILL_COLOR = '#3b82f6'

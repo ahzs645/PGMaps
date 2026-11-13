@@ -1,4 +1,4 @@
-import { ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, Ellipsis, Pause, Play } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ActionMenu } from '@/components/ui/action-menu'
 import { formatRoadStation } from './Charts'
@@ -29,6 +29,7 @@ export function StationJumpMenu({
   onJump,
   onNotice,
   disabled = false,
+  mobileTools,
 }: {
   project: RoadProject
   /** The road the views show, and its analysis. */
@@ -39,7 +40,13 @@ export function StationJumpMenu({
   onJump: (target: StationJumpTarget) => void
   onNotice: (text: string) => void
   disabled?: boolean
+  mobileTools?: {
+    playing: boolean
+    onPlayback: () => void
+    readout: string
+  }
 }) {
+  const mobile = !!mobileTools
   const [kind, setKind] = useState<StationJumpKind>('pvi')
   const [menuOpen, setMenuOpen] = useState(false)
   // Review rows and sight distance are only worked out when they are needed: on a jump, or for the counts.
@@ -80,33 +87,31 @@ export function StationJumpMenu({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
   const words = kindLabel(kind)
-  const button =
-    'flex items-center justify-center rounded-md border px-1 py-1 text-xs disabled:opacity-50 touch:min-h-10 touch:min-w-10'
   return (
-    <div role="group" aria-label="Jump along the road" className="flex items-center gap-0.5">
-      <button
-        type="button"
-        className={`${button} max-sm:hidden`}
-        aria-label={`Previous ${words.noun}`}
-        aria-keyshortcuts="["
-        title={`Previous ${words.noun} ( [ )`}
-        disabled={disabled}
-        onClick={() => jump(-1)}
-      >
-        <ChevronsLeft className="size-3.5" aria-hidden />
-      </button>
+    <div role="group" aria-label="Jump along the road" className="road-station-jumps flex items-center gap-0.5">
       <ActionMenu
-        label={`Jump to: ${words.label}`}
-        align="start"
+        label={mobile ? 'Station options' : `Jump to: ${words.label}`}
+        align={mobile ? 'end' : 'start'}
         width={248}
         onOpenChange={setMenuOpen}
-        triggerClassName="rounded-md border px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground touch:min-h-10"
+        triggerClassName="road-station-options flex items-center justify-center rounded-md border border-input bg-background px-1.5 py-1 text-xs text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         trigger={
-          <span className="block max-w-[7rem] truncate" data-testid="road-jump-kind">
-            {words.label}
-          </span>
+          mobile ? (
+            <Ellipsis className="size-4" aria-hidden />
+          ) : (
+            <span className="block max-w-[7rem] truncate" data-testid="road-jump-kind">
+              {words.label}
+            </span>
+          )
         }
         items={[
+          mobileTools && { type: 'label', id: 'station', label: mobileTools.readout },
+          mobileTools && {
+            id: 'playback',
+            label: mobileTools.playing ? 'Pause station playback' : 'Play station playback',
+            icon: mobileTools.playing ? <Pause className="size-4" /> : <Play className="size-4" />,
+            onSelect: mobileTools.onPlayback,
+          },
           { type: 'label', id: 'kinds', label: 'Jump to' },
           ...STATION_JUMP_KINDS.map((k) => ({
             id: k.kind,
@@ -119,31 +124,24 @@ export function StationJumpMenu({
           { type: 'separator', id: 'sep' },
           {
             id: 'previous',
-            label: `Previous ${words.noun}  [`,
+            label: 'Previous [',
+            ariaLabel: `Previous ${words.noun} [`,
+            width: 'half',
             icon: <ChevronsLeft className="size-4" />,
             disabled,
             onSelect: () => jump(-1),
           },
           {
             id: 'next',
-            label: `Next ${words.noun}  ]`,
+            label: 'Next ]',
+            ariaLabel: `Next ${words.noun} ]`,
+            width: 'half',
             icon: <ChevronsRight className="size-4" />,
             disabled,
             onSelect: () => jump(1),
           },
         ]}
       />
-      <button
-        type="button"
-        className={`${button} max-sm:hidden`}
-        aria-label={`Next ${words.noun}`}
-        aria-keyshortcuts="]"
-        title={`Next ${words.noun} ( ] )`}
-        disabled={disabled}
-        onClick={() => jump(1)}
-      >
-        <ChevronsRight className="size-3.5" aria-hidden />
-      </button>
     </div>
   )
 }

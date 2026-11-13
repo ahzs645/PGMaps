@@ -2,7 +2,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { createElement, useEffect } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readLibrary, readProject } from './projectLibrary'
+import { readLibrary, readProject, writeProject } from './projectLibrary'
 import { createDemoProject, demoTerrain, loadLidarTerrain, roadProjection, starterAlignment } from './terrain'
 import { startInvestigationDesign } from './investigationWorkspace'
 import type { Coordinate, RoadProject } from './types'
@@ -92,6 +92,53 @@ afterEach(async () => {
 })
 
 describe('road workspace persistence', () => {
+  it.each(['open', 'start', 'import'] as const)(
+    'leaves temporary training on %s, keeps the library and restores the adopted project on reload',
+    async (action) => {
+      await writeProject('existing', { ...createDemoProject(), name: 'Keep my earlier project' }, [])
+      const address = new URL(
+        'https://example.test/dev/forestry/road-design?interface=workbench&example=training#section',
+      )
+      vi.stubGlobal('location', address)
+      const replaceState = vi.fn((_state: unknown, _title: string, url: string) => {
+        address.href = new URL(url, address).href
+      })
+      vi.stubGlobal('history', { state: { keep: true }, replaceState })
+      await openWorkspace()
+      await vi.waitFor(() => expect(workspace.browserSave.kind).toBe('training'), { timeout: 2000 })
+      expect(workspace.projectId).toBeNull()
+      const adopted = { ...createDemoProject(), name: `My ${action} project` }
+      await act(async () => {
+        if (action === 'open') await workspace.restore(adopted)
+        else if (action === 'start') workspace.startProject(adopted, demoTerrain)
+        else {
+          workspace.update(() => adopted)
+          workspace.enablePersistence()
+        }
+      })
+      await vi.waitFor(() => expect(workspace.browserSave.kind).toBe('saved'), { timeout: 2000 })
+      expect(address.search).toBe('?interface=workbench')
+      expect(address.hash).toBe('#section')
+      expect(replaceState).toHaveBeenCalledWith(
+        { keep: true },
+        '',
+        '/dev/forestry/road-design?interface=workbench#section',
+      )
+      const savedId = workspace.projectId!
+      const library = await readLibrary()
+      expect(library.entries.map((e) => e.name).sort()).toEqual(['Keep my earlier project', adopted.name].sort())
+      expect(library.activeId).toBe(savedId)
+      expect((await readProject(savedId))?.name).toBe(adopted.name)
+      await act(async () => renderer!.unmount())
+      renderer = undefined
+      await openWorkspace()
+      expect(workspace.project.name).toBe(adopted.name)
+      expect(workspace.projectId).toBe(savedId)
+      expect(workspace.browserSave.kind).toBe('saved')
+      expect(loadLidarTerrain).not.toHaveBeenCalled()
+    },
+  )
+
   it('restores a study without analysing its internal placeholder, and Start design keeps it hidden', async () => {
     const study = createDemoProject()
     const placeholder = starterAlignment(study.alignments[0].points[0].coordinate)

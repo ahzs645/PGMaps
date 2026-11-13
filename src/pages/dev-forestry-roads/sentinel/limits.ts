@@ -18,7 +18,22 @@ export const SENTINEL_RECENT_DAYS = 730
 /** The first year the year picker offers. Earth Search's L2A archive is thin before it. */
 export const SENTINEL_FIRST_YEAR = 2017
 
-/** Margin added round the terrain bounds before reading, in metres. */
+/** Imagery is only requested at neighbourhood/road scale. */
+export const SENTINEL_MIN_ZOOM = 12
+/** Wait for navigation to stop before changing the requested area. */
+export const SENTINEL_VIEW_IDLE_MS = 800
+/** Snap outward to this degree grid so small pans reuse the same read. */
+export const SENTINEL_VIEW_GRID_DEG = 0.01
+/** Minimum time between catalogue requests, including manual retries. */
+export const SENTINEL_SEARCH_INTERVAL_MS = 5_000
+export const SENTINEL_SEARCH_CACHE_MS = 15 * 60_000
+export const SENTINEL_SEARCH_CACHE_ENTRIES = 8
+/** Open COG handles include their own byte-block caches; keep their number bounded. */
+export const SENTINEL_FILE_CACHE_ENTRIES = 16
+/** Maximum simultaneous band reads (including scene ratings). */
+export const SENTINEL_READ_CONCURRENCY = 2
+
+/** Margin added round the view bounds before reading, in metres. */
 export const SENTINEL_WINDOW_MARGIN_M = 250
 /** Terrain wider or taller than this (km, margin included) is refused rather than read. */
 export const SENTINEL_MAX_WINDOW_KM = 60

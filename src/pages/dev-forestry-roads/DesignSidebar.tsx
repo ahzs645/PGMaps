@@ -48,6 +48,7 @@ export function DesignSidebar(props: SidebarProps) {
   current.current = { project: w.project, source: w.source }
   const controller = useRef<AbortController | null>(null)
   const [review, setReview] = useState<Review | null>(null)
+  const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null)
   useEffect(() => () => controller.current?.abort(), [])
   const optimize = async (objective: RoadOptimizationObjective, corridorHalfWidthM: number) => {
     if (controller.current || w.busy) return
@@ -155,12 +156,14 @@ export function DesignSidebar(props: SidebarProps) {
   }
   return (
     <>
+      <span ref={setAnchor} hidden />
       <SidebarBody {...props} onOptimize={(objective, width) => void optimize(objective, width)} />
       {review && (
         <DialogShell
           title="Review optimized corridor"
           subtitle="Original guide retained · sampled ground screening, not construction approval"
           size="lg"
+          portalContainer={anchor?.closest<HTMLElement>('.road-workspace')}
           onClose={() => setReview(null)}
           contentProps={{ 'data-testid': 'road-optimization-review' }}
           footer={

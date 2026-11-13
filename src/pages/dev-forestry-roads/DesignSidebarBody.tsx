@@ -22,12 +22,11 @@ export type FileKind =
   | 'project'
   | 'terrain'
   | 'breaklines'
-  /** Spatial files: road lines, the streams import, cutblocks, existing roads, reference layers. */
+  /** Spatial files: road lines, the streams import, cutblocks and existing roads. */
   | 'alignment'
   | 'context'
   | 'cutblocks'
   | 'mapped-roads'
-  | 'reference'
   /** A LandXML alignment brought in as a road (`landXmlImport.ts`). */
   | 'landxml'
 export interface PointCloudChoice {
@@ -77,6 +76,8 @@ export interface SidebarProps {
   /** Registry commands the sidebar shows, with the workspace's own state and handlers. */
   commandStates?: Partial<Record<WorkspaceCommand, CommandState>>
   onCommand?: (id: WorkspaceCommand) => void
+  /** Opens Load 1 m DEM on a road, at the LidarBC source (the incomplete-section fixes). */
+  onFindTerrain?: (alignmentId: string) => void
   /** Loads a mapped road from context as a road whose formation follows the ground. */
   onLoadMappedRoad?: (featureId: string) => void
   /** Loads every mapped road with a part in the plan's view, each as its own road. */
@@ -141,13 +142,6 @@ export interface SidebarProps {
   onAskTerrain?: (
     needs: import('./terrain').TerrainImportNeeds,
   ) => Promise<import('./terrain').TerrainImportAnswers | null>
-  /** Shows a reference feature on the plan; the sidebar marks `focusedReferenceId` as the one shown. */
-  onLocateReference?: (feature: import('./referenceFeatures').ReferenceFeature) => void
-  focusedReferenceId?: string | null
-  /** Starts pegging a road at a named point, or pegs the point next while a road is being pegged. */
-  onPegAt?: (at: Coordinate, name: string) => void
-  /** Moves the active road's start or end onto a named point. */
-  onRoadEndAt?: (at: Coordinate, name: string, end: 'start' | 'end') => void
   cutblockReviewRequest?: { id: string; sequence: number }
   onReviewRoad?: (road: ContextFeature | null, picked?: boolean) => void
   onShowExistingRoads?: () => void
@@ -206,7 +200,7 @@ export function DesignSidebar(p: SidebarProps) {
       className={
         p.embedded
           ? 'lp-workflow-editor'
-          : 'road-design-sidebar flex h-full min-h-0 min-w-0 flex-col rounded-xl border bg-card'
+          : 'road-design-sidebar raised-surface flex h-full min-h-0 min-w-0 flex-col rounded-xl border bg-background'
       }
     >
       <fieldset disabled={!!p.workspace.busy || p.readOnlyPreview} className="contents">

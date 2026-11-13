@@ -5,9 +5,10 @@ Three tools for walking a road station by station and acting on what you find:
 - **Jump** in the station bar moves the shared station to the next or previous place of one kind:
   a PVI, a curve point, a flagged station, an incomplete section, a culvert or a template change.
   The `]` and `[` keys do the same.
-- **Hold scale** and **Pin this section**, in the cross-section's **Section view options** (the
-  sliders button in its title row), keep the section's frame still while stepping, and draw one
-  station's outline behind the others for comparison. The button counts the options in force.
+- **Hold scale**, **Whole-road scale** and **Pin this section**, in the cross-section's **Section
+  view options** (the sliders button in its title row), keep the section's frame still while
+  stepping, give every station of the road one frame, and draw one station's outline behind the
+  others for comparison. The button counts the options in force.
 - **Use this section for…**, in the same popover, gives the section at the selected station to a
   range of stations, typed or dragged on the profile, and then lists the stations of that range
   whose cut or fill batter never met the ground. Its form opens under the cross-section and the
@@ -19,7 +20,21 @@ DOM or network access. The controls are `StationJumpMenu.tsx` and `SectionPaneTo
 ## Jumping between places
 
 Choose the kind from the menu beside the station box (it shows how many of each the road has),
-then use the ‹‹ and ›› buttons beside it, the menu's **Previous** and **Next**, or the keys:
+then use the menu's **Previous** and **Next** on the same row, or the keys below.
+
+Type an exact station in the station field. Its up and down chevrons step to the next and
+previous calculated stations. Hold a chevron to keep stepping, or use the arrow keys when the
+field has focus. On phones, the field and slider fit on one row. **Station options** (⋯) holds playback, the
+station/elevation/grade reading, and the jump controls. Terrain-gap and typed-station warnings
+stay on the bar so they remain visible with the menu closed.
+
+While **Play** runs, moving the pointer over the plan or charts leaves playback in control of
+the station. Clicking a station on the plan or a chart pauses playback there. Typing a station,
+stepping, jumping or moving the station slider also pauses it. **Play** resumes from the selected
+station, or starts again at the beginning when the end has been reached. The desktop readout
+reserves its width so a changing elevation, grade sign or digit count does not resize the slider.
+Station, ground elevation and grade sit in separate left-aligned columns with vertical dividers;
+each reading keeps one decimal place, including whole-number elevations and grades.
 
 | Key | Does                              |
 | --- | --------------------------------- |
@@ -43,7 +58,7 @@ nearest calculated one, so a second press always moves on.
 | Culvert            | Each culvert's station; the jump also selects the culvert                                                                                                                             |
 | Template change    | Both ends of every template station assignment                                                                                                                                        |
 
-## Hold scale and the pinned section
+## Hold scale, Whole-road scale and the pinned section
 
 With **Hold scale** off the section chart fits each station's own extent, so the axes change at
 every step. Turned on, it keeps the offset and elevation spans of the section shown at that moment,
@@ -51,6 +66,18 @@ and moves the frame up and down with the formation at the centreline (the ground
 terrain transect). The road then stays still on screen and the ground moves under it. A section
 that no longer fits is cut at the frame, and a line under the readout says so; turn Hold scale off
 and on to refit.
+
+**Whole-road scale** is the same idea with one frame for the whole road: the widest offset any
+station's section reaches, and the most any section rises above and falls below its own formation
+at the centreline (`roadSectionFrame`). A metre is then the same size at every station and the
+formation sits at the same height on screen, so a section on steep sidehill ground looks big beside
+one on the flat instead of each being stretched to fill the chart. It and Hold scale are exclusive;
+Whole-road scale is remembered in this browser. Culverts and the top of rock are not part of the
+frame, so a long pipe can be cut off, and the line under the readout says so.
+
+An incomplete section shows an amber triangle at the start of the chart's header controls; its
+reason, and that the section is left out of quantities, are behind it on hover, focus or a tap.
+The **Dayl L/R** readout shows the unresolved side as —.
 
 **Pin this section** keeps the selected station's section and draws it dashed and faint behind
 every other station of the same road. It is moved up or down to share the current station's
@@ -118,6 +145,11 @@ opens or a flagged-station jump is made; both are cached per calculated road.
 - "Never met the ground" is the section builder's unresolved daylight flag. It is called cut when
   the ground at the batter's last designed point stands above it and fill when below; with no
   ground there it is unknown.
+- An incomplete section states its reason in a wrapping status strip above the plot, including
+  when the legend and readouts are folded. Daylight offsets remain independent: an unresolved
+  left side and a resolved right side read `— / 7.3`, not two missing values. Cut and fill areas
+  remain unknown and the section stays out of quantities until both sides resolve. A steep
+  cross slope can cause this even with zero centreline depth; extending the reach may not close it.
 - Flagged stations are taken per run: a 200 m stretch over the grade limit is one place, not twenty.
 
 ## Failure modes

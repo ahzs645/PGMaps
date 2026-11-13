@@ -1,4 +1,5 @@
 import { TerrainLayerSelect, type TerrainLayer } from './TerrainLayerSelect'
+import { PdfClassInspector } from './PdfClassInspector'
 import type { FitRequest, usePlanDisplay } from './usePlanDisplay'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -29,13 +30,22 @@ import {
   REFERENCE_POINT_LAYER_ID,
   REFERENCE_SOURCE,
   ReferenceLabels,
+  ReferenceSheets,
   referenceLegend,
+  referencePlanData,
 } from './ReferenceLayer'
-import { referenceGeoJson, type ReferenceFeature } from './referenceFeatures'
+import { referenceLayerKey, referenceLayers, type ReferenceFeature } from './referenceFeatures'
+import { CUTBLOCK_BUFFER_COLOR, cutblockBufferFeatures, cutblockBufferKey } from './cutblockBuffers'
 import { CutblockCard } from './CutblockCard'
 import { ExistingRoadCard } from './ExistingRoadCard'
 import { MAP_NOTE_COLORS, type MapNote } from './mapNotes'
-import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES, PLAN_LINE_DASHES } from './planLegendModel'
+import {
+  buildPlanLegend,
+  PLAN_CONTEXT_STYLES,
+  PLAN_DRAINAGE_STYLES,
+  PLAN_LINE_DASHES,
+  STREAM_ZOOM_STOPS,
+} from './planLegendModel'
 import { distinctRoadColors } from './roadColors'
 import { planHover, type ScreenStation } from './planHover'
 import { ROAD_HISTORY_STYLES } from './roadHistory'
@@ -72,13 +82,18 @@ import { TerrainRasterLayers } from './TerrainRasterLayers'
 import { Sentinel2Layer } from './sentinel/Sentinel2Layer'
 import { Sentinel2Panel } from './sentinel/Sentinel2Panel'
 import { useSentinel2 } from './sentinel/useSentinel2'
+import { useSentinelViewport } from './sentinel/useSentinelViewport'
+import { RegionalDemLayer } from './RegionalDemLayer'
+import { HrdemReliefLayer } from './HrdemReliefLayer'
 import { ProvincialStreamLayers } from './ProvincialStreamLayers'
 import { SightlinePlanLayers } from './SightlinePlanLayers'
 import { AccessHistoryLayers } from './AccessHistoryLayers'
 import { historicalMapFeatures } from './accessHistoryMap'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 import { riparianMapFeatures, RIPARIAN_MAP_COLORS } from './riparian'
-import { keepSymbolImages, type SymbolImageMap } from '@/lib/mapSheet/mapSymbols'
+import { areaPatternId, keepSymbolImages, symbolImages, type SymbolImageMap } from '@/lib/mapSheet/mapSymbols'
+import type { AreaSymbol } from '@/lib/mapSheet/symbols'
+import { cutblockBufferSymbol } from './cutblockBufferStyle'
 import {
   PLAN_SHEET_LAYER_IDS,
   PLAN_SHEET_ROAD_HIT_LAYER_IDS,
@@ -89,6 +104,7 @@ import {
 } from './planSheetSymbols'
 import { preparationMarginFeatures } from './preparationFootprint'
 import { usePlanTools } from './PlanTools'
+import { crossDrainMarks } from './crossDrainMarks'
 import { gradeClassRoadLines } from './gradeClasses'
 import type {
   Alignment,
@@ -122,6 +138,7 @@ const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   avoid: 'Review areas',
 }
 interface PlanProps {
+  detailArea?: Coordinate[][] | null
   /** A drawing tool's card (`MapToolPanel`), shown in the corner the plan tools use. */
   toolPanel?: ReactNode
   display: ReturnType<typeof usePlanDisplay>
@@ -135,6 +152,8 @@ interface PlanProps {
   /** The selected station's record, when it was typed and lies between calculated stations. */
   selectedStation?: RoadStation
   onStation: (station: number) => void
+  /** Playback owns the station until a click; pointer movement must not redirect it. */
+  stationHover?: boolean
   onSelectAlignment: (id: string) => void
   mode: DrawMode
   onMode?: (mode: DrawMode) => void
@@ -193,6 +212,9 @@ interface PlanProps {
   onNotesChange?: (notes: MapNote[]) => void
   /** The reference feature the sidebar last located; the plan draws it heavier. */
   focusedReferenceId?: string | null
+  hiddenReferenceLayers?: readonly string[]
+  onReferenceVisibility?: (keys: readonly string[], visible: boolean) => void
+  layersButton?: ReactNode
   /** Set while a note tool is in hand, so the plan's own clicks stand aside. */
   noteTool?: NoteTool
   /** Highlights an existing road clicked on the plan, as picking it in the sidebar does. */
@@ -209,6 +231,12 @@ const PLAN_SHEET_LAYERS = planSheetLayers('road-context')
 /** The plan's own context colours, hidden while the block sheet's symbols draw the context. */
 const PLAN_CONTEXT_LINE_LAYER_IDS = ['road-context-line', ...ROAD_HISTORY_LAYER_IDS]
 const CONTEXT_FILL_OPACITY = 0.18
+const CUTBLOCK_BUFFER_SOURCE = 'road-cutblock-buffers'
+const CUTBLOCK_BUFFER_LAYERS = [
+  'road-cutblock-buffer-fill',
+  'road-cutblock-buffer-pattern',
+  'road-cutblock-buffer-edge',
+]
 const fc = (features: GeoJSON.Feature[]): GeoJSON.FeatureCollection => ({ type: 'FeatureCollection', features })
 const line = (
   coordinates: Coordinate[],
@@ -263,8 +291,10 @@ function Layers(
     /** Draw the context with the block sheet's symbols (`planSheetSymbols.ts`). */
     sheetSymbols: boolean
     hiddenContextKinds: ContextFeature['kind'][]
-    /** Reference layers are shown, so the legend lists them. */
-    referenceVisible: boolean
+    visibleContext: ContextFeature[]
+    visibleBufferData: GeoJSON.FeatureCollection
+    bufferSymbols: readonly AreaSymbol[]
+    visibleReference: readonly ReferenceFeature[]
     onPointDragStart: (id: string) => void
     onBendPreview: (afterId: string, coordinate: Coordinate | null) => void
     /** The road with a point drag but without a bend preview. A handle in use has to stay mounted, so handles follow this. */
@@ -284,7 +314,7 @@ function Layers(
   const selectedMappedRoad = useMemo(() => {
     const feature =
       props.historySelection?.kind === 'road'
-        ? props.project.context.find(
+        ? props.visibleContext.find(
             (candidate) => candidate.id === props.historySelection?.id && candidate.kind === 'existing-road',
           )
         : undefined
@@ -293,10 +323,10 @@ function Layers(
         ? [{ type: 'Feature', geometry: feature.geometry, properties: { id: feature.id, name: feature.name } }]
         : [],
     )
-  }, [props.historySelection, props.project.context])
+  }, [props.historySelection, props.visibleContext])
   const historicalMap = useMemo(
-    () => historicalMapFeatures(props.project.context, props.project.accessHistory),
-    [props.project.context, props.project.accessHistory],
+    () => historicalMapFeatures(props.visibleContext, props.project.accessHistory),
+    [props.visibleContext, props.project.accessHistory],
   )
   const onMapReady = props.onMapReady
   useEffect(() => {
@@ -703,26 +733,22 @@ function Layers(
   const context = useMemo(
     () =>
       fc([
-        ...riparianMapFeatures(
-          props.project.context.filter((feature) => !props.hiddenContextKinds.includes(feature.kind)),
-        ).map((feature) => ({
+        ...riparianMapFeatures(props.visibleContext).map((feature) => ({
           ...feature,
           properties: { ...feature.properties, sheetKey: riparianSheetKey(feature.properties?.riparianBand) },
         })),
-        ...props.project.context
-          .filter((feature) => !props.hiddenContextKinds.includes(feature.kind))
-          .map((feature) => ({
-            type: 'Feature' as const,
-            geometry: feature.geometry,
-            properties: {
-              ...feature,
-              geometry: undefined,
-              ...contextHistoryProperties(feature, props.project.harvestHistoryYear ?? new Date().getFullYear()),
-              ...sheetProperties(feature),
-            },
-          })),
+        ...props.visibleContext.map((feature) => ({
+          type: 'Feature' as const,
+          geometry: feature.geometry,
+          properties: {
+            ...feature,
+            geometry: undefined,
+            ...contextHistoryProperties(feature, props.project.harvestHistoryYear ?? new Date().getFullYear()),
+            ...sheetProperties(feature),
+          },
+        })),
       ]),
-    [props.project.context, props.project.harvestHistoryYear, props.hiddenContextKinds],
+    [props.visibleContext, props.project.harvestHistoryYear],
   )
   const ditches = useMemo(() => {
     if (props.terrainOnly) return fc([])
@@ -764,6 +790,11 @@ function Layers(
     () => fc(props.draft.length > 1 && props.mode !== 'avoid' ? [line(props.draft)] : []),
     [props.draft, props.mode],
   )
+  // Cross-drain sites become a band along the road and a tick across it, drawn in metres.
+  const drainage = useMemo(
+    () => (props.drainage ? crossDrainMarks(props.drainage, analysis) : fc([])),
+    [props.drainage, analysis],
+  )
   const structures = useMemo(
     () =>
       fc(
@@ -801,11 +832,16 @@ function Layers(
   // Reference features change rarely. Their source is created with the plan's other sources, where
   // its layers take their place in the ordered group, and updated by its own effect below, so a
   // road edit does not send up to 50,000 reference vertices through MapLibre's worker again.
-  const reference = useMemo(() => referenceGeoJson(props.project.reference ?? NO_REFERENCE), [props.project.reference])
+  const reference = useMemo(() => referencePlanData(props.visibleReference), [props.visibleReference])
   const latestReference = useRef(reference)
+  const latestBuffers = useRef(props.visibleBufferData)
+  const bufferImages = useRef(new Set<string>())
   useLayoutEffect(() => {
     latestReference.current = reference
   }, [reference])
+  useLayoutEffect(() => {
+    latestBuffers.current = props.visibleBufferData
+  }, [props.visibleBufferData])
   // The stroke being sketched has its own source: it changes on every pointer move, and sending it
   // with the other sources would queue all of them behind each move.
   const [stroke, setStroke] = useState<Coordinate[]>([])
@@ -955,7 +991,7 @@ function Layers(
       ticks,
       contours: display?.contours ?? fc([]),
       overlay: props.overlay ?? fc([]),
-      drainage: props.drainage ?? fc([]),
+      drainage,
       swept: props.swept ?? fc([]),
     }
     for (const [name, data] of Object.entries(inputs)) {
@@ -966,6 +1002,8 @@ function Layers(
     }
     if (!map.getSource(REFERENCE_SOURCE))
       map.addSource(REFERENCE_SOURCE, { type: 'geojson', data: latestReference.current })
+    if (!map.getSource(CUTBLOCK_BUFFER_SOURCE))
+      map.addSource(CUTBLOCK_BUFFER_SOURCE, { type: 'geojson', data: latestBuffers.current })
     if (display && props.terrainLayer !== 'none') {
       const url = display[props.terrainLayer]
       const existing = map.getSource('road-terrain') as ImageSource | undefined
@@ -990,6 +1028,26 @@ function Layers(
       paint: { 'line-color': '#57534e', 'line-width': 0.65, 'line-opacity': 0.45 },
     })
     for (const layer of REFERENCE_LAYERS) add(layer)
+    add({
+      id: CUTBLOCK_BUFFER_LAYERS[0],
+      type: 'fill',
+      source: CUTBLOCK_BUFFER_SOURCE,
+      filter: ['!', ['has', 'pattern']],
+      paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.09 },
+    })
+    add({
+      id: CUTBLOCK_BUFFER_LAYERS[1],
+      type: 'fill',
+      source: CUTBLOCK_BUFFER_SOURCE,
+      filter: ['has', 'pattern'],
+      paint: { 'fill-pattern': ['get', 'pattern'] },
+    })
+    add({
+      id: CUTBLOCK_BUFFER_LAYERS[2],
+      type: 'line',
+      source: CUTBLOCK_BUFFER_SOURCE,
+      paint: { 'line-color': ['get', 'color'], 'line-width': 1.5, 'line-dasharray': [3, 2] },
+    })
     add({
       id: 'road-context-fill',
       type: 'fill',
@@ -1155,6 +1213,28 @@ function Layers(
     })
     // Existing-ground streams dashed and pale, design-surface streams solid and widening with
     // contributing area, so a stream the road turns shows as the two lines parting.
+    // Flow lines join as the map zooms in: larger and convergent ones first (`STREAM_ZOOM_STOPS`).
+    // A line saved without these properties (an older run) always shows; a diversion always shows.
+    const shown = (atLeastRatio: number, atLeastWidth: number): ExpressionSpecification => [
+      'case',
+      [
+        'any',
+        ['==', ['get', 'role'], 'diversion'],
+        [
+          'all',
+          ['>=', ['coalesce', ['get', 'thresholdRatio'], 1_000_000], atLeastRatio],
+          ['>=', ['coalesce', ['get', 'widthCells'], 1_000_000], atLeastWidth],
+        ],
+      ],
+      1,
+      0,
+    ]
+    const streamZoomOpacity = [
+      'interpolate',
+      ['linear'],
+      ['zoom'],
+      ...STREAM_ZOOM_STOPS.flatMap(([zoom, ratio, width]) => [zoom, shown(ratio, width)]),
+    ] as ExpressionSpecification
     add({
       id: 'road-drainage-catchment-fill',
       type: 'fill',
@@ -1196,13 +1276,18 @@ function Layers(
         'line-color': PLAN_DRAINAGE_STYLES['stream-existing'].color,
         'line-width': 1.5,
         'line-dasharray': [2, 1.5],
+        'line-opacity': streamZoomOpacity,
       },
     })
     add({
       id: 'road-drainage-line',
       type: 'line',
       source: 'road-drainage',
-      filter: ['all', ['==', ['geometry-type'], 'LineString'], ['!=', ['get', 'role'], 'stream-existing']],
+      filter: [
+        'all',
+        ['==', ['geometry-type'], 'LineString'],
+        ['!', ['in', ['get', 'role'], ['literal', ['stream-existing', 'cross-drain-band', 'cross-drain-tick']]]],
+      ],
       paint: {
         'line-color': [
           'match',
@@ -1217,6 +1302,36 @@ function Layers(
           3,
           ['interpolate', ['linear'], ['coalesce', ['get', 'areaHa'], 0], 0, 1.2, 5, 2.5, 50, 4.5],
         ],
+        'line-opacity': streamZoomOpacity,
+      },
+    })
+    // Cross-drain candidates: a sleeve (two thin lines either side of the road, by line-gap) over
+    // the stretch where flow leaves the road, stronger for more area draining off, and once zoomed
+    // in a dashed tick across the road where a culvert would go. The sleeve reads on any road
+    // colour, and both marks follow the road, so zoomed out they never become a field of dots.
+    add({
+      id: 'road-drainage-cross-drain-band',
+      type: 'line',
+      source: 'road-drainage',
+      filter: ['==', ['get', 'role'], 'cross-drain-band'],
+      layout: { 'line-cap': 'butt', 'line-join': 'round' },
+      paint: {
+        'line-color': PLAN_DRAINAGE_STYLES['cross-drain-band'].color,
+        'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.5, 16, 3],
+        'line-gap-width': ['interpolate', ['exponential', 2], ['zoom'], 12, 6, 15, 10, 18, 40],
+        'line-opacity': ['interpolate', ['linear'], ['coalesce', ['get', 'areaHa'], 0], 0.05, 0.55, 2, 1],
+      },
+    })
+    add({
+      id: 'road-drainage-cross-drain-tick',
+      type: 'line',
+      source: 'road-drainage',
+      minzoom: 14.5,
+      filter: ['==', ['get', 'role'], 'cross-drain-tick'],
+      paint: {
+        'line-color': PLAN_DRAINAGE_STYLES['cross-drain-band'].color,
+        'line-width': 2.5,
+        'line-dasharray': [1.5, 1],
       },
     })
     add({
@@ -1360,6 +1475,7 @@ function Layers(
     // Keep all analytical overlays above a replaced terrain image/style.
     for (const id of [
       'road-contours',
+      ...CUTBLOCK_BUFFER_LAYERS,
       // Reference linework is background: under streams, constraints and every road.
       ...REFERENCE_LINEWORK_LAYER_IDS,
       'road-context-fill',
@@ -1385,6 +1501,8 @@ function Layers(
       'road-drainage-catchment-fill',
       'road-drainage-catchment-outline',
       'road-drainage-line',
+      'road-drainage-cross-drain-band',
+      'road-drainage-cross-drain-tick',
       'road-drainage-point',
       'road-swept-area',
       'road-swept-area-line',
@@ -1422,7 +1540,7 @@ function Layers(
     props.showEarthwork,
     props.terrainOnly,
     props.overlay,
-    props.drainage,
+    drainage,
     props.swept,
     props.sheetSymbols,
   ])
@@ -1435,22 +1553,44 @@ function Layers(
     ;(map.getSource('road-section') as GeoJSONSource | undefined)?.setData(section)
   }, [map, isLoaded, section])
 
-  // Reference features: their data, whether they show, and the one the sidebar last located, which
-  // is drawn heavier. The layers themselves are added and ordered with the group above.
+  // The reference source and legend read the same visible features. The selected one draws heavier.
   useEffect(() => {
     if (!map || !isLoaded) return
     ;(map.getSource(REFERENCE_SOURCE) as GeoJSONSource | undefined)?.setData(reference)
   }, [map, isLoaded, reference])
   useEffect(() => {
     if (!map || !isLoaded) return
+    const images = new globalThis.Map(
+      props.bufferSymbols
+        .flatMap((symbol) => symbolImages(symbol, window.devicePixelRatio || 1))
+        .map((image) => [image.id, image]),
+    )
+    for (const id of bufferImages.current) {
+      if (!images.has(id) && map.hasImage(id)) map.removeImage(id)
+    }
+    const add = (id: string) => {
+      const image = images.get(id)
+      if (image && !map.hasImage(id)) map.addImage(id, image.image, { pixelRatio: image.pixelRatio })
+    }
+    for (const id of images.keys()) add(id)
+    bufferImages.current = new Set(images.keys())
+    const onMissing = (event: { id: string }) => add(event.id)
+    map.on('styleimagemissing', onMissing)
+    ;(map.getSource(CUTBLOCK_BUFFER_SOURCE) as GeoJSONSource | undefined)?.setData(props.visibleBufferData)
+    return () => {
+      map.off('styleimagemissing', onMissing)
+    }
+  }, [map, isLoaded, props.visibleBufferData, props.bufferSymbols])
+  useEffect(() => {
+    if (!map || !isLoaded) return
     const located: ExpressionSpecification = ['==', ['get', 'id'], props.focusedReferenceId ?? '']
-    for (const { id } of REFERENCE_LAYERS)
-      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', props.referenceVisible ? 'visible' : 'none')
     if (map.getLayer('road-reference-line'))
       map.setPaintProperty('road-reference-line', 'line-width', ['case', located, 3.5, 1.75])
+    if (map.getLayer('road-reference-fill'))
+      map.setPaintProperty('road-reference-fill', 'fill-opacity', ['case', located, 0.3, 0.13])
     if (map.getLayer(REFERENCE_POINT_LAYER_ID))
       map.setPaintProperty(REFERENCE_POINT_LAYER_ID, 'circle-radius', ['case', located, 9, 6])
-  }, [map, isLoaded, props.referenceVisible, props.focusedReferenceId])
+  }, [map, isLoaded, props.focusedReferenceId])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -1569,7 +1709,12 @@ function Layers(
     // Hover near the road, not exactly on it: see planHover.ts. The hover's state lives in a ref,
     // because this effect re-runs on most page renders, a station change among them.
     const hover = hoverState.current
-    const hoverMode = ['inspect', 'edit'].includes(mode) && !noteTool && !planToolActive && !pourPointPicking
+    const hoverMode =
+      props.stationHover !== false &&
+      ['inspect', 'edit'].includes(mode) &&
+      !noteTool &&
+      !planToolActive &&
+      !pourPointPicking
     if (!hoverMode || investigation || hover.alignmentId !== activeAlignmentId) {
       hover.engaged = false
       hover.lastPointer = null
@@ -1587,6 +1732,7 @@ function Layers(
       if (pourPointPicking || noteTool || planToolActive) return
       if (!['inspect', 'edit'].includes(mode)) onHover(snapAt(e)?.coordinate ?? [e.lngLat.lng, e.lngLat.lat])
       else {
+        if (!hoverMode) return
         const previous = hover.lastPointer
         hover.lastPointer = { x: e.point.x, y: e.point.y }
         // A press is a pan (or a bend-handle drag); the station is not scrubbed under it.
@@ -1657,11 +1803,17 @@ function Layers(
     onPourPoint,
     noteTool,
     planToolActive,
+    props.stationHover,
   ])
 
   return (
     <>
       <TerrainRasterLayers layers={props.project.terrain.backgrounds ?? []} />
+      <ReferenceSheets features={props.visibleReference} />
+      <PdfClassInspector
+        features={props.visibleReference}
+        enabled={props.mode === 'inspect' && !props.planToolActive && !props.noteTool && !props.pourPointPicking}
+      />
       <ProvincialStreamLayers data={props.project.provincialStreamData} />
       {props.overlay?.features
         .filter((feature): feature is GeoJSON.Feature<GeoJSON.Point> => feature.geometry.type === 'Point')
@@ -2013,7 +2165,7 @@ function Layers(
               section,
               ticks,
               overlay: props.overlay,
-              drainage: props.drainage,
+              drainage: props.drainage ? drainage : undefined,
               swept: props.swept,
             },
             alignments: props.project.alignments,
@@ -2041,7 +2193,22 @@ function Layers(
             cableSupports: !!activeCable,
           }),
           ...historicalMap.legend,
-          ...referenceLegend(props.referenceVisible ? (props.project.reference ?? NO_REFERENCE) : NO_REFERENCE),
+          ...referenceLegend(props.visibleReference),
+          ...(props.visibleBufferData.features.length
+            ? [
+                {
+                  id: 'cutblock-buffers',
+                  title: 'Cutblocks',
+                  entries: props.bufferSymbols.map((symbol, i) => ({
+                    id: `cutblock-buffer-${i}`,
+                    label: symbol.label,
+                    color: symbol.fill ?? CUTBLOCK_BUFFER_COLOR,
+                    shape: 'area' as const,
+                    sheetSymbol: symbol,
+                  })),
+                },
+              ]
+            : []),
           ...(selectedMappedRoad.features.length
             ? [
                 {
@@ -2213,13 +2380,65 @@ export function PlanView(input: PlanProps) {
     }
   }
   const [hiddenContextKinds, setHiddenContextKinds] = useState<ContextFeature['kind'][]>([])
+  const visibleContext = useMemo(
+    () =>
+      props.project.context.filter(
+        ({ kind, layerSource }) =>
+          !hiddenContextKinds.includes(kind) && (!layerSource || !props.hiddenReferenceLayers?.includes(layerSource)),
+      ),
+    [props.project.context, hiddenContextKinds, props.hiddenReferenceLayers],
+  )
   // Map notes: their own project collection, drawn with the notes bar and hidden as one layer.
   const notes = props.project.notes ?? NO_NOTES
   // Reference features: imported points, lines and areas that only the plan draws.
   const reference = props.project.reference ?? NO_REFERENCE
-  const [referenceVisible, setReferenceVisible] = useState(true)
+  const bufferSettings = props.project.cutblockBuffers
+  const attachedBufferSources = useMemo(
+    () => new Set(bufferSettings?.flatMap((setting) => ('source' in setting ? [setting.source] : []))),
+    [bufferSettings],
+  )
+  const visibleReference = useMemo(
+    () =>
+      reference.filter((feature) => {
+        const key = referenceLayerKey(feature)
+        return !attachedBufferSources.has(key) && !props.hiddenReferenceLayers?.includes(key)
+      }),
+    [reference, attachedBufferSources, props.hiddenReferenceLayers],
+  )
+  const bufferData = useMemo(() => {
+    const visible =
+      bufferSettings?.filter(
+        (setting) =>
+          !hiddenContextKinds.includes('harvest') &&
+          !props.hiddenReferenceLayers?.includes(setting.layer) &&
+          !props.hiddenReferenceLayers?.includes(cutblockBufferKey(setting.layer)),
+      ) ?? []
+    const symbols: AreaSymbol[] = []
+    const features = visible.flatMap((setting) => {
+      const symbol = cutblockBufferSymbol(setting)
+      const pattern = areaPatternId(symbol)
+      const color = symbol.fill
+      const polygons = cutblockBufferFeatures(setting, props.project.context, reference)
+      if (polygons.length) {
+        const name = setting.layer
+          .split('/')
+          .at(-1)
+          ?.replace(/\.[^.]+$/, '')
+        symbols.push({ ...symbol, label: `${name ?? setting.layer} buffer` })
+      }
+      return polygons.map((feature) => ({
+        ...feature,
+        properties: { ...feature.properties, color, ...(pattern ? { pattern } : {}) },
+      }))
+    })
+    return { data: fc(features), symbols }
+  }, [bufferSettings, hiddenContextKinds, props.hiddenReferenceLayers, props.project.context, reference])
   const { notesOpen, setNotesOpen, showSentinel, setShowSentinel } = props.display
-  const sentinel = useSentinel2({ visible: showSentinel, bounds: terrainBounds(props.project.terrain) })
+  const sentinelView = useSentinelViewport(props.display.navigationMap, showSentinel)
+  const sentinel = useSentinel2({
+    visible: showSentinel && !sentinelView.paused && !sentinelView.moving,
+    bounds: sentinelView.bounds,
+  })
   const [noteTool, setNoteTool] = useState<NoteTool>(null)
   const [noteColor, setNoteColor] = useState<string>(MAP_NOTE_COLORS[0])
   const [noteArrow, setNoteArrow] = useState(true)
@@ -2274,25 +2493,19 @@ export function PlanView(input: PlanProps) {
   const [cutblockCard, setCutblockCard] = useState<{ id: string; at: Coordinate } | null>(null)
   const [roadCard, setRoadCard] = useState<{ id: string; at: Coordinate } | null>(null)
   const cardRoad = roadCard
-    ? props.project.context.find((feature) => feature.id === roadCard.id && feature.kind === 'existing-road')
+    ? visibleContext.find((feature) => feature.id === roadCard.id && feature.kind === 'existing-road')
     : undefined
   const cutblock = cutblockCard
-    ? props.project.context.find((feature) => feature.id === cutblockCard.id && feature.kind === 'harvest')
+    ? visibleContext.find((feature) => feature.id === cutblockCard.id && feature.kind === 'harvest')
     : undefined
   const [selectedHistoryRowId, setSelectedHistoryRowId] = useState<string | null>(null)
-  const selectedHistoryFeature = props.project.context.find(
-    (feature) => feature.id === selectedHistoryRowId && !hiddenContextKinds.includes(feature.kind),
-  )
+  const selectedHistoryFeature = visibleContext.find((feature) => feature.id === selectedHistoryRowId)
   const contextKinds = (Object.keys(CONTEXT_LABELS) as ContextFeature['kind'][]).filter((kind) =>
     props.project.context.some((feature) => feature.kind === kind),
   )
   const tableSources = useMemo(
-    () =>
-      historyTableSources(
-        props.project.context.filter((feature) => !hiddenContextKinds.includes(feature.kind)),
-        props.project.harvestHistoryYear ?? new Date().getFullYear(),
-      ),
-    [props.project.context, props.project.harvestHistoryYear, hiddenContextKinds],
+    () => historyTableSources(visibleContext, props.project.harvestHistoryYear ?? new Date().getFullYear()),
+    [visibleContext, props.project.harvestHistoryYear],
   )
   const table = useMapTable({
     sources: tableSources,
@@ -2327,10 +2540,25 @@ export function PlanView(input: PlanProps) {
   }
   const hasTerrainBounds = !!terrainBounds(props.project.terrain)
   const settingsButton = useRef<HTMLButtonElement>(null)
+  // The toolbar wraps on narrow plans; what sits below it follows its measured height.
+  const planView = useRef<HTMLDivElement>(null)
+  const toolbar = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const bar = toolbar.current
+    const view = planView.current
+    if (!bar || !view || typeof ResizeObserver === 'undefined') return
+    const sync = () => view.style.setProperty('--road-plan-toolbar-height', `${bar.offsetHeight}px`)
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(bar)
+    return () => observer.disconnect()
+  }, [])
   const settingsPanel = useRef<HTMLDivElement>(null)
   const closeSettings = useCallback(() => setSettingsOpen(false), [setSettingsOpen])
   useEffect(() => {
     if (!settingsOpen) return
+    const document = settingsButton.current?.ownerDocument ?? globalThis.document
+    const window = document.defaultView ?? globalThis.window
     // The panel renders at the end of the body, so Tab from the button no longer reaches it.
     const frame = requestAnimationFrame(() => settingsPanel.current?.querySelector('button')?.focus())
     // An expanded plan traps Tab from a capture listener that treats the portal as outside it.
@@ -2349,7 +2577,8 @@ export function PlanView(input: PlanProps) {
     : props.alignment.points[0]?.coordinate) ?? [-122.82, 53.89]
   return (
     <div
-      className={`isolate relative h-full min-h-0 overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
+      ref={planView}
+      className={`road-plan-view isolate relative h-full min-h-0 overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
       data-testid="road-plan-view"
       data-drawing={drawing}
     >
@@ -2360,7 +2589,7 @@ export function PlanView(input: PlanProps) {
         deferResize={false}
         controls={
           <>
-            <div className="absolute right-2 top-2 z-30 flex gap-1">
+            <div className="road-plan-fit absolute right-2 top-2 z-30 flex gap-1">
               <Button
                 size="icon"
                 variant="outline"
@@ -2383,8 +2612,13 @@ export function PlanView(input: PlanProps) {
                 <Mountain className="size-4" />
               </Button>
             </div>
-            <MapControls position="top-right" showZoom showCompass={false} className="road-map-controls top-12">
-              <MapLayersControl basemaps={IMAGERY_BASEMAPS} basemap={basemap} onBasemapChange={setBasemap} />
+            <MapControls position="top-right" showZoom showCompass={false} className="road-map-controls">
+              <MapLayersControl
+                label="Basemap"
+                basemaps={IMAGERY_BASEMAPS}
+                basemap={basemap}
+                onBasemapChange={setBasemap}
+              />
             </MapControls>
           </>
         }
@@ -2392,6 +2626,25 @@ export function PlanView(input: PlanProps) {
       >
         <MapTableBridge table={table} />
         <SatelliteImagery visible={basemap === 'satellite'} />
+        <RegionalDemLayer visible={props.display.terrainLayer !== 'none'} imagery={basemap === 'satellite'} />
+        <HrdemReliefLayer visible={props.display.showHrdem && props.display.terrainLayer !== 'none'} />
+        {props.detailArea && (
+          <MapLineLayer
+            interactive={false}
+            sourceKey="road-detail-area"
+            data={{
+              type: 'FeatureCollection',
+              features: props.detailArea.map((quad, i) => ({
+                type: 'Feature',
+                properties: { id: i },
+                geometry: { type: 'LineString', coordinates: [...quad, quad[0]] },
+              })),
+            }}
+            color="#0d9488"
+            width={2}
+            dashArray={[3, 2]}
+          />
+        )}
         {showSentinel && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
         <Layers
           {...props}
@@ -2416,7 +2669,10 @@ export function PlanView(input: PlanProps) {
           showEarthwork={showEarthwork}
           sheetSymbols={sheetSymbols}
           hiddenContextKinds={hiddenContextKinds}
-          referenceVisible={referenceVisible}
+          visibleContext={visibleContext}
+          visibleBufferData={bufferData.data}
+          bufferSymbols={bufferData.symbols}
+          visibleReference={visibleReference}
           noteTool={noteTool}
           planToolActive={!!tools.tool}
           gradeColours={tools.gradeColours}
@@ -2453,7 +2709,7 @@ export function PlanView(input: PlanProps) {
           </>
         )}
         {tools.mapLayer}
-        <ReferenceLabels features={reference} visible={referenceVisible} />
+        <ReferenceLabels features={visibleReference} />
         <NotesLayer
           notes={notes}
           visible={notesVisible}
@@ -2531,12 +2787,9 @@ export function PlanView(input: PlanProps) {
           </div>
         )}
       </Map>
-      <div
-        className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-110px)] items-center gap-1"
-        data-map-export-ignore
-      >
-        <TerrainLayerSelect value={terrainLayer} onChange={setTerrainLayer} />
-        <div className="shrink-0">
+      <div ref={toolbar} className="road-plan-toolbar absolute left-2 top-2 z-30" data-map-export-ignore>
+        <div className="road-plan-display">
+          <TerrainLayerSelect value={terrainLayer} onChange={setTerrainLayer} />
           <Button
             ref={settingsButton}
             size="icon"
@@ -2586,8 +2839,21 @@ export function PlanView(input: PlanProps) {
                 ['Contours', showContours, setShowContours],
                 ['Labels', showLabels, setShowLabels],
                 ['Sentinel-2 imagery', showSentinel, setShowSentinel],
+                ['High-resolution DEM relief', props.display.showHrdem, props.display.setShowHrdem],
                 ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
-                ...(reference.length ? [['Reference layers', referenceVisible, setReferenceVisible] as const] : []),
+                ...(reference.length && props.onReferenceVisibility
+                  ? [
+                      [
+                        'Reference layers',
+                        visibleReference.length > 0,
+                        (visible: boolean) =>
+                          props.onReferenceVisibility?.(
+                            referenceLayers(reference).map((layer) => layer.key),
+                            visible,
+                          ),
+                      ] as const,
+                    ]
+                  : []),
                 ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
                 ...tools.settingsRows,
               ] as const
@@ -2647,25 +2913,28 @@ export function PlanView(input: PlanProps) {
               </Button>
             )}
           </AnchoredPopover>
+          {!investigation && props.layersButton}
         </div>
-        {!investigation && (
-          <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
-        )}
-        {tools.toolbar}
-        <Button
-          size="icon"
-          variant="outline"
-          className={`size-8 shrink-0 shadow-sm ${notesOpen ? 'bg-accent text-accent-foreground' : 'bg-background/95'}`}
-          aria-label="Map notes"
-          aria-pressed={notesOpen}
-          title={`Map notes${notes.length ? ` · ${notes.length}` : ''}`}
-          onClick={() => setNotesOpen(!notesOpen)}
-        >
-          <StickyNote className="size-4" />
-        </Button>
+        <div className="road-plan-actions">
+          {!investigation && (
+            <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
+          )}
+          {tools.toolbar}
+          <Button
+            size="icon"
+            variant="outline"
+            className={`size-8 shrink-0 shadow-sm ${notesOpen ? 'bg-accent text-accent-foreground' : 'bg-background/95'}`}
+            aria-label="Map notes"
+            aria-pressed={notesOpen}
+            title={`Map notes${notes.length ? ` · ${notes.length}` : ''}`}
+            onClick={() => setNotesOpen(!notesOpen)}
+          >
+            <StickyNote className="size-4" />
+          </Button>
+        </div>
       </div>
       {notesOpen && (
-        <div className="absolute left-2 top-12 z-30 max-w-[calc(100%-4rem)]">
+        <div className="road-plan-below-toolbar absolute left-2 z-30 max-w-[calc(100%-4rem)]">
           <NotesToolbar
             tool={noteTool}
             onTool={pickNoteTool}
@@ -2683,7 +2952,12 @@ export function PlanView(input: PlanProps) {
       )}
       {showSentinel && (
         <div className="absolute right-12 top-12 z-30 max-h-[calc(100%-6rem)] max-w-[calc(100%-4rem)] overflow-hidden">
-          <Sentinel2Panel state={sentinel} onClose={() => setShowSentinel(false)} />
+          <Sentinel2Panel
+            state={sentinel}
+            paused={sentinelView.paused}
+            moving={sentinelView.moving}
+            onClose={() => setShowSentinel(false)}
+          />
         </div>
       )}
       {tools.panelSlot}
@@ -2699,7 +2973,7 @@ export function PlanView(input: PlanProps) {
         !notesOpen &&
         (editHelpVisible ? (
           <div
-            className="absolute left-2 top-20 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow sm:top-12"
+            className="road-plan-below-toolbar absolute left-2 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow"
             data-testid="road-edit-help"
           >
             <span className="min-w-0 flex-1">Drag a number to move that point. Drag a + to bend the road.</span>
@@ -2718,7 +2992,7 @@ export function PlanView(input: PlanProps) {
           <Button
             size="icon-xs"
             variant="outline"
-            className="absolute left-2 top-20 z-20 bg-background/95 shadow-sm sm:top-12"
+            className="road-plan-below-toolbar absolute left-2 z-20 bg-background/95 shadow-sm"
             aria-label="Show editing hint"
             title="Show editing hint"
             onClick={() => showEditHelp(true)}

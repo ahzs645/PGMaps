@@ -1,9 +1,152 @@
 # BC road-cost evidence and estimation roadmap
 
-Research checked **26 October 2026**. Amounts below are CAD. This is an evidence
+Research checked **26 October 2026**; the evidence catalogue was extended on
+**12–13 November 2026** (see [The evidence catalogue](#the-evidence-catalogue)).
+Amounts below are CAD unless a record says otherwise. This is an evidence
 inventory for preliminary road planning, not a provincial survey of awarded
 construction prices. A local list price, an appraisal allowance and an installed
 contract rate describe different work.
+
+## The evidence catalogue
+
+**BC references** in the cost dialog reads a catalogue of 149 records and 8
+worked estimates. It is evidence to read beside an estimate. No record converts
+a currency, escalates a price or averages across sources, and browsing writes
+nothing. A record reaches a project rate only when the user adopts it (see
+[Adopting a record into a project rate](#adopting-a-record-into-a-project-rate)).
+
+| Part | Records | What it holds |
+| --- | --- | --- |
+| BC local | 42, plus 7 quote-only leads | Supplier material and trucking prices from 12 suppliers, two municipal access fees and two maintenance supply awards |
+| BC projects | 54 | 14 ministry contract awards, 14 crossing and deactivation project costs, 26 rates from five consultant estimates |
+| Beyond BC | 53, from 13 sources | Alberta tender averages, consultant and US Forest Service estimates, New Zealand survey and field trials, England, Australia, and three funding references |
+
+Each record keeps its own amount, unit, currency, price year or effective date,
+source link and locator, and the date it was checked. Where the source states
+them it also keeps tax, loading, delivery, placement, minimum purchase,
+surcharges and availability. For a supplier price a term the source does not
+state prints as _Not stated_, so an unknown inclusion never reads as included or
+free. Terms that every record of one supplier shares print once under the group.
+
+### Evidence types
+
+The type says what a number can be used for. It is the first thing to read.
+
+| Type | Use |
+| --- | --- |
+| Supplier price, supplier trucking rate | One supplier's published terms. Dated, year-only, undated, out-of-date and promotional lists are labelled apart. |
+| Municipal fee, maintenance award | A recent local purchase or fee for a different product or use. Listed apart from supplier prices; they do not fill a construction-price gap. |
+| Contract award | A disclosed maximum at award, without quantities or road length. Not a final cost and never a per-kilometre rate. |
+| Completed project, approximate project cost | A reported or rounded cost for finished work. Compare only against matching scope. |
+| Tender average | Checks whether a component rate is plausible once the pay-item specification matches. The contract count and quantity stay beside it: one contract and 28 contracts are different amounts of evidence. |
+| Estimate | A rate inside an engineer's, consultant's or expert's estimate, read with that estimate's quantities and allowances. |
+| Appraisal allowance, survey, field trial, maintenance model | Each follows its own method. A survey range is not a confidence interval, and a field-trial cost is read with the performance the treatment reached. |
+| Funding reference | A grant ceiling or funding model. It shows what a programme pays, never what the work costs. |
+
+### Where it shows
+
+- **Appraisal → Local material prices** lists the selected region's suppliers,
+  each folded to its first price. Cariboo and Skeena have no comparable public
+  construction-aggregate price, so they read _Local quote required_ with their
+  quote-only suppliers; the Williams Lake winter-sand award and the New Hazelton
+  fees sit under _Other local records_. A link opens the region's project
+  records, whose region tag follows the location and is not a verified boundary.
+- **Appraisal → What each allowance covers** states, for the selected method,
+  what the allowance covers, leaves out and prices separately (`appraisalScope.ts`),
+  one folded row per allowance showing its unit and manual section,
+  with the culvert tables (IAM Table 4-3, CAM Table 5-4) and the Interior
+  manual's equipment and labour rates. The Interior comparison also shows the
+  separate stabilizing-material allowance for the chosen road group
+  (IAM 4.3.4.1: a constant by group, plus $4,277/km for ripped or quarry rock).
+  It is never summed into the subgrade figure.
+- **Evidence → Records** filters every record by place, evidence type, BC region
+  and words. **Evidence → Worked estimates** shows eight complete estimates with
+  their quantities, rates, allowances and totals, so a rate is read inside the
+  estimate it came from. Several share a project or source and are not
+  independent samples.
+- **Sources** keeps two fuel figures apart: the Interior appraisal fuel allowance
+  ($10.23/hour on-road, $23.86/hour off-road) and the Hired Equipment Program's
+  monthly adjustment (November 2026: +$26.10 and +$60.90). It also lists the
+  provincial timber supply area and BEC layers that can propose an appraisal
+  input for review, and five references on estimating methods.
+
+### Adopting a record into a project rate
+
+Every record that can inform a rate has **Use for a project rate** under it, in
+**Evidence → Records** and in a region's local prices. The form asks for four
+things and writes nothing until **Save rate and source**:
+
+1. **The project rate.** One of the four base rates in `project.settings`: cut
+   (CAD per bank m³), fill (CAD per m³ placed), surfacing (CAD per m³ in place)
+   or clearing (CAD per m²). The tool does not guess which one a record is about.
+2. **The specification matches.** A tick the user gives after reading the
+   record's scope, tax, loading and delivery terms.
+3. **The adopted rate,** typed by the user. The field starts empty unless the
+   record is one CAD figure already in the rate's unit (`adoptionPrefill`); a
+   tonne, a yard, a square metre for a cubic-metre rate, a range and every other
+   currency start empty. No conversion or escalation is computed anywhere.
+4. **A reason** for any difference between the record and the rate (unit
+   conversion, date, quantity, haul). It is required unless the record's own
+   figure was kept unchanged.
+
+Saving is one named undo step that sets the rate and stores, in
+`project.rateEvidence` under the rate's key, the observation as it was read
+(record id, evidence type, title, source, place, amounts, unit, currency, price
+year or effective date, source URL, locator, checked date), the typed rate, the
+reason and the adoption date. The stored observation is never refreshed from a
+later catalogue.
+
+The observation then shows in three places, so "why $74/m³ when the reference
+says $33.70/tonne?" has an answer:
+
+- **The cost dialog.** The rate's row reads _Rate adopted from $33.70/tonne ·
+  CAD · 2026_, and **Rate sources** under the table gives the source, locator,
+  checked date, adoption date and reason. **Remove source** deletes the record
+  from the project and leaves the rate's value alone.
+- **The report.** _Rate sources_ under _Cost assumptions_, in the part that is
+  always printed.
+- **The project file.** `rateEvidence` is optional, so a project without it
+  loads and saves exactly as before.
+
+A rate edited after its adoption keeps the record, and all three places say the
+rate is now a different figure that the record no longer explains.
+
+These records cannot be adopted (`adoptionRefusal`) and show no button: funding
+references, context-only records, municipal fees, maintenance awards, a
+whole-project amount with no unit, and a record with no published amount. A
+project file carrying one of them as a rate source is refused.
+
+Not covered: material, structure, haul, borrow, waste and mobilization rates,
+which are per road; a record adopted for one of the four base rates explains
+that rate only.
+
+### Limits and upkeep
+
+| Limit | Value | Where |
+| --- | --- | --- |
+| Currency conversion, escalation, cross-source averages | None | `costEvidence/costEvidence.ts`, `costEvidence/rateAdoption.ts` |
+| Ways a record can change the estimate | One: the confirmed adoption form | `RateAdoption.tsx`; `BCCostReferences` receives only `adoption.onAdopt` |
+| Rates a record can be adopted into | Cut, fill, surfacing, clearing | `ADOPTABLE_RATE_KEYS`, `rateAdoption.ts` |
+| Adopted rate | Above 0, at most 10,000 CAD per unit | `ADOPTED_RATE_MAX`, `rateAdoption.ts` |
+| Adjustment reason | 8–500 characters; optional only when the record's own figure is kept | `ADOPTION_REASON_MIN`, `ADOPTION_REASON_MAX`, `rateAdoption.ts` |
+| Interior stabilizing allowance | Road groups 2–12; none for group 1 or snow and ice roads | `interiorStabilizationPerKm`, `bcInteriorCost.ts` |
+| Culvert tables shown | Six selected diameters; Interior Part A at 12 m only | `appraisalScope.ts` |
+
+The records are generated: `scripts/forestry/cost-evidence/build-catalogue.mjs`
+turns the three research packages into
+`src/pages/dev-forestry-roads/costEvidence/*.generated.json`. Change a record in
+its package and rebuild, never by hand in the JSON. `costEvidence.test.ts` checks
+every record's shape and reconciles the worked estimates with their printed
+totals. The stabilization constants, both culvert tables, the equipment, labour
+and fuel figures and the allowance scopes were read from the 2026 manuals on
+12 November 2026; the Coast manual's index was not reachable that day, so a
+later amendment is not ruled out.
+
+Not built yet: adoption into the per-road material, structure and haul rates,
+intersection of the road with the timber supply and
+BEC layers, the official bridge and road-reactivation workbooks, and sensitivity
+runs on rock, haul and production inputs. The remaining market gap is current BC
+accepted forestry-road schedules and final accounts matched to geometry and haul.
 
 ## What the supplied $1.373 million example reveals
 
@@ -64,14 +207,14 @@ The following group lists are candidate lookups, not a spatial crosswalk.
 
 | Natural resource region | Appraisal references to investigate | Local pricing evidence |
 | --- | --- | --- |
-| Cariboo | Interior groups 4, 8, 12 | United Concrete & Gravel: Quesnel, Williams Lake, 100 Mile House; quote required |
-| Kootenay-Boundary | Interior groups 10, 11 | BC Eco's undated Nelson-area promotion; MacKay Cranbrook quote route |
+| Cariboo | Interior groups 4, 8, 12 | United Concrete & Gravel and 93 Mile Aggregates; quote required. Williams Lake winter-sand award listed apart |
+| Kootenay-Boundary | Interior groups 10, 11 | Sullivan Stone, Creston (out-of-date list); BC Eco's undated Nelson-area promotion; MacKay and The Yard Depot, Cranbrook, quote routes |
 | Northeast | Interior group 7 | DRS Energy, Fort St. John, public tonne list without effective date |
-| Omineca | Interior groups 4, 5, 6, 7, 12 | GetGravel Prince George yard-volume list; bulk contract quote needed |
-| Skeena | Interior groups 1, 2, 3 and coastal jurisdiction checks | Skeena Concrete, Terrace; Steti, Smithers; numeric price gap retained |
-| Thompson-Okanagan | Interior groups 9, 11, 12 | Skwlāx Aggregates, Chase, effective August 25, 2026 |
-| South Coast | Coast construction categories and point-of-origin areas | Stockwell, Sechelt, effective January 1, 2025 |
-| West Coast | Coast categories and point-of-origin areas, including Haida Gwaii | Sharecost, Nanaimo, live undated product page |
+| Omineca | Interior groups 4, 5, 6, 7, 12 | GetGravel Prince George retail yard-volume list, closed for winter; bulk contract quote needed |
+| Skeena | Interior groups 1, 2, 3 and coastal jurisdiction checks | JL's Excavating and Skeena Concrete, Terrace; Steti, Smithers; numeric price gap retained. New Hazelton access fees listed apart |
+| Thompson-Okanagan | Interior groups 9, 11, 12 | Cantex, Summerland and Grizzly, Penticton, both effective April 1, 2026; Skwlāx, Chase, effective August 25, 2026 |
+| South Coast | Coast construction categories and point-of-origin areas | Kel-Mor, Chilliwack, undated; Stockwell, Sechelt, effective January 1, 2025 |
+| West Coast | Coast categories and point-of-origin areas, including Haida Gwaii | Ronin, Cowichan, effective July 18, 2026; Michael Oviatt, Campbell River, 2026 list; Sharecost, Nanaimo, undated |
 
 Region-specific review should focus on conditions actually present: borrow and
 quarry access, suitable cut, rock excavation, wet ground, bridges, stabilization,
@@ -79,6 +222,9 @@ winter construction, equipment/crew travel, camp and barge/ferry logistics.
 These are questions to investigate, not attributes inferred from the region.
 
 ## Published material examples
+
+The catalogue now holds every supplier record with its terms; the table below
+is the October selection that started it.
 
 | Primary supplier source | Observed price | Date and inclusions |
 | --- | --- | --- |
@@ -144,10 +290,12 @@ equipment reference. The appraisal manuals' selected equipment allowances
 use an older rate edition and are generally all-found; adding an operator or
 profit again can duplicate included costs.
 
-The [Hired Equipment Program fuel adjustment][fuel] for October 2026 is
-$25.50/hour on-road and $59.50/hour off-road. This is a program-specific monthly
-adjustment. It is not a regional multiplier and must not be stacked on a quote
-that already includes the applicable fuel cost.
+The [Hired Equipment Program fuel adjustment][fuel] for November 2026 is
+$26.10/hour on-road and $60.90/hour off-road (October: $25.50 and $59.50). This
+is a program-specific monthly adjustment, separate from the Interior manual's
+own appraisal fuel allowance of $10.23 and $23.86. Neither is a regional
+multiplier, and neither is stacked on a quote that already includes the
+applicable fuel cost.
 
 ## Converting prices onto the model's basis
 
@@ -201,13 +349,20 @@ together.
 ## Verification and ownership
 
 The source catalogue is human-reviewed app configuration, not a scraper-owned
-snapshot. Maintain each primary URL, effective date and inclusion note together.
+snapshot. Its records are generated from the reviewed research packages (see
+[Limits and upkeep](#limits-and-upkeep)). Maintain each primary URL, effective
+date and inclusion note together.
 Do not automatically roll a saved comparison to a newer manual edition.
 
 Co-located tests cover numerical examples, missing/invalid inputs, applicable
 limits, material-balance screening and unit conversions. The browser regression
 checks preset preservation, eight-region navigation, both benchmark exports,
-unchanged saved project values, and access to controls on a phone viewport.
+the separate stabilizing allowance, a region's evidence and its stated gap, the
+evidence filters, a worked estimate's totals, the two fuel figures, unchanged
+saved project values, an adoption (no button on a funding reference, an empty
+rate field for a tonne price, the cost dialog's source line, the saved
+`rateEvidence` and one undo taking back both), and access to controls on a
+phone viewport.
 These verify the implemented arithmetic and workflow, not agreement with
 actual contractor bids.
 

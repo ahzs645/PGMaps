@@ -2,6 +2,8 @@
 
 Open **Branding** from the workspace header or Ribbon **Find tools**. Import a single-brand Brandkit ZIP pack or `brandkit/consumer-profile/1` JSON, preview its complete light and reverse artwork, then choose any combination of workspace, help, and report/drawing branding. Importing saves a preview; **Apply choices** activates it. Selecting **DDC Access (default)** restores the built-in identity. Removing an active brand also restores that identity.
 
+**Interface theme** opens the shared PGMaps Appearance editor. Preview a preset, edit either palette, and adjust the corner radius with any brand selected. Apply the theme across PGMaps or copy its CSS variables. Reset the primary colour to use the workspace brand's colour again.
+
 Brands and choices live in this browser's IndexedDB, not the project file. Existing project names, organisation fields, road calculations, map symbols, and status colours retain their meaning. An explicitly uploaded block-sheet logo takes precedence over the selected brand. Screen and HTML typography is optional, independently of PDF typography. Consumer profiles name fonts but do not carry binaries; unavailable faces use fallback fonts.
 
 ## PDF fonts

@@ -1,0 +1,1449 @@
+{
+ "checked": "2026-11-12",
+ "records": [
+  {
+   "id": "local-001",
+   "kind": "supplier-price",
+   "group": "GetGravel / River Road Landscape Supply",
+   "title": "Road Crush 3/4-inch Minus",
+   "party": "GetGravel / River Road Landscape Supply",
+   "place": "180 River Road, Prince George",
+   "regionId": "omineca",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 49.99
+   },
+   "unit": "/yd³",
+   "unitNote": "Purchased loose volume, not compacted road volume.",
+   "freshness": "undated",
+   "tier": "retail",
+   "dateNote": "No price effective date is stated; page is live and was checked on the review date.",
+   "tax": "excluded",
+   "loading": "Included: loaded into the customer's vehicle at the yard",
+   "delivery": "Not included in this loaded-yard price",
+   "installation": "Not included in this material sale",
+   "surcharges": [],
+   "availability": "Page banner: closed for winter; pre-orders for spring 2027; earliest pickup/delivery April 20, 2027.",
+   "cautions": [
+    "Retail loaded-yard comparison",
+    "not a delivered forestry-road construction rate. No mass/volume or compaction conversion supplied here. Seasonally unavailable on review date",
+    "displayed prices are undated, not a dated 2027 quotation."
+   ],
+   "url": "https://getgravel.com/products",
+   "locator": "Products introduction and Construction Gravels & Sands",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-002",
+   "kind": "supplier-price",
+   "group": "GetGravel / River Road Landscape Supply",
+   "title": "Sandy Fill",
+   "party": "GetGravel / River Road Landscape Supply",
+   "place": "180 River Road, Prince George",
+   "regionId": "omineca",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 14.99
+   },
+   "unit": "/yd³",
+   "unitNote": "Purchased loose volume, not compacted road volume.",
+   "freshness": "undated",
+   "tier": "retail",
+   "dateNote": "No price effective date stated",
+   "tax": "excluded",
+   "loading": "Included: loaded into customer's vehicle",
+   "delivery": "Not included",
+   "installation": "Not included",
+   "surcharges": [],
+   "availability": "Page banner: closed for winter; pre-orders for spring 2027; earliest pickup/delivery April 20, 2027.",
+   "cautions": [
+    "Described for deeper landscape fill",
+    "engineering suitability for structural fill is not established. Seasonally unavailable on review date",
+    "displayed prices are undated, not a dated 2027 quotation."
+   ],
+   "url": "https://getgravel.com/products",
+   "locator": "Construction Gravels & Sands",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-003",
+   "kind": "supplier-price",
+   "group": "GetGravel / River Road Landscape Supply",
+   "title": "Bedding Sand",
+   "party": "GetGravel / River Road Landscape Supply",
+   "place": "180 River Road, Prince George",
+   "regionId": "omineca",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 60.99
+   },
+   "unit": "/yd³",
+   "unitNote": "Purchased loose volume, not compacted road volume.",
+   "freshness": "undated",
+   "tier": "retail",
+   "dateNote": "No price effective date stated",
+   "tax": "excluded",
+   "loading": "Included: loaded into customer's vehicle",
+   "delivery": "Not included",
+   "installation": "Not included",
+   "surcharges": [],
+   "availability": "Page banner: closed for winter; pre-orders for spring 2027; earliest pickup/delivery April 20, 2027.",
+   "cautions": [
+    "Screened natural sand for pipe bedding, trench work and general levelling",
+    "no specified construction standard verified. Seasonally unavailable on review date",
+    "displayed prices are undated, not a dated 2027 quotation."
+   ],
+   "url": "https://getgravel.com/products",
+   "locator": "Construction Gravels & Sands",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-004",
+   "kind": "supplier-price",
+   "group": "GetGravel / River Road Landscape Supply",
+   "title": "Washed Drain Rock 3/4-inch",
+   "party": "GetGravel / River Road Landscape Supply",
+   "place": "180 River Road, Prince George",
+   "regionId": "omineca",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 71.99
+   },
+   "unit": "/yd³",
+   "unitNote": "Purchased loose volume, not compacted road volume.",
+   "freshness": "undated",
+   "tier": "retail",
+   "dateNote": "No price effective date stated",
+   "tax": "excluded",
+   "loading": "Included: loaded into customer's vehicle",
+   "delivery": "Not included",
+   "installation": "Not included",
+   "surcharges": [],
+   "availability": "Page banner: closed for winter; pre-orders for spring 2027; earliest pickup/delivery April 20, 2027.",
+   "cautions": [
+    "Drainage aggregate",
+    "not substitutable for compacted road base. Seasonally unavailable on review date",
+    "displayed prices are undated, not a dated 2027 quotation."
+   ],
+   "url": "https://getgravel.com/products",
+   "locator": "Drain Rock & Pea Gravel",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-005",
+   "kind": "supplier-price",
+   "group": "D.R.S. Energy Services",
+   "title": "3/4-inch minus",
+   "party": "D.R.S. Energy Services",
+   "place": "Fort St. John; pit at 7069 265 Road",
+   "regionId": "northeast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 16
+   },
+   "unit": "/t",
+   "freshness": "undated",
+   "dateNote": "No effective date stated on list",
+   "surcharges": [],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Public numeric material price with incomplete commercial terms",
+    "confirm before purchasing."
+   ],
+   "url": "https://www.drsenergy.ca/products",
+   "locator": "Our Products, first material and first price in matching lists",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-006",
+   "kind": "supplier-price",
+   "group": "D.R.S. Energy Services",
+   "title": "Pit run",
+   "party": "D.R.S. Energy Services",
+   "place": "Fort St. John; pit at 7069 265 Road",
+   "regionId": "northeast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 12.25
+   },
+   "unit": "/t",
+   "freshness": "undated",
+   "dateNote": "No effective date stated on list",
+   "surcharges": [],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "No published engineering specification or commercial inclusion details."
+   ],
+   "url": "https://www.drsenergy.ca/products",
+   "locator": "Our Products, eighth material and eighth price",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-007",
+   "kind": "supplier-price",
+   "group": "D.R.S. Energy Services",
+   "title": "1 1/2-inch minus",
+   "party": "D.R.S. Energy Services",
+   "place": "Fort St. John; pit at 7069 265 Road",
+   "regionId": "northeast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 13.4
+   },
+   "unit": "/t",
+   "freshness": "undated",
+   "dateNote": "No effective date stated on list",
+   "surcharges": [],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "No published engineering specification or commercial inclusion details."
+   ],
+   "url": "https://www.drsenergy.ca/products",
+   "locator": "Our Products, third material and third price",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-008",
+   "kind": "supplier-price",
+   "group": "D.R.S. Energy Services",
+   "title": "2-inch minus",
+   "party": "D.R.S. Energy Services",
+   "place": "Fort St. John; pit at 7069 265 Road",
+   "regionId": "northeast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 13.35
+   },
+   "unit": "/t",
+   "freshness": "undated",
+   "dateNote": "No effective date stated on list",
+   "surcharges": [],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "No published engineering specification or commercial inclusion details."
+   ],
+   "url": "https://www.drsenergy.ca/products",
+   "locator": "Our Products, sixth material and sixth price",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-009",
+   "kind": "supplier-price",
+   "group": "D.R.S. Energy Services",
+   "title": "Screened sand",
+   "party": "D.R.S. Energy Services",
+   "place": "Fort St. John; pit at 7069 265 Road",
+   "regionId": "northeast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 18.65
+   },
+   "unit": "/t",
+   "freshness": "undated",
+   "dateNote": "No effective date stated on list",
+   "surcharges": [],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "No published engineering specification or commercial inclusion details."
+   ],
+   "url": "https://www.drsenergy.ca/products",
+   "locator": "Our Products, ninth material and ninth price",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-010",
+   "kind": "municipal-fee",
+   "group": "District of New Hazelton",
+   "title": "Gravel, municipal access fee schedule",
+   "party": "District of New Hazelton",
+   "place": "New Hazelton",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 147
+   },
+   "unit": " per load",
+   "unitNote": "The schedule does not give the load volume.",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-09-08",
+   "dateNote": "Bylaw comes into force on adoption; adopted September 8, 2026, p2",
+   "tax": "included: freight, taxes and GST stated as included",
+   "loading": "Not specified separately",
+   "delivery": "Freight included under access fee schedule; geographic/service scope requires confirmation",
+   "installation": "Not established by the table",
+   "surcharges": [],
+   "surchargeNote": "10 percent administration on all costs except Basic Access Fee",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Supplementary local-government fee only. Load mass/volume and aggregate grading are unspecified. Do not convert to tonne/m3 or use as a regionwide quarry/construction rate."
+   ],
+   "url": "https://newhazelton.ca/wp-content/uploads/2026/09/BL-393-Fees-and-Charges-Bylaw.pdf",
+   "locator": "Bylaw 393, Schedule A, Access, printed p7 (PDF page index 6)",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-011",
+   "kind": "municipal-fee",
+   "group": "District of New Hazelton",
+   "title": "400 mm culvert (also printed as 15-inch), municipal access fee schedule",
+   "party": "District of New Hazelton",
+   "place": "New Hazelton",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 85.5
+   },
+   "unit": "/m",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-09-08",
+   "dateNote": "Effective on adoption; September 8, 2026",
+   "tax": "included: freight, taxes and GST stated as included",
+   "loading": "Not specified separately",
+   "delivery": "Freight included under access fee schedule",
+   "installation": "Not established by the table",
+   "surcharges": [],
+   "surchargeNote": "10 percent administration on all costs except Basic Access Fee",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Culvert material, wall thickness, structural class and installation scope are unspecified. Source's 400 mm / 15-inch labels are retained as printed. Not a forestry crossing design or installed-crossing price."
+   ],
+   "url": "https://newhazelton.ca/wp-content/uploads/2026/09/BL-393-Fees-and-Charges-Bylaw.pdf",
+   "locator": "Bylaw 393, Schedule A, Access, printed p7 (PDF page index 6)",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-012",
+   "kind": "maintenance-award",
+   "group": "City of Williams Lake contract award",
+   "title": "Winter sand",
+   "party": "Peterson Contracting; City of Williams Lake contract award",
+   "place": "Williams Lake",
+   "regionId": "cariboo",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 34.86
+   },
+   "unit": "/m³",
+   "unitNote": "The source does not say whether the volume is loose, bank or compacted.",
+   "freshness": "award",
+   "dateNote": "Council award July 14, 2026; procurement report June 25, 2026. Contract commencement/end not stated in the minutes.",
+   "tax": "excluded: applicable taxes (GST)",
+   "installation": "No application/spreading rate established",
+   "surcharges": [],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Winter traction material and a specific municipal purchase",
+    "not road-base gravel, open retail offer, or regionwide forestry construction rate."
+   ],
+   "url": "https://williamslake.civicweb.net/document/185157",
+   "locator": "July 14, 2026 council minutes p3, C2a, RES 256/26; quantity in July 16 council highlights",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-013",
+   "kind": "maintenance-award",
+   "group": "City of Williams Lake contract award",
+   "title": "Dried bulk highway salt, first contract year",
+   "party": "Chances Bulk Unloading; City of Williams Lake contract award",
+   "place": "Williams Lake",
+   "regionId": "cariboo",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 275.8
+   },
+   "unit": "/t",
+   "freshness": "award",
+   "dateNote": "Award July 14, 2026 for three-year contract; exact commencement/end unstated in minutes. Council highlights describe 2026-2029.",
+   "tax": "included: applicable taxes, per resolution 257/26",
+   "installation": "No spreading/application rate established",
+   "surcharges": [],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Winter maintenance only. First-year contract value",
+    "second and third years are 289.40 and 301.28 CAD/tonne respectively, also including applicable taxes. Do not substitute for aggregate construction pricing."
+   ],
+   "url": "https://williamslake.civicweb.net/document/185157",
+   "locator": "July 14, 2026 council minutes p4, C2b, RES 257/26",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-014",
+   "kind": "supplier-price",
+   "group": "Cantex Crushing",
+   "title": "3/4-inch minus MMCD",
+   "party": "Cantex Crushing",
+   "place": "Summerland, BC; 17202 Bathville Road",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 15.38
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "tier": "retail",
+   "costYear": 2026,
+   "effectiveDate": "2026-04-01",
+   "dateNote": "Page explicitly gives April 1, 2026.",
+   "tax": "Applicable taxes excluded.",
+   "loading": "Included: FOB Summerland pit, loaded into customer's truck.",
+   "delivery": "Additional; quoted per load.",
+   "installation": "No installation included in published FOB material prices.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Prices subject to change.",
+    "Contractor qualification must be confirmed with supplier."
+   ],
+   "url": "https://www.cantexcrushing.com/gravel-pit-summerland/",
+   "locator": "Retail prices table and conditions",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-015",
+   "kind": "supplier-price",
+   "group": "Cantex Crushing",
+   "title": "3/4-inch minus MMCD",
+   "party": "Cantex Crushing",
+   "place": "Summerland, BC; 17202 Bathville Road",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 14.25
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "tier": "contractor",
+   "costYear": 2026,
+   "effectiveDate": "2026-04-01",
+   "dateNote": "Page explicitly gives April 1, 2026.",
+   "tax": "Applicable taxes excluded.",
+   "loading": "Included: FOB Summerland pit, loaded into customer's truck.",
+   "delivery": "Additional; quoted per load.",
+   "installation": "No installation included in published FOB material prices.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Prices subject to change.",
+    "Contractor qualification must be confirmed with supplier."
+   ],
+   "url": "https://www.cantexcrushing.com/gravel-pit-summerland/",
+   "locator": "Retail prices table and conditions",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-016",
+   "kind": "supplier-price",
+   "group": "Cantex Crushing",
+   "title": "3-inch minus MMCD / MoTT",
+   "party": "Cantex Crushing",
+   "place": "Summerland, BC; 17202 Bathville Road",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 15.27
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "tier": "retail",
+   "costYear": 2026,
+   "effectiveDate": "2026-04-01",
+   "dateNote": "Page explicitly gives April 1, 2026.",
+   "tax": "Applicable taxes excluded.",
+   "loading": "Included: FOB Summerland pit, loaded into customer's truck.",
+   "delivery": "Additional; quoted per load.",
+   "installation": "No installation included in published FOB material prices.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Prices subject to change.",
+    "Contractor qualification must be confirmed with supplier."
+   ],
+   "url": "https://www.cantexcrushing.com/gravel-pit-summerland/",
+   "locator": "Retail prices table and conditions",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-017",
+   "kind": "supplier-price",
+   "group": "Cantex Crushing",
+   "title": "Pit-run",
+   "party": "Cantex Crushing",
+   "place": "Summerland, BC; 17202 Bathville Road",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 9.23
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "tier": "retail",
+   "costYear": 2026,
+   "effectiveDate": "2026-04-01",
+   "dateNote": "Page explicitly gives April 1, 2026.",
+   "tax": "Applicable taxes excluded.",
+   "loading": "Included: FOB Summerland pit, loaded into customer's truck.",
+   "delivery": "Additional; quoted per load.",
+   "installation": "No installation included in published FOB material prices.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Prices subject to change.",
+    "Contractor qualification must be confirmed with supplier."
+   ],
+   "url": "https://www.cantexcrushing.com/gravel-pit-summerland/",
+   "locator": "Retail prices table and conditions",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-018",
+   "kind": "supplier-price",
+   "group": "Grizzly Excavating",
+   "title": "19 mm (3/4-inch) minus crush",
+   "party": "Grizzly Excavating",
+   "place": "181 Green Mountain Road aggregate yard, Penticton, BC",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 16.95
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-04-01",
+   "dateNote": "PDF explicitly gives April 1, 2026. Replaces search-indexed January 2025 list.",
+   "tax": "Products and services subject to applicable taxes.",
+   "loading": "Loading inclusion not separately stated; scale free when purchasing material.",
+   "delivery": "Separate trucking rates; PDF states delivery for three or more loads is by the hour.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Aggregate minimum charge $55 per load.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Prices subject to change without notice.",
+    "Truck/operator/fuel inclusions not specified in rate list."
+   ],
+   "url": "https://grizzlyex.com/wp-content/uploads/2026/04/AGGREGATE-PRICE-LIST-GREEN-MTN-ROAD-FACILITY-2026-1.pdf",
+   "locator": "One-page 2026 list; visually checked; current supplier gravel-sales page links it.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-019",
+   "kind": "supplier-price",
+   "group": "Grizzly Excavating",
+   "title": "75 mm (3-inch) minus crush",
+   "party": "Grizzly Excavating",
+   "place": "181 Green Mountain Road aggregate yard, Penticton, BC",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 16.5
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-04-01",
+   "dateNote": "PDF explicitly gives April 1, 2026. Replaces search-indexed January 2025 list.",
+   "tax": "Products and services subject to applicable taxes.",
+   "loading": "Loading inclusion not separately stated; scale free when purchasing material.",
+   "delivery": "Separate trucking rates; PDF states delivery for three or more loads is by the hour.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Aggregate minimum charge $55 per load.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Prices subject to change without notice.",
+    "Truck/operator/fuel inclusions not specified in rate list."
+   ],
+   "url": "https://grizzlyex.com/wp-content/uploads/2026/04/AGGREGATE-PRICE-LIST-GREEN-MTN-ROAD-FACILITY-2026-1.pdf",
+   "locator": "One-page 2026 list; visually checked; current supplier gravel-sales page links it.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-020",
+   "kind": "supplier-price",
+   "group": "Grizzly Excavating",
+   "title": "Bedding sand",
+   "party": "Grizzly Excavating",
+   "place": "181 Green Mountain Road aggregate yard, Penticton, BC",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 15
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-04-01",
+   "dateNote": "PDF explicitly gives April 1, 2026. Replaces search-indexed January 2025 list.",
+   "tax": "Products and services subject to applicable taxes.",
+   "loading": "Loading inclusion not separately stated; scale free when purchasing material.",
+   "delivery": "Separate trucking rates; PDF states delivery for three or more loads is by the hour.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Aggregate minimum charge $55 per load.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Prices subject to change without notice.",
+    "Truck/operator/fuel inclusions not specified in rate list."
+   ],
+   "url": "https://grizzlyex.com/wp-content/uploads/2026/04/AGGREGATE-PRICE-LIST-GREEN-MTN-ROAD-FACILITY-2026-1.pdf",
+   "locator": "One-page 2026 list; visually checked; current supplier gravel-sales page links it.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-021",
+   "kind": "supplier-haul",
+   "group": "Grizzly Excavating",
+   "title": "Tandem axle truck",
+   "party": "Grizzly Excavating",
+   "place": "181 Green Mountain Road aggregate yard, Penticton, BC",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 145
+   },
+   "unit": "/hour",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-04-01",
+   "dateNote": "PDF explicitly gives April 1, 2026. Replaces search-indexed January 2025 list.",
+   "tax": "Products and services subject to applicable taxes.",
+   "loading": "Loading inclusion not stated for this hourly truck service.",
+   "delivery": "Hourly trucking rate; source states three or more loads are delivered by the hour. Confirm smaller deliveries.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Truck-service minimum not stated; the $55/load aggregate minimum applies to material purchases.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Prices subject to change without notice.",
+    "Truck/operator/fuel inclusions not specified in rate list."
+   ],
+   "url": "https://grizzlyex.com/wp-content/uploads/2026/04/AGGREGATE-PRICE-LIST-GREEN-MTN-ROAD-FACILITY-2026-1.pdf",
+   "locator": "One-page 2026 list; visually checked; current supplier gravel-sales page links it.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-022",
+   "kind": "supplier-price",
+   "group": "Ronin Earthworks",
+   "title": "3/4-inch road base",
+   "party": "Ronin Earthworks",
+   "place": "Cowichan Valley and Greater Victoria; yard at 841 Malahat Drive, Malahat, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 17.6
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-07-18",
+   "dateNote": "Rate card explicitly gives July 18, 2026.",
+   "loading": "Material priced at pit; loading inclusion not separately stated.",
+   "delivery": "Billed at listed hourly truck rate.",
+   "installation": "No placement or compaction installation price published.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Truck rates are portal-to-portal and include truck, fuel and operator.",
+    "Actual payload depends on material density and road restrictions."
+   ],
+   "url": "https://roninearthworks.ca/rates",
+   "locator": "Effective date line 4; trucking table and inclusions; material table and haul separation.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-023",
+   "kind": "supplier-price",
+   "group": "Ronin Earthworks",
+   "title": "3/4-inch clear aggregate",
+   "party": "Ronin Earthworks",
+   "place": "Cowichan Valley and Greater Victoria; yard at 841 Malahat Drive, Malahat, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 21.45
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-07-18",
+   "dateNote": "Rate card explicitly gives July 18, 2026.",
+   "loading": "Material priced at pit; loading inclusion not separately stated.",
+   "delivery": "Billed at listed hourly truck rate.",
+   "installation": "No placement or compaction installation price published.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Truck rates are portal-to-portal and include truck, fuel and operator.",
+    "Actual payload depends on material density and road restrictions."
+   ],
+   "url": "https://roninearthworks.ca/rates",
+   "locator": "Effective date line 4; trucking table and inclusions; material table and haul separation.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-024",
+   "kind": "supplier-price",
+   "group": "Ronin Earthworks",
+   "title": "HydroSpec 1/4-inch aggregate",
+   "party": "Ronin Earthworks",
+   "place": "Cowichan Valley and Greater Victoria; yard at 841 Malahat Drive, Malahat, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 24.75
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-07-18",
+   "dateNote": "Rate card explicitly gives July 18, 2026.",
+   "loading": "Material priced at pit; loading inclusion not separately stated.",
+   "delivery": "Billed at listed hourly truck rate.",
+   "installation": "No placement or compaction installation price published.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Truck rates are portal-to-portal and include truck, fuel and operator.",
+    "Actual payload depends on material density and road restrictions."
+   ],
+   "url": "https://roninearthworks.ca/rates",
+   "locator": "Effective date line 4; trucking table and inclusions; material table and haul separation.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-025",
+   "kind": "supplier-haul",
+   "group": "Ronin Earthworks",
+   "title": "Tandem truck",
+   "party": "Ronin Earthworks",
+   "place": "Cowichan Valley and Greater Victoria; yard at 841 Malahat Drive, Malahat, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 145
+   },
+   "unit": "/hour",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-07-18",
+   "dateNote": "Rate card explicitly gives July 18, 2026.",
+   "loading": "Whether loading time is charged is not separately stated; portal-to-portal truck billing applies.",
+   "delivery": "Hourly trucking service. Actual site cycle and payload required.",
+   "installation": "No placement or compaction installation price published.",
+   "surcharges": [],
+   "surchargeNote": "Truck, fuel and operator included; portal-to-portal billing.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Truck rates are portal-to-portal and include truck, fuel and operator.",
+    "Actual payload depends on material density and road restrictions."
+   ],
+   "url": "https://roninearthworks.ca/rates",
+   "locator": "Effective date line 4; trucking table and inclusions; material table and haul separation.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-026",
+   "kind": "supplier-price",
+   "group": "Michael Oviatt Trucking & Aggregate",
+   "title": "Bank pit run",
+   "party": "Michael Oviatt Trucking & Aggregate",
+   "place": "Campbell River / Oyster River, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 9.99
+   },
+   "unit": "/t",
+   "freshness": "year-only",
+   "dateNote": "List labelled 2026; no day/month effective date supplied.",
+   "loading": "Page lists minimum load fee $50 and separately says products exceeding $25/yard attract $35 plus product cost; exact application requires clarification.",
+   "delivery": "Delivery available; whether listed product prices include any delivery is not stated.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Page says minimum three-yard orders; also gives loading-fee conditions.",
+   "surcharges": [
+    "Fuel surcharge: 10%; applies to all products"
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Use listed tonne prices directly, not conversions from paired yard prices.",
+    "Supplier spells the road-material specification MMDC",
+    "independent MMCD compliance not verified.",
+    "Pickup requires prior office contact."
+   ],
+   "url": "https://www.michaeloviatttrucking.com/aggregate-supplied",
+   "locator": "2026 heading and surcharge line 25; aggregate prices; loading/minimum terms.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-027",
+   "kind": "supplier-price",
+   "group": "Michael Oviatt Trucking & Aggregate",
+   "title": "3-inch SGSB",
+   "party": "Michael Oviatt Trucking & Aggregate",
+   "place": "Campbell River / Oyster River, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 11.5
+   },
+   "unit": "/t",
+   "freshness": "year-only",
+   "dateNote": "List labelled 2026; no day/month effective date supplied.",
+   "loading": "Page lists minimum load fee $50 and separately says products exceeding $25/yard attract $35 plus product cost; exact application requires clarification.",
+   "delivery": "Delivery available; whether listed product prices include any delivery is not stated.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Page says minimum three-yard orders; also gives loading-fee conditions.",
+   "surcharges": [
+    "Fuel surcharge: 10%; applies to all products"
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Use listed tonne prices directly, not conversions from paired yard prices.",
+    "Supplier spells the road-material specification MMDC",
+    "independent MMCD compliance not verified.",
+    "Pickup requires prior office contact."
+   ],
+   "url": "https://www.michaeloviatttrucking.com/aggregate-supplied",
+   "locator": "2026 heading and surcharge line 25; aggregate prices; loading/minimum terms.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-028",
+   "kind": "supplier-price",
+   "group": "Michael Oviatt Trucking & Aggregate",
+   "title": "19 mm (3/4-inch) road crush",
+   "party": "Michael Oviatt Trucking & Aggregate",
+   "place": "Campbell River / Oyster River, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 19.99
+   },
+   "unit": "/t",
+   "freshness": "year-only",
+   "dateNote": "List labelled 2026; no day/month effective date supplied.",
+   "loading": "Page lists minimum load fee $50 and separately says products exceeding $25/yard attract $35 plus product cost; exact application requires clarification.",
+   "delivery": "Delivery available; whether listed product prices include any delivery is not stated.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Page says minimum three-yard orders; also gives loading-fee conditions.",
+   "surcharges": [
+    "Fuel surcharge: 10%; applies to all products"
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Use listed tonne prices directly, not conversions from paired yard prices.",
+    "Supplier spells the road-material specification MMDC",
+    "independent MMCD compliance not verified.",
+    "Pickup requires prior office contact."
+   ],
+   "url": "https://www.michaeloviatttrucking.com/aggregate-supplied",
+   "locator": "2026 heading and surcharge line 25; aggregate prices; loading/minimum terms.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-029",
+   "kind": "supplier-price",
+   "group": "Kel-Mor Enterprises",
+   "title": "19 mm (3/4-inch) road base",
+   "party": "Kel-Mor Enterprises",
+   "place": "45895 Promontory Road, Chilliwack, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 14.75
+   },
+   "unit": "/t",
+   "freshness": "undated",
+   "dateNote": "No supplier effective date stated.",
+   "loading": "Complimentary loader service for orders over $30; smaller quantities self-load.",
+   "delivery": "Booked separately by phone; pricing and timing confirmed by dispatch.",
+   "installation": "No installation included in published material rate.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Product page headline $2 is bucket pricing, not per-tonne pricing.",
+    "No independent specification certification verified."
+   ],
+   "url": "https://www.kelmor.ca/product-page/3-4-inch-road-base-19mm",
+   "locator": "Key details; pickup/delivery conditions.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-030",
+   "kind": "supplier-price",
+   "group": "Stockwell Gravel",
+   "title": "3/4-inch minus MMCD road base",
+   "party": "Stockwell Gravel",
+   "place": "5378 Allen Road, Sechelt, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 27
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2025,
+   "effectiveDate": "2025-01-01",
+   "dateNote": "Page explicitly gives January 1, 2025; retained as dated older reference.",
+   "tax": "Taxes and fees additional.",
+   "loading": "Minimum machine-loaded aggregate charge $60; self-load charge $30 per load.",
+   "delivery": "Road base is marked delivery-only, not stocked on site. Delivery price inclusion is not stated; separate truck rates listed.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Loading charge minimums apply; no product tonnage minimum stated.",
+   "surcharges": [
+    "Environmental surcharge: $0.75 per tonne; applies to all materials"
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Per metric tonne.",
+    "Delivery-only availability must not be interpreted as delivery included in material price."
+   ],
+   "url": "https://www.stockwellgravel.ca/pricing/",
+   "locator": "Price-list date and material conditions; truck rates.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-031",
+   "kind": "supplier-price",
+   "group": "Stockwell Gravel",
+   "title": "Pit sand / structural fill sand",
+   "party": "Stockwell Gravel",
+   "place": "5378 Allen Road, Sechelt, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 13
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2025,
+   "effectiveDate": "2025-01-01",
+   "dateNote": "Page explicitly gives January 1, 2025; retained as dated older reference.",
+   "tax": "Taxes and fees additional.",
+   "loading": "Minimum machine-loaded aggregate charge $60; self-load charge $30 per load.",
+   "delivery": "No delivery-only asterisk on this product. Delivery inclusion unspecified; separate hourly truck rates are published.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Loading charge minimums apply; no product tonnage minimum stated.",
+   "surcharges": [
+    "Environmental surcharge: $0.75 per tonne; applies to all materials"
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Per metric tonne. Confirm stock, delivered total and project material specification."
+   ],
+   "url": "https://www.stockwellgravel.ca/pricing/",
+   "locator": "Price-list date and material conditions; truck rates.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-032",
+   "kind": "supplier-price",
+   "group": "Stockwell Gravel",
+   "title": "4-inch minus crushed recycled concrete",
+   "party": "Stockwell Gravel",
+   "place": "5378 Allen Road, Sechelt, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 20
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2025,
+   "effectiveDate": "2025-01-01",
+   "dateNote": "Page explicitly gives January 1, 2025; retained as dated older reference.",
+   "tax": "Taxes and fees additional.",
+   "loading": "Minimum machine-loaded aggregate charge $60; self-load charge $30 per load.",
+   "delivery": "No delivery-only asterisk on this product. Delivery inclusion unspecified; separate hourly truck rates are published.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Loading charge minimums apply; no product tonnage minimum stated.",
+   "surcharges": [
+    "Environmental surcharge: $0.75 per tonne; applies to all materials"
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Per metric tonne. Confirm stock, delivered total and project material specification."
+   ],
+   "url": "https://www.stockwellgravel.ca/pricing/",
+   "locator": "Price-list date and material conditions; truck rates.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-033",
+   "kind": "supplier-haul",
+   "group": "Stockwell Gravel",
+   "title": "Tandem dump truck",
+   "party": "Stockwell Gravel",
+   "place": "5378 Allen Road, Sechelt, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 165
+   },
+   "unit": "/hour",
+   "freshness": "dated",
+   "costYear": 2025,
+   "effectiveDate": "2025-01-01",
+   "dateNote": "Page explicitly gives January 1, 2025; retained as dated older reference.",
+   "tax": "Taxes and fees additional.",
+   "loading": "Not specified for this hourly truck service.",
+   "delivery": "This is the separate hourly truck rate, not a delivered material price.",
+   "installation": "No installed construction rate published.",
+   "minimum": "Truck-service minimum not stated.",
+   "surcharges": [],
+   "surchargeNote": "Material environmental fee is separate and is not applied per truck-hour. Confirm other haul surcharges.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Hourly haul reference. Fuel/operator inclusions and truck-service minimum need confirmation",
+    "published capacity is approximately 14 tons."
+   ],
+   "url": "https://www.stockwellgravel.ca/pricing/",
+   "locator": "Price-list date and material conditions; truck rates.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-034",
+   "kind": "supplier-price",
+   "group": "Skwlāx Aggregates",
+   "title": "25 mm WGB, MOTT specification",
+   "party": "Skwlāx Aggregates",
+   "place": "891 Squilax-Anglemont Road, Chase, BC",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 13
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-08-25",
+   "dateNote": "PDF explicitly states both updated and effective August 25, 2026.",
+   "tax": "Taxes not included.",
+   "loading": "$10 loading fee is listed with unit 'Unit'; per-load/per-order scope not specified.",
+   "delivery": "Separate hourly truck rates; fuel surcharge varies monthly.",
+   "installation": "No installed construction rate published.",
+   "surcharges": [
+    "Fuel surcharge: amount not published; applies to trucking-rate section. Varies monthly depending on market; no numeric amount published."
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Pricing subject to change without notice.",
+    "Do not use old 2025 tandem rate of $150/hour.",
+    "Fuel surcharge amount cannot be imputed."
+   ],
+   "url": "https://www.skwlaxaggregates.com/wp-content/uploads/2026/10/Skwlax-Aggregates-Price-List.pdf",
+   "locator": "One-page Current Rate Card, dated August 25, 2026; screenshot  visually checked.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-035",
+   "kind": "supplier-price",
+   "group": "Skwlāx Aggregates",
+   "title": "75 mm SGSB/BEF, MOTT specification",
+   "party": "Skwlāx Aggregates",
+   "place": "891 Squilax-Anglemont Road, Chase, BC",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 12.75
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-08-25",
+   "dateNote": "PDF explicitly states both updated and effective August 25, 2026.",
+   "tax": "Taxes not included.",
+   "loading": "$10 loading fee is listed with unit 'Unit'; per-load/per-order scope not specified.",
+   "delivery": "Separate hourly truck rates; fuel surcharge varies monthly.",
+   "installation": "No installed construction rate published.",
+   "surcharges": [
+    "Fuel surcharge: amount not published; applies to trucking-rate section. Varies monthly depending on market; no numeric amount published."
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Pricing subject to change without notice.",
+    "Do not use old 2025 tandem rate of $150/hour.",
+    "Fuel surcharge amount cannot be imputed."
+   ],
+   "url": "https://www.skwlaxaggregates.com/wp-content/uploads/2026/10/Skwlax-Aggregates-Price-List.pdf",
+   "locator": "One-page Current Rate Card, dated August 25, 2026; screenshot  visually checked.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-036",
+   "kind": "supplier-price",
+   "group": "Skwlāx Aggregates",
+   "title": "Pit run",
+   "party": "Skwlāx Aggregates",
+   "place": "891 Squilax-Anglemont Road, Chase, BC",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 7.35
+   },
+   "unit": "/t",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-08-25",
+   "dateNote": "PDF explicitly states both updated and effective August 25, 2026.",
+   "tax": "Taxes not included.",
+   "loading": "$10 loading fee is listed with unit 'Unit'; per-load/per-order scope not specified.",
+   "delivery": "Separate hourly truck rates; fuel surcharge varies monthly.",
+   "installation": "No installed construction rate published.",
+   "surcharges": [
+    "Fuel surcharge: amount not published; applies to trucking-rate section. Varies monthly depending on market; no numeric amount published."
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Pricing subject to change without notice.",
+    "Do not use old 2025 tandem rate of $150/hour.",
+    "Fuel surcharge amount cannot be imputed."
+   ],
+   "url": "https://www.skwlaxaggregates.com/wp-content/uploads/2026/10/Skwlax-Aggregates-Price-List.pdf",
+   "locator": "One-page Current Rate Card, dated August 25, 2026; screenshot  visually checked.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-037",
+   "kind": "supplier-haul",
+   "group": "Skwlāx Aggregates",
+   "title": "Tandem truck",
+   "party": "Skwlāx Aggregates",
+   "place": "891 Squilax-Anglemont Road, Chase, BC",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 160
+   },
+   "unit": "/hour",
+   "freshness": "dated",
+   "costYear": 2026,
+   "effectiveDate": "2026-08-25",
+   "dateNote": "PDF explicitly states both updated and effective August 25, 2026.",
+   "tax": "Taxes not included.",
+   "loading": "A separate $10/Unit loading-fee line is published; applicability and Unit definition need confirmation.",
+   "delivery": "Separate hourly truck rates; fuel surcharge varies monthly.",
+   "installation": "No installed construction rate published.",
+   "surcharges": [
+    "Fuel surcharge: amount not published; applies to trucking-rate section. Varies monthly depending on market; no numeric amount published."
+   ],
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Pricing subject to change without notice.",
+    "Do not use old 2025 tandem rate of $150/hour.",
+    "Fuel surcharge amount cannot be imputed."
+   ],
+   "url": "https://www.skwlaxaggregates.com/wp-content/uploads/2026/10/Skwlax-Aggregates-Price-List.pdf",
+   "locator": "One-page Current Rate Card, dated August 25, 2026; screenshot  visually checked.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-038",
+   "kind": "supplier-price",
+   "group": "Sullivan Stone",
+   "title": "3/4-inch road crush",
+   "party": "Sullivan Stone",
+   "place": "Creston, BC",
+   "regionId": "kootenay-boundary",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 40
+   },
+   "unit": " per listed yard",
+   "unitNote": "The source writes \"/yd\"; whether it is a cubic yard is not confirmed.",
+   "freshness": "stale",
+   "tier": "retail",
+   "dateNote": "Undated list with explicit '2026 pricing coming soon' banner; treat as stale/undated, not current 2026 pricing.",
+   "installation": "No installed construction rate published.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Retail landscape-yard reference.",
+    "Source unit printed '/yd'",
+    "retain source unit without tonne conversion.",
+    "Freshness warning shown on supplier page."
+   ],
+   "url": "https://sullivanstonecreston.ca/landscaping-2/",
+   "locator": "Warning that 2026 pricing is coming soon, line 54; rock prices.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-039",
+   "kind": "supplier-price",
+   "group": "Sullivan Stone",
+   "title": "1 1/4-inch drain rock",
+   "party": "Sullivan Stone",
+   "place": "Creston, BC",
+   "regionId": "kootenay-boundary",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 40
+   },
+   "unit": " per listed yard",
+   "unitNote": "The source writes \"/yd\"; whether it is a cubic yard is not confirmed.",
+   "freshness": "stale",
+   "tier": "retail",
+   "dateNote": "Undated list with explicit '2026 pricing coming soon' banner; treat as stale/undated, not current 2026 pricing.",
+   "installation": "No installed construction rate published.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Retail landscape-yard reference.",
+    "Source unit printed '/yd'",
+    "retain source unit without tonne conversion.",
+    "Freshness warning shown on supplier page."
+   ],
+   "url": "https://sullivanstonecreston.ca/landscaping-2/",
+   "locator": "Warning that 2026 pricing is coming soon, line 54; rock prices.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-040",
+   "kind": "supplier-price",
+   "group": "BC Eco Industrial Services",
+   "title": "Road gravel, 10-yard tandem load",
+   "party": "BC Eco Industrial Services",
+   "place": "2306 Crystal Springs Road, Nelson, BC; offer for Nelson, Castlegar and Crescent Valley",
+   "regionId": "kootenay-boundary",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 253.5
+   },
+   "unit": " per advertised 10-yard load",
+   "unitNote": "One advertised load; the delivered volume is not confirmed.",
+   "freshness": "promotion",
+   "dateNote": "No effective date shown. Limited-time offer while quantities last.",
+   "loading": "Own-truck pickup permitted; loading inclusion not separately stated.",
+   "delivery": "Additional charge depending on location.",
+   "installation": "No placement or compaction included in published load price.",
+   "minimum": "Offer is for one 10-yard tandem load; volume discounts mentioned.",
+   "surcharges": [],
+   "surchargeNote": "Listed source terms only; an empty list does not establish that no surcharge applies.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Promotional/undated reference, not a verified current standing tariff.",
+    "No gradation/specification stated.",
+    "Do not convert load price to tonne rate."
+   ],
+   "url": "https://bceco.ca/news/company-news-and-events/tandem-dump-truck-loads-of-road-gravel-for-sale/",
+   "locator": "Offer, price and conditions.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-041",
+   "kind": "supplier-price",
+   "group": "Sharecost Rentals & Sales",
+   "title": "3/4-inch MoT-spec road base",
+   "party": "Sharecost Rentals & Sales",
+   "place": "Nanaimo, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 33
+   },
+   "unit": "/t",
+   "freshness": "undated",
+   "dateNote": "Live undated product listing.",
+   "loading": "Not separately stated.",
+   "delivery": "Additional delivery fee; large-volume offer.",
+   "installation": "Placement/compaction not included in a material listing.",
+   "minimum": "12 tonnes",
+   "surcharges": [],
+   "surchargeNote": "Delivery fees apply to large-volume orders; other fees not stated.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Large commercial projects require a separate quote. Tonne and yard offers are distinct price tiers, not a measured density conversion."
+   ],
+   "url": "https://sharecost.ca/bulk/base-fill-materials/road-base-34-mot-spec",
+   "locator": "Pricing and Large volume pricing sections",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "local-042",
+   "kind": "supplier-price",
+   "group": "Sharecost Rentals & Sales",
+   "title": "3/4-inch MoT-spec road base",
+   "party": "Sharecost Rentals & Sales",
+   "place": "Nanaimo, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 55
+   },
+   "unit": "/yd³",
+   "unitNote": "Purchased loose volume, not compacted road volume.",
+   "freshness": "undated",
+   "tier": "retail",
+   "dateNote": "Live undated product listing.",
+   "loading": "Not separately stated.",
+   "delivery": "Additional if required; listed yard material price.",
+   "installation": "Placement/compaction not included in a material listing.",
+   "minimum": "Listed 1 yd3 tier; smaller quantities have separate prices.",
+   "surcharges": [],
+   "surchargeNote": "Delivery fees apply to large-volume orders; other fees not stated.",
+   "availability": "Not independently confirmed with supplier.",
+   "cautions": [
+    "Large commercial projects require a separate quote. Tonne and yard offers are distinct price tiers, not a measured density conversion."
+   ],
+   "url": "https://sharecost.ca/bulk/base-fill-materials/road-base-34-mot-spec",
+   "locator": "Pricing and Large volume pricing sections",
+   "checked": "2026-11-12"
+  }
+ ],
+ "leads": [
+  {
+   "regionId": "cariboo",
+   "party": "United Concrete & Gravel Ltd.",
+   "place": "Quesnel, Williams Lake, 100 Mile House",
+   "products": [
+    "3/4-inch road crush",
+    "1 1/4-inch crush",
+    "8-inch minus",
+    "bedding sand",
+    "drain rock"
+   ],
+   "status": "No usable numeric price published on reviewed product page",
+   "url": "https://www.unitedconcrete.ca/gravel",
+   "checked": "2026-11-12"
+  },
+  {
+   "regionId": "cariboo",
+   "party": "93 Mile Aggregates",
+   "place": "5499 Little Fort Highway, 100 Mile House",
+   "products": [
+    "3/4-inch road mulch",
+    "3/4-inch premium road mulch",
+    "2-3-inch minus crush",
+    "pit run",
+    "fill",
+    "bedding sand"
+   ],
+   "status": "Product list published; no numeric prices on reviewed page",
+   "url": "https://93mileaggregates.ca/products/",
+   "checked": "2026-11-12"
+  },
+  {
+   "regionId": "skeena",
+   "party": "JL's Excavating Ltd.",
+   "place": "Terrace; Copper Mountain aggregate mine",
+   "products": [
+    "pit run",
+    "3-inch minus",
+    "1-inch sub-base crush",
+    "3/4-inch high-fines crush",
+    "bedding sand",
+    "rip rap"
+   ],
+   "status": "Product descriptions and product-specific nominal tons/yard weights published, but no numeric material prices",
+   "url": "https://jlsexcavatingltd.com/our-aggregates/",
+   "checked": "2026-11-12"
+  },
+  {
+   "regionId": "skeena",
+   "party": "Skeena Concrete Products Ltd.",
+   "place": "3751 Old Lakelse Lake Drive, Terrace",
+   "products": [
+    "sand",
+    "gravel",
+    "custom aggregate",
+    "concrete",
+    "precast products"
+   ],
+   "status": "No usable public numeric price list found on reviewed page",
+   "url": "https://skeenaconcrete.com/",
+   "checked": "2026-11-12"
+  },
+  {
+   "regionId": "skeena",
+   "party": "Steti Transport Ltd.",
+   "place": "Smithers and Bulkley Valley",
+   "products": [
+    "sand",
+    "gravel",
+    "topsoil",
+    "road building and site-preparation services"
+   ],
+   "status": "No usable public numeric price list found on reviewed page",
+   "url": "https://www.stetitransport.ca/",
+   "checked": "2026-11-12"
+  },
+  {
+   "regionId": "kootenay-boundary",
+   "party": "The Yard Depot Cranbrook",
+   "place": "2300 Cranbrook Street North, Cranbrook, BC",
+   "products": [
+    "20 mm crush; riprap and 3/4-inch minus also listed"
+   ],
+   "status": "Opened product pages specify products and quantity options but contain no numeric price.",
+   "url": "https://www.theyarddepotcbk.ca/product/20-mm-3-4-crush-1-cu-yd/",
+   "checked": "2026-11-12"
+  }
+ ],
+ "fuel": {
+  "month": "2026-11",
+  "updated": "2026-11-02",
+  "onRoadPerHour": 26.1,
+  "offRoadPerHour": 60.9,
+  "url": "https://www2.gov.bc.ca/gov/content/industry/construction-industry/transportation-infrastructure/hired-equipment-program/fuel-price-adjustment"
+ }
+}

@@ -104,9 +104,9 @@ export function ReviewTab(
       <ReadinessList
         rows={rows}
         onAction={act}
+        lead={<SectionReachAlert workspace={p.workspace} onFindTerrain={p.onFindTerrain} />}
         help="The checks a designer answers for on the active road. Met means the check was made and nothing is outstanding. Needs attention means a limit is broken or an input is still to do. Not assessed means the workspace could not make the check, which is not a pass. Every limit is this project's own input; none of this certifies a road standard. The same list is printed in the report."
       >
-        <SectionReachAlert workspace={p.workspace} />
         <Button
           size="sm"
           variant="outline"

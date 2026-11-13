@@ -31,6 +31,9 @@ export function CutblockCard({
   onAccessHistory?: () => void
 }) {
   const evidence = feature.harvestEvidence
+  const isProposed = evidence?.status === 'proposed'
+  const sourceLabel =
+    evidence && (isProposed && evidence.source === 'user' ? 'User-provided cutblock' : SOURCE_LABELS[evidence.source])
   const polygon = feature.geometry.type === 'Polygon' ? feature.geometry : null
   const mappedHa = polygon ? polygonAreaM2(polygon) / 10000 : null
   const perimeterM = polygon ? pathLengthM(polygon.coordinates[0] as Coordinate[]) : null
@@ -51,26 +54,26 @@ export function CutblockCard({
       : []),
     ...(years !== undefined ? ([['Harvest', String(years)]] as [string, string][]) : []),
     ...(evidence?.openingId ? ([['Opening ID', evidence.openingId]] as [string, string][]) : []),
-    ...(evidence ? ([['Source', SOURCE_LABELS[evidence.source]]] as [string, string][]) : []),
+    ...(sourceLabel ? ([['Source', sourceLabel]] as [string, string][]) : []),
   ]
   return (
     <MapPopup longitude={at[0]} latitude={at[1]} onClose={onClose} className="w-64">
       <MapPopupCard
-        eyebrow={evidence?.status === 'proposed' ? 'Proposed cutblock' : 'Cutblock'}
+        eyebrow={isProposed ? 'Proposed cutblock' : 'Cutblock'}
         title={feature.name}
-        subtitle={harvestAgeSummary(evidence, year)}
+        subtitle={isProposed ? 'No harvest history recorded' : harvestAgeSummary(evidence, year)}
         onClose={onClose}
         closeLabel="Close cutblock details"
         actions={
           (onOpenHistory || onAccessHistory) && (
-            <div className="grid gap-1.5">
+            <div className="grid w-full gap-1.5">
               {onOpenHistory && (
                 <Button size="xs" variant="outline" className="w-full" onClick={onOpenHistory}>
-                  Full history & nearby roads
+                  Review cutblock
                 </Button>
               )}
               {onAccessHistory && (
-                <Button size="xs" variant="outline" className="w-full" onClick={onAccessHistory}>
+                <Button size="xs" variant="ghost" className="w-full" onClick={onAccessHistory}>
                   Access evidence
                 </Button>
               )}

@@ -106,7 +106,7 @@ test('bulk curves, ranked route alternatives and design exports', async ({ page 
   expect(errors).toEqual([])
 })
 
-test('station table interval and columns, saved layouts and cost status', async ({ page }) => {
+test('station table interval and columns, saved layouts and cost coverage', async ({ page }) => {
   const errors = await prepare(page)
   await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: 'Stations' })
   const table = page.getByTestId('road-station-table')
@@ -137,7 +137,7 @@ test('station table interval and columns, saved layouts and cost status', async 
   await expect(picker).toHaveText(/Wide plan/)
 
   await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).click()
-  await expect(page.getByTestId('road-cost-status')).toContainText(/Recalculated on every edit · process time \d+ ms/)
+  await expect(page.getByTestId('road-cost-calculation').locator('tfoot')).toContainText(/\d+\.\d% complete sections/)
   await expect(page.getByTestId('road-haul-cost-graph')).toHaveCount(0)
   expect(errors).toEqual([])
 })

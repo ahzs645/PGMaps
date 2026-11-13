@@ -16,14 +16,23 @@ import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, PanelBottom, Rows3, TableProperties } from 'lucide-react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { axisTicks } from './chartScale'
+import { averageSlopePercent } from './chartSlope'
 import { EngineeringBands, profileGradeSpans, type SightBandInput } from './EngineeringBands'
-import { ProfileCurvePoints, ProfileGradeTrouble, PviDragReadoutBox, GRADE_TROUBLE_COLOR } from './ProfileOverlays'
+import {
+  ProfileCurvePoints,
+  ProfileGradeTrouble,
+  PviDragReadoutBox,
+  GRADE_TROUBLE_COLOR,
+  SHORT_PITCH_COLOR,
+} from './ProfileOverlays'
 import {
   curvePoints,
   isGradeTrouble,
   pviDragReadout,
+  signedValue,
   tangentGrades,
   type ProfileGradeLimits,
 } from './profileAnnotations'
@@ -55,14 +64,33 @@ import type { ProfileJunction } from './profileJunctions'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
 import {
+  gradeDiagram,
+  groundGradeIntervals,
+  rollingGrade,
+  steepestAverage,
+  GROUND_GRADE_CHORD_M,
+  type GradeAverageSettings,
+  type RollingGradePoint,
+} from './gradeDiagram'
+import { GradeAverageOptions } from './GradeAverageOptions'
+import type { GradeRule } from './designStandards'
+import {
   heldSectionDomain,
   holdSectionFrame,
   pinnedSectionOutline,
   pinnedShiftText,
+  roadSectionFrame,
   sectionExceedsFrame,
   type HeldSectionFrame,
 } from './sectionFrame'
 import { BalanceLineOverlay, BalanceWhatIfPanel, useBalanceWhatIf } from './MassHaulBalanceLine'
+import {
+  CHART_MEASURE_HINT,
+  ChartMeasurementBand,
+  ChartMeasurementReadout,
+  useChartMeasurement,
+  type MeasurementSlope,
+} from './ChartMeasurement'
 import type { CableLayoutOverlay } from './cableLayout/overlay'
 import type { CableChartEdit } from './cableLayout/useLayoutEdit'
 import { CableLayoutChartLayer } from './CableLayoutChartLayer'
@@ -127,6 +155,9 @@ function SelectionBand({ range, frame }: { range?: RoadSelectionRange; frame: Re
   )
 }
 
+/** Closest two drawn PVI handles come on the profile; crowded handles between them are left out until zoomed. */
+export const PVI_HANDLE_MIN_GAP_PX = 28
+
 function extent(values: Array<number | null>, minimumSpan = 4): [number, number] {
   const usable = values.filter(finite)
   if (!usable.length) return [0, minimumSpan]
@@ -136,10 +167,10 @@ function extent(values: Array<number | null>, minimumSpan = 4): [number, number]
   return [(low + high) / 2 - span * 0.6, (low + high) / 2 + span * 0.6]
 }
 
-function chartFrame(width: number, height: number, domain: Domain, top = 24) {
+/** `bottom` is the band under the plot for the station axis; a chart sharing another's axis passes less. */
+function chartFrame(width: number, height: number, domain: Domain, top = 24, bottom = 36) {
   const left = width < 380 ? 48 : 58,
-    right = 16,
-    bottom = 36
+    right = 16
   const plotWidth = Math.max(1, width - left - right),
     plotHeight = Math.max(1, height - top - bottom)
   const x = (value: number) => left + ((value - domain[0]) / Math.max(0.001, domain[1] - domain[0])) * plotWidth
@@ -147,9 +178,15 @@ function chartFrame(width: number, height: number, domain: Domain, top = 24) {
   return { left, right, top, bottom, plotWidth, plotHeight, x, y }
 }
 
-function eventValue(event: { clientX: number; clientY: number }, svg: SVGSVGElement, domain: Domain, top = 24) {
+function eventValue(
+  event: { clientX: number; clientY: number },
+  svg: SVGSVGElement,
+  domain: Domain,
+  top = 24,
+  bottom = 36,
+) {
   const bounds = svg.getBoundingClientRect()
-  const frame = chartFrame(bounds.width, bounds.height, domain, top)
+  const frame = chartFrame(bounds.width, bounds.height, domain, top, bottom)
   return [
     domain[0] + clamp((event.clientX - bounds.left - frame.left) / frame.plotWidth, 0, 1) * (domain[1] - domain[0]),
     domain[3] - clamp((event.clientY - bounds.top - frame.top) / frame.plotHeight, 0, 1) * (domain[3] - domain[2]),
@@ -157,9 +194,9 @@ function eventValue(event: { clientX: number; clientY: number }, svg: SVGSVGElem
 }
 
 /** Chart units per screen pixel along each axis. */
-function metresPerPixel(svg: SVGSVGElement, domain: Domain, top = 24) {
+function metresPerPixel(svg: SVGSVGElement, domain: Domain, top = 24, bottom = 36) {
   const bounds = svg.getBoundingClientRect()
-  const frame = chartFrame(bounds.width, bounds.height, domain, top)
+  const frame = chartFrame(bounds.width, bounds.height, domain, top, bottom)
   return {
     chainageM: (domain[1] - domain[0]) / frame.plotWidth,
     elevationM: (domain[3] - domain[2]) / frame.plotHeight,
@@ -298,6 +335,8 @@ function Grid({
   yLabel,
   stationTicks = false,
   top = 24,
+  frameBottom = 36,
+  hideXAxis = false,
   yFloor,
 }: {
   width: number
@@ -307,10 +346,13 @@ function Grid({
   yLabel: string
   stationTicks?: boolean
   top?: number
+  frameBottom?: number
+  /** Gridlines only: the station labels and title are drawn by a chart under this one that shares the axis. */
+  hideXAxis?: boolean
   /** No y tick below this value: the plot below it holds something other than the axis's quantity. */
   yFloor?: number
 }) {
-  const f = chartFrame(width, height, domain, top)
+  const f = chartFrame(width, height, domain, top, frameBottom)
   const bottom = height - f.bottom
   const xTicks = axisTicks(domain[0], domain[1], Math.max(2, Math.floor(f.plotWidth / (stationTicks ? 72 : 44))))
   const yTicks = axisTicks(domain[2], domain[3], Math.max(2, Math.floor(f.plotHeight / 26)))
@@ -337,25 +379,30 @@ function Grid({
               stroke="hsl(var(--border))"
               strokeDasharray="1 3"
             />
-            <line x1={f.x(value)} x2={f.x(value)} y1={bottom} y2={bottom + 5} stroke={tick} />
-            <text x={f.x(value)} y={bottom + 15} textAnchor="middle">
-              {xLabelText(value)}
-            </text>
+            {!hideXAxis && (
+              <>
+                <line x1={f.x(value)} x2={f.x(value)} y1={bottom} y2={bottom + 5} stroke={tick} />
+                <text x={f.x(value)} y={bottom + 15} textAnchor="middle">
+                  {xLabelText(value)}
+                </text>
+              </>
+            )}
           </g>
         ))}
-      {xTicks.minor
-        .filter((v) => inside(v, domain[0], domain[1]))
-        .map((value) => (
-          <line
-            key={`xm${value}`}
-            x1={f.x(value)}
-            x2={f.x(value)}
-            y1={bottom}
-            y2={bottom + 2.5}
-            stroke={tick}
-            opacity={0.7}
-          />
-        ))}
+      {!hideXAxis &&
+        xTicks.minor
+          .filter((v) => inside(v, domain[0], domain[1]))
+          .map((value) => (
+            <line
+              key={`xm${value}`}
+              x1={f.x(value)}
+              x2={f.x(value)}
+              y1={bottom}
+              y2={bottom + 2.5}
+              stroke={tick}
+              opacity={0.7}
+            />
+          ))}
       {yTicks.major
         .filter((v) => inside(v, yFloor ?? domain[2], domain[3]))
         .map((value) => (
@@ -409,9 +456,11 @@ function Grid({
         {yLabel}
       </text>
       {/* Centred under the plot, as the elevation title is centred beside it. */}
-      <text x={f.left + f.plotWidth / 2} y={height - 3} textAnchor="middle">
-        {xLabel}
-      </text>
+      {!hideXAxis && (
+        <text x={f.left + f.plotWidth / 2} y={height - 3} textAnchor="middle">
+          {xLabel}
+        </text>
+      )}
     </g>
   )
 }
@@ -498,16 +547,28 @@ export function useChartHeaderControls() {
 function ChartSlot({
   children,
   footer,
+  notice,
   bands,
   valueBands,
+  measurement,
 }: {
   /** May return absolutely positioned controls beside the svg; they float over the chart. */
   children: (width: number, height: number) => ReactNode
   footer?: ReactNode
+  /**
+   * Status outside the plot, still visible when the legend and readouts are folded: first among the
+   * panel header's chart controls, or in the toggle row above the plot outside a `ChartHeader`.
+   */
+  notice?: ReactNode
   /** Data bands that line up under the plot, folded until the header toggle opens them. */
   bands?: { label: string; content: ReactNode }
   /** A second set of bands under the plot with its own header toggle, remembered in this browser. */
   valueBands?: { label: string; storageKey: string; content: ReactNode }
+  measurement?: {
+    reading: ReturnType<typeof useChartMeasurement>
+    formatEndpoint: (value: number) => string
+    slopes?: (start: number, end: number) => MeasurementSlope[]
+  }
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [compact, setCompact] = useState(false)
@@ -570,8 +631,9 @@ function ChartSlot({
       <PanelBottom className="size-3.5" />
     </Button>
   )
-  const switcher = (bandsToggle || valueBandsToggle || detailsToggle) && (
+  const switcher = (notice || bandsToggle || valueBandsToggle || detailsToggle) && (
     <>
+      {notice}
       {bandsToggle}
       {valueBandsToggle}
       {detailsToggle}
@@ -591,7 +653,7 @@ function ChartSlot({
         (header?.target ? (
           createPortal(switcher, header.target)
         ) : (
-          <div className="flex shrink-0 justify-end gap-1 pb-1">{switcher}</div>
+          <div className="flex shrink-0 items-center justify-end gap-1 pb-1">{switcher}</div>
         ))}
       {/* The plot keeps 160 px (half a short slot) however many bands are open; with bands open it reserves the
           scrollbar gutter the bands' scroller does, so a station sits at the same x in both. */}
@@ -599,7 +661,23 @@ function ChartSlot({
         className={`relative flex min-h-[min(160px,50%)] flex-1 flex-col ${bandsShown ? 'overflow-hidden [scrollbar-gutter:stable]' : ''}`}
       >
         <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={230}>
-          {(height) => <SizedChart height={height}>{(width) => children(width, height)}</SizedChart>}
+          {(height) => (
+            <SizedChart height={height}>
+              {(width) => (
+                <>
+                  {children(width, height)}
+                  {measurement && (
+                    <ChartMeasurementReadout
+                      measurement={measurement.reading}
+                      frame={{ left: width < 380 ? 48 : 58, right: 16, bottom: 36 }}
+                      formatEndpoint={measurement.formatEndpoint}
+                      slopes={measurement.slopes}
+                    />
+                  )}
+                </>
+              )}
+            </SizedChart>
+          )}
         </ChartViewport>
       </div>
       {/* Both band sets share one capped scroller, so a short panel keeps its plot; the bands scroll instead. */}
@@ -673,6 +751,8 @@ export function ProfileChart({
   onAddControl,
   rangePick,
   onEditGesture,
+  sharedXAxis = false,
+  sharedMeasurement,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -698,9 +778,17 @@ export function ProfileChart({
   rangePick?: { range: [number, number] | null; onRange: (range: [number, number]) => void }
   /** Brackets a PVI or tangent drag as one undo step that Escape cancels (`useProfileEditing`). */
   onEditGesture?: (phase: 'start' | 'end' | 'cancel') => void
+  /** A grade strip under the profile draws the station axis for both, so the profile leaves it out. */
+  sharedXAxis?: boolean
+  /** One Shift-click measurement shared with the grade strip under the profile. */
+  sharedMeasurement?: ReturnType<typeof useChartMeasurement>
 }) {
   const id = useId().replace(/:/g, '')
   const editable = !terrainOnly && !!onVerticalChange
+  const ownMeasurement = useChartMeasurement(`${alignment.id}:${analysis.length}:${terrainOnly}:${!!rangePick}`)
+  const measurement = sharedMeasurement ?? ownMeasurement
+  // Under the plot only a hair of room when the strip below carries the station axis.
+  const profileBottom = sharedXAxis ? 6 : 36
   const rangeDrag = useRef<number | null>(null)
   const [fixedDomain, setFixedDomain] = useState<Domain | null>(null)
   const [navigation, setNavigation] = useState<{
@@ -1028,18 +1116,33 @@ export function ProfileChart({
     )
   }
   const handleMove = (event: PointerEvent<SVGSVGElement>, displayedDomain: Domain) => {
-    const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, profileTop)
+    const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, profileTop, profileBottom)
+    if (measurement.move(event, chainage)) return
     if (rangeDrag.current !== null) {
       if (Math.abs(chainage - rangeDrag.current) > 1e-6)
         rangePick?.onRange([Math.min(rangeDrag.current, chainage), Math.max(rangeDrag.current, chainage)])
       return
     }
-    const scale = metresPerPixel(event.currentTarget, displayedDomain, profileTop)
+    const scale = metresPerPixel(event.currentTarget, displayedDomain, profileTop, profileBottom)
     if (editing.move(event, chainage, elevation, scale)) return
     if (event.buttons === 1) onStation(chainage)
   }
   return (
     <ChartSlot
+      measurement={
+        !rangePick
+          ? {
+              reading: measurement,
+              formatEndpoint: formatRoadStation,
+              slopes: (start, end) => [
+                { label: 'Avg ground slope', percent: averageSlopePercent(points, 'ground', start, end) },
+                ...(!terrainOnly
+                  ? [{ label: 'Avg formation grade', percent: averageSlopePercent(points, 'design', start, end) }]
+                  : []),
+              ],
+            }
+          : undefined
+      }
       bands={{
         label: terrainOnly ? 'Ground grade & distance bands' : 'Grade, curve, template & material bands',
         content: (
@@ -1090,7 +1193,10 @@ export function ProfileChart({
                   ? [{ label: 'Ground', color: ROAD_CHART_COLORS.ground }]
                   : [
                       { label: 'Ground', color: ROAD_CHART_COLORS.ground },
-                      { label: 'Formation', color: ROAD_CHART_COLORS.design },
+                      {
+                        label: alignment.vertical.length ? 'Formation' : 'Formation · follows ground',
+                        color: ROAD_CHART_COLORS.design,
+                      },
                       { label: 'Cut', color: ROAD_CHART_COLORS.cut },
                       { label: 'Fill', color: ROAD_CHART_COLORS.fill },
                       ...(ditches.some((ditch) => ditch.points.some((p) => finite(p.design)))
@@ -1115,7 +1221,7 @@ export function ProfileChart({
       }
     >
       {(width, height) => {
-        const frame = chartFrame(width, height, domain, profileTop)
+        const frame = chartFrame(width, height, domain, profileTop, profileBottom)
         const targetScale = verticalScale === 'fit' ? 1 : Number(verticalScale)
         const halfSpan = ((domain[1] - domain[0]) * frame.plotHeight) / frame.plotWidth / (2 * targetScale)
         const displayedDomain: Domain =
@@ -1123,7 +1229,7 @@ export function ProfileChart({
           (verticalScale === 'fit'
             ? domain
             : [domain[0], domain[1], (low + high) / 2 - halfSpan, (low + high) / 2 + halfSpan])
-        const f = chartFrame(width, height, displayedDomain, profileTop)
+        const f = chartFrame(width, height, displayedDomain, profileTop, profileBottom)
         const actualExaggeration =
           f.plotHeight /
           (displayedDomain[3] - displayedDomain[2]) /
@@ -1158,6 +1264,26 @@ export function ProfileChart({
           lastCalloutX = x
         }
         const handleRadius = typicalGap < 18 ? 3.5 : typicalGap < 30 ? 4.5 : 6
+        // A profile with a PVI at every station (Full bench writes one) draws as a row of overlapping
+        // rings. Where they crowd, draw a handle only every PVI_HANDLE_MIN_GAP_PX, plus the ends and the
+        // selected one; the grade line is unchanged and zooming in brings every handle back.
+        const shownPviIds = new Set<string>()
+        {
+          const visible = sorted.filter((p) => p.chainage >= displayedDomain[0] && p.chainage <= displayedDomain[1])
+          let lastX = -Infinity
+          visible.forEach((p, i) => {
+            const x = f.x(p.chainage)
+            const keep =
+              typicalGap >= PVI_HANDLE_MIN_GAP_PX ||
+              i === 0 ||
+              i === visible.length - 1 ||
+              p.id === editing.selectedId ||
+              x - lastX >= PVI_HANDLE_MIN_GAP_PX
+            if (!keep) return
+            shownPviIds.add(p.id)
+            lastX = x
+          })
+        }
         // Ground grades split by the room on screen; design tangents stay PVI to PVI.
         const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly, {
           range: [displayedDomain[0], displayedDomain[1]],
@@ -1332,21 +1458,24 @@ export function ProfileChart({
               data-range-pick={!!rangePick}
               role="group"
               tabIndex={0}
-              aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Click or drag to inspect; left and right arrows select station; scroll to zoom, scroll sideways to pan.${editable ? ' Double-click adds a vertical control; drag a control to edit, Shift-drag to hold a grade; drag a tangent grip to raise or lower it.' : ''}`}
+              aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Click or drag to inspect; left and right arrows select station; scroll to zoom, scroll sideways to pan. ${CHART_MEASURE_HINT}${editable ? ' Double-click adds a vertical control; drag a control to edit, Shift-drag to hold a grade; drag a tangent grip to raise or lower it.' : ''}`}
               onKeyDown={(event) => {
+                if (measurement.key(event)) return
                 if (event.target === event.currentTarget) selectWithKeyboard(event, station, analysis.length, onStation)
               }}
               onPointerDown={(event) => {
                 event.preventDefault()
                 if (event.button !== 0) return
+                const chainage = eventValue(event, event.currentTarget, displayedDomain, profileTop, profileBottom)[0]
+                if (!rangePick && measurement.start(event, chainage, f)) return
                 event.currentTarget.setPointerCapture(event.pointerId)
                 editing.deselect()
-                const chainage = eventValue(event, event.currentTarget, displayedDomain, profileTop)[0]
                 if (rangePick) rangeDrag.current = chainage
                 else onStation(chainage)
               }}
               onPointerMove={(event) => handleMove(event, displayedDomain)}
               onPointerUp={(event) => {
+                if (measurement.end(event)) return
                 if (event.currentTarget.hasPointerCapture(event.pointerId))
                   event.currentTarget.releasePointerCapture(event.pointerId)
                 editing.end()
@@ -1354,6 +1483,7 @@ export function ProfileChart({
                 setFixedDomain(null)
               }}
               onPointerCancel={() => {
+                measurement.cancel()
                 editing.end()
                 rangeDrag.current = null
                 setFixedDomain(null)
@@ -1361,13 +1491,20 @@ export function ProfileChart({
               onDoubleClick={(event) => {
                 if (
                   !onVerticalChange ||
+                  event.shiftKey ||
                   rangePick ||
                   terrainOnly ||
                   analysis.length < 1 ||
                   (event.target as Element).getAttribute('data-pvi') === 'true'
                 )
                   return
-                const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, profileTop)
+                const [chainage, elevation] = eventValue(
+                  event,
+                  event.currentTarget,
+                  displayedDomain,
+                  profileTop,
+                  profileBottom,
+                )
                 let baseline = sorted
                 if (baseline.length < 2) {
                   const first = analysis.stations[0],
@@ -1406,6 +1543,8 @@ export function ProfileChart({
                 yLabel="Elevation (m)"
                 stationTicks
                 top={profileTop}
+                frameBottom={profileBottom}
+                hideXAxis={sharedXAxis}
               />
               <g clipPath={`url(#profile-${id})`}>
                 <TerrainGapBands points={points} x={f.x} top={f.top} height={f.plotHeight} />
@@ -1765,6 +1904,7 @@ export function ProfileChart({
                 .map((p, index) => ({ p, index }))
                 .filter(
                   ({ p }) =>
+                    shownPviIds.has(p.id) &&
                     p.chainage >= displayedDomain[0] &&
                     p.chainage <= displayedDomain[1] &&
                     p.elevation >= displayedDomain[2] &&
@@ -1846,6 +1986,7 @@ export function ProfileChart({
                     </circle>
                   </g>
                 ))}
+              {!rangePick && <ChartMeasurementBand measurement={measurement} frame={f} />}
               {dragReadout && (
                 <PviDragReadoutBox
                   readout={dragReadout}
@@ -1886,6 +2027,7 @@ export function CrossSectionChart({
   selectedCulvertId,
   onSelectCulvert,
   holdScale = false,
+  roadScale = false,
   pinnedStation,
 }: {
   station: RoadStation | undefined
@@ -1898,11 +2040,14 @@ export function CrossSectionChart({
   onSelectCulvert?: (id: string) => void
   /** Keep the frame's spans from when this turned on, following the formation (`sectionFrame.ts`). */
   holdScale?: boolean
+  /** One frame for every station of `analysis`, following the formation (`roadSectionFrame`). */
+  roadScale?: boolean
   /** One station's section drawn faintly behind this one, at this one's formation level. */
   pinnedStation?: RoadStation
 }) {
   const id = useId().replace(/:/g, '')
   const drag = useRef<number | null>(null)
+  const measurement = useChartMeasurement(`${alignment?.id}:${station?.chainage}:${terrainOnly}`)
   const [shiftPreview, setShiftPreview] = useState(0)
   const [hoverOffset, setHoverOffset] = useState<number | null>(null)
   const onShift = terrainOnly ? undefined : shiftAlignment
@@ -2005,8 +2150,16 @@ export function CrossSectionChart({
     const frame = holdSectionFrame(autoDomain, station)
     if (frame) setHeld(frame)
   } else if (!holdScale && held) setHeld(null)
-  const domain: Domain = (holdScale && held && heldSectionDomain(held, station)) || autoDomain
-  const clipped = holdScale && !!held && sectionExceedsFrame(points, domain)
+  // Whole-road scale: one frame that fits every station of the road, placed on each formation.
+  const roadStations = roadScale ? analysis?.stations : undefined
+  const roadFrame = useMemo(
+    () => (roadStations ? roadSectionFrame(roadStations, { terrainOnly, courseStackM }) : null),
+    [roadStations, terrainOnly, courseStackM],
+  )
+  const frame = roadScale ? roadFrame : holdScale ? held : null
+  const framed = frame && heldSectionDomain(frame, station)
+  const domain: Domain = framed || autoDomain
+  const clipped = !!framed && sectionExceedsFrame(points, domain)
   const pinned = pinnedStation && station ? pinnedSectionOutline(pinnedStation, station, terrainOnly) : null
   const side = (left: number | undefined, right: number | undefined, digits = 1) =>
     `${fixed(left, digits)} / ${fixed(right, digits)}`
@@ -2039,7 +2192,8 @@ export function CrossSectionChart({
           {
             label: 'Cut Dp',
             value: `${fixed(centreDepth, 2)} m`,
-            title: 'Original ground minus formation at the centreline; negative is fill',
+            title:
+              'Original ground minus formation at the centreline; negative is fill. This is not the maximum cut or fill across the section.',
           },
           ...(hasPreparation
             ? [
@@ -2051,7 +2205,14 @@ export function CrossSectionChart({
                 },
               ]
             : []),
-          { label: 'Grade', value: `${fixed(station.gradePercent)}%`, title: 'Design grade at this station' },
+          {
+            label: 'Grade',
+            value: `${fixed(station.gradePercent)}%`,
+            title:
+              alignment && !alignment.vertical.length
+                ? 'Sampled ground grade; no vertical design has been set'
+                : 'Design grade at this station',
+          },
           {
             label: 'Grd Z',
             value: fixed(station.groundElevation, 2),
@@ -2060,7 +2221,10 @@ export function CrossSectionChart({
           {
             label: 'Fmn Z',
             value: fixed(station.designElevation, 2),
-            title: 'Formation (subgrade) elevation at the centreline (m)',
+            title:
+              alignment && !alignment.vertical.length
+                ? 'Formation follows sampled ground; no vertical design has been set (m)'
+                : 'Formation (subgrade) elevation at the centreline (m)',
           },
           {
             label: 'Width L/R',
@@ -2086,15 +2250,13 @@ export function CrossSectionChart({
           },
           {
             label: 'Dayl L/R',
-            value: station.complete
-              ? side(
-                  station.leftDaylightM === null ? undefined : Math.abs(station.leftDaylightM),
-                  station.rightDaylightM ?? undefined,
-                )
-              : 'incomplete',
+            value: side(
+              station.leftDaylightM == null ? undefined : Math.abs(station.leftDaylightM),
+              station.rightDaylightM ?? undefined,
+            ),
             title: station.complete
               ? 'Daylight offsets left / right of the centreline (m)'
-              : `Incomplete section: ${station.incompleteReasons?.join('; ') || 'terrain coverage or daylight limit'}`,
+              : `Daylight offsets left / right (m); — means unresolved. ${incompleteLabel}`,
             tone: station.complete ? ('default' as const) : ('warning' as const),
           },
           { label: 'Cut A', value: `${fixed(station.cutAreaM2)} m²`, title: 'Cut area of this section' },
@@ -2107,6 +2269,39 @@ export function CrossSectionChart({
         ]
   return (
     <ChartSlot
+      measurement={
+        station
+          ? {
+              reading: measurement,
+              formatEndpoint: (value) => `${fixed(value)} m`,
+              slopes: (start, end) => [
+                { label: 'Avg ground slope', percent: averageSlopePercent(points, 'ground', start, end) },
+                ...(!terrainOnly
+                  ? [{ label: 'Avg formation slope', percent: averageSlopePercent(points, 'design', start, end) }]
+                  : []),
+              ],
+            }
+          : undefined
+      }
+      notice={
+        incompleteLabel && (
+          // An amber triangle among the header's chart controls; the reason is behind it on hover.
+          <span
+            role="status"
+            data-testid="road-section-incomplete"
+            className="inline-flex size-8 items-center justify-center"
+          >
+            <span className="sr-only">{incompleteLabel}. It is left out of quantities.</span>
+            <InfoTip tone="warning" label="Incomplete section">
+              <span className="block font-medium">Incomplete section</span>
+              <span className="mt-1 block">
+                {station?.incompleteReasons?.join('; ') || 'Terrain coverage or daylight limit'}.
+              </span>
+              <span className="mt-1 block text-muted-foreground">It is left out of quantities.</span>
+            </InfoTip>
+          </span>
+        )
+      }
       footer={
         <>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
@@ -2161,13 +2356,9 @@ export function CrossSectionChart({
           <ReadoutGrid data-testid="road-section-readout" items={sectionReadout} />
           {clipped && (
             <p role="status" data-testid="road-section-clipped" className="text-3xs leading-4 text-muted-foreground">
-              Held scale: part of this section lies outside the frame. Turn Hold scale off to fit it.
-            </p>
-          )}
-          {/* An incomplete section is left out of every quantity, so its reason is stated, not implied. */}
-          {incompleteLabel && (
-            <p role="status" data-testid="road-section-incomplete" className="text-3xs leading-4 text-warning">
-              {incompleteLabel}. It is left out of quantities.
+              {roadScale
+                ? 'Whole-road scale: part of this section lies outside the frame. Turn Whole-road scale off to fit it.'
+                : 'Held scale: part of this section lies outside the frame. Turn Hold scale off to fit it.'}
             </p>
           )}
           {(onShift || (!terrainOnly && onVerticalShift)) && (
@@ -2265,39 +2456,41 @@ export function CrossSectionChart({
             data-left-width={station?.leftWidth}
             data-right-width={station?.rightWidth}
             data-held-scale={holdScale && !!held}
+            data-road-scale={roadScale && !!roadFrame}
             data-domain={domain.map((n) => Number(n.toFixed(3))).join(',')}
             role="group"
-            aria-label={`${terrainOnly ? 'Terrain' : 'Road'} cross-section at ${formatRoadStation(station?.chainage ?? 0)}. Negative offsets are left looking forward.`}
-            onPointerDown={
-              onShift
-                ? (event) => {
-                    if (event.button !== 0) return
-                    drag.current = eventValue(event, event.currentTarget, domain)[0]
-                    event.currentTarget.setPointerCapture(event.pointerId)
-                  }
-                : undefined
-            }
+            tabIndex={0}
+            aria-label={`${terrainOnly ? 'Terrain' : 'Road'} cross-section at ${formatRoadStation(station?.chainage ?? 0)}. Negative offsets are left looking forward. ${CHART_MEASURE_HINT}`}
+            onKeyDown={(event) => measurement.key(event)}
+            onPointerDown={(event) => {
+              if (event.button !== 0) return
+              const offset = eventValue(event, event.currentTarget, domain)[0]
+              if (station && measurement.start(event, offset, f)) return
+              if (onShift) {
+                drag.current = offset
+                event.currentTarget.setPointerCapture(event.pointerId)
+              }
+            }}
             onPointerMove={(event) => {
               const offset = eventValue(event, event.currentTarget, domain)[0]
+              if (measurement.move(event, offset)) return
               setHoverOffset(offset)
               if (onShift && drag.current !== null) setShiftPreview(clamp(offset - drag.current, -20, 20))
             }}
             onPointerLeave={() => {
               if (drag.current === null) setHoverOffset(null)
             }}
-            onPointerUp={
-              onShift
-                ? (event) => {
-                    if (drag.current !== null) {
-                      const delta = clamp(eventValue(event, event.currentTarget, domain)[0] - drag.current, -20, 20)
-                      if (Math.abs(delta) > 0.1) onShift(Math.round(delta * 10) / 10)
-                      drag.current = null
-                      setShiftPreview(0)
-                    }
-                  }
-                : undefined
-            }
+            onPointerUp={(event) => {
+              if (measurement.end(event)) return
+              if (onShift && drag.current !== null) {
+                const delta = clamp(eventValue(event, event.currentTarget, domain)[0] - drag.current, -20, 20)
+                if (Math.abs(delta) > 0.1) onShift(Math.round(delta * 10) / 10)
+                drag.current = null
+                setShiftPreview(0)
+              }
+            }}
             onPointerCancel={() => {
+              measurement.cancel()
               drag.current = null
               setShiftPreview(0)
             }}
@@ -2646,24 +2839,10 @@ export function CrossSectionChart({
                 {format(shiftPreview)} m on release
               </text>
             )}
+            <ChartMeasurementBand measurement={measurement} frame={f} />
             {!station && (
               <text x={width / 2} y={height / 2} fill="hsl(var(--muted-foreground))" fontSize="12" textAnchor="middle">
                 Select a road station
-              </text>
-            )}
-            {/* On the chart itself, because the readout below folds away on a short pane. */}
-            {incompleteLabel && (
-              <text
-                x={f.left + 6}
-                y={f.top + 13}
-                fontSize="11"
-                fill="#b45309"
-                data-testid="road-section-incomplete-label"
-              >
-                <title>{incompleteLabel}</title>
-                {incompleteLabel.length > Math.floor(f.plotWidth / 5.6)
-                  ? `${incompleteLabel.slice(0, Math.max(12, Math.floor(f.plotWidth / 5.6) - 1))}…`
-                  : incompleteLabel}
               </text>
             )}
           </svg>
@@ -2698,6 +2877,7 @@ export function MassHaulChart({
 }) {
   const id = useId().replace(/:/g, '')
   const [showMovements, setShowMovements] = useState(false)
+  const measurement = useChartMeasurement(analysis.centerline)
   const engineering = analysis.engineering
   const diagram = useMemo(() => massHaulDiagram(analysis, engineeringInputs), [analysis, engineeringInputs])
   // A hand-set balance line, read only (`balanceLine.ts`); null while the what-if is off.
@@ -2767,6 +2947,7 @@ export function MassHaulChart({
         : ` ${format(band.fromM)}–${format(band.toM)} m`
   return (
     <ChartSlot
+      measurement={{ reading: measurement, formatEndpoint: formatRoadStation }}
       footer={
         <>
           <Legend
@@ -2981,20 +3162,28 @@ export function MassHaulChart({
             height={height}
             role="group"
             tabIndex={0}
-            aria-label="Earthwork mass balance. Click or use left and right arrows to select a road station."
+            aria-label={`Earthwork mass balance. Click or use left and right arrows to select a road station. ${CHART_MEASURE_HINT}`}
             data-testid="road-mass-chart"
             data-range-start={rangeStart}
             data-range-end={rangeEnd}
             className="select-none touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onPointerDown={(event) => {
               if (event.button !== 0) return
+              const chainage = eventValue(event, event.currentTarget, domain)[0]
+              if (measurement.start(event, chainage, f)) return
               event.currentTarget.setPointerCapture(event.pointerId)
-              onStation(eventValue(event, event.currentTarget, domain)[0])
+              onStation(chainage)
             }}
             onPointerMove={(event) => {
-              if (event.buttons === 1) onStation(eventValue(event, event.currentTarget, domain)[0])
+              const chainage = eventValue(event, event.currentTarget, domain)[0]
+              if (measurement.move(event, chainage)) return
+              if (event.buttons === 1) onStation(chainage)
             }}
-            onKeyDown={(event) => selectWithKeyboard(event, station, analysis.length, onStation)}
+            onPointerUp={(event) => measurement.end(event)}
+            onPointerCancel={() => measurement.cancel()}
+            onKeyDown={(event) => {
+              if (!measurement.key(event)) selectWithKeyboard(event, station, analysis.length, onStation)
+            }}
           >
             <defs>
               <clipPath id={`mass-${id}`}>
@@ -3124,7 +3313,421 @@ export function MassHaulChart({
                 strokeWidth={1.4}
               />
             </g>
+            <ChartMeasurementBand measurement={measurement} frame={f} />
           </svg>
+        )
+      }}
+    </ChartSlot>
+  )
+}
+
+/**
+ * The road's grade along its length (`gradeDiagram.ts`): the design grade as steps over the
+ * intervals its stations describe, the ground grade over chords of at least
+ * `GROUND_GRADE_CHORD_M`, and dashed lines at the grade standard's limits for each direction.
+ * Red and amber bands are the stretches the grade standard flags, the same rows as the Review.
+ */
+export function GradeChart({
+  selectedRange,
+  analysis,
+  alignment,
+  rule,
+  terrainOnly = false,
+  station,
+  onStation,
+  viewRange,
+  average,
+  onAverageChange,
+  strip = false,
+  sharedMeasurement,
+}: {
+  selectedRange?: RoadSelectionRange
+  analysis: RoadAnalysis
+  alignment: Pick<Alignment, 'vertical'>
+  /** `gradeRule(project.settings, project.standards)`, as the profile and Review read it. */
+  rule: GradeRule
+  terrainOnly?: boolean
+  station: number
+  onStation: (chainage: number) => void
+  viewRange?: [number, number]
+  /** The page's rolling-average settings (`useGradeAverage`), shared by every grade chart. */
+  average: GradeAverageSettings
+  onAverageChange: (patch: Partial<GradeAverageSettings>) => void
+  strip?: boolean
+  /** One Shift-click measurement shared with the profile above the strip; the profile prints its readout. */
+  sharedMeasurement?: ReturnType<typeof useChartMeasurement>
+}) {
+  const id = useId().replace(/:/g, '')
+  const headerControls = useChartHeaderControls()
+  const ownMeasurement = useChartMeasurement(analysis.centerline)
+  const measurement = sharedMeasurement ?? ownMeasurement
+  // As a strip under the profile the plot starts just below it, so the two read as one chart.
+  const top = strip ? 6 : 24
+  const diagram = useMemo(
+    () => gradeDiagram(analysis.stations, alignment, rule, { terrainOnly }),
+    [analysis.stations, alignment, rule, terrainOnly],
+  )
+  const showDesign = !terrainOnly && !diagram.groundFollowing
+  // Each averaged line is drawn in its own grade line's colour; the lines under it are faded.
+  const averages = useMemo(() => {
+    if (!average.enabled) return []
+    const coverage = average.minCoveragePercent / 100
+    const series = showDesign ? average.series : 'ground'
+    const lines: { key: 'ground' | 'design'; label: string; color: string; points: RollingGradePoint[] }[] = []
+    if (series !== 'design')
+      lines.push({
+        key: 'ground',
+        label: 'Ground',
+        color: ROAD_CHART_COLORS.ground,
+        points: rollingGrade(groundGradeIntervals(analysis.stations), average.windowM, coverage),
+      })
+    if (series !== 'ground')
+      lines.push({
+        key: 'design',
+        label: 'Design',
+        color: ROAD_CHART_COLORS.design,
+        points: rollingGrade(diagram.design, average.windowM, coverage),
+      })
+    return lines
+  }, [average, showDesign, analysis.stations, diagram.design])
+  const averaged = averages.length > 0
+  const elevations = useMemo(
+    () => analysis.stations.map((s) => ({ x: s.chainage, ground: s.groundElevation, design: s.designElevation })),
+    [analysis.stations],
+  )
+  const averageAt = (points: RollingGradePoint[]) =>
+    points.reduce<RollingGradePoint | null>(
+      (best, p) => (!best || Math.abs(p.chainage - station) < Math.abs(best.chainage - station) ? p : best),
+      null,
+    )?.gradePercent ?? null
+  const windowText = `${format(average.windowM, 0)} m average`
+  const rangeStart = viewRange ? clamp(viewRange[0], 0, Math.max(0, analysis.length - 1)) : 0
+  const rangeEnd = viewRange
+    ? clamp(viewRange[1], rangeStart + 1, Math.max(1, analysis.length))
+    : Math.max(1, analysis.length)
+  const inView = (start: number, end: number) => end >= rangeStart && start <= rangeEnd
+  const values = [
+    0,
+    diagram.limits.rising.percent,
+    diagram.limits.falling.percent,
+    ...diagram.design.filter((s) => inView(s.start, s.end)).map((s) => s.gradePercent),
+    ...diagram.ground.filter((p) => inView(p.start, p.end)).map((p) => p.gradePercent),
+    ...averages.flatMap((line) => line.points.filter((p) => inView(p.start, p.end)).map((p) => p.gradePercent)),
+  ]
+  const [low, high] = extent(values, 4)
+  const domain: Domain = [rangeStart, rangeEnd, low, high]
+  const designHere = diagram.design.find((s) => station >= s.start - 1e-6 && station < s.end)?.gradePercent ?? null
+  // The chord whose middle is nearest the cursor among those that span it.
+  const groundHere =
+    diagram.ground
+      .filter((p) => station >= p.start - 1e-6 && station <= p.end + 1e-6)
+      .sort((a, b) => Math.abs(a.chainage - station) - Math.abs(b.chainage - station))[0] ?? null
+  const flaggedHere = diagram.spans.find((s) => station >= s.start - 1e-6 && station <= s.end + 1e-6)
+  const sideText = (side: 'adverse' | 'favourable' | 'either') => (side === 'either' ? '' : ` ${side}`)
+  const limitLabel = (line: { percent: number; side: 'adverse' | 'favourable' | 'either' }) =>
+    `${signedValue(line.percent)}${sideText(line.side)}`
+  const groundGaps = (() => {
+    const gaps: Array<[number, number]> = []
+    for (const p of diagram.ground) {
+      if (p.gradePercent !== null) continue
+      const previous = gaps.at(-1)
+      if (previous && p.start <= previous[1]) previous[1] = Math.max(previous[1], p.end)
+      else gaps.push([p.start, p.end])
+    }
+    return gaps
+  })()
+  const options = (
+    <GradeAverageOptions
+      settings={average}
+      onChange={onAverageChange}
+      designShown={showDesign}
+      inHeader={!!headerControls}
+    />
+  )
+  return (
+    <ChartSlot
+      measurement={
+        sharedMeasurement
+          ? undefined
+          : {
+              reading: measurement,
+              formatEndpoint: formatRoadStation,
+              // The same readings as the profile's measurement: net rise over the measured run.
+              slopes: (start, end) => [
+                { label: 'Avg ground slope', percent: averageSlopePercent(elevations, 'ground', start, end) },
+                ...(showDesign
+                  ? [{ label: 'Avg formation grade', percent: averageSlopePercent(elevations, 'design', start, end) }]
+                  : []),
+              ],
+            }
+      }
+      footer={
+        !strip && (
+          <>
+            <Legend
+              items={[
+                ...(showDesign ? [{ label: 'Design grade', color: ROAD_CHART_COLORS.design }] : []),
+                { label: `Ground grade (over ${GROUND_GRADE_CHORD_M} m or more)`, color: ROAD_CHART_COLORS.ground },
+                { label: 'Grade limit', color: 'hsl(var(--muted-foreground))' },
+                ...(diagram.spans.some((s) => s.kind === 'breach')
+                  ? [{ label: 'Over the standard', color: GRADE_TROUBLE_COLOR }]
+                  : []),
+                ...(diagram.spans.some((s) => s.kind === 'pitch')
+                  ? [{ label: 'Short pitch allowed', color: SHORT_PITCH_COLOR }]
+                  : []),
+                ...(groundGaps.length ? [{ label: 'Terrain missing (hatched)', color: '#b45309' }] : []),
+                ...averages.map((line) => ({ label: `${line.label} · ${windowText}`, color: line.color })),
+              ]}
+            />
+            <p className="text-3xs" data-testid="road-grade-cursor">
+              {formatRoadStation(station)}
+              {showDesign && ` · design ${designHere === null ? '—' : signedValue(designHere)}`}
+              {` · ground ${groundHere?.gradePercent == null ? 'unknown' : signedValue(groundHere.gradePercent)}`}
+              {flaggedHere && (flaggedHere.kind === 'breach' ? ' · over the standard' : ' · short pitch allowed')}
+              {averages.map((line) => {
+                const here = averageAt(line.points)
+                return ` · ${line.label.toLowerCase()} ${windowText} ${here === null ? 'unknown' : signedValue(here)}`
+              })}
+            </p>
+            <p className="text-3xs" data-testid="road-grade-summary">
+              Limits {limitLabel(diagram.limits.rising)} climbing, {limitLabel(diagram.limits.falling)} descending
+              {diagram.shortPitch &&
+                ` · short pitches to ${format(diagram.shortPitch.percent)}% for ${format(diagram.shortPitch.maxLengthM)} m`}
+              {diagram.steepest &&
+                ` · steepest ${signedValue(diagram.steepest.percent)} at ${formatRoadStation(diagram.steepest.chainage)}`}
+              {!terrainOnly &&
+                (diagram.breachLengthM > 0
+                  ? ` · ${format(diagram.breachLengthM, 0)} m over the standard`
+                  : diagram.steepest
+                    ? ' · within the standard'
+                    : '')}
+              {averages.map((line) => {
+                const steepest = steepestAverage(line.points)
+                return steepest
+                  ? ` · steepest ${line.label.toLowerCase()} ${windowText} ${signedValue(steepest.percent)} at ${formatRoadStation(steepest.chainage)}`
+                  : ''
+              })}
+            </p>
+            <p className="text-3xs text-muted-foreground">
+              {terrainOnly
+                ? 'Ground grade along the terrain profile. '
+                : diagram.groundFollowing
+                  ? 'No profile is designed, so the road follows the ground and is judged on its grade between stations. '
+                  : 'Each design grade holds over the interval ahead of its station. '}
+              Positive grades climb up-station. The ground line reads each chord between calculated stations, never
+              between them.
+              {averaged &&
+                ` The ${windowText} is the length-weighted mean grade centred on each point, for reading only: the standard still judges the station grades.`}
+            </p>
+          </>
+        )
+      }
+    >
+      {(width, height) => {
+        const f = chartFrame(width, height, domain, top)
+        const designPath = diagram.design
+          .map((s, i, steps) => {
+            const joined = i > 0 && Math.abs(steps[i - 1].end - s.start) < 1e-6
+            const y = f.y(s.gradePercent).toFixed(2)
+            return `${joined ? 'L' : 'M'}${f.x(s.start).toFixed(2)},${y} L${f.x(s.end).toFixed(2)},${y}`
+          })
+          .join(' ')
+        let groundPath = ''
+        let open = false
+        for (const p of diagram.ground) {
+          if (p.gradePercent === null) {
+            open = false
+            continue
+          }
+          groundPath += `${open ? 'L' : 'M'}${f.x(p.chainage).toFixed(2)},${f.y(p.gradePercent).toFixed(2)} `
+          open = true
+        }
+        const averagePaths = averages.map((line) => {
+          let d = ''
+          let joined = false
+          for (const p of line.points) {
+            if (p.gradePercent === null) {
+              joined = false
+              continue
+            }
+            d += `${joined ? 'L' : 'M'}${f.x(p.chainage).toFixed(2)},${f.y(p.gradePercent).toFixed(2)} `
+            joined = true
+          }
+          return { ...line, d }
+        })
+        const limitLines = [diagram.limits.rising, diagram.limits.falling]
+        const pitchLines = diagram.shortPitch
+          ? [diagram.shortPitch.percent, -diagram.shortPitch.percent].filter(
+              (percent) =>
+                Math.abs(percent) >
+                Math.abs(percent > 0 ? diagram.limits.rising.percent : diagram.limits.falling.percent) + 1e-6,
+            )
+          : []
+        return (
+          <>
+            {!headerControls && <div className="absolute right-1 top-0 z-10">{options}</div>}
+            <svg
+              width={width}
+              height={height}
+              role="group"
+              tabIndex={0}
+              aria-label={`Road grade along its length. Click or use left and right arrows to select a road station. ${CHART_MEASURE_HINT}`}
+              data-testid="road-grade-chart"
+              data-range-start={rangeStart}
+              data-range-end={rangeEnd}
+              className="select-none touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onPointerDown={(event) => {
+                if (event.button !== 0) return
+                const chainage = eventValue(event, event.currentTarget, domain, top)[0]
+                if (measurement.start(event, chainage, f)) return
+                event.currentTarget.setPointerCapture(event.pointerId)
+                onStation(chainage)
+              }}
+              onPointerMove={(event) => {
+                const chainage = eventValue(event, event.currentTarget, domain, top)[0]
+                if (measurement.move(event, chainage)) return
+                if (event.buttons === 1) onStation(chainage)
+              }}
+              onPointerUp={(event) => measurement.end(event)}
+              onPointerCancel={() => measurement.cancel()}
+              onKeyDown={(event) => {
+                if (!measurement.key(event)) selectWithKeyboard(event, station, analysis.length, onStation)
+              }}
+            >
+              <defs>
+                <clipPath id={`grade-${id}`}>
+                  <rect x={f.left} y={f.top} width={f.plotWidth} height={f.plotHeight} />
+                </clipPath>
+              </defs>
+              <Grid
+                width={width}
+                height={height}
+                domain={domain}
+                xLabel="Chainage (m)"
+                yLabel="Grade (%)"
+                stationTicks
+                top={top}
+              />
+              <g clipPath={`url(#grade-${id})`}>
+                <SelectionBand range={selectedRange} frame={f} />
+                <g data-testid="road-grade-flags">
+                  {diagram.spans.map((span) => (
+                    <rect
+                      key={`${span.kind}-${span.start}`}
+                      data-kind={span.kind}
+                      x={f.x(span.start)}
+                      y={f.top}
+                      width={Math.max(1, f.x(span.end) - f.x(span.start))}
+                      height={f.plotHeight}
+                      fill={span.kind === 'breach' ? GRADE_TROUBLE_COLOR : SHORT_PITCH_COLOR}
+                      opacity={0.14}
+                    >
+                      <title>
+                        {`${span.kind === 'breach' ? 'Over the grade standard' : 'Short pitch allowed'}: ${formatRoadStation(span.start)}–${formatRoadStation(span.end)}`}
+                      </title>
+                    </rect>
+                  ))}
+                </g>
+                <HatchedSpans
+                  spans={groundGaps}
+                  x={f.x}
+                  top={f.top}
+                  height={f.plotHeight}
+                  title={(start, end) =>
+                    `Ground grade unknown between ${formatRoadStation(start)} and ${formatRoadStation(end)}: terrain is missing.`
+                  }
+                />
+                <line
+                  x1={f.left}
+                  x2={width - f.right}
+                  y1={f.y(0)}
+                  y2={f.y(0)}
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeOpacity={0.6}
+                />
+                {limitLines.map((line) => (
+                  <g key={line.percent} data-testid="road-grade-limit" data-percent={line.percent}>
+                    <line
+                      x1={f.left}
+                      x2={width - f.right}
+                      y1={f.y(line.percent)}
+                      y2={f.y(line.percent)}
+                      stroke="hsl(var(--muted-foreground))"
+                      strokeDasharray="5 4"
+                    />
+                    <text
+                      x={width - f.right - 4}
+                      y={f.y(line.percent) + (line.percent > 0 ? -4 : 11)}
+                      textAnchor="end"
+                      fontSize="9"
+                      fill="hsl(var(--muted-foreground))"
+                    >
+                      Limit {limitLabel(line)}
+                    </text>
+                  </g>
+                ))}
+                {pitchLines.map((percent) => (
+                  <line
+                    key={percent}
+                    data-testid="road-grade-pitch-limit"
+                    x1={f.left}
+                    x2={width - f.right}
+                    y1={f.y(percent)}
+                    y2={f.y(percent)}
+                    stroke={SHORT_PITCH_COLOR}
+                    strokeDasharray="2 3"
+                  />
+                ))}
+                {groundPath && (
+                  <path
+                    data-testid="road-grade-ground"
+                    d={groundPath}
+                    stroke={ROAD_CHART_COLORS.ground}
+                    strokeWidth={showDesign ? 1.2 : 1.8}
+                    strokeOpacity={averaged ? 0.35 : showDesign ? 0.75 : 1}
+                    fill="none"
+                  />
+                )}
+                {showDesign && designPath && (
+                  <path
+                    data-testid="road-grade-design"
+                    d={designPath}
+                    stroke={ROAD_CHART_COLORS.design}
+                    strokeWidth={2}
+                    strokeOpacity={averaged ? 0.4 : 1}
+                    fill="none"
+                  />
+                )}
+                {averagePaths.map(
+                  (line) =>
+                    line.d && (
+                      <path
+                        key={line.key}
+                        data-testid="road-grade-average"
+                        data-series={line.key}
+                        d={line.d}
+                        stroke={line.color}
+                        strokeWidth={2.8}
+                        strokeLinejoin="round"
+                        fill="none"
+                      >
+                        <title>{`${line.label} grade · ${windowText}`}</title>
+                      </path>
+                    ),
+                )}
+                <line
+                  x1={f.x(station)}
+                  x2={f.x(station)}
+                  y1={f.top}
+                  y2={height - f.bottom}
+                  stroke={ROAD_CHART_COLORS.selected}
+                  strokeWidth={1.4}
+                />
+              </g>
+              <ChartMeasurementBand measurement={measurement} frame={f} />
+            </svg>
+            {headerControls && createPortal(options, headerControls)}
+          </>
         )
       }}
     </ChartSlot>
@@ -3148,6 +3751,7 @@ export function CableChart({
 }) {
   // A found support layout, else a solved skyline, replaces the assumed line: the load path is what
   // clears (or hits) the ground.
+  const measurement = useChartMeasurement(analysis.samples)
   const multi = layout?.loadPath.length ? layout : null
   const mechanics = !multi && analysis.mechanics?.span ? analysis.mechanics : null
   const points = multi
@@ -3195,6 +3799,17 @@ export function CableChart({
   const kN = (n: number) => format(n / 1000, 0)
   return (
     <ChartSlot
+      measurement={
+        !edit
+          ? {
+              reading: measurement,
+              formatEndpoint: (value) => `${fixed(value)} m`,
+              slopes: (start, end) => [
+                { label: 'Avg ground slope', percent: averageSlopePercent(points, 'ground', start, end) },
+              ],
+            }
+          : undefined
+      }
       footer={
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3269,31 +3884,32 @@ export function CableChart({
           <svg
             width={width}
             height={height}
-            role={onDistance ? 'group' : 'img'}
-            tabIndex={onDistance ? 0 : undefined}
-            className={onDistance ? 'touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring' : undefined}
-            aria-label="Cable deflection line and ground profile, with negative-clearance conflicts highlighted"
+            role="group"
+            tabIndex={0}
+            className="select-none touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Cable deflection line and ground profile, with negative-clearance conflicts highlighted. ${edit ? 'Shift-drag draws a no-support sector.' : CHART_MEASURE_HINT}`}
             data-testid="road-cable-chart"
             data-distance={active?.distance ?? distance}
-            onPointerDown={
-              onDistance
-                ? (event) => {
-                    if (event.button !== 0) return
-                    event.currentTarget.setPointerCapture(event.pointerId)
-                    onDistance(eventValue(event, event.currentTarget, domain)[0])
-                  }
-                : undefined
-            }
-            onPointerMove={
-              onDistance
-                ? (event) => {
-                    if (event.buttons === 1) onDistance(eventValue(event, event.currentTarget, domain)[0])
-                  }
-                : undefined
-            }
-            onKeyDown={
-              onDistance ? (event) => selectWithKeyboard(event, distance, analysis.length, onDistance) : undefined
-            }
+            onPointerDown={(event) => {
+              if (event.button !== 0) return
+              const value = eventValue(event, event.currentTarget, domain)[0]
+              if (!edit && measurement.start(event, value, f)) return
+              if (onDistance) {
+                event.currentTarget.setPointerCapture(event.pointerId)
+                onDistance(value)
+              }
+            }}
+            onPointerMove={(event) => {
+              const value = eventValue(event, event.currentTarget, domain)[0]
+              if (measurement.move(event, value)) return
+              if (event.buttons === 1) onDistance?.(value)
+            }}
+            onPointerUp={(event) => measurement.end(event)}
+            onPointerCancel={() => measurement.cancel()}
+            onKeyDown={(event) => {
+              if (!measurement.key(event) && onDistance)
+                selectWithKeyboard(event, distance, analysis.length, onDistance)
+            }}
           >
             <Grid width={width} height={height} domain={domain} xLabel="Horizontal span (m)" yLabel="Elevation (m)" />
             {layout?.sectors.map(([a, b], i) => (
@@ -3421,6 +4037,7 @@ export function CableChart({
                 onDistance={onDistance}
               />
             )}
+            {!edit && <ChartMeasurementBand measurement={measurement} frame={f} />}
           </svg>
         )
       }}

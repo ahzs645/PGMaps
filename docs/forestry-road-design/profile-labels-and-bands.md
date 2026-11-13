@@ -49,7 +49,9 @@ readout) and `profileBands.ts` (band values and the curvature diagram). The scre
   fitted, it is the PVI itself. A flat tangent beside a PVI has no single high or low point and is
   not marked; road ends are never marked.
 - **A sag is drained** when an entered culvert is within 15 m of its low point along the road, the
-  distance the drainage check takes a culvert to serve a modelled low point. With no culverts
+  distance the drainage check takes a culvert to serve a cross-drain candidate. A sag low point
+  is the bottom of a vertical curve; the drainage check's cross-drain candidates, drawn yellow on
+  the plan, are where modelled flow leaves the road, and the two are not the same places. With no culverts
   entered, every sag is flagged.
 - **Cut and fill depths are at the centreline**, ground minus design, from the analysed stations.
   They follow the analysis, so on a slow machine they can trail a fast drag by a frame.
@@ -103,6 +105,11 @@ label can still cross a grade label or a PVI callout, which the pass above place
   then grade only; a junction label right of its diamond, then left, then with a shorter name. A
   label with no room is left out and its tooltip keeps the text. Curve-point labels and PVI
   callouts keep their own thinning (below).
+- **Crowded PVI handles thin out.** Where PVIs sit closer than `PVI_HANDLE_MIN_GAP_PX` (28 px)
+  on screen, a handle is drawn only every 28 px, plus both ends and the selected PVI; the grade line
+  is drawn whole, and zooming in brings every handle back to drag. A road full-benched from the
+  ground it followed (`fullBench.ts`) has one PVI wherever its 22 m terrain bends, about 200 on
+  the reference road, which drew as a solid row of rings.
 - **Crossings share a tick.** Context crossings within 6 px of each other draw one thicker line;
   its tooltip lists them and a click selects the first. A crossing that a project road already
   marks as a junction (the other road was loaded from that feature, within 10 m) is drawn once, as

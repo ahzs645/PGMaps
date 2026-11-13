@@ -9,7 +9,9 @@ import { ReferenceHeading, ReferenceLink, ReferenceSelect, referenceMoney } from
 import {
   BC_INTERIOR_COST_SOURCE,
   INTERIOR_ROAD_GROUPS,
+  INTERIOR_STABILIZATION_ROCK_ADD_CAD_PER_KM,
   interiorRoadBenchmark,
+  interiorStabilizationPerKm,
   type InteriorBecZone,
   type InteriorBenchmarkInput,
   type InteriorRoadType,
@@ -36,6 +38,7 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
     soilMoisture: null,
   })
   const [reviewed, setReviewed] = useState(false)
+  const [rippedOrQuarryRock, setRippedOrQuarryRock] = useState(false)
   const update = (patch: Partial<InteriorBenchmarkInput>) => {
     setInputs((current) => ({ ...current, ...patch }))
     setReviewed(false)
@@ -43,6 +46,7 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
   const group = INTERIOR_ROAD_GROUPS.find((item) => item.id === inputs.roadGroup)
   const result = interiorRoadBenchmark(inputs)
   const ready = reviewed && result.status === 'available'
+  const stabilizationPerKm = interiorStabilizationPerKm(inputs.roadGroup, inputs.roadType, rippedOrQuarryRock)
   const download = () => {
     if (!ready) return
     downloadText(
@@ -57,6 +61,11 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
           scopeReviewed: reviewed,
           reviewedScope: scopeStatement,
           result,
+          stabilization: {
+            perKm: stabilizationPerKm,
+            rippedOrQuarryRock,
+            note: 'Separate IAM 4.3.4.1 allowance for imported stabilizing material where eligible; not part of the subgrade figure.',
+          },
           limitation: 'Independent 2024-base appraisal comparison; not included in project totals.',
         },
         null,
@@ -240,6 +249,27 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
               <p className="tabular-nums">
                 {referenceMoney(result.subgradeTotal)} CAD for the entered length, before escalation
               </p>
+            )}
+            {stabilizationPerKm !== null && (
+              <div className="space-y-1.5 border-t pt-2" data-testid="road-interior-stabilization">
+                <p className="flex items-center gap-1 tabular-nums">
+                  <span>
+                    <span className="font-medium">{referenceMoney(stabilizationPerKm)} CAD/km</span> · stabilizing
+                    material, where eligible
+                  </span>
+                  <InfoTip label="About the stabilizing material allowance">
+                    A separate allowance (IAM 4.3.4.1) for imported gravel or broken rock where the subgrade and ditch
+                    material is not enough. It is not part of the subgrade figure and is not summed with it here. The
+                    published haul-distance coefficient is zero, which does not make a real haul free.
+                  </InfoTip>
+                </p>
+                <ToggleRow
+                  active={rippedOrQuarryRock}
+                  label={`Ripped or quarry rock (+${referenceMoney(INTERIOR_STABILIZATION_ROCK_ADD_CAD_PER_KM)}/km)`}
+                  tone="primary"
+                  onClick={() => setRippedOrQuarryRock((value) => !value)}
+                />
+              </div>
             )}
           </div>
         )}

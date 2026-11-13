@@ -1,13 +1,15 @@
 import { createElement, useState, type ReactNode } from 'react'
-import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ActionMenuItem } from '@/components/ui/action-menu'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { StationJumpMenu } from './StationJumpMenu'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, Coordinate, RoadProject } from './types'
 
 vi.mock('@/components/ui/action-menu', () => ({
-  ActionMenu: ({ trigger }: { trigger: ReactNode }) => createElement('span', null, trigger),
+  ActionMenu: ({ trigger, items }: { trigger: ReactNode; items: ActionMenuItem[] }) =>
+    createElement('span', { 'data-menu-items': items }, trigger),
 }))
 
 const origin: Coordinate = [-122.8, 53.9]
@@ -66,8 +68,12 @@ function mount() {
   })
   const root = renderer!.root
   const station = () => Number(root.findByType('output').children.join(''))
-  const button = (label: string) =>
-    root.find((node: ReactTestInstance) => node.type === 'button' && node.props['aria-label'] === label)
+  const select = (id: string) => {
+    const items: ActionMenuItem[] = root.findByType('span').props['data-menu-items']
+    const item = items.find((candidate) => candidate && candidate.id === id)
+    if (!item || !('onSelect' in item)) throw Error(`Missing menu action ${id}`)
+    act(item.onSelect)
+  }
   const press = (key: string, mods: Partial<KeyboardEvent> = {}) =>
     act(() => {
       const event = Object.assign(new Event('keydown', { cancelable: true }), {
@@ -79,18 +85,18 @@ function mount() {
       })
       target.dispatchEvent(event)
     })
-  return { notices, station, button, press }
+  return { notices, station, select, press }
 }
 
 describe('jumping between PVIs', () => {
-  it('steps to the next and previous PVI by button, landing exactly on it', () => {
+  it('steps to the next and previous PVI from the jump menu, landing exactly on it', () => {
     const view = mount()
-    act(() => view.button('Next PVI').props.onClick())
+    view.select('next')
     expect(view.station()).toBe(125.5)
     expect(view.notices.at(-1)).toBe('PVI at 0+125.5: PVI 2.')
-    act(() => view.button('Next PVI').props.onClick())
+    view.select('next')
     expect(view.station()).toBeCloseTo(300, 6)
-    act(() => view.button('Previous PVI').props.onClick())
+    view.select('previous')
     expect(view.station()).toBe(125.5)
   })
 

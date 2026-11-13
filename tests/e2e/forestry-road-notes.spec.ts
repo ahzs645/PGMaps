@@ -131,7 +131,7 @@ test('a cutblock clicked on the plan shows its size and harvest record there', a
   const card = page.getByTestId('road-cutblock-card')
   await expect(card).toContainText(/Area\s*\d+\.\d{2} ha/)
   await expect(card).toContainText(/Perimeter\s*\d/)
-  await page.getByRole('button', { name: 'Full history & nearby roads', exact: true }).click()
+  await page.getByRole('button', { name: 'Review cutblock', exact: true }).click()
   await expect(page.getByTestId('road-cutblock-history-evidence')).toBeVisible()
   expect(errors).toEqual([])
 })

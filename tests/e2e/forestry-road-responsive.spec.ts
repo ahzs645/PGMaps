@@ -160,11 +160,104 @@ test('road panes adapt across desktop, short, tablet and phone viewports without
       expect(await canvas.evaluate((element, original) => element === original, originalCanvas)).toBe(true)
       expect(await controls.evaluate((element, original) => element === original, originalControls)).toBe(true)
       await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeInViewport()
-      await expect(page.getByRole('button', { name: 'Open', exact: true })).toBeInViewport()
+      if (viewport.width < 768) {
+        await page.getByRole('button', { name: 'More workspace commands', exact: true }).click()
+        const open = page
+          .getByRole('dialog', { name: 'More workspace commands' })
+          .getByRole('button', { name: 'Open project file', exact: true })
+        await open.scrollIntoViewIfNeeded()
+        await expect(open).toBeInViewport()
+        await page.keyboard.press('Escape')
+      } else await expect(page.getByRole('button', { name: 'Open', exact: true })).toBeInViewport()
       await page.screenshot({ path: info.outputPath(`workspace-${viewport.width}x${viewport.height}.png`) })
     })
   }
   expect(errors).toEqual([])
+})
+
+test.describe('phone navigation bars', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } })
+
+  test('keeps both bars on one row and reaches playback, jumps and project actions through overflow', async ({
+    page,
+  }) => {
+    const errors = await prepare(page)
+    const header = page.getByTestId('road-workspace-header')
+    const controller = page.getByTestId('road-station-controller')
+    const station = page.getByLabel('Selected station metres', { exact: true })
+    for (const width of [390, 375, 320]) {
+      await page.setViewportSize({ width, height: 844 })
+      for (const bar of [header, controller]) {
+        await expect
+          .poll(() =>
+            bar.evaluate((element) => {
+              const bounds = element.getBoundingClientRect()
+              const controls = [...element.querySelectorAll('button, input')].filter((node) => {
+                const box = node.getBoundingClientRect()
+                return box.width && box.height
+              })
+              return (
+                bounds.height <= 52 &&
+                bounds.right <= window.innerWidth &&
+                controls.every((node) => {
+                  const box = node.getBoundingClientRect()
+                  return (
+                    box.top >= bounds.top &&
+                    box.bottom <= bounds.bottom &&
+                    box.left >= bounds.left &&
+                    box.right <= bounds.right
+                  )
+                })
+              )
+            }),
+          )
+          .toBe(true)
+      }
+      await station.fill('200.5')
+      await station.press('Enter')
+      await expect(station).toHaveValue('200.5')
+      await expect(page.getByTestId('road-active-map-station')).toHaveAttribute('data-chainage', '200.5')
+      await controller.getByRole('button', { name: 'Next road station', exact: true }).tap()
+      await expect(station).not.toHaveValue('200.5')
+      await controller.getByRole('button', { name: 'Previous road station', exact: true }).tap()
+      await expect(station).toHaveValue('200')
+      const slider = controller.getByRole('slider', { name: 'Linked road station' })
+      const track = (await slider.boundingBox())!
+      await slider.tap({ position: { x: track.width * 0.7, y: track.height / 2 } })
+      await expect(station).not.toHaveValue('200')
+      await expect(page.getByTestId('road-active-map-station')).toHaveAttribute(
+        'data-chainage',
+        await station.inputValue(),
+      )
+    }
+    await controller.getByRole('button', { name: 'Station options', exact: true }).tap()
+    const options = page.getByRole('menu', { name: 'Station options', exact: true })
+    await expect(options).toContainText(' · Z ')
+    await expect(options.getByRole('menuitem', { name: /station help/i })).toHaveCount(0)
+    const previousJump = options.getByRole('menuitem', { name: 'Previous PVI [', exact: true })
+    const nextJump = options.getByRole('menuitem', { name: 'Next PVI ]', exact: true })
+    await expect(previousJump).toBeVisible()
+    await expect(nextJump).toBeVisible()
+    const [previousBox, nextBox] = await Promise.all([previousJump.boundingBox(), nextJump.boundingBox()])
+    expect(Math.abs(previousBox!.y - nextBox!.y)).toBeLessThan(1)
+    const beforeJump = await station.inputValue()
+    await nextJump.tap()
+    await expect(station).not.toHaveValue(beforeJump)
+    await controller.getByRole('button', { name: 'Station options', exact: true }).tap()
+    await options.getByRole('menuitem', { name: 'Play station playback', exact: true }).tap()
+    const before = await station.inputValue()
+    await expect.poll(() => station.inputValue()).not.toBe(before)
+    await controller.getByRole('button', { name: 'Station options', exact: true }).tap()
+    await options.getByRole('menuitem', { name: 'Pause station playback', exact: true }).tap()
+    await header.getByRole('button', { name: 'More workspace commands', exact: true }).tap()
+    const more = page.getByRole('dialog', { name: 'More workspace commands', exact: true })
+    await expect(more.getByRole('button', { name: 'Open project file', exact: true })).toBeVisible()
+    await expect(more.getByRole('button', { name: 'Edit history and checkpoints', exact: true })).toBeVisible()
+    await more.getByRole('button', { name: 'Project library', exact: true }).tap()
+    await expect(page.getByTestId('road-projects-dialog')).toBeVisible()
+    await expect(more).toBeHidden()
+    expect(errors).toEqual([])
+  })
 })
 
 test('short workspace keeps controls internally scrollable, reaches all engineering panes and expands charts in place', async ({

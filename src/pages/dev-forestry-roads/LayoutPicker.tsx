@@ -5,6 +5,7 @@ import {
   type SavedTileLayout,
 } from '@/components/ui/tile-layout-picker'
 import { ROAD_WORKSPACE, type RoadLayout, type RoadPaneId } from './RoadPaneLayout'
+import type { PanelWindowLayout } from '@pgmaps/geo-toolkit/ui/panel-window-layout'
 
 /** A named screen layout: one of the preset arrangements with its own remembered pane sizes. */
 export type SavedLayout = SavedTileLayout<RoadLayout>
@@ -27,6 +28,7 @@ export function LayoutPicker(props: {
   saved: SavedLayout[]
   onSaved: (layouts: SavedLayout[]) => void
   portalContainer?: HTMLElement | null
+  defaultWindows?: readonly PanelWindowLayout[]
 }) {
   return (
     <TileLayoutPicker

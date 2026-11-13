@@ -5,9 +5,60 @@ import {
   pinnedSectionOutline,
   pinnedShiftLabel,
   pinnedShiftText,
+  roadSectionFrame,
   sectionExceedsFrame,
   sectionReferenceLevel,
 } from './sectionFrame'
+
+describe('a whole-road section frame', () => {
+  const section = (offset: number, ground: number | null, design: number | null = null) => ({
+    offset,
+    ground,
+    design,
+  })
+  // A flat station and a steep sidehill one, 30 m higher up the road.
+  const flat = {
+    designElevation: 800,
+    groundElevation: 800.5,
+    section: [section(-12, 801), section(0, 800.5, 800), section(12, 800)],
+  }
+  const steep = {
+    designElevation: 830,
+    groundElevation: 830,
+    section: [section(-35, 854), section(-4, 833, 830), section(0, 830, 830), section(30, 809, 813)],
+  }
+
+  it('fits every station and puts each formation at the same height on screen', () => {
+    const frame = roadSectionFrame([flat, steep])!
+    // 24 m above (steep, left) and 21 m below (steep, right), with the fitted chart's 10 % margin.
+    expect(frame.halfWidthM).toBe(35)
+    expect(frame.spanM).toBeCloseTo(45 * 1.2)
+    expect(frame.centreAboveReferenceM).toBeCloseTo(1.5)
+    const atFlat = heldSectionDomain(frame, flat)!
+    const atSteep = heldSectionDomain(frame, steep)!
+    expect(atFlat[3] - atFlat[2]).toBeCloseTo(atSteep[3] - atSteep[2])
+    expect(atSteep[2] - steep.designElevation).toBeCloseTo(atFlat[2] - flat.designElevation)
+    for (const station of [flat, steep]) {
+      const points = station.section.map((p) => ({ x: p.offset, ground: p.ground, design: p.design }))
+      expect(sectionExceedsFrame(points, heldSectionDomain(frame, station)!)).toBe(false)
+    }
+  })
+
+  it('frames the surfacing above the formation and the ground alone on a transect', () => {
+    const courses = roadSectionFrame([flat], { courseStackM: 3 })!
+    expect(courses.centreAboveReferenceM).toBeCloseTo((3 - 0) / 2)
+    // On a transect the reference is the ground at the centreline and the design is not drawn.
+    const transect = roadSectionFrame([steep], { terrainOnly: true })!
+    expect(transect.spanM).toBeCloseTo(45 * 1.2)
+    expect(transect.centreAboveReferenceM).toBeCloseTo(1.5)
+  })
+
+  it('has no frame when no station has a level, and keeps the minimum width', () => {
+    expect(roadSectionFrame([])).toBeNull()
+    expect(roadSectionFrame([{ ...flat, designElevation: null, groundElevation: null }])).toBeNull()
+    expect(roadSectionFrame([flat])!.halfWidthM).toBe(15)
+  })
+})
 
 describe('a held section frame', () => {
   it('keeps the spans and follows the formation from station to station', () => {

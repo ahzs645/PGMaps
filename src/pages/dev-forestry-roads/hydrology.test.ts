@@ -10,6 +10,7 @@ import {
   flowAccumulation,
   flowDirections,
   fullPipeCapacity,
+  longestFlowPath,
   minimumDiameter,
   MISSING,
   OUTLET,
@@ -96,6 +97,24 @@ describe('depression filling and D8 flow', () => {
     // The valley's whole area leaves at the thalweg outlet.
     expect(line.properties.areaHa).toBeCloseTo((41 * 60) / 10_000, 9)
     expect(line.geometry.coordinates.at(-1)![1]).toBe(0)
+    // Flow converges on the thalweg: far more than one cell of area across.
+    expect(line.properties.widthCells).toBeGreaterThan(10)
+  })
+
+  it('reads sheet flow down a smooth slope as one cell wide, on any cell size', () => {
+    // On 22 m cells a strip down a plain slope passes a 1 ha threshold within 20 cells: the
+    // parallel lines that crowded the plan on regional terrain.
+    const grid = gridOf(10, 40, (_, y) => 100 + 0.05 * y, 22.4)
+    const { filled } = fillDepressions(grid)
+    const dirs = flowDirections(filled)
+    const acc = flowAccumulation(dirs, grid)
+    const streams = extractStreams(acc, dirs, grid, (xy) => xy, { thresholdM2: 10_000 })
+    expect(streams.features).toHaveLength(10)
+    for (const f of streams.features) {
+      expect(f.properties.areaHa).toBeGreaterThan(1)
+      expect(f.properties.widthCells).toBeCloseTo(1, 9)
+    }
+    expect(longestFlowPath(dirs, grid)[39 * 10]).toBeCloseTo(40 * 22.4, 9)
   })
 })
 

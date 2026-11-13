@@ -37,6 +37,7 @@ export function RoadSummary({
       onExpand={onExpand}
       onSettings={onSettings}
       popoverContainer=".road-workspace"
+      showHeading={false}
     />
   )
 }

@@ -2,9 +2,6 @@ import { MousePointer2, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { DrawMode } from './PlanView'
 
-const mapToolButtonClass =
-  'road-map-icon-action size-8 shrink-0 bg-background/95 shadow-sm aria-pressed:bg-accent aria-pressed:text-accent-foreground'
-
 const tools = [
   {
     mode: 'inspect',
@@ -30,14 +27,18 @@ export function RoadMapTools({
   disabled?: boolean
 }) {
   return (
-    <div role="group" aria-label="Road map tool" className="flex flex-col gap-1">
+    <div
+      role="group"
+      aria-label="Road map tool"
+      className="road-map-mode flex shrink-0 border border-input bg-background/95 shadow-sm"
+    >
       {tools.map(({ mode: toolMode, label, icon: Icon, title }) => (
         <Button
           key={toolMode}
           type="button"
           size="icon"
-          variant="outline"
-          className={mapToolButtonClass}
+          variant="ghost"
+          className="size-[1.875rem] shrink-0 rounded-none focus-visible:z-10 aria-pressed:bg-accent aria-pressed:text-accent-foreground"
           aria-label={label}
           aria-pressed={mode === toolMode}
           title={title}

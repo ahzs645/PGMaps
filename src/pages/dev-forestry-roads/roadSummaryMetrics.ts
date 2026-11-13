@@ -53,6 +53,15 @@ export function roadSummaryMetrics(source: SummarySource): RoadSummaryMetric[] {
       grades++
     }
   }
+  const first = analysis.stations[0]
+  const last = analysis.stations.at(-1)
+  const startElevation = (groundOnly ? first?.groundElevation : first?.designElevation) ?? null
+  const endElevation = (groundOnly ? last?.groundElevation : last?.designElevation) ?? null
+  const elevationChange = startElevation !== null && endElevation !== null ? endElevation - startElevation : null
+  const overallGrade =
+    analysis.length > 0 && analysis.stations.length > 1 && elevationChange !== null
+      ? (100 * elevationChange) / analysis.length
+      : null
   const metrics: RoadSummaryMetric[] = [
     {
       key: 'length',
@@ -80,6 +89,15 @@ export function roadSummaryMetrics(source: SummarySource): RoadSummaryMetric[] {
       )
         ? 'warning'
         : 'default',
+    },
+    {
+      key: 'overall-grade',
+      label: 'Overall grade',
+      value: overallGrade !== null ? `${number(overallGrade)}%` : 'Missing',
+      note:
+        overallGrade !== null
+          ? `${groundOnly ? 'Ground' : 'Design'} elevation change ${number(elevationChange)} m over ${number(analysis.length, 0)} m · positive uphill, negative downhill`
+          : 'Requires a non-zero road length and elevations at both ends',
     },
   ]
   if (groundOnly) {

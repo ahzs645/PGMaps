@@ -1,7 +1,8 @@
 import { createElement, type ReactNode } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ProfileChart } from './Charts'
+import { CableChart, CrossSectionChart, MassHaulChart, ProfileChart } from './Charts'
+import { ChartMeasurementReadout } from './ChartMeasurement'
 import { DEFAULT_DESIGN_STANDARDS, gradeRule } from './designStandards'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { curvePoints, pviDragReadout, tangentGrades } from './profileAnnotations'
@@ -276,6 +277,40 @@ describe('profile chart', () => {
   })
 })
 
+describe('incomplete cross-sections', () => {
+  it('keeps the reason outside the SVG and visible with details folded, while retaining the resolved side', async () => {
+    const base = analysis.stations.find((s) => s.chainage === 100)!
+    const reason = 'Left daylight unresolved: batter runs past the 35 m section reach'
+    const station = {
+      ...base,
+      complete: false,
+      leftDaylightM: null,
+      rightDaylightM: 7.25,
+      incompleteReasons: [reason],
+      cutAreaM2: null,
+      fillAreaM2: null,
+    }
+    const root = await render(createElement(CrossSectionChart, { alignment, analysis, station }))
+    const content = (node: ReactTestInstance | string): string =>
+      typeof node === 'string' ? node : node.children.map(content).join('')
+    const notice = () => root.findByProps({ 'data-testid': 'road-section-incomplete' })
+    expect(content(notice())).toContain(`${reason}. It is left out of quantities.`)
+    for (let parent = notice().parent; parent; parent = parent.parent) expect(parent.type).not.toBe('svg')
+    expect(texts(root).some((label) => label.includes('Incomplete section'))).toBe(false)
+    const readout = root.findByProps({ 'data-testid': 'road-section-readout' })
+    const row = (label: string) => readout.findAllByType('dt').find((n) => content(n) === `${label}:`)!.parent!
+    expect(content(row('Dayl L/R'))).toBe('Dayl L/R:— / 7.3')
+    expect(content(row('Cut A'))).toBe('Cut A:— m²')
+    expect(content(row('Fill A'))).toBe('Fill A:— m²')
+    const toggle = root.find((n) => n.type === 'button' && n.props['aria-label'] === 'Details below chart')
+    await act(async () => toggle.props.onClick())
+    expect(root.findByProps({ 'data-chart-slot': true }).props['data-chart-view']).toBe('chart')
+    for (let parent = notice().parent; parent; parent = parent.parent) {
+      expect((parent.props.className ?? '').split(' ')).not.toContain('hidden')
+    }
+  })
+})
+
 describe('placing the dragged PVI readout', () => {
   const plot = { top: 20, bottom: 320, left: 50, right: 650 }
   it('goes above the handle when it fits', () => {
@@ -294,4 +329,194 @@ describe('placing the dragged PVI readout', () => {
     const right = pviReadoutBoxAt(540, 60, 80, 66, short)
     expect(right.x).toBe(552)
   })
+})
+
+describe('chart distance measurements', () => {
+  const content = (node: ReactTestInstance | string): string =>
+    typeof node === 'string' ? node : node.children.map(content).join('')
+  const readout = (root: ReactTestInstance) => content(root.findByProps({ 'data-testid': 'chart-measurement-readout' }))
+  const target = () => ({
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 320 }),
+    focus: vi.fn(),
+    setPointerCapture: vi.fn(),
+    hasPointerCapture: () => true,
+    releasePointerCapture: vi.fn(),
+  })
+  const pointer = (currentTarget: ReturnType<typeof target>, x: number, extra: object = {}) => ({
+    currentTarget,
+    target: currentTarget,
+    button: 0,
+    buttons: 1,
+    shiftKey: true,
+    pointerId: 1,
+    clientX: x,
+    clientY: 100,
+    preventDefault: vi.fn(),
+    ...extra,
+  })
+  const xAt = (value: number, start: number, end: number) => 58 + ((value - start) / (end - start)) * 726
+  const click = async (chart: ReactTestInstance, x: number) => {
+    const svg = target()
+    await act(async () => chart.props.onPointerDown(pointer(svg, x)))
+    await act(async () => chart.props.onPointerUp(pointer(svg, x)))
+  }
+
+  it('measures reversed profile endpoints without selecting stations or editing the road, and survives zoom', async () => {
+    const onStation = vi.fn(),
+      onVerticalChange = vi.fn()
+    const root = await render(
+      createElement(ProfileChart, { analysis, alignment, station: 200, onStation, onVerticalChange }),
+    )
+    const chart = root.findByProps({ 'data-testid': 'road-profile-chart' })
+    await click(chart, xAt(350, 0, analysis.length))
+    expect(readout(root)).toContain('From 0+350.0')
+    await click(chart, xAt(125, 0, analysis.length))
+    expect(readout(root)).toBe('225.0 m horizontal0+125.0–0+350.0Avg slope: 0.0 %')
+    expect(onStation).not.toHaveBeenCalled()
+    expect(onVerticalChange).not.toHaveBeenCalled()
+
+    const band = () => root.findByProps({ 'data-testid': 'chart-measurement-band' }).findByType('rect')
+    const width = band().props.width
+    await act(async () => root.findByProps({ 'aria-label': 'Zoom profile in' }).props.onClick())
+    expect(readout(root)).toContain('225.0 m horizontal')
+    expect(band().props.width).toBeCloseTo(width * 2, 5)
+    const scale = root.findAll((n) => n.props.ariaLabel === 'Profile vertical exaggeration')[0]
+    await act(async () => scale.props.onValueChange('5'))
+    expect(readout(root)).toContain('225.0 m horizontal')
+
+    await click(chart, xAt(100, chart.props['data-range-start'], chart.props['data-range-end']))
+    expect(readout(root)).toContain('From 0+100.0')
+    await act(async () => root.findByProps({ 'aria-label': 'Clear distance measurement' }).props.onClick())
+    expect(root.findAllByProps({ 'data-testid': 'chart-measurement-readout' })).toHaveLength(0)
+  })
+
+  it('measures a section drag across negative and positive offsets without shifting the road', async () => {
+    const onShift = vi.fn()
+    const root = await render(
+      createElement(CrossSectionChart, { alignment, analysis, station: analysis.stations[0], onShift }),
+    )
+    const chart = root.findByProps({ 'data-testid': 'road-section-chart' })
+    const [left, right] = chart.props['data-domain'].split(',').map(Number)
+    const svg = target()
+    await act(async () => chart.props.onPointerDown(pointer(svg, xAt(-10, left, right))))
+    await act(async () => chart.props.onPointerMove(pointer(svg, xAt(5, left, right), { shiftKey: false })))
+    await act(async () => chart.props.onPointerUp(pointer(svg, xAt(5, left, right), { shiftKey: false })))
+    expect(readout(root)).toContain('15.0 m horizontal-10.0 m–5.0 mAvg ground slope: 0.0 %')
+    expect(onShift).not.toHaveBeenCalled()
+
+    await act(async () => chart.props.onPointerDown(pointer(svg, xAt(0, left, right), { shiftKey: false })))
+    await act(async () => chart.props.onPointerUp(pointer(svg, xAt(2, left, right), { shiftKey: false })))
+    expect(onShift).toHaveBeenCalledWith(2)
+  })
+
+  it('clears with Escape during a drag without falling through to station inspection', async () => {
+    const onStation = vi.fn()
+    const root = await render(createElement(ProfileChart, { analysis, alignment, station: 200, onStation }))
+    const chart = root.findByProps({ 'data-testid': 'road-profile-chart' })
+    const svg = target()
+    await act(async () => chart.props.onPointerDown(pointer(svg, 200)))
+    await act(async () => chart.props.onPointerMove(pointer(svg, 300)))
+    expect(readout(root)).toContain('m horizontal')
+    await act(async () => chart.props.onKeyDown({ key: 'Escape', preventDefault() {}, stopPropagation() {} }))
+    await act(async () => chart.props.onPointerMove(pointer(svg, 350)))
+    await act(async () => chart.props.onPointerUp(pointer(svg, 350)))
+    expect(root.findAllByProps({ 'data-testid': 'chart-measurement-readout' })).toHaveLength(0)
+    expect(onStation).not.toHaveBeenCalled()
+  })
+
+  it('leaves the section-application range picker in control of Shift-drags', async () => {
+    const onRange = vi.fn()
+    const root = await render(
+      createElement(ProfileChart, {
+        analysis,
+        alignment,
+        station: 200,
+        onStation: vi.fn(),
+        rangePick: { range: null, onRange },
+      }),
+    )
+    const chart = root.findByProps({ 'data-testid': 'road-profile-chart' })
+    const svg = target()
+    await act(async () => chart.props.onPointerDown(pointer(svg, xAt(100, 0, analysis.length))))
+    await act(async () => chart.props.onPointerMove(pointer(svg, xAt(250, 0, analysis.length))))
+    expect(onRange.mock.calls[0][0][0]).toBeCloseTo(100)
+    expect(onRange.mock.calls[0][0][1]).toBeCloseTo(250)
+    expect(root.findAllByProps({ 'data-testid': 'chart-measurement-readout' })).toHaveLength(0)
+  })
+
+  it('measures the mass chart along chainage, independent of its volume axis', async () => {
+    const onStation = vi.fn()
+    const root = await render(createElement(MassHaulChart, { analysis, station: 200, onStation }))
+    const chart = root.findByProps({ 'data-testid': 'road-mass-chart' })
+    await click(chart, xAt(100, 0, analysis.length))
+    await click(chart, xAt(400, 0, analysis.length))
+    expect(readout(root)).toBe('300.0 m horizontal0+100.0–0+400.0')
+    expect(onStation).not.toHaveBeenCalled()
+  })
+
+  it('measures a D-line even without a linked distance cursor', async () => {
+    const root = await render(
+      createElement(CableChart, {
+        analysis: {
+          length: 100,
+          complete: true,
+          minClearance: 10,
+          samples: [
+            { distance: 0, ground: 100, cable: 110, clearance: 10 },
+            { distance: 100, ground: 120, cable: 130, clearance: 10 },
+          ],
+        },
+      }),
+    )
+    const chart = root.findByProps({ 'data-testid': 'road-cable-chart' })
+    await click(chart, xAt(10, 0, 100))
+    await click(chart, xAt(80, 0, 100))
+    expect(readout(root)).toBe('70.0 m horizontal10.0 m–80.0 mAvg ground slope: +20.0 %')
+  })
+
+  it('separates ground slope from formation grade and leaves a missing-ground slope unknown', async () => {
+    const props = { analysis, alignment, station: 200, onStation: vi.fn() }
+    const root = await render(createElement(ProfileChart, props))
+    const chart = root.findByProps({ 'data-testid': 'road-profile-chart' })
+    await click(chart, xAt(0, 0, analysis.length))
+    await click(chart, xAt(100, 0, analysis.length))
+    expect(readout(root)).toContain('Avg ground slope: 0.0 %Avg formation grade: +10.0 %')
+    await click(chart, xAt(580, 0, analysis.length))
+    await click(chart, xAt(700, 0, analysis.length))
+    expect(readout(root)).toContain('Avg ground slope: —Avg formation grade: +1.0 %')
+    await act(async () =>
+      renderer!.update(createElement(ProfileChart, { ...props, alignment: { ...alignment, id: 'other' } })),
+    )
+    expect(root.findAllByProps({ 'data-testid': 'chart-measurement-readout' })).toHaveLength(0)
+  })
+
+  it.each([
+    { ground: 13.61, formation: 13.64, expected: 'Avg slope: +13.6 %' },
+    { ground: -0.01, formation: 0.01, expected: 'Avg slope: 0.0 %' },
+    { ground: 13.6, formation: 13.7, expected: 'Avg ground slope: +13.6 %Avg formation grade: +13.7 %' },
+    { ground: null, formation: null, expected: 'Avg ground slope: —Avg formation grade: —' },
+  ])(
+    'combines only known slopes that match at display precision: $ground / $formation',
+    async ({ ground, formation, expected }) => {
+      // The reading alone: selection and slope calculations are covered by the chart gestures above.
+      const measurement = {
+        selection: { start: 1768.5, end: 2140.2 },
+        clear: vi.fn(),
+        key: vi.fn(),
+      }
+      const root = await render(
+        createElement(ChartMeasurementReadout, {
+          measurement,
+          frame: { left: 58, right: 16, bottom: 36 },
+          formatEndpoint: String,
+          slopes: () => [
+            { label: 'Avg ground slope', percent: ground },
+            { label: 'Avg formation grade', percent: formation },
+          ],
+        }),
+      )
+      expect(readout(root)).toContain(expected)
+      if (expected.startsWith('Avg slope:')) expect(readout(root)).not.toContain('Avg ground slope:')
+    },
+  )
 })

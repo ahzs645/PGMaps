@@ -8,6 +8,18 @@ import { featureSectionAnchor } from './sectionReferences'
 import { createDemoProject, DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import { writeShapefileLayer, type ShapeLayer } from './shapefile'
 import {
+  applyLayerImport,
+  readReferenceImport,
+  removeImportedLayer,
+  suggestedLayerRole,
+  loadImportedProposedRoads,
+  defaultHiddenReferenceLayers,
+} from './referenceImport'
+import { cutblockBufferFeatures, layerFitPoints } from './cutblockBuffers'
+import { cutblockBufferSymbol } from './cutblockBufferStyle'
+import { parseProject, serializeProject } from './project'
+import { importedCutblockFeatures, referenceFolders, referenceLayers } from './referenceFeatures'
+import {
   applySpatialImport,
   buildSpatialImport,
   epsgFromPrj,
@@ -69,6 +81,170 @@ const road: Coordinate[] = [
   [-122.8165, 53.895],
   [-122.8177, 53.8909],
 ]
+
+describe('folder import roles and road profiles', () => {
+  it('suggests numbered roads and one canonical block while leaving boundary copies as reference', () => {
+    expect(spatialFeatureName({ FEATURE_NA: 'ABC123.1000', STATUS: 'Planned' })).toBe('ABC123.1000')
+    expect(suggestedLayerRole(spatial('Study/ABC123.1000_Rd.shp', [line(road, { name: 'ABC123.1000' })]))).toBe(
+      'proposed-road',
+    )
+    expect(suggestedLayerRole(spatial('Study/ABC123.shp', [square()]))).toBe('planned-block')
+    expect(suggestedLayerRole(spatial('Study/ABC123_Bdy_2026_08_29.shp', [square()]))).toBe('reference')
+  })
+
+  it('loads several named roads alongside one block, hides their reference copies, and avoids identical duplicates', () => {
+    let id = 0
+    const uid = () => `folder-${++id}`
+    const source = createDemoProject()
+    const imported = applyLayerImport(
+      source,
+      [
+        { file: spatial('Study/ABC123.shp', [square({ name: 'ABC123' })]), role: 'planned-block' },
+        {
+          file: spatial('Study/roads.shp', [
+            line(road, { name: 'ABC123.1000' }),
+            line(road.slice(0, 2), { name: 'ABC123.2000' }),
+          ]),
+          role: 'proposed-road',
+        },
+        { file: spatial('Study/reference.geojson', [square({ name: 'Visual context' })]), role: 'reference' },
+      ],
+      uid,
+    )
+    const loaded = loadImportedProposedRoads(imported.project, imported.imported, uid)
+    expect(loaded.alignments.slice(-2).map((a) => a.name)).toEqual(['ABC123.1000', 'ABC123.2000'])
+    expect(loaded.alignments.slice(-2).every((a) => a.vertical.length === 0)).toBe(true)
+    expect(loaded.context.filter((f) => f.layerSource === 'Study/ABC123.shp')).toHaveLength(1)
+    expect(defaultHiddenReferenceLayers(loaded)).toEqual(['Study/roads.shp', 'Study/reference.geojson'])
+    expect(loadImportedProposedRoads(loaded, imported.imported, uid).alignments).toHaveLength(loaded.alignments.length)
+    expect(
+      parseProject(JSON.parse(serializeProject(loaded)))
+        .alignments.slice(-2)
+        .map((a) => a.name),
+    ).toEqual(['ABC123.1000', 'ABC123.2000'])
+  })
+})
+
+describe('reading reference layers', () => {
+  it('pairs loose shapefile parts by directory and stem and keeps GIS names', async () => {
+    const picked = (directory: string, roadId: string) =>
+      Object.entries(
+        writeShapefileLayer({
+          name: 'Roads',
+          type: 'polyline',
+          fields: [{ name: 'ROAD_ID', type: 'C', length: 20 }],
+          features: [{ parts: [road], attributes: { ROAD_ID: roadId } }],
+        }).files,
+      ).map(([name, bytes]) => ({
+        file: file(name, bytes),
+        path: `Study/${directory}/${name.endsWith('.dbf') ? name.toUpperCase() : name}`,
+      }))
+    const result = await readReferenceImport([...picked('a', 'First road'), ...picked('b', 'Second road')])
+    expect(result.map(({ fileName, collection }) => [fileName, collection.features[0].properties?.name])).toEqual([
+      ['Study/a/Roads.shp', 'First road'],
+      ['Study/b/Roads.shp', 'Second road'],
+    ])
+  })
+
+  it('keeps each shapefile inside a ZIP as a layer and treats design-tagged GeoJSON as reference', async () => {
+    const zip = new JSZip()
+    for (const layer of ['One', 'Two']) {
+      const written = writeShapefileLayer({
+        name: layer,
+        type: 'polyline',
+        fields: name,
+        features: [{ parts: [road], attributes: { NAME: layer } }],
+      })
+      for (const [part, bytes] of Object.entries(written.files)) zip.file(part, bytes)
+    }
+    const layers = await readReferenceImport([
+      { file: file('Survey.zip', await zip.generateAsync({ type: 'uint8array' })), path: 'Survey.zip' },
+      { file: file('Design.geojson', JSON.stringify(line(road, { kind: 'alignment' }))), path: 'Design.geojson' },
+    ])
+    const result = applyLayerImport(
+      createDemoProject(),
+      layers.map((file) => ({ file, role: 'reference' })),
+      () => crypto.randomUUID(),
+    )
+    expect(result.project.reference?.map(({ source, geometry }) => [source, geometry.type])).toEqual([
+      ['Design.geojson', 'LineString'],
+      ['Survey.zip/One.shp', 'LineString'],
+      ['Survey.zip/Two.shp', 'LineString'],
+    ])
+  })
+
+  it('keeps proposed roads in their folder and puts only chosen polygons in planned cutblocks', () => {
+    const choices = [
+      { file: spatial('Study/Roads.geojson', [line(road, { name: 'Spur' })]), role: 'proposed-road' },
+      { file: spatial('Study/Plans/Blocks.geojson', [square({ name: 'Block A' })]), role: 'planned-block' },
+      { file: spatial('Study/Plans/Buffer.geojson', [square({ name: 'Buffer' })]), role: 'reference' },
+    ] as const
+    const base = createDemoProject()
+    const result = applyLayerImport(base, choices, () => crypto.randomUUID()).project
+    expect(result.alignments).toEqual(base.alignments)
+    expect(result.reference?.map(({ role, name }) => [role, name])).toEqual([
+      ['proposed-road', 'Spur'],
+      [undefined, 'Buffer'],
+    ])
+    const blocks = importedCutblockFeatures(result.context)
+    expect(blocks.map(({ name, source }) => [name, source])).toEqual([['Block A', 'Study/Plans/Blocks.geojson']])
+    expect(result.context.find(({ id }) => id === blocks[0].id)?.harvestEvidence?.status).toBe('proposed')
+    const tree = referenceFolders(referenceLayers([...(result.reference ?? []), ...blocks]))
+    expect(
+      tree.folders
+        .get('Study')
+        ?.folders.get('Plans')
+        ?.layers.map(({ name }) => name),
+    ).toEqual(['Buffer', 'Blocks'])
+    const again = applyLayerImport(result, choices, () => crypto.randomUUID()).project
+    expect(importedCutblockFeatures(again.context)[0].id).toBe(blocks[0].id)
+    expect(again.reference).toHaveLength(2)
+  })
+
+  it('stores an imported buffer with its cutblocks and releases it when the parent layer is deleted', () => {
+    const layer = 'Study/Blocks.geojson'
+    const source = 'Study/Buffer.geojson'
+    const setting = { layer, source, color: '#15803d', pattern: 'crosshatch' as const }
+    const base = createDemoProject()
+    const project = applyLayerImport(
+      base,
+      [
+        { file: spatial(layer, [square()]), role: 'planned-block', buffer: setting },
+        { file: spatial(source, [square()]), role: 'reference' },
+      ],
+      () => crypto.randomUUID(),
+    ).project
+    expect(parseProject(serializeProject(project)).cutblockBuffers).toEqual([setting])
+    expect(cutblockBufferSymbol(setting)).toMatchObject({
+      fill: '#15803d',
+      hatches: [{ angleDeg: 45, stroke: { color: '#15803d' } }, { angleDeg: 135 }],
+    })
+    expect(
+      cutblockBufferFeatures(setting, project.context, project.reference ?? []).map(({ geometry }) => geometry),
+    ).toEqual([square().geometry])
+    const deleted = removeImportedLayer(project, layer)
+    expect(deleted.context).toEqual(base.context)
+    expect(deleted.alignments).toEqual(base.alignments)
+    expect(deleted.cutblockBuffers).toBeUndefined()
+    expect(deleted.reference?.map(({ source }) => source)).toEqual([source])
+    expect(removeImportedLayer(project, source).cutblockBuffers).toBeUndefined()
+  })
+
+  it('generates a display buffer without changing cutblock geometry', () => {
+    const layer = 'Blocks.geojson'
+    const setting = { layer, metres: 400 }
+    const project = applyLayerImport(
+      createDemoProject(),
+      [{ file: spatial(layer, [square()]), role: 'planned-block', buffer: setting }],
+      () => crypto.randomUUID(),
+    ).project
+    const block = project.context.find(({ layerSource }) => layerSource === layer)!
+    expect(block.geometry).toEqual(square().geometry)
+    const bounds = layerFitPoints(cutblockBufferFeatures(setting, project.context, []))
+    expect(bounds[0][0]).toBeLessThan(-122.82)
+    expect(bounds[1][1]).toBeGreaterThan(53.892)
+  })
+})
 
 describe('reading a spatial file', () => {
   it('reprojects a zipped shapefile with the workspace transformation for its CRS and keeps NAME', async () => {

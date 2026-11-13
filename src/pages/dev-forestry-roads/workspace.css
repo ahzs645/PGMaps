@@ -63,6 +63,72 @@
   bottom: 0.5rem;
 }
 
+.road-plan-view {
+  container: road-plan / inline-size;
+  /* Compact map controls follow the theme up to the default panel radius. */
+  --road-toolbar-radius: min(calc(var(--radius) - 2px), var(--interface-default-radius));
+}
+
+/* The toolbar keeps clear of the right-hand column (the two fit buttons side by side, the zoom
+   stack below them) and wraps into as many rows as it needs. */
+.road-plan-toolbar {
+  --road-plan-right-column: 4.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.25rem;
+  max-width: calc(100% - var(--road-plan-right-column) - 1.5rem);
+}
+
+.road-plan-toolbar :is(.road-plan-display, .road-plan-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.road-plan-toolbar :is(.road-plan-display > button, [role='combobox'], .road-plan-actions button, .road-map-mode),
+.road-workspace .road-plan-fit button {
+  border-radius: var(--road-toolbar-radius);
+}
+
+.road-plan-toolbar .road-map-mode button + button {
+  border-inline-start: 1px solid hsl(var(--input));
+}
+
+.road-plan-toolbar .road-map-mode > button {
+  border-radius: 0;
+}
+
+.road-plan-toolbar .road-map-mode button:first-child {
+  border-start-start-radius: var(--road-toolbar-radius);
+  border-end-start-radius: var(--road-toolbar-radius);
+}
+
+.road-plan-toolbar .road-map-mode button:last-child {
+  border-start-end-radius: var(--road-toolbar-radius);
+  border-end-end-radius: var(--road-toolbar-radius);
+}
+
+/* Measured in PlanView, so notes and hints sit under however many rows the toolbar took. */
+.road-plan-toolbar ~ .road-plan-below-toolbar {
+  top: calc(var(--road-plan-toolbar-height, 2rem) + 1rem);
+}
+
+/* A narrow plan stacks the fit buttons above the zoom stack, one button wide. */
+@container road-plan (width < 30rem) {
+  .road-plan-toolbar {
+    --road-plan-right-column: 2rem;
+  }
+  .road-workspace .road-plan-view .road-plan-fit {
+    flex-direction: column;
+  }
+  .road-workspace .road-plan-view .road-map-controls {
+    top: 5rem;
+  }
+}
+
 .road-workspace .road-map-controls > div {
   gap: 0.25rem;
   overflow: visible;
@@ -75,9 +141,14 @@
   width: 2rem;
   height: 2rem;
   border: 1px solid hsl(var(--input));
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: var(--road-toolbar-radius);
   background: hsl(var(--background));
   box-shadow: 0 1px 2px #0000000d;
+}
+
+/* Keep the zoom stack below the two fit buttons, including in wide panes. */
+.road-workspace .road-map-controls {
+  top: 3rem;
 }
 
 .road-workspace .road-map-controls button:hover {
@@ -96,20 +167,67 @@
   --workspace-gutter: 0.75rem;
   padding-inline: var(--workspace-gutter);
 }
+
+/* Road dialogs share the workspace surface and the panel radius. Side drawers have their own
+   edge geometry, and the sheet's bottom corners stay square where it meets the phone edge. */
+.road-workspace :is(.geo-motion-dialog-content, .lp-chooser-dialog, .lp-tool-search):not(.lp-task-sheet) {
+  --road-dialog-radius: calc(var(--radius) + 4px);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-radius: var(--road-dialog-radius);
+}
+
+@media (max-width: 639px) {
+  .road-workspace .geo-motion-dialog-content[data-dialog-variant='sheet']:not(.lp-task-sheet) {
+    border-end-start-radius: 0;
+    border-end-end-radius: 0;
+  }
+}
+
+.road-workspace .road-cost-dialog > header {
+  padding: 0.75rem 1rem;
+  align-items: center;
+}
+
 .road-workspace[data-compact] {
   gap: 0.375rem;
   --workspace-gutter: 0.5rem;
   padding-bottom: 0.5rem;
 }
 
-.road-workspace[data-compact] .road-plan-hint {
-  display: none;
-}
-
 .road-workspace[data-compact] .road-source-badge {
   display: inline-flex;
   padding: 0.125rem 0.25rem;
   font-size: 0.5625rem;
+}
+
+.road-station-controller {
+  --road-station-control-height: 1.75rem;
+}
+
+.road-station-controller
+  :is(.road-station-icon, .road-station-field, .road-station-options, [data-select-trigger], input[type='range']) {
+  height: var(--road-station-control-height);
+}
+
+.road-station-field input {
+  appearance: textfield;
+}
+
+.road-station-field input::-webkit-inner-spin-button,
+.road-station-field input::-webkit-outer-spin-button {
+  appearance: none;
+}
+
+.road-station-controller .road-station-icon {
+  flex-shrink: 0;
+  width: var(--road-station-control-height);
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .road-station-controller {
+    --road-station-control-height: 2.5rem;
+  }
 }
 
 .road-workspace[data-compact] .road-station-controller {
@@ -176,26 +294,25 @@
   display: none;
 }
 
-/* From the tablet width up, the road switcher and the buttons share the header line with the
-   title. The project's name and its save state keep a floor there, so neither collapses beside
-   the switcher; the page heading gives way first. A wrapping flex line breaks on these floors, not
-   on what could still shrink, so they must fit the 768 px header (46.5 rem inside its padding)
-   beside the buttons and the switcher's 8 rem basis (`DevForestryRoads.tsx`). All the buttons take
-   about 26 rem, so from 768 to 1023 px four of them fold into a More menu (`HEADER_OVERFLOW`,
-   `WorkspaceHeader.tsx`), leaving 18 rem: 17.5 + 8 + 18 rem and two gaps fit 768 px. Open and Save
-   always stay on the line. On a
-   short screen (480 px or less) the terrain warning gives up its extra floor below as well. */
+/* From the tablet width up the header is two lines (`WorkspaceHeader`, `data-lines`) beside the
+   brand, which has its column to itself: the back link with the project's name and the road switcher
+   on the first, the buttons with the save line and the terrain warnings on the second. The name keeps a floor so the switcher never
+   squeezes it away; from 768 to 1023 px four buttons fold into a More menu (`HEADER_OVERFLOW`), so
+   the second line fits the 768 px header with the save line beside it. */
 @media (min-width: 768px) {
-  /* The floor is also the basis, so the room left over is shared evenly with the switcher. */
   .road-workspace .road-workspace-heading {
-    flex-basis: 12rem;
     min-width: 12rem;
   }
 
-  /* The terrain warning sits in the same block and keeps its own width. */
-  .road-workspace .road-workspace-heading:has(.road-source-badge) {
-    flex-basis: 17.5rem;
-    min-width: 17.5rem;
+  /* The brand spans both header lines, so it grows with the window: 24 px on a tablet up to 44 px on
+     a wide desktop, which still fits the two lines' height (68 px) beside it. */
+  .road-workspace-brand .access-lockup-compact {
+    --mark-height: clamp(24px, 2.3vw, 44px);
+  }
+
+  .road-workspace-brand .brand-logo[data-compact] img {
+    height: clamp(2rem, 3.2vw, 3.5rem);
+    max-width: clamp(8rem, 12vw, 16rem);
   }
 
   .road-workspace-title h1 {
@@ -203,16 +320,70 @@
   }
 }
 
-/* A short screen cannot spare a second header line, so the terrain warning gives up its extra
-   floor there and the heading truncates instead. */
-@media (min-width: 768px) and (max-height: 480px) {
-  .road-workspace .road-workspace-heading:has(.road-source-badge) {
-    flex-basis: 12rem;
-    min-width: 12rem;
-  }
-}
-
 @media (max-width: 767px) {
+  .road-workspace-header {
+    min-width: 0;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+  }
+
+  .road-workspace-header-tools {
+    flex-shrink: 0;
+    gap: 0.125rem;
+    margin-inline-start: auto;
+  }
+
+  .road-workspace-header-tools > button {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+  }
+
+  /* Give the road selector the brand's space when there is more than one road. */
+  .road-workspace-header:has([data-testid='road-switcher']) .road-mobile-brand {
+    display: none;
+  }
+
+  .road-workspace-header [data-testid='road-switcher'] button > span:not(:first-child) {
+    display: none;
+  }
+
+  .road-workspace .road-station-controller {
+    gap: 0.25rem;
+    padding: 0.25rem 0.375rem;
+  }
+
+  .road-station-options {
+    flex-shrink: 0;
+    width: var(--road-station-control-height);
+  }
+
+  .road-station-entry input {
+    width: 5rem;
+    min-width: 0;
+    font-size: 1rem;
+  }
+
+  .road-workspace .road-station-controller input[type='range'] {
+    min-width: 3rem;
+  }
+
+  .road-station-jumps {
+    order: 1;
+    flex-shrink: 0;
+  }
+
+  .road-workspace .road-station-controller output:not(:has([data-testid='road-station-terrain-gap'])) {
+    display: none;
+  }
+
+  .road-workspace .road-station-controller :is(output, [data-testid='road-station-limited']) {
+    order: 2;
+    flex-basis: 100%;
+    min-width: 0;
+    text-align: start;
+  }
+
   .road-workspace-title h1 {
     font-size: 0.875rem;
   }
@@ -240,7 +411,7 @@
     padding-top: 0.5rem;
   }
 
-  .road-workspace-title .road-workspace-status {
+  .road-workspace-status-row .road-workspace-status {
     display: none;
   }
 

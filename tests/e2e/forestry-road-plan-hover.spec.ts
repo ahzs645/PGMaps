@@ -80,6 +80,99 @@ const cursor = (page: Page) =>
 const parkPointer = (page: Page, road: { rect: { left: number; top: number } }) =>
   page.mouse.move(road.rect.left + 8, road.rect.top + 8)
 
+test('the station readout keeps left-aligned columns and the slider in place as numbers change', async ({ page }) => {
+  const { errors } = await prepare(page)
+  const slider = page.getByRole('slider', { name: 'Linked road station', exact: true })
+  const output = page.getByTestId('road-selected-station')
+  const readings = output.locator('[data-station-reading]')
+  await expect(readings).toHaveCount(3)
+  const field = page.getByLabel('Selected station metres', { exact: true })
+  for (const value of ['0', '200.5', '400']) {
+    await field.fill(value)
+    await field.press('Enter')
+    await expect(readings.nth(1)).toHaveText(/^Z -?[\d,]+\.\d m$/)
+    await expect(readings.nth(2)).toHaveText(/^-?\d+\.\d%$/)
+  }
+  const before = (await slider.boundingBox())!
+  const columns = await readings.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().x))
+  // Exercise grouped elevations, whole numbers and negative grades in the real column layout.
+  for (const values of [
+    ['0+000.0', 'Z 980.0 m', '0.0%'],
+    ['3+010.0', 'Z 1,162.5 m', '16.9%'],
+    ['3+577.7', 'Z 1,194.9 m', '-2.3%'],
+  ]) {
+    await readings.evaluateAll(
+      (elements, texts) => elements.forEach((element, i) => (element.textContent = texts[i])),
+      values,
+    )
+    const after = (await slider.boundingBox())!
+    expect(after.x).toBeCloseTo(before.x, 1)
+    expect(after.width).toBeCloseTo(before.width, 1)
+    expect(await output.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    for (let i = 0; i < columns.length; i++) {
+      const reading = readings.nth(i)
+      expect((await reading.boundingBox())!.x).toBeCloseTo(columns[i], 1)
+      expect(await reading.evaluate((element) => getComputedStyle(element).textAlign)).toBe('left')
+      expect(await reading.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    }
+  }
+  expect(errors).toEqual([])
+})
+
+test('playback ignores hover and a deliberate station selection pauses it', async ({ page }) => {
+  const { errors, road } = await prepare(page)
+  const field = page.getByLabel('Selected station metres', { exact: true })
+  const play = page.getByRole('button', { name: 'Play station playback', exact: true })
+  const pause = page.getByRole('button', { name: 'Pause station playback', exact: true })
+  const profile = page.getByTestId('road-profile-chart')
+  await field.fill('0')
+  await field.press('Enter')
+  // Freeze time so hover cannot be mistaken for an ordinary playback tick.
+  await page.clock.install()
+  await page.clock.pauseAt(new Date(Date.now() + 100))
+  await play.click()
+  await page.clock.runFor(140)
+  const first = await station(page)
+  expect(first).toBeGreaterThan(0)
+  const point = road.points[Math.floor(road.points.length * 0.7)]
+  await parkPointer(page, road)
+  await page.mouse.move(point.x, point.y, { steps: 5 })
+  expect(await station(page)).toBe(first)
+  await expect(pause).toBeVisible()
+  const box = (await profile.boundingBox())!
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.5, { steps: 5 })
+  expect(await station(page)).toBe(first)
+  await page.clock.runFor(140)
+  expect(await station(page)).toBeGreaterThan(first)
+
+  await page.mouse.click(point.x, point.y)
+  await expect(play).toBeVisible()
+  const clicked = await station(page)
+  expect(clicked).toBeGreaterThan(first)
+  await page.clock.runFor(700)
+  expect(await station(page)).toBe(clicked)
+
+  await play.click()
+  await page.clock.runFor(140)
+  await profile.click({ position: { x: box.width * 0.3, y: box.height * 0.5 } })
+  await expect(play).toBeVisible()
+  const onProfile = await station(page)
+  await page.clock.runFor(700)
+  expect(await station(page)).toBe(onProfile)
+
+  await play.click()
+  await field.fill('200.5')
+  await field.press('Enter')
+  await expect(play).toBeVisible()
+  await page.clock.runFor(700)
+  await expect(field).toHaveValue('200.5')
+  // Paused inspection retains the normal plan hover behavior.
+  await parkPointer(page, road)
+  await page.mouse.move(point.x, point.y, { steps: 5 })
+  expect(await station(page)).not.toBe(200.5)
+  expect(errors).toEqual([])
+})
+
 test('a hover picks the road up near the line, follows it, and lets go away from it', async ({ page }) => {
   const { errors, road } = await prepare(page)
   const { points } = road

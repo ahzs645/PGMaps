@@ -4,7 +4,7 @@
  * an ElevationSource and the projection is passed in, so a run can be checked outside a browser.
  */
 import { burnRoad } from './designSurface'
-import { analyzeDrainage, type DrainageAnalysis } from './hydrology'
+import { analyzeDrainage, DITCH_DETAIL_CELL_M, type DrainageAnalysis } from './hydrology'
 import { parseDepressionPolicy, type DepressionPolicy } from './drainagePolicies'
 import { corridorBounds, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
 import type { Culvert, RoadAnalysis, TerrainSource } from './types'
@@ -149,9 +149,9 @@ export function runDrainage({
     result.warnings.push(
       `${missingCells.toLocaleString('en-CA')} sampled cells have no ground. Data gaps act as outlets and can cut off upstream catchments; load terrain covering the contributing area.`,
     )
-  if (existing.cellM > 2)
+  if (existing.cellM > DITCH_DETAIL_CELL_M)
     result.warnings.push(
-      `${existing.cellM.toFixed(2)} m cells may not resolve narrow ditches or culvert channels. Use finer bare-earth terrain to review local drainage details.`,
+      `${existing.cellM.toFixed(2)} m cells may not resolve narrow ditches or culvert channels, so cross-drain candidates are screening only. Use bare-earth terrain of ${DITCH_DETAIL_CELL_M} m cells or finer to review local drainage details.`,
     )
   for (const culvert of result.culverts)
     if (culvert.existingAreaHa >= 0.05 && culvert.designAreaHa < culvert.existingAreaHa / 2)
@@ -228,7 +228,17 @@ export function runDrainage({
         (p): GeoJSON.Feature => ({
           type: 'Feature',
           geometry: { type: 'Point', coordinates: p.coordinate },
-          properties: { role: 'low-point', id: p.id, areaHa: p.areaHa },
+          properties: {
+            role: 'low-point',
+            id: p.id,
+            kind: p.kind,
+            chainage: p.chainage,
+            fromChainage: p.fromChainage,
+            toChainage: p.toChainage,
+            outlets: p.outlets,
+            areaHa: p.areaHa,
+            screening: existing.cellM > DITCH_DETAIL_CELL_M,
+          },
         }),
       ),
     ...result.newPonding.ponds.features.map((f) => ({ ...f, properties: { ...f.properties, role: 'pond' } })),

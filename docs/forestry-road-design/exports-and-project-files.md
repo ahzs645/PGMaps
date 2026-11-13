@@ -119,13 +119,44 @@ book.
 
 ### Bringing spatial files in
 
-Every spatial picker reads GeoJSON, a zipped shapefile, KML and KMZ through one reader
-(`readSpatialImport` in `spatialImport.ts`): **Import line** on the Design tab, the **Streams** import, **Import cutblocks**, **Import existing roads** and **Import
-reference layer**. The picker only says what it is for; the file's contents decide the rest.
+Open **Layers** on the plan, or under **View → Map layers** in the ribbon. Drop a folder or use
+**Add folder** or **Add files**. The pane reads each shapefile with its matching sidecars from the
+same directory, including subfolders. It also takes zipped shapefiles, GeoJSON, KML and KMZ.
+Supported Canfor ArcGIS map PDFs can be added here too: a company profile reads the registered
+map frame and recognized vector layers in a browser worker. The review dialog lets you select
+the source-sheet preview and recovered geometry; native GIS takes priority when supplied.
+See [Company source-map imports](source-pdf-import.md) for template support and measurement limits.
+The import dialog assigns a role to each layer. **Reference** draws it on the plan. A line layer
+can be a **Proposed road** layer. Its lines stay together in the tree, and **Copy as design road**
+adds a selected line to the editable roads. A polygon layer can go into **Planned cutblocks** for
+access planning. The default for every layer is **Reference**.
 
-- **Format comes from the content, not the name.** A KMZ renamed `.zip` or a shapefile given to any
-  picker still reads. Anything else is refused with a message naming the file and the formats
-  accepted. A loose `.shp` is refused with the instruction to zip its parts.
+Expand a folder to see its layers and expand a layer to see its features. Use the eye beside a
+layer to toggle it and the target beside a layer or feature to fit it. Expand a feature to rename
+it or use its available actions. **Design roads** lists the project's editable alignments. Select
+a road there to make it active and fit it on the plan. Use **Delete layer** inside an expanded
+imported layer to remove it in one undoable edit.
+
+A planned cutblock layer can have one optional **Cutblock buffer**. Choose a polygon layer to use
+its imported geometry, or enter a distance from 1 to 10,000 m to generate horizontal offsets
+from each block. Set the buffer on import or inside the cutblock layer. The buffer sits under
+that layer in the tree and has its own visibility and fit controls. **Buffer colour** applies to
+its fill and outline. Choose a solid tint, diagonal hatch or crosshatch under **Buffer pattern**.
+The plan legend uses the same style. It is a map overlay. Removing
+the parent releases a linked source back to the layer tree. The buffer setting travels with the
+project.
+
+**Fit all layers** shows and frames the imported layers. The import fits its
+extent in the current plan pane. On narrow screens, fitting a layer or feature closes the drawer
+to reveal the map. Files are read in the browser. Imported geometry is saved with the road
+project. Adding the same relative file path again refreshes that layer.
+
+**Import line**, **Streams**, **Import cutblocks** and **Import existing roads** use the same
+reader for GeoJSON, zipped shapefiles, KML and KMZ when the geometry is intended for design.
+
+- **File contents determine the format.** A KMZ renamed `.zip` still reads. A design picker
+  takes a shapefile ZIP. For loose shapefile parts, use **Layers** and include the projection and
+  attribute files with the `.shp`.
 - **Coordinates are reprojected from the file's CRS** to the WGS84 longitude/latitude the project
   stores. A shapefile's `.prj` is matched to an EPSG code by its authority tag or its UTM or BC Albers
   parameters (`epsgFromPrj`), and a code the workspace has its own definition for uses that
@@ -134,7 +165,7 @@ reference layer**. The picker only says what it is for; the file's contents deci
   reprojected; one it does not know is refused. A shapefile without a `.prj` is read only when its
   coordinates already are longitude/latitude. The notice names the CRS that was read.
 - **Names are kept.** A `name`, `NAME` or `Name` attribute, a KML placemark name, then `label`,
-  `title` or `GNIS_NAME`, names the feature (`spatialFeatureName`). A layer with one text column and
+  `title`, `GNIS_NAME`, `Road_ID` or `Block_ID` names the feature (`spatialFeatureName`). A layer with one text column and
   no name column is named by that column. An unnamed feature takes the file's name.
 - **Nothing is classified without a choice.** A picker with one purpose settles its own shape: a
   road picker's lines are roads. Features that carry a PGMaps export's `kind`, or evidence only one
@@ -147,14 +178,14 @@ reference layer**. The picker only says what it is for; the file's contents deci
   attributes or by what the file and its features are called. A plain polygon is never planned or
   harvested by default, so the cutblock picker asks too. The notice lists what was created.
 - **Reference features** are their own project collection (`reference`, `referenceFeatures.ts`).
-  The plan draws them and the Terrain tab lists them; no analysis, route search or estimate reads
-  them. A named point can start a road (**Peg from**) or take the active road's start or end. The
-  plan legend lists them and **Map settings** can hide them. On the plan their linework sits above
+  Files added through **Layers** supply visual reference geometry. A named point can start a road
+  (**Peg from**) or take the active road's start or end. The plan legend lists visible layers.
+  On the plan their linework sits above
   the contours and under streams, constraints and every road, and their points under the road line
   (`REFERENCE_LAYERS` in `ReferenceLayer.tsx`, ordered with the plan's other layers in
   `PlanView.tsx`). The GeoJSON export writes them with `kind: "reference"`, so they import back as
   reference. The map PDF is a picture of the plan as it is on screen, so it shows them with their
-  point names, and leaves them out when **Map settings** has them hidden. The printed report and
+  point names, and follows the plan's layer visibility. The printed report and
   the plot book draw their own figures from the design and do not include them.
 - **A KML altitude or a third coordinate** is dropped: it is not ground and carries no datum. The
   exception is a GeoJSON feature that states its datum in a `referenceVerticalDatum` property, as
@@ -442,7 +473,9 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   hit a quota.
 - **`?example=training` saves under a separate key (`training`) but never restores from it,** by
   design: training mode always starts fresh from the synthetic hillside, and its saves never
-  touch the library.
+  touch the library. Opening a project, starting a new one or importing data leaves that temporary
+  session, removes `example=training` from the URL and saves the adopted project in the normal
+  library. Reload then restores that project; the other projects in the library are retained.
 - **A restore that fails changes nothing.** The current project stays, undo history is kept, and
   the message says what is missing. If the saved project cannot be restored when the page opens,
   the training hillside is shown, the saved project is left untouched and autosave stays off

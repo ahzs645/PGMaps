@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createCogReader } from './cogReader'
+import { createSentinelSearch } from './searchCache'
 import {
   SENTINEL_BAND_CACHE_ENTRIES,
   SENTINEL_CLOUD_MAX_PERCENT,
@@ -10,7 +11,6 @@ import { defaultPair, defaultScene, type RatedScene } from './sceneChoice'
 import { firstSeenLabel, ndviChange, ndviChangeRgba, ndviRgba, ndviValues, trueColourRgba } from './render'
 import {
   recentRange,
-  searchSentinelScenes,
   sentinelCredit,
   SentinelError,
   seasonRange,
@@ -51,6 +51,8 @@ export type ChangeSummary = {
 }
 
 type Failure = { message: string; retry: boolean }
+const NO_SCENES: RatedScene[] = []
+const NO_KNOWN: Record<string, RatedScene> = {}
 
 const isAbort = (error: unknown) => error instanceof DOMException && error.name === 'AbortError'
 const message = (error: unknown) =>
@@ -76,6 +78,7 @@ export function useSentinel2({
 }) {
   const reader = useMemo(() => readerImpl ?? createCogReader(), [readerImpl])
   const fetcher = useMemo<FetchLike>(() => fetchImpl ?? ((input, init) => globalThis.fetch(input, init)), [fetchImpl])
+  const search = useMemo(() => createSentinelSearch(fetcher), [fetcher])
   const boundsKey = bounds ? bounds.map((v) => v.toFixed(6)).join(',') : ''
   const stableBounds = useMemo<LonLatBounds | null>(
     () => (boundsKey ? (boundsKey.split(',').map(Number) as LonLatBounds) : null),
@@ -83,8 +86,14 @@ export function useSentinel2({
   )
   const [range, setRange] = useState<SentinelRange>('recent')
   const [mode, setMode] = useState<SentinelMode>('true-colour')
-  const [scenes, setScenes] = useState<RatedScene[]>([])
-  const [known, setKnown] = useState<Record<string, RatedScene>>({})
+  const [catalog, setCatalog] = useState<{ area: string; scenes: RatedScene[]; known: Record<string, RatedScene> }>({
+    area: '',
+    scenes: [],
+    known: {},
+  })
+  const scenes = catalog.area === boundsKey ? catalog.scenes : NO_SCENES
+  const known = catalog.area === boundsKey ? catalog.known : NO_KNOWN
+  const selectionArea = useRef('')
   const [searching, setSearching] = useState(false)
   const [searchFailure, setSearchFailure] = useState<Failure | null>(null)
   const [searchRevision, setSearchRevision] = useState(0)
@@ -95,7 +104,7 @@ export function useSentinel2({
   const [imageFailure, setImageFailure] = useState<Failure | null>(null)
   const [imageRevision, setImageRevision] = useState(0)
   const [change, setChange] = useState<ChangeSummary | null>(null)
-  const cache = useRef(new Map<string, { promise: Promise<RasterBands>; signal: AbortSignal }>())
+  const cache = useRef(new Map<string, { promise: Promise<RasterBands>; signal: AbortSignal; complete: boolean }>())
 
   /**
    * A cached band read. A read is shared while the effect that started it is alive; when that
@@ -107,18 +116,23 @@ export function useSentinel2({
       const entries = cache.current
       for (let attempt = 0; ; attempt++) {
         let entry = entries.get(key)
-        if (entry && entry.signal.aborted) entry = undefined
+        if (entry && !entry.complete && entry.signal.aborted) entry = undefined
         if (entry) {
           entries.delete(key)
           entries.set(key, entry)
         } else {
           const promise = reader.read(href, { ...request, signal })
-          const started = { promise, signal }
+          const started = { promise, signal, complete: false }
           entry = started
           entries.set(key, started)
-          promise.catch(() => {
-            if (entries.get(key) === started) entries.delete(key)
-          })
+          void promise.then(
+            () => {
+              started.complete = true
+            },
+            () => {
+              if (entries.get(key) === started) entries.delete(key)
+            },
+          )
           while (entries.size > SENTINEL_BAND_CACHE_ENTRIES) entries.delete(entries.keys().next().value!)
         }
         try {
@@ -133,6 +147,7 @@ export function useSentinel2({
 
   // Terrain checks that need no network: a stated reason before any request.
   const terrainProblem = useMemo<Failure | null>(() => {
+    if (!stableBounds) return null
     try {
       const epsg = terrainZoneEpsg(stableBounds)
       sceneWindow(stableBounds!, epsg)
@@ -149,13 +164,19 @@ export function useSentinel2({
     const epsg = terrainZoneEpsg(stableBounds)
     setSearching(true)
     setSearchFailure(null)
-    setScenes([])
+    setImageFailure(null)
+    setCatalog((previous) => ({
+      area: boundsKey,
+      scenes: [],
+      known: previous.area === boundsKey ? previous.known : {},
+    }))
+    const sameArea = selectionArea.current === boundsKey
+    const publishScenes = (scenes: RatedScene[]) => setCatalog((previous) => ({ ...previous, area: boundsKey, scenes }))
     ;(async () => {
       try {
-        const found = await searchSentinelScenes({
+        const found = await search({
           window: stableBounds,
           range: range === 'recent' ? recentRange(new Date(), SENTINEL_RECENT_DAYS) : seasonRange(range),
-          fetch: fetcher,
           signal,
           preferEpsg: epsg,
         })
@@ -163,10 +184,10 @@ export function useSentinel2({
         if (!found.length)
           throw new SentinelError(
             'no-scene',
-            `No Sentinel-2 scene under ${SENTINEL_CLOUD_MAX_PERCENT}% cloud covers this terrain in ${rangeLabel(range)}.`,
+            `No Sentinel-2 scene under ${SENTINEL_CLOUD_MAX_PERCENT}% cloud covers this view in ${rangeLabel(range)}.`,
           )
         let rated: RatedScene[] = found
-        setScenes(rated)
+        publishScenes(rated)
         // Rate each scene from a coarse read of its scene classification, a few at a time.
         let next = 0
         const worker = async () => {
@@ -182,19 +203,23 @@ export function useSentinel2({
               rating = null
             }
             rated = rated.map((s) => (s.id === scene.id ? { ...s, rating } : s))
-            setScenes(rated)
+            publishScenes(rated)
           }
         }
         await Promise.all(Array.from({ length: SENTINEL_LIST_CONCURRENCY }, worker))
         if (signal.aborted) return
         if (rated.every((scene) => scene.rating === null))
           throw new SentinelError('read', 'None of the listed scenes could be read from the AWS archive.')
-        setKnown((previous) => ({ ...previous, ...Object.fromEntries(rated.map((scene) => [scene.id, scene])) }))
+        setCatalog((previous) => ({
+          ...previous,
+          known: { ...previous.known, ...Object.fromEntries(rated.map((scene) => [scene.id, scene])) },
+        }))
+        selectionArea.current = boundsKey
         setSceneId((current) =>
-          current && rated.some((s) => s.id === current) ? current : (defaultScene(rated)?.id ?? null),
+          sameArea && current && rated.some((s) => s.id === current) ? current : (defaultScene(rated)?.id ?? null),
         )
         setPair((current) => {
-          if (current.before && current.after) return current
+          if (sameArea && current.before && current.after) return current
           const fallback = defaultPair(rated)
           return fallback ? { before: fallback[0].id, after: fallback[1].id } : current
         })
@@ -206,7 +231,7 @@ export function useSentinel2({
       }
     })()
     return () => controller.abort()
-  }, [visible, stableBounds, terrainProblem, range, searchRevision, fetcher, read])
+  }, [visible, stableBounds, boundsKey, terrainProblem, range, searchRevision, search, read])
 
   // Ratings arrive one scene at a time and replace the scene objects; the image effect reads the
   // picked scenes through this ref so a rating does not restart a read.
@@ -214,7 +239,8 @@ export function useSentinel2({
   useEffect(() => {
     lookup.current = (id) => (id ? (scenes.find((s) => s.id === id) ?? known[id]) : undefined)
   })
-  const ready = (id: string | null) => !!id && (scenes.some((s) => s.id === id) || !!known[id])
+  const ready = (id: string | null) =>
+    selectionArea.current === boundsKey && !!id && (scenes.some((s) => s.id === id) || !!known[id])
   const sceneReady = ready(sceneId),
     pairReady = ready(pair.before) && ready(pair.after)
 
@@ -253,7 +279,7 @@ export function useSentinel2({
             clearedHa: (result.cleared * window.pixelM * window.pixelM) / 10_000,
             comparedShare: result.compared / (window.width * window.height),
           })
-          setImage(drawn(window, ndviChangeRgba(result.delta), [a.date, b.date], `change|${a.id}|${b.id}`))
+          setImage(drawn(window, ndviChangeRgba(result.delta), [a.date, b.date], `change|${a.id}|${b.id}|${boundsKey}`))
         } else {
           const scene = shown!
           const window = sceneWindow(stableBounds, scene.epsg)
@@ -269,7 +295,7 @@ export function useSentinel2({
           }
           if (signal.aborted) return
           setChange(null)
-          setImage(drawn(window, rgba, [scene.date], `${mode}|${scene.id}`))
+          setImage(drawn(window, rgba, [scene.date], `${mode}|${scene.id}|${boundsKey}`))
         }
       } catch (error) {
         if (signal.aborted || isAbort(error)) return
@@ -285,6 +311,7 @@ export function useSentinel2({
   }, [
     visible,
     stableBounds,
+    boundsKey,
     terrainProblem,
     mode,
     sceneId,
@@ -296,7 +323,8 @@ export function useSentinel2({
     read,
   ])
 
-  const failure = terrainProblem ?? searchFailure ?? imageFailure
+  const failure = visible ? (terrainProblem ?? searchFailure ?? imageFailure) : null
+  const shownImage = visible && image?.key.endsWith(`|${boundsKey}`) && !failure ? image : null
   const retry = useCallback(() => {
     if (searchFailure) setSearchRevision((n) => n + 1)
     else setImageRevision((n) => n + 1)
@@ -315,17 +343,17 @@ export function useSentinel2({
     setMode,
     scenes,
     pickable,
-    searching,
+    searching: visible && searching,
     sceneId,
     setSceneId,
     pair,
     setPair,
-    image: failure ? null : image,
-    imageLoading,
-    change: mode === 'change' ? change : null,
+    image: shownImage,
+    imageLoading: visible && imageLoading,
+    change: shownImage && mode === 'change' ? change : null,
     failure,
     retry,
-    credit: image && !failure ? sentinelCredit(image.dates) : null,
+    credit: shownImage ? sentinelCredit(shownImage.dates) : null,
   }
 }
 

@@ -1,0 +1,1450 @@
+{
+ "checked": "2026-11-13",
+ "limits": [
+  "Reported completed-project cost and approximate construction cost are evidence categories; neither establishes an audited final payment or an awarded bid.",
+  "Tax treatment, contingency treatment, cash versus in-kind support, price escalation, owner costs and inclusions beyond the described works are unspecified unless a record says otherwise.",
+  "Amounts retain their historical project years; no escalation to 2026 or extrapolation to a generic per-km or per-m rate was performed.",
+  "Locations are supported by sources. Suggested natural-resource-region tags are geographic inferences requiring GIS boundary verification; highway districts and MoTI regions are different classifications.",
+  "A restored habitat distance is not road construction length. No habitat distance was used as a costing denominator.",
+  "Different reports for the same project may have different dates or accounting boundaries; keep their values separate."
+ ],
+ "records": [
+  {
+   "id": "contract-en22tlh001",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Tom Creek North FSR construction",
+   "party": "Way Out West Contracting Ltd.",
+   "place": "Quesnel",
+   "regionId": "cariboo",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 348539.05
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "New construction",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 5; contract EN22TLH001",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en22tah2403",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Canyon Creek road construction and bridge installation",
+   "party": "West Horizon Contracting Inc.",
+   "place": "Canyon Creek",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 237730
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "Road and bridge construction",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 1; contract EN22TAH2403",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en22tfg012",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "West Whatshan FSR construction",
+   "party": "Galena Contractors Ltd.",
+   "place": "Nakusp area",
+   "regionId": "kootenay-boundary",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 823555
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "New construction",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 1; contract EN22TFG012",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en22tfd006",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Fudd-Elmer FSR construction",
+   "party": "C.HI.L. Logging Ltd.",
+   "place": "Kootenay Lake area",
+   "regionId": "kootenay-boundary",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 233524
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "New construction",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 1; contract EN22TFD006",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en22tfg015",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Oscar FSR construction",
+   "party": "BC Ecochips Ltd.",
+   "place": "Castlegar area",
+   "regionId": "kootenay-boundary",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 821371.12
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "New construction",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 1; contract EN22TFG015",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en22tca004",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Port Neville road and bridge works",
+   "party": "Night Train Contracting Inc.",
+   "place": "Port Neville",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 1186701
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "Road and bridge works",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 4; contract EN22TCA004",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en22tgf002",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Prince George road deactivation",
+   "party": "Civil North Consulting Ltd.",
+   "place": "Prince George",
+   "regionId": "omineca",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 101811.16
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "Deactivation",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 4; contract EN22TGF002",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en22tij409",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Hazelton FSR maintenance",
+   "party": "West Horizon Contracting Inc.",
+   "place": "Hazelton",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 100386
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "Maintenance",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 5; contract EN22TIJ409",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en22tbh009",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Peers and Nesakwatch Creek road and bridge construction",
+   "party": "Maharg Contracting Ltd.",
+   "place": "Chilliwack/Coquihalla area",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 637646.43
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "Road and bridge construction",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 1; contract EN22TBH009",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-pd22tle005",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Terrain stability field assessments, Williams Lake TSA",
+   "party": "Onsite Engineering Ltd.",
+   "place": "Various sites, Williams Lake TSA",
+   "regionId": "cariboo",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 118165
+   },
+   "costYear": 2021,
+   "dateNote": "Initial maximum contract value at award; not final expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "Professional terrain assessment",
+   "tax": "CAD exclusive of taxes, stated in report column definitions",
+   "cautions": [
+    "No road length, quantities, detailed specification, full inclusions or final paid amount disclosed in this summary; cannot derive a unit rate.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+   "locator": "PDF page 1; contract PD22TLE005",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en21tah0408",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Maxan Colleymount Branch 12 FSR new construction, upgrade and bridge installation",
+   "party": "West Horizon Contracting Inc.",
+   "place": "Burns Lake area",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 385516
+   },
+   "costYear": 2020,
+   "dateNote": "Initial maximum contract value at award; amended maximum separately when present; neither is final paid expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "Scope category not stated in the disclosure",
+   "tax": "CAD exclusive of taxes, explicit report column definitions",
+   "cautions": [
+    "No road length, BOQ, design, full inclusions or final paid amount disclosed.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO23252_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2020.pdf",
+   "locator": "PDF page 1; contract EN21TAH0408",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en21tah0402",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "Canyon Creek FSR Branch 19 construction and vertical alignment",
+   "party": "Northern Industries Ltd.",
+   "place": "Smithers area",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 141386
+   },
+   "costYear": 2020,
+   "dateNote": "Initial maximum contract value at award; amended maximum separately when present; neither is final paid expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "Scope category not stated in the disclosure",
+   "tax": "CAD exclusive of taxes, explicit report column definitions",
+   "cautions": [
+    "No road length, BOQ, design, full inclusions or final paid amount disclosed.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO23252_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2020.pdf",
+   "locator": "PDF page 1; contract EN21TAH0402",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en21tah0411",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "East Peacock FSR construction, upgrade and bridge installation",
+   "party": "West Horizon Contracting Inc.",
+   "place": "Houston area",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 199945
+   },
+   "costYear": 2020,
+   "dateNote": "Initial maximum contract value at award; amended maximum separately when present; neither is final paid expenditure. Contract start year; exact award date not provided in disclosure.",
+   "scope": "Scope category not stated in the disclosure",
+   "tax": "CAD exclusive of taxes, explicit report column definitions",
+   "cautions": [
+    "No road length, BOQ, design, full inclusions or final paid amount disclosed.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO23252_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2020.pdf",
+   "locator": "PDF page 1; contract EN21TAH0411",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "contract-en21tah0405",
+   "kind": "contract-award",
+   "group": "BC ministry contract awards",
+   "title": "480 and 457 FSR construction and upgrade",
+   "party": "West Horizon Contracting Inc.",
+   "place": "Smithers area",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 162340
+   },
+   "costYear": 2020,
+   "dateNote": "Initial maximum contract value at award; amended maximum separately when present; neither is final paid expenditure. Contract start year; exact award date not provided in disclosure.",
+   "sample": "Amended maximum $197,340 (amendment $35,000)",
+   "scope": "Scope category not stated in the disclosure",
+   "tax": "CAD exclusive of taxes, explicit report column definitions",
+   "cautions": [
+    "No road length, BOQ, design, full inclusions or final paid amount disclosed.",
+    "Location-based research tag; precise natural-resource boundary not verified."
+   ],
+   "url": "https://docs.openinfo.gov.bc.ca/CO23252_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2020.pdf",
+   "locator": "PDF page 1; contract EN21TAH0405",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "boscar_lake_2022",
+   "kind": "completed-project",
+   "group": "CWF fish-passage projects",
+   "title": "Boscar Lake Creek culvert removal and road deactivation",
+   "place": "Black Creek-Cruiser Lake Forest Service Road, Horsefly River watershed, Cariboo Chilcotin",
+   "regionId": "cariboo",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 94613
+   },
+   "costYear": 2022,
+   "dateNote": "Completed 2022-08",
+   "sample": "road deactivation length each side: 200 m; road deactivation length total: 400 m (Calculated: two sides x 200 m; mixed project cost must not be divided into a road-only rate); natural channel width approximate: 10 m",
+   "scope": "Crossing removal and forest-road deactivation. Culvert removal, channel/riparian restoration, 200 m road deactivation each side.",
+   "cautions": [
+    "No work-item breakdown or contractor award",
+    "Culvert dimensions not supplied",
+    "Strong example for a decommissioning package; includes the crossing and restoration.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+   "locator": "Project 1, Boscar Lake Creek",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "cross_creek_2021",
+   "kind": "completed-project",
+   "group": "CWF fish-passage projects",
+   "title": "Cross Creek culvert replacement",
+   "place": "Babine Lake Road, tributary of Babine Lake, Lake Babine Nation territory",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 602545
+   },
+   "costYear": 2021,
+   "dateNote": "Completed 2021-summer",
+   "sample": "culverts removed: 2 each",
+   "scope": "Public-road fish-passable arch replacement. Two culverts replaced by reinforced-soil arch; creek bed and wildlife passage restored.",
+   "cautions": [
+    "Arch span/length not provided",
+    "Public-road context differs from a new forestry road",
+    "Use for arch replacement with stream works; not an isolated pipe supply price.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+   "locator": "Project 5, Cross Creek",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "ginlulak_2021",
+   "kind": "completed-project",
+   "group": "CWF fish-passage projects",
+   "title": "Ginlulak Creek culvert-to-bridge replacement",
+   "place": "Nass River side-channel crossing, northwest British Columbia",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 423424
+   },
+   "costYear": 2021,
+   "dateNote": "Completed 2021-02",
+   "sample": "new bridge span: 18 m; old timber culvert cross section: 1,3 m (Source gives 1 m x 3 m, without defining width versus height)",
+   "scope": "Concrete bridge replacing timber culvert. 18 m concrete clear-span bridge; old culvert/debris removal and streambed restoration.",
+   "cautions": [
+    "Road name/class not given",
+    "No detailed cost breakdown",
+    "Useful bridge package comparator; no published deck width/loading/foundation schedule.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+   "locator": "Project 7, Ginlulak Creek",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "pedley_2022",
+   "kind": "completed-project",
+   "group": "CWF fish-passage projects",
+   "title": "Pedley Creek culvert replacement",
+   "place": "Near Hixon, Pedley/Naver Creek confluence, Central Interior",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 1515439
+   },
+   "costYear": 2022,
+   "dateNote": "Completed 2022-11",
+   "scope": "Culvert-to-bridge replacement and channel restoration. Bridge replacement with streambed regrading and habitat reconstruction.",
+   "cautions": [
+    "Span and road length not supplied",
+    "MoTI partner; do not assume a forestry bridge standard",
+    "Locally relevant to Prince George/Hixon; geometry and road standard needed before matching.",
+    "Candidate regions: Omineca, Cariboo",
+    "Unassigned pending GIS check; do not copy MoTI district as natural-resource region"
+   ],
+   "url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+   "locator": "Project 10, Pedley Creek",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "mcdowell_2023",
+   "kind": "completed-project",
+   "group": "CWF fish-passage projects",
+   "title": "McDowell Creek culvert replacement",
+   "place": "Near Telkwa, approximately 130 m upstream of the Bulkley River confluence",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 75000
+   },
+   "costYear": 2023,
+   "dateNote": "Completed 2023",
+   "sample": "bridge length: 7 m",
+   "scope": "Small precast bridge replacement. 7 m precast concrete bridge and restored streambed.",
+   "cautions": [
+    "Do not assume this inexpensive project represents an industrial forestry-load bridge",
+    "No component price breakdown",
+    "Small crossing benchmark; loading, width, reused/donated components and in-kind work unspecified.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+   "locator": "Project 18, McDowell Creek",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "canton_2023",
+   "kind": "completed-project",
+   "group": "CWF fish-passage projects",
+   "title": "Canton Wetland crossing replacement",
+   "place": "Head Bay Forest Service Road, west Vancouver Island, access route to Tahsis",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 501000
+   },
+   "costYear": 2023,
+   "dateNote": "Completed 2023-summer",
+   "scope": "Forest-service-road culvert-to-bridge replacement. Clear-span bridge and reconstructed natural channel through tidal wetland crossing.",
+   "cautions": [
+    "Bridge dimensions not provided",
+    "No contract/final account or cost breakdown",
+    "Strong FSR project comparator but public access and tidal-site constraints are material.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://blog.cwf-fcf.org/index.php/en/wonderful-news-for-world-wetlands-day/",
+   "locator": "Solutions for Salmon section",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "shuhum_2022",
+   "kind": "completed-project",
+   "group": "CWF fish-passage projects",
+   "title": "Shuhum Creek culvert replacement",
+   "place": "Lakeshore Road near Sproat Lake, Alberni-Clayoquot",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 907500
+   },
+   "costYear": 2022,
+   "dateNote": "Completed 2022-07",
+   "sample": "spawning platforms: 4 each; pools: 3 each",
+   "scope": "Open-bottom arch and stream restoration. Bedrock-anchored reinforced-soil arch, streambed restoration, four spawning platforms and three pools.",
+   "cautions": [
+    "Arch span/length not provided",
+    "Public-road project",
+    "Arch/habitat construction package; restoration scope materially extends beyond culvert installation.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+   "locator": "Project 13, Shuhum Creek",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "central_estuary_2020",
+   "kind": "completed-project",
+   "group": "CWF fish-passage projects",
+   "title": "Central Squamish Estuary culvert replacement",
+   "place": "Training Berm, Squamish Central Estuary, Howe Sound",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 819310
+   },
+   "costYear": 2020,
+   "dateNote": "Completed 2020-summer-and-fall",
+   "sample": "box culvert cross section: 3,3 m",
+   "scope": "Estuary box culvert and habitat restoration. Profile describes site 4 replacement with 3 x 3 m box culvert and planting.",
+   "cautions": [
+    "Source also discusses a wider multi-component estuary project; confirm whether reported total is exclusively site 4 before deriving a unit rate",
+    "Culvert length omitted",
+    "Estuary berm differs from ordinary resource-road corridor",
+    "Secondary comparator pending accounting-boundary clarification.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+   "locator": "Project 4, Central Estuary",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "tako_2020",
+   "kind": "approximate-project",
+   "group": "MoTI low-volume road structures",
+   "title": "Tako Creek bridge 8147",
+   "place": "Clarkson Road, approximately 67 km south of Prince George",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 625000
+   },
+   "costYear": 2020,
+   "dateNote": "Completed 2020",
+   "sample": "girder length: 25 m; traffic lanes: 1 each",
+   "scope": "Low-volume-road bridge replacement. 25 m steel-girder/precast-deck bridge; girders reused; spread footings; road closed.",
+   "cautions": [
+    "Approximate construction cost, not total project cost or certified final account",
+    "Girders reused",
+    "Useful nearby bridge example; reused girders prevent comparison with all-new supply-and-install prices.",
+    "Candidate regions: Omineca, Cariboo",
+    "Unassigned pending GIS check; MoTI district differs from natural-resource region"
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+   "locator": "Section 12.3, printed page 28",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "clapperton_bridge_2019",
+   "kind": "approximate-project",
+   "group": "MoTI low-volume road structures",
+   "title": "Clapperton Creek 2 bridge 10215",
+   "place": "Mill Creek Road, approximately 16 km from Merritt",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 850000
+   },
+   "costYear": 2019,
+   "dateNote": "Completed 2019",
+   "sample": "girder length: 18 m; traffic lanes: 1 each",
+   "scope": "Low-volume-road bridge replacement. 18 m precast-concrete bridge, piled abutments, unpaved approaches and temporary detour bridge.",
+   "cautions": [
+    "Approximate construction cost",
+    "Do not confuse with CWF Clapperton irrigation dam removal completed in 2024",
+    "Scope-rich bridge example; temporary traffic accommodation included in project description.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+   "locator": "Section 12.2, printed page 25",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "heart_2018",
+   "kind": "approximate-project",
+   "group": "MoTI low-volume road structures",
+   "title": "Heart Creek 2 bridge 7240",
+   "place": "Applegrove Road, 57 km southwest of Nakusp",
+   "regionId": "kootenay-boundary",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 2160000
+   },
+   "costYear": 2018,
+   "dateNote": "Completed 2018",
+   "sample": "girder length: 42 m; traffic lanes: 1 each; fish step pools: 18 each",
+   "scope": "Low-volume-road bridge and fish-habitat reconstruction. 42 m steel-girder/precast-deck bridge, piled abutments and 18 step pools.",
+   "cautions": [
+    "Approximate construction cost",
+    "Historical 2018 amount",
+    "Includes substantial fisheries restoration",
+    "Larger bridge with substantial habitat works; keep distinct from a bridge-only benchmark.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+   "locator": "Section 12.4, printed page 31",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "birk_2019",
+   "kind": "approximate-project",
+   "group": "MoTI low-volume road structures",
+   "title": "Birk Creek bridge 7532",
+   "place": "North Barriere Lake Road, approximately 30 km from Barriere",
+   "regionId": "thompson-okanagan",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 900000
+   },
+   "costYear": 2019,
+   "dateNote": "Completed 2019-05",
+   "sample": "girder length: 18 m; traffic lanes: 1 each",
+   "scope": "Low-volume-road bridge replacement. 18 m precast-concrete bridge, spread footings, unpaved approaches and temporary detour bridge.",
+   "cautions": [
+    "MoTI approximate $900,000 construction cost differs from CWF $812,000 project total; do not average or reconcile without accounting detail",
+    "Good scope description; cost disagreement requires two separate observations or review status.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+   "locator": "Section 12.1, printed page 22",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "freeman_2020",
+   "kind": "approximate-project",
+   "group": "BC Fish Passage Program",
+   "title": "Freeman Creek 12 m bridge",
+   "place": "Off Yahk-Meadow Creek Road, approximately 18 km south of Yahk",
+   "regionId": "kootenay-boundary",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 215930
+   },
+   "costYear": 2020,
+   "dateNote": "Completed 2020-09",
+   "sample": "bridge length: 12 m",
+   "scope": "Culvert removal, 12 m concrete girder bridge, stream shaping, habitat wood, planting and cattle exclusion fencing.",
+   "cautions": [
+    "Annual summary reports only $123,230 for 2020; it is not the whole bridge project total.",
+    "Do not merge with CWF's $244,487 Freeman Creek and Meadow profile, which describes two bridges and a wider scope.",
+    "Installation contract component is reported in a completion report; no original award record was retrieved.",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/environment/plants-animals-and-ecosystems/fish-fish-habitat/fish-passage/fish-passage/bcts_fish_passage_annual_report_2020-2021.pdf",
+   "locator": "Section 2.2.1, printed page 7",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "loveland_2020",
+   "kind": "approximate-project",
+   "group": "BC Fish Passage Program",
+   "title": "Loveland Bay FSR embedded culvert",
+   "place": "4.8 km Loveland Bay Forest Service Road, northwest of Campbell River",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 189603.09
+   },
+   "costYear": 2020,
+   "dateNote": "Completed 2020-06-23 to 2020-07-15",
+   "sample": "culvert diameter: 2700 mm; culvert length: 36 m; channel rehabilitation upstream: 40 m; channel rehabilitation downstream: 36 m",
+   "scope": "Collapsed timber culvert replaced with embedded corrugated metal pipe and simulated streambed, plus channel restoration.",
+   "cautions": [
+    "Source arithmetic discrepancy",
+    "Professional-services scope/tax unspecified",
+    "No separate supply-only pipe unit rate",
+    "Geographic inference; boundary not checked"
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/environment/plants-animals-and-ecosystems/fish-fish-habitat/fish-passage/fish-passage/bcts_fish_passage_annual_report_2020-2021.pdf",
+   "locator": "Section 2.1.2, printed page 5",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-01",
+   "kind": "estimate",
+   "group": "McElhanney · Parksville",
+   "title": "31.01 Clearing and grubbing",
+   "party": "McElhanney for City of Parksville",
+   "place": "Parksville, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 15
+   },
+   "unit": "/m²",
+   "costYear": 2026,
+   "dateNote": "Class D / order of magnitude; estimate dated 2026-04-10",
+   "sample": "2,500 m2 in the estimate, option 1 - Pioneer Crescent",
+   "scope": "Parksville Pathway Phase 2 - Conceptual Design Memo. Three municipal multi-use pathway alignments: Pioneer Crescent; Turner/Martindale Roads; Tulip Avenue ROW. Includes electrical lighting, utilities, asphalt, sidewalks, landscaping and civil works; not a forest-road construction project.",
+   "tax": "GST excluded explicitly",
+   "cautions": [
+    "Tree removal separately allowed as lump sum; do not assume included.",
+    "Published total estimates contain internal arithmetic/subtotal inconsistencies. In Appendix A page 2, Option 1 concrete rows show $57,600 plus $22,880 but concrete subtotal and summary show $57,600. General requirements detail subtotal is $214,000 for option 2 and $394,000 for option 3; summary instead shows $182,000 and $214,000 respectively. Preserve published totals as reported; do not treat them as independently reconciled totals. Selected earthwork/base rates and their individual quantity extensions were visually verified.",
+    "Municipal pathway rates; clearing row is separate from a lump sum tree-removal allowance."
+   ],
+   "url": "https://parksville.civicweb.net/document/81815/",
+   "locator": "Report section 6 / printed page 16; Appendix A estimate pages 1-4. PDF pages 23-26 of downloaded document; earthwork at PDF page 25, road materials at PDF page 26.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-02",
+   "kind": "estimate",
+   "group": "McElhanney · Parksville",
+   "title": "31.07 Common excavation - dispose offsite",
+   "party": "McElhanney for City of Parksville",
+   "place": "Parksville, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 65
+   },
+   "unit": "/m³",
+   "costYear": 2026,
+   "dateNote": "Class D / order of magnitude; estimate dated 2026-04-10",
+   "sample": "750 m3 in the estimate, option 1 - Pioneer Crescent",
+   "scope": "Parksville Pathway Phase 2 - Conceptual Design Memo. Three municipal multi-use pathway alignments: Pioneer Crescent; Turner/Martindale Roads; Tulip Avenue ROW. Includes electrical lighting, utilities, asphalt, sidewalks, landscaping and civil works; not a forest-road construction project.",
+   "tax": "GST excluded explicitly",
+   "cautions": [
+    "Offsite disposal explicit; haul distance unspecified.",
+    "Published total estimates contain internal arithmetic/subtotal inconsistencies. In Appendix A page 2, Option 1 concrete rows show $57,600 plus $22,880 but concrete subtotal and summary show $57,600. General requirements detail subtotal is $214,000 for option 2 and $394,000 for option 3; summary instead shows $182,000 and $214,000 respectively. Preserve published totals as reported; do not treat them as independently reconciled totals. Selected earthwork/base rates and their individual quantity extensions were visually verified.",
+    "Municipal pathway rates; clearing row is separate from a lump sum tree-removal allowance."
+   ],
+   "url": "https://parksville.civicweb.net/document/81815/",
+   "locator": "Report section 6 / printed page 16; Appendix A estimate pages 1-4. PDF pages 23-26 of downloaded document; earthwork at PDF page 25, road materials at PDF page 26.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-03",
+   "kind": "estimate",
+   "group": "McElhanney · Parksville",
+   "title": "31.08 Subgrade preparation",
+   "party": "McElhanney for City of Parksville",
+   "place": "Parksville, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 3
+   },
+   "unit": "/m²",
+   "costYear": 2026,
+   "dateNote": "Class D / order of magnitude; estimate dated 2026-04-10",
+   "sample": "2,500 m2 in the estimate, option 1 - Pioneer Crescent",
+   "scope": "Parksville Pathway Phase 2 - Conceptual Design Memo. Three municipal multi-use pathway alignments: Pioneer Crescent; Turner/Martindale Roads; Tulip Avenue ROW. Includes electrical lighting, utilities, asphalt, sidewalks, landscaping and civil works; not a forest-road construction project.",
+   "tax": "GST excluded explicitly",
+   "cautions": [
+    "Published total estimates contain internal arithmetic/subtotal inconsistencies. In Appendix A page 2, Option 1 concrete rows show $57,600 plus $22,880 but concrete subtotal and summary show $57,600. General requirements detail subtotal is $214,000 for option 2 and $394,000 for option 3; summary instead shows $182,000 and $214,000 respectively. Preserve published totals as reported; do not treat them as independently reconciled totals. Selected earthwork/base rates and their individual quantity extensions were visually verified.",
+    "Municipal pathway rates; clearing row is separate from a lump sum tree-removal allowance."
+   ],
+   "url": "https://parksville.civicweb.net/document/81815/",
+   "locator": "Report section 6 / printed page 16; Appendix A estimate pages 1-4. PDF pages 23-26 of downloaded document; earthwork at PDF page 25, road materials at PDF page 26.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-04",
+   "kind": "estimate",
+   "group": "McElhanney · Parksville",
+   "title": "31.09 Import embankment fill",
+   "party": "McElhanney for City of Parksville",
+   "place": "Parksville, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 90
+   },
+   "unit": "/m³",
+   "costYear": 2026,
+   "dateNote": "Class D / order of magnitude; estimate dated 2026-04-10",
+   "sample": "200 m3 in the estimate, option 1 - Pioneer Crescent",
+   "scope": "Parksville Pathway Phase 2 - Conceptual Design Memo. Three municipal multi-use pathway alignments: Pioneer Crescent; Turner/Martindale Roads; Tulip Avenue ROW. Includes electrical lighting, utilities, asphalt, sidewalks, landscaping and civil works; not a forest-road construction project.",
+   "tax": "GST excluded explicitly",
+   "cautions": [
+    "Published total estimates contain internal arithmetic/subtotal inconsistencies. In Appendix A page 2, Option 1 concrete rows show $57,600 plus $22,880 but concrete subtotal and summary show $57,600. General requirements detail subtotal is $214,000 for option 2 and $394,000 for option 3; summary instead shows $182,000 and $214,000 respectively. Preserve published totals as reported; do not treat them as independently reconciled totals. Selected earthwork/base rates and their individual quantity extensions were visually verified.",
+    "Municipal pathway rates; clearing row is separate from a lump sum tree-removal allowance."
+   ],
+   "url": "https://parksville.civicweb.net/document/81815/",
+   "locator": "Report section 6 / printed page 16; Appendix A estimate pages 1-4. PDF pages 23-26 of downloaded document; earthwork at PDF page 25, road materials at PDF page 26.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-05",
+   "kind": "estimate",
+   "group": "McElhanney · Parksville",
+   "title": "32.01 Select granular subbase, 75 mm minus pit run, 200 mm thickness",
+   "party": "McElhanney for City of Parksville",
+   "place": "Parksville, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 25
+   },
+   "unit": "/m²",
+   "costYear": 2026,
+   "dateNote": "Class D / order of magnitude; estimate dated 2026-04-10",
+   "sample": "600 m2 in the estimate, option 1 - Pioneer Crescent",
+   "scope": "Parksville Pathway Phase 2 - Conceptual Design Memo. Three municipal multi-use pathway alignments: Pioneer Crescent; Turner/Martindale Roads; Tulip Avenue ROW. Includes electrical lighting, utilities, asphalt, sidewalks, landscaping and civil works; not a forest-road construction project.",
+   "tax": "GST excluded explicitly",
+   "cautions": [
+    "Per area at stated layer thickness; not supplier material-only price.",
+    "Published total estimates contain internal arithmetic/subtotal inconsistencies. In Appendix A page 2, Option 1 concrete rows show $57,600 plus $22,880 but concrete subtotal and summary show $57,600. General requirements detail subtotal is $214,000 for option 2 and $394,000 for option 3; summary instead shows $182,000 and $214,000 respectively. Preserve published totals as reported; do not treat them as independently reconciled totals. Selected earthwork/base rates and their individual quantity extensions were visually verified.",
+    "Municipal pathway rates; clearing row is separate from a lump sum tree-removal allowance."
+   ],
+   "url": "https://parksville.civicweb.net/document/81815/",
+   "locator": "Report section 6 / printed page 16; Appendix A estimate pages 1-4. PDF pages 23-26 of downloaded document; earthwork at PDF page 25, road materials at PDF page 26.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-06",
+   "kind": "estimate",
+   "group": "McElhanney · Parksville",
+   "title": "32.02 Granular base, 100 mm thickness",
+   "party": "McElhanney for City of Parksville",
+   "place": "Parksville, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 20
+   },
+   "unit": "/m²",
+   "costYear": 2026,
+   "dateNote": "Class D / order of magnitude; estimate dated 2026-04-10",
+   "sample": "3,100 m2 in the estimate, option 1 - Pioneer Crescent",
+   "scope": "Parksville Pathway Phase 2 - Conceptual Design Memo. Three municipal multi-use pathway alignments: Pioneer Crescent; Turner/Martindale Roads; Tulip Avenue ROW. Includes electrical lighting, utilities, asphalt, sidewalks, landscaping and civil works; not a forest-road construction project.",
+   "tax": "GST excluded explicitly",
+   "cautions": [
+    "Published total estimates contain internal arithmetic/subtotal inconsistencies. In Appendix A page 2, Option 1 concrete rows show $57,600 plus $22,880 but concrete subtotal and summary show $57,600. General requirements detail subtotal is $214,000 for option 2 and $394,000 for option 3; summary instead shows $182,000 and $214,000 respectively. Preserve published totals as reported; do not treat them as independently reconciled totals. Selected earthwork/base rates and their individual quantity extensions were visually verified.",
+    "Municipal pathway rates; clearing row is separate from a lump sum tree-removal allowance."
+   ],
+   "url": "https://parksville.civicweb.net/document/81815/",
+   "locator": "Report section 6 / printed page 16; Appendix A estimate pages 1-4. PDF pages 23-26 of downloaded document; earthwork at PDF page 25, road materials at PDF page 26.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-07",
+   "kind": "estimate",
+   "group": "McElhanney · Strathcona",
+   "title": "Granular base, 225 mm",
+   "party": "McElhanney, Campbell River Branch for Strathcona Regional District",
+   "place": "Electoral Area D, south of Campbell River, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 40
+   },
+   "unit": "/m²",
+   "costYear": 2025,
+   "dateNote": "Class D; estimate dated 2025-01-10",
+   "sample": "59,000 m2 in the estimate",
+   "scope": "SRD Area D Drainage Study / Preliminary Construction Cost Estimate: Underground Stormwater Utilities. Piped stormwater network in MOTI ROWs with road restoration. Study selects medium/high density urban parts of Area D and excludes rural/coastal parcels. Road works assume a 2.5 m wide asphalt cut along the entire storm-main length. Rates below are restoration components, not whole-road costs; PVC storm-main rates are not culvert rates.",
+   "tax": "Not specified in inspected cost table / staff financial summary",
+   "cautions": [
+    "Road restoration after 2.5 m wide storm-trench cut.",
+    "Use only the separately itemized road-restoration components for road comparison; bundled storm-main totals are utility costs.",
+    "Do not convert $/m2 to $/m3 without retaining layer thickness and construction scope."
+   ],
+   "url": "https://agenda.strathconard.ca/SRDAttachments/SRDCommittees/Open/EAS/11-Mar-25/20250304-Area-D-Stormwater-Mgmt-Study.pdf",
+   "locator": "Appendix B, Study Area estimate. PDF page 21 in the March 11, 2025 agenda attachment; staff financial implications on PDF page 3.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-08",
+   "kind": "estimate",
+   "group": "McElhanney · Strathcona",
+   "title": "Granular subbase, 300 mm",
+   "party": "McElhanney, Campbell River Branch for Strathcona Regional District",
+   "place": "Electoral Area D, south of Campbell River, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 50
+   },
+   "unit": "/m²",
+   "costYear": 2025,
+   "dateNote": "Class D; estimate dated 2025-01-10",
+   "sample": "59,000 m2 in the estimate",
+   "scope": "SRD Area D Drainage Study / Preliminary Construction Cost Estimate: Underground Stormwater Utilities. Piped stormwater network in MOTI ROWs with road restoration. Study selects medium/high density urban parts of Area D and excludes rural/coastal parcels. Road works assume a 2.5 m wide asphalt cut along the entire storm-main length. Rates below are restoration components, not whole-road costs; PVC storm-main rates are not culvert rates.",
+   "tax": "Not specified in inspected cost table / staff financial summary",
+   "cautions": [
+    "Road restoration after 2.5 m wide storm-trench cut.",
+    "Use only the separately itemized road-restoration components for road comparison; bundled storm-main totals are utility costs.",
+    "Do not convert $/m2 to $/m3 without retaining layer thickness and construction scope."
+   ],
+   "url": "https://agenda.strathconard.ca/SRDAttachments/SRDCommittees/Open/EAS/11-Mar-25/20250304-Area-D-Stormwater-Mgmt-Study.pdf",
+   "locator": "Appendix B, Study Area estimate. PDF page 21 in the March 11, 2025 agenda attachment; staff financial implications on PDF page 3.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-09",
+   "kind": "estimate",
+   "group": "McElhanney · Strathcona",
+   "title": "600 mm headwall",
+   "party": "McElhanney, Campbell River Branch for Strathcona Regional District",
+   "place": "Electoral Area D, south of Campbell River, Vancouver Island, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 7500
+   },
+   "unit": "/each",
+   "costYear": 2025,
+   "dateNote": "Class D; estimate dated 2025-01-10",
+   "sample": "4 each in the estimate",
+   "scope": "SRD Area D Drainage Study / Preliminary Construction Cost Estimate: Underground Stormwater Utilities. Piped stormwater network in MOTI ROWs with road restoration. Study selects medium/high density urban parts of Area D and excludes rural/coastal parcels. Road works assume a 2.5 m wide asphalt cut along the entire storm-main length. Rates below are restoration components, not whole-road costs; PVC storm-main rates are not culvert rates.",
+   "tax": "Not specified in inspected cost table / staff financial summary",
+   "cautions": [
+    "For stormwater-system outfalls; not culvert supply/install rate.",
+    "Use only the separately itemized road-restoration components for road comparison; bundled storm-main totals are utility costs.",
+    "Do not convert $/m2 to $/m3 without retaining layer thickness and construction scope.",
+    "Context only: not a comparable construction component."
+   ],
+   "contextOnly": true,
+   "url": "https://agenda.strathconard.ca/SRDAttachments/SRDCommittees/Open/EAS/11-Mar-25/20250304-Area-D-Stormwater-Mgmt-Study.pdf",
+   "locator": "Appendix B, Study Area estimate. PDF page 21 in the March 11, 2025 agenda attachment; staff financial implications on PDF page 3.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-10",
+   "kind": "estimate",
+   "group": "McElhanney · Bulkley-Nechako",
+   "title": "Clearing and grubbing",
+   "party": "McElhanney Consulting Services Ltd. for Regional District of Bulkley-Nechako",
+   "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 38000
+   },
+   "unit": "/ha",
+   "costYear": 2018,
+   "dateNote": "Class D; estimate dated 2018-11-29",
+   "sample": "1.5 ha in the estimate",
+   "scope": "Ebenezer Flats Flood Mitigation Study - Roads and Driveways, 1.0 m Raise. Raise 1,300 m existing paved roadway and reconstruct 25 driveways for flood protection. Remove pavement, add 0.4 m fill and 0.615 m pavement structure over existing granulars; reconstruct ditches both sides. Driveways assumed 6 m x 14.5 m and ~7% grade. Not new forest-road construction.",
+   "tax": "Not specified in inspected estimate",
+   "cautions": [
+    "Historical 2018 prices; do not silently inflate or relabel as current.",
+    "Imported embankment fill is $65/tonne; CBC and SGSB are $65/m3. Same numeric price, different units.",
+    "Driveway culvert diameter/material/depth not specified in estimate, so $500/m is contextual only."
+   ],
+   "url": "https://www.rdbn.bc.ca/application/files/8316/0098/4665/20190312_Ebenezer_Flats_Flood_Mitigation_Study_-_Final_Report_-_Signed.pdf",
+   "locator": "Appendix C, Class D Cost Estimate - Roads and Driveways (1.0m Raise), estimate pages 1-2; PDF pages 90-91.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-11",
+   "kind": "estimate",
+   "group": "McElhanney · Bulkley-Nechako",
+   "title": "Common excavation and offsite disposal",
+   "party": "McElhanney Consulting Services Ltd. for Regional District of Bulkley-Nechako",
+   "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 25
+   },
+   "unit": "/m³",
+   "costYear": 2018,
+   "dateNote": "Class D; estimate dated 2018-11-29",
+   "sample": "2,300 m3 in the estimate",
+   "scope": "Ebenezer Flats Flood Mitigation Study - Roads and Driveways, 1.0 m Raise. Raise 1,300 m existing paved roadway and reconstruct 25 driveways for flood protection. Remove pavement, add 0.4 m fill and 0.615 m pavement structure over existing granulars; reconstruct ditches both sides. Driveways assumed 6 m x 14.5 m and ~7% grade. Not new forest-road construction.",
+   "tax": "Not specified in inspected estimate",
+   "cautions": [
+    "Historical 2018 prices; do not silently inflate or relabel as current.",
+    "Imported embankment fill is $65/tonne; CBC and SGSB are $65/m3. Same numeric price, different units.",
+    "Driveway culvert diameter/material/depth not specified in estimate, so $500/m is contextual only."
+   ],
+   "url": "https://www.rdbn.bc.ca/application/files/8316/0098/4665/20190312_Ebenezer_Flats_Flood_Mitigation_Study_-_Final_Report_-_Signed.pdf",
+   "locator": "Appendix C, Class D Cost Estimate - Roads and Driveways (1.0m Raise), estimate pages 1-2; PDF pages 90-91.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-12",
+   "kind": "estimate",
+   "group": "McElhanney · Bulkley-Nechako",
+   "title": "Imported embankment fill",
+   "party": "McElhanney Consulting Services Ltd. for Regional District of Bulkley-Nechako",
+   "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 65
+   },
+   "unit": "/tonne",
+   "costYear": 2018,
+   "dateNote": "Class D; estimate dated 2018-11-29",
+   "sample": "17,200 tonne in the estimate",
+   "scope": "Ebenezer Flats Flood Mitigation Study - Roads and Driveways, 1.0 m Raise. Raise 1,300 m existing paved roadway and reconstruct 25 driveways for flood protection. Remove pavement, add 0.4 m fill and 0.615 m pavement structure over existing granulars; reconstruct ditches both sides. Driveways assumed 6 m x 14.5 m and ~7% grade. Not new forest-road construction.",
+   "tax": "Not specified in inspected estimate",
+   "cautions": [
+    "Unit is tonnes, not m3.",
+    "Historical 2018 prices; do not silently inflate or relabel as current.",
+    "Imported embankment fill is $65/tonne; CBC and SGSB are $65/m3. Same numeric price, different units.",
+    "Driveway culvert diameter/material/depth not specified in estimate, so $500/m is contextual only."
+   ],
+   "url": "https://www.rdbn.bc.ca/application/files/8316/0098/4665/20190312_Ebenezer_Flats_Flood_Mitigation_Study_-_Final_Report_-_Signed.pdf",
+   "locator": "Appendix C, Class D Cost Estimate - Roads and Driveways (1.0m Raise), estimate pages 1-2; PDF pages 90-91.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-13",
+   "kind": "estimate",
+   "group": "McElhanney · Bulkley-Nechako",
+   "title": "Roadway crushed base course (CBC)",
+   "party": "McElhanney Consulting Services Ltd. for Regional District of Bulkley-Nechako",
+   "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 65
+   },
+   "unit": "/m³",
+   "costYear": 2018,
+   "dateNote": "Class D; estimate dated 2018-11-29",
+   "sample": "650 m3 in the estimate",
+   "scope": "Ebenezer Flats Flood Mitigation Study - Roads and Driveways, 1.0 m Raise. Raise 1,300 m existing paved roadway and reconstruct 25 driveways for flood protection. Remove pavement, add 0.4 m fill and 0.615 m pavement structure over existing granulars; reconstruct ditches both sides. Driveways assumed 6 m x 14.5 m and ~7% grade. Not new forest-road construction.",
+   "tax": "Not specified in inspected estimate",
+   "cautions": [
+    "Historical 2018 prices; do not silently inflate or relabel as current.",
+    "Imported embankment fill is $65/tonne; CBC and SGSB are $65/m3. Same numeric price, different units.",
+    "Driveway culvert diameter/material/depth not specified in estimate, so $500/m is contextual only."
+   ],
+   "url": "https://www.rdbn.bc.ca/application/files/8316/0098/4665/20190312_Ebenezer_Flats_Flood_Mitigation_Study_-_Final_Report_-_Signed.pdf",
+   "locator": "Appendix C, Class D Cost Estimate - Roads and Driveways (1.0m Raise), estimate pages 1-2; PDF pages 90-91.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-14",
+   "kind": "estimate",
+   "group": "McElhanney · Bulkley-Nechako",
+   "title": "Roadway select granular subbase (SGSB)",
+   "party": "McElhanney Consulting Services Ltd. for Regional District of Bulkley-Nechako",
+   "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 65
+   },
+   "unit": "/m³",
+   "costYear": 2018,
+   "dateNote": "Class D; estimate dated 2018-11-29",
+   "sample": "4,680 m3 in the estimate",
+   "scope": "Ebenezer Flats Flood Mitigation Study - Roads and Driveways, 1.0 m Raise. Raise 1,300 m existing paved roadway and reconstruct 25 driveways for flood protection. Remove pavement, add 0.4 m fill and 0.615 m pavement structure over existing granulars; reconstruct ditches both sides. Driveways assumed 6 m x 14.5 m and ~7% grade. Not new forest-road construction.",
+   "tax": "Not specified in inspected estimate",
+   "cautions": [
+    "Historical 2018 prices; do not silently inflate or relabel as current.",
+    "Imported embankment fill is $65/tonne; CBC and SGSB are $65/m3. Same numeric price, different units.",
+    "Driveway culvert diameter/material/depth not specified in estimate, so $500/m is contextual only."
+   ],
+   "url": "https://www.rdbn.bc.ca/application/files/8316/0098/4665/20190312_Ebenezer_Flats_Flood_Mitigation_Study_-_Final_Report_-_Signed.pdf",
+   "locator": "Appendix C, Class D Cost Estimate - Roads and Driveways (1.0m Raise), estimate pages 1-2; PDF pages 90-91.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-15",
+   "kind": "estimate",
+   "group": "McElhanney · Bulkley-Nechako",
+   "title": "Ditching",
+   "party": "McElhanney Consulting Services Ltd. for Regional District of Bulkley-Nechako",
+   "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 35
+   },
+   "unit": "/m",
+   "costYear": 2018,
+   "dateNote": "Class D; estimate dated 2018-11-29",
+   "sample": "2,600 m in the estimate",
+   "scope": "Ebenezer Flats Flood Mitigation Study - Roads and Driveways, 1.0 m Raise. Raise 1,300 m existing paved roadway and reconstruct 25 driveways for flood protection. Remove pavement, add 0.4 m fill and 0.615 m pavement structure over existing granulars; reconstruct ditches both sides. Driveways assumed 6 m x 14.5 m and ~7% grade. Not new forest-road construction.",
+   "tax": "Not specified in inspected estimate",
+   "cautions": [
+    "Historical 2018 prices; do not silently inflate or relabel as current.",
+    "Imported embankment fill is $65/tonne; CBC and SGSB are $65/m3. Same numeric price, different units.",
+    "Driveway culvert diameter/material/depth not specified in estimate, so $500/m is contextual only."
+   ],
+   "url": "https://www.rdbn.bc.ca/application/files/8316/0098/4665/20190312_Ebenezer_Flats_Flood_Mitigation_Study_-_Final_Report_-_Signed.pdf",
+   "locator": "Appendix C, Class D Cost Estimate - Roads and Driveways (1.0m Raise), estimate pages 1-2; PDF pages 90-91.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-16",
+   "kind": "estimate",
+   "group": "McElhanney · Bulkley-Nechako",
+   "title": "Driveway culverts",
+   "party": "McElhanney Consulting Services Ltd. for Regional District of Bulkley-Nechako",
+   "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
+   "regionId": "skeena",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 500
+   },
+   "unit": "/m",
+   "costYear": 2018,
+   "dateNote": "Class D; estimate dated 2018-11-29",
+   "sample": "275 m in the estimate",
+   "scope": "Ebenezer Flats Flood Mitigation Study - Roads and Driveways, 1.0 m Raise. Raise 1,300 m existing paved roadway and reconstruct 25 driveways for flood protection. Remove pavement, add 0.4 m fill and 0.615 m pavement structure over existing granulars; reconstruct ditches both sides. Driveways assumed 6 m x 14.5 m and ~7% grade. Not new forest-road construction.",
+   "tax": "Not specified in inspected estimate",
+   "cautions": [
+    "Diameter, material, installation depth and crossing particulars unspecified.",
+    "Historical 2018 prices; do not silently inflate or relabel as current.",
+    "Imported embankment fill is $65/tonne; CBC and SGSB are $65/m3. Same numeric price, different units.",
+    "Driveway culvert diameter/material/depth not specified in estimate, so $500/m is contextual only.",
+    "Context only: not a comparable construction component."
+   ],
+   "contextOnly": true,
+   "url": "https://www.rdbn.bc.ca/application/files/8316/0098/4665/20190312_Ebenezer_Flats_Flood_Mitigation_Study_-_Final_Report_-_Signed.pdf",
+   "locator": "Appendix C, Class D Cost Estimate - Roads and Driveways (1.0m Raise), estimate pages 1-2; PDF pages 90-91.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-17",
+   "kind": "estimate",
+   "group": "BGC · Squamish-Lillooet",
+   "title": "Access construction",
+   "party": "BGC Engineering Inc. for Squamish-Lillooet Regional District",
+   "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 100
+   },
+   "unit": "/m",
+   "dateNote": "Order of magnitude, stated uncertainty -50% to >+100%; estimate dated 2022-02-18",
+   "sample": "230 m in the estimate",
+   "scope": "Jason Creek (Reid Road) Assessment - FINAL, Appendix B Risk-Control Cost Estimates. Risk-control options for debris flows. Selected table is a 1.5 m high diversion berm with access construction, excavation, disposal, fill and riprap. Not a whole forest-road project.",
+   "cautions": [
+    "Access width, standard and precise scope unspecified.",
+    "Mixed Alberta and BC historical bid bases; not a BC-only observed market-price dataset.",
+    "No detailed topography, modelling or field verification at this stage.",
+    "Access width/standard undefined, so $100/m should not be used as general road construction cost.",
+    "Context only: not a comparable construction component."
+   ],
+   "contextOnly": true,
+   "url": "https://www.slrd.bc.ca/sites/default/files/pdfs/RFP%20Reid%20Road%20Area%20Detailed%20QRA%20Final.pdf",
+   "locator": "BGC Appendix B, printed page B-1 / Table B-1, PDF page 62 in the RFP bundle.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-18",
+   "kind": "estimate",
+   "group": "BGC · Squamish-Lillooet",
+   "title": "Clearing, grubbing and disposal",
+   "party": "BGC Engineering Inc. for Squamish-Lillooet Regional District",
+   "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 6
+   },
+   "unit": "/m²",
+   "dateNote": "Order of magnitude, stated uncertainty -50% to >+100%; estimate dated 2022-02-18",
+   "sample": "2,900 m2 in the estimate",
+   "scope": "Jason Creek (Reid Road) Assessment - FINAL, Appendix B Risk-Control Cost Estimates. Risk-control options for debris flows. Selected table is a 1.5 m high diversion berm with access construction, excavation, disposal, fill and riprap. Not a whole forest-road project.",
+   "cautions": [
+    "Mixed Alberta and BC historical bid bases; not a BC-only observed market-price dataset.",
+    "No detailed topography, modelling or field verification at this stage.",
+    "Access width/standard undefined, so $100/m should not be used as general road construction cost."
+   ],
+   "url": "https://www.slrd.bc.ca/sites/default/files/pdfs/RFP%20Reid%20Road%20Area%20Detailed%20QRA%20Final.pdf",
+   "locator": "BGC Appendix B, printed page B-1 / Table B-1, PDF page 62 in the RFP bundle.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-19",
+   "kind": "estimate",
+   "group": "BGC · Squamish-Lillooet",
+   "title": "Excavation",
+   "party": "BGC Engineering Inc. for Squamish-Lillooet Regional District",
+   "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 6
+   },
+   "unit": "/m³",
+   "dateNote": "Order of magnitude, stated uncertainty -50% to >+100%; estimate dated 2022-02-18",
+   "sample": "1,200 m3 in the estimate",
+   "scope": "Jason Creek (Reid Road) Assessment - FINAL, Appendix B Risk-Control Cost Estimates. Risk-control options for debris flows. Selected table is a 1.5 m high diversion berm with access construction, excavation, disposal, fill and riprap. Not a whole forest-road project.",
+   "cautions": [
+    "Disposal is a separate item.",
+    "Mixed Alberta and BC historical bid bases; not a BC-only observed market-price dataset.",
+    "No detailed topography, modelling or field verification at this stage.",
+    "Access width/standard undefined, so $100/m should not be used as general road construction cost."
+   ],
+   "url": "https://www.slrd.bc.ca/sites/default/files/pdfs/RFP%20Reid%20Road%20Area%20Detailed%20QRA%20Final.pdf",
+   "locator": "BGC Appendix B, printed page B-1 / Table B-1, PDF page 62 in the RFP bundle.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-20",
+   "kind": "estimate",
+   "group": "BGC · Squamish-Lillooet",
+   "title": "Offsite sediment disposal",
+   "party": "BGC Engineering Inc. for Squamish-Lillooet Regional District",
+   "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 16
+   },
+   "unit": "/m³",
+   "dateNote": "Order of magnitude, stated uncertainty -50% to >+100%; estimate dated 2022-02-18",
+   "sample": "1,200 m3 in the estimate",
+   "scope": "Jason Creek (Reid Road) Assessment - FINAL, Appendix B Risk-Control Cost Estimates. Risk-control options for debris flows. Selected table is a 1.5 m high diversion berm with access construction, excavation, disposal, fill and riprap. Not a whole forest-road project.",
+   "cautions": [
+    "Mixed Alberta and BC historical bid bases; not a BC-only observed market-price dataset.",
+    "No detailed topography, modelling or field verification at this stage.",
+    "Access width/standard undefined, so $100/m should not be used as general road construction cost."
+   ],
+   "url": "https://www.slrd.bc.ca/sites/default/files/pdfs/RFP%20Reid%20Road%20Area%20Detailed%20QRA%20Final.pdf",
+   "locator": "BGC Appendix B, printed page B-1 / Table B-1, PDF page 62 in the RFP bundle.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-21",
+   "kind": "estimate",
+   "group": "BGC · Squamish-Lillooet",
+   "title": "Berm fill, supply and placement",
+   "party": "BGC Engineering Inc. for Squamish-Lillooet Regional District",
+   "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 34
+   },
+   "unit": "/m³",
+   "dateNote": "Order of magnitude, stated uncertainty -50% to >+100%; estimate dated 2022-02-18",
+   "sample": "1,800 m3 in the estimate",
+   "scope": "Jason Creek (Reid Road) Assessment - FINAL, Appendix B Risk-Control Cost Estimates. Risk-control options for debris flows. Selected table is a 1.5 m high diversion berm with access construction, excavation, disposal, fill and riprap. Not a whole forest-road project.",
+   "cautions": [
+    "Mixed Alberta and BC historical bid bases; not a BC-only observed market-price dataset.",
+    "No detailed topography, modelling or field verification at this stage.",
+    "Access width/standard undefined, so $100/m should not be used as general road construction cost."
+   ],
+   "url": "https://www.slrd.bc.ca/sites/default/files/pdfs/RFP%20Reid%20Road%20Area%20Detailed%20QRA%20Final.pdf",
+   "locator": "BGC Appendix B, printed page B-1 / Table B-1, PDF page 62 in the RFP bundle.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-22",
+   "kind": "estimate",
+   "group": "BGC · Squamish-Lillooet",
+   "title": "Class 3 riprap, supply and placement",
+   "party": "BGC Engineering Inc. for Squamish-Lillooet Regional District",
+   "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 137
+   },
+   "unit": "/m³",
+   "dateNote": "Order of magnitude, stated uncertainty -50% to >+100%; estimate dated 2022-02-18",
+   "sample": "1,600 m3 in the estimate",
+   "scope": "Jason Creek (Reid Road) Assessment - FINAL, Appendix B Risk-Control Cost Estimates. Risk-control options for debris flows. Selected table is a 1.5 m high diversion berm with access construction, excavation, disposal, fill and riprap. Not a whole forest-road project.",
+   "cautions": [
+    "Mixed Alberta and BC historical bid bases; not a BC-only observed market-price dataset.",
+    "No detailed topography, modelling or field verification at this stage.",
+    "Access width/standard undefined, so $100/m should not be used as general road construction cost."
+   ],
+   "url": "https://www.slrd.bc.ca/sites/default/files/pdfs/RFP%20Reid%20Road%20Area%20Detailed%20QRA%20Final.pdf",
+   "locator": "BGC Appendix B, printed page B-1 / Table B-1, PDF page 62 in the RFP bundle.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-23",
+   "kind": "estimate",
+   "group": "BGC · Squamish-Lillooet",
+   "title": "Seeding, planting and site restoration",
+   "party": "BGC Engineering Inc. for Squamish-Lillooet Regional District",
+   "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
+   "regionId": "south-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 5
+   },
+   "unit": "/m²",
+   "dateNote": "Order of magnitude, stated uncertainty -50% to >+100%; estimate dated 2022-02-18",
+   "sample": "1,600 m2 in the estimate",
+   "scope": "Jason Creek (Reid Road) Assessment - FINAL, Appendix B Risk-Control Cost Estimates. Risk-control options for debris flows. Selected table is a 1.5 m high diversion berm with access construction, excavation, disposal, fill and riprap. Not a whole forest-road project.",
+   "cautions": [
+    "Mixed Alberta and BC historical bid bases; not a BC-only observed market-price dataset.",
+    "No detailed topography, modelling or field verification at this stage.",
+    "Access width/standard undefined, so $100/m should not be used as general road construction cost."
+   ],
+   "url": "https://www.slrd.bc.ca/sites/default/files/pdfs/RFP%20Reid%20Road%20Area%20Detailed%20QRA%20Final.pdf",
+   "locator": "BGC Appendix B, printed page B-1 / Table B-1, PDF page 62 in the RFP bundle.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-24",
+   "kind": "estimate",
+   "group": "Urban Systems · Masset",
+   "title": "Clearing and grubbing",
+   "party": "Urban Systems for Village of Masset",
+   "place": "Delkatla / Seaplane Spit, Masset, Haida Gwaii, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 30
+   },
+   "unit": "/m²",
+   "costYear": 2023,
+   "dateNote": "Class D; estimate dated 2023-10-20",
+   "sample": "1,300 m2 in the estimate",
+   "scope": "Village of Masset - Delkatla Spit Class D Cost Estimate. Waterfront recreation concept, granular pedestrian trail, terminal building and site amenities. This is a remote island site-development estimate, not a forest-road standard. The base concept excludes improvements to the existing access road or marina parking; optional/future items include asphalt paving.",
+   "cautions": [
+    "Waterfront recreation concept; remote island site; tree preservation separately allowed.",
+    "Granular pedestrian surface is $150/m2 for a 100 mm crushed-rock surface; retain original project-specific item description and treat as context only. Do not convert into a bulk gravel material price.",
+    "Base total includes terminal building, utilities, shoreline landscaping and amenities; no meaningful forest-road $/km can be derived.",
+    "Context only: not a comparable construction component."
+   ],
+   "contextOnly": true,
+   "url": "https://massetbc.com/images/uploads/pdfs/August_19,_2024_Agenda_Package.pdf",
+   "locator": "PDF pages 10-11 in the August 19, 2024 council agenda package.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-25",
+   "kind": "estimate",
+   "group": "Urban Systems · Masset",
+   "title": "Granular pedestrian surface - 100 mm crushed rock surface",
+   "party": "Urban Systems for Village of Masset",
+   "place": "Delkatla / Seaplane Spit, Masset, Haida Gwaii, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 150
+   },
+   "unit": "/m²",
+   "costYear": 2023,
+   "dateNote": "Class D; estimate dated 2023-10-20",
+   "sample": "1,300 m2 in the estimate",
+   "scope": "Village of Masset - Delkatla Spit Class D Cost Estimate. Waterfront recreation concept, granular pedestrian trail, terminal building and site amenities. This is a remote island site-development estimate, not a forest-road standard. The base concept excludes improvements to the existing access road or marina parking; optional/future items include asphalt paving.",
+   "cautions": [
+    "Preserve project-specific scope; not a bulk gravel supplier price or a general road-surfacing rate.",
+    "Granular pedestrian surface is $150/m2 for a 100 mm crushed-rock surface; retain original project-specific item description and treat as context only. Do not convert into a bulk gravel material price.",
+    "Base total includes terminal building, utilities, shoreline landscaping and amenities; no meaningful forest-road $/km can be derived.",
+    "Context only: not a comparable construction component."
+   ],
+   "contextOnly": true,
+   "url": "https://massetbc.com/images/uploads/pdfs/August_19,_2024_Agenda_Package.pdf",
+   "locator": "PDF pages 10-11 in the August 19, 2024 council agenda package.",
+   "checked": "2026-11-13"
+  },
+  {
+   "id": "consultant-rate-26",
+   "kind": "estimate",
+   "group": "Urban Systems · Masset",
+   "title": "Granular pad for modular building",
+   "party": "Urban Systems for Village of Masset",
+   "place": "Delkatla / Seaplane Spit, Masset, Haida Gwaii, BC",
+   "regionId": "west-coast",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 100
+   },
+   "unit": "/m²",
+   "costYear": 2023,
+   "dateNote": "Class D; estimate dated 2023-10-20",
+   "sample": "130 m2 in the estimate",
+   "scope": "Village of Masset - Delkatla Spit Class D Cost Estimate. Waterfront recreation concept, granular pedestrian trail, terminal building and site amenities. This is a remote island site-development estimate, not a forest-road standard. The base concept excludes improvements to the existing access road or marina parking; optional/future items include asphalt paving.",
+   "cautions": [
+    "Pad thickness/specification not stated.",
+    "Granular pedestrian surface is $150/m2 for a 100 mm crushed-rock surface; retain original project-specific item description and treat as context only. Do not convert into a bulk gravel material price.",
+    "Base total includes terminal building, utilities, shoreline landscaping and amenities; no meaningful forest-road $/km can be derived.",
+    "Context only: not a comparable construction component."
+   ],
+   "contextOnly": true,
+   "url": "https://massetbc.com/images/uploads/pdfs/August_19,_2024_Agenda_Package.pdf",
+   "locator": "PDF pages 10-11 in the August 19, 2024 council agenda package.",
+   "checked": "2026-11-13"
+  }
+ ]
+}

@@ -1,12 +1,31 @@
-import type { LayerSpecification } from 'maplibre-gl'
+import type { ExpressionSpecification, LayerSpecification } from 'maplibre-gl'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
+import { MapImageLayer } from '@/components/ui/map-layers'
 import type { PlanLegendSection } from './planLegendModel'
-import { referenceShape, type ReferenceFeature } from './referenceFeatures'
+import { referenceGeoJson, referenceLayers, referenceShape, type ReferenceFeature } from './referenceFeatures'
 
 /** Point names drawn on the plan; beyond this the dots stay and the sidebar list names them. */
 export const MAX_REFERENCE_LABELS = 80
 const LINE_COLOR = '#334155',
   POINT_COLOR = '#f59e0b'
+const LAYER_COLORS = ['#2563eb', '#7c3aed', '#047857', '#b45309', '#be185d', '#0891b2', '#4338ca', '#a21caf', '#0f766e']
+
+export function referenceLayerColor(key: string): string {
+  let hash = 0
+  for (const char of key.split('/').at(-1) ?? '') hash = (Math.imul(31, hash) + char.charCodeAt(0)) | 0
+  return key ? LAYER_COLORS[(hash >>> 0) % LAYER_COLORS.length] : LINE_COLOR
+}
+
+export function referencePlanData(features: readonly ReferenceFeature[]) {
+  const data = referenceGeoJson(features, false)
+  for (const feature of data.features) {
+    const key = String(feature.properties?.source ?? '')
+    if (key) feature.properties = { ...feature.properties, layerColor: referenceLayerColor(key) }
+  }
+  return data
+}
+
+const layerColor = (fallback: string): ExpressionSpecification => ['coalesce', ['get', 'layerColor'], fallback]
 
 export const REFERENCE_SOURCE = 'road-reference'
 /**
@@ -20,8 +39,8 @@ export const REFERENCE_LAYERS = [
     id: 'road-reference-fill',
     type: 'fill',
     source: REFERENCE_SOURCE,
-    filter: ['==', ['geometry-type'], 'Polygon'],
-    paint: { 'fill-color': LINE_COLOR, 'fill-opacity': 0.06 },
+    filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['!=', ['get', 'imageFrame'], true]],
+    paint: { 'fill-color': layerColor(LINE_COLOR), 'fill-opacity': 0.13 },
   },
   {
     id: 'road-reference-casing',
@@ -37,7 +56,7 @@ export const REFERENCE_LAYERS = [
     source: REFERENCE_SOURCE,
     filter: ['!=', ['geometry-type'], 'Point'],
     layout: { 'line-join': 'round' },
-    paint: { 'line-color': LINE_COLOR, 'line-width': 1.75, 'line-dasharray': [4, 2.5] },
+    paint: { 'line-color': layerColor(LINE_COLOR), 'line-width': 1.75, 'line-dasharray': [4, 2.5] },
   },
   {
     id: 'road-reference-point',
@@ -46,7 +65,7 @@ export const REFERENCE_LAYERS = [
     filter: ['==', ['geometry-type'], 'Point'],
     paint: {
       'circle-radius': 6,
-      'circle-color': POINT_COLOR,
+      'circle-color': layerColor(POINT_COLOR),
       'circle-stroke-color': '#0f172a',
       'circle-stroke-width': 2,
     },
@@ -57,32 +76,45 @@ export const REFERENCE_LINEWORK_LAYER_IDS = ['road-reference-fill', 'road-refere
 export const REFERENCE_POINT_LAYER_ID = 'road-reference-point'
 /** The legend section for the reference features on the plan; empty when there are none. */
 export function referenceLegend(features: readonly ReferenceFeature[]): PlanLegendSection[] {
-  const has = (shape: ReturnType<typeof referenceShape>) => features.some((f) => referenceShape(f) === shape)
-  const entries = [
-    ...(has('line')
+  const entries = referenceLayers(features.filter((f) => !f.classGrid)).flatMap(({ key, name, features }) => {
+    const shapes = [...new Set(features.map(referenceShape))]
+    return shapes.map((shape) => ({
+      id: `${key}:${shape}`,
+      label: key ? name : shape === 'point' ? 'Named point' : `Reference ${shape}`,
+      color: key ? referenceLayerColor(key) : shape === 'point' ? POINT_COLOR : LINE_COLOR,
+      shape: shape === 'line' ? ('dashed-line' as const) : shape === 'point' ? ('circle' as const) : ('area' as const),
+      dash: [4, 2.5] as [number, number],
+    }))
+  })
+  const rasters = features.flatMap((feature) =>
+    feature.classGrid
       ? [
           {
-            id: 'reference-line',
-            label: 'Reference line',
-            color: LINE_COLOR,
-            shape: 'dashed-line' as const,
-            dash: [4, 2.5] as [number, number],
+            id: `pdf-classes-${feature.id}`,
+            title: `${feature.name} · PDF`,
+            entries: [
+              ...feature.classGrid.legend.map((range, i) => ({
+                id: `${feature.id}-${i}`,
+                label: `${range.label} ${feature.classGrid!.unit}`,
+                color: `#${range.color.map((c) => c.toString(16).padStart(2, '0')).join('')}`,
+                shape: 'square' as const,
+              })),
+              {
+                id: `${feature.id}-unknown`,
+                label: 'Unknown transparent; JPEG estimates faded',
+                color: '#64748b',
+                shape: 'square' as const,
+              },
+            ],
           },
         ]
-      : []),
-    ...(has('area')
-      ? [{ id: 'reference-area', label: 'Reference area', color: LINE_COLOR, shape: 'area' as const }]
-      : []),
-    ...(has('point')
-      ? [{ id: 'reference-point', label: 'Named point', color: POINT_COLOR, shape: 'circle' as const }]
-      : []),
-  ]
-  return entries.length ? [{ id: 'reference', title: 'Reference layers', entries }] : []
+      : [],
+  )
+  return [...(entries.length ? [{ id: 'reference', title: 'Reference layers', entries }] : []), ...rasters]
 }
 
 /** The names of the project's reference points, beside their dots. Display only. */
-export function ReferenceLabels({ features, visible }: { features: readonly ReferenceFeature[]; visible: boolean }) {
-  if (!visible) return null
+export function ReferenceLabels({ features }: { features: readonly ReferenceFeature[] }) {
   return (
     <>
       {features
@@ -103,6 +135,26 @@ export function ReferenceLabels({ features, visible }: { features: readonly Refe
             </MapMarker>
           )
         })}
+    </>
+  )
+}
+
+/** Source-sheet previews share their reference layer's visibility; no numerical raster is created. */
+export function ReferenceSheets({ features }: { features: readonly ReferenceFeature[] }) {
+  return (
+    <>
+      {features
+        .filter((feature) => feature.sheet)
+        .map((feature) => (
+          <MapImageLayer
+            key={feature.id}
+            id={`road-source-sheet-${feature.id}`}
+            url={feature.sheet!.image}
+            coordinates={feature.sheet!.corners}
+            opacity={0.8}
+            beforeId="road-contours"
+          />
+        ))}
     </>
   )
 }

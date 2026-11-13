@@ -1,9 +1,22 @@
 import { createElement, useState } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StationBox } from './StationBox'
 
 const LENGTH = 300
+let unmount: (() => void) | undefined
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.stubGlobal('window', Object.assign(new EventTarget(), { setTimeout, clearTimeout }))
+})
+
+afterEach(() => {
+  unmount?.()
+  unmount = undefined
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
 /**
  * The page around the box: it selects the typed station held to the line, and shows either that
  * station (a road whose section can be evaluated there) or the nearest 10 m one (a terrain profile).
@@ -28,7 +41,7 @@ function Bar({ exact, log }: { exact: boolean; log: string[] }) {
     }),
     createElement('output', null, `shown ${shown}`),
     // Another view selecting a station: a chart, the slider, playback.
-    createElement('button', { onClick: () => setSelected(120) }),
+    createElement('button', { 'aria-label': 'Select from another view', onClick: () => setSelected(120) }),
   )
 }
 function mount(exact: boolean) {
@@ -37,7 +50,9 @@ function mount(exact: boolean) {
   act(() => {
     renderer = create(createElement(Bar, { exact, log }))
   })
+  unmount = () => act(() => renderer.unmount())
   const input = () => renderer.root.findByType('input')
+  const button = (label: string) => renderer.root.findByProps({ 'aria-label': label })
   return {
     log,
     box: () => String(input().props.value),
@@ -45,7 +60,14 @@ function mount(exact: boolean) {
     type: (value: string) => act(() => input().props.onChange({ target: { value } })),
     key: (key: string) => act(() => input().props.onKeyDown({ key, preventDefault: () => {} })),
     blur: () => act(() => input().props.onBlur()),
-    selectElsewhere: () => act(() => renderer.root.findByType('button').props.onClick()),
+    selectElsewhere: () => act(() => button('Select from another view').props.onClick()),
+    press: (label: string) => act(() => button(label).props.onPointerDown({ isPrimary: true, button: 0 })),
+    release: (label: string, detail = 1) =>
+      act(() => {
+        button(label).props.onPointerUp()
+        button(label).props.onClick({ detail })
+      }),
+    cancel: (label: string) => act(() => button(label).props.onPointerCancel()),
   }
 }
 
@@ -104,4 +126,34 @@ describe('the station box keeps what is typed until the entry is finished', () =
     expect(bar.box()).toBe('120')
     expect(bar.log).toEqual([])
   })
+})
+
+it('repeats against the current station while held and stops on release or cancel', () => {
+  const bar = mount(true)
+  const next = 'Next road station'
+  const previous = 'Previous road station'
+  const advance = (ms: number) =>
+    act(() => {
+      vi.advanceTimersByTime(ms)
+    })
+  bar.press(next)
+  bar.release(next)
+  expect(bar.box()).toBe('10')
+
+  bar.press(next)
+  // Let React commit each step, as it does between timer callbacks in the browser.
+  for (const ms of [350, 100, 100]) advance(ms)
+  expect(bar.box()).toBe('40')
+  bar.release(next)
+  advance(500)
+  expect(bar.box()).toBe('40')
+
+  bar.press(previous)
+  advance(350)
+  expect(bar.box()).toBe('30')
+  bar.cancel(previous)
+  advance(500)
+  expect(bar.box()).toBe('30')
+  bar.release(previous, 0)
+  expect(bar.box()).toBe('20')
 })

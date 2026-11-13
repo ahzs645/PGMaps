@@ -333,12 +333,48 @@ export interface StreamProperties {
   /** Contributing area at the segment's downstream end, hectares. */
   areaHa: number
   lengthM: number
+  /**
+   * Contributing area over the longest flow path, in cells across, at the segment's own last
+   * cell (before the confluence it ends on): about 1 for sheet flow down a smooth slope, which D8
+   * routes in parallel one-cell strips, and larger where flow converges in a hollow or gully.
+   */
+  widthCells: number
+  /** The segment's own contributing area, before the confluence it ends on, over the stream threshold. */
+  thresholdRatio: number
+}
+
+/** Longest upstream flow path to each cell, including the cell itself, m. */
+export function longestFlowPath(dirs: Int8Array, grid: Pick<SurfaceGrid, 'width' | 'cellM'>): Float64Array {
+  const n = dirs.length,
+    w = grid.width
+  const length = new Float64Array(n),
+    inflow = new Uint8Array(n),
+    queue = new Int32Array(n)
+  for (let i = 0; i < n; i++) {
+    if (dirs[i] === MISSING) continue
+    length[i] = grid.cellM
+    const j = downstream(dirs, w, i)
+    if (j >= 0) inflow[j]++
+  }
+  let head = 0,
+    tail = 0
+  for (let i = 0; i < n; i++) if (dirs[i] !== MISSING && !inflow[i]) queue[tail++] = i
+  while (head < tail) {
+    const i = queue[head++],
+      j = downstream(dirs, w, i)
+    if (j < 0) continue
+    length[j] = Math.max(length[j], length[i] + (dirs[i] & 1 ? grid.cellM * Math.SQRT2 : grid.cellM))
+    if (!--inflow[j]) queue[tail++] = j
+  }
+  return length
 }
 export type StreamCollection = GeoJSON.FeatureCollection<GeoJSON.LineString, StreamProperties>
 
 interface StreamSegment {
   cells: number[]
   lengthM: number
+  /** The last cell is a confluence, whose area includes the other branches. */
+  endsAtConfluence: boolean
 }
 
 /** Cell paths of stream segments, split at confluences, heads shorter than `minLengthM` dropped. */
@@ -375,7 +411,7 @@ function streamSegments(
     const head = inflow[start] === 0,
       endsAtConfluence = inflow[cells[cells.length - 1]] > 1
     if (head && endsAtConfluence && lengthM < minLengthM) continue
-    segments.push({ cells, lengthM })
+    segments.push({ cells, lengthM, endsAtConfluence })
   }
   return segments
 }
@@ -396,17 +432,25 @@ export function extractStreams(
     idPrefix = 'stream',
   }: { thresholdM2: number; minLengthM?: number; idPrefix?: string },
 ): StreamCollection {
+  const flowPath = longestFlowPath(dirs, grid)
   return {
     type: 'FeatureCollection',
-    features: streamSegments(acc, dirs, grid, thresholdM2, minLengthM).map((segment, index) => ({
-      type: 'Feature',
-      properties: {
-        id: `${idPrefix}-${index + 1}`,
-        areaHa: acc[segment.cells[segment.cells.length - 1]] / 10_000,
-        lengthM: segment.lengthM,
-      },
-      geometry: { type: 'LineString', coordinates: segment.cells.map((i) => toLonLat(cellCentre(grid, i))) },
-    })),
+    features: streamSegments(acc, dirs, grid, thresholdM2, minLengthM).map((segment, index) => {
+      const end = segment.cells[segment.cells.length - 1]
+      // Measure the reach by its own flow: a strip that runs into a ditch is not as large as the ditch.
+      const own = segment.endsAtConfluence ? segment.cells[segment.cells.length - 2] : end
+      return {
+        type: 'Feature',
+        properties: {
+          id: `${idPrefix}-${index + 1}`,
+          areaHa: acc[end] / 10_000,
+          lengthM: segment.lengthM,
+          widthCells: acc[own] / (grid.cellM * Math.max(grid.cellM, flowPath[own])),
+          thresholdRatio: acc[own] / thresholdM2,
+        },
+        geometry: { type: 'LineString', coordinates: segment.cells.map((i) => toLonLat(cellCentre(grid, i))) },
+      }
+    }),
   }
 }
 
@@ -483,15 +527,26 @@ export interface StreamCrossing {
   /** True when the road carries the stream further than the diversion threshold along it. */
   redirected: boolean
 }
+/**
+ * One cross-drain site: the outlets and ponds within `CROSS_DRAIN_SITE_M` of each other along the
+ * road, on either side. `kind`, `side`, `chainage`, `coordinate` and `areaHa` are the site's
+ * largest outlet; `fromChainage`/`toChainage` span every outlet merged into it.
+ */
 export interface DitchLowPoint {
   id: string
   /** 'outlet' where flow leaves the prism, 'pond' where it collects on the design surface. */
   kind: 'outlet' | 'pond'
   side: 'left' | 'right'
+  /** Every side an outlet of the site is on. */
+  sides: ('left' | 'right')[]
   chainage: number
+  fromChainage: number
+  toChainage: number
+  /** Outlets and ponds merged into the site. */
+  outlets: number
   coordinate: Coordinate
   areaHa: number
-  /** Pond depth, 0 for an outlet. */
+  /** Deepest pond in the site, 0 when it has none. */
   depthM: number
   /** The culvert whose channel carries this flow, else the nearest within the search distance. */
   culvertId: string | null
@@ -558,7 +613,7 @@ export interface DrainageInput {
   culvertSearchM?: number
   /** A crossing carried further than this along the road is `redirected`. Default 20. */
   divertThresholdM?: number
-  /** Smallest contributing area for a reported low point, m². Default 500 m² (0.05 ha). */
+  /** Smallest contributing area for a reported low point, m². Default 500 m² (0.05 ha), and never under `LOW_POINT_MIN_CELLS` cells. */
   lowPointMinAreaM2?: number
   /** Slope assumed when a culvert's inverts are missing or not falling. Default 0.02. */
   defaultSlope?: number
@@ -599,14 +654,60 @@ function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: stri
  *
  * - Crossings: each existing-ground stream cell flowing into the footprint is traced on the
  *   design surface to where it leaves the footprint; re-entries of the same stream are folded in.
- * - Low points: footprint cells where design-surface flow of at least `lowPointMinAreaM2` leaves
- *   the prism (the ditch outlets and sags the road creates), plus new ponds in or beside the
- *   footprint draining at least as much. Within 10 m of chainage on one side only the largest is kept.
+ * - Low points: footprint cells where design-surface flow of at least `lowPointMinAreaM2` (and
+ *   `LOW_POINT_MIN_CELLS` cells) leaves the prism (the ditch outlets and sags the road creates),
+ *   plus new ponds in or beside the footprint draining at least as much. Outlets within
+ *   `CROSS_DRAIN_SITE_M` of each other along the road, on either side, are one cross-drain site.
  * - New ponding: 8-connected clusters of design-surface fill deeper than `pondDepthM` on cells
  *   whose existing ground was not ponded, reported as a point at each cluster's deepest cell.
  */
 /** A culvert this far along the road from a modelled crossing or low point is taken to serve it. */
 export const DEFAULT_CULVERT_SEARCH_M = 15
+/**
+ * A low point drains at least this many cells. Flow accumulation counts the cell itself, so on
+ * a coarse grid a single cell passed the 500 m² area alone (one 22.4 m regional cell is 503 m²)
+ * and every cell where the ground fell away from the road was listed.
+ */
+export const LOW_POINT_MIN_CELLS = 4
+/** Low points this close along the road are one culvert site: an outlet and the pond behind it, or both ditches. */
+export const CROSS_DRAIN_SITE_M = 40
+/** Coarser cells cannot resolve a ditch, so low points are screening only. */
+export const DITCH_DETAIL_CELL_M = 2
+
+type LowPointCandidate = Omit<DitchLowPoint, 'id' | 'sides' | 'fromChainage' | 'toChainage' | 'outlets'>
+
+/**
+ * Merge outlets into cross-drain sites: consecutive outlets along the road join while each is
+ * within `CROSS_DRAIN_SITE_M` of the last. Flow a culvert already carries never joins flow it
+ * does not, so a relieved outlet cannot hide an unrelieved one.
+ */
+export function crossDrainSiteGroups(candidates: LowPointCandidate[]): Omit<DitchLowPoint, 'id'>[] {
+  const groups = new Map<string, LowPointCandidate[][]>()
+  for (const c of [...candidates].sort((a, b) => a.chainage - b.chainage)) {
+    const key = c.throughCulvert ? `culvert:${c.culvertId}` : 'open'
+    const runs = groups.get(key) ?? []
+    const run = runs[runs.length - 1]
+    if (run && c.chainage - run[run.length - 1].chainage <= CROSS_DRAIN_SITE_M) run.push(c)
+    else runs.push([c])
+    groups.set(key, runs)
+  }
+  const sites: Omit<DitchLowPoint, 'id'>[] = []
+  for (const runs of groups.values())
+    for (const run of runs) {
+      const largest = run.reduce((best, c) =>
+        c.areaHa > best.areaHa || (c.areaHa === best.areaHa && c.kind === 'pond' && best.kind !== 'pond') ? c : best,
+      )
+      sites.push({
+        ...largest,
+        sides: (['left', 'right'] as const).filter((side) => run.some((c) => c.side === side)),
+        fromChainage: run[0].chainage,
+        toChainage: run[run.length - 1].chainage,
+        outlets: run.length,
+        depthM: Math.max(...run.map((c) => c.depthM)),
+      })
+    }
+  return sites.sort((a, b) => a.chainage - b.chainage)
+}
 
 export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
   const { existing, design, footprint, analysis, culverts, toGrid, toLonLat } = input
@@ -619,7 +720,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
   const searchM = input.culvertSearchM ?? DEFAULT_CULVERT_SEARCH_M,
     divertM = input.divertThresholdM ?? 20,
     minDepth = input.pondDepthM ?? 0.05,
-    minLowArea = input.lowPointMinAreaM2 ?? 500,
+    minLowArea = Math.max(input.lowPointMinAreaM2 ?? 500, LOW_POINT_MIN_CELLS * cellArea),
     defaultSlope = input.defaultSlope ?? 0.02
   const frame = roadFrame(analysis, toGrid)
   const before = surfaceDrainage(existing, input, 'existing'),
@@ -764,8 +865,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
   }
 
   // Low points: where concentrated design-surface flow leaves the prism, and ponds on it.
-  type Candidate = Omit<DitchLowPoint, 'id'>
-  const candidates: Candidate[] = []
+  const candidates: LowPointCandidate[] = []
   for (let i = 0; i < n; i++) {
     if (!footprint[i] || !(accD[i] >= minLowArea)) continue
     const j = downstream(after.dirs, w, i)
@@ -799,12 +899,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
       throughCulvert: false,
     })
   }
-  candidates.sort((a, b) => b.areaHa - a.areaHa || (a.kind === 'pond' ? -1 : 1))
-  const kept: Candidate[] = []
-  for (const c of candidates)
-    if (!kept.some((k) => k.side === c.side && k.kind === c.kind && Math.abs(k.chainage - c.chainage) < 10))
-      kept.push(c)
-  const lowPoints = kept.sort((a, b) => a.chainage - b.chainage).map((c, index) => ({ id: `low-${index + 1}`, ...c }))
+  const lowPoints = crossDrainSiteGroups(candidates).map((site, index) => ({ id: `low-${index + 1}`, ...site }))
 
   // Culvert size check.
   const culvertChecks: CulvertCheck[] = []

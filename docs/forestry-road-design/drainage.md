@@ -43,9 +43,8 @@ beside the mapped ones.
   retains settings and compact review evidence. A run goes stale
   when the recorded calculation version is older, that road's alignment (culverts and other engineering inputs included), the road settings,
   the terrain or any drainage input changes; edits to other alternatives leave it current
-  (`DevForestryRoads.tsx`, `drainageStale`). A stale run stays in the panel with an amber notice,
-  is not drawn on the plan, and the plan header reads "Drainage out of date · re-run it to show
-  flow".
+  (`DevForestryRoads.tsx`, `drainageStale`). A stale run stays in the panel with an amber notice
+  and is not drawn on the plan.
 - **Compare with mapped streams and the field.** The check does not read the project's context
   streams or any provincial stream layer. A stream the DEM does not resolve is not reported.
 
@@ -72,8 +71,11 @@ you choose.
 | Culvert search distance      | 15 m of chainage                                                                                                       | `hydrology.ts`, `analyzeDrainage` (`culvertSearchM`)                            | A culvert further away is not associated with the crossing or low point                |
 | Diversion threshold          | 20 m along the road                                                                                                    | `hydrology.ts`, `analyzeDrainage` (`divertThresholdM`)                          | Carried further without a culvert: reported as redirected                              |
 | Crossing re-entry            | 50 m of existing-ground path outside the footprint                                                                     | `hydrology.ts`, `analyzeDrainage` (`followCells`)                               | A stream that leaves and re-enters within 50 m counts as one crossing                  |
-| Low point                    | 0.05 ha (500 m²) draining to it                                                                                        | `hydrology.ts`, `analyzeDrainage` (`lowPointMinAreaM2`)                         | Smaller outlets and sags are not listed                                                |
-| Low-point spacing            | 10 m of chainage, same side and kind                                                                                   | `hydrology.ts`, `analyzeDrainage`                                               | Only the largest is kept                                                               |
+| Low point                    | 0.05 ha (500 m²) draining to it, and at least 4 cells                                                                  | `hydrology.ts`, `analyzeDrainage` (`lowPointMinAreaM2`, `LOW_POINT_MIN_CELLS`)  | Smaller outlets and sags are not listed                                                |
+| Cross-drain site             | Outlets within 40 m of the last along the road, either side, ditch outlet or pond                                      | `hydrology.ts`, `crossDrainSiteGroups` (`CROSS_DRAIN_SITE_M`)                   | One site, located at its largest outlet, with the stretch it spans                     |
+| Flow lines drawn by zoom     | z12: 5× threshold and 3 cells wide; z14.5: 2× and 2 cells; z16: all                                                    | `planLegendModel.ts` (`STREAM_ZOOM_STOPS`)                                      | Smaller or sheet-flow lines fade in as the map zooms in; data and exports unchanged    |
+| Cross-drain plan marks       | Sleeve padded 15 m each end; tick 4 m past each formation edge, from zoom 14.5                                         | `crossDrainMarks.ts`                                                            | Drawn only; the table and Review read the sites                                        |
+| Ditch detail                 | Cells of 2 m or finer                                                                                                  | `hydrology.ts` (`DITCH_DETAIL_CELL_M`); `drainageRun.ts`; `readiness.ts`        | Coarser: cross-drain candidates are screening only and Review does not count them      |
 | New ponding                  | Fill deeper than 0.05 m                                                                                                | `hydrology.ts`, `analyzeDrainage` (`pondDepthM`)                                | Shallower ponding is ignored                                                           |
 | Culvert apron                | Up to 10 m past each barrel end                                                                                        | `designSurface.ts`, `burnRoad` / `carveCulvert` (`apronM`)                      | Stops earlier where the ground falls below the invert                                  |
 | Culvert channel reach        | Barrel half-length + 200 m each way, while in the footprint                                                            | `designSurface.ts`, `carveCulvert`                                              | Channel ends                                                                           |
@@ -248,18 +250,23 @@ equivalence with the RoadEng tutorial's filling or outlet-selection algorithms.
 
 ## Reading the results
 
-| Result          | Defined as                                                                                                                                                                                                                              |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stream crossing | An existing-ground flow line at or above the stream threshold that enters the road footprint. "Leaves" is where the same water exits the footprint on the design surface; "Carried" is the chainage between the two                     |
-| Redirected      | Carried more than 20 m without passing through a culvert channel. "Nearby, bypassed" means a culvert lies within 15 m of the entry but the water does not reach its channel                                                             |
-| Ditch low point | A footprint cell where at least 0.05 ha of design-surface flow leaves the prism ("leaves prism"), or a new pond in or beside the footprint draining at least as much ("ponds"). Without a culvert channel it is a cross-drain candidate |
-| New ponding     | 8-connected cells filled more than 0.05 m on the design surface where existing ground did not pond, shown as a point at the deepest cell. The tile counts all of them, including ponds dammed behind fill away from the ditch           |
-| Culvert sizing  | Design and existing catchments, Rational peak, full-pipe capacity, slope (`*` assumed) and entered/minimum diameter. Capacity in red means the entered pipe does not carry the peak                                                     |
+| Result                | Defined as                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stream crossing       | An existing-ground flow line at or above the stream threshold that enters the road footprint. "Leaves" is where the same water exits the footprint on the design surface; "Carried" is the chainage between the two                                                                                                                                                                                                                          |
+| Redirected            | Carried more than 20 m without passing through a culvert channel. "Nearby, bypassed" means a culvert lies within 15 m of the entry but the water does not reach its channel                                                                                                                                                                                                                                                                  |
+| Cross-drain candidate | A site where design-surface flow of at least 0.05 ha (and 4 cells) leaves the prism ("leaves road"), or a new pond in or beside the footprint drains at least as much ("ponds"). Outlets within 40 m of each other along the road, on either side, are one site; the table gives the site's largest outlet, the stretch it spans and how many outlets it joins. Without a culvert channel it needs a cross-drain or a reason not to have one |
+| New ponding           | 8-connected cells filled more than 0.05 m on the design surface where existing ground did not pond, shown as a point at the deepest cell. The tile counts all of them, including ponds dammed behind fill away from the ditch                                                                                                                                                                                                                |
+| Culvert sizing        | Design and existing catchments, Rational peak, full-pipe capacity, slope (`*` assumed) and entered/minimum diameter. Capacity in red means the entered pipe does not carry the peak                                                                                                                                                                                                                                                          |
 
 On the plan, design streams are solid blue and widen with contributing area; existing streams
 are dashed pale blue. A stream the road turns shows as the two lines parting. Redirected
-crossings are red lines drawn straight from entry to exit (not along the ditch), low points
-without a culvert are amber, and new ponds are small blue dots. Drainage layers are hidden while
+crossings are red lines drawn straight from entry to exit (not along the ditch), and new ponds
+are small blue dots. A cross-drain candidate without a culvert is a yellow sleeve, two thin lines either side of the
+road, over the stretch where flow leaves it, stronger where more area drains off; from zoom 14.5 a
+dashed yellow line across the road marks its largest outlet, where a culvert would go. Yellow, not
+amber, because amber is the default road colour, the within-grade road class and "mostly cut". The
+marks follow the road, so a zoomed-out plan shows sleeves on the road rather than a field of dots.
+They are not the profile's sag low points, which are the bottom of a vertical curve. Drainage layers are hidden while
 a terrain profile is open.
 
 Selecting a table station updates the linked views. In a focused mobile layout it also opens
@@ -281,9 +288,10 @@ cells. The check reports:
   leaves at 1+050. That is the end of the road, not a designed outlet: the prism stops there, so
   the water leaves with it. On a longer road the same stream would be carried further. Either a
   culvert at about 0+866 or a different alignment is needed.
-- **27 cross-drain candidates.** These are ditch outlets and sags where 0.05 ha or more collects.
-  Each is a place to consider a cross-drain, not a requirement for one. Several within a short
-  distance can mean one ditch broken by small grade changes rather than separate needs.
+- **27 ditch outlets and sags** where 0.05 ha or more collects, in the run before outlets were
+  joined into sites. Each is a place to consider a cross-drain, not a requirement for one. Several
+  within a short distance were often one ditch broken by small grade changes rather than separate
+  needs, which is why outlets within 40 m are now one cross-drain site.
 - **No culverts.** The road has none yet, so the sizing table is empty. Add the crossings to the
   culvert inventory, enter inverts, re-run and check that each crossing reads "Passes through".
 
@@ -293,6 +301,63 @@ on a line skewed to the grid left a staircase of pits. Burning the ditch and fil
 continuous minima removed them. The lesson stands for any feature that is narrow compared with
 the cell: a ditch, a narrow bench or a small culvert outlet on a 2–4 m grid can still alias into
 false ponds or false breaks.
+
+## Flow lines by zoom
+
+A smooth hillside on coarse terrain drains in parallel strips one cell wide. On 22.4 m cells each
+strip passes a 1 ha stream threshold about 450 m down the slope, so every cell across the slope
+became a drawn "stream", 22 m apart; on 1 m cells the same strip would need about 10 km. These are
+an artefact of D8 routing on the grid, not channels.
+
+Each flow line therefore carries two measures, both taken at its own last cell, before the
+confluence it ends on (`extractStreams`, `hydrology.ts`):
+
+- `thresholdRatio`, its contributing area over the stream threshold;
+- `widthCells`, its contributing area over its longest flow path (`longestFlowPath`), in cells
+  across: about 1 for a sheet-flow strip, more where flow converges in a hollow, a gully or a
+  ditch.
+
+Taking them at the confluence cell instead read every strip that ran into a ditch as large as
+the ditch: on a 22.4 m block road the median line then read 18 times the threshold and 8 cells
+wide, against 4.7 times and 3 cells measured on its own flow.
+
+Zoomed out the plan draws lines with at least five times the threshold and three cells of width;
+by zoom 14.5 those with twice the threshold and two cells; by zoom 16 every line
+(`STREAM_ZOOM_STOPS`, `planLegendModel.ts`), fading in between. Redirected flow always shows, and
+a line from an older saved run without the measures always shows. On that road the full network
+was 51.6 km of drawn line and the zoomed-out view now draws about 12 km. Exports, crossings and
+culvert checks are unchanged: they read the full network.
+
+## Cross-drain candidates on the plan
+
+A cross-drain candidate without a culvert is drawn as a yellow sleeve, two thin lines either
+side of the road (MapLibre `line-gap-width`), over the stretch where flow leaves it, padded 15 m
+each end so a one-outlet site still shows, and stronger where more area drains off. From zoom
+14.5 a dashed yellow line crosses the road at the site's largest outlet, 4 m past each formation
+edge, where a culvert would go (`crossDrainMarks.ts`, `CROSS_DRAIN_BAND_PAD_M`,
+`CROSS_DRAIN_TICK_PAST_EDGE_M`). Both follow the road in metres, so a zoomed-out plan shows
+sleeves on the road rather than a field of dots. The tick has no legend row of its own; the
+sleeve's row ("Cross-drain candidate · flow leaves the road") covers both.
+
+Yellow, not amber: amber is the default road colour, the within-grade road class and "mostly
+cut", and the first amber bands vanished on an amber road. The marks are not the profile's sag
+low points (the bottom of a vertical curve, see
+[Profile labels, grade trouble and value bands](profile-labels-and-bands.md)).
+
+## Cross-drain candidates on coarse terrain
+
+On cells coarser than 2 m the road's ditch is narrower than a cell, so the design surface cannot
+carry water along it. Flow reads as leaving the road wherever the ground falls away, and every
+such cell was once its own low point: on the 22.4 m regional DEM one cell is 503 m², over the
+0.05 ha minimum by itself, and the old 10 m same-side spacing was shorter than a cell, so almost
+nothing merged. Now a low point needs four cells of flow and outlets join into 40 m sites. On a
+3.6 km block road that is 75 outlets in 30 sites; one site on a sidehill stretch joins 24
+outlets over 728 m, which says that stretch needs several cross-drains, not one.
+
+On such terrain the panel marks the list "Screening only" and Review reads the row as not
+assessed rather than counting the candidates as missing culverts; it is never met either.
+Stream crossings and pipe sizes are still reported and can still flag the row. Load LiDAR or
+another bare-earth DEM of 2 m or finer before placing cross-drains.
 
 ## How problems show up
 
@@ -307,9 +372,11 @@ false ponds or false breaks.
 | Slope shows `*`                                                   | Inverts missing, equal, or rising downstream                                         | Enter falling inverts                                                                |
 | Minimum diameter "> 3.0"                                          | Peak exceeds a 3 m pipe at that slope; likely a bridge or open-bottom structure site | Treat as a major crossing for a qualified professional; the check cannot size it     |
 | Results did not change after an edit                              | The run is stale; runs are not recalculated                                          | Re-run. The plan hides a stale run until you do                                      |
-| Plan header reads "Drainage out of date · re-run it to show flow" | The road, road settings, terrain or a drainage input changed since the run           | Re-run on the Drainage view                                                          |
+| Flow gone from the plan; the Drainage panel shows an amber notice | The road, road settings, terrain or a drainage input changed since the run           | Re-run on the Drainage view                                                          |
 | Full streams absent after reload                                  | Only inputs and compact evidence are saved; full grids are recomputed                | Review saved evidence and re-run; regional live terrain always needs a fresh run     |
-| Streams in odd parallel lines on a planar slope                   | D8 on smooth ground                                                                  | Raise the stream threshold; read streams on such slopes as approximate               |
+| Streams in odd parallel lines on a planar slope                   | D8 on smooth ground: sheet flow in one-cell strips                                   | Zoom out: the plan leads with convergent lines; or raise the stream threshold        |
+| Dozens of cross-drain candidates on regional terrain              | Cells coarser than 2 m: the ditch is narrower than a cell                            | Read them as a screen; load 2 m or finer bare-earth terrain before placing culverts  |
+| A cross-drain site spans hundreds of metres                       | Flow leaves the road all along a sidehill stretch                                    | Plan several cross-drains along it; the site's largest outlet is the first place     |
 
 ## What it does not do
 

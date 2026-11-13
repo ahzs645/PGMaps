@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, MapGradientLegendItem } from '@/components/ui/map-panels'
 import { RoadSelect } from '../Controls'
-import { SENTINEL_CLEARING_NDVI_DROP, SENTINEL_FIRST_YEAR, SENTINEL_RECENT_DAYS } from './limits'
+import { SENTINEL_CLEARING_NDVI_DROP, SENTINEL_FIRST_YEAR, SENTINEL_RECENT_DAYS, SENTINEL_MIN_ZOOM } from './limits'
 import { NDVI_CHANGE_STOPS, NDVI_STOPS } from './render'
 import type { RatedScene, Sentinel2State, SentinelMode } from './useSentinel2'
 
@@ -31,7 +31,17 @@ const sceneOption = (scene: RatedScene) => ({ value: scene.id, label: `${scene.d
  * The Sentinel-2 layer's card on the plan: the scene list, display mode and, for a change view, the
  * two scenes and the interval a clearing appeared in. Values here; explanations behind the InfoTips.
  */
-export function Sentinel2Panel({ state, onClose }: { state: Sentinel2State; onClose: () => void }) {
+export function Sentinel2Panel({
+  state,
+  paused,
+  moving,
+  onClose,
+}: {
+  state: Sentinel2State
+  paused: boolean
+  moving: boolean
+  onClose: () => void
+}) {
   const [folded, setFolded] = useState(false)
   const thisYear = new Date().getFullYear()
   const years = Array.from({ length: thisYear - SENTINEL_FIRST_YEAR + 1 }, (_, i) => thisYear - i)
@@ -51,7 +61,7 @@ export function Sentinel2Panel({ state, onClose }: { state: Sentinel2State; onCl
           Copernicus Sentinel-2 level-2A scenes from Element 84&apos;s Earth Search, read from the AWS archive. Pixels
           are 10 m, so a 4–6 m road shows only where its cleared corridor is wide enough. The imagery is evidence for
           review: it is never a constraint, never feeds a route search and is not proof of a road. &ldquo;Clear&rdquo;
-          is the share of the terrain window whose scene classification sees ground (not cloud, shadow or snow).
+          is the share of the map window whose scene classification sees ground (not cloud, shadow or snow).
         </InfoTip>
         <Button
           size="icon-2xs"
@@ -89,6 +99,8 @@ export function Sentinel2Panel({ state, onClose }: { state: Sentinel2State; onCl
               ]}
             />
           </div>
+          {paused && <InlineAlert>Zoom in to level {SENTINEL_MIN_ZOOM} to load Sentinel-2 for this view.</InlineAlert>}
+          {!paused && moving && <InlineAlert>Imagery updates when you stop moving the map.</InlineAlert>}
           {state.failure && (
             <InlineAlert tone="error">
               <span>{state.failure.message}</span>

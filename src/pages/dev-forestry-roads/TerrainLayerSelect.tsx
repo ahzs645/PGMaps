@@ -21,7 +21,7 @@ export function TerrainLayerSelect({
       value={value}
       onValueChange={(value) => onChange(value as TerrainLayer)}
       ariaLabel="Terrain display"
-      className="h-8 w-24 min-w-0 bg-background/95 sm:w-32"
+      className="h-8 w-28 min-w-0 bg-background/95 sm:w-32"
       options={layers}
     />
   )

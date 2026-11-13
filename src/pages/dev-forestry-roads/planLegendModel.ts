@@ -53,12 +53,26 @@ export const PLAN_CONTEXT_STYLES: Record<ContextFeature['kind'], { label: string
   harvest: { label: 'Harvest areas', color: '#15803d' },
   avoid: { label: 'Review areas', color: '#be123c' },
 }
+/**
+ * Drawn flow lines by zoom: [zoom, smallest contributing area as a multiple of the stream
+ * threshold, smallest contributing width in cells]. Between stops the rest fade in. A width near
+ * one cell is sheet flow that D8 routes in parallel strips down a smooth slope, not a channel; on
+ * coarse terrain those strips pass the threshold a few hundred metres down and drew a line every
+ * cell across the hillside. Diversions always show.
+ */
+export const STREAM_ZOOM_STOPS: readonly (readonly [zoom: number, thresholdRatio: number, widthCells: number])[] = [
+  [12, 5, 3],
+  [14.5, 2, 2],
+  [16, 1, 0],
+]
 export const PLAN_DRAINAGE_STYLES: Record<string, { label: string; color: string; shape: PlanLegendShape }> = {
   'stream-existing': { label: 'Existing-ground drainage', color: '#38bdf8', shape: 'dashed-line' },
   'stream-design': { label: 'Design-surface drainage', color: '#0369a1', shape: 'line' },
   diversion: { label: 'Redirected flow', color: '#dc2626', shape: 'line' },
   pond: { label: 'New ponding', color: '#2563eb', shape: 'circle' },
-  'low-point': { label: 'Unrelieved low point', color: '#f59e0b', shape: 'circle' },
+  // Yellow, not amber: amber is the default road colour, the within-grade road class and "mostly cut".
+  'low-point': { label: 'Cross-drain candidate', color: '#eab308', shape: 'circle' },
+  'cross-drain-band': { label: 'Cross-drain candidate · flow leaves the road', color: '#eab308', shape: 'line' },
   catchment: { label: 'Selected upstream catchment', color: '#0891b2', shape: 'area' },
   watershed: { label: 'D8 watershed partitions', color: '#7c3aed', shape: 'area' },
   'pour-point': { label: 'Snapped drainage pour point', color: '#0891b2', shape: 'circle' },
@@ -296,6 +310,8 @@ export function buildPlanLegend({
   structures.finish()
   const drainage = section('drainage', 'Drainage analysis')
   for (const feature of sources.drainage?.features ?? []) {
+    // A cross-drain tick is the same site as its band; the band's row explains both.
+    if (feature.properties?.legend === false) continue
     const role = feature.properties?.role
     const shape =
       (role === 'catchment' || role === 'watershed') && ['Polygon', 'MultiPolygon'].includes(feature.geometry.type)

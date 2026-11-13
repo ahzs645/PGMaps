@@ -18,6 +18,8 @@ import { importAlignmentGeoJson, importContextGeoJson, parseProject } from './pr
 import { parseReferenceFeatures, type ReferenceFeature } from './referenceFeatures'
 import { kmzDocument, parseKml } from './surveyInterchange'
 import type { Alignment, ContextFeature, RoadProject } from './types'
+import type { PdfSheet, PdfSource, PdfClassGrid } from '@/lib/geoPdf/types'
+import { sourceAttributes } from './sourceMetadata'
 
 /** The `accept` list of every spatial file picker. */
 export const SPATIAL_ACCEPT = '.geojson,.json,.zip,.kml,.kmz,application/geo+json,application/json'
@@ -30,7 +32,7 @@ const MAX_ROADS = 20
 const MAX_NAME = 200
 
 export type SpatialShape = 'point' | 'line' | 'polygon'
-export type SpatialFormat = 'GeoJSON' | 'zipped shapefile' | 'KML' | 'KMZ'
+export type SpatialFormat = 'GeoJSON' | 'shapefile' | 'zipped shapefile' | 'KML' | 'KMZ' | 'GeoPDF'
 export interface SpatialFile {
   fileName: string
   format: SpatialFormat
@@ -38,6 +40,17 @@ export interface SpatialFile {
   crs: string
   /** WGS84 longitude/latitude features; `properties.name` holds each feature's name when it has one. */
   collection: GeoJSON.FeatureCollection
+  pdf?: {
+    source: PdfSource
+    note: string
+    selected: boolean
+    sheet?: PdfSheet
+    classGrid?: PdfClassGrid
+    /** Terrain from the sheet's contours: only ever the project's terrain, never a reference layer. */
+    contourSurface?: import('@/lib/geoPdf/contours').PdfContourSurface
+  }
+  notices?: string[]
+  selected?: boolean
 }
 
 /** A message for the person importing: it names the file and says what to do. */
@@ -183,7 +196,7 @@ const SHAPES: Record<string, SpatialShape> = {
 }
 export const shapeOf = (feature: GeoJSON.Feature): SpatialShape => SHAPES[feature.geometry.type]
 
-const NAME_KEYS = ['name', 'label', 'title', 'gnis_name']
+const NAME_KEYS = ['name', 'feature_name', 'feature_na', 'label', 'title', 'gnis_name', 'road_id', 'block_id']
 /**
  * The feature's own name: a `name`, `NAME` or `Name` attribute first, then a label or title. A
  * feature with none of those and exactly one text attribute (a lot number, say) is named by it.
@@ -282,8 +295,59 @@ function flatten(input: unknown): GeoJSON.Feature[] {
 
 const isZip = (bytes: Uint8Array) => bytes[0] === 0x50 && bytes[1] === 0x4b && (bytes[2] === 3 || bytes[2] === 5)
 
+async function readShapefile(
+  bytes: Uint8Array,
+  {
+    fileName,
+    keepHeights = false,
+    prj,
+    dbf,
+    cpg,
+    archive,
+  }: {
+    fileName: string
+    keepHeights?: boolean
+    prj?: string
+    dbf?: Uint8Array
+    cpg?: string
+    archive?: string
+  },
+) {
+  const { parseShp, parseDbf } = await import('shpjs')
+  let geometries: GeoJSON.Geometry[], rows: Record<string, unknown>[]
+  try {
+    geometries = parseShp(bytes)
+    rows = dbf ? parseDbf(dbf, cpg) : []
+  } catch {
+    return fail(`${fileName} could not be read as a shapefile. Export the layer again and retry.`)
+  }
+  const raw = geometries.map(
+    (geometry, index): GeoJSON.Feature => ({
+      type: 'Feature',
+      properties: { ...(rows[index] ?? {}) },
+      geometry,
+    }),
+  )
+  const crs = prj ? crsFromPrj(prj, fileName) : null
+  if (!crs && !raw.every((feature) => positions(feature.geometry).every((xy) => isLonLat(xy, 90))))
+    fail(
+      archive
+        ? `${archive} has no .prj file, so its coordinate system is unknown. Add the layer's .prj to the zip and import it again.`
+        : `${fileName} has no .prj file, so its coordinate system is unknown. Include the layer's .prj and import it again.`,
+    )
+  const change = crs?.toWgs84
+  return {
+    name: fileName,
+    features: flatten(raw).map((feature) => ({
+      ...feature,
+      geometry: mapPositions(feature.geometry, (xy) => (change ? change(xy) : xy), keepHeights),
+    })),
+    crs: crs?.label ?? 'no .prj; coordinates read as WGS84 longitude/latitude',
+  }
+}
+
 async function readShapefileZip(bytes: Uint8Array, fileName: string, keepHeights: boolean) {
-  const [{ default: JSZip }, shpjs] = await Promise.all([import('jszip'), import('shpjs')])
+  const { default: JSZip } = await import('jszip')
   const zip = await JSZip.loadAsync(bytes).catch(() =>
     fail(`${fileName} is not a readable zip file. Use ${SPATIAL_FORMATS}.`),
   )
@@ -299,45 +363,23 @@ async function readShapefileZip(bytes: Uint8Array, fileName: string, keepHeights
     const wanted = `${shp.slice(0, -4)}.${extension}`.toLowerCase()
     return entries.find((entry) => entry.name.toLowerCase() === wanted)
   }
-  const features: GeoJSON.Feature[] = []
-  const labels = new Set<string>()
+  const parsed = []
   for (const layer of layers) {
     const prj = await sibling(layer.name, 'prj')?.async('string')
     const dbf = await sibling(layer.name, 'dbf')?.async('uint8array')
     const cpg = await sibling(layer.name, 'cpg')?.async('string')
-    let geometries: GeoJSON.Geometry[], rows: Record<string, unknown>[]
-    try {
-      geometries = shpjs.parseShp(await layer.async('uint8array'))
-      rows = dbf ? shpjs.parseDbf(dbf, cpg) : []
-    } catch {
-      return fail(
-        `${fileName} holds a shapefile that could not be read (${layer.name}). Export it again and re-zip it.`,
-      )
-    }
-    const raw = geometries.map(
-      (geometry, index): GeoJSON.Feature => ({
-        type: 'Feature',
-        properties: { ...(rows[index] ?? {}) },
-        geometry,
+    parsed.push(
+      await readShapefile(await layer.async('uint8array'), {
+        fileName: `${fileName}/${layer.name}`,
+        keepHeights,
+        prj,
+        dbf,
+        cpg,
+        archive: fileName,
       }),
     )
-    const crs = prj ? crsFromPrj(prj, fileName) : null
-    if (!crs) {
-      if (!raw.every((feature) => positions(feature.geometry).every((xy) => isLonLat(xy, 90))))
-        fail(
-          `${fileName} has no .prj file, so its coordinate system is unknown. Add the layer's .prj to the zip and import it again.`,
-        )
-      labels.add('no .prj; coordinates read as WGS84 longitude/latitude')
-    } else labels.add(crs.label)
-    const change = crs?.toWgs84
-    features.push(
-      ...flatten(raw).map((feature) => ({
-        ...feature,
-        geometry: mapPositions(feature.geometry, (xy) => (change ? change(xy) : xy), keepHeights),
-      })),
-    )
   }
-  return { features, crs: [...labels].join('; ') }
+  return parsed
 }
 
 /**
@@ -357,16 +399,30 @@ export async function readSpatialImport(
     keepHeights?: boolean
   } = {},
 ): Promise<SpatialFile> {
-  const fileName = (file.name ?? 'This file').slice(0, MAX_NAME)
+  const [spatial] = await readSpatialFiles(file, file.name ?? 'This file', keepHeights, false)
+  return spatial
+}
+
+/** Read one chosen file, optionally retaining each zipped shapefile as its own layer. */
+export async function readSpatialFiles(
+  file: Readable,
+  path: string,
+  keepHeights = false,
+  separateLayers = true,
+): Promise<SpatialFile[]> {
+  const fileName = path.slice(-MAX_NAME)
   if (file.size > MAX_SPATIAL_FILE_BYTES)
     fail(`${fileName} is over 120 MB. Crop it to the area of the job and import it again.`)
   const bytes = new Uint8Array(await file.arrayBuffer())
   let format: SpatialFormat, crs: string, features: GeoJSON.Feature[]
   if (isZip(bytes)) {
-    const shapefile = await readShapefileZip(bytes, fileName, keepHeights)
-    if (shapefile) {
+    const shapefiles = await readShapefileZip(bytes, fileName, keepHeights)
+    if (shapefiles) {
       format = 'zipped shapefile'
-      ;({ features, crs } = shapefile)
+      if (separateLayers)
+        return shapefiles.map((layer) => checkedSpatialFile(layer.name, format, layer.crs, layer.features))
+      features = shapefiles.flatMap((layer) => layer.features)
+      crs = [...new Set(shapefiles.map((layer) => layer.crs))].join('; ')
     } else {
       format = 'KMZ'
       crs = WGS84.label
@@ -407,6 +463,34 @@ export async function readSpatialImport(
       )
     else return fail(`${fileName} is not a file this import can read. Use ${SPATIAL_FORMATS}.`)
   }
+  return [checkedSpatialFile(fileName, format, crs, features)]
+}
+
+/** A shapefile selected with its sidecars, using the same decoder and checks as a zip. */
+export async function readLooseShapefile(
+  file: Readable,
+  path: string,
+  sidecars: { prj?: Readable; dbf?: Readable; cpg?: Readable },
+): Promise<SpatialFile> {
+  const size = file.size + (sidecars.prj?.size ?? 0) + (sidecars.dbf?.size ?? 0) + (sidecars.cpg?.size ?? 0)
+  if (size > MAX_SPATIAL_FILE_BYTES) fail(`${path} is over 120 MB. Crop it to the area of the job and import it again.`)
+  const text = async (part?: Readable) => (part ? new TextDecoder().decode(await part.arrayBuffer()) : undefined)
+  const dbf = sidecars.dbf ? new Uint8Array(await sidecars.dbf.arrayBuffer()) : undefined
+  const { crs, features } = await readShapefile(new Uint8Array(await file.arrayBuffer()), {
+    fileName: path,
+    prj: await text(sidecars.prj),
+    dbf,
+    cpg: await text(sidecars.cpg),
+  })
+  return checkedSpatialFile(path, 'shapefile', crs, features)
+}
+
+function checkedSpatialFile(
+  fileName: string,
+  format: SpatialFormat,
+  crs: string,
+  features: GeoJSON.Feature[],
+): SpatialFile {
   if (!features.length) fail(`${fileName} has no point, line or polygon features to import.`)
   if (features.length > MAX_SPATIAL_FEATURES)
     fail(
@@ -429,7 +513,7 @@ export async function readSpatialImport(
       `${fileName} has ${vertices.toLocaleString('en-CA')} vertices; one import takes at most ${MAX_SPATIAL_VERTICES.toLocaleString('en-CA')}. Crop or simplify it and import it again.`,
     )
   return {
-    fileName,
+    fileName: fileName.slice(-MAX_NAME),
     format,
     crs,
     collection: {
@@ -724,7 +808,7 @@ function parts(geometry: GeoJSON.Geometry): Array<GeoJSON.Point | GeoJSON.LineSt
  * feature that states a kind the picker does not take is left out.
  */
 export function buildSpatialImport(file: SpatialFile, roles: RoleChoice, intent?: ImportIntent): SpatialImportResult {
-  const stem = fileStem(file.fileName).slice(0, 150) || 'Imported feature'
+  const stem = fileStem(file.fileName.split('/').at(-1) ?? file.fileName).slice(0, 150) || 'Imported feature'
   const byRole = new Map<
     string,
     { role: Exclude<ImportRole, 'skip'>; shape: SpatialShape; features: GeoJSON.Feature[] }
@@ -765,7 +849,10 @@ export function buildSpatialImport(file: SpatialFile, roles: RoleChoice, intent?
       names = roads.map((road) => road.name)
     } else if (role === 'reference') {
       const made = named.flatMap((feature) => {
-        const pieces = parts(feature.geometry)
+        const pieces =
+          (file.format === 'GeoPDF' || feature.properties?.pdfSource) && feature.geometry.type === 'MultiLineString'
+            ? [feature.geometry]
+            : parts(feature.geometry)
         return pieces.map((geometry, part) => ({
           name: `${String(feature.properties!.name)}${pieces.length > 1 ? ` (part ${part + 1})` : ''}`.slice(
             0,
@@ -773,6 +860,18 @@ export function buildSpatialImport(file: SpatialFile, roles: RoleChoice, intent?
           ),
           geometry,
           source: file.fileName,
+          attributes: sourceAttributes(feature.properties?.sourceAttributes ?? feature.properties),
+          ...(file.pdf
+            ? {
+                pdfSource: file.pdf.source,
+                ...(file.pdf.sheet ? { sheet: file.pdf.sheet } : {}),
+                ...(file.pdf.classGrid ? { classGrid: file.pdf.classGrid } : {}),
+              }
+            : {
+                ...(feature.properties?.pdfSource ? { pdfSource: feature.properties.pdfSource } : {}),
+                ...(feature.properties?.pdfSheet ? { sheet: feature.properties.pdfSheet } : {}),
+                ...(feature.properties?.pdfClassGrid ? { classGrid: feature.properties.pdfClassGrid } : {}),
+              }),
         }))
       })
       const checked = parseReferenceFeatures(

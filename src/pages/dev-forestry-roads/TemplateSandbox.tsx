@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { PanelDialog } from '@/components/ui/dialog-shell'
 import { CrossSectionChart } from './Charts'
 import { offsetCoordinate } from './engine'
 import { safeAnalyzeRoad } from './analysisResult'
@@ -94,45 +94,45 @@ export function TemplateSandbox({
   name: string
   materials?: GroundMaterial[]
 }) {
+  const [open, setOpen] = useState(false)
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null)
   const cases = useMemo(() => templateConditionCases(template, materials), [template, materials])
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full">
+    <PanelDialog
+      open={open}
+      onOpenChange={setOpen}
+      portalContainer={trigger?.closest<HTMLElement>('.road-workspace')}
+      title={`${name} · section conditions`}
+      subtitle="Preview the template on four synthetic ground conditions."
+      size="xl"
+      trigger={
+        <Button ref={setTrigger} variant="outline" size="sm" className="w-full">
           Four condition previews
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] max-w-5xl overflow-auto overscroll-none">
-        <DialogHeader>
-          <DialogTitle>{name} · section conditions</DialogTitle>
-        </DialogHeader>
-        <p className="text-xs text-muted-foreground">
-          Synthetic ground conditions test this template with the same section engine. These previews do not change the
-          road or its source terrain.
-        </p>
-        <div className="grid gap-3 md:grid-cols-2">
-          {cases.map((c) => (
-            <section key={c.label} className={insetBox()} data-preview-focused={!!c.focused}>
-              <h3 className="text-xs font-medium">{c.label}</h3>
-              {c.station ? (
-                <div className="h-[260px]">
-                  <CrossSectionChart station={c.station} alignment={c.alignment} analysis={c.analysis} />
-                </div>
-              ) : (
-                // The template could not be calculated at all: say why instead of an empty chart.
-                <InlineAlert tone="error">
-                  This template cannot be drawn yet. {c.analysis.invalidInput?.message ?? c.analysis.warnings.join(' ')}
-                </InlineAlert>
-              )}
-              <p className="mt-1 text-3xs text-muted-foreground">
-                {c.focused
-                  ? 'View fitted to calculated daylight; quantities retain the full sampled section.'
-                  : 'Full sampled extent retained; incomplete terrain or unclosed daylight remains visible.'}
-              </p>
-            </section>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
+      }
+    >
+      <div className="grid gap-3 md:grid-cols-2">
+        {cases.map((c) => (
+          <section key={c.label} className={insetBox()} data-preview-focused={!!c.focused}>
+            <h3 className="text-xs font-medium">{c.label}</h3>
+            {c.station ? (
+              <div className="h-[260px]">
+                <CrossSectionChart station={c.station} alignment={c.alignment} analysis={c.analysis} />
+              </div>
+            ) : (
+              // The template could not be calculated at all: say why instead of an empty chart.
+              <InlineAlert tone="error">
+                This template cannot be drawn yet. {c.analysis.invalidInput?.message ?? c.analysis.warnings.join(' ')}
+              </InlineAlert>
+            )}
+            <p className="mt-1 text-3xs text-muted-foreground">
+              {c.focused
+                ? 'View fitted to calculated daylight; quantities retain the full sampled section.'
+                : 'Full sampled extent retained; incomplete terrain or unclosed daylight remains visible.'}
+            </p>
+          </section>
+        ))}
+      </div>
+    </PanelDialog>
   )
 }

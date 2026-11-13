@@ -853,7 +853,7 @@ function VerticalAlignment(p: SidebarProps) {
           Following the ground. Add PVIs to design formation levels.
         </InlineAlert>
       )}
-      <SectionReachAlert workspace={p.workspace} />
+      <SectionReachAlert workspace={p.workspace} onFindTerrain={p.onFindTerrain} />
       {alignment.vertical.length > 0 && (
         <div className="mt-2" data-testid="road-pvi-list">
           <div className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_1.5rem] gap-1 px-0.5 pb-1 text-2xs text-muted-foreground">

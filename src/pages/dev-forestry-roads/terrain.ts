@@ -269,6 +269,11 @@ export function createDemoProject(): RoadProject {
 }
 
 export function roadProjection(epsg: number) {
+  if (epsg === 3979)
+    return proj4(
+      'EPSG:4326',
+      '+proj=lcc +lat_0=49 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs',
+    )
   return epsg === 3157 ? proj4('EPSG:4326', METRIC_CRS) : rasterProjection(epsg)
 }
 

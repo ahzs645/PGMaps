@@ -28,7 +28,14 @@ interface BandRow {
   spans: BandSpan[]
 }
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
-const number = (value: number, digits = 1) => value.toLocaleString('en-CA', { maximumFractionDigits: digits })
+// One formatter per precision: `toLocaleString` with options builds a new one on every call,
+// which was most of the profile bands' cost on each station change.
+const formats = new Map<number, Intl.NumberFormat>()
+const number = (value: number, digits = 1) => {
+  let format = formats.get(digits)
+  if (!format) formats.set(digits, (format = new Intl.NumberFormat('en-CA', { maximumFractionDigits: digits })))
+  return format.format(value)
+}
 
 /** How a ground profile is split for its grades: as many pieces as the plot has room for. */
 export interface GroundGradeView {
@@ -62,11 +69,33 @@ function groundCuts(analysis: RoadAnalysis, view: GroundGradeView): number[] {
  * `ground` view, the ground splits where it bends, about one piece per 110 px
  * (`profileLabelLayout.ts`); without one it is eight equal pieces.
  */
+const gradeSpanCache = new WeakMap<RoadAnalysis, WeakMap<Alignment, Map<string, BandSpan[]>>>()
 export function profileGradeSpans(
   analysis: RoadAnalysis,
   alignment: Alignment,
   terrainOnly = false,
   ground?: GroundGradeView,
+): BandSpan[] {
+  // The profile asks again on every station change and hover; the spans depend only on the road,
+  // its profile and the view, so a repeat is a lookup.
+  let byAlignment = gradeSpanCache.get(analysis)
+  if (!byAlignment) gradeSpanCache.set(analysis, (byAlignment = new WeakMap()))
+  let cache = byAlignment.get(alignment)
+  if (!cache) byAlignment.set(alignment, (cache = new Map()))
+  const key = `${terrainOnly}:${ground ? `${ground.range[0]}:${ground.range[1]}:${ground.plotWidthPx}` : ''}`
+  const cached = cache.get(key)
+  if (cached) return cached
+  if (cache.size > 32) cache.clear()
+  const spans = computeGradeSpans(analysis, alignment, terrainOnly, ground)
+  cache.set(key, spans)
+  return spans
+}
+
+function computeGradeSpans(
+  analysis: RoadAnalysis,
+  alignment: Alignment,
+  terrainOnly: boolean,
+  ground: GroundGradeView | undefined,
 ): BandSpan[] {
   const length = analysis.length
   const vertical = [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)

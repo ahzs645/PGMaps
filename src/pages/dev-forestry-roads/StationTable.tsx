@@ -3,7 +3,7 @@ import { Columns3, Download, ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { downloadText } from '@/lib/download'
 import { FormField, NumberField } from '@/components/ui/form-field'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { ActiveFilterChip, ToolbarPopover } from '@/components/ui/toolbar-popover'
@@ -18,15 +18,28 @@ import {
   STATION_COLUMNS,
   tableTotals,
   totalsNote,
+  type StationColumn,
+  type StationRow,
 } from './stationReport'
 import type { RoadAnalysis } from './types'
 
+// Cached formatters: `toLocaleString` with options builds one per call, and the table formats
+// every cell of every row (153 ms of a single render in a recorded trace).
+const formats = new Map<string, Intl.NumberFormat>()
+const formatter = (min: number, max: number) => {
+  const key = `${min}:${max}`
+  let format = formats.get(key)
+  if (!format)
+    formats.set(
+      key,
+      (format = new Intl.NumberFormat('en-CA', { minimumFractionDigits: min, maximumFractionDigits: max })),
+    )
+  return format
+}
 const number = (v: number | null | undefined, decimals = 1) =>
-  v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('en-CA', { maximumFractionDigits: decimals })
+  v == null || !Number.isFinite(v) ? '—' : formatter(0, decimals).format(v)
 const fixed = (v: number | null | undefined, decimals: number) =>
-  v == null || !Number.isFinite(v)
-    ? '—'
-    : v.toLocaleString('en-CA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  v == null || !Number.isFinite(v) ? '—' : formatter(decimals, decimals).format(v)
 
 const DEFAULT_HIDDEN = STATION_COLUMNS.filter((c) => c.hidden).map((c) => c.id)
 const STORAGE = 'pgmaps-road-station-columns'
@@ -41,7 +54,13 @@ function readHidden(): string[] {
   }
 }
 
-export function StationTable({
+/**
+ * Memoized, with memoized rows: the page re-renders on every drainage, sidebar or panel click,
+ * and redrawing every row's formatted numbers took about 85 ms each time (dev build) though
+ * nothing in the table had changed. A station change now re-renders only the two rows whose
+ * selection flips.
+ */
+export const StationTable = memo(function StationTable({
   analysis,
   station,
   onStation,
@@ -82,13 +101,18 @@ export function StationTable({
     }
   }
   const end = Math.min(analysis.length, range.end ?? analysis.length)
-  const inRange = analysis.stations.filter((s) => s.chainage >= range.start - 0.001 && s.chainage <= end + 0.001)
-  const reported = reportingRows(analysis, inRange, every)
-  const rows = reported.filter((r) => !flagged || r.station.flags.length || (!terrainOnly && r.unknownM > 1e-6))
+  const reported = useMemo(() => {
+    const inRange = analysis.stations.filter((s) => s.chainage >= range.start - 0.001 && s.chainage <= end + 0.001)
+    return reportingRows(analysis, inRange, every)
+  }, [analysis, range.start, end, every])
+  const rows = useMemo(
+    () => reported.filter((r) => !flagged || r.station.flags.length || (!terrainOnly && r.unknownM > 1e-6)),
+    [reported, flagged, terrainOnly],
+  )
   // Totals are the sum of the reported rows, whether or not the flag filter is showing them all.
-  const totals = tableTotals(reported)
-  const available = availableStationColumns(analysis, terrainOnly)
-  const columns = available.filter((c) => !hidden.includes(c.id))
+  const totals = useMemo(() => tableTotals(reported), [reported])
+  const available = useMemo(() => availableStationColumns(analysis, terrainOnly), [analysis, terrainOnly])
+  const columns = useMemo(() => available.filter((c) => !hidden.includes(c.id)), [available, hidden])
   const narrowed = range.start > 0.001 || end < analysis.length - 0.001
   const clearRange = () => setRange({ start: 0, end: null })
   const field = 'w-full min-w-0 rounded-md border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
@@ -241,40 +265,16 @@ export function StationTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
-              const s = row.station
-              const flags = terrainOnly ? s.flags : rowFlags(row)
-              const partial = !terrainOnly && row.unknownM > 1e-6
-              return (
-                <tr key={s.index} aria-selected={active?.index === s.index}>
-                  <td>
-                    <button
-                      className="font-mono underline decoration-dotted"
-                      aria-label={`Select station ${s.chainage.toFixed(1)}`}
-                      onClick={() => onStation(s.chainage)}
-                    >
-                      {formatRoadStation(s.chainage)}
-                    </button>
-                  </td>
-                  {columns.map((c) => (
-                    <td
-                      key={c.id}
-                      className={partial && c.sum ? 'text-warning' : undefined}
-                      title={partial && c.sum ? flags[0] : undefined}
-                    >
-                      {fixed(c.value(row), c.decimals)}
-                    </td>
-                  ))}
-                  <td
-                    className="max-w-64 truncate text-left text-warning"
-                    title={flags.join('; ')}
-                    data-partial={partial || undefined}
-                  >
-                    {flags.join('; ') || '—'}
-                  </td>
-                </tr>
-              )
-            })}
+            {rows.map((row) => (
+              <StationTableRow
+                key={row.station.index}
+                row={row}
+                columns={columns}
+                terrainOnly={terrainOnly}
+                selected={active?.index === row.station.index}
+                onStation={onStation}
+              />
+            ))}
           </tbody>
           {!terrainOnly && (
             <tfoot>
@@ -291,4 +291,51 @@ export function StationTable({
       </div>
     </div>
   )
-}
+})
+
+const StationTableRow = memo(function StationTableRow({
+  row,
+  columns,
+  terrainOnly,
+  selected,
+  onStation,
+}: {
+  row: StationRow
+  columns: StationColumn[]
+  terrainOnly: boolean
+  selected: boolean
+  onStation: (value: number) => void
+}) {
+  const s = row.station
+  const flags = terrainOnly ? s.flags : rowFlags(row)
+  const partial = !terrainOnly && row.unknownM > 1e-6
+  return (
+    <tr aria-selected={selected}>
+      <td>
+        <button
+          className="font-mono underline decoration-dotted"
+          aria-label={`Select station ${s.chainage.toFixed(1)}`}
+          onClick={() => onStation(s.chainage)}
+        >
+          {formatRoadStation(s.chainage)}
+        </button>
+      </td>
+      {columns.map((c) => (
+        <td
+          key={c.id}
+          className={partial && c.sum ? 'text-warning' : undefined}
+          title={partial && c.sum ? flags[0] : undefined}
+        >
+          {fixed(c.value(row), c.decimals)}
+        </td>
+      ))}
+      <td
+        className="max-w-64 truncate text-left text-warning"
+        title={flags.join('; ')}
+        data-partial={partial || undefined}
+      >
+        {flags.join('; ') || '—'}
+      </td>
+    </tr>
+  )
+})

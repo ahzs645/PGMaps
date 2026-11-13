@@ -10,6 +10,13 @@ import { surfacingSupplyCost } from './gravel'
 import { materialPlanMissing, type HaulSettings } from './engineeringTypes'
 import type { Alignment, GroundMaterial, MaterialQuantity, RoadAnalysis, RoadSettings } from './types'
 import { BCCostReferences } from './BCCostReferencesPanel'
+import { RateSources } from './RateAdoption'
+import {
+  rateSourceLines,
+  type AdoptableRateKey,
+  type RateAdoption,
+  type RateEvidence,
+} from './costEvidence/rateAdoption'
 import { unpricedQuantities } from './costReadiness'
 import { invalidInputNotice } from './inputErrors'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -53,6 +60,8 @@ type Rate = {
   max?: number
   /** Omitted: the rate is shown, and edited where its note says. */
   onChange?: (value: number) => void
+  /** The project rate behind this cell, so an adopted rate shows its reference on the row. */
+  rateKey?: RateKey
 }
 type Row = {
   id: string
@@ -108,7 +117,7 @@ function RateCell({ rate }: { rate?: Rate }) {
   if (!rate) return <span className="text-muted-foreground">—</span>
   return (
     <span className="inline-flex items-center justify-end gap-1">
-      <span className="w-24">
+      <span className="w-12 sm:w-24">
         {rate.onChange ? (
           <CellNumberField
             label={rate.label}
@@ -121,12 +130,14 @@ function RateCell({ rate }: { rate?: Rate }) {
             onChange={rate.onChange}
           />
         ) : (
-          <span className="block px-2 text-right font-mono" aria-label={rate.label}>
+          <span className="block px-1 text-right font-mono sm:px-2" aria-label={rate.label}>
             {rate.value.toLocaleString('en-CA', { maximumFractionDigits: 6 })}
           </span>
         )}
       </span>
-      <span className="w-14 text-left text-3xs text-muted-foreground">{rate.unit}</span>
+      <span className="max-w-12 whitespace-normal text-left text-3xs text-muted-foreground sm:w-14 sm:max-w-none">
+        {rate.unit}
+      </span>
     </span>
   )
 }
@@ -144,10 +155,11 @@ export function CostBreakdown({
   onSettings,
   onHaul,
   onMaterialRate,
+  rateEvidence,
+  onAdoptRate,
+  onRemoveRateSource,
   portalContainer,
-  processMs,
 }: {
-  processMs?: number
   open: boolean
   onOpenChange: (open: boolean) => void
   analysis: RoadAnalysis
@@ -156,6 +168,11 @@ export function CostBreakdown({
   onSettings: (patch: Partial<RoadSettings>) => void
   onHaul?: (patch: Partial<HaulSettings>) => void
   onMaterialRate?: (materialId: string, cutRate: number) => void
+  /** The evidence record each adopted rate came from, kept beside the rate (`rateAdoption.ts`). */
+  rateEvidence?: RateEvidence
+  /** Writes a rate and its source together, as one undo step. Absent: BC references is read-only. */
+  onAdoptRate?: (rateKey: AdoptableRateKey, adoption: RateAdoption) => void
+  onRemoveRateSource?: (rateKey: AdoptableRateKey) => void
   portalContainer?: HTMLElement | null
 }) {
   const [opened, setOpened] = useState<{ open: boolean; total: number }>({ open, total: analysis.estimatedCost })
@@ -167,6 +184,7 @@ export function CostBreakdown({
     unit,
     label,
     max,
+    rateKey: key,
     onChange: (value) => onSettings({ [key]: value }),
   })
   const haulRate = (key: keyof HaulSettings, label: string, unit: string, max = 1e9): Rate | undefined =>
@@ -364,33 +382,22 @@ export function CostBreakdown({
   // Work with a quantity and no rate: its amount is zero because it is unpriced, not because it is free.
   const unpriced = unpricedQuantities(analysis, alignment, settings)
   const unpricedOn = (rowId: string) => unpriced.filter((item) => item.rowId === rowId)
+  const sources = rateSourceLines(rateEvidence, settings)
+  const sourceOn = (row: Row) => sources.find((line) => line.rateKey === row.rate?.rateKey)
   return (
     <PanelDialog
       open={open}
       onOpenChange={onOpenChange}
       portalContainer={portalContainer}
-      size="lg"
+      size={result ? 'lg' : 'md'}
       title="Covered estimate"
-      subtitle={`${money(analysis.estimatedCost)} · ${quantity(analysis.coveragePercent)}% of the road has complete sections`}
-      // Coverage is in the subtitle; this line names only what is incomplete, and the run time.
-      summary={
-        <p className="text-2xs text-muted-foreground" data-testid="road-cost-status">
-          {analysis.invalidInput ? 'Leaves out an invalid input · ' : ''}
-          {hasCompleteCoverage(analysis) ? '' : 'Section coverage partial · '}
-          {noPlan ? `Material plan ${noPlan.replace('was ', '')}: haul, borrow and waste are left out · ` : ''}
-          {result?.complete === false && !noPlan ? 'Engineering inputs incomplete · ' : ''}
-          {unpriced.length ? `${unpriced.length} unpriced ${unpriced.length === 1 ? 'quantity' : 'quantities'} · ` : ''}
-          Recalculated on every edit
-          {processMs === undefined
-            ? ''
-            : ` · process time ${processMs < 1000 ? `${Math.max(1, Math.round(processMs))} ms` : `${(processMs / 1000).toFixed(1)} s`}`}
-        </p>
-      }
+      className="road-cost-dialog"
+      bodyClassName="p-3 workspace-sm:p-4"
       contentProps={{ 'data-testid': 'road-cost-dialog' }}
     >
-      <div className="space-y-3 text-xs">
+      <div className="space-y-2 text-xs">
         <div className="flex flex-wrap items-end gap-2" data-testid="road-rate-sources">
-          <label className="flex min-w-0 flex-1 flex-col gap-1 text-muted-foreground sm:max-w-72">
+          <div className="flex min-w-0 flex-1 flex-col gap-1 text-muted-foreground max-sm:basis-full sm:max-w-72">
             <span className="flex items-center gap-1">
               Rate preset
               <InfoTip label="About this rate preset">
@@ -414,14 +421,17 @@ export function CostBreakdown({
               ariaLabel="Rate preset"
               className="h-8"
             />
-          </label>
-          <BCCostReferences portalContainer={portalContainer} />
-          <span className="ml-auto flex h-8 items-center">
+          </div>
+          <div className="flex min-h-8 max-w-full flex-wrap items-center gap-2">
+            <BCCostReferences
+              portalContainer={portalContainer}
+              adoption={onAdoptRate && { rates: settings, rateEvidence, onAdopt: onAdoptRate }}
+            />
             <InfoTip label="How amounts are calculated" showLabel>
               Amount = quantity × rate. Contingency = subtotal × %. Quantities cover supported intervals only, with
               volumes by average end areas. Section coverage measures sampled road length, not cost confidence.
             </InfoTip>
-          </span>
+          </div>
         </div>
         {analysis.invalidInput && (
           <div data-testid="road-cost-invalid-input">
@@ -446,7 +456,10 @@ export function CostBreakdown({
           </div>
         )}
         <div className="overflow-x-auto overscroll-none">
-          <EngineeringTable data-testid="road-cost-calculation">
+          <EngineeringTable
+            className="[&_td]:bg-background [&_th]:bg-background max-sm:[&_td]:px-1 max-sm:[&_th]:px-1"
+            data-testid="road-cost-calculation"
+          >
             <thead>
               <tr>
                 <ColumnHeader label="Item" className="text-left" />
@@ -459,6 +472,7 @@ export function CostBreakdown({
             <tbody>
               {rows.map((row) => {
                 const missing = unpricedOn(row.id)
+                const source = sourceOn(row)
                 return (
                   <tr
                     key={row.id}
@@ -466,9 +480,20 @@ export function CostBreakdown({
                     data-unpriced={missing.length ? 'true' : undefined}
                     title={[...missing.map((item) => `${item.text}.`), row.note].filter(Boolean).join(' ') || undefined}
                   >
-                    <td className="text-left">{row.item}</td>
+                    <td className="text-left max-sm:whitespace-normal">
+                      {row.item}
+                      {/* Why this rate: the reference it was adopted from, in the reference's own unit. */}
+                      {source && (
+                        <span
+                          className={`block whitespace-normal text-3xs font-normal ${source.edited ? 'text-warning' : 'text-muted-foreground'}`}
+                          data-testid="road-cost-rate-source"
+                        >
+                          {source.edited ? 'Edited since adopted from' : 'Rate adopted from'} {source.observed}
+                        </span>
+                      )}
+                    </td>
                     <td>{quantity(row.quantity, row.unit === 'culverts' || row.unit === 'lump sum' ? 0 : 1)}</td>
-                    <td className="text-left text-muted-foreground">{row.unit}</td>
+                    <td className="text-left text-muted-foreground max-sm:whitespace-normal">{row.unit}</td>
                     <td>
                       <RateCell rate={row.rate} />
                     </td>
@@ -509,26 +534,44 @@ export function CostBreakdown({
                   </tr>
                 </>
               )}
-              <tr className="bg-emerald-600/10 font-semibold" data-cost-row="total">
-                <td className="text-left" colSpan={4}>
-                  Total
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-border font-semibold" data-cost-row="total">
+                <th scope="row" className="border border-border/60 px-2 py-2 text-left align-top" colSpan={4}>
+                  <div className="flex items-baseline gap-2">
+                    Total
+                    <span
+                      data-testid="road-cost-coverage"
+                      className={`font-normal ${hasCompleteCoverage(analysis) ? 'text-muted-foreground' : 'text-warning'}`}
+                    >
+                      {quantity(analysis.coveragePercent)}% complete sections
+                    </span>
+                  </div>
                   {/* Only an edit made here moves the total, so the difference shows once there is one. */}
                   {change !== 0 && (
                     <span
                       data-testid="road-cost-change"
-                      className={`ml-2 font-normal ${change > 0 ? 'text-warning' : 'text-success'}`}
+                      className={`block font-normal ${change > 0 ? 'text-warning' : 'text-success'}`}
                     >
                       {`${change > 0 ? '+' : '−'}${money(Math.abs(change))} since opened`}
                     </span>
                   )}
-                </td>
-                <td className="font-mono" data-testid="road-cost-total">
+                  {noPlan ? (
+                    <p className="max-w-64 whitespace-normal font-normal text-warning">
+                      The material plan {noPlan}. Haul, borrow and waste are excluded.
+                    </p>
+                  ) : result?.complete === false ? (
+                    <p className="whitespace-normal font-normal text-warning">Engineering inputs incomplete</p>
+                  ) : null}
+                </th>
+                <td className="align-top font-mono !py-2" data-testid="road-cost-total">
                   {money(analysis.estimatedCost, 2)}
                 </td>
               </tr>
-            </tbody>
+            </tfoot>
           </EngineeringTable>
         </div>
+        <RateSources rates={settings} rateEvidence={rateEvidence} onRemove={onRemoveRateSource} />
         {haul && onHaul && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {(
@@ -554,12 +597,6 @@ export function CostBreakdown({
           </div>
         )}
         {haul && onHaul && <HaulCostGraph haul={haul} />}
-        {!result && (
-          <p className="text-2xs text-muted-foreground">
-            Materials, structures, haul, mobilization and contingency join this table once Engineering inputs are added
-            to the road.
-          </p>
-        )}
       </div>
     </PanelDialog>
   )

@@ -3,6 +3,7 @@ import {
   BC_INTERIOR_COST_SOURCE,
   INTERIOR_ROAD_GROUPS,
   interiorRoadBenchmark,
+  interiorStabilizationPerKm,
   type InteriorBenchmarkInput,
 } from './bcInteriorCost'
 
@@ -133,5 +134,18 @@ describe('BC Interior 2026 appraisal cross-check', () => {
     expect(result.status).toBe('needs-input')
     expect(result.subgradePerKm).toBeNull()
     expect(result.subgradeTotal).toBeNull()
+  })
+
+  it('prices stabilizing material as its own allowance, never inside subgrade', () => {
+    // IAM 4.3.4.1(1): constant + 0 × D + 4,277 × RRQR.
+    expect(interiorStabilizationPerKm(4, 'long-term', false)).toBe(24910)
+    expect(interiorStabilizationPerKm(8, 'short-term', false)).toBe(28260)
+    expect(interiorStabilizationPerKm(12, 'long-term', true)).toBe(35760 + 4277)
+    expect(interiorStabilizationPerKm(7, null, false)).toBe(43682)
+    // Group 1 follows 4.3.6(8)(q), and no snow and ice road has the allowance.
+    expect(interiorStabilizationPerKm(1, 'long-term', false)).toBeNull()
+    expect(interiorStabilizationPerKm(4, 'snow-ice', false)).toBeNull()
+    expect(interiorStabilizationPerKm(null, 'long-term', false)).toBeNull()
+    expect(interiorRoadBenchmark(example).subgradePerKm).toBe(25347)
   })
 })

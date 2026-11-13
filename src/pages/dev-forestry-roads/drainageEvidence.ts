@@ -4,12 +4,13 @@ import type { PourPoint } from './drainageCatchments'
 import { parseDepressionPolicy, parseSnapPolicy } from './drainagePolicies'
 import type { Alignment, RoadSettings, TerrainMetadata } from './types'
 import { positionAt } from './engine'
+import { DITCH_DETAIL_CELL_M } from './hydrology'
 
 export const MAX_DRAINAGE_RECORDS = 20
 export const MAX_DRAINAGE_EVIDENCE_VERTICES = 200_000
 export const MAX_DRAINAGE_COMPARISONS = 12
 /** Calculation identity is separate from input hashes; older ponding included routing epsilon. */
-export const DRAINAGE_ALGORITHM_VERSION = 'd8-policy-physical-spill-v1'
+export const DRAINAGE_ALGORITHM_VERSION = 'd8-policy-physical-spill-v2-cross-drain-sites'
 export interface DrainageCatchmentEvidence {
   surface: PourPoint['surface']
   snapPolicy: NonNullable<PourPoint['snapPolicy']>
@@ -603,7 +604,7 @@ export function drainageReportHtml(
 <p>Depression policy: ${escape(record.settings.depressionPolicy?.mode ?? 'fill-all')}${record.settings.depressionPolicy?.mode === 'depth-limited' ? `; maximum whole-basin fill ${fmt(record.settings.depressionPolicy.maxDepthM)} m` : ''}. Requested working cell: ${record.settings.workingResolutionM === undefined ? 'source resolution (minimum 1 m)' : `${fmt(record.settings.workingResolutionM)} m`}. Potential ponding is measured to the spill level independently of the selected routing treatment.</p>
 ${record.pourPoint ? `<p>Requested pour point ${record.pourPoint.coordinate.map((c) => fmt(c, 6)).join(', ')}; ${escape(record.pourPoint.surface)} surface; snap radius ${fmt(record.pourPoint.snapRadiusM)} m; policy ${escape(record.pourPoint.snapPolicy ?? 'max-accumulation')}.</p>` : ''}
 ${record.selectedCatchment ? `<p>Selected outlet ${record.selectedCatchment.snappedCoordinate.map((c) => fmt(c, 6)).join(', ')}; cell ${fmt(record.selectedCatchment.outletCell, 0)}; snap distance ${fmt(record.selectedCatchment.snappedDistanceM)} m; contributing area ${fmt(record.selectedCatchment.areaHa)} ha (${fmt(record.selectedCatchment.cells, 0)} cells).</p>` : ''}
-<p>${fmt(record.summary.crossings, 0)} stream crossings; ${fmt(record.summary.redirected, 0)} redirected without a passing culvert; ${fmt(record.summary.lowPoints, 0)} unrelieved low points; ${fmt(record.summary.pondingAreaM2)} m² new ponding; ${fmt(record.summary.undersized, 0)} of ${fmt(record.summary.culverts, 0)} culverts below modeled capacity.</p>
+<p>${fmt(record.summary.crossings, 0)} stream crossings; ${fmt(record.summary.redirected, 0)} redirected without a passing culvert; ${fmt(record.summary.lowPoints, 0)} cross-drain candidates without a culvert${record.grid.cellM > DITCH_DETAIL_CELL_M ? ` (screening on ${fmt(record.grid.cellM)} m cells)` : ''}; ${fmt(record.summary.pondingAreaM2)} m² new ponding; ${fmt(record.summary.undersized, 0)} of ${fmt(record.summary.culverts, 0)} culverts below modeled capacity.</p>
 <h3>Catchments and watersheds</h3>${table(
     ['ID', 'Surface', 'Area (ha)', 'Boundary contact'],
     [...features('catchment'), ...features('watershed')].map((f) => {

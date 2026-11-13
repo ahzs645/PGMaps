@@ -28,6 +28,7 @@ import {
 } from './streamCrossingReview'
 import { gradeRule, gradeRuleText, gradeSpanOf, reviewGrades, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
+import { DITCH_DETAIL_CELL_M } from './hydrology'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
 import { materialPlanMissing } from './engineeringTypes'
 import { invalidInputMessages, type EngineeringInputList } from './inputErrors'
@@ -165,6 +166,7 @@ export interface ReadinessInput {
   haul?: RoadHaulReview
 }
 
+const CROSS_DRAIN_JUDGED_ON = 'A culvert at every modelled stream and cross-drain site; none undersized'
 const EPS = 1e-6
 const station = (chainage: number) => {
   const rounded = Math.round(Math.max(0, chainage) * 10) / 10
@@ -1348,45 +1350,61 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
     add({
       id: 'drainage',
       group: 'water',
-      check: 'Low points and modelled streams drained',
+      check: 'Cross-drain sites and modelled streams drained',
       state: 'not-assessed',
       result: record ? 'The drainage check is out of date' : 'The drainage check has not been run',
       measured: record ? 'The road, its culverts, the terrain or a limit changed since it ran' : undefined,
-      judgedOn: 'A culvert at every modelled stream and ditch low point',
+      judgedOn: 'A culvert at every modelled stream and cross-drain site',
       action: { label: record ? 'Run again' : 'Run check', target: 'drainage' },
     })
   else {
     const flowsBare = register.rows.filter((row) => row.modelled && row.structure.kind === 'none').length
     const summary = record.summary
+    // Cells coarser than a ditch read flow leaving the road wherever the ground falls away, so
+    // their cross-drain count is a screen: it neither flags the row nor lets it be met.
+    const screening = record.grid.cellM > DITCH_DETAIL_CELL_M
     const issues = [
-      summary.lowPoints ? `${plural(summary.lowPoints, 'low point has', 'low points have')} no culvert` : '',
+      summary.lowPoints && !screening
+        ? `${plural(summary.lowPoints, 'cross-drain site has', 'cross-drain sites have')} no culvert`
+        : '',
       flowsBare ? `${plural(flowsBare, 'modelled stream has', 'modelled streams have')} no culvert` : '',
       summary.redirected ? `${plural(summary.redirected, 'stream is', 'streams are')} carried along the road` : '',
       summary.undersized ? `${plural(summary.undersized, 'culvert is', 'culverts are')} undersized` : '',
     ].filter(Boolean)
-    const measured = `${summary.crossings} modelled ${summary.crossings === 1 ? 'stream' : 'streams'} · ${plural(summary.lowPoints, 'unrelieved low point')} · ${num(summary.pondingAreaM2)} m² new ponding · ${summary.undersized} of ${plural(summary.culverts, 'culvert')} undersized`
+    const measured = `${summary.crossings} modelled ${summary.crossings === 1 ? 'stream' : 'streams'} · ${plural(summary.lowPoints, 'cross-drain candidate')}${screening ? ` (screening on ${num(record.grid.cellM)} m cells)` : ''} · ${num(summary.pondingAreaM2)} m² new ponding · ${summary.undersized} of ${plural(summary.culverts, 'culvert')} undersized`
     add(
       issues.length
         ? {
             id: 'drainage',
             group: 'water',
-            check: 'Low points and modelled streams drained',
+            check: 'Cross-drain sites and modelled streams drained',
             state: 'attention',
             severity: 'limit',
             result: issues.slice(0, 2).join(' and ') + (issues.length > 2 ? `, and ${issues.length - 2} more` : ''),
             measured,
-            judgedOn: 'A culvert at every modelled stream and ditch low point; none undersized',
+            judgedOn: CROSS_DRAIN_JUDGED_ON,
             action: { label: 'Open drainage', target: 'drainage' },
           }
-        : {
-            id: 'drainage',
-            group: 'water',
-            check: 'Low points and modelled streams drained',
-            state: 'met',
-            result: 'Every modelled stream and low point has a culvert',
-            measured,
-            judgedOn: 'A culvert at every modelled stream and ditch low point; none undersized',
-          },
+        : screening
+          ? {
+              id: 'drainage',
+              group: 'water',
+              check: 'Cross-drain sites and modelled streams drained',
+              state: 'not-assessed',
+              result: `Cross-drain sites need terrain of ${DITCH_DETAIL_CELL_M} m cells or finer`,
+              measured,
+              judgedOn: CROSS_DRAIN_JUDGED_ON,
+              action: { label: 'Open drainage', target: 'drainage' },
+            }
+          : {
+              id: 'drainage',
+              group: 'water',
+              check: 'Cross-drain sites and modelled streams drained',
+              state: 'met',
+              result: 'Every modelled stream and cross-drain site has a culvert',
+              measured,
+              judgedOn: CROSS_DRAIN_JUDGED_ON,
+            },
     )
   }
 

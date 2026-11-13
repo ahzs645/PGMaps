@@ -84,6 +84,19 @@ describe('horizontal profile bands', () => {
     expect(profileGradeSpans(missingTerrain, alignment).every((span) => span.label.startsWith('Unknown'))).toBe(true)
   })
 
+  it('answers a repeat request for the same road and view from its cache', () => {
+    const alignment = road()
+    alignment.vertical = [{ id: 'level', chainage: 120, elevation: 812, curveLength: 0 }]
+    const analysis = analyzeRoad(alignment, { elevationAt: () => 800 }, DEFAULT_ROAD_SETTINGS)
+    const view = { range: [0, analysis.length] as const, plotWidthPx: 600 }
+    const first = profileGradeSpans(analysis, alignment, false, view)
+    expect(profileGradeSpans(analysis, alignment, false, { ...view })).toBe(first)
+    // A different view, mode or road is worked out afresh.
+    expect(profileGradeSpans(analysis, alignment, false, { ...view, plotWidthPx: 300 })).not.toBe(first)
+    expect(profileGradeSpans(analysis, alignment, true, view)).not.toBe(first)
+    expect(profileGradeSpans(analysis, { ...alignment }, false, view)).not.toBe(first)
+  })
+
   it('shows a single-PVI formation as one level design tangent even with missing terrain, while terrain-only stays ground', async () => {
     const alignment = road()
     alignment.vertical = [{ id: 'level', chainage: 120, elevation: 812, curveLength: 0 }]

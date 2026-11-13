@@ -511,7 +511,8 @@ reports it and uses the balanced line.
 
 Every row, the current road included, is then screened with `runDrainage` on cells of at least 2 m
 and a buffer of at most 150 m. That is coarser than the Drainage view, and the counts can differ:
-run the view on the road you pick. Low points within 40 m of each other are one cross-drain site.
+run the view on the road you pick. Low points within 40 m of each other are one cross-drain site,
+the same rule the Drainage view uses (`CROSS_DRAIN_SITE_M`).
 
 **Total** is the base engineering estimate plus a drainage allowance: stream crossings without a
 culvert at **Stream crossing ($)**, default $8,000, and cross-drain sites at **Cross-drain ($)\*\*,

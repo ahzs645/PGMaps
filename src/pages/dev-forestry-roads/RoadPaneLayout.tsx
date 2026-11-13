@@ -113,11 +113,15 @@ export function RoadPaneLayout({
   storageId = layout,
   hidden = [],
   focusedPane,
+  onFocusedPaneChange,
+  windowControls,
 }: {
   layout: RoadLayout
   hidden?: RoadPaneId[]
   /** Small workspaces show one view at a time without unmounting the others. */
   focusedPane?: RoadPaneId
+  onFocusedPaneChange?: (pane: RoadPaneId) => void
+  windowControls?: 'inline' | 'external'
   /** Where pane sizes are remembered: the preset id, or a saved layout's own id. */
   storageId?: string
   plan: ReactNode
@@ -131,6 +135,8 @@ export function RoadPaneLayout({
       contents={{ plan, profile, detail, data }}
       hidden={hidden}
       focusedPane={focusedPane}
+      onFocusedPaneChange={onFocusedPaneChange}
+      windowControls={windowControls}
       storageKey={(split) => roadPaneKey(storageId, split)}
       data-testid="road-connected-layout"
       data-layout={layout}

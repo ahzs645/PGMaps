@@ -84,8 +84,10 @@ function drainageRecord(
   crossings: { id: string; chainage: number; areaHa?: number; redirected?: boolean }[],
   summary: Partial<DrainageEvidence['summary']> = {},
   checks: { id: string; adequate: boolean; minimumDiameterM?: number }[] = [],
+  cellM = 1,
 ): DrainageEvidence {
   return {
+    grid: { cellM, width: 100, height: 100, origin: [0, 0] },
     summary: {
       crossings: crossings.length,
       redirected: crossings.filter((c) => c.redirected).length,
@@ -165,7 +167,7 @@ describe('assessReadiness: what the walkthrough found ticked or missing', () => 
     expect(assess({ settings: { minRadius: 30 } }).row('curve-radius').state).toBe('met')
   })
 
-  it('does not call drainage checked while low points and modelled streams have no culvert', () => {
+  it('does not call drainage checked while cross-drain sites and modelled streams have no culvert', () => {
     const drainage = {
       stale: false,
       record: drainageRecord(
@@ -180,10 +182,28 @@ describe('assessReadiness: what the walkthrough found ticked or missing', () => 
     expect(row('drainage')).toMatchObject({
       state: 'attention',
       severity: 'limit',
-      result: '22 low points have no culvert and 2 modelled streams have no culvert',
+      result: '22 cross-drain sites have no culvert and 2 modelled streams have no culvert',
     })
     expect(row('drainage').measured).toContain('809 m² new ponding')
     expect(row('drainage').action).toMatchObject({ target: 'drainage' })
+  })
+
+  it('reads cross-drain candidates on coarse terrain as a screen, never a finding or a pass', () => {
+    const coarse = (summary: Partial<DrainageEvidence['summary']>) =>
+      assess({ drainage: { stale: false, record: drainageRecord([], summary, [], 22.4) } }).row('drainage')
+    // 211 candidates on 22 m cells are not 211 missing culverts.
+    expect(coarse({ lowPoints: 211 })).toMatchObject({
+      state: 'not-assessed',
+      result: 'Cross-drain sites need terrain of 2 m cells or finer',
+    })
+    expect(coarse({ lowPoints: 211 }).measured).toContain('211 cross-drain candidates (screening on 22 m cells)')
+    // Nor does a coarse run with none read as drained.
+    expect(coarse({}).state).toBe('not-assessed')
+    // A stream finding still stands on coarse terrain.
+    expect(coarse({ lowPoints: 5, undersized: 1, culverts: 1 })).toMatchObject({
+      state: 'attention',
+      result: '1 culvert is undersized',
+    })
   })
 
   it('never reads an unrun or out-of-date drainage check as met', () => {

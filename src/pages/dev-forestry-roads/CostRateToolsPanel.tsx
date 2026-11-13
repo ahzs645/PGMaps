@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import { InlineAlert } from '@/components/ui/map-panels'
+import { InfoTip } from '@/components/ui/info-tip'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { OptionalNumberField } from './Controls'
 import { ReferenceHeading, ReferenceSelect } from './CostReferenceControls'
 import {
@@ -12,17 +14,32 @@ import {
   type TruckCycleUnitCostInput,
 } from './costRateTools'
 
-function RateResult({ result, testId }: { result: CostUnitRateResult; testId: string }) {
+/** A calculator's last row: how the rate is worked out, then the rate, or what it still needs behind an (i). */
+function RateResult({ result, testId, formula }: { result: CostUnitRateResult; testId: string; formula: ReactNode }) {
+  const cost = result.valid ? result.unitCostCad : null
   return (
-    <div data-testid={testId} aria-live="polite" className="text-xs">
-      {result.valid && result.unitCostCad !== null ? (
-        <p className="font-semibold tabular-nums">
-          {result.unitCostCad.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
-          {result.unit}
-        </p>
-      ) : (
-        <p className="text-2xs leading-4 text-muted-foreground">{result.errors.join(' ')}</p>
-      )}
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t pt-2">
+      <p className="font-mono text-2xs leading-4 text-muted-foreground">{formula}</p>
+      <div className="flex items-center gap-1">
+        <div data-testid={testId} aria-live="polite" className="text-xs">
+          {cost !== null ? (
+            <p className="text-sm font-semibold tabular-nums">
+              {cost.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {result.unit}
+            </p>
+          ) : (
+            <p className="text-muted-foreground">Not calculated</p>
+          )}
+        </div>
+        {cost === null && (
+          <InfoTip label="What this rate still needs">
+            <ul className="list-disc space-y-0.5 pl-4">
+              {result.errors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </InfoTip>
+        )}
+      </div>
     </div>
   )
 }
@@ -46,12 +63,15 @@ export function CostRateTools() {
   })
   return (
     <div className="space-y-4">
-      <InlineAlert>
-        Scratch calculations only; they never change project rates. Keep each quote's units and inclusions, and combine
-        only scopes that do not overlap: material supply, hauling and placement are separate costs.
-      </InlineAlert>
+      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+        Scratch calculations only; they never change project rates.
+        <InfoTip label="About combining these rates">
+          Keep each quote&apos;s units and inclusions, and combine only scopes that do not overlap: material supply,
+          hauling and placement are separate costs.
+        </InfoTip>
+      </p>
 
-      <section aria-label="Material quote conversion" className="space-y-2">
+      <section aria-label="Material quote conversion" className={cn(insetBox({ padding: 'lg' }), 'space-y-2')}>
         <ReferenceHeading info="Confirm moisture, loading, delivery, processing and tax inclusions with the supplier. Compaction is a separate operation unless the quote includes it.">
           Material quote → compacted volume
         </ReferenceHeading>
@@ -109,15 +129,18 @@ export function CostRateTools() {
             />
           )}
         </div>
-        <Formula>
-          {material.quoteUnit === 'loose-yd3'
-            ? 'Rate = quote ÷ 0.764554857984 m³/yd³ × loose-to-compacted factor'
-            : 'Rate = CAD/tonne × tonnes per compacted m³'}
-        </Formula>
-        <RateResult result={calculateMaterialUnitCost(material)} testId="road-material-unit-rate" />
+        <RateResult
+          result={calculateMaterialUnitCost(material)}
+          testId="road-material-unit-rate"
+          formula={
+            material.quoteUnit === 'loose-yd3'
+              ? 'Rate = quote ÷ 0.764554857984 m³/yd³ × loose-to-compacted factor'
+              : 'Rate = CAD/tonne × tonnes per compacted m³'
+          }
+        />
       </section>
 
-      <section aria-label="Truck cycle unit rate" className="space-y-2 border-t pt-4">
+      <section aria-label="Truck cycle unit rate" className={cn(insetBox({ padding: 'lg' }), 'space-y-2')}>
         <ReferenceHeading
           info={
             <>
@@ -159,11 +182,14 @@ export function CostRateTools() {
             onChange={(compactedPayloadM3) => setTruck({ ...truck, compactedPayloadM3 })}
           />
         </div>
-        <Formula>Rate = truck CAD/hour × cycle minutes ÷ 60 ÷ compacted payload</Formula>
-        <RateResult result={calculateTruckCycleUnitCost(truck)} testId="road-truck-unit-rate" />
+        <RateResult
+          result={calculateTruckCycleUnitCost(truck)}
+          testId="road-truck-unit-rate"
+          formula="Rate = truck CAD/hour × cycle minutes ÷ 60 ÷ compacted payload"
+        />
       </section>
 
-      <section aria-label="Equipment production unit rate" className="space-y-2 border-t pt-4">
+      <section aria-label="Equipment production unit rate" className={cn(insetBox({ padding: 'lg' }), 'space-y-2')}>
         <ReferenceHeading info="Use output after expected delays and efficiency losses, on the same hourly basis as the crew rate. Don't add operator or fuel costs an all-found equipment rate already includes.">
           Equipment crew → excavation rate
         </ReferenceHeading>
@@ -185,13 +211,12 @@ export function CostRateTools() {
             onChange={(netBankM3PerHour) => setEquipment({ ...equipment, netBankM3PerHour })}
           />
         </div>
-        <Formula>Rate = crew CAD/hour ÷ net bank m³ per charged hour</Formula>
-        <RateResult result={calculateEquipmentUnitCost(equipment)} testId="road-equipment-unit-rate" />
+        <RateResult
+          result={calculateEquipmentUnitCost(equipment)}
+          testId="road-equipment-unit-rate"
+          formula="Rate = crew CAD/hour ÷ net bank m³ per charged hour"
+        />
       </section>
     </div>
   )
-}
-
-function Formula({ children }: { children: ReactNode }) {
-  return <p className="font-mono text-2xs leading-4 text-muted-foreground">{children}</p>
 }

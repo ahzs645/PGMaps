@@ -89,7 +89,7 @@ export function blockChoices(project: RoadProject): { value: string; label: stri
         : [],
     ),
     ...(project.reference ?? []).flatMap((feature) =>
-      feature.geometry.type === 'Polygon'
+      feature.geometry.type === 'Polygon' && !feature.sheet && !feature.classGrid
         ? [
             {
               value: `reference:${feature.id}`,

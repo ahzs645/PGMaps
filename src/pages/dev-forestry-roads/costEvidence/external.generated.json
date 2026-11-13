@@ -1,0 +1,1884 @@
+{
+ "checked": "2026-11-12",
+ "records": [
+  {
+   "id": "alberta-upa-2026-1",
+   "kind": "tender-average",
+   "group": "Alberta tender averages",
+   "sourceId": "alberta-upa-2026",
+   "title": "Crush to Stockpile",
+   "place": "Alberta, provincial highway projects",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 6.99
+   },
+   "unit": "/tonne",
+   "costYear": 2026,
+   "dateNote": "2026 construction prices; tenders May 1, 2025–September 30, 2026",
+   "sample": "50,000 tonne · 1 contract",
+   "scope": "Crushing to stockpile only; haul is not named in this item. Do not treat as delivered aggregate.",
+   "cautions": [],
+   "url": "https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx",
+   "locator": "'2026 UPA '!B5:H5",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "alberta-upa-2026-2",
+   "kind": "tender-average",
+   "group": "Alberta tender averages",
+   "sourceId": "alberta-upa-2026",
+   "title": "Crush, Haul and Stockpile Gravel",
+   "place": "Alberta, provincial highway projects",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 42.58
+   },
+   "unit": "/m³",
+   "costYear": 2026,
+   "dateNote": "2026 construction prices; tenders May 1, 2025–September 30, 2026",
+   "sample": "30,000 m³ · 1 contract",
+   "scope": "Crushing, haul and stockpiling; only one contract in this sample. Do not convert m³ to tonnes without density.",
+   "cautions": [],
+   "url": "https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx",
+   "locator": "'2026 UPA '!B6:H6",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "alberta-upa-2026-3",
+   "kind": "tender-average",
+   "group": "Alberta tender averages",
+   "sourceId": "alberta-upa-2026",
+   "title": "Granular Base Course — Des.2 Cl.25",
+   "place": "Alberta, provincial highway projects",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 33.7
+   },
+   "unit": "/tonne",
+   "costYear": 2026,
+   "dateNote": "2026 construction prices; tenders May 1, 2025–September 30, 2026",
+   "sample": "1,316,195 tonne · 28 contracts",
+   "scope": "Highway base-course pay item; exact material/placement/haul inclusions require the applicable Alberta specification.",
+   "cautions": [],
+   "url": "https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx",
+   "locator": "'2026 UPA '!B14:H14",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "alberta-upa-2026-4",
+   "kind": "tender-average",
+   "group": "Alberta tender averages",
+   "sourceId": "alberta-upa-2026",
+   "title": "Culverts — Supply and Install (600 mm dia. CSP)",
+   "place": "Alberta, provincial highway projects",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 372.67
+   },
+   "unit": "/m",
+   "costYear": 2026,
+   "dateNote": "2026 construction prices; tenders May 1, 2025–September 30, 2026",
+   "sample": "6,024 m · 21 contracts",
+   "scope": "600 mm corrugated steel pipe, supply and installation as pay item; not a pipe-only price.",
+   "cautions": [],
+   "url": "https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx",
+   "locator": "'2026 UPA '!B39:H39",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "alberta-upa-2026-5",
+   "kind": "tender-average",
+   "group": "Alberta tender averages",
+   "sourceId": "alberta-upa-2026",
+   "title": "Common Excavation",
+   "place": "Alberta, provincial highway projects",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 11.22
+   },
+   "unit": "/m³",
+   "costYear": 2026,
+   "dateNote": "2026 construction prices; tenders May 1, 2025–September 30, 2026",
+   "sample": "3,852,330 m³ · 26 contracts",
+   "scope": "Highway common excavation; separate haul/overhaul pay items exist, so do not assume all haul included.",
+   "cautions": [],
+   "url": "https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx",
+   "locator": "'2026 UPA '!B137:H137",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "alberta-upa-2026-6",
+   "kind": "tender-average",
+   "group": "Alberta tender averages",
+   "sourceId": "alberta-upa-2026",
+   "title": "Borrow Excavation",
+   "place": "Alberta, provincial highway projects",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 15.99
+   },
+   "unit": "/m³",
+   "costYear": 2026,
+   "dateNote": "2026 construction prices; tenders May 1, 2025–September 30, 2026",
+   "sample": "695,100 m³ · 6 contracts",
+   "scope": "Borrow excavation; contractor-supplied borrow is a different item in the workbook.",
+   "cautions": [],
+   "url": "https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx",
+   "locator": "'2026 UPA '!B139:H139",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "alberta-upa-2026-7",
+   "kind": "tender-average",
+   "group": "Alberta tender averages",
+   "sourceId": "alberta-upa-2026",
+   "title": "Overhaul",
+   "place": "Alberta, provincial highway projects",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 1.6
+   },
+   "unit": "/(m³·km)",
+   "costYear": 2026,
+   "dateNote": "2026 construction prices; tenders May 1, 2025–September 30, 2026",
+   "sample": "779,570 m³·km · 5 contracts",
+   "scope": "Volume-distance pay item, not CAD/km of completed road. Specification haul/free-haul basis must be checked.",
+   "cautions": [],
+   "url": "https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx",
+   "locator": "'2026 UPA '!B141:H141",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "alberta-upa-2026-8",
+   "kind": "tender-average",
+   "group": "Alberta tender averages",
+   "sourceId": "alberta-upa-2026",
+   "title": "Truck Haul of Common and/or Borrow Excavation",
+   "place": "Alberta, provincial highway projects",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 0.49
+   },
+   "unit": "/(m³·km)",
+   "costYear": 2026,
+   "dateNote": "2026 construction prices; tenders May 1, 2025–September 30, 2026",
+   "sample": "2,179,300 m³·km · 3 contracts",
+   "scope": "Small, heterogeneous sample: Southern $6.61, Central $0.20 and North Central $1.52 per m³·km, one contract each; Central has2,000,000 of2,179,300 m³·km. Do not apply provincial value without scope review.",
+   "cautions": [],
+   "url": "https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx",
+   "locator": "'2026 UPA '!B143:H143",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "allnorth-labrador-2024-1",
+   "kind": "estimate",
+   "group": "Allnorth · Labrador road study",
+   "sourceId": "allnorth-labrador-2024",
+   "title": "Clearing",
+   "place": "Northern Labrador",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 6000
+   },
+   "unit": "/ha",
+   "costYear": 2023,
+   "sample": "1,800 ha",
+   "scope": "Clearing area estimated from aerial imagery.",
+   "tax": "Table 5.1 unit items precede separate engineering and HST. Project total includes 15% HST.",
+   "cautions": [],
+   "url": "https://www.assembly.nl.ca/business/electronicdocuments/Allnorth-ProjectSummaryReport-RoadToTheNorth.pdf",
+   "locator": "Table5.1, printed p.128 / PDF page129 (1-based)",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "allnorth-labrador-2024-2",
+   "kind": "estimate",
+   "group": "Allnorth · Labrador road study",
+   "sourceId": "allnorth-labrador-2024",
+   "title": "Grading fill/cuts/borrow/ditches/muskeg or bog including overhaul",
+   "place": "Northern Labrador",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 22
+   },
+   "unit": "/m³",
+   "costYear": 2023,
+   "sample": "17,130,000 m³",
+   "scope": "Composite earthworks rate mixing rock and other material; includes overhaul in named item.",
+   "tax": "Table 5.1 unit items precede separate engineering and HST. Project total includes 15% HST.",
+   "cautions": [],
+   "url": "https://www.assembly.nl.ca/business/electronicdocuments/Allnorth-ProjectSummaryReport-RoadToTheNorth.pdf",
+   "locator": "Table5.1, printed p.128 / PDF page129 (1-based)",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "allnorth-labrador-2024-3",
+   "kind": "estimate",
+   "group": "Allnorth · Labrador road study",
+   "sourceId": "allnorth-labrador-2024",
+   "title": "Maintenance Grade No.3 — 250 mm thick",
+   "place": "Northern Labrador",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 32
+   },
+   "unit": "/tonne",
+   "costYear": 2023,
+   "sample": "4,113,000 tonne",
+   "scope": "Gravel driving surface for initial highway construction; source item under Selected Granular Base Course.",
+   "tax": "Table 5.1 unit items precede separate engineering and HST. Project total includes 15% HST.",
+   "cautions": [],
+   "url": "https://www.assembly.nl.ca/business/electronicdocuments/Allnorth-ProjectSummaryReport-RoadToTheNorth.pdf",
+   "locator": "Table5.1, printed p.128 / PDF page129 (1-based)",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "allnorth-labrador-2024-4",
+   "kind": "estimate",
+   "group": "Allnorth · Labrador road study",
+   "sourceId": "allnorth-labrador-2024",
+   "title": "Supply and install aluminized Type2 pipe culverts, 600–1000 mm",
+   "place": "Northern Labrador",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 1000
+   },
+   "unit": "/m",
+   "costYear": 2023,
+   "sample": "28,700 m",
+   "scope": "Includes dewatering, excavation, bedding and riprap. Multiple diameters grouped; not a 600 mm-only price.",
+   "tax": "Table 5.1 unit items precede separate engineering and HST. Project total includes 15% HST.",
+   "cautions": [],
+   "url": "https://www.assembly.nl.ca/business/electronicdocuments/Allnorth-ProjectSummaryReport-RoadToTheNorth.pdf",
+   "locator": "Table5.1, printed p.128 / PDF page129 (1-based)",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "kneehill-mcelhanney-2025-1",
+   "kind": "estimate",
+   "group": "McElhanney · Kneehill culverts",
+   "sourceId": "kneehill-mcelhanney-2025",
+   "title": "Structural excavation",
+   "place": "Range Road 251 at Threehills Creek, Kneehill County, Alberta",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 50
+   },
+   "unit": "/m³",
+   "costYear": 2025,
+   "sample": "3,500 m³",
+   "scope": "Structural excavation for major twin culvert replacement; water accommodation is separate.",
+   "cautions": [],
+   "url": "https://pub-kneehillcounty.escribemeetings.com/filestream.ashx?DocumentId=4734",
+   "locator": "AppendixA, Design Cost Estimate B, PDF page7 (1-based)",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "kneehill-mcelhanney-2025-2",
+   "kind": "estimate",
+   "group": "McElhanney · Kneehill culverts",
+   "sourceId": "kneehill-mcelhanney-2025",
+   "title": "Granular backfill",
+   "place": "Range Road 251 at Threehills Creek, Kneehill County, Alberta",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 100
+   },
+   "unit": "/m³",
+   "costYear": 2025,
+   "sample": "2,200 m³",
+   "scope": "Granular backfill for twin5.54m structural-plate culverts, not generic road surfacing.",
+   "cautions": [],
+   "url": "https://pub-kneehillcounty.escribemeetings.com/filestream.ashx?DocumentId=4734",
+   "locator": "AppendixA, Design Cost Estimate B, PDF page7 (1-based)",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "kneehill-mcelhanney-2025-3",
+   "kind": "estimate",
+   "group": "McElhanney · Kneehill culverts",
+   "sourceId": "kneehill-mcelhanney-2025",
+   "title": "Granular Base Course (Des.2 Cl.25)",
+   "place": "Range Road 251 at Threehills Creek, Kneehill County, Alberta",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 30
+   },
+   "unit": "/tonne",
+   "costYear": 2025,
+   "sample": "675 tonne",
+   "scope": "Roadway work in bridge-culvert project. Note3 says roadway work items include topsoil handling and seeding.",
+   "cautions": [],
+   "url": "https://pub-kneehillcounty.escribemeetings.com/filestream.ashx?DocumentId=4734",
+   "locator": "AppendixA, Design Cost Estimate B, PDF page7 (1-based)",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "norwich-burnside-2024-1",
+   "kind": "maintenance-model",
+   "group": "Burnside · Norwich gravel roads",
+   "sourceId": "norwich-burnside-2024",
+   "title": "Granular A maintenance gravel supply",
+   "place": "Norwich, Ontario",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 18
+   },
+   "unit": "/tonne",
+   "costYear": 2023,
+   "scope": "Supply of maintenance gravel;300–400t/km every four years. Delivered/placement/tax detail not stated.",
+   "cautions": [],
+   "url": "https://www.norwich.ca/media/hnbj4zux/delegation-burnside-roads-needs-study-gravel-road-review-memo-a.pdf",
+   "locator": "Section3.1, printed/PDF p.7",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "norwich-burnside-2024-2",
+   "kind": "maintenance-model",
+   "group": "Burnside · Norwich gravel roads",
+   "sourceId": "norwich-burnside-2024",
+   "title": "Grading hourly rate",
+   "place": "Norwich, Ontario",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 150
+   },
+   "unit": "/hour",
+   "scope": "Assumes1.5hours/km per grading and four gradings/year. Year of hourly rate is not separately stated.",
+   "cautions": [],
+   "url": "https://www.norwich.ca/media/hnbj4zux/delegation-burnside-roads-needs-study-gravel-road-review-memo-a.pdf",
+   "locator": "Section3.1, printed/PDF p.7",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "norwich-burnside-2024-3",
+   "kind": "maintenance-model",
+   "group": "Burnside · Norwich gravel roads",
+   "sourceId": "norwich-burnside-2024",
+   "title": "Gravel-road maintenance in gravel application year",
+   "place": "Norwich, Ontario",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 9260
+   },
+   "unit": "/km for the maintenance year",
+   "scope": "7m low-volume gravel road;400t/km maintenance gravel, dust control and four gradings. Other three years are$2,060/km/year; not average annual cost or construction cost.",
+   "cautions": [],
+   "url": "https://www.norwich.ca/media/hnbj4zux/delegation-burnside-roads-needs-study-gravel-road-review-memo-a.pdf",
+   "locator": "Section3.1, printed/PDF pp.7–8",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "norwich-burnside-2024-4",
+   "kind": "maintenance-model",
+   "group": "Burnside · Norwich gravel roads",
+   "sourceId": "norwich-burnside-2024",
+   "title": "Existing gravel road: nominal base strengthening, year1",
+   "place": "Norwich, Ontario",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 64780
+   },
+   "unit": "/km",
+   "scope": "Typical7m road;75mm earth excavation,150mm Granular A, dust control and four gradings. Rehabilitation scenario, not full new-road construction.",
+   "cautions": [],
+   "url": "https://www.norwich.ca/media/hnbj4zux/delegation-burnside-roads-needs-study-gravel-road-review-memo-a.pdf",
+   "locator": "Section3.1, printed/PDF p.8",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "isc-om-toronto-2023-1",
+   "kind": "funding",
+   "group": "ISC operations funding model",
+   "sourceId": "isc-om-toronto-2023",
+   "title": "D1B Gravel Roads — variable annual O&M unit cost",
+   "place": "Toronto 2023 base; national location/remoteness adjustment framework",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 10499.76
+   },
+   "unit": "/km/year",
+   "costYear": 2023,
+   "scope": "Toronto base before city-centre/remoteness factors. Labour$5,249.88+material$5,249.88; fixed base$0. Includes routine road and winter service. Net funding factor0.90 is a funding allocation adjustment, not a reduction in physical maintenance cost.",
+   "cautions": [],
+   "fundingOnly": true,
+   "url": "https://www.isc-sac.gc.ca/eng/1734037821474/1734037869905",
+   "locator": "Table1(Toronto=base,2023), D1B Gravel Roads; Table5 definition",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "k-mob",
+   "kind": "estimate",
+   "group": "US Forest Service · Kilkenny",
+   "sourceId": "usfs-kilkenny-2024",
+   "title": "Mobilization allocation across 10 specified roads",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 150
+   },
+   "unit": " per road, lump sum",
+   "costYear": 2024,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "Quantity 10",
+   "scope": "Reconstruction and localized improvements to 10 existing specified road segments: light grading, turnarounds, berms, selected aggregate placements. This is not a full new-road construction estimate.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "locator": "PDF pp4–5",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "k-berm",
+   "kind": "estimate",
+   "group": "US Forest Service · Kilkenny",
+   "sourceId": "usfs-kilkenny-2024",
+   "title": "Excavation and embankment — earth berms",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 150
+   },
+   "unit": " each",
+   "costYear": 2024,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "Quantity 2",
+   "scope": "Reconstruction and localized improvements to 10 existing specified road segments: light grading, turnarounds, berms, selected aggregate placements. This is not a full new-road construction estimate.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "locator": "PDF pp4–5",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "k-grade",
+   "kind": "estimate",
+   "group": "US Forest Service · Kilkenny",
+   "sourceId": "usfs-kilkenny-2024",
+   "title": "Light linear grading",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 3500
+   },
+   "unit": " per mile",
+   "costYear": 2024,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "1.32 mile",
+   "scope": "Schedules include clearing/grubbing, shaping/grading and brushing within the specified work.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "locator": "PDF pp4–5",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "k-lturn",
+   "kind": "estimate",
+   "group": "US Forest Service · Kilkenny",
+   "sourceId": "usfs-kilkenny-2024",
+   "title": "Linear grading, L-turnaround",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 500
+   },
+   "unit": " per turnaround, lump sum",
+   "costYear": 2024,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "Quantity 5",
+   "scope": "Reconstruction and localized improvements to 10 existing specified road segments: light grading, turnarounds, berms, selected aggregate placements. This is not a full new-road construction estimate.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "locator": "PDF pp4–5",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "k-tturn",
+   "kind": "estimate",
+   "group": "US Forest Service · Kilkenny",
+   "sourceId": "usfs-kilkenny-2024",
+   "title": "Linear grading, T-turnaround",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 600
+   },
+   "unit": " per turnaround, lump sum",
+   "costYear": 2024,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "Quantity 3",
+   "scope": "Reconstruction and localized improvements to 10 existing specified road segments: light grading, turnarounds, berms, selected aggregate placements. This is not a full new-road construction estimate.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "locator": "PDF pp4–5",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "k-agg",
+   "kind": "estimate",
+   "group": "US Forest Service · Kilkenny",
+   "sourceId": "usfs-kilkenny-2024",
+   "title": "Aggregate 23A",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 17
+   },
+   "unit": " per loose yd³ hauled",
+   "costYear": 2024,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "355 loose yd³ hauled",
+   "scope": "Government Supe Pit; USD7/CY processing fee included. Haul/placement and equipment compaction are described in package; exact haul-cycle assumptions not exposed.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "locator": "PDF pp4–5 and18 note9",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "k-pitrun",
+   "kind": "estimate",
+   "group": "US Forest Service · Kilkenny",
+   "sourceId": "usfs-kilkenny-2024",
+   "title": "Pit-run aggregate",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 10
+   },
+   "unit": " per loose yd³ hauled",
+   "costYear": 2024,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "80 loose yd³ hauled",
+   "scope": "Government Supe Pit; equipment compaction. The USD7/CY fee is stated for Aggregate23A, not separately for this pit-run item.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "locator": "PDF pp4–5 and18 note10",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "k-engineering",
+   "kind": "estimate",
+   "group": "US Forest Service · Kilkenny",
+   "sourceId": "usfs-kilkenny-2024",
+   "title": "Engineering costs, DRES",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 3334
+   },
+   "unit": " lump sum for the package",
+   "costYear": 2024,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "scope": "Reconstruction and localized improvements to 10 existing specified road segments: light grading, turnarounds, berms, selected aggregate placements. This is not a full new-road construction estimate.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "locator": "PDF p5",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "h-mob",
+   "kind": "estimate",
+   "group": "US Forest Service · Herring",
+   "sourceId": "usfs-herring-2025",
+   "title": "Mobilization allocation across six road/landing work areas",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 200
+   },
+   "unit": " per work area, lump sum",
+   "costYear": 2025,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "Quantity 6",
+   "scope": "Existing roadbed reconditioning, berm removal/reconstruction, two 120-foot temporary landings, and selected aggregate placements across four forest roads and two landings.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "locator": "PDF pp3–4",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "h-bermremove",
+   "kind": "estimate",
+   "group": "US Forest Service · Herring",
+   "sourceId": "usfs-herring-2025",
+   "title": "Remove earth berms",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 100
+   },
+   "unit": " each",
+   "costYear": 2025,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "Quantity 2",
+   "scope": "Existing roadbed reconditioning, berm removal/reconstruction, two 120-foot temporary landings, and selected aggregate placements across four forest roads and two landings.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "locator": "PDF pp3–4",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "h-bermconstruct",
+   "kind": "estimate",
+   "group": "US Forest Service · Herring",
+   "sourceId": "usfs-herring-2025",
+   "title": "Construct earth berms",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 150
+   },
+   "unit": " each",
+   "costYear": 2025,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "Quantity 2",
+   "scope": "Existing roadbed reconditioning, berm removal/reconstruction, two 120-foot temporary landings, and selected aggregate placements across four forest roads and two landings.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "locator": "PDF pp3–4",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "h-landing",
+   "kind": "estimate",
+   "group": "US Forest Service · Herring",
+   "sourceId": "usfs-herring-2025",
+   "title": "Linear grading, 120-foot temporary landing",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 600
+   },
+   "unit": " per landing, lump sum",
+   "costYear": 2025,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "Quantity 2",
+   "scope": "Existing roadbed reconditioning, berm removal/reconstruction, two 120-foot temporary landings, and selected aggregate placements across four forest roads and two landings.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "locator": "PDF pp3–4",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "h-agg",
+   "kind": "estimate",
+   "group": "US Forest Service · Herring",
+   "sourceId": "usfs-herring-2025",
+   "title": "Aggregate 23A",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 19
+   },
+   "unit": " per loose yd³ hauled",
+   "costYear": 2025,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "190 loose yd³ hauled",
+   "scope": "Government Supe Pit; USD7/CY processing fee included. Equipment compaction specified. Not a retail material-only quote.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "locator": "PDF pp3–4 and11 note8",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "h-recondition",
+   "kind": "estimate",
+   "group": "US Forest Service · Herring",
+   "sourceId": "usfs-herring-2025",
+   "title": "Recondition roadbed",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 2500
+   },
+   "unit": " per mile",
+   "costYear": 2025,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "sample": "1.55 mile",
+   "scope": "1.10mile on FR3012 and0.45mile on FR3013, plus localized work elsewhere priced separately.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "locator": "PDF pp3–4",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "h-engineering",
+   "kind": "estimate",
+   "group": "US Forest Service · Herring",
+   "sourceId": "usfs-herring-2025",
+   "title": "Engineering costs, DRES",
+   "place": "United States; Michigan; Hiawatha National Forest East Zone",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 2314
+   },
+   "unit": " lump sum for the package",
+   "costYear": 2025,
+   "dateNote": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "scope": "Existing roadbed reconditioning, berm removal/reconstruction, two 120-foot temporary landings, and selected aggregate placements across four forest roads and two landings.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "locator": "PDF p4",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "r-clear",
+   "kind": "appraisal-allowance",
+   "group": "US Forest Service · Rocking Chair",
+   "sourceId": "usfs-rocking-chair-2025",
+   "title": "New temporary roads #4: clearing and grubbing",
+   "place": "United States; Meagher County, Montana",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 10047
+   },
+   "unit": " per mile",
+   "costYear": 2025,
+   "dateNote": "2025 timber-sale appraisal; temporary-road sheets refer to the 2025 Cost Estimating Guide for Road Construction, pages 100–104, Tables T-1 and T-4. Underlying guide was not independently retrieved.",
+   "sample": "5.22 mile",
+   "scope": "15% average side slope; volume-per-acre input25, with its unit not explicitly printed on this selected sheet.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r01/helena-lewisclark/publication/timber-sales/20250530_RockingChairSBA_TSR.pdf",
+   "locator": "PDF p32 / printed23e",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "r-excavate",
+   "kind": "appraisal-allowance",
+   "group": "US Forest Service · Rocking Chair",
+   "sourceId": "usfs-rocking-chair-2025",
+   "title": "New temporary roads #4: excavation",
+   "place": "United States; Meagher County, Montana",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 2770
+   },
+   "unit": " per mile",
+   "costYear": 2025,
+   "dateNote": "2025 timber-sale appraisal; temporary-road sheets refer to the 2025 Cost Estimating Guide for Road Construction, pages 100–104, Tables T-1 and T-4. Underlying guide was not independently retrieved.",
+   "sample": "5.22 mile",
+   "scope": "Temporary forest roads and their eventual obliteration; separately, winter road maintenance. The temporary-road allowance includes drainage dips and one 18-inch CMP allowance. No aggregate surfacing or bridge cost is shown in the selected sheet.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r01/helena-lewisclark/publication/timber-sales/20250530_RockingChairSBA_TSR.pdf",
+   "locator": "PDF p32 / printed23e",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "r-obliterate",
+   "kind": "appraisal-allowance",
+   "group": "US Forest Service · Rocking Chair",
+   "sourceId": "usfs-rocking-chair-2025",
+   "title": "New temporary roads #4: obliteration, including seeding",
+   "place": "United States; Meagher County, Montana",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 5772.6
+   },
+   "unit": " per mile",
+   "costYear": 2025,
+   "dateNote": "2025 timber-sale appraisal; temporary-road sheets refer to the 2025 Cost Estimating Guide for Road Construction, pages 100–104, Tables T-1 and T-4. Underlying guide was not independently retrieved.",
+   "sample": "5.22 mile",
+   "scope": "Temporary forest roads and their eventual obliteration; separately, winter road maintenance. The temporary-road allowance includes drainage dips and one 18-inch CMP allowance. No aggregate surfacing or bridge cost is shown in the selected sheet.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r01/helena-lewisclark/publication/timber-sales/20250530_RockingChairSBA_TSR.pdf",
+   "locator": "PDF p32 / printed23e",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "r-dips",
+   "kind": "appraisal-allowance",
+   "group": "US Forest Service · Rocking Chair",
+   "sourceId": "usfs-rocking-chair-2025",
+   "title": "New temporary roads #4: drainage dips",
+   "place": "United States; Meagher County, Montana",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 250
+   },
+   "unit": " each",
+   "costYear": 2025,
+   "dateNote": "2025 timber-sale appraisal; temporary-road sheets refer to the 2025 Cost Estimating Guide for Road Construction, pages 100–104, Tables T-1 and T-4. Underlying guide was not independently retrieved.",
+   "sample": "Quantity 12",
+   "scope": "Temporary forest roads and their eventual obliteration; separately, winter road maintenance. The temporary-road allowance includes drainage dips and one 18-inch CMP allowance. No aggregate surfacing or bridge cost is shown in the selected sheet.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r01/helena-lewisclark/publication/timber-sales/20250530_RockingChairSBA_TSR.pdf",
+   "locator": "PDF p32 / printed23e",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "r-cmp",
+   "kind": "appraisal-allowance",
+   "group": "US Forest Service · Rocking Chair",
+   "sourceId": "usfs-rocking-chair-2025",
+   "title": "New temporary roads #4: 18-inch CMP allowance",
+   "place": "United States; Meagher County, Montana",
+   "country": "US",
+   "currency": "USD",
+   "amounts": {
+    "value": 585
+   },
+   "unit": " per crossing, allowance",
+   "costYear": 2025,
+   "dateNote": "2025 timber-sale appraisal; temporary-road sheets refer to the 2025 Cost Estimating Guide for Road Construction, pages 100–104, Tables T-1 and T-4. Underlying guide was not independently retrieved.",
+   "scope": "Pipe length, gauge, excavation and installation limits not separately specified in this worksheet. Do not reinterpret as a per-foot pipe rate.",
+   "cautions": [],
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r01/helena-lewisclark/publication/timber-sales/20250530_RockingChairSBA_TSR.pdf",
+   "locator": "PDF p32 / printed23e",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "NZ2018-SPUR",
+   "kind": "survey",
+   "group": "New Zealand manager survey",
+   "sourceId": "nz_brown_visser_2018",
+   "title": "New spur forest road",
+   "place": "New Zealand commercial plantation forests and small woodlots",
+   "country": "NZ",
+   "currency": "NZD",
+   "amounts": {
+    "low": 10000,
+    "mean": 72000,
+    "high": 150000
+   },
+   "unit": " per km",
+   "costYear": 2018,
+   "dateNote": "Manager survey conducted January–April 2018; prices are the contemporary estimates supplied by respondents, with no separate inflation base stated.",
+   "scope": "Managers estimated average costs including planning and vegetation removal through drainage and surfacing.",
+   "cautions": [],
+   "url": "https://forestengineering.org/wp-content/uploads/2021/01/Forest_Road_Tech_Review_Brown_and_Visser_NZJF_2018.pdf",
+   "locator": "PDF page 2 / printed page 24; surrounding scope on printed pages 23–25",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "NZ2018-SECONDARY",
+   "kind": "survey",
+   "group": "New Zealand manager survey",
+   "sourceId": "nz_brown_visser_2018",
+   "title": "New secondary forest road",
+   "place": "New Zealand commercial plantation forests and small woodlots",
+   "country": "NZ",
+   "currency": "NZD",
+   "amounts": {
+    "low": 35000,
+    "mean": 90000,
+    "high": 150000
+   },
+   "unit": " per km",
+   "costYear": 2018,
+   "dateNote": "Manager survey conducted January–April 2018; prices are the contemporary estimates supplied by respondents, with no separate inflation base stated.",
+   "scope": "Managers estimated average costs including planning and vegetation removal through drainage and surfacing.",
+   "cautions": [],
+   "url": "https://forestengineering.org/wp-content/uploads/2021/01/Forest_Road_Tech_Review_Brown_and_Visser_NZJF_2018.pdf",
+   "locator": "PDF page 2 / printed page 24; surrounding scope on printed pages 23–25",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "NZ2024-DIAMOND-LIME",
+   "kind": "field-trial",
+   "group": "New Zealand subgrade trials",
+   "sourceId": "nz_hetherington_trials_2024",
+   "title": "Diamond Hill — lime reconstruction",
+   "place": "Diamond Hill Road, Herbert Forest, and Bridgeman Road, Geraldine Forest, New Zealand",
+   "country": "NZ",
+   "currency": "NZD",
+   "amounts": {
+    "value": 89506.76
+   },
+   "unit": " per km at 4.5 m road width",
+   "costYear": 2024,
+   "scope": "Reconstruction of existing historic road subgrades using lime stabilisation, geogrid or undercut. Costs normalized to a 4.5 m road width and extrapolated per kilometre.",
+   "tax": "excl. GST",
+   "cautions": [],
+   "url": "https://fgr.nz/wp-content/uploads/2025/02/H071-Evaluation-of-Subgrade-stabilisation-methods-for-upgrading-historic-forest-roads.pdf",
+   "locator": "Table 3; printed p27 / PDF p29",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "NZ2024-DIAMOND-GEOGRID",
+   "kind": "field-trial",
+   "group": "New Zealand subgrade trials",
+   "sourceId": "nz_hetherington_trials_2024",
+   "title": "Diamond Hill — geogrid reconstruction",
+   "place": "Diamond Hill Road, Herbert Forest, and Bridgeman Road, Geraldine Forest, New Zealand",
+   "country": "NZ",
+   "currency": "NZD",
+   "amounts": {
+    "value": 50884.69
+   },
+   "unit": " per km at 4.5 m road width",
+   "costYear": 2024,
+   "scope": "Reconstruction of existing historic road subgrades using lime stabilisation, geogrid or undercut. Costs normalized to a 4.5 m road width and extrapolated per kilometre.",
+   "tax": "excl. GST",
+   "cautions": [
+    "Did not meet the 30% wet-state design CBR in this trial."
+   ],
+   "url": "https://fgr.nz/wp-content/uploads/2025/02/H071-Evaluation-of-Subgrade-stabilisation-methods-for-upgrading-historic-forest-roads.pdf",
+   "locator": "Table 3; printed p27 / PDF p29",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "NZ2024-DIAMOND-UNDERCUT",
+   "kind": "field-trial",
+   "group": "New Zealand subgrade trials",
+   "sourceId": "nz_hetherington_trials_2024",
+   "title": "Diamond Hill — undercut reconstruction",
+   "place": "Diamond Hill Road, Herbert Forest, and Bridgeman Road, Geraldine Forest, New Zealand",
+   "country": "NZ",
+   "currency": "NZD",
+   "amounts": {
+    "value": 78458.07
+   },
+   "unit": " per km at 4.5 m road width",
+   "costYear": 2024,
+   "scope": "Reconstruction of existing historic road subgrades using lime stabilisation, geogrid or undercut. Costs normalized to a 4.5 m road width and extrapolated per kilometre.",
+   "tax": "excl. GST",
+   "cautions": [],
+   "url": "https://fgr.nz/wp-content/uploads/2025/02/H071-Evaluation-of-Subgrade-stabilisation-methods-for-upgrading-historic-forest-roads.pdf",
+   "locator": "Table 3; printed p27 / PDF p29",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "NZ2024-BRIDGEMAN-LIME",
+   "kind": "field-trial",
+   "group": "New Zealand subgrade trials",
+   "sourceId": "nz_hetherington_trials_2024",
+   "title": "Bridgeman — lime reconstruction",
+   "place": "Diamond Hill Road, Herbert Forest, and Bridgeman Road, Geraldine Forest, New Zealand",
+   "country": "NZ",
+   "currency": "NZD",
+   "amounts": {
+    "value": 63638.49
+   },
+   "unit": " per km at 4.5 m road width",
+   "costYear": 2024,
+   "scope": "Reconstruction of existing historic road subgrades using lime stabilisation, geogrid or undercut. Costs normalized to a 4.5 m road width and extrapolated per kilometre.",
+   "tax": "excl. GST",
+   "cautions": [
+    "Wettest-condition CBR 28.04%, below the 30% design target."
+   ],
+   "url": "https://fgr.nz/wp-content/uploads/2025/02/H071-Evaluation-of-Subgrade-stabilisation-methods-for-upgrading-historic-forest-roads.pdf",
+   "locator": "Table 4; printed p29 / PDF p31",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "NZ2024-BRIDGEMAN-GEOGRID",
+   "kind": "field-trial",
+   "group": "New Zealand subgrade trials",
+   "sourceId": "nz_hetherington_trials_2024",
+   "title": "Bridgeman — geogrid reconstruction",
+   "place": "Diamond Hill Road, Herbert Forest, and Bridgeman Road, Geraldine Forest, New Zealand",
+   "country": "NZ",
+   "currency": "NZD",
+   "amounts": {
+    "value": 38017.23
+   },
+   "unit": " per km at 4.5 m road width",
+   "costYear": 2024,
+   "scope": "Reconstruction of existing historic road subgrades using lime stabilisation, geogrid or undercut. Costs normalized to a 4.5 m road width and extrapolated per kilometre.",
+   "tax": "excl. GST",
+   "cautions": [
+    "Did not meet the 30% wet-state design CBR in this trial."
+   ],
+   "url": "https://fgr.nz/wp-content/uploads/2025/02/H071-Evaluation-of-Subgrade-stabilisation-methods-for-upgrading-historic-forest-roads.pdf",
+   "locator": "Table 4; printed p29 / PDF p31",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "NZ2024-BRIDGEMAN-UNDERCUT",
+   "kind": "field-trial",
+   "group": "New Zealand subgrade trials",
+   "sourceId": "nz_hetherington_trials_2024",
+   "title": "Bridgeman — undercut reconstruction",
+   "place": "Diamond Hill Road, Herbert Forest, and Bridgeman Road, Geraldine Forest, New Zealand",
+   "country": "NZ",
+   "currency": "NZD",
+   "amounts": {
+    "value": 39268.25
+   },
+   "unit": " per km at 4.5 m road width",
+   "costYear": 2024,
+   "scope": "Reconstruction of existing historic road subgrades using lime stabilisation, geogrid or undercut. Costs normalized to a 4.5 m road width and extrapolated per kilometre.",
+   "tax": "excl. GST",
+   "cautions": [
+    "Wettest-condition CBR 29.75%, just below the 30% design target."
+   ],
+   "url": "https://fgr.nz/wp-content/uploads/2025/02/H071-Evaluation-of-Subgrade-stabilisation-methods-for-upgrading-historic-forest-roads.pdf",
+   "locator": "Table 4; printed p29 / PDF p31",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "UK2023-HAULAGE",
+   "kind": "estimate",
+   "group": "England woodland costs review",
+   "sourceId": "uk_fr_woodland_costs_2025_2023prices",
+   "title": "Commercial-grade haulage road",
+   "place": "England / UK forestry expert context",
+   "country": "GB",
+   "currency": "GBP",
+   "amounts": {
+    "low": 50,
+    "typical": 100,
+    "high": 300
+   },
+   "unit": " per m",
+   "costYear": 2023,
+   "dateNote": "Report states that all reported values are inflation adjusted to June 2023 using the HM Treasury GDP deflator.",
+   "scope": "Commercial-grade haulage roads and separately classified lower-standard forwarder tracks.",
+   "cautions": [],
+   "url": "https://cdn.forestresearch.gov.uk/2024/05/Woodland_Establishment_Costs_Report.pdf",
+   "locator": "Price adjustment statement page 14; road and track costs section 5.1, page 44 (PDF page 44).",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "UK2023-FORWARDER",
+   "kind": "estimate",
+   "group": "England woodland costs review",
+   "sourceId": "uk_fr_woodland_costs_2025_2023prices",
+   "title": "Forwarder track",
+   "place": "England / UK forestry expert context",
+   "country": "GB",
+   "currency": "GBP",
+   "amounts": {
+    "low": 25,
+    "high": 50
+   },
+   "unit": " per m",
+   "costYear": 2023,
+   "dateNote": "Report states that all reported values are inflation adjusted to June 2023 using the HM Treasury GDP deflator.",
+   "scope": "Commercial-grade haulage roads and separately classified lower-standard forwarder tracks.",
+   "cautions": [],
+   "url": "https://cdn.forestresearch.gov.uk/2024/05/Woodland_Establishment_Costs_Report.pdf",
+   "locator": "Price adjustment statement page 14; road and track costs section 5.1, page 44 (PDF page 44).",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "AU2023-FARM-HARVEST",
+   "kind": "estimate",
+   "group": "Green Triangle farm access",
+   "sourceId": "au_green_triangle_geddes_2023",
+   "title": "On-property gravel harvesting truck road",
+   "place": "Green Triangle forestry region, South Australia and Victoria",
+   "country": "AU",
+   "currency": "AUD",
+   "amounts": {
+    "low": 18000,
+    "high": 25000
+   },
+   "unit": " per km",
+   "costYear": 2023,
+   "dateNote": "Report explicitly states information current as of 30 June 2023.",
+   "scope": "On-property gravel harvesting truck access across farm paddocks, primarily flat or gently undulating Green Triangle terrain.",
+   "cautions": [],
+   "url": "https://gtfih.com.au/wp-content/uploads/2023/07/Final-Report-Project-2-PIRSA-GTFIH-pdf-version.pdf",
+   "locator": "Harvesting-road cost range printed page 45 / PDF page 47; forwarding tradeoff Table 7 printed page 47 / PDF page 49; design guidance printed page 48 / PDF page 50.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "IE2026-HARVEST-GRANT",
+   "kind": "funding",
+   "group": "Ireland forest road grants",
+   "sourceId": "ie_teagasc_forest_roads_current_2026",
+   "title": "Harvesting road grant ceiling",
+   "place": "Ireland",
+   "country": "IE",
+   "currency": "EUR",
+   "amounts": {
+    "ceiling": 66
+   },
+   "unit": " per linear m",
+   "costYear": 2026,
+   "scope": "Up to 100% of eligible harvesting-road or upgrade/extension costs, subject to separate grant ceilings and eligibility rules.",
+   "tax": "excl. VAT",
+   "cautions": [],
+   "fundingOnly": true,
+   "url": "https://teagasc.ie/crops/forestry/grants/forest-roads-scheme-2023-2027/",
+   "locator": "Current Teagasc grant table; ministerial answer confirms 20% increase to EUR66 per linear metre after programme mid-term review.",
+   "checked": "2026-11-12"
+  },
+  {
+   "id": "IE2026-UPGRADE-GRANT",
+   "kind": "funding",
+   "group": "Ireland forest road grants",
+   "sourceId": "ie_teagasc_forest_roads_current_2026",
+   "title": "Harvesting upgrade / extension grant ceiling",
+   "place": "Ireland",
+   "country": "IE",
+   "currency": "EUR",
+   "amounts": {
+    "ceiling": 40
+   },
+   "unit": " per linear m",
+   "costYear": 2026,
+   "scope": "Up to 100% of eligible harvesting-road or upgrade/extension costs, subject to separate grant ceilings and eligibility rules.",
+   "tax": "excl. VAT",
+   "cautions": [],
+   "fundingOnly": true,
+   "url": "https://teagasc.ie/crops/forestry/grants/forest-roads-scheme-2023-2027/",
+   "locator": "Current Teagasc grant table; ministerial answer confirms 20% increase to EUR66 per linear metre after programme mid-term review.",
+   "checked": "2026-11-12"
+  }
+ ],
+ "sources": [
+  {
+   "id": "alberta-upa-2026",
+   "role": "numbers",
+   "title": "Alberta Transportation and Economic Corridors — Unit Price Averages, 2026 construction sheet",
+   "publisher": "Government of Alberta",
+   "url": "https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx",
+   "landingUrl": "https://www.alberta.ca/unit-prices-and-cost-adjustments",
+   "type": "official weighted tender unit-price averages",
+   "priceBasis": "2026 construction prices; tenders May 1, 2025–September 30, 2026",
+   "method": "Cumulative average of the unit prices from the three lowest bids, weighted by bid quantity. It is not a lowest winning bid, final account, retail material list or automatic BC rate.",
+   "notes": [
+    "Workbook also contains a 2027 construction sheet; this extract deliberately retains the 2026 sheet and its own tender window.",
+    "No. of Contracts is the source's contract count, not a count of individual bids.",
+    "READ ME!B3 says location and gravel-source adjustments can be needed for GBC/ACP. The stated 51 km weighted haul distance is historical 2015–2017 data, not a verified 2026 haul assumption.",
+    "Source workbook is unchanged. Numeric values transcribed from XML and rounded to the displayed cents."
+   ]
+  },
+  {
+   "id": "allnorth-labrador-2024",
+   "role": "numbers",
+   "title": "Allnorth — Final Draft Project Summary Report, Pre-Feasibility Study for a Road into Northern Labrador",
+   "publisher": "Allnorth for Newfoundland and Labrador Department of Transportation and Infrastructure; hosted by House of Assembly",
+   "url": "https://www.assembly.nl.ca/business/electronicdocuments/Allnorth-ProjectSummaryReport-RoadToTheNorth.pdf",
+   "type": "consultant pre-feasibility ROM estimate ±50%",
+   "method": "Anticipated quantities from mapping, aerial imagery and route geometry multiplied by historical 2019–2022 Labrador bid prices adjusted to 2023 and location. Bridge rates draw on provincial project history. Remote mobilization, contingency, depots, engineering and tax are separately allowed.",
+   "notes": [
+    "ROM ±50%; 2023 costs without future inflation adjustment.",
+    "RLU-80 and RLU-70 Modified highway cross-sections, bridges and maintenance depots; not a BC forest-road standard.",
+    "Grading quantity assumes average fill of 1–2.5 m depending on terrain/grade violations; mixed grading rate averages solid-rock and other-material unit prices.",
+    "250 mm Maintenance Grade No.3 surface in initial phase; later paving is a separate estimate.",
+    "Publicly tabled June 2, 2026; do not relabel report or price year as 2026."
+   ]
+  },
+  {
+   "id": "kneehill-mcelhanney-2025",
+   "role": "numbers",
+   "title": "McElhanney — BF 13480 Culvert Option and Guardrail Details / Design Cost Estimate B",
+   "publisher": "McElhanney for Kneehill County",
+   "url": "https://pub-kneehillcounty.escribemeetings.com/filestream.ashx?DocumentId=4734",
+   "type": "consultant Class B design estimate",
+   "method": "Unit prices combine Alberta Transportation and Economic Corridors averages, local market, past experience and engineering judgement; estimated quantities may change as design develops.",
+   "notes": [
+    "Twin 5.54 m inside-diameter structural plate corrugated steel pipes, each 51.20 m invert length, no guardrails option. This is a major bridge-culvert replacement, not an ordinary forest-road cross-drain.",
+    "Mobilization, traffic accommodation, water accommodation, fish capture, TSS testing, demolition, contingency and engineering are listed separately.",
+    "The web tool returned403 but a direct download from the same primary URL succeeded and the cost page was visually checked."
+   ]
+  },
+  {
+   "id": "norwich-burnside-2024",
+   "role": "numbers",
+   "title": "R.J. Burnside — Technical Memorandum: Gravel Road Summary, Norwich Road Needs Study",
+   "publisher": "R.J. Burnside & Associates for Township of Norwich",
+   "url": "https://www.norwich.ca/media/hnbj4zux/delegation-burnside-roads-needs-study-gravel-road-review-memo-a.pdf",
+   "type": "consultant gravel-road maintenance and lifecycle model",
+   "method": "Recent Township costs plus data from similar Ontario municipalities, specified work quantities and frequency, and grader hourly cost/productivity. Model compares a typical 7.0 m wide low-volume road over a 60-year lifecycle.",
+   "notes": [
+    "The downloaded memo carries DRAFT markings. Council minutes for July9,2024 say the technical memorandum was adopted as presented (separate primary minutes URL available).",
+    "$18/t maintenance gravel is explicitly a 2023 cost; do not call all inputs 2024 market prices.",
+    "Maintenance gravel 300–400 t/km on four-year rotation; model uses400 t/km for the gravel year.",
+    "Annual maintenance, base strengthening and new construction must remain distinct categories."
+   ]
+  },
+  {
+   "id": "isc-om-toronto-2023",
+   "role": "numbers",
+   "title": "Indigenous Services Canada — Capital Facilities and Maintenance Program Cost Reference Manual for Operations and Maintenance",
+   "publisher": "Indigenous Services Canada",
+   "url": "https://www.isc-sac.gc.ca/eng/1734037821474/1734037869905",
+   "type": "Class D annual O&M funding cost model",
+   "method": "Industry costing studies and regional data; gross O&M=(base unit cost+variable unit cost×quantity)×city-centre index×remoteness factor. Net funding is gross×funding factor. Annual updates depend on funding; Table1 is explicitly Toronto2023 base.",
+   "notes": [
+    "This is an annual operation-and-maintenance reference, not road construction pricing or an observed contract.",
+    "Use location/remoteness factors before estimating a particular site; source calls results Class D.",
+    "D1B includes routine grading, spot repairs, dust control, vegetation, signs, guiderails, culvert maintenance/repair, ditch cleaning and winter service."
+   ]
+  },
+  {
+   "id": "usfs-kilkenny-2024",
+   "role": "numbers",
+   "title": "Kilkenny Timber Sale HI-720 — Specified Road Drawings and Engineers Estimate",
+   "publisher": "USDA Forest Service, Hiawatha National Forest",
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "type": "engineer_estimate",
+   "priceBasis": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "scope": "Reconstruction and localized improvements to 10 existing specified road segments: light grading, turnarounds, berms, selected aggregate placements. This is not a full new-road construction estimate.",
+   "notes": [
+    "Aggregate 23A item includes a USD7/CY processing fee paid to the Forest Service, conditional on permission to use the government source. This is not a retail aggregate supply quote.",
+    "Compaction is by operating hauling/spreading equipment across the full width.",
+    "Quantities are identified as loose hauled volume. Note 11 uses ambiguous '125% above compacted volume' wording; no compacted-volume conversion should be assumed.",
+    "Detailed schedule comments contain a stale USD1,400/14-roads mobilization statement. The estimate and quantity summary consistently allocate 10 × USD150 = USD1,500; use the estimate total and preserve the discrepancy.",
+    "The cover's road reconstruction lengths and the 1.32-mile grading quantity do not provide one unambiguous full-project length denominator; do not calculate an overall road USD/km benchmark."
+   ]
+  },
+  {
+   "id": "usfs-herring-2025",
+   "role": "numbers",
+   "title": "Herring Timber Sale HI-734 — Specified Road Drawings and Engineers Estimate",
+   "publisher": "USDA Forest Service, Hiawatha National Forest",
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "type": "engineer_estimate",
+   "priceBasis": "Estimate sheet date; a separate underlying price survey/index base is not stated.",
+   "scope": "Existing roadbed reconditioning, berm removal/reconstruction, two 120-foot temporary landings, and selected aggregate placements across four forest roads and two landings.",
+   "notes": [
+    "USD7/CY Forest Service processing fee is included in aggregate item 30112; USD19/CY is the project aggregate allowance, not a stand-alone commercial material price.",
+    "Loose hauled volume is specified. Note 9 says '125% above compacted volume'; preserve the wording as an ambiguity instead of assuming a conversion factor.",
+    "The estimate and FR3013 schedule place berm work on FR3013; the quantity summary appears to put those berm quantities under FR3560. Whole-project quantities/totals agree but per-road mapping should be confirmed.",
+    "Engineering is a separate package lump sum. No crew hours, aggregate haul distance or truck-cycle calculation is exposed in the estimate."
+   ]
+  },
+  {
+   "id": "usfs-rocking-chair-2025",
+   "role": "numbers",
+   "title": "Rocking Chair SBA Timber Sale Report",
+   "publisher": "USDA Forest Service, Helena–Lewis and Clark National Forest, Northern Region",
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r01/helena-lewisclark/publication/timber-sales/20250530_RockingChairSBA_TSR.pdf",
+   "type": "timber_sale_appraisal_estimate",
+   "priceBasis": "2025 timber-sale appraisal; temporary-road sheets refer to the 2025 Cost Estimating Guide for Road Construction, pages 100–104, Tables T-1 and T-4. Underlying guide was not independently retrieved.",
+   "scope": "Temporary forest roads and their eventual obliteration; separately, winter road maintenance. The temporary-road allowance includes drainage dips and one 18-inch CMP allowance. No aggregate surfacing or bridge cost is shown in the selected sheet.",
+   "notes": [
+    "Temporary road #4 is a group of new routes with 15% average side slope, length 27,561 feet, and 5.22 miles as rounded in the sheet.",
+    "Seeding is included in obliteration; avoid adding it twice.",
+    "Mobilization is 7% of basic plus drainage and other costs in the selected temporary-road sheet.",
+    "The same report reduces allowances for existing routes based on actual condition, e.g. excavation reduced by half on flat existing temporary road #1.",
+    "Snow-plow calculation is maintenance-specific and does not establish a construction unit rate. Its treatment of repeated mobilization is explicitly criticized/adjusted in the source notes."
+   ]
+  },
+  {
+   "id": "nz_brown_visser_2018",
+   "role": "numbers",
+   "title": "Adoption of emergent technology for forest road management in New Zealand",
+   "publisher": "New Zealand Journal of Forestry; author-hosted copy at ForestEngineering.org",
+   "url": "https://forestengineering.org/wp-content/uploads/2021/01/Forest_Road_Tech_Review_Brown_and_Visser_NZJF_2018.pdf",
+   "type": "manager_survey_estimated_average",
+   "priceBasis": "Manager survey conducted January–April 2018; prices are the contemporary estimates supplied by respondents, with no separate inflation base stated.",
+   "scope": "Managers estimated average costs including planning and vegetation removal through drainage and surfacing.",
+   "notes": [
+    "Very low spur costs include well-drained pumice soils and little or no aggregate.",
+    "High-cost Gisborne examples involve steep erodible terrain and long aggregate haul.",
+    "The nationwide range is not a confidence interval for a specific BC route.",
+    "No separately priced bridge or major crossing allowance.",
+    "No explicit tax, contingency, overhead or profit breakdown.",
+    "Not an audit of paid invoices or a set of contract award prices.",
+    "Reported mean is not identified here as weighted by constructed length."
+   ]
+  },
+  {
+   "id": "nz_hetherington_trials_2024",
+   "role": "numbers",
+   "title": "Evaluation of Subgrade Stabilisation Methods for Upgrading Historic Forest Roads",
+   "publisher": "Forest Growers Research; Forest Engineering Honours Project with Port Blakely trial support",
+   "url": "https://fgr.nz/wp-content/uploads/2025/02/H071-Evaluation-of-Subgrade-stabilisation-methods-for-upgrading-historic-forest-roads.pdf",
+   "type": "measured_field_trial_cost_model",
+   "method": "Contractors measured machine time using hour clocks. Port Blakely supplied representative machine hourly rates. Material costs came from invoices. Total section costs were normalized to a common width and extrapolated to NZD/km.",
+   "scope": "Reconstruction of existing historic road subgrades using lime stabilisation, geogrid or undercut. Costs normalized to a 4.5 m road width and extrapolated per kilometre.",
+   "notes": [
+    "These are normalized experimental reconstruction costs, not whole new-road construction or paid lump-sum contract prices.",
+    "No separately stated planning, mobilization, engineering, contingency, profit or overhead allowance.",
+    "Contractors were familiar with undercut but less familiar with the alternative methods.",
+    "Four-month monitoring does not establish life-cycle performance."
+   ]
+  },
+  {
+   "id": "uk_fr_woodland_costs_2025_2023prices",
+   "role": "numbers",
+   "title": "Woodland Establishment Costs in England: A Review",
+   "publisher": "Forest Research, Forestry Commission",
+   "url": "https://cdn.forestresearch.gov.uk/2024/05/Woodland_Establishment_Costs_Report.pdf",
+   "landingUrl": "https://www.forestresearch.gov.uk/research/economics-of-woodland-creation-in-england/",
+   "type": "published_expert_estimate_and_model_reference",
+   "priceBasis": "Report states that all reported values are inflation adjusted to June 2023 using the HM Treasury GDP deflator.",
+   "scope": "Commercial-grade haulage roads and separately classified lower-standard forwarder tracks.",
+   "notes": [
+    "Expert estimates and model references, not audited project or tender prices.",
+    "Haulage-road and forwarder-track standards are not interchangeable.",
+    "Nearby aggregate supply and location strongly influence the reported range.",
+    "The report's loading-bay/turning-area unit notation is potentially ambiguous and those ancillary rates are intentionally excluded from this dataset.",
+    "Additional loading bays",
+    "Turning areas",
+    "Bell-mouth junctions",
+    "Maintenance in the quoted initial construction figures"
+   ]
+  },
+  {
+   "id": "au_green_triangle_geddes_2023",
+   "role": "numbers",
+   "title": "Trees on Farms initiative: Barriers which inhibit processors, harvesters and hauliers processing smaller amounts of logs from farm forests, and how those barriers may be addressed",
+   "publisher": "Green Triangle Forest Industries Hub / South Australian Department of Primary Industries and Regions",
+   "url": "https://gtfih.com.au/wp-content/uploads/2023/07/Final-Report-Project-2-PIRSA-GTFIH-pdf-version.pdf",
+   "type": "consultant_indicative_construction_estimate",
+   "priceBasis": "Report explicitly states information current as of 30 June 2023.",
+   "scope": "On-property gravel harvesting truck access across farm paddocks, primarily flat or gently undulating Green Triangle terrain.",
+   "notes": [
+    "No detailed bill of quantities or explicit engineering, permitting, bridge, contingency, overhead or tax allowance.",
+    "Indicative consultant range, not a construction contract or measured actual project final cost.",
+    "Not transferable directly to steep mountainous roads or distant aggregate supply."
+   ]
+  },
+  {
+   "id": "ie_teagasc_forest_roads_current_2026",
+   "role": "numbers",
+   "title": "Forest Roads Scheme 2023–2027",
+   "publisher": "Teagasc",
+   "url": "https://teagasc.ie/crops/forestry/grants/forest-roads-scheme-2023-2027/",
+   "type": "grant_ceiling",
+   "scope": "Up to 100% of eligible harvesting-road or upgrade/extension costs, subject to separate grant ceilings and eligibility rules.",
+   "notes": [
+    "Not a contractor quote, engineering estimate or observed market construction cost.",
+    "Grant ceilings can be below or above a particular project's actual cost.",
+    "Older 2023/2024 materials show EUR55/m and must not override the verified 2026 EUR66/m ceiling.",
+    "Full eligibility and approval conditions are not reproduced here; this record is comparative policy context."
+   ]
+  },
+  {
+   "id": "nzfoa_live_manual_5_9",
+   "role": "method",
+   "title": "New Zealand Forest Road Engineering Manual, section 5.9: Estimating machinery production",
+   "publisher": "New Zealand Forest Owners Association",
+   "url": "https://docs.nzfoa.org.nz/live/nz-forest-road-engineering-manual/5-road-and-landing-construction/5.9-estimating-machinery-production/",
+   "use": "A locally calibrated machine-hours × charge-rate model can explain why costs change. Use bank/loose/compacted volumes consistently and price mobilization separately.",
+   "notes": []
+  },
+  {
+   "id": "scion_fif_hawkes_bay_2019",
+   "role": "method",
+   "title": "Putting a value on the benefits of forestry — Scion Forest Investment Framework application in Hawke's Bay",
+   "publisher": "New Zealand Ministry for Primary Industries / Canopy; Scion study",
+   "url": "https://www.canopy.govt.nz/resources-and-insights/putting-a-value-on-the-benefits-of-planted-forests",
+   "method": "Scion's Forest Investment Framework assigns spatial road costs by slope (0–5°, 5–15°, >15°) and erosion susceptibility; landing costs depend on slope and soil. This is an economic afforestation model, not a measured project bill of quantities.",
+   "use": "Terrain classes can support a first-pass spatial screen, followed by site quantities, haul distances and drainage design for a route estimate.",
+   "notes": []
+  },
+  {
+   "id": "fao_road_cost_control_1992",
+   "role": "method",
+   "title": "Cost control in forest harvesting and road construction",
+   "publisher": "FAO",
+   "url": "https://www.fao.org/4/T0579E/t0579e06.htm",
+   "scope": "Activity unit costs from machine rates and production; ownership, operation and labor components.",
+   "use": "Historical worked prices are not ingested as current rates.",
+   "notes": []
+  },
+  {
+   "id": "softree_design_time_costing",
+   "role": "method",
+   "title": "Design Time Costing",
+   "publisher": "Softree Technical Systems",
+   "url": "https://support.softree.com/knowledge-base/optimization/design-time-cost-reporting/design-time-costing",
+   "scope": "Material-dependent cut/fill rates, loading, distance-based haul, borrow/waste and economic material movements.",
+   "use": "Method reference; user-supplied rates determine results.",
+   "notes": []
+  },
+  {
+   "id": "world_bank_red_4",
+   "role": "method",
+   "title": "Roads Economic Decision Model version 4.0",
+   "publisher": "World Bank",
+   "url": "https://datacatalog.worldbank.org/search/dataset/0065668/roads-economic-decision-model-version-4-0",
+   "scope": "Economic appraisal of low-volume-road investment and maintenance alternatives, road-user costs and sensitivity.",
+   "use": "Economic comparison method, not local construction-unit pricing.",
+   "notes": []
+  }
+ ],
+ "estimates": [
+  {
+   "id": "kilkenny-full-package",
+   "title": "US Forest Service · Kilkenny road package, localized reconstruction",
+   "sourceId": "usfs-kilkenny-2024",
+   "currency": "USD",
+   "costYear": 2024,
+   "status": "Engineer's estimate",
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Kilkenny_Re-Offer4_Road_Package.pdf",
+   "locator": "PDF p5",
+   "lines": [
+    {
+     "label": "Mobilization allocation across 10 specified roads",
+     "quantity": 10,
+     "unit": "per road, lump sum",
+     "rate": 150,
+     "amount": 1500
+    },
+    {
+     "label": "Excavation and embankment — earth berms",
+     "quantity": 2,
+     "unit": "each",
+     "rate": 150,
+     "amount": 300
+    },
+    {
+     "label": "Light linear grading",
+     "quantity": 1.32,
+     "unit": "per mile",
+     "rate": 3500,
+     "amount": 4620
+    },
+    {
+     "label": "Linear grading, L-turnaround",
+     "quantity": 5,
+     "unit": "per turnaround, lump sum",
+     "rate": 500,
+     "amount": 2500
+    },
+    {
+     "label": "Linear grading, T-turnaround",
+     "quantity": 3,
+     "unit": "per turnaround, lump sum",
+     "rate": 600,
+     "amount": 1800
+    },
+    {
+     "label": "Aggregate 23A",
+     "quantity": 355,
+     "unit": "per loose yd³ hauled",
+     "rate": 17,
+     "amount": 6035
+    },
+    {
+     "label": "Pit-run aggregate",
+     "quantity": 80,
+     "unit": "per loose yd³ hauled",
+     "rate": 10,
+     "amount": 800
+    }
+   ],
+   "totals": [
+    {
+     "label": "Works subtotal",
+     "amount": 17555
+    },
+    {
+     "label": "Engineering, package allowance",
+     "amount": 3334
+    },
+    {
+     "label": "Total estimate",
+     "amount": 20889
+    }
+   ],
+   "notes": [
+    "Set work quantities by road, extend by task-specific unit rates, allocate mobilization by road, then add separately estimated engineering.",
+    "May overlap another example from the same source."
+   ]
+  },
+  {
+   "id": "herring-full-package",
+   "title": "US Forest Service · Herring road package, reconditioning and aggregate",
+   "sourceId": "usfs-herring-2025",
+   "currency": "USD",
+   "costYear": 2025,
+   "status": "Engineer's estimate",
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "locator": "PDF p4",
+   "lines": [
+    {
+     "label": "Mobilization allocation across six road/landing work areas",
+     "quantity": 6,
+     "unit": "per work area, lump sum",
+     "rate": 200,
+     "amount": 1200
+    },
+    {
+     "label": "Remove earth berms",
+     "quantity": 2,
+     "unit": "each",
+     "rate": 100,
+     "amount": 200
+    },
+    {
+     "label": "Construct earth berms",
+     "quantity": 2,
+     "unit": "each",
+     "rate": 150,
+     "amount": 300
+    },
+    {
+     "label": "Linear grading, 120-foot temporary landing",
+     "quantity": 2,
+     "unit": "per landing, lump sum",
+     "rate": 600,
+     "amount": 1200
+    },
+    {
+     "label": "Aggregate 23A",
+     "quantity": 190,
+     "unit": "per loose yd³ hauled",
+     "rate": 19,
+     "amount": 3610
+    },
+    {
+     "label": "Recondition roadbed",
+     "quantity": 1.55,
+     "unit": "per mile",
+     "rate": 2500,
+     "amount": 3875
+    }
+   ],
+   "totals": [
+    {
+     "label": "Works subtotal",
+     "amount": 10385
+    },
+    {
+     "label": "Engineering, package allowance",
+     "amount": 2314
+    },
+    {
+     "label": "Total estimate",
+     "amount": 12699
+    }
+   ],
+   "notes": [
+    "Set road and landing quantities; distinguish berm removal from replacement, roadbed reconditioning from temporary landing construction, and aggregate placement. Add mobilization and engineering as distinct allowances.",
+    "May overlap another example from the same source."
+   ]
+  },
+  {
+   "id": "herring-fr3013",
+   "title": "US Forest Service · Herring, road FR3013 alone",
+   "sourceId": "usfs-herring-2025",
+   "currency": "USD",
+   "costYear": 2025,
+   "status": "Engineer's estimate, one road",
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r09/hiawatha/publication/timber-sales/Herring%20Spec%20Road%20Package.pdf",
+   "locator": "PDF p4 estimate andp6 schedule",
+   "lines": [
+    {
+     "label": "Mobilization",
+     "quantity": 1,
+     "unit": "LS",
+     "rate": 200,
+     "amount": 200
+    },
+    {
+     "label": "Remove berm",
+     "quantity": 2,
+     "unit": "each",
+     "rate": 100,
+     "amount": 200
+    },
+    {
+     "label": "Construct berm",
+     "quantity": 2,
+     "unit": "each",
+     "rate": 150,
+     "amount": 300
+    },
+    {
+     "label": "Aggregate23A",
+     "quantity": 30,
+     "unit": "per loose yd³ hauled",
+     "rate": 19,
+     "amount": 570
+    },
+    {
+     "label": "Recondition roadbed",
+     "quantity": 0.45,
+     "unit": "per mile",
+     "rate": 2500,
+     "amount": 1125
+    }
+   ],
+   "totals": [
+    {
+     "label": "Road works total",
+     "amount": 2395
+    }
+   ],
+   "notes": [
+    "0.45mile existing roadbed reconditioning, two berm removals/rebuilds and30CY localized aggregate; no separate engineering apportioned in this road subtotal.",
+    "Berm location in quantity summary conflicts with estimate/schedule; total cost is unaffected.",
+    "May overlap another example from the same source."
+   ]
+  },
+  {
+   "id": "rocking-chair-new-temp-4",
+   "title": "US Forest Service · Rocking Chair, new temporary road #4",
+   "sourceId": "usfs-rocking-chair-2025",
+   "currency": "USD",
+   "costYear": 2025,
+   "status": "Timber-sale appraisal estimate",
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r01/helena-lewisclark/publication/timber-sales/20250530_RockingChairSBA_TSR.pdf",
+   "locator": "PDF p32 / printed23e",
+   "lines": [
+    {
+     "label": "New temporary roads #4: clearing and grubbing",
+     "quantity": 5.22,
+     "unit": "per mile",
+     "rate": 10047,
+     "amount": 52445.34
+    },
+    {
+     "label": "New temporary roads #4: excavation",
+     "quantity": 5.22,
+     "unit": "per mile",
+     "rate": 2770,
+     "amount": 14459.4
+    },
+    {
+     "label": "New temporary roads #4: obliteration, including seeding",
+     "quantity": 5.22,
+     "unit": "per mile",
+     "rate": 5772.6,
+     "amount": 30132.97
+    },
+    {
+     "label": "New temporary roads #4: drainage dips",
+     "quantity": 12,
+     "unit": "each",
+     "rate": 250,
+     "amount": 3000
+    },
+    {
+     "label": "New temporary roads #4: 18-inch CMP allowance",
+     "quantity": 1,
+     "unit": "per crossing, allowance",
+     "rate": 585,
+     "amount": 585
+    }
+   ],
+   "totals": [
+    {
+     "label": "Basic cost, as reported",
+     "amount": 97038
+    },
+    {
+     "label": "Drainage",
+     "amount": 3585
+    },
+    {
+     "label": "Subtotal before mobilization",
+     "amount": 100623
+    },
+    {
+     "label": "Mobilization, 7%",
+     "amount": 7044
+    },
+    {
+     "label": "Total including profit",
+     "amount": 107667
+    },
+    {
+     "label": "Appraisal entry, profit removed",
+     "amount": 101573
+    }
+   ],
+   "notes": [
+    "Seeding is included in obliteration. No aggregate surfacing or bridge allowance appears. Keep 107667 construction allowance and101573 appraisal entry distinct.",
+    "(10047 +2770 +5772.60) ×5.22 =97037.712 →97038; +12×250 +1×585 =100623; +rounded(7%×100623)=7044 →107667; divided by1.06 →101573 rounded for appraisal.",
+    "May overlap another example from the same source."
+   ]
+  },
+  {
+   "id": "rocking-chair-snow-plow-productivity",
+   "title": "US Forest Service · Rocking Chair, snow plowing rate build-up",
+   "sourceId": "usfs-rocking-chair-2025",
+   "currency": "USD",
+   "costYear": 2025,
+   "status": "Maintenance appraisal allowance",
+   "url": "https://www.fs.usda.gov/sites/nfs/files/r01/helena-lewisclark/publication/timber-sales/20250530_RockingChairSBA_TSR.pdf",
+   "locator": "PDF p27 / printed22",
+   "lines": [
+    {
+     "label": "Equipment",
+     "quantity": 1,
+     "unit": "per hour",
+     "rate": 130,
+     "amount": 130
+    },
+    {
+     "label": "Operator",
+     "quantity": 1,
+     "unit": "per hour",
+     "rate": 56,
+     "amount": 56
+    },
+    {
+     "label": "Mobilization, $1700 over a 10-hour day",
+     "quantity": 1,
+     "unit": "per hour",
+     "rate": 170,
+     "amount": 170
+    }
+   ],
+   "totals": [
+    {
+     "label": "Adopted rate per mile, at 1 mile an hour",
+     "amount": 356
+    },
+    {
+     "label": "17.8 miles × 10 passes",
+     "amount": 63368
+    }
+   ],
+   "notes": [
+    "Winter road snow plowing, not new-road construction.",
+    "The adopted356USD/mile equals (130+56) +170, consistent with1mile/hour production and1700USD mobilization spread over10hours. This is an arithmetic interpretation of the source notes; do not treat it as a general mobilization rule.",
+    "The source explicitly reduces modeled plowings from16to10 partly to compensate for per-pass mobilization even though equipment is expected to remain onsite. This reveals a modeling workaround; production and mobilization should be modeled separately when reusing the method."
+   ]
+  },
+  {
+   "id": "allnorth-labrador-2024-project-budget",
+   "title": "Allnorth · Northern Labrador access-road study, program budget",
+   "sourceId": "allnorth-labrador-2024",
+   "currency": "CAD",
+   "costYear": 2023,
+   "status": "ROM ±50%, 2023 dollars",
+   "url": "https://www.assembly.nl.ca/business/electronicdocuments/Allnorth-ProjectSummaryReport-RoadToTheNorth.pdf",
+   "locator": "Table5.1 printed p.128; Section5.4 p.127",
+   "lines": [],
+   "totals": [
+    {
+     "label": "Construction subtotal",
+     "amount": 1580181000
+    },
+    {
+     "label": "Engineering, 15%",
+     "amount": 237027150
+    },
+    {
+     "label": "HST, 15%",
+     "amount": 272581223
+    },
+    {
+     "label": "Total for 809 km",
+     "amount": 2089789373
+    }
+   ],
+   "notes": [
+    "Gravel-surfaced road network, bridges, culverts, guide rail, signs, depots and other construction. Later paving estimate is separate.",
+    "Inside the construction subtotal: contingency (15%) $176,160,000, mobilization and demobilization $229,600,000, 9 maintenance depots $54,000,000.",
+    "Do not use total/809 as a BC forestry-road unit rate."
+   ]
+  },
+  {
+   "id": "kneehill-mcelhanney-2025-project-budget",
+   "title": "McElhanney · Kneehill County twin culvert replacement",
+   "sourceId": "kneehill-mcelhanney-2025",
+   "currency": "CAD",
+   "costYear": 2025,
+   "status": "Class B estimate",
+   "url": "https://pub-kneehillcounty.escribemeetings.com/filestream.ashx?DocumentId=4734",
+   "locator": "PDF page7",
+   "lines": [],
+   "totals": [
+    {
+     "label": "Contract cost, as labelled",
+     "amount": 2956750
+    },
+    {
+     "label": "Site occupancy, inside the contract cost",
+     "amount": 75000
+    },
+    {
+     "label": "Modified cost, site occupancy removed",
+     "amount": 2881750
+    },
+    {
+     "label": "Contingency, 15%",
+     "amount": 432263
+    },
+    {
+     "label": "Engineering budget",
+     "amount": 182292
+    },
+    {
+     "label": "Total project cost",
+     "amount": 3496305
+    }
+   ],
+   "notes": [
+    "Twin5.54m structural-plate culvert replacement option without guardrails; subtotal includes roadway and environmental items.",
+    "Total is based on modified cost excluding site occupancy plus contingency and engineering, so it is not the unmodified contract cost plus both allowances."
+   ]
+  },
+  {
+   "id": "norwich-four-year-maintenance",
+   "title": "Burnside · Norwich gravel-road maintenance, per km",
+   "sourceId": "norwich-burnside-2024",
+   "currency": "CAD",
+   "costYear": 2023,
+   "status": "Consultant maintenance program; arithmetic average derived for this research",
+   "url": "https://www.norwich.ca/media/hnbj4zux/delegation-burnside-roads-needs-study-gravel-road-review-memo-a.pdf",
+   "locator": "Section3.1, PDF pp7–9",
+   "lines": [
+    {
+     "label": "Maintenance gravel",
+     "quantity": 400,
+     "unit": "tonnes per km",
+     "rate": 18,
+     "amount": 7200
+    },
+    {
+     "label": "Routine grading, 4 visits × 1.5 hours per km",
+     "quantity": 6,
+     "unit": "hours per km",
+     "rate": 150,
+     "amount": 900
+    },
+    {
+     "label": "Dust control, annual allowance",
+     "quantity": 1,
+     "unit": "per km",
+     "rate": 1160,
+     "amount": 1160
+    }
+   ],
+   "totals": [
+    {
+     "label": "Gravel-application year, per km",
+     "amount": 9260
+    },
+    {
+     "label": "Each of the other three years, per km",
+     "amount": 2060
+    },
+    {
+     "label": "Four-year undiscounted average, per km a year (derived for this catalogue)",
+     "amount": 3860
+    }
+   ],
+   "notes": [
+    "Typical 7 m road. Gravel, routine grading and dust-control program only. Undiscounted; not comprehensive O&M or a construction rate.",
+    "Gravel input is a 2023 cost."
+   ]
+  }
+ ]
+}

@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronDown, CircleDashed, OctagonAlert } from 'lucide-react'
+import { type ReactNode } from 'react'
+import { CheckCard } from './CheckCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ResultRow } from '@/components/ui/result-list'
@@ -29,24 +29,6 @@ const VERDICT_CLASS = {
   success: 'text-success',
 }
 
-function StateIcon({ row }: { row: ReadinessRow }) {
-  if (row.state === 'met')
-    return <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success" role="img" aria-label="Met" />
-  if (row.state === 'not-assessed')
-    return (
-      <CircleDashed className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" role="img" aria-label="Not assessed" />
-    )
-  return row.severity === 'limit' ? (
-    <OctagonAlert
-      className="mt-0.5 size-3.5 shrink-0 text-danger"
-      role="img"
-      aria-label="Needs attention: outside a limit"
-    />
-  ) : (
-    <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" role="img" aria-label="Needs attention: to do" />
-  )
-}
-
 /**
  * The checks a designer signs against. What needs attention leads, a broken limit before an input
  * still to do, because that is what the designer acts on. The checks that were not made and the
@@ -62,60 +44,49 @@ export function ReadinessList({
   rows,
   onAction,
   help,
+  lead,
   children,
 }: {
   rows: ReadinessRow[]
   onAction: (action: NonNullable<ReadinessRow['action']>) => void
   help?: ReactNode
+  /** Shown first, under the verdict and above the rows: what the reader should act on before the list. */
+  lead?: ReactNode
   children?: ReactNode
 }) {
-  const [opened, setOpened] = useState<Record<string, boolean>>({})
   const parts = readinessParts(rows)
   const verdict = readinessVerdict(rows)
-  const item = (row: ReadinessRow) => {
-    const open = opened[row.id] ?? false
-    return (
-      <li key={row.id} className="text-xs" data-check={row.id} data-state={row.state} data-severity={row.severity}>
-        <button
-          type="button"
-          aria-expanded={open}
-          title={row.check}
-          aria-label={`${row.check}: ${row.result}`}
-          className="flex w-full items-start gap-2 px-2 pt-1.5 text-left hover:bg-muted/50"
-          onClick={() => setOpened((previous) => ({ ...previous, [row.id]: !open }))}
-        >
-          <StateIcon row={row} />
-          <span className="min-w-0 flex-1 font-medium leading-4">{row.result}</span>
-          <ChevronDown
-            aria-hidden
-            className={`mt-0.5 size-3 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
-          />
-        </button>
-        <div className="space-y-0.5 pb-1.5 pl-[1.625rem] pr-2 pt-0.5 text-2xs leading-4">
-          {/* The measured value and the way to fix it share a line, so a row is two or three lines tall. */}
-          <div className="flex items-start gap-2">
-            <p className={`min-w-0 flex-1 ${open ? '' : 'line-clamp-2'}`}>{row.measured}</p>
-            {row.action && (
-              <Button size="2xs" variant="outline" className="shrink-0 px-1.5" onClick={() => onAction(row.action!)}>
-                {row.action.label}
-              </Button>
-            )}
-          </div>
-          {open && (
-            <p className="text-muted-foreground">
-              Check: {row.check}
-              {row.judgedOn ? `. Judged on: ${row.judgedOn}` : ''}
-            </p>
-          )}
-        </div>
-      </li>
-    )
-  }
+  const item = (row: ReadinessRow) => (
+    <CheckCard
+      key={row.id}
+      tone={row.state === 'attention' ? (row.severity === 'limit' ? 'limit' : 'todo') : row.state}
+      result={row.result}
+      title={row.check}
+      label={`${row.check}: ${row.result}`}
+      measured={<p>{row.measured}</p>}
+      action={
+        row.action && (
+          <Button size="2xs" variant="outline" className="shrink-0 px-1.5" onClick={() => onAction(row.action!)}>
+            {row.action.label}
+          </Button>
+        )
+      }
+      details={
+        <p className="text-muted-foreground">
+          Check: {row.check}
+          {row.judgedOn ? `. Judged on: ${row.judgedOn}` : ''}
+        </p>
+      }
+      data-check={row.id}
+      data-state={row.state}
+      data-severity={row.severity}
+    />
+  )
   const list = (label: string, members: ReadinessRow[]) =>
     members.length > 0 && (
       <section key={label} aria-label={`${label} checks`}>
         <h4 className="mb-1 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</h4>
-        <ul className={cn(insetBox({ padding: 'none' }), 'divide-y')}>{members.map(item)}</ul>
+        <ul className="space-y-2">{members.map(item)}</ul>
       </section>
     )
   /** A folded group: its summary line gives the count, and its rows keep the list's own grouping. */
@@ -142,6 +113,7 @@ export function ReadinessList({
         <p className={`text-xs font-semibold ${VERDICT_CLASS[verdict.tone]}`} data-testid="road-readiness-verdict">
           {verdict.text}
         </p>
+        {lead}
         <div className="space-y-2" data-testid="road-readiness-attention">
           {list(
             'Outside a limit',

@@ -30,7 +30,7 @@ function useImageUrl(image: SentinelImage | null) {
     }
   }, [image])
   // The previous picture stays up while the next one is encoded, so a new scene does not flash.
-  return image ? url : null
+  return image && url?.key === image.key ? url : null
 }
 
 /**

@@ -123,10 +123,10 @@ export default defineConfig({
       { find: /^maplibre-gl$/, replacement: path.resolve(__dirname, './src/lib/maplibre-gl-entry.ts') },
     ],
   },
-  // Only imported dynamically from a worker; pre-bundle at startup so the first LAZ import does
+  // Only imported dynamically from a worker; pre-bundle at startup so the first LAZ/PDF import does
   // not hit a mid-session re-optimisation ("Failed to fetch dynamically imported module").
   optimizeDeps: {
-    include: ['whitebox-wasm', 'whitebox-wasm/tools', 'laz-perf'],
+    include: ['whitebox-wasm', 'whitebox-wasm/tools', 'laz-perf', 'pdfjs-dist', 'pdf-lib'],
     // Vite scans every HTML file for imports to pre-bundle. The visual tools
     // trial bench is a separate project with its own packages (EZ-Tree,
     // maplibre-gl-three, Giro3D); scanned from here they fail to resolve and

@@ -53,6 +53,7 @@ export function vehicleToolSources(notes: readonly MapNote[] = [], reference: re
     else sources.push({ id: `note:${note.id}`, label: label('Pin'), kind: 'point', coordinates: note.points })
   }
   for (const feature of reference) {
+    if (feature.sheet || feature.classGrid) continue
     const g = feature.geometry
     const label = `Reference: ${feature.name}`
     if (g.type === 'LineString')
@@ -65,7 +66,8 @@ export function vehicleToolSources(notes: readonly MapNote[] = [], reference: re
         coordinates: g.coordinates[0] as Coordinate[],
         holes: g.coordinates.slice(1) as Coordinate[][],
       })
-    else sources.push({ id: `ref:${feature.id}`, label, kind: 'point', coordinates: [g.coordinates as Coordinate] })
+    else if (g.type === 'Point')
+      sources.push({ id: `ref:${feature.id}`, label, kind: 'point', coordinates: [g.coordinates as Coordinate] })
   }
   return sources
 }

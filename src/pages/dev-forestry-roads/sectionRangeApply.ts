@@ -85,7 +85,12 @@ export function planSectionRange(
   chainage: number,
   range: readonly [number, number],
   roadLength: number,
-  options: { id: () => string; stationLabel: (chainage: number) => string },
+  options: {
+    id: () => string
+    stationLabel: (chainage: number) => string
+    /** A section to give the range instead of the one at `chainage` (the section fixes' rock fill). */
+    source?: SectionSource
+  },
 ): { plan: SectionRangePlan } | { error: string } {
   const from = Math.min(range[0], range[1]),
     to = Math.max(range[0], range[1])
@@ -94,7 +99,7 @@ export function planSectionRange(
   if (from < -EPS || to > roadLength + EPS)
     return { error: `Choose a range on the road, between ${label(0)} and ${label(roadLength)}.` }
   if (to - from < MIN_SECTION_RANGE_M) return { error: `Choose a range at least ${MIN_SECTION_RANGE_M} m long.` }
-  const source = sectionSourceAt(alignment, chainage, label)
+  const source = options.source ?? sectionSourceAt(alignment, chainage, label)
   const e = alignment.engineering ?? createEngineeringDesign()
   const names = new Map(e.templates.map((t) => [t.id, t.name]))
   const templates = [...e.templates]

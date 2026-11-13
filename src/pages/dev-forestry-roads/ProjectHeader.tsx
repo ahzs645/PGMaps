@@ -52,7 +52,7 @@ export function ProjectName({
       data-testid="road-project-name"
       title={`${name} · click to rename the project`}
       aria-label={`Project: ${name}. Rename`}
-      className="group flex min-w-[5rem] max-w-[14rem] items-center gap-1 rounded-md px-1 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60"
+      className="group flex min-w-[5rem] max-w-[min(100%,28rem)] items-center gap-1 rounded-md px-1 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60"
       onClick={() => setDraft(name)}
     >
       <span className="truncate">{name || 'Untitled road project'}</span>
@@ -81,8 +81,8 @@ export function SaveStateLine({ browser, file }: { browser: BrowserSave; file: F
       }`}
     >
       {/* Beside the road switcher the line is narrow below a wide desktop; the short form fits it. */}
-      <span className="xl:hidden">{state.short}</span>
-      <span className="hidden xl:inline">{state.text}</span>
+      <span className="2xl:hidden">{state.short}</span>
+      <span className="hidden 2xl:inline">{state.text}</span>
       <span className="sr-only">. {state.detail}</span>
     </span>
   )

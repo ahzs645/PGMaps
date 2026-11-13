@@ -20,7 +20,7 @@ import {
 import { corridorCandidate } from './corridorCandidate'
 import { runDrainage, type DrainageSettings } from './drainageRun'
 import { alignmentLength } from './engine'
-import { fillDepressions, flowAccumulation, flowDirections } from './hydrology'
+import { CROSS_DRAIN_SITE_M, fillDepressions, flowAccumulation, flowDirections } from './hydrology'
 import { MAX_JOINT_MOVABLE_POINTS, refinePlanAndProfile } from './jointOptimizer'
 import { derivedRoadName } from './roadNames'
 import { roadFromRoute, routeRoadFlags } from './routeFit'
@@ -117,8 +117,6 @@ const DRAINAGE_STREAM_CONTACT_M = 600
 const STEERED_STREAM_FACTOR = 5
 /** Metres of road per metre over a flow line at the stream threshold; a 12 m wide crossing is worth about 240 m. */
 const FLOW_PENALTY_M = 20
-/** Low points this close are one culvert site: an outlet and the pond behind it, or both ditches. */
-const CROSS_DRAIN_SITE_M = 40
 /** The screen sees streams, sags and outlets; the check in the Drainage view keeps 1 m cells. */
 const SCREENING_CELL_M = 2
 const SCREENING_BUFFER_M = 150

@@ -8,6 +8,7 @@ import { Field, NumberField, RoadSelect } from './Controls'
 import { DrainageSettingField } from './SharedRoadFields'
 import { DEFAULT_DRAINAGE_SETTINGS, type DrainageRun, type DrainageSettings } from './drainageRun'
 import { formatRoadStation } from './Charts'
+import { CROSS_DRAIN_SITE_M, DITCH_DETAIL_CELL_M, LOW_POINT_MIN_CELLS } from './hydrology'
 import { parseDrainageSettings, type DrainageComparisonSnapshot, type DrainageEvidence } from './drainageEvidence'
 import type { PourPoint } from './drainageCatchments'
 import { DrainageSensitivityPanel } from './DrainageSensitivityPanel'
@@ -35,7 +36,7 @@ const n = (v: number, digits = 0) => v.toLocaleString('en-CA', { maximumFraction
 
 /**
  * Flow on the existing ground against flow on the design surface: streams the road carries along
- * its ditches, ditch low points with no culvert, new ponding, and a Rational-method pipe check.
+ * its ditches, cross-drain candidates with no culvert, new ponding, and a Rational-method pipe check.
  */
 // Each group is a row: its name on the left, then its inputs as wide as they need.
 const groupRow = 'grid gap-1.5 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:items-end sm:gap-2'
@@ -131,7 +132,7 @@ export function DrainagePanel({
           )}
           <p className="min-w-48 flex-1 text-muted-foreground">
             Routes flow (D8) over the existing ground and over a design surface with the road and its culverts burned
-            in, then marks redirected streams, ditch low points without a culvert and new ponding.
+            in, then marks redirected streams, cross-drain candidates without a culvert and new ponding.
           </p>
         </div>
         <div className="space-y-2.5">
@@ -307,7 +308,7 @@ export function DrainagePanel({
             items={[
               { label: 'Crossings', value: n(run.crossings.length) },
               { label: 'Redirected', value: n(redirected.length) },
-              { label: 'Cross-drains', value: n(uncovered.length) },
+              { label: 'Cross-drain candidates', value: n(uncovered.length) },
               { label: 'New ponding', value: `${n(run.newPonding.areaM2)} m²` },
               { label: 'Undersized', value: `${n(undersized.length)} of ${n(run.culverts.length)}` },
             ]}
@@ -400,15 +401,29 @@ export function DrainagePanel({
               </p>
             )}
           </section>
-          <section aria-label="Ditch low points">
-            <h3 className="mb-1 font-medium">Ditch low points and outlets</h3>
+          <section aria-label="Cross-drain candidates">
+            <h3 className="mb-1 font-medium">Cross-drain candidates</h3>
+            <p className="mb-1 text-muted-foreground">
+              Where flow leaves the road or ponds against it. Outlets within {CROSS_DRAIN_SITE_M} m of each other are
+              one site; the plan shades each site's stretch and, zoomed in, marks a dashed line across the road at its
+              largest outlet.
+            </p>
+            {run.cellM > DITCH_DETAIL_CELL_M && (
+              <InlineAlert tone="warning" data-testid="road-drainage-cross-drain-screening">
+                Screening only: {n(run.cellM, 1)} m cells cannot resolve a ditch, so water reads as leaving the road
+                wherever the ground falls away. Use terrain of {DITCH_DETAIL_CELL_M} m cells or finer before placing
+                cross-drains.
+              </InlineAlert>
+            )}
             {run.lowPoints.length ? (
               <EngineeringTable>
                 <thead>
                   <tr>
                     <ColumnHeader label="Station" className="text-left" />
+                    <ColumnHeader label="Stretch" className="text-left" />
                     <ColumnHeader label="Side" />
                     <ColumnHeader label="Kind" />
+                    <ColumnHeader label="Outlets" />
                     <ColumnHeader label="Draining" unit="ha" />
                     <ColumnHeader label="Depth" unit="m" />
                     <ColumnHeader label="Culvert" className="text-left" />
@@ -418,17 +433,26 @@ export function DrainagePanel({
                   {run.lowPoints.map((p) => (
                     <tr key={p.id}>
                       <td className="text-left">{station(p.chainage)}</td>
-                      <td>{p.side}</td>
-                      <td>{p.kind === 'pond' ? 'ponds' : 'leaves prism'}</td>
+                      <td className="text-left">
+                        {p.toChainage > p.fromChainage
+                          ? `${formatRoadStation(p.fromChainage)}–${formatRoadStation(p.toChainage)}`
+                          : '—'}
+                      </td>
+                      <td>{p.sides.length > 1 ? 'both' : p.side}</td>
+                      <td>{p.kind === 'pond' ? 'ponds' : 'leaves road'}</td>
+                      <td>{n(p.outlets)}</td>
                       <td>{n(p.areaHa, 2)}</td>
-                      <td>{p.kind === 'pond' ? n(p.depthM, 2) : '—'}</td>
-                      <td className="text-left">{p.throughCulvert ? 'Through culvert' : 'Cross-drain candidate'}</td>
+                      <td>{p.depthM > 0 ? n(p.depthM, 2) : '—'}</td>
+                      <td className="text-left">{p.throughCulvert ? 'Through culvert' : 'None'}</td>
                     </tr>
                   ))}
                 </tbody>
               </EngineeringTable>
             ) : (
-              <p className="text-muted-foreground">No ditch collects more than 0.05 ha.</p>
+              <p className="text-muted-foreground">
+                No flow of {n(Math.max(0.05, (LOW_POINT_MIN_CELLS * run.cellM ** 2) / 10_000), 2)} ha or more leaves the
+                road.
+              </p>
             )}
           </section>
           <section aria-label="Culvert sizing">

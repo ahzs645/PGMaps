@@ -19,6 +19,14 @@ async function prepare(page: Page) {
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
 }
 
+async function openProjects(page: Page) {
+  await page.getByRole('button', { name: 'More workspace commands', exact: true }).tap()
+  await page
+    .getByRole('dialog', { name: 'More workspace commands', exact: true })
+    .getByRole('button', { name: 'Project library', exact: true })
+    .tap()
+}
+
 async function seedSavedProjects(page: Page) {
   await page.getByRole('button', { name: 'Save', exact: true }).tap()
   const pending = page.waitForEvent('download')
@@ -102,7 +110,7 @@ test('saved Projects fit touch phones with long terrain labels and keep library 
 }, info) => {
   await prepare(page)
   const names = await seedSavedProjects(page)
-  await page.getByRole('button', { name: 'Projects', exact: true }).tap()
+  await openProjects(page)
   const dialog = page.getByTestId('road-projects-dialog')
   const saved = dialog.getByRole('list', { name: 'Saved projects', exact: true })
   await expect(saved.getByRole('listitem')).toHaveCount(2)
@@ -125,7 +133,7 @@ test('saved Projects fit touch phones with long terrain labels and keep library 
   await expect(saved.getByRole('listitem')).toHaveCount(2)
   await dialog.getByRole('button', { name: `Open ${names[1]} copy`, exact: true }).tap()
   await expect(dialog).not.toBeVisible()
-  await page.getByRole('button', { name: 'Projects', exact: true }).tap()
+  await openProjects(page)
   await expect(saved.getByRole('listitem').filter({ hasText: `${names[1]} copy` })).toContainText('Open now')
   await dialog.getByRole('button', { name: /Browse \d+ example scenarios/ }).tap()
   await expectDialogFits(dialog)
@@ -136,7 +144,7 @@ test('saved Projects fit touch phones with long terrain labels and keep library 
   await dialog.getByRole('radio', { name: /Training example/ }).tap()
   await dialog.getByRole('button', { name: 'Create project', exact: true }).tap()
   await expect(dialog).not.toBeVisible()
-  await page.getByRole('button', { name: 'Projects', exact: true }).tap()
+  await openProjects(page)
   await expect(saved.getByRole('listitem').filter({ hasText: 'Mobile fresh project' })).toContainText('Open now')
 })
 

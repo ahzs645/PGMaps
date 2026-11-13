@@ -159,7 +159,7 @@ describe('plan legend follows rendered data', () => {
         'Design-surface drainage',
         'Redirected flow',
         'New ponding',
-        'Unrelieved low point',
+        'Cross-drain candidate',
         'Drainage review point',
         'Culvert',
         'Culvert · review flags',

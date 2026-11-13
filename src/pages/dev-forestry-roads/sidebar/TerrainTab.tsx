@@ -9,7 +9,6 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, KeyValueRows } from '@/components/ui/map-panels'
 import { RoadSection } from '../SidebarParts'
 import { ConstraintsPanel } from '../ConstraintsPanel'
-import { ReferencePanel } from '../ReferencePanel'
 import { StreamsPanel } from '../StreamsPanel'
 import { TerrainProfilesPanel } from '../TerrainProfilesPanel'
 import { SURFACES, TerrainImportField } from '../SharedRoadFields'
@@ -127,6 +126,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           </Button>
         </div>
         <div className="mt-1 grid">
+          {sourceTool('detailedDem', {})}
           <CommandButton
             id="import"
             surface="sidebar"
@@ -160,15 +160,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         }}
         onImportFile={p.onImportSpatial ? (file) => p.onImportSpatial!(file, 'cutblocks') : undefined}
       />
-      <ReferencePanel
-        workspace={p.workspace}
-        mode={p.mode}
-        onImport={() => p.onFile('reference')}
-        onLocate={p.onLocateReference}
-        focusedId={p.focusedReferenceId}
-        onPegAt={p.onPegAt}
-        onRoadEndAt={p.onRoadEndAt}
-      />
+      {sourceTool('importReference', {})}
       <AccessHistoryPanel
         workspace={p.workspace}
         onLocate={p.onLocateHistory}

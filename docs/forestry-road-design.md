@@ -289,6 +289,10 @@ also available on the map; Map display settings contains **Fit selected road**.
 The all-road Fit control remains available, and existing roads are retained.
 Opening a saved project fits its active road when that road overlaps the terrain.
 
+### Native 1 m detail areas and map relief
+
+**Load 1 m DEM** prepares separate buffered boxes around imported blocks and roads, or the map view. It reads NRCan CanElevation native DTM windows, supports GeoTIFF ZIP downloads and optional nearby active FSR records. Map relief follows the viewport independently of calculation terrain. See [Detail DEM areas](forestry-road-design/detail-dem.md) for coverage, import behaviour and budgets.
+
 ### Regional DEM
 
 Regional Terrarium terrain is a coarse screening fallback, not a LiDAR
@@ -486,19 +490,54 @@ sidecasts, whether or not a site had room, so their totals are the haul summary'
 interval with every column and a `total` row (`stationReportCsv`, `stationReport.ts`); the
 Station CSV in Save carries the same four volumes for every calculated station. Its Columns
 menu shows or hides each column, including optional mass, width and coordinate columns, and
-remembers the choice. The cost dialog states the cost status (current; complete or partial)
-and the process time of the last recalculation, which runs on every edit.
+remembers the choice. The covered estimate table shows the share of road length with complete
+sections beside its total. Both figures update after edits.
 
-The detail pane (section, 3D, mass haul, stations, compare, D-line, pegs,
-quantities, landing, drainage, swept path) is chosen from a combobox labelled **View** in that
-pane's title row (accessible name **Road detail view**), beside its title and any pane action such
-as Section CSV, so the pane spends no row on a tab strip. Section CSV drops to a download icon when
+The detail pane (section, 3D, grade, mass haul, stations, compare, D-line, pegs,
+quantities, landing, drainage, swept path) is chosen from a combobox (accessible name **Road
+detail view**) that stands in the pane's title, through `FullscreenPanel`'s `heading`: the picker's
+value already names the view, so the title stays only as the pane's accessible name, a visually
+hidden heading and the detached window's title. Pane actions such as Section CSV follow it in the
+same row, so the pane spends no row on a tab strip. Section CSV drops to a download icon when
 the pane is narrower than 34 rem: the panel is an inline-size container, so it follows the pane, not
 the window. The section's Hold scale, Pin and Use this section for… are in its **Section view
 options** popover in the same row. The hydrology tools (streams, ponding,
 drain to point, watersheds) are the **Drainage** view. Engineering → Drainage, where culverts are
 entered, links to it with **Drainage check: streams, ponds, catchments**, and the view links back
 with **Culvert inputs**. The mass-haul view explains the term behind an (i).
+
+The **Grade** view (`gradeDiagram.ts`, `GradeChart`; ribbon Road → Design criteria → **Grade along
+road**) plots grade against chainage. The design grade is a step over the interval each station's
+grade describes (`gradeSpanOf`), the interval the grade standard measures a pitch on, so its red
+(over the standard) and amber (short pitch allowed) bands are `reviewGrades`' stations, the
+Review's grade row. The ground grade is a chord between calculated stations at least
+`GROUND_GRADE_CHORD_M` (12 m, the ground-trend window) apart, never interpolated between them: a
+0.5 m interval beside an event station would otherwise read micro-relief as a steep pitch. A
+chord over missing terrain is unknown and hatched, never zero. Dashed lines mark the sustained
+limit each way (favourable and adverse once a loaded direction and adverse limit are set), and a
+dotted amber line the short-pitch allowance where it is above them. With no profile designed the
+road follows the ground and is judged on its grade between stations, as the Review does. On a
+terrain profile it shows the ground grade and judges nothing.
+
+The grade chart's options button (**Grade chart options**, in the pane header) turns on a **rolling
+average** (`rollingGrade`, settings in `GradeAverageOptions.tsx`): the length-weighted mean grade
+over a window centred on each interval, which over complete ground is the rise across the window
+divided by its length. Its parameters are the line it averages (ground, design or both), the window
+(`GRADE_AVERAGE_LIMITS`, 12–1,000 m, default 50 m, presets 25/50/100/200 m) and the minimum known
+share of a window (default 50 %): below it the average is unknown, so a terrain gap is never smoothed
+over. The window is cut to the road at its ends. The average is a display aid kept in this browser
+(`pgmaps-road-grade-average`) and shared by every grade chart on the page; it never reaches the
+project, the grade standard, the red stretches or the Review. Shift-click measuring on the grade chart
+prints the same average ground slope and formation grade as on the profile (`averageSlopePercent`).
+
+The profile pane's title is a picker too (accessible name **Road profile view**, `roadProfileViews`):
+**Profile**, **Profile + grade**, where a grade strip under the profile takes the profile's zoom and
+station and leaves its readouts to the profile, and **Grade** alone. In **Profile + grade** the two
+charts share one station axis: the profile leaves out its labels and title (`hideXAxis`, a 6 px frame
+bottom) and the strip's axis serves both, so their plots line up pixel for pixel. A Shift-click
+measurement is one selection across both (`sharedMeasurement`): drawn on each plot, read out once,
+on the profile, with its average ground slope and formation grade. The choice is kept in this
+browser (`pgmaps-road-profile-view`).
 
 Deleting a road shows the road beside it in the list, not the first one, and a notice in the
 notification stack names the deleted road and the one now shown, with **Undo** (`roadLifecycle.ts`).
@@ -544,6 +583,28 @@ or a long road zoomed out), the profile drops curve bands and labels, thins stat
 to 30 px apart and shrinks the PVI handles. Zooming in brings them back. The mouse wheel or a
 trackpad pinch zooms about the pointer's chainage, and a horizontal scroll or Shift+wheel
 pans, without scrolling the page. The mass chart and bands follow the same range.
+
+**Measure on a graph.** Shift-click two points, or hold Shift and drag across a span, on the
+road/terrain profile, cross-section, mass-haul or D-line graph. A shaded span and dimension
+line mark the selection; the floating readout gives its **horizontal distance** in metres and
+the two stations (offsets in a section, distances on a D-line). This is the difference on the
+distance axis, not a slope length or a length measured off the vertically exaggerated picture.
+Elevation graphs also show **Avg ground slope**, with **Avg formation grade** on a road profile
+and **Avg formation slope** on a cross-section. These are signed net elevation change divided
+by horizontal distance. When ground and formation averages match to the displayed 0.1 %, they
+share one **Avg slope** line; different or unknown readings retain their separate labels.
+The averages can match even where the two lines differ between the selected endpoints.
+Slopes are measured toward increasing station or offset, with endpoints interpolated from
+the plotted samples (`chartSlope.ts`). They are distance-weighted net slopes, not averages of
+sample grades or absolute slopes. A zero-length selection, missing endpoint or gap in that
+line leaves its slope unknown (—); one unknown line does not hide the other's reading. The
+mass-haul graph has a volume axis and reports distance only.
+Zooming or changing vertical exaggeration keeps the reading. Shift-click again to start a new
+measurement; **×** or Escape clears it. Measuring never moves the selected station or edits the
+road. Changing the road clears its measurement; stepping to another section clears that
+section's. The profile's PVI/tangent handles keep their editing gestures, **Use this section
+for…** keeps its range picker, and an open D-line support editor keeps Shift-drag for no-support
+sectors (close it to measure). `ChartMeasurement.tsx` owns the temporary selection and readout.
 
 Click or drag the connected profile data bands to inspect stations in all linked views.
 Mouse and touch gestures capture the pointer and keep the starting visible range fixed;
@@ -1118,7 +1179,10 @@ percentage of budget completeness is inferred.
 
 **BC cost references.** **BC references** opens a dialog over the estimate whose regional browser covers all eight natural
 resource regions with dated primary sources, local material lists and explicit
-quote gaps. The [BC cost evidence guide](forestry-road-design/bc-cost-evidence.md)
+quote gaps. Its **Evidence** tab holds the wider catalogue (supplier prices, contract
+awards, project costs, tender averages and worked estimates from BC and beyond), each
+record in its own currency, unit and price year and none written to a rate. The
+[BC cost evidence guide](forestry-road-design/bc-cost-evidence.md)
 records the source inventory, unit-basis cautions and remaining calculation work.
 The 2026 Interior and Coast appraisal comparisons use their published **2024 cost
 base**, separately from the itemized total. Neither is an automatic regional
@@ -1398,14 +1462,23 @@ on the ground as it is with flow on the ground the road leaves behind.
    full Priority-Flood, preservation, or whole-basin depth-limited filling. Potential spill
    storage remains a separate diagnostic under every policy. D8 directions are set,
    contributing area is accumulated and streams are extracted from the entered threshold
-   (1 ha by default).
+   (1 ha by default). Each flow line records `thresholdRatio` and `widthCells`: its own
+   contributing area over the threshold and over its longest flow path, measured at its last
+   cell before the confluence it ends on, so a strip running into a ditch is not read as the
+   ditch.
 4. **Compare** (`analyzeDrainage`):
    - _Stream crossings._ For every existing-ground stream that enters the footprint, it
      finds where the same water leaves on the design surface. Water carried more than
      20 m along the road without passing a culvert is "redirected": the road turns the
      stream down its ditch.
-   - _Ditch low points._ Places where at least 0.05 ha of design flow leaves the prism or
-     ponds, with the culvert that carries it or "cross-drain candidate".
+   - _Cross-drain candidates._ Places where design flow of at least 0.05 ha, and at least four
+     cells (`LOW_POINT_MIN_CELLS`), leaves the prism or ponds against it. Outlets within 40 m of
+     the last along the road, on either side, are one site (`crossDrainSiteGroups`,
+     `CROSS_DRAIN_SITE_M`, the same distance route comparison prices a cross-drain by), with the
+     stretch it spans, its largest outlet and the culvert that carries it if any. Flow a culvert
+     carries never joins a site with flow it does not. On cells coarser than 2 m
+     (`DITCH_DETAIL_CELL_M`) the ditch is narrower than a cell, so candidates are a screen: the
+     panel says so and Review reads its row as not assessed rather than counting them.
    - _New ponding._ Groups of cells filled more than 0.05 m deep on the design surface
      where the existing ground did not pond.
    - _Culvert sizing._ Each culvert's catchment on both surfaces, the Rational-method peak
@@ -1414,12 +1487,14 @@ on the ground as it is with flow on the ground the road leaves behind.
 
 Rainfall intensity (50 mm/h by default), runoff C (0.35, forested hillside), pipe Manning n
 (0.024, corrugated steel), stream threshold and buffer are editable. On the plan, design
-streams are solid blue, widening with area, and existing streams are dashed. Redirected
-crossings are red lines from entry to exit, low points without a culvert amber, and new
-ponds small blue dots. The page keeps one run per road. A run is stale when that road's
+streams are solid blue, widening with area, and existing streams are dashed; zoomed out only the
+larger, convergent flow lines are drawn and the rest fade in by zoom 16 (`STREAM_ZOOM_STOPS`).
+Redirected crossings are red lines from entry to exit, and new ponds small blue dots. A
+cross-drain candidate without a culvert is a yellow sleeve along the road over its stretch, with
+a dashed yellow line across the road at its largest outlet from zoom 14.5 (`crossDrainMarks.ts`). The page keeps one run per road. A run is stale when that road's
 alignment, the road settings, the terrain or a drainage input changes; edits to other
 alternatives do not stale it. A stale run stays in the panel with a notice but is not drawn on
-the plan, whose header then reads "Drainage out of date · re-run it to show flow". The
+the plan. The
 project saves drainage inputs and compact, fingerprinted review evidence (run date, source/datum,
 crossing and culvert metrics, catchment/watershed polygons and warnings). Full grids are not saved,
 since they recompute in seconds and hold tens of megabytes. Older projects use browser input
@@ -1676,8 +1751,13 @@ terrain-fit and zoom buttons use the same 32 × 32 px size as Map display settin
   the document has no scripts or network resources.
 
 The UI imports GeoJSON, zipped shapefiles, KML and KMZ through one reader
-(`spatialImport.ts`) for every picker: road lines, streams, cutblocks, existing
-roads and reference layers. It reprojects from the file's CRS, keeps feature
+(`spatialImport.ts`) for road lines, streams, cutblocks, existing roads and
+reference layers. [Company source-map PDFs](forestry-road-design/source-pdf-import.md) also
+provide georeferenced drawings, canopy/slope class grids with point queries and block summaries
+(exact not-drawn splits, JPEG estimates kept apart), and terrain from labelled contours, entirely in
+the browser. [Another company's sheets](forestry-road-design/map-pdf-profiles.md) need a profile.
+The plan's **Layers** pane also takes folders of shapefile
+parts. It reprojects from the file's CRS, keeps feature
 names, and asks what features are when neither the picker nor the file settles
 it; see [Bringing spatial files in](forestry-road-design/exports-and-project-files.md#bringing-spatial-files-in).
 Every imported feature then passes the same geometry validation a project file

@@ -124,6 +124,24 @@ describe('the section view tools', () => {
     expect(probe.current!.tools.pinnedStation).toBeUndefined()
   })
 
+  it('keeps Hold scale and Whole-road scale exclusive, and remembers Whole-road scale', () => {
+    const storage = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => void storage.set(key, value),
+    })
+    const view = mount()
+    view.click(/^Hold scale$/)
+    view.click(/^Whole-road scale$/)
+    expect(probe.current!.tools.roadScale).toBe(true)
+    expect(probe.current!.tools.holdScale).toBe(false)
+    expect(view.button(/^Whole-road scale$/).props['aria-pressed']).toBe(true)
+    expect(storage.get('pgmaps-road-section-whole-road-scale')).toBe('1')
+    view.click(/^Hold scale$/)
+    expect(probe.current!.tools.roadScale).toBe(false)
+    expect(storage.get('pgmaps-road-section-whole-road-scale')).toBe('0')
+  })
+
   it('states the pinned outline’s shift beside Unpin, where the compact pane shows it', () => {
     const view = mount()
     view.click(/^Pin this section$/)

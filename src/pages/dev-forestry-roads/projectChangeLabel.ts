@@ -31,6 +31,7 @@ const PROJECT_FIELDS: Partial<Record<keyof RoadProject, string>> = {
   name: 'Renamed project',
   terrain: 'Terrain',
   settings: 'Design settings',
+  rateEvidence: 'Rate sources',
   standards: 'Design standards',
   issue: 'Issue stamp',
   vehicleLibrary: 'Vehicle library',
@@ -48,6 +49,7 @@ const PROJECT_FIELDS: Partial<Record<keyof RoadProject, string>> = {
   surveyBooks: 'Survey books',
   notes: 'Map notes',
   reference: 'Reference features',
+  cutblockBuffers: 'Cutblock buffers',
   accessHistory: 'Access history',
   harvestHistoryYear: 'Harvest year',
 }

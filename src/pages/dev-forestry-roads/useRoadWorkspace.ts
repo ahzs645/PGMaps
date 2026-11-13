@@ -39,6 +39,24 @@ import { describeProjectChange } from './projectChangeLabel'
 const training = () => new URLSearchParams(location.search).get('example') === 'training'
 
 export function useRoadWorkspace() {
+  const [trainingSession, setTrainingSession] = useState(training)
+  const trainingRef = useRef(trainingSession)
+  /** Opening a project or importing data adopts it into normal browser persistence. */
+  const leaveTraining = useCallback(() => {
+    if (!trainingRef.current) return
+    trainingRef.current = false
+    setTrainingSession(false)
+    const query = new URLSearchParams(location.search)
+    if (query.get('example') === 'training') {
+      query.delete('example')
+      const search = query.toString()
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `${location.pathname}${search ? `?${search}` : ''}${location.hash}`,
+      )
+    }
+  }, [])
   const [project, setProject] = useState(createDemoProject)
   const current = useRef(project)
   const [source, setSource] = useState<TerrainSource>(demoTerrain)
@@ -87,6 +105,7 @@ export function useRoadWorkspace() {
   const [openedCount, setOpenedCount] = useState(0)
   const [library, setLibrary] = useState<LibraryEntry[]>([])
   const libraryRef = useRef(library)
+  const libraryLoaded = useRef(false)
   libraryRef.current = library
   const history = useRef<History<RoadProject>>(emptyHistory())
   // Named states to return to within the session (`undoHistory.ts`); cleared when another project opens.
@@ -172,6 +191,7 @@ export function useRoadWorkspace() {
       }
       if (!terrain) throw Error('This project needs its original terrain. Import its GeoTIFF before reopening.')
       if (signal?.aborted) return
+      leaveTraining()
       setSource(terrain)
       lastValidInputs.clear()
       commit(next, false)
@@ -180,17 +200,18 @@ export function useRoadWorkspace() {
       gesture.current = null
       setCheckpoints([])
       setOpenedCount((count) => count + 1)
-      if (!training()) setProjectId(id)
+      setProjectId(id)
       setCanPersist(true)
       setFileSaved(null)
       setBrowserSave({ kind: 'pending' })
       setExampleStart(false)
     },
-    [commit, setProjectId, lastValidInputs],
+    [commit, setProjectId, lastValidInputs, leaveTraining],
   )
   /** Makes an already-built project the open one, in a new library slot. */
   const startProject = useCallback(
     (next: RoadProject, terrain: TerrainSource) => {
+      leaveTraining()
       setSource(terrain)
       lastValidInputs.clear()
       commit(next, false)
@@ -200,13 +221,13 @@ export function useRoadWorkspace() {
       gesture.current = null
       setCheckpoints([])
       setOpenedCount((count) => count + 1)
-      if (!training()) setProjectId(crypto.randomUUID())
+      setProjectId(crypto.randomUUID())
       setCanPersist(true)
       setFileSaved(null)
       setBrowserSave({ kind: 'pending' })
       setExampleStart(false)
     },
-    [commit, setProjectId, lastValidInputs],
+    [commit, setProjectId, lastValidInputs, leaveTraining],
   )
 
   useEffect(() => {
@@ -215,13 +236,14 @@ export function useRoadWorkspace() {
     async function open() {
       try {
         // ?example=training is a deliberate, network-free teaching/testing mode.
-        if (training()) {
+        if (trainingRef.current) {
           setCanPersist(true)
           return
         }
         let saved: RoadProject | undefined, savedId: string | null, savedAt: number | null
         try {
           const stored = await readLibrary()
+          libraryLoaded.current = true
           setLibrary(stored.entries)
           savedId = stored.entries.some((e) => e.id === stored.activeId)
             ? stored.activeId
@@ -270,7 +292,18 @@ export function useRoadWorkspace() {
 
   const persist = useCallback(
     async (value: RoadProject) => {
-      if (training()) return writeTraining(value)
+      if (trainingRef.current) {
+        await writeTraining(value)
+        return 'training' as const
+      }
+      // Training startup leaves the library unread. Read it before the first real save, so
+      // adopting an import cannot replace the list of projects already kept on this device.
+      if (!libraryLoaded.current) {
+        const stored = await readLibrary()
+        libraryRef.current = stored.entries
+        setLibrary(stored.entries)
+        libraryLoaded.current = true
+      }
       // Nothing is open after a startup restore failed; the explicit action that enabled saving
       // starts a new slot, so the save that could not be restored is never overwritten.
       let id = projectIdRef.current
@@ -279,6 +312,7 @@ export function useRoadWorkspace() {
         setProjectId(id)
       }
       setLibrary(await writeProject(id, value, libraryRef.current))
+      return 'saved' as const
     },
     [setProjectId],
   )
@@ -289,13 +323,14 @@ export function useRoadWorkspace() {
       setBrowserSave((previous) => (previous.kind === 'saved' ? previous : { kind: 'saving' }))
       try {
         persist(parseProject(project))
-          .then(() => {
+          .then((kind) => {
+            if (current.current !== project || (kind === 'training' && !trainingRef.current)) return
             setSaving(
-              training()
+              kind === 'training'
                 ? 'Training session saved · reload starts fresh; download to keep edits'
                 : 'Saved on this device',
             )
-            setBrowserSave({ kind: training() ? 'training' : 'saved', at: Date.now() })
+            setBrowserSave({ kind, at: Date.now() })
           })
           .catch(() => {
             setSaving('Local save unavailable — download your project')
@@ -308,7 +343,7 @@ export function useRoadWorkspace() {
       }
     }, 650)
     return () => window.clearTimeout(timer)
-  }, [project, ready, canPersist, busy, error, persist])
+  }, [project, ready, canPersist, busy, error, persist, trainingSession])
 
   /** Saves the open project now, so switching away never loses the last edits. */
   const flush = useCallback(async () => {
@@ -350,45 +385,45 @@ export function useRoadWorkspace() {
     [projectId],
   )
 
-  // Every edit recalculates every alternative; the time is reported as the cost process time.
+  // Every edit recalculates every alternative.
   const investigation = isAccessInvestigation(project)
   const referenceSurfaces = useMemo(() => terrainReferenceSurfaces(project.terrain), [project.terrain])
-  const { analyses, processMs } = useMemo(() => {
-    const started = performance.now()
-    const analyses = new Map(
-      project.alignments.map((a): [string, RoadAnalysis] => [
-        a.id,
-        investigation || a.id === project.designPlaceholderId
-          ? investigationAnalysis()
-          : safeAnalyzeRoad(
-              a,
-              source,
-              project.settings,
-              project.context,
-              {
-                referenceSurfaces,
-                verticalReference: project.terrain.verticalReference,
-                sharedCrossingCosts: project.sharedCrossingCosts,
-                gradeStandards: project.standards,
-              },
-              lastValidInputs.get(a.id),
-            ),
-      ]),
-    )
-    return { analyses, processMs: performance.now() - started }
-  }, [
-    lastValidInputs,
-    project.alignments,
-    investigation,
-    project.designPlaceholderId,
-    project.settings,
-    project.context,
-    source,
-    referenceSurfaces,
-    project.terrain.verticalReference,
-    project.sharedCrossingCosts,
-    project.standards,
-  ])
+  const analyses = useMemo(
+    () =>
+      new Map(
+        project.alignments.map((a): [string, RoadAnalysis] => [
+          a.id,
+          investigation || a.id === project.designPlaceholderId
+            ? investigationAnalysis()
+            : safeAnalyzeRoad(
+                a,
+                source,
+                project.settings,
+                project.context,
+                {
+                  referenceSurfaces,
+                  verticalReference: project.terrain.verticalReference,
+                  sharedCrossingCosts: project.sharedCrossingCosts,
+                  gradeStandards: project.standards,
+                },
+                lastValidInputs.get(a.id),
+              ),
+        ]),
+      ),
+    [
+      lastValidInputs,
+      project.alignments,
+      investigation,
+      project.designPlaceholderId,
+      project.settings,
+      project.context,
+      source,
+      referenceSurfaces,
+      project.terrain.verticalReference,
+      project.sharedCrossingCosts,
+      project.standards,
+    ],
+  )
   // Remember what calculated, after the render that calculated it, for the next invalid edit. While
   // an input is invalid that is the set the results used: the valid edits made since are in it, so
   // a second invalid edit falls back to them and not to an older state.
@@ -485,7 +520,6 @@ export function useRoadWorkspace() {
     /** The active road with the inputs `analysis` was calculated from; `alignment` unless an input is invalid. */
     calculatedAlignment,
     analyses,
-    processMs,
     station,
     setStation,
     featureSelection,
@@ -503,7 +537,11 @@ export function useRoadWorkspace() {
     openProject,
     duplicateProject,
     removeProject,
-    enablePersistence: () => setCanPersist(true),
+    enablePersistence: () => {
+      leaveTraining()
+      setBrowserSave({ kind: 'pending' })
+      setCanPersist(true)
+    },
     ready,
     setSource,
     busy,

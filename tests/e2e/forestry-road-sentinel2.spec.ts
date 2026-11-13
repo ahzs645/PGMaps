@@ -13,7 +13,10 @@ const EARLIER = 'S2B_10UEE_20190814_0_L2A',
 
 // The training example's terrain is the demo grid; the stubbed COGs cover its read window in UTM 10N
 // at 40 m, so every request the page makes lands inside them.
-const window = sceneWindow(DEMO_BOUNDS, 32610)
+const window = sceneWindow(
+  [DEMO_BOUNDS[0] - 0.1, DEMO_BOUNDS[1] - 0.1, DEMO_BOUNDS[2] + 0.1, DEMO_BOUNDS[3] + 0.1],
+  32610,
+)
 const PIXEL = 40
 const width = Math.ceil((window.bbox[2] - window.bbox[0]) / PIXEL),
   height = Math.ceil((window.bbox[3] - window.bbox[1]) / PIXEL)
@@ -88,6 +91,8 @@ function serveCog(route: Route) {
 async function open(page: Page, search: { failing: boolean }) {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
+  await page.route('https://s3.amazonaws.com/elevation-tiles-prod/**', (route) => route.abort())
+  await page.route('https://datacube.services.geo.ca/**', (route) => route.abort())
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
@@ -116,8 +121,8 @@ async function toggleFromRibbon(page: Page) {
 }
 
 /** The plan map's own state: the imagery layer, its place in the stack and its credit. */
-async function imagery(page: Page) {
-  return page.evaluate(() => {
+async function imagery(page: Page, camera?: { center: [number, number]; zoom: number }) {
+  return page.evaluate((camera) => {
     const container = document.querySelector('[data-testid="road-plan-view"] .maplibregl-map')
     const key = container && Object.keys(container).find((name) => name.startsWith('__reactFiber$'))
     if (!container || !key) return null
@@ -131,10 +136,14 @@ async function imagery(page: Page) {
         const map =
           value && typeof value === 'object' && 'current' in value ? value.current : (value as Map | undefined)
         if (typeof map?.getTerrain !== 'function') continue
+        if (camera) map.jumpTo({ ...camera, pitch: 0, bearing: 0, roll: 0 })
         const ids = (map.getStyle().layers ?? []).map((layer) => layer.id)
         const source = map.getSource('road-sentinel2') as { attribution?: string; type?: string } | undefined
         return {
           layer: !!map.getLayer('road-sentinel2'),
+          quad: (source as { coordinates?: number[][] } | undefined)?.coordinates ?? null,
+          regional: !!map.getLayer('road-regional-hillshade'),
+          hrdem: !!map.getLayer('road-hrdem-relief'),
           type: source?.type ?? null,
           belowContours:
             ids.indexOf('road-sentinel2') >= 0 && ids.indexOf('road-sentinel2') < ids.indexOf('road-contours'),
@@ -146,7 +155,7 @@ async function imagery(page: Page) {
       }
     }
     return null
-  })
+  }, camera)
 }
 
 test('Sentinel-2 imagery: the ribbon toggle adds the layer under the road, lists scenes and dates a clearing as an interval', async ({
@@ -206,4 +215,33 @@ test('Sentinel-2 imagery: a failed search states why and retries', async ({ page
   await panel.getByRole('button', { name: 'Retry', exact: true }).click()
   await expect(panel.getByRole('list', { name: 'Sentinel-2 scenes' }).getByRole('listitem')).toHaveCount(2)
   await expect.poll(async () => (await imagery(page))?.layer).toBe(true)
+})
+
+test('Sentinel follows the settled view, pauses below z12, and reuses a previously visited area', async ({ page }) => {
+  const searches: number[][] = []
+  page.on('request', (request) => {
+    if (request.url().includes('earth-search') && request.method() === 'POST')
+      searches.push(request.postDataJSON().bbox)
+  })
+  const errors = await open(page, { failing: false })
+  await imagery(page, { center: [-122.71, 53.895], zoom: 10 })
+  await toggleFromRibbon(page)
+  await expect(page.getByTestId('road-sentinel2-panel')).toContainText('Zoom in to level 12')
+  await page.waitForTimeout(1100)
+  expect(searches).toHaveLength(0)
+  await imagery(page, { center: [-122.71, 53.895], zoom: 14 })
+  await expect.poll(() => imagery(page)).toMatchObject({ layer: true, regional: true, hrdem: true })
+  expect(searches).toHaveLength(1)
+  const first = (await imagery(page))!.quad
+  await imagery(page, { center: [-122.65, 53.94], zoom: 14 })
+  await expect.poll(() => searches.length).toBe(2)
+  await expect.poll(async () => (await imagery(page))?.quad).not.toEqual(first)
+  await expect.poll(async () => (await imagery(page))?.layer).toBe(true)
+  expect(searches[1][0]).toBeGreaterThan(searches[0][0])
+  await imagery(page, { center: [-122.71, 53.895], zoom: 14 })
+  await expect.poll(async () => (await imagery(page))?.quad).toEqual(first)
+  expect(searches).toHaveLength(2)
+  await imagery(page, { center: [-122.71, 53.895], zoom: 10 })
+  await expect.poll(async () => (await imagery(page))?.layer).toBe(false)
+  expect(errors).toEqual([])
 })

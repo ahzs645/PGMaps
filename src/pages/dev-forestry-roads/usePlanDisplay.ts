@@ -19,10 +19,12 @@ export function usePlanDisplay() {
   const [notesOpen, setNotesOpen] = useState(false)
   // Sentinel-2 imagery reads from the network, so it starts off.
   const [showSentinel, setShowSentinel] = useState(false)
+  const [showHrdem, setShowHrdem] = useState(true)
   const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
   const fit = (target: FitRequest['target']) =>
     setFitRequest((previous) => ({ revision: previous.revision + 1, target }))
   return {
+    navigationMap,
     setNavigationMap,
     zoom,
     terrainLayer,
@@ -41,6 +43,8 @@ export function usePlanDisplay() {
     setNotesOpen,
     showSentinel,
     setShowSentinel,
+    showHrdem,
+    setShowHrdem,
     fitRequest,
     fit,
   }

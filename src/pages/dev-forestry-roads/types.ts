@@ -1,4 +1,5 @@
 import type { StreamAssessment } from './streamClass'
+import type { PdfSource, SourceAttributes } from '@/lib/geoPdf/types'
 import type { CrossingCostItem, CrossingEstimate, StreamCrossingRecord } from './crossingPlanTypes'
 import type { ConstraintPolicy } from './constraints'
 import type { ProvincialStreamData, ProvincialStreamSource } from './provincialStreamData'
@@ -317,6 +318,10 @@ export interface ContextFeature {
   id: string
   name: string
   kind: 'stream' | 'avoid' | 'existing-road' | 'harvest'
+  /** Relative source path of a cutblock added through the Layers pane. */
+  layerSource?: string
+  attributes?: SourceAttributes
+  pdfSource?: PdfSource
   geometry: GeoJSON.LineString | GeoJSON.Polygon
   /** Required before source Z can anchor an engineering section; must match project terrain. */
   referenceVerticalDatum?: string
@@ -485,6 +490,11 @@ export interface RoadProject {
   alignments: Alignment[]
   terrain: TerrainMetadata
   settings: RoadSettings
+  /**
+   * The evidence record a rate in `settings` was adopted from, as it was read, with the reason for
+   * any difference (`costEvidence/rateAdoption.ts`). Written only by a confirmed adoption.
+   */
+  rateEvidence?: import('./costEvidence/rateAdoption').RateEvidence
   /** What the roads are designed to. Grade and radius limits themselves stay in `settings`. */
   standards?: import('./designStandards').DesignStandards
   /** Printed on the report and every plot-book sheet: author, organisation, revision and date. */
@@ -517,6 +527,8 @@ export interface RoadProject {
   notes?: import('./mapNotes').MapNote[]
   /** Imported points, lines and areas kept as reference: drawn and listed, read by no calculation. */
   reference?: import('./referenceFeatures').ReferenceFeature[]
+  /** Optional display buffer settings for imported cutblock layers. */
+  cutblockBuffers?: import('./cutblockBuffers').CutblockBuffer[]
 }
 export interface SectionSample {
   offset: number

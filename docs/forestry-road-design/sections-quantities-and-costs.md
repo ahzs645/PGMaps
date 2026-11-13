@@ -13,7 +13,7 @@ the optional delivered-cost borrow/waste allocation.
 
 ## Before you rely on a quantity or cost
 
-- **Complete sections = 100 %.** The headline tile and the cost dialog subtitle show the share of
+- **Complete sections = 100 %.** The headline tile and the cost table's total row show the share of
   road length with complete sections. Below 100 %, every quantity and cost is a _covered
   subtotal_: missing intervals count as nothing, not as an average. Never compare a partial total
   with a complete one.
@@ -22,8 +22,37 @@ the optional delivered-cost borrow/waste allocation.
   slopes, flat batters or a grade line far above or below the ground, a batter can still be in the
   air (or underground) where the reach ends. The station is then flagged "batter runs past the
   N m section reach", drawn as a red dashed band out to the reach on the plan, and left out of
-  quantities. The Design and Review tabs say which stations and offer **Extend reach to 100 m**;
-  if it still does not close, the line needs to come closer to the ground.
+  quantities. The Review list leads with them as one row (`sectionFixes.ts`, drawn by
+  `CheckCard` like every Review check): folded, the count, the side slopes against the batter and
+  the leading fix; opened, each stretch with its fixes and the buttons. A batter steeper than the
+  ground meets it farther out, so **Reach N m** is offered with the reach that closes every such
+  stretch. One no steeper never meets it, whatever the reach. From a 60 % side slope
+  (`FULL_BENCH_SIDESLOPE_PERCENT`, a screen, not a BC rule: loose sidecast fill is near its limit
+  there) a full bench with end haul leads. **Full bench on N stretches** (`fullBench.ts`) lowers
+  the formation until the downhill edge and the ditch it gains are 0.1 m into the hill, easing in
+  and out at no more than 4 % extra grade; a road that followed the ground gets a PVI at every
+  station at the level it had, so nothing else moves, and the surplus cut shows in the mass haul as
+  end haul. Its grade line keeps only the PVIs it needs to stay within 0.2 m of the formation it
+  replaces (`PROFILE_TOLERANCE_M`), and never above a benched station's level. On the reference road (22 m regional terrain) it closed all 70 sections, lowering up to 3.1 m
+  over 1,257 m: cut/fill 44,597 / 6,303 m³ against 18,671 / 16,392 m³ with the 1:1 fill.
+  **Compare best and worst case** (`terrainCases.ts`) works both out without changing the road
+  and sets them beside the road as it is: best case, the ground under the drawn line is no
+  steeper than a 1:1 fill can take (1:1 fill, and the reach that closes the converging
+  stretches); worst case, it is as steep as the terrain shows (every fill stretch benched). It is
+  the range to quote until terrain that resolves the side slopes is loaded. Its balance is the
+  road's own (usable cut less fill), and an estimate with a surplus but no haul or waste charge is
+  starred: no end-haul or waste rate is entered. A last column, **≤N% grade**
+  (`designedGradeCase`), fits a grade line inside the project's grade limits with the profile
+  optimizer, widening its band from the ground (5, 10, 20 m) until one fits, then gives the 1:1
+  fill to stretches that still do not close. It answers a different question from the two cases
+  and can cost the most: on the reference road holding 12 % took cuts up to 10 m, 101,841 m³ of cut and
+  $1.81 M against $0.64–0.87 M, because the line was drawn on LiDAR, not on this terrain. **1:1 fill on N
+  stretches** steepens the failing side to 1:1 from the station before each stretch to the station
+  after, joining stretches less than 50 m apart so the toe does not step back and forth; it closes
+  the sections for quantities but is not a design until the fill is confirmed to stand at 1:1
+  (one undo step; a stretch that already has ranges is left to **Use this section for…**). On
+  coarse terrain **Find 1 m terrain…** opens Load 1 m DEM on the road. From the moment a road
+  opens, a header badge counts its incomplete sections and opens Review at the row.
 - **A vertical alignment exists.** Without one, the formation follows the sampled centreline
   ground, so cut and fill come only from crossfall, ditches and batters.
 - **The right template at each station.** Check the template band on the profile and the section
@@ -65,6 +94,7 @@ the optional delivered-cost borrow/waste allocation.
 | Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                                     | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                    | Dip stops at 4 m                                                                 |
 | Material inputs                      | rate 0–10,000 $/bank m³ (shallow-rock and overbreak rates too), reusable 0–1, compaction 0.1–2                                            | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`     | Field clamps; file rejected; calculation error                                   |
 | Template rock cut                    | batter 0.1–10 H:V, ledge 0–10 m, blasting depth 0–5 m, blasting fall −20–50 %, drainage fall −100–0 %, shallow depth 0–20 m               | `rockExcavation.ts` `ROCK_CUT_LIMITS` ([rock excavation](rock-excavation.md)) | Invalid input left out; file rejected                                            |
+| Adopted rate from an evidence record | above 0 to 10,000 CAD per unit; reason 8–500 characters unless the record's own figure is kept                                            | `costEvidence/rateAdoption.ts` `adoptionProblems`, `parseRateEvidence`        | Save stays disabled and says why; file rejected                                  |
 | Reusable cut factor                  | 0.1–2                                                                                                                                     | `sidebar/ReviewTab.tsx`, `project.ts` `parseSettings`                         | Field clamps; file rejected                                                      |
 | Horizon depths                       | 0–1,000 m below ground, bottom below top; where two overlap in station and depth the later one replaces the earlier                       | `groundHorizons.ts` `MAX_HORIZON_DEPTH_M`, `resolveHorizons`                  | Error for a depth out of range; overlaps are resolved and saved as entered       |
 | Material section work                | 15,000,000 section-sample × layer pairs                                                                                                   | `engineering.ts` `calculateEngineering`                                       | Calculation error                                                                |
@@ -307,7 +337,7 @@ zero whose rate is zero: stripping and excavation by material, fill placement, s
 clearing, borrow supply and waste disposal, overhaul and endhaul distance, and culverts with no
 installed cost. No rate is assumed for them; the amount stays zero. Each is named with its
 quantity ("1,795 bank m³ of stripping (Stripped overburden) has no rate") in a warning above the
-cost table, its row reads **No rate** in place of $0.00, the dialog's status line counts them and
+cost table, its row reads **No rate** in place of $0.00, and
 the headline tile reads **Estimate · N unpriced**. This matters because adding unpriced work
 can lower the total: **Add stripping range** creates its material at $0, so stripping moves
 excavation off a priced line onto an unpriced one. Free haul inside the free-haul distance,
@@ -316,8 +346,17 @@ is `unpriced` on `assessCostReadiness`, which builds the zero-rate review flags 
 
 **Regional evidence and rate tools.** The BC reference browser links all eight regions
 to current manual editions and primary supplier sources. Missing public prices remain
-quote-required. Separate Interior subgrade and Coast bundled-road comparisons retain
-their 2024 cost base and explicit applicability limits; they never replace the road's
+quote-required. Its evidence catalogue lists supplier prices, awards, project costs,
+tender averages and worked estimates from BC and beyond, each in its own currency, unit
+and price year; none is converted or averaged, and browsing writes nothing. **Use for a
+project rate** under a record adopts it into the cut, fill, surfacing or clearing rate:
+you confirm the specification matches, type the rate yourself and give a reason for any
+difference, and the project keeps the record beside the rate. The rate's row then reads
+_Rate adopted from_ with the record's own amount, **Rate sources** under the table gives
+the source, date and reason, and the report prints the same under _Cost assumptions_. A
+rate edited afterwards says so instead of passing as the record's figure. Separate Interior
+subgrade and Coast bundled-road comparisons retain their 2024 cost base and explicit
+applicability limits, and state what each allowance covers; they never replace the road's
 unit rates. Download their JSON to retain temporary comparison inputs. The conversion
 tools require an entered density or loose-to-compacted factor, full truck cycle and
 payload, or net crew productivity as appropriate. See
@@ -357,26 +396,28 @@ A section or engineering input the engine refuses does not blank the road (`safe
 
 ## How problems show up
 
-| What you see                                                             | Likely cause                                                                                                                    | What to do                                                                               |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| "Left/Right daylight unresolved: batter runs past the N m section reach" | The formation is too far above (fill) or below (cut) the ground for the batter to close inside the reach; the plan draws it red | Bring the grade line closer to the ground; steepen the batter; **Extend reach to 100 m** |
-| "Left/Right daylight unresolved: extend section or check terrain"        | Ground ran out (no-data) before the batter met it                                                                               | Check terrain coverage; import terrain that covers the corridor                          |
-| "Missing terrain inside the road footprint"                              | A no-data hole under the formation, ditch or batter                                                                             | Fill or replace the terrain; the station stays excluded until then                       |
-| Station table row in amber, flagged "Partial: leaves out N m"            | The row's road holds incomplete sections; the row reports the known part so the rows still add up to the total                  | Fix those sections; choose **Every station** to see which intervals are unknown          |
-| Complete sections below 100 %, tile reads "Covered cut / fill"           | Any of the two flags above, at one or more stations                                                                             | Select flagged stations in the station table; fix before comparing alternatives          |
-| Mass curve is flat and hatched over a length                             | Incomplete sections there: that earthwork is unknown and left out                                                               | Fix those sections; the end balance states how many metres it excludes                   |
-| Dashed line does not return to zero                                      | Borrow or waste with no site capacity; the end-balance line gives the volumes                                                   | Add a site or raise a capacity                                                           |
-| Totals change when you change station spacing                            | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                                 | Use the finer spacing; or add breakpoints with assignments or horizons                   |
-| "Station spacing increased to … m"                                       | Road too long for 3,000 stations at the requested spacing                                                                       | Split the road for site-level quantities                                                 |
-| "The charts, quantities and cost leave out an invalid input"             | A section or engineering input failed validation; the message names the entry, field and allowed range, beside that input       | Correct the input; until then results use its last valid value and every other edit      |
-| "Correct this alignment before calculating: …"                           | The line cannot be calculated, or an input was invalid before any valid result existed                                          | Read the message; quantities are unavailable until it is fixed                           |
-| Both borrow and waste on a road that balances overall                    | Nearest-source order left cut stranded, or a blocked construction range lies between them                                       | Try economic allocation; add sites; treat the allocation as one scenario                 |
-| "Some borrow/waste has no reachable site capacity"                       | No site of that kind on the road, or capacity used up                                                                           | Add a site or raise capacity; until then its haul is not priced                          |
-| Culvert cover or grade shows "—"                                         | An invert missing, terrain missing along the barrel, or daylight unresolved                                                     | Enter both inverts; fix the section at that station                                      |
-| "Barrel is shorter than the centred daylight span"                       | Span less than 2 × the farther daylight / cos(skew)                                                                             | Lengthen the span; check headwalls and skew in the field                                 |
-| Rate preset shows _Custom · this project_                                | A base rate or the reusable cut factor was edited                                                                               | Expected; the source note no longer applies                                              |
-| Overhaul m³·km in the cost dialog smaller than on the Haul tab           | The dialog charges overhaul and endhaul only beyond free haul; the Haul tab's m³·km is over the whole distance                  | Expected; use the dialog's rows for cost, the Haul tab for movement                      |
-| A cost line reads **No rate**, tile reads **Estimate · N unpriced**      | A quantity above zero has a zero rate                                                                                           | Enter the rate, or record where the cost is carried; the total leaves it out             |
+| What you see                                                             | Likely cause                                                                                                                    | What to do                                                                                     |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| "Left/Right daylight unresolved: batter runs past the N m section reach" | The formation is too far above (fill) or below (cut) the ground for the batter to close inside the reach; the plan draws it red | The Design tab's incomplete-section list: rock fill, the reach that closes it, or a full bench |
+| "Left/Right daylight unresolved: extend section or check terrain"        | Ground ran out (no-data) before the batter met it                                                                               | Check terrain coverage; import terrain that covers the corridor                                |
+| "Missing terrain inside the road footprint"                              | A no-data hole under the formation, ditch or batter                                                                             | Fill or replace the terrain; the station stays excluded until then                             |
+| Station table row in amber, flagged "Partial: leaves out N m"            | The row's road holds incomplete sections; the row reports the known part so the rows still add up to the total                  | Fix those sections; choose **Every station** to see which intervals are unknown                |
+| Complete sections below 100 %, tile reads "Covered cut / fill"           | Any of the two flags above, at one or more stations                                                                             | Select flagged stations in the station table; fix before comparing alternatives                |
+| Mass curve is flat and hatched over a length                             | Incomplete sections there: that earthwork is unknown and left out                                                               | Fix those sections; the end balance states how many metres it excludes                         |
+| Dashed line does not return to zero                                      | Borrow or waste with no site capacity; the end-balance line gives the volumes                                                   | Add a site or raise a capacity                                                                 |
+| Totals change when you change station spacing                            | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                                 | Use the finer spacing; or add breakpoints with assignments or horizons                         |
+| "Station spacing increased to … m"                                       | Road too long for 3,000 stations at the requested spacing                                                                       | Split the road for site-level quantities                                                       |
+| "The charts, quantities and cost leave out an invalid input"             | A section or engineering input failed validation; the message names the entry, field and allowed range, beside that input       | Correct the input; until then results use its last valid value and every other edit            |
+| "Correct this alignment before calculating: …"                           | The line cannot be calculated, or an input was invalid before any valid result existed                                          | Read the message; quantities are unavailable until it is fixed                                 |
+| Both borrow and waste on a road that balances overall                    | Nearest-source order left cut stranded, or a blocked construction range lies between them                                       | Try economic allocation; add sites; treat the allocation as one scenario                       |
+| "Some borrow/waste has no reachable site capacity"                       | No site of that kind on the road, or capacity used up                                                                           | Add a site or raise capacity; until then its haul is not priced                                |
+| Culvert cover or grade shows "—"                                         | An invert missing, terrain missing along the barrel, or daylight unresolved                                                     | Enter both inverts; fix the section at that station                                            |
+| "Barrel is shorter than the centred daylight span"                       | Span less than 2 × the farther daylight / cos(skew)                                                                             | Lengthen the span; check headwalls and skew in the field                                       |
+| Rate preset shows _Custom · this project_                                | A base rate or the reusable cut factor was edited                                                                               | Expected; the source note no longer applies                                                    |
+| A rate's row reads _Edited since adopted from…_                          | The rate was changed, by hand or by a preset, after it was adopted from an evidence record                                      | Adopt the record again with the new figure and reason, or **Remove source**                    |
+| A record has no **Use for a project rate** button                        | It is a funding reference, context-only, a municipal fee, a maintenance award, or has no unit or amount                         | Expected; read it as context. See [BC cost evidence](bc-cost-evidence.md)                      |
+| Overhaul m³·km in the cost dialog smaller than on the Haul tab           | The dialog charges overhaul and endhaul only beyond free haul; the Haul tab's m³·km is over the whole distance                  | Expected; use the dialog's rows for cost, the Haul tab for movement                            |
+| A cost line reads **No rate**, tile reads **Estimate · N unpriced**      | A quantity above zero has a zero rate                                                                                           | Enter the rate, or record where the cost is carried; the total leaves it out                   |
 
 ## What it does not do
 

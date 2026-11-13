@@ -8,6 +8,7 @@ import { insetBox } from '@/components/ui/inset-box'
 import { ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { cn } from '@/lib/utils'
 import { formatRoadStation, useChartHeaderControls } from './Charts'
+import { useStoredFlag } from './ProfileValueBands'
 import { pinnedSectionOutline, pinnedShiftLabel, pinnedShiftText } from './sectionFrame'
 import {
   batterMisses,
@@ -25,7 +26,8 @@ const uid = () => crypto.randomUUID()
 const round = (value: number) => Math.round(value * 10) / 10
 
 /**
- * State the section pane shares with the profile: Hold scale, the pinned section, and the range a
+ * State the section pane shares with the profile: Hold scale or Whole-road scale (one at a time; the
+ * second is remembered in this browser), the pinned section, and the range a
  * section is given to, which a drag on the profile can mark. The pin belongs to one road and is
  * dropped when the views show another.
  */
@@ -40,7 +42,16 @@ export function useSectionTools({
   displayedAlignment: Alignment
   analysis: RoadAnalysis
 }) {
-  const [holdScale, setHoldScale] = useState(false)
+  const [holdScale, setHeld] = useState(false)
+  const [roadScale, setRoad] = useStoredFlag('pgmaps-road-section-whole-road-scale')
+  const setHoldScale = (on: boolean) => {
+    setHeld(on)
+    if (on) setRoad(false)
+  }
+  const setRoadScale = (on: boolean) => {
+    setRoad(on)
+    if (on) setHeld(false)
+  }
   const [pin, setPin] = useState<{ alignmentId: string; station: RoadStation } | null>(null)
   if (pin && pin.alignmentId !== displayedAlignment.id) setPin(null)
   const [range, setRange] = useState<RangeState | null>(null)
@@ -63,6 +74,8 @@ export function useSectionTools({
   return {
     holdScale,
     setHoldScale,
+    roadScale,
+    setRoadScale,
     pinnedStation: pin?.alignmentId === displayedAlignment.id ? pin.station : undefined,
     pin: (station: RoadStation | undefined) => setPin(station ? { alignmentId: displayedAlignment.id, station } : null),
     range,
@@ -125,11 +138,13 @@ export function SectionViewControls({
       <div className="flex items-center justify-between gap-1 px-0.5 pb-0.5 text-2xs text-muted-foreground">
         <span>Section view</span>
         <InfoTip label="About the section tools">
-          Hold scale keeps the frame's spans and follows the formation, so the ground moves under a still road. A pinned
-          section is drawn dashed, moved to share this station's formation level; it is dropped when another road is
-          shown. Use this section for… gives the section shown here to a range of stations through the template station
-          assignments: a named template by name, the base section by clearing the range, and a mixed or transition
-          section as a new template named after its station.
+          Hold scale keeps the frame's spans and follows the formation, so the ground moves under a still road.
+          Whole-road scale does the same with one frame that fits every station of this road, so a metre is the same
+          size at every station and a big section looks big beside a small one. A pinned section is drawn dashed, moved
+          to share this station's formation level; it is dropped when another road is shown. Use this section for… gives
+          the section shown here to a range of stations through the template station assignments: a named template by
+          name, the base section by clearing the range, and a mixed or transition section as a new template named after
+          its station.
         </InfoTip>
       </div>
       <Button
@@ -143,6 +158,17 @@ export function SectionViewControls({
       >
         Hold scale
         {tools.holdScale && <Check className="ml-auto" aria-hidden />}
+      </Button>
+      <Button
+        size="xs"
+        variant={tools.roadScale ? 'secondary' : 'ghost'}
+        className={button}
+        aria-pressed={tools.roadScale}
+        title="One frame for every station of this road, so sections compare at the same scale; the frame follows the formation."
+        onClick={() => tools.setRoadScale(!tools.roadScale)}
+      >
+        Whole-road scale
+        {tools.roadScale && <Check className="ml-auto" aria-hidden />}
       </Button>
       {pinned ? (
         <Button
@@ -206,7 +232,9 @@ function SectionViewOptions({ inHeader, ...props }: SectionViewProps & { inHeade
     <ToolbarPopover
       label="Section view options"
       icon={<SlidersHorizontal className="size-3.5" />}
-      count={Number(tools.holdScale) + Number(!!tools.pinnedStation) + Number(!!tools.range?.open)}
+      count={
+        Number(tools.holdScale) + Number(tools.roadScale) + Number(!!tools.pinnedStation) + Number(!!tools.range?.open)
+      }
       align="end"
       width={208}
       {...(inHeader ? ({ variant: 'ghost', buttonClassName: 'size-8' } as const) : { buttonClassName: 'size-6' })}
