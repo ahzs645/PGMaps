@@ -1,4 +1,5 @@
-import { hsl } from 'd3'
+import { useSyncExternalStore } from 'react'
+import { hsl, interpolateRgb } from 'd3'
 import { normalizeHexColor } from '@/components/ui/color-field'
 import { paletteContrast } from '@/lib/paletteScale'
 
@@ -121,7 +122,7 @@ export function readInterfaceTheme(): InterfaceTheme {
 const triplet = (h: number, s: number, l: number) =>
   `${Number((h || 0).toFixed(4))} ${Number(((s || 0) * 100).toFixed(4))}% ${Number((l * 100).toFixed(4))}%`
 
-function paletteVariables(palette: Palette) {
+function paletteVariables(palette: Palette, mode: ThemeMode) {
   const variables: Record<string, string> = {}
   for (const [role] of themeRoles) {
     const colour = palette[role]
@@ -146,6 +147,39 @@ function paletteVariables(palette: Palette) {
   }
   if (variables.primary) variables.ring = variables.primary
   if (variables.border) variables.input = variables.border
+  Object.assign(variables, stateVariables(palette, mode))
+  return variables
+}
+
+/**
+ * The toolkit's UI-state tokens (a selected result row, text links, the band round a map), which
+ * default to fixed sky and slate. A selected row takes the theme's highlight, solid in both modes,
+ * with an edge part-way to its primary; links and the focus ring take the primary; the map surround
+ * is a step below the page. A role the theme leaves unset keeps the toolkit default.
+ */
+function stateVariables(palette: Palette, mode: ThemeMode) {
+  const variables: Record<string, string> = {}
+  const channels = (colour: string, lightnessStep = 0) => {
+    const { h, s, l } = hsl(colour)
+    return triplet(h, s, Math.min(1, Math.max(0, l + lightnessStep)))
+  }
+  const { primary, accent, background, card } = palette
+  // Without a highlight colour, a faint wash of the primary over the card stands in for one.
+  const surface = card ?? background ?? (mode === 'light' ? '#ffffff' : '#171717')
+  const fill = accent ?? (primary ? interpolateRgb(surface, primary)(mode === 'light' ? 0.1 : 0.2) : undefined)
+  if (fill) {
+    variables.selected = channels(fill)
+    variables['selected-alpha'] = '1'
+    variables['selected-border'] = primary
+      ? channels(interpolateRgb(fill, primary)(0.45))
+      : channels(fill, mode === 'light' ? -0.15 : 0.15)
+  }
+  if (primary) {
+    variables['selected-focus'] = channels(primary)
+    variables.link = channels(primary)
+    variables['link-hover'] = channels(primary, mode === 'light' ? -0.08 : 0.08)
+  }
+  if (background) variables['map-surround'] = channels(background, mode === 'light' ? -0.04 : -0.015)
   return variables
 }
 
@@ -153,7 +187,7 @@ export function interfaceThemeVariables(theme: InterfaceTheme) {
   const variables: Record<string, string> = {}
   if (theme.radius !== null) variables['--interface-radius'] = `${theme.radius / 16}rem`
   for (const mode of themeModes) {
-    for (const [role, value] of Object.entries(paletteVariables(theme[mode]))) {
+    for (const [role, value] of Object.entries(paletteVariables(theme[mode], mode))) {
       variables[`--interface-${mode}-${role}`] = value
     }
   }
@@ -162,8 +196,9 @@ export function interfaceThemeVariables(theme: InterfaceTheme) {
 
 export function exportThemeCss(theme: InterfaceTheme, defaultRadius: number) {
   const rules = themeModes.map((mode) => {
-    const declarations = Object.entries(paletteVariables(theme[mode])).map(
-      ([role, value]) => `  --${role}: hsl(${value});`,
+    const declarations = Object.entries(paletteVariables(theme[mode], mode)).map(([role, value]) =>
+      // An alpha is a bare number, not a colour.
+      role.endsWith('-alpha') ? `  --${role}: ${value};` : `  --${role}: hsl(${value});`,
     )
     if (mode === 'light') declarations.push(`  --radius: ${(theme.radius ?? defaultRadius) / 16}rem;`)
     return `${mode === 'light' ? ':root' : '.dark'} {\n${declarations.join('\n')}\n}`
@@ -181,6 +216,25 @@ function applyInterfaceTheme(theme: InterfaceTheme) {
   // Opts into the theme-only surface rules in index.css (fields on a card take the card colour,
   // a selected card takes the highlight). The built-in theme leaves them off and looks as before.
   document.documentElement.toggleAttribute('data-interface-theme', isCustomTheme(theme))
+  for (const listener of themeListeners) listener()
+}
+
+const themeListeners = new Set<() => void>()
+
+/**
+ * Whether an Appearance theme with colours is applied. For a part that keeps a fixed palette in
+ * the built-in theme but should take the theme's colours under one, such as a `ResultRow` with its
+ * own `accent`: pass `accent={themed ? 'theme' : 'teal'}`.
+ */
+export function useInterfaceThemeApplied() {
+  return useSyncExternalStore(
+    (listener) => {
+      themeListeners.add(listener)
+      return () => themeListeners.delete(listener)
+    },
+    () => document.documentElement.hasAttribute('data-interface-theme'),
+    () => false,
+  )
 }
 
 /** Whether a theme sets any colour; a radius alone changes no surface. */

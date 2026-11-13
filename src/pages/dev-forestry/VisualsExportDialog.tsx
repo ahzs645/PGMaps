@@ -9,6 +9,7 @@ import { ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TextButton } from '@/components/ui/text-button'
 import { downloadBlob } from '@/lib/download'
+import { useInterfaceThemeApplied } from '@/lib/interfaceTheme'
 import { cn } from '@/lib/utils'
 
 import { VIA_STEPS, type ViaStepId } from './via'
@@ -236,6 +237,8 @@ export function VisualsExportDialog({
   portalContainer?: HTMLElement | null
 }) {
   const [selected, setSelected] = useState<VisualsExport>(initialOutput)
+  // Teal in the built-in theme; an Appearance theme's own selection colours under one.
+  const themed = useInterfaceThemeApplied()
   const [view, setView] = useState<'contents' | 'preview'>('contents')
   const [formats, setFormats] = useState<Partial<Record<VisualsExport, string>>>({})
   const [saving, setSaving] = useState(false)
@@ -409,7 +412,7 @@ export function VisualsExportDialog({
                 return (
                   <ResultRow
                     key={entry.kind}
-                    accent="teal"
+                    accent={themed ? 'theme' : 'teal'}
                     selected={entry.kind === item.kind}
                     title={entry.label}
                     subtitle={reason ?? undefined}

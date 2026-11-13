@@ -58,6 +58,13 @@ brand colour or built-in theme. Map symbols and reports have their own settings.
   `data-selected-card`; under a theme it takes `accent` with a `primary` edge. The built-in
   theme never has the attribute, so it looks as before. A theme's `muted` colour leaves
   `muted-foreground` (the hint-text grey) at its default rather than deriving black or white.
+  The toolkit's UI-state tokens follow a theme too: `selected`, `selected-border`,
+  `selected-focus` and `selected-alpha` (a `ResultRow` with the default `accent="theme"`),
+  `link` and `link-hover` (`TextButton tone="accent"`) and `map-surround`
+  (`MapSectionLayout`). `src/index.css` defaults them to the sky and slate they replaced, and
+  `interfaceTheme.ts` derives them from the theme's highlight, primary and page colours. A
+  row with a named `accent` keeps that palette under a theme; one that should follow it
+  passes `accent={useInterfaceThemeApplied() ? 'theme' : 'teal'}`, as Save & export does.
 - **Corners.** `--radius` (0.5rem) drives every step: `rounded-sm`/`rounded` 4 px,
   `rounded-md` 6, `rounded-lg` 8, `rounded-xl` 12, `rounded-2xl` 16. Pick by role:
   `rounded-sm` for small marks (swatches, tags, map labels), `rounded-md` for controls
