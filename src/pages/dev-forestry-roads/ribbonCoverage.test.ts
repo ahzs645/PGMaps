@@ -10,8 +10,9 @@ const toolsOf = (section: ReturnType<typeof sectionsOf>[number]) => [...section.
 
 describe('ribbon catalog coverage', () => {
   it('places every registered command, export, and widget in the shipped ribbon', () => {
-    const sections = sectionsOf(resolveToolbar(hosted))
-    const visible = new Set(sections.flatMap(toolsOf))
+    const resolved = resolveToolbar(hosted)
+    // The tab row (`tabTools`) is part of the ribbon too: the detached-panels widget lives there.
+    const visible = new Set([...sectionsOf(resolved).flatMap(toolsOf), ...(resolved.tabTools ?? [])])
     expect([...visible].sort()).toEqual([...Object.keys(workspaceCommands), ...Object.keys(ribbonWidgetLabels)].sort())
     for (const output of ribbonExports) {
       expect(visible.has(output.command)).toBe(true)

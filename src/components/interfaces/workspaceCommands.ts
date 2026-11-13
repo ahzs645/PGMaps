@@ -25,6 +25,7 @@ import {
   BookOpen,
   Footprints,
   MountainSnow,
+  ScanSearch,
   PenTool,
   RulerDimensionLine,
   ChartArea,
@@ -266,7 +267,7 @@ export const workspaceCommands = {
   },
   detailedDem: {
     label: 'Load 1 m DEM',
-    icon: MountainSnow,
+    icon: ScanSearch,
     investigation: true,
     description:
       'Load a bounded area of NRCan bare-earth terrain around imported blocks, roads or the map view, with nearby FSR records.',
