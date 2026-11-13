@@ -104,6 +104,60 @@ describe('report PDF drawing rasterization', () => {
     expect(f.revokeUrl).toHaveBeenCalledWith('blob:report-svg')
   })
 
+  it('never prints a style block as text, and gives a rasterized chart a sans-serif face', async () => {
+    const f = fixture()
+    const css = '.stream-register{table-layout:fixed;font-size:10px}'
+    const style = { tagName: 'STYLE', textContent: css, childNodes: [{ textContent: css }], children: [] }
+    const paragraph = { tagName: 'P', textContent: 'Register', childNodes: [{ textContent: 'Register' }], children: [] }
+    const svg = {
+      tagName: 'svg',
+      cloneNode: () => ({
+        getAttribute: (k: string) => f.attributes.get(k),
+        setAttribute: (k: string, v: string) => f.attributes.set(k, v),
+      }),
+    }
+    vi.stubGlobal(
+      'DOMParser',
+      class {
+        parseFromString() {
+          return { body: { children: [style, paragraph, svg] } }
+        }
+      },
+    )
+    await exportReportPdf('<report fixture>', 'report.pdf')
+    const printed = captured.pdf.text.mock.calls.flat().join(' ')
+    expect(printed).toContain('Register')
+    expect(printed).not.toContain('stream-register')
+    expect(f.attributes.get('font-family')).toMatch(/sans-serif/)
+  })
+
+  it('prints each list item on its own, numbering an ordered list', async () => {
+    fixture()
+    const li = (value: string) => ({
+      tagName: 'LI',
+      textContent: value,
+      childNodes: [{ textContent: value }],
+      children: [],
+    })
+    const list = (tagName: string, items: string[]) => ({
+      tagName,
+      textContent: items.join(''),
+      childNodes: items.map((value) => ({ textContent: value })),
+      children: items.map(li),
+    })
+    vi.stubGlobal(
+      'DOMParser',
+      class {
+        parseFromString() {
+          return { body: { children: [list('OL', ['Inverts', 'Span']), list('UL', ['Flag'])] } }
+        }
+      },
+    )
+    await exportReportPdf('<report fixture>', 'report.pdf')
+    const printed = captured.pdf.text.mock.calls.map((call) => call[0])
+    expect(printed).toEqual(expect.arrayContaining(['1. Inverts', '2. Span', '- Flag']))
+  })
+
   it('releases the SVG resource and does not download an incomplete PDF if image decoding fails', async () => {
     const f = fixture()
     f.decode.mockRejectedValueOnce(Error('Invalid SVG drawing'))

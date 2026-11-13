@@ -94,6 +94,8 @@ import { riparianMapFeatures, RIPARIAN_MAP_COLORS } from './riparian'
 import { areaPatternId, keepSymbolImages, symbolImages, type SymbolImageMap } from '@/lib/mapSheet/mapSymbols'
 import type { AreaSymbol } from '@/lib/mapSheet/symbols'
 import { cutblockBufferSymbol } from './cutblockBufferStyle'
+import { keepAttributionFolded } from '@/components/ui/map-attribution'
+import { labelsWithRoom, planLabelWidthPx, PLAN_LABEL_HEIGHT_PX, type LabelBox } from './planLabelRoom'
 import {
   PLAN_SHEET_LAYER_IDS,
   PLAN_SHEET_ROAD_HIT_LAYER_IDS,
@@ -498,6 +500,11 @@ function Layers(
       map.off('rotateend', update)
     }
   }, [map, isLoaded])
+  // The credits stay behind the ⓘ button rather than covering the plan (and the map PDF) until dragged.
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    return keepAttributionFolded(map.getContainer())
+  }, [map, isLoaded])
   // Remounts the handles after a drag, because a marker stays where it was dropped.
   const [bendRevision, setBendRevision] = useState(0)
   /** The browser still sends a click when a drag ends on its handle. */
@@ -574,6 +581,77 @@ function Layers(
       return []
     }
   }, [props.alignment, props.terrainOnly, pixelMetres])
+  // Culvert labels that would land on one another, on a station or curve label, or on another culvert's
+  // Ø mark fold to their own Ø mark (planLabelRoom.ts). Overlap does not change with panning, so this
+  // follows the zoom/bearing step and the labels only.
+  const plannedCulverts = analysis.engineering?.culverts
+  const culvertDesigns = props.alignment.engineering?.culverts
+  const culvertLabelRoom = useMemo(() => {
+    if (!map || !view || !props.showLabels || !plannedCulverts?.length) return null
+    const at = (coordinate: readonly number[], dx = 0, dy = 0) => {
+      const point = map.project(coordinate as [number, number])
+      return { x: point.x + dx, y: point.y + dy }
+    }
+    const boxes: LabelBox[] = []
+    for (const s of annotationStations) {
+      if (Math.abs(s.chainage - (chosen?.chainage ?? -1)) <= (labelInterval ?? 0) * 0.3) continue
+      const text = formatRoadStation(s.chainage).replace(/\.0$/, '')
+      const [dx, dy] = labelOffset(s.bearing, view.bearing, text.length)
+      boxes.push({
+        id: `station-${s.chainage}`,
+        ...at(s.coordinate, dx, dy),
+        width: planLabelWidthPx(text),
+        height: PLAN_LABEL_HEIGHT_PX,
+        priority: 0,
+        fixed: true,
+      })
+    }
+    for (const { id, label, at: where } of radiusLabels) {
+      const [dx, dy] = labelOffset(where.bearing, view.bearing, label.length, -1)
+      boxes.push({
+        id,
+        ...at(where.coordinate, dx, dy),
+        width: planLabelWidthPx(label),
+        height: PLAN_LABEL_HEIGHT_PX,
+        priority: 0,
+        fixed: true,
+      })
+    }
+    plannedCulverts.forEach((culvert, index) => {
+      const design = culvertDesigns?.find((c) => c.id === culvert.id)
+      const stacked = plannedCulverts.slice(0, index).filter((c) => Math.abs(c.chainage - culvert.chainage) < 0.001)
+      const centre = at(culvert.coordinate, 0, stacked.length * 24)
+      boxes.push({
+        id: `mark-${culvert.id}`,
+        ...centre,
+        width: planLabelWidthPx('Ø'),
+        height: PLAN_LABEL_HEIGHT_PX,
+        priority: 0,
+        fixed: true,
+        owner: culvert.id,
+      })
+      boxes.push({
+        id: culvert.id,
+        ...centre,
+        width: planLabelWidthPx(`Ø ${Math.round((design?.diameterM ?? 0) * 1000)} mm · ${culvert.name}`),
+        height: PLAN_LABEL_HEIGHT_PX,
+        priority: culvert.id === props.selectedCulvertId ? 2 : culvert.warnings.length ? 1 : 0,
+        owner: culvert.id,
+      })
+    })
+    return labelsWithRoom(boxes)
+  }, [
+    map,
+    view,
+    props.showLabels,
+    plannedCulverts,
+    culvertDesigns,
+    props.selectedCulvertId,
+    annotationStations,
+    radiusLabels,
+    chosen,
+    labelInterval,
+  ])
   const allLines = useMemo(() => {
     if (investigation) return fc([])
     const colors = distinctRoadColors(props.project.alignments)
@@ -2133,7 +2211,10 @@ function Layers(
                   }}
                   title={`${culvert.name} · ${formatRoadStation(culvert.chainage)} · cover ${culvert.coverM?.toFixed(2) ?? 'unknown'} m. ${culvert.warnings.join(' ')}`}
                 >
-                  Ø{props.showLabels && design ? ` ${Math.round(design.diameterM * 1000)} mm · ${culvert.name}` : ''}
+                  Ø
+                  {props.showLabels && design && (!culvertLabelRoom || culvertLabelRoom.has(culvert.id))
+                    ? ` ${Math.round(design.diameterM * 1000)} mm · ${culvert.name}`
+                    : ''}
                 </button>
               </MarkerContent>
             </MapMarker>

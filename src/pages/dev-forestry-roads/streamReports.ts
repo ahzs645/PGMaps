@@ -187,8 +187,26 @@ export function constraintPlanningReportSection(project: RoadProject, analysis: 
           : resolved.policy.treatment === 'additional-cost'
             ? `${resolved.costPerM} CAD/m additional cost`
             : 'No price grants permission'
-      return `<tr><td>${html(feature.name)}</td><td>${html(CONSTRAINT_LABELS[resolved.policy.treatment])}<br>${html(price)}</td><td>${html(resolved.reviewStatus)}${resolved.blocked ? '; route blocked' : '; planning screen permits routing'}</td><td>${area ? `${html(area.outerRadiusM.toFixed(1))} m from mapped centreline; ${area.uncertain ? 'unresolved extent' : html(area.riparianClass)}<br>${html(area.note)}` : 'Supplied polygon'}</td><td>${html(resolved.policy.condition ?? '—')}<br>${review ? `${html(review.reviewer)}; ${html(review.reviewedOn)}; ${html(review.basis)}` : 'No conditional review recorded'}</td></tr>`
+      return [
+        feature.name,
+        `<td>${html(CONSTRAINT_LABELS[resolved.policy.treatment])}<br>${html(price)}</td><td>${html(resolved.reviewStatus)}${resolved.blocked ? '; route blocked' : '; planning screen permits routing'}</td><td>${area ? `${html(area.outerRadiusM.toFixed(1))} m from mapped centreline; ${area.uncertain ? 'unresolved extent' : html(area.riparianClass)}<br>${html(area.note)}` : 'Supplied polygon'}</td><td>${html(resolved.policy.condition ?? '—')}<br>${review ? `${html(review.reviewer)}; ${html(review.reviewedOn)}; ${html(review.basis)}` : 'No conditional review recorded'}</td>`,
+      ] as const
     })
+    .reduce(
+      (groups, [name, cells]) => {
+        // Screens whose treatment, status, extent and basis read the same print once, naming every feature:
+        // a road beside one creek network listed ~30 identical rows over five pages.
+        const group = groups.find((g) => g.cells === cells)
+        if (group) group.names.push(name)
+        else groups.push({ names: [name], cells })
+        return groups
+      },
+      [] as { names: string[]; cells: string }[],
+    )
+    .map(
+      ({ names, cells }) =>
+        `<tr><td>${names.length > 1 ? `${names.length} features: ` : ''}${html(names.join(', '))}</td>${cells}</tr>`,
+    )
     .join('')
   return `<section class="chapter"><h2>Routing constraints and riparian screens</h2><p>These are entered planning treatments. A current conditional review records a person's basis; it is not regulatory approval. Avoidance penalties influence search without becoming construction costs. The stream class and channel width set a preliminary horizontal envelope; actual banks, slope-distance boundaries and active floodplain extensions require review. The final connector check separately examines the full road footprint and structure geometry.</p><table class="stream-register"><thead><tr><th>Feature</th><th>Treatment and cost meaning</th><th>Review status</th><th>Screening extent</th><th>Condition and recorded basis</th></tr></thead><tbody>${rows}</tbody></table><h3>Active fitted centreline</h3>${issues.length ? `<ul>${issues.map((issue) => `<li>${html(issue)}</li>`).join('')}</ul>` : '<p>No intersections with currently blocked planning areas were found along the fitted centreline. This does not establish whole-footprint clearance or regulatory compliance.</p>'}</section>`
 }

@@ -5,6 +5,7 @@ import { parseDepressionPolicy, parseSnapPolicy } from './drainagePolicies'
 import type { Alignment, RoadSettings, TerrainMetadata } from './types'
 import { positionAt } from './engine'
 import { DITCH_DETAIL_CELL_M } from './hydrology'
+import { groupNamedWarnings } from './reportWarnings'
 
 export const MAX_DRAINAGE_RECORDS = 20
 export const MAX_DRAINAGE_EVIDENCE_VERTICES = 200_000
@@ -647,6 +648,12 @@ ${record.selectedCatchment ? `<p>Selected outlet ${record.selectedCatchment.snap
       ]
     }),
   )}
-${record.warnings.length ? `<ul>${record.warnings.map((w) => `<li>${escape(w)}</li>`).join('')}</ul>` : ''}
+${
+  record.warnings.length
+    ? `<ul>${groupNamedWarnings(record.warnings)
+        .map((w) => `<li>${escape(w)}</li>`)
+        .join('')}</ul>`
+    : ''
+}
 <p>Fingerprint ${escape(record.fingerprint)}. Geometry contains catchment boundaries and review locations; full raster grids and stream linework are recomputed. This D8 surface-runoff / Rational / full-pipe Manning screen does not model inlet control, headwater, scour, fish passage or a design hydrograph.</p></section>`
 }

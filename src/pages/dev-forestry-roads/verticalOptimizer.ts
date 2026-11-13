@@ -771,8 +771,12 @@ function* profileSearch(
       reason = `The grade has to change at ${from}, which is inside a straight-grade-only range. Move that range or relax the limits around it.`
     else if (!afterCurves)
       reason = `The grade change at ${from} needs a vertical curve of at least ${t.shortestCurveM.toFixed(0)} m, and the PVIs either side are ${(pvis[i] - pvis[i - 1]).toFixed(0)} m and ${(pvis[i + 1] - pvis[i]).toFixed(0)} m away. Lower “Curve K” or the minimum sag and crest K, or widen the PVI spacing.`
+    else if ((alignment.verticalStandards?.minTangentLengthM ?? 0) > 0)
+      reason = `No line leaves the ${alignment.verticalStandards!.minTangentLengthM} m minimum tangent before the curve at ${from}. Shorten “Min tangent”, lower “Curve K” or widen the PVI spacing.`
+    // With no minimum tangent the tangent is not what failed: the curves either side run into each other.
+    // Telling the user to shorten a 0 m tangent sent them nowhere.
     else
-      reason = `No line leaves the ${alignment.verticalStandards?.minTangentLengthM ?? 0} m minimum tangent before the curve at ${from}. Shorten “Min tangent”, lower “Curve K” or widen the PVI spacing.`
+      reason = `The vertical curves at and next to ${from} run into each other: no line changes grade there with every curve fitting between its PVIs. This often happens where a grade range starts or ends inside a curve. Lower “Curve K”, widen the PVI spacing, or move the range ends off the curve.`
     if (!gap)
       return new NoProfileError(`No profile meets the limits between ${from} and ${to}. ${reason} Nothing was changed.`)
     const open = gap.start <= 0 || gap.end >= length

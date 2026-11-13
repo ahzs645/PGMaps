@@ -56,7 +56,7 @@ type Contours = GeoJSON.FeatureCollection<GeoJSON.MultiLineString>
  * spacing, where the contour layer records them), or a visible "Contours unavailable" when the
  * book was made without contours.
  */
-function contourNote(contours: Contours | undefined) {
+function contourNote(contours: Contours | undefined, terrainCellM?: number) {
   const features = contours?.features ?? []
   if (!features.length) return { text: 'Contours unavailable', available: false }
   const recorded = (key: string) =>
@@ -67,7 +67,9 @@ function contourNote(contours: Contours | undefined) {
   const metres = (v: number) => `${Number(v.toFixed(2))} m`
   const index = features.some((f) => f.properties?.index !== undefined) ? ` (index ${metres(interval * 5)})` : ''
   return {
-    text: `Contours ${metres(interval)}${index}${spacing === undefined ? '' : ` · from a ${fmt(spacing, 1)} m sample grid`}`,
+    // Contours finer than the terrain under them are interpolation: name the terrain's own cell size so
+    // "1 m from a 4.4 m grid" on 22 m regional terrain does not read as survey detail.
+    text: `Contours ${metres(interval)}${index}${spacing === undefined ? '' : ` · from a ${fmt(spacing, 1)} m sample grid`}${terrainCellM !== undefined && Number.isFinite(terrainCellM) && terrainCellM > (spacing ?? interval) * 1.5 ? ` of ${fmt(terrainCellM, 1)} m terrain` : ''}`,
     available: true,
   }
 }
@@ -89,13 +91,22 @@ function titleBlock(
   brand?: BrandRecord,
   unitsPerMm = 96 / 25.4,
 ) {
-  const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text)
+  // Fit a field in its box: shrink the type first (to 70%), and only shorten what still does not fit.
+  // Plain clipping cut "Rev A - draft for review" to "Rev A - draft for rev…" at full size.
+  const shown = (text: string, max: number) => {
+    const room = Math.floor(max / 0.7)
+    return text.length > room ? `${text.slice(0, room - 1)}…` : text
+  }
+  const size = (text: string, max: number, full: number) => {
+    const length = shown(text, max).length
+    return `font-size="${Number((length > max ? Math.max(full * 0.7, (full * max) / length) : full).toFixed(2))}"`
+  }
   const x = W - 640,
     y = H - 132,
     split = x + 470
   const author = [stamp.preparedBy, stamp.organisation].filter(Boolean).join(', ')
   const revision = stamp.revision ? `Rev ${stamp.revision.replace(/^rev(ision)?\.?\s*/i, '')}` : 'Rev not recorded'
-  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="620" height="114" fill="#fff" stroke="#111827"/><line x1="${x}" x2="${x + 620}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + 114}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" font-size="16" font-weight="700">${html(clip(project, 44))}</text><text x="${x + 610}" y="${y + 21}" font-size="13" font-weight="700" text-anchor="end" data-role="revision">${html(clip(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" font-size="12">${html(clip(road, 62))}</text><text x="${x + 10}" y="${y + 60}" font-size="12" font-weight="600">${html(clip(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" font-size="10" fill="#4b5563">${html(clip(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" font-size="10" data-role="prepared-by">${html(clip(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" font-size="10">${html(clip(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text>${brand ? brandLogoSvg(brand, split + 10, y + 82, 130, 28, unitsPerMm) : `<text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text>`}</g>`
+  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="620" height="114" fill="#fff" stroke="#111827"/><line x1="${x}" x2="${x + 620}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + 114}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" ${size(project, 44, 16)} font-weight="700">${html(shown(project, 44))}</text><text x="${x + 610}" y="${y + 21}" ${size(revision, 22, 13)} font-weight="700" text-anchor="end" data-role="revision">${html(shown(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" ${size(road, 62, 12)}>${html(shown(road, 62))}</text><text x="${x + 10}" y="${y + 60}" ${size(sheet, 62, 12)} font-weight="600">${html(shown(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" ${size(`${terrain.name} · ${terrain.verticalReference}`, 84, 10)} fill="#4b5563">${html(shown(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" ${size(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84, 10)} data-role="prepared-by">${html(shown(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" ${size(scale, 24, 10)}>${html(shown(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text>${brand ? brandLogoSvg(brand, split + 10, y + 82, 130, 28, unitsPerMm) : `<text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text>`}</g>`
 }
 
 /** One plan-and-profile sheet for the stations between `start` and `end`. */
@@ -110,6 +121,7 @@ function planProfileSheet(
   projectName: string,
   alignment: Alignment,
   gradeLimits?: ProfileGradeLimits,
+  terrainCellM?: number,
 ) {
   // Value bands take room from the plan and the profile; without them the sheet is laid out as before.
   const bandsOn = !!settings.subviews.bands && settings.subviews.profile
@@ -184,7 +196,9 @@ function planProfileSheet(
       return `<path d="${d}" fill="none" stroke="${index ? '#9ca3af' : '#d1d5db'}" stroke-width="${index ? 0.9 : 0.5}"/>`
     })
     .join('')
-  const note = settings.subviews.contours ? contourNote(contours) : { text: 'Contours hidden', available: true }
+  const note = settings.subviews.contours
+    ? contourNote(contours, terrainCellM)
+    : { text: 'Contours hidden', available: true }
   const noteSvg = `<text x="${plan.left + plan.width}" y="${plan.top - 10}" font-size="12" text-anchor="end"${note.available ? ' fill="#4b5563"' : ' fill="#b45309" font-weight="700"'}>${html(note.text)}</text>`
   const tickEvery = niceStep(end - start, 12)
   const ticks = inWindow
@@ -235,6 +249,9 @@ function planProfileSheet(
     zHigh = Math.max(...zs) + 2
   const sx = (c: number) => profile.left + (c - start) * (physicalScale ?? profile.width / Math.max(1, end - start))
   const verticalScale = (physicalScale ?? profile.height / Math.max(1, zHigh - zLow)) * chapter.verticalExaggeration
+  // What the sheet actually draws: auto-fit scales each axis to its own frame, so the setting alone (1×)
+  // misstated a profile drawn at about 3× and changing from sheet to sheet.
+  const drawnExaggeration = verticalScale / (physicalScale ?? profile.width / Math.max(1, end - start))
   const sy = (z: number) => profile.top + profile.height / 2 - (z - (zLow + zHigh) / 2) * verticalScale
   const pathOf = (values: (number | null)[], y: (v: number) => number) => {
     let pen = false
@@ -327,7 +344,7 @@ function planProfileSheet(
     ? '<text x="60" y="982" font-size="11" fill="#4b5563">Legend: centreline magenta · formation grey · catch lines dashed brown · ground brown · design teal · mass purple</text>'
     : ''
   const scaleNote = chapter.horizontalScale === null ? 'Auto-fit' : `Horizontal 1:${chapter.horizontalScale}`
-  return `${settings.subviews.plan ? planSvg + curves : ''}<clipPath id="profile-${clipId}"><rect x="0" y="${profile.top - 32}" width="${W}" height="${profile.height + 58}"/></clipPath>${settings.subviews.profile ? `<g clip-path="url(#profile-${clipId})">${profileOnly}</g>${bandsSvg}` : ''}${settings.subviews.mass ? massOnly : ''}${legend}<text x="60" y="1000" font-size="10">${html(scaleNote)} · profile vertical exaggeration ${chapter.verticalExaggeration}×${chapter.horizontalScale !== null || chapter.verticalExaggeration !== 1 ? ' · plots clipped to their frames' : ''}</text>`
+  return `${settings.subviews.plan ? planSvg + curves : ''}<clipPath id="profile-${clipId}"><rect x="0" y="${profile.top - 32}" width="${W}" height="${profile.height + 58}"/></clipPath>${settings.subviews.profile ? `<g clip-path="url(#profile-${clipId})">${profileOnly}</g>${bandsSvg}` : ''}${settings.subviews.mass ? massOnly : ''}${legend}<text x="60" y="1000" font-size="10">${html(scaleNote)} · profile vertical exaggeration ${physicalScale === null ? `${drawnExaggeration.toFixed(1)}× on this sheet` : `${chapter.verticalExaggeration}×`}${chapter.horizontalScale !== null || chapter.verticalExaggeration !== 1 ? ' · plots clipped to their frames' : ''}</text>`
 }
 
 function sectionSheet(
@@ -591,6 +608,7 @@ export function plotBookHtml({
           projectName,
           alignment,
           gradeLimits,
+          terrain.resolutionM,
         )
         if (body)
           add({

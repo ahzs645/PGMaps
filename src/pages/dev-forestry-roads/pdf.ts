@@ -6,6 +6,13 @@ import { configurePdfBrand, drawPdfBrandLogo, setPdfBrandFont } from '@/branding
 const text = (value: string) =>
   value.replace(/−/g, '-').replace(/[–—]/g, ' - ').replace(/→/g, ' to ').replace(/Σ/g, 'Sum ')
 
+/** A table cell that reads as one quantity (money, a measure, a percentage) or an empty dash. */
+const NUMERIC_CELL = /^\s*(?:[-+]?\$?\(?[\d,]+(?:\.\d+)?\)?\s*(?:%|m|m²|m³|km|ha)?|-)\s*$/
+/** Elements whose text is never page content. */
+const NON_CONTENT = /^(style|script|template|noscript)$/
+/** Space a heading needs below it before the next block starts, so it never ends a page alone. */
+const HEADING_KEEP_MM = { h1: 40, h2: 40, h3: 28 } as const
+
 const MAP_IMAGE_STAGE_TIMEOUT_MS = 10000
 
 function throwIfAborted(signal?: AbortSignal) {
@@ -161,6 +168,9 @@ export async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
             if (element === original) return true
             if (element.tagName === 'CANVAS' && !container.contains(element)) return true
             if (element.hasAttribute('data-map-export-ignore')) return true
+            // The PDF prints every source's credit in its footer; the on-map attribution box, open or
+            // folded, only covered the bottom of the plan.
+            if (element.classList?.contains('maplibregl-ctrl-attrib')) return true
             // Buttons are map controls, except inside a marker: station labels and crossing marks
             // on the plan are buttons, and they are part of what the map shows.
             if (element.tagName === 'BUTTON' && !element.closest('.maplibregl-marker')) return true
@@ -284,6 +294,8 @@ async function svgImage(element: Element) {
   const width = dimensions[2],
     height = dimensions[3]
   svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  // Rasterized through an <img>, an SVG gets no page CSS; without this its labels fall back to a serif face.
+  if (!svg.getAttribute('font-family')) svg.setAttribute('font-family', 'Helvetica, Arial, sans-serif')
   svg.setAttribute('width', String(width * 2))
   svg.setAttribute('height', String(height * 2))
   const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' }))
@@ -353,6 +365,12 @@ export async function exportReportPdf(html: string, filename: string, branding?:
     const widths = Array.from({ length: columns }, (_, i) =>
       columns >= 6 ? (i === columns - 1 ? width * 0.3 : (width * 0.7) / (columns - 1)) : width / columns,
     )
+    // Right-align a column (and its heading) when its filled body cells are all quantities.
+    const body = rows.slice(1)
+    const numeric = Array.from({ length: columns }, (_, i) => {
+      const cells = body.map((row) => row[i] ?? '').filter((cell) => cell.trim() && cell.trim() !== '-')
+      return cells.length > 0 && cells.every((cell) => NUMERIC_CELL.test(cell))
+    })
     const draw = (row: string[], heading: boolean, offset = 0, limit = Infinity) => {
       setPdfBrandFont(pdf, fonts, heading)
       pdf.setFontSize(7)
@@ -367,7 +385,8 @@ export async function exportReportPdf(html: string, filename: string, branding?:
         pdf.rect(margin, y, width, height, 'F')
       }
       for (let i = 0; i < columns; i++) {
-        pdf.text(cells[i] ?? [''], x + 1.5, y + 3.5)
+        if (numeric[i]) pdf.text(cells[i] ?? [''], x + widths[i] - 1.5, y + 3.5, { align: 'right' })
+        else pdf.text(cells[i] ?? [''], x + 1.5, y + 3.5)
         x += widths[i]
       }
       pdf.setDrawColor(210)
@@ -407,16 +426,24 @@ export async function exportReportPdf(html: string, filename: string, branding?:
   const render = async (element: Element): Promise<void> => {
     if (branding && element.hasAttribute('data-brand-header')) return
     const tag = element.tagName.toLowerCase()
+    if (NON_CONTENT.test(tag)) return
     const inlineText = () =>
       [...element.childNodes]
         .map((node) => node.textContent?.trim())
         .filter(Boolean)
         .join(' ')
     if (/^h[123]$/.test(tag)) {
-      ensure(22)
+      ensure(HEADING_KEEP_MM[tag as keyof typeof HEADING_KEEP_MM])
       paragraph(element.textContent ?? '', tag === 'h1' ? 18 : 12, true)
     } else if (tag === 'p' || tag === 'li') paragraph((tag === 'li' ? '- ' : '') + inlineText())
-    else if (tag === 'dl') {
+    else if (tag === 'ul' || tag === 'ol') {
+      // One paragraph per item. Read as one leaf block, a list ran its items together, and a numbered
+      // list lost the numbers that rows elsewhere cite ("Notes 1, 2, 3").
+      let n = 0
+      for (const item of element.children)
+        if (item.tagName.toLowerCase() === 'li')
+          paragraph(`${tag === 'ol' ? `${++n}.` : '-'} ${item.textContent ?? ''}`)
+    } else if (tag === 'dl') {
       let label = ''
       for (const item of element.children) {
         if (item.tagName.toLowerCase() === 'dt') label = item.textContent ?? ''

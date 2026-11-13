@@ -365,19 +365,23 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   changes from sheet to sheet (the last, shorter sheet is larger). Use the scale bar; "250 m per
   sheet" in the title block is the window length, not a scale.
 - **The profile is exaggerated by a different amount on each sheet,** because its height is
-  fitted to that window's elevation range. Compare grades by their labels, not by eye across
-  sheets.
+  fitted to that window's elevation range. Each auto-fit sheet prints the exaggeration it is drawn
+  at ("2.9× on this sheet"); before 13 November 2026 it printed the setting, 1×, whatever was
+  drawn. Compare grades by their labels, not by eye across sheets.
 - **Cross-sections are drawn at equal horizontal and vertical scale** inside each cell ("1:1"
   means that, not a print ratio), and each cell has its own scale.
 - **Contours come from the active terrain** over the road's extent plus 0.002°, sampled at 256
   points on the longer side. The interval starts at 1 m and doubles to stay under 60,000
   segments. Each plan prints the interval, the index interval (5 ×) and the sample-grid spacing
-  (`contourNote` in `plotBook.ts`); on a long road the contours are generalized well beyond the
+  (`contourNote` in `plotBook.ts`), and where the terrain's own cells are coarser than that grid
+  it names them ("from a 10.9 m sample grid of 22.4 m terrain"): contours finer than the terrain
+  are interpolation, not detail. On a long road the contours are generalized well beyond the
   terrain's resolution. Without contours each plan prints "Contours unavailable", and when the
   contour build failed the notice reads "Plot book downloaded without contours (…)".
 - **Every sheet's title block carries the issue stamp:** the revision, the date of issue and who
   prepared it, with the terrain source and "Preliminary planning geometry · not for construction".
-  See [Issue stamp](#issue-stamp).
+  A field too long for its box is set smaller first (down to 70 %) and shortened with "…" only
+  past that. See [Issue stamp](#issue-stamp).
 - **Paper is A3, A4, tabloid 11 × 17 in (ANSI B) or ANSI D 22 × 34 in, all landscape**
   (`REPORT_PAPERS`, `reportSettings.ts`). Every sheet is drawn 1,123 units high; A3 and A4 keep
   the original 1,587-unit width and tabloid and ANSI D are 1,736 units wide, the 17 : 11
@@ -409,6 +413,21 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   still opens; the unknown name is dropped.
 - **Profile and section plots are fitted to their boxes,** with different horizontal and
   vertical scales. They show shape, not true slope. Use the plot book for equal-scale sections.
+- **Repeated warnings print once.** A message the model raises for every culvert prints as one
+  line naming them ("Culverts 1–28: …"), with any figure that differs kept beside each
+  (`groupNamedWarnings`, `reportWarnings.ts`); the culvert table cites numbered notes instead of
+  repeating the sentences, and routing screens that read the same are one row naming each feature.
+  One 46-page report printed the same invert sentence 74 times before this.
+- **The cost breakdown uses item names, whole dollars and a per-kilometre line,** and leaves out
+  items at $0, listing them under the table.
+- **The PDF report right-aligns columns of quantities, prints each list item on its own line
+  (numbered lists keep the numbers tables cite), keeps a heading with what follows it, and never
+  prints a `<style>` block as text** (`exportReportPdf`, `pdf.ts`).
+- **The Map PDF prints the current plan view.** It leaves out the on-map attribution box (the
+  footer lists every source's credit). On the plan the compact attribution stays folded to its ⓘ
+  until opened (`keepAttributionFolded`, `src/components/ui/map-attribution.ts`), and culvert labels
+  that would overlap fold to their Ø mark until zooming gives them room (`planLabelRoom.ts`); the
+  selected and flagged culverts keep theirs first.
 - **An adopted complete-access comparison has a separate total.** The report keeps the
   covered construction estimate and engineering ledger, then shows the saved complete access
   cost, assessment date, current/stale input status, component costs, material allocations,
