@@ -1,0 +1,2311 @@
+diff --git a/example/pgmaps-scene.ts b/example/pgmaps-scene.ts
+index 5d9e00b..2fde7ae 100644
+--- a/example/pgmaps-scene.ts
++++ b/example/pgmaps-scene.ts
+@@ -1,137 +1,73 @@
+ // A PGMaps forest scene package (https://github.com/ahzs645/PGMaps, src/pages/dev-forestry/scenePackage.ts) drawn
+-// with threejs-scatter + threejs-trees: the inventory's own stems, on the package's own ground, from its eye.
++// with threejs-trees, threejs-scatter, threejs-sky, threejs-water and threejs-weathering: the inventory's own stems,
++// on the package's own ground, from its eye, under the sky of a given date and place.
+ //   pgmaps-scene.html?scene=<url of a package JSON>   (or pick a file)
+-//   add &webgl to force the WebGL2 backend, &noimpostors to skip impostor baking
++//   add &webgl to force the WebGL2 backend, &noimpostors to skip impostor baking, &still to stop on a full frame
++//   environment for standalone tests: &dateTime=2026-01-15T13:00:00-08:00&latitude=54&longitude=-122.6
++//                                      &ground=bare|snow&weather=clear|overcast|rain|snow
++//
++// Embedded (`?embed`, no `?scene`): a parent page drives it by postMessage.
++//   in:  { type: 'pgmaps-scene', scene }            build (or rebuild, in place) from a package
++//        { type: 'pgmaps-camera', position: [x, y, z], bearingDegrees, pitchDegrees, verticalFovDegrees }
++//                                                    package local metres, z up; kept until a scene is ready
++//        { type: 'pgmaps-environment', dateTime, latitude, longitude, ground: 'bare' | 'snow',
++//          weather: 'clear' | 'overcast' | 'rain' | 'snow' }
++//                                                    sun from the date and place (a sun below the horizon lights the
++//                                                    scene as at dusk), ground snow, weather; any field may be left
++//                                                    out. Kept and applied to every later build; never rebuilds.
++//   out: { type: 'pgmaps-engine-hello', engine }    listening, send a scene
++//        { type: 'pgmaps-engine-ready', engine }    first full frame of a (new) scene drawn
++//        { type: 'pgmaps-engine-error', engine, message }
++//        { type: 'pgmaps-engine-stats', engine, drawn, instances, meshes, fps, stems }   about once a second
++// With ?embed the status overlay is hidden and the orbit controls take no pointer input: the parent owns the camera.
+ //
+ // The package is local metres: x east, y north, z up (heights absolute). three.js here is y up with north at −z,
+-// so a package point (x, y, z) is drawn at (x, z, −y).
++// so a package point (x, y, z) is drawn at (x, z, −y). An optional `water` block lists water bodies:
++// `[{ rings: [[[x, y], …], …holes], elevationMeters: number | null }]` (null = the lowest ground on the shore).
+ import * as THREE from 'three/webgpu'
++import { pass } from 'three/tsl'
++import { bloom } from 'three/addons/tsl/display/BloomNode.js'
+ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+-import { FIXED_INSTANCE_STRIDE, Scatter, disposeLayers, type ScatterLayer } from 'threejs-scatter'
+-import { createVegetationLayers, setTreeEnvironment, species as presets, type TreeParams } from 'threejs-trees'
+-import { createEnvironment } from './shared'
++import { Scatter } from 'threejs-scatter'
++import {
++  createAtmosphere,
++  DEFAULT_ENVIRONMENT,
++  environmentFromParams,
++  mergeEnvironment,
++  type EnvironmentInput,
++  type EnvironmentState
++} from './pgmaps-environment'
++import { buildGround, type Ground, type GroundInput } from './pgmaps-ground'
++import { disposeRetiredStands, disposeStandCache, standLayers, type StandInput } from './pgmaps-trees'
+ 
+-type ScenePackage = {
+-  format: 'pgmaps-forest-scene'
+-  version: 1
+-  terrain: {
+-    west: number
+-    south: number
+-    spacing: number
+-    columns: number
+-    rows: number
+-    heights: Array<number | null>
+-  }
+-  trees: { fields: string[]; species: string[]; count: number; data: number[] }
+-  species: Record<string, { label: string; crownRatio: number; crownBase: number; broadleaf: boolean }>
+-  openings: Array<{ rings: Array<Array<[number, number]>> }>
+-  debris: { count: number; data: number[] }
+-  roadScars: Array<{ kind: 'cut' | 'fill'; ring: Array<[number, number]> }>
+-  camera: {
+-    position: [number, number, number]
+-    bearingDegrees: number
+-    pitchDegrees: number
+-    verticalFovDegrees: number
++type ScenePackage = GroundInput &
++  StandInput & {
++    format: 'pgmaps-forest-scene'
++    version: 1
++    origin?: { lng: number; lat: number; elevationMeters?: number }
++    camera: PackageCamera
++    treeRadiusMeters: number
+   }
+-  treeRadiusMeters: number
++type PackageCamera = {
++  position: [number, number, number]
++  bearingDegrees: number
++  pitchDegrees: number
++  verticalFovDegrees: number
+ }
+ 
++const ENGINE = 'worldgen'
+ const params = new URLSearchParams(location.search)
++const embedded = params.has('embed')
+ const hud = document.getElementById('hud')!
++if (embedded) hud.hidden = true
+ const status = (text: string) => {
+   hud.textContent = text
+ }
+-
+-async function loadScene(): Promise<ScenePackage> {
+-  const url = params.get('scene')
+-  if (url) return (await fetch(url)).json()
+-  status('choose a PGMaps scene package (forestry-scene-package.json)')
+-  const input = document.getElementById('file') as HTMLInputElement
+-  input.hidden = false
+-  return new Promise((resolve) => {
+-    input.onchange = async () => resolve(JSON.parse(await input.files![0].text()))
+-  })
+-}
+-
+-const scenePackage = await loadScene()
+-if (scenePackage.format !== 'pgmaps-forest-scene' || scenePackage.version !== 1)
+-  throw new Error('Not a PGMaps forest scene package (v1).')
+-status('building the ground…')
+-
+-// ---------------------------------------------------------------- ground
+-const { west, south, spacing, columns, rows } = scenePackage.terrain
+-// Gaps (no source DEM there) take the nearest known height along their row, then their column, so the mesh stays
+-// whole; the trees and the eye are all inside the known area.
+-const heights = scenePackage.terrain.heights.slice()
+-const fill = (index: (i: number, j: number) => number, outer: number, inner: number) => {
+-  for (let i = 0; i < outer; i++) {
+-    let last: number | null = null
+-    for (let j = 0; j < inner; j++) last = heights[index(i, j)] ?? last ?? null
+-    for (let j = inner - 1; j >= 0; j--) {
+-      const k = index(i, j)
+-      if (heights[k] === null) heights[k] = last
+-      else last = heights[k]
+-    }
+-  }
+-}
+-fill((r, c) => r * columns + c, rows, columns)
+-fill((c, r) => r * columns + c, columns, rows)
+-// A loop, not Math.min(...): spreading a 160,000-cell grid overflows the call stack.
+-let base = Infinity
+-for (const h of heights) if (h !== null && h < base) base = h
+-const at = (column: number, row: number) => heights[row * columns + column] ?? base
+-
+-/** Ground height at a package point (x east, y north), bilinear. */
+-function groundAt(x: number, y: number): number {
+-  const gx = Math.min(columns - 1.0001, Math.max(0, (x - west) / spacing))
+-  const gy = Math.min(rows - 1.0001, Math.max(0, (y - south) / spacing))
+-  const x0 = Math.floor(gx)
+-  const y0 = Math.floor(gy)
+-  const fx = gx - x0
+-  const fy = gy - y0
+-  return (
+-    at(x0, y0) * (1 - fx) * (1 - fy) +
+-    at(x0 + 1, y0) * fx * (1 - fy) +
+-    at(x0, y0 + 1) * (1 - fx) * fy +
+-    at(x0 + 1, y0 + 1) * fx * fy
+-  )
+-}
+-/** The scatter's terrain: three.js (x, z) is package (x, −z). */
+-const height = (x: number, z: number) => groundAt(x, -z)
+-
+-function inRing(ring: Array<[number, number]>, x: number, y: number) {
+-  let inside = false
+-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+-    const [xi, yi] = ring[i]
+-    const [xj, yj] = ring[j]
+-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
+-  }
+-  return inside
+-}
+-const cut = (x: number, y: number) =>
+-  scenePackage.openings.some((o) => inRing(o.rings[0], x, y) && !o.rings.slice(1).some((r) => inRing(r, x, y)))
+-const scar = (x: number, y: number) => scenePackage.roadScars.some((s) => inRing(s.ring, x, y))
+-
+-// A finer mesh near the eye, where the ground is read most closely.
+-function groundMesh(size: number, step: number) {
+-  const n = Math.round(size / step)
+-  const geometry = new THREE.PlaneGeometry(size, size, n, n).rotateX(-Math.PI / 2)
+-  const position = geometry.attributes.position
+-  const colors = new Float32Array(position.count * 3)
+-  const floor = new THREE.Color('#3f4f33')
+-  const soil = new THREE.Color('#9c8664')
+-  const bank = new THREE.Color('#b5a585')
+-  for (let i = 0; i < position.count; i++) {
+-    const x = position.getX(i)
+-    const y = -position.getZ(i)
+-    position.setY(i, groundAt(x, y))
+-    ;(cut(x, y) ? soil : scar(x, y) ? bank : floor).toArray(colors, i * 3)
+-  }
+-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+-  geometry.computeVertexNormals()
+-  return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }))
++const toParent = (message: Record<string, unknown>) => {
++  if (window.parent !== window) window.parent.postMessage({ engine: ENGINE, ...message }, '*')
+ }
+ 
++// ---------------------------------------------------------------- the renderer, camera and sky: made once
+ const renderer = new THREE.WebGPURenderer({ antialias: true, forceWebGL: params.has('webgl') })
+ renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))
+ renderer.setSize(innerWidth, innerHeight)
+@@ -139,177 +75,270 @@ document.body.appendChild(renderer.domElement)
+ await renderer.init()
+ 
+ const scene = new THREE.Scene()
+-const { camera: eye } = scenePackage
+-const camera = new THREE.PerspectiveCamera(eye.verticalFovDegrees, innerWidth / innerHeight, 0.3, 8000)
+-camera.position.set(eye.position[0], eye.position[2], -eye.position[1])
+-const bearing = THREE.MathUtils.degToRad(eye.bearingDegrees)
+-const pitch = THREE.MathUtils.degToRad(eye.pitchDegrees)
+-const target = camera.position
+-  .clone()
+-  .add(
+-    new THREE.Vector3(
+-      Math.sin(bearing) * Math.cos(pitch),
+-      Math.sin(pitch),
+-      -Math.cos(bearing) * Math.cos(pitch)
+-    ).multiplyScalar(100)
+-  )
++const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.3, 8000)
+ const controls = new OrbitControls(camera, renderer.domElement)
+-controls.target.copy(target)
+-controls.update()
+-const env = createEnvironment(renderer, scene, camera)
+-// The demo's haze is a scenic choice (about 70% at 400 m). A visual impact assessment wants the haze of a clear
+-// day, which is what PGMaps draws (Koschmieder's law at 60 km visibility); `&haze=` overrides the density.
+-scene.fog = new THREE.FogExp2(
+-  scene.fog instanceof THREE.FogExp2 ? scene.fog.color : '#aebfcc',
+-  Number(params.get('haze') ?? 0.00025)
+-)
++if (embedded) controls.enabled = false
++const atmosphere = await createAtmosphere(renderer, scene, camera)
+ 
+-const near = groundMesh(1400, 5)
+-const far = groundMesh(Math.min(columns, rows) * spacing - spacing, spacing * 2)
+-far.position.y = -0.3 // under the near mesh where they overlap
+-near.receiveShadow = far.receiveShadow = true
+-scene.add(near, far)
++const pipeline = new THREE.RenderPipeline(renderer)
++const color = pass(scene, camera).getTextureNode('output')
++pipeline.outputNode = color.add(bloom(color, 0.08, 0.3, 4)) // subtle: the HDR threshold keeps it to the sun and glints
+ 
+-// ---------------------------------------------------------------- trees
+-// PGMaps' species on worldgen's presets: the nearest preset, with the crown base PGMaps draws, so a stem's live
+-// crown starts where it does in the road view. Width and height are then each stem's own, per instance.
+-const recipe: Record<string, { preset: keyof typeof presets; params?: Partial<TreeParams> }> = {
+-  pine: { preset: 'pine' },
+-  spruce: { preset: 'spruce' },
+-  fir: { preset: 'fir' },
+-  douglasFir: {
+-    preset: 'fir',
+-    params: { crownShape: 'ellipsoid', tropism: [0, 0.02, 0], jitter: 0.25, leafColor: '#30513a' }
+-  },
+-  aspen: { preset: 'birch', params: { barkColor: '#cfd2c3', leafColor: '#6d8f3c' } },
+-  birch: { preset: 'birch' }
++/** The environment in force: URL parameters, then every `pgmaps-environment` message on top. */
++let environment: EnvironmentState = mergeEnvironment(DEFAULT_ENVIRONMENT, environmentFromParams(params))
++let origin: { lat: number; lng: number } | null = null
++const applyEnvironment = () => {
++  atmosphere.apply(environment, origin)
++  const state = (window as unknown as { pgmaps?: Record<string, unknown> }).pgmaps
++  if (state) state.environment = { ...atmosphere.applied }
+ }
+-const treeSpecies = scenePackage.trees.species
+-const used = treeSpecies.filter((_, index) => {
+-  for (let i = 0; i < scenePackage.trees.count; i++) if (scenePackage.trees.data[i * 7 + 3] === index) return true
+-  return false
+-})
+-const variants = 3
+-status(`generating ${used.length} species × ${variants} variants…`)
+-const layers: ScatterLayer[] = (await createVegetationLayers({
+-  species: used.map((name) => {
+-    const { preset, params: extra } = recipe[name] ?? { preset: 'spruce' as const }
+-    const p = presets[preset] as TreeParams
+-    const crownBase = scenePackage.species[name]?.crownBase ?? 0.3
+-    return {
+-      name,
+-      density: 0,
+-      params: { ...p, ...extra, trunkHeight: p.height * crownBase, crownHeight: p.height * (1 - crownBase) }
+-    }
+-  }),
+-  variants,
+-  seed: 7,
+-  renderer: params.has('noimpostors') ? null : renderer,
+-  castShadow: true
+-})) as ScatterLayer[]
++applyEnvironment()
+ 
+-// Each species' stems, shared out among its variants and scaled from each variant's own size to the stem's height
+-// and crown width: the same stems, heights and crowns the road view draws.
+-const stride = scenePackage.trees.fields.length
+-for (const layer of layers) {
+-  const [name, variant] = layer.name.split('#')
+-  const speciesIndex = treeSpecies.indexOf(name)
+-  const box = new THREE.Box3().setFromBufferAttribute(
+-    layer.lods[0].geometry.attributes.position as THREE.BufferAttribute
+-  )
+-  const tall = box.max.y
+-  const wide = Math.max(box.max.x - box.min.x, box.max.z - box.min.z)
+-  const list: number[] = []
+-  for (let i = 0; i < scenePackage.trees.count; i++) {
+-    const o = i * stride
+-    if (scenePackage.trees.data[o + 3] !== speciesIndex) continue
+-    // A stable variant per stem, from its position.
+-    const pick =
+-      Math.abs(Math.floor(scenePackage.trees.data[o] * 7.3 + scenePackage.trees.data[o + 1] * 3.1)) % variants
+-    if (pick !== Number(variant)) continue
+-    const yaw = (scenePackage.trees.data[o + 6] * 6.283185) % 6.283185
+-    list.push(
+-      scenePackage.trees.data[o],
+-      -scenePackage.trees.data[o + 1],
+-      yaw,
+-      scenePackage.trees.data[o + 5] / wide,
+-      scenePackage.trees.data[o + 4] / tall
++/** Stands the camera at a package eye: position in package metres, bearing clockwise from north, pitch up. */
++function setCamera(eye: PackageCamera) {
++  camera.fov = eye.verticalFovDegrees
++  camera.updateProjectionMatrix()
++  camera.position.set(eye.position[0], eye.position[2], -eye.position[1])
++  const bearing = THREE.MathUtils.degToRad(eye.bearingDegrees)
++  const pitch = THREE.MathUtils.degToRad(eye.pitchDegrees)
++  controls.target
++    .copy(camera.position)
++    .add(
++      new THREE.Vector3(
++        Math.sin(bearing) * Math.cos(pitch),
++        Math.sin(pitch),
++        -Math.cos(bearing) * Math.cos(pitch)
++      ).multiplyScalar(100)
+     )
++  controls.update()
++}
++
++// ---------------------------------------------------------------- one package's ground, slash, water and stand
++type Built = { scatter: Scatter; ground: Ground; stems: number; dispose(): void }
++
++/**
++ * True while impostors bake. The bake binds its atlas as the render target and awaits shader compiles between
++ * passes; a frame drawn in that gap lands in the atlas (the sky and haze baked over every far tree), so the frame
++ * loop draws nothing until it is done.
++ */
++let baking = false
++
++async function build(pkg: ScenePackage): Promise<Built> {
++  if (pkg?.format !== 'pgmaps-forest-scene' || pkg.version !== 1)
++    throw new Error('Not a PGMaps forest scene package (v1).')
++  status('building the ground…')
++  const maxDistance = pkg.treeRadiusMeters + 50
++  const ground = await buildGround(pkg, atmosphere.states, {
++    renderer,
++    camera,
++    sun: atmosphere.sky.sun,
++    treeRadius: pkg.treeRadiusMeters
++  })
++  baking = true
++  const stand = await standLayers(
++    pkg,
++    params.has('noimpostors') ? null : renderer,
++    maxDistance,
++    status,
++    ground.inWater
++  ).finally(() => {
++    baking = false
++  })
++  console.log(`fixed instances: ${stand.stems}`)
++  const scatter = Scatter.create({
++    camera,
++    scene,
++    terrain: (x: number, z: number) => ground.groundAt(x, -z),
++    layers: stand.layers,
++    seed: 1,
++    maxDistance,
++    // Drawn whole for its first frames, so every level of every species gets its pipeline compiled at load rather than
++    // on the first turn of the head (a 0.6 s stall); then culled to the view (CULL_MARGIN, in the frame loop).
++    cullMargin: 0,
++    cullNear: 35
++  })
++  return {
++    scatter,
++    ground,
++    stems: stand.stems,
++    dispose() {
++      scatter.dispose()
++      ground.dispose()
++    }
+   }
+-  layer.instances = new Float32Array(list)
+-  layer.colorVariation = 0.1
+-  if (list.length === 0) layer.lods = layer.lods.slice(0, 1)
+ }
+-console.log(`fixed instances: ${layers.reduce((n, l) => n + (l.instances?.length ?? 0) / FIXED_INSTANCE_STRIDE, 0)}`)
+ 
+-const scatter = Scatter.create({
+-  camera,
+-  scene,
+-  terrain: height,
+-  layers,
+-  seed: 1,
+-  maxDistance: scenePackage.treeRadiusMeters + 50
+-})
++/**
++ * Degrees added to each side of the view before stems are left out. A road view sees about a sixth of the circle
++ * around it, and the stand is drawn as meshes out to 190 m; the margin covers a turn of the head between re-sorts.
++ */
++const CULL_MARGIN = 25
+ 
+-// ---------------------------------------------------------------- slash
+-// Logs lying on the cut ground, as PGMaps draws its piles: a few per pile, any direction.
+-const logs: THREE.Matrix4[] = []
+-const m = new THREE.Matrix4()
+-for (let i = 0; i < scenePackage.debris.count; i++) {
+-  const [x, y, , footprint] = scenePackage.debris.data.slice(i * 4, i * 4 + 4)
+-  for (let k = 0; k < 6; k++) {
+-    const a = (i * 7 + k * 13) % 17
+-    const px = x + ((a / 17 - 0.5) * footprint) / 2
+-    const py = y + ((((a * 5) % 17) / 17 - 0.5) * footprint) / 2
+-    const length = footprint * (0.25 + (((a * 3) % 17) / 17) * 0.35)
+-    m.compose(
+-      new THREE.Vector3(px, groundAt(px, py) + 0.1, -py),
+-      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, (a / 17) * Math.PI * 2, Math.PI / 2)),
+-      new THREE.Vector3(1, length, 1)
+-    )
+-    logs.push(m.clone())
++// ---------------------------------------------------------------- packages in, one build at a time
++let current: Built | null = null
++let pending: ScenePackage | null = null
++let building = false
++/** The latest camera from the parent, applied once a scene is ready (a package carries its own eye otherwise). */
++let parentCamera: PackageCamera | null = null
++let framesSinceBuild = 0
++let announced = false
++
++async function load(pkg: ScenePackage) {
++  pending = pkg
++  if (building) return
++  building = true
++  try {
++    while (pending) {
++      const next = pending
++      pending = null
++      const built = await build(next)
++      current?.dispose()
++      disposeRetiredStands() // species the new package no longer uses, now nothing draws them
++      current = built
++      scene.add(built.ground.group)
++      atmosphere.setGround((x, z) => built.ground.groundAt(x, -z))
++      const at = next.origin
++      origin = at && Number.isFinite(at.lat) && Number.isFinite(at.lng) ? { lat: at.lat, lng: at.lng } : null
++      setCamera(parentCamera ?? next.camera)
++      framesSinceBuild = 0
++      announced = false
++      Object.assign(window, {
++        pgmaps: {
++          scene,
++          camera,
++          controls,
++          scatter: built.scatter,
++          ground: built.ground,
++          renderer,
++          atmosphere,
++          ready: false
++        }
++      })
++      applyEnvironment()
++    }
++  } catch (error) {
++    const message = error instanceof Error ? error.message : String(error)
++    status(`failed: ${message}`)
++    toParent({ type: 'pgmaps-engine-error', message })
++    Object.assign(window, { pgmaps: { ready: true, error: message } })
++  } finally {
++    building = false
+   }
+ }
+-const logMesh = new THREE.InstancedMesh(
+-  new THREE.CylinderGeometry(0.12, 0.15, 1, 6),
+-  new THREE.MeshStandardMaterial({ color: '#6f6150', roughness: 1 }),
+-  logs.length
+-)
+-logs.forEach((matrix, i) => {
+-  logMesh.setMatrixAt(i, matrix)
++
++addEventListener('message', (event: MessageEvent) => {
++  const data = event.data as { type?: string; scene?: ScenePackage } & Partial<PackageCamera> & EnvironmentInput
++  if (data?.type === 'pgmaps-scene' && data.scene) void load(data.scene)
++  else if (data?.type === 'pgmaps-camera' && data.position) {
++    parentCamera = {
++      position: data.position,
++      bearingDegrees: data.bearingDegrees ?? 0,
++      pitchDegrees: data.pitchDegrees ?? 0,
++      verticalFovDegrees: data.verticalFovDegrees ?? camera.fov
++    }
++    if (current) setCamera(parentCamera)
++  } else if (data?.type === 'pgmaps-environment') {
++    // Light, sky and weather only: the stand and ground stay as built.
++    environment = mergeEnvironment(environment, data)
++    applyEnvironment()
++  }
+ })
+-logMesh.castShadow = logMesh.receiveShadow = true
+-scene.add(logMesh)
+ 
+-setTreeEnvironment({ windStrength: 0.15 })
+-let frames = 0
++async function fromUrlOrFile(): Promise<ScenePackage> {
++  const url = params.get('scene')
++  if (url) return (await fetch(url)).json()
++  status('choose a PGMaps scene package (forestry-scene-package.json)')
++  const input = document.getElementById('file') as HTMLInputElement
++  input.hidden = false
++  return new Promise((resolve) => {
++    input.onchange = async () => resolve(JSON.parse(await input.files![0].text()))
++  })
++}
++
++Object.assign(window, {
++  pgmaps: { scene, camera, controls, renderer, atmosphere, ready: false, environment: { ...atmosphere.applied } }
++})
++if (embedded && !params.get('scene')) {
++  status('waiting for a scene from the parent page…')
++  toParent({ type: 'pgmaps-engine-hello' })
++} else {
++  fromUrlOrFile()
++    .then(load)
++    .catch((error) => {
++      const message = error instanceof Error ? error.message : String(error)
++      status(`failed: ${message}`)
++      toParent({ type: 'pgmaps-engine-error', message })
++    })
++}
++
++// ---------------------------------------------------------------- the frame
+ let last = performance.now()
+ let fps = 30
+-Object.assign(window, { pgmaps: { scene, camera, scatter, ready: false } })
++let lastStats = 0
++const start = performance.now()
++const follow = new THREE.Vector3()
++const ahead = new THREE.Vector3()
++const frustum = new THREE.Frustum()
++const viewProjection = new THREE.Matrix4()
+ renderer.setAnimationLoop(() => {
+   const now = performance.now()
+   fps = fps * 0.9 + (1000 / Math.max(1, now - last)) * 0.1
+   last = now
+   controls.update()
+-  env.follow(controls.target)
+-  setTreeEnvironment({ sun: env.sun })
+-  scatter.update()
+-  env.render()
+-  const s = scatter.stats
++  // Shadows centre a little ahead of the eye, along the ground: the eye's own surroundings, not the far target.
++  camera.getWorldDirection(ahead).setY(0)
++  if (ahead.lengthSq() < 1e-6) ahead.set(0, 0, -1)
++  follow.copy(camera.position).addScaledVector(ahead.normalize(), 30)
++  if (baking) return
++  atmosphere.update((now - start) / 1000, follow)
++  if (current) {
++    current.scatter.update()
++    const water = current.ground.water
++    if (water) {
++      water.lakes.update()
++      // The water's reflections need the scene's depth from a prepass: only drawn while the water is in view.
++      camera.updateMatrixWorld()
++      viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
++      frustum.setFromProjectionMatrix(viewProjection, camera.coordinateSystem)
++      if (frustum.intersectsBox(water.box)) water.prepass.update(renderer, scene)
++    }
++  }
++  pipeline.render()
++  if (!current) return
++  const s = current.scatter.stats
+   status(
+-    `${fps.toFixed(0)} fps · ${scenePackage.trees.count} stems in the package · instances ${s.instances} · drawn ${s.visible} · meshes ${s.meshes}`
++    `${fps.toFixed(0)} fps · ${current.stems} stems in the package · instances ${s.instances} · drawn ${s.visible} · meshes ${s.meshes}`
+   )
++  framesSinceBuild += 1
++  if (framesSinceBuild === 3) current.scatter.set({ cullMargin: CULL_MARGIN })
++  const state = (window as unknown as { pgmaps: { ready: boolean } }).pgmaps
++  const streamed = s.instances >= current.stems
++  // A (new) scene's first full frame: every stem streamed in, or long enough that the rest are out of reach.
++  if (!announced && framesSinceBuild > 2 && (streamed || framesSinceBuild > 120)) {
++    announced = true
++    toParent({ type: 'pgmaps-engine-ready' })
++  }
++  if (now - lastStats > 1000) {
++    lastStats = now
++    toParent({
++      type: 'pgmaps-engine-stats',
++      drawn: s.visible,
++      instances: s.instances,
++      meshes: s.meshes,
++      fps: Math.round(fps),
++      stems: current.stems
++    })
++  }
+   // `&still`: once the stand has streamed in, stop on that frame (for screenshots and comparisons).
+-  frames += 1
+-  if (params.has('still') && frames > 4 && s.instances >= scenePackage.trees.count) {
++  if (params.has('still') && framesSinceBuild > 4 && streamed) {
+     renderer.setAnimationLoop(null)
+-    ;(window as unknown as { pgmaps: { ready: boolean } }).pgmaps.ready = true
+-  } else if (!params.has('still') && frames === 60)
+-    (window as unknown as { pgmaps: { ready: boolean } }).pgmaps.ready = true
++    state.ready = true
++  } else if (!params.has('still') && framesSinceBuild === 60) state.ready = true
+ })
+ addEventListener('beforeunload', () => {
+-  scatter.dispose()
+-  disposeLayers(layers)
++  current?.dispose()
++  disposeStandCache()
++  atmosphere.dispose()
+ })
+ addEventListener('resize', () => {
+   camera.aspect = innerWidth / innerHeight
+diff --git a/example/scatter.ts b/example/scatter.ts
+index 7cb6458..d8bcb16 100644
+--- a/example/scatter.ts
++++ b/example/scatter.ts
+@@ -196,7 +196,9 @@ if (scatter) {
+           maxDistance: [100, 2000, 10],
+           buildBudget: [0.5, 20, 0.5],
+           lodHysteresis: [0, 0.5, 0.01],
+-          refreshDistance: [0.1, 20, 0.1]
++          refreshDistance: [0.1, 20, 0.1],
++          cullMargin: [0, 90, 1],
++          cullNear: [0, 200, 1]
+         }
+       })
+     ]
+diff --git a/packages/scatter/README.md b/packages/scatter/README.md
+index 21e1a01..86bd726 100644
+--- a/packages/scatter/README.md
++++ b/packages/scatter/README.md
+@@ -81,6 +81,8 @@ function, and `ref` gives you the `ScatterImpl` instance (for `query` and `stats
+ | `buildBudget` | `4` | Milliseconds per frame for generating tiles, nearest first. |
+ | `lodHysteresis` | `0.1` | Fractional band an instance must cross to switch level. |
+ | `refreshDistance` | `1` | Camera movement (m) that re-sorts instances into levels. |
++| `cullMargin` | `0` | View culling, off at 0: degrees added to each side of the camera's horizontal field of view; instances outside are not drawn (nor cast shadows), and instances are re-sorted when the view turns by half the margin. |
++| `cullNear` | `30` | Metres around the camera kept in every direction while culling (shadow casters behind the eye). |
+ | `layers` | `[]` | `ScatterLayer[]`, below. |
+ 
+ Layer fields (all but `name` have defaults):
+diff --git a/packages/scatter/src/impostor.ts b/packages/scatter/src/impostor.ts
+index 6455c38..07ffd97 100644
+--- a/packages/scatter/src/impostor.ts
++++ b/packages/scatter/src/impostor.ts
+@@ -334,8 +334,9 @@ function basisNode(d: any) {
+ }
+ 
+ /**
+- * The impostor material. Per instance it reads `scatterPosition` (xyz = world base position, w = uniform scale) and
+- * `scatterParams` (x = yaw in radians, y = brightness tint), which `Scatter` fills for impostor LODs.
++ * The impostor material. Per instance it reads `scatterPosition` (xyz = world base position, w = scale) and
++ * `scatterParams` (x = yaw in radians, y = brightness tint, w = width ÷ height, 1 for a uniform scale), which
++ * `Scatter` fills for impostor LODs.
+  */
+ function createImpostorMaterial(albedo: Texture, normals: Texture, o: ImpostorOptions, bounds: Sphere) {
+   const billboard = o.mode === 'billboard'
+@@ -348,7 +349,11 @@ function createImpostorMaterial(albedo: Texture, normals: Texture, o: ImpostorOp
+   const rot = (v: any) => vec3(v.x.mul(c).add(v.z.mul(s)), v.y, v.z.mul(c).sub(v.x.mul(s)))
+   const unrot = (v: any) => vec3(v.x.mul(c).sub(v.z.mul(s)), v.y, v.z.mul(c).add(v.x.mul(s)))
+ 
+-  const center = aPos.xyz.add(rot(vec3(bounds.center.x, bounds.center.y, bounds.center.z).mul(aPos.w)))
++  // Across (x, z) the instance may be scaled apart from its height: `scatterParams.w` is width ÷ height (1, or 0
++  // from an older writer, for a uniform scale).
++  const across = aPos.w.mul(select(aPar.w.greaterThan(0), aPar.w, float(1)))
++  const scaled = (v: any) => vec3(v.x.mul(across), v.y.mul(aPos.w), v.z.mul(across))
++  const center = aPos.xyz.add(scaled(rot(vec3(bounds.center.x, bounds.center.y, bounds.center.z))))
+   const toCamRaw = cameraPosition.sub(center)
+   const toCam = billboard ? normalize(vec3(toCamRaw.x, 0, toCamRaw.z).add(vec3(0, 0, 1e-5))) : normalize(toCamRaw)
+   const view = basisNode(toCam)
+@@ -365,11 +370,15 @@ function createImpostorMaterial(albedo: Texture, normals: Texture, o: ImpostorOp
+   const material = new MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0 })
+   material.alphaTest = o.alphaTest
+   material.positionNode = center.add(
+-    view.right.mul(positionGeometry.x).add(view.up.mul(positionGeometry.y)).mul(bounds.radius).mul(aPos.w)
++    scaled(view.right.mul(positionGeometry.x).add(view.up.mul(positionGeometry.y)).mul(bounds.radius))
+   )
+ 
+   const inset = 0.5 / Math.max(1, o.size / N)
+-  const atlasUv = vCell.add(clamp(uv() as any, inset, 1 - inset)).div(N)
++  // The bake stacks cells bottom-up in NDC (cell row j from the frustum's bottom), but three.js samples a render
++  // target top-down on both backends (WebGL flips render-target UVs to match WebGPU), so the atlas row is read from
++  // the top: without the flip every impostor was drawn upside down (trunks above, crowns hanging under them).
++  const cellUv = vCell.add(clamp(uv() as any, inset, 1 - inset)).div(N)
++  const atlasUv = vec2(cellUv.x, float(1).sub(cellUv.y))
+   const sample = texture(albedo, atlasUv)
+   const normalSample = texture(normals, atlasUv)
+   // The bake stores object-space normals; yaw is the only instance rotation, so turning it by yaw gives the world
+diff --git a/packages/scatter/src/scatter.ts b/packages/scatter/src/scatter.ts
+index ecda98e..634878b 100644
+--- a/packages/scatter/src/scatter.ts
++++ b/packages/scatter/src/scatter.ts
+@@ -44,7 +44,7 @@ export interface ScatterLayer extends PlacementRules {
+   /**
+    * Far level drawn after the last mesh level, typically from `bakeImpostor()`. Unlike mesh levels it is not an
+    * `InstancedMesh`: its material reads two per-instance attributes, `scatterPosition` (xyz = base position,
+-   * w = scale) and `scatterParams` (x = yaw, y = brightness tint, z = random 0..1).
++   * w = scale) and `scatterParams` (x = yaw, y = brightness tint, z = random 0..1, w = width ÷ height).
+    */
+   impostor: ScatterLOD | null
+   /** Whether instances cast shadows (can be overridden per level). */
+@@ -70,6 +70,16 @@ export interface ScatterSettings {
+   lodHysteresis: number
+   /** How far (metres) the camera moves before instances are re-sorted into levels of detail. */
+   refreshDistance: number
++  /**
++   * View culling, off at 0: instances outside the camera's horizontal field of view widened by this many degrees on
++   * each side are left out of the pools (and so of every draw and shadow pass), except within
++   * {@link ScatterSettings.cullNear} of the camera. Instances are re-sorted whenever the view turns by half this
++   * margin, so a margin of 20–30° keeps the edges filled while panning. Turned off while the camera looks steeply up
++   * or down, where a horizontal cone no longer matches the view.
++   */
++  cullMargin: number
++  /** Metres around the camera kept whatever the view direction (shadow casters behind the eye), with culling on. */
++  cullNear: number
+   /** The kinds of objects to scatter. */
+   layers: ScatterLayer[]
+ }
+@@ -126,7 +136,9 @@ const DEFAULTS: Omit<ScatterSettings, 'layers'> = {
+   maxDistance: 600,
+   buildBudget: 4,
+   lodHysteresis: 0.1,
+-  refreshDistance: 1
++  refreshDistance: 1,
++  cullMargin: 0,
++  cullNear: 30
+ }
+ 
+ const LAYER_DEFAULTS: Omit<ScatterLayer, 'name'> = {
+@@ -211,6 +223,9 @@ export class Scatter {
+   private frame = 0
+   private dirty = true
+   private lastRefresh = new Vector3(Infinity, 0, 0)
++  /** Horizontal view direction and field of view at the last refresh (view culling). */
++  private lastView = new Vector3(0, 0, 0)
++  private lastFov = 0
+   private unhook = () => {}
+ 
+   /** Creates a scatter and generates every tile in range, so the first frame is complete. */
+@@ -370,7 +385,36 @@ export class Scatter {
+       if (performance.now() - start > budget) break
+     }
+ 
+-    if (this.dirty || cam.distanceToSquared(this.lastRefresh) > s.refreshDistance * s.refreshDistance) this.refresh(cam)
++    if (
++      this.dirty ||
++      cam.distanceToSquared(this.lastRefresh) > s.refreshDistance * s.refreshDistance ||
++      this.viewTurned()
++    )
++      this.refresh(cam)
++  }
++
++  /** The view cone for culling: horizontal direction (x, z), cosine of the kept half-angle, or null for no culling. */
++  private viewCone(): { x: number; z: number; cos: number; fov: number } | null {
++    const margin = this.settings.cullMargin
++    if (!(margin > 0)) return null
++    const cam = this.camera as Camera & { fov?: number; aspect?: number; isPerspectiveCamera?: boolean }
++    if (!cam.isPerspectiveCamera || cam.fov === undefined) return null
++    const d = cam.getWorldDirection(_dir)
++    const flat = Math.hypot(d.x, d.z)
++    if (flat < 0.5) return null // looking steeply up or down
++    const half = Math.atan(Math.tan(((cam.fov / 2) * Math.PI) / 180) * (cam.aspect ?? 1))
++    const angle = half + (margin * Math.PI) / 180
++    if (angle >= Math.PI) return null
++    return { x: d.x / flat, z: d.z / flat, cos: Math.cos(angle), fov: cam.fov * (cam.aspect ?? 1) }
++  }
++
++  /** Whether the view has turned (or zoomed out) enough since the last refresh that the culled set must change. */
++  private viewTurned(): boolean {
++    const cone = this.viewCone()
++    if (!cone) return this.lastFov !== 0 // culling just switched off: draw everything again
++    if (this.lastFov === 0) return true
++    const turn = Math.acos(Math.max(-1, Math.min(1, cone.x * this.lastView.x + cone.z * this.lastView.z)))
++    return turn > (this.settings.cullMargin * Math.PI) / 360 || cone.fov > this.lastFov * 1.02
+   }
+ 
+   /**
+@@ -439,6 +483,21 @@ export class Scatter {
+     const s = this.settings
+     this.lastRefresh.copy(cam)
+     this.dirty = false
++    const cone = this.viewCone()
++    this.lastView.set(cone?.x ?? 0, 0, cone?.z ?? 0)
++    this.lastFov = cone?.fov ?? 0
++    const near2 = s.cullNear * s.cullNear
++    /** Whether the instance at offset `o` is inside the view cone (always, without culling). */
++    const inView = cone
++      ? (data: Float32Array, o: number) => {
++          const dx = data[o + 12] - cam.x
++          const dz = data[o + 14] - cam.z
++          const d2 = dx * dx + dz * dz
++          if (d2 < near2) return true
++          const along = dx * cone.x + dz * cone.z
++          return along > 0 && along * along >= cone.cos * cone.cos * d2
++        }
++      : () => true
+     const layerDistances = s.layers.map(distancesOf)
+     const counts = s.layers.map((_, i) => new Int32Array(layerDistances[i].length))
+     let instances = 0
+@@ -458,7 +517,7 @@ export class Scatter {
+             const d = Math.hypot(data[o + 12] - cam.x, data[o + 13] - cam.y, data[o + 14] - cam.z)
+             const level = selectLod(d, dists, lod[n], s.lodHysteresis)
+             lod[n] = level
+-            if (level >= 0) c[level]++
++            if (level >= 0 && inView(data, o)) c[level]++
+           }
+         })
+       }
+@@ -484,7 +543,8 @@ export class Scatter {
+           const data = tg.data[k]
+           const lod = tg.lod[k]
+           const w = writers[li]
+-          for (let n = 0, o = 0; n < lod.length; n++, o += INSTANCE_STRIDE) if (lod[n] >= 0) w[lod[n]]?.(data, o)
++          for (let n = 0, o = 0; n < lod.length; n++, o += INSTANCE_STRIDE)
++            if (lod[n] >= 0 && inView(data, o)) w[lod[n]]?.(data, o)
+         })
+       }
+     }
+@@ -595,6 +655,11 @@ function writer(pool: Pool): PoolWriter {
+       par[w] = data[o + 16]
+       par[w + 1] = data[o + 18]
+       par[w + 2] = data[o + 19]
++      // Width over height from the instance matrix (1 for a uniform scale): fixed instances carry their own crown
++      // width, and the impostor stretches across by it so it keeps the mesh's proportions.
++      const across = Math.hypot(data[o], data[o + 1], data[o + 2])
++      const up = Math.hypot(data[o + 4], data[o + 5], data[o + 6])
++      par[w + 3] = up > 0 ? across / up : 1
+     }
+   }
+   const mesh = pool.meshes[0] as InstancedMesh
+@@ -708,6 +773,7 @@ export function disposeLayers(layers: readonly Pick<ScatterLayer, 'lods' | 'impo
+ }
+ 
+ const _v = new Vector3()
++const _dir = new Vector3()
+ 
+ /**
+  * Minimum instances per pooled mesh. three.js draws instanced meshes whose matrices fit a uniform buffer (64 KB on
+diff --git a/example/pgmaps-environment.ts b/example/pgmaps-environment.ts
+new file mode 100644
+index 0000000..62cdb66
+--- /dev/null
++++ b/example/pgmaps-environment.ts
+@@ -0,0 +1,498 @@
++// The PGMaps scene's sky, light, haze and weather: threejs-sky placed at the package's date, latitude and longitude,
++// aerial perspective that follows that sky, and threejs-weathering's rain and snow with wet and snowy materials.
++// Driven by the parent's `pgmaps-environment` message (or URL parameters); never rebuilds the stand.
++import * as THREE from 'three/webgpu'
++import {
++  cameraPosition,
++  dot,
++  exp,
++  float,
++  Fn,
++  fog,
++  length,
++  max,
++  mix,
++  mx_fractal_noise_float,
++  normalize,
++  pow,
++  positionWorld,
++  smoothstep,
++  uniform,
++  vec3
++} from 'three/tsl'
++import { Sky, sunElevationAt, toSimTime } from 'threejs-sky'
++import { setTreeEnvironment } from 'threejs-trees'
++import { createMaterialStateUniforms, Precipitation, Weather, type MaterialStateUniforms } from 'threejs-weathering'
++
++export type GroundCover = 'bare' | 'snow'
++export type WeatherKind = 'clear' | 'overcast' | 'rain' | 'snow'
++
++/** What the parent sends (`pgmaps-environment`), all optional; missing fields keep their last value. */
++export interface EnvironmentInput {
++  /** ISO 8601 with an offset, e.g. `2026-07-15T14:00:00-07:00`. */
++  dateTime?: string | null
++  latitude?: number | null
++  longitude?: number | null
++  ground?: GroundCover
++  weather?: WeatherKind
++}
++
++/** The environment in force: `null` date or position means "the package's default". */
++export interface EnvironmentState {
++  dateTime: string | null
++  latitude: number | null
++  longitude: number | null
++  ground: GroundCover
++  weather: WeatherKind
++}
++
++export const DEFAULT_ENVIRONMENT: EnvironmentState = {
++  dateTime: null,
++  latitude: null,
++  longitude: null,
++  ground: 'bare',
++  weather: 'clear'
++}
++
++const GROUNDS: readonly GroundCover[] = ['bare', 'snow']
++const WEATHERS: readonly WeatherKind[] = ['clear', 'overcast', 'rain', 'snow']
++const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
++
++/** Merges a message (or URL parameters) into the environment, ignoring fields that are missing or invalid. */
++export function mergeEnvironment(state: EnvironmentState, input: EnvironmentInput): EnvironmentState {
++  const next = { ...state }
++  if (typeof input.dateTime === 'string' && Number.isFinite(Date.parse(input.dateTime))) next.dateTime = input.dateTime
++  else if (input.dateTime === null) next.dateTime = null
++  if (finite(input.latitude)) next.latitude = Math.max(-89.9, Math.min(89.9, input.latitude))
++  if (finite(input.longitude)) next.longitude = ((((input.longitude + 180) % 360) + 360) % 360) - 180
++  if (input.ground && GROUNDS.includes(input.ground)) next.ground = input.ground
++  if (input.weather && WEATHERS.includes(input.weather)) next.weather = input.weather
++  return next
++}
++
++/** `?dateTime=…&latitude=…&longitude=…&ground=snow&weather=rain`, for standalone tests. */
++export function environmentFromParams(params: URLSearchParams): EnvironmentInput {
++  const number = (key: string) => (params.has(key) ? Number(params.get(key)) : undefined)
++  return {
++    dateTime: params.get('dateTime') ?? undefined,
++    latitude: number('latitude') ?? number('lat'),
++    longitude: number('longitude') ?? number('lng'),
++    ground: (params.get('ground') ?? undefined) as GroundCover | undefined,
++    weather: (params.get('weather') ?? undefined) as WeatherKind | undefined
++  }
++}
++
++/**
++ * How each kind of weather looks. Visibility is the meteorological range (Koschmieder: 2% contrast left), which sets
++ * the aerial perspective; `sun` scales the direct light (cloud cover takes it), `fill` is the diffuse skylight under
++ * cloud, `exposure` brings a dull day back up the way an eye or camera would.
++ */
++const WEATHER: Record<
++  WeatherKind,
++  {
++    clouds: Record<string, unknown>
++    sun: number
++    shadows: boolean
++    fill: number
++    environment: number
++    visibility: number
++    /** Grey the haze takes under cloud (0 = the clear sky's horizon colour). */
++    grey: number
++    /** Brightness of that grey relative to the clear-sky horizon. */
++    greyLevel: number
++    exposure: number
++    wetness: number
++    foliageSnow: number
++    rain: number
++    snowfall: number
++    wind: number
++  }
++> = {
++  clear: {
++    clouds: {
++      coverage: 0.28,
++      density: 1,
++      color: '#ffffff',
++      stratus: { amount: 0 },
++      cumulus: { amount: 1, size: [400, 1400] },
++      cirrus: { amount: 0 },
++      silverLining: 1
++    },
++    sun: 1,
++    shadows: true,
++    fill: 0.7,
++    environment: 0.45,
++    visibility: 60_000,
++    grey: 0,
++    greyLevel: 1,
++    exposure: 1.15,
++    wetness: 0,
++    foliageSnow: 0,
++    rain: 0,
++    snowfall: 0,
++    wind: 0.15
++  },
++  overcast: {
++    clouds: {
++      coverage: 1,
++      density: 1.8,
++      color: '#d5d8dc',
++      featureSize: 90_000,
++      stratus: { amount: 2, altitude: [500, 1300] },
++      cumulus: { amount: 1.2 },
++      cirrus: { amount: 0 },
++      silverLining: 0.2
++    },
++    sun: 0.1,
++    shadows: false,
++    fill: 0.9,
++    environment: 0.12,
++    visibility: 25_000,
++    grey: 0.85,
++    greyLevel: 0.75,
++    exposure: 1.9,
++    wetness: 0.08,
++    foliageSnow: 0,
++    rain: 0,
++    snowfall: 0,
++    wind: 0.25
++  },
++  rain: {
++    clouds: {
++      coverage: 1,
++      density: 2.6,
++      color: '#9fa4aa',
++      featureSize: 90_000,
++      stratus: { amount: 2, altitude: [350, 1000] },
++      cumulus: { amount: 1.5 },
++      cirrus: { amount: 0 },
++      silverLining: 0.1
++    },
++    sun: 0.04,
++    shadows: false,
++    fill: 0.7,
++    environment: 0.1,
++    visibility: 8000,
++    grey: 0.95,
++    greyLevel: 0.55,
++    exposure: 2.1,
++    wetness: 0.6,
++    foliageSnow: 0,
++    rain: 6,
++    snowfall: 0,
++    wind: 0.45
++  },
++  snow: {
++    clouds: {
++      coverage: 1,
++      density: 2.2,
++      color: '#c4c8cd',
++      featureSize: 90_000,
++      stratus: { amount: 2, altitude: [300, 900] },
++      cumulus: { amount: 1.2 },
++      cirrus: { amount: 0 },
++      silverLining: 0.1
++    },
++    sun: 0.05,
++    shadows: false,
++    fill: 0.85,
++    environment: 0.1,
++    visibility: 5000,
++    grey: 0.95,
++    greyLevel: 0.8,
++    exposure: 1.6,
++    wetness: 0.3,
++    foliageSnow: 0.3,
++    rain: 0,
++    snowfall: 2.5,
++    wind: 0.3
++  }
++}
++
++/** Lowest sun the scene is lit at: below it the clock moves to the nearest dusk (or dawn), so night is never black. */
++const DUSK_ELEVATION = -3
++
++export interface Atmosphere {
++  sky: Sky
++  /** Wetness and snow for the ground (and anything else not a tree); trees take theirs through `setTreeEnvironment`. */
++  states: MaterialStateUniforms
++  precipitation: Precipitation
++  /** The environment as last applied, with the date and position actually used. */
++  readonly applied: { state: EnvironmentState; latitude: number; longitude: number; date: string; sunElevation: number }
++  /** Applies an environment (cheap: no rebuild). `origin` is the package's own position, for the defaults. */
++  apply(state: EnvironmentState, origin: { lat: number; lng: number } | null): void
++  /** Ground height in three.js space for rain splashes. */
++  setGround(ground: ((x: number, z: number) => number) | null): void
++  /** Once a frame, before rendering. `follow` is the point the sun's shadows centre on. */
++  update(seconds: number, follow: THREE.Vector3): void
++  dispose(): void
++}
++
++/** The sky, sun, skylight, haze and weather for a renderer and scene. */
++export async function createAtmosphere(
++  renderer: THREE.WebGPURenderer,
++  scene: THREE.Scene,
++  camera: THREE.PerspectiveCamera
++): Promise<Atmosphere> {
++  renderer.toneMapping = THREE.ACESFilmicToneMapping
++  renderer.shadowMap.enabled = true
++  renderer.shadowMap.type = THREE.PCFShadowMap
++
++  /**
++   * Everything the sky is given, rebuilt on each change and passed to `reset` so no earlier weather lingers. Cloud
++   * altitudes in the table are above the ground; `ground` (metres above sea level) lifts them onto it.
++   */
++  const skyInput = (
++    latitude: number,
++    longitude: number,
++    date: number,
++    w: (typeof WEATHER)[WeatherKind],
++    ground: number
++  ) => {
++    const clouds = structuredClone(w.clouds) as Record<string, { altitude?: number[] } | unknown>
++    const lift = (genus: string, fallback: [number, number]) => {
++      const g = (clouds[genus] ?? {}) as { altitude?: number[] }
++      const [lo, hi] = g.altitude ?? fallback
++      clouds[genus] = { ...g, altitude: [lo + ground, hi + ground] }
++    }
++    lift('cumulus', [1100, 2100])
++    lift('stratus', [600, 1400])
++    return {
++      clock: { date, paused: true },
++      observer: { latitude, longitude },
++      // A little more aerosol than the default (the interior's summer air: a pale sky near the horizon), and more
++      // march steps than the default: the sky is baked once per change (below), so it can afford them, and the clouds'
++      // edges no longer step.
++      atmosphere: { mie: 6e-6, steps: 24, lightSteps: 6 },
++      lighting: {
++        autoExposure: false,
++        fog: false,
++        lightDistance: 220,
++        sunIntensity: 3.4 * w.sun,
++        shadows: w.shadows,
++        environmentIntensity: w.environment
++      },
++      shootingStars: { rate: 0, shower: 0 },
++      clouds: { steps: 64, lightSteps: 6, ...clouds }
++    }
++  }
++  const sky = await Sky.create({
++    renderer,
++    scene,
++    camera,
++    ...skyInput(54, -122.6, Date.UTC(new Date().getUTCFullYear(), 6, 15, 21), WEATHER.clear, 0)
++  })
++  // Never night here (see DUSK_ELEVATION): no stars or planets over the daytime sky.
++  sky.object.remove(sky.stars.object, sky.shootingStars.object)
++  const sun = sky.sun
++  sun.shadow.mapSize.set(4096, 4096)
++  Object.assign(sun.shadow.camera, { left: -55, right: 55, top: 55, bottom: -55, near: 1, far: 500 })
++  sun.shadow.camera.updateProjectionMatrix()
++  sun.shadow.bias = -0.0004
++  sun.shadow.normalBias = 0.04
++  // Skylight the sky's own image light leaves out: light bounced off the ground (warm, from below) on a clear day,
++  // and the grey of a cloud deck, which the image light (the clear sky) does not see.
++  const fill = new THREE.HemisphereLight('#dfe3e8', '#5c4a36', 0)
++  scene.add(fill)
++
++  // The sky is baked. Its clock is paused, so the dome and clouds only change when the environment does (or the eye
++  // travels far): they are rendered into a cube once then and drawn as the background, instead of ray-marching the
++  // atmosphere and the clouds behind every pixel of every frame.
++  const skyScene = new THREE.Scene()
++  const skyTarget = new THREE.CubeRenderTarget(512, { type: THREE.HalfFloatType, generateMipmaps: false })
++  const skyCamera = new THREE.CubeCamera(1, 400_000, skyTarget)
++  const bakedAt = new THREE.Vector3(Infinity, 0, 0)
++  let bakeSky = true
++  const takeSky = () => skyScene.add(sky.dome, sky.clouds.object)
++  takeSky()
++  scene.background = skyTarget.texture
++
++  // Aerial perspective: Koschmieder extinction over the distance travelled, towards the horizon sky's colour, with a
++  // warm forward-scattered glow around the sun (Mie). Applied to every material through `scene.fogNode`.
++  const hazeColor = uniform(new THREE.Color('#c4cdd6'))
++  const glowColor = uniform(new THREE.Color('#000000'))
++  const sunDirection = uniform(new THREE.Vector3(0, 1, 0))
++  const extinction = uniform(3.912 / 60_000)
++  scene.fog = null
++  scene.fogNode = Fn(() => {
++    const ray = positionWorld.sub(cameraPosition)
++    const d = length(ray)
++    const mu = dot(ray.div(max(d, 1e-3)), sunDirection)
++    // biome-ignore lint/suspicious/noExplicitAny: colour uniforms are typed narrowly in three's TSL typings
++    const inscatter = (hazeColor as any).add((glowColor as any).mul(pow(max(mu, float(0)), float(6))))
++    const amount = float(1).sub(exp(d.mul(extinction).negate()))
++    // biome-ignore lint/suspicious/noExplicitAny: three's typings take a float for the fog colour
++    return (fog as any)(inscatter, amount)
++  })() as unknown as THREE.Scene['fogNode']
++
++  // A cloud deck for dull weather. threejs-sky's clouds come from a weather field with clear gaps however high the
++  // coverage, so overcast, rain and snow draw a closed grey deck instead: a little lighter towards the sun, with
++  // stratus texture, fading into the haze at the horizon.
++  const deckColor = uniform(new THREE.Color(0.6, 0.6, 0.62))
++  const deckMaterial = new THREE.MeshBasicNodeMaterial({ side: THREE.BackSide, depthWrite: false })
++  deckMaterial.fog = false
++  {
++    const dir = normalize(positionWorld.sub(cameraPosition))
++    const texture = mx_fractal_noise_float(dir.mul(vec3(2.5, 7, 2.5)), 4, 2, 0.5)
++    const glow = pow(max(dot(dir, sunDirection), float(0)), float(6)).mul(0.4)
++    // biome-ignore lint/suspicious/noExplicitAny: colour uniforms are typed narrowly in three's TSL typings
++    const body = (deckColor as any).mul(texture.mul(0.22).add(1)).mul(glow.add(1))
++    deckMaterial.colorNode = mix(hazeColor as never, body, smoothstep(-0.02, 0.3, dir.y))
++  }
++  const deck = new THREE.Mesh(new THREE.SphereGeometry(5000, 64, 32), deckMaterial)
++  deck.renderOrder = -500
++  deck.frustumCulled = false
++  deck.visible = false
++  skyScene.add(deck)
++
++  const states = createMaterialStateUniforms()
++  const precipitation = new Precipitation({
++    weather: new Weather({}, null),
++    camera,
++    ground: null,
++    radius: 45,
++    height: 32,
++    override: { precipitation: 0, snowFraction: 0, wind: [0, 0] }
++  })
++  scene.add(precipitation.object)
++
++  let look = WEATHER.clear
++  let state = DEFAULT_ENVIRONMENT
++  const applied = { state, latitude: 54, longitude: -122.6, date: '', sunElevation: 0 }
++  const _c = new THREE.Color()
++  const _grey = new THREE.Color()
++
++  function apply(next: EnvironmentState, origin: { lat: number; lng: number } | null) {
++    state = next
++    look = WEATHER[next.weather]
++    const latitude = next.latitude ?? origin?.lat ?? 54
++    const longitude = next.longitude ?? origin?.lng ?? -122.6
++    // The date: as sent, or a mid-July early afternoon in local solar time (about 13:00) for the package's place.
++    let ms: number
++    if (next.dateTime) ms = Date.parse(next.dateTime)
++    else ms = Date.UTC(new Date().getUTCFullYear(), 6, 15, 13) - (longitude / 15) * 3600_000
++    const time = duskFloor(sky, toSimTime(ms), latitude, longitude)
++    const ground = Math.max(0, Math.round(camera.position.y / 50) * 50)
++    sky.reset(skyInput(latitude, longitude, Math.round(Date.UTC(2000, 0, 1, 12) + time * 1000), look, ground))
++    sky.update(0)
++    applied.state = next
++    applied.latitude = latitude
++    applied.longitude = longitude
++    applied.date = new Date(Date.UTC(2000, 0, 1, 12) + time * 1000).toISOString()
++    applied.sunElevation = sky.state.sunElevation
++    takeSky() // a rebuilt dome goes back under the sky's own root
++    const dull = next.weather !== 'clear'
++    deck.visible = dull
++    sky.clouds.object.visible = !dull
++    bakeSky = true
++    extinction.value = 3.912 / look.visibility
++
++    const snowGround = next.ground === 'snow'
++    states.snow.value = snowGround ? 1 : 0
++    states.wetness.value = look.wetness
++    setTreeEnvironment({
++      wetness: look.wetness,
++      snow: Math.max(look.foliageSnow, snowGround ? 0.6 : 0),
++      windStrength: look.wind
++    })
++    precipitation.set({
++      override: {
++        precipitation: look.rain || look.snowfall,
++        snowFraction: look.snowfall > 0 ? 1 : 0,
++        wind: look.rain ? [2.2, 0.8] : [0.9, 0.3]
++      }
++    })
++  }
++
++  /** Haze, sun glow, cloud deck, skylight fill and exposure from the sky's current lighting. */
++  function updateLight() {
++    const lighting = sky.lighting
++    if (!lighting) return
++    const day = THREE.MathUtils.smoothstep(sky.state.sunElevation, -6, 12)
++    // The haze: the sky's horizon radiance, a little less saturated than the sky itself (low-altitude aerosol
++    // scatters white), turned grey under cloud.
++    const [r, g, b] = lighting.fogColor
++    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
++    _c.setRGB(r, g, b).lerp(_grey.setRGB(lum, lum, lum), 0.35)
++    if (look.grey > 0) _c.lerp(_grey.setRGB(lum, lum * 1.01, lum * 1.03).multiplyScalar(look.greyLevel), look.grey)
++    hazeColor.value.copy(_c)
++    deckColor.value.copy(_c).multiplyScalar(1.15)
++    if (sky.sun.visible) glowColor.value.copy(sky.sun.color).multiplyScalar(lum * 0.6 * look.sun)
++    else glowColor.value.setRGB(0, 0, 0)
++    sunDirection.value.set(...sky.state.sunDirection)
++    // Bounce light and the cloud deck's light fade with the daylight.
++    fill.intensity = look.fill * (0.1 + 0.9 * day)
++    fill.visible = fill.intensity > 1e-3
++    renderer.toneMappingExposure = THREE.MathUtils.clamp(sky.exposure, 0.3, 6) * look.exposure
++  }
++
++  return {
++    sky,
++    states,
++    precipitation,
++    applied,
++    apply,
++    setGround(ground) {
++      precipitation.ground = ground
++    },
++    update(seconds, follow) {
++      sky.follow(follow)
++      sky.update()
++      updateLight()
++      if (bakeSky || camera.position.distanceToSquared(bakedAt) > 250 * 250) {
++        bakeSky = false
++        bakedAt.copy(camera.position)
++        if (skyCamera.coordinateSystem !== renderer.coordinateSystem) {
++          skyCamera.coordinateSystem = renderer.coordinateSystem
++          skyCamera.updateCoordinateSystem()
++        }
++        skyCamera.position.copy(camera.position)
++        deck.position.copy(camera.position)
++        skyCamera.updateMatrixWorld()
++        const target = renderer.getRenderTarget()
++        skyCamera.update(renderer, skyScene)
++        renderer.setRenderTarget(target)
++      }
++      precipitation.update(seconds)
++    },
++    dispose() {
++      precipitation.object.removeFromParent()
++      fill.removeFromParent()
++      sky.object.add(sky.dome, sky.clouds.object)
++      sky.dispose()
++      skyTarget.dispose()
++      scene.background = null
++    }
++  }
++}
++
++/**
++ * The simulation time to light the scene at: `time` itself while the sun is at or above {@link DUSK_ELEVATION}, else
++ * the nearest moment (before or after) it is, so a night view shows dusk or dawn rather than black.
++ */
++function duskFloor(sky: Sky, time: number, latitude: number, longitude: number): number {
++  const at = (t: number) => sunElevationAt(sky.system, t, latitude, longitude)
++  if (at(time) >= DUSK_ELEVATION) return time
++  const step = 600
++  let best: number | null = null
++  for (let k = 1; k <= 13 * 6 && best === null; k++) {
++    for (const t of [time - k * step, time + k * step]) {
++      if (at(t) < DUSK_ELEVATION) continue
++      // Bisect back to the crossing, so the sun sits just at the floor.
++      let lo = t
++      let hi = t < time ? t + step : t - step
++      for (let i = 0; i < 20; i++) {
++        const mid = (lo + hi) / 2
++        if (at(mid) >= DUSK_ELEVATION) lo = mid
++        else hi = mid
++      }
++      best = lo
++      break
++    }
++  }
++  if (best !== null) return best
++  // Polar night: the day's highest sun.
++  let top = time
++  for (let k = -72; k <= 72; k++) if (at(time + k * 600) > at(top)) top = time + k * 600
++  return top
++}
+diff --git a/example/pgmaps-ground.ts b/example/pgmaps-ground.ts
+new file mode 100644
+index 0000000..b50db12
+--- /dev/null
++++ b/example/pgmaps-ground.ts
+@@ -0,0 +1,637 @@
++// A PGMaps package's ground: the terrain with forest floor, harvested ground (soil, duff, dry grass) inside openings
++// and exposed mineral soil on road scars, weathered (wet, snow) through threejs-weathering; stumps and slash on the cut
++// ground; and the package's water bodies as threejs-water lakes, with their beds carved into the terrain.
++//
++// Package coordinates are local metres, x east, y north, z up; three.js is y up with north at −z, so a package point
++// (x, y, z) is drawn at (x, z, −y).
++import * as THREE from 'three/webgpu'
++import {
++  attribute,
++  cameraPosition,
++  distance,
++  float,
++  mix,
++  mx_noise_float,
++  positionWorld,
++  smoothstep,
++  vec3
++} from 'three/tsl'
++import { hash, mulberry32 } from 'threejs-scatter'
++import { Lakes, WaterPrepass, type HydrologyResult } from 'threejs-water'
++import { applyMaterialStatesTo, type MaterialStateUniforms } from 'threejs-weathering'
++
++type Ring = Array<[number, number]>
++
++/** A water body: polygon rings in package metres (outer first, then holes) and the surface height. */
++export interface WaterBody {
++  rings: Ring[]
++  /** Water surface, metres; `null` = the lowest ground along the outer ring. */
++  elevationMeters: number | null
++}
++
++export interface GroundInput {
++  terrain: {
++    west: number
++    south: number
++    spacing: number
++    columns: number
++    rows: number
++    heights: Array<number | null>
++  }
++  openings: Array<{ rings: Ring[] }>
++  debris: { count: number; data: number[] }
++  roadScars: Array<{ kind: 'cut' | 'fill'; ring: Ring }>
++  water?: WaterBody[] | null
++}
++
++export function inRing(ring: Ring, x: number, y: number) {
++  let inside = false
++  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
++    const [xi, yi] = ring[i]
++    const [xj, yj] = ring[j]
++    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
++  }
++  return inside
++}
++
++/** Distance from a point to a ring's edges. */
++function edgeDistance(ring: Ring, x: number, y: number) {
++  let best = Infinity
++  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
++    const [ax, ay] = ring[j]
++    const [bx, by] = ring[i]
++    const dx = bx - ax
++    const dy = by - ay
++    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)))
++    best = Math.min(best, Math.hypot(ax + dx * t - x, ay + dy * t - y))
++  }
++  return best
++}
++
++/** A polygon with holes and its bounding box, for quick point tests. */
++interface Area {
++  rings: Ring[]
++  box: [number, number, number, number]
++}
++const areaOf = (rings: Ring[]): Area => {
++  const box: Area['box'] = [Infinity, Infinity, -Infinity, -Infinity]
++  for (const [x, y] of rings[0] ?? []) {
++    box[0] = Math.min(box[0], x)
++    box[1] = Math.min(box[1], y)
++    box[2] = Math.max(box[2], x)
++    box[3] = Math.max(box[3], y)
++  }
++  return { rings, box }
++}
++const inArea = (a: Area, x: number, y: number) =>
++  x >= a.box[0] &&
++  x <= a.box[2] &&
++  y >= a.box[1] &&
++  y <= a.box[3] &&
++  inRing(a.rings[0], x, y) &&
++  !a.rings.slice(1).some((r) => inRing(r, x, y))
++
++/** Water bodies with their surface level resolved. */
++interface Pond extends Area {
++  level: number
++}
++
++export interface Ground {
++  /** Ground height at a package point (x east, y north), with lake beds carved. */
++  groundAt(x: number, y: number): number
++  /** The terrain meshes, stumps and slash. */
++  group: THREE.Group
++  /** The water, or null. Add with the group; call `update` per frame. */
++  water: { lakes: Lakes; prepass: WaterPrepass; box: THREE.Box3 } | null
++  /** Whether a package point is inside a harvest opening. */
++  isCut(x: number, y: number): boolean
++  /** Whether a package point is under water (no stems, stumps or slash there). */
++  inWater(x: number, y: number): boolean
++  dispose(): void
++}
++
++/** Builds the ground of a package. `states` are the atmosphere's wetness and snow (shared, live). */
++export async function buildGround(
++  pkg: GroundInput,
++  states: MaterialStateUniforms,
++  options: { renderer: THREE.WebGPURenderer; camera: THREE.Camera; sun: THREE.DirectionalLight; treeRadius: number }
++): Promise<Ground> {
++  const { west, south, spacing, columns, rows } = pkg.terrain
++  // Gaps (no source DEM there) take the nearest known height along their row, then their column, so the mesh stays
++  // whole; the trees and the eye are all inside the known area.
++  const heights = pkg.terrain.heights.slice()
++  const fill = (index: (i: number, j: number) => number, outer: number, inner: number) => {
++    for (let i = 0; i < outer; i++) {
++      let last: number | null = null
++      for (let j = 0; j < inner; j++) last = heights[index(i, j)] ?? last ?? null
++      for (let j = inner - 1; j >= 0; j--) {
++        const k = index(i, j)
++        if (heights[k] === null) heights[k] = last
++        else last = heights[k]
++      }
++    }
++  }
++  fill((r, c) => r * columns + c, rows, columns)
++  fill((c, r) => r * columns + c, columns, rows)
++  // A loop, not Math.min(...): spreading a 160,000-cell grid overflows the call stack.
++  let base = Infinity
++  for (const h of heights) if (h !== null && h < base) base = h
++  const at = (column: number, row: number) => heights[row * columns + column] ?? base
++  /** The source terrain at a package point, bilinear. */
++  const terrainAt = (x: number, y: number): number => {
++    const gx = Math.min(columns - 1.0001, Math.max(0, (x - west) / spacing))
++    const gy = Math.min(rows - 1.0001, Math.max(0, (y - south) / spacing))
++    const x0 = Math.floor(gx)
++    const y0 = Math.floor(gy)
++    const fx = gx - x0
++    const fy = gy - y0
++    return (
++      at(x0, y0) * (1 - fx) * (1 - fy) +
++      at(x0 + 1, y0) * fx * (1 - fy) +
++      at(x0, y0 + 1) * (1 - fx) * fy +
++      at(x0 + 1, y0 + 1) * fx * fy
++    )
++  }
++
++  // Water: each body's level, and a bed carved under it that deepens away from the shore (so the surface never
++  // z-fights a DEM that was flattened to the lake, and the water has depth to absorb light through).
++  const ponds: Pond[] = []
++  for (const body of pkg.water ?? []) {
++    if (!body?.rings?.[0] || body.rings[0].length < 3) continue
++    const area = areaOf(body.rings)
++    let level = body.elevationMeters ?? Infinity
++    if (!Number.isFinite(level)) {
++      const outer = body.rings[0]
++      for (let i = 0; i < outer.length; i++) {
++        const [ax, ay] = outer[i]
++        const [bx, by] = outer[(i + 1) % outer.length]
++        const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 2))
++        for (let k = 0; k < n; k++)
++          level = Math.min(level, terrainAt(ax + ((bx - ax) * k) / n, ay + ((by - ay) * k) / n))
++      }
++    }
++    if (Number.isFinite(level)) ponds.push({ ...area, level })
++  }
++  const carve = (x: number, y: number, h: number) => {
++    for (const p of ponds) {
++      if (!inArea(p, x, y)) continue
++      const shore = Math.min(...p.rings.map((r) => edgeDistance(r, x, y)))
++      h = Math.min(h, p.level - Math.min(4.5, 0.35 + shore * 0.09))
++    }
++    return h
++  }
++  const groundAt = ponds.length ? (x: number, y: number) => carve(x, y, terrainAt(x, y)) : terrainAt
++
++  const openings = pkg.openings.filter((o) => o.rings?.[0]?.length >= 3).map((o) => areaOf(o.rings))
++  const scars = pkg.roadScars.filter((s) => s.ring?.length >= 3).map((s) => ({ ...areaOf([s.ring]), kind: s.kind }))
++  const isCut = (x: number, y: number) => openings.some((a) => inArea(a, x, y))
++  const inWater = (x: number, y: number) => ponds.some((p) => inArea(p, x, y))
++
++  const material = groundMaterial(states, options.treeRadius)
++  const group = new THREE.Group()
++  /** A terrain mesh `size` metres across centred on the package origin, `step` metres between vertices. */
++  const mesh = (size: number, step: number) => {
++    const n = Math.round(size / step)
++    const geometry = new THREE.PlaneGeometry(size, size, n, n).rotateX(-Math.PI / 2)
++    const position = geometry.attributes.position
++    const kind = new Float32Array(position.count * 4)
++    for (let i = 0; i < position.count; i++) {
++      const x = position.getX(i)
++      const y = -position.getZ(i)
++      position.setY(i, groundAt(x, y))
++      const cut = isCut(x, y) ? 1 : 0
++      const scar = scars.find((s) => inArea(s, x, y))
++      // x: harvested, y: road cut bank, z: road fill, w: open to the sky (snow lies deeper there than under canopy)
++      kind[i * 4] = cut
++      kind[i * 4 + 1] = scar?.kind === 'cut' ? 1 : 0
++      kind[i * 4 + 2] = scar?.kind === 'fill' ? 1 : 0
++      kind[i * 4 + 3] = cut || scar ? 1 : 0.55
++    }
++    geometry.setAttribute('aGround', new THREE.BufferAttribute(kind, 4))
++    geometry.computeVertexNormals()
++    const m = new THREE.Mesh(geometry, material)
++    m.receiveShadow = true
++    return m
++  }
++  const near = mesh(1400, 5)
++  const far = mesh(Math.min(columns, rows) * spacing - spacing, spacing * 2)
++  far.position.y = -0.3 // under the near mesh where they overlap
++  const apron = horizonApron(Math.min(columns, rows) * spacing - spacing, groundAt, material)
++  group.add(near, far, apron)
++
++  const stumps = stumpsOf(openings, groundAt, ponds)
++  const slash = slashOf(pkg.debris, openings, groundAt, inWater)
++  // Wood takes the same weather as the ground: dark and glossy when wet, snow on whatever faces up.
++  for (const m of [stumps, ...slash])
++    applyMaterialStatesTo(
++      m.material as THREE.MeshStandardNodeMaterial,
++      { wetness: states.wetness, snow: states.snow.mul(0.6) },
++      { streaks: false, puddles: false }
++    )
++  group.add(stumps, ...slash)
++
++  let water: Ground['water'] = null
++  if (ponds.length) {
++    water = await lakesOf(ponds, options)
++    group.add(water.lakes.object)
++  }
++
++  return {
++    groundAt,
++    group,
++    water,
++    isCut,
++    inWater,
++    dispose() {
++      group.removeFromParent()
++      group.traverse((o) => {
++        const m = o as THREE.Mesh
++        if (m.isMesh) m.geometry.dispose()
++      })
++      material.dispose()
++      for (const m of [stumps, ...slash]) (m.material as THREE.Material).dispose()
++      if (water) {
++        water.lakes.dispose()
++        water.prepass.dispose()
++      }
++    }
++  }
++}
++
++/**
++ * The ground's look: forest floor (needle litter and moss) under the stand, fading to the colour of distant forest
++ * canopy beyond the drawn trees; soil, duff, dry grass and some green regrowth inside openings; pale mineral soil on
++ * road cut banks and darker fill. Fine noise fades with distance so it never shimmers. Wetness (puddles) and snow
++ * (deeper in the open) come from the shared state uniforms.
++ */
++function groundMaterial(states: MaterialStateUniforms, treeRadius: number) {
++  const kind = attribute('aGround', 'vec4')
++  const p = positionWorld.xz
++  const d = distance(positionWorld, cameraPosition)
++  const fine = float(1).sub(smoothstep(60, 220, d))
++  const n1 = mx_noise_float(p.mul(0.045))
++  const n2 = mx_noise_float(p.mul(0.33))
++  const n3 = mx_noise_float(p.mul(2.3)).mul(fine)
++  const n4 = mx_noise_float(p.mul(0.012))
++
++  // Under the stand: brown needle litter with mossy patches.
++  const litter = vec3(0.095, 0.07, 0.044)
++  const moss = vec3(0.06, 0.085, 0.032)
++  const floor = mix(litter, moss, smoothstep(-0.25, 0.45, n1.add(n2.mul(0.4)))).mul(n3.mul(0.18).add(1))
++  // Beyond the drawn trees the ground stands for the forest itself, seen from afar: dark canopy in a stand mosaic.
++  const canopy = mix(vec3(0.028, 0.045, 0.024), vec3(0.05, 0.065, 0.032), smoothstep(-0.4, 0.5, n4))
++  const forest = mix(floor, canopy, smoothstep(treeRadius * 0.55, treeRadius * 0.95, d))
++
++  // Harvested: grey-brown duff and churned soil, straw-coloured dry grass, a little green regrowth, darker ruts.
++  const duff = vec3(0.14, 0.11, 0.08)
++  const soil = vec3(0.2, 0.14, 0.085)
++  const grass = vec3(0.26, 0.22, 0.12)
++  const regrowth = vec3(0.09, 0.115, 0.04)
++  let cut = mix(duff, soil, smoothstep(-0.1, 0.5, n2.add(n3.mul(0.3))))
++  cut = mix(cut, grass, smoothstep(0.15, 0.55, n1.mul(0.8).add(n2.mul(0.3))).mul(0.7))
++  cut = mix(cut, regrowth, smoothstep(0.35, 0.7, n2.mul(-1).add(n3.mul(0.4))).mul(0.6))
++  cut = cut.mul(n3.mul(0.22).add(1))
++
++  // Road scars: pale gravelly cut banks, darker loose fill.
++  const bank = vec3(0.3, 0.255, 0.19).mul(n3.mul(0.25).add(1))
++  const fillSoil = vec3(0.19, 0.15, 0.1).mul(n3.mul(0.2).add(1))
++
++  let color = mix(forest, cut, kind.x)
++  color = mix(color, bank, kind.y)
++  color = mix(color, fillSoil, kind.z)
++  const material = new THREE.MeshStandardNodeMaterial({ roughness: 0.96 })
++  material.colorNode = color
++  applyMaterialStatesTo(
++    material,
++    { wetness: states.wetness, snow: states.snow.mul(kind.w) },
++    { streaks: false, puddles: true }
++  )
++  return material
++}
++
++/** A ring of ground from the terrain's edge out to the far plane, sloping to its mean height and the earth's curve. */
++function horizonApron(size: number, groundAt: (x: number, y: number) => number, material: THREE.Material) {
++  const half = size / 2 - 1
++  const segments = 160
++  const rings = [0, 0.04, 0.12, 0.25, 0.45, 0.7, 1]
++  const outer = 7600
++  const positions: number[] = []
++  const kind: number[] = []
++  const edge: number[] = []
++  for (let s = 0; s < segments; s++) {
++    const a = (s / segments) * Math.PI * 2
++    const c = Math.cos(a)
++    const n = Math.sin(a)
++    const k = half / Math.max(Math.abs(c), Math.abs(n))
++    edge.push(groundAt(c * k, n * k))
++  }
++  const mean = edge.reduce((a, b) => a + b, 0) / edge.length
++  for (const t of rings) {
++    for (let s = 0; s < segments; s++) {
++      const a = (s / segments) * Math.PI * 2
++      const c = Math.cos(a)
++      const n = Math.sin(a)
++      const r0 = half / Math.max(Math.abs(c), Math.abs(n))
++      const r = r0 + (outer - r0) * t
++      const h = edge[s] + (mean - edge[s]) * Math.min(1, t * 1.6) - (r * r - r0 * r0) / (2 * 6_371_000) - 0.6
++      positions.push(c * r, h, -n * r)
++      kind.push(0, 0, 0, 0.55)
++    }
++  }
++  const index: number[] = []
++  for (let j = 0; j < rings.length - 1; j++)
++    for (let s = 0; s < segments; s++) {
++      const a = j * segments + s
++      const b = j * segments + ((s + 1) % segments)
++      index.push(a, b, a + segments, b, b + segments, a + segments)
++    }
++  const geometry = new THREE.BufferGeometry()
++  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
++  geometry.setAttribute('aGround', new THREE.Float32BufferAttribute(kind, 4))
++  geometry.setIndex(index)
++  geometry.computeVertexNormals()
++  // Wound to face up whichever way the angles ran.
++  if (geometry.attributes.normal.getY(0) < 0) {
++    index.reverse()
++    geometry.setIndex(index)
++    geometry.computeVertexNormals()
++  }
++  const m = new THREE.Mesh(geometry, material)
++  m.receiveShadow = false
++  return m
++}
++
++const random = (seed: number) => mulberry32(hash(seed, 0x51a5))
++
++/** Stumps across every opening: a jittered grid at about 500 stems a hectare (a harvested pine/spruce stand). */
++function stumpsOf(openings: Area[], groundAt: (x: number, y: number) => number, ponds: Area[]) {
++  const geometry = new THREE.CylinderGeometry(0.47, 0.55, 1, 10, 1, false)
++  geometry.translate(0, 0.5, 0)
++  // Cut face pale and fresh-sawn, sides bark; colour per vertex so the instance tint keeps both.
++  const pos = geometry.attributes.position
++  const normal = geometry.attributes.normal
++  const colors = new Float32Array(pos.count * 3)
++  const face = new THREE.Color('#bba07a')
++  const bark = new THREE.Color('#6b5747')
++  for (let i = 0; i < pos.count; i++) (normal.getY(i) > 0.5 ? face : bark).toArray(colors, i * 3)
++  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
++  const matrices: THREE.Matrix4[] = []
++  const tints: THREE.Color[] = []
++  const m = new THREE.Matrix4()
++  const q = new THREE.Quaternion()
++  const e = new THREE.Euler()
++  const step = 4.4
++  for (const [k, a] of openings.entries()) {
++    const rand = random(k + 1)
++    for (let x = a.box[0]; x <= a.box[2]; x += step)
++      for (let y = a.box[1]; y <= a.box[3]; y += step) {
++        const px = x + (rand() - 0.5) * step * 0.9
++        const py = y + (rand() - 0.5) * step * 0.9
++        const r = 0.11 + rand() * 0.14
++        const h = 0.18 + rand() * 0.3
++        const tilt = (rand() - 0.5) * 0.12
++        const yaw = rand() * Math.PI * 2
++        const tone = 0.8 + rand() * 0.35
++        if (rand() < 0.12 || !inArea(a, px, py) || ponds.some((p) => inArea(p, px, py))) continue
++        e.set(tilt, yaw, tilt * 0.7)
++        m.compose(
++          new THREE.Vector3(px, groundAt(px, py) - 0.08, -py),
++          q.setFromEuler(e),
++          new THREE.Vector3(r * 2, h, r * 2)
++        )
++        matrices.push(m.clone())
++        tints.push(new THREE.Color(tone, tone * 0.98, tone * 0.95))
++        if (matrices.length >= 40_000) break
++      }
++  }
++  const material = new THREE.MeshStandardNodeMaterial({ vertexColors: true, roughness: 0.9 })
++  const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, matrices.length))
++  mesh.count = matrices.length
++  matrices.forEach((matrix, i) => {
++    mesh.setMatrixAt(i, matrix)
++    mesh.setColorAt(i, tints[i])
++  })
++  mesh.castShadow = mesh.receiveShadow = true
++  mesh.name = 'stumps'
++  return mesh
++}
++
++/**
++ * Slash on the cut ground. Each package debris pile becomes a heap of logs lying roughly together (some propped on the
++ * others), tangled branches and rust-brown dead foliage; branches are also strewn thinly over the whole opening.
++ */
++function slashOf(
++  debris: GroundInput['debris'],
++  openings: Area[],
++  groundAt: (x: number, y: number) => number,
++  inWater: (x: number, y: number) => boolean
++) {
++  const logs: number[] = []
++  const twigs: number[] = []
++  const tufts: number[] = []
++  const push = (
++    list: number[],
++    x: number,
++    y: number,
++    z: number,
++    yaw: number,
++    pitch: number,
++    roll: number,
++    sx: number,
++    sy: number,
++    sz: number
++  ) => list.push(x, y, z, yaw, pitch, roll, sx, sy, sz)
++  for (let i = 0; i < debris.count; i++) {
++    const [x, y, , footprint] = debris.data.slice(i * 4, i * 4 + 4)
++    if (inWater(x, y)) continue
++    const rand = random(1000 + i)
++    const heading = rand() * Math.PI
++    const span = Math.max(1.5, footprint)
++    const count = 5 + Math.floor(rand() * 6)
++    for (let k = 0; k < count; k++) {
++      const px = x + (rand() - 0.5) * span * 0.6
++      const py = y + (rand() - 0.5) * span * 0.6
++      const length = span * (0.45 + rand() * 0.55)
++      const r = 0.04 + rand() * 0.09
++      const lift = r + rand() * Math.min(0.6, span * 0.12)
++      const yaw = heading + (rand() - 0.5) * 0.9
++      push(logs, px, groundAt(px, py) + lift, -py, yaw, (rand() - 0.5) * 0.25, 0, r * 2, length, r * 2)
++    }
++    for (let k = 0; k < 26; k++) {
++      const px = x + (rand() - 0.5) * span * 0.8
++      const py = y + (rand() - 0.5) * span * 0.8
++      const length = 0.8 + rand() * span * 0.45
++      push(
++        twigs,
++        px,
++        groundAt(px, py) + 0.1 + rand() * 0.55,
++        -py,
++        rand() * Math.PI * 2,
++        (rand() - 0.5) * 0.9,
++        0,
++        0.05,
++        length,
++        0.05
++      )
++    }
++    for (let k = 0; k < 4; k++) {
++      const px = x + (rand() - 0.5) * span * 0.6
++      const py = y + (rand() - 0.5) * span * 0.6
++      const w = span * (0.18 + rand() * 0.2)
++      push(
++        tufts,
++        px,
++        groundAt(px, py) + 0.05,
++        -py,
++        rand() * Math.PI,
++        0,
++        0,
++        w,
++        0.25 + rand() * 0.35,
++        w * (0.6 + rand() * 0.5)
++      )
++    }
++  }
++  // Branches strewn over the openings, a few hundred to the hectare.
++  for (const [k, a] of openings.entries()) {
++    const rand = random(5000 + k)
++    const areaM2 = (a.box[2] - a.box[0]) * (a.box[3] - a.box[1])
++    const n = Math.min(30_000, Math.round(areaM2 / 30))
++    for (let i = 0; i < n; i++) {
++      const px = a.box[0] + rand() * (a.box[2] - a.box[0])
++      const py = a.box[1] + rand() * (a.box[3] - a.box[1])
++      const length = 0.6 + rand() * 2.2
++      const yaw = rand() * Math.PI * 2
++      if (!inArea(a, px, py)) continue
++      push(twigs, px, groundAt(px, py) + 0.04, -py, yaw, (rand() - 0.5) * 0.15, 0, 0.04 + rand() * 0.04, length, 0.04)
++    }
++  }
++  const instanced = (
++    geometry: THREE.BufferGeometry,
++    color: string,
++    list: number[],
++    lay: boolean,
++    variation: number,
++    name: string
++  ) => {
++    const count = list.length / 9
++    const material = new THREE.MeshStandardNodeMaterial({ color, roughness: 0.95 })
++    const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, count))
++    mesh.count = count
++    const m = new THREE.Matrix4()
++    const q = new THREE.Quaternion()
++    const e = new THREE.Euler()
++    const c = new THREE.Color()
++    const rand = random(count)
++    for (let i = 0; i < count; i++) {
++      const o = i * 9
++      // Logs and twigs lie along their length: the cylinder's y axis turned down to horizontal, then yawed.
++      e.set(0, list[o + 3], lay ? Math.PI / 2 + list[o + 4] : 0, 'YXZ')
++      m.compose(
++        new THREE.Vector3(list[o], list[o + 1], list[o + 2]),
++        q.setFromEuler(e),
++        new THREE.Vector3(list[o + 6], list[o + 7], list[o + 8])
++      )
++      mesh.setMatrixAt(i, m)
++      const t = 1 + (rand() - 0.5) * variation
++      mesh.setColorAt(i, c.setRGB(t, t * (1 - (rand() - 0.5) * 0.08), t * 0.97))
++    }
++    mesh.castShadow = mesh.receiveShadow = true
++    mesh.name = name
++    return mesh
++  }
++  const log = new THREE.CylinderGeometry(0.5, 0.5, 1, 7, 1)
++  const twig = new THREE.CylinderGeometry(0.3, 0.5, 1, 4, 1)
++  const tuft = new THREE.IcosahedronGeometry(0.5, 1)
++  {
++    // Lumpy, flattened clumps of dead needles and fine branches.
++    const p = tuft.attributes.position
++    const rand = random(77)
++    for (let i = 0; i < p.count; i++) {
++      const s = 0.75 + rand() * 0.5
++      p.setXYZ(i, p.getX(i) * s, Math.max(-0.1, p.getY(i)) * s, p.getZ(i) * s)
++    }
++    tuft.computeVertexNormals()
++  }
++  return [
++    instanced(log, '#8a7c69', logs, true, 0.35, 'slash logs'),
++    instanced(twig, '#6e5d4c', twigs, true, 0.4, 'slash branches'),
++    instanced(tuft, '#6a4a30', tufts, false, 0.45, 'slash foliage')
++  ]
++}
++
++/** The package's water bodies as threejs-water lakes, rasterised into a lake mask at a cell size that suits them. */
++async function lakesOf(
++  ponds: Pond[],
++  o: { renderer: THREE.WebGPURenderer; camera: THREE.Camera; sun: THREE.DirectionalLight }
++): Promise<NonNullable<Ground['water']>> {
++  const box = [Infinity, Infinity, -Infinity, -Infinity]
++  for (const p of ponds) {
++    box[0] = Math.min(box[0], p.box[0])
++    box[1] = Math.min(box[1], p.box[1])
++    box[2] = Math.max(box[2], p.box[2])
++    box[3] = Math.max(box[3], p.box[3])
++  }
++  const biggest = Math.max(...ponds.map((p) => Math.max(p.box[2] - p.box[0], p.box[3] - p.box[1])))
++  const cellSize = Math.max(1.5, biggest / 400)
++  const margin = cellSize * 3
++  // Grid in three.js x/z: x east, z south. Row r is z = z0 + r · cellSize.
++  const x0 = box[0] - margin
++  const z0 = -box[3] - margin
++  const cols = Math.ceil((box[2] - box[0] + 2 * margin) / cellSize) + 1
++  const rows = Math.ceil((box[3] - box[1] + 2 * margin) / cellSize) + 1
++  const lakes: HydrologyResult['lakes'] = []
++  const lakeIndex = new Int32Array(cols * rows).fill(-1)
++  ponds.forEach((p, li) => {
++    const c0 = Math.max(0, Math.floor((p.box[0] - x0) / cellSize) - 1)
++    const c1 = Math.min(cols - 1, Math.ceil((p.box[2] - x0) / cellSize) + 1)
++    const r0 = Math.max(0, Math.floor((-p.box[3] - z0) / cellSize) - 1)
++    const r1 = Math.min(rows - 1, Math.ceil((-p.box[1] - z0) / cellSize) + 1)
++    const bw = c1 - c0 + 1
++    const bh = r1 - r0 + 1
++    const mask = new Uint8Array(bw * bh)
++    let area = 0
++    for (let r = 0; r < bh; r++)
++      for (let c = 0; c < bw; c++) {
++        const x = x0 + (c0 + c) * cellSize
++        const y = -(z0 + (r0 + r) * cellSize)
++        if (!inArea(p, x, y)) continue
++        mask[r * bw + c] = 1
++        lakeIndex[(r0 + r) * cols + c0 + c] = li
++        area += cellSize * cellSize
++      }
++    lakes.push({ level: p.level, area, maxDepth: 4.5, bounds: [c0, r0, bw, bh], mask })
++  })
++  const hydrology = {
++    grid: { cols, rows, cellSize, x0, z0, heights: new Float64Array(0) },
++    lakes,
++    lakeIndex,
++    rivers: []
++  } as unknown as HydrologyResult
++  const prepass = new WaterPrepass({ camera: o.camera, resolutionScale: 0.5 })
++  const lakes3 = await Lakes.create({
++    hydrology,
++    camera: o.camera,
++    renderer: o.renderer,
++    prepass,
++    sun: o.sun,
++    rivers: false,
++    // Each lake is extended a few cells past its shore, under the banks; the waterline itself is where the carved bed
++    // rises through the surface.
++    expand: 3,
++    // Northern lake water: tea-brown tannins and green, darker than the tropical default.
++    absorption: [0.75, 0.42, 0.32],
++    scatterColor: '#0f2a26',
++    waves: { amplitude: 0.02, wavelength: [0.25, 2.5] },
++    roughness: 0.05,
++    // No foam: a forest lake does not break at its shore, and the contact foam (drawn wherever geometry stands in
++    // front of the surface) outlines every stem seen against the water.
++    foam: 0
++  })
++  const water = new THREE.Box3()
++  for (const p of ponds) {
++    water.expandByPoint(new THREE.Vector3(p.box[0], p.level - 5, -p.box[3]))
++    water.expandByPoint(new THREE.Vector3(p.box[2], p.level + 1, -p.box[1]))
++  }
++  return { lakes: lakes3, prepass, box: water }
++}
+diff --git a/example/pgmaps-trees.ts b/example/pgmaps-trees.ts
+new file mode 100644
+index 0000000..b476cf0
+--- /dev/null
++++ b/example/pgmaps-trees.ts
+@@ -0,0 +1,323 @@
++// The PGMaps stand as threejs-trees: each species grown by space colonisation at the package's own stem sizes (a few
++// height classes per species, so a stem is scaled by little and keeps its branch and leaf-card proportions), drawn as
++// full, simplified and coarse meshes out to a few hundred metres and as baked impostors beyond.
++import * as THREE from 'three/webgpu'
++import { disposeLayers, FIXED_INSTANCE_STRIDE, hash, hashString, type ScatterLayer } from 'threejs-scatter'
++import {
++  createVegetationLayers,
++  generateTreeLevels,
++  mergeTreeGeometry,
++  species as presets,
++  type TreeParams
++} from 'threejs-trees'
++
++/** The stems of a package (`trees` block) and its species table. */
++export interface StandInput {
++  trees: { fields: string[]; species: string[]; count: number; data: number[] }
++  species: Record<string, { crownBase: number; crownRatio: number; broadleaf: boolean } | undefined>
++}
++
++/**
++ * Where each level ends, metres from the eye. Full detail (every twig, every leaf card, shadows) to 55 m; simplified
++ * (no shadows) to 120 m; a coarse mesh to 190 m, about where a 20–30 m stem shrinks to the impostor's own resolution
++ * (146 px a view); impostors beyond.
++ */
++export const TREE_LOD_METRES = { full: 55, simplified: 120, coarse: 190 }
++/** Detail of the simplified and coarse meshes (see `generateTreeLevels`). */
++const DETAIL = { simplified: 0.35, coarse: 0.16 }
++
++/** A species' variant: a height class grown at that size. */
++interface Variant {
++  height: number
++  width: number
++}
++
++/**
++ * Generator settings for PGMaps' species, at a variant's height `h`, crown width `w` and crown base (fraction of the
++ * height that is clear stem). Conifers grow a straight leader with needle sprays along drooping or level branches;
++ * aspen and birch are broadleaves with pale bark.
++ */
++function recipe(name: string, h: number, w: number, crownBase: number): TreeParams {
++  const r = Math.max(0.6, w / 2)
++  const crownHeight = h * (1 - crownBase)
++  // Growth steps of about a fiftieth of the height: tall stems get fewer, longer segments (half the tube rings of
++  // the presets' 0.33 m), with leaf cards scaled up to keep the crowns as full.
++  const step = Math.min(0.55, Math.max(0.32, h / 55))
++  const sized = (base: TreeParams, extra: Partial<TreeParams>, shape: TreeParams['crownShape']): TreeParams => {
++    // Points sampled in the crown: about five per cubic metre of crown, so narrow crowns still branch finely.
++    const volume =
++      shape === 'cone' ? (Math.PI * r * r * crownHeight) / 3 : (4 / 3) * Math.PI * r * r * (crownHeight / 2)
++    const p: TreeParams = {
++      ...base,
++      height: h,
++      trunkHeight: h * crownBase,
++      crownHeight,
++      crownRadius: r,
++      crownShape: shape,
++      attractionPoints: Math.round(Math.min(2000, Math.max(600, volume * 5))),
++      influenceDistance: Math.min(base.influenceDistance, Math.max(1.2, r * 0.9)),
++      baseRadius: Math.min(0.55, Math.max(0.12, h * 0.012)),
++      ...extra
++    }
++    const k = step / 0.33
++    return {
++      ...p,
++      segmentLength: step,
++      killDistance: step * 2,
++      iterations: Math.max(140, Math.round(h / step) + 40),
++      leafDensity: p.leafDensity * Math.min(1.8, k),
++      leafSize: p.leafSize * Math.min(1.25, Math.sqrt(k)),
++      leafDepth: Math.max(2, Math.round(p.leafDepth / Math.min(1.6, k)))
++    }
++  }
++  switch (name) {
++    case 'pine': // lodgepole: a tall clean stem, a short rounded crown at the top, yellow-green needles
++      return sized(
++        presets.pine,
++        {
++          leader: true,
++          tropism: [0, 0.05, 0],
++          jitter: 0.22,
++          leafColor: '#46602c',
++          barkColor: '#6b4a33',
++          leafSize: 0.85,
++          leafDensity: 2.6,
++          leafDepth: 5
++        },
++        'ellipsoid'
++      )
++    case 'spruce': // interior spruce: long dense cone, drooping branches, blue-green
++      return sized(
++        presets.spruce,
++        { tropism: [0, -0.3, 0], leafColor: '#2f4a38', leafSize: 0.95, leafDensity: 2.5, leafDepth: 8 },
++        'cone'
++      )
++    case 'fir': // subalpine fir: a narrow spire, level branches, dark
++      return sized(
++        presets.fir,
++        { tropism: [0, -0.1, 0], jitter: 0.06, leafColor: '#284438', leafSize: 0.9, leafDensity: 2.6, leafDepth: 9 },
++        'cone'
++      )
++    case 'douglasFir': // interior Douglas-fir: broader and less regular, deeply furrowed bark
++      return sized(
++        presets.fir,
++        {
++          tropism: [0, -0.18, 0],
++          jitter: 0.2,
++          leafColor: '#34512f',
++          barkColor: '#5a4232',
++          barkContrast: 0.85,
++          leafSize: 1,
++          leafDensity: 2.4,
++          leafDepth: 7
++        },
++        'cone'
++      )
++    case 'aspen': // trembling aspen: pale green-white bark, small rounded crown, bright leaves
++      return sized(
++        presets.birch,
++        {
++          tropism: [0, 0.06, 0],
++          barkColor: '#c6cab5',
++          barkMarks: 0.45,
++          barkContrast: 0.2,
++          leafColor: '#789a3c',
++          leafSize: 0.5,
++          leafDensity: 2,
++          leafDepth: 3
++        },
++        'ellipsoid'
++      )
++    case 'birch':
++      return sized(presets.birch, { tropism: [0, -0.08, 0], barkColor: '#e0dbd0' }, 'ellipsoid')
++    default:
++      return sized(presets.spruce, {}, 'cone')
++  }
++}
++
++/** One species' layers, kept between packages while its variants' sizes and crown base stay the same. */
++interface SpeciesEntry {
++  key: string
++  layers: ScatterLayer[]
++  /** Each layer's own levels (a layer with no stems loses all but its first, so they are restored on reuse). */
++  lods: ScatterLayer['lods'][]
++  impostors: ScatterLayer['impostor'][]
++  variants: Variant[]
++  /** Each variant's measured size, for scaling stems to it. */
++  measured: { height: number; width: number }[]
++}
++
++const cache = new Map<string, SpeciesEntry>()
++/** Layers dropped from the cache while the previous stand may still be drawing them; freed by `disposeRetiredStands`. */
++const retired: ScatterLayer[][] = []
++
++const quantile = (sorted: number[], q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]
++const median = (values: number[]) =>
++  quantile(
++    values.slice().sort((a, b) => a - b),
++    0.5
++  )
++
++/** Height classes of a species from its stems: three for a big population, fewer for a handful of stems. */
++function variantsOf(heights: number[], widths: number[]): Variant[] {
++  const sorted = heights.slice().sort((a, b) => a - b)
++  const qs = heights.length >= 40 ? [0.2, 0.55, 0.85] : heights.length >= 8 ? [0.3, 0.75] : [0.5]
++  // Sizes are rounded (2 m, 0.5 m) so that the next package on a drive usually finds the same variants cached.
++  const classes = [...new Set(qs.map((q) => Math.max(4, Math.round(quantile(sorted, q) / 2) * 2)))]
++  return classes.map((height) => {
++    const near = widths.filter((_, i) => Math.abs(heights[i] - height) <= 2.5)
++    const width = near.length ? median(near) : median(widths)
++    return { height, width: Math.max(1, Math.round(width * 2) / 2) }
++  })
++}
++
++/**
++ * Builds (or reuses) the layers for a package's stand and fills them with its stems. `renderer` bakes impostors;
++ * `null` draws meshes only. Layers no longer used are disposed.
++ */
++export async function standLayers(
++  pkg: StandInput,
++  renderer: THREE.WebGPURenderer | null,
++  maxDistance: number,
++  onStatus: (text: string) => void,
++  /** Package points where no stem is drawn (water). */
++  exclude: (x: number, y: number) => boolean = () => false
++): Promise<{ layers: ScatterLayer[]; stems: number }> {
++  const stride = pkg.trees.fields.length
++  const data = pkg.trees.data
++  const bySpecies = new Map<number, number[]>()
++  for (let i = 0; i < pkg.trees.count; i++) {
++    if (exclude(data[i * stride], data[i * stride + 1])) continue
++    const s = data[i * stride + 3]
++    let list = bySpecies.get(s)
++    if (!list) bySpecies.set(s, (list = []))
++    list.push(i)
++  }
++
++  const used = new Set<string>()
++  const layers: ScatterLayer[] = []
++  let stems = 0
++  for (const [speciesIndex, members] of bySpecies) {
++    const name = pkg.trees.species[speciesIndex]
++    const crownBase = pkg.species[name]?.crownBase ?? 0.3
++    const heights = members.map((i) => data[i * stride + 4])
++    const widths = members.map((i) => data[i * stride + 5])
++    const variants = variantsOf(heights, widths)
++    const key = JSON.stringify([crownBase, variants, maxDistance])
++    let entry = cache.get(name)
++    if (entry && entry.key !== key) {
++      retired.push(entry.layers)
++      cache.delete(name)
++      entry = undefined
++    }
++    if (!entry) {
++      onStatus(`growing ${name} (${variants.length} height classes)…`)
++      entry = await buildSpecies(name, crownBase, variants, renderer, maxDistance)
++      entry.key = key
++      cache.set(name, entry)
++    }
++    used.add(name)
++
++    // Stems into their nearest height class, each scaled from that variant's measured size to its own.
++    const lists = entry.variants.map(() => [] as number[])
++    for (const i of members) {
++      const o = i * stride
++      const h = data[o + 4]
++      let best = 0
++      for (let v = 1; v < entry.variants.length; v++)
++        if (Math.abs(Math.log(entry.variants[v].height / h)) < Math.abs(Math.log(entry.variants[best].height / h)))
++          best = v
++      const m = entry.measured[best]
++      const yaw = (data[o + 6] * 6.283185 + data[o] * 0.37) % 6.283185
++      lists[best].push(data[o], -data[o + 1], yaw, data[o + 5] / m.width, h / m.height)
++    }
++    entry.layers.forEach((layer, v) => {
++      layer.lods = entry.lods[v]
++      layer.impostor = entry.impostors[v]
++      layer.instances = new Float32Array(lists[v])
++      if (lists[v].length === 0) layer.lods = layer.lods.slice(0, 1)
++      stems += lists[v].length / FIXED_INSTANCE_STRIDE
++      layers.push(layer)
++    })
++  }
++  for (const [name, entry] of cache)
++    if (!used.has(name)) {
++      retired.push(entry.layers)
++      cache.delete(name)
++    }
++  return { layers, stems }
++}
++
++async function buildSpecies(
++  name: string,
++  crownBase: number,
++  variants: Variant[],
++  renderer: THREE.WebGPURenderer | null,
++  maxDistance: number
++): Promise<SpeciesEntry> {
++  const layers: ScatterLayer[] = []
++  const measured: SpeciesEntry['measured'] = []
++  let shared: THREE.Material | THREE.Material[] | null = null
++  for (let v = 0; v < variants.length; v++) {
++    const { height, width } = variants[v]
++    const params = recipe(name, height, width, crownBase)
++    const id = `${name}@${height}`
++    // createVegetationLayers scales its distances by size / 15 m; undo that so the levels end where we say.
++    const k = Math.min(3, Math.max(0.12, height / 15))
++    const [layer] = await createVegetationLayers({
++      species: [{ name: id, params, density: 0, variants: 1 }],
++      lodDistances: [TREE_LOD_METRES.full / k, TREE_LOD_METRES.simplified / k, maxDistance / k],
++      simplifiedDetail: DETAIL.simplified,
++      seed: 7,
++      renderer,
++      impostor: { size: 1024, frames: 7 },
++      castShadow: true
++    })
++    // A third, coarse mesh between the simplified one and the impostor: the same tree (same seed) with fewer cards.
++    const [coarse] = generateTreeLevels(params, hash(7, hashString(id), 0), [DETAIL.coarse])
++    const material = layer.lods[0].material
++    // Every variant of a species has the same bark and leaves, so they share one set of materials (one pipeline).
++    if (shared) {
++      for (const m of Array.isArray(material) ? material : [material]) m.dispose()
++      for (const lod of layer.lods) lod.material = shared
++    } else shared = material
++    layer.lods = [
++      { ...layer.lods[0], distance: TREE_LOD_METRES.full },
++      { ...layer.lods[1], distance: TREE_LOD_METRES.simplified, castShadow: false },
++      {
++        distance: layer.impostor ? TREE_LOD_METRES.coarse : maxDistance,
++        geometry: mergeTreeGeometry(coarse),
++        material: layer.lods[0].material,
++        castShadow: false
++      }
++    ]
++    if (layer.impostor) layer.impostor.distance = maxDistance
++    layer.colorVariation = 0.12
++    layer.sink = 0.05
++    const box =
++      layer.lods[0].geometry.boundingBox ??
++      new THREE.Box3().setFromBufferAttribute(layer.lods[0].geometry.attributes.position as THREE.BufferAttribute)
++    measured.push({ height: box.max.y, width: Math.max(box.max.x - box.min.x, box.max.z - box.min.z) })
++    layers.push(layer)
++  }
++  return {
++    key: '',
++    layers,
++    lods: layers.map((l) => l.lods),
++    impostors: layers.map((l) => l.impostor),
++    variants,
++    measured
++  }
++}
++
++/** Frees the layers the last `standLayers` call dropped. Call once the stand that drew them has been disposed. */
++export function disposeRetiredStands(): void {
++  for (const layers of retired.splice(0)) disposeLayers(layers)
++}
++
++/** Frees every cached species (page unload). */
++export function disposeStandCache(): void {
++  disposeRetiredStands()
++  for (const entry of cache.values()) disposeLayers(entry.layers)
++  cache.clear()
++}

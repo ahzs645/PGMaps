@@ -407,3 +407,65 @@ foam and Beer–Lambert colour, and computes them from a DEM;
 sun placed by date, time and latitude. For a VIA the honest uses are real lakes
 and streams (BC FWA, not computed) for water viewpoints, snow on openings for
 a winter view, and the field visit's sun.
+
+## 14. Richer engines, water and weather (13 November, later)
+
+Asked to bring Nanite's demo look across and to try `threejs-trees`,
+`threejs-water` and `threejs-weathering` (non-B.C. tree shapes accepted for
+now, and the ez-tree images used regardless of their unstated licence, for a
+local trial only). The engine work is in each folder's `0003-*.diff`
+(`engines/README.md`); PGMaps gained what the engines need to be fed.
+
+**PGMaps side.**
+
+- The package carries `water`: the basemap's lakes and rivers cut to the
+  terrain grid (`polygon-clipping`), each at the lowest ground round its shore.
+  Uncut, the roadside demo's river system came through 45 km across.
+- With an engine chosen, View options adds *When* (date and local time),
+  *Ground* (bare or snow) and *Weather* (clear, overcast, rain, snowing), sent as
+  `pgmaps-environment` with that day's UTC offset. A change never rebuilds the
+  stand. In the app, 20 January 15:30 put the sun 5.6–5.8° up in the south-west
+  in both engines.
+- The road view's own camera fix (§13, *Found on the PGMaps side*).
+
+**Engines** (screenshots: `evidence/road-view-engines-weather.jpg`):
+
+- *worldgen*: each species grown from `threejs-trees` in two or three height
+  classes at the package's own sizes (full mesh to 55 m, simplified to 120 m,
+  coarse to 190 m, impostors beyond); `threejs-sky` sky and clouds, with haze
+  taking the sky's horizon colour (the blue fog is gone); `threejs-water` lakes
+  with reflections; cut ground with duff, about 500 stumps a hectare and slash
+  heaps; snow, rain and wet materials from `threejs-weathering`.
+- *Nanite*: ez-tree conifers and broadleaves with leaf cards, the demo's
+  dithered leaf edges and TAA, three crown-width classes per species (crown
+  width within 7.0% on average, 11.8% at the 90th percentile; heights exact),
+  4096 shadow map, god rays, the demo's floor with litter, cut ground, slash,
+  WaterMesh reflections, and the same weather. Its wind sway is off: its
+  motion output broke every tree material inside the water's reflection.
+
+**Frame times, same package and eye as §13** (uncapped; shared machine, so
+upper bounds; PGMaps now with its camera at the station):
+
+| Renderer | Ready | Still: fps, median / p95 ms | Panning: fps, median / p95 ms |
+| --- | --- | --- | --- |
+| PGMaps road view | 6.1 s (whole page) | 208, 4.3 / 7.8 | 195, 5.0 / 8.0 |
+| threejs-worldgen, WebGPU | 2.3 s | 268, 3.6 / 4.3 | 268, 3.7 / 4.3 |
+| threejs-worldgen, WebGL2 | 3.7 s | 177, 5.8 / 6.7 | 171, 5.6 / 10.3 |
+| Nanite Forest (WebGPU) | 4.1 s | 168, 5.9 / 7.1 | 169, 5.8 / 7.2 |
+
+In the app, with vsync, worldgen was ready 2.5 s and Nanite 2.2 s after being
+chosen, both holding 60 fps. Worst cases: worldgen looking straight into the
+stand ran 70–80 fps (leaf-card overdraw; nothing hides trees behind trees), and
+Nanite's lake view took 11–18 ms a frame.
+
+**A benchmark trap.** With the frame cap off (`--disable-frame-rate-limit`),
+neither engine finished building inside the app: the engine page is on the same
+site as PGMaps (another port on 127.0.0.1), so it shares PGMaps' main thread,
+and the road view's animation loops running thousands of times a second starved
+it. The same build took 1.8 s as a top-level page. Test the embedded engines
+with vsync on; time them as pages of their own.
+
+**Left to do.** worldgen's open snow reads as a flat sheet and its winter
+aspens keep their leaves; Nanite's aspens read lime, its litter orange and its
+crowns stay bright at dusk; neither draws B.C. tree shapes yet, so screening is
+still judged on PGMaps.

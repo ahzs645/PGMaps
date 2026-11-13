@@ -41,6 +41,17 @@ worldgen on `127.0.0.1:8460` (`npm run dev`), Nanite with
 `npx vite --port 8461 --host 127.0.0.1` — or set `VITE_FORESTRY_WORLDGEN_URL`
 and `VITE_FORESTRY_NANITE_URL` to their pages with `?embed`.
 
+**Later on 13 November** each folder gained a `0003-*.diff`, cumulative from the
+pinned commit after `git am` (it **replaces** `0002`: apply one or the other).
+worldgen grows its stand from `threejs-trees`, lights it with `threejs-sky`,
+draws the package's `water` with `threejs-water` and snow and rain with
+`threejs-weathering`, and adds opt-in view culling to scatter. Nanite draws the
+repository demo's look: ez-tree trees with leaf cards (three crown-width classes
+per species), shadows, god rays, TAA, its textured floor, reflective water and
+the same weather. Both read the `pgmaps-environment` message (trial doc §14).
+**Nanite's version uses ez-tree's bark and leaf images, whose sources are
+unstated**: it is a local trial, never deployed from or bundled into PGMaps.
+
 The worldgen and Nanite folders are **patches** against a pinned upstream commit,
 because these are forks of other projects and this session could not create
 GitHub forks. VistaWASM is not forked or patched at all.
