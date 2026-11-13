@@ -27,29 +27,77 @@ export type RegrowthStand = InventoryStand & {
 }
 export const DEFAULT_REGROWTH = { growthMetersPerYear: 0.35, regenerationLagYears: 2, projectRecordedHeights: true }
 
-/** Fixed route footprint, including the hillside: never use the horizon map centre. */
-export function forestHistoryBounds(road: number[][], polygons: PolygonGeometry[]): Bounds | null {
-  const positions = [
-    ...road,
-    ...polygons.flatMap((p) => {
-      const b = polygonBounds(p)
-      return [
-        [b[0], b[1]],
-        [b[2], b[3]],
-      ]
-    }),
-  ]
-  if (!positions.length || positions.some((p) => !Number.isFinite(p[0]) || !Number.isFinite(p[1]))) return null
-  const b: Bounds = [Infinity, Infinity, -Infinity, -Infinity]
-  for (const p of positions) {
-    b[0] = Math.min(b[0], p[0])
-    b[1] = Math.min(b[1], p[1])
-    b[2] = Math.max(b[2], p[0])
-    b[3] = Math.max(b[3], p[1])
+/** How far either side of the road, and around each target, records are read. */
+export const FOREST_HISTORY_REACH_METERS = 3000
+/** Grid cell for record lookups, about 6.6 km × 6.7 km at 54°N. */
+export const FOREST_HISTORY_CELL_DEGREES = { lng: 0.1, lat: 0.06 } as const
+/** Most cells one lookup reads: three layers each, so 144 small requests at most. */
+export const FOREST_HISTORY_MAX_CELLS = 48
+const ROAD_SAMPLE_METERS = 500
+
+export type ForestHistoryAreas = {
+  /** Fixed grid cells, west/south/east/north. Fixed so a nudged scene reuses cached cells. */
+  cells: Bounds[]
+  /** True when more cells were needed than `FOREST_HISTORY_MAX_CELLS`. */
+  truncated: boolean
+}
+
+/**
+ * The ground records are read for: grid cells within `FOREST_HISTORY_REACH_METERS`
+ * of the road or of any target, never the horizon map centre. One box around the
+ * road and every target swept in the empty corners of a diagonal road, and a
+ * box near the lookup limit made DataBC sort 25,000 forest-cover polygons (20–41 s)
+ * before returning the first 1,000, chosen by ID rather than by nearness.
+ * Targets come first, then the road from its start, so a capped lookup keeps the
+ * subject of the view.
+ */
+export function forestHistoryAreas(road: number[][], polygons: PolygonGeometry[]): ForestHistoryAreas | null {
+  const finite = (p: number[]) => Number.isFinite(p[0]) && Number.isFinite(p[1])
+  if (!road.length && !polygons.length) return null
+  if (!road.every(finite)) return null
+  const order: string[] = []
+  const seen = new Set<string>()
+  const { lng: cellLng, lat: cellLat } = FOREST_HISTORY_CELL_DEGREES
+  const latPad = FOREST_HISTORY_REACH_METERS / 111320
+  const touch = (w: number, s: number, e: number, n: number) => {
+    const lngPad = latPad / Math.max(0.1, Math.cos(((s + n) * Math.PI) / 360))
+    for (let i = Math.floor((w - lngPad) / cellLng); i <= Math.floor((e + lngPad) / cellLng); i++) {
+      for (let j = Math.floor((s - latPad) / cellLat); j <= Math.floor((n + latPad) / cellLat); j++) {
+        const key = `${i},${j}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        order.push(key)
+      }
+    }
   }
-  const latPad = 3000 / 111320,
-    lngPad = latPad / Math.max(0.1, Math.cos(((b[1] + b[3]) * Math.PI) / 360))
-  return [b[0] - lngPad, b[1] - latPad, b[2] + lngPad, b[3] + latPad]
+  for (const polygon of polygons) {
+    const b = polygonBounds(polygon)
+    if (!b.every(Number.isFinite)) return null
+    touch(b[0], b[1], b[2], b[3])
+  }
+  for (let k = 0; k < road.length; k++) {
+    const [lng, lat] = road[k]
+    touch(lng, lat, lng, lat)
+    const next = road[k + 1]
+    if (!next) continue
+    const dy = (next[1] - lat) * 111320
+    const dx = (next[0] - lng) * 111320 * Math.cos((lat * Math.PI) / 180)
+    const steps = Math.ceil(Math.hypot(dx, dy) / ROAD_SAMPLE_METERS)
+    for (let t = 1; t < steps; t++) {
+      const f = t / steps
+      const x = lng + (next[0] - lng) * f
+      const y = lat + (next[1] - lat) * f
+      touch(x, y, x, y)
+    }
+  }
+  const round = (n: number) => Number(n.toFixed(6))
+  return {
+    cells: order.slice(0, FOREST_HISTORY_MAX_CELLS).map((key) => {
+      const [i, j] = key.split(',').map(Number)
+      return [round(i * cellLng), round(j * cellLat), round((i + 1) * cellLng), round((j + 1) * cellLat)] as Bounds
+    }),
+    truncated: order.length > FOREST_HISTORY_MAX_CELLS,
+  }
 }
 
 /** Deliberately simple, adjustable scenario assumption, not a species/site growth model.

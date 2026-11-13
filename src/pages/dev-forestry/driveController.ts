@@ -69,6 +69,11 @@ export type DriveMap = {
   getCenterElevation?(): number
   getCameraTargetElevation?(): number
   getPadding?(): unknown
+  /**
+   * The canvas, for its size. MapLibre keeps the zoom and centre through a resize, which moves an eye-level camera
+   * off its station (a taller canvas puts it further back from the target), so a resize places the camera again.
+   */
+  getCanvas?(): { clientWidth: number; clientHeight: number }
   getMaxPitch(): number
   setMaxPitch(value: number): unknown
   getCenterClampedToGround(): boolean
@@ -255,7 +260,18 @@ export class DriveController {
           }
         : desired
     this.rotation = rotation
-    const key = [placement.lng, placement.lat, eye, rotation.bearing, rotation.pitch].join('|')
+    // The canvas size is part of the pose: after a resize the same zoom stands the camera somewhere else. Going
+    // fullscreen once put it 29 m behind the station, with the stems behind the station drawn in front of it.
+    const canvas = this.map.getCanvas?.()
+    const key = [
+      placement.lng,
+      placement.lat,
+      eye,
+      rotation.bearing,
+      rotation.pitch,
+      canvas?.clientWidth,
+      canvas?.clientHeight,
+    ].join('|')
     if (key !== this.lastPoseKey) {
       // Keep the map target close to the eye. The rotation-only helper targets
       // kilometres away near the horizon, giving a near clip plane hundreds of

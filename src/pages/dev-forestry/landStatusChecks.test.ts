@@ -5,6 +5,8 @@ import {
   LAND_CHECKS,
   landCheckBounds,
   landCheckMetrics,
+  landCheckReportRows,
+  landChecksPending,
   landCheckSummary,
   landCheckUrl,
   measureLandCheck,
@@ -144,5 +146,28 @@ describe('land status checks', () => {
       )) as unknown as typeof fetch
     const result = await runLandCheck(findLandCheck('park'), [-122.6, 53.9, -122.4, 54.1], [block], null, fetcher)
     expect(result.blocks[0].features).toEqual(['Tabor Mountain Park'])
+  })
+
+  it('prints every layer for a file, a reading or failed layer as Not read and never None', () => {
+    const clear: LandCheckState = { status: 'ready', result: measureLandCheck('treaty', [], [block], landform) }
+    const overlap = measureLandCheck('reserve', [{ name: 'R', geometry: block.geometry }], [block], null)
+    const states = {
+      ...Object.fromEntries(LAND_CHECKS.map((check) => [check.id, clear])),
+      reserve: { status: 'ready', result: overlap } as LandCheckState,
+      park: { status: 'error', error: 'timed out' } as LandCheckState,
+      ogma: { status: 'loading' } as LandCheckState,
+    }
+    const rows = landCheckReportRows(states, { unchecked: null })
+    expect(rows.map((row) => row.label)).toEqual(LAND_CHECKS.map((check) => check.label))
+    const by = (id: string) => rows[LAND_CHECKS.findIndex((check) => check.id === id)]
+    expect(by('treaty')).toMatchObject({ value: 'None', review: false, reading: false })
+    expect(by('reserve').review).toBe(true)
+    expect(by('park')).toMatchObject({ value: 'Not read', review: true, reading: false })
+    expect(by('ogma')).toMatchObject({ value: 'Not read', review: true, reading: true })
+    expect(landChecksPending(states)).toBe(1)
+    expect(landChecksPending({})).toBe(LAND_CHECKS.length)
+    expect(landCheckReportRows({}, { unchecked: 'Add a cutblock.' })).toEqual([
+      { label: 'Land checks', value: 'Not checked', note: 'Add a cutblock.', review: true, reading: false },
+    ])
   })
 })

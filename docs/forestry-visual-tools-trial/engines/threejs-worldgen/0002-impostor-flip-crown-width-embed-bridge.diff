@@ -1,0 +1,741 @@
+diff --git a/example/pgmaps-scene.ts b/example/pgmaps-scene.ts
+index 5d9e00b..8c44b3a 100644
+--- a/example/pgmaps-scene.ts
++++ b/example/pgmaps-scene.ts
+@@ -1,7 +1,17 @@
+ // A PGMaps forest scene package (https://github.com/ahzs645/PGMaps, src/pages/dev-forestry/scenePackage.ts) drawn
+ // with threejs-scatter + threejs-trees: the inventory's own stems, on the package's own ground, from its eye.
+ //   pgmaps-scene.html?scene=<url of a package JSON>   (or pick a file)
+-//   add &webgl to force the WebGL2 backend, &noimpostors to skip impostor baking
++//   add &webgl to force the WebGL2 backend, &noimpostors to skip impostor baking, &still to stop on a full frame
++//
++// Embedded (`?embed`, no `?scene`): a parent page drives it by postMessage.
++//   in:  { type: 'pgmaps-scene', scene }            build (or rebuild, in place) from a package
++//        { type: 'pgmaps-camera', position: [x, y, z], bearingDegrees, pitchDegrees, verticalFovDegrees }
++//                                                    package local metres, z up; kept until a scene is ready
++//   out: { type: 'pgmaps-engine-hello', engine }    listening, send a scene
++//        { type: 'pgmaps-engine-ready', engine }    first full frame of a (new) scene drawn
++//        { type: 'pgmaps-engine-error', engine, message }
++//        { type: 'pgmaps-engine-stats', engine, drawn, instances, meshes, fps, stems }   about once a second
++// With ?embed the status overlay is hidden and the orbit controls take no pointer input: the parent owns the camera.
+ //
+ // The package is local metres: x east, y north, z up (heights absolute). three.js here is y up with north at −z,
+ // so a package point (x, y, z) is drawn at (x, z, −y).
+@@ -27,77 +37,68 @@ type ScenePackage = {
+   openings: Array<{ rings: Array<Array<[number, number]>> }>
+   debris: { count: number; data: number[] }
+   roadScars: Array<{ kind: 'cut' | 'fill'; ring: Array<[number, number]> }>
+-  camera: {
+-    position: [number, number, number]
+-    bearingDegrees: number
+-    pitchDegrees: number
+-    verticalFovDegrees: number
+-  }
++  camera: PackageCamera
+   treeRadiusMeters: number
+ }
++type PackageCamera = {
++  position: [number, number, number]
++  bearingDegrees: number
++  pitchDegrees: number
++  verticalFovDegrees: number
++}
+ 
++const ENGINE = 'worldgen'
+ const params = new URLSearchParams(location.search)
++const embedded = params.has('embed')
+ const hud = document.getElementById('hud')!
++if (embedded) hud.hidden = true
+ const status = (text: string) => {
+   hud.textContent = text
+ }
+-
+-async function loadScene(): Promise<ScenePackage> {
+-  const url = params.get('scene')
+-  if (url) return (await fetch(url)).json()
+-  status('choose a PGMaps scene package (forestry-scene-package.json)')
+-  const input = document.getElementById('file') as HTMLInputElement
+-  input.hidden = false
+-  return new Promise((resolve) => {
+-    input.onchange = async () => resolve(JSON.parse(await input.files![0].text()))
+-  })
++const toParent = (message: Record<string, unknown>) => {
++  if (window.parent !== window) window.parent.postMessage({ engine: ENGINE, ...message }, '*')
+ }
+ 
+-const scenePackage = await loadScene()
+-if (scenePackage.format !== 'pgmaps-forest-scene' || scenePackage.version !== 1)
+-  throw new Error('Not a PGMaps forest scene package (v1).')
+-status('building the ground…')
++// ---------------------------------------------------------------- the renderer, camera and sky: made once
++const renderer = new THREE.WebGPURenderer({ antialias: true, forceWebGL: params.has('webgl') })
++renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))
++renderer.setSize(innerWidth, innerHeight)
++document.body.appendChild(renderer.domElement)
++await renderer.init()
+ 
+-// ---------------------------------------------------------------- ground
+-const { west, south, spacing, columns, rows } = scenePackage.terrain
+-// Gaps (no source DEM there) take the nearest known height along their row, then their column, so the mesh stays
+-// whole; the trees and the eye are all inside the known area.
+-const heights = scenePackage.terrain.heights.slice()
+-const fill = (index: (i: number, j: number) => number, outer: number, inner: number) => {
+-  for (let i = 0; i < outer; i++) {
+-    let last: number | null = null
+-    for (let j = 0; j < inner; j++) last = heights[index(i, j)] ?? last ?? null
+-    for (let j = inner - 1; j >= 0; j--) {
+-      const k = index(i, j)
+-      if (heights[k] === null) heights[k] = last
+-      else last = heights[k]
+-    }
+-  }
+-}
+-fill((r, c) => r * columns + c, rows, columns)
+-fill((c, r) => r * columns + c, columns, rows)
+-// A loop, not Math.min(...): spreading a 160,000-cell grid overflows the call stack.
+-let base = Infinity
+-for (const h of heights) if (h !== null && h < base) base = h
+-const at = (column: number, row: number) => heights[row * columns + column] ?? base
++const scene = new THREE.Scene()
++const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.3, 8000)
++const controls = new OrbitControls(camera, renderer.domElement)
++if (embedded) controls.enabled = false
++const env = createEnvironment(renderer, scene, camera)
++// The demo's haze is a scenic choice (about 70% at 400 m). A visual impact assessment wants the haze of a clear
++// day, which is what PGMaps draws (Koschmieder's law at 60 km visibility); `&haze=` overrides the density.
++scene.fog = new THREE.FogExp2(
++  scene.fog instanceof THREE.FogExp2 ? scene.fog.color : '#aebfcc',
++  Number(params.get('haze') ?? 0.00025)
++)
+ 
+-/** Ground height at a package point (x east, y north), bilinear. */
+-function groundAt(x: number, y: number): number {
+-  const gx = Math.min(columns - 1.0001, Math.max(0, (x - west) / spacing))
+-  const gy = Math.min(rows - 1.0001, Math.max(0, (y - south) / spacing))
+-  const x0 = Math.floor(gx)
+-  const y0 = Math.floor(gy)
+-  const fx = gx - x0
+-  const fy = gy - y0
+-  return (
+-    at(x0, y0) * (1 - fx) * (1 - fy) +
+-    at(x0 + 1, y0) * fx * (1 - fy) +
+-    at(x0, y0 + 1) * (1 - fx) * fy +
+-    at(x0 + 1, y0 + 1) * fx * fy
+-  )
++/** Stands the camera at a package eye: position in package metres, bearing clockwise from north, pitch up. */
++function setCamera(eye: PackageCamera) {
++  camera.fov = eye.verticalFovDegrees
++  camera.updateProjectionMatrix()
++  camera.position.set(eye.position[0], eye.position[2], -eye.position[1])
++  const bearing = THREE.MathUtils.degToRad(eye.bearingDegrees)
++  const pitch = THREE.MathUtils.degToRad(eye.pitchDegrees)
++  controls.target
++    .copy(camera.position)
++    .add(
++      new THREE.Vector3(
++        Math.sin(bearing) * Math.cos(pitch),
++        Math.sin(pitch),
++        -Math.cos(bearing) * Math.cos(pitch)
++      ).multiplyScalar(100)
++    )
++  controls.update()
+ }
+-/** The scatter's terrain: three.js (x, z) is package (x, −z). */
+-const height = (x: number, z: number) => groundAt(x, -z)
++
++// ---------------------------------------------------------------- one package's ground, slash and stand
++type Built = { scatter: Scatter; group: THREE.Group; stems: number; dispose(): void }
+ 
+ function inRing(ring: Array<[number, number]>, x: number, y: number) {
+   let inside = false
+@@ -108,69 +109,107 @@ function inRing(ring: Array<[number, number]>, x: number, y: number) {
+   }
+   return inside
+ }
+-const cut = (x: number, y: number) =>
+-  scenePackage.openings.some((o) => inRing(o.rings[0], x, y) && !o.rings.slice(1).some((r) => inRing(r, x, y)))
+-const scar = (x: number, y: number) => scenePackage.roadScars.some((s) => inRing(s.ring, x, y))
+ 
+-// A finer mesh near the eye, where the ground is read most closely.
+-function groundMesh(size: number, step: number) {
+-  const n = Math.round(size / step)
+-  const geometry = new THREE.PlaneGeometry(size, size, n, n).rotateX(-Math.PI / 2)
+-  const position = geometry.attributes.position
+-  const colors = new Float32Array(position.count * 3)
+-  const floor = new THREE.Color('#3f4f33')
+-  const soil = new THREE.Color('#9c8664')
+-  const bank = new THREE.Color('#b5a585')
+-  for (let i = 0; i < position.count; i++) {
+-    const x = position.getX(i)
+-    const y = -position.getZ(i)
+-    position.setY(i, groundAt(x, y))
+-    ;(cut(x, y) ? soil : scar(x, y) ? bank : floor).toArray(colors, i * 3)
++/** The package's ground: a height function and two meshes (finer near the eye). */
++function groundOf(pkg: ScenePackage) {
++  const { west, south, spacing, columns, rows } = pkg.terrain
++  // Gaps (no source DEM there) take the nearest known height along their row, then their column, so the mesh stays
++  // whole; the trees and the eye are all inside the known area.
++  const heights = pkg.terrain.heights.slice()
++  const fill = (index: (i: number, j: number) => number, outer: number, inner: number) => {
++    for (let i = 0; i < outer; i++) {
++      let last: number | null = null
++      for (let j = 0; j < inner; j++) last = heights[index(i, j)] ?? last ?? null
++      for (let j = inner - 1; j >= 0; j--) {
++        const k = index(i, j)
++        if (heights[k] === null) heights[k] = last
++        else last = heights[k]
++      }
++    }
+   }
+-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+-  geometry.computeVertexNormals()
+-  return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }))
+-}
++  fill((r, c) => r * columns + c, rows, columns)
++  fill((c, r) => r * columns + c, columns, rows)
++  // A loop, not Math.min(...): spreading a 160,000-cell grid overflows the call stack.
++  let base = Infinity
++  for (const h of heights) if (h !== null && h < base) base = h
++  const at = (column: number, row: number) => heights[row * columns + column] ?? base
+ 
+-const renderer = new THREE.WebGPURenderer({ antialias: true, forceWebGL: params.has('webgl') })
+-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))
+-renderer.setSize(innerWidth, innerHeight)
+-document.body.appendChild(renderer.domElement)
+-await renderer.init()
++  /** Ground height at a package point (x east, y north), bilinear. */
++  const groundAt = (x: number, y: number): number => {
++    const gx = Math.min(columns - 1.0001, Math.max(0, (x - west) / spacing))
++    const gy = Math.min(rows - 1.0001, Math.max(0, (y - south) / spacing))
++    const x0 = Math.floor(gx)
++    const y0 = Math.floor(gy)
++    const fx = gx - x0
++    const fy = gy - y0
++    return (
++      at(x0, y0) * (1 - fx) * (1 - fy) +
++      at(x0 + 1, y0) * fx * (1 - fy) +
++      at(x0, y0 + 1) * (1 - fx) * fy +
++      at(x0 + 1, y0 + 1) * fx * fy
++    )
++  }
++  const cut = (x: number, y: number) =>
++    pkg.openings.some((o) => inRing(o.rings[0], x, y) && !o.rings.slice(1).some((r) => inRing(r, x, y)))
++  const scar = (x: number, y: number) => pkg.roadScars.some((s) => inRing(s.ring, x, y))
+ 
+-const scene = new THREE.Scene()
+-const { camera: eye } = scenePackage
+-const camera = new THREE.PerspectiveCamera(eye.verticalFovDegrees, innerWidth / innerHeight, 0.3, 8000)
+-camera.position.set(eye.position[0], eye.position[2], -eye.position[1])
+-const bearing = THREE.MathUtils.degToRad(eye.bearingDegrees)
+-const pitch = THREE.MathUtils.degToRad(eye.pitchDegrees)
+-const target = camera.position
+-  .clone()
+-  .add(
+-    new THREE.Vector3(
+-      Math.sin(bearing) * Math.cos(pitch),
+-      Math.sin(pitch),
+-      -Math.cos(bearing) * Math.cos(pitch)
+-    ).multiplyScalar(100)
+-  )
+-const controls = new OrbitControls(camera, renderer.domElement)
+-controls.target.copy(target)
+-controls.update()
+-const env = createEnvironment(renderer, scene, camera)
+-// The demo's haze is a scenic choice (about 70% at 400 m). A visual impact assessment wants the haze of a clear
+-// day, which is what PGMaps draws (Koschmieder's law at 60 km visibility); `&haze=` overrides the density.
+-scene.fog = new THREE.FogExp2(
+-  scene.fog instanceof THREE.FogExp2 ? scene.fog.color : '#aebfcc',
+-  Number(params.get('haze') ?? 0.00025)
+-)
++  const mesh = (size: number, step: number) => {
++    const n = Math.round(size / step)
++    const geometry = new THREE.PlaneGeometry(size, size, n, n).rotateX(-Math.PI / 2)
++    const position = geometry.attributes.position
++    const colors = new Float32Array(position.count * 3)
++    const floor = new THREE.Color('#3f4f33')
++    const soil = new THREE.Color('#9c8664')
++    const bank = new THREE.Color('#b5a585')
++    for (let i = 0; i < position.count; i++) {
++      const x = position.getX(i)
++      const y = -position.getZ(i)
++      position.setY(i, groundAt(x, y))
++      ;(cut(x, y) ? soil : scar(x, y) ? bank : floor).toArray(colors, i * 3)
++    }
++    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
++    geometry.computeVertexNormals()
++    return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }))
++  }
++  const near = mesh(1400, 5)
++  const far = mesh(Math.min(columns, rows) * spacing - spacing, spacing * 2)
++  far.position.y = -0.3 // under the near mesh where they overlap
++  near.receiveShadow = far.receiveShadow = true
++  return { groundAt, meshes: [near, far] }
++}
+ 
+-const near = groundMesh(1400, 5)
+-const far = groundMesh(Math.min(columns, rows) * spacing - spacing, spacing * 2)
+-far.position.y = -0.3 // under the near mesh where they overlap
+-near.receiveShadow = far.receiveShadow = true
+-scene.add(near, far)
++/** Logs lying on the cut ground, as PGMaps draws its piles: a few per pile, any direction. */
++function slashOf(pkg: ScenePackage, groundAt: (x: number, y: number) => number) {
++  const logs: THREE.Matrix4[] = []
++  const m = new THREE.Matrix4()
++  for (let i = 0; i < pkg.debris.count; i++) {
++    const [x, y, , footprint] = pkg.debris.data.slice(i * 4, i * 4 + 4)
++    for (let k = 0; k < 6; k++) {
++      const a = (i * 7 + k * 13) % 17
++      const px = x + ((a / 17 - 0.5) * footprint) / 2
++      const py = y + ((((a * 5) % 17) / 17 - 0.5) * footprint) / 2
++      const length = footprint * (0.25 + (((a * 3) % 17) / 17) * 0.35)
++      m.compose(
++        new THREE.Vector3(px, groundAt(px, py) + 0.1, -py),
++        new THREE.Quaternion().setFromEuler(new THREE.Euler(0, (a / 17) * Math.PI * 2, Math.PI / 2)),
++        new THREE.Vector3(1, length, 1)
++      )
++      logs.push(m.clone())
++    }
++  }
++  const mesh = new THREE.InstancedMesh(
++    new THREE.CylinderGeometry(0.12, 0.15, 1, 6),
++    new THREE.MeshStandardMaterial({ color: '#6f6150', roughness: 1 }),
++    Math.max(1, logs.length)
++  )
++  mesh.count = logs.length
++  logs.forEach((matrix, i) => {
++    mesh.setMatrixAt(i, matrix)
++  })
++  mesh.castShadow = mesh.receiveShadow = true
++  return mesh
++}
+ 
+-// ---------------------------------------------------------------- trees
+ // PGMaps' species on worldgen's presets: the nearest preset, with the crown base PGMaps draws, so a stem's live
+ // crown starts where it does in the road view. Width and height are then each stem's own, per instance.
+ const recipe: Record<string, { preset: keyof typeof presets; params?: Partial<TreeParams> }> = {
+@@ -184,108 +223,212 @@ const recipe: Record<string, { preset: keyof typeof presets; params?: Partial<Tr
+   aspen: { preset: 'birch', params: { barkColor: '#cfd2c3', leafColor: '#6d8f3c' } },
+   birch: { preset: 'birch' }
+ }
+-const treeSpecies = scenePackage.trees.species
+-const used = treeSpecies.filter((_, index) => {
+-  for (let i = 0; i < scenePackage.trees.count; i++) if (scenePackage.trees.data[i * 7 + 3] === index) return true
+-  return false
+-})
+ const variants = 3
+-status(`generating ${used.length} species × ${variants} variants…`)
+-const layers: ScatterLayer[] = (await createVegetationLayers({
+-  species: used.map((name) => {
+-    const { preset, params: extra } = recipe[name] ?? { preset: 'spruce' as const }
+-    const p = presets[preset] as TreeParams
+-    const crownBase = scenePackage.species[name]?.crownBase ?? 0.3
+-    return {
+-      name,
+-      density: 0,
+-      params: { ...p, ...extra, trunkHeight: p.height * crownBase, crownHeight: p.height * (1 - crownBase) }
+-    }
+-  }),
+-  variants,
+-  seed: 7,
+-  renderer: params.has('noimpostors') ? null : renderer,
+-  castShadow: true
+-})) as ScatterLayer[]
+ 
+-// Each species' stems, shared out among its variants and scaled from each variant's own size to the stem's height
+-// and crown width: the same stems, heights and crowns the road view draws.
+-const stride = scenePackage.trees.fields.length
+-for (const layer of layers) {
+-  const [name, variant] = layer.name.split('#')
+-  const speciesIndex = treeSpecies.indexOf(name)
+-  const box = new THREE.Box3().setFromBufferAttribute(
+-    layer.lods[0].geometry.attributes.position as THREE.BufferAttribute
+-  )
+-  const tall = box.max.y
+-  const wide = Math.max(box.max.x - box.min.x, box.max.z - box.min.z)
+-  const list: number[] = []
+-  for (let i = 0; i < scenePackage.trees.count; i++) {
+-    const o = i * stride
+-    if (scenePackage.trees.data[o + 3] !== speciesIndex) continue
+-    // A stable variant per stem, from its position.
+-    const pick =
+-      Math.abs(Math.floor(scenePackage.trees.data[o] * 7.3 + scenePackage.trees.data[o + 1] * 3.1)) % variants
+-    if (pick !== Number(variant)) continue
+-    const yaw = (scenePackage.trees.data[o + 6] * 6.283185) % 6.283185
+-    list.push(
+-      scenePackage.trees.data[o],
+-      -scenePackage.trees.data[o + 1],
+-      yaw,
+-      scenePackage.trees.data[o + 5] / wide,
+-      scenePackage.trees.data[o + 4] / tall
+-    )
++/**
++ * The species' layers and their baked impostors, kept between packages: a drive sends a new package every couple of
++ * hundred metres, almost always with the same species, and baking is most of a build. Rebuilt when the species or
++ * their crown bases change. Each layer's own levels are kept, since a layer with no stems loses all but its first.
++ */
++let speciesCache: { key: string; layers: ScatterLayer[]; lods: ScatterLayer['lods'][] } | null = null
++/**
++ * True while impostors bake. The bake binds its atlas as the render target and awaits shader compiles between
++ * passes; a frame drawn in that gap lands in the atlas (the sky and haze baked over every far tree), so the frame
++ * loop draws nothing until it is done.
++ */
++let baking = false
++
++async function speciesLayers(pkg: ScenePackage) {
++  const used = pkg.trees.species.filter((_, index) => {
++    for (let i = 0; i < pkg.trees.count; i++) if (pkg.trees.data[i * 7 + 3] === index) return true
++    return false
++  })
++  const crownBase = (name: string) => pkg.species[name]?.crownBase ?? 0.3
++  const key = JSON.stringify(used.map((name) => [name, crownBase(name)]))
++  if (speciesCache?.key === key) {
++    speciesCache.layers.forEach((layer, i) => {
++      layer.lods = speciesCache!.lods[i]
++    })
++    return speciesCache.layers
+   }
+-  layer.instances = new Float32Array(list)
+-  layer.colorVariation = 0.1
+-  if (list.length === 0) layer.lods = layer.lods.slice(0, 1)
++  if (speciesCache) disposeLayers(speciesCache.layers)
++  speciesCache = null
++  status(`generating ${used.length} species × ${variants} variants…`)
++  baking = true
++  const layers = (await createVegetationLayers({
++    species: used.map((name) => {
++      const { preset, params: extra } = recipe[name] ?? { preset: 'spruce' as const }
++      const p = presets[preset] as TreeParams
++      return {
++        name,
++        density: 0,
++        params: {
++          ...p,
++          ...extra,
++          trunkHeight: p.height * crownBase(name),
++          crownHeight: p.height * (1 - crownBase(name))
++        }
++      }
++    }),
++    variants,
++    seed: 7,
++    renderer: params.has('noimpostors') ? null : renderer,
++    castShadow: true
++  }).finally(() => {
++    baking = false
++  })) as ScatterLayer[]
++  speciesCache = { key, layers, lods: layers.map((l) => l.lods) }
++  return layers
+ }
+-console.log(`fixed instances: ${layers.reduce((n, l) => n + (l.instances?.length ?? 0) / FIXED_INSTANCE_STRIDE, 0)}`)
+ 
+-const scatter = Scatter.create({
+-  camera,
+-  scene,
+-  terrain: height,
+-  layers,
+-  seed: 1,
+-  maxDistance: scenePackage.treeRadiusMeters + 50
+-})
++async function build(pkg: ScenePackage): Promise<Built> {
++  if (pkg?.format !== 'pgmaps-forest-scene' || pkg.version !== 1)
++    throw new Error('Not a PGMaps forest scene package (v1).')
++  status('building the ground…')
++  const group = new THREE.Group()
++  const ground = groundOf(pkg)
++  group.add(...ground.meshes)
++  const slash = slashOf(pkg, ground.groundAt)
++  group.add(slash)
+ 
+-// ---------------------------------------------------------------- slash
+-// Logs lying on the cut ground, as PGMaps draws its piles: a few per pile, any direction.
+-const logs: THREE.Matrix4[] = []
+-const m = new THREE.Matrix4()
+-for (let i = 0; i < scenePackage.debris.count; i++) {
+-  const [x, y, , footprint] = scenePackage.debris.data.slice(i * 4, i * 4 + 4)
+-  for (let k = 0; k < 6; k++) {
+-    const a = (i * 7 + k * 13) % 17
+-    const px = x + ((a / 17 - 0.5) * footprint) / 2
+-    const py = y + ((((a * 5) % 17) / 17 - 0.5) * footprint) / 2
+-    const length = footprint * (0.25 + (((a * 3) % 17) / 17) * 0.35)
+-    m.compose(
+-      new THREE.Vector3(px, groundAt(px, py) + 0.1, -py),
+-      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, (a / 17) * Math.PI * 2, Math.PI / 2)),
+-      new THREE.Vector3(1, length, 1)
++  const layers = await speciesLayers(pkg)
++  // Each species' stems, shared out among its variants and scaled from each variant's own size to the stem's height
++  // and crown width: the same stems, heights and crowns the road view draws.
++  const stride = pkg.trees.fields.length
++  for (const layer of layers) {
++    const [name, variant] = layer.name.split('#')
++    const speciesIndex = pkg.trees.species.indexOf(name)
++    const box = new THREE.Box3().setFromBufferAttribute(
++      layer.lods[0].geometry.attributes.position as THREE.BufferAttribute
+     )
+-    logs.push(m.clone())
++    const tall = box.max.y
++    const wide = Math.max(box.max.x - box.min.x, box.max.z - box.min.z)
++    const list: number[] = []
++    for (let i = 0; i < pkg.trees.count; i++) {
++      const o = i * stride
++      if (pkg.trees.data[o + 3] !== speciesIndex) continue
++      // A stable variant per stem, from its position.
++      const pick = Math.abs(Math.floor(pkg.trees.data[o] * 7.3 + pkg.trees.data[o + 1] * 3.1)) % variants
++      if (pick !== Number(variant)) continue
++      const yaw = (pkg.trees.data[o + 6] * 6.283185) % 6.283185
++      list.push(
++        pkg.trees.data[o],
++        -pkg.trees.data[o + 1],
++        yaw,
++        pkg.trees.data[o + 5] / wide,
++        pkg.trees.data[o + 4] / tall
++      )
++    }
++    layer.instances = new Float32Array(list)
++    layer.colorVariation = 0.1
++    if (list.length === 0) layer.lods = layer.lods.slice(0, 1)
++  }
++  const stems = layers.reduce((n, l) => n + (l.instances?.length ?? 0) / FIXED_INSTANCE_STRIDE, 0)
++  console.log(`fixed instances: ${stems}`)
++
++  const scatter = Scatter.create({
++    camera,
++    scene,
++    terrain: (x: number, z: number) => ground.groundAt(x, -z),
++    layers,
++    seed: 1,
++    maxDistance: pkg.treeRadiusMeters + 50
++  })
++  return {
++    scatter,
++    group,
++    stems,
++    dispose() {
++      scatter.dispose()
++      group.removeFromParent()
++      for (const mesh of [...ground.meshes, slash]) {
++        mesh.geometry.dispose()
++        ;(mesh.material as THREE.Material).dispose()
++      }
++    }
+   }
+ }
+-const logMesh = new THREE.InstancedMesh(
+-  new THREE.CylinderGeometry(0.12, 0.15, 1, 6),
+-  new THREE.MeshStandardMaterial({ color: '#6f6150', roughness: 1 }),
+-  logs.length
+-)
+-logs.forEach((matrix, i) => {
+-  logMesh.setMatrixAt(i, matrix)
++
++// ---------------------------------------------------------------- packages in, one build at a time
++let current: Built | null = null
++let pending: ScenePackage | null = null
++let building = false
++/** The latest camera from the parent, applied once a scene is ready (a package carries its own eye otherwise). */
++let parentCamera: PackageCamera | null = null
++let framesSinceBuild = 0
++let announced = false
++
++async function load(pkg: ScenePackage) {
++  pending = pkg
++  if (building) return
++  building = true
++  try {
++    while (pending) {
++      const next = pending
++      pending = null
++      const built = await build(next)
++      current?.dispose()
++      current = built
++      scene.add(built.group)
++      setCamera(parentCamera ?? next.camera)
++      framesSinceBuild = 0
++      announced = false
++      Object.assign(window, { pgmaps: { scene, camera, controls, scatter: built.scatter, renderer, ready: false } })
++    }
++  } catch (error) {
++    const message = error instanceof Error ? error.message : String(error)
++    status(`failed: ${message}`)
++    toParent({ type: 'pgmaps-engine-error', message })
++    Object.assign(window, { pgmaps: { ready: true, error: message } })
++  } finally {
++    building = false
++  }
++}
++
++addEventListener('message', (event: MessageEvent) => {
++  const data = event.data as { type?: string; scene?: ScenePackage } & Partial<PackageCamera>
++  if (data?.type === 'pgmaps-scene' && data.scene) void load(data.scene)
++  else if (data?.type === 'pgmaps-camera' && data.position) {
++    parentCamera = {
++      position: data.position,
++      bearingDegrees: data.bearingDegrees ?? 0,
++      pitchDegrees: data.pitchDegrees ?? 0,
++      verticalFovDegrees: data.verticalFovDegrees ?? camera.fov
++    }
++    if (current) setCamera(parentCamera)
++  }
+ })
+-logMesh.castShadow = logMesh.receiveShadow = true
+-scene.add(logMesh)
+ 
++async function fromUrlOrFile(): Promise<ScenePackage> {
++  const url = params.get('scene')
++  if (url) return (await fetch(url)).json()
++  status('choose a PGMaps scene package (forestry-scene-package.json)')
++  const input = document.getElementById('file') as HTMLInputElement
++  input.hidden = false
++  return new Promise((resolve) => {
++    input.onchange = async () => resolve(JSON.parse(await input.files![0].text()))
++  })
++}
++
++Object.assign(window, { pgmaps: { scene, camera, controls, renderer, ready: false } })
++if (embedded && !params.get('scene')) {
++  status('waiting for a scene from the parent page…')
++  toParent({ type: 'pgmaps-engine-hello' })
++} else {
++  fromUrlOrFile()
++    .then(load)
++    .catch((error) => {
++      const message = error instanceof Error ? error.message : String(error)
++      status(`failed: ${message}`)
++      toParent({ type: 'pgmaps-engine-error', message })
++    })
++}
++
++// ---------------------------------------------------------------- the frame
+ setTreeEnvironment({ windStrength: 0.15 })
+-let frames = 0
+ let last = performance.now()
+ let fps = 30
+-Object.assign(window, { pgmaps: { scene, camera, scatter, ready: false } })
++let lastStats = 0
+ renderer.setAnimationLoop(() => {
+   const now = performance.now()
+   fps = fps * 0.9 + (1000 / Math.max(1, now - last)) * 0.1
+@@ -293,23 +436,42 @@ renderer.setAnimationLoop(() => {
+   controls.update()
+   env.follow(controls.target)
+   setTreeEnvironment({ sun: env.sun })
+-  scatter.update()
++  if (baking) return
++  if (current) current.scatter.update()
+   env.render()
+-  const s = scatter.stats
++  if (!current) return
++  const s = current.scatter.stats
+   status(
+-    `${fps.toFixed(0)} fps · ${scenePackage.trees.count} stems in the package · instances ${s.instances} · drawn ${s.visible} · meshes ${s.meshes}`
++    `${fps.toFixed(0)} fps · ${current.stems} stems in the package · instances ${s.instances} · drawn ${s.visible} · meshes ${s.meshes}`
+   )
++  framesSinceBuild += 1
++  const state = (window as unknown as { pgmaps: { ready: boolean } }).pgmaps
++  const streamed = s.instances >= current.stems
++  // A (new) scene's first full frame: every stem streamed in, or long enough that the rest are out of reach.
++  if (!announced && framesSinceBuild > 2 && (streamed || framesSinceBuild > 120)) {
++    announced = true
++    toParent({ type: 'pgmaps-engine-ready' })
++  }
++  if (now - lastStats > 1000) {
++    lastStats = now
++    toParent({
++      type: 'pgmaps-engine-stats',
++      drawn: s.visible,
++      instances: s.instances,
++      meshes: s.meshes,
++      fps: Math.round(fps),
++      stems: current.stems
++    })
++  }
+   // `&still`: once the stand has streamed in, stop on that frame (for screenshots and comparisons).
+-  frames += 1
+-  if (params.has('still') && frames > 4 && s.instances >= scenePackage.trees.count) {
++  if (params.has('still') && framesSinceBuild > 4 && streamed) {
+     renderer.setAnimationLoop(null)
+-    ;(window as unknown as { pgmaps: { ready: boolean } }).pgmaps.ready = true
+-  } else if (!params.has('still') && frames === 60)
+-    (window as unknown as { pgmaps: { ready: boolean } }).pgmaps.ready = true
++    state.ready = true
++  } else if (!params.has('still') && framesSinceBuild === 60) state.ready = true
+ })
+ addEventListener('beforeunload', () => {
+-  scatter.dispose()
+-  disposeLayers(layers)
++  current?.dispose()
++  if (speciesCache) disposeLayers(speciesCache.layers)
+ })
+ addEventListener('resize', () => {
+   camera.aspect = innerWidth / innerHeight
+diff --git a/packages/scatter/src/impostor.ts b/packages/scatter/src/impostor.ts
+index 6455c38..07ffd97 100644
+--- a/packages/scatter/src/impostor.ts
++++ b/packages/scatter/src/impostor.ts
+@@ -334,8 +334,9 @@ function basisNode(d: any) {
+ }
+ 
+ /**
+- * The impostor material. Per instance it reads `scatterPosition` (xyz = world base position, w = uniform scale) and
+- * `scatterParams` (x = yaw in radians, y = brightness tint), which `Scatter` fills for impostor LODs.
++ * The impostor material. Per instance it reads `scatterPosition` (xyz = world base position, w = scale) and
++ * `scatterParams` (x = yaw in radians, y = brightness tint, w = width ÷ height, 1 for a uniform scale), which
++ * `Scatter` fills for impostor LODs.
+  */
+ function createImpostorMaterial(albedo: Texture, normals: Texture, o: ImpostorOptions, bounds: Sphere) {
+   const billboard = o.mode === 'billboard'
+@@ -348,7 +349,11 @@ function createImpostorMaterial(albedo: Texture, normals: Texture, o: ImpostorOp
+   const rot = (v: any) => vec3(v.x.mul(c).add(v.z.mul(s)), v.y, v.z.mul(c).sub(v.x.mul(s)))
+   const unrot = (v: any) => vec3(v.x.mul(c).sub(v.z.mul(s)), v.y, v.z.mul(c).add(v.x.mul(s)))
+ 
+-  const center = aPos.xyz.add(rot(vec3(bounds.center.x, bounds.center.y, bounds.center.z).mul(aPos.w)))
++  // Across (x, z) the instance may be scaled apart from its height: `scatterParams.w` is width ÷ height (1, or 0
++  // from an older writer, for a uniform scale).
++  const across = aPos.w.mul(select(aPar.w.greaterThan(0), aPar.w, float(1)))
++  const scaled = (v: any) => vec3(v.x.mul(across), v.y.mul(aPos.w), v.z.mul(across))
++  const center = aPos.xyz.add(scaled(rot(vec3(bounds.center.x, bounds.center.y, bounds.center.z))))
+   const toCamRaw = cameraPosition.sub(center)
+   const toCam = billboard ? normalize(vec3(toCamRaw.x, 0, toCamRaw.z).add(vec3(0, 0, 1e-5))) : normalize(toCamRaw)
+   const view = basisNode(toCam)
+@@ -365,11 +370,15 @@ function createImpostorMaterial(albedo: Texture, normals: Texture, o: ImpostorOp
+   const material = new MeshStandardNodeMaterial({ roughness: 0.85, metalness: 0 })
+   material.alphaTest = o.alphaTest
+   material.positionNode = center.add(
+-    view.right.mul(positionGeometry.x).add(view.up.mul(positionGeometry.y)).mul(bounds.radius).mul(aPos.w)
++    scaled(view.right.mul(positionGeometry.x).add(view.up.mul(positionGeometry.y)).mul(bounds.radius))
+   )
+ 
+   const inset = 0.5 / Math.max(1, o.size / N)
+-  const atlasUv = vCell.add(clamp(uv() as any, inset, 1 - inset)).div(N)
++  // The bake stacks cells bottom-up in NDC (cell row j from the frustum's bottom), but three.js samples a render
++  // target top-down on both backends (WebGL flips render-target UVs to match WebGPU), so the atlas row is read from
++  // the top: without the flip every impostor was drawn upside down (trunks above, crowns hanging under them).
++  const cellUv = vCell.add(clamp(uv() as any, inset, 1 - inset)).div(N)
++  const atlasUv = vec2(cellUv.x, float(1).sub(cellUv.y))
+   const sample = texture(albedo, atlasUv)
+   const normalSample = texture(normals, atlasUv)
+   // The bake stores object-space normals; yaw is the only instance rotation, so turning it by yaw gives the world
+diff --git a/packages/scatter/src/scatter.ts b/packages/scatter/src/scatter.ts
+index ecda98e..7ef7d04 100644
+--- a/packages/scatter/src/scatter.ts
++++ b/packages/scatter/src/scatter.ts
+@@ -44,7 +44,7 @@ export interface ScatterLayer extends PlacementRules {
+   /**
+    * Far level drawn after the last mesh level, typically from `bakeImpostor()`. Unlike mesh levels it is not an
+    * `InstancedMesh`: its material reads two per-instance attributes, `scatterPosition` (xyz = base position,
+-   * w = scale) and `scatterParams` (x = yaw, y = brightness tint, z = random 0..1).
++   * w = scale) and `scatterParams` (x = yaw, y = brightness tint, z = random 0..1, w = width ÷ height).
+    */
+   impostor: ScatterLOD | null
+   /** Whether instances cast shadows (can be overridden per level). */
+@@ -595,6 +595,11 @@ function writer(pool: Pool): PoolWriter {
+       par[w] = data[o + 16]
+       par[w + 1] = data[o + 18]
+       par[w + 2] = data[o + 19]
++      // Width over height from the instance matrix (1 for a uniform scale): fixed instances carry their own crown
++      // width, and the impostor stretches across by it so it keeps the mesh's proportions.
++      const across = Math.hypot(data[o], data[o + 1], data[o + 2])
++      const up = Math.hypot(data[o + 4], data[o + 5], data[o + 6])
++      par[w + 3] = up > 0 ? across / up : 1
+     }
+   }
+   const mesh = pool.meshes[0] as InstancedMesh

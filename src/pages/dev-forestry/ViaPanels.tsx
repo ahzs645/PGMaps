@@ -9,6 +9,7 @@ import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { StatGroup, type StatItem } from '@/components/ui/stat-group'
 import { InfoTip } from '@/components/ui/info-tip'
+import { cn } from '@/lib/utils'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 
 import type { AnalysisResult } from './types'
@@ -60,13 +61,39 @@ function classCode(id: VisualQualityClassId | null | undefined): string {
 
 type OnReviewChange = (patch: Partial<ViaReview>) => void
 
-function ChoiceField({ label, hint, children }: { label?: string; hint?: ReactNode; children: ReactNode }) {
+/**
+ * `hint` is printed under the control and is for a value the reader needs in view (what the run
+ * measured); `tip` is the explanation or prompt, behind an (i) beside the label.
+ */
+function ChoiceField({
+  label,
+  hint,
+  tip,
+  children,
+}: {
+  label?: string
+  hint?: ReactNode
+  tip?: ReactNode
+  children: ReactNode
+}) {
+  // The (i) sits outside the label, so a click on the label's text still reaches the control.
   return (
-    <label className="block">
-      {label && <span className="mb-1 block text-2xs font-medium text-muted-foreground">{label}</span>}
-      {children}
-      {hint && <span className="mt-1 block text-3xs leading-4 text-muted-foreground">{hint}</span>}
-    </label>
+    <div className="relative">
+      <label className="block">
+        {label && (
+          <span className={cn('mb-1 block text-2xs font-medium text-muted-foreground', tip ? 'pr-5' : undefined)}>
+            {label}
+          </span>
+        )}
+        {children}
+        {hint && <span className="mt-1 block text-3xs leading-4 text-muted-foreground">{hint}</span>}
+      </label>
+      {label && tip && (
+        <InfoTip label={`About ${label.toLowerCase()}`} className="absolute -top-1 right-0">
+          {tip}
+        </InfoTip>
+      )}
+    </div>
   )
 }
 
@@ -186,7 +213,16 @@ export function ViaHeadline({
         </InlineAlert>
       )}
 
-      {stats.length > 0 && <StatGroup className="mt-2" variant="tiles" size="sm" columns={3} items={stats} />}
+      {stats.length > 0 && (
+        <StatGroup
+          className="mt-2"
+          variant="tiles"
+          size="sm"
+          columns={3}
+          // Tiles are cards: one step above the sidebar they sit on.
+          items={stats.map((stat) => ({ ...stat, className: 'bg-card' }))}
+        />
+      )}
 
       {!rating &&
         assessment?.reviewStarted &&
@@ -350,17 +386,18 @@ export function OcularAssessmentFields({
           ))}
         </StyledSelect>
       </ChoiceField>
-      <CheckboxField
-        label={<span className="text-2xs font-medium">On the class boundary</span>}
-        description={
-          <span className="text-2xs leading-4">
-            The alteration sits between {assessment.objective.label.toLowerCase()} and the next more-altered class.
-            Table 7 rates this Inconclusive.
-          </span>
-        }
-        checked={ocular.onBoundary === true}
-        onCheckedChange={(onBoundary) => setOcular({ onBoundary })}
-      />
+      <div className="flex items-start gap-1">
+        <CheckboxField
+          className="flex-1"
+          label={<span className="text-2xs font-medium">On the class boundary</span>}
+          checked={ocular.onBoundary === true}
+          onCheckedChange={(onBoundary) => setOcular({ onBoundary })}
+        />
+        <InfoTip label="About the class boundary">
+          The alteration sits between {assessment.objective.label.toLowerCase()} and the next more-altered class. Table
+          7 rates this Inconclusive.
+        </InfoTip>
+      </div>
       {result && (
         <InlineAlert
           tone={achieves(result.classId, assessment.objective.id) && !result.onBoundary ? 'success' : 'warning'}
@@ -468,10 +505,9 @@ export function AdjustmentFields({
           <ChoiceField
             key={element.id}
             label={element.label}
+            tip={element.question}
             hint={
-              entry.measured && (own === undefined || own === null)
-                ? `Measured: ${entry.measured.basis}.`
-                : element.question
+              entry.measured && (own === undefined || own === null) ? `Measured: ${entry.measured.basis}.` : undefined
             }
           >
             <StyledSelect
@@ -632,7 +668,7 @@ export function FinalRatingFields({
       )}
       <ChoiceField
         label="Rationale (handbook 3.5.2)"
-        hint="Landscape character, constraints and opportunities, the design strategies used, and anything else that shaped the rating."
+        tip="Landscape character, constraints and opportunities, the design strategies used, and anything else that shaped the rating."
       >
         <textarea
           className="min-h-20 w-full rounded-md border border-border bg-background p-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

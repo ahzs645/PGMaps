@@ -71,6 +71,7 @@ import {
 import { layoutStageOf } from './fieldChecklist'
 import type { LabelStyleId } from '@/lib/mapSheet/callouts'
 import type { VisualsExport } from './visualsExports'
+import type { EngineEnvironmentChoice, RoadRendererId } from './externalRenderers'
 import { VIA_STEPS, type ViaAssessment, type ViaReview, type ViaStepId, type ViaStepStatus } from './via'
 import {
   ALTERATION_BASIS_LABELS,
@@ -136,6 +137,13 @@ export type DriveState = {
   /** Tree shading: the drawing's own colours, or lit as crown volumes. Display only. */
   treeLook: TreeLook
   /**
+   * Which engine draws the road view (`externalRenderers.ts`): PGMaps' own map, or another engine in a frame over
+   * it, fed the same scene and camera. Display only: figures, saved views and images stay PGMaps' own.
+   */
+  renderer: RoadRendererId
+  /** The light and weather another renderer draws (`engineEnvironment`). Display only; PGMaps' own drawing ignores it. */
+  engineEnvironment: EngineEnvironmentChoice
+  /**
    * Draw the stems within this many metres in detail once the view holds
    * still; 0 never. Moving, every stem stays a card. Display only.
    */
@@ -182,6 +190,21 @@ const GRID_BUTTON = 'h-auto min-h-8 whitespace-normal px-2 text-xs touch:min-h-1
 const SELECT_CLASS =
   'h-7 max-w-full rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
+/** A field's explanation: an (i) at the end of its label row, so the sidebar lists values, not prose. */
+function fieldTip(label: string, ...parts: ReactNode[]) {
+  const shown = parts.filter((part) => part != null && part !== false)
+  if (!shown.length) return undefined
+  return (
+    <InfoTip label={`About ${label.toLowerCase()}`} className="absolute -top-1 right-0">
+      {shown.map((part, index) => (
+        <span key={index} className={cn('block', index > 0 && 'mt-1.5')}>
+          {part}
+        </span>
+      ))}
+    </InfoTip>
+  )
+}
+
 function Field({
   label,
   hint,
@@ -189,6 +212,7 @@ function Field({
   group = false,
 }: {
   label: string
+  /** Shown behind an (i) beside the label. */
   hint?: ReactNode
   children: ReactNode
   group?: boolean
@@ -196,11 +220,10 @@ function Field({
   return (
     <FormField
       label={label}
-      hint={hint}
+      hintAction={fieldTip(label, hint)}
       group={group}
       contentClassName="block"
       labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
-      descriptionClassName="text-3xs leading-4"
     >
       {children}
     </FormField>
@@ -219,8 +242,8 @@ function NumberField({
   onChange,
 }: {
   label: string
+  /** Both go behind one (i) beside the label: what the value means, then any background. */
   hint?: ReactNode
-  /** Background behind an info button beside the label, rather than a line under the field. */
   info?: ReactNode
   value: number
   min: number
@@ -232,8 +255,7 @@ function NumberField({
   return (
     <SharedNumberField
       label={label}
-      hint={hint}
-      hintAction={info ? <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip> : undefined}
+      hintAction={fieldTip(label, hint, info)}
       value={value}
       onValueChange={onChange}
       min={min}
@@ -245,7 +267,6 @@ function NumberField({
       inputClassName={FORM_INPUT_CLASS}
       contentClassName="block"
       labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
-      descriptionClassName="text-3xs leading-4"
       unitClassName="text-2xs"
     />
   )
@@ -665,6 +686,7 @@ export function Sidebar({
           selected && 'border-sky-300 bg-sky-50/70 dark:border-sky-800 dark:bg-sky-950/30',
         )}
         data-target-card={target.id}
+        data-selected-card={selected || undefined}
       >
         <div className="flex items-center gap-0.5 pr-1">
           <ResultRow

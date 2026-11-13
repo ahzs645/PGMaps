@@ -17,6 +17,8 @@
  * - **Terrain**: the drawn ground (the road view's elevation source) on a
  *   regular grid, wider than the trees so the skyline is there.
  * - **Openings, slash and road scars** as the road view draws them.
+ * - **Water**: the basemap's lakes and rivers within the terrain, each with
+ *   the water level a renderer should draw it at.
  * - **The camera**: where the eye stands, which way it looks, its lens.
  *
  * Coordinates are local metres east (`x`), north (`y`) and up (`z`) from an
@@ -25,6 +27,7 @@
  * only: nothing here is an analysis input. DOM-free and network-free.
  */
 
+import polygonClipping, { type MultiPolygon as ClipMultiPolygon } from 'polygon-clipping'
 import { TREE_SPECIES_IDS, type TreeInstance, type TreeSpeciesId } from './forest'
 import { CONE_BASE_DIAMETER, SPECIES_CROWN_RATIO } from './forest'
 import { forestBands, forestPatches, growForestPatch } from './forestPatches'
@@ -78,6 +81,12 @@ export type ScenePackage = {
   openings: Array<{ kind: 'harvested'; rings: Array<Array<[number, number]>> }>
   debris: { fields: typeof SCENE_DEBRIS_FIELDS; count: number; data: number[] }
   roadScars: Array<{ kind: 'cut' | 'fill'; ring: Array<[number, number]> }>
+  /**
+   * Lakes and rivers cut to the terrain grid, one entry per polygon: the outer ring first, then holes. The surface
+   * is drawn at `elevationMeters`, the lowest ground under the outer ring (null where the terrain has none there).
+   * Absent from packages written before water was added.
+   */
+  water?: Array<{ rings: Array<Array<[number, number]>>; elevationMeters: number | null }>
   camera: {
     /** Eye position, local metres. */
     position: [number, number, number]
@@ -106,6 +115,8 @@ export type ScenePackageInput = {
   >
   elevation: ElevationSource
   roadScars?: ReadonlyArray<RoadScarStrip>
+  /** Lakes and rivers (the basemap's water); what lies on the terrain grid goes in, cut to it. */
+  water?: ReadonlyArray<PolygonGeometry>
   /** Trees out to here (default 600 m: the two bands drawn stem by stem or nearly). */
   treeRadiusMeters?: number
   /** Terrain out to here (default 3 km), at `terrainSpacingMeters` (default 15 m). */
@@ -236,6 +247,39 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
       polygon.map(ring),
     )
 
+  // Water cut to the terrain grid, one entry per polygon, at the lowest ground round its shore. The basemap's
+  // water can be a whole river system tens of kilometres across (the Fraser and Nechako: 45 km, 884 vertices at
+  // the roadside demo), which an engine would otherwise build in full.
+  const extent = half * terrainSpacingMeters
+  const box: ClipMultiPolygon = [
+    [
+      [
+        [eye.lng - extent / scale.lng, eye.lat - extent / scale.lat],
+        [eye.lng + extent / scale.lng, eye.lat - extent / scale.lat],
+        [eye.lng + extent / scale.lng, eye.lat + extent / scale.lat],
+        [eye.lng - extent / scale.lng, eye.lat + extent / scale.lat],
+        [eye.lng - extent / scale.lng, eye.lat - extent / scale.lat],
+      ],
+    ],
+  ]
+  const water = (input.water ?? []).flatMap((geometry) => {
+    let pieces: ClipMultiPolygon
+    try {
+      const polygons = (geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates) as ClipMultiPolygon
+      pieces = polygonClipping.intersection(polygons, box)
+    } catch {
+      return []
+    }
+    return pieces.map((polygon) => {
+      let level = Infinity
+      for (const [lng, lat] of polygon[0]) {
+        const z = elevation.elevationAt(lng, lat)
+        if (Number.isFinite(z)) level = Math.min(level, z)
+      }
+      return { rings: polygon.map(ring), elevationMeters: Number.isFinite(level) ? round(level) : null }
+    })
+  })
+
   return {
     format: SCENE_PACKAGE_FORMAT,
     version: SCENE_PACKAGE_VERSION,
@@ -275,6 +319,7 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
       kind: strip.kind,
       ring: ring(strip.geometry.coordinates[0]),
     })),
+    water,
     camera: {
       position: [0, 0, round(originElevation + input.eyeHeightMeters)],
       bearingDegrees: round(((input.bearingDegrees % 360) + 360) % 360, 1),

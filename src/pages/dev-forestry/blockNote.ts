@@ -129,6 +129,11 @@ export type BlockNote = {
    * Optional: a note built without them prints as before.
    */
   viewpoints?: ViewpointPage[]
+  /**
+   * The land status checks (`landStatusChecks.ts`) as read when the note was written: a screen, on
+   * its own sheet and page. Optional: a note built without them prints as before.
+   */
+  landStatus?: { rows: Array<{ label: string; value: string; note: string }>; caveat: string }
   /** Provenance lines printed at the foot. */
   notes: string[]
   generatedAt: Date
@@ -137,6 +142,7 @@ export type BlockNote = {
 const DATE = (date: Date) => date.toISOString().slice(0, 10)
 
 export const MEASURES_TITLE = 'Visual measures'
+export const LAND_STATUS_TITLE = 'Land status'
 const MEASURES_FLAG = 'Draft from the assessment — not yet reviewed.'
 
 /** The measures to print, numbered; empty when the note has none. */
@@ -293,6 +299,21 @@ export async function blockNoteWorkbook(note: BlockNote, ExcelJS: ExcelModule): 
         page.photo ? 'Lined up' : '—',
         ...labels.map((label) => values.get(label) ?? ''),
       ])
+    }
+  }
+
+  if (note.landStatus?.rows.length) {
+    const sheet = workbook.addWorksheet(LAND_STATUS_TITLE)
+    sheet.getColumn(1).width = 28
+    sheet.getColumn(2).width = 30
+    sheet.getColumn(3).width = 100
+    sheet.addRow([LAND_STATUS_TITLE]).font = { bold: true, size: 13 }
+    sheet.addRow([note.landStatus.caveat]).getCell(1).font = { italic: true, color: { argb: 'FF6B7280' } }
+    sheet.addRow([])
+    sheet.addRow(['Check', 'Result', 'Detail']).font = { bold: true }
+    for (const entry of note.landStatus.rows) {
+      const added = sheet.addRow([entry.label, entry.value, entry.note])
+      added.alignment = { wrapText: true, vertical: 'top' }
     }
   }
 
@@ -590,6 +611,39 @@ export function blockNotePdf(note: BlockNote, { jsPDF }: PdfModule): ArrayBuffer
       width - 2 * margin,
       half,
     )
+    footer()
+  }
+
+  if (note.landStatus?.rows.length) {
+    pdf.addPage()
+    heading(`${LAND_STATUS_TITLE} checks`, 'Each layer measured against the blocks and the landform.')
+    const caveat = pdf.splitTextToSize(note.landStatus.caveat, width - 2 * margin) as string[]
+    pdf.setFont('helvetica', 'italic')
+    pdf.setFontSize(8.5)
+    pdf.text(caveat, margin, margin + 15)
+    const labelWidth = 48
+    const valueWidth = 52
+    const noteWidth = width - 2 * margin - labelWidth - valueWidth
+    let y = margin + 17 + caveat.length * 3.8
+    for (const entry of note.landStatus.rows) {
+      pdf.setFontSize(8.5)
+      const value = pdf.splitTextToSize(entry.value, valueWidth - 4) as string[]
+      const detail = pdf.splitTextToSize(entry.note, noteWidth) as string[]
+      const rowHeight = Math.max(value.length, detail.length, 1) * 3.8 + 2
+      if (y + rowHeight > height - margin - 12) {
+        footer()
+        pdf.addPage()
+        y = margin
+      }
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(entry.label, margin, y + 3)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(value, margin + labelWidth, y + 3)
+      pdf.setTextColor(75, 85, 99)
+      pdf.text(detail, margin + labelWidth + valueWidth, y + 3)
+      pdf.setTextColor(17, 24, 39)
+      y += rowHeight
+    }
     footer()
   }
 

@@ -148,8 +148,30 @@ export type ExportView = {
   design: string | null
   hasScreenshot: boolean
   hasClassPass: boolean
+  /** The reviewer keeps it in the block note (every view is, until left out). */
+  inReport: boolean
   /** The settings recorded when it was saved (position, facing, eye, lens, timber…). */
   settings: Row[]
+}
+
+/** An inventory viewpoint or rec site near the note's block, as the dialog lists it. */
+export type ExportInventoryViewpoint = {
+  key: string
+  name: string
+  kind: 'vli' | 'rec-site'
+  distanceMeters: number
+  /** One of its arrows points at the block. */
+  aims: boolean
+}
+
+/** The visibility run the export starts on its own when a file needs it. */
+export type ExportAutoRun = {
+  /** Why the scene cannot run, or null when it can. */
+  blocker: string | null
+  status: 'idle' | 'running' | 'error'
+  /** The run's progress, worded, while it runs. */
+  progress: string | null
+  error: string | null
 }
 
 export type ExportLandform = {
@@ -201,6 +223,47 @@ export type ExportContext = {
   evidence: { loaded: boolean; gaps: string[]; views: number; runs: number; fields: number }
   /** The road view is open with its terrain loaded, so the 3D scene can be written. */
   roadViewReady: boolean
+  autoRun: ExportAutoRun
+  /** The land status checks (`landStatusChecks.ts`) as the block note would print them now. */
+  landChecks: {
+    include: boolean
+    pending: number
+    rows: Array<Row & { note: string; review: boolean; reading: boolean }>
+  }
+  /** BC inventory viewpoints near the block note's block. */
+  inventory: {
+    status: 'idle' | 'loading' | 'ready' | 'error'
+    error: string | null
+    blockName: string | null
+    candidates: ExportInventoryViewpoint[]
+  }
+}
+
+/** The outputs written from the run: the export runs the assessment first when it is missing or stale. */
+export const RUNS_ON_EXPORT: ReadonlySet<VisualsExport> = new Set(['block-note', 'fs1252', 'field-brief', 'worksheet'])
+
+/**
+ * What writing an output does before the file: run the assessment (in the analysis worker) when
+ * the output reads the run and it is missing or stale, and wait for the land checks the block note
+ * prints. `note` says so in the dialog, or is null when nothing waits.
+ */
+export function exportPreparation(
+  kind: VisualsExport,
+  ctx: Pick<ExportContext, 'run' | 'autoRun' | 'landChecks'>,
+): { run: boolean; landChecks: boolean; note: string | null } {
+  const run = RUNS_ON_EXPORT.has(kind) && ctx.run !== 'current' && !ctx.autoRun.blocker
+  const landChecks = kind === 'block-note' && ctx.landChecks.include && ctx.landChecks.pending > 0
+  const note =
+    ctx.autoRun.status === 'running' && RUNS_ON_EXPORT.has(kind)
+      ? `Running the visibility assessment${ctx.autoRun.progress ? ` · ${ctx.autoRun.progress}` : ''}. The file is written when it finishes.`
+      : run
+        ? ctx.run === 'stale'
+          ? 'The run is out of date: the export runs the assessment again first, in the background, then writes the file.'
+          : 'Not run yet: the export runs the assessment first, in the background, then writes the file.'
+        : landChecks
+          ? 'Land status checks are still reading: the file waits for them.'
+          : null
+  return { run, landChecks, note }
 }
 
 /** Why an output cannot be written yet, or null when it can. */
@@ -209,6 +272,7 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
     case 'block-note':
       return ctx.blockNote ? null : 'Add a cutblock in step 1 to write its note.'
     case 'fs1252':
+      if (ctx.run !== 'current' && !ctx.autoRun.blocker) return null
       if (ctx.run === 'none') return 'Run the visibility assessment first: the form is filled from the run.'
       if (ctx.run === 'stale') return 'The run is out of date. Run it again to fill the form from the current scene.'
       if (!ctx.fs1252Stations.length) return 'Choose at least one station for the form.'
@@ -220,11 +284,11 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
     case 'field-brief':
       return ctx.brief.block ? null : 'Add a cutblock in step 1 to brief the crew on it.'
     case 'worksheet':
-      return ctx.run === 'current'
+      return ctx.run === 'current' || !ctx.autoRun.blocker
         ? null
         : ctx.run === 'stale'
           ? 'The run is out of date. Run it again to write the worksheet.'
-          : 'Run the visibility assessment first.'
+          : `Run the visibility assessment first. ${ctx.autoRun.blocker}`
     case 'evidence':
     case 'workspace':
       return ctx.evidence.loaded ? null : 'The stored workspace is still loading.'
@@ -237,13 +301,21 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
   }
 }
 
+/**
+ * A job the dialog can start for a part: `stand:<key>` stands at an inventory viewpoint in the road
+ * view, `load-inventory` reads the inventory near the block, `open-road-view` opens the road view.
+ */
+export type ExportAction = { id: string; label: string }
+
 /** A part of an output, with the step where it is set. */
 export type ExportSection = {
   title: string
   step?: ViaStepId
   rows?: Row[]
   /** One entry per thing listed, such as a saved view with its settings. */
-  items?: Array<{ title: string; subtitle?: string; rows?: Row[] }>
+  items?: Array<{ title: string; subtitle?: string; rows?: Row[]; action?: ExportAction }>
+  /** A button beside the title that does the part's job from the dialog. */
+  action?: ExportAction
   /** Said when there is nothing to list. */
   empty?: string
   note?: string
@@ -339,6 +411,99 @@ function viewsSection(ctx: ExportContext, title: string, options: { screenshotsO
   }
 }
 
+/** The block note's views: which go in, which are left out, and which have no screenshot. */
+function reportViewsSection(ctx: ExportContext, figures: boolean): ExportSection {
+  const order = (view: ExportView) => (view.inReport && view.hasScreenshot ? 0 : view.hasScreenshot ? 2 : 1)
+  const views = [...ctx.views].sort((a, b) => order(a) - order(b))
+  const shown = views.filter((view) => view.inReport && view.hasScreenshot).length
+  return {
+    title: 'Viewpoints in the report',
+    step: 'visit',
+    items: views.map((view) => ({
+      title: view.name,
+      subtitle: [
+        !view.hasScreenshot
+          ? view.inReport
+            ? 'Listed as missing: no screenshot'
+            : 'Left out · no screenshot'
+          : view.inReport
+            ? figures && view.hasClassPass
+              ? 'In the report as its analysis-sheet figure'
+              : 'In the report as its screenshot'
+            : 'Left out',
+        view.here ? `${(view.positionMeters / 1000).toFixed(2)} km along ${view.place}` : `At ${view.place}`,
+        view.harvestPhase === 'after' ? 'after harvest' : 'before harvest',
+        view.design ? `design ${view.design}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      rows: view.settings,
+    })),
+    empty: 'No saved views. Stand at a viewpoint below, or open the road view, and save one from its bar.',
+    note: ctx.views.length
+      ? `${plural(shown, 'view')} in the report. Choose which in Options. Screenshots are taken when a view is saved, never redrawn at export.`
+      : undefined,
+  }
+}
+
+const INVENTORY_SHOWN = 6
+
+/** BC inventory viewpoints near the block: places a reviewer would stand, not yet captured. */
+function inventorySection(ctx: ExportContext): ExportSection {
+  const inv = ctx.inventory
+  const load = { id: 'load-inventory', label: inv.status === 'error' ? 'Try again' : 'Find them' }
+  return {
+    title: 'Inventory viewpoints near the block',
+    step: 'identify',
+    action: inv.status === 'idle' || inv.status === 'error' ? load : undefined,
+    items:
+      inv.status === 'ready'
+        ? inv.candidates.slice(0, INVENTORY_SHOWN).map((candidate) => ({
+            title: candidate.name,
+            subtitle: [
+              candidate.kind === 'rec-site' ? 'Recreation site' : 'Inventory viewpoint',
+              `${(candidate.distanceMeters / 1000).toFixed(1)} km from the block`,
+              candidate.kind === 'rec-site' ? null : candidate.aims ? 'an arrow aims at it' : 'no arrow aims at it',
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            action: { id: `stand:${candidate.key}`, label: 'Stand here' },
+          }))
+        : undefined,
+    empty: !inv.blockName
+      ? 'Add a cutblock first.'
+      : inv.status === 'loading'
+        ? 'Reading the BC Visual Landscape Inventory near the block…'
+        : inv.status === 'error'
+          ? (inv.error ?? 'The inventory could not be read.')
+          : inv.status === 'ready'
+            ? `None within reach of ${inv.blockName}.`
+            : 'Not read yet.',
+    note:
+      inv.status === 'ready' && inv.candidates.length
+        ? `Not in the report until captured: Stand here opens the road view there facing the block; save a view from its bar to add it.${inv.candidates.length > INVENTORY_SHOWN ? ` ${inv.candidates.length - INVENTORY_SHOWN} more in step 1.` : ''}`
+        : undefined,
+  }
+}
+
+/** The land status checks as the note prints them. */
+function landChecksSection(ctx: ExportContext): ExportSection {
+  const checks = ctx.landChecks
+  return {
+    title: 'Land status checks',
+    rows: checks.include
+      ? checks.rows.map((row) => ({
+          label: row.label,
+          value: row.reading ? 'Checking…' : row.value,
+        }))
+      : undefined,
+    empty: 'Left out of the note. Turn them on in Options.',
+    note: checks.include
+      ? 'Their own sheet and page: a screen from DataBC, never a legal determination or a mask. Not read means the layer could not be read.'
+      : undefined,
+  }
+}
+
 function blocksSection(ctx: ExportContext): ExportSection {
   return {
     title: 'Blocks',
@@ -411,12 +576,9 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           ],
         },
         { title: 'Landform', step: 'identify', rows: note?.landform, empty: 'None adopted.' },
-        {
-          ...viewsSection(ctx, 'Saved views'),
-          note: note?.figures
-            ? 'Each view goes in as its analysis-sheet figure, in the road view’s figure style.'
-            : 'Each view goes in as its screenshot. Views without one are listed as missing.',
-        },
+        reportViewsSection(ctx, !!note?.figures),
+        inventorySection(ctx),
+        landChecksSection(ctx),
         { title: 'Plan map', rows: [{ label: 'Plan map', value: 'The block and the viewpoint, taken from the map' }] },
       ]
     }
@@ -553,6 +715,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           title: 'Road view',
           step: 'visit',
           rows: [{ label: 'Status', value: ctx.roadViewReady ? 'Open, terrain loaded' : 'Closed' }],
+          action: ctx.roadViewReady ? undefined : { id: 'open-road-view', label: 'Open the road view' },
           note: 'The eye and the look are where the road view stands now.',
         },
       ]
@@ -578,6 +741,8 @@ export type ContextView = {
   classPass: boolean
   /** The settings rows recorded with the screenshot (`ViewpointPage.settings`), when one was taken. */
   settings: Row[] | null
+  /** Kept in the block note; true unless the reviewer left it out. */
+  inReport?: boolean
 }
 
 export type ContextInput = {
@@ -594,6 +759,9 @@ export type ContextInput = {
   evidence: { loaded: boolean; gaps: string[]; counts: { views: number; runs: number; fields: number } }
   roadViewReady: boolean
   officeFieldCount: number
+  autoRun: ExportAutoRun
+  landChecks: ExportContext['landChecks']
+  inventory: ExportContext['inventory']
 }
 
 const objectiveName = (id: VisualQualityClassId) => {
@@ -707,7 +875,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
       kind: mask.kind === 'retained' ? 'retention' : mask.kind,
       name: mask.name,
     })),
-    views: input.views.map(({ view, here, screenshot, classPass, settings }) => ({
+    views: input.views.map(({ view, here, screenshot, classPass, settings, inReport }) => ({
       id: view.id,
       name: view.name,
       place: here ? scene.viewpoint.name || 'the road' : 'an earlier viewpoint',
@@ -717,6 +885,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
       design: view.designName ?? null,
       hasScreenshot: screenshot,
       hasClassPass: classPass,
+      inReport: inReport ?? true,
       settings: [
         ...(settings ?? viewRows(view, scene)),
         { label: 'Harvest phase', value: view.harvestPhase === 'after' ? 'After harvest' : 'Before harvest' },
@@ -752,5 +921,8 @@ export function buildExportContext(input: ContextInput): ExportContext {
     },
     evidence: { loaded: input.evidence.loaded, gaps: input.evidence.gaps, ...input.evidence.counts },
     roadViewReady: input.roadViewReady,
+    autoRun: input.autoRun,
+    landChecks: input.landChecks,
+    inventory: input.inventory,
   }
 }

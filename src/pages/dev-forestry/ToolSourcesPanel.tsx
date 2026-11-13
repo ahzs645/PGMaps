@@ -83,13 +83,25 @@ export function ToolSourcesPanel({
       toggleProps={{ 'data-forestry-disclosure': 'masks-surfaces' }}
       help="Classify parts of the landform (natural non-green ground, private land, retained patches) and bring in a local terrain or canopy-height GeoTIFF in place of the AWS terrain."
     >
-      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Classify assessment areas">
+      <ToolDisclosure
+        toggleProps={{ 'data-forestry-disclosure': '' }}
+        label="Classify assessment areas"
+        help={
+          <>
+            <span className="block">
+              Natural non-green ground leaves the denominator. Private land and permanent non-forestry disturbance
+              remain in the assessable land base but contribute no forestry alteration. Retained patches remain green
+              and are removed from the proposal geometrically.
+            </span>
+            <span className="mt-1.5 block">
+              Draw a polygon using the existing map controls, select it, then copy its outline here. Review every
+              classification; a boundary lookup does not establish land ownership or field condition. Natural-ground
+              exclusion takes precedence where masks overlap.
+            </span>
+          </>
+        }
+      >
         <div className="space-y-2 text-xs">
-          <p>
-            Natural non-green ground leaves the denominator. Private land and permanent non-forestry disturbance remain
-            in the assessable land base but contribute no forestry alteration. Retained patches remain green and are
-            removed from the proposal geometrically.
-          </p>
           <FormField label="Assessment mask classification">
             <StyledSelect value={kind} onChange={(e) => setKind(e.target.value as AssessmentMaskKind)}>
               {Object.entries(MASK_LABELS).map(([id, label]) => (
@@ -132,11 +144,6 @@ export function ToolSourcesPanel({
               Use selected polygon as mask
             </Button>
           </div>
-          <p className="text-muted-foreground">
-            Draw a polygon using the existing map controls, select it, then copy its outline here. Review every
-            classification; a boundary lookup does not establish land ownership or field condition. Natural-ground
-            exclusion takes precedence where masks overlap.
-          </p>
           {(scene.masks ?? []).map((m) => (
             <div key={m.id} className="space-y-1 border-b py-2">
               <p className="font-medium">{m.name}</p>
@@ -181,12 +188,12 @@ export function ToolSourcesPanel({
           ))}
         </div>
       </ToolDisclosure>
-      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Import terrain or canopy GeoTIFF">
+      <ToolDisclosure
+        toggleProps={{ 'data-forestry-disclosure': '' }}
+        label="Import terrain or canopy GeoTIFF"
+        help="Use a cropped, single-band, metre-valued GeoTIFF. Native cells and no-data are preserved. Supported coordinates: WGS84, Web Mercator, BC Albers and NAD83/WGS84 UTM zones 7–11."
+      >
         <div className="space-y-2 text-xs">
-          <p>
-            Use a cropped, single-band, metre-valued GeoTIFF. Native cells and no-data are preserved. Supported
-            coordinates: WGS84, Web Mercator, BC Albers and NAD83/WGS84 UTM zones 7–11.
-          </p>
           <FormField label="Local surface type">
             <StyledSelect value={rasterKind} onChange={(e) => setRasterKind(e.target.value as LocalRaster['kind'])}>
               <option value="terrain">Bare-earth terrain elevation</option>

@@ -2,6 +2,7 @@ import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-
 import { useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TextButton } from '@/components/ui/text-button'
 import { ToolSection } from '@/components/ui/tool-section'
@@ -207,7 +208,14 @@ export function FieldBriefPanel({
               </span>
             </div>
 
-            <FormField label="Checked by" hint="Stamped on each answer you record, with today’s date.">
+            <FormField
+              label="Checked by"
+              hintAction={
+                <InfoTip label="About checked by" className="absolute -top-1 right-0">
+                  Stamped on each answer you record, with today’s date.
+                </InfoTip>
+              }
+            >
               <input
                 className={FORM_INPUT_CLASS}
                 value={checklist.checkedBy}

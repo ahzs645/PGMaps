@@ -32,6 +32,15 @@ file; `scenePackage.test.ts` pins that the stems are the road view's own.
 | `threejs-nanites/`  | [VictorZakharov/threejs-nanites](https://github.com/VictorZakharov/threejs-nanites) at `BASE_COMMIT` | MIT (its Lucy model is non-commercial; not used) | `examples/pgmaps-scene.*`: the package's ground, one Nanite type per species built from the package's own models (bark and foliage coloured, opaque), stems as instances, the package's eye                                                            | **Typechecks; runs its frame loop** (1,257 frames in 45 s) but SwiftShader's WebGPU canvas reads back blank and GPU stats never return, as with Nanite's own examples. Needs a real GPU   |
 | `vistawasm/`        | `@vista-wasm/vista-wasm` 2.0.0 from npm                                                              | **AGPL-3.0**                                     | `main.ts`: package ground through `loadRawHeightmap`, our models through `setTreeModel`, stems through `setTreeInstances`, camera through `setCamera`. Our file only calls its public API                                                              | **API accepted the data; WebGPU device lost on SwiftShader**. Needs a real GPU                                                                                                            |
 
+**13 November.** On a real GPU (M4 Pro) both now draw the package, and the road
+view can show either in place of its own drawing (View options → *Renderer*;
+trial doc §13). Each folder's `0002-*.diff` holds the fixes and the road view's
+`postMessage` bridge on top of the patch: `git apply` it after `git am`. Then run
+each engine's dev server where the road view looks for it in development —
+worldgen on `127.0.0.1:8460` (`npm run dev`), Nanite with
+`npx vite --port 8461 --host 127.0.0.1` — or set `VITE_FORESTRY_WORLDGEN_URL`
+and `VITE_FORESTRY_NANITE_URL` to their pages with `?embed`.
+
 The worldgen and Nanite folders are **patches** against a pinned upstream commit,
 because these are forks of other projects and this session could not create
 GitHub forks. VistaWASM is not forked or patched at all.

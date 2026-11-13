@@ -2,6 +2,7 @@ import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
@@ -133,14 +134,14 @@ export function LandformSuggestions({
       {!hasAnchor ? (
         <p>Add a cutblock or road to find nearby boundaries automatically.</p>
       ) : (
-        <p>
+        <p className="text-2xs leading-4 text-muted-foreground">
           Within 25 km of{' '}
           {useRoad
             ? 'the whole road, including between its vertices'
             : selected
               ? `${selected.name}’s map centre`
               : 'the viewpoint'}
-          ; nearest polygon edge first. Choose one to show its boundary.
+          , nearest first.
         </p>
       )}
       {tooLarge && (
@@ -223,10 +224,13 @@ export function LandformSuggestions({
         </Button>
       )}
       {data && (
-        <p className="text-muted-foreground">
+        <p className="text-2xs leading-5 text-muted-foreground">
           {formatNumber(data.units.length)} units in the search area
-          {data.truncated ? ' (more exist than one read returns; narrow the search)' : ''} · recorded boundary
-          coordinates, read live from DataBC. Inventory gaps and unrated areas remain.
+          {data.truncated ? ' (more exist than one read returns; narrow the search)' : ''} · live from DataBC{' '}
+          <InfoTip label="About these inventory units" className="align-middle">
+            Recorded boundary coordinates, read live from DataBC and listed by nearest polygon edge. Choose one to show
+            its boundary. Inventory gaps and unrated areas remain.
+          </InfoTip>
         </p>
       )}
     </ToolSection>

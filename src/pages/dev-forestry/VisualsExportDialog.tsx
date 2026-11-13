@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -14,10 +14,13 @@ import { cn } from '@/lib/utils'
 import { VIA_STEPS, type ViaStepId } from './via'
 import {
   exportContents,
+  exportPreparation,
   exportUnavailable,
   findVisualsExport,
   VISUALS_EXPORT_GROUP_LABELS,
   VISUALS_EXPORTS,
+  RUNS_ON_EXPORT,
+  type ExportAction,
   type ExportContext,
   type ExportSection,
   type VisualsExport,
@@ -32,6 +35,34 @@ const GROUPS = Object.keys(VISUALS_EXPORT_GROUP_LABELS) as VisualsExportGroup[]
 const PREVIEW_DELAY_MS = 300
 /** Text previews stop here; the download is whole. */
 const TEXT_PREVIEW_CHARS = 60_000
+/** How often a waiting export looks at the page's state again. */
+const WAIT_POLL_MS = 150
+/** After a run or the land checks, the content must hold still this long before the file is written. */
+const SETTLE_MS = 400
+/** A run that has not started by now never will: the scene refused it. */
+const RUN_START_MS = 4000
+/** The land checks are waited for this long; a layer still reading then prints as Not read. */
+const LAND_CHECK_WAIT_MS = 30_000
+
+class Aborted extends Error {}
+
+/** Resolves once `ready()` holds, looking again every poll; `ready` may throw to fail the wait. */
+function waitFor(ready: () => boolean, signal: AbortSignal, timeoutMs = Infinity): Promise<'ready' | 'timeout'> {
+  const started = Date.now()
+  return new Promise((resolve, reject) => {
+    const look = () => {
+      if (signal.aborted) return reject(new Aborted('Stopped.'))
+      try {
+        if (ready()) return resolve('ready')
+      } catch (error) {
+        return reject(error)
+      }
+      if (Date.now() - started >= timeoutMs) return resolve('timeout')
+      window.setTimeout(look, WAIT_POLL_MS)
+    }
+    look()
+  })
+}
 
 type Preview =
   | { type: 'pdf' | 'image'; url: string }
@@ -56,17 +87,32 @@ const stepLabel = (id: ViaStepId) => {
   return step ? `Step ${step.number}` : id
 }
 
-function ContentsSection({ section, onGoToStep }: { section: ExportSection; onGoToStep?: (id: ViaStepId) => void }) {
+function ContentsSection({
+  section,
+  onGoToStep,
+  onAction,
+}: {
+  section: ExportSection
+  onGoToStep?: (id: ViaStepId) => void
+  onAction?: (action: ExportAction) => void
+}) {
   const empty = !section.rows?.length && !section.items?.length
   return (
     <section className="space-y-1.5" aria-label={section.title}>
       <div className="flex items-baseline justify-between gap-2">
         <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{section.title}</h4>
-        {section.step && onGoToStep && (
-          <TextButton className="text-2xs" onClick={() => onGoToStep(section.step!)}>
-            Change in {stepLabel(section.step)}
-          </TextButton>
-        )}
+        <div className="flex shrink-0 items-baseline gap-3">
+          {section.action && onAction && (
+            <TextButton className="text-2xs" onClick={() => onAction(section.action!)}>
+              {section.action.label}
+            </TextButton>
+          )}
+          {section.step && onGoToStep && (
+            <TextButton className="text-2xs" onClick={() => onGoToStep(section.step!)}>
+              Change in {stepLabel(section.step)}
+            </TextButton>
+          )}
+        </div>
       </div>
       {section.rows && section.rows.length > 0 && (
         <KeyValueRows
@@ -79,7 +125,18 @@ function ContentsSection({ section, onGoToStep }: { section: ExportSection; onGo
         <ul className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}>
           {section.items.map((item, index) => (
             <li key={`${index}-${item.title}`} className="space-y-1 px-2.5 py-2 text-xs">
-              <p className="font-medium text-foreground">{item.title}</p>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="min-w-0 font-medium text-foreground">{item.title}</p>
+                {item.action && onAction && (
+                  <TextButton
+                    className="shrink-0 text-2xs"
+                    aria-label={`${item.action.label}: ${item.title}`}
+                    onClick={() => onAction(item.action!)}
+                  >
+                    {item.action.label}
+                  </TextButton>
+                )}
+              </div>
               {item.subtitle && <p className="text-2xs text-muted-foreground">{item.subtitle}</p>}
               {item.rows && item.rows.length > 0 && (
                 <KeyValueRows
@@ -156,6 +213,8 @@ export function VisualsExportDialog({
   build,
   version,
   onGoToStep,
+  onAction,
+  onRun,
   portalContainer,
 }: {
   open: boolean
@@ -170,6 +229,10 @@ export function VisualsExportDialog({
   version: unknown
   /** Closes the dialog and opens a step of the sidebar. */
   onGoToStep?: (id: ViaStepId) => void
+  /** Does a part's job: stand at a viewpoint, read the inventory, open the road view. */
+  onAction?: (action: ExportAction) => void
+  /** Starts the visibility run in the analysis worker, for an output that reads it. */
+  onRun?: () => void
   portalContainer?: HTMLElement | null
 }) {
   const [selected, setSelected] = useState<VisualsExport>(initialOutput)
@@ -191,20 +254,77 @@ export function VisualsExportDialog({
   const format = item.formats.find((entry) => entry.id === formats[item.kind]) ?? item.formats[0]
   const unavailable = exportUnavailable(item.kind, context)
   const sections = useMemo(() => exportContents(item.kind, context), [item.kind, context])
+  const preparation = exportPreparation(item.kind, context)
 
   // A new object per selection or content change: a preview is current only for its own request.
   const request = useMemo(() => ({ kind: item.kind, format: format.id, version }), [item.kind, format.id, version])
   const [result, setResult] = useState<PreviewResult | null>(null)
   const latestBuild = useRef(build)
+  const latestContext = useRef(context)
+  const latestRun = useRef(onRun)
+  const changedAt = useRef(0)
   useEffect(() => {
     latestBuild.current = build
+    latestContext.current = context
+    latestRun.current = onRun
   })
+  useEffect(() => {
+    changedAt.current = Date.now()
+  }, [version])
+
+  /**
+   * Makes what the output reads before it is written: the visibility run, in the analysis worker,
+   * when it is missing or stale, and the land checks the block note prints. Then waits for the page
+   * to settle, so the build that follows (`latestBuild`, from the render after) reads the new run.
+   */
+  const prepare = useCallback(async (kind: VisualsExport, signal: AbortSignal) => {
+    const needs = exportPreparation(kind, latestContext.current)
+    const running = () => latestContext.current.autoRun.status === 'running'
+    let waited = false
+    if (needs.run || (running() && RUNS_ON_EXPORT.has(kind))) {
+      waited = true
+      if (!running()) latestRun.current?.()
+      const asked = Date.now()
+      let started = running()
+      await waitFor(() => {
+        const ctx = latestContext.current
+        if (ctx.run === 'current') return true
+        if (ctx.autoRun.status === 'running') started = true
+        else if (started)
+          throw new Error(
+            ctx.autoRun.status === 'error'
+              ? `The assessment stopped: ${ctx.autoRun.error ?? 'no reason given'}.`
+              : 'The assessment was stopped before the file was written.',
+          )
+        else if (Date.now() - asked > RUN_START_MS)
+          throw new Error(ctx.autoRun.blocker ?? 'The assessment could not start: check the scene in step 1.')
+        return false
+      }, signal)
+    }
+    if (needs.landChecks || (kind === 'block-note' && latestContext.current.landChecks.pending)) {
+      waited = true
+      await waitFor(
+        () => !latestContext.current.landChecks.include || latestContext.current.landChecks.pending === 0,
+        signal,
+        LAND_CHECK_WAIT_MS,
+      )
+    }
+    if (waited) await waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal)
+  }, [])
+
+  // A wait in flight stops with the dialog.
+  const live = useRef(new Set<AbortController>())
+  useEffect(() => {
+    const controllers = live.current
+    return () => controllers.forEach((controller) => controller.abort())
+  }, [])
+
   useEffect(() => {
     if (!open || unavailable || view !== 'preview') return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
-      latestBuild
-        .current(request.kind, request.format, controller.signal)
+      prepare(request.kind, controller.signal)
+        .then(() => latestBuild.current(request.kind, request.format, controller.signal))
         .then(async (file) => {
           const preview = await previewOf(file)
           if (controller.signal.aborted) {
@@ -220,7 +340,7 @@ export function VisualsExportDialog({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [open, request, unavailable, view])
+  }, [open, request, unavailable, view, prepare])
   // Object URLs live as long as their preview.
   useEffect(() => {
     const preview = result?.preview
@@ -240,15 +360,25 @@ export function VisualsExportDialog({
   const download = async () => {
     setSaving(true)
     setStatus(null)
+    const controller = new AbortController()
+    live.current.add(controller)
     try {
-      // The previewed file when it is this one; otherwise written now.
-      const file = current?.file ?? (await build(item.kind, format.id, new AbortController().signal))
+      // The previewed file when it is this one and nothing waits; otherwise made and written now.
+      const ready = !preparation.run && !preparation.landChecks && context.autoRun.status !== 'running'
+      let file = ready ? current?.file : undefined
+      if (!file) {
+        await prepare(item.kind, controller.signal)
+        file = await latestBuild.current(item.kind, format.id, controller.signal)
+      }
+      if (controller.signal.aborted) return
       downloadBlob(file.blob, file.fileName)
       setStatus({ tone: 'info', text: `Saved ${file.fileName}.` })
     } catch (error) {
+      if (error instanceof Aborted) return
       setStatus({ tone: 'error', text: error instanceof Error ? error.message : 'The file could not be written.' })
     } finally {
-      setSaving(false)
+      live.current.delete(controller)
+      if (!controller.signal.aborted) setSaving(false)
     }
   }
 
@@ -343,6 +473,11 @@ export function VisualsExportDialog({
               <span role="status">{status.text}</span>
             </InlineAlert>
           )}
+          {!unavailable && preparation.note && (
+            <InlineAlert loading={context.autoRun.status === 'running' || (saving && preparation.landChecks)}>
+              <span role="status">{preparation.note}</span>
+            </InlineAlert>
+          )}
           {unavailable && (
             <p
               role="status"
@@ -362,7 +497,7 @@ export function VisualsExportDialog({
                   </section>
                 )}
                 {sections.map((section) => (
-                  <ContentsSection key={section.title} section={section} onGoToStep={onGoToStep} />
+                  <ContentsSection key={section.title} section={section} onGoToStep={onGoToStep} onAction={onAction} />
                 ))}
               </div>
             ) : unavailable ? (

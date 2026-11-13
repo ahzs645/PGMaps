@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildRegrowthStands, forestHistoryBounds, type ForestHistoryRecord } from './regrowth'
-import { fetchForestHistory, parseForestHistory } from './bcForestHistory'
+import {
+  buildRegrowthStands,
+  FOREST_HISTORY_CELL_DEGREES,
+  FOREST_HISTORY_MAX_CELLS,
+  forestHistoryAreas,
+  type ForestHistoryRecord,
+} from './regrowth'
+import { fetchForestHistory, forestHistoryQueryUrl, parseForestHistory } from './bcForestHistory'
 import { placeTrees } from './forest'
 import { createRoadsideDriveScene } from './driveScenario'
 import { parsePreview, serializePreview } from './previewState'
@@ -141,17 +147,65 @@ describe('dynamic existing forest', () => {
       parseForestHistory({ features: [{ geometry, properties: { ATU_COMPLETION_DATE: null } }] }, 'planting')[0].year,
     ).toBeNull()
   })
-  it('bounds requests around route and target geometry with a foreground margin', () => {
-    const b = forestHistoryBounds(
+  it('reads fixed grid cells within 3 km of the road and the targets', () => {
+    const areas = forestHistoryAreas(
       [
         [-122.6, 53.9],
         [-122.58, 53.9],
       ],
       [geometry],
     )!
-    expect(b[0]).toBeLessThan(-122.65)
-    expect(b[2]).toBeGreaterThan(-122.55)
-    expect(forestHistoryBounds([], [])).toBeNull()
+    const west = Math.min(...areas.cells.map((c) => c[0]))
+    const east = Math.max(...areas.cells.map((c) => c[2]))
+    expect(west).toBeLessThan(-122.65)
+    expect(east).toBeGreaterThan(-122.55)
+    expect(areas.truncated).toBe(false)
+    // Cells sit on the fixed grid, so a nudged scene asks for the same URLs.
+    for (const cell of areas.cells) {
+      expect(
+        Math.abs(cell[0] / FOREST_HISTORY_CELL_DEGREES.lng - Math.round(cell[0] / FOREST_HISTORY_CELL_DEGREES.lng)),
+      ).toBeLessThan(1e-6)
+      expect(
+        Math.abs(cell[1] / FOREST_HISTORY_CELL_DEGREES.lat - Math.round(cell[1] / FOREST_HISTORY_CELL_DEGREES.lat)),
+      ).toBeLessThan(1e-6)
+    }
+    expect(forestHistoryAreas([], [])).toBeNull()
+  })
+  it('follows a diagonal road instead of reading the empty corners of its box', () => {
+    const road = [
+      [-123, 53.5],
+      [-122.4, 54.1],
+    ]
+    const areas = forestHistoryAreas(road, [])!
+    const box = [
+      Math.min(...areas.cells.map((c) => c[0])),
+      Math.min(...areas.cells.map((c) => c[1])),
+      Math.max(...areas.cells.map((c) => c[2])),
+      Math.max(...areas.cells.map((c) => c[3])),
+    ]
+    const boxCells =
+      Math.round((box[2] - box[0]) / FOREST_HISTORY_CELL_DEGREES.lng) *
+      Math.round((box[3] - box[1]) / FOREST_HISTORY_CELL_DEGREES.lat)
+    expect(areas.cells.length).toBeLessThan(boxCells / 2)
+    // The far corners of the box are more than 3 km from the road.
+    const corner = (lng: number, lat: number) =>
+      areas.cells.some((c) => c[0] <= lng && lng < c[2] && c[1] <= lat && lat < c[3])
+    expect(corner(-122.45, 53.55)).toBe(false)
+    expect(corner(-122.95, 54.05)).toBe(false)
+  })
+  it('keeps the targets first and says so when a long road is capped', () => {
+    const road = Array.from({ length: 200 }, (_, i) => [-125 + i * 0.05, 54])
+    const areas = forestHistoryAreas(road, [geometry])!
+    expect(areas.cells).toHaveLength(FOREST_HISTORY_MAX_CELLS)
+    expect(areas.truncated).toBe(true)
+    const [w, s] = areas.cells[0]
+    expect(w).toBeLessThanOrEqual(-122.65)
+    expect(s).toBeLessThanOrEqual(53.85)
+  })
+  it('asks DataBC for records unsorted, so it stops at the cap instead of ranking every match', () => {
+    const url = new URL(forestHistoryQueryUrl('height', [-122.7, 53.88, -122.6, 53.94]))
+    expect(url.searchParams.has('orderByFields')).toBe(false)
+    expect(url.searchParams.get('resultRecordCount')).toBe('1000')
   })
   it('keeps successful sources on partial failure and identifies raw record caps before deduplication', async () => {
     vi.stubGlobal(

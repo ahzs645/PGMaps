@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import type { LabelStyleId } from '@/lib/mapSheet/callouts'
@@ -17,14 +17,29 @@ import {
   type SavedFigure,
 } from './FigureSheetPanel'
 import { FS1252_OFFICE_FIELDS, Fs1252Options, type Fs1252Choice } from './Fs1252Options'
+import {
+  LAND_CHECK_CAVEAT,
+  landCheckReportRows,
+  landChecksPending,
+  type LandCheckId,
+  type LandCheckState,
+} from './landStatusChecks'
 import { buildFs1252, type FormReview } from './pdf/fs1252'
 import { serializePreview, type SavedDriveView } from './previewState'
 import { serializeScene, type ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
-import type { AnalysisResult } from './types'
+import type { AnalysisProgress, AnalysisResult, TargetPolygon } from './types'
+import type { ViewpointInventoryState } from './ViewpointFinderPanel'
+import { viewpointsNearBlock, type ViewpointCandidate } from './viewpointInventory'
 import type { ViaAssessment, ViaStepId } from './via'
 import { VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
-import { buildExportContext, type ContextView, type VisualsExport } from './visualsExports'
+import {
+  buildExportContext,
+  type ContextView,
+  type ExportAction,
+  type ExportAutoRun,
+  type VisualsExport,
+} from './visualsExports'
 
 export type ViewImage = NoteImage & {
   savedAt: number
@@ -46,6 +61,21 @@ export type EvidenceExports = {
   html: () => string
   workspaceJson: () => string
 }
+
+/** What the block note's file carries besides its text, chosen in the dialog. */
+export type BlockNoteChoices = {
+  /** Saved views the reviewer left out, by id. */
+  excludedViews: ReadonlySet<string>
+  /** The land status checks as printed, or null when left out. */
+  landStatus: { rows: Array<{ label: string; value: string; note: string }>; caveat: string } | null
+}
+
+const progressText = (progress: AnalysisProgress | null) =>
+  !progress
+    ? null
+    : progress.phase === 'terrain'
+      ? `fetching terrain, ${progress.completed} of ${progress.total} tiles`
+      : `tracing sightlines${progress.total ? `, ${Math.round((100 * progress.completed) / progress.total)}%` : ''}`
 
 /** Whether Save & export is open and on which output; made before the panels that open it. */
 export function useExportOpener() {
@@ -86,7 +116,24 @@ export function useVisualsExport(input: {
   blockNoteParts: BlockNoteParts | null
   noteFigures: boolean
   onNoteFigures: (on: boolean) => void
-  buildBlockNote: (format: 'xlsx' | 'pdf', parts: BlockNoteParts) => Promise<BuiltFile>
+  buildBlockNote: (format: 'xlsx' | 'pdf', parts: BlockNoteParts, choices: BlockNoteChoices) => Promise<BuiltFile>
+  /** The page's visibility run, which the export starts itself when an output reads it. */
+  analysis: {
+    status: 'idle' | 'running' | 'ready' | 'error'
+    progress: AnalysisProgress | null
+    error: string | null
+    /** Why this scene cannot run, or null. */
+    blocker: string | null
+    run: () => void
+  }
+  /** The land status checks the summary cards read (`useLandChecks`). */
+  landChecks: { states: Partial<Record<LandCheckId, LandCheckState>>; unchecked: string | null }
+  /** The BC viewpoint inventory as the page last read it, and how to read it around a block. */
+  viewpointInventory: ViewpointInventoryState
+  onLoadInventory: (block: TargetPolygon, options: { show: boolean }) => void
+  /** Closes nothing itself: stands at an inventory viewpoint in the road view, facing the block. */
+  onStandAt: (candidate: ViewpointCandidate, block: TargetPolygon) => void
+  onOpenRoadView: () => void
   /** The worked figures as Markdown, or null when the run is not current. */
   worksheet: () => BuiltFile | null
   scenePackage: { ready: boolean; build: () => BuiltFile }
@@ -121,6 +168,23 @@ export function useVisualsExport(input: {
     setFs1252({ selected: result ? [result.assessmentStationIndex] : [], reviews: {} })
   }
   const [figureChoice, setFigureChoice] = useState<FigureChoice>(NO_FIGURE_CHOICE)
+  // The block note's choices last as long as the page: views left out, land checks in or out.
+  const [excludedViews, setExcludedViews] = useState<ReadonlySet<string>>(() => new Set())
+  const [includeLandChecks, setIncludeLandChecks] = useState(true)
+
+  // The inventory near the note's block is read when the dialog opens on it, once per block, without
+  // switching the plan's inventory layer on. Nothing to press; the section says when it is reading.
+  const noteBlock = scene.targets.find((target) => target.id === blockNoteParts?.blockId && target.role === 'block')
+  const inventoryState = input.viewpointInventory
+  const askedFor = useRef<string | null>(null)
+  const { onLoadInventory } = input
+  useEffect(() => {
+    if (!open || !noteBlock || askedFor.current === noteBlock.id) return
+    if (inventoryState.status === 'loading') return
+    if (inventoryState.status === 'ready' && inventoryState.blockId === noteBlock.id) return
+    askedFor.current = noteBlock.id
+    onLoadInventory(noteBlock, { show: false })
+  }, [open, noteBlock, inventoryState.status, inventoryState.blockId, onLoadInventory])
 
   // Closed, the dialog costs the page nothing: this page re-renders several times a second while the
   // road view moves, and nothing below is needed until the dialog opens.
@@ -157,7 +221,22 @@ export function useVisualsExport(input: {
     screenshot: !!images[view.id],
     classPass: !!images[view.id]?.figure,
     settings: images[view.id]?.viewpoint?.settings ?? null,
+    inReport: !excludedViews.has(view.id),
   }))
+  const analysis = input.analysis
+  const autoRun: ExportAutoRun = {
+    blocker: analysis.blocker,
+    status: analysis.status === 'running' ? 'running' : analysis.status === 'error' ? 'error' : 'idle',
+    progress: analysis.status === 'running' ? progressText(analysis.progress) : null,
+    error: analysis.error,
+  }
+  const landRows = landCheckReportRows(input.landChecks.states, { unchecked: input.landChecks.unchecked })
+  const candidates =
+    noteBlock && inventoryState.data && inventoryState.blockId === noteBlock.id
+      ? viewpointsNearBlock(noteBlock.geometry, inventoryState.data)
+      : []
+  const inventoryStatus =
+    inventoryState.status === 'ready' && inventoryState.blockId !== noteBlock?.id ? 'idle' : inventoryState.status
   const context = buildExportContext({
     scene,
     result,
@@ -183,11 +262,36 @@ export function useVisualsExport(input: {
     evidence,
     roadViewReady: input.scenePackage.ready,
     officeFieldCount: FS1252_OFFICE_FIELDS.length,
+    autoRun,
+    landChecks: {
+      include: includeLandChecks,
+      pending: input.landChecks.unchecked ? 0 : landChecksPending(input.landChecks.states),
+      rows: landRows,
+    },
+    inventory: {
+      status: inventoryStatus,
+      error: inventoryState.error,
+      blockName: noteBlock?.name ?? null,
+      candidates: candidates.map((candidate) => ({
+        key: candidate.key,
+        name: candidate.name,
+        kind: candidate.kind,
+        distanceMeters: candidate.distanceMeters,
+        aims: !!candidate.arrow?.aims,
+      })),
+    },
   })
+  const noteChoices: BlockNoteChoices = {
+    excludedViews,
+    landStatus: includeLandChecks
+      ? { rows: landRows.map(({ label, value, note }) => ({ label, value, note })), caveat: LAND_CHECK_CAVEAT }
+      : null,
+  }
   // What a preview depends on beyond the context: the text, the review, the office fields.
   const version = [
     input.sceneKey,
-    JSON.stringify(context),
+    // The run's progress is not content: a preview waiting on the run must not restart each tick.
+    JSON.stringify({ ...context, autoRun: null }),
     JSON.stringify(fs1252),
     JSON.stringify(blockNoteParts),
     JSON.stringify(scene.viaReview ?? null),
@@ -199,7 +303,7 @@ export function useVisualsExport(input: {
     switch (kind) {
       case 'block-note':
         if (!blockNoteParts) throw new Error('Add a cutblock to write its note.')
-        return input.buildBlockNote(format === 'pdf' ? 'pdf' : 'xlsx', blockNoteParts)
+        return input.buildBlockNote(format === 'pdf' ? 'pdf' : 'xlsx', blockNoteParts, noteChoices)
       case 'fs1252': {
         if (!result || !snapshot) throw new Error('Run the visibility assessment first.')
         const reviews = {
@@ -268,13 +372,60 @@ export function useVisualsExport(input: {
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-via-step="${id}"]`)?.click())
   }
 
+  const onAction = (action: ExportAction) => {
+    if (action.id === 'load-inventory') {
+      askedFor.current = noteBlock?.id ?? null
+      if (noteBlock) onLoadInventory(noteBlock, { show: false })
+      return
+    }
+    if (action.id === 'open-road-view') {
+      setOpen(false)
+      input.onOpenRoadView()
+      return
+    }
+    if (action.id.startsWith('stand:')) {
+      const candidate = candidates.find((entry) => `stand:${entry.key}` === action.id)
+      if (!candidate || !noteBlock) return
+      setOpen(false)
+      input.onStandAt(candidate, noteBlock)
+    }
+  }
+
+  const noteViews = contextViews.filter((entry) => entry.screenshot)
   const options: Partial<Record<VisualsExport, ReactNode>> = {
     'block-note': (
-      <CheckboxField
-        label="Use each view's analysis-sheet figure instead of its screenshot"
-        checked={noteFigures}
-        onCheckedChange={input.onNoteFigures}
-      />
+      <div className="grid gap-1.5">
+        <CheckboxField
+          label="Use each view's analysis-sheet figure instead of its screenshot"
+          checked={noteFigures}
+          onCheckedChange={input.onNoteFigures}
+        />
+        <CheckboxField
+          label="Include the land status checks (treaty land, reserves, private land, parks…)"
+          checked={includeLandChecks}
+          onCheckedChange={setIncludeLandChecks}
+        />
+        {noteViews.length > 0 && (
+          <fieldset className="grid gap-1 pt-1">
+            <legend className="pb-1 text-2xs text-muted-foreground">Views in the report</legend>
+            {noteViews.map(({ view }) => (
+              <CheckboxField
+                key={view.id}
+                label={view.name}
+                checked={!excludedViews.has(view.id)}
+                onCheckedChange={(on) =>
+                  setExcludedViews((current) => {
+                    const next = new Set(current)
+                    if (on) next.delete(view.id)
+                    else next.add(view.id)
+                    return next
+                  })
+                }
+              />
+            ))}
+          </fieldset>
+        )}
+      </div>
     ),
     fs1252: (
       <Fs1252Options
@@ -328,6 +479,8 @@ export function useVisualsExport(input: {
       build={build}
       version={version}
       onGoToStep={onGoToStep}
+      onAction={onAction}
+      onRun={analysis.run}
       portalContainer={input.portalContainer}
     />
   )

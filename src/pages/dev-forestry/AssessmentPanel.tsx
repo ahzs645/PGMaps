@@ -56,20 +56,32 @@ export function AssessmentPanel({ scene, onChange }: Props) {
         value={scene.assessmentYear ?? new Date().getFullYear()}
         onValueChange={(assessmentYear) => onChange({ ...scene, assessmentYear })}
       />
-      <CheckboxField
-        label="Treat the entire active landform as assessable green area — an explicit scenario assumption, not a substitute for land-cover review."
-        checked={scene.settings.greenAreaConfirmed === true}
-        onCheckedChange={(greenAreaConfirmed) =>
-          onChange({ ...scene, settings: { ...scene.settings, greenAreaConfirmed } })
-        }
-      />
-      <CheckboxField
-        label="The included features represent the existing disturbance for this scenario. Unlisted disturbance is not being inferred from a failed lookup."
-        checked={scene.settings.existingDisturbanceConfirmed === true}
-        onCheckedChange={(existingDisturbanceConfirmed) =>
-          onChange({ ...scene, settings: { ...scene.settings, existingDisturbanceConfirmed } })
-        }
-      />
+      <div className="flex items-start gap-1">
+        <CheckboxField
+          className="flex-1"
+          label="Treat the entire active landform as assessable green area"
+          checked={scene.settings.greenAreaConfirmed === true}
+          onCheckedChange={(greenAreaConfirmed) =>
+            onChange({ ...scene, settings: { ...scene.settings, greenAreaConfirmed } })
+          }
+        />
+        <InfoTip label="About treating the landform as green area">
+          An explicit scenario assumption, not a substitute for land-cover review.
+        </InfoTip>
+      </div>
+      <div className="flex items-start gap-1">
+        <CheckboxField
+          className="flex-1"
+          label="The included features represent the existing disturbance for this scenario"
+          checked={scene.settings.existingDisturbanceConfirmed === true}
+          onCheckedChange={(existingDisturbanceConfirmed) =>
+            onChange({ ...scene, settings: { ...scene.settings, existingDisturbanceConfirmed } })
+          }
+        />
+        <InfoTip label="About the existing disturbance">
+          Unlisted disturbance is not being inferred from a failed lookup.
+        </InfoTip>
+      </div>
       {landform && (
         <p className="text-muted-foreground">
           Planimetric planning allowance:{' '}

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchForestHistory, type ForestHistoryData } from './bcForestHistory'
-import { forestHistoryBounds } from './regrowth'
+import { forestHistoryAreas } from './regrowth'
 import type { PolygonGeometry } from './visibility'
 import type { Bounds } from './terrain'
 
 export function useForestHistory(active: boolean, road: number[][], polygons: PolygonGeometry[], freeze = false) {
-  const bounds = useMemo(() => forestHistoryBounds(road, polygons), [road, polygons])
-  const key = bounds?.map((n) => n.toFixed(6)).join(',') ?? ''
+  const areas = useMemo(() => forestHistoryAreas(road, polygons), [road, polygons])
+  // The cells themselves are the footprint: a nudged scene on the same cells keeps its records.
+  const key = areas?.cells.length
+    ? `${areas.cells.map((cell) => cell.map((n) => n.toFixed(6)).join(',')).join(';')}${areas.truncated ? '|truncated' : ''}`
+    : ''
   const [attempt, setAttempt] = useState(0)
   const request = useMemo(() => (active && key ? { key, attempt } : null), [active, key, attempt])
   const [state, setState] = useState<{
@@ -25,12 +28,18 @@ export function useForestHistory(active: boolean, road: number[][], polygons: Po
     if (!request) return
     const { key, attempt } = request
     const abort = new AbortController()
-    void fetchForestHistory(key.split(',').map(Number) as Bounds, abort.signal, {
-      retryFailed: attempt > 0,
-      onUpdate: (data) => {
-        if (!abort.signal.aborted) setState({ key, request, data, loading: !!data.pendingSources?.length })
+    const [cells, truncated] = key.split('|')
+    void fetchForestHistory(
+      cells.split(';').map((cell) => cell.split(',').map(Number) as Bounds),
+      abort.signal,
+      {
+        retryFailed: attempt > 0,
+        truncated: truncated === 'truncated',
+        onUpdate: (data) => {
+          if (!abort.signal.aborted) setState({ key, request, data, loading: !!data.pendingSources?.length })
+        },
       },
-    }).catch(() => {
+    ).catch(() => {
       /* Cancellation is the only rejection; source errors are reported in data. */
     })
     return () => abort.abort()

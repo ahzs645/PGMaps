@@ -9,6 +9,15 @@ import { LIVE_PRESETS } from '@/lib/forestry/viaFigure/presets'
 import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
 import { cn } from '@/lib/utils'
 
+import {
+  ENGINE_WEATHER,
+  localDate,
+  ROAD_RENDERERS,
+  roadRendererUnavailable,
+  roadRendererUrl,
+  type EngineEnvironmentChoice,
+  type RoadRendererId,
+} from './externalRenderers'
 import type { DriveState } from './Sidebar'
 import type { TargetPolygon } from './types'
 import { compassPoint, EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
@@ -75,6 +84,8 @@ export function RoadViewOptions({
   jump?: ReactNode
 }) {
   const arrowAt = (bearing: number) => lookArrows.find((entry) => Math.abs(entry.bearing - bearing) < 0.5)
+  const setEnvironment = (change: Partial<EngineEnvironmentChoice>) =>
+    onDriveChange({ engineEnvironment: { ...drive.engineEnvironment, ...change } })
   return (
     <div className="space-y-2.5" data-testid="road-view-options">
       <Group title="Look">
@@ -254,6 +265,100 @@ export function RoadViewOptions({
             <option value="fast">Faster</option>
           </StyledSelect>
         </Row>
+        <Row
+          label="Renderer"
+          info={
+            <InfoTip label="About the renderer">
+              Which engine draws the road view. PGMaps is the road view&apos;s own drawing; the others are separate
+              engines on trial, given the same ground, stems, openings and eye, and following the drive. They draw only:
+              every figure, saved view and image is still PGMaps&apos; own. Engines differ in how much of the view a
+              tree covers, so judge screening on PGMaps.
+              {ROAD_RENDERERS.map((entry) => (
+                <span key={entry.id} className="mt-1 block">
+                  <b>{entry.label}</b> ({entry.licence}): {entry.summary}
+                </span>
+              ))}
+            </InfoTip>
+          }
+        >
+          <StyledSelect
+            aria-label="Renderer"
+            className={SELECT_CLASS}
+            value={drive.renderer}
+            onChange={(event) => onDriveChange({ renderer: event.target.value as RoadRendererId })}
+          >
+            {ROAD_RENDERERS.map((entry) => {
+              const reason = roadRendererUnavailable(entry.id, {
+                url: roadRendererUrl(entry.id, import.meta.env),
+                webGpu: typeof navigator !== 'undefined' && 'gpu' in navigator,
+              })
+              return (
+                <option key={entry.id} value={entry.id} disabled={!!reason} title={reason ?? undefined}>
+                  {entry.label}
+                </option>
+              )
+            })}
+          </StyledSelect>
+        </Row>
+        {drive.renderer !== 'pgmaps' && (
+          <>
+            <Row
+              label="When"
+              info={
+                <InfoTip label="About the engine's light">
+                  Where the sun stands in the engine&apos;s picture: this date and local time at the road. Display only,
+                  like the engine itself: PGMaps&apos; own drawing and every figure ignore it.
+                </InfoTip>
+              }
+            >
+              <span className="flex gap-1">
+                <input
+                  type="date"
+                  aria-label="Engine date"
+                  className={cn(SELECT_CLASS, 'w-[8.75rem]')}
+                  value={drive.engineEnvironment.date ?? localDate(new Date())}
+                  onChange={(event) => setEnvironment({ date: event.target.value || null })}
+                />
+                <input
+                  type="time"
+                  aria-label="Engine time"
+                  className={cn(SELECT_CLASS, 'w-[6.5rem]')}
+                  value={drive.engineEnvironment.time}
+                  onChange={(event) => setEnvironment({ time: event.target.value || '14:00' })}
+                />
+              </span>
+            </Row>
+            <Row label="Ground">
+              <StyledSelect
+                aria-label="Engine ground"
+                className={SELECT_CLASS}
+                value={drive.engineEnvironment.ground}
+                onChange={(event) =>
+                  setEnvironment({ ground: event.target.value as EngineEnvironmentChoice['ground'] })
+                }
+              >
+                <option value="bare">Bare</option>
+                <option value="snow">Snow</option>
+              </StyledSelect>
+            </Row>
+            <Row label="Weather">
+              <StyledSelect
+                aria-label="Engine weather"
+                className={SELECT_CLASS}
+                value={drive.engineEnvironment.weather}
+                onChange={(event) =>
+                  setEnvironment({ weather: event.target.value as EngineEnvironmentChoice['weather'] })
+                }
+              >
+                {ENGINE_WEATHER.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.label}
+                  </option>
+                ))}
+              </StyledSelect>
+            </Row>
+          </>
+        )}
         <Row
           label="Tree shading"
           info={

@@ -332,3 +332,78 @@ all draw the same evidence. Details and run instructions:
   geo-toolkit, so creating the forks was refused. The patches and their base
   commits are in the repository instead. Forking the two upstreams and running
   `git am` makes them real forks.
+
+## 13. On a real GPU, and chosen in the road view (13 November)
+
+The second round ran on SwiftShader. This one ran the same scene package on an
+Apple M4 Pro (Metal; headless Chrome 156 with the GPU on and the frame cap off),
+and made the engines a choice in the road view itself: View options →
+**Renderer** (`externalRenderers.ts`, `ExternalRoadRenderer.tsx`; contract in
+`forestry-visual-quality.md`, **Choosing the renderer**).
+
+![PGMaps, worldgen and Nanite in the road view](forestry-visual-tools-trial/evidence/road-view-renderer-switch.jpg)
+
+**What was wrong in the adapters, now fixed** (diffs beside each patch in
+`forestry-visual-tools-trial/engines/`, `0002-*.diff`, apply with `git apply`):
+
+- **worldgen's "grey posts" were upside-down impostors**, on every backend, not a
+  SwiftShader artefact. The bake stacks atlas cells bottom-up and three.js reads
+  render-target textures top-down. `packages/scatter/src/impostor.ts` reads the
+  row from the top; a far impostor also now takes its stem's own width ÷ height
+  (it kept the preset's width). This is an upstream worldgen bug, worth reporting.
+- **Nanite drew nothing** because the adapter's 4 × 4 colour layers were nearest
+  filtered (three declares no sampler for those, the library samples them) and
+  declared one mip level (`clamp(lod, 0, −0.001)` does not compile). Filtered and
+  mipmapped as `examples/gltf.ts` does them, the stand draws. The library itself
+  was never at fault: its own glTF example and the full forest ran here.
+- Both adapters take the road view's `postMessage` bridge (`?embed`, hello →
+  scene → camera, ready, stats, rebuild in page without reloading).
+
+**Frame times, same package, same eye** (roadside demo at *View opening*, 15,909
+stems; 1280 × 720 CSS px at 1.5×; 5 s held still with a forced redraw and 5 s
+panning ±20°; machine shared with other sessions, so upper bounds):
+
+| Renderer | Ready | Still: fps, median / p95 ms | Panning: fps, median / p95 ms | JS heap |
+| --- | --- | --- | --- | --- |
+| PGMaps road view (MapLibre, 1857 × 957 px canvas) | 5.9 s (whole page) | 216, 4.2 / 7.4 | 200, 4.8 / 7.2 | 279 MB |
+| threejs-worldgen, WebGPU | 1.9 s | 174, 5.7 / 6.0 | 175, 5.7 / 6.0 | 127 MB |
+| threejs-worldgen, WebGL2 | 3.0 s | 149, 6.5 / 7.7 | 146, 6.6 / 8.0 | 102 MB |
+| Nanite Forest (WebGPU) | 2.5 s | 206, 4.9 / 5.2 | 200, 5.0 / 5.4 | 277 MB |
+
+Chosen in the road view, an engine's frame and PGMaps' map draw together: the
+page held 116 fps panning with worldgen over it and 135 with Nanite, each ready
+about 2 s after it was chosen. Every renderer has headroom at this scene; none
+is the bottleneck. For scale, Nanite's own demo (1 M trees, shadows, TAA,
+grass) took 6–13 ms a frame here.
+
+**Found on the PGMaps side, and fixed.** At this eye the package has the
+opening's edge 8 m south of the road, so the engines facing south draw slash
+from about 10 m, while PGMaps' road view drew a row of tall stems 15–30 m out
+in that direction. No stem the road view held was there: the stems were the
+ones 10–25 m *north* of the station, drawn in front because the camera stood
+29 m behind it. `driveController.ts` placed the camera only when the station or
+view changed, and MapLibre keeps zoom and centre through a resize, so after
+*Fullscreen* the taller canvas put the camera further back from its target 40 m
+ahead (solved from the frame's own matrix: x = y = w = 0 lies 29 m north of the
+station). The canvas size is now part of the pose (`driveController.test.ts`).
+Anything viewed or saved after resizing the road view before this fix was seen
+from behind the station; the analysis, which runs from the station, was not
+affected. The PGMaps timings above were taken in that state.
+
+**Still different between the engines** (display, not evidence): Nanite takes
+one uniform scale per stem (heights kept, crown widths become the species'
+median), draws foliage opaque, and does not draw openings, slash or road scars;
+worldgen's species are its own presets (feathery spruce and fir, white aspen
+and birch trunks) and its haze is bluish. Screening must be judged on PGMaps.
+
+**What the engines' own demos add, for later.** Nanite's forest gets its look
+from ez-tree branches and leaf cards, sun shadows, god rays, TAA and a textured
+floor with litter and grass; its bark and leaf textures are ez-tree's, whose
+sources are unstated, so they stay out of anything PGMaps deploys. worldgen's
+`threejs-trees` draws leaves procedurally (no image files, Apache-2.0), with 29
+species presets; `threejs-water` draws lakes and rivers with reflection, glint,
+foam and Beer–Lambert colour, and computes them from a DEM;
+`threejs-weathering` and `threejs-sky` give snow, rain, fog, burnt states and a
+sun placed by date, time and latitude. For a VIA the honest uses are real lakes
+and streams (BC FWA, not computed) for water viewpoints, snow on openings for
+a winter view, and the field visit's sun.

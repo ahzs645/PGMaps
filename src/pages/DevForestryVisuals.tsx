@@ -89,6 +89,8 @@ import {
 } from './dev-forestry/forest'
 import { roadScar } from './dev-forestry/harvestedGround'
 import { buildScenePackage } from './dev-forestry/scenePackage'
+import { ExternalRoadRenderer } from './dev-forestry/ExternalRoadRenderer'
+import { DEFAULT_ENGINE_ENVIRONMENT, roadRendererUrl } from './dev-forestry/externalRenderers'
 import type { BasemapContext } from './dev-forestry/BasemapContextProbe'
 import { FieldPhotoPanel, PhotoOverlay, StreetPhotoInset } from './dev-forestry/FieldPhoto'
 import { useFieldPhoto } from './dev-forestry/useFieldPhoto'
@@ -115,7 +117,7 @@ import {
 import { VisualsParagraphPanel, type BlockNoteParts } from './dev-forestry/VisualsParagraphPanel'
 import { FieldBriefPanel } from './dev-forestry/FieldBriefPanel'
 import { RoadViewOptionsButton } from './dev-forestry/RoadViewOptions'
-import { useExportOpener, useVisualsExport } from './dev-forestry/useVisualsExport'
+import { useExportOpener, useVisualsExport, type BlockNoteChoices } from './dev-forestry/useVisualsExport'
 import type { BuiltFile } from './dev-forestry/VisualsExportDialog'
 import { layoutStageLabel, layoutStageOf } from './dev-forestry/fieldChecklist'
 import {
@@ -237,6 +239,8 @@ const DEFAULT_DRIVE: DriveState = {
   viewingGap: true,
   treeStyle: 'hybrid',
   treeLook: 'lit',
+  renderer: 'pgmaps',
+  engineEnvironment: DEFAULT_ENGINE_ENVIRONMENT,
   // Stopped, the nearest trees are drawn in full; moving, every tree is a card.
   detailRadiusMeters: 150,
   harvestPhase: 'after',
@@ -1070,29 +1074,32 @@ function DevForestryVisuals() {
         : [],
     [viewpointInventory.data, viewpointBlock],
   )
-  const loadViewpoints = useCallback(async () => {
-    const block = viewpointBlock
-    if (!block) return
-    const [west, south, east, north] = polygonBounds(block.geometry)
-    const scale = metersPerDegree((south + north) / 2)
-    const padLng = VIEWPOINT_SEARCH_METERS / scale.lng,
-      padLat = VIEWPOINT_SEARCH_METERS / scale.lat
-    setViewpointInventory((current) => ({ ...current, status: 'loading', error: null }))
-    try {
-      const data = await fetchViewpointInventory(
-        [west - padLng, south - padLat, east + padLng, north + padLat],
-        AbortSignal.timeout(30000),
-      )
-      setViewpointInventory({ status: 'ready', data, error: null, blockId: block.id })
-      setShowInventory(true)
-    } catch (error) {
-      setViewpointInventory((current) => ({
-        ...current,
-        status: 'error',
-        error: `DataBC viewpoints unavailable: ${error instanceof Error ? error.message : String(error)}`,
-      }))
-    }
-  }, [viewpointBlock])
+  const loadViewpoints = useCallback(
+    async (forBlock?: TargetPolygon, options: { show?: boolean } = {}) => {
+      const block = forBlock ?? viewpointBlock
+      if (!block) return
+      const [west, south, east, north] = polygonBounds(block.geometry)
+      const scale = metersPerDegree((south + north) / 2)
+      const padLng = VIEWPOINT_SEARCH_METERS / scale.lng,
+        padLat = VIEWPOINT_SEARCH_METERS / scale.lat
+      setViewpointInventory((current) => ({ ...current, status: 'loading', error: null }))
+      try {
+        const data = await fetchViewpointInventory(
+          [west - padLng, south - padLat, east + padLng, north + padLat],
+          AbortSignal.timeout(30000),
+        )
+        setViewpointInventory({ status: 'ready', data, error: null, blockId: block.id })
+        if (options.show !== false) setShowInventory(true)
+      } catch (error) {
+        setViewpointInventory((current) => ({
+          ...current,
+          status: 'error',
+          error: `DataBC viewpoints unavailable: ${error instanceof Error ? error.message : String(error)}`,
+        }))
+      }
+    },
+    [viewpointBlock],
+  )
 
   /** Scores every road on screen by how much of the selected block it can see. */
   const handleRunReverse = useCallback(() => {
@@ -1205,8 +1212,8 @@ function DevForestryVisuals() {
   )
   const handleUseViewpoint = useCallback(
     /** Stands at an inventory viewpoint, facing the block, or along one of its arrows when given. */
-    (candidate: ViewpointCandidate, arrow?: CandidateArrow | null) => {
-      const block = viewpointBlock
+    (candidate: ViewpointCandidate, arrow?: CandidateArrow | null, forBlock?: TargetPolygon) => {
+      const block = forBlock ?? viewpointBlock
       const centre = block ? polygonInteriorPoint(block.geometry) : null
       if (!block || !centre) return
       if (!standing)
@@ -1238,8 +1245,11 @@ function DevForestryVisuals() {
   const standingNow = standing && scene.viewpoint.id.startsWith('stand-') ? standing : null
   /** The block note as Excel or PDF: the panel's text, every saved view's screenshot, and the plan map. */
   const buildBlockNote = useCallback(
-    async (format: 'xlsx' | 'pdf', parts: BlockNoteParts): Promise<BuiltFile> => {
-      const views = [...shelvedViews.flatMap((entry) => entry.views), ...savedViews]
+    async (format: 'xlsx' | 'pdf', parts: BlockNoteParts, choices: BlockNoteChoices): Promise<BuiltFile> => {
+      // Every saved view, wherever it was saved, less those the reviewer left out in Save & export.
+      const views = [...shelvedViews.flatMap((entry) => entry.views), ...savedViews].filter(
+        (view) => !choices.excludedViews.has(view.id),
+      )
       const map = mapRef.current
       const block = scene.targets.find((target) => target.id === parts.blockId)
       let planMap: NoteImage | null = null
@@ -1297,6 +1307,7 @@ function DevForestryVisuals() {
           .sort((a, b) => a.savedAt - b.savedAt)
           .map((entry) => entry.page),
         planMap,
+        ...(choices.landStatus ? { landStatus: choices.landStatus } : {}),
         notes,
         generatedAt: new Date(),
       }
@@ -1973,6 +1984,7 @@ function DevForestryVisuals() {
       { roadWidthMeters: 2 * Math.min(8, drive.roadClearWidthMeters / 2) },
     )
   }, [scene.viewpoint.mode, scene.viewpoint.coordinates, previewTerrain.source, drive.roadClearWidthMeters])
+
   const previewRoadScarCollection = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
@@ -2145,6 +2157,32 @@ function DevForestryVisuals() {
     ],
   )
   const currentForestStatus = forestStatus?.configuration === forestConfiguration ? forestStatus : null
+  // The stand another renderer is given: a new package when any of this changes, and not for display switches.
+  const engineStand = useMemo(
+    () => ({
+      forestStands,
+      forestClearings,
+      forestOpenings,
+      forestThinnings,
+      forestInventory,
+      treeHeightMeters: drive.treeHeightMeters,
+      terrain: previewTerrain.source,
+      roadScar: previewRoadScar,
+      water: basemap.water,
+    }),
+    [
+      forestStands,
+      forestClearings,
+      forestOpenings,
+      forestThinnings,
+      forestInventory,
+      drive.treeHeightMeters,
+      previewTerrain.source,
+      previewRoadScar,
+      basemap.water,
+    ],
+  )
+  const engineUrl = drive.renderer === 'pgmaps' ? null : roadRendererUrl(drive.renderer, import.meta.env)
 
   // Harvested ground in the road view: bare soil under a clearcut; under
   // retention or a partial cut, disturbed but still vegetated forest floor.
@@ -2158,8 +2196,8 @@ function DevForestryVisuals() {
   // From across a valley the ground between crowns is shaded forest floor, not
   // the pale basemap. However far out the cards thin, the stand's ground is
   // drawn dark where the stand is, bare soil in its clearings, water as water.
-  // Water is drawn whenever the road view is open, timber or not: a lake is a
-  // lake. Floor and soil are the drawn stand's ground, so they go with it.
+  // Floor, cover, soil and water are drawn whenever the road view is open,
+  // timber or not: switching the trees off leaves the ground as it is.
   const forestGround = useMemo(() => {
     const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
     const bounds = sceneBounds(scene)
@@ -2851,13 +2889,14 @@ function DevForestryVisuals() {
     setSaved({ key, views: [...savedViews, view] })
     setPreviewMessage(`Saved ${view.name}. Save & export keeps or shares it.`)
   }
-  /** The road view's scene for the renderer trials (`scenePackage.ts`). */
-  const scenePackageFile = (): BuiltFile => {
+  /** The road view's scene for other renderers (`scenePackage.ts`), round an eye or the drive's own. */
+  const currentScenePackage = (at: { lng: number; lat: number } | null = null) => {
     const map = eyeMapRef.current
     const ground = previewTerrain.source
-    if (!map || !ground || !driveEye) throw new Error('Open the road view and let its terrain load first.')
-    const scenePackage = buildScenePackage({
-      eye: driveEye,
+    const eye = at ?? driveEye
+    if (!map || !ground || !eye) throw new Error('Open the road view and let its terrain load first.')
+    return buildScenePackage({
+      eye,
       eyeHeightMeters: result?.settings.observerHeightMeters ?? 1.5,
       bearingDegrees: map.getBearing(),
       // MapLibre's pitch is 90° at the horizon.
@@ -2866,11 +2905,15 @@ function DevForestryVisuals() {
       forest: forestConfiguration,
       elevation: ground,
       roadScars: previewRoadScar,
+      water: basemap.water,
       notes: [
         `${scene.viewpoint.name || 'Viewpoint'}, ${(drive.positionMeters / 1000).toFixed(2)} km along the road, ${drive.harvestPhase} harvest.`,
         'Terrain: the road view’s drawn ground (AWS Open Data CDEM/SRTM). Trees: VRI where recorded, the regional stand elsewhere.',
       ],
     })
+  }
+  const scenePackageFile = (): BuiltFile => {
+    const scenePackage = currentScenePackage()
     return {
       blob: new Blob([JSON.stringify(scenePackage)], { type: 'application/json' }),
       fileName: 'forestry-scene-package.json',
@@ -3032,6 +3075,27 @@ function DevForestryVisuals() {
     noteFigures,
     onNoteFigures: setNoteFigures,
     buildBlockNote,
+    analysis: {
+      status: analysis.state.status,
+      progress: analysis.state.progress,
+      error: analysis.state.error,
+      blocker: !key
+        ? 'The scene has an invalid input: check it in step 1.'
+        : !scene.viewpoint.coordinates.length
+          ? 'Draw or import the road or viewpoint in step 1 first.'
+          : !scene.targets.some((target) => target.role === 'block' || target.role === 'landscape')
+            ? 'Add a cutblock or landform in step 1 first.'
+            : null,
+      run: () => {
+        tools.cancel()
+        handleRun()
+      },
+    },
+    landChecks,
+    viewpointInventory,
+    onLoadInventory: (block, options) => void loadViewpoints(block, options),
+    onStandAt: (candidate, block) => handleUseViewpoint(candidate, null, block),
+    onOpenRoadView: () => openPreview(),
     worksheet: worksheetFile,
     scenePackage: { ready: drive.active && !!previewTerrain.source && !!driveEye, build: scenePackageFile },
     evidence: tools.evidence,
@@ -4057,6 +4121,19 @@ function DevForestryVisuals() {
                               </>
                             )}
                           </Map>
+                          {eyeMapKept && drive.active && engineUrl && drive.renderer !== 'pgmaps' && (
+                            <ExternalRoadRenderer
+                              key={`${drive.renderer} ${engineUrl}`}
+                              renderer={drive.renderer}
+                              url={engineUrl}
+                              mapRef={eyeMapRef}
+                              poseRef={drivePoseRef}
+                              buildScene={currentScenePackage}
+                              stand={engineStand}
+                              environment={drive.engineEnvironment}
+                              onUsePgmaps={() => setDrive((current) => ({ ...current, renderer: 'pgmaps' }))}
+                            />
+                          )}
                           {eyeMapKept && !drive.active && (
                             <MapOverlay
                               position="top-left"

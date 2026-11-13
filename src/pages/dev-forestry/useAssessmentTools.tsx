@@ -235,7 +235,12 @@ export function useAssessmentTools({
       help="Save design alternatives and compare them at a station, and run the diagnostics: the viewpoint and landform matrix, sampling and screening sensitivity, harvest scheduling and recovery, and a single sightline."
     >
       {message}
-      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Saved design alternatives" defaultOpen>
+      <ToolDisclosure
+        toggleProps={{ 'data-forestry-disclosure': '' }}
+        label="Saved design alternatives"
+        help="Alternatives supply proposed blocks and retained patches. Every run uses the same current landform, existing openings, surfaces, settings and station. Complete reviewer ratings separately in step 4."
+        defaultOpen
+      >
         <div className="space-y-2 text-xs">
           <FormField label="Design alternative name">
             <input className={FORM_INPUT_CLASS} value={optionName} onChange={(e) => setOptionName(e.target.value)} />
@@ -318,18 +323,25 @@ export function useAssessmentTools({
           >
             Compare designs at current station
           </Button>
-          <p>
-            Alternatives supply proposed blocks and retained patches. Every run uses the same current landform, existing
-            openings, surfaces, settings and station. Complete reviewer ratings separately in step 4.
-          </p>
         </div>
       </ToolDisclosure>
-      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Viewpoint and landform matrix">
+      <ToolDisclosure
+        toggleProps={{ 'data-forestry-disclosure': '' }}
+        label="Viewpoint and landform matrix"
+        help={
+          <>
+            <span className="block">
+              Select significant viewpoints recorded in step 2 and reviewed landforms. Each pair has its own denominator
+              and worst station; values are never pooled across landforms.
+            </span>
+            <span className="mt-1.5 block">
+              Maximum 12 jobs per batch. A completed batch replaces the previous result set; export important runs
+              first.
+            </span>
+          </>
+        }
+      >
         <div className="space-y-2 text-xs">
-          <p>
-            Select significant viewpoints recorded in step 2 and reviewed landforms. Each pair has its own denominator
-            and worst station; values are never pooled across landforms.
-          </p>
           {d.views.map((v) => (
             <CheckboxField
               key={v.id}
@@ -366,29 +378,37 @@ export function useAssessmentTools({
           >
             Run independent assessments
           </Button>
-          <p>
-            Maximum 12 jobs per batch. A completed batch replaces the previous result set; export important runs first.
-          </p>
         </div>
       </ToolDisclosure>
-      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Sampling and screening sensitivity">
+      <ToolDisclosure
+        toggleProps={{ 'data-forestry-disclosure': '' }}
+        label="Sampling and screening sensitivity"
+        help="Compare finer area sampling, closer stations, eye height ±0.5 m, and screening toggled against the baseline. These comparisons reveal dependence on assumptions; they are not confidence intervals."
+      >
         <div className="space-y-2 text-xs">
-          <p>
-            Compare finer area sampling, closer stations, eye height ±0.5 m, and screening toggled against the baseline.
-            These comparisons reveal dependence on assumptions; they are not confidence intervals.
-          </p>
           <Button size="sm" disabled={busy} onClick={() => perform(() => run(stabilityJobs(scene)))}>
             Run sensitivity comparisons
           </Button>
         </div>
       </ToolDisclosure>
-      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Harvest scheduling and recovery">
+      <ToolDisclosure
+        toggleProps={{ 'data-forestry-disclosure': '' }}
+        label="Harvest scheduling and recovery"
+        help={
+          <>
+            <span className="block">
+              Each year is an independent scenario. Before its scheduled year a proposal is omitted; during that year it
+              is proposed alteration; afterward it becomes an existing opening. The supplied height–age curve controls
+              green-up accounting. Screening uses current canopy assumptions, not a simulated future stand.
+            </span>
+            <span className="mt-1.5 block">
+              Outside the supplied curve, the scene’s stated green-up-age assumption applies. Prior-year partial cuts
+              require a supported stand model and are rejected.
+            </span>
+          </>
+        }
+      >
         <div className="space-y-2 text-xs">
-          <p>
-            Each year is an independent scenario. Before its scheduled year a proposal is omitted; during that year it
-            is proposed alteration; afterward it becomes an existing opening. The supplied height–age curve controls
-            green-up accounting. Screening uses current canopy assumptions, not a simulated future stand.
-          </p>
           {scene.targets
             .filter((t) => t.role === 'block')
             .map((t) => (
@@ -458,18 +478,14 @@ export function useAssessmentTools({
           >
             Run recovery timeline
           </Button>
-          <p>
-            Outside the supplied curve, the scene’s stated green-up-age assumption applies. Prior-year partial cuts
-            require a supported stand model and are rejected.
-          </p>
         </div>
       </ToolDisclosure>
-      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Inspect a sightline">
+      <ToolDisclosure
+        toggleProps={{ 'data-forestry-disclosure': '' }}
+        label="Inspect a sightline"
+        help="Click an analysis sample on the map, or select a sample and station below, to trace it through the numerical terrain and screening surface."
+      >
         <div className="space-y-2 text-xs">
-          <p>
-            Click an analysis sample on the map, or select a sample and station below, to trace it through the numerical
-            terrain and screening surface.
-          </p>
           <FormField label="Sightline target">
             <StyledSelect
               value={inspectTarget}

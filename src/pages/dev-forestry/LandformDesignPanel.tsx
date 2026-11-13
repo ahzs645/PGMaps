@@ -31,6 +31,10 @@ export function LandformDesignPanel({
           (pp. 55–56) sets out. Proposed blocks assume full harvest inside their boundaries. Historical openings use
           recorded harvest and recovery inputs; missing details remain assumptions. This reviews a proposal—it does not
           optimize harvest area or timber volume.
+          <span className="mt-1.5 block">
+            The prompts do not score design quality or change the assessment denominator, VQO class or FS1252 design
+            judgements.
+          </span>
         </>
       }
     >
@@ -114,10 +118,6 @@ export function LandformDesignPanel({
           Check skyline notches, edge feathering, retained clumps, road exposure and future entries in the same view.
         </li>
       </ul>
-      <p className="text-muted-foreground">
-        These prompts do not score design quality or change the assessment denominator, VQO class or FS1252 design
-        judgements.
-      </p>
     </ToolSection>
   )
 }

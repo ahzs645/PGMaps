@@ -6,6 +6,7 @@ import {
   blockNoteFileName,
   blockNotePdf,
   blockNoteWorkbook,
+  LAND_STATUS_TITLE,
   isPngImage,
   designComparisonPairs,
   paragraphForLayout,
@@ -87,6 +88,37 @@ describe('block note export', () => {
     expect((text.match(/\/Type \/Page\b/g) ?? []).length).toBe(2)
     // Both views and the plan map are drawn (jsPDF stores the identical fixture image once).
     expect((text.match(/\/I\d+ Do/g) ?? []).length).toBe(3)
+  })
+
+  it('puts the land status checks on a sheet and a page of their own, and nowhere when absent', async () => {
+    const landStatus = {
+      caveat: 'A screen read live from DataBC, not a legal determination.',
+      rows: [
+        { label: 'Private land', value: '2.1 ha in Block A', note: 'Block A: 2.1 ha over Lot 4.' },
+        { label: 'Park or protected area', value: 'Not read', note: 'Park could not be read: timed out' },
+      ],
+    }
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(await blockNoteWorkbook(note({ landStatus }), ExcelJS))
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
+      'Other Considerations',
+      'Block',
+      LAND_STATUS_TITLE,
+      'Basis',
+    ])
+    const sheet = workbook.getWorksheet(LAND_STATUS_TITLE)!
+    expect(sheet.getCell('A2').value).toBe(landStatus.caveat)
+    expect(sheet.getRow(4).values).toEqual([undefined, 'Check', 'Result', 'Detail'])
+    expect(sheet.getRow(6).values).toEqual([
+      undefined,
+      'Park or protected area',
+      'Not read',
+      'Park could not be read: timed out',
+    ])
+    const plain = new TextDecoder('latin1').decode(new Uint8Array(blockNotePdf(note(), jspdf)))
+    const withChecks = new TextDecoder('latin1').decode(new Uint8Array(blockNotePdf(note({ landStatus }), jspdf)))
+    const pages = (text: string) => (text.match(/\/Type \/Page\b/g) ?? []).length
+    expect(pages(withChecks)).toBe(pages(plain) + 1)
   })
 
   it('still writes a note with no views', () => {

@@ -331,22 +331,24 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             terrainMessage={data.previewTerrainMessage}
             onStatus={setForestStatus}
           />
-          {/* Satellite imagery is the real ground, so the drawn floor and soil
-        stand aside for it rather than covering it at 82%. */}
+          {/* The drawn ground stays when the timber is switched off: it is what
+        the ground is, not part of the trees. Satellite imagery is the real
+        ground, so the drawn floor and soil stand aside for it rather than
+        covering it at 82%. */}
           <MapFillLayer
             data={forestGround.floor}
             interactive={false}
             fillColor="#3a4f35"
             fillOpacity={0.82}
             lineWidth={0}
-            visible={drive.forest && !drive.imagery}
+            visible={!drive.imagery}
           />
           <MapFillLayer
             data={forestGround.cover}
             fillColor={['match', ['get', 'cover'], ...GROUND_COVER_FILL, '#4a5a3c']}
             fillOpacity={0.9}
             lineWidth={0}
-            visible={drive.forest && !drive.imagery}
+            visible={!drive.imagery}
           />
           <MapFillLayer
             data={forestGround.soil}
@@ -354,7 +356,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             fillColor="#a7977d"
             fillOpacity={0.95}
             lineWidth={0}
-            visible={drive.forest && !drive.imagery}
+            visible={!drive.imagery}
           />
           {/* Mapped lakes and rivers read as water from the road; over imagery only a tint. */}
           <MapFillLayer

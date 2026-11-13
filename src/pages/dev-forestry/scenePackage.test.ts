@@ -97,6 +97,46 @@ describe('the road view as a scene package', () => {
     expect(scene.openings[0].rings[0][0]).toEqual([40, 60])
   })
 
+  it('carries the water reaching the terrain, at the lowest ground round its shore', () => {
+    const lake = (west: number, south: number): GeoJSON.Polygon => ({
+      type: 'Polygon',
+      coordinates: [
+        [
+          [EYE.lng + west / m.lng, EYE.lat + south / m.lat],
+          [EYE.lng + (west + 100) / m.lng, EYE.lat + south / m.lat],
+          [EYE.lng + (west + 100) / m.lng, EYE.lat + (south + 80) / m.lat],
+          [EYE.lng + west / m.lng, EYE.lat + south / m.lat],
+        ],
+      ],
+    })
+    // The terrain reaches 600 m each way; a river 2 km long is cut to it.
+    const river: GeoJSON.Polygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [EYE.lng - 1000 / m.lng, EYE.lat + 400 / m.lat],
+          [EYE.lng + 1000 / m.lng, EYE.lat + 400 / m.lat],
+          [EYE.lng + 1000 / m.lng, EYE.lat + 450 / m.lat],
+          [EYE.lng - 1000 / m.lng, EYE.lat + 450 / m.lat],
+          [EYE.lng - 1000 / m.lng, EYE.lat + 400 / m.lat],
+        ],
+      ],
+    }
+    const wet = buildScenePackage({
+      ...input,
+      includeModels: false,
+      water: [lake(-300, -200), lake(5000, 5000), river],
+    })
+    expect(wet.water).toHaveLength(2)
+    const corners = wet.water![0].rings[0]
+    expect(corners).toContainEqual([-300, -200])
+    const reach = wet.water![1].rings[0].map(([x]) => Math.abs(x))
+    expect(Math.max(...reach)).toBeCloseTo(600, 0)
+    // The slope rises north, so the shore's lowest point is its south edge.
+    expect(wet.water![0].elevationMeters).toBeCloseTo(700 - 200 * 0.05, 1)
+    expect(scene.water).toEqual([])
+  })
+
   it('carries the drawn ground and stands each stem on it', () => {
     expect(scene.terrain.columns).toBe(61)
     expect(packageHeightAt(scene, 0, 0)).toBeCloseTo(700, 1)

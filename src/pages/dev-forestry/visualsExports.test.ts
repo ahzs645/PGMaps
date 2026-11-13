@@ -5,6 +5,7 @@ import { findSceneLandform } from './sceneInput'
 import {
   buildExportContext,
   exportContents,
+  exportPreparation,
   exportUnavailable,
   VISUALS_EXPORTS,
   type ContextInput,
@@ -48,6 +49,9 @@ function input(scene: ForestryScene, overrides: Partial<ContextInput> = {}): Con
     evidence: { loaded: true, gaps: [], counts: { views: 0, runs: 0, fields: 0 } },
     roadViewReady: false,
     officeFieldCount: 14,
+    autoRun: { blocker: 'Draw or import the road in step 1 first.', status: 'idle', progress: null, error: null },
+    landChecks: { include: true, pending: 0, rows: [] },
+    inventory: { status: 'idle', error: null, blockName: null, candidates: [] },
     ...overrides,
   }
 }
@@ -95,17 +99,118 @@ describe('visual-quality exports', () => {
 
   it('lists each saved view with the settings it was saved with', () => {
     const ctx = buildExportContext(input(createSampleScene(), { views: [view('a'), view('b', { classPass: false })] }))
-    const views = exportContents('block-note', ctx).find((section) => section.title === 'Saved views')
+    const views = exportContents('block-note', ctx).find((section) => section.title === 'Viewpoints in the report')
     expect(views?.items).toHaveLength(2)
+    expect(views?.items?.[0].subtitle).toContain('In the report as its screenshot')
     expect(views?.items?.[0].subtitle).toContain('1.25 km along')
     expect(views?.items?.[0].subtitle).toContain('after harvest')
-    expect(views?.items?.[1].subtitle).toContain('screenshot only')
     expect(views?.items?.[0].rows).toEqual(
       expect.arrayContaining([
         { label: 'Lens', value: '27° vertical field of view' },
         { label: 'Harvest phase', value: 'After harvest' },
       ]),
     )
+  })
+
+  it('puts the views left out of the block note after those that go in, and counts what goes in', () => {
+    const ctx = buildExportContext(
+      input(createSampleScene(), {
+        views: [view('a', { inReport: false }), view('b'), view('c', { screenshot: false, classPass: false })],
+      }),
+    )
+    const section = exportContents('block-note', ctx).find((entry) => entry.title === 'Viewpoints in the report')
+    expect(section?.items?.map((item) => item.subtitle?.split(' · ')[0])).toEqual([
+      'In the report as its screenshot',
+      'Listed as missing: no screenshot',
+      'Left out',
+    ])
+    expect(section?.note).toMatch(/^1 view in the report/)
+    expect(section?.note).toMatch(/never redrawn at export/)
+  })
+
+  it('offers to stand at each inventory viewpoint near the block, and to read them again after a failure', () => {
+    const ready = buildExportContext(
+      input(createSampleScene(), {
+        inventory: {
+          status: 'ready',
+          error: null,
+          blockName: 'Block A',
+          candidates: [
+            { key: 'vli:7', name: 'Tabor Lake pullout', kind: 'vli', distanceMeters: 2400, aims: true },
+            { key: 'rec:2', name: 'Grizzly Den', kind: 'rec-site', distanceMeters: 5100, aims: false },
+          ],
+        },
+      }),
+    )
+    const section = exportContents('block-note', ready).find(
+      (entry) => entry.title === 'Inventory viewpoints near the block',
+    )
+    expect(section?.items?.[0]).toMatchObject({
+      title: 'Tabor Lake pullout',
+      action: { id: 'stand:vli:7', label: 'Stand here' },
+    })
+    expect(section?.items?.[0].subtitle).toBe('Inventory viewpoint · 2.4 km from the block · an arrow aims at it')
+    expect(section?.items?.[1].subtitle).toBe('Recreation site · 5.1 km from the block')
+    const failed = buildExportContext(
+      input(createSampleScene(), {
+        inventory: { status: 'error', error: 'DataBC viewpoints unavailable', blockName: 'Block A', candidates: [] },
+      }),
+    )
+    const retry = exportContents('block-note', failed).find(
+      (entry) => entry.title === 'Inventory viewpoints near the block',
+    )
+    expect(retry?.action).toEqual({ id: 'load-inventory', label: 'Try again' })
+    expect(retry?.empty).toBe('DataBC viewpoints unavailable')
+  })
+
+  it('shows the land status checks the note prints, a reading layer as checking, and none when left out', () => {
+    const rows = [
+      {
+        label: 'Private land',
+        value: '2.1 ha in Block A',
+        note: 'Block A: 2.1 ha over Lot 4.',
+        review: true,
+        reading: false,
+      },
+      { label: 'Park or protected area', value: 'Not read', note: 'Still reading.', review: true, reading: true },
+    ]
+    const ctx = buildExportContext(input(createSampleScene(), { landChecks: { include: true, pending: 1, rows } }))
+    const sections = exportContents('block-note', ctx)
+    expect(rowValue(sections, 'Land status checks', 'Private land')).toBe('2.1 ha in Block A')
+    expect(rowValue(sections, 'Land status checks', 'Park or protected area')).toBe('Checking…')
+    expect(sections.find((entry) => entry.title === 'Land status checks')?.note).toMatch(/not|never a legal/)
+    const off = buildExportContext(input(createSampleScene(), { landChecks: { include: false, pending: 1, rows } }))
+    const offSection = exportContents('block-note', off).find((entry) => entry.title === 'Land status checks')
+    expect(offSection?.rows).toBeUndefined()
+    expect(exportPreparation('block-note', off).landChecks).toBe(false)
+    expect(exportPreparation('block-note', ctx)).toMatchObject({ run: false, landChecks: true })
+  })
+
+  it('runs the assessment on export for the outputs that read it, rather than withholding them', () => {
+    const runnable = { blocker: null, status: 'idle' as const, progress: null, error: null }
+    const none = buildExportContext(input(createSampleScene(), { autoRun: runnable }))
+    expect(exportUnavailable('fs1252', none)).toBeNull()
+    expect(exportUnavailable('worksheet', none)).toBeNull()
+    for (const kind of ['block-note', 'fs1252', 'field-brief', 'worksheet'] as const)
+      expect(exportPreparation(kind, none).run).toBe(true)
+    expect(exportPreparation('scene', none).run).toBe(false)
+    expect(exportPreparation('fs1252', none).note).toMatch(/^Not run yet: the export runs the assessment first/)
+    const stale = buildExportContext(input(createSampleScene(), { stale: true, autoRun: runnable }))
+    expect(exportPreparation('worksheet', stale).note).toMatch(/^The run is out of date: the export runs/)
+    const running = buildExportContext(
+      input(createSampleScene(), {
+        autoRun: { ...runnable, status: 'running', progress: 'tracing sightlines, 40%' },
+      }),
+    )
+    expect(exportPreparation('block-note', running).note).toBe(
+      'Running the visibility assessment · tracing sightlines, 40%. The file is written when it finishes.',
+    )
+  })
+
+  it('offers to open the road view for the 3D scene', () => {
+    const ctx = buildExportContext(input(createSampleScene()))
+    const section = exportContents('scene-package', ctx).find((entry) => entry.title === 'Road view')
+    expect(section?.action).toEqual({ id: 'open-road-view', label: 'Open the road view' })
   })
 
   it("words a view's settings from the view itself when no screenshot was kept", () => {

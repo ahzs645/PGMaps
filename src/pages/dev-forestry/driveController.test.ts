@@ -94,6 +94,29 @@ describe('walking off the road', () => {
   })
 })
 
+describe('resizing the road view', () => {
+  it('places the camera again at the same station when the canvas changes size', () => {
+    const { map } = fakeMap()
+    const canvas = { clientWidth: 600, clientHeight: 400 }
+    let jumps = 0
+    map.getCanvas = () => canvas
+    map.jumpTo = () => {
+      jumps++
+    }
+    const controller = new DriveController(map, ROAD, [], GROUND)
+    controller.start(0)
+    const o = options()
+    controller.tick(0, o)
+    controller.tick(16, o)
+    expect(jumps).toBe(1)
+    // Fullscreen: same station, same view, taller canvas.
+    canvas.clientWidth = 1280
+    canvas.clientHeight = 957
+    controller.tick(32, o)
+    expect(jumps).toBe(2)
+  })
+})
+
 describe('distance haze', () => {
   it('fades by Koschmieder: about 28% at 5 km and 48% at 10 km on a 60 km day', () => {
     const rings = hazeRings({ lng: -122.7, lat: 54.5 })

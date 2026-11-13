@@ -147,8 +147,8 @@ describe('forest history display snapshots', () => {
   it('holds arriving records during playback, applies them on pause and never carries them to another footprint', async () => {
     const jobs: { bounds: Bounds; signal: AbortSignal; onUpdate: (data: ForestHistoryData) => void }[] = []
     loaders.history.mockImplementation(
-      (bounds: Bounds, signal: AbortSignal, options: { onUpdate: (data: ForestHistoryData) => void }) => {
-        jobs.push({ bounds, signal, onUpdate: options.onUpdate })
+      (cells: Bounds[], signal: AbortSignal, options: { onUpdate: (data: ForestHistoryData) => void }) => {
+        jobs.push({ bounds: cells[0], signal, onUpdate: options.onUpdate })
         return new Promise(() => {})
       },
     )

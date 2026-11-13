@@ -48,7 +48,11 @@ descriptions), and *Landform design review* (Appendix 5).
 The sidebar is laid out like the road designer's: the step tabs at the top of
 the scroll, then flat `ToolSection`s (`src/components/ui/tool-section.tsx`)
 separated by full-width rules. A section's explanation and handbook reference
-sit behind the (i) in its heading, not printed under it; secondary sections fold
+sit behind the (i) in its heading, not printed under it, and so do a field's, a
+checkbox's and a fold's (the (i) at the end of its label row); only a value the
+run produced, such as a measured design element, is printed under a control. Cards
+(polygon cards, headline tiles, row lists) take the card fill, one step above the
+sidebar in the dark theme; secondary sections fold
 to one row that states their live values (**bold** above is always open,
 *italic* is folded); and a fold inside a section is a `ToolDisclosure`, never a
 bordered card. Each folded section's toggle carries `data-forestry-disclosure`,
@@ -84,7 +88,7 @@ and its buttons only open the dialog on an output (*Export the block note…*,
 
 | Group | Output | Formats | Options in the dialog |
 | --- | --- | --- | --- |
-| Assessment documents | Block note | Excel, PDF | Each view as its analysis-sheet figure |
+| Assessment documents | Block note | Excel, PDF | Each view as its analysis-sheet figure; which saved views go in; the land status checks in or out |
 | | FS1252 form | PDF | Stations, each one's reviewer inputs, run diagnostics, office fields |
 | | Analysis sheet | PDF, PNG | Saved view, figure style, label style, camera block |
 | | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
@@ -100,13 +104,43 @@ blocks and masks, the run's status and figures, the run settings and the
 review — each with *Change in step N*, which closes the dialog on that step.
 **Preview** builds the file itself and shows it (a PDF in the browser's viewer,
 an image, HTML in a sandboxed frame, text); *Download* saves that same file. An
-output that cannot be written yet says why in the list (no block, no run, a
-stale run, no saved view, the road view closed).
+output that cannot be written yet says why in the list (no block, no saved
+view, the road view closed, a scene that cannot run).
+
+**The export makes what it reads.** The block note, FS1252, field brief and
+worksheet read the run (`RUNS_ON_EXPORT`). When it is missing or stale, Preview
+and Download start it themselves in the analysis worker (the sidebar's own run,
+`useVisibilityAnalysis`), show its progress in the pane, and write the file from
+the render after it finishes and the page settles (`exportPreparation`, the
+dialog's `prepare`); a run that stops or fails is an error in the pane, never a
+file from the old run. The block note also waits for the land status checks to
+finish reading (up to 30 s; a layer still reading then prints *Not read*).
+Nothing renders a screenshot at export: views are captured at *Save viewpoint*.
+
+The block note's pane shows what the report will hold:
+
+- **Viewpoints in the report** — every saved view, here or at another
+  viewpoint, marked in the report (as its screenshot or figure), left out, or
+  listed as missing; *Options* has a checkbox per view with a screenshot.
+- **Inventory viewpoints near the block** — the BC Visual Landscape Inventory
+  viewpoints and rec sites round the note's block (`viewpointsNearBlock`), read
+  when the dialog opens on the note without switching the plan's inventory
+  layer on. They are not in the report until captured: *Stand here* closes the
+  dialog and stands there in the road view facing the block, where *Save
+  viewpoint* adds it.
+- **Land status checks** — the cards' checks (`useLandChecks`) as the note
+  prints them (`landCheckReportRows`): their own *Land status* sheet and PDF
+  page with the caveat that they are a DataBC screen, never a legal
+  determination or a mask. On by default; *Options* leaves them out.
+
+The 3D scene still needs the road view open (it writes where the eye stands
+now); its pane offers *Open the road view* rather than opening it unasked.
 
 Rules: the dialog never writes to the scene except the FS1252 office fields
 (`reportMetadata`, as before) and the field brief's block; its other choices
-(stations, figure style) last while the page is open and reset with the run as
-the sidebar's did. Closed, `useVisualsExport` returns before building anything:
+(stations, figure style, views left out of the note, land checks in or out)
+last while the page is open, and the stations reset with the run as the
+sidebar's did. Closed, `useVisualsExport` returns before building anything:
 the page re-renders several times a second while the road view moves. Add a new
 file to `VISUALS_EXPORTS`, `exportUnavailable`, `exportContents` and the
 hook's `build` together, never as a download button in the sidebar.
@@ -156,9 +190,10 @@ hook's `build` together, never as a download button in the sidebar.
   outlines (the faced one heavier), *Where to look* lists them, and facing one
   sets `DriveState.lookBearing`, which a saved view keeps. *Viewing gap* then
   opens the drawn timber along that arrow.
-- **Ground in the road view.** Mapped water is drawn as water whenever the road
-  view is open, timber or not; the drawn forest floor and soil stand aside when
-  satellite imagery is on, so the imagery is the ground.
+- **Ground in the road view.** The drawn forest floor, inventory cover, cut-block
+  soil and mapped water are drawn whenever the road view is open, timber or not:
+  *Standing timber* takes off only the trees. Floor, cover and soil stand aside
+  when satellite imagery is on, so the imagery is the ground.
 - **One hover card.** Where map layers with hover cards overlap, only the
   topmost feature's card shows (the toolkit's `hover-arbiter.ts`).
 
@@ -626,6 +661,12 @@ terrain on. Play drives it along at a chosen speed; the profile chart doubles as
 the scrubber. Facing a block pitches the camera at it, and the sample points
 narrow to what *that* point on the road can see — red ground appears and
 disappears as ridges pass in front of it.
+
+A resize of the road view (*Fullscreen*, a pane drag, the window) places the
+camera again: MapLibre keeps the zoom and centre through a resize, and at eye
+level that moves the camera off its station — going fullscreen once stood it
+29 m behind, with the stems behind the station drawn in front of it. The
+controller keeps the canvas size in the pose it compares (`driveController.ts`).
 
 **Steering from the plan.** While the road view is open the plan's viewer is
 two handles (`PlanViewerHandles`): drag the dot along the road to move the road
@@ -1117,15 +1158,52 @@ The models are `detailedTreeMesh`, which stands exactly one unit tall, so a
 stem's recorded height is the height it is drawn at.
 
 Other engines read the package through adapters kept outside the app
-(`docs/forestry-visual-tools-trial/engines/`). Nothing in `src/` depends on
+(`docs/forestry-visual-tools-trial/engines/`). Nothing in `src/` imports
 them. The VistaWASM bench (AGPL-3.0) is installed only in its own folder and is
 never shipped.
+
+### Choosing the renderer
+
+View options → **Renderer** picks what draws the road view: *PGMaps* (its own
+map, the default), *threejs-worldgen* or *Nanite Forest*
+(`externalRenderers.ts`, `ExternalRoadRenderer.tsx`). An engine runs as its own
+page in a frame laid over the road view's map, which stays mounted underneath
+and keeps driving: the frame takes no pointer input, so dragging to look round,
+the drive bar and every control still act on PGMaps' map, and the engine
+follows it. Nothing of the engine is bundled; the frame is found by URL.
+
+- **The bridge** is `postMessage` (`pgmaps-engine` v1, described at the top of
+  `externalRenderers.ts`): the engine says hello, the page sends a scene package
+  and then the camera on every map move (once a frame at most), in the
+  package's local metres. A new package goes when the stand changes (harvest
+  phase, forest records, openings, terrain) or once the eye is a third of the
+  tree radius (200 m) from the package's origin. Display switches never send one.
+- **Where an engine is**: `VITE_FORESTRY_WORLDGEN_URL` /
+  `VITE_FORESTRY_NANITE_URL`; in development, without them, the engines' own dev
+  servers (`127.0.0.1:8460`, `:8461`). Unset in a build, the option is disabled
+  and says which variable names it. Nanite also needs WebGPU; worldgen falls
+  back to WebGL2.
+- **Display only.** Saved views, *Image*, the class pass, framed captures and
+  every figure come from PGMaps' map, never the engine's frame. Engines draw a
+  tree differently, and a drawn shape moved screening by 10–12 points in the
+  trial, so the status line under an engine says its figures are PGMaps' own.
+- **Water, light and weather.** The package carries the basemap's lakes and
+  rivers that reach its terrain (`water`, each at the lowest ground round its
+  shore). With an engine chosen, View options adds *When* (date and local time), *Ground*
+  (bare or snow) and *Weather* (clear, overcast, rain, snowing); they go as their
+  own `pgmaps-environment` message (`engineEnvironment`), the date and time read
+  as local time with that day's offset, and never rebuild the stand. PGMaps' own
+  drawing ignores them.
+- PGMaps' map still draws underneath while an engine is chosen; the two share
+  the GPU.
 
 ## Files
 
 | Path | Role |
 | --- | --- |
 | `src/pages/dev-forestry/scenePackage.ts` | The road view's scene as a renderer-neutral file, for the other-renderer trial |
+| `src/pages/dev-forestry/externalRenderers.ts` | The road view's renderer choice: engines, where each is found, the camera in package metres, the message protocol |
+| `src/pages/dev-forestry/ExternalRoadRenderer.tsx` | An engine's frame over the road view and the `postMessage` bridge that feeds it |
 | `src/pages/DevForestryVisuals.tsx` | Page: scene state, the tiled workspace and its two maps, drawing, import/export |
 | `src/pages/dev-forestry/VisualQualityLayers.tsx` | The scene's map layers, drawn in the plan map (`mode="plan"`) and the road view (`mode="eye"`) |
 | `src/pages/dev-forestry/visualsWorkspace.ts` | The workspace's panes, presets and which panes show before the road view opens |
@@ -2043,6 +2121,16 @@ Why there is no stored copy (checked 10–11 November 2026):
   overlap (sampled from 3,000 polygons across the layer).
 
 Existing harvest, RESULTS forest cover and VRI are live queries too.
+
+The road view's *Existing forest and regrowth* records (harvest, planting and
+forest cover, `bcForestHistory.ts`) are read per fixed grid cell (0.1° × 0.06°,
+`forestHistoryAreas` in `regrowth.ts`) within 3 km of the road or a target, never
+one box around them all, at most 48 cells and four requests at a time. The
+queries are unsorted: with `orderByFields`, DataBC ranked every match before
+returning the first 1,000, which took 20–41 s for forest cover over a 1.5° box
+(25,166 polygons) and kept records by ID rather than by nearness. A request has
+20 s and is tried once more after a timeout, never after a refusal; DataBC was
+seen to stall 17–20 s on a 0.1° box that otherwise answers in 0.2 s.
 
 `Find a landform` automatically ranks up to five candidate units within 25 km of the entire road polyline, including unrated units. A selector switches to the proposed block centre when desired. Proximity does not establish visibility. `Show boundary` previews a candidate; `Use candidate` adopts it explicitly. A VSU is not automatically the viewpoint-specific assessment landform. If no candidate is appropriate, draw or import the visible hillside. A nearby polygon does not establish coverage of the proposed block.
 

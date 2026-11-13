@@ -1,0 +1,226 @@
+diff --git a/examples/pgmaps-scene.ts b/examples/pgmaps-scene.ts
+index 716f90e..7c95984 100644
+--- a/examples/pgmaps-scene.ts
++++ b/examples/pgmaps-scene.ts
+@@ -3,6 +3,18 @@
+ // the model the package carries (PGMaps' own detailed tree, opaque: bark and foliage are both "bark" here, told apart
+ // by colour), and the package's stems as instances, seen from its eye.
+ //   examples/pgmaps-scene.html?scene=<url of a package JSON>   (or pick a file). Needs WebGPU (compute).
++//   &embed: driven by a parent page (an iframe): no overlay, no pointer input, the scene and camera by postMessage.
++//
++// The postMessage bridge (postMessage(data, '*'); a local trial):
++//   out { type: 'pgmaps-engine-hello', engine: 'nanite' }   loaded in a frame with no ?scene: send the package
++//   in  { type: 'pgmaps-scene', scene }   a package to draw. A later one tears the drawing down (its WebGPU device
++//                                          destroyed, so nothing leaks) and builds the new one in the same page.
++//   in  { type: 'pgmaps-camera', position: [x, y, z], bearingDegrees, pitchDegrees, verticalFovDegrees }
++//                                          the eye in the frame of the latest package sent (local metres, z up). One
++//                                          that arrives while a package builds is kept, the latest, and applied after.
++//   out { type: 'pgmaps-engine-ready', engine: 'nanite' }   the first frame of a (new) package is drawn
++//   out { type: 'pgmaps-engine-stats', engine: 'nanite', drawn, fps, clusters, impostors, splats, stems }  about 1 s
++//   out { type: 'pgmaps-engine-error', engine: 'nanite', message }
+ //
+ // The package is local metres: x east, y north, z up (heights absolute). Here y is up and north is −z.
+ // Instances take one uniform scale, so a stem keeps its height but its crown width is its species' median
+@@ -38,6 +50,60 @@ const COLOURS: Record<string, [string, string]> = {
+ };
+ const info = document.getElementById('info')!;
+ const params = new URLSearchParams(location.search);
++const ENGINE = 'nanite';
++const embedded = window.parent !== window;
++if (params.has('embed')) info.hidden = true;
++const toParent = (message: Record<string, unknown>): void => {
++  if (embedded) window.parent.postMessage({ engine: ENGINE, ...message }, '*');
++};
++
++type CameraMessage = { position: [number, number, number]; bearingDegrees: number; pitchDegrees: number; verticalFovDegrees?: number };
++type Drawing = { setEye: (eye: CameraMessage) => void; teardown: () => Promise<void> };
++/** What is drawn now, the package waiting behind a build, and the parent's latest eye in the latest package's frame. */
++let current: Drawing | null = null;
++let building = false;
++let queued: ScenePackage | null = null;
++let latestCamera: CameraMessage | null = null;
++
++/** Draw `scene`, after tearing down what is drawn. Packages that arrive during a build wait; only the latest is built. */
++async function show(scene: ScenePackage): Promise<void> {
++  if (building) {
++    queued = scene;
++    return;
++  }
++  building = true;
++  try {
++    if (current) await current.teardown();
++    current = null;
++    current = await build(scene);
++    if (latestCamera) current.setEye(latestCamera);
++  } catch (error) {
++    fail(error);
++  } finally {
++    building = false;
++    const next = queued;
++    queued = null;
++    if (next) void show(next);
++  }
++}
++
++function fail(error: unknown): void {
++  const message = error instanceof Error ? error.message : String(error);
++  info.textContent = `failed: ${message}`;
++  Object.assign(window, { pgmaps: { ready: true, error: message } });
++  toParent({ type: 'pgmaps-engine-error', message });
++}
++
++addEventListener('message', (event: MessageEvent) => {
++  const data = event.data as { type?: string; scene?: ScenePackage } & Partial<CameraMessage>;
++  if (data?.type === 'pgmaps-scene' && data.scene) {
++    latestCamera = null; // (an eye sent before belongs to the previous package's frame)
++    void show(data.scene);
++  } else if (data?.type === 'pgmaps-camera' && Array.isArray(data.position)) {
++    latestCamera = data as CameraMessage;
++    if (current && !building) current.setEye(latestCamera);
++  }
++});
+ 
+ async function loadScene(): Promise<ScenePackage> {
+   const url = params.get('scene');
+@@ -82,9 +148,8 @@ function groundOf(scene: ScenePackage): { mesh: THREE.Mesh; heightAt: (x: number
+   return { mesh: new THREE.Mesh(geometry, new THREE.MeshStandardNodeMaterial({ color: 0x4a573a, roughness: 1 })), heightAt };
+ }
+ 
+-async function main(): Promise<void> {
+-  const scene = await loadScene();
+-  if (scene.format !== 'pgmaps-forest-scene' || scene.version !== 1) throw new Error('Not a PGMaps forest scene package (v1).');
++async function build(scene: ScenePackage): Promise<Drawing> {
++  if (scene?.format !== 'pgmaps-forest-scene' || scene.version !== 1) throw new Error('Not a PGMaps forest scene package (v1).');
+   if (!scene.models) throw new Error('This package has no species models; export it again from PGMaps.');
+ 
+   const renderer = new THREE.WebGPURenderer({ antialias: false });
+@@ -95,6 +160,7 @@ async function main(): Promise<void> {
+   renderer.shadowMap.enabled = true;
+   renderer.toneMapping = THREE.ACESFilmicToneMapping;
+   document.body.appendChild(renderer.domElement);
++  if (embedded || params.has('embed')) renderer.domElement.style.pointerEvents = 'none';
+ 
+   const three = new THREE.Scene();
+   renderer.setClearColor(SKY);
+@@ -103,8 +169,18 @@ async function main(): Promise<void> {
+   camera.position.set(eye.position[0], eye.position[2], -eye.position[1]);
+   const bearing = THREE.MathUtils.degToRad(eye.bearingDegrees), pitch = THREE.MathUtils.degToRad(eye.pitchDegrees);
+   const controls = new OrbitControls(camera as never, renderer.domElement);
++  controls.enabled = !params.has('embed'); // (embedded, the parent drives the camera)
+   controls.target.copy(camera.position).add(new THREE.Vector3(Math.sin(bearing) * Math.cos(pitch), Math.sin(pitch), -Math.cos(bearing) * Math.cos(pitch)).multiplyScalar(100));
+   controls.update();
++  /** The package's eye (local metres, z up, bearing clockwise from north) as the camera and the orbit's target. */
++  const setEye = (e: CameraMessage): void => {
++    const b = THREE.MathUtils.degToRad(e.bearingDegrees), p = THREE.MathUtils.degToRad(e.pitchDegrees);
++    camera.position.set(e.position[0], e.position[2], -e.position[1]);
++    if (e.verticalFovDegrees) camera.fov = e.verticalFovDegrees;
++    camera.updateProjectionMatrix();
++    controls.target.copy(camera.position).add(new THREE.Vector3(Math.sin(b) * Math.cos(p), Math.sin(p), -Math.cos(b) * Math.cos(p)).multiplyScalar(100));
++    controls.update();
++  };
+   const hemi = new THREE.HemisphereLight(0xdfeaf5, 0x51493f, 1.4);
+   const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+   sun.castShadow = true;
+@@ -176,15 +252,25 @@ async function main(): Promise<void> {
+         pixels.set([c.r * 255, c.g * 255, c.b * 255, 255], o);
+       }
+   });
+-  const barkTexture = new THREE.DataArrayTexture(pixels, 4, 4, used.length);
++  // Filtered and mipmapped, as examples/gltf.ts's arrayOf() makes them. A DataArrayTexture defaults to NearestFilter
++  // both ways, which three's WGSL builder treats as unfilterable and gives no sampler, while the library samples these
++  // with textureSample: every material failed on Metal with "unresolved value 'nodeUniformN_sampler'". And the leaf
++  // alpha clamps its mip level to levels - 1.001, so one level made clamp(lod, 0, -0.001), another invalid shader.
++  const LEVELS = 3; // 4, 2, 1 px
++  const filtered = (t: THREE.DataArrayTexture): THREE.DataArrayTexture => {
++    t.wrapS = t.wrapT = THREE.RepeatWrapping;
++    t.magFilter = THREE.LinearFilter;
++    t.minFilter = THREE.LinearMipmapLinearFilter;
++    t.generateMipmaps = true;
++    t.userData.levels = LEVELS;
++    t.userData.alphaScales = new Array(LEVELS).fill(1);
++    return t;
++  };
++  const barkTexture = filtered(new THREE.DataArrayTexture(pixels, 4, 4, used.length));
+   barkTexture.colorSpace = THREE.SRGBColorSpace;
+   barkTexture.needsUpdate = true;
+-  barkTexture.userData.levels = 1;
+-  barkTexture.userData.alphaScales = [1];
+-  const leafTexture = new THREE.DataArrayTexture(new Uint8Array(4 * 4 * 4).fill(255), 4, 4, 1);
++  const leafTexture = filtered(new THREE.DataArrayTexture(new Uint8Array(4 * 4 * 4).fill(255), 4, 4, 1));
+   leafTexture.needsUpdate = true;
+-  leafTexture.userData.levels = 1;
+-  leafTexture.userData.alphaScales = [1];
+   const textures: NaniteTextures = {
+     bark: barkTexture,
+     leaf: leafTexture,
+@@ -230,11 +316,20 @@ async function main(): Promise<void> {
+ 
+   const t0 = performance.now();
+   let lastStats = 0;
++  let lastPost = 0;
++  let disposed = false;
++  /** The stats readback in flight: teardown waits for it, since destroying the device aborts its mapAsync. */
++  let reading: Promise<unknown> | null = null;
++  let fps = 0;
++  let lastFrame = performance.now();
+   const state = { frames: 0, nanite, camera, controls, ready: false };
+   Object.assign(window, { pgmaps: state });
+   renderer.setAnimationLoop(async () => {
+     state.frames++;
+-    const time = (performance.now() - t0) / 1000;
++    const now = performance.now();
++    fps = fps ? fps * 0.9 + (1000 / Math.max(1, now - lastFrame)) * 0.1 : 60;
++    lastFrame = now;
++    const time = (now - t0) / 1000;
+     controls.update();
+     camera.updateMatrixWorld();
+     look.viewer.copy(camera.position);
+@@ -259,17 +354,43 @@ async function main(): Promise<void> {
+     renderer.autoClear = autoClear;
+     renderer.setRenderTarget(null);
+     present.render(renderer);
++    if (state.frames === 1) toParent({ type: 'pgmaps-engine-ready' });
+     if (time - lastStats > 0.5) {
+       lastStats = time;
+-      const s = await nanite.readStats();
++      reading = nanite.readStats();
++      const s = await (reading as ReturnType<typeof nanite.readStats>).catch(() => null);
++      reading = null;
++      if (!s || disposed) return;
+       info.textContent = `${scene.trees.count.toLocaleString()} stems from the package, ${types.length} species\n` +
+         `drawn: ${s.instances.toLocaleString()} as clusters, ${s.impostors.toLocaleString()} impostors, ${(s.splats ?? 0).toLocaleString()} splats`;
+       state.ready = state.frames > 10;
++      if (time - lastPost >= 1) {
++        lastPost = time;
++        toParent({
++          type: 'pgmaps-engine-stats', drawn: s.instances + s.impostors, fps: Math.round(fps),
++          clusters: s.instances, impostors: s.impostors, splats: s.splats ?? 0, stems: scene.trees.count,
++        });
++      }
+     }
+   });
++
++  return {
++    setEye,
++    teardown: async () => {
++      disposed = true;
++      renderer.setAnimationLoop(null);
++      await reading?.catch(() => undefined);
++      removeEventListener('resize', resize);
++      controls.dispose();
++      // (destroys the WebGPU device this renderer made: every buffer, texture and pipeline of this package with it)
++      await renderer.dispose();
++      renderer.domElement.remove();
++    },
++  };
+ }
+ 
+-main().catch((error: unknown) => {
+-  info.textContent = `failed: ${error instanceof Error ? error.message : String(error)}`;
+-  Object.assign(window, { pgmaps: { ready: true, error: String(error) } });
+-});
++if (params.has('scene') || !embedded) loadScene().then(show, fail);
++else {
++  info.textContent = 'waiting for a scene from the parent page';
++  toParent({ type: 'pgmaps-engine-hello' });
++}

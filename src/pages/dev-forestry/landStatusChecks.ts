@@ -371,3 +371,52 @@ export function landCheckMetrics(
     })),
   ]
 }
+
+/** What a printed file says about the checks, in every place it carries them. */
+export const LAND_CHECK_CAVEAT =
+  'A screen read live from DataBC when this file was written, not a legal determination. Not read means the layer could not be read: check it by hand.'
+
+export type LandCheckReportRow = {
+  label: string
+  value: string
+  note: string
+  /** Overlaps a block, or could not be read: the reviewer looks at it. */
+  review: boolean
+  /** Still reading: the file would print it as Not read. */
+  reading: boolean
+}
+
+/**
+ * The checks as a file prints them: one row per layer, in the cards' order. A layer still reading
+ * when the file is written reads *Not read*, as a failed one does, never *None*.
+ */
+export function landCheckReportRows(
+  states: Partial<Record<LandCheckId, LandCheckState>>,
+  context: { unchecked: string | null },
+): LandCheckReportRow[] {
+  if (context.unchecked)
+    return [{ label: 'Land checks', value: 'Not checked', note: context.unchecked, review: true, reading: false }]
+  return LAND_CHECKS.map((check) => {
+    const state = states[check.id]
+    if (!state || state.status === 'loading')
+      return {
+        label: check.label,
+        value: 'Not read',
+        note: 'Still reading when this file was written.',
+        review: true,
+        reading: true,
+      }
+    const summary = landCheckSummary(check, state)
+    return {
+      label: check.label,
+      value: summary.value,
+      note: summary.note,
+      review: state.status === 'error' || state.result.blocks.length > 0,
+      reading: false,
+    }
+  })
+}
+
+/** How many layers are still reading. */
+export const landChecksPending = (states: Partial<Record<LandCheckId, LandCheckState>>) =>
+  LAND_CHECKS.filter((check) => !states[check.id] || states[check.id]!.status === 'loading').length
