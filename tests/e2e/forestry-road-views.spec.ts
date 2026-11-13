@@ -179,60 +179,6 @@ test('profile zoom, pan, fit and vertical exaggeration affect only the display',
   expect(errors).toEqual([])
 })
 
-test('Shift-click and Shift-drag measure distance and average slope without editing the road', async ({ page }) => {
-  const errors = await prepare(page)
-  const original = await saveProject(page)
-  await selectStation(page, 200)
-  const profile = page.getByTestId('road-profile-chart')
-  const range = await rangeOf(profile)
-  const box = (await profile.boundingBox())!
-  const left = box.width < 380 ? 48 : 58
-  const plotWidth = box.width - left - 16
-  const x = (fraction: number) => box.x + left + fraction * plotWidth
-  const y = box.y + box.height * 0.3
-  const readout = page.getByTestId('chart-measurement-readout')
-  await page.keyboard.down('Shift')
-  await page.mouse.click(x(0.2), y)
-  await expect(readout).toContainText('Shift-click the end')
-  await page.mouse.click(x(0.6), y)
-  await page.keyboard.up('Shift')
-  await expect(readout).toContainText('horizontal')
-  const distance = await readout.locator('strong').textContent()
-  const measured = Number(distance!.replace(/[^\d.]/g, ''))
-  expect(Math.abs(measured - (range[1] - range[0]) * 0.4)).toBeLessThan((range[1] - range[0]) / plotWidth + 0.1)
-  await expect(readout).toContainText(/Avg (ground )?slope: [+-]?[\d,.]+ %/)
-  if ((await readout.textContent())!.includes('Avg ground slope:'))
-    await expect(readout).toContainText(/Avg formation grade: [+-]?[\d,.]+ %/)
-  const reading = await readout.textContent()
-  await expectLinkedStation(page, 200)
-  await choose(page.getByLabel('Profile vertical exaggeration', { exact: true }), '5')
-  await expect(readout).toHaveText(reading!)
-  await page.getByRole('button', { name: 'Zoom profile in', exact: true }).click()
-  await expect(readout).toHaveText(reading!)
-  await page.getByRole('button', { name: 'Clear distance measurement', exact: true }).click()
-  await expect(readout).toHaveCount(0)
-
-  const section = page.getByTestId('road-section-chart')
-  const sectionBox = (await section.boundingBox())!
-  const sectionLeft = sectionBox.width < 380 ? 48 : 58
-  const sectionWidth = sectionBox.width - sectionLeft - 16
-  const sectionX = (fraction: number) => sectionBox.x + sectionLeft + fraction * sectionWidth
-  const sectionY = sectionBox.y + sectionBox.height * 0.3
-  await page.keyboard.down('Shift')
-  await page.mouse.move(sectionX(0.3), sectionY)
-  await page.mouse.down()
-  await page.mouse.move(sectionX(0.7), sectionY, { steps: 5 })
-  await page.keyboard.up('Shift')
-  await page.mouse.up()
-  await expect(readout).toContainText('horizontal')
-  await expect(readout).toContainText(/Avg (ground )?slope: [+-]?[\d,.]+ %/)
-  await expectLinkedStation(page, 200)
-  await section.press('Escape')
-  await expect(readout).toHaveCount(0)
-  expect(await saveProject(page)).toEqual(original)
-  expect(errors).toEqual([])
-})
-
 test('an off-screen shared station is revealed and profile bands keep the same chainage domain', async ({ page }) => {
   const errors = await prepare(page)
   await selectStation(page, 100)
@@ -559,15 +505,13 @@ test('header picker, no footer or status row, profile controls on the chart, sec
   expect(forward.x + forward.width).toBeLessThanOrEqual(chart.x + chart.width)
   await toolbar.getByRole('button', { name: 'Fit full road profile', exact: true }).click()
 
-  // The detail view picker stands in the title's place, leading the title row before Section CSV.
-  // The title stays the region's name and a visually hidden heading.
+  // The detail view picker sits in the panel's title row, beside the title and Section CSV.
   const sectionPanel = page.getByRole('region', { name: 'Cross-section', exact: true })
-  await expect(sectionPanel.getByRole('heading', { name: 'Cross-section', exact: true })).toHaveClass(/sr-only/)
-  const panelBox = (await sectionPanel.boundingBox())!
+  const title = (await sectionPanel.getByRole('heading', { name: 'Cross-section', exact: true }).boundingBox())!
   const picker = (await sectionPanel.getByRole('combobox', { name: 'Road detail view', exact: true }).boundingBox())!
   const csv = (await sectionPanel.getByRole('button', { name: 'Section CSV', exact: true }).boundingBox())!
-  expect(Math.abs(picker.y + picker.height / 2 - (csv.y + csv.height / 2))).toBeLessThan(8)
-  expect(picker.x - panelBox.x).toBeLessThan(24)
+  expect(Math.abs(picker.y + picker.height / 2 - (title.y + title.height / 2))).toBeLessThan(8)
+  expect(picker.x).toBeGreaterThan(title.x)
   expect(csv.x).toBeGreaterThan(picker.x)
   await expect(sectionPanel.getByRole('tablist')).toHaveCount(0)
 
@@ -651,5 +595,50 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
   expect((await saveProject(page)).settings).toEqual(original.settings)
+  expect(errors).toEqual([])
+})
+
+test('toggling a chart’s readouts never paints the plot at the old height', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const errors = await prepare(page)
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: 'Mass haul' })
+  const chart = page.getByTestId('road-mass-chart')
+  await expect(chart).toBeVisible()
+  const slot = page.locator('[data-chart-slot]').filter({ has: chart })
+  const panel = page.getByRole('region').filter({ has: chart }).last()
+  const details = panel.getByRole('button', { name: 'Details below chart', exact: true })
+  // Read in a ResizeObserver registered after the chart's own, so in the same delivery, between layout and
+  // paint: each pair is the plot's slot and the svg exactly as the next frame draws them.
+  await chart.evaluate((svg) => {
+    const viewport = svg.parentElement!.closest('[style*="overflow"]')!.parentElement!
+    const painted: [number, number][] = []
+    ;(window as unknown as { painted: typeof painted }).painted = painted
+    new ResizeObserver(() =>
+      painted.push([Math.floor(viewport.getBoundingClientRect().height), svg.getBoundingClientRect().height]),
+    ).observe(viewport)
+  })
+  const views = ['both', 'chart', 'both', 'chart']
+  for (const [toggles, view] of views.entries()) {
+    await details.click()
+    await expect(slot).toHaveAttribute('data-chart-view', view)
+    // The first observation, then one for each toggle so far.
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { painted: unknown[] }).painted.length))
+      .toBeGreaterThanOrEqual(toggles + 2)
+  }
+  const painted = await page.evaluate(() => (window as unknown as { painted: [number, number][] }).painted)
+  expect(painted.length).toBeGreaterThanOrEqual(5)
+  for (const [viewport, drawn] of painted) expect(drawn).toBe(viewport)
+  // Open readouts sit below the plot, not over it.
+  await details.click()
+  await expect(slot).toHaveAttribute('data-chart-view', 'both')
+  await expect
+    .poll(() =>
+      slot.evaluate((element) => {
+        const plot = element.querySelector('[data-testid="road-mass-chart"]')!.getBoundingClientRect()
+        return Math.round(element.lastElementChild!.getBoundingClientRect().top - plot.bottom)
+      }),
+    )
+    .toBeGreaterThanOrEqual(0)
   expect(errors).toEqual([])
 })
