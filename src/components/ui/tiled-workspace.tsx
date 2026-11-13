@@ -1,10 +1,17 @@
-import { useEffect, useState, type HTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { FullscreenPanel } from '@/components/ui/fullscreen-panel'
 import { PanelCorner } from '@/components/ui/panel-corner'
 import { ResizableSplit } from '@/components/ui/resizable-split'
 import { cn } from '@/lib/utils'
+import {
+  PanelWindowControls,
+  PanelWindowProvider,
+  PanelWindowSlot,
+  usePanelWindows,
+} from '@pgmaps/geo-toolkit/ui/panel-window-workspace'
 
 /** One view in a column: a map, a chart, a summary. */
 export interface TilePaneSpec<P extends string = string> {
@@ -122,57 +129,99 @@ export function useTilePanels<P extends string, L extends string>(
  * space. A column whose panes are all hidden gives its space to the others. `focusedPane` shows one
  * pane at a time, for phones. Pass the panes a preset leaves out by omitting them from `columns`.
  */
-export function TiledWorkspace<P extends string>({
-  columns,
-  contents,
-  hidden = [],
-  focusedPane,
-  storageKey,
-  className,
-  ...props
-}: {
+type TiledWorkspaceProps<P extends string> = {
   columns: TileColumnSpec<P>[]
   contents: Partial<Record<P, ReactNode>>
   hidden?: readonly P[]
   focusedPane?: P
+  /** Let a single-pane host select a remaining view when its focused pane is detached. */
+  onFocusedPaneChange?: (pane: P) => void
+  /** Share a host-level panel registry whose controls live in its ribbon or header. */
+  windowControls?: 'inline' | 'external'
   /** The browser key for one split's sizes: the columns (`'columns'`) or a column's `storageName`. */
   storageKey: (split: string) => string
-} & Omit<HTMLAttributes<HTMLDivElement>, 'hidden'>) {
-  const isHidden = (id: P) => hidden.includes(id) || (!!focusedPane && focusedPane !== id)
+} & Omit<HTMLAttributes<HTMLDivElement>, 'hidden'>
+
+export function TiledWorkspace<P extends string>(props: TiledWorkspaceProps<P>) {
+  const external = usePanelWindows()
+  if (props.windowControls && external) return <TiledWorkspaceContent {...props} />
   return (
-    <ResizableSplit
-      {...props}
-      direction="row"
-      splitQuery="(min-width: 0px)"
-      storageKey={storageKey('columns')}
-      className={cn('min-h-0 flex-1', className)}
-      data-focused-pane={focusedPane}
-      panes={columns.map((column) => ({
-        id: column.id,
-        hidden: column.panes.every((pane) => isHidden(pane.id)),
-        label: column.label,
-        size: column.size,
-        min: column.min,
-        stackedHeight: 'auto' as const,
-        content: (
-          <ResizableSplit
-            direction="column"
-            splitQuery="(min-width: 0px)"
-            storageKey={storageKey(column.storageName ?? column.id)}
-            className="h-full"
-            panes={column.panes.map((pane) => ({
-              id: pane.id,
-              hidden: isHidden(pane.id),
-              label: pane.label,
-              content: contents[pane.id],
-              size: pane.size,
-              min: pane.min,
-              stackedHeight: pane.stackedHeight,
-            }))}
+    <PanelWindowProvider>
+      <TiledWorkspaceContent {...props} windowControls="inline" />
+    </PanelWindowProvider>
+  )
+}
+
+function TiledWorkspaceContent<P extends string>({
+  columns,
+  contents,
+  hidden = [],
+  focusedPane,
+  onFocusedPaneChange,
+  windowControls,
+  storageKey,
+  className,
+  ...props
+}: TiledWorkspaceProps<P>) {
+  const { panels, pending } = usePanelWindows()!
+  const { resolvedTheme } = useTheme()
+  const previousDetached = useRef<readonly (string | null)[]>([])
+  const detached = new Set(panels.map((panel) => panel.slot))
+  const docked = columns
+    .flatMap((column) => column.panes)
+    .filter((pane) => !hidden.includes(pane.id) && !detached.has(pane.id))
+  const effectiveFocus = focusedPane && (docked.find((pane) => pane.id === focusedPane)?.id ?? docked[0]?.id)
+  useEffect(() => {
+    const returned = previousDetached.current.find((id) => !panels.some((panel) => panel.slot === id))
+    previousDetached.current = panels.map((panel) => panel.slot)
+    const next = focusedPane && (docked.find((pane) => pane.id === returned)?.id ?? effectiveFocus)
+    if (next && next !== focusedPane) onFocusedPaneChange?.(next)
+  }, [panels, docked, effectiveFocus, focusedPane, onFocusedPaneChange])
+  const isHidden = (id: P) => hidden.includes(id) || detached.has(id) || (!!effectiveFocus && effectiveFocus !== id)
+  return (
+    <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col', className)}>
+      {windowControls !== 'external' && (panels.length > 0 || pending.length > 0) && (
+        <div className="mb-1 flex shrink-0 justify-end">
+          <PanelWindowControls
+            className="h-7 text-xs"
+            dialogOptions={{ theme: resolvedTheme === 'dark' ? 'dark' : 'light' }}
           />
-        ),
-      }))}
-    />
+        </div>
+      )}
+      <ResizableSplit
+        {...props}
+        direction="row"
+        splitQuery="(min-width: 0px)"
+        storageKey={storageKey('columns')}
+        className="min-h-0 flex-1"
+        data-focused-pane={effectiveFocus}
+        panes={columns.map((column) => ({
+          id: column.id,
+          hidden: column.panes.every((pane) => isHidden(pane.id)),
+          label: column.label,
+          size: column.size,
+          min: column.min,
+          stackedHeight: 'auto' as const,
+          content: (
+            <ResizableSplit
+              direction="column"
+              splitQuery="(min-width: 0px)"
+              storageKey={storageKey(column.storageName ?? column.id)}
+              className="h-full"
+              panes={column.panes.map((pane) => ({
+                id: pane.id,
+                hidden: isHidden(pane.id),
+                label: pane.label,
+                content: <PanelWindowSlot id={pane.id}>{contents[pane.id]}</PanelWindowSlot>,
+                size: pane.size,
+                min: pane.min,
+                stackedHeight: pane.stackedHeight,
+              }))}
+            />
+          ),
+        }))}
+      />
+    </div>
   )
 }
 

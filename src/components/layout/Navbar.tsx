@@ -12,6 +12,7 @@ import {
   Trees,
   Sun,
   Moon,
+  Palette,
   ShieldAlert,
   Building2,
   UtensilsCrossed,
@@ -26,6 +27,7 @@ import { GlobalSearch } from '@/components/GlobalSearch'
 import { cn } from '@/lib/utils'
 import { MISC_TABS } from '@/maps/pgdata/miscDataTabs'
 import { PG_DATA_TABS } from '@/maps/pgdata/pgDataTabs'
+import { AppearanceDialog } from './AppearanceDialog'
 
 const navLinks = [
   { path: '/', label: 'Home', icon: Map },
@@ -92,6 +94,8 @@ export function Navbar() {
   const isHomePage = location.pathname === '/'
   const isRoadDesignPage = ['/dev/forestry/road-design', '/dev/forestry/roads'].includes(location.pathname)
   const { resolvedTheme, setTheme } = useTheme()
+  const [appearanceOpen, setAppearanceOpen] = useState(false)
+  const appearanceTriggerRef = useRef<HTMLButtonElement>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileSubmenu, setMobileSubmenu] = useState<'pgdata' | 'misc' | null>(null)
   const [mobileToolbarHidden, setMobileToolbarHidden] = useState(false)
@@ -324,6 +328,17 @@ export function Navbar() {
                   {resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                   {resolvedTheme === 'dark' ? 'Light mode' : 'Dark mode'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeMobileMenu()
+                    setAppearanceOpen(true)
+                  }}
+                  className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <Palette className="h-5 w-5" />
+                  Appearance
+                </button>
               </nav>
             )}
           </div>,
@@ -437,6 +452,18 @@ export function Navbar() {
           />
           <div id="dataset-info-toolbar-slot" className="contents" />
           <Button
+            ref={appearanceTriggerRef}
+            variant="ghost"
+            size="icon"
+            onClick={() => setAppearanceOpen(true)}
+            aria-label="Appearance"
+            title="Appearance"
+            aria-haspopup="dialog"
+            className="hidden text-muted-foreground md:inline-flex"
+          >
+            <Palette className="h-5 w-5" />
+          </Button>
+          <Button
             variant="ghost"
             size="icon"
             onClick={toggleTheme}
@@ -450,6 +477,16 @@ export function Navbar() {
       </div>
 
       {mobileMenu}
+      {appearanceOpen && (
+        <AppearanceDialog
+          onClose={() => setAppearanceOpen(false)}
+          onRestoreFocus={() => {
+            const desktopTrigger = appearanceTriggerRef.current
+            const trigger = desktopTrigger?.getClientRects().length ? desktopTrigger : menuButtonRef.current
+            trigger?.focus({ preventScroll: true })
+          }}
+        />
+      )}
     </header>
   )
 }

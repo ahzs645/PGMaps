@@ -3,6 +3,9 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, SidebarSection } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 
+/** A fold's header row answers the pointer with a wash of the text colour, light or dark. */
+const FOLD_ROW_HOVER = '[&>div:first-child]:transition-colors [&>div:first-child:hover]:bg-foreground/[0.05]'
+
 export type ToolSectionProps = {
   title: string
   /** The section's explanation, behind an (i) in its heading rather than printed under it. */
@@ -53,6 +56,7 @@ export function ToolSection({
     return (
       <div className={className} {...props}>
         <CollapsibleSection
+          className={FOLD_ROW_HOVER}
           label={title}
           summary={summary}
           summaryWhenCollapsedOnly
@@ -81,6 +85,8 @@ export type ToolDisclosureProps = {
   defaultOpen?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** The fold's explanation, behind an (i) on its row rather than a paragraph inside it. */
+  help?: ReactNode
   actions?: ReactNode
   toggleProps?: ToolSectionProps['toggleProps']
   contentClassName?: string
@@ -91,13 +97,22 @@ export type ToolDisclosureProps = {
  * A fold inside a `ToolSection`: a hairline above and the label lined up with the section's own
  * content, rather than a bordered card inside the section.
  */
-export function ToolDisclosure({ contentClassName, ...props }: ToolDisclosureProps) {
+export function ToolDisclosure({ contentClassName, help, actions, ...props }: ToolDisclosureProps) {
+  const label = typeof props.label === 'string' ? props.label.toLowerCase() : 'this section'
   return (
     <CollapsibleSection
       {...props}
+      actions={
+        help || actions ? (
+          <>
+            {actions}
+            {help && <InfoTip label={`About ${label}`}>{help}</InfoTip>}
+          </>
+        ) : undefined
+      }
       summaryWhenCollapsedOnly
       // Consecutive folds share their rules with no gap from a parent's `space-y-*`.
-      className="-mx-3 border-b-0 border-t border-border/60 bg-transparent [section+&]:!mt-0"
+      className={cn('-mx-3 border-b-0 border-t border-border/60 bg-transparent [section+&]:!mt-0', FOLD_ROW_HOVER)}
       contentClassName={cn('space-y-2 px-3 pb-3', contentClassName)}
     />
   )

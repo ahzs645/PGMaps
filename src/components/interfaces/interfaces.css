@@ -195,9 +195,20 @@
   background: transparent;
   color: inherit;
 }
-.lp-ribbon [role='tab'][aria-selected='true'] {
-  box-shadow: inset 0 -3px hsl(var(--primary));
+/* The scroll container must not clip the underline at either end of the tab strip. */
+.lp-ribbon [role='tablist'],
+.lp-ribbon [role='tab'] {
   border-radius: 0;
+}
+.lp-ribbon [role='tab'] {
+  position: relative;
+}
+.lp-ribbon [role='tab'][aria-selected='true']::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: hsl(var(--primary));
+  content: '';
 }
 .lp-tools {
   display: flex;
@@ -729,6 +740,34 @@
   box-shadow: none;
   font-size: 12px;
 }
+
+.road-detached-panels {
+  flex-shrink: 0;
+}
+.lp-ribbon[data-compact-ribbon] .lp-ribbon-tabs > .road-detached-panels {
+  border-color: hsl(var(--border));
+  border-radius: calc(var(--radius) - 4px);
+  background: hsl(var(--background));
+  font-size: 12px;
+}
+@media (max-width: 1199px) {
+  .road-detached-panels [data-panel-windows-label] {
+    display: none;
+  }
+  .road-detached-panels {
+    gap: 4px;
+    padding-inline: 6px;
+  }
+}
+@media (max-width: 599px) {
+  .road-detached-panels [data-panel-windows-count] {
+    display: none;
+  }
+  .lp-ribbon-tabs > .road-detached-panels {
+    width: var(--ribbon-tab-tool-size, 28px);
+    padding: 0;
+  }
+}
 .lp-ribbon[data-compact-ribbon] .lp-fold-editors {
   display: inline-flex;
   align-items: center;
@@ -899,11 +938,11 @@
   font-weight: 650;
 }
 .lp-strip-frame {
+  position: relative;
   display: flex;
   align-items: stretch;
 }
 .lp-strip-frame .lp-grouped-tools {
-  order: 1;
   min-width: 0;
   flex: 1;
   /* A scrollbar would add its height to the band: the edge buttons and the wheel scroll it instead. */
@@ -912,8 +951,11 @@
   overscroll-behavior: none;
 }
 .lp-strip-edge {
+  /* Overlay the edge: adding/removing an arrow must not resize or re-anchor a live scroll. */
+  position: absolute;
+  inset-block: 0;
+  z-index: 1;
   display: grid;
-  flex: none;
   border-top: 1px solid hsl(var(--border));
   width: 25px;
   place-content: center;
@@ -921,22 +963,19 @@
   color: hsl(var(--foreground));
 }
 .lp-prev {
-  order: 0;
+  inset-inline-start: 0;
   border-inline-end: 1px solid hsl(var(--border));
   box-shadow: 4px 0 7px -4px hsl(var(--lp-shadow-color) / 0.22);
 }
 .lp-next {
-  order: 2;
+  inset-inline-end: 0;
   border-inline-start: 1px solid hsl(var(--border));
   box-shadow: -4px 0 7px -4px hsl(var(--lp-shadow-color) / 0.22);
 }
 .lp-strip-frame .lp-grouped-tools::-webkit-scrollbar {
   display: none;
 }
-.lp-strip-edge:disabled {
-  color: hsl(var(--muted-foreground) / 0.4);
-}
-.lp-strip-edge:not(:disabled):hover {
+.lp-strip-edge:hover {
   background: hsl(var(--accent));
 }
 [dir='rtl'] .lp-strip-edge svg {

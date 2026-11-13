@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { parsePanelWindowLayouts, type PanelWindowLayout } from '@pgmaps/geo-toolkit/ui/panel-window-layout'
+import { usePanelWindows } from '@pgmaps/geo-toolkit/ui/panel-window-workspace'
 import { LayoutDashboard, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
@@ -15,7 +17,12 @@ import {
 } from './tiled-workspace'
 
 /** A named screen layout: one of the presets with its own remembered panels and pane sizes. */
-export type SavedTileLayout<L extends string = string> = { id: string; name: string; base: L }
+export type SavedTileLayout<L extends string = string> = {
+  id: string
+  name: string
+  base: L
+  windows?: PanelWindowLayout[]
+}
 const MANAGE = '__manage'
 /** Shown while a preset's panels are changed, so picking that preset again counts as a change. */
 const EDITED = '__edited'
@@ -29,13 +36,27 @@ export function readSavedTileLayouts<P extends string, L extends string>(
   try {
     const value: unknown = JSON.parse(localStorage.getItem(savedKey(config.namespace)) ?? '[]')
     return Array.isArray(value)
-      ? value.filter(
-          (v): v is SavedTileLayout<L> =>
-            !!v &&
-            typeof v.id === 'string' &&
-            typeof v.name === 'string' &&
-            config.presets.some((preset) => preset.id === v.base),
-        )
+      ? value
+          .filter(
+            (v): v is SavedTileLayout<L> =>
+              !!v &&
+              typeof v.id === 'string' &&
+              typeof v.name === 'string' &&
+              config.presets.some((preset) => preset.id === v.base),
+          )
+          .map((entry) => {
+            let windows: PanelWindowLayout[] | undefined
+            if (entry.windows !== undefined) {
+              try {
+                windows = parsePanelWindowLayouts(entry.windows).filter((panel) =>
+                  presetPanes(config, entry.base).some((id) => id === panel.slot),
+                )
+              } catch {
+                windows = []
+              }
+            }
+            return { id: entry.id, name: entry.name, base: entry.base, ...(windows ? { windows } : {}) }
+          })
       : []
   } catch {
     return []
@@ -81,6 +102,7 @@ export function TileLayoutPicker<P extends string, L extends string>({
   size = 'default',
   selectLabel,
   dialogTestId,
+  defaultWindows,
 }: {
   config: TiledWorkspaceConfig<P, L>
   selection: string
@@ -98,7 +120,10 @@ export function TileLayoutPicker<P extends string, L extends string>({
   /** The dropdown's accessible name, e.g. "Road view layout". */
   selectLabel: string
   dialogTestId?: string
+  /** Interface-authored popup defaults, overridden by a saved layout's own windows. */
+  defaultWindows?: readonly PanelWindowLayout[]
 }) {
+  const panelWindows = usePanelWindows()
   const ribbon = size === 'ribbon'
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -107,11 +132,27 @@ export function TileLayoutPicker<P extends string, L extends string>({
   const edited = isPreset && tilePanelsEdited(config, current.base, hiddenPanels)
   const presetLabel = findPreset(config, current.base).label
   const available = presetPanes(config, current.base)
+  const windowLayoutKey = `${config.namespace}:${current.selection}`
+  const selectedWindows = saved.find((layout) => `saved:${layout.id}` === current.selection)?.windows ?? defaultWindows
+  useEffect(() => {
+    if (selectedWindows) panelWindows?.applyLayout(selectedWindows, windowLayoutKey)
+  }, [panelWindows, selectedWindows, windowLayoutKey])
+  const chooseLayout = (id: string, choices = saved) => {
+    const windows = choices.find((layout) => `saved:${layout.id}` === id)?.windows ?? defaultWindows ?? []
+    panelWindows?.applyLayout(windows, `${config.namespace}:${id}`, true)
+    onSelect(id, choices)
+  }
   const panelOptions = config.panes.filter((option) => available.includes(option.id))
   const shownCount = panelOptions.filter((p) => !hiddenPanels.includes(p.id)).length
   const save = () => {
     const label = name.trim().slice(0, 60) || `Layout ${saved.length + 1}`
-    const layout: SavedTileLayout<L> = { id: crypto.randomUUID(), name: label, base: current.base }
+    const windows = panelWindows?.snapshot().filter((panel) => available.some((id) => id === panel.slot))
+    const layout: SavedTileLayout<L> = {
+      id: crypto.randomUUID(),
+      name: label,
+      base: current.base,
+      ...(windows ? { windows } : {}),
+    }
     // The new layout starts from the current pane sizes, then keeps its own.
     try {
       const prefix = tilePaneKey(config.namespace, current.storageId, '')
@@ -127,7 +168,7 @@ export function TileLayoutPicker<P extends string, L extends string>({
     const next = [...saved, layout]
     writeSavedTileLayouts(config.namespace, next)
     onSaved(next)
-    onSelect(`saved:${layout.id}`, next)
+    chooseLayout(`saved:${layout.id}`, next)
     setName('')
     setOpen(false)
   }
@@ -142,7 +183,7 @@ export function TileLayoutPicker<P extends string, L extends string>({
     }
     writeSavedTileLayouts(config.namespace, next)
     onSaved(next)
-    if (selection === `saved:${layout.id}`) onSelect(layout.base, next)
+    if (selection === `saved:${layout.id}`) chooseLayout(layout.base, next)
   }
   const options = [
     ...(edited ? [{ value: EDITED, label: `${presetLabel} · edited` }] : []),
@@ -161,7 +202,7 @@ export function TileLayoutPicker<P extends string, L extends string>({
           value={edited ? EDITED : current.selection}
           onValueChange={(value) => {
             if (value === MANAGE) setOpen(true)
-            else if (value !== EDITED) onSelect(value)
+            else if (value !== EDITED) chooseLayout(value)
           }}
           options={options}
           searchable={options.length > SEARCHABLE_FROM}
@@ -207,7 +248,7 @@ export function TileLayoutPicker<P extends string, L extends string>({
                 className={`rounded-lg border p-3 text-left hover:bg-accent ${!edited && current.selection === preset.id ? 'border-primary bg-primary/5' : ''}`}
                 aria-pressed={!edited && current.selection === preset.id}
                 onClick={() => {
-                  onSelect(preset.id)
+                  chooseLayout(preset.id)
                   setOpen(false)
                 }}
               >
@@ -258,11 +299,14 @@ export function TileLayoutPicker<P extends string, L extends string>({
           <Button size="sm" onClick={save}>
             Save current layout
           </Button>
+          {panelWindows && (
+            <p className="text-muted-foreground">Saves open windows and tabs, including window size and position.</p>
+          )}
           {saved.length > 0 && (
             <ul className="space-y-1">
               {saved.map((s) => (
                 <li key={s.id} className="flex items-center justify-between gap-2 rounded border px-2 py-1">
-                  <button className="text-left" onClick={() => (onSelect(`saved:${s.id}`), setOpen(false))}>
+                  <button className="text-left" onClick={() => (chooseLayout(`saved:${s.id}`), setOpen(false))}>
                     {s.name} <span className="text-muted-foreground">· {findPreset(config, s.base).label}</span>
                   </button>
                   <Button

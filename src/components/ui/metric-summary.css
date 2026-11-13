@@ -70,6 +70,10 @@
 .metric-summary dl:last-child > div {
   border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
 }
+.metric-summary-panel[data-headingless] .metric-summary dl:first-child > div,
+.metric-summary-layout[data-placement='top'] .metric-summary-panel[data-headingless] .metric-summary dl > div {
+  border-top: 0;
+}
 .metric-summary dt {
   white-space: normal;
   overflow: visible;

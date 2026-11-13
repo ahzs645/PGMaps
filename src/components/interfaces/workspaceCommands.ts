@@ -29,6 +29,7 @@ import {
   RulerDimensionLine,
   ChartArea,
   ChartSpline,
+  TrendingUp,
   Cylinder,
   Droplets,
   FileJson,
@@ -46,7 +47,7 @@ import {
   FileUp,
   Focus,
   LandPlot,
-  Layers3,
+  FolderTree,
   Locate,
   MapPinned,
   MousePointer2,
@@ -84,6 +85,7 @@ import {
   PencilLine,
   Route,
   Satellite,
+  Signpost,
   ScanLine,
   Spline,
   Table2,
@@ -170,7 +172,7 @@ export const workspaceCommands = {
   branding: {
     label: 'Branding',
     icon: Palette,
-    description: 'Import a Brandkit brand and choose where to use it.',
+    description: 'Edit the interface theme or import a Brandkit brand and choose where to use it.',
     investigation: true,
   },
   ...commandRecord(ribbonExports, (entry) => ({
@@ -202,7 +204,11 @@ export const workspaceCommands = {
     description: 'Opens Save and export with the road GeoJSON chosen.',
   },
   fieldNotes: { label: 'Field notes', icon: StickyNote, investigation: true },
-  importReference: { label: 'Import GIS layer', icon: Layers3 },
+  importReference: {
+    label: 'Layers',
+    icon: FolderTree,
+    description: 'Add GIS files or a folder, show or hide layers, and fit them on the plan.',
+  },
   drawProfile: { label: 'Draw terrain profile', icon: ChartArea },
   drawBlock: { label: 'Draw cutblock', icon: Trees },
   drawStream: { label: 'Draw stream', icon: Waves },
@@ -221,6 +227,11 @@ export const workspaceCommands = {
   },
   materials: { label: 'Ground materials', icon: Shovel },
   massHaul: { label: 'Mass haul', icon: ChartNoAxesCombined },
+  gradeDiagram: {
+    label: 'Grade along road',
+    icon: TrendingUp,
+    description: 'The road and ground grade along the road, against the grade limits.',
+  },
   fullCosts: {
     label: 'Compare route costs',
     icon: Calculator,
@@ -253,6 +264,13 @@ export const workspaceCommands = {
     description:
       'Puts coarse regional terrain under this project, for reconnaissance only. Undo returns the terrain it had.',
   },
+  detailedDem: {
+    label: 'Load 1 m DEM',
+    icon: MountainSnow,
+    investigation: true,
+    description:
+      'Load a bounded area of NRCan bare-earth terrain around imported blocks, roads or the map view, with nearby FSR records.',
+  },
   peg: { label: 'Peg road', icon: Plus },
   extend: { label: 'Extend road', icon: Waypoints },
   editPoints: { label: 'Edit points', icon: MapPin },
@@ -283,6 +301,12 @@ export const workspaceCommands = {
   import: { label: 'Import terrain', icon: FileInput },
   sketch: { label: 'Sketch a road', icon: PencilLine },
   alignment: { label: 'Alignment tools', icon: Route, kind: 'editor', editor: 'design' },
+  findRoute: {
+    label: 'Find best route',
+    icon: Signpost,
+    description:
+      "Opens Find the best route in the road's design tools: search and price routes between the road's ends.",
+  },
   section: { label: 'Road template', icon: RulerDimensionLine, kind: 'editor', editor: 'template' },
   review: { label: 'Design checks', icon: ClipboardCheck, kind: 'editor', editor: 'review' },
   compare: { label: 'Compare roads', icon: Table2 },

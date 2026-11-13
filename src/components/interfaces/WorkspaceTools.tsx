@@ -1,5 +1,5 @@
 import { ribbonFieldLabels, type RibbonFieldId } from '@/pages/dev-forestry-roads/roadFieldDefinitions'
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronUp, ChevronDown, PanelRightOpen, PanelRightClose } from 'lucide-react'
 import { TabBar } from '@/components/ui/tab-bar'
 import { AccessLockup } from './AccessLockup'
@@ -111,13 +111,23 @@ export function WorkspaceTools({
     !!activeSection.more?.some(visible)
   if (settings && !settingsVisible) setSettings(null)
   const productLogo = toolbar.header === 'controls' && <AccessLockup compact />
+  const tabTools = toolbar.tabTools?.map((id) => (
+    <Fragment key={id}>
+      {isCommand(id) ? (
+        <CommandButton id={id} surface="header" state={states[id]} disabled={disabled} onRun={onCommand} />
+      ) : (
+        widgets[id]
+      )}
+    </Fragment>
+  ))
   if (!group)
     return (
       <>
         {children}
-        {productLogo ? (
+        {productLogo || tabTools?.length ? (
           <div className="lp-ribbon-tabs">
             {productLogo}
+            {tabTools}
             {switcher}
           </div>
         ) : (
@@ -316,7 +326,7 @@ export function WorkspaceTools({
       {toolbar.title && <h2 className="lp-guide-title">{toolbar.title}</h2>}
       <div
         className={
-          switcher || leading || quickTools || compact || findTools || quickAccess.length
+          switcher || leading || quickTools || compact || findTools || quickAccess.length || tabTools?.length
             ? 'lp-ribbon-tabs'
             : 'contents'
         }
@@ -366,6 +376,7 @@ export function WorkspaceTools({
           </span>
         )}
         {findTools && <RibbonFinder entries={searchEntries} onPick={pick} />}
+        {tabTools}
         {switcher}
         {compact && (
           <button

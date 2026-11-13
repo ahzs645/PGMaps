@@ -7,7 +7,7 @@
     "preview": "ribbon.webp",
     "preset": "split",
     "sidebar": "collapsed",
-    "summary": { "visible": true, "placement": "top" },
+    "summary": { "visible": true, "placement": "left" },
     "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
     "toolbar": {
       "dock": "top",
@@ -16,6 +16,7 @@
       "compact": true,
       "editorPlacement": "pane",
       "quickAccess": ["saveProject", "undo", "redo"],
+      "tabTools": ["detachedPanels"],
       "label": "Command ribbon",
       "tabsLabel": "Ribbon tabs",
       "startGroup": "File",
@@ -54,7 +55,7 @@
               "primary": "import",
               "rows": 2,
               "items": ["import", "terrainSource"],
-              "more": ["lidar", "regional", "terrain"]
+              "more": ["detailedDem", "lidar", "regional", "terrain"]
             },
             {
               "label": "Import settings",
@@ -66,7 +67,7 @@
               "label": "Field mapping",
               "primary": "drawBlock",
               "rows": 2,
-              "items": ["drawBlock", "drawStream", "importReference"],
+              "items": ["drawBlock", "drawStream"],
               "more": ["drawAvoid", "drawProfile"]
             }
           ]
@@ -80,13 +81,13 @@
               "label": "Design criteria",
               "rows": 2,
               "items": ["maxGradePercent", "minRadius"],
-              "more": ["shortPitchGradePercent", "shortPitchMaxLengthM"]
+              "more": ["shortPitchGradePercent", "shortPitchMaxLengthM", "gradeDiagram"]
             },
             {
               "label": "Create alignment",
               "primary": "peg",
               "rows": 2,
-              "items": ["peg", "sketch", "duplicateRoad", "startDesign", "loadMapped"],
+              "items": ["peg", "sketch", "duplicateRoad", "findRoute", "startDesign", "loadMapped"],
               "more": ["importAlignment", "traceRoad", "peggingData", "alignment"]
             },
             {
@@ -188,7 +189,7 @@
             {
               "label": "Map layers",
               "rows": 2,
-              "items": ["contours", "stationLabels", "sentinel2", "earthworks"],
+              "items": ["importReference", "contours", "stationLabels", "sentinel2", "earthworks"],
               "more": ["terrainDisplay", "mapSettings", "mapLegend"]
             },
             {
@@ -217,7 +218,7 @@
     "preview": "guided.webp",
     "preset": "linked",
     "view": "focused",
-    "summary": { "visible": true, "placement": "top" },
+    "summary": { "visible": true, "placement": "left" },
     "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
     "toolbar": {
       "dock": "side",
@@ -260,20 +261,20 @@
     "icon": "panels",
     "preview": "workbench.webp",
     "preset": "linked",
-    "summary": { "visible": true, "placement": "top" },
+    "summary": { "visible": true, "placement": "left" },
     "panelFrame": { "background": "white", "inset": 12, "gap": 14, "resizeCorners": true }
   },
   {
     "id": "dashboard",
     "name": "Dashboard",
-    "description": "Every road measurement across the top, with plan, profile, section and data panes below.",
+    "description": "Detailed road measurements alongside the plan, profile, section and data panes.",
     "icon": "dashboard",
     "preview": "dashboard.webp",
     "preset": "engineering",
     "sidebar": "collapsed",
     "summary": {
       "visible": true,
-      "placement": "top",
+      "placement": "left",
       "metrics": {
         "length": "detailed",
         "elevation": "detailed",
@@ -292,6 +293,7 @@
       "loadMapped",
       "summarySettings",
       "presets",
+      "detachedPanels",
       "saveState",
       "controls",
       "undo",

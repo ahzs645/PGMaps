@@ -100,27 +100,20 @@ export function RibbonStrip({ children }: { children: ReactNode }) {
   return (
     <div className="lp-strip-frame" ref={frame}>
       {children}
-      {(previous || next) && (
-        <>
-          <button
-            type="button"
-            className="lp-strip-edge lp-prev"
-            aria-label="Previous ribbon tools"
-            disabled={!previous}
-            onClick={() => step(-1)}
-          >
-            <ChevronLeft size={16} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="lp-strip-edge lp-next"
-            aria-label="Next ribbon tools"
-            disabled={!next}
-            onClick={() => step(1)}
-          >
-            <ChevronRight size={16} aria-hidden="true" />
-          </button>
-        </>
+      {previous && (
+        <button
+          type="button"
+          className="lp-strip-edge lp-prev"
+          aria-label="Previous ribbon tools"
+          onClick={() => step(-1)}
+        >
+          <ChevronLeft size={16} aria-hidden="true" />
+        </button>
+      )}
+      {next && (
+        <button type="button" className="lp-strip-edge lp-next" aria-label="Next ribbon tools" onClick={() => step(1)}>
+          <ChevronRight size={16} aria-hidden="true" />
+        </button>
       )}
     </div>
   )

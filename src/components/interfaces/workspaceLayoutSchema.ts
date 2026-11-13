@@ -16,6 +16,7 @@ import {
   text,
   type JsonObject,
 } from '@/lib/jsonGuards'
+import { parsePanelWindowLayouts, type PanelWindowLayout } from '@pgmaps/geo-toolkit/ui/panel-window-layout'
 
 const WORKFLOW_EDITORS = ['terrain', 'design', 'template', 'engineering', 'review'] as const
 export type WorkflowEditor = (typeof WORKFLOW_EDITORS)[number]
@@ -39,6 +40,7 @@ export interface LayoutVocabulary<I extends string, C extends string, W extends 
   icons: readonly I[]
   commands: readonly C[]
   widgets: readonly W[]
+  panels?: readonly string[]
 }
 
 interface LayoutSection<C extends string = string, W extends string = string> {
@@ -67,6 +69,8 @@ export interface LayoutToolbar<I extends string = string, C extends string = str
   findTools?: boolean
   minimizeOnShortScreens?: boolean
   quickAccess?: C[]
+  /** Commands and widgets beside the tabs, independent of the selected tab. */
+  tabTools?: (C | W)[]
   includeProjectHeader?: boolean
   header?: 'controls'
   label: string
@@ -99,6 +103,8 @@ export interface LayoutConfig<I extends string = string, C extends string = stri
   toolbar?: LayoutToolbar<I, C, W>
   /** Commands and widgets on the header line, in order. Absent: the workspace's default line. */
   headerTools?: (C | W)[]
+  /** Optional separate-window/tab defaults, restored through the host's panel manager. */
+  panelWindows?: PanelWindowLayout[]
 }
 
 /** Parse summary options from a layout entry or browser storage. Unknown keys are refused. */
@@ -147,6 +153,7 @@ const LAYOUT_KEYS = [
   'panelFrame',
   'toolbar',
   'headerTools',
+  'panelWindows',
 ]
 
 export function parseLayout<I extends string, C extends string, W extends string>(
@@ -181,6 +188,12 @@ export function parseLayout<I extends string, C extends string, W extends string
       distinct(ids, `${label} repeats a header tool.`)
       return ids
     }),
+    panelWindows: optional(source, 'panelWindows', (v) => {
+      const placements = parsePanelWindowLayouts(v)
+      if (vocabulary.panels && placements.some((panel) => !vocabulary.panels!.includes(panel.slot)))
+        throw Error(`${label} panelWindows names an unknown panel.`)
+      return placements
+    }),
   })
 }
 
@@ -209,6 +222,7 @@ const TOOLBAR_KEYS = [
   'findTools',
   'minimizeOnShortScreens',
   'quickAccess',
+  'tabTools',
   'includeProjectHeader',
   'header',
   'label',
@@ -238,6 +252,12 @@ function parseToolbar<I extends string, C extends string, W extends string>(
     quickAccess: optional(source, 'quickAccess', (v) => {
       const ids = list(v, `${label} quickAccess`).map((id) => command(id, `${label} quickAccess command`))
       distinct(ids, 'Repeated quick access command.')
+      return ids
+    }),
+    tabTools: optional(source, 'tabTools', (v) => {
+      const tools: readonly (C | W)[] = [...vocabulary.commands, ...vocabulary.widgets]
+      const ids = list(v, `${label} tabTools`, 30).map((id) => oneOf(id, `${label} tab tool`, tools))
+      distinct(ids, 'Repeated tab-row tool.')
       return ids
     }),
     includeProjectHeader: flag('includeProjectHeader'),

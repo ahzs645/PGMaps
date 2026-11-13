@@ -30,10 +30,19 @@ export function rebuildPortableGuards(runtime, guards) {
 }
 
 export function helpRadiusTokens(appCss) {
+  const app = postcss.parse(appCss)
   const values = []
-  postcss.parse(appCss).walkDecls('--radius', (declaration) => values.push(declaration.value))
+  app.walkDecls('--radius', (declaration) => values.push(declaration.value))
   if (values.length !== 1) throw Error('Expected one shared --radius value in src/index.css.')
-  return `/* Generated from src/index.css by scripts/brand-help-tours.mjs. */\n:root { --radius: ${values[0]}; }\n`
+  // Standalone lessons ship the default rather than the browser's app preference.
+  let radius = values[0]
+  if (radius === 'var(--interface-radius, var(--interface-default-radius))') {
+    const defaults = []
+    app.walkDecls('--interface-default-radius', (declaration) => defaults.push(declaration.value))
+    if (defaults.length !== 1) throw Error('Expected one default interface radius in src/index.css.')
+    radius = defaults[0]
+  }
+  return `/* Generated from src/index.css by scripts/brand-help-tours.mjs. */\n:root { --radius: ${radius}; }\n`
 }
 
 export function tokenizedPlayerCss(css) {

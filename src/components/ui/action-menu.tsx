@@ -8,7 +8,10 @@ export type ActionMenuItem =
       type?: 'action'
       id: string
       label: string
+      ariaLabel?: string
       icon?: ReactNode
+      /** Two consecutive half-width actions share a row. */
+      width?: 'half'
       onSelect: () => void
       disabled?: boolean
       tone?: 'default' | 'danger'
@@ -65,7 +68,7 @@ export function ActionMenu({
       ...(panelRef.current?.querySelectorAll<HTMLButtonElement>('[data-menu-item]:not(:disabled)') ?? []),
     ]
     if (options.length === 0) return
-    const current = options.indexOf(document.activeElement as HTMLButtonElement)
+    const current = options.indexOf(panelRef.current?.ownerDocument.activeElement as HTMLButtonElement)
     const next =
       direction === 'first'
         ? 0
@@ -130,14 +133,15 @@ export function ActionMenu({
         width={width}
         className="py-1"
       >
-        <div id={menuId} role="menu" aria-label={label} onKeyDown={onMenuKeyDown}>
+        <div id={menuId} role="menu" aria-label={label} onKeyDown={onMenuKeyDown} className="grid grid-cols-2">
           {visibleItems.map((item) => {
-            if (item.type === 'separator') return <div key={item.id} role="separator" className="my-1 h-px bg-border" />
+            if (item.type === 'separator')
+              return <div key={item.id} role="separator" className="col-span-2 my-1 h-px bg-border" />
             if (item.type === 'label') {
               return (
                 <div
                   key={item.id}
-                  className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
+                  className="col-span-2 px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
                 >
                   {item.label}
                 </div>
@@ -150,10 +154,12 @@ export function ActionMenu({
                 type="button"
                 data-menu-item=""
                 role={checkable ? (item.radio ? 'menuitemradio' : 'menuitemcheckbox') : 'menuitem'}
+                aria-label={item.ariaLabel}
                 aria-checked={checkable ? item.checked : undefined}
                 disabled={item.disabled}
                 className={cn(
-                  'flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:opacity-50 touch:py-3',
+                  'flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted disabled:cursor-not-allowed disabled:opacity-50 touch:py-3',
+                  item.width !== 'half' && 'col-span-2',
                   item.tone === 'danger' && 'text-destructive',
                 )}
                 onClick={(event) => {

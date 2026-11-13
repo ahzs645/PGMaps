@@ -116,6 +116,79 @@ for (const width of [1440, 390]) {
     const phone = width === 390
     test.use({ viewport: { width, height: 900 }, hasTouch: phone, reducedMotion: 'reduce' })
 
+    test('the plan resize grip follows the panel corner and clears the map', async ({ page }) => {
+      await openWorkspace(page, 'Ribbon')
+      const map = page.getByTestId('road-plan-view')
+      const grip = page.getByRole('button', { name: 'Resize plan panel', exact: true })
+      const plan = grip.locator('..')
+      for (const radius of [8, 24]) {
+        await page.locator('html').evaluate((element, value) => {
+          element.style.setProperty('--interface-radius', `${value}px`)
+        }, radius)
+        const panelBox = (await plan.boundingBox())!
+        const mapBox = (await map.boundingBox())!
+        const gripBox = (await grip.boundingBox())!
+        const border = await plan.evaluate((element) => parseFloat(getComputedStyle(element).borderRightWidth))
+        expect(gripBox.x + gripBox.width).toBeCloseTo(panelBox.x + panelBox.width - border, 0)
+        expect(gripBox.y + gripBox.height).toBeCloseTo(panelBox.y + panelBox.height - border, 0)
+        expect(gripBox.y).toBeGreaterThanOrEqual(mapBox.y + mapBox.height)
+        const innerRadius = radius + 4 - border
+        await expect(grip).toHaveCSS('border-bottom-right-radius', `${innerRadius}px`)
+        expect(Math.min(gripBox.width, gripBox.height)).toBeGreaterThanOrEqual(innerRadius)
+      }
+      const initial = (await plan.boundingBox())!
+      await dragCorner(page, grip, -45, -45, phone)
+      const resized = (await plan.boundingBox())!
+      expect(resized.width).toBeCloseTo(initial.width - 45, 0)
+      expect(resized.height).toBeCloseTo(initial.height - 45, 0)
+      await grip.press('Enter')
+      expect((await plan.boundingBox())!.height).toBeCloseTo(initial.height, 0)
+    })
+
+    test('the Layers pane uses the same corner radius as the plan panel', async ({ page }) => {
+      await openWorkspace(page, 'Ribbon')
+      const plan = page.getByTestId('road-plan-view').locator('xpath=ancestor::section[1]')
+      const ribbon = page.getByRole('region', { name: 'Command ribbon' })
+      await ribbon.getByRole('tab', { name: 'View', exact: true }).click()
+      await ribbon.getByRole('button', { name: 'Layers', exact: true }).click()
+      const layers = page.getByRole(phone ? 'dialog' : 'complementary', { name: 'Layers', exact: true })
+      const grip = layers.getByRole('button', { name: 'Resize settings panel', exact: true })
+      const divider = page.getByRole('separator', { name: 'Resize road views and task panel', exact: true })
+      if (phone) {
+        await expect(divider).toHaveCount(0)
+      } else {
+        await expect(divider).toHaveAttribute('aria-orientation', 'vertical')
+        const widthOfLayers = async () => (await layers.boundingBox())!.width
+        const original = await widthOfLayers()
+        const canvas = await page.locator('[data-testid="road-plan-view"] canvas.maplibregl-canvas').elementHandle()
+        await dragCorner(page, divider, -56, 0, false)
+        await expect.poll(widthOfLayers).toBeGreaterThan(original + 40)
+        await divider.press('ArrowRight')
+        const saved = await widthOfLayers()
+        await expect.poll(widthOfLayers).toBeLessThan(original + 56)
+        await layers.getByRole('button', { name: 'Close Layers' }).click()
+        await expect(divider).toHaveCount(0)
+        await ribbon.getByRole('button', { name: 'Layers', exact: true }).click()
+        await expect.poll(async () => Math.round(await widthOfLayers())).toBe(Math.round(saved))
+        await divider.dblclick()
+        await expect.poll(async () => Math.round(await widthOfLayers())).toBe(Math.round(original))
+        expect(
+          await page
+            .locator('[data-testid="road-plan-view"] canvas.maplibregl-canvas')
+            .evaluate((node, old) => node === old, canvas),
+        ).toBe(true)
+      }
+      for (const radius of [8, 20]) {
+        await page.locator('html').evaluate((element, value) => {
+          element.style.setProperty('--interface-radius', `${value}px`)
+        }, radius)
+        const panelRadius = await plan.evaluate((element) => getComputedStyle(element).borderTopLeftRadius)
+        await expect(layers).toHaveCSS('border-top-left-radius', panelRadius)
+        await expect(layers).toHaveCSS('border-top-right-radius', panelRadius)
+        await expect(grip).toHaveCSS('border-bottom-right-radius', `${parseFloat(panelRadius) - 2}px`)
+      }
+    })
+
     test('the settings pane remembers its dragged size and resets', async ({ page }) => {
       await openWorkspace(page, 'Ribbon')
       const workspace = page.getByTestId('road-workspace')
@@ -128,7 +201,15 @@ for (const width of [1440, 390]) {
       const pane = page.getByRole(phone ? 'dialog' : 'complementary', { name: 'Drainage settings' })
       const grip = pane.getByRole('button', { name: 'Resize settings panel' })
       await expect(grip).toBeInViewport()
-      if (phone) await expect.poll(async () => (await pane.boundingBox())!.x).toBeCloseTo(15.6, 0)
+      if (phone) {
+        const inset = await workspace.evaluate((element) =>
+          Math.min(
+            Number.parseFloat(getComputedStyle(element).getPropertyValue('--workspace-panel-inset')),
+            innerWidth * 0.04,
+          ),
+        )
+        await expect.poll(async () => (await pane.boundingBox())!.x).toBeCloseTo(Math.max(12, inset), 0)
+      }
       const initial = (await pane.boundingBox())!
       if (phone) expect(width - initial.x - initial.width).toBeCloseTo(initial.x, 0)
       await dragCorner(page, grip, -36, -56, phone)

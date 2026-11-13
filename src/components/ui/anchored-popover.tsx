@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { MOTION_DURATION, useMotionPresence } from '@pgmaps/geo-toolkit/ui/motion'
+import { usePanelPortalContainer } from '@pgmaps/geo-toolkit/ui/panel-portal'
 import { cn } from '@/lib/utils'
 
 const GAP = 6,
@@ -20,8 +21,9 @@ function placePanel(panel: HTMLElement | null, anchorElement: HTMLElement | null
   // Measure layout dimensions: the feedback animation translates/scales the
   // surface, and its transformed bounds must not move the placement target.
   const size = { width: panel.offsetWidth, height: panel.offsetHeight }
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
+  const view = anchorElement!.ownerDocument.defaultView!
+  const viewportWidth = view.innerWidth
+  const viewportHeight = view.innerHeight
   const preferredLeft = align === 'end' ? anchor.right - size.width : anchor.left
   const left = Math.min(Math.max(MARGIN, preferredLeft), viewportWidth - size.width - MARGIN)
   const roomBelow = viewportHeight - anchor.bottom - GAP - MARGIN
@@ -86,34 +88,38 @@ export function AnchoredPopover({
   initialFocus?: boolean
 }) {
   const ownPanelRef = useRef<HTMLDivElement>(null)
+  const panelContainer = usePanelPortalContainer()
   const panelRef = externalPanelRef ?? ownPanelRef
   const { present, visible } = useMotionPresence(open, MOTION_DURATION.feedback)
 
   useLayoutEffect(() => {
+    const document = anchorRef.current?.ownerDocument ?? globalThis.document
     if (open && !placePanel(panelRef.current, anchorRef.current, align)) onClose()
     if (!open && panelRef.current?.contains(document.activeElement)) anchorRef.current?.focus()
   })
 
   useEffect(() => {
     if (!open || !initialFocus) return
+    const document = anchorRef.current?.ownerDocument ?? globalThis.document
     const panel = panelRef.current
     if (!panel || panel.contains(document.activeElement)) return
     const target =
       panel.querySelector<HTMLElement>('[data-autofocus]:not([disabled])') ??
       panel.querySelector<HTMLElement>(FOCUSABLE)
     target?.focus({ preventScroll: true })
-    if (target instanceof HTMLInputElement) {
+    if (target?.tagName === 'INPUT') {
       try {
-        target.select()
+        ;(target as HTMLInputElement).select()
       } catch {
         /* Not every input type can be selected; focus is what matters. */
       }
     }
     // `present` too: the panel may mount a render after `open` turns on.
-  }, [open, present, initialFocus, panelRef])
+  }, [open, present, initialFocus, panelRef, anchorRef])
 
   useEffect(() => {
     if (!open) return
+    const window = anchorRef.current?.ownerDocument.defaultView ?? globalThis.window
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.stopPropagation()
@@ -125,7 +131,7 @@ export function AnchoredPopover({
       if (anchorRef.current?.contains(target) || panelRef.current?.contains(target)) return
       // A dropdown or popover opened from inside this one renders in its own portal; choosing in it
       // is not a press outside.
-      if (target instanceof Element && target.closest('[data-floating-layer]')) return
+      if ((target as Element).nodeType === 1 && (target as Element).closest('[data-floating-layer]')) return
       onClose()
     }
     const place = () => {
@@ -161,6 +167,6 @@ export function AnchoredPopover({
     >
       {children}
     </div>,
-    container ?? document.body,
+    container ?? panelContainer ?? document.body,
   )
 }

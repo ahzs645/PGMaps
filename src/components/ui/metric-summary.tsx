@@ -168,6 +168,7 @@ export function MetricSummary({
   onExpand,
   onSettings,
   popoverContainer,
+  showHeading = true,
   variant = 'aside',
   empty,
   id = 'metric-summary-measurements',
@@ -182,20 +183,22 @@ export function MetricSummary({
   onSettings: (key?: string) => void
   /** Selector of the ancestor the row menu renders in, e.g. a full-screen workspace. */
   popoverContainer?: string
+  /** Hide the desktop heading and offer settings from the card's context menu. */
+  showHeading?: boolean
   variant?: 'aside' | 'pane'
   /** Shown in a pane when there is nothing to summarise yet. */
   empty?: ReactNode
   /** The rows' element id, for the small screen's expand button. */
   id?: string
 }) {
-  const [menu, setMenu] = useState<{ metric: MetricSummaryItem; container: Element | null } | null>(null)
+  const [menu, setMenu] = useState<{ metric?: MetricSummaryItem; container: Element | null } | null>(null)
   const anchor = useRef<HTMLElement | null>(null)
   const option = useRef<HTMLButtonElement>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
   useLayoutEffect(() => {
     if (menu) option.current?.focus()
   }, [menu])
-  function openMenu(node: HTMLElement, metric: MetricSummaryItem) {
+  function openMenu(node: HTMLElement, metric?: MetricSummaryItem) {
     anchor.current = node
     node.focus({ preventScroll: true })
     setMenu({ metric, container: popoverContainer ? node.closest(popoverContainer) : null })
@@ -207,31 +210,44 @@ export function MetricSummary({
   const shown = metrics.filter((metric) => preferences.metrics[metric.key] !== 'hidden')
   if (!pane && (!preferences.visible || !shown.length)) return null
   return (
-    <aside className="metric-summary-panel" data-variant={variant} aria-label={title}>
-      <div className="metric-summary-heading">
-        {collapsible ? (
+    <aside
+      className="metric-summary-panel"
+      data-variant={variant}
+      data-headingless={!showHeading && !collapsible ? '' : undefined}
+      aria-label={title}
+      tabIndex={showHeading ? undefined : -1}
+      onContextMenu={(event) => {
+        if (showHeading || event.defaultPrevented || !event.currentTarget.contains(event.target as Node)) return
+        event.preventDefault()
+        openMenu(event.currentTarget)
+      }}
+    >
+      {(showHeading || collapsible) && (
+        <div className="metric-summary-heading">
+          {collapsible ? (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-controls={id}
+              aria-label={expanded ? `Hide ${lower}` : `Show ${lower}`}
+              onClick={onExpand}
+            >
+              <BarChart3 size={15} /> <span className="metric-summary-label">{title}</span>{' '}
+              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          ) : (
+            <h2>{title}</h2>
+          )}
           <button
             type="button"
-            aria-expanded={expanded}
-            aria-controls={id}
-            aria-label={expanded ? `Hide ${lower}` : `Show ${lower}`}
-            onClick={onExpand}
+            title={`${title} settings`}
+            aria-label={`Configure ${lower}`}
+            onClick={() => onSettings()}
           >
-            <BarChart3 size={15} /> <span className="metric-summary-label">{title}</span>{' '}
-            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <Settings2 size={15} />
           </button>
-        ) : (
-          <h2>{title}</h2>
-        )}
-        <button
-          type="button"
-          title={`${title} settings`}
-          aria-label={`Configure ${lower}`}
-          onClick={() => onSettings()}
-        >
-          <Settings2 size={15} />
-        </button>
-      </div>
+        </div>
+      )}
       {pane && !shown.length ? (
         <div className="metric-summary-empty">
           {metrics.length ? 'All measurements are hidden. Choose which to show in the settings.' : empty}
@@ -288,7 +304,7 @@ export function MetricSummary({
         anchorRef={anchor}
         onClose={closeMenu}
         role="menu"
-        ariaLabel={menu ? `Options for ${metricName(menu.metric)}` : undefined}
+        ariaLabel={`Options for ${menu?.metric ? metricName(menu.metric) : lower}`}
         width={204}
         container={menu?.container}
         className="p-1"
@@ -302,7 +318,7 @@ export function MetricSummary({
             if (event.key === 'Tab') closeMenu()
           }}
           onClick={() => {
-            const key = menu?.metric.key
+            const key = menu?.metric?.key
             anchor.current?.focus()
             closeMenu()
             onSettings(key)

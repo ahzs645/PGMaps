@@ -12,8 +12,9 @@ const GAP = 6,
  * leaving closes it. The bubble renders in a portal at fixed position above dialogs, so a
  * scrolling sidebar or an `overflow-hidden` card cannot clip it. Use it for explanations a reader needs once, not for
  * a warning they must see: those stay inline (`InlineAlert`). The exception is a standing caveat
- * that is not news, such as screening-grade terrain: `tone="warning"` keeps an amber triangle in view
- * and puts its wording behind it.
+ * that is not news, such as screening-grade terrain, or a status in a panel header with no room for
+ * a sentence, such as the cross-section's incomplete section: `tone="warning"` keeps an amber
+ * triangle in view and puts its wording behind it.
  */
 export function InfoTip({
   label,

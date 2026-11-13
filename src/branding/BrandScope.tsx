@@ -7,6 +7,12 @@ import './branding.css'
 export function BrandScope({ children, surface = 'workspace' }: { children: ReactNode; surface?: BrandSurface }) {
   const { brands, settings } = useBranding()
   const brand = settings[surface] ? brands.find((b) => b.key === settings.selected) : undefined
+  const variables = brand && brandVariables(brand, settings.typography, surface === 'help')
+  if (variables && surface === 'workspace') {
+    delete variables['--primary']
+    delete variables['--primary-foreground']
+    delete variables['--ring']
+  }
   useEffect(() => {
     if (surface !== 'help' || !brand) return
     const style = document.documentElement.style,
@@ -26,7 +32,7 @@ export function BrandScope({ children, surface = 'workspace' }: { children: Reac
       data-brand-surface={surface}
       data-brand-id={brand?.profile.id}
       data-brand-typography={(!!brand && settings.typography) || undefined}
-      style={brand ? (brandVariables(brand, settings.typography, surface === 'help') as CSSProperties) : undefined}
+      style={variables as CSSProperties | undefined}
     >
       {brand && settings.typography && <style>{fontCss(brand)}</style>}
       {children}

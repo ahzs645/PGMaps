@@ -73,7 +73,7 @@ test('the road plan measures, switches to satellite and closes a drawn block on 
   const canvas = (await plan.locator('canvas').first().boundingBox())!
 
   // Basemap: the same choices as the visual-quality maps, imagery under the plan's layers.
-  await plan.getByRole('button', { name: 'Layers', exact: true }).click()
+  await plan.getByRole('button', { name: 'Basemap', exact: true }).click()
   await plan.locator('[data-basemap="satellite"] input').check()
   await expect.poll(() => page.evaluate(() => localStorage.getItem('pgmaps-road-basemap'))).toBe('satellite')
 

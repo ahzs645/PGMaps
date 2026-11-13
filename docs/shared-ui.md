@@ -23,6 +23,41 @@ name `.geo-toolkit` with the toolkit stylesheet's own selectors and load after i
 one edit there reaches every page and every workspace. `src/designTokens.test.ts`
 fails if the toolkit gains a token the app does not set, in either theme.
 
+Open **Appearance** in the site navigation or **Branding → Interface theme** in
+the road workspace. Start with a preset or edit either palette and the shared
+corner radius. The component preview updates while you edit. **Apply theme**
+saves the theme in this browser and updates shared controls across pages,
+including dialogs and map toolbars. **Export CSS** copies the configured
+shadcn-style variables for light and dark mode. A custom primary colour takes
+precedence over the workspace's Brandkit primary. Reset the field to use the
+brand colour or built-in theme. Map symbols and reports have their own settings.
+
+- **Surfaces.** The page is `background`; a card on it (`bg-card`: a plain `insetBox`, a
+  stat tile, a list of rows in a sidebar) is one step up, 9% against the page's 3.9% in the
+  dark theme, which are shadcn's values, and white on white in the light theme, where the
+  border does the work. A menu, tooltip or dialog is `popover`, the same raised step, and
+  the theme's card colour when Appearance sets a card but no popover. A dialog needs no class for this:
+  `src/index.css` sets `--background` to the popover colour on `.geo-motion-dialog-content`,
+  so `bg-background` fields, headers and tables inside any `Dialog`, `DialogShell` or
+  `PanelDialog` sit on the raised tone. Never give a dialog its own surface colour. A docked
+  panel that should read apart from the page (the road designer's sidebar) takes the same
+  layers with the `raised-surface` class and `bg-background`. The dark
+  `border` (18%) and `input` (22.7%) are shadcn's 10% and 15% white edges as solid colours,
+  chosen so a box outline stays visible on the raised surface. Two more steps exist only
+  inside a dialog: `--raised` for a box (`bg-card` is rebound to it there, so a plain
+  `insetBox` climbs with its surface) and `--raised-muted` for tracks, tabs and hovers on it, bound to `muted`,
+  `secondary` and `accent` unless the theme sets those. Dark climbs 3.9 → 9 → 13 → 17%; light
+  uses a faint 98% well. A field inside a card keeps `bg-background`, so it reads as a well. For an Appearance theme `interfaceTheme.ts` derives both from the
+  theme's popover or card colour, in its hue.
+- **Surfaces under an Appearance theme.** A theme may give the page its own colour while
+  cards stay white, and then a `bg-background` field on a card showed the page colour as a
+  tinted patch. While a theme sets any colour, `interfaceTheme.ts` puts `data-interface-theme`
+  on `<html>` (the Appearance preview sets it on itself), and `src/index.css` rebinds
+  `--background` inside `bg-card` and `bg-popover` to that surface, as a dialog does. A
+  selected card tinted with fixed palette classes for the built-in theme marks itself
+  `data-selected-card`; under a theme it takes `accent` with a `primary` edge. The built-in
+  theme never has the attribute, so it looks as before. A theme's `muted` colour leaves
+  `muted-foreground` (the hint-text grey) at its default rather than deriving black or white.
 - **Corners.** `--radius` (0.5rem) drives every step: `rounded-sm`/`rounded` 4 px,
   `rounded-md` 6, `rounded-lg` 8, `rounded-xl` 12, `rounded-2xl` 16. Pick by role:
   `rounded-sm` for small marks (swatches, tags, map labels), `rounded-md` for controls
@@ -42,7 +77,9 @@ fails if the toolkit gains a token the app does not set, in either theme.
   form field (`roadFieldClass`), and `icon-xs`/`icon-2xs`; no `h-*` override on a `Button`.
 - **Bordered groups.** `insetBox({ padding, tone })` (`inset-box.tsx`) on any element, or
   `<InsetBox>`: one radius and padding scale for a fieldset, details block, figure or
-  bordered list inside a section. Notes and warnings use `InlineAlert`.
+  bordered list inside a section. Notes and warnings use `InlineAlert`. `hoverRows` highlights
+  the row under the pointer in a `padding: 'none'` list a reader acts on (`li` and `div` rows
+  and `CollapsibleSection` headers); leave it off for rows that only read.
 
 The forestry tools (`/dev/forestry/*` and `src/components/interfaces`) enforce these with a
 lint rule (`designTokenSelectors` in `eslint.config.js`): no plain `rounded`, arbitrary
@@ -63,7 +100,7 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
 | Head of a scrolling tool page                     | `ToolPageHeader` (`tool-page-header.ts`): `back`, `eyebrow`, `eyebrowIcon`, `title`, `description`, `aside`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | Local files                                       | `FileDropField` (`file-drop-field.ts`): `Add files`, optional `folderLabel`, and drag and drop, including dropped folders. `multiple={false}` for an import that reads one file (a drop still hands over every file; take the first). `filesFromInput` and `filesFromDrop` (`picked-files.ts`) are the DOM-only helpers, with no React. For an import button in a toolbar or panel, `FileButton` (`file-button.ts`): a `Button` over a hidden input named by `label`; `onFiles` gets `File[]`, and the input clears so the same file can be picked again. The LiDAR inventory toolbar is the reference.     |
 | A titled block inside it                          | `SidebarSection` (`title`, `icon`, `actions`; `headingLevel={3}` when nested under another heading; `variant="subsection"` for a block inside a step: a hairline above, none below, heading level 3)                                                                                                                                                                                                                                                                                                                                                                                                        |
-| A dense tool sidebar's sections                   | `ToolSection` (`tool-section.tsx`, app-level): a flat section with `title`, its explanation as `help` behind an (i), `actions` on the heading row, and `summary` to fold it to one row of live values (`toggleProps` for test hooks). `ToolDisclosure` is a fold inside one: a hairline above, label aligned with the section, no card. The forestry road designer (`RoadSection` wraps it) and visual-quality sidebars use them; don't nest a `ToolSection` in another.                                                                                                                                    |
+| A dense tool sidebar's sections                   | `ToolSection` (`tool-section.tsx`, app-level): a flat section with `title`, its explanation as `help` behind an (i), `actions` on the heading row, and `summary` to fold it to one row of live values (`toggleProps` for test hooks). `ToolDisclosure` is a fold inside one: a hairline above, label aligned with the section, no card, and its own `help` behind an (i) instead of a paragraph inside it. Every fold's header row highlights under the pointer. The forestry road designer (`RoadSection` wraps it) and visual-quality sidebars use them; don't nest a `ToolSection` in another.           |
 | Numbered steps of a procedure                     | `StepSection` (`step-section.tsx`): `step`, `title`, `status` (`done` / `current` / `todo`), `reference`, one-line `summary`; folds to its header and keeps its content mounted. `collapsible={false}` gives a plain heading for a step already in its own tab panel. `StepMarker` is the numbered/checked circle on its own, for tabs. For a long procedure, show one step at a time: `TabBar` with a `StepMarker` per tab, each step's panel kept mounted and `hidden` when not selected (the forestry visual-quality sidebar is the reference: the tabs at the top of the scroll, `ToolSection`s below). |
 | Settings people set once (mode, period)           | `MobileCollapsibleSection` (folds on phones only)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | A disclosure at every width                       | `CollapsibleSection collapseOn="always"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -526,6 +563,24 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
 
 - Chart/panel expansion: `FullscreenPanel` provides a titled frame and full-window
   expansion button; its render child receives the fullscreen state for layout.
+  Pass `heading` to put a control (such as a view picker whose value names the
+  panel) in the title's place; `title` stays the accessible name and a visually
+  hidden heading. Opt into `detachable` for the shared window/tab chooser, synced React portals,
+  return/focus controls and lifecycle cleanup. Keep shared model state above the
+  panel; local view state remounts on detach/return. Custom frames can use the
+  toolkit's `usePanelWindow` and `PanelWindowButton`. The main workspace stays
+  open while its detached panels are in use.
+  `TiledWorkspace` uses the toolkit's `PanelWindowProvider` / `PanelWindowSlot`
+  registry to remove detached panes and empty columns from sizing without
+  unmounting them. The remaining views fill the space, and one compact
+  `PanelWindowControls` button supplies Show/Return actions.
+  A host can wrap its whole workspace in `PanelWindowProvider` and use
+  `windowControls="external"` to place that button in its ribbon/header;
+  `windowControls="inline"` shares that registry but keeps the button above
+  the panes. `TileLayoutPicker` includes detached windows/tabs and their bounds
+  in named layouts when it is inside that shared provider. Road design restores
+  the selection through `PanelWindowLayoutRestore` even with its picker on an
+  inactive ribbon tab.
   Opt into `compact` for a single-row header with smaller chrome and truncated
   long titles. `FullscreenButton` also accepts `compact` for a 32px icon button.
   `useElementFullscreen` and `FullscreenButton` support an existing dashboard

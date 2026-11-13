@@ -14,7 +14,7 @@ describe('workspace layout catalog', () => {
   it('parses the served layouts, including the dashboard', () => {
     const layouts = parseLayoutCatalog(shipped)
     expect(layouts.map((layout) => layout.id)).toEqual(['ribbon', 'guided', 'workbench', 'dashboard'])
-    expect(layouts.find((layout) => layout.id === 'dashboard')?.summary?.placement).toBe('top')
+    expect(layouts.map((layout) => layout.summary?.placement)).toEqual(['left', 'left', 'left', 'left'])
     expect(layouts.find((layout) => layout.id === 'workbench')?.panelFrame?.background).toBe('white')
   })
 
@@ -37,6 +37,15 @@ describe('workspace layout catalog', () => {
       sidebar: 'open',
       view: 'responsive',
     })
+  })
+
+  it('places detached-panel controls in the tab row and accepts popup layout defaults', () => {
+    const ribbon = parseLayoutCatalog(shipped).find((layout) => layout.id === 'ribbon')!
+    expect(ribbon.toolbar?.tabTools).toEqual(['detachedPanels'])
+    const [layout] = parseLayoutCatalog([
+      { ...minimal, panelWindows: [{ slot: 'plan', mode: 'window', left: -1600, width: 1400 }] },
+    ])
+    expect(layout.panelWindows).toEqual([{ slot: 'plan', mode: 'window', left: -1600, width: 1400 }])
   })
 
   it.each([
@@ -73,6 +82,11 @@ describe('workspace layout catalog', () => {
     ],
     [[toolbar([{ label: 'A', commands: ['undo'] }], { dock: 'side', header: 'controls' })], 'uses a top toolbar'],
     [[toolbar([{ label: 'A', commands: ['undo'] }], { quickAccess: ['undo', 'undo'] })], 'Repeated quick access'],
+    [
+      [toolbar([{ label: 'A', commands: ['undo'] }], { tabTools: ['detachedPanels', 'detachedPanels'] })],
+      'Repeated tab-row tool',
+    ],
+    [[{ ...minimal, panelWindows: [{ slot: 'unknown', mode: 'window' }] }], 'unknown panel'],
   ])('refuses %j', (catalog, message) => {
     expect(() => parseLayoutCatalog(catalog)).toThrow(message)
   })

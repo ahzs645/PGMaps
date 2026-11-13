@@ -33,14 +33,6 @@
   ):not([data-fullscreen]) {
   padding-block-end: 4px;
 }
-/* The plan's map fills its frame, so its bottom margin matches the sides (p-3) and the grip sits over the
-   map's rounded corner. A touch grip is larger and would cover the legend, so it keeps the reserve. */
-@media not (pointer: coarse) {
-  .road-workspace[data-interface]
-    section:has(> .lp-panel-grip):has([data-testid='road-plan-view']):not([data-fullscreen]) {
-    padding-block-end: 0.75rem;
-  }
-}
 .lp-guide-window {
   position: relative;
   display: flex;
@@ -93,18 +85,18 @@
    the rounded corner. A host whose card carries the border sets --lp-grip-corner to that card's radius; a
    window wrapping a bordered card also sets --lp-grip-inset: 2px, because the grip is then outside the border. */
 .road-workspace[data-interface] section:has(> .lp-panel-grip) {
-  --lp-grip-corner: 0.75rem;
+  --lp-grip-corner: calc(var(--radius) + 4px);
 }
 .lp-controls-window {
-  --lp-grip-corner: 0.75rem;
+  --lp-grip-corner: calc(var(--radius) + 4px);
   --lp-grip-inset: 2px;
 }
 .lp-guide-window {
   --lp-grip-corner: var(--radius);
   --lp-grip-inset: 2px;
 }
-.lp-task-pane:has(> .lp-panel-grip) {
-  --lp-grip-corner: calc(var(--radius) - 2px);
+:is(.lp-task-pane, .lp-task-sheet):has(> .lp-panel-grip) {
+  --lp-grip-corner: var(--lp-task-radius);
 }
 .lp-panel-grip {
   position: absolute;
@@ -138,7 +130,7 @@
 }
 .lp-panel-grip:hover,
 .lp-panel-grip:focus-visible {
-  color: hsl(var(--foreground));
+  color: hsl(var(--accent-foreground));
   background: hsl(var(--accent));
 }
 @media (pointer: coarse) {
@@ -155,5 +147,28 @@
       :has([data-testid='road-section-tools'])
     ):not([data-fullscreen]) {
     padding-block-end: 9px;
+  }
+}
+
+/* Keep the grip below the map and flush with the inside of the panel border. Its box must fit the
+   full corner radius, or the browser scales the curve down when a larger theme radius is selected. */
+.road-workspace[data-interface] [data-pane='plan'] > section:has(> .lp-panel-grip):not([data-fullscreen]) {
+  --plan-grip-radius: calc(var(--lp-grip-corner) - 1px);
+  --plan-grip-height: max(19px, var(--plan-grip-radius));
+  --plan-grip-width: max(22px, var(--plan-grip-radius));
+  padding-block-end: calc(var(--plan-grip-height) + 2px);
+}
+.road-workspace [data-pane='plan'] > section > .lp-panel-grip {
+  right: 0;
+  bottom: 0;
+  width: var(--plan-grip-width);
+  height: var(--plan-grip-height);
+  border-radius: calc(var(--radius) - 4px) 0 0;
+  border-end-end-radius: var(--plan-grip-radius);
+}
+@media (pointer: coarse) {
+  .road-workspace[data-interface] [data-pane='plan'] > section:has(> .lp-panel-grip):not([data-fullscreen]) {
+    --plan-grip-height: max(28px, var(--plan-grip-radius));
+    --plan-grip-width: max(34px, var(--plan-grip-radius));
   }
 }

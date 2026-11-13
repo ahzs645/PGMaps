@@ -13,6 +13,7 @@ export const ribbonWidgetLabels: Record<WorkspaceWidget, string> = {
   interfaceSwitch: 'Workspace interface',
   history: 'Edit history',
   saveState: 'Save status',
+  detachedPanels: 'Detached panels',
 }
 export const isRibbonCommand = (id: RibbonTool): id is WorkspaceCommand =>
   Object.prototype.hasOwnProperty.call(workspaceCommands, id)

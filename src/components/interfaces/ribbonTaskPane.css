@@ -4,32 +4,24 @@
   min-width: 0;
   min-height: 0;
 }
-.lp-task-slot {
-  display: none;
-}
-.lp-task-slot:has(> .lp-task-pane) {
-  display: flex;
-  flex: 0 0 clamp(18rem, 27%, 24rem);
-  min-width: 0;
-  min-height: 0;
-  margin-inline-start: var(--workspace-panel-gap, 8px);
-}
 .lp-task-pane,
 .lp-task-sheet[data-dialog-variant] {
+  /* Match the rounded-xl workspace panels beside the task pane. */
+  --lp-task-radius: calc(var(--radius) + 4px);
   display: flex;
   flex-direction: column;
   gap: 0;
   min-height: 0;
   padding: 0;
   overflow: hidden;
-  color: hsl(var(--foreground));
+  color: hsl(var(--card-foreground));
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
 }
 .lp-task-pane {
   width: 100%;
   height: 100%;
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: var(--lp-task-radius);
 }
 .lp-task-sheet[data-dialog-variant] {
   position: fixed;
@@ -38,7 +30,7 @@
   height: 100dvh;
   max-height: 100dvh;
   max-width: none;
-  border-radius: 0;
+  border-radius: var(--lp-task-radius) 0 0 var(--lp-task-radius);
   transform: none;
 }
 .lp-task-pane:has(> .lp-panel-grip) {
@@ -54,6 +46,7 @@
   inset: 0 auto auto calc(100vw - var(--sheet-inset) - var(--sheet-width));
   width: clamp(min(15.5rem, var(--sheet-width)), var(--corner-width, var(--sheet-width)), var(--sheet-width));
   height: clamp(min(12rem, 100dvh), var(--corner-height, 100dvh), 100dvh);
+  border-radius: var(--lp-task-radius);
   padding-bottom: max(28px, env(safe-area-inset-bottom));
 }
 .lp-task-backdrop {
@@ -77,18 +70,6 @@
 .lp-task-heading span {
   font-size: 11px;
   color: hsl(var(--muted-foreground));
-}
-.lp-task-heading button {
-  display: inline-grid;
-  place-content: center;
-  flex: none;
-  width: 32px;
-  height: 32px;
-  color: hsl(var(--muted-foreground));
-  border-radius: calc(var(--radius) - 4px);
-}
-.lp-task-heading button:hover {
-  background: hsl(var(--accent));
 }
 .lp-task-content {
   flex: 1;
@@ -130,11 +111,5 @@
   }
   .lp-task-sheet[data-dialog-variant][data-state='open'] {
     animation: lp-drawer-enter 180ms ease-out;
-  }
-}
-@media (pointer: coarse) {
-  .lp-task-heading button {
-    width: 40px;
-    height: 40px;
   }
 }

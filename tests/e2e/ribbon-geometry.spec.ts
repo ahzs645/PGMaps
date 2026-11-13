@@ -12,6 +12,9 @@ const box = async (locator: Locator) => {
 for (const width of [1440, 1024, 390]) {
   test(`every ribbon tab keeps one height and the tab row stays put at ${width}px`, async ({ page }) => {
     test.setTimeout(90_000)
+    await page.addInitScript(() => {
+      localStorage.setItem('pgmaps-interface-colours-v1', JSON.stringify({ light: {}, dark: {}, radius: 24 }))
+    })
     await page.setViewportSize({ width, height: 900 })
     await page.route('https://basemaps.cartocdn.com/**', (route) =>
       route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
@@ -22,12 +25,24 @@ for (const width of [1440, 1024, 390]) {
     const find = ribbon.getByRole('button', { name: /Find tools/ })
     const plan = page.getByTestId('road-plan-view')
     await expect(plan).toBeVisible()
+    await expect(tabs).toHaveCSS('border-radius', '0px')
+    const inspect = plan.getByRole('button', { name: 'Inspect', exact: true })
+    const edit = plan.getByRole('button', { name: 'Edit points', exact: true })
+    const settings = plan.getByRole('button', { name: 'Map display settings', exact: true })
+    const notes = plan.getByRole('button', { name: 'Map notes', exact: true })
+    expect((await box(inspect)).y).toBe((await box(edit)).y)
+    expect(Math.abs((await box(notes)).y - (await box(edit)).y)).toBeLessThanOrEqual(1)
+    if (width === 390) expect((await box(notes)).y).toBeGreaterThan((await box(settings)).y)
+    if (width === 1440) expect((await box(notes)).y).toBe((await box(settings)).y)
+    await expect(settings).toHaveCSS('border-radius', '8px')
     const names = (await tabs.getByRole('tab').allInnerTexts()).map((name) => name.trim())
     expect(names.length).toBeGreaterThan(4)
     let first: { ribbon: Awaited<ReturnType<typeof box>>; plan: number; find: number } | undefined
     for (const name of names) {
       await tabs.getByRole('tab', { name, exact: true }).click()
-      await expect(tabs.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true')
+      const active = tabs.getByRole('tab', { name, exact: true })
+      await expect(active).toHaveAttribute('aria-selected', 'true')
+      expect(await active.evaluate((element) => getComputedStyle(element, '::after').height)).toBe('3px')
       const now = { ribbon: await box(ribbon), plan: (await box(plan)).y, find: (await box(find)).x }
       first ??= now
       expect(now.ribbon, `ribbon on ${name}`).toEqual(first.ribbon)
@@ -95,4 +110,99 @@ test('a narrow ribbon folds quick access and the interface switch into More', as
   await expect(ribbon.getByRole('button', { name: 'Switch workspace interface' })).toBeHidden()
   await ribbon.getByRole('button', { name: 'More workspace commands' }).click()
   await expect(page.getByRole('menuitem')).toHaveText(['Save project file', /^Undo/, /^Redo/, 'Switch interface'])
+})
+
+test('ribbon scroll arrows appear only in directions with more tools', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
+  const ribbon = page.getByRole('region', { name: 'Command ribbon' })
+  const strip = ribbon.locator('.lp-strip-frame .lp-tools')
+  const previous = ribbon.getByRole('button', { name: 'Previous ribbon tools', exact: true })
+  const next = ribbon.getByRole('button', { name: 'Next ribbon tools', exact: true })
+  await expect(next).toBeVisible()
+  await expect(previous).toHaveCount(0)
+  const initial = await box(ribbon)
+
+  await next.click()
+  await expect(previous).toBeVisible()
+  await expect.poll(() => strip.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)
+  await strip.evaluate((element) => element.scrollTo({ left: element.scrollWidth }))
+  await expect(next).toHaveCount(0)
+  await expect(previous).toBeVisible()
+  expect(await box(ribbon)).toEqual(initial)
+
+  const end = await strip.evaluate((element) => element.scrollLeft)
+  await previous.click()
+  await expect.poll(() => strip.evaluate((element) => element.scrollLeft)).toBeLessThan(end)
+  await expect(next).toBeVisible()
+  await strip.evaluate((element) => element.scrollTo({ left: 0 }))
+  await expect(previous).toHaveCount(0)
+  await expect(next).toBeVisible()
+  expect(await box(ribbon)).toEqual(initial)
+
+  await page.setViewportSize({ width: 1920, height: 900 })
+  await expect(previous).toHaveCount(0)
+  await expect(next).toHaveCount(0)
+})
+
+test('small wheel movements keep the ribbon viewport stable at both ends', async ({ page }) => {
+  await page.setViewportSize({ width: 1335, height: 963 })
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
+  const ribbon = page.getByRole('region', { name: 'Command ribbon' })
+  await ribbon.getByRole('tab', { name: 'View', exact: true }).click()
+  const strip = ribbon.locator('.lp-strip-frame .lp-tools')
+  const previous = ribbon.getByRole('button', { name: 'Previous ribbon tools', exact: true })
+  const next = ribbon.getByRole('button', { name: 'Next ribbon tools', exact: true })
+  await expect(next).toBeVisible()
+  const geometry = () =>
+    strip.evaluate(async (element) => {
+      await new Promise(requestAnimationFrame)
+      await new Promise(requestAnimationFrame)
+      return {
+        left: element.getBoundingClientRect().left,
+        width: element.clientWidth,
+        scroll: element.scrollLeft,
+        tool: element.firstElementChild!.getBoundingClientRect().left,
+      }
+    })
+  const initial = await geometry()
+  const bounds = (await strip.boundingBox())!
+  await page.mouse.move(bounds.x + 100, bounds.y + bounds.height - 5)
+  let last = initial
+  // Small trackpad movements used to add an arrow column and move the tools backwards.
+  for (const delta of [2, 2, 3, 3]) {
+    await page.mouse.wheel(delta, 0)
+    await expect.poll(() => strip.evaluate((element) => element.scrollLeft)).toBeGreaterThan(last.scroll)
+    const now = await geometry()
+    expect(now.left).toBe(initial.left)
+    expect(now.width).toBe(initial.width)
+    expect(now.tool).toBeLessThan(last.tool)
+    last = now
+  }
+  await expect(previous).toBeVisible()
+  await strip.evaluate((element) => element.scrollTo({ left: element.scrollWidth }))
+  await expect(next).toHaveCount(0)
+  const end = await geometry()
+  expect(end.width).toBe(initial.width)
+  // Continued wheel momentum at the end must not bring the arrow back or jump the content.
+  for (let i = 0; i < 3; i++) {
+    await page.mouse.wheel(8, 0)
+    expect(await geometry()).toEqual(end)
+    await expect(next).toHaveCount(0)
+  }
+  await page.mouse.wheel(0, -3)
+  await expect(next).toBeVisible()
+  const back = await geometry()
+  expect(back.width).toBe(initial.width)
+  expect(back.left).toBe(initial.left)
+  expect(back.tool).toBeGreaterThan(end.tool)
+  await strip.evaluate((element) => element.scrollTo({ left: 0 }))
+  await expect(previous).toHaveCount(0)
+  expect(await geometry()).toEqual(initial)
 })

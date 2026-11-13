@@ -7,6 +7,9 @@ import '@pgmaps/geo-toolkit/styles.css'
 import './index.css'
 import { dataHostOrigins } from '@/lib/dataHosts'
 import { DATA_HOSTS } from '@/lib/dataUrl'
+import { initializeInterfaceTheme } from '@/lib/interfaceTheme'
+
+initializeInterfaceTheme()
 
 // The service worker caches aggressively, so it stays production-only; in dev
 // it would keep serving stale modules across edits.

@@ -81,6 +81,11 @@
 .lp-pane-editor [data-workflow-editor]:not([hidden]) {
   grid-template-columns: minmax(0, 1fr);
 }
+/* Shared sidebar sections use the page background. Inside a task pane, let its
+   card surface show through the sections as it does through the pane header. */
+.lp-pane-editor section.bg-background\/95 {
+  background-color: transparent;
+}
 @media (pointer: coarse) {
   .lp-command-group > .lp-group-label {
     min-height: 24px;

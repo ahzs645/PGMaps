@@ -36,6 +36,7 @@ export const workspaceWidgets = [
   'interfaceSwitch',
   'history',
   'saveState',
+  'detachedPanels',
   ...ribbonFieldIds,
 ] as const
 export type WorkspaceWidget = (typeof workspaceWidgets)[number]
@@ -44,6 +45,7 @@ const vocabulary: LayoutVocabulary<LayoutIcon, WorkspaceCommand, WorkspaceWidget
   icons: Object.keys(layoutIcons) as LayoutIcon[],
   commands: workspaceCommandIds,
   widgets: workspaceWidgets,
+  panels: ['plan', 'profile', 'detail', 'data'],
 }
 
 export type WorkspaceLayout = LayoutConfig<LayoutIcon, WorkspaceCommand, WorkspaceWidget>
@@ -59,6 +61,7 @@ export function resolveToolbar(toolbar: WorkspaceToolbar): WorkspaceToolbar {
   const sections = toolbar.groups.flatMap((tab) => tab.sections ?? [])
   if (!sections.some((section) => section.collect)) return toolbar
   const placed = new Set<WorkspaceCommand | WorkspaceWidget>([
+    ...(toolbar.tabTools ?? []),
     ...toolbar.groups.flatMap((tab) => tab.commands ?? []),
     ...sections.flatMap((section) => [...section.items, ...(section.more ?? [])]),
   ])

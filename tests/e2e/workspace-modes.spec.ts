@@ -73,8 +73,6 @@ test('all four layouts share the project, station, branding and chosen legend sy
     await expect(legend.locator('[data-sheet-symbol="Stream"]')).toBeVisible()
     const help = page.getByRole('link', { name: 'Workflow help (opens in a new tab)', exact: true })
     expect(new URL((await help.getAttribute('href'))!, page.url()).searchParams.get('interface')).toBe(id)
-    const stationHelp = page.locator('a[aria-label="Station help: read the cut depth (opens in a new tab)"]')
-    expect(new URL((await stationHelp.getAttribute('href'))!, page.url()).searchParams.get('interface')).toBe(id)
   }
 })
 

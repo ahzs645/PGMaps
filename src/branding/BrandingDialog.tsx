@@ -2,17 +2,25 @@ import { useRef, useState } from 'react'
 import { Button } from '../components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { StyledSelect } from '../components/ui/styled-select'
+import { AppearanceDialog } from '../components/layout/AppearanceDialog'
 import { logoDataUrl, pdfFontProblem, type BrandSettings } from './model'
 import { removeBrand, saveBrand, saveBrandSettings } from './store'
 import { useBranding } from './useBranding'
 import './branding.css'
 
-export function BrandingDialog({ onClose }: { onClose: () => void }) {
+export function BrandingDialog({
+  onClose,
+  portalContainer,
+}: {
+  onClose: () => void
+  portalContainer?: HTMLElement | null
+}) {
   const state = useBranding()
   const [draft, setDraft] = useState<BrandSettings>(() => ({ ...state.settings }))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [appearanceOpen, setAppearanceOpen] = useState(false)
   const picker = useRef<HTMLInputElement>(null)
   const brand = state.brands.find((brand) => brand.key === draft.selected)
   const problem = brand ? pdfFontProblem(brand) : null
@@ -43,6 +51,8 @@ export function BrandingDialog({ onClose }: { onClose: () => void }) {
       <span>{label}</span>
     </label>
   )
+  if (appearanceOpen)
+    return <AppearanceDialog onClose={() => setAppearanceOpen(false)} portalContainer={portalContainer} />
   return (
     <Dialog
       open
@@ -50,7 +60,7 @@ export function BrandingDialog({ onClose }: { onClose: () => void }) {
         if (!open && !busy) onClose()
       }}
     >
-      <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto" elevated>
+      <DialogContent className="max-h-[90dvh] max-w-xl overflow-y-auto" elevated portalContainer={portalContainer}>
         <DialogHeader>
           <DialogTitle>Branding</DialogTitle>
           <DialogDescription>
@@ -147,6 +157,9 @@ export function BrandingDialog({ onClose }: { onClose: () => void }) {
           </p>
         </fieldset>
         <div className="flex flex-wrap justify-end gap-2">
+          <Button className="mr-auto" variant="ghost" disabled={busy} onClick={() => setAppearanceOpen(true)}>
+            Interface theme
+          </Button>
           {brand && (
             <Button
               variant="outline"
