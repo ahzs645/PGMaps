@@ -183,11 +183,109 @@ function stateVariables(palette: Palette, mode: ThemeMode) {
   return variables
 }
 
+export const paletteShades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as const
+/** Tailwind's sky and slate, the references a recoloured shade keeps the luminance of. */
+export const paletteReference = {
+  tint: [
+    '#f0f9ff',
+    '#e0f2fe',
+    '#bae6fd',
+    '#7dd3fc',
+    '#38bdf8',
+    '#0ea5e9',
+    '#0284c7',
+    '#0369a1',
+    '#075985',
+    '#0c4a6e',
+    '#082f49',
+  ],
+  neutral: [
+    '#f8fafc',
+    '#f1f5f9',
+    '#e2e8f0',
+    '#cbd5e1',
+    '#94a3b8',
+    '#64748b',
+    '#475569',
+    '#334155',
+    '#1e293b',
+    '#0f172a',
+    '#020617',
+  ],
+} as const
+
+/** WCAG relative luminance, 0 (black) to 1 (white). */
+export function relativeLuminance(colour: string) {
+  const { r, g, b } = hsl(colour).rgb()
+  return [r, g, b]
+    .map((channel) => {
+      const v = Math.min(255, Math.max(0, channel)) / 255
+      return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+    })
+    .reduce((sum, v, index) => sum + v * [0.2126, 0.7152, 0.0722][index], 0)
+}
+
+/** The colour of this hue and saturation that is as light as `reference`, as `r g b` channels. */
+function shadeLike(reference: string, hue: number, saturation: number) {
+  const target = relativeLuminance(reference)
+  let low = 0
+  let high = 1
+  // Luminance rises with lightness at a fixed hue and saturation, so halving the range finds it.
+  for (let step = 0; step < 24; step += 1) {
+    const middle = (low + high) / 2
+    if (relativeLuminance(hsl(hue, saturation, middle).formatHex()) < target) low = middle
+    else high = middle
+  }
+  const { r, g, b } = hsl(hue, saturation, (low + high) / 2).rgb()
+  return [r, g, b].map((channel) => Math.round(Math.min(255, Math.max(0, channel)))).join(' ')
+}
+
+/**
+ * The two ramps behind the fixed Tailwind palette classes pages write their accents and greys in
+ * (`text-sky-700`, `focus:ring-cyan-500`, `dark:hover:bg-slate-800/60`; tailwind-theme.mjs in the
+ * toolkit). `tint-*` recolours sky, blue, cyan, teal and indigo with the theme's primary, and its
+ * fill shades (the pale end in light mode, the deep end in dark) with the highlight; `neutral-*`
+ * recolours slate, gray, zinc, neutral and stone in the hue of the theme's surfaces, never more
+ * saturated than slate. Every shade keeps its reference's luminance, so text that was readable on
+ * a fill stays readable whatever the theme's colours are. A ramp the theme gives no colour for
+ * is left out, and those classes keep Tailwind's values.
+ */
+function paletteRamps(palette: Palette, mode: ThemeMode) {
+  const variables: Record<string, string> = {}
+  const hueOf = (colour: string) => {
+    const { h, s } = hsl(colour)
+    return { h: h || 0, s: s || 0 }
+  }
+  const stroke = palette.primary ?? palette.accent
+  if (stroke) {
+    const fill = hueOf(palette.accent ?? stroke)
+    const line = hueOf(stroke)
+    const fillShades: readonly number[] = mode === 'light' ? [50, 100, 200] : [800, 900, 950]
+    paletteShades.forEach((shade, index) => {
+      const { h, s } = fillShades.includes(shade) ? fill : line
+      variables[`tint-${shade}`] = shadeLike(paletteReference.tint[index], h, s)
+    })
+  }
+  const surface = palette.border ?? palette.muted ?? palette.secondary ?? palette.background ?? palette.card
+  if (surface) {
+    const { h, s } = hueOf(surface)
+    // Slate-300, the border grey, is 27% saturated: a theme at least that colourful keeps slate's
+    // own saturation at each shade, and a greyer one scales it down, to pure grey at 0.
+    const strength = Math.min(1, s / hsl(paletteReference.neutral[3]).s)
+    paletteShades.forEach((shade, index) => {
+      const reference = paletteReference.neutral[index]
+      variables[`neutral-${shade}`] = shadeLike(reference, h, (hsl(reference).s || 0) * strength)
+    })
+  }
+  return variables
+}
+
 export function interfaceThemeVariables(theme: InterfaceTheme) {
   const variables: Record<string, string> = {}
   if (theme.radius !== null) variables['--interface-radius'] = `${theme.radius / 16}rem`
   for (const mode of themeModes) {
-    for (const [role, value] of Object.entries(paletteVariables(theme[mode], mode))) {
+    const values = { ...paletteVariables(theme[mode], mode), ...paletteRamps(theme[mode], mode) }
+    for (const [role, value] of Object.entries(values)) {
       variables[`--interface-${mode}-${role}`] = value
     }
   }
@@ -222,9 +320,10 @@ function applyInterfaceTheme(theme: InterfaceTheme) {
 const themeListeners = new Set<() => void>()
 
 /**
- * Whether an Appearance theme with colours is applied. For a part that keeps a fixed palette in
- * the built-in theme but should take the theme's colours under one, such as a `ResultRow` with its
- * own `accent`: pass `accent={themed ? 'theme' : 'teal'}`.
+ * Whether an Appearance theme with colours is applied. For a part that should take the theme's
+ * own selection tokens under one, such as a `ResultRow` with its own `accent`: pass
+ * `accent={themed ? 'theme' : 'teal'}`. A blue-family accent follows a theme without it, through
+ * the palette ramps (`paletteRamps`).
  */
 export function useInterfaceThemeApplied() {
   return useSyncExternalStore(

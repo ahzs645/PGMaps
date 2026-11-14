@@ -330,6 +330,100 @@ export function placeClear(box: Box, placed: readonly Box[], bounds: Box, gap = 
   return null
 }
 
+/**
+ * Boxes in one row above their anchors, in the anchors' left-to-right order, so no leader crosses another or runs
+ * behind another box. Each box sits on a common baseline (the lowest any of them may sit, `bottom`), as near its
+ * anchor as the others allow: boxes that would overlap close up into a group centred on its members' anchors
+ * (cluster averaging), and the groups are kept inside `area`. When the row cannot hold them all, the
+ * lowest-`priority` labels give way first. Returns a box per item in the items' order, null where one gave way.
+ */
+export function rowPlacement(
+  items: ReadonlyArray<{ centerX: number; bottom: number; w: number; h: number; priority?: number }>,
+  area: Box,
+  spacing = 6,
+): Array<Box | null> {
+  const order = items.map((_, i) => i).sort((a, b) => items[a].centerX - items[b].centerX)
+  let kept = [...order]
+  const fits = (ids: number[]) =>
+    ids.reduce((sum, i) => sum + items[i].w, 0) + spacing * Math.max(0, ids.length - 1) <= area.w
+  while (kept.length && !fits(kept)) {
+    // The lowest priority gives way; ties go to the label farthest from the row's middle.
+    const middle = area.x + area.w / 2
+    let worst = kept[0]
+    for (const i of kept) {
+      const a = items[i].priority ?? 0,
+        b = items[worst].priority ?? 0
+      if (a < b || (a === b && Math.abs(items[i].centerX - middle) > Math.abs(items[worst].centerX - middle))) worst = i
+    }
+    kept = kept.filter((i) => i !== worst)
+  }
+  // Clusters of touching boxes, each centred on the mean of its members' wanted positions.
+  type Cluster = { ids: number[]; left: number; width: number }
+  const width = (ids: number[]) => ids.reduce((sum, i) => sum + items[i].w, 0) + spacing * (ids.length - 1)
+  const leftOf = (ids: number[]) => {
+    let offset = 0,
+      sum = 0
+    for (const i of ids) {
+      sum += items[i].centerX - items[i].w / 2 - offset
+      offset += items[i].w + spacing
+    }
+    return sum / ids.length
+  }
+  const clamp = (c: Cluster) => ({ ...c, left: Math.max(area.x, Math.min(area.x + area.w - c.width, c.left)) })
+  const clusters: Cluster[] = []
+  for (const i of kept) {
+    clusters.push(clamp({ ids: [i], left: items[i].centerX - items[i].w / 2, width: items[i].w }))
+    while (clusters.length > 1) {
+      const b = clusters[clusters.length - 1],
+        a = clusters[clusters.length - 2]
+      if (a.left + a.width + spacing <= b.left) break
+      const ids = [...a.ids, ...b.ids]
+      clusters.splice(clusters.length - 2, 2, clamp({ ids, left: leftOf(ids), width: width(ids) }))
+    }
+  }
+  const lowest = Math.min(...kept.map((i) => items[i].bottom))
+  const tallest = Math.max(0, ...kept.map((i) => items[i].h))
+  const baseline = Math.max(area.y + tallest, Math.min(lowest, area.y + area.h))
+  const boxes: Array<Box | null> = items.map(() => null)
+  for (const cluster of clusters) {
+    let x = cluster.left
+    for (const i of cluster.ids) {
+      boxes[i] = { x, y: baseline - items[i].h, w: items[i].w, h: items[i].h }
+      x += items[i].w + spacing
+    }
+  }
+  return boxes
+}
+
+/** Whether segment p–q passes through `box` (grown by `gap`). */
+export function segmentMeetsBox(p: Point, q: Point, box: Box, gap = 0): boolean {
+  const x0 = box.x - gap,
+    y0 = box.y - gap,
+    x1 = box.x + box.w + gap,
+    y1 = box.y + box.h + gap
+  // Liang–Barsky clip of the segment to the rectangle.
+  let t0 = 0,
+    t1 = 1
+  const dx = q[0] - p[0],
+    dy = q[1] - p[1]
+  for (const [pe, qe] of [
+    [-dx, p[0] - x0],
+    [dx, x1 - p[0]],
+    [-dy, p[1] - y0],
+    [dy, y1 - p[1]],
+  ] as const) {
+    if (pe === 0) {
+      if (qe < 0) return false
+      continue
+    }
+    const t = qe / pe
+    if (pe < 0) t0 = Math.max(t0, t)
+    else t1 = Math.min(t1, t)
+    if (t0 > t1) return false
+  }
+  return true
+}
+
 // ---------------------------------------------------------------- label styles
 
 /** How a figure names its features. Independent of the figure's symbols; a preset gives the default. */
@@ -352,6 +446,8 @@ export type FigureLabel = {
   focus?: boolean
   /** A secondary feature (existing opening, road, another licensee's block): smaller and plainer. */
   secondary?: boolean
+  /** Which labels give way first when a row has no room for them all: lowest first (e.g. the share seen). */
+  priority?: number
 }
 
 export type LabelOptions = {
@@ -409,6 +505,39 @@ export const ARROW_LABEL = {
 /** Numbered markers' circle radius, points. */
 export const MARKER_RADIUS = 6
 
+/** A primary label's printed size in the box or boxless styles, and how far its box leans left of its anchor. */
+function labelSize(label: FigureLabel, options: LabelOptions): { w: number; h: number; lean: number } {
+  if (options.style === 'box') {
+    const style = options.box ?? PLAIN_BOX
+    const text = calloutText(style, label.title, label.body, options.maxWidth)
+    return { w: text.w, h: text.h, lean: style.pointer.kind === 'wedge' ? text.w * 0.35 : 0 }
+  }
+  const { w, h } = boxlessText(label, options)
+  return { w, h, lean: 0 }
+}
+
+/** `placeClear`, also refusing a place where a leader already drawn would run through the box. */
+function placeClearOfLeaders(
+  box: Box,
+  placed: readonly Box[],
+  leaders: ReadonlyArray<[Point, Point]>,
+  area: Box,
+): Box | null {
+  const blockers = [
+    ...placed,
+    // A leader as the thin boxes along it: placeClear then moves past it as past a box.
+    ...leaders.flatMap(([p, q]) => {
+      const steps = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 6))
+      return Array.from({ length: steps }, (_, k) => {
+        const x = p[0] + ((q[0] - p[0]) * (k + 0.5)) / steps,
+          y = p[1] + ((q[1] - p[1]) * (k + 0.5)) / steps
+        return { x: x - 1, y: y - 1, w: 2, h: 2 }
+      })
+    }),
+  ]
+  return placeClear(box, blockers, area, 4, 48)
+}
+
 /**
  * Labels for `labels` in one of the label styles, placed clear of each other inside `area`: above
  * the skyline over each anchor, moved right and then down when they collide. Every box is sized
@@ -455,17 +584,37 @@ export function labelOps(
     })
     return { ops, key, boxes: placed, dropped }
   }
+  // The primary labels of the box and boxless styles go in one ordered row above the skyline (`rowPlacement`), so
+  // their leaders never cross each other or run behind another box; the secondary ones then go where they clear
+  // both the boxes and those leaders.
+  const ceilingOf = (label: FigureLabel) =>
+    options.ceilingAt ? Math.min(options.ceilingAt(label.anchor[0]), label.anchor[1]) : label.anchor[1]
+  const rowed = new Map<FigureLabel, Box | null>()
+  const leaders: Array<[Point, Point]> = []
+  if (options.style === 'box' || options.style === 'underlined' || options.style === 'halo') {
+    const primaries = sorted.filter((label) => !label.secondary)
+    const sizes = primaries.map((label) => labelSize(label, options))
+    const boxes = rowPlacement(
+      primaries.map((label, i) => ({
+        centerX: label.anchor[0] - sizes[i].lean,
+        bottom: ceilingOf(label) - gap,
+        w: sizes[i].w,
+        h: sizes[i].h,
+        ...(label.priority !== undefined ? { priority: label.priority } : {}),
+      })),
+      options.area,
+    )
+    primaries.forEach((label, i) => {
+      rowed.set(label, boxes[i])
+      if (boxes[i]) leaders.push([nearestEdgePoint(boxes[i]!, label.anchor), label.anchor])
+    })
+  }
   for (const label of sorted) {
-    const ceiling = options.ceilingAt ? Math.min(options.ceilingAt(label.anchor[0]), label.anchor[1]) : label.anchor[1]
+    const ceiling = ceilingOf(label)
     if (options.style === 'box' && !label.secondary) {
       const style = options.box ?? PLAIN_BOX
       const text = calloutText(style, label.title, label.body, options.maxWidth)
-      const lean = style.pointer.kind === 'wedge' ? text.w * 0.35 : 0
-      const box = placeClear(
-        { x: label.anchor[0] - text.w / 2 - lean, y: ceiling - gap - text.h, w: text.w, h: text.h },
-        placed,
-        options.area,
-      )
+      const box = rowed.get(label) ?? null
       if (!box) {
         dropped++
         continue
@@ -490,31 +639,15 @@ export function labelOps(
     }
     // Boxless: underlined, halo, and every style's secondary labels.
     const underlined = options.style === 'underlined' && !label.secondary
-    const base: SheetTextStyle = label.secondary
-      ? SECONDARY_TEXT
-      : underlined
-        ? { size: 9.5, style: 'bold', color: DARK, underline: { width: 0.6 } }
-        : (options.text ?? { size: 9, style: 'bold', color: DARK, halo: { color: '#ffffff', width: 1.8 } })
-    const title = fitCalloutLines(label.title, base, options.maxWidth, CALLOUT_MAX_TITLE_LINES)
-    const body =
-      label.body && !label.secondary
-        ? fitCalloutLines(
-            label.body,
-            { ...base, style: 'normal', underline: undefined, size: base.size * 0.85 },
-            options.maxWidth,
-            1,
-          )
-        : null
-    const blocks = [title, ...(body ? [body] : [])]
-    const w = Math.max(
-      ...blocks.flatMap((b) => b.lines.map((l) => textWidth(l, b.style.size, b.style.style ?? 'normal'))),
-    )
-    const h = blocks.reduce((sum, b) => sum + b.lines.length * lineHeight(b.style), 0)
-    const box = placeClear(
-      { x: label.anchor[0] - w / 2, y: ceiling - (label.secondary ? gap * 0.6 : gap) - h, w, h },
-      placed,
-      options.area,
-    )
+    const { blocks, w, h } = boxlessText(label, options)
+    const box = rowed.has(label)
+      ? rowed.get(label)!
+      : placeClearOfLeaders(
+          { x: label.anchor[0] - w / 2, y: ceiling - (label.secondary ? gap * 0.6 : gap) - h, w, h },
+          placed,
+          leaders,
+          options.area,
+        )
     if (!box) {
       dropped++
       continue
@@ -536,6 +669,32 @@ export function labelOps(
       }
   }
   return { ops, key, boxes: placed, dropped }
+}
+
+/** A boxless label's lines (title, then the status) and its printed size. */
+function boxlessText(label: FigureLabel, options: LabelOptions) {
+  const underlined = options.style === 'underlined' && !label.secondary
+  const base: SheetTextStyle = label.secondary
+    ? SECONDARY_TEXT
+    : underlined
+      ? { size: 9.5, style: 'bold', color: DARK, underline: { width: 0.6 } }
+      : (options.text ?? { size: 9, style: 'bold', color: DARK, halo: { color: '#ffffff', width: 1.8 } })
+  const title = fitCalloutLines(label.title, base, options.maxWidth, CALLOUT_MAX_TITLE_LINES)
+  const body =
+    label.body && !label.secondary
+      ? fitCalloutLines(
+          label.body,
+          { ...base, style: 'normal', underline: undefined, size: base.size * 0.85 },
+          options.maxWidth,
+          1,
+        )
+      : null
+  const blocks = [title, ...(body ? [body] : [])]
+  const w = Math.max(
+    ...blocks.flatMap((b) => b.lines.map((l) => textWidth(l, b.style.size, b.style.style ?? 'normal'))),
+  )
+  const h = blocks.reduce((sum, b) => sum + b.lines.length * lineHeight(b.style), 0)
+  return { blocks, w, h }
 }
 
 /**

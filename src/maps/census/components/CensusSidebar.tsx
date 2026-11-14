@@ -193,7 +193,8 @@ export function CensusSidebar({
 
   return (
     <MapSidebarShell
-      className={className}
+      // Amber is this page's accent: under an Appearance theme it follows the theme (src/index.css).
+      className={cn('theme-tint-amber', className)}
       title="Census Data Explorer"
       subtitle={
         catalog

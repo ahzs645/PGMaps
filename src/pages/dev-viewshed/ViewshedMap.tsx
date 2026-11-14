@@ -104,7 +104,7 @@ function Scene({ observer, onObserver, result, terrain, onReady, recenter }: Pro
             }}
             className="flex h-11 w-11 cursor-grab touch-none items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing"
           >
-            <span className="pointer-events-none block h-6 w-6 rounded-full border-4 border-white bg-sky-600 shadow-lg" />
+            <span className="fixed-palette pointer-events-none block h-6 w-6 rounded-full border-4 border-white bg-sky-600 shadow-lg" />
           </button>
         </MarkerContent>
       </MapMarker>

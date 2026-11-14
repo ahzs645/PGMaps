@@ -203,6 +203,7 @@ export function RoofInspectionPanel({
             subtitle={`${feature.properties.area_m2.toFixed(0)} m² · ${feature.properties.height_m.toFixed(1)} m above ground`}
             selected={selected?.properties.id === feature.properties.id}
             accent="amber"
+            className="theme-tint-amber"
             onClick={() => {
               setSelectedId(feature.properties.id)
               root.current?.closest<HTMLElement>('[data-map-sidebar-scroll]')?.scrollTo({ top: 0 })

@@ -47,6 +47,23 @@ describe('class pass layers', () => {
   })
 })
 
+describe('retention in the class pass', () => {
+  it('leaves a block’s retention out of the proposed class, as the run does', () => {
+    const block = square(-121.996, 54.002, 0.004)
+    const patch = square(-121.995, 54.003, 0.001)
+    const area = (layers: ReturnType<typeof classPassLayers>['layers']) =>
+      layers
+        .filter((layer) => layer.id === 'proposedIn')
+        .flatMap((layer) => layer.data.features)
+        .reduce((sum, feature) => sum + polygonAreaMeters(feature.geometry as GeoJSON.MultiPolygon), 0)
+    const input = { landform: LANDFORM, blocks: [block], existing: [], privateLand: [], rock: [] }
+    const whole = area(classPassLayers(input).layers)
+    const net = classPassLayers({ ...input, retained: [patch] })
+    expect(net.failed).toBe(false)
+    expect(area(net.layers) / whole).toBeCloseTo(15 / 16, 2)
+  })
+})
+
 describe('the zone pass', () => {
   it('paints each established objective in its zone colour', async () => {
     const { zonePassLayers } = await import('./figureClassPass')

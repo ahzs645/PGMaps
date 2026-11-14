@@ -54,6 +54,12 @@ brand colour or built-in theme. Map symbols and reports have their own settings.
   tinted patch. While a theme sets any colour, `interfaceTheme.ts` puts `data-interface-theme`
   on `<html>` (the Appearance preview sets it on itself), and `src/index.css` rebinds
   `--background` inside `bg-card` and `bg-popover` to that surface, as a dialog does. A
+  map's side panel is a card as well: `MapSectionLayout`'s sidebar wrapper and its fold tab
+  rebind `--background` the same way, because the shell and its sections paint
+  `bg-background`, and under a page colour the whole panel took that tint (73–92% of it, with
+  no white left). The page colour stays on the navigation, index pages and the map surround.
+  A bordered panel on a page (a Projects pane, a Home tile) is `bg-card`, never
+  `bg-background`, or it disappears into a themed page. A
   selected card tinted with fixed palette classes for the built-in theme marks itself
   `data-selected-card`; under a theme it takes `accent` with a `primary` edge. The built-in
   theme never has the attribute, so it looks as before. A theme's `muted` colour leaves
@@ -62,9 +68,40 @@ brand colour or built-in theme. Map symbols and reports have their own settings.
   `selected-focus` and `selected-alpha` (a `ResultRow` with the default `accent="theme"`),
   `link` and `link-hover` (`TextButton tone="accent"`) and `map-surround`
   (`MapSectionLayout`). `src/index.css` defaults them to the sky and slate they replaced, and
-  `interfaceTheme.ts` derives them from the theme's highlight, primary and page colours. A
-  row with a named `accent` keeps that palette under a theme; one that should follow it
-  passes `accent={useInterfaceThemeApplied() ? 'theme' : 'teal'}`, as Save & export does.
+  `interfaceTheme.ts` derives them from the theme's highlight, primary and page colours.
+- **Palette classes under an Appearance theme.** Pages write their accents and greys as fixed
+  Tailwind classes, a different family per page: sky on Food Safety and Air Quality, cyan in
+  the labs and Explorer, blue on BC Assessment, teal on Transit and Acknowledgement, slate and
+  gray for text and hovers. Those families are variable-driven (`themeablePalette` in the
+  toolkit's `tailwind-theme.mjs`): each shade reads `--palette-tint-<shade>` (sky, blue, cyan,
+  teal, indigo) or `--palette-neutral-<shade>` (slate, gray, zinc, neutral, stone) and falls
+  back to Tailwind's own value. Without a theme nothing sets the variables, so every class is
+  the colour it always was. Under a theme `interfaceTheme.ts` fills two ramps: the tint from
+  the primary (its fill shades from the highlight), the greys in the hue of the theme's
+  surfaces. Each shade keeps the luminance of the sky or slate shade it replaces, so text
+  that read on a fill still reads. So a page follows a theme with no change to its classes,
+  a named `accent` on a `ResultRow`, `ToggleRow` or badge included. Three cases need a word
+  from the page:
+  - **A blue family used as data** (a violation category's badge, a metric group's dot, a
+    transit stop's kind, an A/B series, a home tile's own colour, a map marker a legend or
+    sentence names): add the `fixed-palette` class to the element or an ancestor, and the
+    tint classes inside keep Tailwind's colours. Greys still follow the theme there.
+  - **A page whose accent is green or amber** (Parks, Census, the LiDAR lists): those
+    families are status and category colours everywhere else, so they follow a theme only
+    inside an element with `theme-tint-green` or `theme-tint-amber`, which the page puts on
+    its sidebar. Add a family to `pageAccentPalette` and `src/index.css` before using another.
+  - **Colours not written as classes** (MapLibre paint, chart series, legend swatches set by
+    `style`) never follow a theme: map symbols and reports have their own settings. The one
+    exception is the selected feature's highlight: `MapCircleLayer`, `MapFillLayer`,
+    `MapLineLayer` and the PMTiles fill layer take it from `useSelectionColor`
+    (`selection-color.ts` in the toolkit), which reads the tint ramp and repaints when the
+    theme or colour mode changes, so the outline on the map matches the selected row. A layer
+    that passes its own `selectionColor` keeps it.
+
+  New code can still use `text-link`, `bg-selected` and `ring-selected-focus` directly; the
+  ramps exist so the pages already written, and a page with its own accent, follow a theme.
+  A status family (red, orange, yellow, violet, rose, emerald) must never be added to
+  `themeablePalette`.
 - **Corners.** `--radius` (0.5rem) drives every step: `rounded-sm`/`rounded` 4 px,
   `rounded-md` 6, `rounded-lg` 8, `rounded-xl` 12, `rounded-2xl` 16. Pick by role:
   `rounded-sm` for small marks (swatches, tags, map labels), `rounded-md` for controls
@@ -123,6 +160,7 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
 | Selected item card                                | `SelectedItemCard` (hover follows `tone`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Search field                                      | `SearchInput` (`icon`, `onClear`, forwards `ref`); 16px on phones so iOS does not zoom. It marks itself as the target of the map search shortcut; pass `data-map-search-input="false"` on secondary search fields in the same sidebar.                                                                                                                                                                                                                                                                                                                                                                      |
 | Search with a result list (combobox)              | `useSearchCombobox`, `SearchComboboxInput`, `SearchResultList` (`search-combobox.tsx`). Use these before hand-rolling a combobox; see **Search comboboxes** below.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Search in a dialog (site search, Find tools)      | `SearchPalette` (`search-palette.tsx`): the one dialog both searches open. Never a second search dialog with its own markup or CSS; see **Search palette** below.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Small link-style actions                          | `TextButton` (`tone`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Tags and counts                                   | `Badge` (`badge.tsx`: `tone`, `variant`, `pill`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | "View source" links                               | `ExternalLink` (`variant="link" \| "button"`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -150,6 +188,33 @@ site search, Flatten's place boxes and the searchable `AppSelect` are built on i
   click from blurring a box whose list closes on blur; `isSelected` marks a select's chosen value
   rather than the highlight.
 - Markup the renderers cannot express spreads `inputProps`, `listProps` and `getOptionProps`.
+
+### Search palette
+
+A search box over a result list in a dialog is `SearchPalette` (`search-palette.tsx`). The site
+search (`GlobalSearch.tsx`) and the ribbon's **Find tools** (`RibbonFinder.tsx`) are both this
+component, so they share one position, size, look and keyboard behaviour. A new search dialog is
+a third use of it, never markup or CSS of its own.
+
+- The caller owns the query and the filtering and passes the `items` to show; the palette owns
+  the dialog, the box, the list, the empty note and the footer. Option content goes through
+  `SearchResultContent` (icon, title, detail, `trailing`) so every palette reads the same;
+  `getGroup` puts consecutive options under a heading.
+- It sits centred across the screen with its top at `min(15vh, 6rem)` and grows down, so the box
+  stays put while the list changes length. The position is the palette's own inline transform.
+  Do not position it with a Tailwind `translate-*` class: the dialog's centring transform and
+  the class each reset the other's axis, which once left the site search starting at the middle
+  of the screen and running off a phone's right edge.
+- A pick closes the palette first and then calls `onPick`, so a control the pick focuses keeps
+  focus and a file picker it opens still has the click behind it. A dismissed palette returns
+  focus to where it was; `returnFocus` names another element. After a pick, focus is left where
+  `onPick` put it unless `returnFocus` is given.
+- No key pressed in the palette reaches a page's own shortcuts. A shortcut that should still
+  work while it is open (the site search's ⌘K) is handled in `onKeyDown`, which runs first.
+- `status` is a line between the box and the list (sources still loading); `empty` is said in a
+  `role="status"` line in place of the list; `countLabel` and `pickHint` word the footer.
+  `combobox` passes `skipDisabled`, `loop`, `activateOnHover`, `scrollIntoView`, `resetKey` and
+  `id` to `useSearchCombobox`.
 
 ## Form fields and ranges
 
@@ -491,8 +556,10 @@ track grows to the longest cell in any column.
   field in a table cell, where every row repeats the column header above its input.
 - Configurable workspaces (`src/components/interfaces/`): define each command once in
   `workspaceCommands.ts` (label, icon, `kind`, editor, investigation availability) and render it
-  only through `CommandButton`, whose `surface` (`ribbon`, `quick`, `header`, `sidebar`) and
-  `presentation` (caption breakpoint, short label, accessible name, emphasis) decide how it looks.
+  only through `CommandButton`, whose `surface` (`ribbon`, `quick`, `header`, `toolbar`, `sidebar`)
+  and `presentation` (caption breakpoint, short label, accessible name, emphasis) decide how it
+  looks. `toolbar` is the borderless 28 px button for a strip of grouped tools, where one border
+  round the strip replaces a border per button; `emphasis: 'primary'` fills the one that matters.
   Layouts in `public/workspace-layouts.json` arrange command and widget IDs; `WorkspaceTools`
   renders a top ribbon or a side guide and `WorkspaceHeader` a header line from the same IDs, so a
   new arrangement (a dashboard, a compact bar) is a layout entry, not new components. The page
@@ -518,7 +585,11 @@ track grows to the longest cell in any column.
   it. An optional `qualifier` ("perspective scale", "whole road") prints under the label and joins
   it in the row's name (`metricName`), so keep labels short; a row's tooltip carries its name and,
   while only its value shows, its note. `MetricSummaryLayout` puts it beside (`left`) or above
-  (`top`) the views; `variant="pane"` fills a tiled pane instead, as hairline-ruled cards of one
+  (`top`) the views. Pass the summary through its `summary` slot and opt in with `resize`
+  (`storageKey`, `label`, `controls`) while the summary is visible to add a saved-width separator
+  on the left stack. It shares `ResizeSeparator` with `ResizableSplit`, supports dragging and
+  arrow keys, resets on double-click, and leaves the views mounted; compact and top layouts
+  keep their automatic sizing. `variant="pane"` fills a tiled pane instead, as hairline-ruled cards of one
   height whose labels wrap rather than truncate. `MetricSummarySettings` is the settings form for the tool's own frame
   (ribbon task pane, dialog), with `MetricSummaryReset` as its footer and `children` for a tool's
   own option; leave out `visibility`/`placement` where a preset decides them.
@@ -750,7 +821,16 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   `.geo-toolkit .hidden` outweighs our `md:block` on our own markup inside a
   workspace, and responsive classes there silently stop working.
 - Popup / floating detail content: `MapPopupCard` (`map-popup-card.tsx`) with
-  `KeyValueRows` inside.
+  `KeyValueRows` inside. Give a card's buttons as `footerActions`, never as
+  hand-styled buttons in `actions`: the one action that changes something is
+  `primary` (filled, its own row), and buttons that only open another view are
+  equal outline buttons sharing a row, wrapping when the labels do not fit.
+  The footer's rule reaches the card's edges inside `MapPopup`'s default
+  padding. `actions` stays for a link or a text button under the content.
+- `MapPopup`'s arrow is drawn by the toolkit's stylesheet (`.mapcn-popup` in
+  `styles.css`) in the card's fill and border colour for all eight anchors.
+  Do not restyle `.maplibregl-popup-tip` in a page: a popup with its own
+  class (`hover-popup`, `editorial-feature-popup`) keeps MapLibre's triangle.
 - Hover tooltips: `MapTooltipCard` (`map-tooltip-card.tsx`) for React content;
   `mapTooltipHtml({ title, subtitle, lines, rows, footer })` for layer `hoverHtml`
   and imperative MapLibre/deck.gl popups. Pass plain text; the helper escapes

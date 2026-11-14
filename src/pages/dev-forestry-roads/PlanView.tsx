@@ -2163,7 +2163,7 @@ function Layers(
         props.draft.map((coordinate, i) => (
           <MapMarker key={i} longitude={coordinate[0]} latitude={coordinate[1]}>
             <MarkerContent>
-              <span className="block size-3 rounded-full border-2 border-white bg-teal-600" />
+              <span className="fixed-palette block size-3 rounded-full border-2 border-white bg-teal-600" />
             </MarkerContent>
           </MapMarker>
         ))
@@ -2202,7 +2202,7 @@ function Layers(
             >
               <MarkerContent>
                 <button
-                  className={`rounded-sm border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${selected ? 'border-rose-600 text-rose-700 ring-2 ring-rose-400/50' : culvert.warnings.length ? 'border-warning text-warning' : 'border-sky-600 text-sky-800'}`}
+                  className={`fixed-palette rounded-sm border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${selected ? 'border-rose-600 text-rose-700 ring-2 ring-rose-400/50' : culvert.warnings.length ? 'border-warning text-warning' : 'border-sky-600 text-sky-800'}`}
                   aria-label={`Inspect structure ${culvert.name}`}
                   aria-pressed={selected}
                   onClick={() => {

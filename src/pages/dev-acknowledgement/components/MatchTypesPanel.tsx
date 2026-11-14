@@ -11,8 +11,12 @@ type MatchTypesPanelProps = {
 
 export function MatchTypesPanel({ enabledMatchTypes, onToggle }: MatchTypesPanelProps) {
   return (
-    <CollapsiblePanel title="Match Types" icon={<ShieldCheck className="h-4 w-4 text-teal-700" />} defaultOpen={false}>
-      <div className="space-y-2 text-xs leading-5 text-slate-600">
+    <CollapsiblePanel
+      title="Match Types"
+      icon={<ShieldCheck className="h-4 w-4 text-teal-700 dark:text-teal-300" />}
+      defaultOpen={false}
+    >
+      <div className="space-y-2 text-xs leading-5 text-muted-foreground">
         {(
           [
             ['place', 'Exact places', 'Campuses, institutes, and named facilities with curated records.'],
@@ -25,19 +29,19 @@ export function MatchTypesPanel({ enabledMatchTypes, onToggle }: MatchTypesPanel
             type="button"
             onClick={() => onToggle(matchType)}
             aria-pressed={enabledMatchTypes[matchType]}
-            className="flex w-full items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300"
+            className="flex w-full items-start gap-3 rounded-md border p-3 text-left transition hover:border-teal-300 dark:hover:border-teal-700"
           >
             <span
               className={cn(
                 'mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded border',
-                enabledMatchTypes[matchType] ? 'border-teal-700 bg-teal-700 text-white' : 'border-slate-300 bg-white',
+                enabledMatchTypes[matchType] ? 'border-teal-700 bg-teal-700 text-white' : 'border-input bg-card',
               )}
             >
               {enabledMatchTypes[matchType] && <Check className="h-3.5 w-3.5" />}
             </span>
             <span>
-              <span className="block font-medium text-slate-900">{label}</span>
-              <span className="mt-0.5 block text-slate-500">{description}</span>
+              <span className="block font-medium text-foreground">{label}</span>
+              <span className="mt-0.5 block text-muted-foreground">{description}</span>
             </span>
           </button>
         ))}

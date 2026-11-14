@@ -22,6 +22,7 @@ import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import { svgDataUrl } from '@/lib/mapSheet/symbolSvg'
 
 import type { NoteImage } from './blockNote'
+import { illustrationLine, missingLine, type FigureIllustration } from './engineCapture'
 import type { BlockCallout } from './figureCallouts'
 import { cropImageRows } from './mapCapture'
 
@@ -62,6 +63,16 @@ export type SavedFigure = {
   crop?: { y: number; height: number }
   /** What the camera information block prints. */
   camera?: CameraInfo
+  /**
+   * Another engine drew the picture, and its class pass gave the outlines and the pixel figure (`engineCapture.ts`);
+   * absent when PGMaps' own map did.
+   */
+  illustration?: FigureIllustration
+  /**
+   * The engine's screened pass (its trees drawn, each in its ground's class), `classes`' size; `classes` is then the
+   * ground pass. Absent for PGMaps' own map.
+   */
+  screened?: ClassRaster
 }
 
 /** How an export names features and whether it prints the camera block; the style's own when absent. */
@@ -149,10 +160,16 @@ export async function figureInput(
         ? decoded
         : { kind: 'url', url: image.dataUrl, format: 'JPEG', width: image.width, height: image.height },
     classes: figure?.classes ? (crop ? cropRasterRows(figure.classes, crop) : figure.classes) : null,
+    screenedClasses: figure?.screened ? (crop ? cropRasterRows(figure.screened, crop) : figure.screened) : null,
     callouts,
     lines,
     sightlinePercent: figure?.sightlinePercent ?? null,
     sightlineClass: figure?.sightlineClass ?? null,
+    illustration: figure?.illustration
+      ? [illustrationLine(figure.illustration), missingLine(figure.illustration)].filter(
+          (line): line is string => line !== null,
+        )
+      : null,
     lens: figure ? `${figure.lens}${crop ? ', cropped to the landform' : ''}` : image.caption,
     distanceKm: figure?.distanceKm ?? null,
     hfovDeg: figure?.hfovDeg ?? null,

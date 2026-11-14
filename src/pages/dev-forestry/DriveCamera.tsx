@@ -54,6 +54,8 @@ type Props = {
   seekVersion: number
   speedMetersPerSecond: number
   eyeHeightMeters: number
+  /** A stood-at viewpoint's surveyed eye elevation; see `DriveOptions.surveyedEye`. */
+  surveyedEye?: import('./types').SurveyedEye | null
   lookAt: DriveLookAt | null
   spotBearing: number
   onPosition: (position: DrivePose) => void

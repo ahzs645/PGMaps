@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import {
   FolderKanban,
   Search,
-  X,
   UtensilsCrossed,
   Trees,
   BarChart3,
@@ -22,13 +21,8 @@ import { cn } from '@/lib/utils'
 import { DATASETS } from '@/lib/dataCatalog'
 import { collectionHref, collectionMembers, PROJECT_COLLECTIONS } from '@/lib/projectCollections'
 import { KIND_LABELS } from '@/maps/project-workspace/projectPresentation'
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
-import {
-  SearchComboboxInput,
-  SearchResultContent,
-  SearchResultList,
-  useSearchCombobox,
-} from '@/components/ui/search-combobox'
+import { SearchResultContent } from '@/components/ui/search-combobox'
+import { SearchPalette } from '@/components/ui/search-palette'
 
 interface SearchItem {
   id: string
@@ -414,7 +408,6 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
   const includeCrime = /crime|theft|break|mischief/i.test(query)
   const loading = Object.values(sourceStatus).includes('loading')
   const failed = Object.values(sourceStatus).includes('error')
-  const inputRef = useRef<HTMLInputElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -492,67 +485,38 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
       for (const [key, value] of Object.entries(item.params ?? {})) params.set(key, value)
       const query = params.toString()
       navigate(query ? `${pathname}?${query}` : pathname)
-      setOpen(false)
       setQuery('')
     },
     [navigate],
   )
 
-  const combobox = useSearchCombobox({
-    items: results,
-    onPick: navigateTo,
-    id: 'global-search-results',
-    resetKey: results,
-    loop: false,
-    activateOnHover: true,
-  })
-
   const searchOverlay = (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent
-        elevated
-        showClose={false}
-        className="top-[15vh] max-h-[min(32rem,calc(100dvh-2rem))] translate-y-0 gap-0 overflow-hidden p-0 sm:top-[15vh] sm:translate-y-0"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          inputRef.current?.focus()
-        }}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault()
-          triggerRef.current?.focus()
-        }}
-      >
-        <DialogTitle className="sr-only">Search PGMaps</DialogTitle>
-        <DialogDescription className="sr-only">
-          Search maps, projects, datasets, restaurants, parks, and properties.
-        </DialogDescription>
-        <SearchComboboxInput
-          id="global-search-input"
-          ref={inputRef}
-          combobox={combobox}
-          variant="bare"
-          boxClassName="flex items-center gap-3 border-b border-border px-4 py-3"
-          icon={<Search className="h-5 w-5 text-muted-foreground" />}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== 'Escape') return
-            e.preventDefault()
-            e.stopPropagation()
-            setOpen(false)
-          }}
-          placeholder="Search projects, restaurants, parks, maps..."
-          aria-label="Search PGMaps"
-          className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none"
-          onClear={() => setQuery('')}
-          buttonClassName="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted"
-          buttonIcon={<X className="h-4 w-4 text-muted-foreground" />}
-        />
-
-        {(loading || failed) && (
+    <SearchPalette
+      open={open}
+      onOpenChange={setOpen}
+      title="Search PGMaps"
+      description="Search maps, projects, datasets, restaurants, parks, and properties."
+      inputId="global-search-input"
+      placeholder="Search projects, restaurants, parks, maps..."
+      query={query}
+      onQueryChange={setQuery}
+      items={results}
+      onPick={navigateTo}
+      getKey={(item) => item.id}
+      getGroup={(item) => item.section}
+      combobox={{ id: 'global-search-results', resetKey: results, loop: false, activateOnHover: true }}
+      returnFocus={triggerRef}
+      // The palette keeps its keys from the page, so the shortcut that opened it closes it here.
+      onKeyDown={(event) => {
+        if (!(event.metaKey || event.ctrlKey) || event.key !== 'k') return
+        event.preventDefault()
+        setOpen(false)
+      }}
+      status={
+        (loading || failed) && (
           <div
             role="status"
-            className="flex items-center justify-between gap-2 border-b px-4 py-2 text-xs text-muted-foreground"
+            className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-2 text-xs text-muted-foreground"
           >
             <span>{loading ? 'Loading more results…' : 'Some search sources are unavailable.'}</span>
             {failed && !loading && (
@@ -561,51 +525,20 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
               </button>
             )}
           </div>
-        )}
-        <SearchResultList
-          combobox={combobox}
-          aria-label="Search results"
-          className="min-h-0 max-h-80 overflow-y-auto p-2"
-          optionAs="button"
-          getKey={(item) => item.id}
-          getGroup={(item) => item.section}
-          groupHeadingClassName="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-          optionClassName={({ active }) =>
-            cn(
-              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors',
-              active ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent',
-            )
-          }
-          renderOption={(item) => {
-            const Icon = item.icon
-            return (
-              <SearchResultContent
-                icon={<Icon className={cn('h-4 w-4 shrink-0', item.iconColor)} />}
-                title={item.label}
-                detail={item.sublabel}
-              />
-            )
-          }}
-          empty={
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-              {loading ? 'Searching…' : failed ? 'Search is partially unavailable.' : 'No results found.'}
-            </div>
-          }
-        />
-
-        <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
-          <span>{results.length} results</span>
-          <div className="hidden items-center gap-2 sm:flex">
-            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono">↑↓</kbd>
-            <span>Navigate</span>
-            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono">↵</kbd>
-            <span>Open</span>
-            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono">Esc</kbd>
-            <span>Close</span>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        )
+      }
+      empty={loading ? 'Searching…' : failed ? 'Search is partially unavailable.' : 'No results found.'}
+      renderOption={(item) => {
+        const Icon = item.icon
+        return (
+          <SearchResultContent
+            icon={<Icon className={cn('fixed-palette h-4 w-4 shrink-0', item.iconColor)} aria-hidden="true" />}
+            title={item.label}
+            detail={item.sublabel}
+          />
+        )
+      }}
+    />
   )
 
   return (

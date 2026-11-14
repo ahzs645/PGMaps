@@ -298,9 +298,9 @@ export function findPronunciation(name: string) {
 }
 
 export const confidenceStyles: Record<Confidence, string> = {
-  strong: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  moderate: 'border-amber-200 bg-amber-50 text-amber-800',
-  review_required: 'border-slate-200 bg-slate-50 text-slate-700',
+  strong: 'border-success-border bg-success-surface text-success-foreground',
+  moderate: 'border-warning-border bg-warning-surface text-warning-foreground',
+  review_required: 'border-border bg-muted/50 text-foreground',
 }
 
 export const confidenceLabels: Record<Confidence, string> = {
@@ -310,21 +310,30 @@ export const confidenceLabels: Record<Confidence, string> = {
 }
 
 const verificationMeta: Record<string, { label: string; className: string }> = {
-  verified_institutional: { label: 'Institutional', className: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
-  verified_local_context: { label: 'Local context', className: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
+  verified_institutional: {
+    label: 'Institutional',
+    className: 'border-success-border bg-success-surface text-success-foreground',
+  },
+  verified_local_context: {
+    label: 'Local context',
+    className: 'border-success-border bg-success-surface text-success-foreground',
+  },
   verified_institutional_context: {
     label: 'Institutional context',
-    className: 'border-amber-200 bg-amber-50 text-amber-800',
+    className: 'border-warning-border bg-warning-surface text-warning-foreground',
   },
-  boundary_context: { label: 'Boundary context', className: 'border-amber-200 bg-amber-50 text-amber-800' },
-  template_context: { label: 'Template', className: 'border-slate-200 bg-slate-50 text-slate-700' },
+  boundary_context: {
+    label: 'Boundary context',
+    className: 'border-warning-border bg-warning-surface text-warning-foreground',
+  },
+  template_context: { label: 'Template', className: 'border-border bg-muted/50 text-foreground' },
 }
 
 export function verificationLabel(status: string) {
   return (
     verificationMeta[status] ?? {
       label: status.replace(/_/g, ' '),
-      className: 'border-slate-200 bg-slate-50 text-slate-700',
+      className: 'border-border bg-muted/50 text-foreground',
     }
   )
 }

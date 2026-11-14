@@ -602,6 +602,8 @@ export interface FigureCallout {
   focus?: boolean
   /** A secondary feature (an existing opening): smaller and plainer in the boxless styles. */
   secondary?: boolean
+  /** Which callouts give way first when the row has no room for them all: lowest first (the share seen). */
+  priority?: number
 }
 
 /** Gap kept between a callout box and the skyline above its anchor, points. */
@@ -683,6 +685,11 @@ export interface FigureInput {
   image: RasterImage
   /** The class pass of the same camera, the same size as `image`; null draws no outlines or counts. */
   classes: ClassRaster | null
+  /**
+   * When `classes` is a ground pass (an engine's: no trees drawn), the same camera's pass with the drawn trees in
+   * front, for a second, screened pixel measure. Never drawn or outlined.
+   */
+  screenedClasses?: ClassRaster | null
   callouts: readonly FigureCallout[]
   /**
    * Line roles projected into the image (sub-landform dividers, lines of force), already cut to
@@ -707,6 +714,11 @@ export interface FigureInput {
   sightlinePercent: number | null
   /** Its Table 2 class name, if any. */
   sightlineClass?: string | null
+  /**
+   * Who drew the picture and its pixel measure, when another engine did: printed with the measures. Absent for
+   * PGMaps' own map.
+   */
+  illustration?: readonly string[] | null
   /** Distance to the nearest block seen, km, and the view's horizontal field of view, degrees. */
   distanceKm?: number | null
   hfovDeg?: number | null
@@ -975,16 +987,25 @@ function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: 
 }
 
 /**
- * PGMaps' two figures side by side, and what each one is. Drawn timber hides the ground behind it
- * in the class pass, so a pixel measure taken over drawn trees is not comparable with the
- * (bare-earth) sightline figure: the line says which it was, when the camera record knows.
+ * PGMaps' figures side by side, and what each one is. The class pass is the ground under the trees (no drawn
+ * timber, as the reference VIAs outline the ground), so the pixel measure says so when trees were drawn in the
+ * picture; an engine's capture adds a second figure with its trees in front.
  */
 function measureLines(input: FigureInput, counts: FigureCounts | null): string[] {
   const pixel = presetPercent(input.preset, counts)
-  const ground = !input.camera ? '' : input.camera.maxTreeHeightM !== null ? ', drawn timber in front' : ', bare earth'
+  const ground = input.screenedClasses
+    ? ', the ground under the trees'
+    : !input.camera
+      ? ''
+      : input.camera.maxTreeHeightM !== null
+        ? ', the ground under the trees'
+        : ', bare earth'
+  const screened = input.screenedClasses ? presetPercent(input.preset, countClasses(input.screenedClasses)) : null
   return [
     `Sightline measure (PGMaps run, the assessment figure): ${fixed(input.sightlinePercent)}%${input.sightlineClass ? ` (${input.sightlineClass})` : ''}`,
     `Pixel measure, this image${ground}: ${fixed(pixel)}%`,
+    ...(input.screenedClasses ? [`Pixel measure with the drawn trees in front: ${fixed(screened)}%`] : []),
+    ...(input.illustration ?? []),
     `View: ${input.lens}`,
   ]
 }
@@ -1116,15 +1137,15 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
   // PGMaps' own two figures in the cell's right half, wrapped to it.
   const measureX = calcCell.x + calcCell.w * 0.5
   const measureWidth = calcCell.x + calcCell.w - measureX - 8
-  let my = calcCell.y + 37
-  measureLines(input, counts).forEach((line, i) => {
-    const style = i === 2 ? { ...OWN, size: 7.92 } : OWN
-    for (const wrapped of wrapText(line, style.size, measureWidth)) {
-      ops.push(...textOps(measureX, my, wrapped, style))
-      my += lineHeight(style)
-    }
-    my += 2
-  })
+  const measureTop = calcCell.y + 37
+  // The cell's foot, above the footnote when there is one.
+  const measureBottom = calcCell.y + calcCell.h - (preset.calc?.footnote ? 12 : 4)
+  ops.push(
+    ...fittedLines(
+      measureLines(input, counts).map((text, i) => ({ text, style: i < 2 ? OWN : { ...OWN, size: 7.92 } })),
+      { x: measureX, top: measureTop, bottom: measureBottom, width: measureWidth },
+    ),
+  )
   if (preset.calc?.footnote)
     ops.push(
       ...textOps(calcCell.x + 10.8, calcCell.y + calcCell.h - 4.6, preset.calc.footnote.text, preset.calc.footnote),
@@ -1212,6 +1233,45 @@ export function analysedFigure(input: FigureInput, width = 612): ComposedFigure 
   const height = Math.ceil(y + 16)
   ops.push(...textOps(width / 2, height - 5, footerLine(preset, input.generatedAt), FOOTER, 'center'))
   return { width, height, ops, frame, drawn: [...panel.drawn], counts, notes: notesFor(input, panel.drawn) }
+}
+
+/**
+ * Lines wrapped to `box.width` and stacked from `box.top`, never past `box.bottom`: wrapped, then shrunk (down to
+ * 70%), then the last line that fits ellipsized and the rest left out. An engine's capture adds lines (the screened
+ * figure, the renderer, what was drawn without data), which ran past the calculation cell's foot.
+ */
+export function fittedLines(
+  lines: ReadonlyArray<{ text: string; style: TextStyle }>,
+  box: { x: number; top: number; bottom: number; width: number },
+): DrawOp[] {
+  const GAP = 2
+  const layout = (scale: number) =>
+    lines.map(({ text, style }) => {
+      const sized = { ...style, size: style.size * scale }
+      return { style: sized, rows: wrapText(text, sized.size, box.width) }
+    })
+  const height = (laid: ReturnType<typeof layout>) =>
+    laid.reduce((sum, { style, rows }) => sum + rows.length * lineHeight(style) + GAP, 0) - GAP
+  let laid = layout(1)
+  for (let scale = 0.95; height(laid) > box.bottom - box.top && scale >= 0.7 - 1e-9; scale -= 0.05) laid = layout(scale)
+  const ops: DrawOp[] = []
+  let y = box.top
+  outer: for (const { style, rows } of laid) {
+    for (let r = 0; r < rows.length; r++) {
+      const step = lineHeight(style)
+      if (y + step > box.bottom + 0.01) {
+        // Out of room: the previous row ends with an ellipsis, unless nothing was drawn yet.
+        const last = ops.length ? ops.pop() : null
+        if (last && last.op === 'text') ops.push({ ...last, text: fitText(`${last.text}...`, last.size, box.width) })
+        else if (last) ops.push(last)
+        break outer
+      }
+      ops.push(...textOps(box.x, y, rows[r], style))
+      y += step
+    }
+    y += GAP
+  }
+  return ops
 }
 
 /** The sheet a preset prints on: the analysis sheet for family A, the analysed figure otherwise. */

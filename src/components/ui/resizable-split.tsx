@@ -1,5 +1,6 @@
 import {
   Fragment,
+  forwardRef,
   useEffect,
   useRef,
   useState,
@@ -38,6 +39,38 @@ export type ResizablePane = {
 }
 
 const STEP = 16
+
+/** The same accessible grip for proportional pane splits and fixed-width workspace panels. */
+export const ResizeSeparator = forwardRef<
+  HTMLDivElement,
+  Omit<HTMLAttributes<HTMLDivElement>, 'children'> & { orientation: 'vertical' | 'horizontal'; dragging?: boolean }
+>(function ResizeSeparator({ orientation, dragging, className, ...props }, ref) {
+  const vertical = orientation === 'vertical'
+  return (
+    <div
+      ref={ref}
+      role="separator"
+      tabIndex={0}
+      aria-orientation={orientation}
+      title="Drag to resize · double-click to reset"
+      data-dragging={dragging || undefined}
+      className={cn(
+        'group relative flex shrink-0 touch-none items-center justify-center outline-none',
+        vertical ? 'w-3 cursor-col-resize' : 'h-3 cursor-row-resize',
+        className,
+      )}
+      {...props}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'rounded-full bg-border transition-colors group-hover:bg-primary/60 group-focus-visible:bg-primary group-data-[dragging]:bg-primary',
+          vertical ? 'h-10 w-1' : 'h-1 w-10',
+        )}
+      />
+    </div>
+  )
+})
 
 /**
  * Panes separated by draggable, keyboard-operable boundaries. `row` puts panes side by side
@@ -186,21 +219,14 @@ export function ResizableSplit({
               {pane.content}
             </div>
             {handle && (
-              <div
-                role="separator"
-                tabIndex={0}
-                aria-orientation={row ? 'vertical' : 'horizontal'}
+              <ResizeSeparator
+                orientation={row ? 'vertical' : 'horizontal'}
                 aria-label={split ? `Resize ${pane.label} and ${next!.label}` : `Resize ${pane.label} height`}
                 aria-controls={`pane-${pane.id}`}
                 aria-valuenow={Math.round(total)}
                 aria-valuemin={split ? 0 : limits[index].min}
                 aria-valuemax={split ? 100 : limits[index].max}
-                title="Drag to resize · double-click to reset"
-                data-dragging={dragging === index || undefined}
-                className={cn(
-                  'group relative flex shrink-0 touch-none items-center justify-center outline-none',
-                  row ? 'w-3 cursor-col-resize' : 'h-3 cursor-row-resize',
-                )}
+                dragging={dragging === index}
                 onPointerDown={(event) => onPointerDown(event, index)}
                 onPointerMove={onPointerMove}
                 onPointerUp={endDrag}
@@ -208,15 +234,7 @@ export function ResizableSplit({
                 onLostPointerCapture={endDrag}
                 onKeyDown={(event) => onKeyDown(event, index)}
                 onDoubleClick={reset}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'rounded-full bg-border transition-colors group-hover:bg-primary/60 group-focus-visible:bg-primary group-data-[dragging]:bg-primary',
-                    row ? 'h-10 w-1' : 'h-1 w-10',
-                  )}
-                />
-              </div>
+              />
             )}
           </Fragment>
         )

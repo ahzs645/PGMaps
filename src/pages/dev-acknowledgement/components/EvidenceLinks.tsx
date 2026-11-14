@@ -21,7 +21,7 @@ export function EvidenceLinks({
       {sources.map((source) => (
         <a
           key={source.id}
-          className="block break-words py-2 text-teal-800 underline underline-offset-2"
+          className="block break-words py-2 text-teal-800 dark:text-teal-300 underline underline-offset-2"
           href={source.url}
           target="_blank"
           rel="noreferrer"
@@ -30,12 +30,12 @@ export function EvidenceLinks({
         </a>
       ))}
       {sources.length > 0 && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           Curated record snapshot: {graph?.generatedAt}. Check the linked source for current guidance.
         </p>
       )}
       {!sources.length && (
-        <p className="text-sm leading-6 text-slate-600">
+        <p className="text-sm leading-6 text-muted-foreground">
           No curated source matched this selection. Confirm local guidance before using map evidence in wording.
         </p>
       )}

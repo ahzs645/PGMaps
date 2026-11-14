@@ -114,7 +114,7 @@ export function MultiPointComposer({
     <section className="space-y-3" aria-label="Locations">
       <h2 className="text-base font-semibold">Your locations {locations.length > 0 && `(${locations.length})`}</h2>
       {!locations.length && (
-        <p className="text-sm leading-6 text-slate-600">
+        <p className="text-sm leading-6 text-muted-foreground">
           Search for a B.C. address to begin. You can add more than one location.
         </p>
       )}
@@ -124,7 +124,7 @@ export function MultiPointComposer({
             key={location.id}
             className={cn(
               'flex min-w-0 items-start gap-2 rounded-xl border p-2',
-              location.id === activeId && 'border-teal-600 bg-teal-50',
+              location.id === activeId && 'border-teal-600 bg-teal-50 dark:bg-teal-950/40',
             )}
           >
             <button
@@ -142,7 +142,7 @@ export function MultiPointComposer({
               </span>
               <span className="min-w-0 break-words text-sm">
                 <span className="block font-medium">{location.result.fullAddress}</span>
-                <span className="mt-1 block text-slate-600">
+                <span className="mt-1 block text-muted-foreground">
                   {location.status === 'loading'
                     ? 'Checking sources…'
                     : location.status === 'error'
@@ -155,7 +155,7 @@ export function MultiPointComposer({
               type="button"
               onClick={() => onRemove(location.id)}
               aria-label={`Remove location ${index + 1}`}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-white"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-card"
             >
               <X className="h-5 w-5" />
             </button>
@@ -173,7 +173,7 @@ export function MultiPointComposer({
       </button>
       {showMap && (
         <div className="space-y-3 rounded-xl border p-3">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted-foreground">
             Pan and zoom freely. Choose an action below to place a pin, then confirm its location.
           </p>
           <div className="flex flex-wrap gap-2">

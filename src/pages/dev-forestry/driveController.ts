@@ -13,6 +13,8 @@ import {
   horizonSafePitch,
   offsetPosition,
 } from './driveMath'
+import { surveyedEyeAt } from './viewpointStand'
+import type { SurveyedEye } from './types'
 export type DrivePose = {
   distanceMeters: number
   stationIndex: number
@@ -20,6 +22,8 @@ export type DrivePose = {
   lat: number
   groundElevationMeters: number
   eyeElevationMeters: number
+  /** The eye stands at the reviewer's surveyed elevation, not the terrain model's ground + eye height. */
+  eyeSurveyed?: boolean
   bearing: number
   pitch: number
   /** How far the walker has stepped off the road, metres; 0 on it. */
@@ -30,6 +34,11 @@ export type DriveOptions = {
   playing: boolean
   speedMetersPerSecond: number
   eyeHeightMeters: number
+  /**
+   * A stood-at viewpoint's surveyed eye elevation: within `SURVEYED_EYE_REACH_METERS` of its point
+   * the eye stands there instead of on the terrain model's ground + `eyeHeightMeters`.
+   */
+  surveyedEye?: SurveyedEye | null
   lookAt: DriveLookAt | null
   spotBearing: number
   yaw: number
@@ -222,7 +231,8 @@ export class DriveController {
       this.setStatus('invalid-camera', options)
       return
     }
-    const eye = ground + options.eyeHeightMeters
+    const surveyed = surveyedEyeAt(options.surveyedEye, placement)
+    const eye = surveyed ?? ground + options.eyeHeightMeters
     const ahead = roadLookAhead(this.path, next, Math.max(15, options.speedMetersPerSecond * 1.5))
     const beforeGround = ahead ? terrainAt(ahead.before) : null
     const afterGround = ahead ? terrainAt(ahead.after) : null
@@ -305,6 +315,7 @@ export class DriveController {
         lat: placement.lat,
         groundElevationMeters: ground,
         eyeElevationMeters: eye,
+        ...(surveyed !== null ? { eyeSurveyed: true } : {}),
         ...rotation,
         offRoadMeters,
       })

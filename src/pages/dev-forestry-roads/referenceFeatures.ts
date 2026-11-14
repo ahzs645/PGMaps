@@ -101,6 +101,28 @@ export function referenceFolders(layers: readonly ReferenceLayer[]): ReferenceFo
   return root
 }
 
+/**
+ * A folder as the tree shows it: a chain of folders that each hold only the next one is a single
+ * row, and a name repeated down the chain (an archive unpacked into a folder of its own name)
+ * prints once. A chain that ends in one layer and nothing else gives `onlyLayer`: the tree lists
+ * that layer in the folder's place, since a folder around a single file says nothing the file
+ * does not. Display only: every layer keeps its saved path.
+ */
+export function compactReferenceFolder(folder: ReferenceFolder): {
+  folder: ReferenceFolder
+  label: string
+  onlyLayer?: ReferenceLayer
+} {
+  const names = [folder.name]
+  let last = folder
+  while (last.layers.length === 0 && last.folders.size === 1) {
+    last = [...last.folders.values()][0]
+    if (last.name !== names[names.length - 1]) names.push(last.name)
+  }
+  const onlyLayer = last.folders.size === 0 && last.layers.length === 1 ? last.layers[0] : undefined
+  return { folder: last, label: names.join(' / '), ...(onlyLayer ? { onlyLayer } : {}) }
+}
+
 function fail(message: string): never {
   throw Error(message)
 }

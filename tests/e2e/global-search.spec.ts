@@ -7,7 +7,7 @@ test.describe('Global Search', () => {
     await page.getByRole('button', { name: 'Open search' }).click()
 
     // Search dialog should appear
-    const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
+    const searchInput = page.getByPlaceholder('Search projects, restaurants, parks, maps...')
     await expect(searchInput).toBeVisible()
 
     // Should show map section quick links by default
@@ -22,7 +22,7 @@ test.describe('Global Search', () => {
     // Click the search button
     await page.getByRole('button', { name: 'Open search' }).click()
 
-    const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
+    const searchInput = page.getByPlaceholder('Search projects, restaurants, parks, maps...')
     await expect(searchInput).toBeVisible()
 
     // Type a query
@@ -46,7 +46,7 @@ test.describe('Global Search', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
     await page.getByRole('button', { name: 'Open search' }).click()
-    const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
+    const searchInput = page.getByPlaceholder('Search projects, restaurants, parks, maps...')
     await expect(searchInput).toBeVisible()
 
     await page.keyboard.press('Escape')
@@ -57,7 +57,7 @@ test.describe('Global Search', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
 
     await page.getByRole('button', { name: 'Open search' }).click()
-    const searchInput = page.getByPlaceholder('Search restaurants, parks, maps...')
+    const searchInput = page.getByPlaceholder('Search projects, restaurants, parks, maps...')
     await expect(searchInput).toBeVisible()
 
     // Click on Air Quality Map

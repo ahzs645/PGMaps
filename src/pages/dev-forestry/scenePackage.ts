@@ -15,8 +15,10 @@
  *   height and crown width. The fine band to its far edge less the overlap,
  *   then the next band, so no stem is written twice.
  * - **Terrain**: the drawn ground (the road view's elevation source) on a
- *   regular grid, wider than the trees so the skyline is there.
- * - **Openings, slash and road scars** as the road view draws them.
+ *   regular grid, wider than the trees so the skyline is there, with the crown
+ *   closure the stems are grown to at each post (`sceneCover.ts`).
+ * - **Openings, slash and road scars** as the road view draws them, each
+ *   opening with its age and the share of the stand left in it.
  * - **Water**: the basemap's lakes and rivers within the terrain, each with
  *   the water level a renderer should draw it at.
  * - **The camera**: where the eye stands, which way it looks, its lens.
@@ -34,9 +36,25 @@ import { forestBands, forestPatches, growForestPatch } from './forestPatches'
 import type { ForestConfiguration } from './ForestOverlay'
 import { placeDebris, type RoadScarStrip } from './harvestedGround'
 import { TREE_SPECIES_DRAWING } from './impostor'
+import {
+  canopyOnGrid,
+  coverOnGrid,
+  SCENE_COVER,
+  sceneOpenings,
+  seaOnGrid,
+  seaPolygons,
+  type OpeningTarget,
+  type SceneCoverSource,
+} from './sceneCover'
 import { detailedTreeMesh } from './treeGeometry'
+// A capture's package (`engineCapture.ts`) also carries `farTerrain`, a coarse grid to 15 km, `skylineTerrain` past it
+// out to the frames' farthest skyline, and stems out past the assessed landform; the road view's own package keeps
+// 3 km of terrain and 600 m of stems.
 import type { ElevationSource } from './terrain'
+import { curvatureDrop, EARTH_RADIUS_M, STANDARD_REFRACTION } from './skylineReach'
 import { metersPerDegree, type PolygonGeometry } from './visibility'
+import type { EngineEnvironment } from './externalRenderers'
+import { checkSceneCamera, scenePerspective, type SceneCamera, type SceneViewport } from './sceneCamera'
 
 export const SCENE_PACKAGE_FORMAT = 'pgmaps-forest-scene'
 export const SCENE_PACKAGE_VERSION = 1
@@ -62,7 +80,49 @@ export type ScenePackage = {
     rows: number
     /** Row-major from the south row, west to east; null where the source has no value. */
     heights: Array<number | null>
+    /**
+     * Crown closure at each post, 0–1, row-major like `heights`: the share of the ground under tree crowns, from
+     * the stand the post falls in (VRI crown closure, else the regional stand), 0 on cut, non-treed and water
+     * ground, null where unknown. Lets an engine draw the forest as a closed canopy past the stems it draws one by
+     * one, and open ground as open. Absent from older packages.
+     */
+    canopy?: Array<number | null>
+    /**
+     * Natural ground cover at each post, row-major like `heights` (`SCENE_COVER`): what the ground is where the
+     * forest is not closed, from VRI's BC Land Cover Classification and the slope, so bluffs, rock, grass and shrub
+     * openings read as they do in the reference renders. 0 forest, 1 sparse forest (open canopy over grass/rock),
+     * 2 shrub, 3 herb/grass, 4 rock or exposed soil (VRI non-vegetated, or a bluff steeper than about 45°),
+     * 5 water, 6 cut ground (an opening); null unknown. Absent from older packages.
+     *
+     * Read in this order (`coverOnGrid`): no height → null; the sea (posts at or below 0 m reaching the grid's edge
+     * or 3 ha or more) and the basemap's water → 5; an entry in `openings` → 6 (its age in `openings[].ageYears`);
+     * VRI water → 5; the grid's own slope past 45° → 4, under any VRI polygon (a bluff in a treed polygon); else the
+     * VRI rank-1 polygon's BCLCS (treed: 1 at level 5 `SP` or crown closure under 26 %, else 0; non-vegetated land:
+     * 4; vegetated non-treed: 2 at level 4 `ST`/`SL`, else 3); ground the inventory read reached with no open-ground
+     * polygon → 0; ground it did not reach → null, never forest. Slope is read at the grid's own spacing, so a
+     * coarse grid (60 m and wider) smooths most bluffs below 45°. Stems in `trees` are not thinned by slope: the road
+     * view grows them on a bluff, and `canopy` keeps their closure there. `notes` says where the inventory read
+     * stopped.
+     */
+    cover?: Array<number | null>
   }
+  /**
+   * Optional coarser terrain past `terrain`, out to the skyline (a capture's scene), the same layout. Engines draw it
+   * where `terrain` has no posts, in place of ground of their own invention; null posts are unknown there too.
+   */
+  farTerrain?: ScenePackage['terrain']
+  /**
+   * Optional coarsest terrain past `farTerrain`, out to the farthest skyline the capture's frames show (a capture's
+   * scene, when that skyline stands past `farTerrain`; at most 60 km, `captureTerrain`). The same layout, one square
+   * grid centred on the origin covering the inner grids too. Engines draw it where neither `terrain` nor
+   * `farTerrain` has posts, in place of ground of their own invention. Unlike the inner grids its heights already
+   * carry the earth's curvature for an eye at the origin: each post is `z − d² / (2R) × (1 − k)`, with `d` its
+   * horizontal distance from the origin and `R` and `k` in `earthCurvature`, so an engine drawing a flat frame shows
+   * a ridge 30 km off about 60 m lower, as it stands from the eye. Draw it as given; do not drop it again, and do
+   * not drop `terrain` or `farTerrain` (the step this leaves at `farTerrain`'s edge is the drop there, about 15 m at
+   * 15 km). The camera's far plane must reach its corners (the half-width × √2).
+   */
+  skylineTerrain?: ScenePackage['terrain'] & { earthCurvature: { earthRadiusMeters: number; refraction: number } }
   trees: {
     fields: typeof SCENE_TREE_FIELDS
     species: TreeSpeciesId[]
@@ -78,24 +138,37 @@ export type ScenePackage = {
    * `bark` is 1 on wood, 0 on foliage. Our own geometry: no third-party asset to license.
    */
   models?: Record<TreeSpeciesId, { positions: number[]; normals: number[]; bark: number[] }>
-  openings: Array<{ kind: 'harvested'; rings: Array<Array<[number, number]>> }>
+  /**
+   * Cut ground. `ageYears`: years from harvest to the assessment (or view) date, null when the record has no date;
+   * an engine greens the ground up with age (slash and soil at 0–2, shrubs and seedlings by 5, a young stand by
+   * 15–20). `retainedShare`: the share of the stand left standing in it as dispersed trees, 0–1 (the stems are in
+   * `trees` already; this says how thick to expect them). Reserves and wildlife tree patches inside a block are not
+   * cut ground: their stems stand, and they are cut out of these rings.
+   */
+  openings: Array<{
+    kind: 'harvested'
+    rings: Array<Array<[number, number]>>
+    ageYears?: number | null
+    retainedShare?: number | null
+  }>
   debris: { fields: typeof SCENE_DEBRIS_FIELDS; count: number; data: number[] }
   roadScars: Array<{ kind: 'cut' | 'fill'; ring: Array<[number, number]> }>
   /**
    * Lakes and rivers cut to the terrain grid, one entry per polygon: the outer ring first, then holes. The surface
    * is drawn at `elevationMeters`, the lowest ground under the outer ring (null where the terrain has none there).
    * Absent from packages written before water was added.
+   *
+   * Entries with `sea: true` are the sea, which the basemap's water leaves out: the posts at or below 0 m that reach
+   * the grid's edge or cover 3 ha (`seaOnGrid`), outlined by marching squares at 0 m and simplified to half a post
+   * spacing, at `elevationMeters` 0. Those from `terrain` lie on it; those from `farTerrain` lie on it outside
+   * `terrain`'s square, so the two never overlap. Land drawn above 0 m hides the sea's edge, so the outline may run
+   * a little under the shore. `skylineTerrain` adds none (its heights carry the curvature drop, which a flat sea
+   * cannot): its sea is its posts with `cover` 5.
    */
-  water?: Array<{ rings: Array<Array<[number, number]>>; elevationMeters: number | null }>
-  camera: {
-    /** Eye position, local metres. */
-    position: [number, number, number]
-    /** Compass bearing the camera faces, degrees clockwise from north. */
-    bearingDegrees: number
-    /** Up from level, degrees. */
-    pitchDegrees: number
-    verticalFovDegrees: number
-  }
+  water?: Array<{ rings: Array<Array<[number, number]>>; elevationMeters: number | null; sea?: true }>
+  camera: SceneCamera
+  /** Resolved site clock and UTC instant, frozen when written; absent in older packages. */
+  environment?: EngineEnvironment
   /** How far out the trees go, metres; the terrain reaches further. */
   treeRadiusMeters: number
   notes: string[]
@@ -105,9 +178,13 @@ export type ScenePackageInput = {
   /** Where the eye stands. */
   eye: { lng: number; lat: number }
   eyeHeightMeters: number
+  /** The drive's exact eye elevation, when available; avoids re-seating it on a different ground sample. */
+  eyeElevationMeters?: number
   bearingDegrees: number
   pitchDegrees: number
   verticalFovDegrees: number
+  viewport?: SceneViewport
+  environment?: EngineEnvironment
   /** The road view's forest configuration, as `ForestOverlay` receives it. */
   forest: Pick<
     ForestConfiguration,
@@ -117,11 +194,31 @@ export type ScenePackageInput = {
   roadScars?: ReadonlyArray<RoadScarStrip>
   /** Lakes and rivers (the basemap's water); what lies on the terrain grid goes in, cut to it. */
   water?: ReadonlyArray<PolygonGeometry>
+  /**
+   * The inventory reads `terrain.cover` is drawn from (`SceneCoverSource`: the run's VRI read, a capture's
+   * open-ground read over its terrain). Without one, cover comes only from slope, water, the sea and cut ground.
+   */
+  cover?: ReadonlyArray<SceneCoverSource>
+  /**
+   * The scene's targets, which `forest.openings` and `forest.thinnings` were cut from: each opening's harvest year,
+   * system and clearcut share (`openings[].ageYears`, `retainedShare`; `sceneOpenings`). Without them both are null.
+   */
+  targets?: ReadonlyArray<OpeningTarget>
+  /** The year openings are aged to: the scene's assessment year (default the year of `createdAt`). */
+  assessmentYear?: number
+  /** Existing openings this old are stands, not openings (the scene's green-up age; default 20). */
+  greenUpAgeYears?: number
   /** Trees out to here (default 600 m: the two bands drawn stem by stem or nearly). */
   treeRadiusMeters?: number
   /** Terrain out to here (default 3 km), at `terrainSpacingMeters` (default 15 m). */
   terrainRadiusMeters?: number
   terrainSpacingMeters?: number
+  /** Coarser terrain out to here (`farTerrain`), at `farTerrainSpacingMeters`; none unless past the terrain. */
+  farTerrainRadiusMeters?: number
+  farTerrainSpacingMeters?: number
+  /** Coarsest terrain out to here (`skylineTerrain`, curvature dropped); none unless past `farTerrain`. */
+  skylineTerrainRadiusMeters?: number
+  skylineTerrainSpacingMeters?: number
   notes?: string[]
   createdAt?: Date
   /** Include each species' detailed model (default true; about 1.5 MB). */
@@ -149,6 +246,9 @@ function packageModel(species: TreeSpeciesId) {
 }
 
 const round = (value: number, places = 2) => Math.round(value * 10 ** places) / 10 ** places
+
+/** `terrain.cover` codes (`sceneCover.ts`). */
+export { SCENE_COVER }
 
 /** The scene the road view draws, as a package. */
 export function buildScenePackage(input: ScenePackageInput): ScenePackage {
@@ -228,17 +328,40 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
   }
 
   // The drawn ground on a square grid round the eye.
-  const half = Math.ceil(terrainRadiusMeters / terrainSpacingMeters)
-  const columns = half * 2 + 1
-  const heights: Array<number | null> = []
-  for (let row = 0; row < columns; row += 1) {
-    const y = (row - half) * terrainSpacingMeters
-    for (let column = 0; column < columns; column += 1) {
-      const x = (column - half) * terrainSpacingMeters
-      const z = elevation.elevationAt(eye.lng + x / scale.lng, eye.lat + y / scale.lat)
-      heights.push(Number.isFinite(z) ? round(z) : null)
+  const grid = (radius: number, spacing: number, curved = false): ScenePackage['terrain'] => {
+    const half = Math.ceil(radius / spacing)
+    const columns = half * 2 + 1
+    const heights: Array<number | null> = []
+    for (let row = 0; row < columns; row += 1) {
+      const y = (row - half) * spacing
+      for (let column = 0; column < columns; column += 1) {
+        const x = (column - half) * spacing
+        const z = elevation.elevationAt(eye.lng + x / scale.lng, eye.lat + y / scale.lat)
+        heights.push(Number.isFinite(z) ? round(curved ? z - curvatureDrop(Math.hypot(x, y)) : z) : null)
+      }
     }
+    return { west: -half * spacing, south: -half * spacing, spacing, columns, rows: columns, heights }
   }
+  const terrain = grid(terrainRadiusMeters, terrainSpacingMeters)
+  const half = (terrain.columns - 1) / 2
+  const farRadius = input.farTerrainRadiusMeters ?? 0
+  const farTerrain =
+    farRadius > terrainRadiusMeters
+      ? grid(farRadius, Math.max(terrainSpacingMeters, input.farTerrainSpacingMeters ?? farRadius / 250))
+      : null
+  const skylineRadius = input.skylineTerrainRadiusMeters ?? 0
+  // Never finer than the grid inside it.
+  const skylineSpacing = Math.max(
+    farTerrain?.spacing ?? terrainSpacingMeters,
+    input.skylineTerrainSpacingMeters ?? skylineRadius / 250,
+  )
+  const skylineTerrain: ScenePackage['skylineTerrain'] | null =
+    skylineRadius > Math.max(terrainRadiusMeters, farTerrain ? farRadius : 0)
+      ? {
+          ...grid(skylineRadius, skylineSpacing, true),
+          earthCurvature: { earthRadiusMeters: EARTH_RADIUS_M, refraction: STANDARD_REFRACTION },
+        }
+      : null
 
   const ring = (coordinates: ReadonlyArray<ReadonlyArray<number>>) =>
     coordinates.map(([lng, lat]) => toLocal(lng, lat).map((value) => round(value)) as [number, number])
@@ -280,20 +403,82 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
     })
   })
 
+  // Crown closure under every post, by the rules the stems are grown by (`sceneCover.ts`), and each opening's age and
+  // retention from the targets it was cut from.
+  const canopyInputs = {
+    stands: forest.stands,
+    clearings: forest.clearings,
+    openings,
+    thinnings: forest.thinnings,
+    inventory: forest.inventory,
+    water: input.water,
+    heightMeters: forest.standHeightMeters,
+  }
+  const postAt = (x: number, y: number): [number, number] => [eye.lng + x / scale.lng, eye.lat + y / scale.lat]
+  for (const posts of [terrain, farTerrain, skylineTerrain])
+    if (posts) posts.canopy = canopyOnGrid(posts, postAt, canopyInputs)
+  const openingDetails = sceneOpenings({
+    openings,
+    thinnings: forest.thinnings,
+    inventory: forest.inventory,
+    targets: input.targets,
+    year: input.assessmentYear ?? (input.createdAt ?? new Date()).getUTCFullYear(),
+    greenUpAgeYears: input.greenUpAgeYears,
+  })
+
+  // Ground cover under every post (`coverOnGrid`), and the sea the basemap's water leaves out. Where the cover says
+  // the road view would grow no stand (water, VRI shrub, herb, rock), the canopy is 0 too, as it is near the eye.
+  const cutGround = openingDetails.map((opening) => opening.geometry)
+  const sea: Array<{ rings: Array<Array<[number, number]>>; elevationMeters: number; sea: true }> = []
+  for (const posts of [terrain, farTerrain, skylineTerrain]) {
+    if (!posts) continue
+    const seaPosts = seaOnGrid(posts)
+    const { cover, treeless } = coverOnGrid(posts, postAt, {
+      sources: input.cover,
+      openings: cutGround,
+      water: input.water,
+      sea: seaPosts,
+    })
+    posts.cover = cover
+    if (posts.canopy) for (let i = 0; i < treeless.length; i += 1) if (treeless[i]) posts.canopy[i] = 0
+    if (posts === skylineTerrain) continue
+    let outlines: ClipMultiPolygon = seaPolygons(posts, seaPosts)
+    if (posts === farTerrain && outlines.length) {
+      const inner: ClipMultiPolygon = [
+        [
+          [
+            [-extent, -extent],
+            [extent, -extent],
+            [extent, extent],
+            [-extent, extent],
+            [-extent, -extent],
+          ],
+        ],
+      ]
+      try {
+        outlines = polygonClipping.difference(outlines, inner)
+      } catch {
+        outlines = []
+      }
+    }
+    for (const polygon of outlines)
+      sea.push({
+        rings: polygon.map((r) => r.map(([x, y]) => [round(x), round(y)] as [number, number])),
+        elevationMeters: 0,
+        sea: true,
+      })
+  }
+  const coverNotes = (input.cover ?? []).flatMap((source) => (source.note ? [source.note] : []))
+
   return {
     format: SCENE_PACKAGE_FORMAT,
     version: SCENE_PACKAGE_VERSION,
     createdAt: (input.createdAt ?? new Date()).toISOString(),
     origin: { lng: eye.lng, lat: eye.lat, elevationMeters: round(originElevation) },
     frame: 'local metres: x east, y north, z up; heights absolute',
-    terrain: {
-      west: -half * terrainSpacingMeters,
-      south: -half * terrainSpacingMeters,
-      spacing: terrainSpacingMeters,
-      columns,
-      rows: columns,
-      heights,
-    },
+    terrain,
+    ...(farTerrain ? { farTerrain } : {}),
+    ...(skylineTerrain ? { skylineTerrain } : {}),
     trees: { fields: SCENE_TREE_FIELDS, species, count: treeData.length / SCENE_TREE_FIELDS.length, data: treeData },
     species: Object.fromEntries(
       species.map((id) => [
@@ -313,21 +498,35 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
             ScenePackage['models']
           >,
         }),
-    openings: openings.map((geometry) => ({ kind: 'harvested' as const, rings: polygonRings(geometry) })),
+    openings: openingDetails.map(({ geometry, ageYears, retainedShare }) => ({
+      kind: 'harvested' as const,
+      rings: polygonRings(geometry),
+      ageYears,
+      retainedShare,
+    })),
     debris: { fields: SCENE_DEBRIS_FIELDS, count: debrisData.length / SCENE_DEBRIS_FIELDS.length, data: debrisData },
     roadScars: (input.roadScars ?? []).map((strip) => ({
       kind: strip.kind,
       ring: ring(strip.geometry.coordinates[0]),
     })),
-    water,
+    water: [...water, ...sea],
     camera: {
-      position: [0, 0, round(originElevation + input.eyeHeightMeters)],
-      bearingDegrees: round(((input.bearingDegrees % 360) + 360) % 360, 1),
-      pitchDegrees: round(input.pitchDegrees, 1),
-      verticalFovDegrees: round(input.verticalFovDegrees, 1),
+      position: [0, 0, input.eyeElevationMeters ?? round(originElevation + input.eyeHeightMeters)],
+      bearingDegrees: ((input.bearingDegrees % 360) + 360) % 360,
+      pitchDegrees: input.pitchDegrees,
+      verticalFovDegrees: input.verticalFovDegrees,
+      rollDegrees: 0,
+      ...(input.viewport ? { projection: scenePerspective(input.verticalFovDegrees, input.viewport) } : {}),
     },
+    ...(input.environment ? { environment: { ...input.environment } } : {}),
     treeRadiusMeters,
-    notes: input.notes ?? [],
+    notes: [
+      ...(input.notes ?? []),
+      ...(input.cover?.length
+        ? coverNotes
+        : ['Ground cover: no inventory read; cover is slope, water, sea and cut only.']),
+      ...(sea.length ? [`Sea: ${sea.length} polygon${sea.length === 1 ? '' : 's'} from terrain at or below 0 m.`] : []),
+    ],
   }
 }
 
@@ -348,6 +547,7 @@ export function parseScenePackage(raw: unknown): ScenePackage {
   if (!trees || trees.data?.length !== trees.count * SCENE_TREE_FIELDS.length)
     throw new Error('The scene package tree list does not match its count.')
   if (!value.camera || value.camera.position?.length !== 3) throw new Error('The scene package has no camera.')
+  checkSceneCamera(value.camera)
   return value as ScenePackage
 }
 

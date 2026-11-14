@@ -89,9 +89,17 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
       label: 'Viewpoint',
       qualifier: input.driving ? 'road view' : 'assessment station',
       value: corridor ? `${km(station.distanceAlongMeters)} along` : 'Spot',
-      note: `${input.viewpointName || 'The road'} · ${here} · ground ${
-        Number.isFinite(station.groundElevationMeters) ? metres(station.groundElevationMeters) : 'unknown'
-      } + ${metres(result.settings.observerHeightMeters, 1)} eye height`,
+      note: `${input.viewpointName || 'The road'} · ${here} · ${
+        station.terrainGroundElevationMeters !== undefined
+          ? `eye at the surveyed ${metres(station.groundElevationMeters + result.settings.observerHeightMeters)}; the terrain model's ground there is ${
+              Number.isFinite(station.terrainGroundElevationMeters)
+                ? metres(station.terrainGroundElevationMeters)
+                : 'unknown'
+            }`
+          : `ground ${
+              Number.isFinite(station.groundElevationMeters) ? metres(station.groundElevationMeters) : 'unknown'
+            } + ${metres(result.settings.observerHeightMeters, 1)} eye height`
+      }`,
     })
   }
 

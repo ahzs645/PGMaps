@@ -59,6 +59,7 @@ import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
 import { findSceneLandform } from './sceneInput'
 import { lineLengthMeters } from './visibility'
 import { SENSITIVITY_UNIT_COLORS, TREE_FREE_COLOR } from './planMapStyle'
+import { VIEWPOINT_CLEARING, type TreeFreeArea, type ViewpointClearingSetting } from './treeFreeAreas'
 import { polygonAreaMeters } from './visibility'
 import {
   AdjustmentFields,
@@ -431,6 +432,12 @@ type SidebarProps = {
   onRemoveTarget: (targetId: string) => void
   onZoomToTarget: (targetId: string) => void
   onRemoveTreeFreeArea?: (areaId: string) => void
+  /**
+   * The automatic clearing in front of a stood-at viewpoint (`viewpointClearingArea`): its setting,
+   * and the area drawn now (null while off, or when the viewpoint is a road).
+   */
+  viewpointClearing?: { stood: boolean; setting: ViewpointClearingSetting; area: TreeFreeArea | null }
+  onViewpointClearingChange?: (setting: ViewpointClearingSetting) => void
 
   drawMode: DrawMode
   onDrawModeChange: (mode: DrawMode) => void
@@ -538,6 +545,8 @@ export function Sidebar({
   onRemoveTarget,
   onZoomToTarget,
   onRemoveTreeFreeArea,
+  viewpointClearing,
+  onViewpointClearingChange,
   drawMode,
   onDrawModeChange,
   onSnapToRoad,
@@ -1316,6 +1325,44 @@ export function Sidebar({
                     </div>
                     {/* Ground drawn without timber: a pullout, a cleared stretch of roadside, a field. */}
                     <div className="space-y-1.5" data-testid="tree-free-areas">
+                      {viewpointClearing?.stood && onViewpointClearingChange && (
+                        <div className="flex items-end gap-2" data-testid="viewpoint-clearing">
+                          <div className="flex min-w-0 flex-1 items-center gap-1 pb-1.5">
+                            <CheckboxField
+                              className="min-w-0 flex-1"
+                              label={<span className="text-2xs font-medium">Viewpoint clearing</span>}
+                              checked={viewpointClearing.setting.enabled}
+                              onCheckedChange={(enabled) =>
+                                onViewpointClearingChange({ ...viewpointClearing.setting, enabled })
+                              }
+                            />
+                            <InfoTip label="About the viewpoint clearing">
+                              A lookout is kept open, so the stand is drawn back from where you stand: a fan of this
+                              radius within {VIEWPOINT_CLEARING.halfAngleDegrees}° either side of the block, and{' '}
+                              {VIEWPOINT_CLEARING.eyeRadiusMeters} m all round the eye. Display only, like any tree-free
+                              area: the figures never change.
+                              {viewpointClearing.area
+                                ? ` It clears ${formatMeasure(polygonAreaMeters(viewpointClearing.area.geometry) / 10_000, 'ha', { maximumFractionDigits: 2 })}.`
+                                : ''}
+                            </InfoTip>
+                          </div>
+                          {viewpointClearing.setting.enabled && (
+                            <div className="w-24 shrink-0">
+                              <NumberField
+                                label="Radius"
+                                value={viewpointClearing.setting.radiusMeters}
+                                min={VIEWPOINT_CLEARING.minRadiusMeters}
+                                max={VIEWPOINT_CLEARING.maxRadiusMeters}
+                                step={10}
+                                suffix="m"
+                                onChange={(radiusMeters) =>
+                                  onViewpointClearingChange({ ...viewpointClearing.setting, radiusMeters })
+                                }
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <Button
                         type="button"
                         variant={drawMode === 'tree-free' ? 'default' : 'outline'}

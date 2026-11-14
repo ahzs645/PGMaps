@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
+import colors from 'tailwindcss/colors'
 import {
   defaultInterfaceTheme,
   exportThemeCss,
   interfaceThemeVariables,
   isCustomTheme,
+  paletteReference,
+  paletteShades,
+  relativeLuminance,
   themePresets,
 } from './interfaceTheme'
 
@@ -64,5 +68,81 @@ describe('interface theme', () => {
     const css = exportThemeCss(themePresets.Forest, 8)
     expect(css).toContain('  --selected-alpha: 1;')
     expect(css).not.toMatch(/hsl\(1\)/)
+  })
+
+  describe('palette ramps', () => {
+    const hexOf = (channels: string) =>
+      '#' +
+      channels
+        .split(' ')
+        .map((channel) => Number(channel).toString(16).padStart(2, '0'))
+        .join('')
+    const contrast = (a: string, b: string) => {
+      const [high, low] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x)
+      return (high + 0.05) / (low + 0.05)
+    }
+
+    it("measures against Tailwind's sky and slate", () => {
+      paletteShades.forEach((shade, index) => {
+        expect(paletteReference.tint[index]).toBe(colors.sky[shade])
+        expect(paletteReference.neutral[index]).toBe(colors.slate[shade])
+      })
+    })
+
+    it("leaves the palette classes on Tailwind's colours without a theme", () => {
+      const names = Object.keys(interfaceThemeVariables({ ...defaultInterfaceTheme, radius: 12 }))
+      expect(names.filter((name) => /tint|neutral/.test(name))).toEqual([])
+    })
+
+    it('recolours only the ramp a theme gives a colour for', () => {
+      const accentOnly = Object.keys(interfaceThemeVariables({ light: { primary: '#216447' }, dark: {}, radius: null }))
+      expect(accentOnly.filter((name) => name.startsWith('--interface-light-tint-'))).toHaveLength(11)
+      expect(accentOnly.filter((name) => /neutral|dark-tint/.test(name))).toEqual([])
+      const surfaceOnly = Object.keys(interfaceThemeVariables({ light: {}, dark: { border: '#385146' }, radius: null }))
+      expect(surfaceOnly.filter((name) => name.startsWith('--interface-dark-neutral-'))).toHaveLength(11)
+      expect(surfaceOnly.filter((name) => /tint|light-neutral/.test(name))).toEqual([])
+    })
+
+    it('keeps each shade as light as the shade it replaces, in every preset', () => {
+      for (const [name, theme] of Object.entries(themePresets)) {
+        if (!isCustomTheme(theme)) continue
+        const variables = interfaceThemeVariables(theme)
+        for (const mode of ['light', 'dark'] as const) {
+          for (const ramp of ['tint', 'neutral'] as const) {
+            paletteShades.forEach((shade, index) => {
+              const value = variables[`--interface-${mode}-${ramp}-${shade}`]
+              expect(value, `${name} ${mode} ${ramp}-${shade}`).toMatch(/^\d{1,3} \d{1,3} \d{1,3}$/)
+              const reference = paletteReference[ramp][index]
+              // Text that read on a fill before still reads: the pair's contrast moves under 3%.
+              expect(contrast(hexOf(value), reference), `${name} ${mode} ${ramp}-${shade}`).toBeLessThan(1.03)
+            })
+          }
+        }
+      }
+    })
+
+    it("takes the primary's hue for the tint and the surfaces' hue for the greys", () => {
+      const hue = (channels: string) => {
+        const [r, g, b] = channels.split(' ').map(Number)
+        return [r, g, b].indexOf(Math.max(r, g, b))
+      }
+      const variables = interfaceThemeVariables(themePresets.Forest)
+      // Forest is green: green leads in a link shade, a selected fill and a dark hover grey.
+      expect(hue(variables['--interface-light-tint-700'])).toBe(1)
+      expect(hue(variables['--interface-light-tint-50'])).toBe(1)
+      expect(hue(variables['--interface-dark-tint-300'])).toBe(1)
+      expect(hue(variables['--interface-dark-neutral-800'])).toBe(1)
+    })
+
+    it('turns the greys neutral for a theme whose surfaces are grey', () => {
+      const variables = interfaceThemeVariables({ light: { border: '#dddddd' }, dark: {}, radius: null })
+      const [r, g, b] = variables['--interface-light-neutral-500'].split(' ').map(Number)
+      expect(r).toBe(g)
+      expect(g).toBe(b)
+    })
+
+    it('keeps the ramps out of the exported shadcn variables', () => {
+      expect(exportThemeCss(themePresets.Coast, 8)).not.toMatch(/tint|neutral/)
+    })
   })
 })

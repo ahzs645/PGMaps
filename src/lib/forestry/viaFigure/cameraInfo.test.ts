@@ -34,4 +34,24 @@ describe('the camera information block', () => {
     expect(lines[4]).toBe('Maximum tree height: trees not modelled')
     expect(lines[5]).toBe('Date of rendering: 2026-11-12')
   })
+
+  it('names a surveyed eye elevation on the position line, and keeps the observer height line', () => {
+    const lines = cameraInfoLines({
+      frames: 1,
+      focalMm: 50,
+      fovDeg: 39.6,
+      observerHeightM: 1.6,
+      above: 'ground',
+      lng: -116.951,
+      lat: 50.2561,
+      elevationM: 636,
+      surveyed: true,
+      azimuthDeg: 270,
+      maxTreeHeightM: 30,
+      renderedOn: new Date('2026-11-13T10:00:00Z'),
+    })
+    expect(lines).toHaveLength(6)
+    expect(lines[1]).toBe('Observer height: 1.6 metres above ground')
+    expect(lines[2]).toMatch(/, 636 metres \(surveyed elevation\)$/)
+  })
 })

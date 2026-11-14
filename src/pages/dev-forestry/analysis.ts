@@ -88,6 +88,8 @@ function validate(input: AnalysisInput) {
     throw new Error('This scenario exceeds the browser analysis limits. Split it into smaller assessments.')
   if (new Set(input.targets.map((t) => t.id)).size !== input.targets.length)
     throw new Error('Duplicate target IDs. Re-import the scene before analysis.')
+  const eye = input.viewpoint.eyeElevationMeters
+  if (eye !== undefined && !(Math.abs(eye) < 10_000)) throw new Error('The surveyed eye elevation is not a height.')
   for (const point of input.viewpoint.coordinates)
     if (point.length !== 2 || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 85)
       throw new Error('The viewpoint must use WGS84 longitude and latitude.')
@@ -216,7 +218,20 @@ export function computeAnalysis(
   const inputSignature = canonicalInput(input),
     stations = buildStations(input)
   if (!stations.length) throw new Error('Place a viewpoint before running an analysis.')
-  const stationPoints = stations.map((s) => ({ ...s, groundElevationMeters: source.elevationAt(s.lng, s.lat) }))
+  // A surveyed eye elevation stands every station's eye there: its ground becomes the surveyed
+  // elevation less the eye height, so every sightline, solid angle and profile reads the same eye,
+  // and the terrain model's own ground is kept beside it for the summary.
+  const surveyedEye = input.viewpoint.eyeElevationMeters
+  const stationPoints = stations.map((s) => {
+    const ground = source.elevationAt(s.lng, s.lat)
+    return surveyedEye === undefined
+      ? { ...s, groundElevationMeters: ground }
+      : {
+          ...s,
+          groundElevationMeters: surveyedEye - input.settings.observerHeightMeters,
+          terrainGroundElevationMeters: ground,
+        }
+  })
   let prepared = prepareTargets(input, stations)
   let grids: GridSample[][] = []
   for (let attempt = 0; attempt < 8; attempt++) {

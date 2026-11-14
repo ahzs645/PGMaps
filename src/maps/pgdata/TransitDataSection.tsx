@@ -452,7 +452,8 @@ export default function TransitDataSection() {
                 <MarkerContent>
                   <span
                     className={cn(
-                      'block rounded-full border-2 shadow-sm',
+                      // The edge colour is the stop's kind, so the marker keeps its palette under a theme.
+                      'fixed-palette block rounded-full border-2 shadow-sm',
                       stop.id === selectedStopId
                         ? 'h-4 w-4 bg-teal-200 ring-4 ring-teal-500/30'
                         : 'h-2.5 w-2.5 bg-background',

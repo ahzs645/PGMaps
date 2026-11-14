@@ -14,6 +14,7 @@ import {
   nonVegetatedNear,
 } from './bcVegetationInventory'
 import { groundCoverFromBclcs } from './forest'
+import { coverSourceFromVri } from './sceneCover'
 import type { CanopyStand } from './canopy'
 import { loadElevationGrid } from './demLoader'
 import { localRasterResolution, rasterSampler } from './localRaster'
@@ -111,6 +112,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   let canopyStands: CanopyStand[] = []
   // Non-treed inventory ground, for the road view only: no figure reads it.
   let renderCover: NonNullable<import('./types').AnalysisResult['renderCover']> = []
+  let sceneCover: import('./sceneCover').SceneCoverSource | undefined
   let forestedGround: PolygonGeometry[] = []
   let nonVegetatedGround: PolygonGeometry[] = []
   let nonVegetatedAll: PolygonGeometry[] = []
@@ -158,6 +160,14 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
           : null
         return cover ? [{ geometry: stand.geometry, cover }] : []
       })
+      // A scene package's ground cover: open ground only when the read was whole (closed forest is then the
+      // default inside its box), every stand when it was cut short.
+      sceneCover = coverSourceFromVri(stands, response.truncated ? [] : [queryBounds], {
+        keepForest: response.truncated,
+        ...(response.truncated
+          ? { note: 'Ground cover: the run’s VRI read hit its polygon cap; ground it missed is unknown.' }
+          : {}),
+      })
       // Keep the same stand records for rendering even when numerical screening is off.
       canopyStands = stands.flatMap((stand) =>
         stand.treed && stand.heightMeters !== null && stand.heightMeters > 0
@@ -202,6 +212,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   )
   if (nonVegetatedGround.length) result.nonVegetatedGround = nonVegetatedGround
   result.renderCover = renderCover
+  if (sceneCover) result.sceneCover = sceneCover
   result.sourceNotes =
     input.localRasters?.map(
       (r) =>

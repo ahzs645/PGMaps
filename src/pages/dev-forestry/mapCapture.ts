@@ -178,9 +178,11 @@ export async function captureClassPass(
   target: number | CaptureRegion = MAX_SIDE,
 ): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
   const style = map.getStyle()
-  const hidden = (style.layers ?? []).flatMap((layer) =>
-    map.getLayoutProperty(layer.id, 'visibility') === 'none' ? [] : [layer.id],
-  )
+  // Every layer, custom layers too: `getStyle().layers` leaves out the 3D trees (a custom layer), which then stayed
+  // in the pass and the outlines traced the trees' silhouettes instead of the ground. The pass is the ground under
+  // the trees, as the reference VIAs draw their outlines and as an engine's ground pass is.
+  const ids = map.getLayersOrder?.() ?? (style.layers ?? []).map((layer) => layer.id)
+  const hidden = ids.filter((id) => map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== 'none')
   const sky = map.getSky() as SkySpecification | undefined
   const added: string[] = []
   try {
@@ -214,7 +216,7 @@ export async function captureClassPass(
 }
 
 /** Widest a framed capture is drawn, pixels, all frames together. */
-const FRAMED_WIDTH = 2400
+export const FRAMED_WIDTH = 2400
 
 export type FramedCapture = {
   image: CapturedImage
@@ -224,6 +226,30 @@ export type FramedCapture = {
   zones: { data: Uint8ClampedArray; width: number; height: number } | null
   /** Width of each frame in the joined images, pixels. */
   frameWidth: number
+  /** The pixel ratio the frames were drawn at (`capturePixelRatio`), and the capture's wall time, ms. */
+  pixelRatio: number
+  millis: number
+}
+
+/** Highest pixel ratio a framed capture draws the road view at. */
+export const MAX_CAPTURE_PIXEL_RATIO = 3
+
+/**
+ * The pixel ratio that gives each frame's window of the canvas `frameWidth` drawn pixels, so the sheet takes the
+ * frame's own pixels rather than an upscaled crop (a 515 px canvas blown up 2.33× put a pixel at 12.6 m at 9 km).
+ * Never below the map's own ratio, never above `MAX_CAPTURE_PIXEL_RATIO`; MapLibre then clamps it to its
+ * `maxCanvasSize` (4096 px a side by default).
+ */
+export function capturePixelRatio(input: {
+  frameWidth: number
+  clientWidth: number
+  /** The narrowest frame window's share of the canvas width (`canvasWindow(…).crop.width`). */
+  cropWidth: number
+  current: number
+}): number {
+  const window_ = Math.max(1, input.clientWidth * Math.max(0.05, input.cropWidth))
+  const wanted = input.frameWidth / window_
+  return Math.max(input.current, Math.min(MAX_CAPTURE_PIXEL_RATIO, Math.ceil(wanted * 4) / 4))
 }
 
 /**
@@ -257,6 +283,17 @@ export async function captureFramed(
   const height = Math.round(
     frameWidth * (Math.tan((first.vfovDeg * Math.PI) / 360) / Math.tan((first.hfovDeg * Math.PI) / 360)),
   )
+  const started = performance.now()
+  // Draw at the pixel ratio the frame width needs, put back in `finally`. A null override (`devicePixelRatio`
+  // followed) is restored as null, so the map keeps following the display it is on.
+  const override = (map as unknown as { _overridePixelRatio?: number | null })._overridePixelRatio ?? null
+  const ratioBefore = map.getPixelRatio()
+  const ratio = capturePixelRatio({
+    frameWidth,
+    clientWidth: source.clientWidth,
+    cropWidth: Math.min(...plan.frames.map((frame) => canvasWindow(frame, aspect).crop.width)),
+    current: ratioBefore,
+  })
   const joined = document.createElement('canvas')
   joined.width = frameWidth * plan.frames.length
   joined.height = height
@@ -269,6 +306,7 @@ export async function captureFramed(
     ? { data: new Uint8ClampedArray(joined.width * height * 4), width: joined.width, height }
     : null
   try {
+    if (ratio > ratioBefore) map.setPixelRatio(ratio)
     for (let i = 0; i < plan.frames.length; i++) {
       const frame = plan.frames[i]
       const window_ = canvasWindow(frame, aspect)
@@ -318,8 +356,12 @@ export async function captureFramed(
       classes,
       zones,
       frameWidth,
+      // As drawn: MapLibre may have clamped the ratio asked for to its largest canvas.
+      pixelRatio: Math.round((source.width / Math.max(1, source.clientWidth)) * 100) / 100,
+      millis: Math.round(performance.now() - started),
     }
   } finally {
+    if (ratio > ratioBefore) map.setPixelRatio(override as number)
     map.setVerticalFieldOfView(fov)
     map.jumpTo(before)
     map.triggerRepaint()

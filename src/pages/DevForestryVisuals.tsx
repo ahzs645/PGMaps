@@ -89,8 +89,25 @@ import {
 } from './dev-forestry/forest'
 import { roadScar } from './dev-forestry/harvestedGround'
 import { buildScenePackage } from './dev-forestry/scenePackage'
-import { ExternalRoadRenderer } from './dev-forestry/ExternalRoadRenderer'
-import { DEFAULT_ENGINE_ENVIRONMENT, roadRendererUrl } from './dev-forestry/externalRenderers'
+import { fetchSceneCover } from './dev-forestry/bcVegetationInventory'
+import type { SceneCoverSource } from './dev-forestry/sceneCover'
+import { buildFinalStand, finalStandBearings, finalStandRadius, moveStandOrigin } from './dev-forestry/finalStand'
+import { ExternalRoadRenderer, type EngineCaptureHandle } from './dev-forestry/ExternalRoadRenderer'
+import {
+  ENGINE_CLASS_PALETTE,
+  cameraMismatch,
+  captureRequest,
+  captureTerrain,
+  depthSummary,
+  readCaptureReply,
+  type EngineCaptureRequest,
+  type FigureIllustration,
+} from './dev-forestry/engineCapture'
+import { joinEngineCapture } from './dev-forestry/engineFramedCapture'
+import { loadSkylineTerrain } from './dev-forestry/skylineTerrain'
+import { frameBearingRange } from './dev-forestry/skylineReach'
+import type { ElevationSource } from './dev-forestry/terrain'
+import { DEFAULT_ENGINE_ENVIRONMENT, engineEnvironment, roadRendererUrl } from './dev-forestry/externalRenderers'
 import type { BasemapContext } from './dev-forestry/BasemapContextProbe'
 import { FieldPhotoPanel, PhotoOverlay, StreetPhotoInset } from './dev-forestry/FieldPhoto'
 import { useFieldPhoto } from './dev-forestry/useFieldPhoto'
@@ -131,6 +148,7 @@ import {
 import {
   captureClassPass,
   captureFramed,
+  FRAMED_WIDTH,
   captureImageUrl,
   captureMapImage,
   capturePlanMap,
@@ -140,12 +158,20 @@ import {
   focalForHfov,
   HFOV_50_MM,
   landformAngularExtent,
+  planFixedFraming,
   planFraming,
   projectToFrames,
+  type FramingPlan,
 } from './dev-forestry/figureFraming'
 import { inventoryBadge } from './dev-forestry/inventoryBadge'
 import type { DrivePose } from './dev-forestry/driveController'
-import { classPassLayers, zonePassLayers, type ClassPassInput } from './dev-forestry/figureClassPass'
+import {
+  CLASS_PASS_BACKGROUND,
+  classPassLayers,
+  zonePassLayers,
+  type ClassPassInput,
+  type ClassPassLayer,
+} from './dev-forestry/figureClassPass'
 import { blockCallouts, type BlockSight } from './dev-forestry/figureCallouts'
 import type { FigureStyleData } from './dev-forestry/FigureStyleLayers'
 import { DEFAULT_FIGURE_STYLE, figureNoteImage, type SavedFigure } from './dev-forestry/FigureSheetPanel'
@@ -160,6 +186,7 @@ import {
   type Overlay,
   visibleLineParts,
   ZONE_PALETTE,
+  zoneColor,
 } from '@/lib/forestry/viaFigure/composeFigure'
 import { findPreset as findFigurePreset, VQO_ZONE_ROLES } from '@/lib/forestry/viaFigure/presets'
 import { splitLandform, subLandformDividers } from './dev-forestry/subLandforms'
@@ -195,7 +222,14 @@ import {
 import type { ReverseInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
 import { PlanMapLegend } from './dev-forestry/PlanMapLegend'
 import { PlanClickToMove, PlanViewerHandles } from './dev-forestry/PlanViewerHandles'
-import { MAX_TREE_FREE_AREAS, treeFreeAreasToGeoJson } from './dev-forestry/treeFreeAreas'
+import {
+  DEFAULT_VIEWPOINT_CLEARING,
+  MAX_TREE_FREE_AREAS,
+  treeFreeAreasToGeoJson,
+  viewpointClearingArea,
+} from './dev-forestry/treeFreeAreas'
+import { standingPoint, surveyedEyeElevation } from './dev-forestry/viewpointStand'
+import { StoodViewpointPanel } from './dev-forestry/StoodViewpointPanel'
 import { DEFAULT_PLAN_SHOW, togglePlanLegendKey, type PlanBasemap, type PlanShow } from './dev-forestry/planLayers'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { useVisualQualityTable } from './dev-forestry/useVisualQualityTable'
@@ -272,6 +306,16 @@ const ROAD_DISTURBANCE_WIDTH_METERS = 20
 /** An inventory viewpoint this close to the run's own road is that road's view, not another viewpoint. */
 const INVENTORY_POINT_ON_ROAD_METERS = 300
 
+/**
+ * Development only: `?captureSamples=8` asks an engine's final capture for fewer jittered samples (draft runs of the
+ * VIA reference-library harness). Absent or invalid, the capture keeps `FINAL_SAMPLES` (24).
+ */
+function captureSamplesFromUrl(): number | undefined {
+  if (!import.meta.env.DEV) return undefined
+  const samples = Number(new URLSearchParams(window.location.search).get('captureSamples'))
+  return Number.isInteger(samples) && samples >= 1 && samples <= 256 ? samples : undefined
+}
+
 type InventoryState = {
   status: 'idle' | 'loading' | 'ready' | 'error'
   units: BcSensitivityUnit[]
@@ -312,6 +356,8 @@ function DevForestryVisuals() {
   /** The 2D plan map; the eye-level road view has its own (`eyeMapRef`), mounted while it is open. */
   const mapRef = useRef<MapRef>(null)
   const eyeMapRef = useRef<MapRef>(null)
+  // The engine drawing the road view, while one is chosen and listening (`ExternalRoadRenderer`).
+  const engineCaptureRef = useRef<EngineCaptureHandle | null>(null)
   const { scene, setScene, warning: sceneStorageWarning } = usePersistentScene(loadInitialScene)
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
   // The shared measure tool (`map-measure.tsx`) on the plan map; drawing a shape puts it down.
@@ -1661,7 +1707,32 @@ function DevForestryVisuals() {
     [planShow.evqo, evqoCurrent],
   )
   const landscapeCollection = useMemo(() => targetsToGeoJson(scene.targets, 'landscape'), [scene.targets])
-  const treeFreeCollection = useMemo(() => treeFreeAreasToGeoJson(scene.treeFreeAreas ?? []), [scene.treeFreeAreas])
+  // A stood-at viewpoint (a spot, or Stand here's pullout) is a maintained lookout: the drawn stand
+  // leaves a fan open toward the block it faces, and a circle round the eye. Display only.
+  const standPoint = useMemo(() => standingPoint(scene.viewpoint), [scene.viewpoint])
+  const viewpointClearingSetting = scene.viewpointClearing ?? DEFAULT_VIEWPOINT_CLEARING
+  const clearingFacing = useMemo(() => {
+    if (!standPoint) return null
+    if (typeof drive.lookBearing === 'number') return Math.round(drive.lookBearing)
+    const faced =
+      scene.targets.find((target) => target.id === drive.lookAtTargetId) ??
+      scene.targets.find((target) => target.id === selectedTargetId && target.role === 'block') ??
+      scene.targets.find((target) => target.role === 'block') ??
+      sceneLandform
+    const centre = faced ? polygonInteriorPoint(faced.geometry) : null
+    // Whole degrees, so the stand is not regrown for a fraction of one.
+    return centre ? Math.round(bearingDegrees(standPoint, centre)) : null
+  }, [standPoint, drive.lookBearing, drive.lookAtTargetId, scene.targets, selectedTargetId, sceneLandform])
+  const viewpointClearing = useMemo(
+    () => (standPoint ? viewpointClearingArea(standPoint, clearingFacing, viewpointClearingSetting) : null),
+    [standPoint, clearingFacing, viewpointClearingSetting],
+  )
+  // The surveyed eye that applies now; the road view, the run and the captures all stand there.
+  const surveyedEye = surveyedEyeElevation(scene.viewpoint) !== null ? (scene.viewpoint.surveyedEye ?? null) : null
+  const treeFreeCollection = useMemo(
+    () => treeFreeAreasToGeoJson([...(viewpointClearing ? [viewpointClearing] : []), ...(scene.treeFreeAreas ?? [])]),
+    [scene.treeFreeAreas, viewpointClearing],
+  )
   const harvestedCollection = useMemo(() => targetsToGeoJson(scene.targets, 'harvested'), [scene.targets])
   const corridorCollection = useMemo(
     () =>
@@ -2105,6 +2176,7 @@ function DevForestryVisuals() {
       ...basemap.water,
       ...(scene.masks ?? []).filter((m) => m.kind === 'natural').map((m) => m.geometry),
       ...(scene.treeFreeAreas ?? []).map((area) => area.geometry),
+      ...(viewpointClearing ? [viewpointClearing.geometry] : []),
       ...(corridor ? [corridor] : []),
       // A fresh cut bank or fill slope grows no timber.
       ...previewRoadScar.map((strip) => strip.geometry),
@@ -2115,6 +2187,7 @@ function DevForestryVisuals() {
     scene.viewpoint,
     scene.masks,
     scene.treeFreeAreas,
+    viewpointClearing,
     basemap.water,
     previewRoadScar,
   ])
@@ -2266,6 +2339,7 @@ function DevForestryVisuals() {
         .map((target) => target.geometry),
       privateLand: (scene.masks ?? []).filter((mask) => mask.kind === 'private').map((mask) => mask.geometry),
       rock: result?.nonVegetatedGround ?? [],
+      retained: (scene.masks ?? []).filter((mask) => mask.kind === 'retained').map((mask) => mask.geometry),
     }
   }, [scene.targets, scene.masks, scene.assessmentYear, scene.settings.greenUpAgeYears, sceneLandform, result])
   const figureClasses = useMemo(() => classPassLayers(figureClassInput), [figureClassInput])
@@ -2651,7 +2725,12 @@ function DevForestryVisuals() {
           }
         : null)
     const extent = eye && ground && subject ? landformAngularExtent(ground, eye, subject) : null
-    const plan = extent ? planFraming(extent, { lensHfovDeg: at.photoHfov ?? HFOV_50_MM }) : null
+    // A fixed frame (a reference VIA's panorama) when the scene sets one, else framed on the landform.
+    const plan = scene.figureFrame
+      ? planFixedFraming(scene.figureFrame, extent)
+      : extent
+        ? planFraming(extent, { lensHfovDeg: at.photoHfov ?? HFOV_50_MM })
+        : null
     let classes: ReturnType<typeof decodeClassRaster>
     let frameImage: NoteImage | undefined
     let project: (lng: number, lat: number, elevation: number) => [number, number] | null
@@ -2663,14 +2742,37 @@ function DevForestryVisuals() {
     let frames = 1
     let azimuth = map.getBearing()
     const zoneLayers = evqoCurrent ? zonePassLayers(evqoCurrent.collection) : []
+    // With another engine drawing the road view, the frames come from it (`engineCapture.ts`): its picture, its
+    // class pass (its trees in front) and its depth, from one camera and one scene.
+    let illustration: FigureIllustration | null = null
+    let engineTreeHeight: number | null | undefined
+    // The engine's pass with its trees drawn, for the screened pixel figure beside the ground one.
+    let screened: ReturnType<typeof decodeClassRaster> | null = null
+    const engine = drive.renderer !== 'pgmaps' ? engineCaptureRef.current : null
     if (plan && eye) {
-      const framed = await captureFramed(map, plan, eye, figureClasses.layers, zoneLayers.length ? zoneLayers : null)
+      let framed: Pick<Awaited<ReturnType<typeof captureFramed>>, 'image' | 'classes' | 'zones' | 'frameWidth'>
+      if (engine) {
+        const shot = await engineFigureCapture(engine, plan, eye, zoneLayers)
+        framed = shot.framed
+        illustration = shot.illustration
+        engineTreeHeight = shot.maxTreeHeightMeters
+        if (shot.screened)
+          screened = decodeClassRaster(
+            shot.screened.data,
+            shot.screened.width,
+            shot.screened.height,
+            ENGINE_CLASS_PALETTE,
+          )
+      } else framed = await captureFramed(map, plan, eye, figureClasses.layers, zoneLayers.length ? zoneLayers : null)
       if (!framed.classes) throw new Error('The class pass of the framed view could not be taken.')
-      classes = decodeClassRaster(framed.classes.data, framed.classes.width, framed.classes.height)
+      classes = illustration
+        ? decodeClassRaster(framed.classes.data, framed.classes.width, framed.classes.height, ENGINE_CLASS_PALETTE)
+        : decodeClassRaster(framed.classes.data, framed.classes.width, framed.classes.height)
       if (framed.zones)
         zones = decodeClassRaster(framed.zones.data, framed.zones.width, framed.zones.height, ZONE_PALETTE)
       project = projectToFrames(plan.frames, eye, { frameWidth: framed.frameWidth, height: framed.image.height })
-      crop = landformCropRows(classes)
+      // A fixed frame keeps its own rows (water and sky as the reference shows them).
+      crop = scene.figureFrame ? null : landformCropRows(classes)
       frameImage = { ...framed.image, caption: `${at.name}.` }
       lens = `framed: ${plan.label}`
       hfovDeg = plan.totalHfovDeg
@@ -2696,8 +2798,14 @@ function DevForestryVisuals() {
       const focal = 18 / Math.tan((at.fov * Math.PI) / 360)
       lens = `road view, ${Math.round(at.fov)}° horizontal (${Math.round(focal)} mm full-frame equivalent), facing ${Math.round((bearing + 360) % 360)}°`
     }
+    // Blocks the view sees (or may glimpse, or cannot tell) are called out; the rest are listed once in the facts,
+    // not as a pile of "Likely Not Visible" labels over the skyline.
+    const allBlockCallouts = blockCallouts(blockSights, at.stationIndex, project, classes)
+    const hiddenBlocks = allBlockCallouts.filter((callout) => callout.status === 'not visible')
     const callouts = [
-      ...blockCallouts(blockSights, at.stationIndex, project, classes),
+      ...allBlockCallouts
+        .filter((callout) => callout.status !== 'not visible')
+        .map((callout) => ({ ...callout, priority: callout.visiblePercent })),
       // Existing openings the station sees, as secondary labels (small and plain in the boxless styles).
       ...blockCallouts(openingSights, at.stationIndex, project, classes, '')
         .filter((callout) => callout.status === 'visible' || callout.status === 'possible glimpses')
@@ -2752,6 +2860,20 @@ function DevForestryVisuals() {
         ...(nearest.length
           ? [{ label: 'Distance to block', value: `${(Math.min(...nearest) / 1000).toFixed(1)} km` }]
           : []),
+        ...(hiddenBlocks.length
+          ? [
+              {
+                label: 'Not visible from here',
+                value:
+                  hiddenBlocks.length <= 3
+                    ? hiddenBlocks.map((callout) => callout.title.replace(/^Block /, '')).join(', ')
+                    : `${hiddenBlocks.length} blocks (${hiddenBlocks
+                        .slice(0, 2)
+                        .map((callout) => callout.title.replace(/^Block /, ''))
+                        .join(', ')} and ${hiddenBlocks.length - 2} more)`,
+              },
+            ]
+          : []),
       ],
       rating: badge.unit ? badge.values : null,
       ratingNote: badge.note,
@@ -2770,13 +2892,117 @@ function DevForestryVisuals() {
         lng: eye?.lng ?? at.eye?.lng ?? scene.viewpoint.coordinates[0]?.[0] ?? 0,
         lat: eye?.lat ?? at.eye?.lat ?? scene.viewpoint.coordinates[0]?.[1] ?? 0,
         elevationM: eye?.elevation ?? 0,
+        ...(at.pose?.eyeSurveyed ? { surveyed: true } : {}),
         azimuthDeg: azimuth,
         maxTreeHeightM:
-          drive.forest && result?.renderStands?.length
-            ? Math.max(...result.renderStands.map((stand) => stand.heightMeters))
-            : null,
+          engineTreeHeight !== undefined
+            ? engineTreeHeight
+            : drive.forest && result?.renderStands?.length
+              ? Math.max(...result.renderStands.map((stand) => stand.heightMeters))
+              : null,
         renderedOn: new Date(),
       },
+      ...(illustration ? { illustration } : {}),
+      ...(screened ? { screened } : {}),
+    }
+  }
+  /**
+   * The sheet's frames drawn by the engine in the road view: a scene with terrain out past the landform and blocks
+   * (`captureTerrain`), then the capture of the plan's frames at the eye, checked against what was asked.
+   */
+  const engineFigureCapture = async (
+    engine: EngineCaptureHandle,
+    plan: FramingPlan,
+    eye: { lng: number; lat: number; elevation: number },
+    zoneLayers: readonly ClassPassLayer[],
+  ) => {
+    const layers = figureClasses.layers
+    // Real ground out to the frames' skyline: the preview's own terrain where it has posts, coarser mosaics past it,
+    // out to the farthest skyline point the frames show (`skylineReach`), then the package's grids sized from it.
+    const look = plan.frames.map((frame) => frameBearingRange(frame))
+    const nearTerrain = captureTerrain(eye, layers)
+    // VRI's open ground over the capture's terrain out to `farTerrain`, read beside the skyline (never rejects).
+    const coverRead = fetchSceneCover(eye, nearTerrain.farTerrainRadiusMeters)
+    const skyline = await loadSkylineTerrain(previewTerrain.source, eye, nearTerrain.farTerrainRadiusMeters, { look })
+    const terrain = captureTerrain(eye, layers, undefined, skyline.reach)
+    const first = plan.frames[0]
+    const frameWidth = Math.floor(FRAMED_WIDTH / plan.frames.length)
+    const height = Math.round(
+      frameWidth * (Math.tan((first.vfovDeg * Math.PI) / 360) / Math.tan((first.hfovDeg * Math.PI) / 360)),
+    )
+    const scenePackage = currentScenePackage(eye, {
+      cover: await coverRead,
+      terrainRadiusMeters: terrain.terrainRadiusMeters,
+      terrainSpacingMeters: terrain.terrainSpacingMeters,
+      treeRadiusMeters: terrain.treeRadiusMeters,
+      ...(skyline.source
+        ? {
+            farTerrainRadiusMeters: terrain.farTerrainRadiusMeters,
+            farTerrainSpacingMeters: terrain.farTerrainSpacingMeters,
+            skylineTerrainRadiusMeters: terrain.skylineTerrainRadiusMeters,
+            skylineTerrainSpacingMeters: terrain.skylineTerrainSpacingMeters,
+            elevation: skyline.source,
+          }
+        : {}),
+    })
+    // The report's still: the frame's forest regrown at real density with the road view's own near-band rules
+    // (`finalStand.ts`), out past the landform within the frames' bearings. An engine that ignores `quality` draws
+    // the active capture and reports no `final`.
+    const standGround = skyline.source ?? previewTerrain.source
+    const stand = standGround
+      ? await buildFinalStand({
+          origin: eye,
+          eye,
+          radiusMeters: finalStandRadius(terrain.reachMeters),
+          bearings: finalStandBearings(plan.frames),
+          forest: forestConfiguration,
+          elevation: standGround,
+        })
+      : null
+    const asked: { request: EngineCaptureRequest | null } = { request: null }
+    const raw = await engine.capture(scenePackage, (pkg) => {
+      asked.request = captureRequest({
+        origin: pkg.origin,
+        eye,
+        frames: plan.frames,
+        frameWidth,
+        height,
+        layers,
+        terrainColour: CLASS_PASS_BACKGROUND,
+        zones: zoneLayers.length ? { layers: zoneLayers, terrainColour: zoneColor(6) } : null,
+        final: { stand: stand ? moveStandOrigin(stand, eye, pkg.origin) : null, samples: captureSamplesFromUrl() },
+      })
+      return asked.request
+    })
+    const request = asked.request
+    if (!request) throw new Error(`${engine.label} did not take the capture.`)
+    const reply = readCaptureReply(raw, request)
+    const mismatch = cameraMismatch(reply, request)
+    if (mismatch) throw new Error(`${engine.label}: ${mismatch}`)
+    const joined = await joinEngineCapture(reply, request)
+    const km = (metres: number) => `${(metres / 1000).toFixed(1)} km`
+    const illustration: FigureIllustration = {
+      renderer: engine.label,
+      version: reply.version,
+      capturedAt: new Date().toISOString(),
+      sceneCreatedAt: reply.scene.createdAt,
+      environment: reply.environment,
+      depth: depthSummary(joined.depth.data),
+      missing: [
+        ...reply.missing,
+        ...(terrain.clipped ? [`landform past ${km(terrain.terrainRadiusMeters)} cut`] : []),
+        ...(skyline.source ? [] : ['skyline terrain not loaded']),
+      ],
+      final: reply.final ?? null,
+      stand: stand
+        ? { stems: stand.count, radiusMeters: stand.radiusMeters, clipped: stand.clipped, millis: stand.millis }
+        : null,
+    }
+    return {
+      framed: { image: joined.image, classes: joined.classes, zones: joined.zones, frameWidth: joined.frameWidth },
+      screened: joined.screened,
+      illustration,
+      maxTreeHeightMeters: reply.maxTreeHeightMeters,
     }
   }
   const saveView = () => {
@@ -2855,14 +3081,22 @@ function DevForestryVisuals() {
           return
         }
         setViewImages((current) => ({ ...current, [view.id]: { ...image, caption, savedAt, viewpoint } }))
+        // Another engine takes seconds to draw the sheet's frames: say so, and say who drew them.
+        const engine = drive.renderer !== 'pgmaps' ? engineCaptureRef.current : null
+        if (engine) setPreviewMessage(`Saved ${view.name}. ${engine.label} is drawing its analysis sheet…`)
         try {
           const figure = await captureViewFigure(map, at)
           setViewImages((current) =>
             current[view.id] ? { ...current, [view.id]: { ...current[view.id], figure } } : current,
           )
-        } catch {
+          if (figure.illustration)
+            setPreviewMessage(`Saved ${view.name}. Its analysis sheet is drawn by ${figure.illustration.renderer}.`)
+          else setPreviewMessage(`Saved ${view.name}. Its analysis sheet is ready.`)
+        } catch (error) {
           setPreviewMessage(
-            `Saved ${view.name}, but its class pass could not be taken: its analysis sheet will have no outlines.`,
+            engine
+              ? `Saved ${view.name}, but ${engine.label} could not draw its analysis sheet: ${error instanceof Error ? error.message : String(error)}`
+              : `Saved ${view.name}, but its class pass could not be taken: its analysis sheet will have no outlines.`,
           )
         }
       })()
@@ -2890,22 +3124,55 @@ function DevForestryVisuals() {
     setPreviewMessage(`Saved ${view.name}. Save & export keeps or shares it.`)
   }
   /** The road view's scene for other renderers (`scenePackage.ts`), round an eye or the drive's own. */
-  const currentScenePackage = (at: { lng: number; lat: number } | null = null) => {
+  const currentScenePackage = (
+    at: { lng: number; lat: number } | null = null,
+    size: {
+      terrainRadiusMeters?: number
+      terrainSpacingMeters?: number
+      treeRadiusMeters?: number
+      farTerrainRadiusMeters?: number
+      farTerrainSpacingMeters?: number
+      skylineTerrainRadiusMeters?: number
+      skylineTerrainSpacingMeters?: number
+      /** Ground to read in place of the preview's own (a capture's, reaching the skyline). */
+      elevation?: ElevationSource
+      /** A capture's own VRI read for `terrain.cover`, beside the run's. */
+      cover?: SceneCoverSource
+    } = {},
+  ) => {
+    const { elevation: groundOverride, cover: coverRead, ...sized } = size
     const map = eyeMapRef.current
-    const ground = previewTerrain.source
-    const eye = at ?? driveEye
+    const ground = groundOverride ?? previewTerrain.source
+    const pose = drivePoseRef.current
+    const eye = at ?? pose ?? driveEye
     if (!map || !ground || !eye) throw new Error('Open the road view and let its terrain load first.')
+    const canvas = map.getCanvas()
+    const createdAt = new Date()
     return buildScenePackage({
       eye,
       eyeHeightMeters: result?.settings.observerHeightMeters ?? 1.5,
+      ...(pose && eye.lng === pose.lng && eye.lat === pose.lat ? { eyeElevationMeters: pose.eyeElevationMeters } : {}),
       bearingDegrees: map.getBearing(),
       // MapLibre's pitch is 90° at the horizon.
       pitchDegrees: map.getPitch() - 90,
       verticalFovDegrees: map.getVerticalFieldOfView(),
+      viewport: {
+        width: canvas.clientWidth,
+        height: canvas.clientHeight,
+        pixelRatio: canvas.width / canvas.clientWidth,
+      },
+      environment: engineEnvironment(drive.engineEnvironment, eye, createdAt),
+      createdAt,
       forest: forestConfiguration,
       elevation: ground,
       roadScars: previewRoadScar,
       water: basemap.water,
+      cover: [...(coverRead ? [coverRead] : []), ...(result?.sceneCover ? [result.sceneCover] : [])],
+      // Each opening's age and retention, aged to the year the regrowth is drawn for.
+      targets: scene.targets,
+      assessmentYear: visualYear,
+      greenUpAgeYears: scene.settings.greenUpAgeYears,
+      ...sized,
       notes: [
         `${scene.viewpoint.name || 'Viewpoint'}, ${(drive.positionMeters / 1000).toFixed(2)} km along the road, ${drive.harvestPhase} harvest.`,
         'Terrain: the road view’s drawn ground (AWS Open Data CDEM/SRTM). Trees: VRI where recorded, the regional stand elsewhere.',
@@ -3358,6 +3625,34 @@ function DevForestryVisuals() {
       visit={
         <>
           <PreviewWorkflow part="visit" {...previewProps} />
+          <StoodViewpointPanel
+            viewpoint={scene.viewpoint}
+            terrainGroundMeters={
+              standPoint && previewTerrain.source
+                ? previewTerrain.source.elevationAt(standPoint.lng, standPoint.lat)
+                : null
+            }
+            observerHeightMeters={scene.settings.observerHeightMeters}
+            onSurveyedEyeChange={(eye) => {
+              setScene((current) => {
+                const viewpoint = { ...current.viewpoint }
+                if (eye) viewpoint.surveyedEye = eye
+                else delete viewpoint.surveyedEye
+                return { ...current, viewpoint }
+              })
+              // A run input: the run goes stale and closes the road view, so, as for a stand, it is
+              // held open and reopens where it was once the run is made again.
+              const open = driveRef.current
+              if (!open.active) return
+              setRoadViewHeld(true)
+              setStandRequest((request) => ({
+                serial: (request?.serial ?? 0) + 1,
+                positionMeters: open.positionMeters,
+                lookAtTargetId: open.lookAtTargetId,
+                lookBearing: open.lookBearing ?? null,
+              }))
+            }}
+          />
           <RouteViewshedPanel
             preview={routeViewshed}
             driving={drive.active}
@@ -3507,6 +3802,12 @@ function DevForestryVisuals() {
       onThresholdsChange={(thresholds) => setScene((current) => ({ ...current, thresholds }))}
       onTargetChange={handleTargetChange}
       onRemoveTarget={handleRemoveTarget}
+      viewpointClearing={{
+        stood: !!standPoint,
+        setting: viewpointClearingSetting,
+        area: viewpointClearing,
+      }}
+      onViewpointClearingChange={(setting) => setScene((current) => ({ ...current, viewpointClearing: setting }))}
       onRemoveTreeFreeArea={(areaId) =>
         setScene((current) => ({
           ...current,
@@ -3868,7 +4169,7 @@ function DevForestryVisuals() {
                               : null
                           }
                           masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
-                          treeFreeAreas={(scene.treeFreeAreas ?? []).length > 0}
+                          treeFreeAreas={(scene.treeFreeAreas ?? []).length > 0 || !!viewpointClearing}
                           evqo={planEvqoCodes}
                           hidden={planShow.hidden}
                           onToggle={(key) => setPlanShow((current) => togglePlanLegendKey(current, key))}
@@ -4073,6 +4374,7 @@ function DevForestryVisuals() {
                                           result?.settings.observerHeightMeters ??
                                           scene.settings.observerHeightMeters)
                                     }
+                                    surveyedEye={preliminaryDrive || photoLook ? null : surveyedEye}
                                     lookAt={preliminaryDrive ? null : lookAtTarget}
                                     spotBearing={spotBearing}
                                     onPosition={(pose) => {
@@ -4128,7 +4430,8 @@ function DevForestryVisuals() {
                               url={engineUrl}
                               mapRef={eyeMapRef}
                               poseRef={drivePoseRef}
-                              buildScene={currentScenePackage}
+                              buildScene={(at) => currentScenePackage(at)}
+                              captureRef={engineCaptureRef}
                               stand={engineStand}
                               environment={drive.engineEnvironment}
                               onUsePgmaps={() => setDrive((current) => ({ ...current, renderer: 'pgmaps' }))}

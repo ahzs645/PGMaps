@@ -1,13 +1,24 @@
-import { useId, useMemo, useState, type ReactNode } from 'react'
-import { ChevronRight, Eye, EyeOff, Folder, FolderOpen, Layers3, LocateFixed, Route, Trash2 } from 'lucide-react'
+import { Fragment, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Folder,
+  FolderOpen,
+  Layers3,
+  LocateFixed,
+  Pencil,
+  Route,
+  Trash2,
+} from 'lucide-react'
 import { RibbonTaskPane } from '@/components/interfaces/RibbonTaskPane'
 import { Button } from '@/components/ui/button'
 import { FileDropField } from '@/components/ui/file-drop-field'
 import type { PickedFile } from '@/components/ui/picked-files'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { cn } from '@/lib/utils'
-import { roadFieldClass } from './Controls'
 import {
+  compactReferenceFolder,
   importedCutblockFeatures,
   referenceFolders,
   referenceLayers,
@@ -17,7 +28,7 @@ import {
   type ReferenceLayer,
 } from './referenceFeatures'
 import { referenceLayerColor } from './ReferenceLayer'
-import { LAYER_IMPORT_LABELS, REFERENCE_ACCEPT } from './referenceImport'
+import { designRoadForProposedLine, LAYER_IMPORT_LABELS, REFERENCE_ACCEPT } from './referenceImport'
 import { CutblockBufferField } from './CutblockBufferField'
 import { cutblockBufferKey, type CutblockBuffer } from './cutblockBuffers'
 import type { DrawMode } from './PlanView'
@@ -27,40 +38,60 @@ import { PdfRasterDetails } from './PdfRasterDetails'
 
 const SHAPE_LABELS = { point: 'Point', line: 'Line', area: 'Area' } as const
 
+/** A feature's name edited in its own row: Enter or leaving the field keeps it, Escape puts it back. */
 function ReferenceName({
   name,
   label,
-  disabled,
   onRename,
+  onDone,
 }: {
   name: string
   label: string
-  disabled: boolean
   onRename: (name: string) => void
+  /** `byKey` is true when Enter or Escape ended the edit, so focus can go back to the row. */
+  onDone: (byKey: boolean) => void
 }) {
   const [draft, setDraft] = useState(name)
+  const ended = useRef<'Enter' | 'Escape' | null>(null)
   return (
     <input
-      className={`${roadFieldClass} min-w-0 flex-1`}
+      autoFocus
+      className="min-w-0 flex-1 rounded-sm border border-input bg-background px-1.5 py-0.5 text-base md:text-xs"
       aria-label={label}
-      disabled={disabled}
       maxLength={200}
       value={draft}
+      onFocus={(event) => event.currentTarget.select()}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={() => {
         const next = draft.trim()
-        if (next && next !== name) onRename(next)
-        else setDraft(name)
+        if (ended.current !== 'Escape' && next && next !== name) onRename(next)
+        onDone(ended.current !== null)
       }}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur()
+        if (event.key === 'Enter' || event.key === 'Escape') {
+          event.stopPropagation()
+          ended.current = event.key
+          event.currentTarget.blur()
+        }
         if (['Home', 'End', 'ArrowUp', 'ArrowDown'].includes(event.key)) event.stopPropagation()
       }}
     />
   )
 }
 
-/** A disclosure row with its actions beside the toggle so each action has its own focus target. */
+/** Row actions share one quiet look and one column, so the icons line up down the tree. */
+const rowActionClass = 'text-muted-foreground hover:bg-foreground/10 hover:text-foreground [&_svg]:size-3.5'
+
+/** Rename and remove wait for the pointer, the keyboard or an open row; a touch screen always shows them. */
+const quietActionClass =
+  'opacity-0 focus-visible:opacity-100 group-focus-within/row:opacity-100 group-hover/row:opacity-100 touch:opacity-100'
+
+const summaryClass = 'cursor-pointer select-none text-muted-foreground hover:text-foreground'
+
+/**
+ * A disclosure row with its actions beside the toggle so each action has its own focus target.
+ * A row with nothing under it has no chevron, and `editor` stands in for the name while it is edited.
+ */
 function Branch({
   name,
   detail,
@@ -70,6 +101,10 @@ function Branch({
   actions,
   children,
   muted,
+  guide = true,
+  editor,
+  tag,
+  title = name,
 }: {
   name: string
   detail?: string
@@ -79,34 +114,64 @@ function Branch({
   actions?: ReactNode
   children: ReactNode
   muted?: boolean
+  /** False sets the body under the row's name with no rule: a row's own details, not more rows. */
+  guide?: boolean
+  editor?: ReactNode
+  /** What the row is, at its right end: a layer's role while it is folded. */
+  tag?: string
+  title?: string
 }) {
   const id = useId()
+  const expandable = children != null && children !== false
+  const chevron = expandable ? (
+    <ChevronRight aria-hidden="true" className={cn('size-3.5 shrink-0 text-muted-foreground', open && 'rotate-90')} />
+  ) : (
+    <span className="size-3.5 shrink-0" aria-hidden="true" />
+  )
+  const label = (
+    <>
+      <span className={cn('flex min-w-0 items-center gap-1.5', muted && 'text-muted-foreground')}>
+        {icon}
+        <span className="truncate">{name}</span>
+      </span>
+      {detail && <span className="shrink-0 text-2xs text-muted-foreground">{detail}</span>}
+      {tag && <span className="ml-auto shrink-0 pl-1 pr-0.5 text-2xs text-muted-foreground">{tag}</span>}
+    </>
+  )
+  const rowClass = 'flex min-w-0 flex-1 items-center gap-1.5 rounded-sm px-1 text-left text-xs touch:min-h-11'
   return (
     <>
-      <div className="flex min-w-0 items-center gap-1">
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-sm px-1 py-1.5 text-left text-xs hover:bg-accent focus-visible:outline focus-visible:outline-primary touch:min-h-11"
-          aria-expanded={open}
-          aria-controls={id}
-          onClick={toggle}
-          title={name}
-        >
-          <ChevronRight
-            aria-hidden="true"
-            className={cn('size-3.5 shrink-0 text-muted-foreground', open && 'rotate-90')}
-          />
-          <span className={cn('flex min-w-0 items-center gap-1.5', muted && 'text-muted-foreground')}>
-            {icon}
-            <span className="truncate">{name}</span>
-          </span>
-          {detail && <span className="shrink-0 text-2xs text-muted-foreground">{detail}</span>}
-        </button>
+      <div className="group/row flex min-w-0 items-center rounded-sm hover:bg-accent">
+        {editor ? (
+          <div className={cn(rowClass, 'py-0.5')}>
+            {chevron}
+            {editor}
+          </div>
+        ) : expandable ? (
+          <button
+            type="button"
+            className={cn(rowClass, 'py-1.5 focus-visible:outline focus-visible:outline-primary')}
+            aria-expanded={open}
+            aria-controls={id}
+            onClick={toggle}
+            title={title}
+          >
+            {chevron}
+            {label}
+          </button>
+        ) : (
+          <div className={cn(rowClass, 'py-1.5')} title={title}>
+            {chevron}
+            {label}
+          </div>
+        )}
         {actions && <div className="flex shrink-0">{actions}</div>}
       </div>
-      <div id={id} hidden={!open} className="ml-2.5 border-l border-border pl-2">
-        {open && children}
-      </div>
+      {expandable && (
+        <div id={id} hidden={!open} className={guide ? 'ml-2.5 border-l border-border pl-2' : 'pl-6'}>
+          {open && children}
+        </div>
+      )}
     </>
   )
 }
@@ -162,6 +227,7 @@ export function ReferencePanel({
   const tree = useMemo(() => referenceFolders(layers.filter(({ key }) => !attached.has(key))), [layers, attached])
   const roads = alignments.filter(({ id }) => id !== designPlaceholderId)
   const [disclosures, setDisclosures] = useState<Record<string, boolean>>({})
+  const [renamingId, setRenamingId] = useState<string | null>(null)
   const toggle = (key: string, isOpen: boolean) => setDisclosures((previous) => ({ ...previous, [key]: !isOpen }))
   const pegging = mode === 'road' || mode === 'extend'
   const fixedRoad = !!w.alignment.mappedRoad
@@ -182,7 +248,9 @@ export function ReferencePanel({
       <li key={key} data-layer-source={key}>
         <Branch
           name={name}
+          title={key}
           detail={String(features.length)}
+          tag={!expanded && role !== 'reference' ? LAYER_IMPORT_LABELS[role] : undefined}
           icon={
             <Layers3 className="size-3.5 shrink-0" style={{ color: referenceLayerColor(key) }} aria-hidden="true" />
           }
@@ -194,6 +262,7 @@ export function ReferencePanel({
               <Button
                 size="icon-xs"
                 variant="ghost"
+                className={rowActionClass}
                 aria-label={`${visible ? 'Hide' : 'Show'} layer ${name}`}
                 title={visible ? 'Hide layer' : 'Show layer'}
                 onClick={() => onVisibilityChange([key], !visible)}
@@ -203,6 +272,7 @@ export function ReferencePanel({
               <Button
                 size="icon-xs"
                 variant="ghost"
+                className={rowActionClass}
                 aria-label={`Fit layer ${name}`}
                 title="Fit layer on plan"
                 onClick={() => onLocate(features)}
@@ -212,7 +282,18 @@ export function ReferencePanel({
             </>
           }
         >
-          <p className="px-1 py-1 text-2xs text-muted-foreground">{LAYER_IMPORT_LABELS[role]}</p>
+          <div className="flex min-w-0 items-center gap-1 pl-1">
+            <p className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">{LAYER_IMPORT_LABELS[role]}</p>
+            <Button
+              size="2xs"
+              variant="ghost"
+              disabled={disabled}
+              onClick={() => onRemoveLayer(key, name)}
+              className="gap-1 text-muted-foreground hover:bg-foreground/10 hover:text-danger [&_svg]:size-3"
+            >
+              <Trash2 aria-hidden="true" /> Delete layer
+            </Button>
+          </div>
           {role === 'planned-block' && (
             <div className="space-y-2 border-b px-1 pb-2">
               <CutblockBufferField
@@ -242,6 +323,7 @@ export function ReferencePanel({
                   <Button
                     size="icon-xs"
                     variant="ghost"
+                    className={rowActionClass}
                     aria-label={`${bufferVisible ? 'Hide' : 'Show'} buffer for ${name}`}
                     onClick={() =>
                       onVisibilityChange(
@@ -255,6 +337,7 @@ export function ReferencePanel({
                   <Button
                     size="icon-xs"
                     variant="ghost"
+                    className={rowActionClass}
                     aria-label={`Fit buffer for ${name}`}
                     onClick={() => onFitBuffer(buffer)}
                   >
@@ -264,187 +347,257 @@ export function ReferencePanel({
               )}
             </div>
           )}
-          <Button
-            size="xs"
-            variant="ghost"
-            disabled={disabled}
-            onClick={() => onRemoveLayer(key, name)}
-            className="mb-1"
-          >
-            <Trash2 className="mr-1" aria-hidden="true" /> Delete layer
-          </Button>
-          <VirtualResultList
-            items={features}
-            getKey={(feature) => feature.id}
-            estimateSize={30}
-            label={`Features in ${name}`}
-          >
-            {(feature) => {
-              const detailKey = `feature:${feature.id}`
-              const detailsOpen = disclosures[detailKey] ?? false
-              const shape = referenceShape(feature)
-              const at = shape === 'point' ? (feature.geometry.coordinates as Coordinate) : null
-              return (
-                <div
-                  className={cn('min-w-0', feature.id === focusedId && 'bg-primary/5')}
-                  data-reference-row={feature.id}
-                >
-                  <Branch
-                    name={feature.name}
-                    detail={SHAPE_LABELS[shape]}
-                    icon={null}
-                    open={detailsOpen}
-                    toggle={() => toggle(detailKey, detailsOpen)}
-                    actions={
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        aria-label={`Show ${feature.name} on the plan`}
-                        title="Show on plan"
-                        onClick={() => onLocate([feature], feature.id)}
-                      >
-                        <LocateFixed aria-hidden="true" />
-                      </Button>
-                    }
+          {/* A tree row carries no rule under it; the shared list draws one for result lists. */}
+          <div className="[&_[data-index]]:border-b-0">
+            <VirtualResultList
+              items={features}
+              getKey={(feature) => feature.id}
+              estimateSize={28}
+              label={`Features in ${name}`}
+            >
+              {(feature) => {
+                const detailKey = `feature:${feature.id}`
+                const detailsOpen = disclosures[detailKey] ?? false
+                const shape = referenceShape(feature)
+                const at = shape === 'point' ? (feature.geometry.coordinates as Coordinate) : null
+                const renaming = renamingId === feature.id
+                // A proposed line loaded as a design road is that road's copy as imported, not a second road.
+                const designRoad = feature.role === 'proposed-road' ? designRoadForProposedLine(feature, roads) : null
+                const hasActions = feature.role === 'proposed-road' || !!(at && (onPegAt || onRoadEndAt))
+                const hasDetails = hasActions || !!(feature.classGrid || feature.pdfSource || feature.attributes)
+                const quiet = detailsOpen ? undefined : quietActionClass
+                return (
+                  <div
+                    className={cn('min-w-0', feature.id === focusedId && 'bg-primary/5')}
+                    data-reference-row={feature.id}
                   >
-                    <div className="space-y-2 pb-2 pr-1">
-                      {feature.classGrid && (
-                        <PdfRasterDetails grid={feature.classGrid} project={w.project} id={feature.id} />
-                      )}
-                      {feature.pdfSource && (
-                        <div className="space-y-1 text-2xs text-muted-foreground">
-                          <p>
-                            {feature.pdfSource.profile} · page {feature.pdfSource.page}
-                          </p>
-                          <p className="break-words">
-                            {feature.pdfSource.file} · {feature.pdfSource.layer}
-                          </p>
-                          <p>
-                            {feature.classGrid
-                              ? 'Published class grid'
-                              : feature.sheet
-                                ? 'Source sheet'
-                                : 'Recovered drawing'}
-                            ; registration fit {feature.pdfSource.registrationErrorM.toFixed(2)} m. This is a
-                            control-point fit, not source accuracy.
-                          </p>
-                          <details>
-                            <summary>Source fingerprint</summary>
-                            <p className="break-all">SHA-256 {feature.pdfSource.sha256}</p>
-                          </details>
-                        </div>
-                      )}
-                      {feature.attributes && (
-                        <details className="text-2xs">
-                          <summary>Source attributes</summary>
-                          <dl className="mt-1 space-y-1">
-                            {Object.entries(feature.attributes).map(([key, value]) => (
-                              <div key={key} className="break-words">
-                                <dt className="font-medium">{key}</dt>
-                                <dd>{value === null ? 'Not recorded' : String(value)}</dd>
-                              </div>
-                            ))}
-                          </dl>
-                        </details>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <ReferenceName
-                          key={feature.name}
-                          name={feature.name}
-                          disabled={disabled}
-                          label={`Name of ${feature.name}`}
-                          onRename={(name) =>
-                            w.update((project) =>
-                              feature.cutblock
-                                ? {
-                                    ...project,
-                                    context: project.context.map((item) =>
-                                      item.id === feature.id ? { ...item, name } : item,
-                                    ),
-                                  }
-                                : {
-                                    ...project,
-                                    reference: project.reference?.map((item) =>
-                                      item.id === feature.id ? { ...item, name } : item,
-                                    ),
-                                  },
-                            )
-                          }
-                        />
-                        <Button
-                          size="icon-xs"
-                          variant="ghost"
-                          aria-label={`Remove ${feature.name}`}
-                          title="Remove feature"
-                          disabled={disabled}
-                          onClick={() =>
-                            w.update(
-                              (project) =>
+                    <Branch
+                      name={feature.name}
+                      detail={
+                        designRoad
+                          ? `${SHAPE_LABELS[shape]} · ${designRoad.edited ? 'edited design road' : 'design road'}`
+                          : SHAPE_LABELS[shape]
+                      }
+                      icon={null}
+                      guide={false}
+                      open={detailsOpen}
+                      toggle={() => toggle(detailKey, detailsOpen)}
+                      editor={
+                        renaming && (
+                          <ReferenceName
+                            name={feature.name}
+                            label={`Name of ${feature.name}`}
+                            onRename={(name) =>
+                              w.update((project) =>
                                 feature.cutblock
-                                  ? { ...project, context: project.context.filter((item) => item.id !== feature.id) }
+                                  ? {
+                                      ...project,
+                                      context: project.context.map((item) =>
+                                        item.id === feature.id ? { ...item, name } : item,
+                                      ),
+                                    }
                                   : {
                                       ...project,
-                                      reference: project.reference?.filter((item) => item.id !== feature.id),
+                                      reference: project.reference?.map((item) =>
+                                        item.id === feature.id ? { ...item, name } : item,
+                                      ),
                                     },
-                              undefined,
-                              { ownStep: true },
-                            )
-                          }
-                        >
-                          <Trash2 aria-hidden="true" />
-                        </Button>
-                      </div>
-                      {feature.role === 'proposed-road' && (
-                        <Button size="xs" variant="outline" disabled={disabled} onClick={() => onCopyRoad(feature)}>
-                          Copy as design road
-                        </Button>
-                      )}
-                      {at && (onPegAt || onRoadEndAt) && (
-                        <div className="flex flex-wrap gap-1">
-                          {onPegAt && (
-                            <Button
-                              size="xs"
-                              variant="outline"
-                              disabled={disabled}
-                              onClick={() => onPegAt(at, feature.name)}
-                            >
-                              {pegging ? 'Peg here' : 'Peg from'}
-                            </Button>
-                          )}
-                          {onRoadEndAt &&
-                            (['start', 'end'] as const).map((end) => (
+                              )
+                            }
+                            onDone={(byKey) => {
+                              setRenamingId(null)
+                              // The field is gone on the next frame; the keyboard goes back to its row.
+                              if (byKey)
+                                requestAnimationFrame(() =>
+                                  document
+                                    .querySelector<HTMLElement>(
+                                      `[data-reference-row="${CSS.escape(feature.id)}"] button`,
+                                    )
+                                    ?.focus(),
+                                )
+                            }}
+                          />
+                        )
+                      }
+                      actions={
+                        <>
+                          {!renaming && (
+                            <>
                               <Button
-                                key={end}
-                                size="xs"
-                                variant="outline"
-                                disabled={disabled || fixedRoad || pegging}
-                                aria-label={`Move road ${end} to ${feature.name}`}
-                                onClick={() => onRoadEndAt(at, feature.name, end)}
+                                size="icon-xs"
+                                variant="ghost"
+                                className={cn(rowActionClass, quiet)}
+                                aria-label={`Rename ${feature.name}`}
+                                title="Rename"
+                                disabled={disabled}
+                                onClick={() => setRenamingId(feature.id)}
                               >
-                                Road {end}
+                                <Pencil aria-hidden="true" />
                               </Button>
-                            ))}
+                              <Button
+                                size="icon-xs"
+                                variant="ghost"
+                                className={cn(rowActionClass, 'hover:text-danger', quiet)}
+                                aria-label={`Remove ${feature.name}`}
+                                title="Remove feature"
+                                disabled={disabled}
+                                onClick={() =>
+                                  w.update(
+                                    (project) =>
+                                      feature.cutblock
+                                        ? {
+                                            ...project,
+                                            context: project.context.filter((item) => item.id !== feature.id),
+                                          }
+                                        : {
+                                            ...project,
+                                            reference: project.reference?.filter((item) => item.id !== feature.id),
+                                          },
+                                    undefined,
+                                    { ownStep: true },
+                                  )
+                                }
+                              >
+                                <Trash2 aria-hidden="true" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon-xs"
+                            variant="ghost"
+                            className={rowActionClass}
+                            aria-label={`Show ${feature.name} on the plan`}
+                            title="Show on plan"
+                            onClick={() => onLocate([feature], feature.id)}
+                          >
+                            <LocateFixed aria-hidden="true" />
+                          </Button>
+                        </>
+                      }
+                    >
+                      {hasDetails && (
+                        <div className="space-y-2 pb-2 pr-1 pt-0.5">
+                          {designRoad && (
+                            <p className="text-2xs text-muted-foreground">
+                              {designRoad.edited
+                                ? `Design road ${designRoad.road.name} has changed since this line was imported. This line is the road as imported.`
+                                : designRoad.road.name === feature.name
+                                  ? 'Loaded as a design road. This line is the road as imported.'
+                                  : `Loaded as design road ${designRoad.road.name}. This line is the road as imported.`}
+                            </p>
+                          )}
+                          {hasActions && (
+                            <div className="flex flex-wrap gap-1">
+                              {designRoad && (
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  disabled={disabled}
+                                  onClick={() => onShowRoad(designRoad.road)}
+                                >
+                                  Show design road
+                                </Button>
+                              )}
+                              {/* A second copy of a road that has not moved would only be a duplicate. */}
+                              {feature.role === 'proposed-road' && (!designRoad || designRoad.edited) && (
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  disabled={disabled}
+                                  onClick={() => onCopyRoad(feature)}
+                                >
+                                  Copy as design road
+                                </Button>
+                              )}
+                              {at && onPegAt && (
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  disabled={disabled}
+                                  onClick={() => onPegAt(at, feature.name)}
+                                >
+                                  {pegging ? 'Peg here' : 'Peg from'}
+                                </Button>
+                              )}
+                              {at &&
+                                onRoadEndAt &&
+                                (['start', 'end'] as const).map((end) => (
+                                  <Button
+                                    key={end}
+                                    size="xs"
+                                    variant="outline"
+                                    disabled={disabled || fixedRoad || pegging}
+                                    aria-label={`Move road ${end} to ${feature.name}`}
+                                    onClick={() => onRoadEndAt(at, feature.name, end)}
+                                  >
+                                    Road {end}
+                                  </Button>
+                                ))}
+                            </div>
+                          )}
+                          {feature.classGrid && (
+                            <PdfRasterDetails grid={feature.classGrid} project={w.project} id={feature.id} />
+                          )}
+                          {feature.pdfSource && (
+                            <div className="space-y-1 text-2xs text-muted-foreground">
+                              <p>
+                                {feature.pdfSource.profile} · page {feature.pdfSource.page}
+                              </p>
+                              <p className="break-words">
+                                {feature.pdfSource.file} · {feature.pdfSource.layer}
+                              </p>
+                              <p>
+                                {feature.classGrid
+                                  ? 'Published class grid'
+                                  : feature.sheet
+                                    ? 'Source sheet'
+                                    : 'Recovered drawing'}
+                                ; registration fit {feature.pdfSource.registrationErrorM.toFixed(2)} m. This is a
+                                control-point fit, not source accuracy.
+                              </p>
+                              <details>
+                                <summary className={summaryClass}>Source fingerprint</summary>
+                                <p className="break-all">SHA-256 {feature.pdfSource.sha256}</p>
+                              </details>
+                            </div>
+                          )}
+                          {feature.attributes && (
+                            <details className="text-2xs">
+                              <summary className={summaryClass}>Source attributes</summary>
+                              <dl className="mt-1 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-x-2 gap-y-0.5 break-words">
+                                {Object.entries(feature.attributes).map(([key, value]) => (
+                                  <Fragment key={key}>
+                                    <dt className="text-muted-foreground">{key}</dt>
+                                    <dd>{value === null ? 'Not recorded' : String(value)}</dd>
+                                  </Fragment>
+                                ))}
+                              </dl>
+                            </details>
+                          )}
                         </div>
                       )}
-                    </div>
-                  </Branch>
-                </div>
-              )
-            }}
-          </VirtualResultList>
+                    </Branch>
+                  </div>
+                )
+              }}
+            </VirtualResultList>
+          </div>
         </Branch>
       </li>
     )
   }
-  const renderFolder = (folder: ReferenceFolder) => {
+  const renderFolder = (listed: ReferenceFolder) => {
+    const { folder, label, onlyLayer } = compactReferenceFolder(listed)
+    // A folder around one file is listed as that file; its path stays in the row's tooltip.
+    if (onlyLayer) return renderLayer(onlyLayer)
     const key = `folder:${folder.path}`
     const expanded = disclosures[key] ?? true
     const Icon = expanded ? FolderOpen : Folder
     return (
       <li key={folder.path} data-layer-folder={folder.path}>
         <Branch
-          name={folder.name}
-          icon={<Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+          name={label}
+          icon={<Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
           open={expanded}
           toggle={() => toggle(key, expanded)}
         >
@@ -495,12 +648,15 @@ export function ReferencePanel({
                             type="button"
                             aria-current={road.id === activeAlignmentId ? 'true' : undefined}
                             disabled={disabled}
-                            className="flex w-full items-center justify-between gap-1 rounded-sm px-1 py-1.5 text-left text-xs hover:bg-accent aria-[current=true]:bg-primary/10"
+                            className="flex w-full items-center rounded-sm pl-1 text-left text-xs hover:bg-accent aria-[current=true]:bg-primary/10 aria-[current=true]:font-medium touch:min-h-11"
                             onClick={() => onShowRoad(road)}
                             title="Select and fit road on the plan"
                           >
-                            <span className="min-w-0 truncate">{road.name}</span>
-                            <LocateFixed className="size-3.5 shrink-0" aria-hidden="true" />
+                            <span className="min-w-0 flex-1 truncate">{road.name}</span>
+                            {/* The same box as a layer row's last action, so the targets share a column. */}
+                            <span className="flex size-7 shrink-0 items-center justify-center text-muted-foreground">
+                              <LocateFixed className="size-3.5" aria-hidden="true" />
+                            </span>
                           </button>
                         </li>
                       ))}

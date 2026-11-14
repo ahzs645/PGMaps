@@ -17,6 +17,9 @@ import {
   placeClear,
   textOps,
   type CalloutBoxStyle,
+  rowPlacement,
+  segmentMeetsBox,
+  nearestEdgePoint,
 } from './callouts'
 import { CONTRAST, contrastRuns, INK_COLOR, inkStates } from './contrastRuns'
 import type { DrawOp, Point } from './drawOps'
@@ -340,5 +343,45 @@ describe('callout text sizing and label styles', () => {
     expect(key.map((entry) => entry.n)).toEqual([1, 2, 3])
     expect(key[0].text).toBe('Block A - cutblock - Possible Glimpses')
     expect(ops.filter((op) => op.op === 'circle')).toHaveLength(3)
+  })
+})
+
+describe('callouts in one ordered row', () => {
+  const area = { x: 0, y: 0, w: 600, h: 300 }
+  // Eleven blocks crowded along a skyline, as a scene with every FTEN block in it gives.
+  const anchors = [40, 180, 200, 215, 260, 380, 395, 410, 470, 490, 520]
+  const items = anchors.map((x, i) => ({ centerX: x, bottom: 200, w: 70, h: 24, priority: i === 4 ? 50 : i }))
+
+  it('keeps boxes apart, in their anchors’ order, and their leaders clear of every other box', () => {
+    const boxes = rowPlacement(items, area)
+    const kept = boxes.flatMap((box, i) => (box ? [{ box, anchor: [anchors[i], 260] as [number, number] }] : []))
+    expect(kept.length).toBeGreaterThan(0)
+    for (let i = 1; i < kept.length; i++)
+      expect(kept[i].box.x).toBeGreaterThanOrEqual(kept[i - 1].box.x + kept[i - 1].box.w)
+    for (const { box } of kept) {
+      expect(box.x).toBeGreaterThanOrEqual(area.x)
+      expect(box.x + box.w).toBeLessThanOrEqual(area.x + area.w)
+      expect(box.y + box.h).toBeLessThanOrEqual(200)
+    }
+    for (const a of kept)
+      for (const b of kept) {
+        if (a === b) continue
+        const from = nearestEdgePoint(a.box, a.anchor)
+        expect(segmentMeetsBox(from, a.anchor, b.box)).toBe(false)
+      }
+  })
+
+  it('lets the least-seen labels give way first when the row is full', () => {
+    const boxes = rowPlacement(items, area)
+    const dropped = boxes.flatMap((box, i) => (box ? [] : [i]))
+    // 600 points hold 7 boxes of 70 with their gaps; the four lowest priorities give way, never block 4 (priority 50).
+    expect(dropped).toHaveLength(4)
+    expect(dropped).not.toContain(4)
+    expect(dropped.sort((a, b) => a - b)).toEqual([0, 1, 2, 3])
+  })
+
+  it('leaves a lone label over its anchor', () => {
+    const [box] = rowPlacement([{ centerX: 300, bottom: 150, w: 80, h: 20 }], area)
+    expect(box).toEqual({ x: 260, y: 130, w: 80, h: 20 })
   })
 })

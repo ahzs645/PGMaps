@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad } from './engine'
 import { parseProject, projectGeoJson, serializeProject } from './project'
-import { parseReferenceFeatures, referenceBounds, referenceGeoJson, type ReferenceFeature } from './referenceFeatures'
+import {
+  compactReferenceFolder,
+  parseReferenceFeatures,
+  referenceBounds,
+  referenceFolders,
+  referenceGeoJson,
+  type ReferenceFeature,
+  type ReferenceLayer,
+} from './referenceFeatures'
 import { buildSpatialImport, statedRole } from './spatialImport'
 import { createDemoProject, demoTerrain } from './terrain'
 
@@ -85,5 +93,29 @@ describe('reference features', () => {
       ['Polygon', 'Lot A'],
     ])
     expect(built.context).toEqual([])
+  })
+
+  it('shows a chain of folders that each hold only the next one as a single row', () => {
+    const layer = (key: string): ReferenceLayer => ({ key, name: key, features: [] })
+    const root = referenceFolders([
+      layer('Shapefiles/Rd_1000/Rd_1000/road.shp'),
+      layer('Shapefiles/Zips/2026/blocks.shp'),
+      layer('Shapefiles/boundary.shp'),
+    ])
+    const shapefiles = root.folders.get('Shapefiles')!
+    // A folder with layers or several folders of its own stays a row.
+    expect(compactReferenceFolder(shapefiles)).toEqual({ folder: shapefiles, label: 'Shapefiles' })
+    // An archive unpacked into a folder of its own name prints that name once, and a chain that
+    // ends in a single layer hands that layer over to be listed in the folder's place.
+    const road = compactReferenceFolder(shapefiles.folders.get('Rd_1000')!)
+    expect(road.label).toBe('Rd_1000')
+    expect(road.folder.path).toBe('Shapefiles/Rd_1000/Rd_1000')
+    expect(road.onlyLayer?.key).toBe('Shapefiles/Rd_1000/Rd_1000/road.shp')
+    const blocks = compactReferenceFolder(shapefiles.folders.get('Zips')!)
+    expect(blocks.label).toBe('Zips / 2026')
+    expect(blocks.folder.path).toBe('Shapefiles/Zips/2026')
+    // Two layers keep their folder.
+    const pair = referenceFolders([layer('Survey/a.shp'), layer('Survey/b.shp')]).folders.get('Survey')!
+    expect(compactReferenceFolder(pair).onlyLayer).toBeUndefined()
   })
 })

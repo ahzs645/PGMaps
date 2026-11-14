@@ -4,6 +4,7 @@ import { StatTileBody, type StatItem } from '@/components/ui/stat-group'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { CheckboxField } from '@/components/ui/form-field'
 import { AppSelect, compactSelectTriggerClass, workspaceSelectContentClass } from '@/components/ui/select'
+import { MetricSummaryResize, type MetricSummaryResizeOptions } from './metric-summary-resize'
 import './metric-summary.css'
 
 /** How much of a row the summary shows. */
@@ -134,11 +135,16 @@ export function MetricSummaryLayout({
   placement,
   small,
   className,
+  summary,
+  resize,
   children,
 }: {
   placement: MetricSummaryPlacement
   small: boolean
   className?: string
+  summary?: ReactNode
+  /** Opt in to a saved width for a visible left-hand summary; small and top layouts keep their sizing. */
+  resize?: MetricSummaryResizeOptions
   children: ReactNode
 }) {
   return (
@@ -147,6 +153,8 @@ export function MetricSummaryLayout({
       data-placement={placement}
       data-small={small || undefined}
     >
+      {summary}
+      {resize && placement === 'left' && !small && <MetricSummaryResize {...resize} />}
       {children}
     </div>
   )

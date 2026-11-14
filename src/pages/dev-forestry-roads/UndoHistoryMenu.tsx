@@ -166,15 +166,17 @@ export function UndoHistoryPanel({
   )
 }
 
-/** The header's history button beside Undo and Redo. */
-export function UndoHistoryButton(props: UndoHistoryProps) {
+/** The header's history button beside Undo and Redo. `quiet` drops its border for the header's toolbar strip. */
+export function UndoHistoryButton({ quiet = false, ...props }: UndoHistoryProps & { quiet?: boolean }) {
   return (
     <ToolbarPopover
       label="Edit history and checkpoints"
       icon={<HistoryIcon className="size-4" />}
-      align="end"
+      // On the strip the button sits near the header's left edge, so its panel opens to the right.
+      align={quiet ? 'start' : 'end'}
       width={300}
-      buttonClassName="size-8"
+      variant={quiet ? 'ghost' : 'outline'}
+      buttonClassName={quiet ? 'text-foreground/80 hover:text-foreground' : 'size-8'}
     >
       <UndoHistoryPanel {...props} />
     </ToolbarPopover>

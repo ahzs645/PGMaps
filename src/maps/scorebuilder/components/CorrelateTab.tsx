@@ -188,7 +188,10 @@ export function CorrelateTab({
                 <span
                   className={cn(
                     'shrink-0 font-medium',
-                    pair.pearson >= 0 ? 'text-cyan-700 dark:text-cyan-300' : 'text-rose-700 dark:text-rose-300',
+                    // The sign's colour is data: it stays cyan against rose under an Appearance theme.
+                    pair.pearson >= 0
+                      ? 'fixed-palette text-cyan-700 dark:text-cyan-300'
+                      : 'text-rose-700 dark:text-rose-300',
                   )}
                 >
                   {pair.pearson.toFixed(2)} - n={pair.n}

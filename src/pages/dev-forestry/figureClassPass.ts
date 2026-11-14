@@ -21,6 +21,11 @@ export type ClassPassInput = {
   privateLand: readonly PolygonGeometry[]
   /** Rock / non-vegetated ground; only the part in the landform is a class. */
   rock: readonly PolygonGeometry[]
+  /**
+   * Retention inside the blocks (wildlife tree patches and group reserves, the `retained` masks): left standing, so
+   * not proposed alteration. Cut out of the blocks, as the run treats them.
+   */
+  retained?: readonly PolygonGeometry[]
 }
 
 export type ClassPassLayer = {
@@ -84,7 +89,8 @@ export function classPassLayers(input: ClassPassInput): { layers: ClassPassLayer
   const rock = splitAtLandform(input.rock, input.landform)
   const privateLand = splitAtLandform(input.privateLand, input.landform)
   const existing = splitAtLandform(input.existing, input.landform)
-  const blocks = splitAtLandform(input.blocks, input.landform)
+  const kept = netOfRetained(input.blocks, input.retained ?? [])
+  const blocks = splitAtLandform(kept.blocks, input.landform)
   const layers = [
     layer('landform', input.landform ? asMulti(input.landform) : []),
     layer('rock', rock.inside),
@@ -95,7 +101,24 @@ export function classPassLayers(input: ClassPassInput): { layers: ClassPassLayer
     layer('proposedOut', blocks.outside),
     layer('proposedIn', blocks.inside),
   ].filter((entry) => entry.data.features.length)
-  return { layers, failed: [rock, privateLand, existing, blocks].some((split) => split.failed) }
+  return { layers, failed: kept.failed || [rock, privateLand, existing, blocks].some((split) => split.failed) }
+}
+
+/** The blocks less their retention; when clipping fails on a degenerate shape the blocks stay whole and `failed` says so. */
+function netOfRetained(
+  blocks: readonly PolygonGeometry[],
+  retained: readonly PolygonGeometry[],
+): { blocks: PolygonGeometry[]; failed: boolean } {
+  if (!retained.length || !blocks.length) return { blocks: [...blocks], failed: false }
+  try {
+    const net = clipping.difference(blocks.flatMap(asMulti) as Geom, retained.flatMap(asMulti) as Geom)
+    return {
+      blocks: net.length ? [{ type: 'MultiPolygon', coordinates: net as GeoJSON.Position[][][] }] : [],
+      failed: false,
+    }
+  } catch {
+    return { blocks: [...blocks], failed: true }
+  }
 }
 
 /**

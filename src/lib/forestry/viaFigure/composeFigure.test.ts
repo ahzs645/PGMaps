@@ -32,6 +32,7 @@ import {
   type ClassRaster,
   type FigureClass,
   type FigureInput,
+  fittedLines,
 } from './composeFigure'
 import { presetById, VIA_STYLE_PRESETS } from './presets'
 
@@ -263,6 +264,27 @@ describe('figure composition', () => {
     expect(all).toContain('Area of Private Land (PL) = 50')
     expect(all.some((t) => t.startsWith('Sightline measure (PGMaps run, the assessment figure): 6.40%'))).toBe(true)
     expect(all.some((t) => t.startsWith('Pixel measure, this image: 7.43%'))).toBe(true)
+    // PGMaps' own map drew it: no renderer line.
+    expect(all.some((t) => t.startsWith('Picture and pixel measure:'))).toBe(false)
+    // Another engine's capture says so beside the measures.
+    const engine = texts(
+      analysisSheet({
+        ...input('analysis-sheet-orange'),
+        illustration: [
+          'Picture and pixel measure: Nanite Forest 467b44c, one capture',
+          'Drawn without data: trees past 6.1 km not drawn',
+        ],
+      }).ops,
+    )
+    expect(engine.some((t) => t.startsWith('Picture and pixel measure: Nanite Forest'))).toBe(true)
+    expect(engine.some((t) => t.startsWith('Drawn without data: trees past 6.1 km'))).toBe(true)
+    // An engine's ground pass gives the outlines and the first figure; its trees-in-front pass a second one
+    // (here the drawn trees hide every proposed pixel; the existing opening still counts).
+    const base = input('analysis-sheet-orange')
+    const hidden = base.classes!.codes.map((code) => (code === FIGURE_CLASS.proposedIn ? 10 : code))
+    const withTrees = texts(analysisSheet({ ...base, screenedClasses: { ...base.classes!, codes: hidden } }).ops)
+    expect(withTrees.some((t) => /^Pixel measure, this image, the ground under the trees: 7\.43%/.test(t))).toBe(true)
+    expect(withTrees.some((t) => /^Pixel measure with the drawn trees in front: 1\.82%/.test(t))).toBe(true)
     expect(all).toContain('Logo (your own)')
     expect(all).toContain('Private Land')
     expect(all).toContain('Block 1')
@@ -425,12 +447,12 @@ describe('the perspective overlay and the camera block', () => {
     ).toBeCloseTo(0.5)
   })
 
-  it('says whether the pixel measure was taken over drawn timber', () => {
+  it('says the pixel measure is of the ground, under any drawn timber', () => {
     const line = (maxTreeHeightM: number | null) =>
       texts(analysisSheet({ ...input('analysis-sheet-magenta'), camera: { ...camera, maxTreeHeightM } }).ops).find(
         (t) => t.startsWith('Pixel measure'),
       )
-    expect(line(24.5)).toMatch(/^Pixel measure, this image, drawn timber in front: /)
+    expect(line(24.5)).toMatch(/^Pixel measure, this image, the ground under the trees: /)
     expect(line(null)).toMatch(/^Pixel measure, this image, bare earth: /)
   })
 
@@ -456,5 +478,29 @@ describe('the gallery view', () => {
       expect(figure.counts!.landform, preset.id).toBeGreaterThan(1000)
       expect(figure.counts!.proposed, preset.id).toBeGreaterThan(100)
     }
+  })
+})
+
+describe('fitted lines', () => {
+  const box = { x: 0, top: 10, bottom: 60, width: 120 }
+  const style = { size: 9, color: '#1d4ed8' }
+  const lines = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ text: `Line ${i + 1}: a measure that wraps across the cell`, style }))
+  const texts = (ops: ReturnType<typeof fittedLines>) =>
+    ops.flatMap((op) => (op.op === 'text' ? [{ text: op.text, y: op.y, size: op.size }] : []))
+
+  it('keeps every line at full size when they fit', () => {
+    const drawn = texts(fittedLines(lines(2), box))
+    expect(drawn.every((t) => t.size === 9)).toBe(true)
+    expect(drawn.at(-1)!.y).toBeLessThanOrEqual(box.bottom)
+  })
+
+  it('shrinks, then ellipsizes, and never runs past the foot', () => {
+    const shrunk = texts(fittedLines(lines(3), box))
+    expect(shrunk[0].size).toBeLessThan(9)
+    const crowded = texts(fittedLines(lines(12), box))
+    expect(crowded.every((t) => t.y <= box.bottom)).toBe(true)
+    expect(crowded.at(-1)!.text.endsWith('...')).toBe(true)
+    expect(crowded[0].size).toBeCloseTo(9 * 0.7, 5)
   })
 })

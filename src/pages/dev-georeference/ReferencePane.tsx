@@ -324,7 +324,7 @@ export function ReferencePane({
                   type="button"
                   aria-label={`Select map point ${index + 1}`}
                   onClick={() => onSelect(point.id)}
-                  className={`grid size-7 place-items-center rounded-full border-2 border-white text-xs font-bold text-white shadow-md ${!point.enabled ? 'bg-slate-500' : point.role === 'check' ? 'bg-amber-700' : 'bg-sky-700'} ${selectedId === point.id ? 'ring-2 ring-rose-500 ring-offset-1' : ''}`}
+                  className={`fixed-palette grid size-7 place-items-center rounded-full border-2 border-white text-xs font-bold text-white shadow-md ${!point.enabled ? 'bg-slate-500' : point.role === 'check' ? 'bg-amber-700' : 'bg-sky-700'} ${selectedId === point.id ? 'ring-2 ring-rose-500 ring-offset-1' : ''}`}
                 >
                   {index + 1}
                 </button>

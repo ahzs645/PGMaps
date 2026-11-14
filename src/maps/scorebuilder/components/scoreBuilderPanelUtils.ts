@@ -99,15 +99,16 @@ export function getDefaultMetricWeight(metric: ScoreMetricKey): number {
   return 35
 }
 
+/** A metric group's dot. The blue ones carry `fixed-palette`, so an Appearance theme leaves the groups apart. */
 export function getCategoryTone(category: string): string {
-  if (category === 'airQuality') return 'bg-sky-500'
+  if (category === 'airQuality') return 'fixed-palette bg-sky-500'
   if (category === 'parksRec') return 'bg-emerald-500'
   if (category === 'heatShade') return 'bg-lime-600'
   if (category === 'foodSafety') return 'bg-orange-500'
   if (category === 'demographics') return 'bg-amber-500'
   if (category === 'property') return 'bg-violet-500'
   if (category === 'safety') return 'bg-rose-500'
-  if (category === 'transit') return 'bg-teal-500'
+  if (category === 'transit') return 'fixed-palette bg-teal-500'
   if (category === 'walkability') return 'bg-emerald-600'
-  return 'bg-cyan-500'
+  return 'fixed-palette bg-cyan-500'
 }

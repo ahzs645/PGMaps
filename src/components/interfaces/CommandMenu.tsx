@@ -4,8 +4,8 @@ import { resolveCommand, type CommandState, type WorkspaceCommand } from './work
 
 /**
  * Registry commands folded into one More menu where a bar has no room for their buttons: the
- * header line between 768 and 1023 px, the ribbon's tab row on narrow screens. Labels, icons and
- * availability come from the registry and the workspace's states, as on the buttons it stands for.
+ * ribbon's tab row on narrow screens. Labels, icons and availability come from the registry and
+ * the workspace's states, as on the buttons it stands for.
  */
 export function CommandMenu({
   commands,

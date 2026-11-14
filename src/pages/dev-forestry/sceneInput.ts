@@ -2,11 +2,18 @@ import type { ForestryScene } from './scene'
 import type { AnalysisInput, TargetPolygon } from './types'
 import { activeLandform, canonicalInput } from './integrity'
 import { fieldGreenUpInput } from './greenUp'
+import { surveyedEyeElevation } from './viewpointStand'
 /** The same builder is used for the worker request and stale-result checks. */
 export function buildSceneInput(scene: ForestryScene): AnalysisInput {
   const forms = scene.targets.filter((t) => t.role === 'landscape')
+  // A surveyed eye elevation is a run input only while it applies to where the eye stands.
+  const eyeElevationMeters = surveyedEyeElevation(scene.viewpoint)
   return {
-    viewpoint: { mode: scene.viewpoint.mode, coordinates: scene.viewpoint.coordinates },
+    viewpoint: {
+      mode: scene.viewpoint.mode,
+      coordinates: scene.viewpoint.coordinates,
+      ...(eyeElevationMeters !== null ? { eyeElevationMeters } : {}),
+    },
     targets: scene.targets.map(
       ({
         id,
@@ -52,8 +59,19 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
     const assessed: Partial<ForestryScene> = { ...scene }
     delete assessed.reportMetadata
     delete assessed.viaReview
-    // Tree-free areas only change the drawn timber.
+    // Tree-free areas, the viewpoint clearing among them, only change the drawn timber.
     delete assessed.treeFreeAreas
+    delete assessed.viewpointClearing
+    // The sheet's fixed frame only changes the picture.
+    delete assessed.figureFrame
+    // A surveyed eye elevation counts as the run reads it: only while it applies to where the eye
+    // stands, so one left behind by a moved viewpoint does not stale the run.
+    const viewpoint = { ...scene.viewpoint }
+    delete viewpoint.surveyedEye
+    const eyeElevationMeters = surveyedEyeElevation(scene.viewpoint)
+    const counted: ForestryScene['viewpoint'] & { eyeElevationMeters?: number } =
+      eyeElevationMeters === null ? viewpoint : { ...viewpoint, eyeElevationMeters }
+    assessed.viewpoint = counted
     // Likewise a block's retention and partial-cut figures (Tables 5 and 6);
     // only whether a block is a partial cut changes what the run clears.
     assessed.targets = scene.targets.map((target) => {

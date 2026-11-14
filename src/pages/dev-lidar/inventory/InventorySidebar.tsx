@@ -202,7 +202,7 @@ export function InventorySidebar({
                 {(r) => (
                   <ResultRow
                     accent="green"
-                    className="py-2"
+                    className="theme-tint-green py-2"
                     selected={r === active}
                     dotColor={INVENTORY_REVIEW_COLOURS[r.review.status]}
                     title={`#${r.tree.properties.label} · ${r.tree.properties.chunk} · ${r.species}`}

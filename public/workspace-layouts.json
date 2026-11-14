@@ -287,22 +287,22 @@
     },
     "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
     "headerTools": [
-      "interfaceSwitch",
-      "startDesign",
-      "history",
-      "loadMapped",
-      "summarySettings",
-      "presets",
-      "detachedPanels",
-      "saveState",
       "controls",
       "undo",
       "redo",
+      "history",
+      "presets",
+      "summarySettings",
+      "detachedPanels",
+      "startDesign",
+      "loadMapped",
+      "saveState",
       "projects",
       "open",
       "export",
-      "branding",
-      "fullscreen"
+      "interfaceSwitch",
+      "fullscreen",
+      "branding"
     ]
   }
 ]

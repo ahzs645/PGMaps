@@ -27,7 +27,7 @@ export function CensusUnitDetails({
   className,
 }: CensusUnitDetailsProps) {
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('theme-tint-amber space-y-2', className)}>
       {isVariableMode ? (
         <div>
           <div className="text-xs text-amber-700 dark:text-amber-300">{variableCategoryName}</div>

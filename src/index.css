@@ -42,7 +42,8 @@ canvas,
 .map-loader-bloom circle {
   r: 0;
   fill: none;
-  stroke: rgb(56 189 248 / 0.82);
+  /* sky-400, or the host theme's tint (tailwind-theme.mjs, themeablePalette). */
+  stroke: rgb(var(--palette-tint-400, 56 189 248) / 0.82);
   stroke-width: 4;
   vector-effect: non-scaling-stroke;
   animation: map-loader-bloom-out 1700ms linear forwards;
@@ -113,6 +114,31 @@ canvas,
     --interface-link: var(--interface-light-link);
     --interface-link-hover: var(--interface-light-link-hover);
     --interface-map-surround: var(--interface-light-map-surround);
+    /* The ramps behind the fixed palette classes (text-sky-700, dark:hover:bg-slate-800/60):
+       unset without a theme, so each class keeps Tailwind's colour. interfaceTheme.ts derives
+       them; tailwind-theme.mjs in the toolkit lists the families. */
+    --palette-tint-50: var(--interface-light-tint-50);
+    --palette-tint-100: var(--interface-light-tint-100);
+    --palette-tint-200: var(--interface-light-tint-200);
+    --palette-tint-300: var(--interface-light-tint-300);
+    --palette-tint-400: var(--interface-light-tint-400);
+    --palette-tint-500: var(--interface-light-tint-500);
+    --palette-tint-600: var(--interface-light-tint-600);
+    --palette-tint-700: var(--interface-light-tint-700);
+    --palette-tint-800: var(--interface-light-tint-800);
+    --palette-tint-900: var(--interface-light-tint-900);
+    --palette-tint-950: var(--interface-light-tint-950);
+    --palette-neutral-50: var(--interface-light-neutral-50);
+    --palette-neutral-100: var(--interface-light-neutral-100);
+    --palette-neutral-200: var(--interface-light-neutral-200);
+    --palette-neutral-300: var(--interface-light-neutral-300);
+    --palette-neutral-400: var(--interface-light-neutral-400);
+    --palette-neutral-500: var(--interface-light-neutral-500);
+    --palette-neutral-600: var(--interface-light-neutral-600);
+    --palette-neutral-700: var(--interface-light-neutral-700);
+    --palette-neutral-800: var(--interface-light-neutral-800);
+    --palette-neutral-900: var(--interface-light-neutral-900);
+    --palette-neutral-950: var(--interface-light-neutral-950);
     --selected: var(--interface-selected, 204 100% 97.1%);
     --selected-alpha: var(--interface-selected-alpha, 1);
     --selected-border: var(--interface-selected-border, 199.4 95.5% 73.9%);
@@ -204,6 +230,28 @@ canvas,
     --interface-link: var(--interface-dark-link);
     --interface-link-hover: var(--interface-dark-link-hover);
     --interface-map-surround: var(--interface-dark-map-surround);
+    --palette-tint-50: var(--interface-dark-tint-50);
+    --palette-tint-100: var(--interface-dark-tint-100);
+    --palette-tint-200: var(--interface-dark-tint-200);
+    --palette-tint-300: var(--interface-dark-tint-300);
+    --palette-tint-400: var(--interface-dark-tint-400);
+    --palette-tint-500: var(--interface-dark-tint-500);
+    --palette-tint-600: var(--interface-dark-tint-600);
+    --palette-tint-700: var(--interface-dark-tint-700);
+    --palette-tint-800: var(--interface-dark-tint-800);
+    --palette-tint-900: var(--interface-dark-tint-900);
+    --palette-tint-950: var(--interface-dark-tint-950);
+    --palette-neutral-50: var(--interface-dark-neutral-50);
+    --palette-neutral-100: var(--interface-dark-neutral-100);
+    --palette-neutral-200: var(--interface-dark-neutral-200);
+    --palette-neutral-300: var(--interface-dark-neutral-300);
+    --palette-neutral-400: var(--interface-dark-neutral-400);
+    --palette-neutral-500: var(--interface-dark-neutral-500);
+    --palette-neutral-600: var(--interface-dark-neutral-600);
+    --palette-neutral-700: var(--interface-dark-neutral-700);
+    --palette-neutral-800: var(--interface-dark-neutral-800);
+    --palette-neutral-900: var(--interface-dark-neutral-900);
+    --palette-neutral-950: var(--interface-dark-neutral-950);
     --selected: var(--interface-selected, 204 80.2% 15.9%);
     --selected-alpha: var(--interface-selected-alpha, 0.3);
     --selected-border: var(--interface-selected-border, 201 90% 27.5%);
@@ -270,12 +318,70 @@ canvas,
   --background: var(--popover);
   --foreground: var(--popover-foreground);
 }
+/* A map's side panel (and the tab that folds it) is a card under a theme too. Its shell and
+   sections paint `bg-background`, which is right for the built-in theme, where page and card
+   are both white; under a theme with a page colour of its own the whole panel took that tint
+   and no white was left in a map view (measured: 73-92% of the panel in the page colour, 0%
+   card). The page colour stays on the navigation, index pages and the band round the map. */
+[data-interface-theme] :is([data-map-sidebar-wrapper], .geo-map-layout-toggle) {
+  --background: var(--card);
+  --foreground: var(--card-foreground);
+}
 /* Repeated so it outranks the card's `dark:` sky classes, which the build also scopes under
    `.geo-toolkit` (three classes' weight). */
 [data-interface-theme] [data-selected-card][data-selected-card][data-selected-card] {
   --background: var(--card);
   border-color: hsl(var(--primary) / 0.45);
   background-color: hsl(var(--accent));
+}
+
+/* A theme recolours the blue palette families (sky, blue, cyan, teal, indigo; above). Where one
+   of them is a category colour (a violation type's badge, a transit stop's kind, a metric
+   group's dot) the element or an ancestor takes the `fixed-palette` class, and those classes
+   keep Tailwind's colours inside it. The greys still follow the theme there. */
+.fixed-palette {
+  --palette-tint-50: initial;
+  --palette-tint-100: initial;
+  --palette-tint-200: initial;
+  --palette-tint-300: initial;
+  --palette-tint-400: initial;
+  --palette-tint-500: initial;
+  --palette-tint-600: initial;
+  --palette-tint-700: initial;
+  --palette-tint-800: initial;
+  --palette-tint-900: initial;
+  --palette-tint-950: initial;
+}
+
+/* A page whose own accent is green or amber (Parks, Census) puts `theme-tint-green` or
+   `theme-tint-amber` on its panel. Under a theme that family then draws from the tint ramp inside
+   the panel, like the blue families do everywhere; outside it, and without a theme, green and
+   amber stay the status and category colours they are. tailwind-theme.mjs, `pageAccentPalette`. */
+[data-interface-theme] .theme-tint-green {
+  --palette-green-50: var(--palette-tint-50);
+  --palette-green-100: var(--palette-tint-100);
+  --palette-green-200: var(--palette-tint-200);
+  --palette-green-300: var(--palette-tint-300);
+  --palette-green-400: var(--palette-tint-400);
+  --palette-green-500: var(--palette-tint-500);
+  --palette-green-600: var(--palette-tint-600);
+  --palette-green-700: var(--palette-tint-700);
+  --palette-green-800: var(--palette-tint-800);
+  --palette-green-900: var(--palette-tint-900);
+  --palette-green-950: var(--palette-tint-950);
+}
+[data-interface-theme] .theme-tint-amber {
+  --palette-amber-50: var(--palette-tint-50);
+  --palette-amber-100: var(--palette-tint-100);
+  --palette-amber-200: var(--palette-tint-200);
+  --palette-amber-300: var(--palette-tint-300);
+  --palette-amber-400: var(--palette-tint-400);
+  --palette-amber-500: var(--palette-tint-500);
+  --palette-amber-600: var(--palette-tint-600);
+  --palette-amber-700: var(--palette-tint-700);
+  --palette-amber-800: var(--palette-tint-800);
+  --palette-amber-900: var(--palette-tint-900);
+  --palette-amber-950: var(--palette-tint-950);
 }
 
 /* Workspace branding supplies the primary colour when Appearance leaves it unset. */

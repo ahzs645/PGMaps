@@ -19,7 +19,7 @@ type CollapsiblePanelProps = {
 export function CollapsiblePanel({ title, icon, defaultOpen = true, children }: CollapsiblePanelProps) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <section className="rounded-lg border bg-white shadow-sm">
+    <section className="rounded-lg border bg-card shadow-sm">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -30,7 +30,9 @@ export function CollapsiblePanel({ title, icon, defaultOpen = true, children }: 
           {icon}
           <span className="text-sm font-semibold">{title}</span>
         </span>
-        <ChevronDown className={cn('h-4 w-4 flex-none text-slate-400 transition-transform', open && 'rotate-180')} />
+        <ChevronDown
+          className={cn('h-4 w-4 flex-none text-muted-foreground transition-transform', open && 'rotate-180')}
+        />
       </button>
       {open && <div className="px-4 pb-4">{children}</div>}
     </section>

@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react'
 import { SearchInput } from '@/components/ui/map-panels'
 import { ResultRow } from '@/components/ui/result-list'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
-import { cn } from '@/lib/utils'
 import { organizations } from '../organizations'
 
 const humanize = (value: string) => value.replace(/[_-]+/g, ' ')
@@ -33,10 +32,10 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
   }, [query])
 
   return (
-    <aside className="flex flex-col rounded-lg border bg-white shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start">
+    <aside className="flex flex-col rounded-lg border bg-card shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start">
       <div className="border-b p-3">
         <h2 className="text-sm font-semibold">Organizations</h2>
-        <p className="mt-0.5 text-xs leading-4 text-slate-500">
+        <p className="mt-0.5 text-xs leading-4 text-muted-foreground">
           {organizations.length} examples · choose one to review its source and draft
         </p>
         {/* This page stays light under a dark app theme, so colours here are fixed, not tokens. */}
@@ -48,7 +47,7 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
           placeholder="Search"
           aria-label="Search organizations"
           wrapperClassName="mt-2"
-          className="min-h-11 rounded-md border-slate-200 bg-white text-slate-900 placeholder-slate-400"
+          className="min-h-11 rounded-md border-border bg-card text-foreground placeholder-muted-foreground"
         />
       </div>
       <div data-map-sidebar-scroll="true" className="max-h-[70dvh] min-h-0 flex-1 overflow-y-auto lg:max-h-none">
@@ -61,10 +60,10 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
                 selected={selected}
                 aria-current={selected}
                 onClick={() => onSelect(org.id)}
-                className={cn('min-h-11 py-2 dark:hover:bg-slate-50', selected && 'dark:bg-teal-50')}
-                title={<span className="whitespace-normal break-words text-slate-900">{org.name}</span>}
+                className="min-h-11 py-2"
+                title={<span className="whitespace-normal break-words text-foreground">{org.name}</span>}
                 subtitle={
-                  <span className="text-slate-500">
+                  <span className="text-muted-foreground">
                     {humanize(org.sector)} ·{' '}
                     {org.acknowledges.length
                       ? `${org.acknowledges.length} Nation${org.acknowledges.length === 1 ? '' : 's'}`
@@ -75,7 +74,9 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
             )
           }}
         </VirtualResultList>
-        {filtered.length === 0 && <div className="p-4 text-xs text-slate-500">No organizations match “{query}”.</div>}
+        {filtered.length === 0 && (
+          <div className="p-4 text-xs text-muted-foreground">No organizations match “{query}”.</div>
+        )}
       </div>
     </aside>
   )

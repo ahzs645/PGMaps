@@ -67,7 +67,7 @@ function ProbabilityComparison({
               <strong>{comparisonDelta(row)}</strong>
             </p>
             {[
-              { label: 'A', value: row.leftValue as number, color: 'bg-sky-600' },
+              { label: 'A', value: row.leftValue as number, color: 'fixed-palette bg-sky-600' },
               { label: 'B', value: row.rightValue as number, color: 'bg-orange-600' },
             ].map((bar) => (
               <div key={bar.label} className="mb-1 grid grid-cols-[1rem_1fr_3rem] items-center gap-2 text-xs">

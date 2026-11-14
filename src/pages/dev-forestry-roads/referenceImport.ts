@@ -15,7 +15,7 @@ import {
   shapeOf,
   type SpatialFile,
 } from './spatialImport'
-import type { ContextFeature, RoadProject } from './types'
+import type { Alignment, ContextFeature, RoadProject } from './types'
 import { keepCutblockBuffers, type CutblockBuffer } from './cutblockBuffers'
 
 export const REFERENCE_ACCEPT = '.geojson,.json,.zip,.kml,.kmz,.shp,.shx,.dbf,.prj,.cpg,.pdf'
@@ -74,6 +74,29 @@ export function suggestedLayerRole(file: SpatialFile): LayerImportRole {
     return 'proposed-road'
   if (options.includes('planned-block') && /^[A-Z]{2,}\d+$/i.test(stem)) return 'planned-block'
   return 'reference'
+}
+
+/**
+ * The design road a proposed line became. `edited: false` is a road that still has the line's own
+ * vertices, whatever it is called now; failing that, the road that still carries the line's name
+ * has been edited since (`edited: true`). Null when no design road came from the line.
+ */
+export function designRoadForProposedLine(
+  line: { name: string; geometry: { type: string; coordinates: unknown } },
+  alignments: readonly Alignment[],
+): { road: Alignment; edited: boolean } | null {
+  if (line.geometry.type !== 'LineString') return null
+  const vertices = line.geometry.coordinates as readonly (readonly number[])[]
+  const same = (road: Alignment) =>
+    road.points.length === vertices.length &&
+    road.points.every(
+      ({ coordinate }, i) =>
+        Math.abs(coordinate[0] - vertices[i][0]) < 1e-9 && Math.abs(coordinate[1] - vertices[i][1]) < 1e-9,
+    )
+  const unchanged = alignments.find(same)
+  if (unchanged) return { road: unchanged, edited: false }
+  const named = alignments.find((road) => road.name === line.name)
+  return named ? { road: named, edited: true } : null
 }
 
 /** Explicit import choice: make each proposed road available in the switcher and profile together. */

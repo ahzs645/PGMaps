@@ -170,7 +170,7 @@
 
 /* Road dialogs share the workspace surface and the panel radius. Side drawers have their own
    edge geometry, and the sheet's bottom corners stay square where it meets the phone edge. */
-.road-workspace :is(.geo-motion-dialog-content, .lp-chooser-dialog, .lp-tool-search):not(.lp-task-sheet) {
+.road-workspace :is(.geo-motion-dialog-content, .lp-chooser-dialog):not(.lp-task-sheet) {
   --road-dialog-radius: calc(var(--radius) + 4px);
   background: hsl(var(--background));
   color: hsl(var(--foreground));
@@ -295,15 +295,121 @@
 }
 
 /* From the tablet width up the header is two lines (`WorkspaceHeader`, `data-lines`) beside the
-   brand, which has its column to itself: the back link with the project's name and the road switcher
-   on the first, the buttons with the save line and the terrain warnings on the second. The name keeps a floor so the switcher never
-   squeezes it away; from 768 to 1023 px four buttons fold into a More menu (`HEADER_OVERFLOW`), so
-   the second line fits the 768 px header with the save line beside it. */
-@media (min-width: 768px) {
-  .road-workspace .road-workspace-heading {
-    min-width: 12rem;
-  }
+   brand, which has its column to itself. The project line reads as a path (the way back, the
+   project's name, the road being viewed) and ends with the warnings, the save line and the file
+   buttons. Under it every other tool sits on one strip, in groups a hairline apart, so a dozen
+   buttons read as four. Both lines are 32 px: the header is 68 px tall, as it was. */
+.road-workspace-header[data-lines] {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+}
 
+.road-workspace-header[data-lines] .road-workspace-brand {
+  display: flex;
+  grid-row: 1 / span 2;
+  grid-column: 1;
+  align-items: center;
+}
+
+.road-header-project {
+  display: flex;
+  grid-row: 1;
+  grid-column: 2;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  min-height: 2rem;
+}
+
+/* The name is the first thing cut short on a tight line, down to a floor that still reads as a
+   name: the road switcher and the warnings keep their width. */
+.road-workspace .road-header-project .road-workspace-heading {
+  flex: 0 1000 auto;
+  min-width: min(11rem, 28%);
+}
+
+.road-header-crumb {
+  flex: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* The project's warnings, against the file buttons. They give way only once the name is at its
+   floor, and are then cut short rather than run under the road switcher. */
+.road-header-flags {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  min-width: 0;
+  margin-inline-start: auto;
+  overflow: hidden;
+}
+
+.road-header-file {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.125rem;
+  margin-inline-start: 0.25rem;
+}
+
+.road-header-strip {
+  display: flex;
+  grid-row: 2;
+  grid-column: 2;
+  align-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 2rem;
+  padding-inline: 0.125rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+
+.road-header-group {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+/* A hairline before every group that follows another. A group whose only tool draws nothing
+   (Detached panels with none open) is empty, and neither takes a hairline nor gives one. */
+.road-header-group:not(:empty) ~ .road-header-group:not(:empty)::before {
+  width: 1px;
+  height: 1rem;
+  margin-inline: 0.3125rem;
+  background: hsl(var(--border));
+  content: '';
+}
+
+/* The room between the tools and the workspace group is the strip's message area: a notice, else
+   where the project is saved, read from its end. */
+.road-header-message {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  min-width: 0;
+  padding-inline: 0.75rem 0.25rem;
+}
+
+/* How the workspace itself looks (interface, branding, full screen, help) keeps to the far end. */
+.road-header-group-end {
+  margin-inline-start: auto;
+}
+
+@media (min-width: 768px) {
   /* The brand spans both header lines, so it grows with the window: 24 px on a tablet up to 44 px on
      a wide desktop, which still fits the two lines' height (68 px) beside it. */
   .road-workspace-brand .access-lockup-compact {

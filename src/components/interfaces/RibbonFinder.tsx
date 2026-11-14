@@ -1,6 +1,7 @@
-import { Search, Settings2, X, type LucideIcon } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { SearchComboboxInput, SearchResultList, useSearchCombobox } from '@/components/ui/search-combobox'
+import { Search, Settings2, type LucideIcon } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { SearchResultContent } from '@/components/ui/search-combobox'
+import { SearchPalette } from '@/components/ui/search-palette'
 import { isApplePlatform } from '@/lib/platform'
 import type { WorkspaceCommand } from './workspaceCommands'
 import type { WorkspaceWidget } from './workspaceLayouts'
@@ -19,98 +20,26 @@ export type ToolResult = SearchLocation & { id: WorkspaceCommand | WorkspaceWidg
 export type EditorResult = SearchLocation & { id: string; target: HTMLElement }
 export type RibbonResult = ToolResult | EditorResult
 
-function ToolSearch({
-  entries,
-  onClose,
-  onPick,
-}: {
-  entries: RibbonResult[]
-  onClose: () => void
-  onPick: (entry: RibbonResult) => void
-}) {
-  const dialog = useRef<HTMLDialogElement>(null)
-  const input = useRef<HTMLInputElement>(null)
-  const [query, setQuery] = useState('')
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
-  const results = entries.filter(({ label, id, tab, section, inSettings }) => {
-    const words = [label, id.replace(/([a-z])([A-Z])/g, '$1 $2'), tab, section, inSettings && 'settings']
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-    return terms.every((term) => words.includes(term))
-  })
-  const combobox = useSearchCombobox({
-    items: results,
-    isDisabled: (entry) => entry.disabled,
-    // An unavailable tool stays reachable so its "Unavailable" note is read out.
-    skipDisabled: false,
-    resetKey: query,
-    scrollIntoView: 'always',
-    onPick: (entry) => {
-      // Close synchronously so a result that opens a file picker keeps the user's activation.
-      dialog.current?.close()
-      onClose()
-      onPick(entry)
-    },
-  })
+/** The words a result is found by: its label, its command id as words, and where it sits. */
+function matches(entry: RibbonResult, terms: string[]) {
+  const words = [
+    entry.label,
+    entry.id.replace(/([a-z])([A-Z])/g, '$1 $2'),
+    entry.tab,
+    entry.section,
+    entry.inSettings && 'settings',
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  return terms.every((term) => words.includes(term))
+}
 
-  useLayoutEffect(() => {
-    const node = dialog.current!
-    node.showModal()
-    input.current?.focus()
-    return () => node.close()
-  }, [])
-
-  return (
-    <dialog
-      ref={dialog}
-      className="lp-tool-search"
-      aria-label="Find ribbon tools"
-      onCancel={(event) => {
-        event.preventDefault()
-        onClose()
-      }}
-      onKeyDown={(event) => event.stopPropagation()}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-    >
-      <SearchComboboxInput
-        ref={input}
-        combobox={combobox}
-        variant="bare"
-        boxClassName="lp-search-box"
-        icon={<Search size={18} aria-hidden="true" />}
-        aria-label="Search ribbon tools"
-        placeholder="Search tools and settings"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        onClose={onClose}
-        closeLabel="Close tool search"
-        buttonIcon={<X size={18} />}
-      />
-      <SearchResultList
-        combobox={combobox}
-        aria-label="Matching ribbon tools"
-        className="lp-search-results"
-        getKey={(entry, i) => [entry.tab, entry.section, entry.id, i].join('/')}
-        renderOption={(entry) => {
-          const Icon = entry.icon ?? Settings2
-          return (
-            <>
-              <Icon size={17} strokeWidth={1.65} aria-hidden="true" />
-              <span>
-                <strong>{entry.label}</strong>
-                <small>{[entry.tab, entry.section, entry.inSettings && 'Settings'].filter(Boolean).join(' › ')}</small>
-              </span>
-              {entry.disabled && <small>Unavailable</small>}
-            </>
-          )
-        }}
-      />
-      {!results.length && <p role="status">No matching ribbon tools.</p>}
-    </dialog>
-  )
+/** Results under one heading per tab, tabs in the order they first appear (the open tab first). */
+function byTab(entries: RibbonResult[]) {
+  const tabs = new Map<string, RibbonResult[]>()
+  for (const entry of entries) tabs.set(entry.tab, [...(tabs.get(entry.tab) ?? []), entry])
+  return [...tabs.values()].flat()
 }
 
 export function RibbonFinder({
@@ -121,6 +50,17 @@ export function RibbonFinder({
   onPick: (entry: RibbonResult) => void
 }) {
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  // The list follows the ribbon while the finder is open (a tool that becomes available says so),
+  // and keeps its last reading while the finder closes.
+  const [closing, setClosing] = useState<RibbonResult[]>([])
+  const tools = open ? entries() : closing
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const results = byTab(tools.filter((entry) => matches(entry, terms)))
+  const show = useCallback(() => {
+    setQuery('')
+    setOpen(true)
+  }, [])
   const shortcut = isApplePlatform() ? '⌥Q' : 'Alt+Q'
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -135,11 +75,11 @@ export function RibbonFinder({
       )
         return
       event.preventDefault()
-      setOpen(true)
+      show()
     }
     window.addEventListener('keydown', handleShortcut)
     return () => window.removeEventListener('keydown', handleShortcut)
-  }, [])
+  }, [show])
   return (
     <>
       <button
@@ -149,13 +89,46 @@ export function RibbonFinder({
         aria-haspopup="dialog"
         aria-keyshortcuts="Alt+Q"
         title={`Find tools (${shortcut})`}
-        onClick={() => setOpen(true)}
+        onClick={show}
       >
         <Search size={15} aria-hidden="true" />
         <span>Find tools</span>
         <kbd>{shortcut}</kbd>
       </button>
-      {open && <ToolSearch entries={entries()} onClose={() => setOpen(false)} onPick={onPick} />}
+      <SearchPalette
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) setClosing(tools)
+          setOpen(next)
+        }}
+        title="Find ribbon tools"
+        description="Search the ribbon's tools and settings by name, tab or group."
+        inputLabel="Search ribbon tools"
+        placeholder="Search tools and settings"
+        resultsLabel="Matching ribbon tools"
+        query={query}
+        onQueryChange={setQuery}
+        items={results}
+        onPick={onPick}
+        getKey={(entry, i) => [entry.tab, entry.section, entry.id, i].join('/')}
+        getGroup={(entry) => entry.tab}
+        isDisabled={(entry) => entry.disabled}
+        // An unavailable tool stays reachable so its "Unavailable" note is read out.
+        combobox={{ skipDisabled: false, scrollIntoView: 'always' }}
+        empty="No matching ribbon tools."
+        countLabel={(count) => `${count} ${count === 1 ? 'tool' : 'tools'}`}
+        renderOption={(entry) => {
+          const Icon = entry.icon ?? Settings2
+          return (
+            <SearchResultContent
+              icon={<Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+              title={entry.label}
+              detail={[entry.section, entry.inSettings && 'Settings'].filter(Boolean).join(' › ') || undefined}
+              trailing={entry.disabled && <span className="shrink-0 text-xs text-muted-foreground">Unavailable</span>}
+            />
+          )
+        }}
+      />
     </>
   )
 }

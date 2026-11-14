@@ -12,6 +12,7 @@ import {
   readReferenceImport,
   removeImportedLayer,
   suggestedLayerRole,
+  designRoadForProposedLine,
   loadImportedProposedRoads,
   defaultHiddenReferenceLayers,
 } from './referenceImport'
@@ -117,6 +118,22 @@ describe('folder import roles and road profiles', () => {
     expect(loaded.context.filter((f) => f.layerSource === 'Study/ABC123.shp')).toHaveLength(1)
     expect(defaultHiddenReferenceLayers(loaded)).toEqual(['Study/roads.shp', 'Study/reference.geojson'])
     expect(loadImportedProposedRoads(loaded, imported.imported, uid).alignments).toHaveLength(loaded.alignments.length)
+    // The Layers tree reads which design road a proposed line became, and whether it has moved since.
+    const proposed = loaded.reference!.find((f) => f.name === 'ABC123.1000')!
+    const made = loaded.alignments.find((a) => a.name === 'ABC123.1000')!
+    expect(designRoadForProposedLine(proposed, loaded.alignments)).toEqual({ road: made, edited: false })
+    const renamed = loaded.alignments.map((a) => (a === made ? { ...a, name: 'Mainline' } : a))
+    expect(designRoadForProposedLine(proposed, renamed)).toMatchObject({ road: { name: 'Mainline' }, edited: false })
+    const moved = loaded.alignments.map((a) =>
+      a === made
+        ? {
+            ...a,
+            points: a.points.map((p, i) => (i ? p : { ...p, coordinate: [p.coordinate[0] + 0.001, p.coordinate[1]] })),
+          }
+        : a,
+    ) as typeof loaded.alignments
+    expect(designRoadForProposedLine(proposed, moved)).toMatchObject({ road: { name: 'ABC123.1000' }, edited: true })
+    expect(designRoadForProposedLine(proposed, imported.project.alignments)).toBeNull()
     expect(
       parseProject(JSON.parse(serializeProject(loaded)))
         .alignments.slice(-2)

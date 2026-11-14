@@ -3,7 +3,19 @@ import { DEFAULT_DEM_ZOOM } from './terrain'
 import type { ReverseViewshedResult } from './reverseViewshed'
 import type { VacRating, VisualQualityClassId } from './vqo'
 export type ViewpointMode = 'spot' | 'corridor'
-export type Viewpoint = { id: string; name: string; mode: ViewpointMode; coordinates: Array<[number, number]> }
+/**
+ * A reviewer's surveyed eye elevation for a stood-at viewpoint (a spot, or a pullout of at most
+ * twice `PULLOUT_METERS`): absolute metres above sea level, kept with the point it was entered for
+ * so it lapses when the viewpoint moves (`viewpointStand.ts`).
+ */
+export type SurveyedEye = { elevationMeters: number; lng: number; lat: number }
+export type Viewpoint = {
+  id: string
+  name: string
+  mode: ViewpointMode
+  coordinates: Array<[number, number]>
+  surveyedEye?: SurveyedEye
+}
 export type TargetRole = 'block' | 'landscape' | 'harvested'
 /**
  * How a proposed block is cut. Dispersed retention keeps its geometry and earns
@@ -123,7 +135,11 @@ export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
   screeningEyeClearingMeters: 50,
 }
 export type AnalysisInput = {
-  viewpoint: Pick<Viewpoint, 'mode' | 'coordinates'>
+  /**
+   * `eyeElevationMeters`: a surveyed eye elevation that applies (`surveyedEyeElevation`), absolute
+   * metres. Every station's eye stands there in place of the terrain model's ground + eye height.
+   */
+  viewpoint: Pick<Viewpoint, 'mode' | 'coordinates'> & { eyeElevationMeters?: number }
   targets: Array<
     Pick<
       TargetPolygon,
@@ -217,7 +233,17 @@ export type AnalysisResult = {
   sourceNotes?: string[]
   landformDesign?: import('./landformDesign').LandformDesignReview | null
   settings: AnalysisSettings
-  stations: Array<{ lng: number; lat: number; groundElevationMeters: number; distanceAlongMeters: number }>
+  /**
+   * `groundElevationMeters` is the ground the eye stands on. With a surveyed eye elevation it is that
+   * elevation less the eye height, and `terrainGroundElevationMeters` keeps the terrain model's reading.
+   */
+  stations: Array<{
+    lng: number
+    lat: number
+    groundElevationMeters: number
+    distanceAlongMeters: number
+    terrainGroundElevationMeters?: number
+  }>
   corridorLengthMeters: number
   assessmentStationIndex: number
   targets: TargetVisibility[]
@@ -261,6 +287,11 @@ export type AnalysisResult = {
     geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
     cover: import('./forest').GroundCover
   }>
+  /**
+   * The run's VRI read as a scene package's ground cover source (`terrain.cover`, `coverOnGrid`): its open-ground
+   * polygons, and its box when the read was whole. Display only; no figure reads it.
+   */
+  sceneCover?: import('./sceneCover').SceneCoverSource
 }
 export type AnalysisProgress = { phase: 'terrain' | 'sightlines'; completed: number; total: number }
 export type ReverseInput = {

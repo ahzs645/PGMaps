@@ -220,6 +220,56 @@ export function planFraming(extent: AngularExtent, rule: FramingRule = {}): Fram
 }
 
 /**
+ * A fixed frame for the analysis sheet, as a reference VIA's panorama was taken: its centre bearing and horizontal
+ * span, and, when known (a fitted camera), its centre pitch and vertical field.
+ */
+export type FigureFrame = { bearingDeg: number; spanDeg: number; pitchDeg?: number; vfovDeg?: number }
+
+/** Widest single frame of a fixed framing; wider spans are tiled, which approximates a cylindrical panorama. */
+export const FIXED_FRAME_MAX_HFOV = 40
+
+export function parseFigureFrame(raw: unknown): FigureFrame | null {
+  const value = raw as Partial<FigureFrame> | null
+  if (!value || typeof value !== 'object') return null
+  const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n)
+  if (!finite(value.bearingDeg) || !finite(value.spanDeg) || value.spanDeg <= 0 || value.spanDeg > 170) return null
+  return {
+    bearingDeg: wrap360(value.bearingDeg),
+    spanDeg: value.spanDeg,
+    ...(finite(value.pitchDeg) && Math.abs(value.pitchDeg) < 45 ? { pitchDeg: value.pitchDeg } : {}),
+    ...(finite(value.vfovDeg) && value.vfovDeg > 1 && value.vfovDeg < 90 ? { vfovDeg: value.vfovDeg } : {}),
+  }
+}
+
+/**
+ * Frames covering a fixed bearing span exactly: as few frames as keep each at most `FIXED_FRAME_MAX_HFOV` across,
+ * side by side. The pitch and vertical field are the frame's own when given; else the vertical window comes from the
+ * landform's extent with room for the water and ground below it, as reference panoramas keep them.
+ */
+export function planFixedFraming(frame: FigureFrame, extent: AngularExtent | null): FramingPlan {
+  const count = Math.max(1, Math.ceil(frame.spanDeg / FIXED_FRAME_MAX_HFOV - 1e-9))
+  const lens = frame.spanDeg / count
+  const delta = extent ? Math.max(0.3, extent.elTopDeg - extent.elBottomDeg) : 4
+  const vfov = frame.vfovDeg ?? Math.min(60, Math.max(delta / 0.45, frame.spanDeg / 3))
+  const pitch = frame.pitchDeg ?? (extent ? extent.elBottomDeg - vfov * 0.3 + vfov / 2 : 0)
+  const left = frame.bearingDeg - frame.spanDeg / 2
+  const frames = Array.from({ length: count }, (_, i) => ({
+    bearingDeg: wrap360(left + lens * (i + 0.5)),
+    pitchDeg: pitch,
+    hfovDeg: lens,
+    vfovDeg: vfov,
+  }))
+  const top = pitch + vfov / 2
+  const bottom = pitch - vfov / 2
+  const shares = extent
+    ? { sky: Math.max(0, (top - extent.elTopDeg) / vfov), ground: Math.max(0, (extent.elBottomDeg - bottom) / vfov) }
+    : { sky: 0.3, ground: 0.3 }
+  const focal = Math.round(focalForHfov(lens))
+  const label = `fixed frame: ${count} frame${count === 1 ? '' : 's'} of ${focal} mm (${lens.toFixed(1)}° each), ${frame.spanDeg.toFixed(0)}° from ${Math.round(wrap360(left))}° to ${Math.round(wrap360(left + frame.spanDeg))}°`
+  return { frames, totalHfovDeg: frame.spanDeg, vfovDeg: vfov, shares, label }
+}
+
+/**
  * The part of a canvas showing `frame` when the map is drawn at its `hfovDeg` across: the map's
  * vertical field to set, and the centred crop (shares of width and height) that leaves the frame's
  * own window. Never stretched: the canvas covers at least the frame both ways.

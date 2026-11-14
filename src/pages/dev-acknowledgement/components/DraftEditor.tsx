@@ -29,20 +29,20 @@ export function DraftEditor({
   const [reading, setReading] = useState(false)
   const [keepSuggestion, setKeepSuggestion] = useState<string | null>(null)
   return (
-    <section className="min-w-0 space-y-4 rounded-xl border border-teal-200 bg-white p-4 sm:p-5">
+    <section className="min-w-0 space-y-4 rounded-xl border border-teal-200 dark:border-teal-800 bg-card p-4 sm:p-5">
       <div>
         <h2 className="text-lg font-semibold">Your draft acknowledgment</h2>
-        <p className="mt-1 break-words text-sm text-slate-600">{context}</p>
+        <p className="mt-1 break-words text-sm text-muted-foreground">{context}</p>
       </div>
       {notice && (
-        <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm leading-6 text-amber-950">
+        <p role="status" className="rounded-lg bg-warning-surface p-3 text-sm leading-6 text-warning-foreground">
           {notice}
         </p>
       )}
       {reading ? (
         <div
           aria-label="Reading view"
-          className="whitespace-pre-wrap break-words rounded-lg bg-stone-50 p-4 text-2xl leading-relaxed"
+          className="whitespace-pre-wrap break-words rounded-lg bg-background p-4 text-2xl leading-relaxed"
         >
           {text || 'Choose a location and review Nations to begin.'}
         </div>
@@ -53,7 +53,7 @@ export function DraftEditor({
           value={text}
           onChange={(event) => onChange(event.target.value)}
           placeholder="Choose a location and review Nations, or write your own sourced acknowledgment here."
-          className="min-h-52 w-full resize-y rounded-lg border bg-stone-50 p-3 text-base leading-7"
+          className="min-h-52 w-full resize-y rounded-lg border bg-background p-3 text-base leading-7"
         />
       )}
       <div className="flex flex-wrap gap-2">
@@ -87,11 +87,14 @@ export function DraftEditor({
           Select text
         </button>
       </div>
-      <p role="status" aria-live="polite" className="text-sm text-teal-900">
+      <p role="status" aria-live="polite" className="text-sm text-teal-900 dark:text-teal-200">
         {message}
       </p>
       {edited && suggestion !== text && (
-        <details open={keepSuggestion !== suggestion} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <details
+          open={keepSuggestion !== suggestion}
+          className="rounded-lg border border-warning-border bg-warning-surface p-3"
+        >
           <summary className="min-h-11 cursor-pointer text-sm font-medium">
             Your wording is kept. A generated suggestion is available.
           </summary>
@@ -106,21 +109,21 @@ export function DraftEditor({
                 onReplace()
                 setKeepSuggestion(null)
               }}
-              className="min-h-11 rounded-lg border bg-white px-3 text-sm disabled:opacity-50"
+              className="min-h-11 rounded-lg border bg-card px-3 text-sm disabled:opacity-50"
             >
               Replace with suggestion
             </button>
             <button
               type="button"
               onClick={() => setKeepSuggestion(suggestion)}
-              className="min-h-11 rounded-lg border bg-white px-3 text-sm"
+              className="min-h-11 rounded-lg border bg-card px-3 text-sm"
             >
               Keep my wording
             </button>
           </div>
         </details>
       )}
-      <p className="text-sm leading-6 text-slate-600">
+      <p className="text-sm leading-6 text-muted-foreground">
         Review names and local guidance before using this draft. Consider adding why this acknowledgment matters to you
         and a specific commitment you can act on.
       </p>

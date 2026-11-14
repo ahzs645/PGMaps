@@ -94,6 +94,23 @@ describe('walking off the road', () => {
   })
 })
 
+describe('a surveyed eye elevation', () => {
+  it('stands the eye there near its point, and on the ground + eye height once walked away', () => {
+    const { map, placed } = fakeMap()
+    const controller = new DriveController(map, ROAD, [], GROUND)
+    controller.start(0)
+    const surveyedEye = { elevationMeters: 590.5, lng: -122.7, lat: 54.5 }
+    const here = options({ surveyedEye })
+    controller.tick(0, here)
+    expect(placed[placed.length - 1].altitude).toBeCloseTo(590.5, 9)
+    expect(here.poses[0]).toMatchObject({ eyeElevationMeters: 590.5, eyeSurveyed: true, groundElevationMeters: 600 })
+    const away = options({ surveyedEye, walk: { east: 200, north: 0 } })
+    controller.tick(200, away)
+    expect(placed[placed.length - 1].altitude).toBeCloseTo(601.6, 5)
+    expect(away.poses[0].eyeSurveyed).toBeUndefined()
+  })
+})
+
 describe('resizing the road view', () => {
   it('places the camera again at the same station when the canvas changes size', () => {
     const { map } = fakeMap()

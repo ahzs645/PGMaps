@@ -34,7 +34,13 @@ function MapCard({ title, description, icon: Icon, href, color, status }: MapCar
 
   const cardContent = (
     <>
-      <div className={cn('mb-3 flex h-10 w-10 items-center justify-center rounded-lg sm:mb-4 sm:h-12 sm:w-12', color)}>
+      {/* The tile colour is the map's own, so it keeps its palette under an Appearance theme. */}
+      <div
+        className={cn(
+          'fixed-palette mb-3 flex h-10 w-10 items-center justify-center rounded-lg sm:mb-4 sm:h-12 sm:w-12',
+          color,
+        )}
+      >
         <Icon className="h-4 w-4 text-white sm:h-6 sm:w-6" />
       </div>
 

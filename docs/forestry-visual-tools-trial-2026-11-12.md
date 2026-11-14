@@ -469,3 +469,273 @@ with vsync on; time them as pages of their own.
 aspens keep their leaves; Nanite's aspens read lime, its litter orange and its
 crowns stay bright at dusk; neither draws B.C. tree shapes yet, so screening is
 still judged on PGMaps.
+
+## 15. Review of 13 November: the engines toward a VIA view
+
+An outside review of the three repositories against the reference VIAs
+(Gun Lake West Boat Launch, Marblehead CP421 VP2, Salisbury/Lost Ledge)
+asked for one real viewpoint that can be reopened and regenerated into matching
+reference, existing, proposed and measurement panels. Its source-level claims
+were checked against the code before acting on them; all held.
+
+**Done (batch 1: reproducible inputs).**
+
+- *Stable trees.* worldgen chose each species' height classes from quantiles of
+  the stems present and Nanite clustered crown ratios over them, so a harvest
+  could move a retained stem into another class with other branches. Both now
+  use a fixed ladder (worldgen heights 4·√2ᵏ m, 4–62 m; Nanite crown ratios
+  ×1.31 from 0.08 to 1.2) seeded by species and rung; each engine's test removes
+  40% of a stand and checks every kept stem's class, size and seed. PGMaps' own
+  package was already stable (stems are seeded per grid cell); a test now pins
+  it. Nanite grows 35 tree types for the demo stand instead of 18 (5.3 s build;
+  growth workers capped at 2–6 after 35 at once ran out of WASM memory).
+  Nanite's crown error is now measured on the drawn model: 6.7% mean, 12.0% at
+  the 90th percentile.
+- *The site's clock.* The date and time were read in the computer's time zone;
+  they are now read on the site's (`siteTimeZone`), and the message carries the
+  zone and the UTC instant.
+- *One sun, and the sun drawn.* PGMaps sends NOAA's sun; both engines light
+  from it (16:15 on 20 January at Prince George: 0.9° at 233.1° in both, where
+  worldgen's own ephemeris had 0.6°). *Sun: True position* (the default) drops
+  Nanite's 6° floor and worldgen's move of a night clock to dusk; *Kept to
+  daylight* keeps them, and the status line says "lit as 6.0°" when the light
+  differs from the sun.
+- *Seating.* worldgen seats stems on its 15 m ground rather than their own
+  heights; it reports the adjustment (demo stand: 0.6 m at most, 0.09 m mean).
+
+**Left (in the review's order).**
+
+1. *Camera and projection metadata* — the viewport and perspective saved with a
+   package and replayed (work under way in another session, `sceneCamera.ts`),
+   then checked through resize, save and reload, engine switch and export; and
+   a choice, recorded per view, between a calibrated single perspective and one
+   cylindrical panorama (the reference sheets fit as 60–141° cylinders; PGMaps
+   captures perspective frames side by side).
+2. *Real terrain to the skyline.* Both engines pad the package's 3 km grid with
+   invented ground easing to its mean (worldgen to the far plane, Nanite 16 km);
+   an assessment view needs sourced terrain through the visible horizon, sized
+   from the viewpoint and its frame, finer than 15 m near the assessed landform,
+   with missing data marked.
+3. *The engine's image as the report figure* — done; see §16.
+4. *Forest form and season* — species forms calibrated to the reference stands,
+   leaf-off as a vegetation state that the screening mask uses too, and
+   detail-transition checks.
+5. *Ground, water and light* — river profiles and documented lake levels instead
+   of one level from the lowest shore, stumps from the removed stems rather than
+   500 a hectare, and an exposure held across a before/after pair.
+
+## 16. The engine's picture as the analysis sheet's figure
+
+*Save viewpoint* with an engine chosen now takes the analysis sheet's frames
+from the engine (`engineCapture.ts`, protocol `pgmaps-capture`): a scene whose
+terrain reaches a kilometre past the landform and blocks, then, for each frame
+of the framing plan, the picture, a class pass in the sheet's palette (the
+engine's trees white, its water orange) and depth along the view axis, from one
+scene and one camera. PGMaps refuses a reply drawn from another camera, decodes
+the pass with `ENGINE_CLASS_PALETTE`, and the sheet's outlines, callouts and
+pixel measure come from it, with a line naming the renderer and its version.
+The sightline figure stays PGMaps' run.
+
+- *Alignment.* Both engines' cameras reproduce `projectToFrame`'s pinhole to
+  under 0.001 px in their unit tests. In a picture, Nanite's class edges sat
+  0.25 px from it in the median (0.73 px at worst); worldgen's ground classes
+  disagreed with point-in-polygon on 0.024% of pixels, all on cell edges.
+- *Cost.* Two 1200 × 900 frames: Nanite 0.56–0.68 s (24 TAA frames each for
+  the picture), worldgen 0.14–0.17 s warm on WebGPU, 0.19–0.22 s on WebGL2.
+  With the capture scene's larger terrain, *Save viewpoint* took 6 s in the app
+  for either engine.
+- *A reference lake viewpoint* (the landform 4 km away across the water, two
+  50 mm frames, 79°): pixel measure 22.2% from PGMaps' map, 21.4% from Nanite's
+  capture and 21.6% from worldgen's; sightline 21.2% in all three. The
+  outlines follow each engine's own ridgelines.
+- *What the pictures do not yet show.* Both engines draw stems only within
+  about 600–650 m, so a hillside 4 km off is bare ground: the block is outlined
+  but no cut is visible, and worldgen's haze greys the far slope. The capture
+  says so in its `missing` notes, which the saved figure keeps
+  (`FigureIllustration`), but the sheet does not print them. This is item 2 of
+  §15 (real terrain and forest through the skyline), now the next step.
+- VQO zone shading is not drawn on an engine's picture; the saved figure says
+  so.
+
+## 17. Reference viewpoints, one sky, outlines on the ground
+
+Three reference VIAs were set up as scenes and drawn by all three renderers
+under one sky (no cloud, no haze, 15 August 13:00): a lake viewpoint with the
+consultant's landform traced back to the ground (with FTEN blocks and with
+their drawn net block), a scenic viewpoint over a dam, and a lakeshore
+campground whose blocks were later logged and photographed by the Forest
+Practices Board. Each viewpoint is a 30 m stub starting at the printed point;
+the two that stand in forest get a 120 m tree-free fan facing the view, as
+their VIA photos show them open.
+
+What changed to make the engines comparable:
+
+- *Far forest and real skyline.* Capture scenes carry stems to half a
+  kilometre past the landform (about 60–70k stems out to 7–9 km) and coarse
+  terrain to 15 km from a skyline mosaic, in place of the engines' invented
+  ground. worldgen draws far stems as cards, Nanite as wide clump types.
+- *One sky.* `cloudCover` and `visibilityKm` in the environment, honoured
+  exactly by both engines; *No haze* by default. worldgen's sun was also
+  rebalanced against its sky (a sunlit white surface about 3.9× the horizon,
+  from 1.4×), and its lake now reflects the far shore.
+- *Outlines on the ground.* The ground pass (no trees) gives outlines and the
+  pixel figure, as the VIAs' renders draw them over the forest; the screened
+  pass (trees in their ground's class) gives a second figure.
+
+Printed figures (percent):
+
+| Viewpoint | VIA printed | Sightline (PGMaps) | PGMaps map pixel | worldgen ground / with trees | Nanite ground / with trees |
+| --- | --- | --- | --- | --- | --- |
+| Lake, their landform, their net block | 5.05 | 9.54 | 7.80 | 9.39 / 10.58 | 9.38 / 10.78 |
+| Lake, their landform, FTEN blocks | 5.05 | 11.81 | 9.50 | 11.30 / 12.57 | 11.30 / 12.86 |
+| Scenic viewpoint over the dam, VSU landform | 7.8 | 23.69 | 29.18 | 23.69 / 21.72 | 23.70 / 20.09 |
+| Lakeshore campground, VSU landform | 3.9 | 17.12 | 17.92 | 17.32 / 13.77 | 17.26 / 14.12 |
+
+- The engines' ground figures agree with each other to 0.06 points and with
+  PGMaps' sightline figure to 0.2 points: two methods on the same terrain and
+  polygons, which checks the capture cameras and framing.
+- The gap to the printed figures is the inputs the earlier studies found
+  (landform, gross FTEN blocks against drawn net blocks), not the renderer:
+  with the consultant's own landform and block it falls to 4.3 points.
+- Against the Board's after-logging photo, every renderer draws the cuts as
+  bare tan ground that reads far stronger than the real, partly retained and
+  greening blocks; the far forest reads sparse (worldgen) or blotchy (Nanite)
+  against real closed canopy; a peak beyond the 15 km terrain is missing from
+  both engines' skylines at the campground; and at the dam viewpoint the photo
+  looks down from a higher vantage than the eye placed on the DEM.
+- Reference images and block names stay out of the repository; the boards are
+  kept with the VIA research files.
+
+## 18. Closing the look gaps: cut age, closed canopy, skyline, viewpoints
+
+Five changes, then the reference viewpoints again under one sky:
+
+- *Skyline.* The missing peak at the campground stands 16.6–19.4 km away,
+  past the 15 km terrain; a peak 26–32 km off was missing at the lake
+  viewpoint too. A capture now scans the frames' skyline (`skylineReach.ts`,
+  Terrarium z10 to 60 km, curvature and refraction k = 0.13) and adds a coarse
+  `skylineTerrain` grid out to it (22 km at 88 m there, 36 km at 144 m at the
+  lake), heights already dropped for curvature; both engines draw it and their
+  far planes reach it.
+- *Package cover.* `terrain.canopy` (crown closure per post, from the same
+  stands, VRI closure and clearings the road view grows from), and each
+  opening's `ageYears` and `retainedShare` (`sceneCover.ts`).
+- *Engine looks.* Both engines green cut ground up with age (grey-brown soil and
+  slash at one year, shrubs by five, green by ten) and shade forest ground by
+  crown closure, so far stands read closed. Measured cut-to-forest brightness
+  for one-year cuts, no haze: worldgen 1.5–1.6, Nanite about 3.7; the Board's
+  hazed photo reads 1.1–1.3 (about 1.3–1.9 de-hazed by worldgen's estimate, 3.3–4.8
+  by Nanite's), so the two engines bracket it.
+- *Viewpoints.* Stood-at viewpoints get an automatic tree-free fan (120 m,
+  ±70° about the view, display only) and an optional surveyed eye elevation.
+  At the dam viewpoint the DEM reads 9.8 m *above* the printed 636 m, so the
+  eye was not low: the trunks were forest grown to the eye.
+- *Retention in the class pass.* `retained` masks are cut out of the blocks'
+  class layers, as the run already treats them; every sheet's pixel figure had
+  counted reserves as cut.
+
+The campground case was also run as logged: the nine RESULTS group reserves of
+the permit (66.8 ha) standing, the blocks harvested in 2022 and viewed in 2023.
+
+| Viewpoint | VIA printed | Sightline | PGMaps map pixel | worldgen ground / with trees | Nanite ground / with trees |
+| --- | --- | --- | --- | --- | --- |
+| Lake, their landform and net block | 5.05 | 9.54 | 7.85 | 9.39 / 10.56 | 9.38 / 10.79 |
+| Dam viewpoint, VSU landform | 7.8 | 23.69 | 29.18 | 23.69 / 21.74 | 23.70 / 20.04 |
+| Campground, VSU landform, FTEN blocks | 3.9 | 17.12 | 17.92 | 17.32 / 13.77 | 17.24 / 14.11 |
+| Campground as logged (reserves standing) | 3.9 | 13.33 | 13.00 | 12.63 / 9.22 | 12.58 / 9.55 |
+
+As logged, every figure falls in the Modification range, which is what the
+Forest Practices Board found the logging achieved from this viewpoint; the VIA
+had predicted Partial Retention at 3.9%. Against the Board's photo the
+engines now show the peak behind, a closed forest and muted one-year cuts with
+their reserves; the cuts still read somewhat stronger than the photo's, whose
+haze PGMaps' captures leave out by default.
+
+## 19. Far forest, water and a final-render mode: findings and plan
+
+A survey of the local reference collection, a diagnosis of our far trees and a
+review of what other tools do (the case-specific write-up is kept with the VIA
+research files, not here):
+
+- *The references.* About 75 of the reference figures are fully modelled
+  renders, mostly Visual Nature Studio; most comparisons so far were
+  photomontages. Fifteen modelled renders already have a clean image and a
+  fitted camera (cylindrical panoramas of 60–141°, not the printed 50 mm).
+  They draw distant forest as a dense canopy of individual conifer sprites
+  that reads as fine vertical texture at 3–7 km, and lakes as crisp mirrors;
+  the paired photos show the same texture but blue-grey with distance and
+  wind-rippled water.
+- *Why ours read as shrubs.* Past 2.8 km each drawn stem stands for 400–1,000
+  real trees and is widened to keep the stand's closure (55–58 m wide, 22 m
+  tall), so it draws as a squat blob. At 3.5–6.5 km our vertical-edge ratio is
+  0.56–0.8 against 1.81 in the render; trees cover 16–42% of the hillside
+  against 80–95%; there is almost no shadow between crowns; colours are too
+  saturated; PGMaps' sheet is upscaled 2.3× from the road-view canvas; and
+  worldgen's impostor atlas has no mipmaps. Heights are right. Supersampling
+  sharpens but does not change the shapes.
+- *What others do.* VNS dissolves trees under 2–4 px tall to a canopy texture
+  and draws full density above that; game engines draw a canopy surface raised
+  by stand height with crown-scale shading, impostors in the middle distance and
+  coverage-preserving mipmaps; lakes use planar reflections with Fresnel F0 near
+  0.02 (three.js's `WaterMesh` uses 0.3) and wind roughness from Cox–Munk;
+  final stills freeze the camera, wait for streaming, accumulate samples and
+  tile (Unreal Movie Render Queue, Lumion photo mode, Google Earth Studio).
+
+The plan: an *active* mode that stays fast (stand impostors in place of the
+clump band, a canopy surface past ~4 px tree height, mipped cards, desaturated
+canopy, cheaper reflections) and a *final* mode started at *Save viewpoint*
+that regrows the frame's forest at real stem density with real crowns, draws
+full planar reflections, waits for streaming, fits shadows to the frame,
+accumulates 16–32 samples and tiles to sheet resolution, with two look
+presets (the consultants' convention and a photo match). The ground class pass
+never draws trees, so its figure is unchanged by the mode; the screened figure
+is reported for both modes. Targets at 3.5–6.5 km: vertical-edge ratio ≥ 1.3,
+shadow 0.04–0.10, saturation ≤ 0.2, tree or canopy cover ≥ 80%.
+
+## 20. A reference library, a final mode and natural cover
+
+A library of 40 reference viewpoints, built from the fully modelled VIA
+renders in the local collection (14 with a fitted camera and the consultant's
+traced landform; the rest from the printed position and bearing), is rendered
+by a harness through PGMaps, worldgen and Nanite under one sky, with boards and
+texture metrics against each reference. The library and harness are kept with
+the VIA research files, not in this repository. All 120 renders ran; with the
+harness's speed-ups (one page per case, a persistent cache, a "sheet ready"
+signal, 8-sample drafts, two cases at a time) a case takes about 70 s instead
+of 4.5 minutes.
+
+Changes this round:
+
+- *Final mode.* A capture asks the engine for `quality: 'final'`: a
+  real-density stand of the frame's forest (`finalStand.ts`, up to 1.5 M
+  stems, about 0.6–0.8 s to grow), accumulated samples, shadows fitted to the
+  frame and full-resolution reflections; PGMaps' own map captures at up to 3×
+  pixel ratio. *Wind* and *Look* (VIA convention or photo match) join View
+  options.
+- *Far forest.* Both engines replace the squat far stems with stand patches
+  and a canopy surface past ~4 px tree height; vertical-edge ratio at
+  3.5–6.5 km rose from about 0.65 to 1.0–1.5.
+- *Water.* Fresnel F0 0.02, Cox–Munk roughness from the wind, planar
+  reflections with the forest in them; sea from terrain at or below 0 m.
+- *Natural cover.* `terrain.cover` per post from VRI BCLCS and slope (forest,
+  sparse, shrub, herb, rock or bluff, water, cut); both engines draw rock
+  bluffs, grass and shrub openings and keep trees off rock and water.
+- *Fixed framing.* `scene.figureFrame` frames the sheet on a reference's
+  bearing span (tiled ≤ 40° frames, about a cylindrical panorama), keeping the
+  water and sky rows.
+- *Sheet fixes.* PGMaps' class pass hid the map's layers but not the 3D trees
+  (a custom layer `getStyle().layers` omits), so its outlines traced tree
+  silhouettes; it is now the ground under the trees, like an engine's ground
+  pass. Callouts sit in one ordered row (`rowPlacement`): no overlaps, no
+  leader crossing another or running behind a box; blocks the view does not
+  see are listed once in the facts.
+
+Across the 40 cases the two engines' ground pixel figures agree to a median of
+0.02 points (largest 0.62), and the ground pixel figure sits within a median
+0.5 points of the sightline figure; the large differences (up to 33 points)
+are fixed frames narrower than the landform, where the pixel figure counts only
+the part in the picture. Open points: at some viewpoints our terrain or eye
+differs from the consultant's (near hills they do not draw); the VNS renders
+show more pale rock bands than VRI marks as rock; the renders draw dense forest
+where VRI now records burnt or open ground; and Nanite's vertical texture is
+still short of the target.

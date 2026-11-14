@@ -84,7 +84,8 @@ export default function Labs() {
               >
                 <div
                   className={cn(
-                    'mb-3 flex h-10 w-10 items-center justify-center rounded-lg sm:mb-4 sm:h-12 sm:w-12',
+                    // The tile colour is the lab's own, so it keeps its palette under an Appearance theme.
+                    'fixed-palette mb-3 flex h-10 w-10 items-center justify-center rounded-lg sm:mb-4 sm:h-12 sm:w-12',
                     color,
                   )}
                 >

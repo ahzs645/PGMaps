@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { canvasWindow, focalForHfov, HFOV_50_MM, landformAngularExtent, planFraming } from './figureFraming'
+import {
+  canvasWindow,
+  focalForHfov,
+  HFOV_50_MM,
+  landformAngularExtent,
+  planFraming,
+  parseFigureFrame,
+  planFixedFraming,
+} from './figureFraming'
 import { metersPerDegree } from './visibility'
 
 const EYE = { lng: -122.6, lat: 53.9 }
@@ -105,5 +113,41 @@ describe('projecting into a framed capture', () => {
     const both = projectToFrames([frame, { ...frame, bearingDeg: 130 }], eye, { frameWidth: 400, height: 200 })
     const [bx] = both(...at(1000 * Math.sin((130 * Math.PI) / 180), 1000 * Math.cos((130 * Math.PI) / 180)), 500)!
     expect(bx).toBeCloseTo(600, 0)
+  })
+})
+
+describe('a fixed frame, as a reference panorama was taken', () => {
+  it('tiles the span exactly with frames of at most 40°, centred on the bearing', () => {
+    const plan = planFixedFraming({ bearingDeg: 44, spanDeg: 111, pitchDeg: 1.4, vfovDeg: 30 }, null)
+    expect(plan.frames).toHaveLength(3)
+    expect(plan.frames.every((frame) => Math.abs(frame.hfovDeg - 37) < 1e-9)).toBe(true)
+    expect(plan.frames[0].bearingDeg).toBeCloseTo(44 - 37, 9)
+    expect(plan.frames[2].bearingDeg).toBeCloseTo(44 + 37, 9)
+    expect(plan.totalHfovDeg).toBe(111)
+    expect(plan.frames.every((frame) => frame.pitchDeg === 1.4 && frame.vfovDeg === 30)).toBe(true)
+    expect(plan.label).toMatch(/^fixed frame: 3 frames/)
+    // Across north.
+    const north = planFixedFraming({ bearingDeg: 5, spanDeg: 30 }, null)
+    expect(north.frames[0].bearingDeg).toBeCloseTo(5, 9)
+  })
+
+  it('takes the vertical window from the landform when the frame gives none, keeping the water below it', () => {
+    const plan = planFixedFraming(
+      { bearingDeg: 18, spanDeg: 60 },
+      { azLeftDeg: 0, azRightDeg: 40, elTopDeg: 3, elBottomDeg: -1, visibleBins: 10 },
+    )
+    expect(plan.vfovDeg).toBeCloseTo(20, 9)
+    expect(plan.shares.ground).toBeGreaterThan(0.25)
+  })
+
+  it('reads only a sensible frame', () => {
+    expect(parseFigureFrame({ bearingDeg: -10, spanDeg: 60, pitchDeg: 2 })).toEqual({
+      bearingDeg: 350,
+      spanDeg: 60,
+      pitchDeg: 2,
+    })
+    expect(parseFigureFrame({ bearingDeg: 10, spanDeg: 200 })).toBeNull()
+    expect(parseFigureFrame({ bearingDeg: 10 })).toBeNull()
+    expect(parseFigureFrame(null)).toBeNull()
   })
 })

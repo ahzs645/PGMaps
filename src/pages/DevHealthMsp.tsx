@@ -96,8 +96,9 @@ const TYPE_META: Record<
   diagnostic_facility: {
     label: 'Diagnostics',
     color: '#0ea5e9',
-    swatch: 'bg-sky-500',
-    marker: 'border-sky-100 bg-sky-600 text-white shadow-sky-950/20',
+    // A payee type's colour is data: `fixed-palette` keeps it apart under an Appearance theme.
+    swatch: 'fixed-palette bg-sky-500',
+    marker: 'fixed-palette border-sky-100 bg-sky-600 text-white shadow-sky-950/20',
     icon: FlaskConical,
   },
 }

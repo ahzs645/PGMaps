@@ -54,12 +54,13 @@ type CatalogFilter = 'all' | ProjectKind
 /** Folders and projects share one paginated list; folders are pinned first. */
 type CatalogEntry = { type: 'folder'; summary: ProjectCollectionSummary } | { type: 'project'; project: ProjectPackage }
 
+// A package's theme is its own identity: `fixed-palette` keeps it under an Appearance theme.
 const THEME_ACCENT: Record<ProjectTheme, string> = {
-  cyan: 'border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/35 dark:text-cyan-100',
+  cyan: 'fixed-palette border-cyan-500 bg-cyan-50 text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/35 dark:text-cyan-100',
   amber: 'border-amber-500 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/35 dark:text-amber-100',
   emerald:
     'border-emerald-500 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/35 dark:text-emerald-100',
-  blue: 'border-blue-500 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950/35 dark:text-blue-100',
+  blue: 'fixed-palette border-blue-500 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950/35 dark:text-blue-100',
   slate: 'border-slate-400 bg-slate-50 text-slate-800 dark:border-slate-600 dark:bg-slate-950/35 dark:text-slate-100',
 }
 
@@ -374,7 +375,7 @@ function ProjectCatalogMobileCard({
   const labUrl = buildProjectLabUrl(project)
 
   return (
-    <article data-entry="project" className="overflow-hidden rounded-lg border bg-background shadow-sm">
+    <article data-entry="project" className="overflow-hidden rounded-lg border bg-card shadow-sm">
       <div className="p-3">
         <div className="flex items-start gap-3">
           <span
@@ -441,7 +442,7 @@ function ProjectCatalogPreview({
   onRemove: (slug: string) => void
 }) {
   return (
-    <aside className="hidden min-h-0 flex-col overflow-hidden rounded-lg border bg-background shadow-sm xl:flex">
+    <aside className="hidden min-h-0 flex-col overflow-hidden rounded-lg border bg-card shadow-sm xl:flex">
       <div className="border-b p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -552,7 +553,7 @@ function ProjectCatalogPage({
     // the sticky header owns the clearance beneath it instead of the wrapper.
     <div className="bg-muted/30 text-foreground md:p-5 xl:h-[calc(100vh-4rem)] xl:min-h-0">
       <div className="mx-auto max-w-[98rem] gap-4 xl:grid xl:h-full xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
-        <section className="flex min-h-0 min-w-0 flex-col bg-background md:rounded-lg md:border md:shadow-sm">
+        <section className="flex min-h-0 min-w-0 flex-col bg-card md:rounded-lg md:border md:shadow-sm">
           <header
             ref={headerRef}
             className="sticky top-0 z-20 shrink-0 border-b bg-background p-3 pt-[calc(env(safe-area-inset-top)+4rem)] sm:p-4 sm:pt-[calc(env(safe-area-inset-top)+4rem)] md:rounded-t-lg md:pt-4 xl:static"
@@ -826,7 +827,7 @@ function ProjectCatalogPage({
               onRemove={onRemoveProject}
             />
           ) : (
-            <aside className="hidden min-h-0 items-center justify-center rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground shadow-sm xl:flex">
+            <aside className="hidden min-h-0 items-center justify-center rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground shadow-sm xl:flex">
               Select a project to preview its details.
             </aside>
           ))}

@@ -14,7 +14,7 @@ export interface CommandPresentation {
   /** Caption shown instead of the registry label where space is short, e.g. "Save". */
   shortLabel?: string
   /** When the caption shows: always (text button), from a breakpoint beside the icon, or never (icon only). */
-  captionFrom?: 'always' | 'lg' | '2xl' | false
+  captionFrom?: 'always' | 'lg' | 'xl' | '2xl' | false
   emphasis?: 'primary'
   keyShortcuts?: string
   /** Replaces the icon, e.g. a open/closed panel glyph that follows the state. */
@@ -27,7 +27,19 @@ export interface CommandPresentation {
   className?: string
 }
 
-type Surface = 'ribbon' | 'quick' | 'header' | 'sidebar'
+/**
+ * `header` is the bordered button of the phone header and the ribbon's tab row. `toolbar` is the
+ * quiet one the desktop header line groups into clusters: no border of its own, 28 px, and the one
+ * `emphasis: 'primary'` command filled.
+ */
+type Surface = 'ribbon' | 'quick' | 'header' | 'toolbar' | 'sidebar'
+
+/** Width and caption visibility per `captionFrom`, as whole class names so Tailwind keeps them. */
+const TOOLBAR_CAPTION = {
+  lg: { button: 'lg:w-auto lg:px-2', caption: 'sr-only lg:not-sr-only' },
+  xl: { button: 'xl:w-auto xl:px-2', caption: 'sr-only xl:not-sr-only' },
+  '2xl': { button: '2xl:w-auto 2xl:px-2', caption: 'sr-only 2xl:not-sr-only' },
+} as const
 
 export function CommandButton({
   id,
@@ -69,6 +81,36 @@ export function CommandButton({
       </Button>
     )
   }
+  if (surface === 'toolbar') {
+    const captionFrom = presentation.captionFrom ?? false
+    const caption = presentation.caption ?? presentation.shortLabel ?? command.label
+    const primary = presentation.emphasis === 'primary'
+    const responsive = captionFrom && captionFrom !== 'always' ? TOOLBAR_CAPTION[captionFrom] : undefined
+    return (
+      <Button
+        variant={primary ? 'default' : 'ghost'}
+        size={captionFrom === 'always' ? 'xs' : 'icon-xs'}
+        className={cn(
+          'max-w-[14rem] shrink-0 gap-1.5 text-xs',
+          responsive?.button,
+          !primary && 'text-foreground/80 hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground',
+        )}
+        data-command={id}
+        aria-label={presentation.ariaLabel}
+        aria-pressed={command.pressed}
+        aria-expanded={presentation.expanded}
+        aria-keyshortcuts={presentation.keyShortcuts}
+        title={tooltip}
+        disabled={command.disabled}
+        onClick={() => onRun(id)}
+      >
+        {presentation.icon ?? <Icon className="size-4" aria-hidden="true" />}
+        {captionFrom === 'always' && <span className="truncate">{caption}</span>}
+        {responsive && <span className={responsive.caption}>{caption}</span>}
+        {captionFrom === false && !presentation.ariaLabel && <span className="sr-only">{caption}</span>}
+      </Button>
+    )
+  }
   if (surface === 'header') {
     const captionFrom = presentation.captionFrom ?? false
     const caption = presentation.caption ?? presentation.shortLabel ?? command.label
@@ -104,6 +146,8 @@ export function CommandButton({
         {captionFrom === 'always' && caption}
         {captionFrom === 'lg' && <span className="sr-only lg:not-sr-only">{caption}</span>}
         {captionFrom === '2xl' && <span className="hidden truncate 2xl:inline">{caption}</span>}
+        {/* The bordered button has no caption step at xl: it stays an icon, named for screen readers. */}
+        {captionFrom === 'xl' && !presentation.ariaLabel && <span className="sr-only">{caption}</span>}
         {captionFrom === false && !presentation.ariaLabel && <span className="sr-only">{caption}</span>}
       </Button>
     )

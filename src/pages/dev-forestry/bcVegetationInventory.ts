@@ -23,7 +23,8 @@
  * feature cap below.
  */
 
-import { polygonBounds, type PolygonGeometry } from './visibility'
+import { coverSourceFromVri, SPARSE_CROWN_CLOSURE_PERCENT, type SceneCoverSource } from './sceneCover'
+import { metersPerDegree, polygonBounds, type PolygonGeometry } from './visibility'
 
 export const BC_VEGETATION_WFS = 'https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY/ows'
 
@@ -123,9 +124,30 @@ export function clampVegetationBounds(
   ]
 }
 
+/**
+ * Ground VRI does not record as closed forest: unclassified, non-treed, or treed with sparse crowns. A scene's ground
+ * cover asks only for this (`fetchSceneCover`); over the Sechelt Inlet shore it is a seventh of the polygons and of
+ * the bytes (157 of 1,152 polygons, 0.4 of 2.6 MB over 0.15° × 0.1°, November 2026).
+ */
+const OPEN_GROUND_FILTER = `(BCLCS_LEVEL_2 IS NULL OR BCLCS_LEVEL_2 <> 'T' OR BCLCS_LEVEL_5 = 'SP' OR CROWN_CLOSURE < ${SPARSE_CROWN_CLOSURE_PERCENT})`
+
+/** What ground cover reads: the land cover classes and crown closure, nothing else. */
+const OPEN_GROUND_FIELDS = [
+  'FEATURE_ID',
+  'BCLCS_LEVEL_1',
+  'BCLCS_LEVEL_2',
+  'BCLCS_LEVEL_3',
+  'BCLCS_LEVEL_4',
+  'BCLCS_LEVEL_5',
+  'CROWN_CLOSURE',
+  'GEOMETRY',
+]
+
 export type VegetationQueryOptions = {
   /** Ask only for treed polygons, when the answer is a canopy rather than a mask. */
   treedOnly?: boolean
+  /** Ask only for ground that is not closed forest, with only its land cover fields (`OPEN_GROUND_FILTER`). */
+  openGroundOnly?: boolean
   maxFeatures?: number
 }
 
@@ -137,11 +159,12 @@ export type VegetationQueryOptions = {
  */
 export function vegetationQueryUrl(
   bounds: [number, number, number, number],
-  { treedOnly = false, maxFeatures = MAX_VEGETATION_FEATURES }: VegetationQueryOptions = {},
+  { treedOnly = false, openGroundOnly = false, maxFeatures = MAX_VEGETATION_FEATURES }: VegetationQueryOptions = {},
 ): string {
   const [minLng, minLat, maxLng, maxLat] = clampVegetationBounds(bounds)
   const filters = [`BBOX(GEOMETRY,${minLng},${minLat},${maxLng},${maxLat},'EPSG:4326')`]
   if (treedOnly) filters.push("BCLCS_LEVEL_2='T'")
+  if (openGroundOnly) filters.push(OPEN_GROUND_FILTER)
 
   const parameters = new URLSearchParams({
     service: 'WFS',
@@ -151,7 +174,7 @@ export function vegetationQueryUrl(
     outputFormat: 'application/json',
     srsName: 'EPSG:4326',
     count: String(maxFeatures),
-    propertyName: FIELDS.join(','),
+    propertyName: (openGroundOnly ? OPEN_GROUND_FIELDS : FIELDS).join(','),
     CQL_FILTER: filters.join(' AND '),
   })
   return `${BC_VEGETATION_WFS}?${parameters.toString()}`
@@ -261,4 +284,115 @@ export async function fetchVegetationStands(
   if (exception) throw new Error('The BC vegetation inventory refused that query.')
 
   return parseVegetationStands(payload, queryOptions.maxFeatures ?? MAX_VEGETATION_FEATURES)
+}
+
+/** Tile edge for a scene's ground cover read, degrees: about 13 km north–south, a few hundred kB of open ground. */
+export const SCENE_COVER_TILE_DEGREES = 0.12
+/** At most this many tiles in one read: a 15 km radius at 60° N is 3 × 6. */
+export const MAX_SCENE_COVER_TILES = 30
+
+/** A box cut into tiles of at most `tileDegrees`, south-west first, centre-out so the nearest ground reads first. */
+export function sceneCoverTiles(
+  bounds: [number, number, number, number],
+  tileDegrees = SCENE_COVER_TILE_DEGREES,
+): Array<[number, number, number, number]> {
+  const [w, s, e, n] = bounds
+  const across = Math.max(1, Math.ceil((e - w) / tileDegrees - 1e-9))
+  const down = Math.max(1, Math.ceil((n - s) / tileDegrees - 1e-9))
+  const round = (value: number) => Number(value.toFixed(6))
+  const tiles: Array<[number, number, number, number]> = []
+  for (let j = 0; j < down; j += 1)
+    for (let i = 0; i < across; i += 1)
+      tiles.push([
+        round(w + ((e - w) * i) / across),
+        round(s + ((n - s) * j) / down),
+        round(w + ((e - w) * (i + 1)) / across),
+        round(s + ((n - s) * (j + 1)) / down),
+      ])
+  const cx = (w + e) / 2
+  const cy = (s + n) / 2
+  const off = (t: [number, number, number, number]) => Math.hypot((t[0] + t[2]) / 2 - cx, (t[1] + t[3]) / 2 - cy)
+  return tiles.sort((a, b) => off(a) - off(b))
+}
+
+/**
+ * The ground cover under a scene's terrain (`terrain.cover`, `coverOnGrid`): VRI rank-1's open ground (non-treed,
+ * unclassified and sparse polygons, `openGroundOnly`) over the square of `radiusMeters` round the eye, in tiles read
+ * four at a time. A tile that came back whole is a complete box, where ground with no open polygon is closed forest;
+ * a tile that failed or hit the feature cap is not, and its unread ground stays unknown. Never rejects: a failed read
+ * is a source with fewer complete boxes and a note saying so.
+ */
+export async function fetchSceneCover(
+  eye: { lng: number; lat: number },
+  radiusMeters: number,
+  {
+    signal,
+    fetchImpl = fetch,
+    tileDegrees = SCENE_COVER_TILE_DEGREES,
+    maxTiles = MAX_SCENE_COVER_TILES,
+    timeoutMs = 30_000,
+  }: {
+    signal?: AbortSignal
+    fetchImpl?: typeof fetch
+    tileDegrees?: number
+    maxTiles?: number
+    timeoutMs?: number
+  } = {},
+): Promise<SceneCoverSource> {
+  const scale = metersPerDegree(eye.lat)
+  const bounds: [number, number, number, number] = [
+    eye.lng - radiusMeters / scale.lng,
+    eye.lat - radiusMeters / scale.lat,
+    eye.lng + radiusMeters / scale.lng,
+    eye.lat + radiusMeters / scale.lat,
+  ]
+  const tiles = sceneCoverTiles(bounds, tileDegrees)
+  const read = tiles.slice(0, maxTiles)
+  const stands: VriStand[] = []
+  const seen = new Set<number>()
+  const complete: Array<[number, number, number, number]> = []
+  let failed = 0
+  let capped = 0
+  let next = 0
+  const worker = async () => {
+    while (next < read.length) {
+      const tile = read[next++]
+      const abort = new AbortController()
+      const stop = () => abort.abort()
+      signal?.addEventListener('abort', stop)
+      const timer = setTimeout(stop, timeoutMs)
+      try {
+        const response = await fetchImpl(vegetationQueryUrl(tile, { openGroundOnly: true }), { signal: abort.signal })
+        if (!response.ok) throw new Error(String(response.status))
+        const payload: unknown = await response.json()
+        if ((payload as { exceptions?: unknown })?.exceptions) throw new Error('refused')
+        const result = parseVegetationStands(payload)
+        for (const stand of result.stands) {
+          if (stand.featureId !== null) {
+            if (seen.has(stand.featureId)) continue
+            seen.add(stand.featureId)
+          }
+          stands.push(stand)
+        }
+        if (result.truncated) capped += 1
+        else complete.push(tile)
+      } catch {
+        failed += 1
+      } finally {
+        clearTimeout(timer)
+        signal?.removeEventListener('abort', stop)
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(4, read.length) }, worker))
+  const km = (radiusMeters / 1000).toFixed(1)
+  const gaps = [
+    failed ? `${failed} failed` : '',
+    capped ? `${capped} over the ${MAX_VEGETATION_FEATURES}-polygon cap` : '',
+    tiles.length > read.length ? `${tiles.length - read.length} past the ${maxTiles}-tile limit` : '',
+  ].filter(Boolean)
+  const note = gaps.length
+    ? `Ground cover: VRI open ground read ${complete.length} of ${tiles.length} tiles within ${km} km (${gaps.join(', ')}); the rest is unknown past the run's own read.`
+    : `Ground cover: VRI open ground read within ${km} km of the eye; slope, water and sea past it.`
+  return coverSourceFromVri(stands, complete, { note })
 }

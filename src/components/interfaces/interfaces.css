@@ -1015,97 +1015,6 @@
   height: 16px;
 }
 
-.lp-tool-search {
-  width: min(32rem, calc(100vw - 24px));
-  padding: 0;
-  margin: min(12dvh, 96px) auto auto;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--popover));
-  color: hsl(var(--popover-foreground));
-  box-shadow: 0 14px 50px hsl(var(--lp-shadow-color) / 0.2);
-}
-.lp-tool-search::backdrop {
-  background: hsl(var(--lp-shadow-color) / 0.35);
-}
-.lp-search-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-bottom: 1px solid hsl(var(--border));
-}
-.lp-search-box > svg,
-.lp-search-results [role='option'] > svg {
-  color: hsl(var(--muted-foreground));
-  flex: none;
-}
-.lp-search-box input {
-  flex: 1;
-  min-width: 0;
-  min-height: 32px;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font-size: 15px;
-}
-.lp-search-box button {
-  padding: 6px;
-  border-radius: calc(var(--radius) - 4px);
-}
-.lp-search-box button:hover {
-  background: hsl(var(--accent));
-}
-.lp-search-results {
-  max-height: min(52dvh, 23rem);
-  overflow-y: auto;
-  overscroll-behavior: none;
-  padding: 4px;
-}
-.lp-search-results:empty {
-  display: none;
-}
-.lp-search-results [role='option'] {
-  min-height: 46px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 10px;
-  cursor: pointer;
-  border-radius: calc(var(--radius) - 4px);
-  border-inline-start: 3px solid transparent;
-}
-.lp-search-results [role='option'][aria-selected='true'] {
-  background: hsl(var(--accent));
-  border-inline-start-color: hsl(var(--primary));
-}
-.lp-search-results [role='option']:hover {
-  background: hsl(var(--accent));
-}
-.lp-search-results [role='option'][aria-disabled='true'] {
-  color: hsl(var(--muted-foreground));
-  cursor: default;
-}
-.lp-search-results span {
-  display: grid;
-  min-width: 0;
-}
-.lp-search-results strong {
-  font-size: 13px;
-  font-weight: 550;
-}
-.lp-search-results small,
-.lp-tool-search > p {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-}
-.lp-search-results [role='option'] > small {
-  margin-inline-start: auto;
-}
-.lp-tool-search > p {
-  padding: 16px;
-}
-
 @media (max-width: 1050px) {
   .lp-find-tools kbd {
     display: none;
@@ -1124,9 +1033,6 @@
   }
 }
 @media (pointer: coarse) {
-  .lp-search-box input {
-    font-size: 16px;
-  }
   .lp-find-tools,
   .lp-minimize,
   .lp-all-tabs,

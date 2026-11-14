@@ -30,6 +30,7 @@ import type {
   ActiveLayer,
   CityPgOverlaySummary,
 } from '../types'
+import { cn } from '@/lib/utils'
 
 interface ParksSidebarProps {
   className?: string
@@ -219,7 +220,8 @@ export function ParksSidebar({
 
   return (
     <MapSidebarShell
-      className={className}
+      // Green is this page's accent: under an Appearance theme it follows the theme (src/index.css).
+      className={cn('theme-tint-green', className)}
       title="Parks & Trails"
       subtitle="Prince George Open Data"
       dataset={DATASETS.parks}

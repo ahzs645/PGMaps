@@ -77,7 +77,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
 
   if (!org) {
     return (
-      <div className="flex min-h-[16rem] items-center justify-center rounded-lg border border-dashed bg-white p-8 text-center text-sm text-slate-500">
+      <div className="flex min-h-[16rem] items-center justify-center rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
         Select an organization from the list to see what it documents.
       </div>
     )
@@ -105,7 +105,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
     setWordingOptions((current) => ({ ...current, [option]: !current[option] }))
 
   return (
-    <section className="overflow-hidden rounded-lg border bg-white shadow-sm">
+    <section className="overflow-hidden rounded-lg border bg-card shadow-sm">
       {org.campuses.length > 0 && (
         <button
           type="button"
@@ -152,12 +152,12 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
       <div className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-base font-semibold text-slate-900">{org.name}</h2>
+            <h2 className="text-base font-semibold text-foreground">{org.name}</h2>
             <div className="mt-1 flex flex-wrap gap-1">
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">
+              <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
                 {humanize(org.sector)}
               </span>
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-600">
+              <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
                 {humanize(org.framing)}
               </span>
             </div>
@@ -165,71 +165,73 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
           <button
             type="button"
             onClick={() => onPreviewOnMap(org.id, { wordingMode, scope, regionName })}
-            className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium text-teal-800 transition hover:border-teal-300"
+            className="inline-flex min-h-11 flex-none items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium text-teal-800 dark:text-teal-300 transition hover:border-teal-300 dark:hover:border-teal-700"
           >
             <MapPin className="h-4 w-4" />
             Use this draft in builder
           </button>
         </div>
 
-        {org.note && !noteIsJustNames && <p className="mt-3 text-sm leading-6 text-slate-600">{org.note}</p>}
+        {org.note && !noteIsJustNames && <p className="mt-3 text-sm leading-6 text-muted-foreground">{org.note}</p>}
 
         <div className="mt-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Names ({org.acknowledges.length})
           </div>
-          <div className="mt-1 text-sm leading-6 text-slate-800">
+          <div className="mt-1 text-sm leading-6 text-foreground">
             {org.acknowledges.length ? (
               org.acknowledges.join(', ')
             ) : (
-              <span className="text-slate-400">Region-wide — no specific Nations</span>
+              <span className="text-muted-foreground">Region-wide — no specific Nations</span>
             )}
           </div>
         </div>
 
         {(org.statement || org.statementKind === 'not_found') && (
-          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="mt-4 rounded-lg border border-border bg-muted/50 p-3">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900">
-                <Quote className="h-4 w-4 text-slate-500" />
+              <h3 className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <Quote className="h-4 w-4 text-muted-foreground" />
                 Official source wording
               </h3>
-              <span className="rounded bg-white px-1.5 py-0.5 text-xs font-semibold uppercase text-slate-500">
+              <span className="rounded bg-card px-1.5 py-0.5 text-xs font-semibold uppercase text-muted-foreground">
                 {statementKindLabel(org.statementKind)}
               </span>
             </div>
             {org.statement ? (
-              <blockquote className="text-sm leading-6 text-slate-800">“{org.statement}”</blockquote>
+              <blockquote className="text-sm leading-6 text-foreground">“{org.statement}”</blockquote>
             ) : (
-              <p className="text-sm leading-6 text-slate-500">No official acknowledgement wording found.</p>
+              <p className="text-sm leading-6 text-muted-foreground">No official acknowledgement wording found.</p>
             )}
             <a
               href={org.sourceUrl}
               target="_blank"
               rel="noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-teal-800"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-teal-800 dark:text-teal-300"
             >
               Open source <ExternalLink className="h-3 w-3" />
             </a>
           </div>
         )}
 
-        <div className="mt-4 rounded-lg border border-teal-200 p-3">
+        <div className="mt-4 rounded-lg border border-teal-200 dark:border-teal-800 p-3">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">Generated recognition draft</h3>
+            <h3 className="text-sm font-semibold text-foreground">Generated recognition draft</h3>
             <button
               type="button"
               onClick={() => void copy(statement)}
               disabled={!statement}
-              className="inline-flex min-h-11 items-center gap-1 px-2 text-sm font-medium text-teal-800 disabled:opacity-40"
+              className="inline-flex min-h-11 items-center gap-1 px-2 text-sm font-medium text-teal-800 dark:text-teal-300 disabled:opacity-40"
             >
               <Copy className="h-4 w-4" /> Copy organization draft
             </button>
           </div>
           {!statement && (
-            <p className="mb-3 text-sm text-amber-950">This source lists no specific Nations. Choose Regional below.</p>
+            <p className="mb-3 text-sm text-warning-foreground">
+              This source lists no specific Nations. Choose Regional below.
+            </p>
           )}
-          <p className="mb-3 text-sm text-slate-600">
+          <p className="mb-3 text-sm text-muted-foreground">
             Names alone do not establish a location’s territorial relationship. This draft recognizes the listed Nations
             and Peoples; use the official source wording for territorial details.
           </p>
@@ -238,9 +240,9 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
             readOnly
             value={statement}
             onFocus={(event) => event.currentTarget.select()}
-            className="min-h-44 w-full rounded-md border bg-slate-50 p-3 text-base leading-7 text-slate-900"
+            className="min-h-44 w-full rounded-md border bg-muted/50 p-3 text-base leading-7 text-foreground"
           />
-          <p role="status" className="mt-2 text-sm text-teal-900">
+          <p role="status" className="mt-2 text-sm text-teal-900 dark:text-teal-200">
             {message}
           </p>
           <div className="mt-3">
@@ -265,7 +267,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
 
         {org.campuses.length > 0 && (
           <div className="mt-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Locations ({org.campuses.length})
             </div>
             <div className="mt-1 space-y-1.5">
@@ -273,25 +275,25 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
                 const locationType = campus.type ?? inferLocationType(campus.name, org.sector)
                 return (
                   <div key={`${campus.name}-${index}`} className="flex items-start gap-2 rounded-md border p-2 text-xs">
-                    <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-slate-100 font-semibold text-slate-700">
+                    <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-muted font-semibold text-foreground">
                       {index + 1}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="flex min-w-0 flex-wrap items-center gap-1.5">
-                          <span className="break-words font-medium text-slate-900">{campus.name}</span>
+                          <span className="break-words font-medium text-foreground">{campus.name}</span>
                           {locationType && (
-                            <span className="flex-none rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                            <span className="flex-none rounded bg-muted px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                               {locationType}
                             </span>
                           )}
                         </span>
-                        <span className="flex-none font-mono text-xs text-slate-500">
+                        <span className="flex-none font-mono text-xs text-muted-foreground">
                           {campus.latitude.toFixed(3)}, {campus.longitude.toFixed(3)}
                         </span>
                       </div>
                       {campus.acknowledges.length > 0 && (
-                        <div className="mt-0.5 text-slate-600">{campus.acknowledges.join(', ')}</div>
+                        <div className="mt-0.5 text-muted-foreground">{campus.acknowledges.join(', ')}</div>
                       )}
                     </div>
                   </div>
@@ -306,7 +308,7 @@ export function OrganizationPreview({ orgId, onPreviewOnMap }: OrganizationPrevi
             href={org.sourceUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-medium text-teal-800"
+            className="inline-flex items-center gap-1 text-xs font-medium text-teal-800 dark:text-teal-300"
           >
             Official acknowledgement source <ExternalLink className="h-3 w-3" />
           </a>

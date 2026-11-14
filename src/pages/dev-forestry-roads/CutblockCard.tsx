@@ -1,7 +1,6 @@
 import { MapPopup } from '@/components/ui/map'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { KeyValueRows } from '@/components/ui/map-panels'
-import { Button } from '@/components/ui/button'
 import { harvestAgeSummary } from './harvestHistory'
 import { pathLengthM, polygonAreaM2 } from './mapNotes'
 import type { ContextFeature, Coordinate } from './types'
@@ -57,29 +56,17 @@ export function CutblockCard({
     ...(sourceLabel ? ([['Source', sourceLabel]] as [string, string][]) : []),
   ]
   return (
-    <MapPopup longitude={at[0]} latitude={at[1]} onClose={onClose} className="w-64">
+    <MapPopup longitude={at[0]} latitude={at[1]} onClose={onClose} className="w-72">
       <MapPopupCard
         eyebrow={isProposed ? 'Proposed cutblock' : 'Cutblock'}
         title={feature.name}
         subtitle={isProposed ? 'No harvest history recorded' : harvestAgeSummary(evidence, year)}
         onClose={onClose}
         closeLabel="Close cutblock details"
-        actions={
-          (onOpenHistory || onAccessHistory) && (
-            <div className="grid w-full gap-1.5">
-              {onOpenHistory && (
-                <Button size="xs" variant="outline" className="w-full" onClick={onOpenHistory}>
-                  Review cutblock
-                </Button>
-              )}
-              {onAccessHistory && (
-                <Button size="xs" variant="ghost" className="w-full" onClick={onAccessHistory}>
-                  Access evidence
-                </Button>
-              )}
-            </div>
-          )
-        }
+        footerActions={[
+          ...(onOpenHistory ? [{ label: 'Review cutblock', onClick: onOpenHistory }] : []),
+          ...(onAccessHistory ? [{ label: 'Access evidence', onClick: onAccessHistory }] : []),
+        ]}
       >
         <div data-testid="road-cutblock-card">
           <KeyValueRows

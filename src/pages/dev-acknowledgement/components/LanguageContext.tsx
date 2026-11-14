@@ -26,7 +26,7 @@ export function LanguageContext({ result }: { result: GeocodeResult }) {
     }
   }, [enabled, result.latitude, result.longitude, retry])
   return (
-    <section className="rounded-xl border bg-white p-4">
+    <section className="rounded-xl border bg-card p-4">
       <button
         type="button"
         aria-expanded={enabled}
@@ -66,7 +66,7 @@ export function LanguageContext({ result }: { result: GeocodeResult }) {
             href="https://maps.fpcc.ca/"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex min-h-11 items-center text-teal-800 underline"
+            className="inline-flex min-h-11 items-center text-teal-800 dark:text-teal-300 underline"
           >
             First Peoples’ Map of B.C.
           </a>

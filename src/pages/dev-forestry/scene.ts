@@ -32,8 +32,15 @@ import {
   type VisualQualityThresholds,
 } from './vqo'
 
-import { parseTreeFreeAreas, type TreeFreeArea } from './treeFreeAreas'
+import {
+  parseTreeFreeAreas,
+  parseViewpointClearing,
+  type TreeFreeArea,
+  type ViewpointClearingSetting,
+} from './treeFreeAreas'
+import { parseSurveyedEye } from './viewpointStand'
 import { parseFieldGreenUp } from './greenUp'
+import { parseFigureFrame, type FigureFrame } from './figureFraming'
 
 export const SCENE_STORAGE_KEY = 'pgmaps.forestry-visual-quality.v1'
 
@@ -41,6 +48,17 @@ export type ForestryScene = {
   masks?: AssessmentMask[]
   /** Ground the road view draws without timber; display only, never an input to the run. */
   treeFreeAreas?: TreeFreeArea[]
+  /**
+   * The automatic clearing in front of a stood-at viewpoint; absent reads as on at 120 m.
+   * Display only, like the drawn tree-free areas.
+   */
+  viewpointClearing?: ViewpointClearingSetting
+  /**
+   * The analysis sheet's frame when set: this bearing span rather than one framed on the landform, as a reference
+   * VIA's panorama was taken (`planFixedFraming`). Display only, like the tree-free areas: it changes the picture and
+   * its pixel figure, never the run.
+   */
+  figureFrame?: FigureFrame
   localRasters?: LocalRaster[]
   activeLandformId?: string | null
   assessmentYear?: number
@@ -365,6 +383,13 @@ export function stationsToGeoJson(result: AnalysisResult | null): GeoJSON.Featur
 type SerializedScene = {
   masks?: AssessmentMask[]
   treeFreeAreas?: TreeFreeArea[]
+  viewpointClearing?: ViewpointClearingSetting
+  /**
+   * The analysis sheet's frame when set: this bearing span rather than one framed on the landform, as a reference
+   * VIA's panorama was taken (`planFixedFraming`). Display only, like the tree-free areas: it changes the picture and
+   * its pixel figure, never the run.
+   */
+  figureFrame?: FigureFrame
   localRasters?: LocalRaster[]
   activeLandformId?: string | null
   assessmentYear?: number
@@ -513,11 +538,18 @@ export function parseScene(input: unknown): ForestryScene | null {
     masks: parseMasks(raw.masks),
     localRasters: parseRasters(raw.localRasters),
     treeFreeAreas: parseTreeFreeAreas(raw.treeFreeAreas),
+    ...(raw.viewpointClearing !== undefined
+      ? { viewpointClearing: parseViewpointClearing(raw.viewpointClearing) }
+      : {}),
+    ...(parseFigureFrame(raw.figureFrame) ? { figureFrame: parseFigureFrame(raw.figureFrame)! } : {}),
     viewpoint: {
       id: typeof raw.viewpoint?.id === 'string' ? raw.viewpoint.id : base.viewpoint.id,
       name: typeof raw.viewpoint?.name === 'string' ? raw.viewpoint.name : base.viewpoint.name,
       mode: raw.viewpoint?.mode === 'corridor' ? 'corridor' : 'spot',
       coordinates,
+      ...(parseSurveyedEye(raw.viewpoint?.surveyedEye)
+        ? { surveyedEye: parseSurveyedEye(raw.viewpoint?.surveyedEye) }
+        : {}),
     },
     targets,
     activeLandformId: typeof raw.activeLandformId === 'string' ? raw.activeLandformId : null,

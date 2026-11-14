@@ -98,7 +98,7 @@ import {
 } from 'react'
 import {
   ChartNoAxesCombined,
-  LibraryBig,
+  CircleQuestionMark,
   Download,
   PanelLeftClose,
   PanelLeftOpen,
@@ -3620,6 +3620,9 @@ export default function DevForestryRoads({
   }
   const runCommand = (id: WorkspaceCommand) => commands[id]()
   const distributed = toolbar?.header === 'controls'
+  // The desktop header line draws its tools as quiet, borderless buttons grouped on one strip
+  // (`WorkspaceHeader`); the phone's row and the ribbon keep bordered ones.
+  const quietHeader = !distributed && !mobileWorkspace
   const detachedControlsPlaced =
     (!distributed && (active.headerTools ?? DEFAULT_HEADER_TOOLS).includes('detachedPanels')) ||
     !!toolbar?.tabTools?.includes('detachedPanels') ||
@@ -3765,10 +3768,10 @@ export default function DevForestryRoads({
   const InterfaceIcon = layoutIcons[active.icon]
   // The registry's Switch interface command, showing the interface in use. The header line names
   // it only on the widest screens, so the page title keeps its room beside the road switcher.
-  const interfaceSwitch = (captionFrom: 'lg' | '2xl') => (
+  const interfaceSwitch = (captionFrom: 'lg' | '2xl', surface: 'header' | 'toolbar' = 'header') => (
     <CommandButton
       id="chooseInterface"
-      surface="header"
+      surface={surface}
       state={commandStates.chooseInterface}
       presentation={{
         ariaLabel: 'Switch workspace interface',
@@ -3777,7 +3780,13 @@ export default function DevForestryRoads({
         caption: active.shortName ?? active.name,
         icon: (
           <InterfaceIcon
-            className={captionFrom === 'lg' ? 'size-4 lg:mr-1 lg:size-3' : 'size-4 2xl:mr-1 2xl:size-3'}
+            className={
+              surface === 'toolbar'
+                ? 'size-4'
+                : captionFrom === 'lg'
+                  ? 'size-4 lg:mr-1 lg:size-3'
+                  : 'size-4 2xl:mr-1 2xl:size-3'
+            }
             aria-hidden="true"
           />
         ),
@@ -3785,7 +3794,8 @@ export default function DevForestryRoads({
       onRun={runCommand}
     />
   )
-  const interfaceSwitcher = interfaceSwitch('2xl')
+  // On the header's strip the switch names the interface in use from a laptop width up.
+  const interfaceSwitcher = quietHeader ? interfaceSwitch('lg', 'toolbar') : interfaceSwitch('2xl')
   const helpLayout = workspaceHelpSearch(active)
   const toggleStationPlayback = () => {
     if (station >= displayedAnalysis.length) w.setStation(0)
@@ -3793,14 +3803,17 @@ export default function DevForestryRoads({
   }
   const workflowHelp = (
     <a
-      className="inline-flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-muted focus-visible:outline"
+      className={`inline-flex shrink-0 items-center justify-center rounded-md hover:bg-accent focus-visible:outline ${
+        quietHeader ? 'size-7 text-foreground/80 hover:text-foreground' : 'size-8'
+      }`}
       href={`${import.meta.env.BASE_URL}help/index.html?${helpLayout}`}
       target="_blank"
       rel="noopener"
       aria-label="Workflow help (opens in a new tab)"
       title="Workflow help"
     >
-      <LibraryBig aria-hidden="true" className="size-4" />
+      {/* Its own glyph: the Project library's books stand beside it on the header and the ribbon. */}
+      <CircleQuestionMark aria-hidden="true" className="size-4" />
     </a>
   )
   const projectNameControl = (
@@ -3811,8 +3824,8 @@ export default function DevForestryRoads({
   )
   const roadSwitcher = (
     <RoadSwitcher
-      // Its own cell at the end of the header's first line, beside the project's name.
-      className={distributed ? 'w-full' : 'flex-1 md:w-[clamp(10rem,24vw,22rem)] md:flex-none'}
+      // On the header's project line it follows the project's name, as the next step of a path.
+      className={distributed ? 'w-full' : 'flex-1 md:w-[clamp(9rem,17vw,17rem)] md:flex-none'}
       alignments={project.alignments}
       analyses={w.analyses}
       activeId={project.activeAlignmentId}
@@ -3826,7 +3839,7 @@ export default function DevForestryRoads({
       defaultWindows={active.panelWindows}
       compact={!distributed && (compact || focusMode)}
       showButtonLabel={distributed}
-      size={distributed ? 'ribbon' : 'default'}
+      size={distributed ? 'ribbon' : quietHeader ? 'toolbar' : 'default'}
       hiddenPanels={hiddenPanels}
       onHiddenPanels={setHiddenPanels}
       selection={layoutSelection}
@@ -3853,6 +3866,7 @@ export default function DevForestryRoads({
       onRestoreCheckpoint={w.restoreCheckpoint}
       onDeleteCheckpoint={w.deleteCheckpoint}
       disabled={!!busy}
+      quiet={quietHeader}
     />
   )
   const workspaceTitle = investigation ? 'Forest access investigation' : 'Forest road design'
@@ -3903,18 +3917,26 @@ export default function DevForestryRoads({
     interfaceSwitch: interfaceSwitcher,
     history: undoHistory,
     saveState: saveMark,
-    detachedPanels: <PanelWindowControls className="road-detached-panels h-7 text-xs" />,
+    detachedPanels: (
+      <PanelWindowControls
+        className={
+          quietHeader
+            ? 'road-detached-panels h-7 border-transparent bg-transparent px-2 text-xs shadow-none'
+            : 'road-detached-panels h-7 text-xs'
+        }
+      />
+    ),
   }
   // From the tablet width up the header is two lines (`WorkspaceHeader`) beside the brand, which
-  // has its column to itself: the back link with the project's name and the road switcher on the
-  // first, and the buttons with the save line and the warnings on the second.
+  // has its column to itself: the project line (the back link, the project's name, the road
+  // switcher, then the warnings, the save line and the file buttons) over one strip of tools.
   const heading = (
     <>
       <div className="road-mobile-brand flex shrink-0 items-center md:hidden">
         <AccessLockup compact />
       </div>
       <h1 className="sr-only md:hidden">{workspaceTitle}</h1>
-      <div className="road-workspace-heading hidden min-w-0 items-center gap-2 md:col-start-2 md:row-start-1 md:flex">
+      <div className="road-workspace-heading hidden min-w-0 items-center gap-1 md:flex">
         <ForestryBackLink />
         <div className="road-workspace-title flex min-w-0 items-center gap-1">
           {/* The project's name is the line's title; the tool's name stays a heading for screen readers. */}
@@ -3924,9 +3946,8 @@ export default function DevForestryRoads({
       </div>
     </>
   )
-  const headerStatus = (
-    <div className="road-workspace-status-row flex min-w-0 items-center gap-1.5">
-      {projectStatus}
+  const headerFlags = (
+    <>
       {/* Only a warning earns header space: imported LiDAR or DEM terrain is listed in the Terrain tab. */}
       {project.terrain.kind !== 'geotiff' && (
         <span
@@ -3973,7 +3994,7 @@ export default function DevForestryRoads({
           Workspace layouts could not be loaded: using the built-in {DEFAULT_INTERFACE_NAME}.
         </p>
       )}
-    </div>
+    </>
   )
   // How the header line presents registry commands; their labels, icons and behaviour stay in the registry.
   const controlsCaption = commandStates.controls?.label ?? 'Road controls'
@@ -3982,6 +4003,9 @@ export default function DevForestryRoads({
     loadMapped: { captionFrom: 'always' },
     controls: {
       ariaLabel: `${controlsShown ? 'Hide' : 'Show'} ${controlsCaption.toLowerCase()}`,
+      // The strip's first button names the panel it folds, where there is room for the word.
+      captionFrom: 'xl',
+      shortLabel: investigation ? 'Evidence' : 'Controls',
       expanded: controlsShown,
       icon: controlsShown ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />,
     },
@@ -4013,8 +4037,10 @@ export default function DevForestryRoads({
     <WorkspaceHeader
       heading={heading}
       brand={<AccessLockup compact />}
-      status={headerStatus}
-      roadSwitcher={!investigation && !awaitingFirstRoad(project) && roadSwitcher}
+      status={projectStatus}
+      flags={headerFlags}
+      // Only with a second road to switch to: one road leaves the path at the project's name.
+      roadSwitcher={!investigation && project.alignments.length >= 2 && roadSwitcher}
       help={workflowHelp}
       projectInfo={
         <>
@@ -4667,17 +4693,33 @@ export default function DevForestryRoads({
                 min: 480,
                 stackedHeight: 'auto' as const,
                 content: (
-                  <MetricSummaryLayout placement={summaryControls.preferences.placement} small={smallSummary}>
-                    {summaryAvailable && (
-                      <RoadSummary
-                        metrics={summaryMetrics}
-                        preferences={summaryControls.preferences}
-                        small={smallSummary}
-                        expanded={summaryOpen}
-                        onExpand={() => setSummaryOpen((open) => !open)}
-                        onSettings={showSummarySettings}
-                      />
-                    )}
+                  <MetricSummaryLayout
+                    placement={summaryControls.preferences.placement}
+                    small={smallSummary}
+                    resize={
+                      summaryAvailable &&
+                      summaryControls.preferences.visible &&
+                      summaryMetrics.some((metric) => summaryControls.preferences.metrics[metric.key] !== 'hidden')
+                        ? {
+                            storageKey: `pgmaps-road-summary:${active.id}:width`,
+                            label: 'road summary',
+                            controls: 'road-summary-measurements',
+                          }
+                        : undefined
+                    }
+                    summary={
+                      summaryAvailable && (
+                        <RoadSummary
+                          metrics={summaryMetrics}
+                          preferences={summaryControls.preferences}
+                          small={smallSummary}
+                          expanded={summaryOpen}
+                          onExpand={() => setSummaryOpen((open) => !open)}
+                          onSettings={showSummarySettings}
+                        />
+                      )
+                    }
+                  >
                     <main
                       className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden"
                       aria-label={investigation ? 'Access investigation map' : 'Connected road views'}

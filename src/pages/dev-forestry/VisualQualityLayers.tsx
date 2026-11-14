@@ -408,8 +408,8 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
                   data-testid="landform-vantage-marker"
                   className="relative flex h-5 w-5 items-center justify-center"
                 >
-                  <span className="absolute inset-0 animate-ping rounded-full bg-sky-400/50 [animation-iteration-count:2]" />
-                  <span className="relative block h-3.5 w-3.5 rounded-full border-2 border-white bg-sky-600 shadow" />
+                  <span className="fixed-palette absolute inset-0 animate-ping rounded-full bg-sky-400/50 [animation-iteration-count:2]" />
+                  <span className="fixed-palette relative block h-3.5 w-3.5 rounded-full border-2 border-white bg-sky-600 shadow" />
                 </span>
               </MarkerContent>
             </MapMarker>

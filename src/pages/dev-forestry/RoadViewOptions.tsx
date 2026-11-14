@@ -10,7 +10,12 @@ import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
 import { cn } from '@/lib/utils'
 
 import {
+  ENGINE_CLOUDS,
+  ENGINE_LOOKS,
+  ENGINE_VISIBILITY,
+  ENGINE_WIND,
   ENGINE_WEATHER,
+  SITE_TIME_ZONES,
   localDate,
   ROAD_RENDERERS,
   roadRendererUnavailable,
@@ -306,8 +311,8 @@ export function RoadViewOptions({
               label="When"
               info={
                 <InfoTip label="About the engine's light">
-                  Where the sun stands in the engine&apos;s picture: this date and local time at the road. Display only,
-                  like the engine itself: PGMaps&apos; own drawing and every figure ignore it.
+                  Where the sun stands in the engine&apos;s picture: this date and time on the site&apos;s clock.
+                  Display only, like the engine itself: PGMaps&apos; own drawing and every figure ignore it.
                 </InfoTip>
               }
             >
@@ -316,7 +321,9 @@ export function RoadViewOptions({
                   type="date"
                   aria-label="Engine date"
                   className={cn(SELECT_CLASS, 'w-[8.75rem]')}
-                  value={drive.engineEnvironment.date ?? localDate(new Date())}
+                  value={
+                    drive.engineEnvironment.date ?? localDate(new Date(), drive.engineEnvironment.timeZone ?? undefined)
+                  }
                   onChange={(event) => setEnvironment({ date: event.target.value || null })}
                 />
                 <input
@@ -327,6 +334,50 @@ export function RoadViewOptions({
                   onChange={(event) => setEnvironment({ time: event.target.value || '14:00' })}
                 />
               </span>
+            </Row>
+            <Row
+              label="Clock"
+              info={
+                <InfoTip label="About the site's clock">
+                  The time zone the date and time are read in. From the site takes B.C.&apos;s clock at the road:
+                  Pacific, Mountain in the East Kootenay, Mountain standard all year in the Peace, Fort Nelson and
+                  Creston. The same entry then means the same moment on any computer.
+                </InfoTip>
+              }
+            >
+              <StyledSelect
+                aria-label="Engine time zone"
+                className={SELECT_CLASS}
+                value={drive.engineEnvironment.timeZone ?? ''}
+                onChange={(event) => setEnvironment({ timeZone: event.target.value || null })}
+              >
+                <option value="">From the site</option>
+                {SITE_TIME_ZONES.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.label}
+                  </option>
+                ))}
+              </StyledSelect>
+            </Row>
+            <Row
+              label="Sun"
+              info={
+                <InfoTip label="About the sun">
+                  True position lights the scene from where the sun is at that moment: low and long-shadowed near
+                  sunset, and no sunlight at night. Kept to daylight lets the engine lift a low sun and move a night
+                  clock to dusk, for a picture that stays lit. The status line names the sun the light came from.
+                </InfoTip>
+              }
+            >
+              <StyledSelect
+                aria-label="Engine sun"
+                className={SELECT_CLASS}
+                value={drive.engineEnvironment.sun}
+                onChange={(event) => setEnvironment({ sun: event.target.value as EngineEnvironmentChoice['sun'] })}
+              >
+                <option value="true">True position</option>
+                <option value="daylight">Kept to daylight</option>
+              </StyledSelect>
             </Row>
             <Row label="Ground">
               <StyledSelect
@@ -351,6 +402,98 @@ export function RoadViewOptions({
                 }
               >
                 {ENGINE_WEATHER.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.label}
+                  </option>
+                ))}
+              </StyledSelect>
+            </Row>
+            <Row
+              label="Clouds"
+              info={
+                <InfoTip label="About clouds">
+                  How much of the sky is under cloud in clear weather. Every engine draws this much cloud, so two
+                  renderers can be compared under one sky. Overcast, rain and snow are fully clouded.
+                </InfoTip>
+              }
+            >
+              <StyledSelect
+                aria-label="Engine clouds"
+                className={SELECT_CLASS}
+                disabled={drive.engineEnvironment.weather !== 'clear'}
+                value={String(drive.engineEnvironment.cloudCover)}
+                onChange={(event) => setEnvironment({ cloudCover: Number(event.target.value) })}
+              >
+                {ENGINE_CLOUDS.map((entry) => (
+                  <option key={entry.value} value={String(entry.value)}>
+                    {entry.label}
+                  </option>
+                ))}
+              </StyledSelect>
+            </Row>
+            <Row
+              label="Visibility"
+              info={
+                <InfoTip label="About visibility">
+                  How far one can see: the haze every engine lays over distance (Koschmieder&apos;s law, the farthest
+                  slope fading to the sky at this range). The same setting gives the same haze in every renderer.
+                </InfoTip>
+              }
+            >
+              <StyledSelect
+                aria-label="Engine visibility"
+                className={SELECT_CLASS}
+                value={String(drive.engineEnvironment.visibilityKm)}
+                onChange={(event) => setEnvironment({ visibilityKm: Number(event.target.value) })}
+              >
+                {ENGINE_VISIBILITY.map((entry) => (
+                  <option key={entry.value} value={String(entry.value)}>
+                    {entry.label}
+                  </option>
+                ))}
+              </StyledSelect>
+            </Row>
+            <Row
+              label="Wind"
+              info={
+                <InfoTip label="About wind">
+                  Wind over water: calm draws a mirror lake with the far shore in it, and more wind ripples it until it
+                  reflects the sky more than the shore. Display only.
+                </InfoTip>
+              }
+            >
+              <StyledSelect
+                aria-label="Engine wind"
+                className={SELECT_CLASS}
+                value={String(drive.engineEnvironment.windMs ?? 0)}
+                onChange={(event) => setEnvironment({ windMs: Number(event.target.value) })}
+              >
+                {ENGINE_WIND.map((entry) => (
+                  <option key={entry.value} value={String(entry.value)}>
+                    {entry.label}
+                  </option>
+                ))}
+              </StyledSelect>
+            </Row>
+            <Row
+              label="Look"
+              info={
+                <InfoTip label="About the look">
+                  VIA convention draws as the consultants&apos; renders do: a dark olive canopy, little haze to 8–10 km,
+                  mirror lakes and a cloudless sky. Photo match draws as a photograph: haze from Visibility, blue-grey
+                  far forest and wind-rippled water. Neither changes a figure.
+                </InfoTip>
+              }
+            >
+              <StyledSelect
+                aria-label="Engine look"
+                className={SELECT_CLASS}
+                value={drive.engineEnvironment.look ?? 'via'}
+                onChange={(event) =>
+                  setEnvironment({ look: event.target.value as NonNullable<EngineEnvironmentChoice['look']> })
+                }
+              >
+                {ENGINE_LOOKS.map((entry) => (
                   <option key={entry.id} value={entry.id}>
                     {entry.label}
                   </option>

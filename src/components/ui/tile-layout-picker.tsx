@@ -109,8 +109,11 @@ export function TileLayoutPicker<P extends string, L extends string>({
   hiddenPanels: P[]
   compact?: boolean
   showButtonLabel?: boolean
-  /** `ribbon` fits one row of a command ribbon: 24 px controls and a narrower dropdown. */
-  size?: 'default' | 'ribbon'
+  /**
+   * `ribbon` fits one row of a command ribbon: 24 px controls and a narrower dropdown. `toolbar`
+   * sits among borderless buttons on a toolbar strip: 28 px, no outline, as wide as its value.
+   */
+  size?: 'default' | 'ribbon' | 'toolbar'
   onHiddenPanels: (hidden: P[]) => void
   /** `saved` carries the list when a layout is selected in the same update that creates it. */
   onSelect: (selection: string, saved?: SavedTileLayout<L>[]) => void
@@ -125,6 +128,7 @@ export function TileLayoutPicker<P extends string, L extends string>({
 }) {
   const panelWindows = usePanelWindows()
   const ribbon = size === 'ribbon'
+  const quiet = size === 'toolbar'
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const current = resolveTileLayout(config, selection, saved)
@@ -195,8 +199,11 @@ export function TileLayoutPicker<P extends string, L extends string>({
     <>
       <span className={compact ? 'hidden' : 'contents'}>
         <AppSelect
-          className={ribbon ? 'w-44 min-w-0' : 'w-[min(15rem,60vw)] min-w-0'}
-          triggerClassName={cn(compactSelectTriggerClass, ribbon ? 'h-6' : 'h-8')}
+          className={ribbon ? 'w-44 min-w-0' : quiet ? 'min-w-0 max-w-52' : 'w-[min(15rem,60vw)] min-w-0'}
+          triggerClassName={cn(
+            compactSelectTriggerClass,
+            ribbon ? 'h-6' : quiet ? 'h-7 border-transparent bg-transparent hover:bg-accent' : 'h-8',
+          )}
           contentClassName={workspaceSelectContentClass}
           triggerAriaLabel={selectLabel}
           value={edited ? EDITED : current.selection}
@@ -210,10 +217,11 @@ export function TileLayoutPicker<P extends string, L extends string>({
       </span>
       <Button
         size={showButtonLabel ? 'sm' : 'icon'}
-        variant="outline"
+        variant={quiet ? 'ghost' : 'outline'}
         className={cn(
           showButtonLabel ? 'gap-1' : 'size-8',
           ribbon && (showButtonLabel ? 'h-6 px-2 text-xs' : 'size-6'),
+          quiet && 'size-7 shrink-0 text-foreground/80 hover:text-foreground',
         )}
         aria-label="Screen presets & panels"
         title="Screen presets & panels"

@@ -1,7 +1,6 @@
 import { MapPopup } from '@/components/ui/map'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { KeyValueRows } from '@/components/ui/map-panels'
-import { Button } from '@/components/ui/button'
 import { pathLengthM } from './mapNotes'
 import { roadDeactivationSummary, roadHistoryStyle } from './roadHistory'
 import { describeLineOrigin } from './terrainRoadLines'
@@ -29,7 +28,7 @@ export function ExistingRoadCard({
   const style = roadHistoryStyle(evidence)
   const lengthM = road.geometry.type === 'LineString' ? pathLengthM(road.geometry.coordinates as Coordinate[]) : null
   return (
-    <MapPopup longitude={at[0]} latitude={at[1]} onClose={onClose} className="w-64">
+    <MapPopup longitude={at[0]} latitude={at[1]} onClose={onClose} className="w-72">
       <MapPopupCard
         eyebrow={
           evidence?.roadClass === 'fsr'
@@ -51,27 +50,11 @@ export function ExistingRoadCard({
         }
         onClose={onClose}
         closeLabel="Close road details"
-        actions={
-          (onReview || onAccessHistory || onLoadAsRoad) && (
-            <div className="grid w-full gap-1.5">
-              {onLoadAsRoad && (
-                <Button size="xs" className="w-full" onClick={onLoadAsRoad}>
-                  Load as road
-                </Button>
-              )}
-              {onReview && (
-                <Button size="xs" variant="outline" className="w-full" onClick={onReview}>
-                  Review road
-                </Button>
-              )}
-              {onAccessHistory && (
-                <Button size="xs" variant="outline" className="w-full" onClick={onAccessHistory}>
-                  Access evidence
-                </Button>
-              )}
-            </div>
-          )
-        }
+        footerActions={[
+          ...(onLoadAsRoad ? [{ label: 'Load as road', onClick: onLoadAsRoad, primary: true }] : []),
+          ...(onReview ? [{ label: 'Review road', onClick: onReview }] : []),
+          ...(onAccessHistory ? [{ label: 'Access evidence', onClick: onAccessHistory }] : []),
+        ]}
       >
         <div data-testid="road-existing-road-card">
           <KeyValueRows

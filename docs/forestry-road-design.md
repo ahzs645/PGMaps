@@ -436,6 +436,10 @@ restores the default. The controls sidebar and the connected views share one mor
 boundary. The plan map resizes and redraws on every frame of a drag, in the frame
 it is presented, so its markers follow without a blank frame. Chart labels cannot
 be selected by dragging.
+The left-hand Road summary has the same separator on its right edge: drag or use
+Left/Right (Shift for larger steps), and double-click to reset. Its width is saved
+per interface under `pgmaps-road-summary:<interface>:width`; the top row and the
+compact summary keep their automatic sizes.
 Each layout stores its own sizes in `localStorage` under
 `pgmaps-road-panes:<layout>:<split>` (`pgmaps-road-panes:sidebar` for the sidebar);
 storage that refuses writes leaves the defaults in place. The workspace fills its

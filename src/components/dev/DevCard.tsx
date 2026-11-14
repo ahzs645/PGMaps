@@ -29,7 +29,8 @@ export function DevCard({ title, description, href, icon: Icon, color, label, su
       <Link to={href} aria-label={`Open ${title}`} className="absolute inset-0 rounded-lg" />
 
       <div className="mb-4 flex items-start justify-between gap-3">
-        <div className={cn('flex h-11 w-11 items-center justify-center rounded-lg', color)}>
+        {/* The tile colour is the tool's own, so it keeps its palette under an Appearance theme. */}
+        <div className={cn('fixed-palette flex h-11 w-11 items-center justify-center rounded-lg', color)}>
           <Icon className="h-5 w-5 text-white" />
         </div>
         <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">{label}</span>

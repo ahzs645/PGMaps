@@ -1,9 +1,10 @@
 import type { ProjectPackage, ProjectKind, ProjectTheme } from '@/lib/projectPackages'
+// A project's theme is the package's own identity, so it stays fixed under an Appearance theme.
 export const THEME_ICON: Record<ProjectTheme, string> = {
-  cyan: 'bg-cyan-600',
+  cyan: 'fixed-palette bg-cyan-600',
   amber: 'bg-amber-600',
   emerald: 'bg-emerald-600',
-  blue: 'bg-blue-600',
+  blue: 'fixed-palette bg-blue-600',
   slate: 'bg-slate-600',
 }
 

@@ -340,12 +340,12 @@ export default function DevAcknowledgement() {
   }
 
   return (
-    <div className="ack-builder min-h-full bg-stone-50 pb-6 pt-14 text-slate-950 sm:pt-0">
-      <header className="border-b bg-white px-4 py-4 sm:px-6">
+    <div className="ack-builder min-h-full bg-background pb-6 pt-14 text-foreground sm:pt-0">
+      <header className="border-b bg-card px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Acknowledgment builder</h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-muted-foreground">
               Find your place. Review local guidance. Make the wording your own.
             </p>
           </div>
@@ -364,7 +364,7 @@ export default function DevAcknowledgement() {
       </header>
       <div ref={startRef} tabIndex={-1} className="mx-auto max-w-6xl scroll-mt-14 px-3 sm:scroll-mt-0 sm:px-6">
         {!library && (
-          <nav aria-label="Builder steps" className="my-4 grid grid-cols-3 gap-1 rounded-xl border bg-white p-1">
+          <nav aria-label="Builder steps" className="my-4 grid grid-cols-3 gap-1 rounded-xl border bg-card p-1">
             {STEPS.map(([id, label], index) => (
               <button
                 key={id}
@@ -373,7 +373,7 @@ export default function DevAcknowledgement() {
                 onClick={() => navigate(id)}
                 className={cn(
                   'min-h-12 rounded-lg px-1 py-2 text-sm font-medium',
-                  step === id ? 'bg-teal-700 text-white' : 'text-slate-600 hover:bg-stone-50',
+                  step === id ? 'bg-teal-700 text-white' : 'text-muted-foreground hover:bg-muted',
                 )}
               >
                 <span aria-hidden="true">{index + 1}. </span>
@@ -398,7 +398,7 @@ export default function DevAcknowledgement() {
                 <button
                   type="button"
                   onClick={() => setPreviewOrg(null)}
-                  className="mb-3 min-h-11 rounded-lg border bg-white px-3 text-sm lg:hidden"
+                  className="mb-3 min-h-11 rounded-lg border bg-card px-3 text-sm lg:hidden"
                 >
                   Back to organizations
                 </button>
@@ -410,7 +410,7 @@ export default function DevAcknowledgement() {
           <>
             {step === 'location' && (
               <div className="grid min-w-0 gap-5 lg:grid-cols-2">
-                <section className="min-w-0 space-y-4 rounded-xl border bg-white p-4">
+                <section className="min-w-0 space-y-4 rounded-xl border bg-card p-4">
                   <h2 className="text-lg font-semibold">Where will you speak?</h2>
                   {locations.length > 0 && (
                     <div className="flex flex-wrap gap-2" role="group" aria-label="Search action">
@@ -425,7 +425,7 @@ export default function DevAcknowledgement() {
                           }}
                           className={cn(
                             'min-h-11 rounded-lg border px-3 text-sm',
-                            searchMode === mode && 'border-teal-700 bg-teal-50',
+                            searchMode === mode && 'border-teal-700 bg-teal-50 dark:bg-teal-950/40',
                           )}
                         >
                           {mode === 'add' ? 'Add another address' : 'Replace selected location'}
@@ -469,25 +469,31 @@ export default function DevAcknowledgement() {
                     </p>
                   )}
                   {searchStatus === 'error' && (
-                    <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm leading-6 text-red-900">
+                    <p
+                      role="alert"
+                      className="rounded-lg bg-danger-surface p-3 text-sm leading-6 text-danger-foreground"
+                    >
                       {searchError}
                     </p>
                   )}
                   {pendingAddress && (
-                    <div className="space-y-3 rounded-lg border border-teal-200 bg-teal-50 p-3" role="status">
+                    <div
+                      className="space-y-3 rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 p-3"
+                      role="status"
+                    >
                       <h3 className="font-semibold">Confirm this location</h3>
                       <p className="break-words text-sm">{pendingAddress.fullAddress}</p>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-sm text-muted-foreground">
                         Match: {pendingAddress.matchPrecision} · score {pendingAddress.score}/100
                       </p>
                       {(pendingAddress.score < 90 ||
                         !['CIVIC_NUMBER', 'SITE', 'OCCUPANT'].includes(pendingAddress.matchPrecision)) && (
-                        <p className="text-sm text-amber-950">
+                        <p className="text-sm text-warning-foreground">
                           This may be an approximate match. Check the returned address before using it.
                         </p>
                       )}
                       {pendingAddress.faults.length > 0 && (
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-muted-foreground">
                           Address details need review: {pendingAddress.faults.join(', ')}
                         </p>
                       )}
@@ -508,13 +514,13 @@ export default function DevAcknowledgement() {
                         setAddress(sample)
                         void search(sample)
                       }}
-                      className="min-h-11 text-left text-sm text-teal-800 underline"
+                      className="min-h-11 text-left text-sm text-teal-800 dark:text-teal-300 underline"
                     >
                       Try a sample: UNBC, Prince George
                     </button>
                   )}
                 </section>
-                <div className="min-w-0 rounded-xl border bg-white p-4">
+                <div className="min-w-0 rounded-xl border bg-card p-4">
                   <MultiPointComposer
                     locations={locations}
                     activeId={active?.id ?? null}
@@ -536,12 +542,12 @@ export default function DevAcknowledgement() {
             {step === 'review' && (
               <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
                 <section className="min-w-0 space-y-4">
-                  <div className="rounded-xl border bg-white p-4">
+                  <div className="rounded-xl border bg-card p-4">
                     <h2 className="text-lg font-semibold">Review each location</h2>
-                    <p role="status" className="mt-1 text-sm text-slate-600">
+                    <p role="status" className="mt-1 text-sm text-muted-foreground">
                       {completeCount} of {locations.length} locations ready.
                     </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
                       Documented place relationships may be selected initially. Map overlaps and nearby communities
                       require your review; they do not establish traditional territory.
                     </p>
@@ -551,7 +557,7 @@ export default function DevAcknowledgement() {
                         <StyledSelect
                           value={active?.id ?? ''}
                           onChange={(event) => setActiveId(event.target.value)}
-                          className="mt-1 min-h-12 w-full min-w-0 rounded-lg border bg-white px-2 text-base"
+                          className="mt-1 min-h-12 w-full min-w-0 rounded-lg border bg-card px-2 text-base"
                         >
                           {locations.map((item, index) => (
                             <option key={item.id} value={item.id}>
@@ -563,13 +569,13 @@ export default function DevAcknowledgement() {
                     )}
                   </div>
                   {org && (
-                    <div className="space-y-2 rounded-xl border bg-teal-50 p-4">
+                    <div className="space-y-2 rounded-xl border bg-teal-50 dark:bg-teal-950/40 p-4">
                       <p className="text-sm leading-6">
                         Your draft uses the Nations documented by {org.name}. Location comparisons are additional
                         context.
                       </p>
                       <a
-                        className="block py-2 text-sm text-teal-800 underline"
+                        className="block py-2 text-sm text-teal-800 dark:text-teal-300 underline"
                         href={org.sourceUrl}
                         target="_blank"
                         rel="noreferrer"
@@ -579,7 +585,7 @@ export default function DevAcknowledgement() {
                       <button
                         type="button"
                         onClick={() => setOrgId(null)}
-                        className="min-h-11 rounded-lg border bg-white px-3 text-sm"
+                        className="min-h-11 rounded-lg border bg-card px-3 text-sm"
                       >
                         Use individual location selections instead
                       </button>
@@ -588,12 +594,12 @@ export default function DevAcknowledgement() {
                   {activeReview && (
                     <>
                       {active.status === 'loading' && (
-                        <p role="status" className="rounded-lg bg-sky-50 p-3 text-sm">
+                        <p role="status" className="rounded-lg bg-info-surface p-3 text-sm">
                           Checking enabled sources for this location…
                         </p>
                       )}
                       {Object.values(active.lookups).some((item) => item.status === 'error') && (
-                        <div role="status" className="rounded-lg bg-amber-50 p-3 text-sm">
+                        <div role="status" className="rounded-lg bg-warning-surface p-3 text-sm">
                           Some source lookups failed. Available evidence is shown below.
                           <button type="button" onClick={retry} className="ml-2 min-h-11 px-3 font-medium underline">
                             Retry sources
@@ -603,7 +609,7 @@ export default function DevAcknowledgement() {
                       {active.selectedIds?.some(
                         (id) => !activeReview.candidates.some((candidate) => candidate.id === id),
                       ) && (
-                        <div className="rounded-lg bg-amber-50 p-3 text-sm leading-6">
+                        <div className="rounded-lg bg-warning-surface p-3 text-sm leading-6">
                           <p>
                             Some saved Nation selections are unavailable from the enabled sources. Enable their sources
                             or explicitly update your selection.
@@ -642,7 +648,7 @@ export default function DevAcknowledgement() {
                         renderEvidence={(id) => <EvidenceLinks location={active} graph={graph} nationId={id} />}
                       />
                       {org && (
-                        <details className="rounded-xl border bg-white p-4">
+                        <details className="rounded-xl border bg-card p-4">
                           <summary className="min-h-11 cursor-pointer font-medium">
                             Compare organization and selected location evidence
                           </summary>
@@ -686,7 +692,7 @@ export default function DevAcknowledgement() {
                     onToggle={(event) => {
                       if (event.currentTarget.open) setShowResearch(true)
                     }}
-                    className="rounded-xl border bg-white p-4"
+                    className="rounded-xl border bg-card p-4"
                   >
                     <summary className="min-h-11 cursor-pointer text-sm font-semibold">
                       Data sources and language resources
@@ -729,7 +735,7 @@ export default function DevAcknowledgement() {
                             aria-label="Acknowledgment purpose"
                             value={purpose}
                             onChange={(event) => setPurpose(event.target.value as AcknowledgementPurpose)}
-                            className="mt-2 min-h-11 w-full rounded-md border bg-white px-2 text-base"
+                            className="mt-2 min-h-11 w-full rounded-md border bg-card px-2 text-base"
                           >
                             <option value="venue">One event venue</option>
                             <option value="operations">Work or operations at these locations</option>
@@ -743,7 +749,7 @@ export default function DevAcknowledgement() {
                               aria-label="Event venue"
                               value={venueId ?? locations[0]?.id ?? ''}
                               onChange={(event) => setVenueId(event.target.value)}
-                              className="mt-2 min-h-11 w-full rounded-md border bg-white px-2 text-base"
+                              className="mt-2 min-h-11 w-full rounded-md border bg-card px-2 text-base"
                             >
                               {!locations.some((location) => location.id === venueId) && venueId && (
                                 <option value={venueId}>Choose a venue</option>
@@ -756,7 +762,7 @@ export default function DevAcknowledgement() {
                             </StyledSelect>
                           </label>
                         )}
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-muted-foreground">
                           {purpose === 'venue'
                             ? 'Only the chosen venue contributes to this draft.'
                             : 'Each location keeps its own Nations, treaty context, and territorial qualifiers.'}
@@ -769,7 +775,7 @@ export default function DevAcknowledgement() {
                 >
                   <WordingOptionsControls {...options} />
                   {graph && (
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted-foreground">
                       Registry coverage:{' '}
                       {graph.places.filter((place) => place.type !== 'boundary_reference_area').length} places and{' '}
                       {graph.nations.length} Nation or Peoples records. Coverage is limited; a missing match does not
@@ -777,14 +783,14 @@ export default function DevAcknowledgement() {
                     </p>
                   )}
                   {org && (
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted-foreground">
                       This draft recognizes the names listed by the organization. Consult its source wording above for
                       location-specific relationships and qualifiers.
                     </p>
                   )}
                 </DraftEditor>
                 <aside className="min-w-0 space-y-4">
-                  <details className="rounded-xl border bg-white p-4">
+                  <details className="rounded-xl border bg-card p-4">
                     <summary className="min-h-11 cursor-pointer font-semibold">Sources for this draft</summary>
                     {authored ? (
                       <div>
@@ -794,7 +800,7 @@ export default function DevAcknowledgement() {
                         {authored.sources?.map((source) => (
                           <a
                             key={source.url}
-                            className="block py-3 text-sm text-teal-800 underline"
+                            className="block py-3 text-sm text-teal-800 dark:text-teal-300 underline"
                             href={source.url}
                             target="_blank"
                             rel="noreferrer"
@@ -808,7 +814,7 @@ export default function DevAcknowledgement() {
                       </div>
                     ) : org ? (
                       <a
-                        className="block py-3 text-sm text-teal-800 underline"
+                        className="block py-3 text-sm text-teal-800 dark:text-teal-300 underline"
                         href={org.sourceUrl}
                         target="_blank"
                         rel="noreferrer"
@@ -835,13 +841,13 @@ export default function DevAcknowledgement() {
             )}
             <nav
               aria-label="Continue building"
-              className="ack-step-actions sticky bottom-0 z-10 mt-4 flex flex-wrap justify-between gap-2 border-t bg-stone-50/95 py-3 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]"
+              className="ack-step-actions sticky bottom-0 z-10 mt-4 flex flex-wrap justify-between gap-2 border-t bg-background/95 py-3 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]"
             >
               {step !== 'location' ? (
                 <button
                   type="button"
                   onClick={() => navigate(step === 'wording' ? 'review' : 'location')}
-                  className="min-h-11 rounded-lg border bg-white px-4 text-sm"
+                  className="min-h-11 rounded-lg border bg-card px-4 text-sm"
                 >
                   Back
                 </button>
@@ -861,12 +867,12 @@ export default function DevAcknowledgement() {
             </nav>
           </>
         )}
-        <footer className="mt-4 space-y-2 border-t py-4 text-sm text-slate-600">
+        <footer className="mt-4 space-y-2 border-t py-4 text-sm text-muted-foreground">
           <p role="status">{storageMessage || 'Your draft and confirmed locations are saved on this device.'}</p>
           <details>
             <summary className="min-h-11 cursor-pointer py-3">Start a new draft</summary>
             <p className="mb-2">This clears the draft and locations saved on this device.</p>
-            <button type="button" onClick={clearSaved} className="min-h-11 rounded-lg border bg-white px-3 text-sm">
+            <button type="button" onClick={clearSaved} className="min-h-11 rounded-lg border bg-card px-3 text-sm">
               Clear saved draft and locations
             </button>
           </details>

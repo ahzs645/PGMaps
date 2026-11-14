@@ -102,7 +102,7 @@ export const GRID_CROWN_AREA = 0.8
  * seedlings 3.6 m crowns: closure is taken to rise with height to the
  * regional value at this height.
  */
-const CANOPY_CLOSES_AT_METERS = 12
+export const CANOPY_CLOSES_AT_METERS = 12
 
 /**
  * A drawn crown is at most this many times its tree's height wide. Past it a

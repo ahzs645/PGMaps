@@ -16,11 +16,13 @@ interface InspectionPanelProps {
   onClose: () => void
 }
 
+// Band and category colours are data, so the blue ones stay fixed under an Appearance theme
+// (`fixed-palette`, src/index.css).
 function getRiskBandClass(band: string): string {
   if (band === 'Severe') return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
   if (band === 'Elevated') return 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'
   if (band === 'Moderate') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
-  if (band === 'Administrative') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
+  if (band === 'Administrative') return 'fixed-palette bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 
@@ -29,7 +31,7 @@ function getRiskDotClass(band: ViolationRiskBand, hasViolations: boolean): strin
   if (band === 'Severe') return 'bg-red-500'
   if (band === 'Elevated') return 'bg-orange-500'
   if (band === 'Moderate') return 'bg-yellow-500'
-  if (band === 'Administrative') return 'bg-blue-500'
+  if (band === 'Administrative') return 'fixed-palette bg-blue-500'
   return 'bg-gray-400'
 }
 
@@ -40,9 +42,12 @@ function getRiskCategoryClass(category: string): string {
     return 'bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-300'
   if (category === 'Sanitization & Hygiene')
     return 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300'
-  if (category === 'Chemical Safety') return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300'
-  if (category === 'Facility & Equipment') return 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300'
-  if (category === 'Administrative') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
+  if (category === 'Chemical Safety')
+    return 'fixed-palette bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300'
+  if (category === 'Facility & Equipment')
+    return 'fixed-palette bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300'
+  if (category === 'Administrative')
+    return 'fixed-palette bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
 }
 

@@ -20,6 +20,11 @@ export type CameraInfo = {
   lat: number
   /** Eye elevation above sea level, metres. */
   elevationM: number
+  /**
+   * The eye elevation is the reviewer's surveyed one rather than the terrain model's ground plus
+   * the observer height; the position line says so. The observer height line still holds.
+   */
+  surveyed?: boolean
   /** Azimuth of the view's centre line, degrees clockwise from north. */
   azimuthDeg: number
   /** Tallest tree the figure draws, metres; null when trees are not modelled. */
@@ -47,7 +52,7 @@ export function cameraInfoLines(info: CameraInfo): string[] {
   return [
     `Composite of ${info.frames} simulated ${Math.round(info.focalMm)} mm camera image${info.frames === 1 ? '' : 's'}: FOV ${info.fovDeg.toFixed(1)} degrees`,
     `Observer height: ${info.observerHeightM.toFixed(1)} metres above ${info.above}`,
-    `Observer position (UTM zone ${utm.zone}): ${whole(utm.easting)}, ${whole(utm.northing)}, ${whole(info.elevationM)} metres`,
+    `Observer position (UTM zone ${utm.zone}): ${whole(utm.easting)}, ${whole(utm.northing)}, ${whole(info.elevationM)} metres${info.surveyed ? ' (surveyed elevation)' : ''}`,
     `Viewline azimuth: ${Math.round(((info.azimuthDeg % 360) + 360) % 360)} degrees`,
     info.maxTreeHeightM === null
       ? 'Maximum tree height: trees not modelled'

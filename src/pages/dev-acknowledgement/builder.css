@@ -1,9 +1,14 @@
 .ack-builder :is(button, a, input, textarea, select, summary):focus-visible {
-  outline: 2px solid #0f766e;
+  /* teal-700, or the Appearance theme's tint (docs/shared-ui.md, Design tokens). */
+  outline: 2px solid rgb(var(--palette-tint-700, 15 118 110));
   outline-offset: 3px;
 }
 .ack-builder :is(input, textarea, select, [data-select-trigger]) {
-  color: #0f172a;
+  color: hsl(var(--foreground));
+}
+/* A field with no surface class of its own is a well in its card, in either mode. */
+.ack-builder :is(input:not([type='checkbox'], [type='radio'], [type='range']), textarea):not([class*='bg-']) {
+  background-color: hsl(var(--background));
 }
 .ack-builder button:disabled {
   cursor: not-allowed;

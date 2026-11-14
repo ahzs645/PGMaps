@@ -165,7 +165,7 @@ export function ImportSidebar({
           <VirtualResultList items={rows} getKey={(r) => String(r.i)} estimateSize={42} label="Imported features">
             {(r) => (
               <ResultRow
-                className="py-2"
+                className="theme-tint-green py-2"
                 accent="green"
                 title={r.name}
                 subtitle={r.f.geometry.type}

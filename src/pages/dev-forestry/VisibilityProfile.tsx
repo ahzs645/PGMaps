@@ -239,8 +239,8 @@ export function VisibilityProfile({
           // Two rules, and only one of them was ever named.
           <>
             <span className="font-medium text-foreground">Dashed</span> rule marks the assessment viewpoint,{' '}
-            <span className="font-medium text-sky-600 dark:text-sky-400">blue</span> where you are standing. Click to
-            move.
+            <span className="fixed-palette font-medium text-sky-600 dark:text-sky-400">blue</span> where you are
+            standing. Click to move.
           </>
         ) : (
           'Dashed rule marks the assessment viewpoint. Click to drive from a point.'

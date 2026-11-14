@@ -50,7 +50,7 @@ export function CandidateNations({
         </span>
         <span className="min-w-0 py-2">
           <span className="block break-words text-base font-semibold">{candidate.name}</span>
-          <span className="mt-1 block text-sm text-slate-600">
+          <span className="mt-1 block text-sm text-muted-foreground">
             {candidate.sources.verified
               ? candidate.confidence === 'strong'
                 ? 'Documented place relationship'
@@ -61,15 +61,15 @@ export function CandidateNations({
           </span>
         </span>
       </label>
-      <p className="text-sm leading-6 text-slate-600">{candidate.reason}</p>
+      <p className="text-sm leading-6 text-muted-foreground">{candidate.reason}</p>
       {candidate.pronunciation && (
-        <div className="rounded-lg bg-teal-50 p-3 text-sm leading-6">
+        <div className="rounded-lg bg-teal-50 dark:bg-teal-950/40 p-3 text-sm leading-6">
           <span className="font-semibold">Pronunciation</span>
           {candidate.pronunciation.phonetic && <span> · {candidate.pronunciation.phonetic}</span>}
           <div className="flex flex-wrap gap-x-4">
             {candidate.pronunciation.audioUrl && (
               <a
-                className="inline-flex min-h-11 items-center text-teal-800 underline"
+                className="inline-flex min-h-11 items-center text-teal-800 dark:text-teal-300 underline"
                 href={candidate.pronunciation.audioUrl}
                 target="_blank"
                 rel="noreferrer"
@@ -78,7 +78,7 @@ export function CandidateNations({
               </a>
             )}
             <a
-              className="inline-flex min-h-11 items-center text-teal-800 underline"
+              className="inline-flex min-h-11 items-center text-teal-800 dark:text-teal-300 underline"
               href={candidate.pronunciation.sourceUrl}
               target="_blank"
               rel="noreferrer"
@@ -86,13 +86,13 @@ export function CandidateNations({
               {candidate.pronunciation.sourceLabel}
             </a>
           </div>
-          <p className="text-slate-600">{candidate.pronunciation.caveat}</p>
+          <p className="text-muted-foreground">{candidate.pronunciation.caveat}</p>
         </div>
       )}
       {renderEvidence?.(candidate.id)}
       <details>
         <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Source details</summary>
-        <p className="text-sm leading-6 text-slate-600">{candidate.notes}</p>
+        <p className="text-sm leading-6 text-muted-foreground">{candidate.notes}</p>
         {(Object.keys(candidate.sources) as SourceKey[])
           .filter((source) => enabledSources[source])
           .map((source) => (
@@ -102,7 +102,7 @@ export function CandidateNations({
           ))}
         {candidate.sources.nativeLand && (
           <a
-            className="inline-flex min-h-11 items-center text-sm text-teal-800 underline"
+            className="inline-flex min-h-11 items-center text-sm text-teal-800 dark:text-teal-300 underline"
             href="https://native-land.ca/"
             target="_blank"
             rel="noreferrer"
@@ -114,14 +114,16 @@ export function CandidateNations({
     </article>
   )
   return (
-    <section className="overflow-hidden rounded-xl border bg-white">
+    <section className="overflow-hidden rounded-xl border bg-card">
       <div className="p-4">
         <h2 className="text-base font-semibold">Selected Nations ({selected.length})</h2>
-        {selectionDisabledReason && <p className="mt-2 text-sm leading-6 text-amber-950">{selectionDisabledReason}</p>}
+        {selectionDisabledReason && (
+          <p className="mt-2 text-sm leading-6 text-warning-foreground">{selectionDisabledReason}</p>
+        )}
       </div>
       {selected.map(row)}
       {!candidates.length && (
-        <p className="p-4 text-sm leading-6 text-slate-600">
+        <p className="p-4 text-sm leading-6 text-muted-foreground">
           No Nation candidates are available from the enabled sources. Enable additional evidence or check the address.
           An empty result does not mean there are no Indigenous relationships with this place.
         </p>
@@ -132,7 +134,7 @@ export function CandidateNations({
             type="button"
             onClick={() => setShowAdditional((value) => !value)}
             aria-expanded={showAdditional || selected.length === 0}
-            className="min-h-11 w-full border-t px-4 py-3 text-left text-sm font-medium text-teal-800"
+            className="min-h-11 w-full border-t px-4 py-3 text-left text-sm font-medium text-teal-800 dark:text-teal-300"
           >
             Additional candidates ({additional.length}) — review before including
           </button>

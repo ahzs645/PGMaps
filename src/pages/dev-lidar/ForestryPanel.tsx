@@ -271,7 +271,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
               pinned
                 ? [
                     { label: 'A', className: 'bg-emerald-600' },
-                    { label: 'B', className: 'bg-blue-500' },
+                    { label: 'B', className: 'fixed-palette bg-blue-500' },
                   ]
                 : [{ label: 'A', className: 'bg-emerald-600' }]
             }

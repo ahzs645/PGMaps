@@ -128,12 +128,24 @@ the source-sheet preview and recovered geometry; native GIS takes priority when 
 See [Company source-map imports](source-pdf-import.md) for template support and measurement limits.
 The import dialog assigns a role to each layer. **Reference** draws it on the plan. A line layer
 can be a **Proposed road** layer. Its lines stay together in the tree, and **Copy as design road**
-adds a selected line to the editable roads. A polygon layer can go into **Planned cutblocks** for
-access planning. The default for every layer is **Reference**.
+adds a selected line to the editable roads. A line that is already a design road, as every line
+is after an import with **Load proposed roads** ticked, says so on its row (_Line · design road_)
+and offers **Show design road** instead: the line stays as the road as imported, and a second copy
+would only be a duplicate. Once the design road is edited the row reads _edited design road_ and
+**Copy as design road** comes back, to bring the imported line in again as a new road. A polygon
+layer can go into **Planned cutblocks** for access planning. The default for every layer is
+**Reference**. A folded proposed-road or planned-cutblock layer names its role at the end of its
+row.
 
-Expand a folder to see its layers and expand a layer to see its features. Use the eye beside a
-layer to toggle it and the target beside a layer or feature to fit it. Expand a feature to rename
-it or use its available actions. **Design roads** lists the project's editable alignments. Select
+Expand a folder to see its layers and expand a layer to see its features. A folder that holds
+only another folder shares its row (`Zips / 2026`), and a name repeated down such a chain, as an
+archive unpacked into a folder of its own name leaves, prints once. A folder around a single
+file is listed as that file, with its full path in the row's tooltip. Use the eye beside a
+layer to toggle it and the target beside a layer or feature to fit it. The pencil on a feature's
+row renames it in place (Enter or clicking away keeps the name, Escape puts the old one back) and
+the bin removes it; both show under the pointer, on keyboard focus or while the feature is
+expanded. Expand a feature for its other actions and its source attributes; a feature with
+neither has no arrow. **Design roads** lists the project's editable alignments. Select
 a road there to make it active and fit it on the plan. Use **Delete layer** inside an expanded
 imported layer to remove it in one undoable edit.
 

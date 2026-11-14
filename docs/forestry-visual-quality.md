@@ -35,7 +35,7 @@ is typed survives switching.
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
 | 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (spot or length of road, draw, import, snap); folded *Which roads see the block* and *Viewpoints and rec sites*; **Cutblocks** with their objective and harvest system; **Landform and objective**; folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view the stand (folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*); **Saved views**; folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Field brief and crew checklist* |
+| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view the stand (folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*); **Saved views**; folded *Where you stand* at a spot or pullout (surveyed eye elevation); folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Field brief and crew checklist* |
 | 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
 | 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **Package**: buttons that open *Save & export* on the block note, the FS1252 form, the analysis sheet or the scene; folded *VIA evidence package* (recording a run and the evidence checklist) |
@@ -702,6 +702,38 @@ clearings beside the road strip and natural-opening masks, are kept on the scene
 `AnalysisInput` and out of `sceneFingerprint`, so drawing one never stales the
 run. The ground under one stays forest floor, not cut soil.
 
+**The viewpoint clearing.** A stood-at viewpoint — a spot, or a pullout no
+longer than twice `PULLOUT_METERS` (*Stand here*'s, or a hand-drawn one; the
+same test as the bar's `spot`) — is a maintained lookout, and the VIA photos
+show it open. Without a clearing the stand grew to the eye and the view was
+trunks. `viewpointClearingArea` (`treeFreeAreas.ts`) adds a tree-free fan of
+120 m within ±70° of the bearing to the block faced (the arrow's bearing when
+facing one; whole degrees, so looking around never regrows the stand) and a
+15 m circle round the eye. It is on by default; *Drawn timber → Viewpoint
+clearing* turns it off or sets the radius (15–500 m), kept as
+`scene.viewpointClearing`. It is a tree-free area like any other: drawn on the
+plan, in `forest.clearings` and so in the engines' scene package, and out of
+`AnalysisInput` and `sceneFingerprint`. The run's own screening clearing
+(`screeningEyeClearingMeters`) is separate.
+
+**A surveyed eye elevation.** At a stood-at viewpoint, step 2's *Where you
+stand* takes the eye's absolute elevation (`viewpoint.surveyedEye`,
+`viewpointStand.ts`), kept with the point it was entered for so it lapses if the
+viewpoint moves more than 5 m. It is a run input: `buildSceneInput` passes it as
+`viewpoint.eyeElevationMeters`, every station's ground becomes it less the eye
+height (`terrainGroundElevationMeters` keeps the model's reading for the
+Viewpoint summary), and the fingerprint carries it only while it applies. The
+road view stands the eye there within 20 m of its point (`surveyedEyeAt`), the
+pose says so (`eyeSurveyed`), and the figure's camera block prints "(surveyed
+elevation)" on the position line; the observer height line is unchanged. At
+Marblehead VP2 (Duncan Dam Scenic Viewpoint, printed 636 m) the Terrarium DEM
+reads 645.8 m at the printed position at z13–z15 (644.1 m at z12): about 10 m
+high, not low, on a gentle slope falling west toward the view (643 m 30 m west,
+635 m 100 m west, 609 m 100 m south-west), with no cliff within 100 m. The
+printed elevation is met 35–50 m south-west, so it is a position or datum
+difference rather than DEM smoothing; the eye sitting "among the trees" there was
+the stand growing to the eye, which the viewpoint clearing answers.
+
 Two MapLibre details this depends on:
 
 - The camera is placed from an explicit position, altitude, and rotation
@@ -1183,17 +1215,126 @@ follows it. Nothing of the engine is bundled; the frame is found by URL.
   servers (`127.0.0.1:8460`, `:8461`). Unset in a build, the option is disabled
   and says which variable names it. Nanite also needs WebGPU; worldgen falls
   back to WebGL2.
-- **Display only.** Saved views, *Image*, the class pass, framed captures and
-  every figure come from PGMaps' map, never the engine's frame. Engines draw a
+- **Display only, but for the analysis sheet.** Saved views, *Image* and every
+  figure but one come from PGMaps' map, never the engine's frame. Engines draw a
   tree differently, and a drawn shape moved screening by 10–12 points in the
   trial, so the status line under an engine says its figures are PGMaps' own.
+- **The analysis sheet from an engine** (`engineCapture.ts`,
+  `engineFramedCapture.ts`). *Save viewpoint* with an engine chosen asks the
+  engine for the sheet's frames (`pgmaps-capture`), not PGMaps' map: first a
+  scene whose terrain reaches a kilometre past the landform and blocks
+  (`captureTerrain`, up to 12 km, near 800 posts across), then, for each frame
+  of the framing plan, the picture, a class pass in the sheet's own palette with
+  the engine's trees (white) and water (orange) as classes of their own, and
+  depth in metres along the view axis, all from one scene and one camera. The
+  reply is checked frame by frame (`readCaptureReply`) and refused when the
+  engine drew from another camera (`cameraMismatch`), because the sheet's
+  outlines and callouts are projected with the camera asked for. The engine
+  returns two class passes: the ground pass (`classes`: the class polygons on
+  its terrain, no trees drawn, nearer ground still hiding farther ground) and
+  the screened pass (`screened`: its trees drawn, each in the class of the
+  ground under its own stem, so a landform's own forest is the landform and
+  only trees standing off every class polygon, or in water, screen). Outlines
+  and the sheet's pixel measure come from the ground pass, so they run on the
+  ground over the forest as the VIAs' own renders draw them; a second line
+  prints the screened figure. Painting every tree as screening had shredded the
+  landform at a lake viewpoint and nearly doubled its pixel figure. A line under
+  the measures names the renderer and its version, and another lists, in short
+  phrases, what was drawn without data; the measures wrap, shrink and then
+  ellipsize to their cell (`fittedLines`);
+  the sightline figure stays PGMaps' run. A capture's scene carries stems half a
+  kilometre past the farthest class polygon (`captureTerrain`), so a far block
+  reads as a cut in forest, and coarse terrain to 15 km (`farTerrain`, from a
+  skyline mosaic, `skylineTerrain.ts`) so the ridges behind it are real. Past
+  that, the frames' own skyline is scanned on a wide mosaic (`skylineReach.ts`:
+  earth curvature and refraction k = 0.13), and when it stands past 15 km a
+  coarsest grid (`skylineTerrain`, curvature already dropped from its heights)
+  reaches the farthest skyline point plus a tenth or 2 km, at most 60 km: Lost
+  Ledge's peak on the left stands 17–19 km off, Gun Lake VPT1's 26–32 km. The
+  saved figure keeps the capture's
+  provenance (`FigureIllustration`: renderer, version, scene date, the light and
+  weather drawn, depth range, and what was drawn without data). VQO zone
+  shading is not drawn on an engine's picture.
+- **Retention in the class pass.** `retained` masks (wildlife tree patches,
+  group reserves) are cut out of the blocks' class layers
+  (`classPassLayers`), as the run already treats them: every sheet's pixel
+  figure, PGMaps' map included, had counted a block's reserves as cut.
 - **Water, light and weather.** The package carries the basemap's lakes and
   rivers that reach its terrain (`water`, each at the lowest ground round its
-  shore). With an engine chosen, View options adds *When* (date and local time), *Ground*
-  (bare or snow) and *Weather* (clear, overcast, rain, snowing); they go as their
-  own `pgmaps-environment` message (`engineEnvironment`), the date and time read
-  as local time with that day's offset, and never rebuild the stand. PGMaps' own
-  drawing ignores them.
+  shore). With an engine chosen, View options adds *When* (date and time),
+  *Clock*, *Sun*, *Ground* (bare or snow) and *Weather* (clear, overcast, rain,
+  snowing); they go as their own `pgmaps-environment` message
+  (`engineEnvironment`) and never rebuild the stand. PGMaps' own drawing
+  ignores them.
+- **The site's clock, not the computer's.** The date and time are read in the
+  site's time zone (`siteTimeZone`: Pacific; Mountain in the East Kootenay;
+  Mountain standard all year in the Peace, Fort Nelson and Creston; *Clock*
+  overrides it), and the message carries that zone, the offset and the UTC
+  instant. Read in the computer's zone, the same "15:30" was a different moment
+  on a reviewer's laptop in Alberta. The zone screen is coarse at its
+  boundaries; the unit test pins the towns on each side.
+- **The sun asked for and the sun drawn.** *Sun* is *True position* by default:
+  the engine lights the scene from where the sun is, with no sunlight at night.
+  *Kept to daylight* is the engines' own look, which lifted a low sun (Nanite
+  lit at no less than 6°) or moved a night clock to dusk (worldgen). Each engine
+  reports the sun it computed and the one its light came from (`sun` in its
+  stats), and the status line says so when they differ, so a matched sun angle
+  is never taken for matched shadows.
+- **Clouds and visibility.** *Clouds* (none, few, scattered, broken; full in
+  overcast, rain and snow) and *Visibility* (no haze, or 100 to 4 km) go in the
+  environment as `cloudCover` and `visibilityKm`, and every engine draws exactly
+  that sky, so renderers are compared under one sky. Visibility follows
+  Koschmieder (extinction 3.912 / visibility); *No haze* (`NO_HAZE_KM`) turns
+  haze off and is the default for now, as the VIAs' own renders draw none.
+- **Wind and look.** *Wind* (calm 0, light 2, breezy 5, windy 9 m/s; default
+  calm) and *Look* (*VIA convention*, the default, or *Photo match*) go in the
+  environment as `windMs` and `look`. Wind sets the water's roughness (Cox–Munk:
+  calm is a mirror with the far shore in it, wind ripples it toward the sky's
+  reflection). The two looks exist because the references disagree: the
+  consultants' renders draw a dark olive canopy, mirror lakes and no haze to
+  8–10 km, a photograph blue-grey far forest, haze from *Visibility* and
+  rippled water. Display only, like the rest of the environment.
+- **Final render** (`quality: 'final'`, `finalStand.ts`). The analysis sheet's
+  capture from an engine asks for the report's still rather than the road
+  view's frame: the engine freezes the pose, waits for every stream and LOD,
+  fits its shadows to the frame, accumulates `samples` (24) jittered samples a
+  frame, and draws the forest past the distance where a tree is under
+  `canopyCutoffPx` (4) pixels tall as a canopy surface (Visual Nature Studio's
+  dissolve rule). With the request goes the frame's forest at real density
+  (`stand`, transferred, not copied): the road view's near-band placement
+  (`forestPatches` tiles of its 4 m band, `growForestPatch`, the same seed) out
+  to the farthest class polygon plus a kilometre (`finalStandRadius`) within
+  the frames' bearings and 3° each side (`finalStandBearings`). Species, heights,
+  VRI stems/ha (up to the band's 590/ha) and crown closure, clearings,
+  openings, thinnings, reserves and tree-free areas follow the road view's own
+  rules, and inside 300 m the stems are the road view's own; crowns come from
+  `crownWidthForClosure` at that density (about 3–4 m) and never pass 0.35 of
+  the stem's height. Patches grow nearest first; at `FINAL_STAND_MAX_STEMS`
+  (1.5 M) growing stops and the stand's radius comes in to the nearest ground
+  not grown, so it is always complete out to the radius it reports. A Gun Lake
+  VPT1-sized stand (landform to 6.3 km, one 50 mm frame) is about 1.0 M stems
+  (28 MB) grown in about 0.6 s in the browser; four frames across 166° hit the
+  budget at 4.6 km (1.38 M stems, 0.8 s). The ground class pass is unchanged
+  (it never draws trees); the picture, the screened pass and depth use the
+  final stems. The engine reports what it drew (`final`: samples, stems drawn,
+  canopy cut-off, time), kept in the saved figure's `FigureIllustration` with
+  the stand PGMaps sent; the renderer line prints "final render: 24 samples,
+  1.38 M stems", or "active render (final not drawn)" for an engine that
+  ignored `quality`, whose capture is still taken. Display only: the stand is
+  never an analysis input, and the sightline figure stays PGMaps' run.
+- **One sun for every engine.** PGMaps works the sun out itself
+  (`sunPosition`, `src/lib/geo/solarPosition.ts`, NOAA's equations) and sends it
+  as `sunPosition`; engines light from it rather than their own ephemeris.
+  threejs-sky's put the same moment 0.25° lower and 0.7° round (0.6° against
+  0.9° at 16:15 on 20 January at Prince George), so worldgen now nudges its sky
+  clock (about 2 minutes) to stand its sun at PGMaps' elevation and reports the
+  shift. The viewshed tool keeps its own low-order ephemeris.
+- **Stable trees across phases.** A harvest removes stems from the package and
+  never moves or resizes the rest (`scenePackage.test.ts`), and both engines now
+  give a stem its model from its own size on a fixed ladder (worldgen by height,
+  Nanite by crown ratio) seeded by species and rung, never from the population
+  present, so a retained tree keeps its shape from before to after. Stumps,
+  slash and piles are seeded from their own geometry, not record order.
 - PGMaps' map still draws underneath while an engine is chosen; the two share
   the GPU.
 
@@ -1817,7 +1958,14 @@ strip up to 4:1. `captureFramed` (`mapCapture.ts`) stands the eye map at the pos
 on each frame (`calculateCameraOptionsFromTo` to a target 40 m ahead, pitch
 through `horizonSafePitch`, roll 0), sets the frame's vertical field, reads the
 display and the class pass from the frame's window of the canvas, joins the
-frames, and puts the camera and field back. Callouts and lines are placed by a
+frames, and puts the camera and field back. It draws at the pixel ratio that
+gives each frame's window of the canvas the frame's own width
+(`capturePixelRatio`: at least the map's own, at most 3×, then MapLibre's 4096 px
+canvas limit), restored in `finally`, so the sheet takes drawn pixels rather than
+an upscaled crop (a 515 px canvas had been blown up 2.33×, a pixel 12.6 m at
+9 km). A one-frame capture from a 321 px road view at 3× took about 2 s with
+its class pass; the size changes the drawing buffer only, never the camera or
+the tiles loaded. Callouts and lines are placed by a
 pinhole from the same eye (`projectToFrames`), which needs no map once the camera
 is restored. The sheet prints the lens, field and bearings. A very large landform seen
 as a thin, distant band (Tabor Mountain's 4,489 ha sample landform, 3–11 km out,
