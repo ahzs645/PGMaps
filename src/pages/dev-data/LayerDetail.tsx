@@ -1,6 +1,7 @@
 import { ArrowLeft, Check } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ExternalLink, SelectAllActions } from '@/components/ui/text-button'
+import { ColorField } from '@/components/ui/color-field'
 import { FilterChipGroup, InlineAlert, KeyValueRows, SidebarSection } from '@/components/ui/map-panels'
 import { LayerSwatch } from '@/components/ui/layer-list-item'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -143,19 +144,16 @@ function ColorSwatches({
           {value.toLowerCase() === color && <Check className="size-4 text-white drop-shadow" aria-hidden="true" />}
         </button>
       ))}
-      <label
-        className="relative flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-border text-3xs text-muted-foreground"
+      <ColorField
+        label="Custom colour"
         title="Custom colour"
-      >
-        <span aria-hidden="true">+</span>
-        <input
-          type="color"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="absolute inset-0 cursor-pointer opacity-0"
-          aria-label="Custom colour"
-        />
-      </label>
+        value={value}
+        resettable={false}
+        presets={SIMPLE_COLORS}
+        presetDisplay="picker"
+        swatchClassName="size-7 rounded-full"
+        onChange={(color) => color && onChange(color)}
+      />
     </div>
   )
 }

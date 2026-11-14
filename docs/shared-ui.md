@@ -712,7 +712,8 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   visual-quality road view is the reference.
 - Colours a person picks: `ColorField` (`value`/`onChange` with `null` for
   unset, `presets`, `presetDisplay="picker"` in a dense row, `size="sm"`). Unset
-  is drawn striped, never as white.
+  is drawn striped, never as white. See **Colours, patterns and line styles**
+  below; never an `<input type="color">` or a page's own picker.
 - Scale: `MapScaleBar` (`map-controls.tsx`, `position`, `maxWidth`), a metric
   bar measured great-circle across the map's middle (so Mercator's stretch at
   our latitude, 1.7×, is not read off the zoom), in the app's theme. It hides
@@ -763,6 +764,55 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   `MapMarker` draws, with `tone` colours. Give it an SVG icon rather than a text
   glyph: a glyph's position comes from its font's metrics, so it does not centre,
   and it sizes the box to itself.
+
+## Colours, patterns and line styles
+
+One picker, and one set of fields for the look of a line or an area. Use them wherever a person
+sets the look of **their own** content: a block, a note, an imported layer, a buffer, a ground
+material, a drawn marker or path, the interface theme. Status colours, the block-sheet catalogue,
+VIA figure presets, class-pass palettes and data ramps tied to a legend are fixed on purpose and
+are never pickable.
+
+- **`ColorField`** (`src/components/ui/color-field.tsx`, from the toolkit). The swatch opens the
+  colour picker in a popover: a saturation and value plane and a hue rail drawn in Okhsv
+  (perceptually even, so yellows do not crowd and blues do not sink), a hex box, pick-from-screen
+  where the browser has an EyeDropper, the caller's `presets` and the colours picked on this page
+  (*Recent*, in memory only). It works inside a modal dialog and inside another popover.
+  - **`onChange` is the commit**: once when a drag ends, a key is let go, a hex is entered or a
+    swatch is clicked. Save, write the project and take the undo step there. **`onPreview`** is
+    every colour a drag passes through; pass it only where following the drag is cheap (a marker
+    draft, the Appearance preview), never to write a project or mint a pattern image per frame.
+  - `resettable={false}` for a colour that cannot be unset (a material's colour); otherwise the
+    reset button returns `null`. To show a real default colour while still allowing a reset, pass
+    `value={own ?? defaultColor}` and `resettable={own !== undefined}`.
+  - Opacity is its own value, never an eight-digit hex: `opacity` with `onOpacityChange` adds an
+    opacity rail. `swatch` draws something else in the button (a symbol), `swatchClassName` gives
+    it a host's shape, `side` the preferred side.
+  - `ColorPickerPanel` is the picker without the popover, for a panel that is already open.
+- **`PatternField`** and **`LineDashField`** (`src/components/ui/symbol-style-fields.tsx`): a
+  choice among swatches drawn by the sheet's own renderer, so a hatch reads as a hatch and a dash
+  as a dash. Each takes `symbolFor(option)`, which must return the symbol the map draws for that
+  option, so the picker cannot show a look the map does not.
+- **`SymbolStyleEditor`** is the whole look of a layer (colour, opacity and pattern for an area,
+  line style and width), and **`SymbolField`** is the same behind a button that is the layer's
+  own symbol, for a list row.
+- The model is `src/lib/mapSheet/symbolStyle.ts` (no DOM or network access): `SymbolStyle` holds
+  only what the person set, `SymbolStyleDefaults` is the layer's look until then, and
+  `styledLineSymbol` / `styledAreaSymbol` return an ordinary `SheetSymbol`. Draw it through
+  `mapSymbols.ts` on the map (`keepSymbolImages` for pattern tiles) and `SheetSymbolSwatch` in a
+  legend, as for any other sheet symbol. Read a saved style with `parseSymbolStyle`. The pattern
+  and line-style ids are stored in project files: rename a label, never an id.
+- GeoJSON properties cannot carry an array to a MapLibre style, so a data-driven dash travels by
+  name and the layer `match`es it to a `line-dasharray` (`ReferenceLayer.tsx`).
+- E2E specs pick a colour with `pickColor` (`tests/e2e/color-field.ts`): `fill` on the labelled
+  control does not apply to a swatch button. The swatch carries the colour in `data-color-value`.
+- The reference uses are the road designer's Layers pane: a reference layer's look
+  (`referenceStyles.ts`, `SymbolField`) and the cutblock buffer (`CutblockBufferField.tsx`).
+- The colour maths is the toolkit's `scales/okhsv` and `scales/oklch` (`hexToOkhsv`, `okhsvToHex`,
+  `okhsvSwatches` for a generated swatch grid, `hexToOklch`, `oklchToHex` with chroma-reducing
+  gamut mapping). Okhsv follows Björn Ottosson's published method (MIT, `NOTICE-OKHSV.md` in the
+  toolkit). The picker's layout is the toolkit's own; do not port a third-party picker's design
+  into it without checking its licence.
 
 ## Settled map observation and HTML-marker clustering
 

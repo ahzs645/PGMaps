@@ -1,4 +1,5 @@
 import { FormField } from '@/components/ui/form-field'
+import { ColorField as SharedColorField } from '@/components/ui/color-field'
 import { ToggleRow as SharedToggleRow } from '@/components/ui/toggle-row'
 import { useClipboardText } from '@/hooks/useClipboardText'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -290,12 +291,13 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   return (
     <Field label={label}>
       <div className="flex items-center gap-2">
-        <input
-          type="color"
+        <SharedColorField
+          label={label}
           value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="h-9 w-10 cursor-pointer rounded-md border border-border bg-transparent p-1"
-          aria-label={label}
+          resettable={false}
+          onChange={(color) => color && onChange(color)}
+          onPreview={onChange}
+          swatchClassName="h-9 w-10 rounded-md"
         />
         <input
           value={value}

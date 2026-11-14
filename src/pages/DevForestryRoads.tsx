@@ -220,6 +220,8 @@ import {
   layerFitPoints,
   type CutblockBuffer,
 } from './dev-forestry-roads/cutblockBuffers'
+import { withReferenceStyle } from './dev-forestry-roads/referenceStyles'
+import type { SymbolStyle } from '@/lib/mapSheet/symbolStyle'
 import type { PickedFile } from '@/components/ui/picked-files'
 import type { EngineeringInputTab, PointCloudChoice, SidebarTab } from './dev-forestry-roads/DesignSidebarBody'
 import { FullCostPlanningDialog, type FullCostPreview } from './dev-forestry-roads/FullCostPlanningDialog'
@@ -2522,6 +2524,10 @@ export default function DevForestryRoads({
     })
     w.commit(shareUnchanged(project, next), true, 'Change cutblock buffer', true)
     if (setting) changeLayerVisibility([key, cutblockBufferKey(key)], true)
+  }
+  const changeReferenceStyle = (key: string, style: SymbolStyle) => {
+    const next = parseProject({ ...project, referenceStyles: withReferenceStyle(project.referenceStyles, key, style) })
+    w.commit(shareUnchanged(project, next), true, 'Change layer look', true)
   }
   const copyLayerRoad = (feature: LayerFeature) => {
     const file: SpatialFile = {
@@ -5711,6 +5717,7 @@ export default function DevForestryRoads({
           }}
           onRemoveLayer={(key, name) => setLayerToDelete({ key, name })}
           onBufferChange={changeCutblockBuffer}
+          onLayerStyleChange={changeReferenceStyle}
           onFitBuffer={(setting) => {
             changeLayerVisibility([setting.layer, cutblockBufferKey(setting.layer)], true)
             if (!dockLayers) setLayersOpen(false)

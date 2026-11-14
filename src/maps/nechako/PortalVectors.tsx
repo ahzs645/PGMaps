@@ -13,6 +13,7 @@ import type { Feature, FeatureCollection, LineString, Polygon, MultiPolygon } fr
 import type { Map as MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { Button } from '@/components/ui/button'
+import { ColorField } from '@/components/ui/color-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { downloadText } from '@/lib/download'
@@ -400,15 +401,13 @@ export function PortalVectors({
             />{' '}
             {item.name} ({item.data.features.length})
           </label>
-          <input
-            aria-label={`Color for ${item.name}`}
-            type="color"
+          <ColorField
+            label={`Color for ${item.name}`}
             disabled={!!item.style}
             value={item.color}
-            onChange={(event) =>
-              setVectors(
-                vectors.map((value) => (value.id === item.id ? { ...value, color: event.target.value } : value)),
-              )
+            resettable={false}
+            onChange={(color) =>
+              color && setVectors(vectors.map((value) => (value.id === item.id ? { ...value, color } : value)))
             }
           />
           <details className="w-full rounded border p-2">
@@ -442,11 +441,12 @@ export function PortalVectors({
               </label>
               {item.categories?.rules.map((rule, index) => (
                 <label key={index} className="mt-1 flex items-center gap-2">
-                  <input
-                    type="color"
-                    aria-label={`Category ${categoryLabel(rule.value)} for ${item.name}`}
+                  <ColorField
+                    label={`Category ${categoryLabel(rule.value)} for ${item.name}`}
                     value={rule.color}
-                    onChange={(event) =>
+                    resettable={false}
+                    onChange={(color) =>
+                      color &&
                       replace(
                         vectors.map((value) =>
                           value.id === item.id
@@ -455,7 +455,7 @@ export function PortalVectors({
                                 categories: {
                                   ...item.categories!,
                                   rules: item.categories!.rules.map((entry, i) =>
-                                    i === index ? { ...entry, color: event.target.value } : entry,
+                                    i === index ? { ...entry, color } : entry,
                                   ),
                                 },
                               }
@@ -469,15 +469,16 @@ export function PortalVectors({
               ))}
               {item.categories && (
                 <label className="mt-1 flex items-center gap-2">
-                  <input
-                    type="color"
-                    aria-label={`Fallback color for ${item.name}`}
+                  <ColorField
+                    label={`Fallback color for ${item.name}`}
                     value={item.categories.fallback}
-                    onChange={(event) =>
+                    resettable={false}
+                    onChange={(color) =>
+                      color &&
                       replace(
                         vectors.map((value) =>
                           value.id === item.id
-                            ? { ...value, categories: { ...item.categories!, fallback: event.target.value } }
+                            ? { ...value, categories: { ...item.categories!, fallback: color } }
                             : value,
                         ),
                       )

@@ -529,6 +529,8 @@ export interface RoadProject {
   reference?: import('./referenceFeatures').ReferenceFeature[]
   /** Optional display buffer settings for imported cutblock layers. */
   cutblockBuffers?: import('./cutblockBuffers').CutblockBuffer[]
+  /** The looks a person gave reference layers: colour, line style, width, pattern. Display only. */
+  referenceStyles?: import('./referenceStyles').ReferenceLayerStyle[]
 }
 export interface SectionSample {
   offset: number

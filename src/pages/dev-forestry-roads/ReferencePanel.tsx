@@ -16,7 +16,14 @@ import {
   type ReferenceFolder,
   type ReferenceLayer,
 } from './referenceFeatures'
-import { referenceLayerColor } from './ReferenceLayer'
+import { SymbolField } from '@/components/ui/symbol-style-fields'
+import type { SymbolStyle } from '@/lib/mapSheet/symbolStyle'
+import {
+  REFERENCE_COLOR_PRESETS,
+  referenceLayerColor,
+  referenceStyleDefaults,
+  referenceStyleFor,
+} from './referenceStyles'
 import { LAYER_IMPORT_LABELS, REFERENCE_ACCEPT } from './referenceImport'
 import { CutblockBufferField } from './CutblockBufferField'
 import { cutblockBufferKey, type CutblockBuffer } from './cutblockBuffers'
@@ -127,6 +134,7 @@ export function ReferencePanel({
   onShowRoad,
   onRemoveLayer,
   onBufferChange,
+  onLayerStyleChange,
   onFitBuffer,
   onPegAt,
   onRoadEndAt,
@@ -146,11 +154,14 @@ export function ReferencePanel({
   onShowRoad: (road: Alignment) => void
   onRemoveLayer: (key: string, name: string) => void
   onBufferChange: (key: string, setting?: CutblockBuffer) => void
+  /** A reference layer's look changed; an empty style returns the layer to how it arrived. */
+  onLayerStyleChange?: (key: string, style: SymbolStyle) => void
   onFitBuffer: (setting: CutblockBuffer) => void
   onPegAt?: (at: Coordinate, name: string) => void
   onRoadEndAt?: (at: Coordinate, name: string, end: 'start' | 'end') => void
 }) {
-  const { reference, context, cutblockBuffers, alignments, designPlaceholderId, activeAlignmentId } = w.project
+  const { reference, context, cutblockBuffers, referenceStyles, alignments, designPlaceholderId, activeAlignmentId } =
+    w.project
   const layers = useMemo(
     () => referenceLayers([...(reference ?? []), ...importedCutblockFeatures(context)]),
     [reference, context],
@@ -172,6 +183,11 @@ export function ReferencePanel({
     const expanded = disclosures[branchKey] ?? false
     const visible = !hiddenKeys?.includes(key)
     const role = features[0].cutblock ? 'planned-block' : (features[0].role ?? 'reference')
+    // A layer is styled as its largest shape: an area's look covers its outline, a line's its dash.
+    const shapes = new Set(features.map(referenceShape))
+    const shape = shapes.has('area') ? 'area' : shapes.has('line') ? 'line' : 'point'
+    // Planned blocks keep the block sheet's symbol; scanned sheets and class rasters are images.
+    const styleable = !!onLayerStyleChange && role !== 'planned-block' && features.some((f) => !f.sheet && !f.classGrid)
     const buffer = cutblockBuffers?.find(({ layer }) => layer === key)
     const bufferVisible = !hiddenKeys?.includes(cutblockBufferKey(key))
     const bufferSource = buffer && 'source' in buffer ? layers.find((layer) => layer.key === buffer.source) : undefined
@@ -184,13 +200,29 @@ export function ReferencePanel({
           name={name}
           detail={String(features.length)}
           icon={
-            <Layers3 className="size-3.5 shrink-0" style={{ color: referenceLayerColor(key) }} aria-hidden="true" />
+            <Layers3
+              className="size-3.5 shrink-0"
+              style={{ color: referenceLayerColor(key, referenceStyles) }}
+              aria-hidden="true"
+            />
           }
           open={expanded}
           toggle={() => toggle(branchKey, expanded)}
           muted={!visible}
           actions={
             <>
+              {styleable && (
+                <SymbolField
+                  shape={shape}
+                  defaults={referenceStyleDefaults(key, name, shape)}
+                  value={referenceStyleFor(referenceStyles, key)}
+                  onChange={(style) => onLayerStyleChange(key, style)}
+                  label={`Look of layer ${name}`}
+                  colorPresets={REFERENCE_COLOR_PRESETS}
+                  disabled={disabled}
+                  className="mr-0.5 self-center"
+                />
+              )}
               <Button
                 size="icon-xs"
                 variant="ghost"

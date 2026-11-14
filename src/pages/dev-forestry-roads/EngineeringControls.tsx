@@ -4,6 +4,7 @@ import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
 import { ArrowRight, Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ColorField } from '@/components/ui/color-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { crossingsWithoutStructure } from './costReadiness'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -1012,11 +1013,11 @@ export function EngineeringControls({
                 />
                 <div className="flex gap-2">
                   <Field label="Material color">
-                    <input
-                      aria-label={`${m.name} color`}
-                      type="color"
+                    <ColorField
+                      label={`${m.name} color`}
                       value={m.color}
-                      onChange={(e) => patch('materials', m.id, { color: e.target.value })}
+                      resettable={false}
+                      onChange={(color) => color && patch('materials', m.id, { color })}
                     />
                   </Field>
                   <Field label="Excavated material type">
