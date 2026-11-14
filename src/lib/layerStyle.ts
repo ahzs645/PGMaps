@@ -9,11 +9,24 @@
  *
  * Keep this module free of DOM access; it carries the unit tests.
  */
+import { COLOR_RAMPS, COLOR_RAMP_KIND_LABELS } from '@pgmaps/geo-toolkit/scales/colorRamps'
 import { resolvePaletteScale, samplePalette } from '@/lib/paletteScale'
 import type { ColumnStats } from '@/lib/featureAttributes'
 
 export type LayerGeometry = 'fill' | 'line' | 'point'
-export type StyleClassification = 'quantile' | 'equal-interval'
+export type StyleClassification =
+  | 'quantile'
+  | 'equal-interval'
+  | 'natural-breaks'
+  | 'standard-deviation'
+  | 'geometric-interval'
+export const CLASSIFICATION_LABELS: Record<StyleClassification, string> = {
+  quantile: 'Quantile',
+  'equal-interval': 'Equal intervals',
+  'natural-breaks': 'Natural breaks',
+  'standard-deviation': 'Standard deviation',
+  'geometric-interval': 'Geometric',
+}
 
 export type LayerStyle =
   | { type: 'simple'; color: string }
@@ -29,6 +42,8 @@ export type LayerStyle =
       column: string
       classification: StyleClassification
       ramp: RampId
+      /** The ramp runs high to low. */
+      reverse?: boolean
       /** Interior class boundaries; a value equal to a break falls in the upper class. */
       breaks: number[]
       colors: string[]
@@ -78,17 +93,38 @@ export const SIMPLE_COLORS = [
 export const OTHER_COLOR = '#a1a1aa'
 export const MISSING_COLOR = '#d4d4d8'
 
-export const RAMPS = {
+/** The first ramps this page offered. Saved styles carry these ids, so their colours stay as they were. */
+const ORIGINAL_RAMPS = {
   blues: { label: 'Blues', colors: ['#deebf7', '#6baed6', '#08306b'] },
   greens: { label: 'Greens', colors: ['#e5f5e0', '#74c476', '#00441b'] },
   heat: { label: 'Yellow–red', colors: ['#ffffb2', '#fd8d3c', '#bd0026'] },
   viridis: { label: 'Viridis', colors: ['#fde725', '#21918c', '#440154'] },
   purples: { label: 'Purples', colors: ['#efedf5', '#9e9ac8', '#3f007d'] },
 } as const satisfies Record<string, { label: string; colors: readonly string[] }>
+/** The toolkit's own yellow–red is the original `heat`, kept under its saved id. */
+const SUPERSEDED = new Set<string>([...Object.keys(ORIGINAL_RAMPS), 'ylorrd'])
 
-export type RampId = keyof typeof RAMPS
+/** A ramp's saved id. Ids from `ORIGINAL_RAMPS` and the toolkit's `COLOR_RAMPS`. */
+export type RampId = string
+
+/** Every ramp the page offers, by id: the original five, then the toolkit's library. */
+export const RAMPS: Readonly<Record<RampId, { label: string; colors: readonly string[]; group: string }>> = {
+  ...Object.fromEntries(
+    Object.entries(ORIGINAL_RAMPS).map(([id, ramp]) => [id, { ...ramp, group: COLOR_RAMP_KIND_LABELS.sequential }]),
+  ),
+  ...Object.fromEntries(
+    COLOR_RAMPS.filter(({ id }) => !SUPERSEDED.has(id)).map(({ id, label, colors, kind }) => [
+      id,
+      { label, colors, group: COLOR_RAMP_KIND_LABELS[kind] },
+    ]),
+  ),
+}
+/** The ramps as a ramp picker lists them. */
+export const RAMP_OPTIONS = Object.entries(RAMPS).map(([id, ramp]) => ({ id, ...ramp }))
 
 export const DEFAULT_RAMP: RampId = 'heat'
+/** A ramp's colours; an id this build does not know draws as the default ramp. */
+const rampColors = (ramp: RampId) => (RAMPS[ramp] ?? RAMPS[DEFAULT_RAMP]).colors
 
 /** Radius (points) or width (lines) range for size classes, in px. */
 const SIZE_RANGE: Record<'point' | 'line', [number, number]> = {
@@ -135,12 +171,14 @@ export function buildRangeStyle(
     classes = 5,
     classification = 'quantile',
     ramp = DEFAULT_RAMP,
-  }: { classes?: number; classification?: StyleClassification; ramp?: RampId } = {},
+    reverse = false,
+  }: { classes?: number; classification?: StyleClassification; ramp?: RampId; reverse?: boolean } = {},
 ): LayerStyle | null {
   const input = classify(values, classes, classification)
   if (!input) return null
   const scale = resolvePaletteScale({
-    colors: RAMPS[ramp].colors,
+    colors: rampColors(ramp),
+    reverse,
     interpolation: 'lab',
     domain: [input.min, input.max],
     classes,
@@ -153,6 +191,7 @@ export function buildRangeStyle(
     column,
     classification,
     ramp,
+    ...(reverse ? { reverse } : {}),
     breaks: scale.breaks,
     colors: scale.colors.map(toHex),
     min: input.min,
@@ -215,7 +254,7 @@ function toHex(color: string): string {
 
 /** A colour ramp's preview stops, for a ramp picker. */
 export function rampPreview(ramp: RampId, steps = 5): string[] {
-  return samplePalette({ colors: RAMPS[ramp].colors, interpolation: 'lab' }, steps).map(toHex)
+  return samplePalette({ colors: rampColors(ramp), interpolation: 'lab' }, steps).map(toHex)
 }
 
 type Expression = readonly unknown[]

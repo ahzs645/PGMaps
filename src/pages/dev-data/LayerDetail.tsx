@@ -2,6 +2,7 @@ import { ArrowLeft, Check } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ExternalLink, SelectAllActions } from '@/components/ui/text-button'
 import { ColorField } from '@/components/ui/color-field'
+import { RampField } from '@/components/ui/ramp-field'
 import { FilterChipGroup, InlineAlert, KeyValueRows, SidebarSection } from '@/components/ui/map-panels'
 import { LayerSwatch } from '@/components/ui/layer-list-item'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -17,19 +18,18 @@ import {
 } from '@/lib/featureAttributes'
 import { formatBytes, formatDate, formatNumber } from '@/lib/format'
 import {
-  RAMPS,
+  CLASSIFICATION_LABELS,
+  RAMP_OPTIONS,
   SIMPLE_COLORS,
   buildCategoriesStyle,
   buildRangeStyle,
   buildSizeStyle,
   primaryColor,
-  rampPreview,
   type LayerStyle,
   type LayerStyleType,
   type RampId,
   type StyleClassification,
 } from '@/lib/layerStyle'
-import { cn } from '@/lib/utils'
 import { LARGE_LAYER_BYTES } from './catalog'
 import {
   distinctValues,
@@ -52,10 +52,17 @@ const STYLE_TYPE_LABELS: Record<LayerStyleType, string> = {
 }
 
 const CLASS_OPTIONS = [3, 4, 5, 6, 7].map((count) => ({ value: String(count), label: `${count} classes` }))
-const CLASSIFICATION_OPTIONS = [
-  { value: 'quantile', label: 'Quantile' },
-  { value: 'equal-interval', label: 'Equal' },
-] as const satisfies ReadonlyArray<{ value: StyleClassification; label: string }>
+const CLASSIFICATION_OPTIONS = (Object.keys(CLASSIFICATION_LABELS) as StyleClassification[]).map((value) => ({
+  value,
+  label: CLASSIFICATION_LABELS[value],
+}))
+/** What a classed colour style keeps when one of its settings changes. */
+const rangeOptions = (style: Extract<LayerStyle, { type: 'range' }>) => ({
+  classes: style.colors.length,
+  classification: style.classification,
+  ramp: style.ramp,
+  reverse: style.reverse ?? false,
+})
 
 /**
  * A layer's own panel, opened from the layer list: Felt's style editor, a pair
@@ -189,7 +196,7 @@ function StyleEditor({
   const categoriesFor = (column: string) => buildCategoriesStyle(column, columnStats(features, attributeFor(column)))
   const rangeFor = (
     column: string,
-    options: { classes?: number; classification?: StyleClassification; ramp?: RampId } = {},
+    options: { classes?: number; classification?: StyleClassification; ramp?: RampId; reverse?: boolean } = {},
   ) => buildRangeStyle(column, columnNumbers(features, attributeFor(column)), options)
   const sizeFor = (
     column: string,
@@ -260,15 +267,7 @@ function StyleEditor({
                 value={style.column}
                 triggerAriaLabel="Colour range column"
                 options={measureColumns.map((attribute) => ({ value: attribute.key, label: attribute.label }))}
-                onValueChange={(column) =>
-                  setStyle(
-                    rangeFor(column, {
-                      classification: style.classification,
-                      ramp: style.ramp,
-                      classes: style.colors.length,
-                    }),
-                  )
-                }
+                onValueChange={(column) => setStyle(rangeFor(column, rangeOptions(style)))}
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -277,53 +276,33 @@ function StyleEditor({
                 triggerAriaLabel="Number of classes"
                 options={CLASS_OPTIONS}
                 onValueChange={(classes) =>
-                  setStyle(
-                    rangeFor(style.column, {
-                      classes: Number(classes),
-                      classification: style.classification,
-                      ramp: style.ramp,
-                    }),
-                  )
+                  setStyle(rangeFor(style.column, { ...rangeOptions(style), classes: Number(classes) }))
                 }
               />
-              <SegmentedControl
-                label="Classification"
-                size="sm"
+              <AppSelect
                 value={style.classification}
+                triggerAriaLabel="Classification"
                 options={CLASSIFICATION_OPTIONS}
-                onChange={(classification) =>
-                  setStyle(rangeFor(style.column, { classes: style.colors.length, classification, ramp: style.ramp }))
+                onValueChange={(classification) =>
+                  setStyle(
+                    rangeFor(style.column, {
+                      ...rangeOptions(style),
+                      classification: classification as StyleClassification,
+                    }),
+                  )
                 }
               />
             </div>
             <div>
               <FieldLabel>Colour ramp</FieldLabel>
-              <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Colour ramp">
-                {(Object.keys(RAMPS) as RampId[]).map((ramp) => (
-                  <button
-                    key={ramp}
-                    type="button"
-                    role="radio"
-                    aria-checked={style.ramp === ramp}
-                    aria-label={RAMPS[ramp].label}
-                    title={RAMPS[ramp].label}
-                    className={cn(
-                      'h-6 rounded border border-border',
-                      style.ramp === ramp && 'ring-2 ring-primary ring-offset-1',
-                    )}
-                    style={{ background: `linear-gradient(to right, ${rampPreview(ramp).join(', ')})` }}
-                    onClick={() =>
-                      setStyle(
-                        rangeFor(style.column, {
-                          classes: style.colors.length,
-                          classification: style.classification,
-                          ramp,
-                        }),
-                      )
-                    }
-                  />
-                ))}
-              </div>
+              <RampField
+                label="Colour ramp"
+                value={style.ramp}
+                ramps={RAMP_OPTIONS}
+                reverse={style.reverse ?? false}
+                onChange={(ramp) => setStyle(rangeFor(style.column, { ...rangeOptions(style), ramp }))}
+                onReverseChange={(reverse) => setStyle(rangeFor(style.column, { ...rangeOptions(style), reverse }))}
+              />
             </div>
           </>
         )}
@@ -362,13 +341,18 @@ function StyleEditor({
                   )
                 }
               />
-              <SegmentedControl
-                label="Classification"
-                size="sm"
+              <AppSelect
                 value={style.classification}
+                triggerAriaLabel="Classification"
                 options={CLASSIFICATION_OPTIONS}
-                onChange={(classification) =>
-                  setStyle(sizeFor(style.column, { classes: style.sizes.length, classification, color: style.color }))
+                onValueChange={(classification) =>
+                  setStyle(
+                    sizeFor(style.column, {
+                      classes: style.sizes.length,
+                      classification: classification as StyleClassification,
+                      color: style.color,
+                    }),
+                  )
                 }
               />
             </div>

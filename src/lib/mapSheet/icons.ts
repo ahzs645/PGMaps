@@ -83,6 +83,24 @@ const culvert: IconPart[] = [circle(0, 0, 0.3, undefined, 'primary', 0.1), line(
 
 export const ICONS = {
   dot: { label: 'Dot', parts: [circle(0, 0, 0.45, 'primary')] },
+  // The x axis follows a line, so along one this points the way the line was drawn.
+  arrow: {
+    label: 'Arrow',
+    parts: [
+      shape(
+        [
+          [0.46, 0],
+          [-0.36, -0.4],
+          [-0.14, 0],
+          [-0.36, 0.4],
+        ],
+        'primary',
+        // A pale edge, so the arrow still reads on a line of its own colour drawn wider than it.
+        'secondary',
+        0.07,
+      ),
+    ],
+  },
   tick: { label: 'Cross tick', parts: [line('primary', 0.1, [0, -0.5], [0, 0.5])] },
   'tick-side': { label: 'Tick on one side', parts: [line('primary', 0.12, [0, 0], [0, 0.5])] },
   cross: {

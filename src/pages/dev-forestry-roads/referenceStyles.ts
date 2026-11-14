@@ -4,18 +4,20 @@
  * look changes nothing but the plan and its legend. Planned blocks keep the block sheet's symbol.
  * A layer with no saved look is drawn exactly as before. No DOM or network access.
  */
-import { areaPatternId } from '@/lib/mapSheet/mapSymbols'
+import { areaPatternId, lineMarkerId, pointSymbolId } from '@/lib/mapSheet/mapSymbols'
 import { PX_PER_PT } from '@/lib/mapSheet/symbolRaster'
 import {
   parseSymbolStyle,
   styledAreaSymbol,
   styledLineSymbol,
+  styledPointSymbol,
+  styleLineMarkers,
   symbolStyleIsEmpty,
   type SymbolStyle,
   type SymbolStyleDefaults,
 } from '@/lib/mapSheet/symbolStyle'
-import type { AreaSymbol, SheetSymbol } from '@/lib/mapSheet/symbols'
-import { referenceLayerKey, type ReferenceFeature, type ReferenceShape } from './referenceFeatures'
+import type { SheetSymbol } from '@/lib/mapSheet/symbols'
+import { referenceLayerKey, referenceShape, type ReferenceFeature, type ReferenceShape } from './referenceFeatures'
 
 export interface ReferenceLayerStyle extends SymbolStyle {
   /** The layer's key: the file its features were imported from. */
@@ -67,14 +69,19 @@ export function referenceLayerSymbol(
   const defaults = referenceStyleDefaults(key, label, shape)
   if (shape === 'area') return styledAreaSymbol(defaults, style)
   if (shape === 'line') return styledLineSymbol(defaults, style)
-  return {
-    kind: 'point',
-    label,
-    icon: 'dot',
-    size: 9,
-    color: style?.color ?? defaults.color,
-    halo: { color: '#0f172a', width: 1.5 },
-  }
+  return styledPointSymbol(defaults, style)
+}
+
+/** How a dash travels in a feature's properties: a preset by name, a custom dash by its lengths. */
+export const referenceDashKey = (style: SymbolStyle) =>
+  style.dash === 'custom' ? `custom:${(style.dashPattern ?? []).join(',')}` : style.dash
+
+/** The custom dashes in use, by the key their features carry, for the line layer's `match`. */
+export function referenceCustomDashes(styles: readonly ReferenceLayerStyle[] | undefined): Map<string, number[]> {
+  const dashes = new Map<string, number[]>()
+  for (const style of styles ?? [])
+    if (style.dash === 'custom' && style.dashPattern) dashes.set(referenceDashKey(style)!, style.dashPattern)
+  return dashes
 }
 
 /**
@@ -86,32 +93,64 @@ export function referenceStyleProperties(
   key: string,
   shape: ReferenceShape,
   style: SymbolStyle | undefined,
-): { lineWidth?: number; lineDash?: string; fillOpacity?: number; pattern?: string } {
-  if (symbolStyleIsEmpty(style)) return {}
-  const pattern = shape === 'area' ? areaPatternId(referenceAreaSymbol(key, style)) : null
+  /** The feature's latitude: Web Mercator stretches the ground by 1 / cos(latitude). */
+  latitude = 0,
+): {
+  lineWidth?: number
+  lineWidthM?: number
+  lineDash?: string
+  fillOpacity?: number
+  pattern?: string
+  lineMarker?: string
+  pointIcon?: string
+} {
+  if (!style || symbolStyleIsEmpty(style)) return {}
+  const defaults = referenceStyleDefaults(key, '', shape)
+  const pattern = shape === 'area' ? areaPatternId(styledAreaSymbol(defaults, style)) : null
+  const [marker] = shape === 'line' ? styleLineMarkers(defaults, style) : []
+  const fillOpacity = style.noFill ? 0 : style.opacity
   return {
-    ...(style?.width !== undefined ? { lineWidth: style.width * PX_PER_PT } : {}),
-    ...(style?.dash !== undefined ? { lineDash: style.dash } : {}),
-    ...(style?.opacity !== undefined ? { fillOpacity: style.opacity } : {}),
+    ...(style.width !== undefined ? { lineWidth: style.width * PX_PER_PT } : {}),
+    // Metres on the ground, already divided by the Mercator scale at this latitude.
+    ...(style.widthM !== undefined && shape !== 'point'
+      ? { lineWidthM: style.widthM / Math.cos((latitude * Math.PI) / 180) }
+      : {}),
+    ...(style.dash !== undefined ? { lineDash: referenceDashKey(style) } : {}),
+    ...(fillOpacity !== undefined ? { fillOpacity } : {}),
     ...(pattern ? { pattern } : {}),
+    ...(marker ? { lineMarker: lineMarkerId(marker) } : {}),
+    ...(shape === 'point' && (style.icon !== undefined || style.size !== undefined)
+      ? { pointIcon: pointSymbolId(styledPointSymbol(defaults, style)) }
+      : {}),
   }
 }
 
-const referenceAreaSymbol = (key: string, style: SymbolStyle | undefined) =>
-  styledAreaSymbol(referenceStyleDefaults(key, '', 'area'), style)
-
-/** The area symbols whose pattern tiles the plan needs, one per patterned layer that has an area. */
-export function referencePatternSymbols(
+/**
+ * The symbols whose images the plan needs: a patterned area's tile, a line's repeated mark and a
+ * point's shape, for each styled layer that has that shape.
+ */
+export function referenceStyleSymbols(
   features: readonly ReferenceFeature[],
   styles: readonly ReferenceLayerStyle[] | undefined,
-): AreaSymbol[] {
+): SheetSymbol[] {
   if (!styles?.length) return []
-  const keys = new Set(features.filter(({ geometry }) => geometry.type === 'Polygon').map(referenceLayerKey))
-  return styles.flatMap((style) => {
-    if (!keys.has(style.layer)) return []
-    const symbol = referenceAreaSymbol(style.layer, style)
-    return areaPatternId(symbol) ? [symbol] : []
-  })
+  const shapes = new Map<string, Set<ReferenceShape>>()
+  for (const feature of features) {
+    const key = referenceLayerKey(feature)
+    shapes.set(key, (shapes.get(key) ?? new Set()).add(referenceShape(feature)))
+  }
+  return styles.flatMap((style) =>
+    [...(shapes.get(style.layer) ?? [])].flatMap((shape) => {
+      const symbol = referenceLayerSymbol(style.layer, '', shape, style)
+      const needed =
+        symbol.kind === 'area'
+          ? areaPatternId(symbol) !== null
+          : symbol.kind === 'line'
+            ? !!symbol.markers?.length
+            : style.icon !== undefined || style.size !== undefined
+      return needed ? [symbol] : []
+    }),
+  )
 }
 
 /** Looks whose layer is gone, or that set nothing, are dropped: a removed layer leaves no look behind. */

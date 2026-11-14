@@ -2,7 +2,8 @@ import type { ExpressionSpecification, LayerSpecification } from 'maplibre-gl'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapImageLayer } from '@/components/ui/map-layers'
 import type { PlanLegendSection } from './planLegendModel'
-import { LINE_DASHES, LINE_DASH_UNITS } from '@/lib/mapSheet/symbolStyle'
+import { PX_PER_PT } from '@/lib/mapSheet/symbolRaster'
+import { LINE_DASH_PRESETS, LINE_DASH_UNITS, LINE_MARKER_SPACING } from '@/lib/mapSheet/symbolStyle'
 import {
   referenceGeoJson,
   referenceLayers,
@@ -41,23 +42,60 @@ export function referencePlanData(features: readonly ReferenceFeature[], styles?
     feature.properties = {
       ...feature.properties,
       ...(key || style?.color ? { layerColor: referenceLayerColor(key, styles) } : {}),
-      ...referenceStyleProperties(key, feature.properties?.shape as ReferenceShape, style),
+      ...referenceStyleProperties(
+        key,
+        feature.properties?.shape as ReferenceShape,
+        style,
+        firstLatitude(feature.geometry),
+      ),
     }
   }
   return data
 }
 
+/** The latitude of a geometry's first vertex: near enough for the Mercator scale across one feature. */
+function firstLatitude(geometry: GeoJSON.Geometry): number {
+  let at: unknown = 'coordinates' in geometry ? geometry.coordinates : []
+  while (Array.isArray(at) && Array.isArray(at[0])) at = at[0]
+  return Array.isArray(at) && typeof at[1] === 'number' ? at[1] : 0
+}
+
 const layerColor = (fallback: string): ExpressionSpecification => ['coalesce', ['get', 'layerColor'], fallback]
-/** A layer's own line width and fill opacity where the person set them, else the reference default. */
-export const REFERENCE_LINE_WIDTH: ExpressionSpecification = ['coalesce', ['get', 'lineWidth'], 1.75]
+/** A layer's own fill opacity where the person set it, else the reference default. */
 export const REFERENCE_FILL_OPACITY: ExpressionSpecification = ['coalesce', ['get', 'fillOpacity'], 0.13]
-/** GeoJSON properties cannot carry an array to the style, so the dash travels by name. */
-const REFERENCE_LINE_DASH = [
-  'match',
-  ['get', 'lineDash'],
-  ...LINE_DASHES.flatMap((dash) => [dash, ['literal', LINE_DASH_UNITS[dash] ?? [1, 0]]]),
-  ['literal', [4, 2.5]],
-] as unknown as ExpressionSpecification
+/** Web Mercator metres to a pixel at zoom 0, on MapLibre's 512 px world. */
+const MERCATOR_M_PER_PX_AT_ZOOM_0 = (2 * Math.PI * 6378137) / 512
+const MAX_ZOOM = 24
+/**
+ * A reference line's width in pixels: the width the person set, else 1.75 px; `extra` px wider
+ * for the casing; 1.75 px wider for the feature being located. A layer with a ground width is
+ * drawn to scale instead. MapLibre takes `zoom` only at the top of an expression, so both kinds
+ * share one exponential interpolation: base 2 between zoom 0 and 24 is exact for a width that
+ * doubles each zoom, and a pixel width is the same at both ends, so it stays constant.
+ */
+export function referenceLineWidth(extra = 0, focusedId?: string | null): ExpressionSpecification {
+  const pixels: ExpressionSpecification = ['coalesce', ['get', 'lineWidth'], 1.75]
+  const bonus: ExpressionSpecification = ['+', extra, ['case', ['==', ['get', 'id'], focusedId ?? ''], 1.75, 0]]
+  const at = (zoom: number): ExpressionSpecification => [
+    '+',
+    bonus,
+    ['case', ['has', 'lineWidthM'], ['*', ['get', 'lineWidthM'], 2 ** zoom / MERCATOR_M_PER_PX_AT_ZOOM_0], pixels],
+  ]
+  return ['interpolate', ['exponential', 2], ['zoom'], 0, at(0), MAX_ZOOM, at(MAX_ZOOM)]
+}
+/**
+ * GeoJSON properties cannot carry an array to the style, so the dash travels by name: a preset by
+ * its id, a custom dash by a key the project's styles map back to its lengths.
+ */
+export function referenceLineDash(custom: ReadonlyMap<string, readonly number[]> = new Map()) {
+  return [
+    'match',
+    ['get', 'lineDash'],
+    ...LINE_DASH_PRESETS.flatMap((dash) => [dash, ['literal', LINE_DASH_UNITS[dash] ?? [1, 0]]]),
+    ...[...custom].flatMap(([key, lengths]) => [key, ['literal', lengths]]),
+    ['literal', [4, 2.5]],
+  ] as unknown as ExpressionSpecification
+}
 const NOT_IMAGE_FRAME: ExpressionSpecification = ['!=', ['get', 'imageFrame'], true]
 
 export const REFERENCE_SOURCE = 'road-reference'
@@ -89,7 +127,7 @@ export const REFERENCE_LAYERS = [
     source: REFERENCE_SOURCE,
     filter: ['!=', ['geometry-type'], 'Point'],
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#ffffff', 'line-width': ['+', REFERENCE_LINE_WIDTH, 2.25], 'line-opacity': 0.75 },
+    paint: { 'line-color': '#ffffff', 'line-width': referenceLineWidth(2.25), 'line-opacity': 0.75 },
   },
   {
     id: 'road-reference-line',
@@ -99,21 +137,43 @@ export const REFERENCE_LAYERS = [
     layout: { 'line-join': 'round' },
     paint: {
       'line-color': layerColor(LINE_COLOR),
-      'line-width': REFERENCE_LINE_WIDTH,
-      'line-dasharray': REFERENCE_LINE_DASH,
+      'line-width': referenceLineWidth(),
+      'line-dasharray': referenceLineDash(),
+    },
+  },
+  {
+    // Arrows, ticks or dots repeated along a line; the image is in the layer's colour.
+    id: 'road-reference-marker',
+    type: 'symbol',
+    source: REFERENCE_SOURCE,
+    filter: ['has', 'lineMarker'],
+    layout: {
+      'symbol-placement': 'line',
+      'symbol-spacing': LINE_MARKER_SPACING * PX_PER_PT,
+      'icon-image': ['get', 'lineMarker'],
+      'icon-rotation-alignment': 'map',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
     },
   },
   {
     id: 'road-reference-point',
     type: 'circle',
     source: REFERENCE_SOURCE,
-    filter: ['==', ['geometry-type'], 'Point'],
+    filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'pointIcon']]],
     paint: {
       'circle-radius': 6,
       'circle-color': layerColor(POINT_COLOR),
       'circle-stroke-color': '#0f172a',
       'circle-stroke-width': 2,
     },
+  },
+  {
+    id: 'road-reference-icon',
+    type: 'symbol',
+    source: REFERENCE_SOURCE,
+    filter: ['all', ['==', ['geometry-type'], 'Point'], ['has', 'pointIcon']],
+    layout: { 'icon-image': ['get', 'pointIcon'], 'icon-allow-overlap': true, 'icon-ignore-placement': true },
   },
 ] satisfies readonly LayerSpecification[]
 /** Linework and area layers, drawn under the plan's context; the point layer is drawn under the road. */
@@ -122,8 +182,11 @@ export const REFERENCE_LINEWORK_LAYER_IDS = [
   'road-reference-pattern',
   'road-reference-casing',
   'road-reference-line',
+  'road-reference-marker',
 ]
 export const REFERENCE_POINT_LAYER_ID = 'road-reference-point'
+/** A point layer given a shape or a size draws as its icon instead of the ringed dot. */
+export const REFERENCE_ICON_LAYER_ID = 'road-reference-icon'
 /** The legend section for the reference features on the plan; empty when there are none. */
 export function referenceLegend(
   features: readonly ReferenceFeature[],
@@ -142,7 +205,9 @@ export function referenceLegend(
           shape === 'line' ? ('dashed-line' as const) : shape === 'point' ? ('circle' as const) : ('area' as const),
         dash: [4, 2.5] as [number, number],
         // A restyled layer's key is its own symbol, so a hatch or a solid line reads as one.
-        ...(style && shape !== 'point' ? { sheetSymbol: referenceLayerSymbol(key, label, shape, style) } : {}),
+        ...(style && (shape !== 'point' || style.icon !== undefined || style.size !== undefined)
+          ? { sheetSymbol: referenceLayerSymbol(key, label, shape, style) }
+          : {}),
       }
     })
   })

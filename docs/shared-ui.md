@@ -793,9 +793,28 @@ are never pickable.
   choice among swatches drawn by the sheet's own renderer, so a hatch reads as a hatch and a dash
   as a dash. Each takes `symbolFor(option)`, which must return the symbol the map draws for that
   option, so the picker cannot show a look the map does not.
-- **`SymbolStyleEditor`** is the whole look of a layer (colour, opacity and pattern for an area,
-  line style and width), and **`SymbolField`** is the same behind a button that is the layer's
-  own symbol, for a list row.
+- **`SymbolStyleEditor`** is the whole look of a layer, and **`SymbolField`** is the same behind
+  a button that is the layer's own symbol, for a list row. What it offers follows the shape:
+  - a point: colour, a shape from our own icon set (`POINT_ICONS`) and a size;
+  - a line: colour, a line style or a typed dash (*Custom*: lengths in line widths; a dash a line
+    cannot draw stays in the box, flagged), a width, and marks along the line (arrows, ticks, dots);
+  - an area: all of a line's outline settings, a pattern, a pattern colour of its own, a fill
+    opacity (the colour picker's rail) and *Outline only*.
+  - `groundWidth` adds a width in metres for a host whose map draws lines to scale.
+  - *Copy look* and *Paste look* move a look between layers (in memory, this page only); a paste
+    keeps what the target's shape can show (`symbolStyleForShape`).
+  - *Load QGIS style…* reads a `.qml` file (`qmlStyle.ts`): the first symbol's first layer, with a
+    note for everything it could not carry over. It never guesses silently.
+- **`RampField`** (`src/components/ui/ramp-field.tsx`, from the toolkit) picks a colour ramp from a
+  list that shows each as its gradient, grouped (low to high, either side of a middle, detail with
+  no order), with an optional reverse button. The ramps are the toolkit's `COLOR_RAMPS`
+  (`scales/colorRamps`), read from d3's schemes; ids are saved in styles. `/dev/data` is the
+  reference use (`RAMP_OPTIONS` in `layerStyle.ts`, which keeps its original five ramps' colours).
+- Classing a number column: `resolvePaletteScale` takes `quantile`, `equal-interval`,
+  `natural-breaks` (Fisher–Jenks on every observation, thinned past 2,000), `standard-deviation`
+  and `geometric-interval` (equal intervals stand in where the range reaches zero). All return
+  interior boundaries; a value on a boundary is in the class above. Natural breaks alone may end
+  on the maximum, when the top value is a class of its own.
 - The model is `src/lib/mapSheet/symbolStyle.ts` (no DOM or network access): `SymbolStyle` holds
   only what the person set, `SymbolStyleDefaults` is the layer's look until then, and
   `styledLineSymbol` / `styledAreaSymbol` return an ordinary `SheetSymbol`. Draw it through
@@ -803,7 +822,13 @@ are never pickable.
   legend, as for any other sheet symbol. Read a saved style with `parseSymbolStyle`. The pattern
   and line-style ids are stored in project files: rename a label, never an id.
 - GeoJSON properties cannot carry an array to a MapLibre style, so a data-driven dash travels by
-  name and the layer `match`es it to a `line-dasharray` (`ReferenceLayer.tsx`).
+  name and the layer `match`es it to a `line-dasharray`; a custom dash travels by a key the
+  project's looks map back to its lengths (`referenceLineDash`, `ReferenceLayer.tsx`).
+- A ground width is one exponential base-2 zoom interpolation (`referenceLineWidth`): exact for a
+  width that doubles each zoom, and MapLibre takes `zoom` only at the top of an expression, so a
+  pixel width shares it by being the same at both ends. Divide the metres by cos(latitude) first:
+  Web Mercator stretches the ground 1.7× at Prince George, and an equator-referenced width draws
+  a 12 m road as 7 m.
 - E2E specs pick a colour with `pickColor` (`tests/e2e/color-field.ts`): `fill` on the labelled
   control does not apply to a swatch button. The swatch carries the colour in `data-color-value`.
 - The reference uses are the road designer's Layers pane: a reference layer's look

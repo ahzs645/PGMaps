@@ -219,6 +219,7 @@ export function ReferencePanel({
                   onChange={(style) => onLayerStyleChange(key, style)}
                   label={`Look of layer ${name}`}
                   colorPresets={REFERENCE_COLOR_PRESETS}
+                  groundWidth
                   disabled={disabled}
                   className="mr-0.5 self-center"
                 />
