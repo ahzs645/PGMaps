@@ -44,6 +44,11 @@ export type LayerStyle =
       ramp: RampId
       /** The ramp runs high to low. */
       reverse?: boolean
+      /**
+       * The anchors of a ramp the person made, kept with the style so it draws where that ramp is
+       * not saved. Absent for a built-in ramp, whose colours come from its id.
+       */
+      rampColors?: string[]
       /** Interior class boundaries; a value equal to a break falls in the upper class. */
       breaks: number[]
       colors: string[]
@@ -172,12 +177,21 @@ export function buildRangeStyle(
     classification = 'quantile',
     ramp = DEFAULT_RAMP,
     reverse = false,
-  }: { classes?: number; classification?: StyleClassification; ramp?: RampId; reverse?: boolean } = {},
+    rampColors: ownColors,
+  }: {
+    classes?: number
+    classification?: StyleClassification
+    ramp?: RampId
+    reverse?: boolean
+    /** A custom ramp's anchors; they outrank the id. */
+    rampColors?: readonly string[]
+  } = {},
 ): LayerStyle | null {
   const input = classify(values, classes, classification)
   if (!input) return null
+  const custom = ownColors && ownColors.length >= 2 ? [...ownColors] : undefined
   const scale = resolvePaletteScale({
-    colors: rampColors(ramp),
+    colors: custom ?? rampColors(ramp),
     reverse,
     interpolation: 'lab',
     domain: [input.min, input.max],
@@ -192,6 +206,7 @@ export function buildRangeStyle(
     classification,
     ramp,
     ...(reverse ? { reverse } : {}),
+    ...(custom ? { rampColors: custom } : {}),
     breaks: scale.breaks,
     colors: scale.colors.map(toHex),
     min: input.min,

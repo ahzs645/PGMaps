@@ -138,4 +138,20 @@ describe('classLabels', () => {
     // The step expression takes whatever classes came back.
     expect(JSON.stringify(colorExpression(natural))).toContain(`,20,"${natural.colors[1]}",90,"${natural.colors[2]}"`)
   })
+
+  it('draws a ramp of the person’s own from the colours kept with the style', () => {
+    const values = [1, 2, 3, 4, 5, 6]
+    const own = buildRangeStyle('n', values, { classes: 3, ramp: 'custom:Dusk', rampColors: ['#000000', '#ffffff'] })
+    if (own?.type !== 'range') throw Error('expected a range style')
+    expect(own.ramp).toBe('custom:Dusk')
+    expect(own.rampColors).toEqual(['#000000', '#ffffff'])
+    expect(own.colors[0]).toBe('#000000')
+    expect(own.colors[2]).toBe('#ffffff')
+    // Without its colours, an id this browser does not know falls back to the default ramp.
+    const lost = buildRangeStyle('n', values, { classes: 3, ramp: 'custom:Dusk' })
+    expect(lost).not.toHaveProperty('rampColors')
+    expect(lost?.type === 'range' && lost.colors).toEqual(
+      (buildRangeStyle('n', values, { classes: 3 }) as { colors: string[] }).colors,
+    )
+  })
 })

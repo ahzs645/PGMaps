@@ -3,6 +3,9 @@ import { useMemo, useState } from 'react'
 import { ExternalLink, SelectAllActions } from '@/components/ui/text-button'
 import { ColorField } from '@/components/ui/color-field'
 import { RampField } from '@/components/ui/ramp-field'
+import { customRampStore } from '@/lib/customRamps'
+import { isCustomRampId } from '@pgmaps/geo-toolkit/scales/customRamps'
+import { useCustomRamps } from '@pgmaps/geo-toolkit/ui/custom-ramps'
 import { FilterChipGroup, InlineAlert, KeyValueRows, SidebarSection } from '@/components/ui/map-panels'
 import { LayerSwatch } from '@/components/ui/layer-list-item'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -62,6 +65,7 @@ const rangeOptions = (style: Extract<LayerStyle, { type: 'range' }>) => ({
   classification: style.classification,
   ramp: style.ramp,
   reverse: style.reverse ?? false,
+  rampColors: style.rampColors,
 })
 
 /**
@@ -182,6 +186,7 @@ function StyleEditor({
 }) {
   const features = loaded.collection.features
   const attributes = loaded.attributes
+  const customRamps = useCustomRamps(customRampStore)
   const categoryColumns = useMemo(
     () => attributes.filter((attribute) => isCategoryCandidate(attribute, columnStats(features, attribute, 1))),
     [attributes, features],
@@ -196,7 +201,13 @@ function StyleEditor({
   const categoriesFor = (column: string) => buildCategoriesStyle(column, columnStats(features, attributeFor(column)))
   const rangeFor = (
     column: string,
-    options: { classes?: number; classification?: StyleClassification; ramp?: RampId; reverse?: boolean } = {},
+    options: {
+      classes?: number
+      classification?: StyleClassification
+      ramp?: RampId
+      reverse?: boolean
+      rampColors?: readonly string[]
+    } = {},
   ) => buildRangeStyle(column, columnNumbers(features, attributeFor(column)), options)
   const sizeFor = (
     column: string,
@@ -300,7 +311,17 @@ function StyleEditor({
                 value={style.ramp}
                 ramps={RAMP_OPTIONS}
                 reverse={style.reverse ?? false}
-                onChange={(ramp) => setStyle(rangeFor(style.column, { ...rangeOptions(style), ramp }))}
+                custom={{ ramps: customRamps, onSave: customRampStore.save, onDelete: customRampStore.remove }}
+                onChange={(ramp, colors) =>
+                  setStyle(
+                    rangeFor(style.column, {
+                      ...rangeOptions(style),
+                      ramp,
+                      // A ramp of the person's own travels with the style as its colours.
+                      rampColors: isCustomRampId(ramp) ? colors : undefined,
+                    }),
+                  )
+                }
                 onReverseChange={(reverse) => setStyle(rangeFor(style.column, { ...rangeOptions(style), reverse }))}
               />
             </div>

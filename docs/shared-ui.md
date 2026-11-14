@@ -807,7 +807,17 @@ are never pickable.
     note for everything it could not carry over. It never guesses silently.
 - **`RampField`** (`src/components/ui/ramp-field.tsx`, from the toolkit) picks a colour ramp from a
   list that shows each as its gradient, grouped (low to high, either side of a middle, detail with
-  no order), with an optional reverse button. The ramps are the toolkit's `COLOR_RAMPS`
+  no order). The list's footer holds *Reverse* and, with `custom`, *+ New gradient*: the list
+  gives way to an editor with a name, the gradient's colour stops on a bar (click the bar to add
+  one, drag a stop to move it, drag it away or press Delete to remove it, and pick the selected
+  stop's colour in the picker below), a preview of the ramp as the map uses it, and the colours as
+  hex codes to type or paste. A saved gradient is listed under *Yours* with a pencil to change or
+  delete it; Escape leaves the editor before it closes the list. Pass
+  `custom={{ ramps, onSave, onDelete }}` from the app's one store (`customRampStore`,
+  `src/lib/customRamps.ts`, kept in this browser) so every ramp picker offers the same gradients.
+  `onChange(id, colors)` hands back a custom ramp's anchors: keep them with the style (`rampColors`
+  on a classed colour style), so it draws in a browser that has never seen the ramp.
+  `GradientStopsEditor` is the stop bar on its own. The ramps are the toolkit's `COLOR_RAMPS`
   (`scales/colorRamps`), read from d3's schemes; ids are saved in styles. `/dev/data` is the
   reference use (`RAMP_OPTIONS` in `layerStyle.ts`, which keeps its original five ramps' colours).
 - Classing a number column: `resolvePaletteScale` takes `quantile`, `equal-interval`,
