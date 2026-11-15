@@ -730,6 +730,61 @@ describe('assessReadiness: limits and states', () => {
   })
 })
 
+describe('assessReadiness: minimum vertical curve and tangent lengths', () => {
+  // Curves of 40 m at 120 m and 60 m at 260 m: a tangent of 90 m between them.
+  const twoCurves = (minCurveLengthM: number | null, minTangentLengthM: number | null) =>
+    road({
+      vertical: [
+        { id: 'v0', chainage: 0, elevation: 800, curveLength: 0 },
+        { id: 'v1', chainage: 120, elevation: 809.6, curveLength: 40 },
+        { id: 'v2', chainage: 260, elevation: 812.4, curveLength: 60 },
+        { id: 'v3', chainage: 396, elevation: 806, curveLength: 0 },
+      ],
+      verticalStandards: { gradeRanges: [], minSagK: null, minCrestK: null, minCurveLengthM, minTangentLengthM },
+    })
+
+  it('is not assessed until a minimum is entered, and quotes what it would judge', () => {
+    const { row } = assess({ alignment: twoCurves(null, null) })
+    expect(row('vertical-lengths')).toMatchObject({
+      state: 'not-assessed',
+      result: 'No minimum curve or tangent length is entered, so lengths are not checked',
+      measured: 'Shortest curve 40 m at 0+120.0 · shortest tangent between curves 90 m at 0+140.0',
+      action: { label: 'Set minimum lengths', target: 'vertical-standards' },
+    })
+    expect(assess({ alignment: road({ vertical: [] }) }).row('vertical-lengths')).toMatchObject({
+      state: 'not-assessed',
+      result: 'No designed profile to check',
+    })
+  })
+
+  it('is met when every curve and tangent between curves is long enough', () => {
+    const { row } = assess({ alignment: twoCurves(40, 90) })
+    expect(row('vertical-lengths')).toMatchObject({
+      state: 'met',
+      result: 'Every curve and tangent between curves is at least its minimum length',
+      judgedOn: 'Minimum curve 40 m, tangent 90 m, measured along the road',
+    })
+    // The K row does not carry the lengths any more.
+    expect(row('vertical-k').state).toBe('not-assessed')
+  })
+
+  it('names each short curve and tangent, and goes to the first', () => {
+    const { row } = assess({ alignment: twoCurves(50, 100) })
+    expect(row('vertical-lengths')).toMatchObject({
+      state: 'attention',
+      severity: 'limit',
+      result: '1 curve shorter than 50 m; 1 tangent shorter than 100 m',
+      measured: 'Vertical curve 40 m shorter than 50 m at 0+120.0',
+      action: { target: 'profile', chainage: 120 },
+    })
+    expect(assess({ alignment: twoCurves(null, 100) }).row('vertical-lengths')).toMatchObject({
+      state: 'attention',
+      result: '1 tangent shorter than 100 m',
+      measured: 'Tangent 90 m shorter than 100 m between 0+140.0 and 0+230.0',
+    })
+  })
+})
+
 describe('assessReadiness: vertical curves the engine did not apply', () => {
   // PVIs 20 m apart, each with a 60 m curve. Neither fits, so the road keeps two unrounded breaks.
   const crowded = (patch: Partial<Alignment> = {}) =>

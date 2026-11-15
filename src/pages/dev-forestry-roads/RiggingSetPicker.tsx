@@ -10,17 +10,24 @@ import {
   renameRiggingSet,
   riggingSetNameError,
   riggingSetNamed,
+  riggingSetProvenance,
   saveRiggingSet,
   type RiggingSet,
   type RiggingSetLimits,
 } from './dline/riggingSets'
+import { RiggingEquipmentDialog } from './RiggingEquipmentDialog'
 
 const EDITED = ''
+/** A spar height within this of the yarder height is taken as already in use, m. */
+const SPAR_HEIGHT_MATCH_M = 0.05
+const sparFormat = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 1 })
 
 /**
  * The project's named rigging sets beside one rigging: choose a set to apply it, save the rigging
- * shown as a set (a set of the same name is updated), rename or delete the chosen set. Shared by
- * D-lines and the extraction reach's cable yarder.
+ * shown as a set (a set of the same name is updated), rename or delete the chosen set, or start one
+ * from SkylineXL's equipment library. A set made from equipment prints where its values came from,
+ * and on a D-line offers the yarder's spar height. Shared by D-lines and the extraction reach's
+ * cable yarder.
  */
 export function RiggingSetPicker({
   sets,
@@ -30,6 +37,7 @@ export function RiggingSetPicker({
   onSetsChange,
   ignoreTensionMode = false,
   newId = () => crypto.randomUUID(),
+  yarderHeight,
 }: {
   sets: readonly RiggingSet[]
   rigging: CableRigging
@@ -40,6 +48,11 @@ export function RiggingSetPicker({
   /** Block coverage always tensions to the allowable, so a set matches whatever its tension mode. */
   ignoreTensionMode?: boolean
   newId?: () => string
+  /**
+   * A D-line's yarder height: with it, a set made from equipment offers the machine's spar height
+   * to use instead.
+   */
+  yarderHeight?: { valueM: number; onUse: (heightM: number) => void }
 }) {
   const matched = matchingRiggingSet(sets, rigging, { ignoreTensionMode })
   const [chosenId, setChosenId] = useState<string | null>(null)
@@ -69,8 +82,14 @@ export function RiggingSetPicker({
     }
   }
   const updating = editing?.mode === 'save' && !!riggingSetNamed(sets, editing.name)
+  const [fromEquipment, setFromEquipment] = useState(false)
+  const [anchor, setAnchor] = useState<HTMLDivElement | null>(null)
+  const provenance = matched ? riggingSetProvenance(matched) : null
+  const spar = matched?.equipment?.sparHeightM
+  const offerSpar =
+    yarderHeight && spar !== undefined && spar > 0 && Math.abs(spar - yarderHeight.valueM) > SPAR_HEIGHT_MATCH_M
   return (
-    <div className="space-y-1" data-testid="rigging-set-picker">
+    <div className="space-y-1" data-testid="rigging-set-picker" ref={setAnchor}>
       <div className="flex items-end gap-1">
         <div className="min-w-0 flex-1">
           <Field
@@ -175,9 +194,45 @@ export function RiggingSetPicker({
         <InfoTip label="About rigging sets">
           A set holds the rope, carriage, load and load clearance{limits ? ', and the saddle-angle limits' : ''}. Sets
           are kept in the project file and shared by every D-line and the extraction reach&apos;s cable yarder. They are
-          your own entries, not equipment ratings.
+          your own entries, not equipment ratings. A set started from equipment takes its rope, carriage and running
+          lines from SkylineXL&apos;s public-domain library or a RoadEng logging system, and its note says which.
         </InfoTip>
       </p>
+      {provenance && (
+        <p className="text-2xs text-muted-foreground" data-testid="rigging-set-provenance">
+          {provenance}
+        </p>
+      )}
+      {offerSpar && (
+        <div className="flex items-center gap-1 text-2xs text-muted-foreground" data-testid="rigging-set-spar-height">
+          <span className="min-w-0 flex-1">
+            {matched!.equipment!.equipmentName} spar height {sparFormat.format(spar!)} m; yarder{' '}
+            {sparFormat.format(yarderHeight!.valueM)} m
+          </span>
+          <Button variant="ghost" size="2xs" className="px-1.5" onClick={() => yarderHeight!.onUse(spar!)}>
+            Use as yarder height
+          </Button>
+        </div>
+      )}
+      <Button variant="ghost" size="2xs" className="px-1.5" onClick={() => setFromEquipment(true)}>
+        Start from equipment…
+      </Button>
+      {fromEquipment && (
+        <RiggingEquipmentDialog
+          sets={sets}
+          newId={newId}
+          portalContainer={anchor?.closest<HTMLElement>('.road-workspace')}
+          onCancel={() => setFromEquipment(false)}
+          onSave={(next, saved, apply) => {
+            onSetsChange(next)
+            if (apply) {
+              setChosenId(saved.id)
+              onApply(saved)
+            }
+            setFromEquipment(false)
+          }}
+        />
+      )}
     </div>
   )
 }

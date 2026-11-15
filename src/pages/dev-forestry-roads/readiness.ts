@@ -47,6 +47,7 @@ import type {
   RoadTemplate,
   TerrainMetadata,
 } from './types'
+import type { VerticalCurveInfo } from './verticalStandards'
 import { bestSlopeSheetCheck, SLOPE_SHEET_CHECK, slopeSheets, type SlopeSheetCheck } from './slopeSheetCheck'
 
 export type ReadinessState = 'met' | 'attention' | 'not-assessed'
@@ -265,6 +266,84 @@ const COST_FLAG_OWNERS: Record<string, string> = {
   'excluded-culverts': 'structure-costs',
   // A standing reminder of what no estimate here covers; the report prints it in full.
   'project-scope': 'none',
+}
+
+/**
+ * Vertical curves and the tangents between them no shorter than the road's minimum lengths
+ * (`VerticalStandards.minCurveLengthM`, `minTangentLengthM`). Not assessed until one is entered. The
+ * tangents judged are those between two curves: the first and last run to the road's ends.
+ */
+function verticalLengthsRow(
+  alignment: Alignment,
+  analysis: Pick<RoadAnalysis, 'verticalChecks'>,
+  curves: readonly VerticalCurveInfo[] | null,
+  noProfile: string,
+): ReadinessRow {
+  const standards = alignment.verticalStandards
+  const minCurve = standards?.minCurveLengthM ?? null,
+    minTangent = standards?.minTangentLengthM ?? null
+  const base = {
+    id: 'vertical-lengths',
+    group: 'alignment' as const,
+    check: 'Vertical curves and tangents at least their minimum lengths',
+  }
+  const judgedOn = `Minimum curve ${minCurve === null ? 'not set' : `${trim(minCurve)} m`}, tangent ${minTangent === null ? 'not set' : `${trim(minTangent)} m`}, measured along the road`
+  if (!curves) return { ...base, state: 'not-assessed', result: noProfile }
+  const applied = curves.filter((c) => c.valid && c.length > 0).sort((a, b) => a.chainage - b.chainage)
+  const shortestCurve = applied.reduce<VerticalCurveInfo | null>((x, c) => (!x || c.length < x.length ? c : x), null)
+  let shortestTangent: { start: number; end: number } | null = null
+  for (let k = 1; k < applied.length; k++) {
+    const t = { start: applied[k - 1].end, end: applied[k].start }
+    if (!shortestTangent || t.end - t.start < shortestTangent.end - shortestTangent.start) shortestTangent = t
+  }
+  const measured =
+    [
+      shortestCurve ? `Shortest curve ${trim(shortestCurve.length)} m at ${station(shortestCurve.chainage)}` : '',
+      shortestTangent
+        ? `shortest tangent between curves ${trim(Math.max(0, shortestTangent.end - shortestTangent.start))} m at ${station(shortestTangent.start)}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' · ') || (applied.length ? undefined : 'No vertical curve is applied')
+  if (minCurve === null && minTangent === null)
+    return {
+      ...base,
+      state: 'not-assessed',
+      result: 'No minimum curve or tangent length is entered, so lengths are not checked',
+      ...(measured ? { measured } : {}),
+      judgedOn,
+      action: { label: 'Set minimum lengths', target: 'vertical-standards' },
+    }
+  const failures = (analysis.verticalChecks ?? []).filter(
+    (check) => check.kind === 'curve-length' || check.kind === 'tangent',
+  )
+  if (failures.length) {
+    const curvesShort = failures.filter((f) => f.kind === 'curve-length').length,
+      tangentsShort = failures.length - curvesShort
+    return {
+      ...base,
+      state: 'attention',
+      severity: 'limit',
+      result: [
+        curvesShort ? `${plural(curvesShort, 'curve')} shorter than ${trim(minCurve ?? 0)} m` : '',
+        tangentsShort ? `${plural(tangentsShort, 'tangent')} shorter than ${trim(minTangent ?? 0)} m` : '',
+      ]
+        .filter(Boolean)
+        .join('; '),
+      measured: failures[0].message,
+      judgedOn,
+      action: { label: `Go to ${station(failures[0].chainage)}`, target: 'profile', chainage: failures[0].chainage },
+    }
+  }
+  return {
+    ...base,
+    state: 'met',
+    result: applied.length
+      ? `Every ${[minCurve !== null ? 'curve' : '', minTangent !== null ? 'tangent between curves' : ''].filter(Boolean).join(' and ')} is at least its minimum length`
+      : 'No vertical curve is applied, so there is no curve or tangent between curves to measure',
+    ...(measured ? { measured } : {}),
+    judgedOn,
+  }
 }
 
 export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
@@ -839,11 +918,9 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
     !!vertical &&
     (vertical.minSagK !== null ||
       vertical.minCrestK !== null ||
-      vertical.minCurveLengthM !== null ||
       !!vertical.curvatureRanges?.some((range) => range.minSagK !== null || range.minCrestK !== null))
-  const kFailures = (analysis.verticalChecks ?? []).filter(
-    (check) => check.kind === 'k' || check.kind === 'curve-length' || check.kind === 'tangent',
-  )
+  // Curve and tangent lengths are a row of their own (`vertical-lengths`).
+  const kFailures = (analysis.verticalChecks ?? []).filter((check) => check.kind === 'k')
   // K is quoted for applied curves only: a dropped curve has no K to report.
   const smallestK = breaks
     .filter((item) => item.k > 0)
@@ -899,6 +976,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       measured: kMeasured,
       judgedOn: kLimit,
     })
+
+  add(verticalLengthsRow(alignment, analysis, profileRead ? curveSummary! : null, noProfile))
 
   add(sightDistanceRow(input, calculated))
   const turnouts = mapped ? null : turnoutSightRow(input, calculated)

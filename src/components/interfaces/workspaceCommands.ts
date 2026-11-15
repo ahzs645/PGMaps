@@ -1,5 +1,12 @@
 import { EXPORT_ITEMS, type RoadExport } from '@/pages/dev-forestry-roads/exportCatalog'
 import {
+  FileArchive,
+  FileChartLine,
+  FileDiff,
+  FileDigit,
+  Forklift,
+  Milestone,
+  SquareSigma,
   ReceiptText,
   ZoomIn,
   ZoomOut,
@@ -177,6 +184,12 @@ const additionalExportIcons: Partial<Record<RoadExport, LucideIcon>> = {
   'estimate-pdf': ReceiptText,
   'terrain-landxml': FileImage,
   'terrain-ascii': Grid3X3,
+  'mass-haul-csv': FileChartLine,
+  'optimal-haul-csv': Forklift,
+  'optimal-areas-csv': SquareSigma,
+  'optimal-inputs': FileArchive,
+  'softree-location-ascii': Milestone,
+  'softree-terrain-ascii': FileDigit,
   'streams-csv': WavesArrowDown,
   'provincial-evidence': Files,
   notes: NotebookPen,
@@ -343,6 +356,12 @@ export const workspaceCommands = {
   section: { label: 'Road template', icon: RulerDimensionLine, kind: 'editor', editor: 'template' },
   review: { label: 'Design checks', icon: ClipboardCheck, kind: 'editor', editor: 'review' },
   compare: { label: 'Compare roads', icon: Table2 },
+  compareRoadEng: {
+    label: 'Compare with RoadEng…',
+    icon: FileDiff,
+    description:
+      "Read a RoadEng Mass Haul or Optimal Haul export, or a Softree Optimal Areas file, and set it beside the active road's own results. Nothing is written to the project.",
+  },
   profile: { label: 'Road profile', icon: ChartSpline },
   chooseInterface: { label: 'Switch interface', icon: LayoutTemplate, kind: 'pane', investigation: true },
 } satisfies Record<string, CommandDef>

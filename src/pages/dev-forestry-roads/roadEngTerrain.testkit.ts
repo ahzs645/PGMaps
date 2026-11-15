@@ -76,12 +76,18 @@ export function buildTer({
   codes = ['Sml Stream', 'Road CL', 'Landing'],
   attributes = [],
   version = 12,
+  section8 = new Array(1248).fill(0),
+  tail = new Array(24).fill(0),
 }: {
   features: SynthFeature[]
   tin?: SynthTin
   codes?: string[]
   attributes?: number[]
   version?: number
+  /** Section 8, the logging systems: 1,248 zero bytes unless given. */
+  section8?: Uint8Array | number[]
+  /** The tail after section 8 (the map-notes block): 24 zero bytes unless given. */
+  tail?: Uint8Array | number[]
 }): Uint8Array {
   const all = features.flatMap((f) => f.points)
   const s0 = new Writer()
@@ -147,13 +153,13 @@ export function buildTer({
       s7.raw(new Array(16).fill(0xff))
     }
   }
-  const s8 = new Array(1248).fill(0)
+  const s8 = [...section8]
   const sections = [s0.bytes, s1.bytes, s2.bytes, s3, s4.bytes, s5.bytes, s6.bytes, s7.bytes, s8]
   const out = new Writer()
   out.u16(version)
   for (const s of sections) out.u32(s.length)
   for (const s of sections) out.raw(s)
-  out.raw(new Array(24).fill(0))
+  out.raw(tail)
   return new Uint8Array(out.bytes)
 }
 

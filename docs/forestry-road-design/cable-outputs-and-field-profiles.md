@@ -23,6 +23,9 @@ cable-layout worker when no result is current, and renders the sheet with jsPDF.
   rigging, and **Field-measured ground** under the intermediate supports (on every D-line).
 - **Design → Extraction reach → Cable yarder:** after a run, click a line's number in **Suggested
   lines** to open it as a profile, then **Use as D-line**. **Rigging set** sits under _Rope and load_.
+- **Start from equipment…** under either **Rigging set** picker: a yarder, a carriage (or its mass)
+  and a skyline from SkylineXL's equipment library, saved as a set (**Save set**) or saved and used
+  (**Save and use**).
 
 ## Before you rely on it
 
@@ -52,6 +55,29 @@ cable-layout worker when no result is current, and renders the sheet with jsPDF.
 - **Rigging sets are your entries.** A set is a name for a rope, carriage, load and clearance (and,
   saved from a D-line with support settings, its saddle-angle limits). Nothing checks it against a
   machine rating, and the sheet prints its name only where the D-line's rigging is exactly the set's.
+- **A set started from equipment says where its values came from.** **Start from equipment…** reads
+  the USDA Forest Service's SkylineXL 25.0 library (public domain, database updated 2024-11-01;
+  `cableEquipment/skylineXl.generated.json`, built by `npm run cable-equipment:build -- <xlsm>` from
+  `scripts/forestry/cable-equipment/build-library.mjs`): 25 yarders (21 machines and 4 class
+  averages), 23 carriages and 24 wire ropes. The skyline's diameter, mass and breaking strength come
+  from the rope table at SkylineXL's safety factor of 3, the running lines are the yarder's mainline
+  plus haulback, and the carriage mass is the carriage's (or the mass you enter). SkylineXL gives no
+  payload, load clearance, metallic fill factor or elastic modulus: type them in the form, or each
+  keeps PGMaps' example value and the form says _Not in SkylineXL: example value_. SkylineXL's own
+  checks (skyline and mainline inside the carriage's diameter range, the drums the carriage needs)
+  and a class average are shown as warnings; the set is still made. A running-skyline yarder has no
+  standing skyline, so the form needs a rope from the table. A set read from a RoadEng logging system
+  (see [Exports and project files](exports-and-project-files.md)) carries the system's values the
+  same way: its breaking force is the maximum working tension × 3, and its diameter is read from the
+  skyline's weight as an EIPS rope's. Either way the set keeps the equipment record beside it
+  (`RiggingSet.equipment`): the spar height, each line's tension, weight and length, and RoadEng's
+  system name and configuration. The picker prints the record's provenance line under a set in use,
+  the D-line report and sheet print it under the rigging, and on a D-line the picker offers the
+  machine's spar height as the yarder height (**Use as yarder height**). Saving the set again under
+  its name after an edit keeps the record; the provenance line then ends "Changed in this project
+  since: …", naming the values that no longer match it (`equipmentRiggingEdits`). Renaming keeps the
+  record, and a set from RoadEng takes the new name as its system's. Matching a D-line's rigging to a
+  set ignores the record.
 - **Field shots replace the terrain only where they are.** Between two shots the ground is a
   straight line; before the first and after the last shot, and more than 2 m off the line, the
   terrain is read as before, and the section says which stations the shots cover. Shots are
@@ -62,9 +88,9 @@ cable-layout worker when no result is current, and renders the sheet with jsPDF.
 | Output               | Added                                                                                                                                                                                                                                                                                                                                                              | Only when                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
 | D-line CSV           | After every existing column (and the rope-mechanics columns): `rigging_set`; `support_layout` (found or edited), `support_layout_source`, `_status`, `_pre_tension_kn`, `intermediate_supports`, `supports_station_height_m`; the layout's load path, empty skyline and load clearance per sample; `ground_source`, `terrain_elevation_m`, `field_minus_terrain_m` | the line uses a set / has a layout / a current result / field shots in use |
-| D-line report (HTML) | After the sample schedule: rigging set, intermediate supports (forces and angles from a current result), support stake-out, field-measured ground with each shot's difference to the terrain                                                                                                                                                                       | as above                                                                   |
+| D-line report (HTML) | After the sample schedule: rigging set (with its equipment provenance line, for a set made from equipment), intermediate supports (forces and angles from a current result), support stake-out, field-measured ground with each shot's difference to the terrain                                                                                                   | as above                                                                   |
 | Stake-out CSV        | One row per support and anchor: point, label, station, offset 0, easting, northing, EPSG, longitude, latitude, ground, support height, saddle elevation, layout source, layout (found or edited), support name, support category                                                                                                                                   | the line has a saved layout or an open edit                                |
-| D-line sheet         | Header and issue stamp; profile from the yarder (field ground and the terrain dashed); plan strip with contours, north arrow and scale bar; supports and stake-out; forces and angles; limits in three states; rigging; assumptions                                                                                                                                | the D-line's own inputs are valid                                          |
+| D-line sheet         | Header and issue stamp; profile from the yarder (field ground and the terrain dashed); plan strip with contours, north arrow and scale bar; supports and stake-out; forces and angles; limits in three states; rigging (with a set's provenance line); assumptions                                                                                                 | the D-line's own inputs are valid                                          |
 
 A D-line without supports, a rigging set or field shots exports exactly as before (a unit test pins
 it). The sheet's rule in `INVALID_INPUT_RULES` is `unaffected`: no road input reaches a D-line. The
@@ -73,21 +99,24 @@ as they disable **Supports CSV**.
 
 ## Limits and budgets
 
-| Limit                    | Value                                                                   | Enforced in                                                                       | When exceeded                                  |
-| ------------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------- |
-| Rigging sets per project | 50                                                                      | `dline/riggingSets.ts` `MAX_RIGGING_SETS`, `parseRiggingSets`                     | Save refused; project file refused             |
-| Rigging set name         | 1–80 characters, unique ignoring case and spacing                       | `dline/riggingSets.ts` `MAX_RIGGING_SET_NAME`, `riggingSetNameError`              | Rename refused; saving under a name updates it |
-| Set values               | the rigging's own ranges; limits within `SUPPORT_LAYOUT_LIMITS`         | `cableMechanics.ts` `parseRigging`; `riggingSets.ts` `parseRiggingSets`           | Project file refused                           |
-| Field shots per D-line   | 500 (slope legs 499)                                                    | `dline/fieldProfile.ts` `MAX_FIELD_SHOTS`                                         | Apply refused; project file refused            |
-| Field station, elevation | −200 to 3,200 m from the yarder; −500 to 9,000 m                        | `FIELD_STATION_RANGE_M`, `FIELD_ELEVATION_RANGE_M`                                | Apply refused with the reason                  |
-| Slope leg                | 0.1–1,000 m along the slope, −300 to 300 %                              | `FIELD_SLOPE_DISTANCE_RANGE_M`, `FIELD_SLOPE_PERCENT_RANGE`                       | Apply refused                                  |
-| Field corridor           | 2 m either side of the line                                             | `FIELD_PROFILE_CORRIDOR_M`                                                        | Terrain read                                   |
-| Field ends               | a station 5 cm outside the first or last shot reads that shot           | `FIELD_END_TOLERANCE_M`                                                           | Terrain read                                   |
-| Field difference flag    | 2 m                                                                     | `FIELD_DIFFERENCE_FLAG_M`                                                         | Row marked, counted in the summary             |
-| Field note, import file  | 500 characters; 1 MB                                                    | `MAX_FIELD_NOTE`; `CableFieldProfileSection.tsx`                                  | Cut; import refused                            |
-| Sheet plan strip         | 1:500 to 1:50,000, the first that fits; 160 samples across for contours | `dline/sheet.ts` `PLAN_STRIP_SCALES`, `PLAN_STRIP_SAMPLES`                        | Largest scale used                             |
-| Sheet contours           | 1, 2, 5, 10, 20, 25, 50 or 100 m, the first with ≤ 30 levels; index × 5 | `PLAN_CONTOUR_INTERVALS`, `MAX_PLAN_CONTOUR_LEVELS`; `contours.ts` segment budget | Interval widened and printed                   |
-| Sheet tables             | as many rows as fit the column                                          | `dline/sheet.ts` `table`                                                          | "+N more rows: see the D-line report or CSV"   |
+| Limit                             | Value                                                                                                                                | Enforced in                                                                               | When exceeded                                    |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Rigging sets per project          | 50                                                                                                                                   | `dline/riggingSets.ts` `MAX_RIGGING_SETS`, `parseRiggingSets`                             | Save refused; project file refused               |
+| Rigging set name                  | 1–80 characters, unique ignoring case and spacing                                                                                    | `dline/riggingSets.ts` `MAX_RIGGING_SET_NAME`, `riggingSetNameError`                      | Rename refused; saving under a name updates it   |
+| Set values                        | the rigging's own ranges; limits within `SUPPORT_LAYOUT_LIMITS`                                                                      | `cableMechanics.ts` `parseRigging`; `riggingSets.ts` `parseRiggingSets`                   | Project file refused                             |
+| Equipment library records         | tower 0–60 m, power 0–2,000 kW, rope 3–100 mm, 0.05–50 kg/m, forces 1 kN–10 MN, drum rope 0–5,000 m, carriage 0–10,000 kg, 1–4 drums | `cableEquipment/cableEquipment.ts` `CABLE_EQUIPMENT_LIMITS`, `parseCableEquipmentLibrary` | Library refused (a rebuild with `--check` fails) |
+| Equipment record on a set         | names 200 characters, provenance 600; spar 0–200 m; line tension 0–10 MN                                                             | `MAX_EQUIPMENT_TEXT`, `MAX_PROVENANCE_TEXT`, `parseRiggingSetEquipment`                   | Save refused; project file refused               |
+| Value changed since the equipment | relative difference over 1 × 10⁻⁶                                                                                                    | `EQUIPMENT_EDIT_TOLERANCE`, `equipmentRiggingEdits`                                       | Named in the provenance line                     |
+| Field shots per D-line            | 500 (slope legs 499)                                                                                                                 | `dline/fieldProfile.ts` `MAX_FIELD_SHOTS`                                                 | Apply refused; project file refused              |
+| Field station, elevation          | −200 to 3,200 m from the yarder; −500 to 9,000 m                                                                                     | `FIELD_STATION_RANGE_M`, `FIELD_ELEVATION_RANGE_M`                                        | Apply refused with the reason                    |
+| Slope leg                         | 0.1–1,000 m along the slope, −300 to 300 %                                                                                           | `FIELD_SLOPE_DISTANCE_RANGE_M`, `FIELD_SLOPE_PERCENT_RANGE`                               | Apply refused                                    |
+| Field corridor                    | 2 m either side of the line                                                                                                          | `FIELD_PROFILE_CORRIDOR_M`                                                                | Terrain read                                     |
+| Field ends                        | a station 5 cm outside the first or last shot reads that shot                                                                        | `FIELD_END_TOLERANCE_M`                                                                   | Terrain read                                     |
+| Field difference flag             | 2 m                                                                                                                                  | `FIELD_DIFFERENCE_FLAG_M`                                                                 | Row marked, counted in the summary               |
+| Field note, import file           | 500 characters; 1 MB                                                                                                                 | `MAX_FIELD_NOTE`; `CableFieldProfileSection.tsx`                                          | Cut; import refused                              |
+| Sheet plan strip                  | 1:500 to 1:50,000, the first that fits; 160 samples across for contours                                                              | `dline/sheet.ts` `PLAN_STRIP_SCALES`, `PLAN_STRIP_SAMPLES`                                | Largest scale used                               |
+| Sheet contours                    | 1, 2, 5, 10, 20, 25, 50 or 100 m, the first with ≤ 30 levels; index × 5                                                              | `PLAN_CONTOUR_INTERVALS`, `MAX_PLAN_CONTOUR_LEVELS`; `contours.ts` segment budget         | Interval widened and printed                     |
+| Sheet tables                      | as many rows as fit the column                                                                                                       | `dline/sheet.ts` `table`                                                                  | "+N more rows: see the D-line report or CSV"     |
 
 ## Built-in assumptions
 
@@ -135,3 +164,9 @@ table, parameter sets and field-profile import, and of Sylvaccess's selected-lin
 [How the reference tools handle interaction](reference-interfaces-review-2026-11-10.md), items 8 and
 13 and tier 3). Nothing was taken from their code; the sheet, stake-out and reductions are PGMaps'
 own.
+
+The equipment library is the USDA Forest Service's SkylineXL 25.0 `Database` sheet, a public-domain
+work of the US Government, extracted cell by cell with its source cells, version and retrieval date
+on every record (`scripts/forestry/cable-equipment/README.md`). It is regenerated only by
+`npm run cable-equipment:build -- <path to skyline-xl-25.xlsm>`, and `npm run cable-equipment:check`
+compares a rebuild with the committed file; the workbook itself is not in the repository.

@@ -306,6 +306,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             />
             <OptionalNumberField
               label="Min curve (m)"
+              hint="The shortest vertical curve, BVC to EVC along the road. Min tangent is the shortest tangent between two curves, EVC to the next BVC; the first and last tangents run to the road's ends and are not limited. Optimize profile keeps to both, Review checks both, and a RoadEng design carries them in its optimizer standards."
               value={standards.minCurveLengthM}
               min={0}
               max={10000}
@@ -420,9 +421,9 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         help={
           <>
             Searches PVI levels around the ground for the cheapest cut and fill at the entered rates, inside the grade
-            ranges, the road-wide maximum grade, curve K and every control point. The result is a new alternative.
-            “Total cost” also prices each interval's cut/fill imbalance and keeps the line the full analysis prices
-            lowest, with haul, borrow and waste.
+            ranges, the road-wide maximum grade, curve K, the minimum curve and tangent lengths and every control point.
+            The result is a new alternative. “Total cost” also prices each interval's cut/fill imbalance and keeps the
+            line the full analysis prices lowest, with haul, borrow and waste.
             <br />
             Curve K also sets every curve length at once: K × the grade change, at least the minimum curve length.
           </>

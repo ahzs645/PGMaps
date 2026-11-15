@@ -227,9 +227,16 @@ export function placeProject(project: RoadProject, placement: Placement): Placed
   const targetLonLat = (xy: XY) => target.inverse([...xy]) as Coordinate
   const move = (c: Coordinate): Coordinate => targetLonLat(toGrid(local2file.toFile(c)))
 
-  const alignments = project.alignments.map((road) =>
-    placeAlignment(road, move, toGrid, local2file.toFile, targetLonLat, scale),
-  )
+  // A road read from RoadEng keeps its design's parts, now in the target CRS: placed by CRS its file
+  // coordinates are unchanged; placed by control points, its kept curve records no longer lie on it.
+  const alignments = project.alignments.map((road) => {
+    const placed = placeAlignment(road, move, toGrid, local2file.toFile, targetLonLat, scale)
+    return placed.roadEngSource ? { ...placed, roadEngSource: { ...placed.roadEngSource, epsg } } : placed
+  })
+  if (similarity && project.alignments.some((road) => road.roadEngSource?.piRecords.length))
+    notes.push(
+      "Roads read from RoadEng keep their RoadEng settings; their curves were moved by the fit, so a RoadEng file written from them takes each curve's design from RoadEng's tables.",
+    )
   const moved: RoadProject = {
     ...project,
     alignments,

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import proj4 from 'proj4'
-import { unzipSync } from 'fflate'
+import { strFromU8, unzipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { projectedCrsDefinition } from '@/lib/geo/projectedCrs'
 import { analyzeRoad } from './engine'
@@ -10,8 +10,10 @@ import { localPlaneProjection } from './localPlane'
 import { roadEngDesign } from './roadEngExport'
 import { roadEngProject } from './roadEngProject'
 import { roadEngExportGrid, roadEngProjectExport } from './roadEngProjectExport'
-import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, terrainFromMetadata } from './terrain'
-import type { Alignment, Coordinate } from './types'
+import { parseProject } from './project'
+import { parseRoadEngTer, readRoadEngTerrainArchive } from './roadEngTerrain'
+import { createDemoProject, DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, exportGrid, terrainFromMetadata } from './terrain'
+import type { Alignment, Coordinate, RoadProject } from './types'
 
 const utm10 = proj4('EPSG:4326', projectedCrsDefinition(26910)!)
 const lonLat = (x: number, y: number) => utm10.inverse([515_000 + x, 5_975_000 + y]) as Coordinate
@@ -102,6 +104,92 @@ describe('RoadEng project export', () => {
   })
 })
 
+/** Each part of a zipped RoadEng project, by `D/` (design) or `T/` (terrain) and its name inside. */
+function projectParts(zip: Uint8Array): Record<string, Uint8Array> {
+  const out: Record<string, Uint8Array> = {}
+  for (const [name, bytes] of Object.entries(unzipSync(zip)))
+    if (/\.(dsnx|terx)$/i.test(name))
+      for (const [part, data] of Object.entries(unzipSync(bytes)))
+        out[`${/\.dsnx$/i.test(name) ? 'D' : 'T'}/${part}`] = data
+  return out
+}
+/** INI text by section, each section's non-blank lines in order; the appended [PGMaps] section left out. */
+function sections(text: string): Map<string, string[]> {
+  const out = new Map<string, string[]>()
+  let current = ''
+  for (const line of text.split(/\r?\n/)) {
+    const header = /^\[(.+)\]$/.exec(line.trim())
+    if (header) current = header[1]
+    else if (current !== 'PGMaps' && line.trim()) out.set(current, [...(out.get(current) ?? []), line])
+  }
+  return out
+}
+/** The sections two .dsn texts differ in, [PGMaps] aside. */
+function changedSections(a: string, b: string): string[] {
+  const x = sections(a),
+    y = sections(b)
+  return [...new Set([...x.keys(), ...y.keys()])].filter(
+    (k) => JSON.stringify(x.get(k) ?? []) !== JSON.stringify(y.get(k) ?? []),
+  )
+}
+/** A .dsn written back is the original, then the appended [PGMaps] section. */
+function keptDsn(original: string, written: string) {
+  const cut = written.indexOf('[PGMaps]')
+  expect(cut).toBeGreaterThan(0)
+  expect(written.slice(0, cut)).toBe(original)
+}
+const keptRecords = (text: string) => text.split(/\r?\n/).filter((l) => l && !/^(108|109|110),/.test(l))
+
+describe('RoadEng project written back', () => {
+  it('writes a design it read back with its .dsn and kept records unchanged, and an edit where it belongs', () => {
+    const sloped = { elevationAt: (lon: number, lat: number) => 800 + 0.05 * (utm10.forward([lon, lat])[0] - 515_000) }
+    const design = roadEngDesign(
+      [{ alignment: road, analysis: analyzeRoad(road, sloped, DEFAULT_ROAD_SETTINGS) }],
+      utmGrid.toGrid,
+      { terrainName: 'Valley.terx' },
+    ).bytes
+    const opened = roadEngProject([{ name: 'Spur 7.dsnx', bytes: design }], options)
+    const project = parseProject({
+      ...createDemoProject(),
+      terrain: opened.terrain,
+      alignments: opened.roads.map((r) => r.alignment),
+      activeAlignmentId: opened.roads[0].alignment.id,
+      profiles: [],
+    })
+    expect(project.alignments[0].roadEngSource).toMatchObject({ part: 'Location1', startStation: 0 })
+    const grid = roadEngExportGrid(project.terrain, utmGrid)
+    const write = (alignment: Alignment) =>
+      projectParts(
+        roadEngProjectExport({
+          name: 'Spur 7',
+          roads: [{ alignment }],
+          grid,
+          context: [
+            {
+              id: 's',
+              name: 'Willow Creek',
+              kind: 'stream',
+              geometry: { type: 'LineString', coordinates: [lonLat(50, 0), lonLat(60, 300)] },
+            },
+          ],
+          cables: [],
+          reference: [],
+        }).bytes,
+      )
+    const before = unzipSync(design)
+    const after = write(project.alignments[0])
+    const text = (b: Uint8Array) => strFromU8(b, true)
+    // The design names its terrain Valley.terx, so the written project keeps that name and its .dsn
+    // comes back as it was apart from [PGMaps], which this workspace rewrites.
+    expect(changedSections(text(before['Location1.dsn']), text(after['D/Location1.dsn']))).toEqual([])
+    expect(keptRecords(text(after['D/Location1.ds2']))).toEqual(keptRecords(text(before['Location1.ds2'])))
+    // A wider road: the section goes back in [PGMaps], since this design holds no RoadEng template.
+    const wider = write({ ...project.alignments[0], template: { ...project.alignments[0].template, leftWidth: 5 } })
+    expect(changedSections(text(before['Location1.dsn']), text(wider['D/Location1.dsn']))).toEqual([])
+    expect(text(wider['D/Location1.dsn'])).toMatch(/"leftWidth":5/)
+  })
+})
+
 // Softree's published samples, read from a local copy and never committed (see roadEngImport.test.ts).
 const samples = process.env.ROADENG_SAMPLES
 describe.skipIf(!samples || !existsSync(samples ?? ''))(
@@ -135,6 +223,219 @@ describe.skipIf(!samples || !existsSync(samples ?? ''))(
       expect(again.epsg).toBe(26915)
       const analysis = analyzeRoad(again.roads[0].alignment, terrainFromMetadata(again.terrain)!, DEFAULT_ROAD_SETTINGS)
       expect(analysis.completeLength / analysis.length).toBeGreaterThan(0.95)
+    })
+
+    const sample = (p: string) => ({
+      name: p.split('/').pop()!,
+      bytes: new Uint8Array(readFileSync(join(samples!, p))),
+    })
+    /** A sample opened as the page opens it, as a project that parses. */
+    function open(paths: string[]) {
+      const files = paths.map(sample)
+      const r = roadEngProject(files, { ...options, verticalReference: 'CGVD2013', importedAt: '2026-11-14T00:00:00Z' })
+      const demo = createDemoProject()
+      const project = parseProject({
+        ...demo,
+        name: r.name,
+        terrain: r.terrain,
+        alignments: r.roads.length ? r.roads.map((x) => x.alignment) : demo.alignments,
+        activeAlignmentId: r.roads[0]?.alignment.id ?? demo.activeAlignmentId,
+        context: r.context,
+        cables: r.cables,
+        reference: r.reference,
+        riggingSets: r.riggingSets,
+        notes: r.mapNotes,
+        referenceStyles: r.referenceStyles,
+        profiles: [],
+        settings: { ...DEFAULT_ROAD_SETTINGS, ...(r.fillRate !== null ? { fillRate: r.fillRate } : {}) },
+      })
+      return { files, r, project }
+    }
+    /** The project written back as RoadEng, by the page's own call. */
+    function write(project: RoadProject, roadsRead: boolean) {
+      const grid = roadEngExportGrid(
+        project.terrain,
+        exportGrid(project.terrain, project.alignments[0].points[0].coordinate),
+      )
+      return roadEngProjectExport({
+        name: project.name,
+        roads: roadsRead ? project.alignments.map((alignment) => ({ alignment })) : [],
+        grid,
+        context: project.context,
+        cables: project.cables,
+        reference: project.reference ?? [],
+        fillRate: project.settings.fillRate,
+        riggingSets: project.riggingSets ?? [],
+        notes: project.notes ?? [],
+        referenceStyles: project.referenceStyles ?? [],
+        terrainSource: project.terrain.roadEngSource ?? null,
+        wholeTerrain: !roadsRead,
+      })
+    }
+    /** Every part RoadEng keeps that this workspace does not model comes back unchanged. */
+    function expectKept(original: Record<string, Uint8Array>, written: Record<string, Uint8Array>) {
+      const text = (b: Uint8Array) => strFromU8(b, true)
+      for (const [name, bytes] of Object.entries(original)) {
+        const back = written[name]
+        expect(back, name).toBeDefined()
+        if (name.endsWith('.dsn')) keptDsn(text(bytes), text(back))
+        else if (name.endsWith('.ds2')) expect(keptRecords(text(back))).toEqual(keptRecords(text(bytes)))
+        else if (name.endsWith('.tlt')) expect(text(back)).toBe(text(bytes))
+        else if (name.endsWith('.ter')) {
+          const a = parseRoadEngTer(bytes),
+            b = parseRoadEngTer(back)
+          for (const part of ['codeTable', 'headerExtra', 'loggingSystems', 'attributeChunks', 'tail'] as const)
+            expect(b.source?.[part], part).toBe(a.source?.[part])
+          expect(b.features.filter((f) => f.dLine).map((f) => f.dLine!.chunks)).toEqual(
+            a.features.filter((f) => f.dLine).map((f) => f.dLine!.chunks),
+          )
+        } else expect(back, name).toEqual(bytes)
+      }
+    }
+    const rawParts = (files: { name: string; bytes: Uint8Array }[]) => {
+      const out: Record<string, Uint8Array> = {}
+      for (const f of files)
+        if (/\.(dsnx|terx)$/i.test(f.name))
+          for (const [part, data] of Object.entries(unzipSync(f.bytes)))
+            out[`${/\.dsnx$/i.test(f.name) ? 'D' : 'T'}/${part}`] = data
+      return out
+    }
+
+    it.each([
+      [['LongRoad_1/LongRoad 1.dsnx', 'LongRoad_1/LongRoad 1.terx']],
+      [
+        [
+          'Cul-de-sac-design/CulDeSacExample/CulDeSacExample.dsnx',
+          'Cul-de-sac-design/CulDeSacExample/RangeRoadTopo.terx',
+        ],
+      ],
+      [
+        [
+          'Cul-de-sac-design/CulDeSacExample/CulDeSacExampleComplete.dsnx',
+          'Cul-de-sac-design/CulDeSacExample/RangeRoadTopo.terx',
+        ],
+      ],
+      ...[
+        'CableAnalysis.terx',
+        'CableAnalysis - 1.terx',
+        'CableAnalysis - 2.terx',
+        'CableAnalysis - 3.terx',
+        'CableAnalysis - 4.terx',
+      ].map((f) => [[`Terrain_cables/${f}`, 'Terrain_cables/Training Single DLine MP.ilt']]),
+    ])('writes %j back unedited with every kept part unchanged', (paths) => {
+      if (!paths.every((p) => existsSync(join(samples!, p)))) return
+      const { files, r, project } = open(paths)
+      const out = write(project, r.roads.length > 0)
+      expectKept(rawParts(files), projectParts(out.bytes))
+      const ilt = files.find((f) => f.name.endsWith('.ilt'))
+      if (ilt) expect(unzipSync(out.bytes)[ilt.name]).toEqual(ilt.bytes)
+    })
+
+    it('writes edits on LongRoad into the RoadEng fields they came from, and nothing else', () => {
+      const { files, project } = open(['LongRoad_1/LongRoad 1.dsnx', 'LongRoad_1/LongRoad 1.terx'])
+      const original = rawParts(files)
+      const text = (b: Uint8Array) => strFromU8(b, true)
+      const road = project.alignments[0]
+      // Read: the ground types keep the templates' batters, RoadEng's haul, pits and fill rate, and
+      // the optimizer's standards.
+      expect(road.engineering!.materials.every((m) => m.cutSlope === undefined && m.fillSlope === undefined)).toBe(true)
+      expect(road.engineering!.sites).toHaveLength(6)
+      expect(road.engineering!.haul).toMatchObject({ freeHaulDistanceM: 150, overhaulDistanceM: 1000 })
+      expect(project.settings.fillRate).toBe(4)
+      expect(road.verticalStandards!.gradeRanges.length).toBeGreaterThan(0)
+      const edited = (alignment: Alignment) => projectParts(write({ ...project, alignments: [alignment] }, true).bytes)
+      const dsnOf = (parts: Record<string, Uint8Array>) => text(parts['D/Location1.dsn'])
+      const typeLines = (parts: Record<string, Uint8Array>, type: string) =>
+        text(parts['D/Location1.ds2'])
+          .split(/\r?\n/)
+          .filter((l) => l.startsWith(`${type},`))
+
+      // A template width goes into RoadEng's template table and nowhere else.
+      const wider = edited({ ...road, template: { ...road.template, leftWidth: road.template.leftWidth + 0.5 } })
+      expect(changedSections(text(original['D/Location1.dsn']), dsnOf(wider))).toEqual(['TemplatesSct'])
+      expect(typeLines(wider, '104')).toEqual(typeLines(original, '104'))
+
+      // A haul rate goes into the ground types' 104 records and leaves the .dsn as it was.
+      const engineering = road.engineering!
+      const haul = edited({
+        ...road,
+        engineering: {
+          ...engineering,
+          haul: {
+            ...engineering.haul,
+            endHaulRate: engineering.haul.endHaulRate * 2,
+            endHaulLoadingRate: engineering.haul.endHaulLoadingRate * 2,
+          },
+        },
+      })
+      expect(typeLines(haul, '104')).not.toEqual(typeLines(original, '104'))
+      typeLines(haul, '104').forEach((line, k) => {
+        const was = typeLines(original, '104')[k].split(',')
+        const changed = line.split(',').flatMap((v, i) => (v === was[i] ? [] : [i]))
+        expect(changed).toEqual([13, 14])
+      })
+      expect(changedSections(text(original['D/Location1.dsn']), dsnOf(haul))).toEqual([])
+
+      // A grade limit goes into the active vertical option's constraints.
+      const standards = road.verticalStandards!
+      const steeper = edited({
+        ...road,
+        verticalStandards: {
+          ...standards,
+          gradeRanges: standards.gradeRanges.map((g, k) => (k === 0 ? { ...g, maxGradePercent: 9 } : g)),
+        },
+      })
+      const changed = changedSections(text(original['D/Location1.dsn']), dsnOf(steeper))
+      expect(changed).toHaveLength(1)
+      expect(changed[0]).toMatch(/^OptAlignCost/)
+      expect(typeLines(steeper, '104')).toEqual(typeLines(original, '104'))
+      // Read back, each edit is the road's again.
+      const back = roadEngProject(
+        [
+          {
+            name: 'LongRoad 1.dsnx',
+            bytes: unzipSync(
+              write(
+                {
+                  ...project,
+                  alignments: [{ ...road, template: { ...road.template, leftWidth: road.template.leftWidth + 0.5 } }],
+                },
+                true,
+              ).bytes,
+            )['LongRoad 1.dsnx'],
+          },
+        ],
+        { ...options, verticalReference: 'CGVD2013' },
+      )
+      expect(back.roads[0].alignment.template.leftWidth).toBeCloseTo(road.template.leftWidth + 0.5, 6)
+    })
+
+    it('writes a moved D-line with new spars and its logging system and analysis as read', () => {
+      const path = 'Terrain_cables/CableAnalysis - 4.terx'
+      if (!existsSync(join(samples!, path))) return
+      const { files, project } = open([path])
+      const cable = project.cables[0]
+      // Read as the project's own: logging systems as rigging sets, the D-line rigged with its
+      // system's set at RoadEng's spar heights, the map note a pin.
+      expect(project.riggingSets!.map((set) => set.id)).toContain('roadeng-system-5')
+      expect(cable).toMatchObject({ roadEngSystemId: '5', sagModel: 'mechanics', startHeight: 15.24, endHeight: 10 })
+      expect(project.notes!.map((n) => [n.kind, n.text])).toEqual([['pin', 'Access Road']])
+      const toGrid = exportGrid(project.terrain, cable.start)
+      const [x, y] = toGrid.toGrid(cable.end)
+      const moved = { ...cable, end: toGrid.toLonLat([x + 10, y]) }
+      const out = write({ ...project, cables: [moved] }, false)
+      const before = readRoadEngTerrainArchive(files[0].bytes).terrain.features.find((f) => f.dLine)!.dLine!
+      const terx = Object.entries(unzipSync(out.bytes)).find(([name]) => name.endsWith('.terx'))![1]
+      const after = readRoadEngTerrainArchive(terx).terrain.features.find((f) => f.dLine)!.dLine!
+      const length = Math.hypot(
+        ...([0, 1].map((i) => toGrid.toGrid(moved.end)[i] - toGrid.toGrid(moved.start)[i]) as [number, number]),
+      )
+      expect(after.spars.at(-1)!.station).toBeCloseTo(length, 6)
+      expect(after.spars.map((s) => [s.kind, s.height])).toEqual(before.spars.map((s) => [s.kind, s.height]))
+      expect(after.systemId).toBe(before.systemId)
+      const chunk = (d: typeof before, type: number) => d.chunks!.find((c) => c.type === type)?.payload
+      for (const type of [6, 69]) expect(chunk(after, type)).toBe(chunk(before, type))
+      expect(chunk(after, 12)).not.toBe(chunk(before, 12))
     })
   },
 )

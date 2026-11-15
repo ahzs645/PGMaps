@@ -75,6 +75,9 @@ import type {
   WidthOverride,
 } from './types'
 import { parseMapNotes } from './mapNotes'
+import { parseRoadEngSource } from './roadEngImport'
+import { parseRoadEngTerrainSource } from './roadEngTerrain'
+import { parseRoadEngDLineRecord } from './roadEngDLines'
 import { parseReferenceFeatures, referenceGeoJson } from './referenceFeatures'
 import { parsePdfSource, sourceAttributes } from './sourceMetadata'
 import { CUTBLOCK_BUFFER_PATTERNS, keepCutblockBuffers, MAX_CUTBLOCK_BUFFER_M } from './cutblockBuffers'
@@ -127,6 +130,12 @@ function unique(items: Array<{ id: string }>, label: string) {
   if (new Set(items.map((p) => p.id)).size !== items.length) throw Error(`${label} must have unique IDs.`)
 }
 /** Centreline ground a design file recorded: at most 10,000 [chainage, elevation] pairs, in order. */
+/** A road's kept RoadEng design parts: refused, never repaired, when malformed; its fallback section is a section. */
+function parseKeptRoadEngSource(raw: unknown): NonNullable<Alignment['roadEngSource']> {
+  const source = parseRoadEngSource(raw)
+  if (!source) throw Error('The kept RoadEng design parts are not valid.')
+  return source.fallback ? { ...source, fallback: parseTemplate(source.fallback) } : source
+}
 function parseFileGround(raw: unknown): NonNullable<Alignment['fileGround']> {
   const r = object(raw, 'Design-file ground')
   const points = list(r.points, 'Design-file ground points', 10_000, 2).map((pair) => {
@@ -473,6 +482,7 @@ function parseAlignment(raw: unknown): Alignment {
     ...(r.routeSearch === undefined ? {} : { routeSearch: parseRouteSearch(r.routeSearch) }),
     ...(r.searchSettings === undefined ? {} : { searchSettings: parseFoundRoadSearchSettings(r.searchSettings) }),
     ...(r.fileGround === undefined ? {} : { fileGround: parseFileGround(r.fileGround) }),
+    ...(r.roadEngSource === undefined ? {} : { roadEngSource: parseKeptRoadEngSource(r.roadEngSource) }),
     ...(r.fullCostRecord === undefined ? {} : { fullCostRecord: parseFullCostRecord(r.fullCostRecord) }),
     ...(r.networkEntryRoadId === undefined
       ? {}
@@ -592,6 +602,7 @@ function parseTerrain(raw: unknown): TerrainMetadata {
     if (!Number.isFinite(resolution) || Math.abs(resolution - result.resolutionM) > 1e-6 * Math.max(1, resolution))
       throw Error('Terrain resolution does not agree with the embedded native raster cells.')
   }
+  if (r.roadEngSource !== undefined) result.roadEngSource = parseRoadEngTerrainSource(r.roadEngSource)
   if (r.fill !== undefined) {
     const f = object(r.fill, 'Terrain fill')
     if (!result.raster) throw Error('Only an embedded terrain grid records a filling source.')
@@ -711,6 +722,10 @@ function parseCable(raw: unknown): CableLine {
     ...(r.rigging === undefined ? {} : { rigging: parseRigging(r.rigging) }),
     ...(r.supportLayout === undefined ? {} : { supportLayout: parseSupportLayout(r.supportLayout) }),
     ...(r.fieldProfile === undefined ? {} : { fieldProfile: parseFieldProfile(r.fieldProfile) }),
+    ...(r.roadEng === undefined ? {} : { roadEng: parseRoadEngDLineRecord(r.roadEng) }),
+    ...(r.roadEngSystemId === undefined
+      ? {}
+      : { roadEngSystemId: text(r.roadEngSystemId, 'RoadEng logging system', 50) }),
   }
   resolvedCableLine(result)
   return result

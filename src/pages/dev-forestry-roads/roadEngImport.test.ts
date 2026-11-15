@@ -5,13 +5,20 @@ import { describe, expect, it } from 'vitest'
 import { alignmentLength, designProfileAt, horizontalCurveSummary } from './engine'
 import { AlignmentCrsQuestion, landXmlRoads, parseLandXml } from './landXmlImport'
 import {
+  base64ToBytes,
+  bytesToBase64,
+  clothoidOffsets,
   isRoadEngDesign,
+  MAX_ROADENG_SOURCE_CHARS,
   parseRoadEngDesign,
+  parseRoadEngSource,
   ROADENG_FIT_DEVIATION_M,
   ROADENG_PLAN_TOLERANCE_M,
   ROADENG_PROFILE_TOLERANCE_M,
+  roadEngCurvesByPoint,
   roadEngImportSummary,
   roadEngRoads,
+  stationEvents,
 } from './roadEngImport'
 import { DEFAULT_TEMPLATE } from './terrain'
 
@@ -85,7 +92,29 @@ describe('RoadEng design import', () => {
     const read = parseRoadEngDesign(file)
     expect(read).toMatchObject({ version: '11.0.673.0', unitM: 1, terrain: 'Spur.terx' })
     const [a] = read.alignments
-    expect(a.pis).toEqual([{ xy: [E0, N0 + 200], radiusM: 50, turn: 'right', type: 2 }])
+    expect(a.pis).toEqual([
+      {
+        xy: [E0, N0 + 200],
+        radiusM: 50,
+        turn: 'right',
+        type: 2,
+        from: '108',
+        // Fields 8–18, in metres and metres a second.
+        curve: {
+          designSpeedMs: 16.6666666667,
+          flags: 5590,
+          emax: 0.06,
+          fLimit: 0.1,
+          runoffIn: 60,
+          runoffOut: 60,
+          transitionFraction: 0.667,
+          e: 0.06,
+          sideFriction: 0.1,
+          widening: { insideM: 0, outsideM: 0 },
+        },
+      },
+    ])
+    expect(a.planFrom).toBe('pis')
     expect(a.startStation).toBe(0)
     expect(a.endStation).toBeCloseTo(total, 5)
     // The profile runs from the start's level through the VIP to the end's, the curve as long as
@@ -218,6 +247,266 @@ describe('RoadEng design import', () => {
   })
 })
 
+// A road with a spiral curve, built by stepping along its curvature rather than with the reader's
+// closed-form tangents: 100 m straight north, a clothoid of `inM` to R 80 m turning left, 40 m of
+// arc, a clothoid of `outM` back to straight, then 120 m. The PI is where the two straights meet.
+function spiralRoad(inM: number, outM: number) {
+  const R = 80,
+    arcM = 40,
+    lead = 100,
+    tail = 120
+  const marks = [lead, lead + inM, lead + inM + arcM, lead + inM + arcM + outM]
+  const total = marks[3] + tail
+  const kappa = (s: number) =>
+    s <= marks[0]
+      ? 0
+      : s <= marks[1]
+        ? (s - marks[0]) / (inM * R)
+        : s <= marks[2]
+          ? 1 / R
+          : s <= marks[3]
+            ? (marks[3] - s) / (outM * R)
+            : 0
+  // Heading by the trapezoid rule on curvature, position by Simpson's rule on heading, 1 cm steps.
+  const h = 0.01
+  const steps = Math.round(total / h)
+  const heading = new Float64Array(steps + 1)
+  for (let i = 1; i <= steps; i++) heading[i] = heading[i - 1] + ((kappa((i - 1) * h) + kappa(i * h)) * h) / 2
+  const xy = (s: number): [number, number] => {
+    const n = Math.round(s / h)
+    let x = 0,
+      y = 0
+    for (let i = 0; i + 2 <= n; i += 2) {
+      // Simpson over [i, i + 2]; directions start north (+y) and turn left (towards −x).
+      const w = [1, 4, 1]
+      for (let j = 0; j < 3; j++) {
+        x += (w[j] * -Math.sin(heading[i + j]) * h) / 3
+        y += (w[j] * Math.cos(heading[i + j]) * h) / 3
+      }
+    }
+    if (n % 2) {
+      x += (-Math.sin(heading[n - 1]) - Math.sin(heading[n])) * (h / 2)
+      y += (Math.cos(heading[n - 1]) + Math.cos(heading[n])) * (h / 2)
+    }
+    return [E0 + x, N0 + y]
+  }
+  const delta = heading[steps]
+  const end = xy(total)
+  // The incoming straight is x = E0; the outgoing one leaves the end at heading delta.
+  const t = (end[0] - E0) / -Math.sin(delta)
+  const pi: [number, number] = [E0, end[1] - t * Math.cos(delta)]
+  const list = [...Array.from({ length: Math.floor(total / 10) + 1 }, (_, k) => k * 10), ...marks, total]
+    .filter((v, k, all) => v <= total && all.indexOf(v) === k)
+    .sort((a, b) => a - b)
+  const rows = list.map((st) => {
+    const [x, y] = xy(st)
+    const plan = marks.includes(st) || st === 0 || st === total
+    return `110,${plan ? 2 : 4},${x.toFixed(6)},${y.toFixed(6)},900,${st.toFixed(6)},-1,0,0,${st === marks[3] ? 2 : ''},,${plan ? 0 : 256}`
+  })
+  return {
+    total,
+    marks,
+    ds2: [
+      '100,103,11,11.0.673.0, Softree Technical Systems Inc. - Location Line data file',
+      ...rows,
+      `108,1,3,-${R},${pi[0].toFixed(6)},${pi[1].toFixed(6)},0,-1,16.6666666667,5590,0.06,0.1,${inM},${outM},0.667,0.06,0.1,0,0,0`,
+    ].join('\r\n'),
+  }
+}
+
+describe('RoadEng design import: what the road model does not hold', () => {
+  it('keeps the .dsn, .ds1, .ds3 and every other .ds2 record as read', () => {
+    const latin = '[design]\r\nunits=10000\r\nNote=Pont à 30°\r\n[Mine]\r\nKey=1\r\n'
+    const ds1 = new Uint8Array([12, 0, 1, 0, 0, 0, 255, 254])
+    const ds3 = new Uint8Array(Array.from({ length: 1000 }, (_, k) => (k * 37) & 255))
+    const lines = ds2().split('\r\n')
+    const text = [...lines, '118,1', '777,an unknown record'].join('\r\n') + '\r\n'
+    const file = zipSync({
+      'Location1.dsn': strToU8(latin, true),
+      'Location1.ds2': strToU8(text),
+      'Location1.ds1': ds1,
+      'Location1.ds3': ds3,
+    })
+    const [a] = parseRoadEngDesign(file).alignments
+    const source = a.source!
+    expect(source.dsn).toBe(latin)
+    expect(base64ToBytes(source.ds1!)).toEqual(ds1)
+    expect(base64ToBytes(source.ds3!)).toEqual(ds3)
+    expect(source.ds2Kept).toEqual([
+      lines[0],
+      '104,OB,Overburden (Default),100,400,1,1,12,4,0,8,0.6,4,2.6,2,0,0,0,8,',
+      '118,1',
+      '777,an unknown record',
+    ])
+    expect(source.ds2KeptBefore).toBe(1)
+    expect(source.ds2Eol).toBe('\r\n')
+    expect(source.piRecords).toEqual(lines.filter((l) => l.startsWith('108,')))
+    expect(source.vipRecords).toEqual(lines.filter((l) => l.startsWith('109,')))
+    expect(source).toMatchObject({ unitCode: '10000', startStation: 0, version: 1 })
+    // Plain JSON, checked on the way back in.
+    expect(parseRoadEngSource(JSON.parse(JSON.stringify(source)))).toEqual(source)
+    expect(parseRoadEngSource({ ...source, ds2KeptBefore: 9 })).toBeNull()
+    expect(parseRoadEngSource({ ...source, ds2Kept: ['a\r\nb'] })).toBeNull()
+    expect(parseRoadEngSource({ ...source, dsn: 'x'.repeat(MAX_ROADENG_SOURCE_CHARS) })).toBeNull()
+  })
+
+  it('encodes base64 as the standard alphabet does', () => {
+    expect(bytesToBase64(strToU8('Man'))).toBe('TWFu')
+    expect(bytesToBase64(strToU8('Ma'))).toBe('TWE=')
+    expect(bytesToBase64(strToU8('M'))).toBe('TQ==')
+    for (const n of [0, 1, 2, 3, 4, 255, 256]) {
+      const bytes = new Uint8Array(Array.from({ length: n }, (_, k) => (k * 151) & 255))
+      expect(base64ToBytes(bytesToBase64(bytes))).toEqual(bytes)
+    }
+  })
+
+  it('reads the curve-end marks and report bits of each station', () => {
+    const [a] = parseRoadEngDesign(design({ 'Location1.dsn': dsn(), 'Location1.ds2': ds2() })).alignments
+    const last = a.stations[a.stations.length - 1]
+    expect(last).toMatchObject({ type: 5, planMark: 0, profileMark: 0, report: 256 })
+  })
+})
+
+describe('RoadEng design import: plans without curves, and spirals', () => {
+  // A road with two bends and no curve: RoadEng writes no 108 record, only plan stations.
+  const corners: [number, number][] = [
+    [E0, N0],
+    [E0, N0 + 300],
+    [E0 + 200, N0 + 450],
+    [E0 + 200, N0 + 700],
+  ]
+  const legs = corners.slice(1).map((c, k) => Math.hypot(c[0] - corners[k][0], c[1] - corners[k][1]))
+  const at = (s: number): [number, number] => {
+    let k = 0
+    while (k < legs.length - 1 && s > legs[k]) s -= legs[k++]
+    const f = s / legs[k]
+    return [
+      corners[k][0] + (corners[k + 1][0] - corners[k][0]) * f,
+      corners[k][1] + (corners[k + 1][1] - corners[k][1]) * f,
+    ]
+  }
+  const length = legs.reduce((a, b) => a + b, 0)
+  const bends = [legs[0], legs[0] + legs[1]]
+  const stationsAt = [...Array.from({ length: Math.floor(length / 10) + 1 }, (_, k) => k * 10), ...bends, length]
+    .filter((v, k, all) => all.indexOf(v) === k)
+    .sort((a, b) => a - b)
+  const angled = [
+    '100,103,8.099,8.0.390.0, Softree Technical Systems Inc. - Location Line data file',
+    ...stationsAt.map((st) => {
+      const [x, y] = at(st)
+      const type = st === 0 || st === length ? 6 : bends.includes(st) ? 2 : 4
+      return `110,${type},${x.toFixed(6)},${y.toFixed(6)},${(900 + st / 100).toFixed(6)},${(902.5 + st).toFixed(6)},-1,0,0,,,${type === 2 ? 0 : 256}`
+    }),
+  ].join('\r\n')
+  // The same stations read as station numbers from 902.5, as the cul-de-sac's main road starts.
+  const angledFile = design({ 'Location1.dsn': dsn(), 'Location1.ds2': angled })
+
+  it('rebuilds a road with no 108 records from the angle points at its plan stations', () => {
+    const [a] = parseRoadEngDesign(angledFile).alignments
+    expect(a.planFrom).toBe('pis-and-plan-stations')
+    expect(a.followsStations.plan).toBe(false)
+    expect(a.checks.planOffsetM).toBeLessThan(1e-6)
+    expect(a.pis.map((p) => [p.xy, p.radiusM, p.from, p.turn])).toEqual([
+      [corners[1], 0, 'plan-station', 'right'],
+      [corners[2], 0, 'plan-station', 'left'],
+    ])
+    const [road] = roadEngRoads(angledFile, { ...options, epsg: 26910 }).roads
+    expect(road.fitDeviationM).toBeNull()
+    expect(road.alignment.points).toHaveLength(4)
+    expect(roadEngImportSummary(road, parseRoadEngDesign(angledFile))).toMatch(
+      /^Spur 7: 0 PIs and 2 angle points, no design profile .*plan rebuilt from its angle points at its plan stations within 0\.0 mm/,
+    )
+  })
+
+  it('keeps the fit where the plan stations do not rebuild the road either', () => {
+    // A bend's plan station moved 5 m: neither reading rebuilds it.
+    const moved = angled.replace(/^110,2,([\d.]+),/m, (_, x) => `110,2,${(Number(x) + 5).toFixed(6)},`)
+    const [a] = parseRoadEngDesign(design({ 'Location1.dsn': dsn(), 'Location1.ds2': moved })).alignments
+    expect(a.planFrom).toBe('stations')
+    expect(a.followsStations.plan).toBe(true)
+  })
+
+  it('reads a curve type other than 2 with transitions as a spiral when that rebuilds its stations', () => {
+    for (const [inM, outM] of [
+      [30, 30],
+      [25, 45],
+    ]) {
+      const road = spiralRoad(inM, outM)
+      const read = parseRoadEngDesign(design({ 'Location1.dsn': dsn(), 'Location1.ds2': road.ds2 }))
+      const [a] = read.alignments
+      expect(a.pis[0].spiral).toEqual({ inM, outM })
+      expect(a.planFrom).toBe('pis')
+      expect(a.checks.planOffsetM).toBeLessThan(0.001)
+      expect(Math.abs(a.checks.lengthDifferenceM)).toBeLessThan(0.001)
+      expect(a.warnings.join(' ')).toMatch(/1 curve of type 3 is read as spiral curves?, their transition lengths/)
+      const events = stationEvents(a)
+      expect(events.ec).toEqual([road.marks[3]])
+      const [built] = roadEngRoads(design({ 'Location1.dsn': dsn(), 'Location1.ds2': road.ds2 }), {
+        ...options,
+        epsg: 26910,
+      }).roads
+      expect(built.alignment.points[1].spiralM).toBeCloseTo(((inM + outM) / 2) * built.stationScale, 0)
+      if (inM !== outM) expect(built.warnings.join(' ')).toMatch(/spirals of 25\.0 and 45\.0 m; the road takes 35\.0 m/)
+    }
+  })
+
+  it('reads such a curve as circular when its stations are a circle’s', () => {
+    // The hand-built design's circular curve, its record given type 3 and 60 m transitions.
+    const text = ds2().replace(/^108,1,2,/m, '108,1,3,')
+    const [a] = parseRoadEngDesign(design({ 'Location1.dsn': dsn(), 'Location1.ds2': text })).alignments
+    expect(a.pis[0].spiral).toBeUndefined()
+    expect(a.checks.planOffsetM).toBeLessThan(0.001)
+    expect(a.warnings.join(' ')).toMatch(/rebuild its stations as circular curves, not spirals/)
+  })
+
+  it('computes clothoid offsets that turn by L/2R at the end', () => {
+    const [x, y] = clothoidOffsets(60, 60, 100)
+    // Series by hand: x = L(1 − θ²/10 + θ⁴/216 − θ⁶/9360), y = L(θ/3 − θ³/42 + θ⁵/1320), θ = 0.3.
+    expect(x).toBeCloseTo(60 * (1 - 0.09 / 10 + 0.0081 / 216 - 0.000729 / 9360), 6)
+    expect(y).toBeCloseTo(60 * (0.1 - 0.027 / 42 + 0.00243 / 1320), 6)
+  })
+})
+
+describe('RoadEng station events', () => {
+  const st = (station: number, report: number, type = 4, planMark = 0, profileMark = 0) => ({
+    station,
+    xy: [0, 0] as [number, number],
+    z: 0,
+    type,
+    planMark,
+    profileMark,
+    report,
+  })
+  it('lists range boundaries as the middle of their pairs, pits, superelevation and curve ends', () => {
+    const events = stationEvents({
+      stations: [
+        st(0, 0, 2),
+        st(0, 70912, 5),
+        st(10, 65792),
+        st(20, 0, 1),
+        st(40, 0, 2),
+        st(60, 0, 1, 0, 4),
+        st(80, 0, 2, 2),
+        st(1199.9, 18),
+        st(1200.1, 18),
+        st(1999.9, 16384),
+        st(2000, 102656),
+        st(2000.1, 16384),
+        st(2100, 2048),
+        st(3000, 69888, 5),
+        st(3000, 0, 2),
+      ],
+    })
+    expect(events.templateRanges.map((v) => Number(v.toFixed(6)))).toEqual([1200])
+    expect(events.groundLayerRanges.map((v) => Number(v.toFixed(6)))).toEqual([1200])
+    expect(events.pits).toEqual([2000])
+    expect(events.superelevation).toEqual([2100])
+    expect(events).toMatchObject({ bc: [40], ec: [80], bvc: [20], evc: [60] })
+    // 1024 at the start is not identified.
+    expect(events.points.filter((p) => p.kind === 'other').map((p) => [p.station, p.bit])).toEqual([[0, 1024]])
+  })
+})
+
 // Softree's published sample projects (support.softree.com), read from a local copy and never
 // committed: set ROADENG_SAMPLES to the folder holding the extracted archives.
 const samples = process.env.ROADENG_SAMPLES
@@ -240,14 +529,53 @@ describe.skipIf(!samples || !existsSync(samples))('Softree sample designs', () =
   it('rebuilds a 27.8 km RoadEng 11 design within a millimetre', () => {
     const [a] = parseRoadEngDesign(sample('LongRoad_1/LongRoad 1.dsnx')).alignments
     expect(a.pis).toHaveLength(73)
+    expect(a.planFrom).toBe('pis')
     expect(a.checks.planOffsetM).toBeLessThan(0.001)
     expect(a.checks.profileDifferenceM!).toBeLessThan(0.001)
+    // Per-curve design: PI 3 is R 340 at 80 km/h with e 0.054 (the design's table).
+    expect(a.pis[2].curve).toMatchObject({
+      emax: 0.06,
+      runoffIn: 60,
+      runoffOut: 60,
+      transitionFraction: 0.667,
+      e: 0.054,
+    })
+    expect(a.pis[2].curve!.designSpeedMs! * 3.6).toBeCloseTo(80, 6)
   })
-  it('follows the stations of an alignment whose PIs it cannot read', () => {
+  it('lists the events RoadEng flagged on LongRoad: curve ends, ranges and pits', () => {
+    const [a] = parseRoadEngDesign(sample('LongRoad_1/LongRoad 1.dsnx')).alignments
+    const events = stationEvents(a)
+    expect([events.bc.length, events.ec.length, events.bvc.length, events.evc.length]).toEqual([73, 73, 234, 234])
+    // Each BC is a rebuilt curve's start, each EC its end.
+    const round = (list: number[]) => list.map((v) => Math.round(v * 10) / 10)
+    // The [LocationParms] range ends (bridge 18838–18942.8 and 27656.7–27678.6 among them).
+    expect(round(events.templateRanges)).toEqual([
+      1200, 3600, 18600, 18838, 18942.8, 20100, 25250, 25900, 27656.7, 27678.6,
+    ])
+    expect(round(events.groundLayerRanges)).toEqual([1200, 3600, 18600, 20100, 25250, 25900])
+    // OptParms_Pit-0…5.
+    expect(events.pits).toEqual([2000, 4200, 18500, 19800, 23700, 25500])
+    // Runout start, level, reverse crown and full super at both ends of every curve.
+    expect(events.superelevation).toHaveLength(8 * 73)
+  })
+  it('rebuilds the cul-de-sac main road from its plan stations to 5 µm, and the ring from its PIs', () => {
     const { alignments } = parseRoadEngDesign(sample('Cul-de-sac-design/CulDeSacExample/CulDeSacExampleComplete.dsnx'))
     expect(alignments.map((a) => a.followsStations)).toEqual([
-      { plan: true, profile: true },
+      { plan: false, profile: true },
       { plan: false, profile: false },
     ])
+    expect(alignments.map((a) => a.planFrom)).toEqual(['pis-and-plan-stations', 'pis'])
+    expect(alignments[0].checks.planOffsetM).toBeLessThan(1e-5) // 5.0 µm
+    expect(alignments[0].pis.map((p) => p.radiusM)).toEqual([0, 0, 0])
+    expect(alignments.map((a) => a.source?.ds2Kept.map((l) => l.split(',', 1)[0]))).toEqual([
+      ['100', '104', '104', '104', '104', '104', '118'],
+      ['100', '104', '104', '104', '104', '104'],
+    ])
+    const { roads } = roadEngRoads(sample('Cul-de-sac-design/CulDeSacExample/CulDeSacExampleComplete.dsnx'), {
+      ...options,
+      epsg: 26910,
+    })
+    expect(roads[0].fitDeviationM).toBeNull()
+    expect(Object.keys(roadEngCurvesByPoint(roads[1]))).toHaveLength(5)
   })
 })

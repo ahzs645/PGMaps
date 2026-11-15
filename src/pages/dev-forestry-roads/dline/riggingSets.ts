@@ -3,15 +3,23 @@
  * keep, and optionally the saddle-angle limits a support layout is judged by. D-lines and the
  * extraction reach's cable yarder both read them, so a machine is entered once.
  *
- * A set is the user's own: nothing here is a rating or a recommendation. Pure: no DOM or network.
+ * A set is the user's own: nothing here is a rating or a recommendation. A set made from equipment
+ * (SkylineXL's library or a RoadEng logging system) keeps that record beside it through saves and
+ * renames, and its provenance line says which values have been changed since. Pure: no DOM or network.
  */
 import { parseRigging, type CableRigging } from '../cableMechanics'
 import { CABLE_RULE_LIMITS, type CableCoverageRule } from '../cableCoverageRule'
 import { DEFAULT_SUPPORT_LAYOUT, SUPPORT_LAYOUT_LIMITS, type CableSupportLayout } from '../cableLayout/settings'
+import {
+  equipmentProvenanceText,
+  parseRiggingSetEquipment,
+  type RiggingSetEquipment,
+} from '../cableEquipment/cableEquipment'
 import type { CableLine } from '../types'
+import { MAX_RIGGING_SET_NAME } from './riggingSetName'
 
+export { MAX_RIGGING_SET_NAME }
 export const MAX_RIGGING_SETS = 50
-export const MAX_RIGGING_SET_NAME = 80
 
 /** The support-layout limits a set carries. */
 export const SET_LIMIT_KEYS = ['liftOffDeg', 'holdDownDeg', 'maxLoadedDeg', 'maxLoadedEndDeg'] as const
@@ -22,6 +30,11 @@ export interface RiggingSet {
   name: string
   rigging: CableRigging
   limits?: RiggingSetLimits
+  /**
+   * The machine the set was made from (SkylineXL's library or a RoadEng logging system): where its
+   * values came from, and what RoadEng needs to write it back. Rigging-only matching ignores it.
+   */
+  equipment?: RiggingSetEquipment
 }
 
 const clean = (name: string) => name.replace(/\s+/g, ' ').trim()
@@ -43,6 +56,11 @@ export function riggingSetNameError(sets: readonly RiggingSet[], name: string, o
 /**
  * Saves the rigging (and limits) under a name. A set of the same name is replaced in place, so
  * saving again after an edit updates it; otherwise the set is added.
+ *
+ * `equipment` is the record the rigging was made from. Left out, a set saved over keeps its own:
+ * the record is what RoadEng needs to write the set back (spar height, every line's length), and the
+ * set's values win over it there, so an edit never makes it wrong, only edited
+ * (`riggingSetProvenance` names the changed values). `null` drops it. A new name starts without one.
  */
 export function saveRiggingSet(
   sets: readonly RiggingSet[],
@@ -50,28 +68,51 @@ export function saveRiggingSet(
   rigging: CableRigging,
   limits: RiggingSetLimits | undefined,
   newId: () => string,
+  equipment?: RiggingSetEquipment | null,
 ): RiggingSet[] {
   const value = clean(name)
   if (!value) throw Error('Name the set.')
   if (value.length > MAX_RIGGING_SET_NAME) throw Error(`Keep the name to ${MAX_RIGGING_SET_NAME} characters.`)
   parseRigging(rigging)
   const existing = riggingSetNamed(sets, value)
+  const kept = equipment === undefined ? existing?.equipment : (equipment ?? undefined)
   const next: RiggingSet = {
     id: existing?.id ?? newId(),
     name: value,
     rigging: { ...rigging },
     ...(limits ? { limits: pickLimits(limits) } : {}),
+    ...(kept ? { equipment: parseRiggingSetEquipment(kept) } : {}),
   }
   if (existing) return sets.map((set) => (set.id === existing.id ? next : set))
   if (sets.length >= MAX_RIGGING_SETS) throw Error(`A project keeps at most ${MAX_RIGGING_SETS} rigging sets.`)
   return [...sets, next]
 }
 
+/**
+ * Renames a set. Its equipment stays; a set read from a RoadEng logging system takes the new name
+ * as the system's too, so the system is written back under the name the project shows.
+ */
 export function renameRiggingSet(sets: readonly RiggingSet[], id: string, name: string): RiggingSet[] {
   const error = riggingSetNameError(sets, name, id)
   if (error) throw Error(error)
-  return sets.map((set) => (set.id === id ? { ...set, name: clean(name) } : set))
+  const value = clean(name)
+  return sets.map((set) =>
+    set.id !== id
+      ? set
+      : {
+          ...set,
+          name: value,
+          ...(set.equipment?.systemName !== undefined ? { equipment: { ...set.equipment, systemName: value } } : {}),
+        },
+  )
 }
+
+/**
+ * Where a set's values came from, or null for a set entered by hand: the equipment record's line,
+ * and which of its values have been changed since.
+ */
+export const riggingSetProvenance = (set: RiggingSet): string | null =>
+  set.equipment ? equipmentProvenanceText(set.rigging, set.equipment) : null
 
 export const deleteRiggingSet = (sets: readonly RiggingSet[], id: string): RiggingSet[] =>
   sets.filter((set) => set.id !== id)
@@ -191,7 +232,13 @@ export function parseRiggingSets(raw: unknown): RiggingSet[] {
       }
       limits = pickLimits(l as unknown as RiggingSetLimits)
     }
-    sets.push({ id: r.id, name: clean(r.name), rigging: parseRigging(r.rigging), ...(limits ? { limits } : {}) })
+    sets.push({
+      id: r.id,
+      name: clean(r.name),
+      rigging: parseRigging(r.rigging),
+      ...(limits ? { limits } : {}),
+      ...(r.equipment !== undefined ? { equipment: parseRiggingSetEquipment(r.equipment) } : {}),
+    })
   }
   return sets
 }

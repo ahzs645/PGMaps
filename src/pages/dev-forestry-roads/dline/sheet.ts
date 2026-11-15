@@ -728,6 +728,13 @@ export function buildDLineSheet(input: DLineSheetInput): DLineSheet {
         `Load ${f(rig.payloadKg, 0)} kg + carriage ${f(rig.carriageKg, 0)} kg · running lines ${f(rig.runningLinesKgPerM, 2)} kg/m · clearance ${f(rig.minClearanceM)} m`,
       ]
     : ['Assumed sag: no rope, load or tension is calculated.']
-  rigLines.forEach((l, i) => text(ops, rx, Math.min(y, bottom - 20) + 8 + i * 9, fitText(l, 6.5, right), 6.5))
+  // Where a set made from equipment got its values, in up to three smaller lines under the rigging.
+  const provenance = rig && extras.riggingSetProvenance ? wrapText(extras.riggingSetProvenance, 6, right) : []
+  const shown =
+    provenance.length > 3 ? [...provenance.slice(0, 2), fitText(provenance.slice(2).join(' '), 6, right)] : provenance
+  // The rigging lines sit at bottom − 20 as before; provenance lines lift them by 8 each.
+  const rigTop = Math.min(y, bottom - 20 - 8 * shown.length)
+  rigLines.forEach((l, i) => text(ops, rx, rigTop + 8 + i * 9, fitText(l, 6.5, right), 6.5))
+  shown.forEach((l, i) => text(ops, rx, rigTop + 8 + rigLines.length * 9 + i * 8, l, 6, { color: COLORS.muted }))
   return { width, height, ops, truncated: { stakeout: truncatedStake, forces: truncatedForces } }
 }

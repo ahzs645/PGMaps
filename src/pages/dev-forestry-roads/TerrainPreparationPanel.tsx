@@ -29,12 +29,20 @@ import {
 } from './terrainPreparation'
 import { loadTerrainBackground } from './terrainBackgroundImport'
 import {
+  checkSurveyStations,
   parseTraverseLegs,
   reduceTraverse,
+  surveyFieldStation,
   traverseCsv,
+  type SurveyBookSoftree,
   type TraverseInput,
+  type TraverseLeg,
   type TraverseResult,
 } from './surveyInterchange'
+import { fieldStation, type StationEquation } from './stationEquations'
+import { SurveyFieldNotes, type FieldNoteStation } from './SurveyFieldNotes'
+import type { TraverseFileFormat, WritableTraverseFormat } from './traverseFiles'
+import type { UnitSurveyDistance, UnitSurveyVertical } from './softreeTraverse'
 import { combinedScaleFactor, scaleFactorText } from './scaleFactor'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { TerrainMetadata } from './types'
@@ -46,6 +54,36 @@ const sourceRecord = (m: TerrainMetadata) => {
 /** How a resampled background is shown, as a notice and the layer's own line say it. */
 const backgroundResolution = (layer: TerrainBackgroundLayer) =>
   `resampled for display from ${layer.sourceSize![0].toLocaleString('en-CA')} × ${layer.sourceSize![1].toLocaleString('en-CA')} to ${layer.width.toLocaleString('en-CA')} × ${layer.height.toLocaleString('en-CA')} pixels${layer.epsg === 4326 ? '' : ` (${layer.pixelSize[0].toFixed(2)} m)`}`
+/** The units a traverse file is offered in: no traverse format states its own. */
+const TRAVERSE_UNITS = [
+  { value: '1', label: 'Metres' },
+  { value: '0.3048', label: 'International feet' },
+  { value: String(1200 / 3937), label: 'US survey feet' },
+]
+/** The formats a field book is written in, as the export list names them. */
+const TRAVERSE_EXPORTS: { value: WritableTraverseFormat; label: string }[] = [
+  { value: 'asc', label: 'Softree ASCII traverse (.asc)' },
+  { value: 'ipd', label: 'Softree IPD traverse (.ipd)' },
+  { value: 'polycorder', label: 'Polycorder Roads traverse (.txt)' },
+  { value: 'unit-survey', label: 'Unit survey (.pol)' },
+]
+/** The vertical and distance kinds of a unit survey, which the file does not hold. */
+const UNIT_SURVEY_VERTICALS: { value: UnitSurveyVertical; label: string }[] = [
+  { value: 'inclination', label: 'Inclination (° from level)' },
+  { value: 'zenith', label: 'Zenith angle (° from straight up)' },
+  { value: 'slope-percent', label: 'Slope (%)' },
+  { value: 'elevation-difference', label: 'Elevation difference' },
+  { value: 'elevation', label: 'Elevation' },
+]
+const UNIT_SURVEY_DISTANCES: { value: UnitSurveyDistance; label: string }[] = [
+  { value: 'slope', label: 'Slope distances' },
+  { value: 'horizontal', label: 'Horizontal distances' },
+]
+const stationText = (value: number) => value.toFixed(2)
+/** The traverse CSV of a field book's legs, as the panel's text box reads it. */
+const legsText = (legs: readonly TraverseLeg[]) =>
+  'station,bearing_deg,horizontal_m,grade_pct\n' +
+  legs.map((l) => [l.id, l.bearingDegrees, l.horizontalDistanceM, l.gradePercent].join(',')).join('\n')
 const download = (text: string, name: string, type = 'text/plain') => {
   const url = URL.createObjectURL(new Blob([text], { type })),
     a = document.createElement('a')
@@ -101,6 +139,34 @@ export function TerrainPreparationPanel({
   const [notes, setNotes] = useState('station,bearing_deg,horizontal_m,grade_pct\nA,0,50,0\nB,90,50,0'),
     [shotNotes, setShotNotes] = useState(''),
     [survey, setSurvey] = useState<TraverseResult | null>(null)
+  // Stations as the field names them: the first station, and back/ahead equations along the chain.
+  const [startStation, setStartStation] = useState(0),
+    [equations, setEquations] = useState<StationEquation[]>([])
+  // What a traverse file held that the field book has no field for, kept with the book when saved.
+  const [softree, setSoftree] = useState<SurveyBookSoftree | null>(null)
+  // The saved field book open in the panel: saving writes it in place, as one undo step.
+  const [openBook, setOpenBook] = useState<string | null>(null)
+  // Counts the field books loaded into the panel, so a new one starts with its notes folded.
+  const [loads, setLoads] = useState(0)
+  // A traverse file waiting for its units (always asked), its shot kinds (.pol) or its start.
+  const traverseFile = useRef<HTMLInputElement>(null)
+  const [pendingTraverse, setPendingTraverse] = useState<{
+    name: string
+    text: string
+    format: TraverseFileFormat
+    unit: string
+    vertical: UnitSurveyVertical | ''
+    distance: UnitSurveyDistance | ''
+    /** Set when the file gives no start: it is read from the survey start fields. */
+    startQuestion: string | null
+  } | null>(null)
+  const [traverseExport, setTraverseExport] = useState<WritableTraverseFormat>('asc'),
+    [traverseExportUnit, setTraverseExportUnit] = useState(String(metadata.localPlane?.unitM ?? 1))
+  const changeStations = (next: { start?: number; equations?: StationEquation[] }) => {
+    if (next.start !== undefined) setStartStation(next.start)
+    if (next.equations) setEquations(next.equations)
+    setSurvey(null)
+  }
   // Ground distances are reduced to the grid by the combined scale factor at the survey start.
   const [groundDistances, setGroundDistances] = useState(false),
     [geoidM, setGeoidM] = useState(-17)
@@ -193,7 +259,161 @@ export function TerrainPreparationPanel({
     const [longitudeDeg, latitudeDeg] = grid.toLonLat([start.easting, start.northing])
     return combinedScaleFactor(grid.epsg, { latitudeDeg, longitudeDeg }, start.elevation + geoidM)
   }
-  const reduce = () => reduceTraverse(surveyInput())
+  const reduce = () => {
+    const input = surveyInput()
+    const result = reduceTraverse(input)
+    checkSurveyStations(input, startStation, equations)
+    return result
+  }
+  /** The field station of a reduced station. */
+  const fieldAt = (chainageM: number) => {
+    let input: Partial<TraverseInput> = {}
+    try {
+      input = surveyInput()
+    } catch {
+      // A shown reduction was made from valid notes; grid distances stand in if they changed since.
+    }
+    return surveyFieldStation(chainageM, { input, startStation, stationEquations: equations })
+  }
+  /** Reads the pending traverse file into the field book, or asks for its start. */
+  const readTraverse = async () => {
+    if (!pendingTraverse) return
+    const { readTraverseFile, traverseFileDetails, traverseLegsText, sideShotsText } = await import('./traverseFiles')
+    const { SoftreeTraverseStartQuestion } = await import('./softreeTraverse')
+    const p = pendingTraverse
+    try {
+      const read = readTraverseFile(p.text, p.format, {
+        unitM: Number(p.unit),
+        ...(p.startQuestion ? { start: [start.easting, start.northing, start.elevation] } : {}),
+        ...(p.vertical ? { vertical: p.vertical } : {}),
+        ...(p.distance ? { distance: p.distance } : {}),
+      })
+      const input = read.input
+      setStart({ easting: input.start[0], northing: input.start[1], elevation: input.start[2] })
+      setAdjust(false)
+      setNotes(traverseLegsText(input))
+      setShotNotes(sideShotsText(input))
+      setStartStation(read.startStation)
+      setEquations(read.equations)
+      const kept = traverseFileDetails(read, Number(p.unit))
+      setSoftree(kept.details)
+      setLoads((n) => n + 1)
+      setOpenBook(null)
+      // Written back in its own format and unit, an unchanged file is the same file.
+      if (p.format !== 'laser-raw') setTraverseExport(p.format)
+      setTraverseExportUnit(p.unit)
+      setPendingTraverse(null)
+      setSurvey(reduceTraverse(input))
+      w.setNotice(
+        [
+          `Read ${p.name}: ${input.legs.length} legs, ${input.sideShots?.length ?? 0} side shots${read.equations.length ? `, ${read.equations.length} station equation${read.equations.length === 1 ? '' : 's'}` : ''}.`,
+          read.fileCheck
+            ? `The file's own coordinates lie within ${read.fileCheck.maxDifferenceM.toFixed(3)} m of the reduction at ${read.fileCheck.compared} stations.`
+            : '',
+          ...read.notes,
+          ...kept.notes,
+          'Save the field book to keep it in the project.',
+        ]
+          .filter(Boolean)
+          .join(' '),
+      )
+    } catch (error) {
+      if (error instanceof SoftreeTraverseStartQuestion) {
+        setPendingTraverse({ ...p, startQuestion: error.message })
+        return
+      }
+      w.setError(error instanceof Error ? error.message : String(error))
+    }
+  }
+  /** The field book's stations as the field names them, from the traverse CSV as it stands. */
+  const noteStations = (): FieldNoteStation[] => {
+    let legs: TraverseLeg[] = []
+    try {
+      legs = parseTraverseLegs(notes)
+    } catch {
+      // Notes being typed: the stations already noted are still listed by number.
+    }
+    let calc = startStation
+    return [
+      { index: 0, name: '', fieldStation: fieldStation(calc, equations) },
+      ...legs.map((l, i) => {
+        calc += Number.isFinite(l.horizontalDistanceM) ? l.horizontalDistanceM : 0
+        return { index: i + 1, name: l.id, fieldStation: fieldStation(calc, equations) }
+      }),
+    ]
+  }
+  /** HI/HT corrected at a station: the leg from it rises by the change, so its slope reading stays as taken. */
+  const changeHeights = (station: number, hi: number | null, ht: number | null) => {
+    if (!softree) return
+    const before = softree.extras.find((e) => e.station === station)
+    const shift = ((hi ?? 0) - (ht ?? 0) - ((before?.hi ?? 0) - (before?.ht ?? 0))) * softree.unitM
+    if (shift) {
+      let legs: TraverseLeg[]
+      try {
+        legs = parseTraverseLegs(notes)
+      } catch (error) {
+        w.setError(
+          `Correct the traverse CSV before changing HI or HT: ${error instanceof Error ? error.message : String(error)}`,
+        )
+        return
+      }
+      const leg = legs[station]
+      if (leg && leg.horizontalDistanceM > 0) {
+        legs[station] = { ...leg, gradePercent: leg.gradePercent + (shift / leg.horizontalDistanceM) * 100 }
+        setNotes(legsText(legs))
+        setSurvey(null)
+      }
+    }
+    const next = { ...(before ?? { station }) }
+    if (hi === null) delete next.hi
+    else next.hi = hi
+    if (ht === null) delete next.ht
+    else next.ht = ht
+    setSoftree({
+      ...softree,
+      extras: [...softree.extras.filter((e) => e.station !== station), next].sort((a, b) => a.station - b.station),
+    })
+  }
+  /** Saves the field book: in place when it was opened or saved before, else as a new book. */
+  const saveBook = (asNew: boolean) => {
+    try {
+      const input = surveyInput()
+      reduceTraverse(input)
+      checkSurveyStations(input, startStation, equations)
+      const grid = exportGrid(metadata, alignment.points[0].coordinate)
+      const books = project.surveyBooks ?? []
+      const current = asNew ? undefined : books.find((b) => b.id === openBook)
+      if (!current && books.length >= 20) throw Error('A project supports at most 20 survey field books.')
+      const record = {
+        id: current?.id ?? crypto.randomUUID(),
+        name: current?.name ?? `Survey ${1 + books.length}`,
+        epsg: grid.epsg,
+        verticalReference: metadata.verticalReference,
+        input,
+        ...(startStation ? { startStation } : {}),
+        ...(equations.length ? { stationEquations: equations } : {}),
+        ...(softree ? { softree } : {}),
+      }
+      w.commit(
+        {
+          ...project,
+          surveyBooks: current ? books.map((b) => (b.id === current.id ? record : b)) : [...books, record],
+        },
+        true,
+        current ? `Saved ${record.name}` : `Added ${record.name}`,
+        true,
+      )
+      setOpenBook(record.id)
+      w.setNotice(
+        current
+          ? `${record.name} saved with its observations, field notes and reduction settings.`
+          : 'Survey observations and reduction settings saved in this project.',
+      )
+    } catch (error) {
+      w.setError(error instanceof Error ? error.message : String(error))
+    }
+  }
+  const openBookRecord = project.surveyBooks?.find((b) => b.id === openBook)
   return (
     <>
       <RoadSection
@@ -629,6 +849,119 @@ export function TerrainPreparationPanel({
           <p className="text-2xs text-muted-foreground">
             EPSG:{exportGrid(metadata, alignment.points[0].coordinate).epsg} · {metadata.verticalReference}
           </p>
+          <input
+            ref={traverseFile}
+            type="file"
+            accept=".asc,.ipd,.pol,.txt,.raw,.csv,text/plain"
+            className="hidden"
+            aria-label="Traverse file"
+            onChange={(e) => {
+              const picked = e.target.files?.[0]
+              e.target.value = ''
+              if (!picked) return
+              void run(async () => {
+                const { detectTraverseFile, MAX_TRAVERSE_FILE_BYTES } = await import('./traverseFiles')
+                if (picked.size > MAX_TRAVERSE_FILE_BYTES)
+                  throw Error(`${picked.name} is over ${MAX_TRAVERSE_FILE_BYTES / 1e6} MB.`)
+                const text = await picked.text()
+                const format = detectTraverseFile(text)
+                if (!format)
+                  throw Error(
+                    `${picked.name} is not a traverse this reads: a Softree ASCII or IPD traverse, a Polycorder Roads traverse, a unit survey (.pol) or a Laser Technology raw survey.`,
+                  )
+                setPendingTraverse({
+                  name: picked.name,
+                  text,
+                  format,
+                  unit: '',
+                  vertical: '',
+                  distance: '',
+                  startQuestion: null,
+                })
+              })
+            }}
+          />
+          <Button size="sm" variant="outline" className="w-full" onClick={() => traverseFile.current?.click()}>
+            Load traverse file
+          </Button>
+          {pendingTraverse && (
+            <div className={cn(insetBox(), 'space-y-2')} data-testid="road-survey-traverse-file">
+              <p className="text-xs">
+                {pendingTraverse.name}:{' '}
+                {
+                  {
+                    asc: 'Softree ASCII traverse',
+                    ipd: 'Softree IPD traverse',
+                    polycorder: 'Polycorder Roads traverse',
+                    'unit-survey': 'unit survey',
+                    'laser-raw': 'Laser Technology raw survey',
+                  }[pendingTraverse.format]
+                }
+              </p>
+              <Field
+                label="Measured in"
+                hint="Traverse files do not state their units, so they are asked for every file."
+              >
+                <RoadSelect
+                  ariaLabel="Traverse measured in"
+                  className={roadFieldClass}
+                  value={pendingTraverse.unit}
+                  placeholder="Choose the unit"
+                  onValueChange={(unit) => setPendingTraverse({ ...pendingTraverse, unit })}
+                  options={TRAVERSE_UNITS}
+                />
+              </Field>
+              {pendingTraverse.format === 'unit-survey' && (
+                <>
+                  <Field label="Vertical readings are">
+                    <RoadSelect
+                      ariaLabel="Vertical readings are"
+                      className={roadFieldClass}
+                      value={pendingTraverse.vertical}
+                      placeholder="Choose what they are"
+                      onValueChange={(vertical) =>
+                        setPendingTraverse({ ...pendingTraverse, vertical: vertical as UnitSurveyVertical })
+                      }
+                      options={UNIT_SURVEY_VERTICALS}
+                    />
+                  </Field>
+                  <Field label="Distances are">
+                    <RoadSelect
+                      ariaLabel="Distances are"
+                      className={roadFieldClass}
+                      value={pendingTraverse.distance}
+                      placeholder="Choose what they are"
+                      onValueChange={(distance) =>
+                        setPendingTraverse({ ...pendingTraverse, distance: distance as UnitSurveyDistance })
+                      }
+                      options={UNIT_SURVEY_DISTANCES}
+                    />
+                  </Field>
+                </>
+              )}
+              {pendingTraverse.startQuestion && (
+                <p role="status" className="text-xs text-warning-foreground">
+                  {pendingTraverse.startQuestion} It is read from the survey start below.
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setPendingTraverse(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={
+                    !pendingTraverse.unit ||
+                    (pendingTraverse.format === 'unit-survey' &&
+                      (!pendingTraverse.vertical || !pendingTraverse.distance))
+                  }
+                  onClick={() => void run(readTraverse)}
+                >
+                  Read traverse
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {(['easting', 'northing', 'elevation'] as const).map((key) => (
               <NumberField
@@ -744,6 +1077,72 @@ export function TerrainPreparationPanel({
               }}
             />
           </Field>
+          {softree && (
+            <SurveyFieldNotes
+              key={loads}
+              details={softree}
+              stations={noteStations()}
+              onChange={setSoftree}
+              onHeights={changeHeights}
+            />
+          )}
+          <NumberField
+            label="Start station (m)"
+            value={startStation}
+            min={-10_000_000}
+            max={10_000_000}
+            step={0.001}
+            hint="The field station of the survey start. Stations run on by horizontal distance, renamed at each station equation."
+            onChange={(value) => changeStations({ start: value })}
+          />
+          <Field
+            label="Station equations"
+            hint="From each back station on the measured chain, the field names stations from the ahead station. Back stations rise along the traverse."
+          >
+            <div className="space-y-1" data-testid="road-survey-station-equations">
+              {equations.map((equation, i) => (
+                <div key={i} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+                  {(['back', 'ahead'] as const).map((key) => (
+                    <NumberField
+                      key={key}
+                      label={`${key === 'back' ? 'Back' : 'Ahead'} station (m)`}
+                      ariaLabel={`Equation ${i + 1} ${key} station (m)`}
+                      hideLabel={i > 0}
+                      value={equation[key]}
+                      min={-10_000_000}
+                      max={10_000_000}
+                      step={0.001}
+                      onChange={(value) =>
+                        changeStations({
+                          equations: equations.map((e, k) => (k === i ? { ...e, [key]: value } : e)),
+                        })
+                      }
+                    />
+                  ))}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Remove equation ${i + 1}`}
+                    onClick={() => changeStations({ equations: equations.filter((_, k) => k !== i) })}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  const last = equations.at(-1)
+                  const back = last ? last.back + 10 : startStation
+                  changeStations({ equations: [...equations, { back, ahead: back }] })
+                }}
+              >
+                Add station equation
+              </Button>
+            </div>
+          </Field>
           <Button
             size="sm"
             variant="outline"
@@ -758,37 +1157,31 @@ export function TerrainPreparationPanel({
           >
             Reduce survey observations
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
-            disabled={(project.surveyBooks?.length ?? 0) >= 20}
-            onClick={() => {
-              try {
-                const input = surveyInput()
-                reduceTraverse(input)
-                const grid = exportGrid(metadata, alignment.points[0].coordinate)
-                w.commit({
-                  ...project,
-                  surveyBooks: [
-                    ...(project.surveyBooks ?? []),
-                    {
-                      id: crypto.randomUUID(),
-                      name: `Survey ${1 + (project.surveyBooks?.length ?? 0)}`,
-                      epsg: grid.epsg,
-                      verticalReference: metadata.verticalReference,
-                      input,
-                    },
-                  ],
-                })
-                w.setNotice('Survey observations and reduction settings saved in this project.')
-              } catch (error) {
-                w.setError(String(error))
-              }
-            }}
-          >
-            Save field book to project
-          </Button>
+          {openBookRecord ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" onClick={() => saveBook(false)}>
+                Save {openBookRecord.name}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={(project.surveyBooks?.length ?? 0) >= 20}
+                onClick={() => saveBook(true)}
+              >
+                Save as new
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              disabled={(project.surveyBooks?.length ?? 0) >= 20}
+              onClick={() => saveBook(true)}
+            >
+              Save field book to project
+            </Button>
+          )}
           {!!project.surveyBooks?.length && (
             <Field label="Saved survey field books">
               <RoadSelect
@@ -810,17 +1203,22 @@ export function TerrainPreparationPanel({
                   setAdjust(input.adjustment === 'bowditch')
                   if (input.target)
                     setTarget({ easting: input.target[0], northing: input.target[1], elevation: input.target[2] })
-                  setNotes(
-                    'station,bearing_deg,horizontal_m,grade_pct\n' +
-                      input.legs
-                        .map((l) => [l.id, l.bearingDegrees, l.horizontalDistanceM, l.gradePercent].join(','))
-                        .join('\n'),
-                  )
+                  setNotes(legsText(input.legs))
                   setShotNotes(
                     (input.sideShots ?? [])
                       .map((s) => [s.id, s.station, s.offsetM, s.heightDifferenceM].join(','))
                       .join('\n'),
                   )
+                  setStartStation(book.startStation ?? 0)
+                  setEquations(book.stationEquations ?? [])
+                  setSoftree(book.softree ?? null)
+                  setLoads((n) => n + 1)
+                  setOpenBook(book.id)
+                  if (book.softree) {
+                    if (book.softree.sourceFormat !== 'laser-raw') setTraverseExport(book.softree.sourceFormat)
+                    const unit = TRAVERSE_UNITS.find((u) => Math.abs(Number(u.value) - book.softree!.unitM) < 1e-12)
+                    if (unit) setTraverseExportUnit(unit.value)
+                  }
                   setSurvey(reduceTraverse(input))
                 }}
               >
@@ -836,7 +1234,8 @@ export function TerrainPreparationPanel({
           {survey && (
             <>
               <p className="text-xs">
-                {survey.stations.length} stations · {survey.lengthM.toFixed(2)} m
+                {survey.stations.length} stations · {survey.lengthM.toFixed(2)} m · field stations{' '}
+                {stationText(fieldAt(0))} to {stationText(fieldAt(survey.lengthM))}
                 {survey.closure
                   ? ` · raw closure ${survey.closure.horizontalM.toFixed(3)} m${survey.closure.ratio ? ` (1:${survey.closure.ratio.toFixed(0)})` : ''}`
                   : ''}
@@ -848,7 +1247,11 @@ export function TerrainPreparationPanel({
                   onClick={() => {
                     const grid = exportGrid(metadata, alignment.points[0].coordinate)
                     download(
-                      traverseCsv(survey, grid.epsg, metadata.verticalReference),
+                      traverseCsv(survey, grid.epsg, metadata.verticalReference, {
+                        input: surveyInput(),
+                        startStation,
+                        stationEquations: equations,
+                      }),
                       'survey-reduction.csv',
                       'text/csv',
                     )
@@ -896,6 +1299,49 @@ export function TerrainPreparationPanel({
                   Add survey line
                 </Button>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Traverse file format">
+                  <RoadSelect
+                    ariaLabel="Traverse file format"
+                    className={roadFieldClass}
+                    value={traverseExport}
+                    onValueChange={(format) => setTraverseExport(format as WritableTraverseFormat)}
+                    options={TRAVERSE_EXPORTS}
+                  />
+                </Field>
+                <Field label="Traverse file units">
+                  <RoadSelect
+                    ariaLabel="Traverse file units"
+                    className={roadFieldClass}
+                    value={traverseExportUnit}
+                    onValueChange={setTraverseExportUnit}
+                    options={TRAVERSE_UNITS}
+                  />
+                </Field>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() =>
+                  void run(async () => {
+                    const { writeTraverseFile } = await import('./traverseFiles')
+                    const input = surveyInput()
+                    checkSurveyStations(input, startStation, equations)
+                    const written = writeTraverseFile(input, traverseExport, {
+                      unitM: Number(traverseExportUnit),
+                      startStation,
+                      equations,
+                      name: 'PGMAPS',
+                      ...(softree ? { details: softree } : {}),
+                    })
+                    download(written.text, `survey-traverse${written.extension}`)
+                    w.setNotice(['Traverse file downloaded.', ...written.notes].join(' '))
+                  })
+                }
+              >
+                Export traverse file
+              </Button>
             </>
           )}
         </fieldset>

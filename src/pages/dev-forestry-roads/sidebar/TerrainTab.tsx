@@ -19,6 +19,7 @@ import { AccessHistoryPanel } from '../AccessHistoryPanel'
 import { terrainDisplayName } from '../terrainName'
 import { TerrainCaveats } from '../TerrainCaveats'
 import { pointCloudImportSummary } from '../terrain'
+import { RoadEngTerrainSummary } from '../RoadEngTerrainSummary'
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
 /** A cell size people read at a glance: whole metres when coarse, decimals only when they matter. */
@@ -87,6 +88,8 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
             {project.scenario &&
               ` · ${count(project.context.filter((feature) => feature.kind === 'existing-road').length, 'road')} · ${count(project.context.filter((feature) => feature.kind === 'harvest').length, 'cutblock')}`}
           </p>
+          {/* A terrain read from RoadEng: its TIN, features and whether its own file can go back. */}
+          {project.terrain.roadEngSource && <RoadEngTerrainSummary terrain={project.terrain} />}
           {/* The point-cloud import summary stays with the terrain: its notice is gone in seconds. */}
           {importSummary && (
             <div className="-mx-2.5 -mb-2 mt-1.5" data-testid="road-terrain-import-summary">

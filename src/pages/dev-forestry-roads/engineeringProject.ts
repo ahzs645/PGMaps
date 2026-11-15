@@ -56,6 +56,12 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       templateId: key(v.templateId, 'Assigned template'),
       side: oneOf(v.side, ['left', 'right', 'both'] as const, 'Template side'),
       transitionM: numeric(v.transitionM, 'Template transition', 0, 1000),
+      ...(v.transitionInM === undefined
+        ? {}
+        : { transitionInM: numeric(v.transitionInM, 'Template transition in', 0, 1000) }),
+      ...(v.transitionOutM === undefined
+        ? {}
+        : { transitionOutM: numeric(v.transitionOutM, 'Template transition out', 0, 1000) }),
     }
   })
   const materials = items(r.materials, 'Ground materials', 32).map((raw) => {

@@ -5,7 +5,9 @@ import { parseProject } from './project'
 /**
  * Projects kept in this browser. Each project lives under `project:<id>` in the workspace's
  * IndexedDB store, `library` lists them for the picker and `active` names the one to reopen.
- * The ids are storage keys only; they never enter the project file.
+ * The ids are storage keys only; they never enter the project file. RoadEng's own terrain files
+ * live beside them in `roadEngTerrainStore.ts`; each entry lists the ones its project names
+ * (`roadEngTer`), and deleting a project removes those no other project names.
  */
 const DATABASE = 'pgmaps-forestry-roads-v1'
 const STORE = 'projects'
@@ -21,6 +23,8 @@ export interface LibraryEntry {
   openingId?: string
   blocks?: number
   roadRecords?: number
+  /** SHA-256 of each RoadEng terrain file the project names (`roadEngTerrainStore.ts`). */
+  roadEngTer?: string[]
   updatedAt: number
 }
 
@@ -42,6 +46,7 @@ export function libraryEntry(id: string, project: RoadProject, updatedAt = Date.
     ...(project.investigation ? { openingId: project.investigation.openingId } : {}),
     blocks: project.context.filter((feature) => feature.kind === 'harvest').length,
     roadRecords: mappedRoadRecordCount(project),
+    ...(project.terrain.roadEngSource?.original ? { roadEngTer: [project.terrain.roadEngSource.original.sha256] } : {}),
     updatedAt,
   }
 }
@@ -131,13 +136,21 @@ export function addProject(id: string, project: RoadProject, entries: readonly L
   })
 }
 
-export function deleteProject(id: string, entries: readonly LibraryEntry[]) {
+export async function deleteProject(id: string, entries: readonly LibraryEntry[]) {
   const next = entries.filter((e) => e.id !== id)
-  return withStore('readwrite', (store) => {
+  const saved = await withStore('readwrite', (store) => {
     store.delete(`project:${id}`)
     store.put(next, 'library')
     return () => next
   })
+  // RoadEng terrain files only the deleted project named; a failure here leaves them for next time.
+  try {
+    const { pruneRoadEngOriginals } = await import('./roadEngTerrainStore')
+    await pruneRoadEngOriginals(next.flatMap((e) => e.roadEngTer ?? []))
+  } catch {
+    // Pruning is housekeeping; the project is deleted either way.
+  }
+  return saved
 }
 
 /** The training example keeps its own slot outside the library, as before. */

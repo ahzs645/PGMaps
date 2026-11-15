@@ -43,7 +43,7 @@ export function sectionSourceAt(
   const assigned = resolved.assignmentIds.map((id) => e.assignments.find((a) => a.id === id))
   const templateIds = new Set(assigned.map((a) => a?.templateId))
   const both = assigned.some((a) => a?.side === 'both') || assigned.length === 2
-  const transition = /· transition$/.test(resolved.leftName) || /· transition$/.test(resolved.rightName)
+  const transition = /· transition/.test(resolved.leftName) || /· transition/.test(resolved.rightName)
   const [only] = templateIds
   const named = templateIds.size === 1 && only ? e.templates.find((t) => t.id === only) : undefined
   if (named && both && !transition) return { kind: 'named', templateId: named.id, name: named.name }
@@ -60,7 +60,10 @@ export interface AffectedRange {
   assignment: TemplateAssignment
   templateName: string
   outcome: 'replaced' | 'trimmed' | 'split'
-  /** Set when a trimmed range keeps a transition, which now blends back to the base at the cut. */
+  /**
+   * Set when a trimmed range had a transition at the cut: a transition to the base section now
+   * blends back to it at the cut, and one to the neighbouring range is removed there.
+   */
   transitionNote?: string
 }
 
@@ -90,6 +93,11 @@ export function planSectionRange(
     stationLabel: (chainage: number) => string
     /** A section to give the range instead of the one at `chainage` (the section fixes' rock fill). */
     source?: SectionSource
+    /**
+     * Metres over which the range changes from the section before it and back to the section after
+     * it (`transitionInM`/`transitionOutM`), at each end; 0 or omitted steps. At most half the range.
+     */
+    transitionM?: number
   },
 ): { plan: SectionRangePlan } | { error: string } {
   const from = Math.min(range[0], range[1]),
@@ -100,6 +108,11 @@ export function planSectionRange(
     return { error: `Choose a range on the road, between ${label(0)} and ${label(roadLength)}.` }
   if (to - from < MIN_SECTION_RANGE_M) return { error: `Choose a range at least ${MIN_SECTION_RANGE_M} m long.` }
   const source = options.source ?? sectionSourceAt(alignment, chainage, label)
+  const transition = options.transitionM ?? 0
+  if (!(transition >= 0) || transition > (to - from) / 2 + EPS)
+    return { error: `Choose a transition from 0 to ${Number(((to - from) / 2).toFixed(1))} m, half the range.` }
+  if (transition > 0 && source.kind === 'base')
+    return { error: 'The base section is given by clearing the range, so it has no transition of its own.' }
   const e = alignment.engineering ?? createEngineeringDesign()
   const names = new Map(e.templates.map((t) => [t.id, t.name]))
   const templates = [...e.templates]
@@ -121,11 +134,31 @@ export function planSectionRange(
       return
     }
     const pieces: TemplateAssignment[] = []
-    if (from - a.start >= MIN_TRIMMED_PIECE_M) pieces.push({ ...a, end: from })
+    // A piece cut short loses its transition at the cut, which would now meet the new range.
+    const without = (p: TemplateAssignment, key: 'transitionInM' | 'transitionOutM') => {
+      const rest = { ...p }
+      delete rest[key]
+      return rest
+    }
+    const cutEnd = (p: TemplateAssignment) => without(p, 'transitionOutM')
+    const cutStart = (p: TemplateAssignment) => without(p, 'transitionInM')
+    if (from - a.start >= MIN_TRIMMED_PIECE_M) pieces.push(cutEnd({ ...a, end: from }))
     if (a.end - to >= MIN_TRIMMED_PIECE_M)
-      pieces.push({ ...a, ...(pieces.length ? { id: options.id() } : {}), start: to })
-    const capped = pieces.map((p) => ({ ...p, transitionM: Math.min(p.transitionM, (p.end - p.start) / 2) }))
+      pieces.push(cutStart({ ...a, ...(pieces.length ? { id: options.id() } : {}), start: to }))
+    const capped = pieces.map((p) => {
+      const length = p.end - p.start
+      const fit: TemplateAssignment = { ...p, transitionM: Math.min(p.transitionM, length / 2) }
+      // What is left of a transition to a neighbour shares the shorter piece with the other end.
+      if (fit.transitionInM !== undefined)
+        fit.transitionInM = Math.min(fit.transitionInM, length - (fit.transitionOutM ?? 0))
+      if (fit.transitionOutM !== undefined)
+        fit.transitionOutM = Math.min(fit.transitionOutM, length - (fit.transitionInM ?? 0))
+      return fit
+    })
     kept.push(...capped)
+    const lostNeighbourTransition =
+      ((a.transitionOutM ?? 0) > 0 && pieces.some((p) => p.end === from && p.start === a.start)) ||
+      ((a.transitionInM ?? 0) > 0 && pieces.some((p) => p.start === to && p.end === a.end))
     affected.push({
       number: index + 1,
       assignment: a,
@@ -135,7 +168,9 @@ export function planSectionRange(
         ? {
             transitionNote: `its ${Number(a.transitionM.toFixed(1))} m transition now blends back to the base section at the cut`,
           }
-        : {}),
+        : lostNeighbourTransition
+          ? { transitionNote: 'its transition at the cut is removed; the new range carries any transition there' }
+          : {}),
     })
   })
   let assignments = kept
@@ -147,12 +182,16 @@ export function planSectionRange(
       templateId,
       side: 'both',
       transitionM: 0,
+      ...(transition > 0 ? { transitionInM: transition, transitionOutM: transition } : {}),
     }
     // A plain range of the same template that touches the new one becomes part of it.
     const joins = (a: TemplateAssignment) =>
+      transition === 0 &&
       a.templateId === templateId &&
       a.side === 'both' &&
       a.transitionM === 0 &&
+      !a.transitionInM &&
+      !a.transitionOutM &&
       (Math.abs(a.end - added.start) <= EPS || Math.abs(a.start - added.end) <= EPS)
     const joined = assignments.filter(joins)
     for (const a of joined) {
@@ -184,7 +223,15 @@ export function planSectionRange(
 
 const normalised = (list: readonly TemplateAssignment[]) =>
   [...list]
-    .map(({ start, end, templateId, side, transitionM }) => ({ start, end, templateId, side, transitionM }))
+    .map(({ start, end, templateId, side, transitionM, transitionInM, transitionOutM }) => ({
+      start,
+      end,
+      templateId,
+      side,
+      transitionM,
+      transitionInM: transitionInM ?? 0,
+      transitionOutM: transitionOutM ?? 0,
+    }))
     .sort((a, b) => a.start - b.start || a.side.localeCompare(b.side))
 
 export interface BatterMiss {

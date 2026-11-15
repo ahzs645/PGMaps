@@ -104,6 +104,8 @@ interface RangeState {
   picking: boolean
   from: string
   to: string
+  /** Metres the range changes over from its neighbours at each end; blank steps. */
+  transition: string
   error: string
   /** A plan waiting for the reader's yes because it changes existing ranges. */
   confirm: SectionRangePlan | null
@@ -148,9 +150,11 @@ export function SectionViewControls({
           to share this station's formation level; it is dropped when another road is shown. Use this section for… gives
           the section shown here to a range of stations through the template station assignments: a named template by
           name, the base section by clearing the range, and a mixed or transition section as a new template named after
-          its station. Side slope lines draw the ground's fitted side slope each side of the centreline; a line turns
-          amber where the ground is as steep as the template batter, so that batter never catches, or falls away past
-          the full-bench screen.
+          its station; a transition length makes the range change linearly from the section before it and back to the
+          section after it at each end, stepping at the transition's midpoint where the two cannot be interpolated. Side
+          slope lines draw the ground's fitted side slope each side of the centreline; a line turns amber where the
+          ground is as steep as the template batter, so that batter never catches, or falls away past the full-bench
+          screen.
         </InfoTip>
       </div>
       <Button
@@ -227,6 +231,7 @@ export function SectionViewControls({
                     picking: true,
                     from: station ? String(round(station.chainage)) : '',
                     to: '',
+                    transition: r?.transition ?? '',
                     error: '',
                     confirm: null,
                     applied: r?.applied ?? null,
@@ -318,7 +323,7 @@ export function SectionPaneTools({
       station.chainage,
       [Number(range.from.trim() || NaN), Number(range.to.trim() || NaN)],
       analysis.length,
-      { id: uid, stationLabel: formatRoadStation },
+      { id: uid, stationLabel: formatRoadStation, transitionM: Number(range.transition.trim() || 0) },
     )
     if ('error' in result) return patch({ error: result.error, confirm: null })
     const { plan } = result
@@ -408,7 +413,21 @@ export function SectionPaneTools({
                       onChange={(e) => patch({ to: e.target.value, confirm: null, error: '' })}
                       onKeyDown={(e) => e.key === 'Enter' && apply()}
                     />
-                    <span>m</span>
+                    <span>m, changing over</span>
+                    <input
+                      aria-label="Transition at each end metres"
+                      type="number"
+                      min={0}
+                      step="any"
+                      placeholder="0"
+                      title="The range changes linearly from the section before it, and back to the section after it, over this length at each end. Blank or 0 steps."
+                      className={cn(field, 'w-14')}
+                      value={range.transition}
+                      disabled={source.kind === 'base'}
+                      onChange={(e) => patch({ transition: e.target.value, confirm: null, error: '' })}
+                      onKeyDown={(e) => e.key === 'Enter' && apply()}
+                    />
+                    <span>m each end</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1">
                     <Button

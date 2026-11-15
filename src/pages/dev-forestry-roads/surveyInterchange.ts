@@ -1,5 +1,7 @@
 /** Open geographic interchange and projected survey reduction. No inferred vertical datum. */
 import { SCALE_FACTOR_LIMITS } from './scaleFactor'
+import type { SoftreeStationExtras, SoftreeTraverseDetails, SoftreeTraverseSource } from './softreeTraverse'
+import { checkStationEquations, fieldStation, type StationEquation } from './stationEquations'
 
 export interface TraverseLeg {
   id: string
@@ -27,12 +29,187 @@ export interface TraverseResult {
   lengthM: number
   adjustment: TraverseInput['adjustment']
 }
+/**
+ * What a traverse read from a Softree-format file held that the field book has no field for, kept
+ * with the book (lengths in the file's units): labels, ground layers, culverts, HI/HT, side-shot
+ * depths, slopes beyond the last side shot, shots that are not legs, and the file as written. The
+ * traverse writers (`softreeTraverse.ts`) write back each detail their format has a field for.
+ */
+export type SurveyBookSoftree = SoftreeTraverseDetails
+/** Characters the kept Softree details of one field book may take, as JSON (the file as written included). */
+export const MAX_SURVEY_SOFTREE_CHARS = 2_000_000
+/** Characters of one kept text field (a label, a ground type, a line of the file as written). */
+export const MAX_SURVEY_SOFTREE_TEXT = 10_000
+/** Stations' extras, or located points, a field book keeps at most (the traverse readers' record limit). */
+export const MAX_SURVEY_SOFTREE_ITEMS = 20_000
+/** Largest start station a field book takes, m. */
+export const MAX_SURVEY_START_STATION_M = 10_000_000
 export interface SurveyBookRecord {
   id: string
   name: string
   epsg: number
   verticalReference: string
   input: TraverseInput
+  /** The traverse's first station, m (horizontal distance; 0 when absent). PGMaps' chainage starts at 0. */
+  startStation?: number
+  /** Back and ahead stations, m: from each back station on, the field names stations from its ahead station. */
+  stationEquations?: StationEquation[]
+  softree?: SurveyBookSoftree
+}
+const SOFTREE_FORMATS = new Set(['asc', 'ipd', 'polycorder', 'unit-survey', 'laser-raw'])
+/** The calculated station range of a field book: start station plus horizontal (ground) distance. */
+export function surveyStationRange(
+  input: TraverseInput,
+  startStation = 0,
+  result: Pick<TraverseResult, 'lengthM'> = reduceTraverse(input),
+) {
+  return { start: startStation, end: startStation + result.lengthM / (input.distanceScale ?? 1) }
+}
+/** Throws unless the start station and station equations are valid for the traverse. */
+export function checkSurveyStations(
+  input: TraverseInput,
+  startStation: number | undefined,
+  equations: readonly StationEquation[] | undefined,
+) {
+  if (startStation !== undefined && (!finite(startStation) || Math.abs(startStation) > MAX_SURVEY_START_STATION_M))
+    throw Error(`A start station must be a number within ±${MAX_SURVEY_START_STATION_M.toLocaleString('en-CA')} m.`)
+  if (equations !== undefined) {
+    if (!Array.isArray(equations)) throw Error('Station equations must be a list.')
+    checkStationEquations(equations, surveyStationRange(input, startStation ?? 0))
+  }
+}
+/** The field station of a reduced station: start station plus its ground distance, through the equations. */
+export function surveyFieldStation(
+  chainageM: number,
+  book: {
+    input: Partial<TraverseInput>
+    startStation?: number
+    stationEquations?: readonly StationEquation[]
+  },
+) {
+  return fieldStation(
+    (book.startStation ?? 0) + chainageM / (book.input.distanceScale ?? 1),
+    book.stationEquations ?? [],
+  )
+}
+const SOURCE_FORMATS = new Set(['asc', 'ipd', 'polycorder', 'unit-survey'])
+const SOURCE_ROLES = new Set(['station', 'shot', 'start', 'leg', 'side', 'other'])
+const LINE_ENDS = new Set(['\r\n', '\n', '\r'])
+const VERTICALS = new Set(['inclination', 'zenith', 'slope-percent', 'elevation', 'elevation-difference'])
+const optionalNumber = (v: unknown) => v === undefined || v === null || finite(v)
+const shortText = (v: unknown, max = MAX_SURVEY_SOFTREE_TEXT) => typeof v === 'string' && v.length <= max
+const optionalText = (v: unknown) => v === undefined || shortText(v)
+function checkExtras(e: SoftreeStationExtras): boolean {
+  if (!e || typeof e !== 'object' || !Number.isInteger(e.station) || e.station < 0) return false
+  if (!optionalText(e.label) || !optionalText(e.label2)) return false
+  if (![e.hi, e.ht, e.backshot].every(optionalNumber)) return false
+  if (
+    e.ground !== undefined &&
+    !(
+      Array.isArray(e.ground) &&
+      e.ground.length <= 3 &&
+      e.ground.every((g) => g && shortText(g.type, 100) && optionalNumber(g.depth))
+    )
+  )
+    return false
+  const c = e.culvert
+  if (
+    c !== undefined &&
+    !(
+      c &&
+      typeof c === 'object' &&
+      [c.sizeY, c.sizeX, c.gradientPercent, c.azimuth, c.flag, c.sd].every(optionalNumber) &&
+      optionalText(c.raw)
+    )
+  )
+    return false
+  if (
+    e.sideShots !== undefined &&
+    !(
+      Array.isArray(e.sideShots) &&
+      e.sideShots.length <= 100 &&
+      e.sideShots.every(
+        (x) =>
+          x &&
+          (x.side === 'left' || x.side === 'right') &&
+          Number.isInteger(x.n) &&
+          x.n >= 1 &&
+          x.n <= 25 &&
+          Array.isArray(x.depths) &&
+          x.depths.length <= 2 &&
+          x.depths.every(optionalNumber) &&
+          optionalText(x.code),
+      )
+    )
+  )
+    return false
+  const ext = e.extensionSlope
+  return (
+    ext === undefined || (!!ext && typeof ext === 'object' && optionalNumber(ext.left) && optionalNumber(ext.right))
+  )
+}
+function checkSource(s: SoftreeTraverseSource): boolean {
+  if (!s || typeof s !== 'object' || !SOURCE_FORMATS.has(s.format)) return false
+  const l = s.layout
+  if (!l || !LINE_ENDS.has(l.lineEnd) || typeof l.finalLineEnd !== 'boolean' || typeof l.bom !== 'boolean') return false
+  if (!Array.isArray(s.head) || s.head.length > 2 || !s.head.every((h) => shortText(h))) return false
+  if (
+    !Array.isArray(s.records) ||
+    s.records.length > MAX_TRAVERSE_FILE_RECORDS ||
+    !s.records.every(
+      (r) =>
+        r &&
+        shortText(r.line) &&
+        (r.station === undefined || (Number.isInteger(r.station) && r.station >= 0)) &&
+        (r.role === undefined || SOURCE_ROLES.has(r.role)),
+    )
+  )
+    return false
+  if (!finite(s.startStation) || !Array.isArray(s.equations)) return false
+  try {
+    reduceTraverse(s.input)
+    checkStationEquations(s.equations)
+  } catch {
+    return false
+  }
+  if (s.vertical !== undefined && !VERTICALS.has(s.vertical)) return false
+  if (s.distance !== undefined && s.distance !== 'slope' && s.distance !== 'horizontal') return false
+  if (!optionalText(s.survey)) return false
+  const names = (v: unknown) =>
+    v === undefined || (Array.isArray(v) && v.length <= 2_001 && v.every((x) => shortText(x, 200)))
+  const indexes = (v: unknown) =>
+    v === undefined || (Array.isArray(v) && v.length <= 2_001 && v.every((x) => Number.isInteger(x) && x >= -1))
+  return names(s.pointNames) && indexes(s.labelRecords) && indexes(s.heightRecords)
+}
+/** Records a kept traverse file holds at most (the traverse readers' limit). */
+const MAX_TRAVERSE_FILE_RECORDS = 20_000
+function checkSoftree(value: unknown) {
+  const v = value as SurveyBookSoftree
+  if (
+    !v ||
+    typeof v !== 'object' ||
+    !SOFTREE_FORMATS.has(v.sourceFormat) ||
+    !finite(v.unitM) ||
+    v.unitM <= 0 ||
+    !Array.isArray(v.extras) ||
+    v.extras.length > MAX_SURVEY_SOFTREE_ITEMS ||
+    !v.extras.every(checkExtras) ||
+    !Array.isArray(v.points) ||
+    v.points.length > MAX_SURVEY_SOFTREE_ITEMS ||
+    !v.points.every(
+      (p) =>
+        p &&
+        shortText(p.id, 200) &&
+        shortText(p.from, 200) &&
+        (p.station === undefined || (Number.isInteger(p.station) && p.station >= 0)) &&
+        Array.isArray(p.coordinate) &&
+        p.coordinate.length === 3 &&
+        p.coordinate.every(finite),
+    ) ||
+    (v.source !== undefined && !checkSource(v.source)) ||
+    JSON.stringify(v).length > MAX_SURVEY_SOFTREE_CHARS
+  )
+    throw Error('Invalid Softree traverse details in a survey field book.')
 }
 export function parseSurveyBooks(raw: unknown): SurveyBookRecord[] {
   if (!Array.isArray(raw) || raw.length > 20) throw Error('A project supports at most 20 survey field books.')
@@ -55,6 +232,8 @@ export function parseSurveyBooks(raw: unknown): SurveyBookRecord[] {
     )
       throw Error('Invalid survey field-book record.')
     reduceTraverse(r.input)
+    checkSurveyStations(r.input, r.startStation, r.stationEquations)
+    if (r.softree !== undefined) checkSoftree(r.softree)
     ids.add(r.id)
   }
   return structuredClone(raw) as SurveyBookRecord[]
@@ -181,14 +360,26 @@ export function parseTraverseLegs(text: string): TraverseLeg[] {
 }
 const csv = (value: string | number) =>
   typeof value === 'number' ? String(value) : `"${/^[=+\-@\t\r]/.test(value) ? "'" : ''}${value.split('"').join('""')}"`
-export function traverseCsv(result: TraverseResult, epsg: number, verticalReference: string): string {
+/**
+ * The reduced traverse as CSV. `chainage_m` is grid distance from the start; `field_station` is the
+ * station the field uses there: the start station plus the ground distance, through any equations.
+ */
+export function traverseCsv(
+  result: TraverseResult,
+  epsg: number,
+  verticalReference: string,
+  stations: Parameters<typeof surveyFieldStation>[1] = { input: {} },
+): string {
+  const field = (chainage: number) => Math.round(surveyFieldStation(chainage, stations) * 1e6) / 1e6
   return [
-    'id,kind,chainage_m,easting_m,northing_m,elevation_m,epsg,vertical_reference,adjustment',
+    'id,kind,chainage_m,field_station,easting_m,northing_m,elevation_m,epsg,vertical_reference,adjustment',
     ...result.stations.map((s) =>
-      [s.id, 'traverse', s.chainage, ...s.adjusted, epsg, verticalReference, result.adjustment].map(csv).join(','),
+      [s.id, 'traverse', s.chainage, field(s.chainage), ...s.adjusted, epsg, verticalReference, result.adjustment]
+        .map(csv)
+        .join(','),
     ),
     ...result.sideShots.map((s) =>
-      [s.id, 'side-shot', '', ...s.coordinate, epsg, verticalReference, result.adjustment].map(csv).join(','),
+      [s.id, 'side-shot', '', '', ...s.coordinate, epsg, verticalReference, result.adjustment].map(csv).join(','),
     ),
   ].join('\r\n')
 }

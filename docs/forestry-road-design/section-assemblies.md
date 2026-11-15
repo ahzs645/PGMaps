@@ -129,6 +129,10 @@ Matching component IDs in a template transition interpolate dimensions once. Cha
 type, condition, reference, material or shared-component order requires an explicit step
 assignment with transition 0. Different key identities may not overlap during a transition.
 These checks avoid duplicating one physical key or losing part of its fill-material demand.
+A transition in or out to a neighbouring range (`transitionInM`, `transitionOutM`) is never
+refused for these reasons: the same check (`componentTransitionProblem`) makes it step from one
+template to the other at the transition's midpoint, with the reason stated, as RoadEng's Taper
+assigns a value that cannot be interpolated to the nearer template.
 
 `sectionAssembly.test.ts` checks physical removal/replacement, material-boundary slopes, referenced
 3D geometry and named surfaces, keyed excavation, benches/codes, layer quantities, asymmetric

@@ -32,6 +32,7 @@ import {
   ditchWidthRange,
   keyedRockFillTemplate,
   templateFromStarter,
+  templateTransitions,
   validateTemplate,
   type TemplateStarter,
 } from './templates'
@@ -322,6 +323,8 @@ export function EngineeringControls({
   const libraryInput = useRef<HTMLInputElement>(null)
   const { alignment, analysis, project } = w
   const design = alignment.engineering ?? createEngineeringDesign()
+  // Transitions to neighbouring ranges, for the ones that step at their midpoint.
+  const transitions = templateTransitions(alignment)
   // An invalid edit keeps the last valid results; its message goes beside the entry that caused it.
   const problem = analysis.invalidInput
   const errorsFor = (list: EngineeringInputList, id?: string) => (field: string) =>
@@ -864,7 +867,7 @@ export function EngineeringControls({
           </RoadSection>
           <RoadSection
             title="Template station assignments"
-            help="Ranges on the same side must not overlap. Transitions blend from the base section within each end of the range. Landings/turnouts remain additional width overrides."
+            help="Ranges on the same side must not overlap. A transition blends from the base section within each end of the range; transition in and out blend from the section before the range and to the section after it (another range's template, or the base section), stepping at the midpoint where the two templates cannot be interpolated. Landings/turnouts remain additional width overrides."
           >
             <StationValue workspace={w}>
               {(station) => {
@@ -958,6 +961,8 @@ export function EngineeringControls({
                     { key: 'start', label: `Assignment ${index + 1} start (m)` },
                     { key: 'end', label: `Assignment ${index + 1} end (m)` },
                     { key: 'transitionM', label: `Assignment ${index + 1} transition (m)`, max: 1000 },
+                    { key: 'transitionInM', label: `Assignment ${index + 1} transition in (m)`, max: 1000 },
+                    { key: 'transitionOutM', label: `Assignment ${index + 1} transition out (m)`, max: 1000 },
                   ]}
                   errorFor={errorsFor('assignments', a.id)}
                   onChange={(p) => patch('assignments', a.id, p)}
@@ -966,8 +971,16 @@ export function EngineeringControls({
                   problem={problem}
                   list="assignments"
                   id={a.id}
-                  inlineFields={['start', 'end', 'transitionM']}
+                  inlineFields={['start', 'end', 'transitionM', 'transitionInM', 'transitionOutM']}
                 />
+                {transitions
+                  .filter((t) => t.assignmentId === a.id && t.steppedBecause)
+                  .map((t) => (
+                    <p key={`${t.side}-${t.edge}`} className="text-2xs text-muted-foreground">
+                      {t.side === 'left' ? 'Left' : 'Right'}, {t.fromName} → {t.toName}: steps at{' '}
+                      {formatRoadStation((t.start + t.end) / 2)}, the middle of its transition ({t.steppedBecause}).
+                    </p>
+                  ))}
               </div>
             ))}
           </RoadSection>

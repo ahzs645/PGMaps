@@ -1,0 +1,3538 @@
+{
+ "schema": "pgmaps-cable-equipment-v1",
+ "source": {
+  "id": "skylinexl-25",
+  "title": "SkylineXL 25.0 - Yarders, Carriages, and Wire Rope Database",
+  "publisher": "USDA Forest Service",
+  "version": "25.0",
+  "databaseUpdated": "2024-11-01",
+  "retrieved": "2026-11-14",
+  "url": "https://www.fs.usda.gov/sites/default/files/forest-management/products/skyline-xl-25.xlsm",
+  "listing": "https://www.fs.usda.gov/forestmanagement/products/programs-software.shtml",
+  "licence": "Public domain: the USDA Forest Service lists its programs as \"developed by the USDA Forest Service and are public domain software\".",
+  "sha256": "3af9dc20b2b4357b770925d114a5d56f4c14447190dba35cb2d895d03f2b951a",
+  "sheet": "Database"
+ },
+ "units": {
+  "diameterMm": "mm",
+  "lengthM": "m",
+  "towerHeightM": "m",
+  "massKgPerM": "kg/m",
+  "massKg": "kg",
+  "breakingForceN": "N",
+  "safeWorkingLoadN": "N",
+  "designTensionN": "N (the sheet's design tension: the rope table's safe working load at a factor of 3)",
+  "powerKW": "kW (mechanical horsepower × 0.7457)",
+  "drumWidthMm": "mm",
+  "brakeTorqueNm": "N·m",
+  "sheet": "As the sheet gives it: in, ft, lb, lb/ft, lbf, hp, ft·lbf"
+ },
+ "ropes": [
+  {
+   "id": "eips-0.25in",
+   "type": "eips",
+   "diameterIn": 0.25,
+   "diameterLabel": "1/4\"",
+   "diameterMm": 6.35,
+   "massKgPerM": 0.1786,
+   "breakingForceN": 30604,
+   "safeWorkingLoadN": 10200,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.25,
+    "breakingStrengthLbf": 6880,
+    "safeWorkingLoadLbf": 2293,
+    "weightLbPerFt": 0.12
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH7,AM7,AO7,AK7"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-0.3125in",
+   "type": "eips",
+   "diameterIn": 0.3125,
+   "diameterLabel": "5/16\"",
+   "diameterMm": 7.938,
+   "massKgPerM": 0.2679,
+   "breakingForceN": 46884,
+   "safeWorkingLoadN": 15627,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.3125,
+    "breakingStrengthLbf": 10540,
+    "safeWorkingLoadLbf": 3513,
+    "weightLbPerFt": 0.18
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH8,AM8,AO8,AK8"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-0.375in",
+   "type": "eips",
+   "diameterIn": 0.375,
+   "diameterLabel": "3/8\"",
+   "diameterMm": 9.525,
+   "massKgPerM": 0.3869,
+   "breakingForceN": 67168,
+   "safeWorkingLoadN": 22388,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.375,
+    "breakingStrengthLbf": 15100,
+    "safeWorkingLoadLbf": 5033,
+    "weightLbPerFt": 0.26
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH9,AM9,AO9,AK9"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-0.375in",
+   "type": "swaged",
+   "diameterIn": 0.375,
+   "diameterLabel": "3/8\"",
+   "diameterMm": 9.525,
+   "massKgPerM": 0.5209,
+   "breakingForceN": 82292,
+   "safeWorkingLoadN": 27432,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.375,
+    "breakingStrengthLbf": 18500,
+    "safeWorkingLoadLbf": 6167,
+    "weightLbPerFt": 0.35
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI9,AL9,AN9,AK9"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-0.4375in",
+   "type": "eips",
+   "diameterIn": 0.4375,
+   "diameterLabel": "7/16\"",
+   "diameterMm": 11.112,
+   "massKgPerM": 0.5209,
+   "breakingForceN": 90744,
+   "safeWorkingLoadN": 30248,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.4375,
+    "breakingStrengthLbf": 20400,
+    "safeWorkingLoadLbf": 6800,
+    "weightLbPerFt": 0.35
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH10,AM10,AO10,AK10"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-0.4375in",
+   "type": "swaged",
+   "diameterIn": 0.4375,
+   "diameterLabel": "7/16\"",
+   "diameterMm": 11.112,
+   "massKgPerM": 0.625,
+   "breakingForceN": 108092,
+   "safeWorkingLoadN": 36031,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.4375,
+    "breakingStrengthLbf": 24300,
+    "safeWorkingLoadLbf": 8100,
+    "weightLbPerFt": 0.42
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI10,AL10,AN10,AK10"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-0.5in",
+   "type": "eips",
+   "diameterIn": 0.5,
+   "diameterLabel": "1/2\"",
+   "diameterMm": 12.7,
+   "massKgPerM": 0.6846,
+   "breakingForceN": 118323,
+   "safeWorkingLoadN": 39442,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.5,
+    "breakingStrengthLbf": 26600,
+    "safeWorkingLoadLbf": 8867,
+    "weightLbPerFt": 0.46
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH11,AM11,AO11,AK11"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-0.5in",
+   "type": "swaged",
+   "diameterIn": 0.5,
+   "diameterLabel": "1/2\"",
+   "diameterMm": 12.7,
+   "massKgPerM": 0.9078,
+   "breakingForceN": 141453,
+   "safeWorkingLoadN": 47151,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.5,
+    "breakingStrengthLbf": 31800,
+    "safeWorkingLoadLbf": 10600,
+    "weightLbPerFt": 0.61
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI11,AL11,AN11,AK11"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-0.5625in",
+   "type": "eips",
+   "diameterIn": 0.5625,
+   "diameterLabel": "9/16\"",
+   "diameterMm": 14.288,
+   "massKgPerM": 0.878,
+   "breakingForceN": 149460,
+   "safeWorkingLoadN": 49820,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.5625,
+    "breakingStrengthLbf": 33600,
+    "safeWorkingLoadLbf": 11200,
+    "weightLbPerFt": 0.59
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH12,AM12,AO12,AK12"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-0.5625in",
+   "type": "swaged",
+   "diameterIn": 0.5625,
+   "diameterLabel": "9/16\"",
+   "diameterMm": 14.288,
+   "massKgPerM": 1.1608,
+   "breakingForceN": 177929,
+   "safeWorkingLoadN": 59308,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.5625,
+    "breakingStrengthLbf": 40000,
+    "safeWorkingLoadLbf": 13333,
+    "weightLbPerFt": 0.78
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI12,AL12,AN12,AK12"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-0.625in",
+   "type": "eips",
+   "diameterIn": 0.625,
+   "diameterLabel": "5/8\"",
+   "diameterMm": 15.875,
+   "massKgPerM": 1.0715,
+   "breakingForceN": 183267,
+   "safeWorkingLoadN": 61087,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.625,
+    "breakingStrengthLbf": 41200,
+    "safeWorkingLoadLbf": 13733,
+    "weightLbPerFt": 0.72
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH13,AM13,AO13,AK13"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-0.625in",
+   "type": "swaged",
+   "diameterIn": 0.625,
+   "diameterLabel": "5/8\"",
+   "diameterMm": 15.875,
+   "massKgPerM": 1.4435,
+   "breakingForceN": 217963,
+   "safeWorkingLoadN": 72653,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.625,
+    "breakingStrengthLbf": 49000,
+    "safeWorkingLoadLbf": 16333,
+    "weightLbPerFt": 0.97
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI13,AL13,AN13,AK13"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-0.75in",
+   "type": "eips",
+   "diameterIn": 0.75,
+   "diameterLabel": "3/4\"",
+   "diameterMm": 19.05,
+   "massKgPerM": 1.5477,
+   "breakingForceN": 261555,
+   "safeWorkingLoadN": 87185,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.75,
+    "breakingStrengthLbf": 58800,
+    "safeWorkingLoadLbf": 19600,
+    "weightLbPerFt": 1.04
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH14,AM14,AO14,AK14"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-0.75in",
+   "type": "swaged",
+   "diameterIn": 0.75,
+   "diameterLabel": "3/4\"",
+   "diameterMm": 19.05,
+   "massKgPerM": 2.0537,
+   "breakingForceN": 311376,
+   "safeWorkingLoadN": 103790,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.75,
+    "breakingStrengthLbf": 70000,
+    "safeWorkingLoadLbf": 23333,
+    "weightLbPerFt": 1.38
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI14,AL14,AN14,AK14"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-0.875in",
+   "type": "eips",
+   "diameterIn": 0.875,
+   "diameterLabel": "7/8\"",
+   "diameterMm": 22.225,
+   "massKgPerM": 2.1132,
+   "breakingForceN": 354078,
+   "safeWorkingLoadN": 118025,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.875,
+    "breakingStrengthLbf": 79600,
+    "safeWorkingLoadLbf": 26533,
+    "weightLbPerFt": 1.42
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH15,AM15,AO15,AK15"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-0.875in",
+   "type": "swaged",
+   "diameterIn": 0.875,
+   "diameterLabel": "7/8\"",
+   "diameterMm": 22.225,
+   "massKgPerM": 2.7829,
+   "breakingForceN": 422581,
+   "safeWorkingLoadN": 140862,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 0.875,
+    "breakingStrengthLbf": 95000,
+    "safeWorkingLoadLbf": 31667,
+    "weightLbPerFt": 1.87
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI15,AL15,AN15,AK15"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-1in",
+   "type": "eips",
+   "diameterIn": 1,
+   "diameterLabel": "1\"",
+   "diameterMm": 25.4,
+   "massKgPerM": 2.7531,
+   "breakingForceN": 459946,
+   "safeWorkingLoadN": 153317,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 1,
+    "breakingStrengthLbf": 103400,
+    "safeWorkingLoadLbf": 34467,
+    "weightLbPerFt": 1.85
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH16,AM16,AO16,AK16"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-1in",
+   "type": "swaged",
+   "diameterIn": 1,
+   "diameterLabel": "1\"",
+   "diameterMm": 25.4,
+   "massKgPerM": 3.6311,
+   "breakingForceN": 547131,
+   "safeWorkingLoadN": 182377,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 1,
+    "breakingStrengthLbf": 123000,
+    "safeWorkingLoadLbf": 41000,
+    "weightLbPerFt": 2.44
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI16,AL16,AN16,AK16"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-1.125in",
+   "type": "eips",
+   "diameterIn": 1.125,
+   "diameterLabel": "1-1/8\"",
+   "diameterMm": 28.575,
+   "massKgPerM": 3.4823,
+   "breakingForceN": 578269,
+   "safeWorkingLoadN": 192755,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 1.125,
+    "breakingStrengthLbf": 130000,
+    "safeWorkingLoadLbf": 43333,
+    "weightLbPerFt": 2.34
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH17,AM17,AO17,AK17"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-1.125in",
+   "type": "swaged",
+   "diameterIn": 1.125,
+   "diameterLabel": "1-1/8\"",
+   "diameterMm": 28.575,
+   "massKgPerM": 4.5984,
+   "breakingForceN": 680578,
+   "safeWorkingLoadN": 226859,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 1.125,
+    "breakingStrengthLbf": 153000,
+    "safeWorkingLoadLbf": 51000,
+    "weightLbPerFt": 3.09
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI17,AL17,AN17,AK17"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-1.25in",
+   "type": "eips",
+   "diameterIn": 1.25,
+   "diameterLabel": "1-1/4\"",
+   "diameterMm": 31.75,
+   "massKgPerM": 4.3008,
+   "breakingForceN": 710826,
+   "safeWorkingLoadN": 236943,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 1.25,
+    "breakingStrengthLbf": 159800,
+    "safeWorkingLoadLbf": 53267,
+    "weightLbPerFt": 2.89
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH18,AM18,AO18,AK18"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-1.25in",
+   "type": "swaged",
+   "diameterIn": 1.25,
+   "diameterLabel": "1-1/4\"",
+   "diameterMm": 31.75,
+   "massKgPerM": 5.6848,
+   "breakingForceN": 827369,
+   "safeWorkingLoadN": 275790,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 1.25,
+    "breakingStrengthLbf": 186000,
+    "safeWorkingLoadLbf": 62000,
+    "weightLbPerFt": 3.82
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI18,AL18,AN18,AK18"
+   },
+   "notes": []
+  },
+  {
+   "id": "eips-1.375in",
+   "type": "eips",
+   "diameterIn": 1.375,
+   "diameterLabel": "1-3/8\"",
+   "diameterMm": 34.925,
+   "massKgPerM": 5.2086,
+   "breakingForceN": 854059,
+   "safeWorkingLoadN": 284686,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 1.375,
+    "breakingStrengthLbf": 192000,
+    "safeWorkingLoadLbf": 64000,
+    "weightLbPerFt": 3.5
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AH19,AM19,AO19,AK19"
+   },
+   "notes": []
+  },
+  {
+   "id": "swaged-1.375in",
+   "type": "swaged",
+   "diameterIn": 1.375,
+   "diameterLabel": "1-3/8\"",
+   "diameterMm": 34.925,
+   "massKgPerM": 6.8753,
+   "breakingForceN": 987505,
+   "safeWorkingLoadN": 329168,
+   "safeWorkingLoadFactor": 3,
+   "sheet": {
+    "diameterIn": 1.375,
+    "breakingStrengthLbf": 222000,
+    "safeWorkingLoadLbf": 74000,
+    "weightLbPerFt": 4.62
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!AI19,AL19,AN19,AK19"
+   },
+   "notes": []
+  }
+ ],
+ "yarders": [
+  {
+   "id": "avg-small-yarder-2-drum",
+   "name": "Avg small yarder - 2 drum",
+   "sheetId": 1,
+   "kind": "class-average",
+   "sizeClass": "small",
+   "towerHeightM": 10.363,
+   "powerKW": 114.8,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 529.742,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "mainline": {
+     "diameterIn": 0.5,
+     "diameterMm": 12.7,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5in",
+     "lengthM": 601.98,
+     "massKgPerM": 0.9078,
+     "designTensionN": 47151
+    }
+   },
+   "sheet": {
+    "Twr_ht": 34,
+    "Sky_dia": 0.75,
+    "Sky_len": 1738,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.38,
+    "Sky_des_tens": 23333,
+    "ML_dia": 0.5,
+    "ML_len": 1975,
+    "ML_type": "Swaged",
+    "ML_wt": 0.61,
+    "ML_des_tens": 10600,
+    "HB_dia": 0,
+    "HB_len": 0,
+    "HB_type": null,
+    "HB_wt": 0,
+    "HB_des_tens": 0,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 154,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "S"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A5:AE5"
+   },
+   "notes": [
+    "A SkylineXL class average of the machines in its size class, not one machine."
+   ]
+  },
+  {
+   "id": "avg-medium-yarder-3-drum",
+   "name": "Avg medium yarder - 3 drum",
+   "sheetId": 2,
+   "kind": "class-average",
+   "sizeClass": "medium",
+   "towerHeightM": 13.411,
+   "powerKW": 183.4,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.875,
+     "diameterMm": 22.225,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.875in",
+     "lengthM": 486.461,
+     "massKgPerM": 2.7829,
+     "designTensionN": 140862
+    },
+    "mainline": {
+     "diameterIn": 0.5625,
+     "diameterMm": 14.288,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5625in",
+     "lengthM": 541.02,
+     "massKgPerM": 1.1608,
+     "designTensionN": 59308
+    },
+    "haulback": {
+     "diameterIn": 0.4375,
+     "diameterMm": 11.112,
+     "ropeType": "eips",
+     "ropeId": "eips-0.4375in",
+     "lengthM": 706.526,
+     "massKgPerM": 0.5209,
+     "designTensionN": 30248
+    }
+   },
+   "sheet": {
+    "Twr_ht": 44,
+    "Sky_dia": 0.875,
+    "Sky_len": 1596,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.87,
+    "Sky_des_tens": 31667,
+    "ML_dia": 0.5625,
+    "ML_len": 1775,
+    "ML_type": "Swaged",
+    "ML_wt": 0.78,
+    "ML_des_tens": 13333,
+    "HB_dia": 0.4375,
+    "HB_len": 2318,
+    "HB_type": "EIPS",
+    "HB_wt": 0.35,
+    "HB_des_tens": 6800,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 246,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A6:AE6"
+   },
+   "notes": [
+    "A SkylineXL class average of the machines in its size class, not one machine."
+   ]
+  },
+  {
+   "id": "avg-large-yarder-3-drum",
+   "name": "Avg large yarder - 3 drum",
+   "sheetId": 3,
+   "kind": "class-average",
+   "sizeClass": "large",
+   "towerHeightM": 21.946,
+   "powerKW": 335.6,
+   "lines": {
+    "skyline": {
+     "diameterIn": 1.125,
+     "diameterMm": 28.575,
+     "ropeType": "swaged",
+     "ropeId": "swaged-1.125in",
+     "lengthM": 792.48,
+     "massKgPerM": 4.5984,
+     "designTensionN": 226859
+    },
+    "mainline": {
+     "diameterIn": 0.875,
+     "diameterMm": 22.225,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.875in",
+     "lengthM": 883.92,
+     "massKgPerM": 2.7829,
+     "designTensionN": 140862
+    },
+    "haulback": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "eips",
+     "ropeId": "eips-0.75in",
+     "lengthM": 1676.4,
+     "massKgPerM": 1.5477,
+     "designTensionN": 87185
+    },
+    "slackpulling": {
+     "diameterIn": 0.5,
+     "diameterMm": 12.7,
+     "ropeType": "eips",
+     "ropeId": "eips-0.5in",
+     "lengthM": 701.04,
+     "massKgPerM": 0.6846,
+     "designTensionN": 39442
+    }
+   },
+   "sheet": {
+    "Twr_ht": 72,
+    "Sky_dia": 1.125,
+    "Sky_len": 2600,
+    "Sky_type": "Swaged",
+    "Sky_wt": 3.09,
+    "Sky_des_tens": 51000,
+    "ML_dia": 0.875,
+    "ML_len": 2900,
+    "ML_type": "Swaged",
+    "ML_wt": 1.87,
+    "ML_des_tens": 31667,
+    "HB_dia": 0.75,
+    "HB_len": 5500,
+    "HB_type": "EIPS",
+    "HB_wt": 1.04,
+    "HB_des_tens": 19600,
+    "SP_dia": 0.5,
+    "SP_len": 2300,
+    "SP_type": "EIPS",
+    "SP_wt": 0.46,
+    "SP_swl": 8867,
+    "H_pwr": 450,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "L"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A7:AE7"
+   },
+   "notes": [
+    "A SkylineXL class average of the machines in its size class, not one machine."
+   ]
+  },
+  {
+   "id": "avg-running-sky-yarder",
+   "name": "Avg running sky yarder",
+   "sheetId": 4,
+   "kind": "class-average",
+   "sizeClass": "running",
+   "towerHeightM": 15.85,
+   "powerKW": 217.7,
+   "lines": {
+    "mainline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 417.271,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "haulback": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 869.29,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "slackpulling": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "eips",
+     "ropeId": "eips-0.75in",
+     "lengthM": 579.12,
+     "massKgPerM": 1.5477,
+     "designTensionN": 87185
+    }
+   },
+   "drums": {
+    "haulback": {
+     "widthMm": 762,
+     "diameterMm": 591.8,
+     "brakeTorqueNm": 37701.2
+    }
+   },
+   "sheet": {
+    "Twr_ht": 52,
+    "Sky_dia": 0,
+    "Sky_len": 0,
+    "Sky_type": null,
+    "Sky_wt": 0,
+    "Sky_des_tens": 0,
+    "ML_dia": 0.75,
+    "ML_len": 1369,
+    "ML_type": "Swaged",
+    "ML_wt": 1.38,
+    "ML_des_tens": 23333,
+    "HB_dia": 0.75,
+    "HB_len": 2852,
+    "HB_type": "Swaged",
+    "HB_wt": 1.38,
+    "HB_des_tens": 23333,
+    "SP_dia": 0.75,
+    "SP_len": 1900,
+    "SP_type": "EIPS",
+    "SP_wt": 1.04,
+    "SP_swl": 19600,
+    "H_pwr": 292,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 30,
+    "HB_ddia": 23.3,
+    "HB_btor": 27807,
+    "Size": "MR"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A8:AE8"
+   },
+   "notes": [
+    "A SkylineXL class average of the machines in its size class, not one machine."
+   ]
+  },
+  {
+   "id": "christy-hd-3-drum",
+   "name": "Christy HD 3-drum",
+   "sheetId": 5,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 14.935,
+   "powerKW": 132,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 609.6,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "mainline": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.625in",
+     "lengthM": 640.08,
+     "massKgPerM": 1.4435,
+     "designTensionN": 72653
+    },
+    "haulback": {
+     "diameterIn": 0.4375,
+     "diameterMm": 11.112,
+     "ropeType": "eips",
+     "ropeId": "eips-0.4375in",
+     "lengthM": 1219.2,
+     "massKgPerM": 0.5209,
+     "designTensionN": 30248
+    }
+   },
+   "sheet": {
+    "Twr_ht": 49,
+    "Sky_dia": 0.75,
+    "Sky_len": 2000,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.38,
+    "Sky_des_tens": 23333,
+    "ML_dia": 0.625,
+    "ML_len": 2100,
+    "ML_type": "Swaged",
+    "ML_wt": 0.97,
+    "ML_des_tens": 16333,
+    "HB_dia": 0.4375,
+    "HB_len": 4000,
+    "HB_type": "EIPS",
+    "HB_wt": 0.35,
+    "HB_des_tens": 6800,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 177,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A9:AE9"
+   },
+   "notes": []
+  },
+  {
+   "id": "clearwater-3-drum",
+   "name": "Clearwater 3-drum",
+   "sheetId": 6,
+   "kind": "machine",
+   "sizeClass": "small",
+   "towerHeightM": 10.363,
+   "powerKW": 72.3,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.5,
+     "diameterMm": 12.7,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5in",
+     "lengthM": 243.84,
+     "massKgPerM": 0.9078,
+     "designTensionN": 47151
+    },
+    "mainline": {
+     "diameterIn": 0.375,
+     "diameterMm": 9.525,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.375in",
+     "lengthM": 274.32,
+     "massKgPerM": 0.5209,
+     "designTensionN": 27432
+    },
+    "haulback": {
+     "diameterIn": 0.375,
+     "diameterMm": 9.525,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.375in",
+     "lengthM": 548.64,
+     "massKgPerM": 0.5209,
+     "designTensionN": 27432
+    }
+   },
+   "sheet": {
+    "Twr_ht": 34,
+    "Sky_dia": 0.5,
+    "Sky_len": 800,
+    "Sky_type": "Swaged",
+    "Sky_wt": 0.61,
+    "Sky_des_tens": 10600,
+    "ML_dia": 0.375,
+    "ML_len": 900,
+    "ML_type": "Swaged",
+    "ML_wt": 0.35,
+    "ML_des_tens": 6167,
+    "HB_dia": 0.375,
+    "HB_len": 1800,
+    "HB_type": "Swaged",
+    "HB_wt": 0.35,
+    "HB_des_tens": 6167,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 97,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "S"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A10:AE10"
+   },
+   "notes": []
+  },
+  {
+   "id": "diamond-d210-swing",
+   "name": "Diamond D210, swing",
+   "sheetId": 7,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 12.802,
+   "powerKW": 162.6,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 609.6,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "mainline": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.625in",
+     "lengthM": 548.64,
+     "massKgPerM": 1.4435,
+     "designTensionN": 72653
+    },
+    "haulback": {
+     "diameterIn": 0.4375,
+     "diameterMm": 11.112,
+     "ropeType": "eips",
+     "ropeId": "eips-0.4375in",
+     "lengthM": 944.88,
+     "massKgPerM": 0.5209,
+     "designTensionN": 30248
+    }
+   },
+   "sheet": {
+    "Twr_ht": 42,
+    "Sky_dia": 0.75,
+    "Sky_len": 2000,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.38,
+    "Sky_des_tens": 23333,
+    "ML_dia": 0.625,
+    "ML_len": 1800,
+    "ML_type": "Swaged",
+    "ML_wt": 0.97,
+    "ML_des_tens": 16333,
+    "HB_dia": 0.4375,
+    "HB_len": 3100,
+    "HB_type": "EIPS",
+    "HB_wt": 0.35,
+    "HB_des_tens": 6800,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 218,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A11:AE11"
+   },
+   "notes": []
+  },
+  {
+   "id": "ecologger-i",
+   "name": "Ecologger I",
+   "sheetId": 8,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 12.802,
+   "powerKW": 96.9,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 381,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "mainline": {
+     "diameterIn": 0.5625,
+     "diameterMm": 14.288,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5625in",
+     "lengthM": 548.64,
+     "massKgPerM": 1.1608,
+     "designTensionN": 59308
+    }
+   },
+   "sheet": {
+    "Twr_ht": 42,
+    "Sky_dia": 0.75,
+    "Sky_len": 1250,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.38,
+    "Sky_des_tens": 23333,
+    "ML_dia": 0.5625,
+    "ML_len": 1800,
+    "ML_type": "Swaged",
+    "ML_wt": 0.78,
+    "ML_des_tens": 13333,
+    "HB_dia": 0,
+    "HB_len": 0,
+    "HB_type": null,
+    "HB_wt": 0,
+    "HB_des_tens": 0,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 130,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A12:AE12"
+   },
+   "notes": []
+  },
+  {
+   "id": "ecologger-ii",
+   "name": "Ecologger II",
+   "sheetId": 9,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 14.935,
+   "powerKW": 134.2,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.875,
+     "diameterMm": 22.225,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.875in",
+     "lengthM": 457.2,
+     "massKgPerM": 2.7829,
+     "designTensionN": 140862
+    },
+    "mainline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 640.08,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "haulback": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "eips",
+     "ropeId": "eips-0.625in",
+     "lengthM": 579.12,
+     "massKgPerM": 1.0715,
+     "designTensionN": 61087
+    }
+   },
+   "sheet": {
+    "Twr_ht": 49,
+    "Sky_dia": 0.875,
+    "Sky_len": 1500,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.87,
+    "Sky_des_tens": 31667,
+    "ML_dia": 0.75,
+    "ML_len": 2100,
+    "ML_type": "Swaged",
+    "ML_wt": 1.38,
+    "ML_des_tens": 23333,
+    "HB_dia": 0.625,
+    "HB_len": 1900,
+    "HB_type": "EIPS",
+    "HB_wt": 0.72,
+    "HB_des_tens": 13733,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 180,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A13:AE13"
+   },
+   "notes": []
+  },
+  {
+   "id": "koller-k301-2-drum",
+   "name": "Koller K301 2-drum",
+   "sheetId": 10,
+   "kind": "machine",
+   "sizeClass": "small",
+   "towerHeightM": 8.839,
+   "powerKW": 99.2,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.625in",
+     "lengthM": 518.16,
+     "massKgPerM": 1.4435,
+     "designTensionN": 72653
+    },
+    "mainline": {
+     "diameterIn": 0.375,
+     "diameterMm": 9.525,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.375in",
+     "lengthM": 548.64,
+     "massKgPerM": 0.5209,
+     "designTensionN": 27432
+    }
+   },
+   "sheet": {
+    "Twr_ht": 29,
+    "Sky_dia": 0.625,
+    "Sky_len": 1700,
+    "Sky_type": "Swaged",
+    "Sky_wt": 0.97,
+    "Sky_des_tens": 16333,
+    "ML_dia": 0.375,
+    "ML_len": 1800,
+    "ML_type": "Swaged",
+    "ML_wt": 0.35,
+    "ML_des_tens": 6167,
+    "HB_dia": 0,
+    "HB_len": 0,
+    "HB_type": null,
+    "HB_wt": 0,
+    "HB_des_tens": 0,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 133,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "S"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A14:AE14"
+   },
+   "notes": []
+  },
+  {
+   "id": "koller-k501-3-drum",
+   "name": "Koller K501 3-drum",
+   "sheetId": 11,
+   "kind": "machine",
+   "sizeClass": "small",
+   "towerHeightM": 10.363,
+   "powerKW": 125.3,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 579.12,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "mainline": {
+     "diameterIn": 0.4375,
+     "diameterMm": 11.112,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.4375in",
+     "lengthM": 731.52,
+     "massKgPerM": 0.625,
+     "designTensionN": 36031
+    },
+    "haulback": {
+     "diameterIn": 0.4375,
+     "diameterMm": 11.112,
+     "ropeType": "eips",
+     "ropeId": "eips-0.4375in",
+     "lengthM": 1203.96,
+     "massKgPerM": 0.5209,
+     "designTensionN": 30248
+    }
+   },
+   "sheet": {
+    "Twr_ht": 34,
+    "Sky_dia": 0.75,
+    "Sky_len": 1900,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.38,
+    "Sky_des_tens": 23333,
+    "ML_dia": 0.4375,
+    "ML_len": 2400,
+    "ML_type": "Swaged",
+    "ML_wt": 0.42,
+    "ML_des_tens": 8100,
+    "HB_dia": 0.4375,
+    "HB_len": 3950,
+    "HB_type": "EIPS",
+    "HB_wt": 0.35,
+    "HB_des_tens": 6800,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 168,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "S"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A15:AE15"
+   },
+   "notes": []
+  },
+  {
+   "id": "koller-k702-3-drum",
+   "name": "Koller K702 3-drum",
+   "sheetId": 12,
+   "kind": "machine",
+   "sizeClass": "small",
+   "towerHeightM": 11.887,
+   "powerKW": 161.8,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.875,
+     "diameterMm": 22.225,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.875in",
+     "lengthM": 777.24,
+     "massKgPerM": 2.7829,
+     "designTensionN": 140862
+    },
+    "mainline": {
+     "diameterIn": 0.5625,
+     "diameterMm": 14.288,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5625in",
+     "lengthM": 853.44,
+     "massKgPerM": 1.1608,
+     "designTensionN": 59308
+    },
+    "haulback": {
+     "diameterIn": 0.5625,
+     "diameterMm": 14.288,
+     "ropeType": "eips",
+     "ropeId": "eips-0.5625in",
+     "lengthM": 853.44,
+     "massKgPerM": 0.878,
+     "designTensionN": 49820
+    }
+   },
+   "sheet": {
+    "Twr_ht": 39,
+    "Sky_dia": 0.875,
+    "Sky_len": 2550,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.87,
+    "Sky_des_tens": 31667,
+    "ML_dia": 0.5625,
+    "ML_len": 2800,
+    "ML_type": "Swaged",
+    "ML_wt": 0.78,
+    "ML_des_tens": 13333,
+    "HB_dia": 0.5625,
+    "HB_len": 2800,
+    "HB_type": "EIPS",
+    "HB_wt": 0.59,
+    "HB_des_tens": 11200,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 217,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "S"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A16:AE16"
+   },
+   "notes": []
+  },
+  {
+   "id": "linkbelt-crane-3-drum",
+   "name": "Linkbelt Crane 3-drum",
+   "sheetId": 13,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 15.24,
+   "powerKW": 261,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 502.92,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "mainline": {
+     "diameterIn": 0.5625,
+     "diameterMm": 14.288,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5625in",
+     "lengthM": 518.16,
+     "massKgPerM": 1.1608,
+     "designTensionN": 59308
+    },
+    "haulback": {
+     "diameterIn": 0.5,
+     "diameterMm": 12.7,
+     "ropeType": "eips",
+     "ropeId": "eips-0.5in",
+     "lengthM": 609.6,
+     "massKgPerM": 0.6846,
+     "designTensionN": 39442
+    }
+   },
+   "sheet": {
+    "Twr_ht": 50,
+    "Sky_dia": 0.75,
+    "Sky_len": 1650,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.38,
+    "Sky_des_tens": 23333,
+    "ML_dia": 0.5625,
+    "ML_len": 1700,
+    "ML_type": "Swaged",
+    "ML_wt": 0.78,
+    "ML_des_tens": 13333,
+    "HB_dia": 0.5,
+    "HB_len": 2000,
+    "HB_type": "EIPS",
+    "HB_wt": 0.46,
+    "HB_des_tens": 8867,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 350,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A17:AE17"
+   },
+   "notes": []
+  },
+  {
+   "id": "loader-excaliner",
+   "name": "Loader Excaliner",
+   "sheetId": 14,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 12.192,
+   "powerKW": 171.5,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.625in",
+     "lengthM": 335.28,
+     "massKgPerM": 1.4435,
+     "designTensionN": 72653
+    },
+    "mainline": {
+     "diameterIn": 0.5,
+     "diameterMm": 12.7,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5in",
+     "lengthM": 457.2,
+     "massKgPerM": 0.9078,
+     "designTensionN": 47151
+    }
+   },
+   "sheet": {
+    "Twr_ht": 40,
+    "Sky_dia": 0.625,
+    "Sky_len": 1100,
+    "Sky_type": "Swaged",
+    "Sky_wt": 0.97,
+    "Sky_des_tens": 16333,
+    "ML_dia": 0.5,
+    "ML_len": 1500,
+    "ML_type": "Swaged",
+    "ML_wt": 0.61,
+    "ML_des_tens": 10600,
+    "HB_dia": 0,
+    "HB_len": 0,
+    "HB_type": null,
+    "HB_wt": 0,
+    "HB_des_tens": 0,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 230,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A18:AE18"
+   },
+   "notes": []
+  },
+  {
+   "id": "loader-tmbr-mstr-2-drum",
+   "name": "Loader Tmbr Mstr 2-drum",
+   "sheetId": 15,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 12.192,
+   "powerKW": 171.5,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.5625,
+     "diameterMm": 14.288,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5625in",
+     "lengthM": 289.56,
+     "massKgPerM": 1.1608,
+     "designTensionN": 59308
+    },
+    "mainline": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.625in",
+     "lengthM": 342.9,
+     "massKgPerM": 1.4435,
+     "designTensionN": 72653
+    }
+   },
+   "sheet": {
+    "Twr_ht": 40,
+    "Sky_dia": 0.5625,
+    "Sky_len": 950,
+    "Sky_type": "Swaged",
+    "Sky_wt": 0.78,
+    "Sky_des_tens": 13333,
+    "ML_dia": 0.625,
+    "ML_len": 1125,
+    "ML_type": "Swaged",
+    "ML_wt": 0.97,
+    "ML_des_tens": 16333,
+    "HB_dia": 0,
+    "HB_len": 0,
+    "HB_type": null,
+    "HB_wt": 0,
+    "HB_des_tens": 0,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 230,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A19:AE19"
+   },
+   "notes": [
+    "SkylineXL's metric table leaves this mainline's rope type blank (Database!K124) and so lists EIPS weight and tension (1.07 kg/m, 6229 kgf); the English table names it swaged, which is used here."
+   ]
+  },
+  {
+   "id": "loader-tmbr-mstr-3-drum",
+   "name": "Loader Tmbr Mstr 3-drum",
+   "sheetId": 16,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 12.192,
+   "powerKW": 171.5,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 289.56,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "mainline": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.625in",
+     "lengthM": 342.9,
+     "massKgPerM": 1.4435,
+     "designTensionN": 72653
+    },
+    "haulback": {
+     "diameterIn": 0.5625,
+     "diameterMm": 14.288,
+     "ropeType": "eips",
+     "ropeId": "eips-0.5625in",
+     "lengthM": 579.12,
+     "massKgPerM": 0.878,
+     "designTensionN": 49820
+    }
+   },
+   "sheet": {
+    "Twr_ht": 40,
+    "Sky_dia": 0.75,
+    "Sky_len": 950,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.38,
+    "Sky_des_tens": 23333,
+    "ML_dia": 0.625,
+    "ML_len": 1125,
+    "ML_type": "Swaged",
+    "ML_wt": 0.97,
+    "ML_des_tens": 16333,
+    "HB_dia": 0.5625,
+    "HB_len": 1900,
+    "HB_type": "EIPS",
+    "HB_wt": 0.59,
+    "HB_des_tens": 11200,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 230,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A20:AE20"
+   },
+   "notes": []
+  },
+  {
+   "id": "loader-yoader-2-drum",
+   "name": "Loader Yoader 2-drum",
+   "sheetId": 17,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 12.192,
+   "powerKW": 171.5,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.5625,
+     "diameterMm": 14.288,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5625in",
+     "lengthM": 289.56,
+     "massKgPerM": 1.1608,
+     "designTensionN": 59308
+    },
+    "mainline": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.625in",
+     "lengthM": 342.9,
+     "massKgPerM": 1.4435,
+     "designTensionN": 72653
+    }
+   },
+   "sheet": {
+    "Twr_ht": 40,
+    "Sky_dia": 0.5625,
+    "Sky_len": 950,
+    "Sky_type": "Swaged",
+    "Sky_wt": 0.78,
+    "Sky_des_tens": 13333,
+    "ML_dia": 0.625,
+    "ML_len": 1125,
+    "ML_type": "Swaged",
+    "ML_wt": 0.97,
+    "ML_des_tens": 16333,
+    "HB_dia": 0,
+    "HB_len": 0,
+    "HB_type": null,
+    "HB_wt": 0,
+    "HB_des_tens": 0,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 230,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A21:AE21"
+   },
+   "notes": []
+  },
+  {
+   "id": "madill-071-tower",
+   "name": "Madill 071, tower",
+   "sheetId": 18,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 14.326,
+   "powerKW": 211.8,
+   "lines": {
+    "skyline": {
+     "diameterIn": 1,
+     "diameterMm": 25.4,
+     "ropeType": "swaged",
+     "ropeId": "swaged-1in",
+     "lengthM": 588.264,
+     "massKgPerM": 3.6311,
+     "designTensionN": 182377
+    },
+    "mainline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 664.464,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "haulback": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "eips",
+     "ropeId": "eips-0.625in",
+     "lengthM": 1341.12,
+     "massKgPerM": 1.0715,
+     "designTensionN": 61087
+    }
+   },
+   "sheet": {
+    "Twr_ht": 47,
+    "Sky_dia": 1,
+    "Sky_len": 1930,
+    "Sky_type": "Swaged",
+    "Sky_wt": 2.44,
+    "Sky_des_tens": 41000,
+    "ML_dia": 0.75,
+    "ML_len": 2180,
+    "ML_type": "Swaged",
+    "ML_wt": 1.38,
+    "ML_des_tens": 23333,
+    "HB_dia": 0.625,
+    "HB_len": 4400,
+    "HB_type": "EIPS",
+    "HB_wt": 0.72,
+    "HB_des_tens": 13733,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 284,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A22:AE22"
+   },
+   "notes": [
+    "SkylineXL's metric table leaves this skyline's rope type blank (Database!F127) and so lists EIPS weight and tension (2.75 kg/m, 15634 kgf); the English table names it swaged, which is used here."
+   ]
+  },
+  {
+   "id": "madill-120-swing-run",
+   "name": "Madill 120, swing, run",
+   "sheetId": 19,
+   "kind": "machine",
+   "sizeClass": "running",
+   "towerHeightM": 15.24,
+   "powerKW": 246.1,
+   "lines": {
+    "mainline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 459.334,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "haulback": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 961.644,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "slackpulling": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "eips",
+     "ropeId": "eips-0.75in",
+     "lengthM": 459.334,
+     "massKgPerM": 1.5477,
+     "designTensionN": 87185
+    }
+   },
+   "drums": {
+    "haulback": {
+     "widthMm": 660.4,
+     "diameterMm": 508,
+     "brakeTorqueNm": 37176.5
+    }
+   },
+   "sheet": {
+    "Twr_ht": 50,
+    "Sky_dia": 0,
+    "Sky_len": 0,
+    "Sky_type": null,
+    "Sky_wt": 0,
+    "Sky_des_tens": 0,
+    "ML_dia": 0.75,
+    "ML_len": 1507,
+    "ML_type": "Swaged",
+    "ML_wt": 1.38,
+    "ML_des_tens": 23333,
+    "HB_dia": 0.75,
+    "HB_len": 3155,
+    "HB_type": "Swaged",
+    "HB_wt": 1.38,
+    "HB_des_tens": 23333,
+    "SP_dia": 0.75,
+    "SP_len": 1507,
+    "SP_type": "EIPS",
+    "SP_wt": 1.04,
+    "SP_swl": 19600,
+    "H_pwr": 330,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 26,
+    "HB_ddia": 20,
+    "HB_btor": 27420,
+    "Size": "MR"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A23:AE23"
+   },
+   "notes": []
+  },
+  {
+   "id": "madill-172-tower",
+   "name": "Madill 172, tower",
+   "sheetId": 20,
+   "kind": "machine",
+   "sizeClass": "large",
+   "towerHeightM": 21.946,
+   "powerKW": 335.6,
+   "lines": {
+    "skyline": {
+     "diameterIn": 1.125,
+     "diameterMm": 28.575,
+     "ropeType": "swaged",
+     "ropeId": "swaged-1.125in",
+     "lengthM": 792.48,
+     "massKgPerM": 4.5984,
+     "designTensionN": 226859
+    },
+    "mainline": {
+     "diameterIn": 0.875,
+     "diameterMm": 22.225,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.875in",
+     "lengthM": 883.92,
+     "massKgPerM": 2.7829,
+     "designTensionN": 140862
+    },
+    "haulback": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "eips",
+     "ropeId": "eips-0.625in",
+     "lengthM": 1676.4,
+     "massKgPerM": 1.0715,
+     "designTensionN": 61087
+    },
+    "slackpulling": {
+     "diameterIn": 0.5,
+     "diameterMm": 12.7,
+     "ropeType": "eips",
+     "ropeId": "eips-0.5in",
+     "lengthM": 701.04,
+     "massKgPerM": 0.6846,
+     "designTensionN": 39442
+    }
+   },
+   "sheet": {
+    "Twr_ht": 72,
+    "Sky_dia": 1.125,
+    "Sky_len": 2600,
+    "Sky_type": "Swaged",
+    "Sky_wt": 3.09,
+    "Sky_des_tens": 51000,
+    "ML_dia": 0.875,
+    "ML_len": 2900,
+    "ML_type": "Swaged",
+    "ML_wt": 1.87,
+    "ML_des_tens": 31667,
+    "HB_dia": 0.625,
+    "HB_len": 5500,
+    "HB_type": "EIPS",
+    "HB_wt": 0.72,
+    "HB_des_tens": 13733,
+    "SP_dia": 0.5,
+    "SP_len": 2300,
+    "SP_type": "EIPS",
+    "SP_wt": 0.46,
+    "SP_swl": 8867,
+    "H_pwr": 450,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "L"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A24:AE24"
+   },
+   "notes": [
+    "SkylineXL's metric table leaves this skyline's rope type blank (Database!F129) and so lists EIPS weight and tension (3.48 kg/m, 19656 kgf); the English table names it swaged, which is used here."
+   ]
+  },
+  {
+   "id": "skagit-gt3-run",
+   "name": "Skagit GT3, run",
+   "sheetId": 21,
+   "kind": "machine",
+   "sizeClass": "running",
+   "towerHeightM": 15.24,
+   "powerKW": 164.1,
+   "lines": {
+    "mainline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 335.28,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "haulback": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 731.52,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    }
+   },
+   "drums": {
+    "haulback": {
+     "widthMm": 787.4,
+     "diameterMm": 711.2,
+     "brakeTorqueNm": 42030.4
+    }
+   },
+   "sheet": {
+    "Twr_ht": 50,
+    "Sky_dia": 0,
+    "Sky_len": 0,
+    "Sky_type": null,
+    "Sky_wt": 0,
+    "Sky_des_tens": 0,
+    "ML_dia": 0.75,
+    "ML_len": 1100,
+    "ML_type": "Swaged",
+    "ML_wt": 1.38,
+    "ML_des_tens": 23333,
+    "HB_dia": 0.75,
+    "HB_len": 2400,
+    "HB_type": "Swaged",
+    "HB_wt": 1.38,
+    "HB_des_tens": 23333,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 220,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 31,
+    "HB_ddia": 28,
+    "HB_btor": 31000,
+    "Size": "MR"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A25:AE25"
+   },
+   "notes": []
+  },
+  {
+   "id": "thunderbird-tmy-40",
+   "name": "Thunderbird TMY-40",
+   "sheetId": 22,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 12.192,
+   "powerKW": 130.5,
+   "lines": {
+    "skyline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 609.6,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "mainline": {
+     "diameterIn": 0.5,
+     "diameterMm": 12.7,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.5in",
+     "lengthM": 609.6,
+     "massKgPerM": 0.9078,
+     "designTensionN": 47151
+    },
+    "haulback": {
+     "diameterIn": 0.4375,
+     "diameterMm": 11.112,
+     "ropeType": "eips",
+     "ropeId": "eips-0.4375in",
+     "lengthM": 1280.16,
+     "massKgPerM": 0.5209,
+     "designTensionN": 30248
+    }
+   },
+   "sheet": {
+    "Twr_ht": 40,
+    "Sky_dia": 0.75,
+    "Sky_len": 2000,
+    "Sky_type": "Swaged",
+    "Sky_wt": 1.38,
+    "Sky_des_tens": 23333,
+    "ML_dia": 0.5,
+    "ML_len": 2000,
+    "ML_type": "Swaged",
+    "ML_wt": 0.61,
+    "ML_des_tens": 10600,
+    "HB_dia": 0.4375,
+    "HB_len": 4200,
+    "HB_type": "EIPS",
+    "HB_wt": 0.35,
+    "HB_des_tens": 6800,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 175,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A26:AE26"
+   },
+   "notes": []
+  },
+  {
+   "id": "thunderbird-tmy-50",
+   "name": "Thunderbird TMY-50",
+   "sheetId": 23,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 15.24,
+   "powerKW": 261,
+   "lines": {
+    "skyline": {
+     "diameterIn": 1,
+     "diameterMm": 25.4,
+     "ropeType": "swaged",
+     "ropeId": "swaged-1in",
+     "lengthM": 609.6,
+     "massKgPerM": 3.6311,
+     "designTensionN": 182377
+    },
+    "mainline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 609.6,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "haulback": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "eips",
+     "ropeId": "eips-0.75in",
+     "lengthM": 1341.12,
+     "massKgPerM": 1.5477,
+     "designTensionN": 87185
+    }
+   },
+   "sheet": {
+    "Twr_ht": 50,
+    "Sky_dia": 1,
+    "Sky_len": 2000,
+    "Sky_type": "Swaged",
+    "Sky_wt": 2.44,
+    "Sky_des_tens": 41000,
+    "ML_dia": 0.75,
+    "ML_len": 2000,
+    "ML_type": "Swaged",
+    "ML_wt": 1.38,
+    "ML_des_tens": 23333,
+    "HB_dia": 0.75,
+    "HB_len": 4400,
+    "HB_type": "EIPS",
+    "HB_wt": 1.04,
+    "HB_des_tens": 19600,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 350,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": 0,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A27:AE27"
+   },
+   "notes": [
+    "SkylineXL's metric table leaves this skyline's rope type blank (Database!F132) and so lists EIPS weight and tension (2.75 kg/m, 15634 kgf); the English table names it swaged, which is used here."
+   ]
+  },
+  {
+   "id": "thunderbird-tsy155-run",
+   "name": "Thunderbird TSY155 run",
+   "sheetId": 24,
+   "kind": "machine",
+   "sizeClass": "running",
+   "towerHeightM": 16.764,
+   "powerKW": 242.4,
+   "lines": {
+    "mainline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 457.2,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "haulback": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 914.4,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "slackpulling": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "eips",
+     "ropeId": "eips-0.75in",
+     "lengthM": 457.2,
+     "massKgPerM": 1.5477,
+     "designTensionN": 87185
+    }
+   },
+   "drums": {
+    "haulback": {
+     "widthMm": 838.2,
+     "diameterMm": 558.8,
+     "brakeTorqueNm": 33895.4
+    }
+   },
+   "sheet": {
+    "Twr_ht": 55,
+    "Sky_dia": 0,
+    "Sky_len": 0,
+    "Sky_type": null,
+    "Sky_wt": 0,
+    "Sky_des_tens": 0,
+    "ML_dia": 0.75,
+    "ML_len": 1500,
+    "ML_type": "Swaged",
+    "ML_wt": 1.38,
+    "ML_des_tens": 23333,
+    "HB_dia": 0.75,
+    "HB_len": 3000,
+    "HB_type": "Swaged",
+    "HB_wt": 1.38,
+    "HB_des_tens": 23333,
+    "SP_dia": 0.75,
+    "SP_len": 1500,
+    "SP_type": "EIPS",
+    "SP_wt": 1.04,
+    "SP_swl": 19600,
+    "H_pwr": 325,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 33,
+    "HB_ddia": 22,
+    "HB_btor": 25000,
+    "Size": "MR"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A28:AE28"
+   },
+   "notes": []
+  },
+  {
+   "id": "tigercat-180-swing",
+   "name": "Tigercat 180 swing",
+   "sheetId": 25,
+   "kind": "machine",
+   "sizeClass": "medium",
+   "towerHeightM": 13.716,
+   "powerKW": 305,
+   "lines": {
+    "skyline": {
+     "diameterIn": 1,
+     "diameterMm": 25.4,
+     "ropeType": "swaged",
+     "ropeId": "swaged-1in",
+     "lengthM": 753.161,
+     "massKgPerM": 3.6311,
+     "designTensionN": 182377
+    },
+    "mainline": {
+     "diameterIn": 0.75,
+     "diameterMm": 19.05,
+     "ropeType": "swaged",
+     "ropeId": "swaged-0.75in",
+     "lengthM": 769.315,
+     "massKgPerM": 2.0537,
+     "designTensionN": 103790
+    },
+    "haulback": {
+     "diameterIn": 0.625,
+     "diameterMm": 15.875,
+     "ropeType": "eips",
+     "ropeId": "eips-0.625in",
+     "lengthM": 1291.133,
+     "massKgPerM": 1.0715,
+     "designTensionN": 61087
+    }
+   },
+   "sheet": {
+    "Twr_ht": 45,
+    "Sky_dia": 1,
+    "Sky_len": 2471,
+    "Sky_type": "Swaged",
+    "Sky_wt": 2.44,
+    "Sky_des_tens": 41000,
+    "ML_dia": 0.75,
+    "ML_len": 2524,
+    "ML_type": "Swaged",
+    "ML_wt": 1.38,
+    "ML_des_tens": 23333,
+    "HB_dia": 0.625,
+    "HB_len": 4236,
+    "HB_type": "EIPS",
+    "HB_wt": 0.72,
+    "HB_des_tens": 13733,
+    "SP_dia": 0,
+    "SP_len": 0,
+    "SP_type": null,
+    "SP_wt": 0,
+    "SP_swl": 0,
+    "H_pwr": 409,
+    "ML_dwid": 0,
+    "ML_ddia": 0,
+    "ML_btor": 0,
+    "HB_dwid": 0,
+    "HB_ddia": 0,
+    "HB_btor": null,
+    "Size": "M"
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A29:AE29"
+   },
+   "notes": []
+  }
+ ],
+ "carriages": [
+  {
+   "id": "acme-650sh",
+   "name": "Acme 650SH",
+   "sheetId": 1,
+   "massKg": 294.84,
+   "powerKW": 0,
+   "skylineClamp": true,
+   "slackpulling": "none",
+   "multispan": false,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    14.288,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    9.525,
+    28.575
+   ],
+   "sheet": {
+    "Weight": 650,
+    "H_pwr": 0,
+    "Sky_clp": "yes",
+    "SP_meth": "none",
+    "Multi": "no",
+    "#_drums": 2,
+    "Sky_min": 0.5625,
+    "Sky_max": 1.125,
+    "ML_min": 0.375,
+    "ML_max": 1.125,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A57:O57"
+   },
+   "notes": []
+  },
+  {
+   "id": "acme-g10-grpl",
+   "name": "Acme G10 grpl",
+   "sheetId": 2,
+   "massKg": 907.18,
+   "powerKW": 7.5,
+   "skylineClamp": true,
+   "slackpulling": "none",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    15.875,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    14.288,
+    19.05
+   ],
+   "sheet": {
+    "Weight": 2000,
+    "H_pwr": 10,
+    "Sky_clp": "yes",
+    "SP_meth": "none",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.625,
+    "Sky_max": 1.125,
+    "ML_min": 0.5625,
+    "ML_max": 0.75,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A58:O58"
+   },
+   "notes": []
+  },
+  {
+   "id": "acme-g23-grpl",
+   "name": "Acme G23 grpl",
+   "sheetId": 3,
+   "massKg": 1088.62,
+   "powerKW": 17.2,
+   "skylineClamp": true,
+   "slackpulling": "none",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    15.875,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    14.288,
+    25.4
+   ],
+   "sheet": {
+    "Weight": 2400,
+    "H_pwr": 23,
+    "Sky_clp": "yes",
+    "SP_meth": "none",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.625,
+    "Sky_max": 1.125,
+    "ML_min": 0.5625,
+    "ML_max": 1,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A59:O59"
+   },
+   "notes": []
+  },
+  {
+   "id": "acme-210",
+   "name": "Acme-210",
+   "sheetId": 4,
+   "massKg": 498.95,
+   "powerKW": 7.5,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    14.288,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    11.112,
+    15.875
+   ],
+   "sheet": {
+    "Weight": 1100,
+    "H_pwr": 10,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.5625,
+    "Sky_max": 1.125,
+    "ML_min": 0.4375,
+    "ML_max": 0.625,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A60:O60"
+   },
+   "notes": []
+  },
+  {
+   "id": "acme-228",
+   "name": "Acme-228",
+   "sheetId": 5,
+   "massKg": 861.83,
+   "powerKW": 20.9,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    19.05,
+    34.925
+   ],
+   "mainlineDiameterMm": [
+    12.7,
+    22.225
+   ],
+   "sheet": {
+    "Weight": 1900,
+    "H_pwr": 28,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.75,
+    "Sky_max": 1.375,
+    "ML_min": 0.5,
+    "ML_max": 0.875,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A61:O61"
+   },
+   "notes": []
+  },
+  {
+   "id": "acme-23",
+   "name": "Acme-23",
+   "sheetId": 6,
+   "massKg": 635.03,
+   "powerKW": 17.2,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    15.875,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    11.112,
+    19.05
+   ],
+   "sheet": {
+    "Weight": 1400,
+    "H_pwr": 23,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.625,
+    "Sky_max": 1.125,
+    "ML_min": 0.4375,
+    "ML_max": 0.75,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A62:O62"
+   },
+   "notes": []
+  },
+  {
+   "id": "acme-sl328",
+   "name": "Acme-SL328",
+   "sheetId": 7,
+   "massKg": 861.83,
+   "powerKW": 20.9,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    19.05,
+    34.925
+   ],
+   "mainlineDiameterMm": [
+    12.7,
+    22.225
+   ],
+   "sheet": {
+    "Weight": 1900,
+    "H_pwr": 28,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.75,
+    "Sky_max": 1.375,
+    "ML_min": 0.5,
+    "ML_max": 0.875,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A63:O63"
+   },
+   "notes": []
+  },
+  {
+   "id": "christy-regular",
+   "name": "Christy Regular",
+   "sheetId": 8,
+   "massKg": 154.22,
+   "powerKW": 0,
+   "skylineClamp": true,
+   "slackpulling": "hand",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    12.7,
+    22.225
+   ],
+   "mainlineDiameterMm": [
+    12.7,
+    19.05
+   ],
+   "sheet": {
+    "Weight": 340,
+    "H_pwr": 0,
+    "Sky_clp": "yes",
+    "SP_meth": "hand",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.5,
+    "Sky_max": 0.875,
+    "ML_min": 0.5,
+    "ML_max": 0.75,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A64:O64"
+   },
+   "notes": []
+  },
+  {
+   "id": "christy-small-hd",
+   "name": "Christy Small HD",
+   "sheetId": 9,
+   "massKg": 99.79,
+   "powerKW": 0,
+   "skylineClamp": true,
+   "slackpulling": "hand",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    9.525,
+    15.875
+   ],
+   "mainlineDiameterMm": [
+    9.525,
+    14.288
+   ],
+   "sheet": {
+    "Weight": 220,
+    "H_pwr": 0,
+    "Sky_clp": "yes",
+    "SP_meth": "hand",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.375,
+    "Sky_max": 0.625,
+    "ML_min": 0.375,
+    "ML_max": 0.5625,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A65:O65"
+   },
+   "notes": []
+  },
+  {
+   "id": "eagle-eaglet",
+   "name": "Eagle Eaglet",
+   "sheetId": 10,
+   "massKg": 589.67,
+   "powerKW": 8.2,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    14.288,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    12.7,
+    15.938
+   ],
+   "sheet": {
+    "Weight": 1300,
+    "H_pwr": 11,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.5625,
+    "Sky_max": 1.125,
+    "ML_min": 0.5,
+    "ML_max": 0.6275,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A66:O66"
+   },
+   "notes": []
+  },
+  {
+   "id": "eagle-hd-74-grpl",
+   "name": "Eagle HD 74 grpl",
+   "sheetId": 11,
+   "massKg": 1133.98,
+   "powerKW": 10.4,
+   "skylineClamp": true,
+   "slackpulling": "none",
+   "multispan": false,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    15.875,
+    38.1
+   ],
+   "mainlineDiameterMm": [
+    15.875,
+    25.4
+   ],
+   "sheet": {
+    "Weight": 2500,
+    "H_pwr": 14,
+    "Sky_clp": "yes",
+    "SP_meth": "none",
+    "Multi": "no",
+    "#_drums": 2,
+    "Sky_min": 0.625,
+    "Sky_max": 1.5,
+    "ML_min": 0.625,
+    "ML_max": 1,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A67:O67"
+   },
+   "notes": []
+  },
+  {
+   "id": "eagle-mega-grapl",
+   "name": "Eagle Mega grapl",
+   "sheetId": 12,
+   "massKg": 1270.06,
+   "powerKW": 0,
+   "skylineClamp": true,
+   "slackpulling": "none",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    19.05,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    15.875,
+    19.05
+   ],
+   "sheet": {
+    "Weight": 2800,
+    "H_pwr": 0,
+    "Sky_clp": "yes",
+    "SP_meth": "none",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.75,
+    "Sky_max": 1.125,
+    "ML_min": 0.625,
+    "ML_max": 0.75,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A68:O68"
+   },
+   "notes": []
+  },
+  {
+   "id": "eagle-super-eaglet",
+   "name": "Eagle Super Eaglet",
+   "sheetId": 13,
+   "massKg": 718.94,
+   "powerKW": 16.4,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    14.288,
+    34.925
+   ],
+   "mainlineDiameterMm": [
+    12.7,
+    19.05
+   ],
+   "sheet": {
+    "Weight": 1585,
+    "H_pwr": 22,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.5625,
+    "Sky_max": 1.375,
+    "ML_min": 0.5,
+    "ML_max": 0.75,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A69:O69"
+   },
+   "notes": []
+  },
+  {
+   "id": "eagle-vi",
+   "name": "Eagle VI",
+   "sheetId": 14,
+   "massKg": 1202.02,
+   "powerKW": 20.9,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    22.225,
+    32.385
+   ],
+   "mainlineDiameterMm": [
+    14.288,
+    22.225
+   ],
+   "sheet": {
+    "Weight": 2650,
+    "H_pwr": 28,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.875,
+    "Sky_max": 1.275,
+    "ML_min": 0.5625,
+    "ML_max": 0.875,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A70:O70"
+   },
+   "notes": []
+  },
+  {
+   "id": "eagle-yoder-grapl",
+   "name": "Eagle Yoder grapl",
+   "sheetId": 15,
+   "massKg": 816.47,
+   "powerKW": 0,
+   "skylineClamp": true,
+   "slackpulling": "none",
+   "multispan": false,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    14.288,
+    19.05
+   ],
+   "mainlineDiameterMm": [
+    14.288,
+    15.875
+   ],
+   "sheet": {
+    "Weight": 1800,
+    "H_pwr": 0,
+    "Sky_clp": "yes",
+    "SP_meth": "none",
+    "Multi": "no",
+    "#_drums": 2,
+    "Sky_min": 0.5625,
+    "Sky_max": 0.75,
+    "ML_min": 0.5625,
+    "ML_max": 0.625,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A71:O71"
+   },
+   "notes": []
+  },
+  {
+   "id": "eagle-iv",
+   "name": "Eagle-IV",
+   "sheetId": 16,
+   "massKg": 1043.26,
+   "powerKW": 16.4,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    22.225,
+    34.925
+   ],
+   "mainlineDiameterMm": [
+    14.288,
+    22.225
+   ],
+   "sheet": {
+    "Weight": 2300,
+    "H_pwr": 22,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.875,
+    "Sky_max": 1.375,
+    "ML_min": 0.5625,
+    "ML_max": 0.875,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A72:O72"
+   },
+   "notes": []
+  },
+  {
+   "id": "eagle-v-drum-sky-car",
+   "name": "Eagle-V drum sky car",
+   "sheetId": 17,
+   "massKg": 1950.45,
+   "powerKW": 52.2,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": false,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    25.4,
+    38.1
+   ],
+   "mainlineDiameterMm": [
+    14.288,
+    15.875
+   ],
+   "dropline": {
+    "lengthM": 121.92,
+    "diameterMm": 15.875
+   },
+   "sheet": {
+    "Weight": 4300,
+    "H_pwr": 70,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "no",
+    "#_drums": 2,
+    "Sky_min": 1,
+    "Sky_max": 1.5,
+    "ML_min": 0.5625,
+    "ML_max": 0.625,
+    "Torgue": null,
+    "DL_len": 400,
+    "DL_dia": 0.625
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A73:O73"
+   },
+   "notes": []
+  },
+  {
+   "id": "koller-msk-3",
+   "name": "Koller MSK 3",
+   "sheetId": 18,
+   "massKg": 680.39,
+   "powerKW": 5.6,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    19.05,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    9.525,
+    15.875
+   ],
+   "sheet": {
+    "Weight": 1500,
+    "H_pwr": 7.5,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.75,
+    "Sky_max": 1.125,
+    "ML_min": 0.375,
+    "ML_max": 0.625,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A74:O74"
+   },
+   "notes": []
+  },
+  {
+   "id": "koller-ska-1",
+   "name": "Koller SKA 1",
+   "sheetId": 19,
+   "massKg": 149.69,
+   "powerKW": 0,
+   "skylineClamp": true,
+   "slackpulling": "hand",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    12.7,
+    25.4
+   ],
+   "mainlineDiameterMm": [
+    7.938,
+    11.112
+   ],
+   "sheet": {
+    "Weight": 330,
+    "H_pwr": 0,
+    "Sky_clp": "yes",
+    "SP_meth": "hand",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.5,
+    "Sky_max": 1,
+    "ML_min": 0.3125,
+    "ML_max": 0.4375,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A75:O75"
+   },
+   "notes": []
+  },
+  {
+   "id": "koller-ska-2-5",
+   "name": "Koller SKA 2.5",
+   "sheetId": 20,
+   "massKg": 258.55,
+   "powerKW": 0,
+   "skylineClamp": true,
+   "slackpulling": "hand",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    19.05,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    9.525,
+    14.288
+   ],
+   "sheet": {
+    "Weight": 570,
+    "H_pwr": 0,
+    "Sky_clp": "yes",
+    "SP_meth": "hand",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.75,
+    "Sky_max": 1.125,
+    "ML_min": 0.375,
+    "ML_max": 0.5625,
+    "Torgue": null,
+    "DL_len": null,
+    "DL_dia": null
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A76:O76"
+   },
+   "notes": []
+  },
+  {
+   "id": "acme-23-ad",
+   "name": "Acme-23_ad",
+   "sheetId": 21,
+   "massKg": 635.03,
+   "powerKW": 17.2,
+   "skylineClamp": true,
+   "slackpulling": "carriage",
+   "multispan": true,
+   "yarderDrumsRequired": 2,
+   "skylineDiameterMm": [
+    15.875,
+    28.575
+   ],
+   "mainlineDiameterMm": [
+    11.112,
+    19.05
+   ],
+   "sheet": {
+    "Weight": 1400,
+    "H_pwr": 23,
+    "Sky_clp": "yes",
+    "SP_meth": "carriage",
+    "Multi": "yes",
+    "#_drums": 2,
+    "Sky_min": 0.625,
+    "Sky_max": 1.125,
+    "ML_min": 0.4375,
+    "ML_max": 0.75,
+    "Torgue": null,
+    "DL_len": 0,
+    "DL_dia": 0
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A77:O77"
+   },
+   "notes": []
+  },
+  {
+   "id": "madill-msp",
+   "name": "Madill MSP",
+   "sheetId": 22,
+   "massKg": 272.16,
+   "powerKW": 0,
+   "skylineClamp": false,
+   "slackpulling": "yarder",
+   "multispan": true,
+   "yarderDrumsRequired": 3,
+   "skylineDiameterMm": [
+    12.7,
+    22.225
+   ],
+   "mainlineDiameterMm": [
+    12.7,
+    25.4
+   ],
+   "dropline": {
+    "lengthM": 38.1,
+    "diameterMm": 22.225
+   },
+   "sheet": {
+    "Weight": 600,
+    "H_pwr": 0,
+    "Sky_clp": "no",
+    "SP_meth": "yarder",
+    "Multi": "yes",
+    "#_drums": 3,
+    "Sky_min": 0.5,
+    "Sky_max": 0.875,
+    "ML_min": 0.5,
+    "ML_max": 1,
+    "Torgue": null,
+    "DL_len": 125,
+    "DL_dia": 0.875
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A78:O78"
+   },
+   "notes": []
+  },
+  {
+   "id": "madill-msp-hd",
+   "name": "Madill MSP HD",
+   "sheetId": 23,
+   "massKg": 408.23,
+   "powerKW": 0,
+   "skylineClamp": false,
+   "slackpulling": "yarder",
+   "multispan": true,
+   "yarderDrumsRequired": 3,
+   "skylineDiameterMm": [
+    12.7,
+    25.4
+   ],
+   "mainlineDiameterMm": [
+    12.7,
+    25.4
+   ],
+   "dropline": {
+    "lengthM": 38.1,
+    "diameterMm": 25.4
+   },
+   "sheet": {
+    "Weight": 900,
+    "H_pwr": 0,
+    "Sky_clp": "no",
+    "SP_meth": "yarder",
+    "Multi": "yes",
+    "#_drums": 3,
+    "Sky_min": 0.5,
+    "Sky_max": 1,
+    "ML_min": 0.5,
+    "ML_max": 1,
+    "Torgue": null,
+    "DL_len": 125,
+    "DL_dia": 1
+   },
+   "source": {
+    "dataset": "skylinexl-25",
+    "version": "25.0",
+    "databaseUpdated": "2024-11-01",
+    "retrieved": "2026-11-14",
+    "cells": "Database!A79:O79"
+   },
+   "notes": []
+  }
+ ]
+}

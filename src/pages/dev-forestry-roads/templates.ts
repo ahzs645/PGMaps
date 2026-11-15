@@ -8,6 +8,7 @@ import type {
   RoadTemplate,
   SectionComponent,
 } from './types'
+import type { TemplateAssignment } from './engineeringTypes'
 import { EngineeringInputError, requireInRange, requireStationRange, type EngineeringInputTarget } from './inputErrors'
 import { validatePreparation, validateSectionAssembly } from './sectionAssembly'
 import { validateAllocationPolicy } from './allocationPolicy'
@@ -56,7 +57,52 @@ function blendedComponents(base: RoadTemplate, target: RoadTemplate, side: Side,
   ]
 }
 
-/** Matching component identities interpolate once. Topology/reference changes need a deliberate step. */
+/**
+ * Why one side of two templates cannot be interpolated component by component, or null when it
+ * can: matching component identities interpolate once; reordered components, a changed type,
+ * condition, material or reference, an anchored component added or removed, and overlapping keys
+ * with different identities need a step.
+ */
+export function componentTransitionProblem(from: RoadTemplate, to: RoadTemplate, side: Side): string | null {
+  const a = (from.components ?? []).filter((c) => c.side === side)
+  const b = (to.components ?? []).filter((c) => c.side === side)
+  const sharedA = a.filter((c) => b.some((d) => d.id === c.id)).map((c) => c.id)
+  const sharedB = b.filter((c) => a.some((d) => d.id === c.id)).map((c) => c.id)
+  if (JSON.stringify(sharedA) !== JSON.stringify(sharedB))
+    return 'Reordered components require a step assignment (transition 0).'
+  for (const c of a) {
+    const next = b.find((d) => d.id === c.id)
+    if (
+      next &&
+      (['kind', 'condition', 'materialId', 'referenceFeatureId', 'referenceSurfaceId'] as const).some(
+        (key) => c[key] !== next[key],
+      )
+    )
+      return 'Changing component type, condition, material or reference requires a step assignment (transition 0).'
+    if (!next && (c.referenceFeatureId || c.referenceSurfaceId))
+      return 'Adding or removing an anchored component requires a step assignment (transition 0).'
+    if (c.kind === 'key')
+      for (const d of b)
+        if (
+          d.kind === 'key' &&
+          d.id !== c.id &&
+          (c.condition === 'always' || d.condition === 'always' || c.condition === d.condition) &&
+          Math.min((c.offsetM ?? 0) + c.widthM, (d.offsetM ?? 0) + d.widthM) > Math.max(c.offsetM ?? 0, d.offsetM ?? 0)
+        )
+          return 'Overlapping key transitions need matching component IDs or a step assignment (transition 0).'
+  }
+  for (const c of b)
+    if (!a.some((d) => d.id === c.id) && (c.referenceFeatureId || c.referenceSurfaceId))
+      return 'Adding or removing an anchored component requires a step assignment (transition 0).'
+  return null
+}
+
+/**
+ * Matching component identities interpolate once. Topology/reference changes need a deliberate step.
+ * Transitions to a neighbouring range (`transitionInM`/`transitionOutM`) are never refused here:
+ * where the two templates cannot be interpolated they step at the transition's midpoint
+ * (`templateTransitions` says where).
+ */
 export function validateComponentTransitions(alignment: Alignment) {
   const e = alignment.engineering
   if (!e) return
@@ -66,41 +112,8 @@ export function validateComponentTransitions(alignment: Alignment) {
     if (!target) continue
     for (const side of ['left', 'right'] as const) {
       if (assignment.side !== 'both' && assignment.side !== side) continue
-      const a = (alignment.template.components ?? []).filter((c) => c.side === side)
-      const b = (target.components ?? []).filter((c) => c.side === side)
-      const sharedA = a.filter((c) => b.some((d) => d.id === c.id)).map((c) => c.id)
-      const sharedB = b.filter((c) => a.some((d) => d.id === c.id)).map((c) => c.id)
-      if (JSON.stringify(sharedA) !== JSON.stringify(sharedB))
-        throw Error('Reordered components require a step assignment (transition 0).')
-      for (const c of a) {
-        const next = b.find((d) => d.id === c.id)
-        if (
-          next &&
-          (['kind', 'condition', 'materialId', 'referenceFeatureId', 'referenceSurfaceId'] as const).some(
-            (key) => c[key] !== next[key],
-          )
-        )
-          throw Error(
-            'Changing component type, condition, material or reference requires a step assignment (transition 0).',
-          )
-        if (!next && (c.referenceFeatureId || c.referenceSurfaceId))
-          throw Error('Adding or removing an anchored component requires a step assignment (transition 0).')
-        if (c.kind === 'key')
-          for (const d of b)
-            if (
-              d.kind === 'key' &&
-              d.id !== c.id &&
-              (c.condition === 'always' || d.condition === 'always' || c.condition === d.condition) &&
-              Math.min((c.offsetM ?? 0) + c.widthM, (d.offsetM ?? 0) + d.widthM) >
-                Math.max(c.offsetM ?? 0, d.offsetM ?? 0)
-            )
-              throw Error(
-                'Overlapping key transitions need matching component IDs or a step assignment (transition 0).',
-              )
-      }
-      for (const c of b)
-        if (!a.some((d) => d.id === c.id) && (c.referenceFeatureId || c.referenceSurfaceId))
-          throw Error('Adding or removing an anchored component requires a step assignment (transition 0).')
+      const problem = componentTransitionProblem(alignment.template, target, side)
+      if (problem) throw Error(problem)
     }
   }
 }
@@ -390,14 +403,46 @@ export function validateEngineering(e: AlignmentEngineering): void {
       ...target,
       field: 'transitionM',
     })
+    for (const field of ['transitionInM', 'transitionOutM'] as const)
+      if (a[field] !== undefined)
+        requireInRange(
+          a[field],
+          0,
+          a.end - a.start,
+          owner,
+          `transition ${field === 'transitionInM' ? 'in' : 'out'} (m)`,
+          {
+            ...target,
+            field,
+          },
+        )
+    if ((a.transitionInM ?? 0) + (a.transitionOutM ?? 0) > a.end - a.start + EPS)
+      throw new EngineeringInputError(
+        `${owner}: its transitions in and out together are longer than the range (${plain(a.end - a.start)} m).`,
+        { ...target, field: 'transitionOutM' },
+      )
+    if (a.transitionM > 0 && ((a.transitionInM ?? 0) > 0 || (a.transitionOutM ?? 0) > 0))
+      throw new EngineeringInputError(
+        `${owner}: blend to the base section (transition) or to the neighbouring ranges (transition in and out), not both.`,
+        { ...target, field: 'transitionM' },
+      )
     for (let j = 0; j < i; j++) {
       const b = e.assignments[j],
         from = Math.max(a.start, b.start),
         to = Math.min(a.end, b.end)
-      if (to > from + EPS && (a.side === b.side || a.side === 'both' || b.side === 'both'))
+      const sameSide = a.side === b.side || a.side === 'both' || b.side === 'both'
+      if (to > from + EPS && sameSide)
         throw new EngineeringInputError(
           `${owner} and template range ${j + 1} overlap on the same side between ${plain(from)} and ${plain(to)} m. Change a station, or give each range its own side.`,
           target,
+        )
+      // Two transitions meeting at one boundary would each blend the other way and jump there.
+      const meets = (x: TemplateAssignment, y: TemplateAssignment) =>
+        Math.abs(x.end - y.start) <= EPS && (x.transitionOutM ?? 0) > 0 && (y.transitionInM ?? 0) > 0
+      if (sameSide && (meets(a, b) || meets(b, a)))
+        throw new EngineeringInputError(
+          `${owner} and template range ${j + 1} both transition at ${plain(meets(a, b) ? a.end : a.start)} m. Give the transition to one of them.`,
+          { ...target, field: meets(a, b) ? 'transitionOutM' : 'transitionInM' },
         )
     }
   }
@@ -548,6 +593,48 @@ export function validateEngineering(e: AlignmentEngineering): void {
     throw new Error('Surfacing supply needs valid rates, haul distance, compacted capacity and source notes.')
 }
 
+type Assignment = TemplateAssignment
+const onSide = (a: Assignment, side: Side) => a.side === side || a.side === 'both'
+const transitionIn = (a: Assignment) => ((a.transitionInM ?? 0) > 0 ? a.transitionInM! : 0)
+const transitionOut = (a: Assignment) => ((a.transitionOutM ?? 0) > 0 ? a.transitionOutM! : 0)
+
+/**
+ * The template in force on one side just before (`-1`) or just after (`+1`) a range boundary,
+ * leaving the range itself out: the other range there, else the base section.
+ */
+function neighbourAt(alignment: Alignment, self: Assignment, side: Side, at: number, direction: -1 | 1) {
+  const e = alignment.engineering!
+  const c = at + direction * 1e-6
+  const other = e.assignments
+    .filter((a) => a !== self && onSide(a, side) && c >= a.start && c <= a.end)
+    .sort((a, b) => b.start - a.start)[0]
+  const named = other ? e.templates.find((t) => t.id === other.templateId) : undefined
+  return named
+    ? { template: named.template, name: named.name, assignment: other! }
+    : { template: alignment.template, name: 'Base section', assignment: null }
+}
+
+/** One side's transition to a neighbouring range at a station, or null outside every such transition. */
+function neighbourTransition(alignment: Alignment, assignment: Assignment, side: Side, chainage: number) {
+  const into = transitionIn(assignment),
+    out = transitionOut(assignment)
+  // Where both would apply (a range no longer than its two transitions) the nearer end wins.
+  const fromStart = chainage - assignment.start,
+    fromEnd = assignment.end - chainage
+  const edge =
+    into > 0 && fromStart < into && (out <= 0 || fromStart <= fromEnd) ? 'in' : out > 0 && fromEnd < out ? 'out' : null
+  if (!edge) return null
+  const neighbour = neighbourAt(
+    alignment,
+    assignment,
+    side,
+    edge === 'in' ? assignment.start : assignment.end,
+    edge === 'in' ? -1 : 1,
+  )
+  const ratio = clamp(edge === 'in' ? fromStart / into : fromEnd / out)
+  return { edge, neighbour, ratio } as const
+}
+
 export function templateAt(alignment: Alignment, chainage: number): ResolvedTemplate {
   const template = { ...alignment.template }
   const result: ResolvedTemplate = { template, leftName: 'Base section', rightName: 'Base section', assignmentIds: [] }
@@ -561,19 +648,32 @@ export function templateAt(alignment: Alignment, chainage: number): ResolvedTemp
     if (!assignment) continue
     const named = e.templates.find((t) => t.id === assignment.templateId)
     if (!named) continue // Analysis validation reports the unknown ID.
-    const ratio =
+    // What the side blends from: the base section (`transitionM`), or over a transition to a
+    // neighbouring range, that range's template (RoadEng's Taper).
+    const toNeighbour = neighbourTransition(alignment, assignment, side, chainage)
+    let from: RoadTemplate = alignment.template
+    let ratio =
       assignment.transitionM > 0
         ? clamp(Math.min(chainage - assignment.start, assignment.end - chainage) / assignment.transitionM)
         : 1
+    let stepped = false
+    if (toNeighbour) {
+      from = toNeighbour.neighbour.template
+      ratio = toNeighbour.ratio
+      // Templates that differ in structure cannot be interpolated: they step at the midpoint.
+      if (componentTransitionProblem(from, named.template, side) !== null) {
+        stepped = true
+        ratio = ratio < 0.5 ? 0 : 1
+      }
+    }
     const widthKey = `${side}Width` as const
-    template[widthKey] =
-      alignment.template[widthKey] + (named.template[widthKey] - alignment.template[widthKey]) * ratio
+    template[widthKey] = from[widthKey] + (named.template[widthKey] - from[widthKey]) * ratio
     for (const attribute of attributes) {
-      const base = sideValue(alignment.template, side, attribute)
+      const base = sideValue(from, side, attribute)
       template[`${side}${attribute}`] = base + (sideValue(named.template, side, attribute) - base) * ratio
     }
-    if (rockCutAt(alignment.template, side) || rockCutAt(named.template, side)) {
-      const rock = blendRockCut(rockCutAt(alignment.template, side), rockCutAt(named.template, side), ratio)
+    if (rockCutAt(from, side) || rockCutAt(named.template, side)) {
+      const rock = blendRockCut(rockCutAt(from, side), rockCutAt(named.template, side), ratio)
       // Each side resolves to a block of its own, so a one-sided assignment leaves the other alone.
       const other = side === 'left' ? 'right' : 'left'
       if (template[`${other}RockCut`] === undefined && template.rockCut)
@@ -583,11 +683,11 @@ export function templateAt(alignment: Alignment, chainage: number): ResolvedTemp
       else delete template[`${side}RockCut`]
       if (!template[`${other}RockCut`]) delete template[`${other}RockCut`]
     }
-    if (alignment.template.components || named.template.components) {
+    if (from.components || named.template.components) {
       const others = (template.components ?? []).filter((c) => c.side !== side)
-      template.components = [...others, ...blendedComponents(alignment.template, named.template, side, ratio)]
+      template.components = [...others, ...blendedComponents(from, named.template, side, ratio)]
     }
-    if (alignment.template.layers || named.template.layers) {
+    if (from.layers || named.template.layers) {
       const others = (template.layers ?? []).flatMap((l) =>
         l.side === side
           ? []
@@ -603,12 +703,64 @@ export function templateAt(alignment: Alignment, chainage: number): ResolvedTemp
         )
           .filter((l) => (l.side === side || l.side === 'both') && weight > 1e-7)
           .map((l) => ({ ...l, side, depthM: l.depthM * weight }))
-      template.layers = [...others, ...blend(alignment.template, 1 - ratio), ...blend(named.template, ratio)]
+      template.layers = [...others, ...blend(from, 1 - ratio), ...blend(named.template, ratio)]
     }
-    result[`${side}Name`] = ratio < 1 ? `${named.name} · transition` : named.name
+    result[`${side}Name`] = toNeighbour
+      ? `${toNeighbour.edge === 'in' ? `${toNeighbour.neighbour.name} → ${named.name}` : `${named.name} → ${toNeighbour.neighbour.name}`} · transition${stepped ? ', stepped at its midpoint' : ''}`
+      : ratio < 1
+        ? `${named.name} · transition`
+        : named.name
     if (!result.assignmentIds.includes(assignment.id)) result.assignmentIds.push(assignment.id)
   }
   return result
+}
+
+/** One transition between neighbouring ranges, on one side, in road chainage. */
+export interface TemplateTransition {
+  assignmentId: string
+  side: Side
+  /** `in`: from the section before the range; `out`: to the section after it. */
+  edge: 'in' | 'out'
+  start: number
+  end: number
+  fromName: string
+  toName: string
+  /**
+   * Set where the two templates differ in structure and cannot be interpolated: the section steps
+   * from one to the other at the transition's midpoint. Names the difference ("reordered components").
+   */
+  steppedBecause: string | null
+}
+
+/** Every transition to a neighbouring range (`transitionInM`/`transitionOutM`), side by side. */
+export function templateTransitions(alignment: Alignment): TemplateTransition[] {
+  const e = alignment.engineering
+  if (!e) return []
+  const out: TemplateTransition[] = []
+  for (const a of e.assignments) {
+    const named = e.templates.find((t) => t.id === a.templateId)
+    if (!named || (!transitionIn(a) && !transitionOut(a))) continue
+    for (const side of ['left', 'right'] as const) {
+      if (!onSide(a, side)) continue
+      for (const edge of ['in', 'out'] as const) {
+        const length = edge === 'in' ? transitionIn(a) : transitionOut(a)
+        if (!(length > 0)) continue
+        const neighbour = neighbourAt(alignment, a, side, edge === 'in' ? a.start : a.end, edge === 'in' ? -1 : 1)
+        const problem = componentTransitionProblem(neighbour.template, named.template, side)
+        out.push({
+          assignmentId: a.id,
+          side,
+          edge,
+          start: edge === 'in' ? a.start : a.end - length,
+          end: edge === 'in' ? a.start + length : a.end,
+          fromName: edge === 'in' ? neighbour.name : named.name,
+          toName: edge === 'in' ? named.name : neighbour.name,
+          steppedBecause: problem && problem.replace(/ (requires?|need) .*$/, '').toLowerCase(),
+        })
+      }
+    }
+  }
+  return out.sort((x, y) => x.start - y.start || x.side.localeCompare(y.side))
 }
 
 /** Include discontinuity neighbours so an area change is not smeared over an ordinary interval. */
@@ -619,7 +771,16 @@ export function engineeringKnots(alignment: Alignment): number[] {
   for (const a of e.assignments) {
     knots.push(a.start, a.end, a.start + a.transitionM, a.end - a.transitionM)
     if (!a.transitionM) knots.push(a.start - 1e-5, a.end + 1e-5)
+    // A transition to a neighbouring range ends on a station, and one that steps at its midpoint
+    // samples both sides of the step.
+    if (transitionIn(a)) knots.push(a.start + transitionIn(a))
+    if (transitionOut(a)) knots.push(a.end - transitionOut(a))
   }
+  for (const t of templateTransitions(alignment))
+    if (t.steppedBecause) {
+      const mid = (t.start + t.end) / 2
+      knots.push(mid - 1e-5, mid, mid + 1e-5)
+    }
   for (const a of e.strata) knots.push(a.start - 1e-5, a.start, a.end - 1e-5, a.end, a.end + 1e-5)
   for (const a of [
     ...(e.sitePreparation ?? []),

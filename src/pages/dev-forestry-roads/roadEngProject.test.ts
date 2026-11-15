@@ -9,9 +9,11 @@ import { AlignmentCrsQuestion, type XY } from './landXmlImport'
 import { isLocalPlane, LOCAL_PLANE_EPSG, placeProject } from './localPlane'
 import { parseProject } from './project'
 import { roadEngDesign } from './roadEngExport'
-import { collectRoadEngFiles, roadEngProject } from './roadEngProject'
+import { collectRoadEngFiles, mergeRoadEngParts, roadEngProject } from './roadEngProject'
+import { EXAMPLE_RIGGING } from './cableMechanics'
 import { ROADENG_FLAG_NOT_MODELLED, ROADENG_FLAG_POINT_SET } from './roadEngTerrain'
-import { buildTer, type SynthFeature } from './roadEngTerrain.testkit'
+import { buildTer, chunk, type SynthFeature } from './roadEngTerrain.testkit'
+import { encodeRoadEngDLineChunks, roadEngDLineFor } from './roadEngDLines'
 import { createDemoProject, DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, terrainFromMetadata } from './terrain'
 import type { Alignment, Coordinate, RoadProject } from './types'
 
@@ -79,7 +81,18 @@ const features: SynthFeature[] = [
     kind: 2,
   },
 ]
-const ter = buildTer({ features, tin: { vertices: posts.map((_, k) => [0, k]), triangles } })
+/** The D-line's attribute group (type 52) and its RoadEng cable settings: yarder 18 m, tailhold 8 m, 5 %. */
+const dLineIndex = features.findIndex((f) => f.name === 'D-Line')
+const group = new Uint8Array(268)
+new DataView(group.buffer).setInt32(0, dLineIndex, true)
+group.set(strToU8('D-Line'), 4)
+const cableChunks = [
+  ...chunk(52, -1, group),
+  ...encodeRoadEngDLineChunks(
+    roadEngDLineFor({ lengthM: Math.hypot(80, 80), yarderHeight: 18, tailholdHeight: 8, deflectionPercent: 5 }),
+  ),
+]
+const ter = buildTer({ features, tin: { vertices: posts.map((_, k) => [0, k]), triangles }, attributes: cableChunks })
 const terx = (coordSys: string) =>
   zipSync({
     'Terrain1.ter': ter,
@@ -251,6 +264,48 @@ describe('RoadEng project import', () => {
     expect(() => collectRoadEngFiles([{ name: 'empty.zip', bytes: zipSync({ 'a.txt': strToU8('x') }) }])).toThrow(
       /holds no RoadEng design/,
     )
+  })
+
+  it('keeps a window layout chosen with the terrain, found by its content', () => {
+    const layout = strToU8('[3dwindow]\r\nsize=1,2\r\n[dlinedefl]\r\nscale=5.3\r\n')
+    const collected = collectRoadEngFiles([...files('1|51|10010'), { name: 'Cable layout.ilt', bytes: layout }])
+    expect(collected.layouts.map((f) => f.name)).toEqual(['Cable layout.ilt'])
+    const opened = roadEngProject([...files('1|51|10010'), { name: 'Cable layout.ilt', bytes: layout }], options)
+    expect(opened.terrain.roadEngSource?.layouts).toEqual([{ name: 'Cable layout', text: strFromU8(layout, true) }])
+    // The road keeps its design's parts and the frame it was read in.
+    expect(opened.roads[0].alignment.roadEngSource).toMatchObject({ part: 'Location1', epsg: 26910, startStation: 0 })
+    expect(stated.cables[0].roadEng?.spars.map((sp) => sp.height)).toEqual([18, 8])
+  })
+
+  it('joins a terrain’s sets, notes and looks to a project, replacing an earlier import of them', () => {
+    const set = (id: string, name: string) => ({ id, name, rigging: { ...EXAMPLE_RIGGING } })
+    const note = (id: string, text: string) => ({
+      id,
+      kind: 'pin' as const,
+      points: [[0, 0] as Coordinate],
+      text,
+      color: '#0f172a',
+      createdAt: '2026-11-14T00:00:00Z',
+    })
+    const merged = mergeRoadEngParts(
+      {
+        riggingSets: [set('roadeng-system-1', 'Highlead'), set('mine', 'Grapple')],
+        notes: [note('roadeng-note-1', 'old'), note('n', 'mine')],
+        referenceStyles: [{ layer: 'RoadEng terrain/Feature', color: '#000000' }],
+      },
+      {
+        riggingSets: [set('roadeng-system-1', 'Highlead'), set('roadeng-system-4', 'Grapple')],
+        mapNotes: [note('roadeng-note-1', 'Access Road')],
+        referenceStyles: [{ layer: 'RoadEng terrain/Feature', color: '#ff7f00' }],
+      },
+    )
+    expect(merged.riggingSets!.map((s) => [s.id, s.name])).toEqual([
+      ['mine', 'Grapple'],
+      ['roadeng-system-1', 'Highlead'],
+      ['roadeng-system-4', 'Grapple (2)'],
+    ])
+    expect(merged.notes!.map((n) => n.text)).toEqual(['mine', 'Access Road'])
+    expect(merged.referenceStyles).toEqual([{ layer: 'RoadEng terrain/Feature', color: '#ff7f00' }])
   })
 
   it('refuses a placement it cannot make', () => {

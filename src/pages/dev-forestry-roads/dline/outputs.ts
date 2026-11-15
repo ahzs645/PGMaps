@@ -17,7 +17,7 @@ import {
   type FieldComparison,
 } from './fieldProfile'
 import { bearingDeg, dLineFrame } from './frame'
-import { matchingRiggingSet, type RiggingSet } from './riggingSets'
+import { matchingRiggingSet, riggingSetProvenance, type RiggingSet } from './riggingSets'
 import { dLineSupports, SHOWN_LAYOUT_TEXT, supportStakeout, type DLineSupportSet, type StakeoutRow } from './supports'
 
 export interface DLineExtras {
@@ -33,6 +33,11 @@ export interface DLineExtras {
     fromField: boolean[]
   } | null
   riggingSet: string | null
+  /**
+   * Where that set's values came from, when it was made from equipment (SkylineXL or a RoadEng
+   * logging system); absent otherwise, so a set entered by hand reports as before.
+   */
+  riggingSetProvenance?: string
 }
 
 /**
@@ -58,6 +63,8 @@ export function dLineExtras({
   riggingSets?: readonly RiggingSet[]
 }): DLineExtras {
   const current = layout && layout.status !== 'no-layout' ? layout : null
+  const set = line.sagModel === 'mechanics' ? matchingRiggingSet(riggingSets, line.rigging) : null
+  const provenance = set ? riggingSetProvenance(set) : null
   const supports = dLineSupports(line, { result: current, ground })
   const shots = activeFieldShots(line)
   const comparison = shots ? compareFieldProfile(line, terrain) : null
@@ -81,7 +88,8 @@ export function dLineExtras({
     layout: supports?.source === 'result' ? current : null,
     stakeout: supports && grid ? { rows: supportStakeout(supports, grid.toGrid), epsg: grid.epsg } : null,
     field,
-    riggingSet: line.sagModel === 'mechanics' ? (matchingRiggingSet(riggingSets, line.rigging)?.name ?? null) : null,
+    riggingSet: set?.name ?? null,
+    ...(provenance ? { riggingSetProvenance: provenance } : {}),
   }
 }
 
@@ -190,7 +198,10 @@ export function dLineExtrasHtml(extras: DLineExtras | undefined): string {
   if (!extras) return ''
   const parts: string[] = []
   if (extras.riggingSet !== null)
-    parts.push(`<h2>Rigging set</h2><p>${html(extras.riggingSet)} (the project&rsquo;s own set; not a rating).</p>`)
+    parts.push(
+      `<h2>Rigging set</h2><p>${html(extras.riggingSet)} (the project&rsquo;s own set; not a rating).</p>` +
+        (extras.riggingSetProvenance ? `<p>${html(extras.riggingSetProvenance)}</p>` : ''),
+    )
   const s = extras.supports
   if (s) {
     const which =

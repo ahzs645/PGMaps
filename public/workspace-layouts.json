@@ -172,7 +172,12 @@
               "items": ["maxClearingWidthM", "maxCrossDrainSpacingM"],
               "more": ["runningSurfaceWidthM"]
             },
-            { "label": "Design checks", "primary": "review", "rows": 2, "items": ["review", "sweptPath", "compare"] },
+            {
+              "label": "Design checks",
+              "primary": "review",
+              "rows": 2,
+              "items": ["review", "sweptPath", "compare", "compareRoadEng"]
+            },
             { "label": "Stations & notes", "primary": "stations", "rows": 2, "items": ["stations", "fieldNotes"] }
           ]
         },

@@ -310,6 +310,7 @@ function CableLines(p: SidebarProps) {
               limits={lineLimits(c)}
               onApply={(set) => edit(c.id, (a) => applyRiggingSetToLine(a, set))}
               onSetsChange={(sets) => update((x) => ({ ...x, riggingSets: sets.length ? sets : undefined }))}
+              yarderHeight={{ valueM: c.startHeight, onUse: (m) => edit(c.id, (a) => ({ ...a, startHeight: m })) }}
             />
           )}
           {c.sagModel === 'mechanics' && c.rigging && (

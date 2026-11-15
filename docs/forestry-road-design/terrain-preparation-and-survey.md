@@ -139,6 +139,99 @@ editable horizontal road line. Observed levels remain survey evidence; they are 
 adopted as the road's engineered formation. **Export survey CSV** includes traverse stations and
 side shots, with text protected against spreadsheet formula execution.
 
+### Traverse files, start stations and station equations
+
+**Load traverse file** reads a traverse in one of the text formats RoadEng's Survey/Map and
+Terrain modules read (`traverseFiles.ts` over `softreeTraverse.ts`): a Softree ASCII (`.ASC`) or
+IPD traverse, a Polycorder Roads traverse, a unit survey (`.pol`) or a Laser Technology raw survey
+(`$PLTIT`). The content decides the format, never the name. None of them states its units, so the
+book asks for them for every file and has no default; the raw format's own unit letter is
+reported when it differs from the answer, never used in its place. A unit survey also asks what
+its vertical readings are (inclination, zenith angle, slope %, elevation difference or elevation)
+and whether its distances are slope or horizontal, because RoadEng takes those as import options,
+not from the file. A file that gives no absolute start (Polycorder always, a unit survey without
+an `SR` record) says so and is read from the **Survey start** fields. Reading fills the book's
+start, legs, side shots, start station and station equations; the notice says how far the file's
+own coordinates lie from the reduction where it gives them, and what the book could not hold.
+
+### Field notes and writing them back
+
+What a traverse file holds beyond legs and side shots is the book's **field notes**
+(`SurveyBookRecord.softree`, `SoftreeTraverseDetails`): per station the labels, ground layers and
+their depths, a culvert, HI/HT, the backshot, side-shot depths and codes and the ground slope beyond
+the last side shot; and the located points (IFS and radial shots, unit-survey shots that are not
+square side shots). Lengths stay in the file's unit. The **Field notes** fold under the side shots
+lists each station that has any, one row each: its name, then its label, culvert size, ground layers
+and HI/HT as tags. A row opens the station's notes for correction: label, between-station label,
+ground layers and depths, HI/HT, and the culvert (size and box width in millimetres, gradient,
+downstream azimuth and direction; added or removed). Side-shot depths, slopes beyond the shots and
+the backshot are shown as read. **Add field notes at** gives a station without notes a culvert or a
+label. The leg's rise is the slope reading plus HI minus HT, so changing HI or HT moves that leg's
+grade in the traverse CSV by the same rise and the reading stays as taken. Edits change the open
+book only; **Save field book to project** adds it as one undo step, and once a book is saved or
+opened, **Save** writes it in place (one undo step each time) and **Save as new** adds a copy.
+
+Every traverse writer writes the notes its format has a field for (`softreeTraverse.ts`), and the
+export notice names the rest with their counts ("Not written, because a unit survey has no field
+for them: culverts at 1 station; …"):
+
+| Format            | Writes                                                                                                                                              | Has no field for                                                                                                                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Softree ASCII     | labels 1 and 2, three ground layers and two depths, culvert, HI/HT, backshot, two depths per side shot, slope beyond the shots, points as IFS shots | side-shot codes                                                                                                                          |
+| IPD               | the same, and side-shot codes                                                                                                                       | —                                                                                                                                        |
+| Polycorder Roads  | label, two soils (2 characters) and the top depth, culvert width, one depth per side shot, slope beyond the shots when under three shots              | between-station label, third layer, second depth, culvert gradient/azimuth/direction, box height, HI/HT, backshot, second side-shot depth, codes, points |
+| Unit survey       | labels as point codes, HI/HT on each foreshot, points as side shots named by their own name                                                         | between-station label, ground layers, culverts, backshot, side-shot depths, slopes beyond the shots                                     |
+
+Culvert sizes follow each format's convention (`softreeCulvert.ts`): Softree ASCII writes a pipe's
+diameter or a box's height and width in thousandths of a unit; IPD a pipe in millimetres (inches in
+a feet file) and a box in units; Polycorder's culvert width has no stated unit and is read as the
+ASCII size. A culvert moves between formats and units through metres; written back in its own
+format and unit it is written as read.
+
+The book also keeps the file as written (`SoftreeTraverseSource`: each record's line, the line
+ends, the version line), when it fits the book's limit. Written back in the format and unit it was
+read in, a record whose leg, side shots and notes are unchanged keeps its bytes, and an edited one
+changes only the fields whose values changed: TYPE bits, reference shots, turning-point flags, blank
+fields, padding spaces, backshot and repeated unit-survey shots and D:M:S angles all survive. An
+unedited book read from Softree's help examples (the road survey, the boundary traverse with its
+spaces and its typo, the Polycorder rows, the unit survey) comes back **byte for byte**, as do
+generated files in every writable format in metres and feet. Across formats or units the records
+are written afresh: the same traverse and the notes the format holds, number formatting the
+writer's. A file too large to keep as written keeps its notes, and the notice says it will be
+written afresh. In a unit survey whose main line changed in number or names of points, the survey is
+written afresh and the notice says so; an edited side shot there is written in place of the one
+read, under its own point name.
+
+**Start station** is the field station of the survey start, and a **station equation** renames the
+chain from a back station on: from the back station (start station plus horizontal ground distance)
+on, stations are named from the ahead station. RoadEng's formats have no field for equations; a
+station column that jumps by more than its rounding is read as one, and the writers write field
+stations so RoadEng, which reads only the first station, builds the same traverse. Back stations
+must rise along the traverse and lie on it (`checkStationEquations`). The reduction states the
+range of field stations, and the survey CSV gives each station's `field_station` beside its grid
+`chainage_m`. Field stations run on ground distances: with **Ground distances** a grid chainage is
+divided by the combined scale factor first.
+
+**Export traverse file** writes the open book as a Softree ASCII or IPD traverse, a Polycorder Roads
+traverse (three side shots a side, three decimals for new numbers) or a unit survey, in the units
+chosen, with its start station, equations and field notes where the format carries them. After a
+file is read, or a book with notes opened, the format and units start at the file's own. The notice
+lists what the format could not carry.
+
+### Softree terrain and location ASCII
+
+**Import terrain** also reads a Softree terrain ASCII file (one line per point: name and sub ID,
+station, X, Y, Z, comment), known by its content (`softreeImport.ts`). The format has no TIN and no
+flag for which features are ground, so the ground is a TIN of every levelled point, rasterised at
+half the TIN's median edge (1 m at finest). A feature whose levels are all 0 is a drawn feature with
+no level and is left out of the ground, as PGMaps' own RoadEng export writes such features. Drawn
+features do not become layers; a RoadEng terrain (`.terx`) brings those. **Import road line** reads
+a RoadEng location ASCII coordinate file in either of the help's example layouts: the subgrade's
+`CL` points are fitted as a road within 0.1 m, the subgrade levels become its profile, and the
+ground (`OG`) levels its design-file ground. Neither file states its units or coordinate system:
+both are asked, and a project on a flat plane reads them in its plane. Both files are also written
+from Save & export ([Exports and project files](exports-and-project-files.md)).
+
 Every spatial import accepts KML and KMZ ([how files are read and classified](exports-and-project-files.md#bringing-spatial-files-in)).
 KMZ needs `doc.kml` or one unambiguous KML file. Placemark points, lines and polygons with their
 holes are read with their names; a placemark never says what a feature is, so `parseKml` assigns
@@ -164,11 +257,30 @@ documented exchange specification; these open imports/exports do not imply binar
 | 20 saved field books / 2,000 legs / 10,000 side shots / 100 km per traverse               | `parseSurveyBooks`, `reduceTraverse`                                        |
 | Combined scale factor 0.999–1.001; UTM zones only                                         | `SCALE_FACTOR_LIMITS`, `combinedScaleFactor`, `scaleFactor.ts`              |
 | KML: 30 MB expanded / 500 features / 50,000 vertices / 100,000 XML elements               | `xmlTree`, `parseKml`, `readSpatialFile`                                    |
+| Traverse file: 50 MB / 20,000 records / 25 side shots a side / 100 station equations      | `MAX_TRAVERSE_FILE_BYTES`, `MAX_TRAVERSE_RECORDS`, `MAX_SIDE_SHOTS_PER_SIDE`, `MAX_STATION_EQUATIONS` |
+| Start station ±10,000 km; field notes: 20,000 stations or points / 2,000,000 characters a book, the file as written included | `MAX_SURVEY_START_STATION_M`, `MAX_SURVEY_SOFTREE_ITEMS`, `MAX_SURVEY_SOFTREE_CHARS` |
+| Field notes: 10,000 characters a label or kept line; three ground layers; 25 side shots a side | `MAX_SURVEY_SOFTREE_TEXT`, `parseSurveyBooks`, `MAX_SIDE_SHOTS_PER_SIDE`        |
+| Unit-survey side shot within 5° of square to its leg                                      | `SIDE_SHOT_SQUARE_DEG`                                                      |
+| Polycorder export: three side shots a side, three decimals                                | `POLYCORDER_SIDE_SHOTS`, `POLYCORDER_EXPORT_DECIMALS`                       |
+| Softree ASCII: 200 MB of text / 10,000,000 terrain points / 2,000,000 location points      | `MAX_SOFTREE_ASCII_BYTES`, `MAX_SOFTREE_TERRAIN_ASCII_POINTS`, `MAX_SOFTREE_LOCATION_POINTS` |
+| Terrain ASCII ground: cells from 1 m; 1,500,000 TIN points                               | `SOFTREE_TERRAIN_MIN_CELL_M`, `tinSurface.ts` `MAX_POINTS`                  |
+| Location ASCII road: fit within 0.1 m; profile from 0.01 m, at most 498 PVIs              | `SOFTREE_LOCATION_FIT_DEVIATION_M`, `SOFTREE_PROFILE_TOLERANCE_M`, `SOFTREE_MAX_PVIS` |
 
 Analytical tests cover protected points and budget failure, mosaic overlap/no-data/CRS rules,
 pad planes and batters, retained-TIN validation, LandXML/ASCII coordinates and missing faces,
 Bowditch closure, signed side shots, malformed surveys, KML polygon holes/altitude handling and
-a real zipped KMZ. Existing LAS/LAZ, TIN/breakline and terrain-restoration tests remain in the run.
+a real zipped KMZ. `traverseFiles.test.ts` writes a field book in every traverse format, recognises
+each by its content and reads back the same traverse, start station and equations, writes a book
+with field notes back byte for byte in each format in metres and feet, and refuses saved notes a
+writer cannot use; `softreeTraverse.test.ts` writes the help's examples back byte for byte through
+the field book, writes a generated file with every note into every format in metres and feet (with
+an equation) and reads back each note the format holds, and changes one field for one edited note;
+`tests/e2e/forestry-road-survey-traverse.spec.ts` loads a generated file, reads its notes, corrects
+a culvert, exports the file (one field changed) and reads it back;
+`surveyInterchange.test.ts` checks field stations through equations and on ground distances, and
+the CSV's `field_station` column; `softreeImport.test.ts` brings a location file written from a
+calculated road back as that road (length within 0.07 m on a 428 m road with a 60 m curve, levels
+within 0.07 m) in metres and in feet on a flat plane, and a terrain file back as its ground. Existing LAS/LAZ, TIN/breakline and terrain-restoration tests remain in the run.
 
 ### Provenance of the scale factors
 

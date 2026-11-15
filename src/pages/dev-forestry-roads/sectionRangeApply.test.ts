@@ -226,3 +226,49 @@ describe('stations where the batter never met the ground', () => {
     ])
   })
 })
+
+describe('a range given with transitions to its neighbours', () => {
+  it('changes from the section before it and back to the section after it over the length given', () => {
+    const named = road([{ id: 'w', start: 120, end: 180, side: 'both', transitionM: 0 }])
+    const given = planned(planSectionRange(named, 150, [100, 200], 300, { ...options, transitionM: 15 }))
+    const range = given.engineering.assignments.find((a) => a.templateId === 'wide')!
+    expect(range).toMatchObject({ start: 100, end: 200, transitionInM: 15, transitionOutM: 15, transitionM: 0 })
+    const at = templateAt({ ...named, engineering: given.engineering }, 107.5)
+    expect(at.template.leftWidth).toBeCloseTo((DEFAULT_TEMPLATE.leftWidth + 5) / 2, 9)
+    expect(at.leftName).toBe('Base section → Wide · transition')
+    // The section inside a transition is saved under its station, never by name.
+    expect(sectionSourceAt({ ...named, engineering: given.engineering }, 107.5, label).kind).toBe('snapshot')
+  })
+
+  it('refuses a transition longer than half the range, and one on the base section', () => {
+    const named = road([{ id: 'w', start: 120, end: 180, side: 'both', transitionM: 0 }])
+    expect(planSectionRange(named, 150, [100, 200], 300, { ...options, transitionM: 60 })).toEqual({
+      error: 'Choose a transition from 0 to 50 m, half the range.',
+    })
+    expect(planSectionRange(road(), 150, [100, 200], 300, { ...options, transitionM: 10 })).toEqual({
+      error: 'The base section is given by clearing the range, so it has no transition of its own.',
+    })
+  })
+
+  it('removes a trimmed range’s transition at the cut and says so', () => {
+    const alignment = road(
+      [{ id: 'a1', start: 0, end: 150, side: 'both', transitionM: 0, transitionOutM: 20 }],
+      'steep',
+    )
+    alignment.engineering!.assignments.push({
+      id: 'w',
+      start: 200,
+      end: 260,
+      templateId: 'wide',
+      side: 'both',
+      transitionM: 0,
+    })
+    const plan = planned(planSectionRange(alignment, 230, [120, 260], 300, options))
+    const trimmed = plan.engineering.assignments.find((a) => a.id === 'a1')!
+    expect(trimmed).toMatchObject({ start: 0, end: 120 })
+    expect(trimmed.transitionOutM).toBeUndefined()
+    expect(plan.affected[0].transitionNote).toBe(
+      'its transition at the cut is removed; the new range carries any transition there',
+    )
+  })
+})

@@ -256,6 +256,12 @@ export interface Alignment {
    * across the road.
    */
   fileGround?: { source: string; points: [number, number][] }
+  /**
+   * What the RoadEng design this road was read from holds besides the road (its `.dsn`, kept `.ds2`
+   * records, `.ds1`/`.ds3`, station frame), so a RoadEng file written from it keeps everything this
+   * workspace does not model (`roadEngImport.ts`, `roadEngExport.ts`). Never read by a calculation.
+   */
+  roadEngSource?: import('./roadEngImport').RoadEngSource
   /** Recorded origin and destination of a generated FSR connector; later edits may change the junction. */
   fsrConnection?: {
     targetFeatureId: string
@@ -440,6 +446,10 @@ export interface CableLine {
   supportLayout?: CableSupportLayout
   /** Field shots along the line, read in place of the terrain while `use` is on (`dline/fieldProfile.ts`). */
   fieldProfile?: import('./dline/fieldProfile').CableFieldProfile
+  /** The RoadEng D-line it was read from: its cable settings and chunks, written back as read where unchanged. */
+  roadEng?: import('./roadEngDLines').RoadEngDLine
+  /** The RoadEng logging system the D-line is rigged with (`RoadEngLoggingSystem.id`); its rigging set is `roadeng-system-<id>`. */
+  roadEngSystemId?: string
 }
 export interface RoadSettings {
   stationInterval: number
@@ -486,6 +496,8 @@ export interface TerrainMetadata {
    * terrain's fitness by this source's cell size too, not the grid's alone.
    */
   fill?: { name: string; resolutionM: number; sharePercent: number }
+  /** What the RoadEng terrain this came from holds that the grid does not (`roadEngTerrain.ts`), written back unchanged. */
+  roadEngSource?: import('./roadEngTerrain').RoadEngTerrainSource
 }
 export interface RoadProject {
   schema: 'pgmaps-road-project-v1'

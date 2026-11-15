@@ -6,6 +6,7 @@ import {
   parseSurveyBooks,
   readSpatialFile,
   reduceTraverse,
+  surveyFieldStation,
   traverseCsv,
 } from './surveyInterchange'
 
@@ -105,5 +106,76 @@ describe('open forestry survey and geographic interchange', () => {
       new File([bytes.buffer as ArrayBuffer], 'survey.kmz'),
     )) as GeoJSON.FeatureCollection
     expect(result.features).toHaveLength(1)
+  })
+})
+
+describe('field stations of a survey field book', () => {
+  const input = {
+    start: [0, 0, 10] as [number, number, number],
+    adjustment: 'none' as const,
+    legs: [
+      { id: 'A', bearingDegrees: 0, horizontalDistanceM: 50, gradePercent: 0 },
+      { id: 'B', bearingDegrees: 90, horizontalDistanceM: 50, gradePercent: 0 },
+    ],
+    sideShots: [{ id: 'L', station: 1, offsetM: -5, heightDifferenceM: 0 }],
+  }
+  const book = (extra: object) => ({
+    id: 'b',
+    name: 'Traverse',
+    epsg: 3157,
+    verticalReference: 'CGVD2013',
+    input,
+    ...extra,
+  })
+
+  it('names stations from the start station, through each equation, on ground distances', () => {
+    const stations = { input, startStation: 1000, stationEquations: [{ back: 1050, ahead: 1070 }] }
+    expect([0, 49.999, 50, 100].map((c) => surveyFieldStation(c, stations))).toEqual([
+      1000,
+      expect.closeTo(1049.999, 9),
+      1070,
+      1120,
+    ])
+    // Grid chainage is ground distance times the scale factor; field stations stay on the ground.
+    expect(surveyFieldStation(99.96, { input: { distanceScale: 0.9996 }, startStation: 0 })).toBeCloseTo(100, 9)
+  })
+
+  it('writes the field station beside the chainage in the traverse CSV', () => {
+    const csv = traverseCsv(reduceTraverse(input), 3157, 'CGVD2013', {
+      input,
+      startStation: 1000,
+      stationEquations: [{ back: 1050, ahead: 1070 }],
+    }).split('\r\n')
+    expect(csv[0]).toBe(
+      'id,kind,chainage_m,field_station,easting_m,northing_m,elevation_m,epsg,vertical_reference,adjustment',
+    )
+    expect(csv.slice(1, 4).map((row) => row.split(',').slice(0, 4))).toEqual([
+      ['"start"', '"traverse"', '0', '1000'],
+      ['"A"', '"traverse"', '50', '1070'],
+      ['"B"', '"traverse"', '100', '1120'],
+    ])
+    expect(csv[4].split(',').slice(0, 4)).toEqual(['"L"', '"side-shot"', '""', '""'])
+  })
+
+  it('keeps a valid start station and equations, and refuses ones that do not fit the traverse', () => {
+    const saved = book({ startStation: 1000, stationEquations: [{ back: 1050, ahead: 1070 }] })
+    expect(parseSurveyBooks([saved])).toEqual([saved])
+    expect(() =>
+      parseSurveyBooks([book({ startStation: 1000, stationEquations: [{ back: 1200, ahead: 0 }] })]),
+    ).toThrow(/off the traverse/)
+    expect(() =>
+      parseSurveyBooks([
+        book({
+          stationEquations: [
+            { back: 60, ahead: 0 },
+            { back: 50, ahead: 0 },
+          ],
+        }),
+      ]),
+    ).toThrow(/increasing/)
+    expect(() => parseSurveyBooks([book({ startStation: Number.NaN })])).toThrow(/start station/)
+    expect(() =>
+      parseSurveyBooks([book({ softree: { sourceFormat: 'csv', unitM: 1, extras: [], points: [] } })]),
+    ).toThrow(/Softree/)
   })
 })

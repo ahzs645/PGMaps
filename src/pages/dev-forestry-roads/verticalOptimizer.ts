@@ -689,7 +689,9 @@ function* profileSearch(
     let rule = curvatureRuleAt(alignment.verticalStandards, station - 0.0001, station + 0.0001, length)
     if (rule.linear) return Infinity
     let k = Math.max(o.k, g2 > g1 ? rule.minSagK : rule.minCrestK)
-    let size = k > 0 ? Math.max(alignment.verticalStandards?.minCurveLengthM ?? 0, k * delta) : 0
+    // A minimum curve length rounds a break even where no K is asked for.
+    const minCurve = alignment.verticalStandards?.minCurveLengthM ?? 0
+    let size = k > 0 || minCurve > 0 ? Math.max(minCurve, k * delta) : 0
     // A larger range-specific K can expand the curve into a further range. Resolve monotonically.
     for (let pass = 0; pass <= (alignment.verticalStandards?.curvatureRanges?.length ?? 0) + 1; pass++) {
       rule = curvatureRuleAt(alignment.verticalStandards, station - size / 2, station + size / 2, length)
@@ -697,7 +699,7 @@ function* profileSearch(
       const nextK = Math.max(k, g2 > g1 ? rule.minSagK : rule.minCrestK)
       if (nextK === k) break
       k = nextK
-      size = Math.max(alignment.verticalStandards?.minCurveLengthM ?? 0, k * delta)
+      size = Math.max(minCurve, k * delta)
     }
     return Math.ceil(size * 10 - 1e-8) / 10
   }

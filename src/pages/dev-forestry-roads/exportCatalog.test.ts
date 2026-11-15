@@ -9,6 +9,7 @@ import {
   geoJsonPreview,
   INVALID_INPUT_RULES,
   invalidInputRefusal,
+  optimalHaulUnavailable,
   parseCsv,
   textPreview,
   type ExportContext,
@@ -44,6 +45,10 @@ describe('export catalog', () => {
     expect(exportUnavailable('plotbook-pdf', { ...ready, terrainProfile: true })).toMatch(/Return to the road/)
     expect(exportUnavailable('notes', { ...ready, designPreview: true, hasResults: false })).toBeNull()
     expect(exportUnavailable('notes', { ...ready, hasNotes: false })).toMatch(/Draw a note/)
+    // A RoadEng terrain opened on its own goes back as a RoadEng project with no road to calculate.
+    const terrainOnly = { ...ready, hasResults: false, terrainOnly: true }
+    expect(exportUnavailable('roadeng-project', terrainOnly)).toBeNull()
+    expect(exportUnavailable('roadeng', terrainOnly)).toMatch(/No calculated results/)
     for (const item of EXPORT_ITEMS) expect(exportUnavailable(item.kind, ready)).toBeNull()
   })
 
@@ -62,6 +67,40 @@ describe('export catalog', () => {
         invalidInput: () => ({ message: 'Road section: bad.', leftOut: 'input' }),
       }),
     ).toBeNull()
+  })
+})
+
+describe('Softree files', () => {
+  const softree = [
+    'mass-haul-csv',
+    'optimal-haul-csv',
+    'optimal-areas-csv',
+    'optimal-inputs',
+    'softree-location-ascii',
+    'softree-terrain-ascii',
+  ] as const
+
+  it('are survey files written from the road, so a terrain profile returns to the road first', () => {
+    for (const kind of softree) {
+      expect(EXPORT_ITEMS.find((item) => item.kind === kind)?.group).toBe('survey')
+      expect(exportUnavailable(kind, { ...ready, terrainProfile: true })).toMatch(/Return to the road/)
+    }
+  })
+
+  it('offer the Optimal Haul export only for a solved material plan', () => {
+    expect(optimalHaulUnavailable(undefined)).toBe('Turn on haul allocation first.')
+    expect(optimalHaulUnavailable({ enabled: false, optimizationStatus: 'not-requested' })).toMatch(/Turn on haul/)
+    expect(optimalHaulUnavailable({ enabled: true, optimizationStatus: 'infeasible' })).toMatch(/not calculated/)
+    const reason = 'The material plan was not calculated.'
+    expect(exportUnavailable('optimal-haul-csv', { ...ready, optimalHaulUnavailable: reason })).toBe(reason)
+    expect(exportUnavailable('mass-haul-csv', { ...ready, optimalHaulUnavailable: reason })).toBeNull()
+  })
+
+  it('refuse while an input is invalid, except the terrain file, which holds no design result', () => {
+    const context: ExportContext = { ...ready, invalidInput: () => ({ message: 'Bad.', leftOut: 'input' }) }
+    for (const kind of softree)
+      if (kind === 'softree-terrain-ascii') expect(exportUnavailable(kind, context)).toBeNull()
+      else expect(exportUnavailable(kind, context)).toMatch(/^Correct the invalid input first/)
   })
 })
 

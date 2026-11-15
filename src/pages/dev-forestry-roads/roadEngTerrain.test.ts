@@ -3,14 +3,20 @@ import { join } from 'node:path'
 import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { parseRoadEngDesign } from './roadEngImport'
+import { encodeRoadEngLoggingSystems, newRoadEngLoggingSystem } from './roadEngLoggingSystems'
+import { encodeRoadEngMapNotes, newRoadEngMapNote } from './roadEngMapNotes'
 import {
   classifyRoadEngFeature,
   isRoadEngTerrain,
+  MAX_ROADENG_SOURCE_PART_BYTES,
   parseRoadEngCoordSys,
   parseRoadEngTer,
+  parseRoadEngTerrainSource,
   readRoadEngTerrainArchive,
   roadEngLayerMatches,
+  ROADENG_CODE_TABLE_BYTES,
 } from './roadEngTerrain'
+import { base64ToBytes } from './roadEngText'
 
 import {
   buildTer,
@@ -187,6 +193,90 @@ describe('parseRoadEngTer content', () => {
     expect(tin.maxSideM).toBe(150)
     expect(terrain.features.map((f) => f.inTin)).toEqual([true, false, false, false, false, false])
   })
+  it('reads a tail holding map notes, as Softree’s cable tutorial terrains have', () => {
+    const plain = synthTer()
+    const tail = encodeRoadEngMapNotes([newRoadEngMapNote('Access Road', 1001, 2002)])
+    const withNotes = buildTer({ features: synthFeatures, tin: synthTin, attributes: synthAttributes, tail })
+    const read = parseRoadEngTer(withNotes)
+    expect(read.features).toHaveLength(parseRoadEngTer(plain).features.length)
+    expect(read.mapNotes).toMatchObject([{ text: 'Access Road', x: 1001, y: 2002 }])
+    expect(read.warnings).toEqual([])
+    // A tail that does not match its stated payload is still refused.
+    expect(() => parseRoadEngTer(withNotes.subarray(0, withNotes.length - 1))).toThrow(/truncated or damaged/)
+  })
+  it('reads the logging systems, leaving out all-zero placeholders, and keeps section 8 as read', () => {
+    const system = newRoadEngLoggingSystem({
+      id: '1',
+      name: 'Highlead',
+      configuration: 'Highlead with butt rigging',
+      carriageKg: 136,
+      equipment: {
+        name: '90 ft Madill',
+        sparHeightM: 27.432,
+        skyline: { maxTensionKN: 214.8, weightKgPerM: 4.3, maxLengthM: 365.76 },
+        mainline: { maxTensionKN: 214.8, weightKgPerM: 4.3, maxLengthM: 365.76 },
+        haulback: { maxTensionKN: 101.9, weightKgPerM: 2, maxLengthM: 792.48 },
+        fourth: { maxTensionKN: 0, weightKgPerM: 0, maxLengthM: 0 },
+        machineCode: 3,
+      },
+    })
+    const section8 = new Uint8Array(624)
+    section8.set(encodeRoadEngLoggingSystems([system]))
+    const read = parseRoadEngTer(buildTer({ features: synthFeatures, section8 }))
+    expect(read.loggingSystems!.map((s) => s.name)).toEqual(['Highlead'])
+    expect(read.loggingSystems![0].equipment.skyline.maxTensionKN).toBeCloseTo(214.8, 9)
+    expect(base64ToBytes(read.source!.loggingSystems!)).toEqual(section8)
+    expect(parseRoadEngTer(synthTer()).loggingSystems).toEqual([])
+    expect(parseRoadEngTer(buildTer({ features: synthFeatures, section8: new Uint8Array(100) })).warnings).toEqual([
+      'The logging-system section is 100 bytes, not a whole number of 312-byte systems. The section is kept as it is.',
+    ])
+  })
+  it('reads a D-line from its chunks, with its full name from a type-67 chunk, and classes it a D-line', () => {
+    const settings = strToU8(
+      '[DLINE0]\r\nComment=DLine1\r\nDeflection=10\r\nDisplay=1\r\nSegments=3\r\nSetupID=5\r\n' +
+        'Spar0=0,15.24,1,MidSpar1\r\nSpar1=8,10,4,MidSpar2\r\nSparCount=2\r\n[DLINES]\r\nDLineCount=1\r\n\0',
+      true,
+    )
+    const longName = new Writer()
+    longName.i32(-1)
+    longName.str('Proposed_Multispan_DLine', 256)
+    longName.u32(0)
+    longName.u32(0)
+    const attributes = [
+      ...synthAttributes,
+      ...chunk(52, -1, group(3, 'Proposed')),
+      ...chunk(67, -1, longName.bytes),
+      ...chunk(63, -1, settings),
+    ]
+    const read = parseRoadEngTer(buildTer({ features: synthFeatures, attributes }))
+    const cLine = read.features[3]
+    expect(cLine.name).toBe('Proposed_Multispan_DLine')
+    expect(cLine.dLine).toMatchObject({ systemId: '5', deflectionPercent: 10 })
+    expect(classifyRoadEngFeature(cLine, [])).toBe('d-line')
+    expect(read.features.filter((f) => f.dLine)).toHaveLength(1)
+  })
+  it('keeps the parts PG Maps does not model in a source record', () => {
+    // The defaults entry with a format chunk, the schema, the defaults entry again: none is a feature's.
+    const kept = [
+      ...chunk(52, -1, group(-1, '%$^**&@')),
+      ...chunk(58, -1, [1, 2, 3, 4]),
+      ...chunk(100, -1, schema),
+      ...chunk(52, -1, group(-1, '%$^**&@')),
+    ]
+    // synthAttributes after its schema and defaults entry: the contours' group and their row.
+    const featureChunks = synthAttributes.slice(chunk(100, -1, schema).length + chunk(52, -1, group(-1, '')).length)
+    const attributes = [...kept, ...featureChunks]
+    const read = parseRoadEngTer(buildTer({ features: synthFeatures, tin: synthTin, attributes }))
+    const source = read.source!
+    expect(source.attributeChunkCount).toBe(4)
+    expect([...base64ToBytes(source.attributeChunks!)]).toEqual(kept)
+    expect(read.features[5].attributes).toEqual({ XCONTOUR__: '500', XLENGTH___: '20.94' })
+    expect(base64ToBytes(source.codeTable!).length).toBe(ROADENG_CODE_TABLE_BYTES)
+    expect(base64ToBytes(source.headerExtra!).length).toBe(12)
+    expect(base64ToBytes(source.tail!)).toEqual(new Uint8Array(24))
+    expect(parseRoadEngTerrainSource(JSON.parse(JSON.stringify(source)))).toEqual(source)
+  })
+
   it('reads a terrain with no TIN', () => {
     expect(parseRoadEngTer(buildTer({ features: synthFeatures })).tin).toBeNull()
   })
@@ -226,6 +316,34 @@ describe('readRoadEngTerrainArchive', () => {
       /^Read 6 features with 19 points and a TIN of 4 vertices and 2 triangles from 1 feature\./,
     )
     expect(read.warnings.join(' ')).toMatch(/UTM zone 10N \(EPSG 26910\), from RoadEng code 1\|51\|10010\./)
+  })
+  it('keeps the .tlt text and the .te1 bytes, and leaves out a part too large to keep', () => {
+    const te1 = new Uint8Array([0x41, 0x43, 0x31, 0x30, 0x31, 0x34])
+    const read = readRoadEngTerrainArchive(archive('1|51|10010'))
+    expect(read.source.tlt).toBe(tlt('1|51|10010'))
+    expect(base64ToBytes(read.source.te1!)).toEqual(te1)
+    expect(read.source.omitted).toBeUndefined()
+    const big = zipSync({
+      'Terrain1.ter': synthTer(),
+      'Terrain1.te1': new Uint8Array(MAX_ROADENG_SOURCE_PART_BYTES + 1),
+      'Terrain1.tlt': strToU8(tlt('1|51|10010')),
+    })
+    const limited = readRoadEngTerrainArchive(big)
+    expect(limited.source.te1).toBeUndefined()
+    expect(limited.source.omitted).toEqual(['te1'])
+    expect(limited.warnings).toContain(
+      "The terrain's symbol library (Terrain1.te1) is too large to keep, so a terrain written back from PG Maps leaves it out.",
+    )
+  })
+  it('refuses a malformed source record from a project file', () => {
+    expect(() => parseRoadEngTerrainSource({ format: 'other' })).toThrow(/unknown format/)
+    expect(() => parseRoadEngTerrainSource({ format: 'roadeng-terrain-source-v1', te1: 'abc' })).toThrow(/not base64/)
+    expect(() => parseRoadEngTerrainSource({ format: 'roadeng-terrain-source-v1', codeTable: 'AAAA' })).toThrow(
+      /code table is the wrong size/,
+    )
+    expect(() => parseRoadEngTerrainSource({ format: 'roadeng-terrain-source-v1', attributeChunks: 'AAAA' })).toThrow(
+      /attributeChunkCount is missing/,
+    )
   })
   it('asks for a coordinate system when the terrain names none', () => {
     expect(readRoadEngTerrainArchive(archive('1|-1|-1')).warnings.join(' ')).toMatch(/names no coordinate system/)

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import proj4 from 'proj4'
-import { unzipSync } from 'fflate'
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { projectedCrsDefinition } from '@/lib/geo/projectedCrs'
 import type { LocalRaster } from '../dev-forestry/types'
@@ -9,9 +9,20 @@ import { alignmentLength, analyzeRoad } from './engine'
 import type { XY } from './landXmlImport'
 import { roadEngDesign } from './roadEngExport'
 import { roadEngProject } from './roadEngProject'
-import { classifyRoadEngFeature, readRoadEngTerrainArchive } from './roadEngTerrain'
+import { roadEngDLineCable, roadEngDLineFor } from './roadEngDLines'
+import { encodeRoadEngLoggingSystems, newRoadEngLoggingSystem } from './roadEngLoggingSystems'
+import { encodeRoadEngMapNotes, newRoadEngMapNote } from './roadEngMapNotes'
+import {
+  classifyRoadEngFeature,
+  readRoadEngTerrainArchive,
+  roadEngLayerMatches,
+  ROADENG_FLAG_POINT_SET,
+} from './roadEngTerrain'
+import { buildTer, chunk, Writer } from './roadEngTerrain.testkit'
+import { roadEngIniValue } from './roadEngText'
 import {
   ROADENG_DEFAULT_CODES,
+  ROADENG_EXPORT_LAYERS,
   roadEngCoordSys,
   roadEngProjectFileNames,
   roadEngProjectZip,
@@ -102,6 +113,8 @@ const features: RoadEngExportFeature[] = [
       [300, 450],
       [380, 520],
     ]),
+    // A D-line is one by its cable settings; without them it reads back as a reference line.
+    dLine: roadEngDLineFor({ lengthM: Math.hypot(80, 70), yarderHeight: 18, tailholdHeight: 8, deflectionPercent: 5 }),
   },
   {
     name: 'Block 12',
@@ -235,7 +248,7 @@ describe('RoadEng terrain export', () => {
     expect(drawn.map((f) => [f.name, classifyRoadEngFeature(f, back.layers)])).toEqual([
       ['Sml Stream - Willow Creek', 'stream'],
       ['Road CL - Old haul road', 'road'],
-      ['D-Line - DL 4', 'd-line'],
+      ['DL 4', 'd-line'],
       ['Falling BDY - Block 12', 'boundary'],
       ['Boundary - Riparian reserve', 'boundary'],
       ['Landing - L1', 'landing'],
@@ -424,6 +437,256 @@ describe('RoadEng CoordSys', () => {
   })
 })
 
+describe('RoadEng terrain written back with what PG Maps does not model', () => {
+  // A RoadEng terrain as RoadEng saves one: display settings, a symbol library, two logging
+  // systems, a map note, an attribute schema and a defaults entry.
+  const lb = 0.45359237,
+    ft = 0.3048,
+    lbf = lb * 9.80665e-3
+  const rope = (tension: number, weight: number, length: number) => ({
+    maxTensionKN: tension * lbf,
+    weightKgPerM: (weight * lb) / ft,
+    maxLengthM: length * ft,
+  })
+  const madill = newRoadEngLoggingSystem({
+    id: '1',
+    name: 'Highlead',
+    configuration: 'Highlead with butt rigging',
+    carriageKg: 300 * lb,
+    equipment: {
+      name: '90 ft Madill',
+      sparHeightM: 90 * ft,
+      skyline: rope(48300, 2.89, 1200),
+      mainline: rope(48300, 2.89, 1200),
+      haulback: rope(22900, 1.34, 2600),
+      fourth: rope(0, 0, 0),
+      machineCode: 3,
+    },
+  })
+  const systems = [madill, { ...madill, id: '2', name: 'Shotgun' }]
+  const section8 = encodeRoadEngLoggingSystems(systems)
+  section8.set([0x5a, 0x5a], 132) // stale padding, as RoadEng leaves it
+  const tail = encodeRoadEngMapNotes([newRoadEngMapNote('Access Road', E0 + 100, N0 + 200)])
+  tail.set([0xb9, 0x8a, 0x01, 0x57], 16)
+  const schema = strToU8('7000|1|0|4|General|General|0|0|Features Tot.|Features Tot.|_UNITS_UDF|7|0\0', true)
+  const groupPayload = (index: number, name: string) => {
+    const w = new Writer()
+    w.i32(index)
+    w.str(name, 256)
+    w.u32(0)
+    w.u32(0)
+    return w.bytes
+  }
+  const keptChunks = [
+    ...chunk(100, -1, schema),
+    ...chunk(52, -1, groupPayload(-1, '%$^**&@')),
+    ...chunk(58, -1, [0, 0, 0, 0, 1, 2, 3, 4]),
+  ]
+  const sourceTlt = [
+    '[AUTO_TAIL]',
+    'AutoTailParms=0,20',
+    '[EQUIP1]',
+    'Desc=90 ft Madill',
+    'Lengths=1200.000000,1200.000000,2600.000000,0.000000',
+    'Machine=90.0,3',
+    'Tensions=48300.000000,48300.000000,22900.000000,0.000000',
+    'UnitWts=2.890000,2.890000,1.340000,0.000000',
+    '[main]',
+    'AzimuthFormat=0,0,0,0,0',
+    `CoordSys=${roadEngCoordSys(26910).value}`,
+    'TriCalcParms=1,1,1,1,0,500,1,0,5172.56600813,20,80,0.1,-1e+030,1e+030,-1e+030,1e+030,1,1,10,0,500,1,20,80,30',
+    'units=10000',
+    '[Software]',
+    'Version=9.099',
+    '[TerLayers]',
+    'Layer0=CNTR*,Contours from model,',
+    'Layer1=ROAD*,Roads,',
+    '',
+  ].join('\r\n')
+  const te1 = new Uint8Array([0x41, 0x43, 0x31, 0x30, 0x31, 0x34, 0, 1, 2, 3])
+  const sourceTer = buildTer({
+    features: [
+      {
+        name: 'Lidar',
+        points: [
+          [E0, N0, 800],
+          [E0 + 10, N0, 801],
+        ],
+        flags: 0x09,
+      },
+    ],
+    codes: ['Sml Stream', 'Road CL', 'D-Line', 'Landing'],
+    attributes: keptChunks,
+    section8,
+    tail,
+  })
+  const source = readRoadEngTerrainArchive(
+    zipSync({ 'Terrain1.ter': sourceTer, 'Terrain1.tlt': strToU8(sourceTlt, true), 'Terrain1.te1': te1 }),
+  ).source
+  const small = {
+    origin: [E0 + 1, N0 + 59] as [number, number],
+    pixelSize: [2, -2] as [number, number],
+    width: 30,
+    height: 30,
+    values: Array.from({ length: 900 }, (_, i) => groundAt(E0 + 1 + 2 * (i % 30), N0 + 59 - 2 * Math.floor(i / 30))),
+  }
+  const input = { raster: small, features, coordSys: { epsg: 26910 } }
+  const plain = roadEngTerrainArchive(input)
+  const kept = roadEngTerrainArchive({ ...input, source })
+
+  it('keeps every kept part byte for byte', () => {
+    const files = unzipSync(kept.bytes)
+    expect(Object.keys(files)).toEqual(['Terrain1.ter', 'Terrain1.tlt', 'Terrain1.te1'])
+    expect(files['Terrain1.te1']).toEqual(te1)
+    // The .tlt as it was, with only the writer's layers a written feature is named for added to
+    // [TerLayers], its last section.
+    const tlt = strFromU8(files['Terrain1.tlt'], true)
+    expect(tlt.startsWith(sourceTlt)).toBe(true)
+    // The ground's point sets are terrain, not drawn features: their layer is not added to a kept .tlt.
+    const names = readRoadEngTerrainArchive(kept.bytes)
+      .terrain.features.filter((f) => !(f.flags & ROADENG_FLAG_POINT_SET))
+      .map((f) => f.name)
+    expect(tlt.slice(sourceTlt.length).split('\r\n').slice(0, -1)).toEqual(
+      ROADENG_EXPORT_LAYERS.filter((l) => !['CNTR*', 'ROAD*'].includes(l.pattern))
+        .filter((l) => names.some((n) => roadEngLayerMatches(l.pattern, n)))
+        .map((l, k) => `Layer${k + 2}=${l.pattern},${l.description},`),
+    )
+    const out = terSections(kept.bytes)
+    const original = new DataView(sourceTer.buffer)
+    const sizes = Array.from({ length: 9 }, (_, i) => original.getUint32(2 + 4 * i, true))
+    const end = 38 + sizes.reduce((s, x) => s + x, 0)
+    const h = out.offsets[0]
+    expect(out.ter.subarray(h + 16, h + 16 + 4 + 32 * 258)).toEqual(sourceTer.subarray(38 + 16, 38 + 16 + 4 + 32 * 258))
+    expect(out.ter.subarray(out.offsets[3], out.offsets[3] + keptChunks.length)).toEqual(new Uint8Array(keptChunks))
+    expect(out.ter.subarray(out.offsets[8], out.offsets[8] + out.sizes[8])).toEqual(section8)
+    expect(out.ter.subarray(out.offsets[8] + out.sizes[8])).toEqual(sourceTer.subarray(end))
+    expect(kept.notes).toContain('The terrain holds 2 logging systems and 1 map note.')
+  })
+
+  it('reads back to the same features and TIN as without the source', () => {
+    const a = readRoadEngTerrainArchive(plain.bytes),
+      b = readRoadEngTerrainArchive(kept.bytes)
+    const shape = (r: typeof a) =>
+      r.terrain.features.map((f) => [f.name, f.subId, f.flags, f.kind, [...f.points], f.inTin, f.color])
+    expect(shape(b)).toEqual(shape(a))
+    expect([...b.terrain.tin!.triangles]).toEqual([...a.terrain.tin!.triangles])
+    expect([...b.terrain.tin!.z]).toEqual([...a.terrain.tin!.z])
+    expect(b.coordSys.epsg).toBe(26910)
+    expect(b.terrain.loggingSystems!.map((s) => s.name)).toEqual(['Highlead', 'Shotgun'])
+    expect(b.terrain.mapNotes).toMatchObject([{ text: 'Access Road', x: E0 + 100, y: N0 + 200 }])
+    expect(b.terrain.codes).toEqual(['Sml Stream', 'Road CL', 'D-Line', 'Landing'])
+    expect(b.warnings).toHaveLength(1)
+    // And the source read back from the written terrain keeps the same parts.
+    expect(b.source.loggingSystems).toBe(source.loggingSystems)
+    expect(b.source.tail).toBe(source.tail)
+    expect(b.source.te1).toBe(source.te1)
+  })
+
+  it('writes the decoded systems and notes back as they were read', () => {
+    const back = readRoadEngTerrainArchive(kept.bytes)
+    const again = roadEngTerrainArchive({
+      ...input,
+      source,
+      loggingSystems: back.terrain.loggingSystems,
+      mapNotes: back.terrain.mapNotes,
+    })
+    expect(unzipSync(again.bytes)).toEqual(unzipSync(kept.bytes))
+  })
+
+  it('writes an edited library and moved note, keeping the .tlt equipment in step', () => {
+    const [first, second] = readRoadEngTerrainArchive(kept.bytes).terrain.loggingSystems!
+    const edited = { ...first, equipment: { ...first.equipment, sparHeightM: 100 * ft } }
+    const added = newRoadEngLoggingSystem({
+      id: '3',
+      name: 'Grapple',
+      configuration: 'Running Skyline - grapple',
+      carriageKg: second.carriageKg,
+      equipment: { ...second.equipment, name: 'Thunderbird TY-90' },
+    })
+    const out = roadEngTerrainArchive({
+      ...input,
+      source,
+      loggingSystems: [edited, second, added],
+      mapNotes: [{ ...newRoadEngMapNote('Landing 4', E0 + 5, N0 + 6) }],
+    })
+    const back = readRoadEngTerrainArchive(out.bytes)
+    expect(back.terrain.loggingSystems!.map((s) => [s.id, s.name, s.configurationCode])).toEqual([
+      ['1', 'Highlead', 1],
+      ['2', 'Shotgun', 1],
+      ['3', 'Grapple', 3],
+    ])
+    expect(back.terrain.loggingSystems![0].equipment.sparHeightM).toBeCloseTo(100 * ft, 9)
+    // Only the spar height changed in the first record; its stale padding stayed.
+    const { ter, offsets } = terSections(out.bytes)
+    const record = ter.subarray(offsets[8], offsets[8] + 312)
+    const changed = [...record].flatMap((v, i) => (v === section8[i] ? [] : [i]))
+    expect(changed.every((i) => i >= 200 && i < 208)).toBe(true)
+    expect(record[132]).toBe(0x5a)
+    const tlt = strFromU8(unzipSync(out.bytes)['Terrain1.tlt'], true)
+    expect(roadEngIniValue(tlt, 'EQUIP1', 'Machine')).toBe('100.0,3')
+    expect(roadEngIniValue(tlt, 'EQUIP1', 'Tensions')).toBe('48300.000000,48300.000000,22900.000000,0.000000')
+    expect(roadEngIniValue(tlt, 'EQUIP2', 'Desc')).toBe('Thunderbird TY-90')
+    expect(roadEngIniValue(tlt, 'AUTO_TAIL', 'AutoTailParms')).toBe('0,20')
+    expect(back.terrain.mapNotes!.map((n) => [n.text, n.x, n.y])).toEqual([['Landing 4', E0 + 5, N0 + 6]])
+  })
+
+  it('writes a D-line with its cable settings, which reads back as the same D-line', () => {
+    const dLine = roadEngDLineFor({
+      lengthM: Math.hypot(80, 70),
+      yarderHeight: 15.24,
+      tailholdHeight: 4,
+      deflectionPercent: 10,
+      systemId: '1',
+      payloadKg: 4000,
+      clearanceM: 2,
+    })
+    const out = roadEngTerrainArchive({
+      raster: null,
+      features: [
+        {
+          name: 'DL 4',
+          kind: 'd-line',
+          points: line([
+            [300, 450],
+            [380, 520],
+          ]),
+          dLine,
+        },
+      ],
+      coordSys: { epsg: 26910 },
+      source,
+    })
+    const back = readRoadEngTerrainArchive(out.bytes)
+    const [f] = back.terrain.features
+    // With cable settings it reads back as a D-line whatever its name, so it keeps its own.
+    expect(f.name).toBe('DL 4')
+    expect(classifyRoadEngFeature(f, back.layers)).toBe('d-line')
+    expect(f.dLine).toMatchObject({ deflectionPercent: 10, systemId: '1', spars: dLine.spars })
+    expect(f.dLine!.analysis!.payloadKg).toBeCloseTo(4000, 6)
+    expect(f.dLine!.analysis!.clearanceM).toBeCloseTo(2, 9)
+    const cable = roadEngDLineCable(f)!
+    expect(cable.start).toEqual([E0 + 300, N0 + 450])
+    expect(Math.hypot(cable.end[0] - E0 - 380, cable.end[1] - N0 - 520)).toBeLessThan(1e-9)
+    expect(out.notes).toContain('1 D-line carries RoadEng cable settings.')
+    // The header counts every chunk: the kept three, the group and four D-line chunks.
+    const { view, offsets } = terSections(out.bytes)
+    expect(view.getUint32(offsets[0] + 12, true)).toBe(8)
+  })
+
+  it('writes no logging systems and a bare tail without a source', () => {
+    const { sizes, ter, offsets } = terSections(plain.bytes)
+    expect(sizes[8]).toBe(0)
+    expect(ter.length - offsets[8]).toBe(24)
+    expect(readRoadEngTerrainArchive(plain.bytes).terrain.loggingSystems).toEqual([])
+    // Systems given without a source: section 8 holds them and the .tlt lists their equipment.
+    const out = roadEngTerrainArchive({ ...input, loggingSystems: [madill] })
+    expect(terSections(out.bytes).sizes[8]).toBe(312)
+    const tlt = strFromU8(unzipSync(out.bytes)['Terrain1.tlt'], true)
+    expect(roadEngIniValue(tlt, 'EQUIP1', 'Desc')).toBe('90 ft Madill')
+    expect(roadEngIniValue(tlt, 'EQUIP1', 'UnitWts')).toBe('2.890000,2.890000,1.340000,0.000000')
+  })
+})
+
 describe('Zipped RoadEng project', () => {
   const at = (x: number, y: number) => lonLat(E0 + x, N0 + y)
   const plan: Alignment = {
@@ -502,7 +765,7 @@ describe('Zipped RoadEng project', () => {
       ['harvest', 'Falling BDY - Block 12'],
     ])
     expect(p.context[2]).toMatchObject({ harvestEvidence: { source: 'user', status: 'proposed' } })
-    expect(p.cables.map((c) => c.name)).toEqual(['D-Line - DL 4'])
+    expect(p.cables.map((c) => c.name)).toEqual(['DL 4'])
     expect(near(p.cables[0].start, 300, 450)).toBeLessThan(0.001)
     expect(near(p.cables[0].end, 380, 520)).toBeLessThan(0.001)
     expect(p.reference.map((f) => [f.name, f.geometry.type])).toEqual([
@@ -532,6 +795,54 @@ describe.skipIf(!samples || !existsSync(samples ?? ''))(
   'Softree sample terrains written back',
   { timeout: 120_000 },
   () => {
+    it('writes a cable tutorial terrain back keeping its RoadEng parts byte for byte, and its D-line', () => {
+      const path = join(samples!, 'Terrain_cables/CableAnalysis - 4.terx')
+      if (!existsSync(path)) return
+      const bytes = new Uint8Array(readFileSync(path))
+      const original = readRoadEngTerrainArchive(bytes)
+      const files = unzipSync(bytes)
+      const proposed = original.terrain.features.find((f) => f.dLine)!
+      const points: [number, number, number][] = []
+      for (let k = 0; k < proposed.points.length; k += 3)
+        points.push([proposed.points[k], proposed.points[k + 1], proposed.points[k + 2]])
+      const write = (extra: Partial<Parameters<typeof roadEngTerrainArchive>[0]> = {}) =>
+        roadEngTerrainArchive({
+          raster: null,
+          features: [{ name: proposed.name, kind: 'd-line', points, dLine: proposed.dLine }],
+          coordSys: { epsg: 26909 },
+          source: original.source,
+          ...extra,
+        })
+      const out = write()
+      const written = unzipSync(out.bytes)
+      expect(written['Terrain1.te1']).toEqual(files['Terrain1.te1'])
+      // The .tlt as RoadEng saved it, CoordSys included: its D-line keeps its own name, which reads
+      // back as a D-line by its settings, so no layer is added.
+      expect(strFromU8(written['Terrain1.tlt'], true)).toBe(strFromU8(files['Terrain1.tlt'], true))
+      const sections = (ter: Uint8Array) => {
+        const view = new DataView(ter.buffer, ter.byteOffset, ter.byteLength)
+        const sizes = Array.from({ length: 9 }, (_, i) => view.getUint32(2 + 4 * i, true))
+        const offsets = sizes.map((_, i) => 38 + sizes.slice(0, i).reduce((s, x) => s + x, 0))
+        return { sizes, offsets, end: offsets[8] + sizes[8] }
+      }
+      const [a, b] = [files['Terrain1.ter'], written['Terrain1.ter']]
+      const [sa, sb] = [sections(a), sections(b)]
+      expect(b.subarray(sb.offsets[8], sb.end)).toEqual(a.subarray(sa.offsets[8], sa.end))
+      expect(b.subarray(sb.end)).toEqual(a.subarray(sa.end))
+      expect(b.subarray(54, 54 + 4 + 32 * 258)).toEqual(a.subarray(54, 54 + 4 + 32 * 258))
+      // Its D-line reads back with the same cable settings and chunks.
+      const back = readRoadEngTerrainArchive(out.bytes)
+      expect(back.coordSys).toMatchObject({ epsg: 26909, raw: original.coordSys.raw })
+      const [dLine] = back.terrain.features
+      expect(dLine.name).toBe('Proposed_Multispan_DLine')
+      expect(dLine.dLine!.chunks).toEqual(proposed.dLine!.chunks)
+      expect(back.terrain.loggingSystems).toEqual(original.terrain.loggingSystems)
+      expect(back.terrain.mapNotes).toEqual(original.terrain.mapNotes)
+      // Written from the decoded library and notes, everything is the same again.
+      const again = write({ loggingSystems: original.terrain.loggingSystems, mapNotes: original.terrain.mapNotes })
+      expect(unzipSync(again.bytes)).toEqual(written)
+    })
+
     it('writes RangeRoadTopo back with its ground within a few centimetres of RoadEng TIN', () => {
       const opened = roadEngProject([sample('Cul-de-sac-design/CulDeSacExample/RangeRoadTopo.terx')], sampleOptions)
       expect(opened.epsg).toBe(26910)

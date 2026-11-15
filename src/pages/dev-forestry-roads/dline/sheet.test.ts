@@ -11,7 +11,10 @@ import { analyzeCable, offsetCoordinate } from '../engine'
 import { localMetricGrid } from '../terrain'
 import type { CableLine, Coordinate, TerrainSource } from '../types'
 import { cableGroundSource } from './fieldProfile'
-import { dLineExtras } from './outputs'
+import { dLineExtras, dLineExtrasHtml } from './outputs'
+import { saveRiggingSet } from './riggingSets'
+import raw from '../cableEquipment/skylineXl.generated.json'
+import { parseCableEquipmentLibrary, riggingSetFromEquipment } from '../cableEquipment/cableEquipment'
 import { buildDLineSheet, type DLineSheetInput } from './sheet'
 import { dLineSheetUnavailable } from './sheetExport'
 
@@ -190,5 +193,37 @@ describe('D-line sheet', () => {
       dLineSheetUnavailable({ ...line, supportLayout: { ...line.supportLayout!, minSupportHeightM: 60 } }),
     ).toMatch(/support settings/)
     expect(dLineSheetUnavailable({ ...line, sagModel: undefined, supportLayout: undefined })).toBeNull()
+  })
+
+  it('prints where a set made from equipment got its values under the rigging, and nothing for one entered by hand', () => {
+    const lib = parseCableEquipmentLibrary(raw)
+    const made = riggingSetFromEquipment(lib, { yarderId: 'madill-071-tower', carriageId: lib.carriages[0].id })
+    if (!made.ok) throw Error(made.error)
+    const sets = saveRiggingSet([], made.set.name, made.set.rigging, undefined, () => 'm', made.equipment)
+    const rigged: CableLine = { ...line, rigging: made.set.rigging }
+    const riggedAnalysis = analyzeCable(rigged, ground)
+    const grid = localMetricGrid(start)
+    const extras = dLineExtras({
+      line: rigged,
+      analysis: riggedAnalysis,
+      terrain: hill,
+      ground,
+      grid,
+      riggingSets: sets,
+    })
+    expect(extras.riggingSetProvenance).toBe(made.equipment.provenance)
+    expect(dLineExtrasHtml(extras)).toContain(`<p>${made.equipment.provenance.replace(/"/g, '&quot;')}</p>`)
+    const sheet = buildDLineSheet(input({ line: rigged, analysis: riggedAnalysis, extras, limits: null }))
+    const all = texts(sheet.ops).join(' ')
+    expect(all).toContain('From USDA Forest Service SkylineXL 25.0')
+    expect(all).toContain(`Rigging: ${made.set.name}`)
+    for (const op of sheet.ops) if (op.op === 'text') expect(op.y).toBeLessThanOrEqual(sheet.height)
+    // A set entered by hand reports as before: no provenance key, no extra paragraph.
+    const hand = saveRiggingSet([], 'By hand', EXAMPLE_RIGGING, undefined, () => 'h')
+    const plain = dLineExtras({ line, analysis, terrain: hill, ground, grid, riggingSets: hand })
+    expect(plain).not.toHaveProperty('riggingSetProvenance')
+    expect(dLineExtrasHtml(plain)).toContain(
+      '<h2>Rigging set</h2><p>By hand (the project&rsquo;s own set; not a rating).</p><h2>',
+    )
   })
 })

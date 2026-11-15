@@ -70,7 +70,8 @@ and `readinessVerdict`, `readiness.ts`):
 | Curve radius at or above the minimum                | Every fitted curve is at or above the minimum radius, or the road is straight                                                                                                   | the minimum radius is 0, the road has corners and no curve is fitted, or the line cannot be read                                                |
 | Design vehicle stays on the running surface         | The swept path fits at every turn and, with a steering lock entered, no turn needs more steering than the lock                                                                  | no vehicle has been run on this road                                                                                                            |
 | Vertical curve at every grade break                 | Every PVI whose grade changes by 0.5 % or more has a curve the engine applied                                                                                                   | there is no designed profile                                                                                                                    |
-| Vertical curves long enough (K)                     | No K, curve-length or tangent check fails                                                                                                                                       | no minimum K or curve length is entered                                                                                                         |
+| Vertical curves long enough (K)                     | No K check fails                                                                                                                                                                | no minimum K is entered                                                                                                                         |
+| Vertical curves and tangents long enough            | No curve shorter than the minimum curve length, and no tangent between two curves shorter than the minimum tangent                                                              | no minimum curve or tangent length is entered, or there is no designed profile                                                                  |
 | Stopping sight distance along the road              | Every eye station sees the distance it needs both ways, on the road's own surface, measured along the road                                                                      | no design speed is entered, no stations were calculated, or a sightline crosses missing terrain and no shortfall is proven elsewhere            |
 | Turnouts intervisible and within 300 m              | On a single-lane road, each turnout sees the next both ways and stands no more than 300 m from it (Engineering Manual §3.5.2.6)                                                 | a pair's sightline crosses missing terrain and no pair already fails. Left out on a two-lane road or with fewer than two turnouts               |
 | Cross-section template set                          | The template differs from the starting one, or matches a confirmed running-surface width                                                                                        | the road is a mapped road                                                                                                                       |
@@ -105,6 +106,16 @@ reads "outside a limit" and lists each dropped curve with its station, entered l
 separately from breaks where no curve was entered ("to do"). K is never quoted or judged on the
 entered length of a dropped curve: with a minimum K or a minimum curve length entered,
 `checkVerticalDesign` raises a failed check at that station instead.
+
+**Minimum curve and tangent lengths** (`VerticalStandards.minCurveLengthM`, `minTangentLengthM`,
+set under **Vertical standards** beside the minimum K; each named vertical profile keeps
+its own) are a row of their own, `vertical-lengths` (`verticalLengthsRow`, `readiness.ts`). A curve
+is measured BVC to EVC along the road and a tangent EVC to the next BVC; the first and last
+tangents run to the road's ends and are not limited. Until one minimum is entered the row is not
+assessed and quotes the shortest curve and tangent it would judge. A failed check names how many
+curves and tangents are short and goes to the first. The K row judges K alone. The profile
+optimizer keeps to both minimums ([Alignment and optimization](alignment-and-optimization.md)), and
+a RoadEng design carries them in its optimizer standards (`roadEngOptimizer.ts`).
 
 ### What the list does not do
 

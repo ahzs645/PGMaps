@@ -13,19 +13,35 @@
  *   than RoadEng's own limit were never made, so none is dropped for length.
  * - **What was drawn.** Each terrain feature is classed (`classifyRoadEngFeature`) and becomes the
  *   project object that holds that kind of thing: streams are streams, roads are existing roads,
- *   D-lines are D-lines (yarder 18 m, tailhold 8 m, 5 % deflection, as one drawn here), closed
+ *   D-lines with cable settings are D-lines at their first and last spars with RoadEng's heights,
+ *   deflection and payload (`roadEngDLineCable`), rigged with their logging system's set; closed
  *   felling boundaries are proposed harvest blocks, and landings, rock bluffs, other boundaries,
- *   breaklines and anything else are reference layers. Contours, point sets and the TIN boundary
- *   are the terrain itself and are counted, not drawn. A road line lying on an imported alignment
- *   is that alignment and is left out. The project's limits (500 context features and 50,000
- *   vertices, 500 reference features and 50,000 vertices, 100 D-lines) are filled in file order and
- *   whatever is left over is counted.
+ *   breaklines, D-lines without settings and anything else are reference layers, filed under their
+ *   `.tlt` layer and drawn in RoadEng's colour, line type and symbol (`roadEngSymbols.ts`). Contours,
+ *   point sets and the TIN boundary are the terrain itself and are counted, not drawn. A road line
+ *   lying on an imported alignment is that alignment and is left out. The project's limits (500
+ *   context features and 50,000 vertices, 500 reference features and 50,000 vertices, 100 D-lines)
+ *   are filled in file order and whatever is left over is counted.
+ * - **Cable and notes.** The terrain's logging systems become rigging sets (`roadeng-system-<n>`,
+ *   with their equipment kept for writing back), and its map notes become map pins.
+ * - **Design settings.** Each alignment's templates, ranges, curve rule and ground types
+ *   (`roadEngDesignSettings.ts`, template batters kept: a ground type's slope applies only where
+ *   RoadEng's template slope is AUTO, which is not read), haul costs, quality and pits
+ *   (`roadEngHaul.ts`) and optimizer standards, controls and vertical alignments
+ *   (`roadEngOptimizer.ts`) are read, and where RoadEng flagged a range or pit on its stations
+ *   (`stationEvents`) the two are compared and a disagreement is said.
+ * - **Kept for writing back.** Each road keeps its design's parts (`Alignment.roadEngSource`), the
+ *   terrain its own (`TerrainMetadata.roadEngSource`, with any `.ilt` window layouts chosen with it),
+ *   each D-line its RoadEng settings; `roadEngProjectExport.ts` writes them back. The terrain's whole
+ *   `Terrain1.ter` comes back in `originalTer` with the reference the page completes once it has
+ *   hashed and stored the bytes (`withRoadEngOriginal`, `roadEngTerrainOriginal.ts`): the grid's
+ *   fingerprint, the file's features by class and the fingerprint of every object made from one.
  * - **Units.** Coordinates and levels in feet are converted to metres; the terrain takes the
  *   design's unit, and metres without a design.
  *
  * Pure: no DOM or network access.
  */
-import { unzipSync } from 'fflate'
+import { strFromU8, unzipSync } from 'fflate'
 import { projectedCrsDefinition } from '@/lib/geo/projectedCrs'
 import { distance } from './engine'
 import { alignmentCrs, gridToLonLat, type XY } from './landXmlImport'
@@ -35,22 +51,48 @@ import {
   parseRoadEngDesign,
   roadEngImportSummary,
   roadEngRoads,
+  stationEvents,
   type RoadEngRoad,
 } from './roadEngImport'
 import {
   classifyRoadEngFeature,
   isRoadEngTerrain,
   readRoadEngTerrainArchive,
+  roadEngLayerMatches,
+  MAX_ROADENG_LAYOUTS,
   type RoadEngCoordSys,
   type RoadEngFeatureClass,
+  type RoadEngLayer,
   type RoadEngTerrainFeature,
 } from './roadEngTerrain'
 import { rasterizeTin } from './tinSurface'
 import { readRoadEngSettings, roadEngEngineeringFor } from './roadEngDesignSettings'
-import { validateTemplate } from './templates'
+import { applyRoadEngCostCarryover, roadEngHaulFor } from './roadEngHaul'
+import { applyRoadEngOptimizer, parseRoadEngOptimizer, roadEngOptimizerFor } from './roadEngOptimizer'
+import { readRoadEngLayout, roadEngDLineCable } from './roadEngDLines'
+import type { RoadEngLoggingSystem } from './roadEngLoggingSystems'
+import { readRoadEngSymbolFile, type RoadEngSymbolTables } from './roadEngSymbolTables'
+import {
+  parseRoadEngFormatChunk,
+  roadEngFeatureLook,
+  roadEngReferenceLayers,
+  type RoadEngStyledFeature,
+} from './roadEngSymbols'
+import { base64ToBytes, bytesToBase64 } from './roadEngText'
+import {
+  roadEngObjectFingerprint,
+  roadEngTerrainGridFingerprint,
+  MAX_ROADENG_ORIGINAL_TER_BYTES,
+  type RoadEngOriginalRecord,
+} from './roadEngTerrainOriginal'
+import { roadEngLoggingSystemToRiggingSet, roadEngSystemFromDecoded } from './cableEquipment/cableEquipment'
+import { applyRiggingSetToLine, MAX_RIGGING_SETS, type RiggingSet } from './dline/riggingSets'
+import { MAP_NOTE_COLORS, MAX_MAP_NOTES, type MapNote } from './mapNotes'
+import { validateEngineering, validateTemplate } from './templates'
 import type { LocalRaster } from '../dev-forestry/types'
 import type { Alignment, CableLine, Coordinate, ContextFeature, RoadTemplate, TerrainMetadata } from './types'
-import type { ReferenceFeature } from './referenceFeatures'
+import { referenceShape, type ReferenceFeature } from './referenceFeatures'
+import type { ReferenceLayerStyle } from './referenceStyles'
 
 export const MAX_ROADENG_PROJECT_BYTES = 300_000_000
 const MAX_CONTEXT = 500,
@@ -62,41 +104,78 @@ const MAX_CONTEXT = 500,
 export const ROADENG_TERRAIN_MIN_CELL_M = 1
 /** A road line within this of an imported alignment's stations is that alignment. */
 const ON_ALIGNMENT_M = 0.05
+/**
+ * A range or pit read from the `.dsn` is where RoadEng flagged it on its stations when within this,
+ * m of road chainage (RoadEng flags 0.1 project unit either side of a boundary).
+ */
+export const ROADENG_EVENT_MATCH_M = 0.5
+/** The rigging set a RoadEng logging system becomes, by its system number. */
+export const roadEngSystemSetId = (systemId: string) => `roadeng-system-${systemId}`
+/** The map note a RoadEng map note becomes, by its place in the file. */
+export const roadEngNoteId = (index: number) => `roadeng-note-${index + 1}`
+/** Attributes a reference feature from RoadEng keeps for writing its look back. */
+export const ROADENG_FORMAT_ATTRIBUTE = 'roadEngFormat'
+export const ROADENG_COLOR_ATTRIBUTE = 'roadEngColor'
 
 export interface RoadEngFile {
   name: string
   bytes: Uint8Array
 }
 
-/** The designs and terrains among some files, unpacking any ZIP that holds them. */
+/** Whether a file's opening is a RoadEng window layout (`.ilt`): INI text with RoadEng's window sections. */
+export function isRoadEngLayout(head: Uint8Array): boolean {
+  if (!head.length || head[0] !== 0x5b) return false
+  const text = strFromU8(head, true)
+  return /^\[(3dwindow|multi|dline[a-z]*\d*|ControlBars-[^\]]*)\]\r?$/im.test(text) && !/\[TerLayers\]/i.test(text)
+}
+
+/** The designs, terrains and window layouts among some files, unpacking any ZIP that holds them. */
 export function collectRoadEngFiles(files: readonly RoadEngFile[]): {
   designs: RoadEngFile[]
   terrains: RoadEngFile[]
+  layouts: RoadEngFile[]
 } {
   const designs: RoadEngFile[] = [],
-    terrains: RoadEngFile[] = []
+    terrains: RoadEngFile[] = [],
+    layouts: RoadEngFile[] = []
   const sort = (file: RoadEngFile, depth: number) => {
     const head = file.bytes.subarray(0, 4096)
     if (isRoadEngDesign(head)) designs.push(file)
     else if (isRoadEngTerrain(head)) terrains.push(file)
+    else if (isRoadEngLayout(head)) layouts.push(file)
     else if (depth === 0 && head[0] === 0x50 && head[1] === 0x4b) {
       let entries: Record<string, Uint8Array>
       try {
         entries = unzipSync(file.bytes, {
-          filter: (entry) => /\.(dsnx|terx)$/i.test(entry.name) && entry.originalSize <= MAX_ROADENG_PROJECT_BYTES,
+          filter: (entry) => /\.(dsnx|terx|ilt)$/i.test(entry.name) && entry.originalSize <= MAX_ROADENG_PROJECT_BYTES,
         })
       } catch {
         throw Error(`${file.name} could not be unpacked: the archive is damaged.`)
       }
       const inside = Object.entries(entries)
-      if (!inside.length) throw Error(`${file.name} holds no RoadEng design (.dsnx) or terrain (.terx).`)
+      if (!inside.some(([name]) => /\.(dsnx|terx)$/i.test(name)))
+        throw Error(`${file.name} holds no RoadEng design (.dsnx) or terrain (.terx).`)
       for (const [name, bytes] of inside) sort({ name: name.split('/').pop() ?? name, bytes }, 1)
-    } else throw Error(`${file.name} is not a RoadEng design or terrain.`)
+    } else throw Error(`${file.name} is not a RoadEng design, terrain or window layout.`)
   }
   for (const file of files) sort(file, 0)
   if (!designs.length && !terrains.length)
     throw Error('Choose a RoadEng design (.dsnx), its terrain (.terx) or a zipped RoadEng project.')
-  return { designs, terrains }
+  return { designs, terrains, layouts }
+}
+
+/** Each alignment's `.dsn` and `.ds2` as Latin-1 text, by part name (`Location1`). */
+function designTexts(bytes: Uint8Array): Map<string, { dsn: string; ds2: string }> {
+  const out = new Map<string, { dsn: string; ds2: string }>()
+  const entries = unzipSync(bytes, { filter: (f) => /^Location\d+\.ds[n2]$/i.test(f.name) })
+  for (const [name, data] of Object.entries(entries)) {
+    const m = /^(Location\d+)\.(ds[n2])$/i.exec(name)
+    if (!m) continue
+    const part = out.get(m[1]) ?? { dsn: '', ds2: '' }
+    part[m[2].toLowerCase() as 'dsn' | 'ds2'] = strFromU8(data, true)
+    out.set(m[1], part)
+  }
+  return out
 }
 
 export interface RoadEngProjectOptions {
@@ -115,6 +194,8 @@ export interface RoadEngProjectOptions {
   noCrs?: 'plane' | 'ask' | LocalPlacement
   /** The CRS the person gave, when asked. A CRS a terrain states is never overridden. */
   epsg?: number
+  /** When the import happens, ISO 8601, for the map notes it makes; now when omitted. */
+  importedAt?: string
 }
 
 export interface RoadEngProject {
@@ -128,17 +209,42 @@ export interface RoadEngProject {
   context: ContextFeature[]
   cables: CableLine[]
   reference: ReferenceFeature[]
+  /** The terrain's logging systems as rigging sets (`roadeng-system-<n>`), equipment kept. */
+  riggingSets: RiggingSet[]
+  /** The terrain's map notes, as pins. */
+  mapNotes: MapNote[]
+  /** The looks of the reference layers made from the terrain's features. */
+  referenceStyles: ReferenceLayerStyle[]
+  /** RoadEng's embankment cost per m³ when every alignment's ground types give the same one. */
+  fillRate: number | null
   /** One sentence each, for the import notice. */
   notes: string[]
   /** The roads' own summaries (also in `notes`), for an import that takes only the roads. */
   roadNotes: string[]
+  /**
+   * The terrain's `Terrain1.ter` as read and its reference without the checksum, for the page to
+   * hash, store and record (`withRoadEngOriginal`); null without a terrain, or one too large to keep.
+   */
+  originalTer: { bytes: Uint8Array; record: RoadEngOriginalRecord } | null
+}
+
+/** A terrain with its reference to RoadEng's own `Terrain1.ter` filled in, once the page has its SHA-256. */
+export function withRoadEngOriginal(
+  terrain: TerrainMetadata,
+  original: { record: RoadEngOriginalRecord; sha256: string },
+): TerrainMetadata {
+  if (!terrain.roadEngSource) return terrain
+  return {
+    ...terrain,
+    roadEngSource: { ...terrain.roadEngSource, original: { sha256: original.sha256, ...original.record } },
+  }
 }
 
 const stem = (name: string) => name.replace(/\.(dsnx|terx|zip)$/i, '')
 
 /** Everything a RoadEng project brings into a new road project. */
 export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngProjectOptions): RoadEngProject {
-  const { designs, terrains } = collectRoadEngFiles(files)
+  const { designs, terrains, layouts } = collectRoadEngFiles(files)
   if (designs.length > 1) throw Error('Choose one RoadEng design at a time, with its terrain.')
   const designFile = designs[0] ?? null
   const design = designFile ? parseRoadEngDesign(designFile.bytes) : null
@@ -218,10 +324,32 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
       }).roads
     : []
   const settings = designFile ? readRoadEngSettings(designFile.bytes) : null
+  const texts = designFile ? designTexts(designFile.bytes) : new Map<string, { dsn: string; ds2: string }>()
+  const firstPart = design?.alignments[0]?.part
   const sectionNotes: string[] = []
+  const fillRates: (number | null)[] = []
   const roads = placedRoads.map((road) => {
-    // A design this workspace wrote carries its own section and surfacing back.
-    const own = road.source.pgmaps
+    const read = road.source
+    // What the design holds besides the road, kept so a RoadEng file written from it loses nothing.
+    const keep = (alignment: Alignment): Alignment =>
+      read.source
+        ? {
+            ...alignment,
+            roadEngSource: {
+              ...read.source,
+              stationScale: road.stationScale,
+              epsg,
+              fallback: options.template,
+            },
+          }
+        : alignment
+    // A design this workspace wrote carries its own section and surfacing back, unless RoadEng saved it
+    // since: then RoadEng's settings are read, and only what it has no field for comes from [PGMaps].
+    const own = read.pgmaps && !read.pgmaps.nativeChanged ? read.pgmaps : null
+    if (read.pgmaps?.nativeChanged)
+      sectionNotes.push(
+        `${road.alignment.name} was saved in RoadEng after this workspace wrote it: RoadEng's own settings are read.`,
+      )
     if (own) {
       let template: RoadTemplate | null = null
       try {
@@ -232,54 +360,126 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
       } catch {
         sectionNotes.push(`${road.alignment.name}'s saved section could not be read; it takes the open road's.`)
       }
-      return {
-        ...road,
-        alignment: {
-          ...road.alignment,
-          ...(template ? { template } : {}),
-          // Checked with the rest of the road when the project is parsed (`parseEngineering`).
-          ...(own.engineering && typeof own.engineering === 'object'
-            ? { engineering: own.engineering as Alignment['engineering'] }
-            : {}),
-          ...(own.curveDesign && typeof own.curveDesign === 'object'
-            ? { curveDesign: own.curveDesign as Alignment['curveDesign'] }
-            : {}),
-          vertical: road.alignment.vertical.map((v) => ({
-            ...v,
-            elevation: Math.round((v.elevation - own.surfacingM) * 1000) / 1000,
-          })),
-        },
-      }
-    }
-    const part = settings?.parts.find((p) => p.part === road.source.part)
-    if (!part) return road
-    const mapped = roadEngEngineeringFor(part.settings, {
-      startStation: road.source.startStation,
-      endStation: road.source.endStation,
-      stationScale: road.stationScale,
-      fallback: options.template,
-    })
-    const depth = mapped.template ? (mapped.subgradeDepthM.left + mapped.subgradeDepthM.right) / 2 : 0
-    if (mapped.template)
-      sectionNotes.push(
-        `${road.alignment.name} takes RoadEng's section${depth > 0 ? `; its profile is lowered ${depth.toFixed(2)} m from the finished surface to the subgrade` : ''}.`,
-      )
-    if (mapped.notes.length) sectionNotes.push(...mapped.notes)
-    if (mapped.unmapped.length) sectionNotes.push(`Not carried over: ${mapped.unmapped.join('; ')}.`)
-    return {
-      ...road,
-      alignment: {
+      const ownText = texts.get(read.part)
+      const restored: Alignment = {
         ...road.alignment,
-        ...(mapped.template ? { template: mapped.template } : {}),
-        ...(mapped.curveDesign ? { curveDesign: mapped.curveDesign } : {}),
-        engineering: mapped.engineering,
+        ...(template ? { template } : {}),
+        // Checked with the rest of the road when the project is parsed (`parseEngineering`).
+        ...(own.engineering && typeof own.engineering === 'object'
+          ? { engineering: own.engineering as Alignment['engineering'] }
+          : {}),
+        ...(own.curveDesign && typeof own.curveDesign === 'object'
+          ? { curveDesign: own.curveDesign as Alignment['curveDesign'] }
+          : {}),
         vertical: road.alignment.vertical.map((v) => ({
           ...v,
-          elevation: Math.round((v.elevation - depth) * 1000) / 1000,
+          elevation: Math.round((v.elevation - own.surfacingM) * 1000) / 1000,
         })),
-      },
+      }
+      // Standards, controls and vertical alternatives, minimum lengths included, are RoadEng's optimizer settings.
+      const optimizer = ownText
+        ? roadEngOptimizerFor(parseRoadEngOptimizer(ownText.dsn, unitM), {
+            startStationM: read.startStation,
+            endStationM: read.endStation,
+            stationScale: road.stationScale,
+            unitM,
+            surfaceDepthM: own.surfacingM,
+            activeVertical: restored.vertical,
+          })
+        : null
+      return { ...road, alignment: keep(optimizer ? applyRoadEngOptimizer(restored, optimizer) : restored) }
     }
+    const part = settings?.parts.find((p) => p.part === read.part)
+    if (!part) return { ...road, alignment: keep(road.alignment) }
+    const frame = { startStation: read.startStation, endStation: read.endStation, stationScale: road.stationScale }
+    // RoadEng uses a ground type's slopes only where a template slope is AUTO, which is not read: the
+    // templates' stated batters are kept (`materialBatters`).
+    const mapped = roadEngEngineeringFor(part.settings, {
+      ...frame,
+      fallback: options.template,
+      materialBatters: false,
+    })
+    // Saved in RoadEng with no RoadEng template of its own: the section this workspace wrote stays.
+    let written: RoadTemplate | null = null
+    try {
+      if (!mapped.template && read.pgmaps?.template && typeof read.pgmaps.template === 'object') {
+        validateTemplate(read.pgmaps.template as RoadTemplate)
+        written = read.pgmaps.template as RoadTemplate
+      }
+    } catch {
+      written = null
+    }
+    const depth = mapped.template
+      ? (mapped.subgradeDepthM.left + mapped.subgradeDepthM.right) / 2
+      : written
+        ? read.pgmaps!.surfacingM
+        : 0
+    const name = road.alignment.name
+    if (mapped.template)
+      sectionNotes.push(
+        `${name} takes RoadEng's section${depth > 0 ? `; its profile is lowered ${depth.toFixed(2)} m from the finished surface to the subgrade` : ''}.`,
+      )
+    if (mapped.notes.length) sectionNotes.push(...mapped.notes)
+    const unmapped = [...mapped.unmapped]
+    const text = texts.get(read.part)
+    let engineering = mapped.engineering
+    if (text) {
+      const haul = roadEngHaulFor(
+        {
+          dsnText: text.dsn,
+          ds2Text: text.ds2,
+          ...(firstPart && read.part !== firstPart ? { projectDsnText: texts.get(firstPart)?.dsn ?? '' } : {}),
+        },
+        { ...frame, unitM, materials: engineering.materials },
+      )
+      engineering = { ...engineering, materials: haul.materials, haul: haul.haul, sites: haul.sites }
+      if (read.pgmaps) {
+        const carried = applyRoadEngCostCarryover(engineering, read.pgmaps.costs, {
+          lengthM: (read.endStation - read.startStation) * road.stationScale,
+          validate: validateEngineering,
+        })
+        engineering = carried.engineering
+        sectionNotes.push(...carried.notes)
+      }
+      fillRates.push(haul.fillRate)
+      sectionNotes.push(...haul.notes)
+      unmapped.push(...haul.unmapped)
+    } else fillRates.push(null)
+    let alignment: Alignment = {
+      ...road.alignment,
+      ...(mapped.template ? { template: mapped.template } : written ? { template: written } : {}),
+      ...(mapped.curveDesign ? { curveDesign: mapped.curveDesign } : {}),
+      engineering,
+      vertical: road.alignment.vertical.map((v) => ({
+        ...v,
+        elevation: Math.round((v.elevation - depth) * 1000) / 1000,
+      })),
+    }
+    if (text) {
+      const optimizer = roadEngOptimizerFor(parseRoadEngOptimizer(text.dsn, unitM), {
+        startStationM: read.startStation,
+        endStationM: read.endStation,
+        stationScale: road.stationScale,
+        unitM,
+        surfaceDepthM: depth,
+        activeVertical: alignment.vertical,
+      })
+      alignment = applyRoadEngOptimizer(alignment, optimizer)
+      sectionNotes.push(...optimizer.notes)
+      unmapped.push(...optimizer.unmapped)
+    }
+    const disagreements = eventDisagreements(alignment, road)
+    if (disagreements) sectionNotes.push(`${name}: ${disagreements}`)
+    if (unmapped.length) sectionNotes.push(`Not carried over: ${[...new Set(unmapped)].join('; ')}.`)
+    return { ...road, alignment: keep(alignment) }
   })
+  // The fill rate is project-wide: taken only when every alignment's ground types give the same one.
+  const fillRate =
+    fillRates.length && fillRates.every((r) => r !== null && Math.abs(r - fillRates[0]!) < 1e-9) ? fillRates[0]! : null
+  if (fillRates.length > 1 && fillRate === null && fillRates.some((r) => r !== null))
+    sectionNotes.push(
+      "The alignments' ground types give different embankment costs, so the fill rate is left as it was.",
+    )
   // The summary names a terrain it did not read; here the terrain was read, or its absence is said above.
   const summaryDesign = design ? { ...design, terrain: null } : null
   const roadNotes = [
@@ -378,20 +578,133 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
     if (archive) notes.push('Its terrain holds no TIN, so the project has no ground.')
   }
 
+  // What the terrain holds that the grid does not, kept to be written back, with any window layouts.
+  const keptLayouts = layouts.slice(0, MAX_ROADENG_LAYOUTS).map((f) => ({
+    name: f.name.replace(/\.ilt(\.ilt)?$/i, '').slice(0, 200) || 'Layout',
+    text: readRoadEngLayout(f.bytes).text,
+  }))
+  if (layouts.length > MAX_ROADENG_LAYOUTS)
+    notes.push(`${layouts.length - MAX_ROADENG_LAYOUTS} window layouts past ${MAX_ROADENG_LAYOUTS} are not kept.`)
+  if (archive)
+    terrain = {
+      ...terrain,
+      roadEngSource: { ...archive.source, ...(keptLayouts.length ? { layouts: keptLayouts } : {}) },
+    }
+  else if (keptLayouts.length)
+    notes.push('Window layouts are kept with a terrain; with none chosen, they are not kept.')
+  if (keptLayouts.length && archive)
+    notes.push(
+      `${keptLayouts.length === 1 ? 'Its window layout is' : `${keptLayouts.length} window layouts are`} kept and written back beside the terrain.`,
+    )
+
+  // Logging systems become rigging sets, linked to their D-lines by system number.
+  const riggingSets: RiggingSet[] = []
+  const systemSets = new Map<string, RiggingSet>()
+  const cableNotes: string[] = []
+  for (const system of (archive?.terrain.loggingSystems ?? []) as RoadEngLoggingSystem[]) {
+    if (riggingSets.length >= MAX_RIGGING_SETS) {
+      cableNotes.push(`Logging systems past ${MAX_RIGGING_SETS} are kept in the terrain and not made rigging sets.`)
+      break
+    }
+    const made = roadEngLoggingSystemToRiggingSet(roadEngSystemFromDecoded(system), {
+      id: roadEngSystemSetId(system.id),
+    })
+    if (!made.ok) {
+      cableNotes.push(`${made.error} It stays in the terrain unchanged.`)
+      continue
+    }
+    let name = made.set.name
+    for (let n = 2; riggingSets.some((s) => s.name.toLowerCase() === name.toLowerCase()); n++)
+      name = `${made.set.name} (${n})`
+    const set: RiggingSet = { ...made.set, name, equipment: made.equipment }
+    riggingSets.push(set)
+    systemSets.set(system.id, set)
+    cableNotes.push(...made.issues)
+  }
+  if (riggingSets.length)
+    cableNotes.unshift(
+      `${riggingSets.length === 1 ? 'Its logging system becomes a rigging set' : `Its ${riggingSets.length} logging systems become rigging sets`}: ${riggingSets.map((s) => s.name).join(', ')}.`,
+    )
+
+  // Map notes become pins.
+  const importedAt = options.importedAt ?? new Date().toISOString()
+  const mapNotes: MapNote[] = (archive?.terrain.mapNotes ?? []).slice(0, MAX_MAP_NOTES).map((note, k) => ({
+    id: roadEngNoteId(k),
+    kind: 'pin',
+    points: [toLonLat([m(note.x), m(note.y)])],
+    text: note.text.slice(0, 1000),
+    color: MAP_NOTE_COLORS[5],
+    createdAt: importedAt,
+  }))
+  if (mapNotes.length)
+    cableNotes.push(
+      `${mapNotes.length === 1 ? 'Its map note becomes a pin' : `Its ${mapNotes.length} map notes become pins`}.`,
+    )
+
   // What was drawn, in every terrain given: a design can draw on background terrains too. They are
   // read in the same grid as the design's own terrain.
   const others = terrains.filter((t) => t !== terrainFile)
   const archives = [...(archive ? [archive] : []), ...others.map((t) => readRoadEngTerrainArchive(t.bytes))]
+  const tables = archives.map((a): RoadEngSymbolTables | null => {
+    if (!a.source.te1) return null
+    try {
+      return readRoadEngSymbolFile(base64ToBytes(a.source.te1))
+    } catch {
+      return null
+    }
+  })
   const layers = archives.length
     ? drawnLayers(
-        archives.flatMap((a, k) => a.terrain.features.map((feature) => ({ feature, layers: a.layers, from: k }))),
+        archives.flatMap((a, k) =>
+          a.terrain.features.map((feature) => ({ feature, layers: a.layers, from: k, tables: tables[k] })),
+        ),
         roads,
         (xy) => toLonLat(xy),
         m,
+        systemSets,
       )
     : null
   if (others.length) notes.push(`Drawn features were also read from ${others.map((t) => t.name).join(', ')}.`)
   if (layers) notes.push(...layers.notes)
+  notes.push(...cableNotes)
+
+  // RoadEng's own Terrain1.ter, to go back as read while nothing in it changes.
+  let originalTer: RoadEngProject['originalTer'] = null
+  if (archive && archive.ter.length <= MAX_ROADENG_ORIGINAL_TER_BYTES) {
+    const objects: RoadEngOriginalRecord['objects'] = {}
+    const track = (id: string, fingerprint: string, cls: unknown) => {
+      const m = /^roadeng-0-(\d+)$/.exec(id)
+      if (!m) return
+      const index = Number(m[1])
+      objects[id] = [
+        index,
+        fingerprint,
+        archive.terrain.features[index]?.inTin ? 1 : 0,
+        (typeof cls === 'string' ? cls : 'other') as RoadEngFeatureClass,
+      ]
+    }
+    for (const feature of layers?.context ?? [])
+      track(feature.id, roadEngObjectFingerprint({ type: 'context', feature }), feature.attributes?.roadEngClass)
+    for (const feature of layers?.reference ?? [])
+      track(feature.id, roadEngObjectFingerprint({ type: 'reference', feature }), feature.attributes?.roadEngClass)
+    for (const feature of layers?.cables ?? [])
+      track(feature.id, roadEngObjectFingerprint({ type: 'cable', feature }), 'd-line')
+    originalTer = {
+      bytes: archive.ter,
+      record: {
+        size: archive.ter.length,
+        grid: roadEngTerrainGridFingerprint(terrain),
+        unitM,
+        features: archive.terrain.features.length,
+        triangles: (archive.terrain.tin?.triangles.length ?? 0) / 3,
+        classes: layers?.classes ?? {},
+        objects,
+      },
+    }
+  } else if (archive)
+    notes.push(
+      `Its Terrain1.ter is over ${MAX_ROADENG_ORIGINAL_TER_BYTES / 1e6} MB, so a RoadEng project written from here writes the grid as its ground.`,
+    )
   // The archive's first line repeats what was read, and a terrain with no CRS is on the plane, said above.
   if (archive)
     notes.push(
@@ -410,9 +723,99 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
     context: layers?.context ?? [],
     cables: layers?.cables ?? [],
     reference: layers?.reference ?? [],
+    riggingSets,
+    mapNotes,
+    referenceStyles: layers?.styles ?? [],
+    fillRate,
     notes,
     roadNotes,
+    originalTer,
   }
+}
+
+/**
+ * A RoadEng terrain's rigging sets, map notes and reference looks joined to an open project's: what
+ * the terrain brings replaces what an earlier import of it left (same id or layer), and a set whose
+ * name another set holds is renamed. Within the project's limits; what is over them is left out.
+ */
+export function mergeRoadEngParts(
+  project: {
+    riggingSets?: readonly RiggingSet[]
+    notes?: readonly MapNote[]
+    referenceStyles?: readonly ReferenceLayerStyle[]
+  },
+  imported: Pick<RoadEngProject, 'riggingSets' | 'mapNotes' | 'referenceStyles'>,
+): { riggingSets?: RiggingSet[]; notes?: MapNote[]; referenceStyles?: ReferenceLayerStyle[] } {
+  const out: { riggingSets?: RiggingSet[]; notes?: MapNote[]; referenceStyles?: ReferenceLayerStyle[] } = {}
+  if (imported.riggingSets.length) {
+    const ids = new Set(imported.riggingSets.map((s) => s.id))
+    const sets = (project.riggingSets ?? []).filter((s) => !ids.has(s.id))
+    for (const set of imported.riggingSets) {
+      if (sets.length >= MAX_RIGGING_SETS) break
+      let name = set.name
+      for (let n = 2; sets.some((s) => s.name.toLowerCase() === name.toLowerCase()); n++) name = `${set.name} (${n})`
+      sets.push({ ...set, name })
+    }
+    out.riggingSets = sets
+  }
+  if (imported.mapNotes.length) {
+    const ids = new Set(imported.mapNotes.map((n) => n.id))
+    out.notes = [...(project.notes ?? []).filter((n) => !ids.has(n.id)), ...imported.mapNotes].slice(0, MAX_MAP_NOTES)
+  }
+  if (imported.referenceStyles.length) {
+    const layers = new Set(imported.referenceStyles.map((s) => s.layer))
+    out.referenceStyles = [
+      ...(project.referenceStyles ?? []).filter((s) => !layers.has(s.layer)),
+      ...imported.referenceStyles,
+    ]
+  }
+  return out
+}
+
+/**
+ * Where RoadEng's flagged stations (`stationEvents`) disagree with the template ranges, ground
+ * layers and pits read from the `.dsn`: each boundary read should have a flag within
+ * {@link ROADENG_EVENT_MATCH_M}. Null when they agree, or when the design flags none of a kind.
+ */
+function eventDisagreements(alignment: Alignment, road: RoadEngRoad): string | null {
+  const events = stationEvents(road.source)
+  const length = (road.source.endStation - road.source.startStation) * road.stationScale
+  const chainage = (station: number) => (station - road.source.startStation) * road.stationScale
+  const inside = (c: number) => c > ROADENG_EVENT_MATCH_M && c < length - ROADENG_EVENT_MATCH_M
+  const check = (label: string, ours: number[], flagged: number[]) => {
+    if (!flagged.length) return null
+    const theirs = flagged.map(chainage)
+    const missing = [...new Set(ours.filter(inside).map((c) => Math.round(c * 10) / 10))].filter(
+      (c) => !theirs.some((t) => Math.abs(t - c) <= ROADENG_EVENT_MATCH_M),
+    )
+    return missing.length
+      ? `${label} at ${missing
+          .slice(0, 5)
+          .map((c) => `${c.toFixed(1)} m`)
+          .join(', ')}${missing.length > 5 ? ` and ${missing.length - 5} more` : ''}`
+      : null
+  }
+  const e = alignment.engineering
+  const found = [
+    check(
+      'template-range changes',
+      (e?.assignments ?? []).flatMap((a) => [a.start, a.end]),
+      events.templateRanges,
+    ),
+    check(
+      'ground-layer changes',
+      (e?.strata ?? []).flatMap((a) => [a.start, a.end]),
+      events.groundLayerRanges,
+    ),
+    check(
+      'pits',
+      (e?.sites ?? []).map((site) => site.chainage),
+      events.pits,
+    ),
+  ].filter((x): x is string => x !== null)
+  return found.length
+    ? `RoadEng's calculated stations flag none of these read from its settings: ${found.join('; ')}. The settings are used; recalculate the design in RoadEng to compare.`
+    : null
 }
 
 const LABEL: Partial<Record<RoadEngFeatureClass, string>> = {
@@ -427,25 +830,34 @@ const LABEL: Partial<Record<RoadEngFeatureClass, string>> = {
 function drawnLayers(
   features: readonly {
     feature: RoadEngTerrainFeature
-    layers: Parameters<typeof classifyRoadEngFeature>[1]
+    layers: RoadEngLayer[]
     from: number
+    tables: RoadEngSymbolTables | null
   }[],
   roads: readonly RoadEngRoad[],
   toLonLat: (xyM: XY) => Coordinate,
   m: (v: number) => number,
+  systemSets: ReadonlyMap<string, RiggingSet>,
 ) {
   const context: ContextFeature[] = [],
     cables: CableLine[] = [],
     reference: ReferenceFeature[] = []
+  const styled: RoadEngStyledFeature[] = []
   let contextVertices = 0,
     referenceVertices = 0,
     terrainParts = 0,
     onAlignment = 0,
-    leftOut = 0
+    leftOut = 0,
+    bareDLines = 0,
+    clamped = 0
   const stations = roads.flatMap((road) => road.source.stations.map((s) => s.xy))
   const byClass = new Map<string, number>()
-  for (const { feature, layers, from } of features) {
+  /** The first terrain's features by class, for the reference to its file. */
+  const classes: Partial<Record<RoadEngFeatureClass, number>> = {}
+  const lookLeft = new Set<string>()
+  for (const { feature, layers, from, tables } of features) {
     const kind = classifyRoadEngFeature(feature, layers)
+    if (from === 0) classes[kind] = (classes[kind] ?? 0) + 1
     const id = `roadeng-${from}-${feature.index}`
     if (kind === 'contour' || kind === 'source-contour' || kind === 'mass-points' || kind === 'tin-boundary') {
       terrainParts++
@@ -462,6 +874,8 @@ function drawnLayers(
       onAlignment++
       continue
     }
+    const cable = kind === 'd-line' ? roadEngDLineCable(feature) : null
+    if (kind === 'd-line' && !cable) bareDLines++
     let placed = false
     if ((kind === 'stream' || kind === 'road') && coords.length >= 2) {
       if (context.length < MAX_CONTEXT && contextVertices + coords.length <= MAX_CONTEXT_VERTICES) {
@@ -475,17 +889,42 @@ function drawnLayers(
         contextVertices += coords.length
         placed = true
       }
-    } else if (kind === 'd-line' && coords.length >= 2) {
+    } else if (cable && feature.dLine) {
       if (cables.length < MAX_CABLES) {
-        cables.push({
+        // PGMaps' D-line holds the yarder's height first wherever the yarder stands (`yarderAt`).
+        const atEnd = cable.yarderAt === 'end'
+        const height = (v: number) => {
+          const h = m(v)
+          if (h < 0 || h > 100) clamped++
+          return Math.min(100, Math.max(0, h))
+        }
+        const deflection = Math.min(30, Math.max(0, cable.deflectionPercent))
+        if (deflection !== cable.deflectionPercent) clamped++
+        let line: CableLine = {
           id,
           name,
-          start: coords[0],
-          end: coords[coords.length - 1],
-          startHeight: 18,
-          endHeight: 8,
-          deflectionPercent: 5,
-        })
+          start: toLonLat([m(cable.start[0]), m(cable.start[1])]),
+          end: toLonLat([m(cable.end[0]), m(cable.end[1])]),
+          startHeight: height(atEnd ? cable.endHeight : cable.startHeight),
+          endHeight: height(atEnd ? cable.startHeight : cable.endHeight),
+          deflectionPercent: deflection,
+          ...(atEnd ? { yarderAt: 'end' as const } : {}),
+          roadEng: feature.dLine,
+          ...(cable.systemId !== null ? { roadEngSystemId: cable.systemId } : {}),
+        }
+        const set = cable.systemId !== null ? systemSets.get(cable.systemId) : undefined
+        if (set) {
+          line = applyRiggingSetToLine(line, set)
+          line = {
+            ...line,
+            rigging: {
+              ...line.rigging!,
+              ...(cable.payloadKg !== null && cable.payloadKg > 0 ? { payloadKg: cable.payloadKg } : {}),
+              ...(cable.clearanceM !== null && cable.clearanceM >= 0 ? { minClearanceM: cable.clearanceM } : {}),
+            },
+          }
+        }
+        cables.push(line)
         placed = true
       }
     } else if (kind === 'boundary' && closed && /fall/i.test(feature.name) && coords.length >= 4) {
@@ -508,13 +947,40 @@ function drawnLayers(
           : closed && coords.length >= 4
             ? { type: 'Polygon', coordinates: [ring(coords)] }
             : { type: 'LineString', coordinates: coords }
-      reference.push({ id, name, geometry, attributes, source: 'RoadEng terrain' })
+      // The look RoadEng draws it in, and what writes that look back.
+      const format = feature.formatChunk ? parseRoadEngFormatChunk(feature.formatChunk) : null
+      const shape = referenceShape({ geometry })
+      const look = roadEngFeatureLook(
+        { shape, color: feature.color, format },
+        { lineTypes: tables?.lineTypes ?? null, symbols: tables?.symbols ?? null },
+      )
+      for (const why of look.left) lookLeft.add(why)
+      const layer = layers.find((l) => l.description && roadEngLayerMatches(l.pattern, feature.name))
+      styled.push({
+        id,
+        group: layer?.description || LABEL[kind] || feature.name.split(/[\s-]/)[0] || 'Features',
+        shape,
+        look,
+      })
+      reference.push({
+        id,
+        name,
+        geometry,
+        attributes: {
+          ...attributes,
+          ...(feature.formatChunk ? { [ROADENG_FORMAT_ATTRIBUTE]: bytesToBase64(feature.formatChunk) } : {}),
+          ...(feature.color !== null ? { [ROADENG_COLOR_ATTRIBUTE]: feature.color } : {}),
+        },
+        source: 'RoadEng terrain',
+      })
       referenceVertices += geometry.type === 'Point' ? 1 : coords.length
       placed = true
     }
     if (placed) byClass.set(kind, (byClass.get(kind) ?? 0) + 1)
     else leftOut++
   }
+  const looks = roadEngReferenceLayers(styled)
+  for (const f of reference) f.source = looks.layerOf.get(f.id) ?? f.source
   const notes: string[] = []
   const count = (n: number) => n.toLocaleString('en-CA')
   const counted = [...byClass].map(([kind, n]) => `${count(n)} ${kind.replace('-', ' ')}${n === 1 ? '' : 's'}`)
@@ -525,8 +991,18 @@ function drawnLayers(
     )
   if (onAlignment)
     notes.push(`${onAlignment} road line${onAlignment === 1 ? ' is' : 's are'} an imported alignment and left out.`)
+  if (bareDLines)
+    notes.push(
+      `${bareDLines === 1 ? '1 D-line has' : `${bareDLines} D-lines have`} no cable settings and ${bareDLines === 1 ? 'is a reference line' : 'are reference lines'}.`,
+    )
+  if (clamped)
+    notes.push(`${clamped} D-line heights or deflections outside PGMaps' limits are set to the nearest limit.`)
+  if (styled.length && looks.styles.length)
+    notes.push(`Reference layers take RoadEng's colours, line types and symbols (${looks.styles.length} looks).`)
+  if (lookLeft.size) notes.push(`Not carried over in their looks: ${[...lookLeft].slice(0, 5).join(' ')}`)
+  notes.push(...looks.notes)
   if (leftOut) notes.push(`${leftOut} drawn features are over the project's layer limits and left out.`)
-  return { context, cables, reference, notes }
+  return { context, cables, reference, styles: looks.styles, notes, classes }
 }
 
 /** Whether most of a line's points sit on an alignment's stations. */

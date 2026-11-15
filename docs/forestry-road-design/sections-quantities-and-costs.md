@@ -56,8 +56,20 @@ the optional delivered-cost borrow/waste allocation.
 - **A vertical alignment exists.** Without one, the formation follows the sampled centreline
   ground, so cut and fill come only from crossfall, ditches and batters.
 - **The right template at each station.** Check the template band on the profile and the section
-  name (`… · transition` inside a transition). A transition returns to the base section at the
-  end of its range; it does not blend into the next named template.
+  name (`… · transition` inside a transition). A range's **transition** blends from and back to
+  the base section inside each end of the range. Its **transition in** and **transition out**
+  instead blend from the section in force just before the range and to the one just after it
+  (another range's template, else the base section), as RoadEng's Taper template does: widths,
+  crossfalls, batters, ditch, surfacing, courses, the rock bench and matching components move
+  linearly by chainage between the two templates (`templateAt`, `templates.ts`). Where the two
+  differ in structure (components reordered, a component's type, condition, material or reference
+  changed, an anchored component added or removed, overlapping keys) the section steps from one to
+  the other at the transition's midpoint, and says so in its name (`A → B · transition, stepped at
+its midpoint`), under the assignment and on the profile band (`templateTransitions`). The two
+  transitions of one range share its length; a range uses either transition or transitions in and
+  out, and two ranges may not both transition at the boundary they share. The profile's template
+  band draws the full-strength part of a range darker than its transitions.
+  `templateTransitions.test.ts` pins that no transition, or 0, leaves every quantity unchanged.
 - **Material horizons entered.** Without horizons all cut is _unclassified excavation_ at the base
   cut rate, fully reusable at the reusable cut factor. The terrain says nothing about rock, soil
   or organics. Rock is a horizon whose material you mark **Rock**; see
@@ -88,6 +100,7 @@ the optional delivered-cost borrow/waste allocation.
 | Surfacing depth                      | 0–2 m                                                                                                                                     | `templates.ts` `validateTemplate`                                             | Calculation error                                                                |
 | Library and inputs per alignment     | 50 templates, 200 assignments, 32 materials, 200 horizons                                                                                 | `templates.ts` `validateEngineering`                                          | Calculation error; add buttons disable at the limit                              |
 | Assignment transition                | ≤ half its range; ≤ 1,000 m in files                                                                                                      | `validateEngineering`; `engineeringProject.ts`                                | Calculation error                                                                |
+| Transition in and out                | each 0 to the range's length, both together at most its length; ≤ 1,000 m in files                                                        | `validateEngineering`; `engineeringProject.ts`                                | Calculation error                                                                |
 | Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range                                                                                    | `engine.ts` `validate`, `widthExtras`                                         | Error; the form holds a typed taper to the room left and says so                 |
 | Design-speed rules                   | 1–150 km/h, e max 0–20 %, f 0–1, runoff 0–1,000 m, L 0–50 m                                                                               | `project.ts` `parseCurveDesign`                                               | File rejected                                                                    |
 | Curvature correction                 | applied while every centroid is inside the centre of curvature (\|k·e\| < 1); used in quantities only with `curvatureCorrection: 'apply'` | `curvedVolume.ts` `pappusVolume`; `engine.ts` `analyzeRoad`, `engineering.ts` | Interval left uncorrected and counted in the report sentence                     |

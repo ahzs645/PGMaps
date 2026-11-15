@@ -115,7 +115,12 @@ a before-and-after comparison possible. Showing another road, or a terrain profi
 2. Mark the range: drag along the profile (the drag marks the range instead of moving the station
    while **Drag on profile** is pressed; Escape stops it), type the from and to stations, or step
    to each end and press **From here** and **To here**.
-3. Press **Apply**.
+3. Optionally type a transition in **changing over … m each end**: the range then changes linearly
+   from the section before it, and back to the section after it, over that length at each end
+   (`transitionInM`, `transitionOutM`; see
+   [the right template at each station](sections-quantities-and-costs.md)). Blank or 0 steps. It
+   is at most half the range, and the base section, which clears the range, takes none.
+4. Press **Apply**.
 
 What is given to the range depends on the section at the selected station:
 
@@ -127,7 +132,8 @@ What is given to the range depends on the section at the selected station:
 
 Ranges already in the way are trimmed to make room, or split when they span the new one. A
 trimmed range with a transition keeps it, capped at half its new length, so it now blends back to
-the base section at the cut. A plain range of the same template that touches the new one is joined
+the base section at the cut. A trimmed range's transition in or out at the cut is removed, since
+the new range now meets it there; the list says so. A plain range of the same template that touches the new one is joined
 to it. Before any existing range changes, the pane lists each one and what happens to it, and
 waits for **Replace**. One undo (⌘Z / Ctrl+Z) takes the whole change back.
 
@@ -148,6 +154,7 @@ The section chart keeps at least 7 rem of the pane. The range form and the list 
 | A jump passes a place this close       | 1 mm             | `JUMP_TOLERANCE_M`, `stationJumps.ts`              |
 | Places of one kind merged into one     | within 0.5 m     | `JUMP_MERGE_M`                                     |
 | Shortest range a section is given to   | 1 m              | `MIN_SECTION_RANGE_M`, `sectionRangeApply.ts`      |
+| Transition at each end                 | 0–half the range | `planSectionRange`                                 |
 | A trimmed range shorter than this goes | 0.5 m            | `MIN_TRIMMED_PIECE_M`                              |
 | Templates in the library               | 50               | `MAX_TEMPLATES`; `validateEngineering`             |
 | Template station assignments           | 200              | `MAX_ASSIGNMENTS`; `validateEngineering`           |
@@ -183,6 +190,9 @@ opens or a flagged-station jump is made; both are cached per calculated road.
 - **"The template ranges cannot take this section: …".** Another template entry is already invalid
   (its message follows). Fix it under Design → Templates first.
 - **"… already has this section."** Nothing changed: the range already holds it.
+- **"Choose a transition from 0 to … m, half the range."** The typed transition is longer than
+  half the range. **"The base section is given by clearing the range…"**: a transition needs a
+  named section at the selected station.
 - **Use this section for… is greyed out.** A preview (draft, numeric peg, template or cost preview)
   or a terrain profile holds the views, or a task is running.
 - **The pinned outline is far off.** One of the two sections has no formation and no ground at the

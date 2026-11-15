@@ -87,6 +87,8 @@ import {
 } from './dev-forestry-roads/ProjectHeader'
 import { saveStateText } from './dev-forestry-roads/saveState'
 import {
+  lazy,
+  Suspense,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -135,11 +137,14 @@ import {
   geoJsonPreview,
   INVALID_INPUT_RULES,
   MULTI_ROAD_EXPORTS,
+  optimalHaulUnavailable,
   STYLE_LIBRARY_EXPORTS,
   textPreview,
   type ExportPreview,
   type RoadScope,
 } from './dev-forestry-roads/exportCatalog'
+import { SoftreeLocationOptions } from './dev-forestry-roads/SoftreeLocationOptions'
+import type { LocationAsciiOptions } from './dev-forestry-roads/softreeExports'
 import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
@@ -184,6 +189,10 @@ import { memoWithLatestHandlers } from '@/lib/memoWithLatestHandlers'
 import { SpatialImportDialog } from './dev-forestry-roads/SpatialImportDialog'
 import { TerrainImportDialog } from './dev-forestry-roads/TerrainImportDialog'
 import { PlaceOnMapDialog } from './dev-forestry-roads/PlaceOnMapDialog'
+// Loaded on first use: it carries the Softree file readers.
+const SoftreeCompareDialog = lazy(() =>
+  import('./dev-forestry-roads/SoftreeCompareDialog').then((m) => ({ default: m.SoftreeCompareDialog })),
+)
 import {
   applySpatialImport,
   buildSpatialImport,
@@ -635,6 +644,7 @@ export default function DevForestryRoads({
   } | null>(null)
   // A terrain import waiting to be told a CRS or vertical datum its files do not state.
   const [placingOnMap, setPlacingOnMap] = useState(false)
+  const [comparingRoadEng, setComparingRoadEng] = useState(false)
   const [terrainQuestion, setTerrainQuestion] = useState<{
     needs: TerrainImportNeeds
     resolve: (answers: TerrainImportAnswers | null) => void
@@ -912,6 +922,8 @@ export default function DevForestryRoads({
   const [roadScope, setRoadScope] = useState<RoadScope>('active')
   // A report package is the project's document: it starts with every road, other files with the one in view.
   const [packageScope, setPackageScope] = useState<RoadScope>('all')
+  // The Softree location ASCII file's options as set in Save & export; null follows the project.
+  const [locationAscii, setLocationAscii] = useState<LocationAsciiOptions | null>(null)
   // The preliminary estimate is a project document too, and shares the package's choice.
   const scopeFor = (kind: RoadExport) =>
     kind === 'report-package' || kind === 'estimate-pdf' ? packageScope : roadScope
@@ -2286,13 +2298,13 @@ export default function DevForestryRoads({
     if (fileRef.current) {
       fileRef.current.accept =
         kind === 'terrain'
-          ? '.tif,.tiff,.las,.laz,.terx'
+          ? '.tif,.tiff,.las,.laz,.terx,.txt,.csv'
           : kind === 'project'
-            ? '.json,.dsnx,.terx,.zip'
+            ? '.json,.dsnx,.terx,.zip,.ilt'
             : kind === 'landxml'
               ? '.xml,application/xml,text/xml'
               : kind === 'alignment'
-                ? `${SPATIAL_ACCEPT},.xml,application/xml,text/xml,.dsnx`
+                ? `${SPATIAL_ACCEPT},.xml,application/xml,text/xml,.dsnx,.txt,.csv`
                 : SPATIAL_ACCEPT
       // Several LAS/LAZ tiles of one job import together as one surface; a RoadEng design comes
       // with its terrain files.
@@ -2344,7 +2356,7 @@ export default function DevForestryRoads({
           verticalDatum: { files: withGround.map((t) => t.name) },
         })
       try {
-        return roadEngProject([...collected.designs, ...collected.terrains], {
+        return roadEngProject([...collected.designs, ...collected.terrains, ...collected.layouts], {
           newId: uid,
           color: (index) => colors[((target ? 0 : project.alignments.length) + index) % colors.length],
           template: { ...alignment.template },
@@ -2367,8 +2379,27 @@ export default function DevForestryRoads({
       w.setNotice('RoadEng import cancelled. Nothing was changed.')
       return
     }
+    // RoadEng's own Terrain1.ter goes to this browser's file store, and the project names it by checksum.
+    let keptFile = ''
+    if (result.originalTer) {
+      const [{ sha256Hex }, { storeRoadEngOriginal }, { withRoadEngOriginal }] = await Promise.all([
+        import('./dev-forestry-roads/roadEngTerrainOriginal'),
+        import('./dev-forestry-roads/roadEngTerrainStore'),
+        import('./dev-forestry-roads/roadEngProject'),
+      ])
+      const sha256 = await sha256Hex(result.originalTer.bytes)
+      try {
+        await storeRoadEngOriginal(sha256, result.originalTer.bytes)
+        keptFile = 'Its Terrain1.ter is kept in this browser, so the terrain goes back to RoadEng as read.'
+      } catch {
+        keptFile =
+          'Its Terrain1.ter could not be kept in this browser, so a RoadEng project written from here takes the grid as its ground.'
+      }
+      if (signal.aborted) return
+      result.terrain = withRoadEngOriginal(result.terrain, { record: result.originalTer.record, sha256 })
+    }
     const label = files.map((f) => f.name).join(', ')
-    const notice = result.notes.join(' ')
+    const notice = [...result.notes, keptFile].filter(Boolean).join(' ')
     if (target) {
       const name = target.newProject ?? result.name
       const roads = result.roads.map((road) => road.alignment)
@@ -2387,8 +2418,11 @@ export default function DevForestryRoads({
           context: result.context,
           cables: result.cables,
           reference: result.reference,
+          ...(result.riggingSets.length ? { riggingSets: result.riggingSets } : {}),
+          ...(result.mapNotes.length ? { notes: result.mapNotes } : {}),
+          ...(result.referenceStyles.length ? { referenceStyles: result.referenceStyles } : {}),
           profiles: [],
-          settings: project.settings,
+          settings: result.fillRate === null ? project.settings : { ...project.settings, fillRate: result.fillRate },
         }),
       )
       const existing = w.library.find((entry) => entry.name === opened.name)
@@ -2411,6 +2445,7 @@ export default function DevForestryRoads({
     } else {
       const source = terrainFromMetadata(result.terrain)
       if (!source) throw Error('The RoadEng terrain could not be read as ground.')
+      const { mergeRoadEngParts } = await import('./dev-forestry-roads/roadEngProject')
       if (
         !commitValidated({
           ...project,
@@ -2418,6 +2453,7 @@ export default function DevForestryRoads({
           context: [...project.context, ...result.context],
           cables: [...project.cables, ...result.cables],
           reference: [...(project.reference ?? []), ...result.reference],
+          ...mergeRoadEngParts(project, result),
           scenario: undefined,
         })
       )
@@ -2427,6 +2463,99 @@ export default function DevForestryRoads({
     }
     w.enablePersistence()
     setActiveProfile(null)
+    setFitRevision((n) => n + 1)
+  }
+  /** Where a Softree ASCII file's metres go: the CRS asked for, or this project's flat plane. */
+  const softreePlacement = async (answers: TerrainImportAnswers) => {
+    const { gridToLonLat } = await import('./dev-forestry-roads/landXmlImport')
+    const { localPlaneProjection } = await import('./dev-forestry-roads/localPlane')
+    const plane = project.terrain.epsg === LOCAL_PLANE_EPSG ? project.terrain.localPlane : undefined
+    if (plane) return { plane, toLonLat: localPlaneProjection(plane.offsetM).toLonLat }
+    return answers.epsg === undefined ? null : { epsg: answers.epsg, toLonLat: gridToLonLat(answers.epsg) }
+  }
+  /**
+   * A Softree terrain ASCII file as the terrain (`softreeImport.ts`). It states no units, coordinate
+   * system or vertical datum, so each is asked; a project on a flat plane takes it in its plane.
+   */
+  const loadSoftreeTerrain = async (file: File, answers: TerrainImportAnswers) => {
+    const { softreeTerrainAsciiGround, softreeTerrainExtent } = await import('./dev-forestry-roads/softreeImport')
+    const { parseSoftreeTerrainAscii } = await import('./dev-forestry-roads/softreeAscii')
+    const text = await file.text()
+    const placement = await softreePlacement(answers)
+    const needs: TerrainImportNeeds = {
+      ...(answers.unitM === undefined ? { units: { files: [file.name], stated: null } } : {}),
+      ...(placement
+        ? {}
+        : {
+            crs: {
+              files: [file.name],
+              bounds: softreeTerrainExtent(parseSoftreeTerrainAscii(text)),
+              subject: 'drawing' as const,
+            },
+          }),
+      ...(answers.verticalReference?.trim() ? {} : { verticalDatum: { files: [file.name] } }),
+    }
+    if (!placement || answers.unitM === undefined || !answers.verticalReference?.trim())
+      throw new TerrainImportQuestion(
+        `${file.name} is a Softree terrain ASCII file, which states no units, coordinate system or vertical datum.`,
+        needs,
+      )
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+    const sha256 = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('')
+    const { metadata, notes } = softreeTerrainAsciiGround(text, {
+      fileName: file.name,
+      unitM: answers.unitM,
+      placement,
+      verticalReference: answers.verticalReference,
+      sha256,
+    })
+    const source = terrainFromMetadata(metadata)
+    if (!source) throw Error(`${file.name} could not be read as ground.`)
+    return { metadata, source, summary: notes.join(' ') }
+  }
+  /** A Softree location ASCII coordinate file as a new road (`softreeImport.ts`), units and CRS asked. */
+  const importSoftreeLocation = async (file: File, signal: AbortSignal) => {
+    const { softreeLocationRoad, softreeLocationExtent } = await import('./dev-forestry-roads/softreeImport')
+    const { parseSoftreeLocationAscii } = await import('./dev-forestry-roads/softreeAscii')
+    const text = await file.text()
+    const imported = await importTerrainWithAnswers(async (answers) => {
+      const placement = await softreePlacement(answers)
+      if (!placement || answers.unitM === undefined)
+        throw new TerrainImportQuestion(
+          `${file.name} is a Softree location coordinate file, which states no units or coordinate system.`,
+          {
+            ...(answers.unitM === undefined ? { units: { files: [file.name], stated: null } } : {}),
+            ...(placement
+              ? {}
+              : {
+                  crs: {
+                    files: [file.name],
+                    bounds: softreeLocationExtent(parseSoftreeLocationAscii(text)),
+                    subject: 'alignment' as const,
+                  },
+                }),
+          },
+        )
+      return softreeLocationRoad(text, {
+        fileName: file.name,
+        unitM: answers.unitM,
+        placement,
+        id: uid(),
+        color: colors[project.alignments.length % colors.length],
+        template: { ...alignment.template },
+      })
+    }, askTerrain)
+    if (signal.aborted) return
+    if (!imported) {
+      w.setNotice(`Import of ${file.name} cancelled. Nothing was changed.`)
+      return
+    }
+    if (roadCount(project) + 1 > MAX_PROJECT_ROADS)
+      throw Error(`A project holds at most ${MAX_PROJECT_ROADS} roads. Remove one before importing another.`)
+    // A new road only: an import never replaces the active road.
+    if (!commitValidated(withAddedAlignments(project, [imported.alignment]))) return
+    w.setNotice(`Imported from ${file.name}. ${imported.notes.join(' ')}`)
+    w.enablePersistence()
     setFitRevision((n) => n + 1)
   }
   const importFile = (files: File[]) => {
@@ -2455,13 +2584,28 @@ export default function DevForestryRoads({
         const { isRoadEngDesign } = await import('./dev-forestry-roads/roadEngImport')
         if (isRoadEngDesign(new Uint8Array(await file.slice(0, 4096).arrayBuffer()))) fileKind.current = 'roadeng'
         else if (isLandXml(await file.slice(0, 4096).text())) fileKind.current = 'landxml'
+        else {
+          const { isSoftreeLocationAscii } = await import('./dev-forestry-roads/softreeAscii')
+          if (isSoftreeLocationAscii(await file.slice(0, 64_000).text())) {
+            await importSoftreeLocation(file, signal)
+            return
+          }
+        }
       }
       if (fileKind.current === 'terrain') {
         const name = pendingProject.current
         pendingProject.current = null
         const clouds = files.filter((f) => /\.la[sz]$/i.test(f.name))
-        const unknown = files.find((f) => !/\.(la[sz]|tiff?)$/i.test(f.name))
-        if (unknown) throw Error(`${unknown.name} is not terrain this import reads. Use a GeoTIFF (.tif), LAS or LAZ.`)
+        // A Softree terrain ASCII file is known by its content, whatever its name.
+        const softree =
+          files.length === 1 &&
+          !/\.(la[sz]|tiff?)$/i.test(file.name) &&
+          (await import('./dev-forestry-roads/softreeAscii')).isSoftreeTerrainAscii(await file.slice(0, 64_000).text())
+        const unknown = softree ? undefined : files.find((f) => !/\.(la[sz]|tiff?)$/i.test(f.name))
+        if (unknown)
+          throw Error(
+            `${unknown.name} is not terrain this import reads. Use a GeoTIFF (.tif), LAS, LAZ or a Softree terrain ASCII file.`,
+          )
         if (files.length > 1 && clouds.length !== files.length)
           throw Error(
             'Choose one GeoTIFF, or one or more LAS/LAZ tiles. To join GeoTIFFs, use Prepare and combine terrain → Add GeoTIFFs to ground mosaic.',
@@ -2469,17 +2613,19 @@ export default function DevForestryRoads({
         // Whatever the files do not state is asked for here, for this import only.
         const loaded = await importTerrainWithAnswers(
           (answers) =>
-            clouds.length
-              ? loadLas(file, answers.verticalReference ?? '', {
-                  ...pointCloud,
-                  additionalFiles: files.slice(1),
-                  assumedEpsg: answers.epsg,
-                  preservePath: alignment.points.map((point) => point.coordinate),
-                  breaklines: breaklines?.data,
-                  signal,
-                  onProgress: (message) => w.setBusy(`${label}: ${message}`),
-                })
-              : loadRaster(file, answers.verticalReference ?? '').then((raster) => ({ ...raster, summary: '' })),
+            softree
+              ? loadSoftreeTerrain(file, answers)
+              : clouds.length
+                ? loadLas(file, answers.verticalReference ?? '', {
+                    ...pointCloud,
+                    additionalFiles: files.slice(1),
+                    assumedEpsg: answers.epsg,
+                    preservePath: alignment.points.map((point) => point.coordinate),
+                    breaklines: breaklines?.data,
+                    signal,
+                    onProgress: (message) => w.setBusy(`${label}: ${message}`),
+                  })
+                : loadRaster(file, answers.verticalReference ?? '').then((raster) => ({ ...raster, summary: '' })),
           askTerrain,
           { verticalReference },
         )
@@ -2930,7 +3076,10 @@ export default function DevForestryRoads({
       )
     if (calculated && (draftAlignment || numericPegAlignment || templatePreview || costPreview))
       throw Error('Finish or close the design preview before exporting calculated results.')
-    if (calculated && !displayedAnalysis.stations.length)
+    // A RoadEng terrain opened on its own goes back whole, with no road to calculate.
+    const terrainOnlyRoadEng =
+      kind === 'roadeng-project' && project.alignments.every((road) => road.id === project.designPlaceholderId)
+    if (calculated && !terrainOnlyRoadEng && !displayedAnalysis.stations.length)
       throw Error('Calculated results are unavailable. Resolve the model errors before exporting results.')
     const invalid = exportInvalidInput(kind)
     if (invalid && INVALID_INPUT_RULES[kind] === 'refuse')
@@ -2950,34 +3099,71 @@ export default function DevForestryRoads({
     const { roadEngExportGrid } = await import('./dev-forestry-roads/roadEngProjectExport')
     return roadEngExportGrid(project.terrain, exportGrid(project.terrain, alignment.points[0].coordinate))
   }
-  /** The roads an export covers as a RoadEng design, in the same grid as LandXML and DXF. */
+  /**
+   * The roads an export covers as a RoadEng design, in the same grid as LandXML and DXF. A road read
+   * from RoadEng goes back in its own grid and station frame with its kept settings and the edits
+   * made here (`roadEngDesignRoads`).
+   */
   const roadEngFile = async (safe: RoadProject) => {
-    const { roadEngDesign } = await import('./dev-forestry-roads/roadEngExport')
+    const [{ roadEngDesign }, { roadEngDesignRoads }] = await Promise.all([
+      import('./dev-forestry-roads/roadEngExport'),
+      import('./dev-forestry-roads/roadEngProjectExport'),
+    ])
     const roads = exportRoads(safe.alignments, alignment.id, roadScope)
     const grid = await roadEngGrid()
-    const written = roadEngDesign(
+    const designSpeedKmh = project.standards?.designSpeedKmh ?? undefined
+    const prepared = roadEngDesignRoads(
       roads.map((road) => ({ alignment: road, analysis: w.analyses.get(road.id) })),
       grid.toGrid,
-      { designSpeedKmh: project.standards?.designSpeedKmh ?? undefined },
+      grid.epsg,
+      { fillRate: safe.settings.fillRate, designSpeedKmh, gridFor: roadEngGridFor },
     )
-    return { ...written, roads: roads.length, epsg: grid.epsg }
+    const written = roadEngDesign(prepared.roads, grid.toGrid, { designSpeedKmh })
+    return { ...written, notes: [...prepared.notes, ...written.notes], roads: roads.length, epsg: grid.epsg }
   }
-  /** The same roads with their terrain and the project's drawn layers, as a zipped RoadEng project. */
+  /** A grid for a CRS a road was read from RoadEng in, when it is not the export grid's. */
+  const roadEngGridFor = (epsg: number) => {
+    try {
+      return exportGrid({ ...project.terrain, epsg }, alignment.points[0].coordinate).toGrid
+    } catch {
+      return null
+    }
+  }
+  /**
+   * The same roads with their terrain and the project's drawn layers, rigging sets, map notes and
+   * reference looks, as a zipped RoadEng project; a terrain read from RoadEng keeps its own parts,
+   * and goes back over its own Terrain1.ter (from this browser's file store) while it is unchanged.
+   */
   const roadEngProjectFile = async (safe: RoadProject) => {
     const { roadEngProjectExport } = await import('./dev-forestry-roads/roadEngProjectExport')
     const roads = exportRoads(safe.alignments, alignment.id, roadScope)
     const grid = await roadEngGrid()
+    const originalRef = safe.terrain.roadEngSource?.original
+    const originalTer = originalRef
+      ? await (await import('./dev-forestry-roads/roadEngTerrainStore')).readRoadEngOriginal(originalRef)
+      : null
+    // A project that is only its terrain (a placeholder road) writes the whole terrain.
+    const terrainOnly = roads.every((road) => road.id === safe.designPlaceholderId)
     const written = roadEngProjectExport({
       name: safe.name,
-      roads: roads.map((road) => ({ alignment: road, analysis: w.analyses.get(road.id) })),
+      roads: terrainOnly ? [] : roads.map((road) => ({ alignment: road, analysis: w.analyses.get(road.id) })),
       grid,
       context: safe.context,
       cables: safe.cables,
       reference: safe.reference ?? [],
       elevationAt: (c) => source.elevationAt(c[0], c[1]),
       designSpeedKmh: project.standards?.designSpeedKmh ?? undefined,
+      fillRate: safe.settings.fillRate,
+      riggingSets: safe.riggingSets ?? [],
+      notes: safe.notes ?? [],
+      referenceStyles: safe.referenceStyles ?? [],
+      terrainSource: safe.terrain.roadEngSource ?? null,
+      terrain: safe.terrain,
+      originalTer,
+      gridFor: roadEngGridFor,
+      wholeTerrain: terrainOnly,
     })
-    return { ...written, roads: roads.length, epsg: grid.epsg }
+    return { ...written, roads: terrainOnly ? 0 : roads.length, epsg: grid.epsg }
   }
   /** One road's plot book page, with contours over the road's extent from the same terrain source. */
   const plotBookFor = async (
@@ -3043,6 +3229,106 @@ export default function DevForestryRoads({
       },
       { encodePng, SQL: needsSql ? await loadSqlJs() : undefined },
     )
+  }
+  /** The location ASCII file's options: as set in Save & export, else the project's unit from station 0. */
+  const locationAsciiOptions = (): LocationAsciiOptions =>
+    locationAscii ?? {
+      unitM: Math.abs((project.terrain.localPlane?.unitM ?? 1) - 0.3048) < 1e-9 ? 0.3048 : 1,
+      startStationM: 0,
+      delimiter: ',',
+      singleLine: false,
+    }
+  /** The Softree Optimal API inputs of the road on screen (`softreeExports.ts`), one CSV each. */
+  const optimalInputs = async (safe: RoadProject, basename: string) => {
+    const s = await import('./dev-forestry-roads/softreeExports')
+    const road = safe.alignments.find((a) => a.id === alignment.id) ?? alignment
+    return s.optimalInputFiles(road.engineering, safe.settings, s.softreeUnits(project.terrain), basename)
+  }
+  /**
+   * A Softree file of the road on screen (`softreeExports.ts`), in the project's units: RoadEng's haul
+   * exports, the Optimal files, and the location and terrain ASCII files, in the RoadEng export's grid.
+   */
+  const softreeFile = async (
+    kind: Extract<
+      RoadExport,
+      | 'mass-haul-csv'
+      | 'optimal-haul-csv'
+      | 'optimal-areas-csv'
+      | 'optimal-inputs'
+      | 'softree-location-ascii'
+      | 'softree-terrain-ascii'
+    >,
+    safe: RoadProject,
+    basename: string,
+  ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
+    const s = await import('./dev-forestry-roads/softreeExports')
+    const road = safe.alignments.find((a) => a.id === alignment.id) ?? alignment
+    const units = s.softreeUnits(project.terrain)
+    const inUnits = units === 'imperial' ? ' in feet and cubic yards, as the project’s RoadEng design' : ''
+    const csvFile = (content: string, suffix: string, notice: string) => ({
+      content,
+      filename: `${basename}-${suffix}.csv`,
+      mime: 'text/csv;charset=utf-8',
+      notice,
+    })
+    switch (kind) {
+      case 'mass-haul-csv':
+        return csvFile(
+          s.massHaulCsvFile(analysis, road.engineering, units),
+          'mass-haul',
+          `RoadEng mass haul downloaded${inUnits}.`,
+        )
+      case 'optimal-haul-csv': {
+        const written = s.optimalHaulCsvFile(analysis, road.engineering, units)
+        return csvFile(
+          written.text,
+          'optimal-haul',
+          [`RoadEng optimal haul downloaded${inUnits}.`, ...written.leftOut].join(' '),
+        )
+      }
+      case 'optimal-areas-csv': {
+        const grid = await roadEngGrid()
+        return csvFile(
+          s.optimalAreasCsvFile(analysis, road.engineering, grid.toGrid, units),
+          'optimal-areas',
+          `Softree Optimal areas downloaded${inUnits}, in ${grid.epsg === null ? 'the design file’s own coordinates' : `EPSG:${grid.epsg} grid coordinates`}.`,
+        )
+      }
+      case 'optimal-inputs': {
+        const { default: JSZip } = await import('jszip')
+        const zip = new JSZip()
+        for (const file of await optimalInputs(safe, basename)) zip.file(file.path, file.content)
+        return {
+          content: await zip.generateAsync({ type: 'blob' }),
+          filename: `${basename}-optimal-inputs.zip`,
+          mime: 'application/zip',
+          notice: `Softree Optimal materials, pits and cost model downloaded${inUnits}.`,
+        }
+      }
+      case 'softree-location-ascii': {
+        const grid = await roadEngGrid()
+        const options = locationAsciiOptions()
+        return {
+          content: s.locationAsciiFile(road, analysis, grid.toGrid, options),
+          filename: `${basename}-location.txt`,
+          mime: 'text/plain',
+          notice: `Softree location ASCII downloaded in ${options.unitM === 1 ? 'metres' : 'feet'}, ${grid.epsg === null ? 'in the design file’s own coordinates' : `in EPSG:${grid.epsg} grid coordinates`}, from station ${options.startStationM.toFixed(3)} m.`,
+        }
+      }
+      case 'softree-terrain-ascii': {
+        const zipped = await roadEngProjectFile(safe)
+        const written = s.terrainAsciiFromRoadEngProject(zipped.bytes)
+        return {
+          content: written.text,
+          filename: `${basename}-terrain.txt`,
+          mime: 'text/plain',
+          notice: [
+            `Softree terrain ASCII downloaded, ${zipped.epsg === null ? 'in the design file’s own coordinates' : `in EPSG:${zipped.epsg} grid coordinates`}: the RoadEng project's terrain.`,
+            ...written.notes,
+          ].join(' '),
+        }
+      }
+    }
   }
   /**
    * One output's file, built the same way for its download and its preview. The PDFs are not here:
@@ -3204,7 +3490,7 @@ export default function DevForestryRoads({
           filename: written.fileName,
           mime: 'application/zip',
           notice: [
-            `RoadEng project downloaded: ${written.roads} road${written.roads === 1 ? '' : 's'} with terrain and layers, in ${written.epsg === null ? 'the design file’s own coordinates' : `EPSG:${written.epsg} grid metres`}.`,
+            `RoadEng project downloaded: ${written.roads ? `${written.roads} road${written.roads === 1 ? '' : 's'} with terrain and layers` : 'its terrain and layers'}, in ${written.epsg === null ? 'the design file’s own coordinates' : `EPSG:${written.epsg} grid metres`}.`,
             ...written.notes,
           ].join(' '),
         }
@@ -3222,6 +3508,14 @@ export default function DevForestryRoads({
           ].join(' '),
         }
       }
+      case 'mass-haul-csv':
+      case 'optimal-haul-csv':
+      case 'optimal-areas-csv':
+      case 'optimal-inputs':
+      case 'softree-location-ascii':
+      case 'softree-terrain-ascii':
+        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
+        return softreeFile(kind, safe, basename)
       case 'landxml':
       case 'stakeout': {
         if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
@@ -3714,6 +4008,7 @@ export default function DevForestryRoads({
       logo: blockSheet.logo,
       branding,
       styleLibraryRevision,
+      locationAscii,
     }),
     [
       project,
@@ -3728,6 +4023,7 @@ export default function DevForestryRoads({
       blockSheet.logo,
       branding,
       styleLibraryRevision,
+      locationAscii,
     ],
   )
   /** What the Save & export dialog shows for one output, from the content its download writes. */
@@ -3784,9 +4080,18 @@ export default function DevForestryRoads({
       const capture = await mapImage(map, signal)
       return { type: 'image', src: capture.image, width: capture.width, height: capture.height }
     }
+    if (kind === 'optimal-inputs') {
+      // The zip holds three CSV files; preview each under its name.
+      const files = await optimalInputs(safe, exportBasis(kind).basename)
+      return textPreview(files.map((file) => `${file.path}\n${file.content}`).join('\n'))
+    }
     if (kind === 'roadeng-project') {
-      const written = await roadEngProjectFile(safe)
-      return textPreview(written.notes.join('\n') || 'The design and its terrain, zipped.')
+      // The zip is binary: preview what goes back to RoadEng unchanged, rewritten and left out.
+      const [written, { roadEngCarryOverHtml }] = await Promise.all([
+        roadEngProjectFile(safe),
+        import('./dev-forestry-roads/roadEngTerrainOriginal'),
+      ])
+      return { type: 'html', html: roadEngCarryOverHtml(written.carryOver, written.notes) }
     }
     if (kind === 'roadeng') {
       // The archive is binary; preview the first road's line records, as written.
@@ -4353,8 +4658,11 @@ export default function DevForestryRoads({
     hasTerrainGrid: !!project.terrain.raster,
     hasProvincialEvidence: !!project.provincialStreamData,
     hasNotes: !!project.notes?.length,
+    terrainOnly:
+      !!project.terrain.raster && project.alignments.every((road) => road.id === project.designPlaceholderId),
     hasStreams: project.context.some((feature) => feature.kind === 'stream'),
     dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
+    optimalHaulUnavailable: optimalHaulUnavailable(analysis.engineering?.haul),
   }
   const commands: Record<WorkspaceCommand, () => void> = {
     branding: () => setBrandingOpen(true),
@@ -4402,6 +4710,7 @@ export default function DevForestryRoads({
     regional: () => loadTerrain('regional'),
     detailedDem: () => openDetailArea(),
     placeOnMap: () => setPlacingOnMap(true),
+    compareRoadEng: () => setComparingRoadEng(true),
     peg: () => drawFromRibbon('road'),
     extend: () => drawFromRibbon('extend'),
     editPoints: () => drawFromRibbon('edit'),
@@ -4552,6 +4861,11 @@ export default function DevForestryRoads({
     profile: { disabled: noRoad && !terrainProfile, reason: noRoadReason },
     landing: { disabled: designResultsUnavailable, reason: resultsReason },
     compare: { disabled: roadCount(project) < 2, reason: 'Needs two or more roads.' },
+    compareRoadEng: {
+      disabled: designResultsUnavailable || !analysis.stations.length,
+      reason: resultsReason ?? 'The road has no calculated results yet.',
+      pressed: comparingRoadEng,
+    },
     cable: { disabled: editLocked, reason: lockedReason, pressed: mode === 'cable' },
     network: { disabled: noRoad, reason: noRoadReason },
     fullCosts: { disabled: editLocked || noRoad, reason: lockedReason ?? noRoadReason },
@@ -5117,6 +5431,13 @@ export default function DevForestryRoads({
         previewVersion={exportPreviewVersion}
         setupViews={{
           'block-sheet-pdf': blockSheet.setup,
+          'softree-location-ascii': (
+            <SoftreeLocationOptions
+              value={locationAsciiOptions()}
+              onChange={setLocationAscii}
+              projectUnitM={project.terrain.localPlane?.unitM ?? 1}
+            />
+          ),
           ...Object.fromEntries(
             STYLE_LIBRARY_EXPORTS.map((kind) => [
               kind,
@@ -5124,7 +5445,10 @@ export default function DevForestryRoads({
             ]),
           ),
         }}
-        setupLabels={Object.fromEntries(STYLE_LIBRARY_EXPORTS.map((kind) => [kind, 'Styles']))}
+        setupLabels={{
+          ...Object.fromEntries(STYLE_LIBRARY_EXPORTS.map((kind) => [kind, 'Styles'])),
+          'softree-location-ascii': 'Options',
+        }}
         blockSheetSettings={{ value: blockSheet.settings, onApply: blockSheet.apply }}
       />
       <CostBreakdown
@@ -5283,6 +5607,18 @@ export default function DevForestryRoads({
           importFile(files)
         }}
       />
+      {comparingRoadEng && (
+        <Suspense fallback={null}>
+          <SoftreeCompareDialog
+            alignment={alignment}
+            analysis={analysis}
+            terrain={project.terrain}
+            portalContainer={ref.current}
+            onStation={setStation}
+            onClose={() => setComparingRoadEng(false)}
+          />
+        </Suspense>
+      )}
       {placingOnMap && project.terrain.localPlane && (
         <PlaceOnMapDialog
           project={project}

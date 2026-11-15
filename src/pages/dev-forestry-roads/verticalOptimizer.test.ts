@@ -593,3 +593,45 @@ describe('profile optimizer with a loaded direction', () => {
     expect(log['Grade limit']).toBe('18% favourable, 4% adverse, loaded end to start')
   })
 })
+
+describe('profile optimizer minimum curve and tangent lengths', () => {
+  const lengthsOf = (alignment: Alignment) => {
+    const curves = verticalCurveSummary(alignment).filter((c) => c.valid && c.length > 0)
+    return {
+      curves: curves.map((c) => c.length),
+      tangents: curves.slice(1).map((c, k) => c.start - curves[k].end),
+    }
+  }
+
+  it('gives every curve at least the minimum length and every tangent between curves its minimum', () => {
+    const terrain = hillside()
+    const free = road(600, { verticalStandards: standards })
+    const unlimited = optimizeVerticalProfile(free, 600, terrain, settings, { k: 4 })
+    const before = lengthsOf({ ...free, vertical: unlimited.vertical })
+    // Without minimums the line has curves shorter than the ones asked for below.
+    expect(Math.min(...before.curves)).toBeLessThan(60)
+    const limited = road(600, { verticalStandards: { ...standards, minCurveLengthM: 60, minTangentLengthM: 40 } })
+    // PVIs 100 m apart leave room for a 60 m curve and a 40 m tangent between neighbours.
+    const result = optimizeVerticalProfile(limited, 600, terrain, settings, { k: 4, pviSpacingM: 100 })
+    const after = lengthsOf({ ...limited, vertical: result.vertical })
+    expect(after.curves.length).toBeGreaterThan(0)
+    expect(Math.min(...after.curves)).toBeGreaterThanOrEqual(60 - 1e-6)
+    if (after.tangents.length) expect(Math.min(...after.tangents)).toBeGreaterThanOrEqual(40 - 1e-6)
+    // The engine finds nothing to flag on the line returned, and Review reads the same checks.
+    const checked = analyzeRoad({ ...limited, vertical: result.vertical }, terrain, settings)
+    expect((checked.verticalChecks ?? []).filter((c) => c.kind === 'curve-length' || c.kind === 'tangent')).toEqual([])
+    expect(verticalOptimizationLog(result.report).some((row) => /curves ≥ 60 m/.test(String(row.value)))).toBe(true)
+  })
+
+  it('rounds each break with the minimum curve length when no K is asked for', () => {
+    const terrain = hillside()
+    const noK = { ...standards, minSagK: null, minCrestK: null, minCurveLengthM: 50 }
+    const alignment = road(600, { verticalStandards: noK })
+    const result = optimizeVerticalProfile(alignment, 600, terrain, settings, { k: 0 })
+    const curves = verticalCurveSummary({ ...alignment, vertical: result.vertical })
+    const breaks = result.vertical.slice(1, -1)
+    expect(breaks.length).toBeGreaterThan(0)
+    for (const pvi of breaks) expect(pvi.curveLength).toBeGreaterThanOrEqual(50 - 1e-6)
+    expect(curves.every((c) => c.valid)).toBe(true)
+  })
+})

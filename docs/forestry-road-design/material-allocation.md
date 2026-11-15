@@ -171,6 +171,69 @@ The what-if is not the allocation. The solver prices every movement and respects
 direction and blocked ranges, sites and sidecast; a balance line does none of that. Use it to see
 where the curve balances at a chosen level, not to replace the reported haul.
 
+## RoadEng and Softree Optimal haul files
+
+Save & export writes the haul four ways Softree's tools read (`softreeExports.ts` over
+`softreeHaulCsv.ts`), for the road on screen:
+
+- **RoadEng mass haul** (`.csv`): the mass-haul curve's balance items as RoadEng's Mass Haul export
+  (free haul, over haul, borrow and waste, with their stations, centroids and over-haul m³·m),
+  found from the curve balanced on zero by the same layer method as the what-if balance line. It
+  describes the curve, not the solved allocation.
+- **RoadEng optimal haul** (`.csv`): the solved allocation as RoadEng's Optimal Haul export (cost,
+  volume, pit and movement summaries, movement and pit details, the detailed movement summary). It
+  needs haul allocation on and a solved plan; otherwise the export says which is missing. What the
+  file has no column for (waste-disposal and sidecast charges, surfacing, clearing, structures,
+  mobilization, contingency) is named, with its amount, in the download notice.
+- **Softree Optimal areas** (`.csv`): cut and fill areas by material at each station at the
+  design's own level, in the RoadEng export's grid, as the Areas file Softree Optimal reads.
+- **Softree Optimal inputs** (`.zip`): the materials (each ground type by its code, and unclassified
+  excavation `UC` at the project's cut rate), the borrow and waste sites as pits, and the haul cost
+  model, one CSV each.
+
+Volumes are compacted (fill-equivalent) m³, as the mass-haul diagram draws them. None of the files
+states its units: a project opened from a RoadEng design in feet writes feet and cubic yards
+(`softreeUnits`), every other project metres. All four are refused while a road input is invalid.
+
+### Compare with RoadEng
+
+**Compare with RoadEng…** (Review → Design checks; `compareRoadEng`) reads a RoadEng Mass Haul
+export, a RoadEng Optimal Haul export or a Softree Optimal Areas file and sets it beside the same
+file made from the active road's results (`SoftreeCompareDialog.tsx` over `softreeCompare.ts`, which
+calls `compareMassHaul`, `compareOptimalHaul` and `compareOptimalAreas`). The file stays in the
+dialog: reading it never writes to the project, and **Download comparison CSV** saves the
+comparison, not a project export.
+
+- **Which file.** Told by content, never by name: a `Cut Vol` header row is a Mass Haul export, an
+  Optimal Haul section title (`Cost summary`, `Volume summary`…) an Optimal Haul export, and a
+  `version` / `no. station` header ending at `data start:` an Areas file. Anything else is refused
+  and the message says what was looked for.
+- **Units.** The files state none. **Units in the file** starts at the project's (`softreeUnits`)
+  and can be changed; every value is compared and shown in metric.
+- **Stations.** **File's first station** starts at the station a RoadEng design's file began at
+  (`roadEngSource.startStation`, scaled by its `stationScale`) and at 0 for any other road. The files
+  Save & export writes start at 0, so set it to 0 to compare those with a road read from RoadEng.
+- **The road's side** is written in the chosen units and read back, so both sides carry the files'
+  precision: a road's own export, loaded back, shows no difference at all.
+- **What is shown.** Totals side by side (Mass Haul: each type's volume and over-haul; Optimal
+  Haul: the cost total and each volume column over all materials; Areas: cut and fill volume by
+  average end area between neighbouring stations both sides hold), with the difference and its
+  percentage of the file's value. Then every item or station row, those that differ first and the
+  largest relative difference first; *Differences only* hides the rest. A row's station button
+  moves the workspace's station there, which the plan, profile and section follow. Last, what only
+  the file has and what only the road has: mass-haul items no item of the same type overlaps,
+  materials or pits on one side only, Areas stations with no record within 0.01 m.
+- **Tolerance.** Two values agree within the larger of the files' rounding (0.05 m³, 0.01 m,
+  0.005 m², 1 m³·m, $0.05) and **Agree within** of the larger value (0.1 % unless changed). A value
+  only one side has never agrees. The dialog prints the tolerance it used.
+- **Refusals.** The command is off while the road has no calculated results. An Optimal Haul
+  export needs haul allocation on and a solved plan, and the message says so ("This is a RoadEng
+  Optimal Haul export, and the road's side cannot be made: Turn on haul allocation first.").
+
+No RoadEng-written Mass Haul, Optimal Haul or Areas file is among Softree's sample projects, so the
+comparison is checked against the road's own exports with values changed by hand
+(`softreeCompare.test.ts`, `tests/e2e/forestry-road-softree-compare.spec.ts`).
+
 ## Limits and verification
 
 | Limit                                                                                                         | Enforcing constant / behavior                                                                 |
@@ -183,6 +246,11 @@ where the curve balances at a chosen level, not to replace the reported haul.
 | 2,048 branch iterations; 3-second integer-search timeout                                                      | `MAX_ALLOCATION_BRANCHES`, solver options                                                     |
 | Simplex pivots per phase: 4 per tableau row, at least 256 and at most 10,000                                  | `allocationPivotLimit`, `ALLOCATION_PIVOTS_PER_ROW`, `MAX_ALLOCATION_PIVOTS`                  |
 | What-if balance line: 400 layers per loop plus one break at every vertex height; within the curve's own range | `BALANCE_LINE_LAYERS`, `balanceLevelRange`, `balanceLine.ts`                                  |
+| Mass Haul export: 400 layers per loop, as the balance line                                                    | `MASS_HAUL_LAYERS`, `massHaulItems`                                                           |
+| Softree CSV read: 100 MB / 2,000,000 rows; Areas file 500 code pairs a record                                 | `MAX_SOFTREE_CSV_BYTES`, `MAX_SOFTREE_CSV_ROWS`, `MAX_OPTIMAL_AREA_PAIRS`                     |
+| Optimal material descriptions: 50 characters                                                                  | `OPTIMAL_DESCRIPTION_CHARS`                                                                   |
+| Compare with RoadEng: 50 MB file; 400 rows drawn (the comparison CSV holds every row); agree within 0–50 %    | `MAX_COMPARE_FILE_BYTES`, `MAX_COMPARE_ROWS_SHOWN`, `MAX_COMPARE_RELATIVE_PERCENT`            |
+| Compare with RoadEng: rounding tolerance and Areas station match                                              | `COMPARE_ABSOLUTE_TOLERANCE`, `COMPARE_STATION_TOLERANCE_M` (0.01 m)                          |
 
 The sparse formulation has the same 20,000-variable / 1,200-constraint / 3,000,000-cell ceilings,
 enforced by `MAX_SPARSE_ALLOCATION_*` in `sparseMaterialAllocation.ts`.

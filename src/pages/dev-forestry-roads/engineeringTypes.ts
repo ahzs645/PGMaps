@@ -14,6 +14,14 @@ export interface TemplateAssignment {
   side: 'left' | 'right' | 'both'
   /** Linear transition from/to the base section inside the assigned range. */
   transitionM: number
+  /**
+   * Linear transition over the range's first metres from the section in force just before it (the
+   * neighbouring range's template on that side, else the base section), as RoadEng's Taper template
+   * does between two ranges. Omitted or 0: a step. Not used together with `transitionM`.
+   */
+  transitionInM?: number
+  /** The same over the range's last metres, to the section in force just after it. */
+  transitionOutM?: number
 }
 export type MaterialVolumeFactorConvention = 'compacted-per-bank' | 'bank-per-compacted'
 

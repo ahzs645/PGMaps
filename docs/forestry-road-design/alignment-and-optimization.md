@@ -322,6 +322,14 @@ with K = 0 and no curve length, not on its entered length.
   names the end.
 - Curves keep their required lengths rather than being silently shortened below K. The complete
   fitted result is rechecked against every standard and control before returning.
+- **Minimum curve and tangent lengths** (Vertical standards → Min curve, Min tangent). Every curve
+  the search places is at least the minimum curve length, also where no K is asked for (Curve K 0
+  and no minimum K): a grade break is then rounded with a curve of exactly that length rather than
+  left unrounded. Every tangent between two curves keeps at least the minimum tangent length; the
+  first and last tangents run to the road's ends and are exempt, as in Review's
+  `vertical-lengths` row. The PVI spacing must leave room for both: with 50 m spacing a 60 m curve
+  and a 40 m tangent cannot both fit between neighbouring PVIs, and the run stops on the minimum
+  tangent (`verticalOptimizer.test.ts`).
 - **Every curve of a returned profile is built.** The engine drops a vertical curve that does not
   fit its tangents or overlaps its neighbour and keeps the tangent grades, so a result is read back
   through the engine's own curve fit (`curveFault`). A line with a dropped or short curve is

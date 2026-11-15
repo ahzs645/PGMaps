@@ -10,6 +10,7 @@ import {
   STATION_MATCH_M,
 } from './profileLabelLayout'
 import { reviewRoadSight } from './sightDistance'
+import { templateTransitions } from './templates'
 import type { Alignment, RoadAnalysis } from './types'
 
 interface BandSpan {
@@ -20,7 +21,10 @@ interface BandSpan {
   detail: string
   color: string
   invalid?: boolean
-  /** Stronger inner span distinguishes the circular arc from its spiral transitions. */
+  /**
+   * Stronger inner span distinguishes the circular arc from its spiral transitions, and a template
+   * range at full strength from its transitions to the neighbouring ranges.
+   */
   circularSpan?: { start: number; end: number }
 }
 interface BandRow {
@@ -273,6 +277,7 @@ function rowsFor(
     })
   const engineering = alignment.engineering
   if (engineering?.assignments.length) {
+    const transitions = templateTransitions(alignment)
     for (const side of ['left', 'right'] as const)
       rows.push({
         name: side === 'left' ? 'Tpl L' : 'Tpl R',
@@ -280,13 +285,23 @@ function rowsFor(
           .filter((a) => a.side === side || a.side === 'both')
           .map((a) => {
             const name = engineering.templates.find((t) => t.id === a.templateId)?.name ?? 'Missing template'
+            const own = transitions.filter((t) => t.assignmentId === a.id && t.side === side)
+            const into = own.find((t) => t.edge === 'in'),
+              out = own.find((t) => t.edge === 'out')
+            const said = own.map(
+              (t) =>
+                `${t.fromName} → ${t.toName} over ${number(t.start)}–${number(t.end)} m${t.steppedBecause ? `, stepped at ${number((t.start + t.end) / 2)} m (${t.steppedBecause})` : ''}`,
+            )
             return {
               id: a.id,
               start: a.start,
               end: a.end,
               label: name,
-              detail: `${side} template ${name}: ${number(a.start)}–${number(a.end)} m; transition ${number(a.transitionM)} m. Unassigned ranges use the base section.`,
+              detail: `${side} template ${name}: ${number(a.start)}–${number(a.end)} m; ${
+                said.length ? `transitions ${said.join('; ')}` : `transition ${number(a.transitionM)} m`
+              }. Unassigned ranges use the base section.`,
               color: '#0f766e',
+              ...(own.length ? { circularSpan: { start: into?.end ?? a.start, end: out?.start ?? a.end } } : {}),
             }
           }),
       })

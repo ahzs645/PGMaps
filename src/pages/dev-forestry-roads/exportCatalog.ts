@@ -3,6 +3,7 @@
  * why one is unavailable, and how a built file turns into its preview. No DOM or network access.
  */
 
+import { materialPlanMissing, type HaulSummary } from './engineeringTypes'
 import { invalidInputMessages, type InvalidInput } from './inputErrors'
 
 export { invalidInputRefusal } from './inputErrors'
@@ -28,6 +29,12 @@ export type RoadExport =
   | 'plotbook-pdf'
   | 'terrain-landxml'
   | 'terrain-ascii'
+  | 'mass-haul-csv'
+  | 'optimal-haul-csv'
+  | 'optimal-areas-csv'
+  | 'optimal-inputs'
+  | 'softree-location-ascii'
+  | 'softree-terrain-ascii'
   | 'streams-csv'
   | 'provincial-evidence'
   | 'notes'
@@ -70,6 +77,8 @@ export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = [
   'qgis-project',
   'arcgis-pro',
   'web-map-style',
+  // Its ground is the RoadEng project's terrain, kept along the roads written.
+  'softree-terrain-ascii',
 ]
 export type RoadScope = 'active' | 'all'
 /** Outputs that write other programs' styles, so the browser's style library can change what they draw. */
@@ -103,6 +112,8 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   notes: 'unaffected',
   'terrain-landxml': 'unaffected',
   'terrain-ascii': 'unaffected',
+  // The RoadEng terrain's ground and drawn layers: no calculated design result.
+  'softree-terrain-ascii': 'unaffected',
   'streams-csv': 'unaffected',
   'provincial-evidence': 'unaffected',
   report: 'stamp',
@@ -127,6 +138,12 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   'qgis-project': 'refuse',
   'arcgis-pro': 'refuse',
   'web-map-style': 'refuse',
+  'mass-haul-csv': 'refuse',
+  'optimal-haul-csv': 'refuse',
+  'optimal-areas-csv': 'refuse',
+  // Inputs only, but read by Softree Optimal beside the areas file it must match.
+  'optimal-inputs': 'refuse',
+  'softree-location-ascii': 'refuse',
   // The catalogue's symbols only: no road result goes in it.
   'symbol-library': 'unaffected',
 }
@@ -328,6 +345,44 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     description: 'Centreline and section points with grid coordinates, design levels and cut/fill, for field layout.',
   },
   {
+    kind: 'softree-location-ascii',
+    group: 'survey',
+    label: 'Softree location ASCII',
+    extension: '.txt',
+    description:
+      'Ground, prepared ground and subgrade section points at every station, with RoadEng point codes, as a RoadEng location ASCII coordinate file for staking.',
+  },
+  {
+    kind: 'mass-haul-csv',
+    group: 'survey',
+    label: 'RoadEng mass haul',
+    extension: '.csv',
+    description:
+      'Balance items of the mass-haul curve, as RoadEng’s Mass Haul export: free haul, over haul, borrow and waste, with stations, centroids and over-haul.',
+  },
+  {
+    kind: 'optimal-haul-csv',
+    group: 'survey',
+    label: 'RoadEng optimal haul',
+    extension: '.csv',
+    description:
+      'The solved material plan as RoadEng’s Optimal Haul export: cost, volume, pit and movement summaries, movement details and the detailed movement summary.',
+  },
+  {
+    kind: 'optimal-areas-csv',
+    group: 'survey',
+    label: 'Softree Optimal areas',
+    extension: '.csv',
+    description: 'Cut and fill areas by material at each station, as the Areas file Softree Optimal reads.',
+  },
+  {
+    kind: 'optimal-inputs',
+    group: 'survey',
+    label: 'Softree Optimal inputs',
+    extension: '.zip',
+    description: 'Materials, pits and haul cost model as Softree Optimal API CSV files.',
+  },
+  {
     kind: 'terrain-landxml',
     group: 'survey',
     label: 'Terrain surface',
@@ -340,6 +395,14 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     label: 'Terrain grid',
     extension: '.asc',
     description: 'The embedded terrain grid as an Esri ASCII raster.',
+  },
+  {
+    kind: 'softree-terrain-ascii',
+    group: 'survey',
+    label: 'Softree terrain ASCII',
+    extension: '.txt',
+    description:
+      'The ground points and drawn layers of the RoadEng project export, one line per point, as RoadEng’s terrain ASCII file.',
   },
 ]
 
@@ -354,10 +417,26 @@ export interface ExportContext {
   /** The project has at least one stream, so the stream register has a row to write. */
   hasStreams: boolean
   hasNotes: boolean
+  /**
+   * The project holds no road yet, only a terrain with a grid (one opened from a RoadEng `.terx`):
+   * the RoadEng project export writes that terrain whole, with its layers.
+   */
+  terrainOnly?: boolean
   /** Why the D-line sheet cannot be made (no D-line, or its own inputs are invalid); null when it can. */
   dLineSheetUnavailable?: string | null
+  /** Why the Optimal Haul export cannot be made (haul off, plan not solved); null or absent when it can. */
+  optimalHaulUnavailable?: string | null
   /** The invalid input the roads an output would write leave out, if any. */
   invalidInput?: (kind: RoadExport) => InvalidInput | undefined
+}
+
+/** Why the Optimal Haul export cannot be made from a road's haul result, or null when it can. */
+export function optimalHaulUnavailable(
+  haul: Pick<HaulSummary, 'enabled' | 'optimizationStatus'> | null | undefined,
+): string | null {
+  if (!haul?.enabled) return 'Turn on haul allocation first.'
+  if (materialPlanMissing(haul)) return 'The material plan was not calculated.'
+  return null
 }
 
 /** The invalid input an output is affected by, under its rule; undefined when it is unaffected. */
@@ -371,6 +450,7 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
   // Notes are drawn, not calculated, so they export whatever state the road is in.
   if (kind === 'notes') return context.hasNotes ? null : 'Draw a note on the plan first.'
   if (context.designPreview) return 'Finish or close the design preview first.'
+  if (kind === 'roadeng-project' && context.terrainOnly && !context.terrainProfile) return null
   if (!context.hasResults) return 'No calculated results yet.'
   if (kind === 'dline-sheet-pdf' && context.dLineSheetUnavailable !== null)
     return context.dLineSheetUnavailable ?? 'Draw a D-line in Review first.'
@@ -386,11 +466,18 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
       'roadeng-project',
       'dxf',
       'stakeout',
+      'mass-haul-csv',
+      'optimal-haul-csv',
+      'optimal-areas-csv',
+      'optimal-inputs',
+      'softree-location-ascii',
+      'softree-terrain-ascii',
     ].includes(kind)
   )
     return 'Return to the road first.'
   if ((kind === 'terrain-landxml' || kind === 'terrain-ascii') && !context.hasTerrainGrid)
     return 'Needs an imported or prepared terrain grid.'
+  if (kind === 'optimal-haul-csv' && context.optimalHaulUnavailable) return context.optimalHaulUnavailable
   if (kind === 'provincial-evidence' && !context.hasProvincialEvidence) return 'Load provincial stream evidence first.'
   if (kind === 'streams-csv' && !context.hasStreams)
     return 'No streams in this project yet. Import or load streams first.'
