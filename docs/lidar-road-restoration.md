@@ -7,9 +7,11 @@ LiDAR library and Road design terrain tab link to it.
 Choose classified LAS/LAZ files from local storage, select grid sizes, and run.
 Files are read inside a disposable browser worker; neither raw files nor decoded
 points are sent to a processing service. The basemap still requests public map
-tiles. Cancel terminates the worker and releases its WASM heap. A completed run
-returns only typed raster arrays and metadata to the page. Changing inputs or
-grid sizes clears results to prevent exporting stale calculations.
+tiles: the map is the shared one every map page uses (theme-following basemap,
+the Map / Satellite choice, the shared legend panel), never a page-local style.
+Cancel terminates the worker and releases its WASM heap. A completed run returns
+only typed raster arrays and metadata to the page. Changing inputs or grid sizes
+clears results to prevent exporting stale calculations.
 
 ## Products and methods
 

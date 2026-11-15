@@ -20,7 +20,13 @@ const blankPng = Buffer.from(
   encode({ width: 256, height: 256, channels: 4, data: new Uint8Array(256 * 256 * 4).fill(255) }),
 )
 async function prepare(page: Page, path = '/dev/forestry/road-restoration') {
-  await page.route('https://tile.openstreetmap.org/**', (r) => r.fulfill({ contentType: 'image/png', body: blankPng }))
+  // The shared basemap every map page uses, stubbed empty, and the Esri imagery behind its Satellite choice.
+  await page.route('https://basemaps.cartocdn.com/**', (r) =>
+    r.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.route('https://services.arcgisonline.com/**', (r) =>
+    r.fulfill({ contentType: 'image/png', body: blankPng }),
+  )
   await page.goto(path)
   await expect(page.getByRole('button', { name: 'Run restoration metrics' })).toBeVisible()
 }
@@ -46,7 +52,20 @@ async function layerState(page: Page) {
           ? map.project([corners[0][0] * 0.75 + corners[1][0] * 0.25, (corners[0][1] + corners[3][1]) * 0.5])
           : null
         const rect = map.getCanvas().getBoundingClientRect()
+        const style = map.getStyle()
+        const order = style.layers.map((layer) => layer.id)
+        const imagery = style.layers.find(
+          (layer) =>
+            'source' in layer &&
+            ((style.sources[layer.source] as { tiles?: string[] } | undefined)?.tiles ?? []).some((url) =>
+              url.includes('arcgisonline.com'),
+            ),
+        )?.id
         return {
+          osm: Object.values(style.sources).some((source) =>
+            ((source as { tiles?: string[] }).tiles ?? []).some((url) => url.includes('openstreetmap.org')),
+          ),
+          imageryUnderRaster: imagery ? order.indexOf(imagery) < order.indexOf('restoration-raster') : null,
           layer: Boolean(map.getLayer('restoration-raster')),
           loaded: map.isSourceLoaded('restoration-raster'),
           pixel: xy ? { x: Math.floor(rect.x + xy.x), y: Math.floor(rect.y + xy.y) } : null,
@@ -67,7 +86,15 @@ test('real LAZ worker, raster map, GIS export, result invalidation and both libr
   await page.getByRole('button', { name: 'Run restoration metrics' }).click()
   await wasm
   await expect(page.getByTestId('returns-read')).toHaveText('80')
-  await expect.poll(() => layerState(page)).toMatchObject({ layer: true, loaded: true })
+  await expect.poll(() => layerState(page)).toMatchObject({ layer: true, loaded: true, osm: false })
+  // The same Map / Satellite choice as the other forestry maps; imagery stays under the results.
+  await page.getByRole('button', { name: 'Basemap' }).click()
+  await page.getByRole('radio', { name: /Satellite/ }).check()
+  await expect.poll(async () => (await layerState(page))?.imageryUnderRaster).toBe(true)
+  await page.getByRole('radio', { name: /Map/ }).check()
+  await expect.poll(async () => (await layerState(page))?.imageryUnderRaster).toBe(null)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('group', { name: 'Basemap' })).toHaveCount(0)
   await choose(page.getByLabel('Restoration layer'), 'understory')
   // A loaded source can still render black when its GPU texture lacks mipmaps.
   await expect
@@ -141,7 +168,7 @@ test('full supplied BC tile runs in Chromium and exports all GIS products', asyn
   await page.getByRole('button', { name: 'Run restoration metrics' }).click()
   await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible()
   // This remains responsive while the worker reads the large cloud.
-  await expect(page.getByRole('link', { name: 'Forestry tools', exact: true })).toBeEnabled()
+  await expect(page.getByRole('link', { name: 'Back to forestry tools', exact: true })).toBeEnabled()
   await expect(page.getByTestId('returns-read')).toHaveText('84,608,005', { timeout: 800_000 })
   await expect.poll(() => layerState(page), { timeout: 30_000 }).toMatchObject({ layer: true, loaded: true })
   const event = page.waitForEvent('download')

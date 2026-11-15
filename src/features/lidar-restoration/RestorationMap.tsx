@@ -1,27 +1,34 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { MapMouseEvent, StyleSpecification } from 'maplibre-gl'
+import type { MapMouseEvent } from 'maplibre-gl'
 import proj4 from 'proj4'
-import { Map, MapScaleBar, useMap, WORKSPACE_MAP_CONTROLS } from '@/components/ui/map'
+import { Map, MapControls, MapLayersControl, MapScaleBar, useMap } from '@/components/ui/map'
 import { MapImageLayer, type MapQuadCoordinates } from '@/components/ui/map-layers'
+import { MapGradientLegendItem, MapLegendPanel, MapOverlay } from '@/components/ui/map-panels'
+import {
+  IMAGERY_BASEMAPS,
+  SatelliteImagery,
+  useStoredImageryBasemap,
+  type ImageryBasemap,
+} from '@/components/ui/map-satellite-imagery'
+import { PG_CENTER } from '@/components/ui/map-styles'
 import { indexAt, type RestorationResult } from './model'
 import { ALL_PRODUCTS as PRODUCTS, type AnalysisProduct as Product } from './products'
 import { projectionDefinition, rasterCorners, rasterStats } from './outputs'
 
-const STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors',
-    },
-  },
-  layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-}
-const STYLES = { light: STYLE, dark: STYLE }
+/** The preview ramp, low to high; the legend draws the same two stops. */
+const RAMP_LOW = [240, 248, 210] as const
+const RAMP_HIGH = [20, 138, 50] as const
+const RAMP_COLORS = [RAMP_LOW, RAMP_HIGH].map(([r, g, b]) => `rgb(${r}, ${g}, ${b})`)
 
-function RasterLayer({ result, product }: { result: RestorationResult; product: Product }) {
+function RasterLayer({
+  result,
+  product,
+  basemap,
+}: {
+  result: RestorationResult
+  product: Product
+  basemap: ImageryBasemap
+}) {
   const { map, isLoaded } = useMap()
   const [picked, setPicked] = useState<{ product: Product; text: string } | null>(null)
   const g = result.rasters[product]
@@ -42,7 +49,15 @@ function RasterLayer({ result, product }: { result: RestorationResult; product: 
       if (!Number.isFinite(v)) return
       const t = Math.max(0, Math.min(1, (v - min) / (max - min || 1)))
       const pixel = Math.floor(i / g.width) * canvas.width + (i % g.width)
-      pixels.data.set([Math.round(240 - 220 * t), Math.round(248 - 110 * t), Math.round(210 - 160 * t), 230], pixel * 4)
+      pixels.data.set(
+        [
+          Math.round(RAMP_LOW[0] + (RAMP_HIGH[0] - RAMP_LOW[0]) * t),
+          Math.round(RAMP_LOW[1] + (RAMP_HIGH[1] - RAMP_LOW[1]) * t),
+          Math.round(RAMP_LOW[2] + (RAMP_HIGH[2] - RAMP_LOW[2]) * t),
+          230,
+        ],
+        pixel * 4,
+      )
     })
     context.putImageData(pixels, 0, 0)
     return { url: canvas.toDataURL(), stats, width: canvas.width }
@@ -80,43 +95,64 @@ function RasterLayer({ result, product }: { result: RestorationResult; product: 
       map.off('click', click)
     }
   }, [map, g, product, result.epsg])
+  const unit = PRODUCTS[product].unit
   return (
     <>
+      {/* Re-added on top after a basemap switch: imagery goes in under the basemap's labels, or on top of
+          everything when the style has none, and must never cover the results. */}
       <MapImageLayer
+        key={basemap}
         id="restoration-raster"
         url={preview.url}
         coordinates={coordinates}
         opacity={0.9}
         resampling="nearest"
       />
-      <div
-        className="absolute bottom-12 left-3 z-10 max-w-xs rounded-lg border bg-background/95 p-3 text-xs shadow"
+      <MapLegendPanel
+        title={PRODUCTS[product].label}
+        description={`${g.cellM} m cells`}
+        collapsible
+        defaultCollapsed="mobile"
         aria-label="Raster legend"
       >
-        <p className="font-semibold">
-          {PRODUCTS[product].label} · {g.cellM} m cells
+        <MapGradientLegendItem
+          colors={RAMP_COLORS}
+          minLabel={preview.stats.min === null ? 'NoData' : `${preview.stats.min.toFixed(2)} ${unit}`}
+          maxLabel={preview.stats.max === null ? 'NoData' : `${preview.stats.max.toFixed(2)} ${unit}`}
+        />
+        <p className="mt-2 text-xs text-muted-foreground">Transparent = NoData. Click for a source cell value.</p>
+        <p role="status" className="mt-1 text-xs">
+          {picked?.product === product ? picked.text : ''}
         </p>
-        <div className="my-2 h-2 rounded bg-gradient-to-r from-[#f0f8d2] to-[#148a32]" />
-        <p>
-          {preview.stats.min?.toFixed(2) ?? 'NoData'} – {preview.stats.max?.toFixed(2) ?? 'NoData'}{' '}
-          {PRODUCTS[product].unit}
-        </p>
-        <p className="mt-1">Transparent = NoData. Click for a source cell value.</p>
-        <p role="status">{picked?.product === product ? picked.text : ''}</p>
-      </div>
+      </MapLegendPanel>
     </>
   )
 }
 
 export function RestorationMap({ result, product }: { result: RestorationResult | null; product: Product }) {
+  const [basemap, setBasemap] = useStoredImageryBasemap('pgmaps-restoration-basemap')
   return (
-    <Map center={[-122.8, 53.9]} zoom={10} styles={STYLES} controls={WORKSPACE_MAP_CONTROLS}>
+    <Map
+      center={PG_CENTER}
+      zoom={10}
+      controls={
+        <MapControls position="top-right" showZoom showCompass showFullscreen>
+          <MapLayersControl
+            label="Basemap"
+            basemaps={IMAGERY_BASEMAPS}
+            basemap={basemap}
+            onBasemapChange={setBasemap}
+          />
+        </MapControls>
+      }
+    >
+      <SatelliteImagery visible={basemap === 'satellite'} />
       <MapScaleBar />
-      {result && <RasterLayer result={result} product={product} />}
+      {result && <RasterLayer result={result} product={product} basemap={basemap} />}
       {!result && (
-        <div className="absolute left-4 top-4 max-w-sm rounded-lg border bg-background/95 p-4 text-sm shadow">
+        <MapOverlay position="top-left" clearChrome className="max-w-sm p-4 text-sm">
           Choose local LiDAR files and run the analysis to display restoration metrics here.
-        </div>
+        </MapOverlay>
       )}
     </Map>
   )
