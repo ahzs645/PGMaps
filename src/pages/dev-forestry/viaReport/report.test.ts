@@ -307,7 +307,9 @@ describe('fixes from the second reading', () => {
     }
     const html = reportHtml(assembleReport(recipe, context(recipe.format, { figures: [sheet] })), null)
     // The section heading before it ("Calculations") moves with the viewpoint's heading onto the sheet's page.
-    expect(html).toMatch(/<div class="sheet-page"><h3 id="s\d+">[^<]+<\/h3><h4>Lakeshore<\/h4><figure class="sheet"( id="f\d+")?>/)
+    expect(html).toMatch(
+      /<div class="sheet-page"><h3 id="s\d+">[^<]+<\/h3><h4>Lakeshore<\/h4><figure class="sheet"( id="f\d+")?>/,
+    )
     expect(html).not.toMatch(/<li>\d+\. /)
     // The consultant reports number the sheet in their appendix, its heading on the sheet's page.
     const consultant = REPORT_RECIPES.find((entry) => entry.id === 'consultant-net-private')!
