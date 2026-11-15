@@ -120,6 +120,12 @@ not verify boundary equivalence with BEC v11. This release does not draw or
 infer verified BEC v11 site boundaries, and it does not derive soil regime from
 BGC or from an arbitrary clicked map location.
 
+The visual quality tool's step 3 reads the same pinned table through
+`publishedLoader.ts` (also this page's loader) for the landform's treed species,
+and links here with `bgc`, `smr` and `period`. It reads the BEC unit from DataBC's
+current map and asks the reviewer for the soil moisture regime; see
+[the visual quality contract](forestry-visual-quality.md), **Assessment workspace tools**.
+
 ## Evidence and checks
 
 The [recorded R comparison](forest-drought-r-validation.json) covers 15 synthetic

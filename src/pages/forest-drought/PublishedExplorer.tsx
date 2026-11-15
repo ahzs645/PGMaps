@@ -20,7 +20,6 @@ import {
   TREE_SPECIES,
   exportPublishedCsv,
   filterPublishedRows,
-  parsePublishedCsv,
   publishedSeries,
   type PublishedDataset,
   type PublishedPeriod,
@@ -28,14 +27,13 @@ import {
   type SoilMoistureRegime,
   type SpeciesCode,
 } from '@/features/forest-drought/published'
+import { loadPublishedDataset, publishedCsvUrl } from '@/features/forest-drought/publishedLoader'
 import { parsePublishedSelection } from './query'
 
 const RISK_TONES: Record<RiskCode, BadgeTone> = { L: 'success', M: 'warning', H: 'orange', VH: 'danger' }
 const riskLabel = (code: RiskCode) => RISK_LEVELS.find((item) => item.code === code)?.label ?? code
 const assetPath = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`
-// Include the scientific source revision in the service worker's cache key.
-// An older cached CSV must not shadow a newly pinned dataset on first load.
-const publishedCsvUrl = `${assetPath(PUBLISHED_SOURCE.csvPath)}?v=${PUBLISHED_SOURCE.sha256}`
+const publishedUrl = publishedCsvUrl()
 
 function RiskBadge({ risk }: { risk: RiskCode }) {
   return (
@@ -70,26 +68,8 @@ export function PublishedExplorer({ active }: { active: boolean }) {
       30_000,
     )
     let alive = true
-    void fetch(publishedCsvUrl, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Published data could not load (HTTP ${response.status}).`)
-        if (!globalThis.crypto?.subtle)
-          throw new Error('Checking the published data requires a secure browser context. Use HTTPS or localhost.')
-        const bytes = await response.arrayBuffer()
-        const digest = await crypto.subtle.digest('SHA-256', bytes)
-        const hash = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join('')
-        if (hash !== PUBLISHED_SOURCE.sha256) {
-          // The service worker caches any 200 response for this URL. Drop a corrupt copy so the
-          // retry fetches the network instead of waiting for background revalidation.
-          await globalThis.caches
-            ?.open('pgmaps-data-v1')
-            .then((cache) => cache.delete(publishedCsvUrl))
-            .catch(() => undefined)
-          throw new Error(
-            'The published table does not match its pinned source checksum. Results have been withheld; reload or report this data-version mismatch.',
-          )
-        }
-        const parsed = parsePublishedCsv(new TextDecoder().decode(bytes))
+    void loadPublishedDataset(controller.signal)
+      .then((parsed) => {
         if (alive) {
           setDataset(parsed)
           setError('')
@@ -250,7 +230,7 @@ export function PublishedExplorer({ active }: { active: boolean }) {
                   <Download aria-hidden="true" /> Download selected site CSV
                 </Button>
                 <Button variant="ghost" size="sm" asChild className="w-full">
-                  <a href={publishedCsvUrl} download="fordrat-published-original.csv">
+                  <a href={publishedUrl} download="fordrat-published-original.csv">
                     Original published CSV
                   </a>
                 </Button>

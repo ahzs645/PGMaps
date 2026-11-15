@@ -97,6 +97,7 @@ and its buttons only open the dialog on an output (*Export the block note…*,
 | | Worksheet | Markdown | — |
 | | VIA evidence package | PDF, printable HTML | — |
 | Save and reopen | Scene, Saved views, Assessment workspace, 3D scene | JSON | — |
+| For other tools | Castor constraint | `constraints.csv`, zone GeoJSON | — |
 
 Each output's pane has two views. **What goes in** lists, from the same state the
 file is written from, the parts it carries: the landform (name, objective, VAC,
@@ -109,8 +110,8 @@ an image, HTML in a sandboxed frame, text); *Download* saves that same file. An
 output that cannot be written yet says why in the list (no block, no saved
 view, the road view closed, a scene that cannot run).
 
-**The export makes what it reads.** The block note, FS1252, field brief and
-worksheet read the run (`RUNS_ON_EXPORT`). When it is missing or stale, Preview
+**The export makes what it reads.** The block note, FS1252, field brief,
+worksheet and Castor constraint read the run (`RUNS_ON_EXPORT`). When it is missing or stale, Preview
 and Download start it themselves in the analysis worker (the sidebar's own run,
 `useVisibilityAnalysis`), show its progress in the pane, and write the file from
 the render after it finishes and the page settles (`exportPreparation`, the
@@ -134,6 +135,21 @@ The block note's pane shows what the report will hold:
   prints them (`landCheckReportRows`): their own *Land status* sheet and PDF
   page with the caveat that they are a DataBC screen, never a legal
   determination or a mask. On by default; *Options* leaves them out.
+
+**Castor constraint** (`castorConstraint.ts`, DOM-free) writes the landform's
+objective as the cover constraint a timber supply model carries, for
+`/dev/forestry/castor` and forestryCastor's `zoneConstraints`: type `le` on
+`height`, so no more than the percentage of the zone may stand at or below the
+threshold. The threshold is the run's own area-weighted Table 6 green-up height
+for the landform and the percentage the objective's planimetric figure as the
+Results panel resolves it (`resolveThreshold`: the reviewer's override, else
+Table 4 by VAC, else the medium VAC midpoint), each named in the GeoJSON. The
+zone is the landform, in a `zone:vqo` column (Castor reads `zone:<name>`
+columns), to intersect with a Castor inventory. Castor divides by the zone's
+whole area while the planimetric figure divides by the landform's treed area;
+the file says so rather than converting the percentage.
+`castorConstraint.test.ts` runs the written row through Castor's own engine on
+its example project and checks every period holds it.
 
 The 3D scene still needs the road view open (it writes where the eye stands
 now); its pane offers *Open the road view* rather than opening it unasked.
@@ -3032,7 +3048,53 @@ none establishes a completed field visit or verified VQO achievement.
   interpolated within its recorded ages, never extrapolated. Outside the curve,
   the explicitly stated green-up-age assumption applies. Screening retains current
   canopy assumptions: this is alteration accounting, not a future stand simulator.
-  Prior-year partial cuts are rejected until a supported recovery model exists.
+  **Load Castor yield curves** reads a Castor `yields.csv` (`curveId` or castordb
+  `yieldid`, `age`, `height`) or a session or project saved from
+  `/dev/forestry/castor` (`castorCurves.ts`, DOM-free; Castor's readers load only
+  when a file is chosen). Each curve keeps its heights as given; one whose height
+  falls with age is left out and named. Each block can then grow on its own curve;
+  a block without one grows on the supplied curve. The library and the
+  assignments are stored in the workspace (`curveLibrary`, `blockCurves`), never
+  in the scene, so they do not stale a run.
+  A partial cut harvested in an earlier year stays a partial cut: its Table 6
+  figure (volume removed against residual height, as recorded) keeps counting
+  until the same green-up test says the regeneration in its gaps has reached
+  green-up height, then it counts nothing. Its residual trees are never grown,
+  because Table 6 rises with residual height: growing them would read an older
+  partial cut as a larger alteration. The results table (`RecoveryTable`, rows
+  from `recoverySummary.ts`) sets each year's perspective and planimetric figure
+  against the objective, as each run's summary recorded it (`RunSummary.scales`,
+  from `runHeadline`), adds a *Partial cuts* column for the Table 6 figure step 4
+  adds to X while one is in view, and says from which year each scale is within.
+- **Step 3 — green-up age sensitivity:** runs the scene at the green-up age and
+  5 and 10 years either side (`greenUpJobs`), changing only
+  `settings.greenUpAgeYears`; the scene's own age is untouched. It first names the
+  openings, grouped by harvest year, that count at some of those ages and not
+  others (`greenUpSensitiveOpenings`: read by age alone, not field-checked and
+  without a supplied estimate). The age also decides which openings are cleared
+  ground, so the figure need not move one way: at Tabor Mountain one 2010 opening,
+  greened up at 10 and 15 years, kept its inventory canopy and screened part of
+  the landform, reading 4.9% against 4.2% at 20 years; with that opening removed
+  the three ages agreed at 4.7%. The table says so when it happens
+  (`greenUpNotMonotonic`). These are assumption comparisons, not confidence
+  intervals, and never change the 20-year default (see *Evidence for the
+  defaults*).
+- **Step 3 — drought risk to the standing timber:** reads the active landform's
+  BEC units from DataBC's BEC map and the treed species mix under it from VRI
+  rank 1, then BC's published forDRAT table (`droughtRisk.ts`, DOM-free with
+  `fetch` passed in; `DroughtRiskPanel.tsx`; the table through
+  `publishedLoader.ts`, checksum-checked, shared with `/dev/forestry/drought-risk`).
+  forDRAT rates drought-related mortality in mature stands, so this is context
+  for the green landform and the timber that screens the view: never a run input,
+  a mask or a change to green-up. The soil moisture regime is a site assessment
+  and always the reviewer's choice; nothing reads it from the BEC unit. forDRAT's
+  units are BEC v11 and the map is DataBC's current BEC, so a matching label does
+  not prove matching boundaries, and a unit absent from the table has no rating.
+  Only unambiguous inventory codes are rated (`FORDRAT_SPECIES_FOR_VRI`: coastal
+  Douglas-fir, black spruce, amabilis fir and balsam poplar are other species and
+  stay unrated). The read is keyed to the landform's shape, and the BEC query puts
+  its box in `CQL_FILTER`, longitude first. *Open … in Drought risk* links the
+  same unit, regime and period.
 - **Step 5 — review and export:** open a saved run, complete its judgments in step 4,
   then record/update the reviewed assessment in step 5. Opening reruns the snapshot
   and leaves the stored result intact until the reviewer records an update. Record

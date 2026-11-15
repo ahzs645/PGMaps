@@ -16,10 +16,12 @@ import { ToolFieldPanel } from './ToolFieldPanel'
 import { formatPct } from './measureFormat'
 import { SightlineProfileChart } from './SightlineProfileChart'
 import { createId, type ForestryScene } from './scene'
-import { sceneFingerprint } from './sceneInput'
 import {
   comparisonScene,
   emptyTools,
+  greenUpJobs,
+  greenUpSensitiveOpenings,
+  greenUpSensitivityAges,
   matrixJobs,
   parseGrowthCurve,
   parseTools,
@@ -38,6 +40,11 @@ import { buildEvidenceHtml, evidenceGaps, evidencePdfBlob } from './toolEvidence
 import type { AnalysisResult, Viewpoint } from './types'
 import type { SightlineProfile } from './sightlineProfile'
 import { RunRevisionReadout, useRunRevision } from './RunRevisionReadout'
+import { readCastorHeightCurves, type LibraryCurve } from './castorCurves'
+import { RecoveryTable } from './RecoveryTable'
+import { greenUpSensitiveSentence } from './recoverySummary'
+import { DroughtRiskPanel } from './DroughtRiskPanel'
+import { findSceneLandform, sceneFingerprint } from './sceneInput'
 
 type Props = {
   scene: ForestryScene
@@ -50,6 +57,9 @@ type Props = {
   /** Opens Save & export on one of its outputs. */
   onOpenExport?: (kind: 'evidence' | 'workspace') => void
 }
+/** A loaded curve's span, for its option label: ages covered and the height it reaches. */
+const curveReach = (c: LibraryCurve) =>
+  `ages ${c.points[0].age}–${c.points[c.points.length - 1].age}, ${c.points[c.points.length - 1].height.toFixed(1)} m`
 const hectares = (value: number) => formatMeasure(value, 'ha', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export function useAssessmentTools({
@@ -72,6 +82,7 @@ export function useAssessmentTools({
       `${scene.assessmentYear ?? new Date().getFullYear()}, ${(scene.assessmentYear ?? new Date().getFullYear()) + 10}`,
     ),
     [curve, setCurve] = useState(''),
+    [curveNote, setCurveNote] = useState<{ text: string; skipped: string[] } | null>(null),
     [openedRun, setOpenedRun] = useState<string | null>(null),
     [reportView, setReportView] = useState('')
   const [profile, setProfile] = useState<SightlineProfile | null>(null),
@@ -192,6 +203,44 @@ export function useAssessmentTools({
       setError(e instanceof Error ? e.message : String(e))
     }
   }
+  /** Replaces the loaded curve library with a Castor file's height–age curves; assignments to vanished curves go. */
+  const loadCastorCurves = async (file: File) => {
+    setError(null)
+    setCurveNote(null)
+    try {
+      if (file.size > 64 * 1024 * 1024) throw new Error('A Castor file over 64 MB is too large to read here.')
+      // Castor's readers load only when a file is chosen, so they stay out of this page's bundle.
+      const [{ castorCsvRows }, { parseCastorSession }] = await Promise.all([
+        import('@/features/forestry-castor/inputs'),
+        import('@/features/forestry-castor/persistence'),
+      ])
+      const read = readCastorHeightCurves(file.name, await file.text(), {
+        csvRows: castorCsvRows,
+        projectYields: (text) => parseCastorSession(text).project.yieldCurves,
+      })
+      if (!read.curves.length)
+        throw new Error(`No usable height–age curve in ${file.name}. ${read.skipped.slice(0, 3).join(' ')}`)
+      const ids = new Set(read.curves.map((c) => c.id))
+      change((current) => ({
+        ...current,
+        curveLibrary: read.curves,
+        blockCurves: Object.fromEntries(Object.entries(current.blockCurves).filter(([, id]) => ids.has(id))),
+      }))
+      setCurveNote({
+        text: `Loaded ${read.curves.length} height–age curve${read.curves.length === 1 ? '' : 's'} from ${file.name}.`,
+        skipped: read.skipped,
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+  const curveById = useMemo(() => new Map(d.curveLibrary.map((c) => [c.id, c])), [d.curveLibrary])
+  const greenUpAges = greenUpSensitivityAges(scene.settings.greenUpAgeYears)
+  const sensitiveOpenings = greenUpSensitiveOpenings(
+    scene,
+    greenUpAges,
+    scene.assessmentYear ?? new Date().getFullYear(),
+  )
   const message = (
     <>
       {!loaded && <InlineAlert>Loading saved assessment workspace…</InlineAlert>}
@@ -402,8 +451,14 @@ export function useAssessmentTools({
               green-up accounting. Screening uses current canopy assumptions, not a simulated future stand.
             </span>
             <span className="mt-1.5 block">
-              Outside the supplied curve, the scene’s stated green-up-age assumption applies. Prior-year partial cuts
-              require a supported stand model and are rejected.
+              A block grows on its own curve when you give it one from a Castor yield table, else on the supplied curve.
+              Outside a curve’s recorded ages, the scene’s stated green-up-age assumption applies.
+            </span>
+            <span className="mt-1.5 block">
+              A partial cut harvested in an earlier year keeps its Table 6 figure (volume removed against residual
+              height, as recorded) until the same green-up test says the regeneration in its gaps has reached green-up
+              height; then it counts nothing. Its residual trees are not grown, because Table 6 rises with residual
+              height.
             </span>
           </>
         }
@@ -412,20 +467,82 @@ export function useAssessmentTools({
           {scene.targets
             .filter((t) => t.role === 'block')
             .map((t) => (
-              <NullableNumberField
-                key={t.id}
-                label={`Planned harvest year for ${t.name}`}
-                min={1900}
-                max={2200}
-                value={t.plannedHarvestYear ?? null}
-                onValueChange={(plannedHarvestYear) =>
-                  onChange({
-                    ...scene,
-                    targets: scene.targets.map((v) => (v.id === t.id ? { ...v, plannedHarvestYear } : v)),
-                  })
-                }
-              />
+              <div key={t.id} className="space-y-1.5" data-recovery-block={t.id}>
+                <NullableNumberField
+                  label={`Planned harvest year for ${t.name}`}
+                  min={1900}
+                  max={2200}
+                  value={t.plannedHarvestYear ?? null}
+                  onValueChange={(plannedHarvestYear) =>
+                    onChange({
+                      ...scene,
+                      targets: scene.targets.map((v) => (v.id === t.id ? { ...v, plannedHarvestYear } : v)),
+                    })
+                  }
+                />
+                {!!d.curveLibrary.length && (
+                  <FormField label={`Height–age curve for ${t.name}`}>
+                    <StyledSelect
+                      value={d.blockCurves[t.id] ?? ''}
+                      onChange={(e) =>
+                        change((current) => {
+                          const next = { ...current.blockCurves }
+                          if (e.target.value) next[t.id] = e.target.value
+                          else delete next[t.id]
+                          return { ...current, blockCurves: next }
+                        })
+                      }
+                    >
+                      <option value="">Supplied curve below</option>
+                      {d.curveLibrary.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          Castor curve {c.label} · {curveReach(c)}
+                        </option>
+                      ))}
+                    </StyledSelect>
+                  </FormField>
+                )}
+              </div>
             ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <FileButton
+              label="Load Castor yield curves"
+              accept=".csv,.json"
+              disabled={busy}
+              onFiles={([file]) => void loadCastorCurves(file)}
+            >
+              Load Castor yield curves
+            </FileButton>
+            {!!d.curveLibrary.length && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  change((current) => ({ ...current, curveLibrary: [], blockCurves: {} }))
+                  setCurveNote(null)
+                }}
+              >
+                Remove loaded curves
+              </Button>
+            )}
+          </div>
+          {curveNote && (
+            <InlineAlert tone={curveNote.skipped.length ? 'warning' : 'info'}>
+              <p>{curveNote.text}</p>
+              {!!curveNote.skipped.length && (
+                <p className="mt-1">
+                  Left out: {curveNote.skipped.slice(0, 4).join(' ')}
+                  {curveNote.skipped.length > 4 ? ` …and ${curveNote.skipped.length - 4} more.` : ''}
+                </p>
+              )}
+            </InlineAlert>
+          )}
+          {!curveNote && !!d.curveLibrary.length && (
+            <p className="text-muted-foreground">
+              {d.curveLibrary.length} Castor curve{d.curveLibrary.length === 1 ? '' : 's'} loaded from{' '}
+              {d.curveLibrary[0].source}.
+            </p>
+          )}
           <FormField label="Assessment years, separated by commas">
             <input className={FORM_INPUT_CLASS} value={years} onChange={(e) => setYears(e.target.value)} />
           </FormField>
@@ -464,12 +581,17 @@ export function useAssessmentTools({
                 if (growth.length && !d.growthSource.trim())
                   throw new Error('Record the supplied height–age curve source.')
                 const heights = Object.fromEntries(result!.targets.map((t) => [t.targetId, t.vegHeightMeters]))
+                const byBlock: Record<string, LibraryCurve> = {}
+                for (const [blockId, curveId] of Object.entries(d.blockCurves)) {
+                  const loaded = curveById.get(curveId)
+                  if (loaded) byBlock[blockId] = loaded
+                }
                 const jobs: ToolJob[] = dates.map((y) => ({
                   id: createId('timeline'),
                   name: `Assessment ${y}`,
                   kind: 'timeline',
                   year: y,
-                  scene: timelineScene(scene, y, growth, heights),
+                  scene: timelineScene(scene, y, growth, heights, byBlock),
                 }))
                 change({ ...d, growthCurve: growth })
                 run(jobs)
@@ -478,8 +600,39 @@ export function useAssessmentTools({
           >
             Run recovery timeline
           </Button>
+          <RecoveryTable runs={d.runs} kind="timeline" />
         </div>
       </ToolDisclosure>
+      <ToolDisclosure
+        toggleProps={{ 'data-forestry-disclosure': 'green-up-sensitivity' }}
+        label="Green-up age sensitivity"
+        help={
+          <>
+            <span className="block">
+              The green-up age is a stated planning assumption: the references give the height a slope needs, not how
+              long a site takes to reach it. This runs the scene at {greenUpAges.join(', ')} years and sets the
+              landform’s figures side by side. The scene’s own age is not changed.
+            </span>
+            <span className="mt-1.5 block">
+              Openings with a complete field check or a supplied recovery estimate keep their share in every run. These
+              are assumption comparisons, not confidence intervals.
+            </span>
+            <span className="mt-1.5 block">
+              The age also decides which openings are cleared ground. An opening read as greened up keeps its inventory
+              canopy, which screens what lies behind it, so a shorter age can raise the perspective figure.
+            </span>
+          </>
+        }
+      >
+        <div className="space-y-2 text-xs">
+          <p data-green-up-sensitive>{greenUpSensitiveSentence(sensitiveOpenings, greenUpAges)}</p>
+          <Button size="sm" disabled={busy || !result} onClick={() => perform(() => run(greenUpJobs(scene)))}>
+            Run green-up sensitivity
+          </Button>
+          <RecoveryTable runs={d.runs} kind="greenup" />
+        </div>
+      </ToolDisclosure>
+      <DroughtRiskPanel landform={findSceneLandform(scene)} />
       <ToolDisclosure
         toggleProps={{ 'data-forestry-disclosure': '' }}
         label="Inspect a sightline"
