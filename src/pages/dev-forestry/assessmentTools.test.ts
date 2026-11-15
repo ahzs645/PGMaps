@@ -5,6 +5,9 @@ import { assessmentMaskSampler, parseMasks } from './assessmentMasks'
 import {
   comparisonScene,
   emptyTools,
+  greenUpJobs,
+  greenUpSensitiveOpenings,
+  greenUpSensitivityAges,
   heightAtAge,
   matchingDesign,
   matrixJobs,
@@ -23,6 +26,7 @@ import { buildEvidenceHtml, evidenceGaps } from './toolEvidence'
 import { pointInPolygon, DEFAULT_SIGHTLINE_OPTIONS, testSightline } from './visibility'
 import { assessVia, partialCutEntries } from './via'
 import type { LocalRaster, AssessmentMask } from './types'
+import { partialCutEquivalentPercent } from './vqo'
 const box = (a: number, b: number, c: number, d: number): GeoJSON.Polygon => ({
   type: 'Polygon',
   coordinates: [
@@ -223,19 +227,174 @@ describe('independent saved assessments', () => {
         {},
       ),
     ).toThrow('planned')
-    expect(() =>
-      timelineScene(
-        { ...base, targets: base.targets.map((t) => (t.id === 'block' ? { ...t, harvestSystem: 'partial' } : t)) },
-        2040,
-        curve,
-        {},
-      ),
-    ).toThrow('stand model')
     expect(() => parseGrowthCurve('0,\n10,2')).toThrow()
     expect(() => parseGrowthCurve('0,3\n10,2')).toThrow()
     expect(sceneFingerprint(base)).toBe(
       sceneFingerprint({ ...base, targets: base.targets.map((t) => ({ ...t, plannedHarvestYear: 2040 })) }),
     )
+  })
+  it('grows each block on its own loaded curve, else the supplied one', () => {
+    const base = scene()
+    base.targets[1].plannedHarvestYear = 2030
+    const supplied = parseGrowthCurve('0,0\n40,4')
+    const castor = {
+      id: 'castor:7',
+      label: '7',
+      source: 'Castor yield table yields.csv',
+      points: parseGrowthCurve('0,0\n10,6'),
+    }
+    // Ten years on, the supplied curve reads 1 m (not greened up at 4 m); the block's own curve reads 6 m.
+    expect(timelineScene(base, 2040, supplied, { block: 4 }).targets[1].recoveryPercent).toBe(0)
+    const own = timelineScene(base, 2040, supplied, { block: 4 }, { block: castor }).targets[1]
+    expect(own).toMatchObject({ role: 'harvested', recoveryPercent: 100 })
+    expect(own.source).toContain('Castor curve 7')
+  })
+  it('carries an earlier partial cut by its Table 6 figure until its gaps green up', () => {
+    const base = scene()
+    const partial = {
+      ...base,
+      targets: base.targets.map((t) =>
+        t.id === 'block'
+          ? {
+              ...t,
+              plannedHarvestYear: 2030,
+              harvestSystem: 'partial' as const,
+              volumeRemovedPercent: 40,
+              residualHeightMeters: 20,
+            }
+          : t,
+      ),
+    }
+    const curve = parseGrowthCurve('0,0\n10,3\n20,8')
+    const before = timelineScene(partial, 2040, curve, { block: 4 }).targets[1]
+    // Still a partial cut, residual height as recorded: Table 6 rises with residual height, so it is never grown.
+    expect(before).toMatchObject({ role: 'block', harvestSystem: 'partial', residualHeightMeters: 20 })
+    expect(before.source).toContain('not yet greened up')
+    const after = timelineScene(partial, 2050, curve, { block: 4 }).targets[1]
+    expect(after).toMatchObject({ role: 'harvested', recoveryPercent: 100 })
+    expect(after.source).toContain('greened up')
+    // Without a curve, the scene's stated green-up age decides, as for any opening.
+    const age = partial.settings.greenUpAgeYears
+    expect(timelineScene(partial, 2030 + age - 1, [], {}).targets[1].role).toBe('block')
+    expect(timelineScene(partial, 2030 + age, [], {}).targets[1].role).toBe('harvested')
+    // The run reads the carried partial cut as a partial cut: its Table 6 figure, not cleared ground.
+    const carried = timelineScene(partial, 2040, curve, { block: 4 })
+    const via = assessVia({
+      objectiveId: 'partial-retention',
+      result: analyse(carried),
+      review: {},
+      blocks: carried.targets.filter((t) => t.role === 'block'),
+    })
+    expect(via.partialCuts[0]).toMatchObject({ visible: true, equivalentPercent: partialCutEquivalentPercent(40, 20) })
+  })
+  it('compares green-up ages without changing the scene and names the openings that move', () => {
+    const base = scene()
+    expect(() => greenUpJobs(base)).toThrow('green-up age changes nothing')
+    const withOpening: ForestryScene = {
+      ...base,
+      targets: [
+        ...base.targets,
+        {
+          ...base.targets[1],
+          id: 'old',
+          name: 'Old opening',
+          role: 'harvested',
+          harvestYear: 2004,
+          clearcutPercent: 100,
+        },
+        {
+          ...base.targets[1],
+          id: 'older',
+          name: 'Older opening',
+          role: 'harvested',
+          harvestYear: 1980,
+          clearcutPercent: 100,
+        },
+      ],
+    }
+    const jobs = greenUpJobs(withOpening)
+    expect(jobs.map((j) => j.greenUpAgeYears)).toEqual([10, 15, 20, 25, 30])
+    expect(jobs.every((j) => j.kind === 'greenup')).toBe(true)
+    expect(jobs[2].name).toContain('(scene)')
+    expect(withOpening.settings.greenUpAgeYears).toBe(20)
+    expect(greenUpSensitivityAges(5)).toEqual([5, 10, 15])
+    // Harvested 2004, 22 years old in 2026: counted at 25 and 30 years, recovered at 10–20.
+    expect(greenUpSensitiveOpenings(withOpening, [10, 15, 20, 25, 30], 2026).map((o) => o.id)).toEqual(['old'])
+    const field = {
+      ...withOpening,
+      targets: withOpening.targets.map((t) =>
+        t.id === 'old'
+          ? {
+              ...t,
+              fieldGreenUp: {
+                finding: 'no' as const,
+                greenedUpPercent: 0,
+                observedOn: '2026-06-01',
+                observedBy: 'A. B.',
+              },
+            }
+          : t,
+      ),
+    }
+    expect(greenUpSensitiveOpenings(field, [10, 15, 20, 25, 30], 2026)).toEqual([])
+  })
+  it('keeps the objective reading in a run summary and the loaded curves in the workspace', () => {
+    const s = scene()
+    const summary = summarizeRun(s, analyse(s))
+    expect(summary.scales?.map((scale) => scale.basis)).toEqual(['perspective', 'planimetric'])
+    const castor = {
+      id: 'castor:7',
+      label: '7',
+      source: 'yields.csv',
+      points: [
+        { age: 0, height: 0 },
+        { age: 10, height: 6 },
+      ],
+    }
+    const d = {
+      ...emptyTools(),
+      curveLibrary: [castor],
+      blockCurves: { block: 'castor:7', other: 'castor:gone' },
+      runs: [
+        {
+          id: 'r',
+          name: 'R',
+          kind: 'greenup' as const,
+          greenUpAgeYears: 25,
+          scene: s,
+          summary,
+          error: null,
+          generatedAt: new Date().toISOString(),
+        },
+      ],
+    }
+    const parsed = parseTools(JSON.parse(serializeTools(d)))
+    expect(parsed.curveLibrary).toEqual([castor])
+    // An assignment to a curve that is no longer loaded falls back to the supplied curve.
+    expect(parsed.blockCurves).toEqual({ block: 'castor:7' })
+    expect(parsed.runs[0]).toMatchObject({ kind: 'greenup', greenUpAgeYears: 25 })
+    // Workspaces saved before the library still load.
+    const old = JSON.parse(serializeTools(emptyTools()))
+    delete old.curveLibrary
+    delete old.blockCurves
+    expect(parseTools(old)).toMatchObject({ curveLibrary: [], blockCurves: {} })
+    expect(() =>
+      parseTools({
+        ...d,
+        curveLibrary: [
+          {
+            ...castor,
+            points: [
+              { age: 0, height: 5 },
+              { age: 10, height: 2 },
+            ],
+          },
+        ],
+      }),
+    ).toThrow('falls')
+    expect(() =>
+      parseTools({ ...d, runs: [{ ...d.runs[0], summary: { ...summary, scales: [{ basis: 'x' }] } }] }),
+    ).toThrow('objective reading')
   })
   it('round-trips scenes and result records, rejecting corrupt imported summaries', () => {
     const s = { ...scene(), masks: [mask('private')], localRasters: [raster] }

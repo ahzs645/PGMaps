@@ -38,6 +38,14 @@ calculation; a result embedded by an older export is ignored rather than treated
 as a verified current run. An older model version is recorded in provenance when
 importing it.
 
+## Used by the visual quality tool
+
+`/dev/forestry/visual-quality` reads a Castor `yields.csv`, session or project for
+step 3's recovery timeline, keeping each curve's height by age as given, and writes
+a landform's objective as a `constraints.csv` row (`le` on `height`) with the
+landform as a `zone:vqo` zone. See [the visual quality contract](forestry-visual-quality.md)
+(**Save & export** and **Assessment workspace tools**).
+
 ## Implemented workflows
 
 | Workflow | Browser behavior |

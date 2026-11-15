@@ -302,6 +302,19 @@ describe('visual-quality exports', () => {
     )
   })
 
+  it('writes the Castor constraint from the run, starting it on export, and needs a landform', () => {
+    expect(exportUnavailable('castor-constraint', buildExportContext(input(createEmptyScene())))).toMatch(/landform/)
+    const runnable = { blocker: null, status: 'idle' as const, progress: null, error: null }
+    const ctx = buildExportContext(input(createSampleScene(), { autoRun: runnable }))
+    expect(exportUnavailable('castor-constraint', ctx)).toBeNull()
+    expect(exportPreparation('castor-constraint', ctx).run).toBe(true)
+    const sections = exportContents('castor-constraint', ctx)
+    expect(rowValue(sections, 'Constraint', 'Zone column')).toBe('zone:vqo')
+    expect(rowValue(sections, 'Constraint', 'Green-up height')).toBe('From the run')
+    expect(sections.find((section) => section.title === 'Constraint')?.note).toMatch(/whole area/)
+    expect(VISUALS_EXPORTS.find((item) => item.kind === 'castor-constraint')?.group).toBe('exchange')
+  })
+
   it('offers to open the road view for the 3D scene', () => {
     const ctx = buildExportContext(input(createSampleScene()))
     const section = exportContents('scene-package', ctx).find((entry) => entry.title === 'Road view')

@@ -6,6 +6,9 @@ import { parseRasters } from './localRaster'
 import type { LocalRaster } from './types'
 import type { AnalysisResult, Viewpoint } from './types'
 import { assessVia, type ViaAssessment } from './via'
+import { heightCurveProblem, MAX_LIBRARY_CURVES, type LibraryCurve } from './castorCurves'
+import { greenUpReading } from './greenUp'
+import { runHeadline, type HeadlineScale } from './runRevision'
 
 export const MAX_TOOL_JOBS = 12
 export type ToolOption = { id: string; name: string; scene: ForestryScene }
@@ -50,14 +53,23 @@ export type RunSummary = Pick<
   visibleHa: number
   numericalClass: string | null
   via: ViaAssessment
+  /**
+   * The landform's figure on each scale against the objective's range, as the Results panel reads it
+   * (`runHeadline`). Absent on runs recorded before it, and when the run had no active landform.
+   */
+  scales?: HeadlineScale[]
 }
+export const TOOL_JOB_KINDS = ['comparison', 'matrix', 'stability', 'timeline', 'greenup'] as const
+export type ToolJobKind = (typeof TOOL_JOB_KINDS)[number]
 export type ToolJob = {
   id: string
   name: string
   scene: ForestryScene
-  kind: 'comparison' | 'matrix' | 'stability' | 'timeline'
+  kind: ToolJobKind
   viewId?: string
   year?: number
+  /** A green-up sensitivity job's green-up age, years. */
+  greenUpAgeYears?: number
 }
 export type ToolRun = ToolJob & { summary: RunSummary | null; error: string | null; generatedAt: string }
 export type ToolsDocument = {
@@ -69,6 +81,10 @@ export type ToolsDocument = {
   runs: ToolRun[]
   growthCurve: Array<{ age: number; height: number }>
   growthSource: string
+  /** Height–age curves loaded from a Castor scenario (`castorCurves.ts`), for blocks to take one each. */
+  curveLibrary: LibraryCurve[]
+  /** Block target ID → the library curve it grows on. A block not listed grows on the supplied curve. */
+  blockCurves: Record<string, string>
 }
 export const emptyTools = (): ToolsDocument => ({
   version: 1,
@@ -78,6 +94,8 @@ export const emptyTools = (): ToolsDocument => ({
   runs: [],
   growthCurve: [],
   growthSource: '',
+  curveLibrary: [],
+  blockCurves: {},
 })
 export function parseTools(raw: unknown): ToolsDocument {
   const d = raw as ToolsDocument
@@ -201,7 +219,9 @@ export function parseTools(raw: unknown): ToolsDocument {
   const runs = d.runs.map((v) => {
     identity(v)
     if (
-      !['comparison', 'matrix', 'stability', 'timeline'].includes(v.kind) ||
+      !(TOOL_JOB_KINDS as readonly string[]).includes(v.kind) ||
+      (v.greenUpAgeYears !== undefined &&
+        !(Number.isInteger(v.greenUpAgeYears) && v.greenUpAgeYears >= 1 && v.greenUpAgeYears <= 100)) ||
       typeof v.generatedAt !== 'string' ||
       !Number.isFinite(Date.parse(v.generatedAt))
     )
@@ -219,6 +239,17 @@ export function parseTools(raw: unknown): ToolsDocument {
   const growthCurve = Array.isArray(d.growthCurve)
     ? parseGrowthCurve(d.growthCurve.map((p) => `${p.age},${p.height}`).join('\n'))
     : []
+  const curveLibrary = parseCurveLibrary((d as { curveLibrary?: unknown }).curveLibrary)
+  const known = new Set(curveLibrary.map((c) => c.id))
+  const rawAssignments = (d as { blockCurves?: unknown }).blockCurves
+  if (rawAssignments !== undefined && (typeof rawAssignments !== 'object' || rawAssignments === null))
+    throw new Error('Invalid block curve assignments.')
+  // An assignment whose curve was removed falls back to the supplied curve rather than failing the workspace.
+  const blockCurves = Object.fromEntries(
+    Object.entries((rawAssignments ?? {}) as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string' && known.has(entry[1]),
+    ),
+  )
   return {
     version: 1,
     ...(d.currentScene ? { currentScene: scene(d.currentScene) } : {}),
@@ -228,7 +259,34 @@ export function parseTools(raw: unknown): ToolsDocument {
     runs,
     growthCurve,
     growthSource: typeof d.growthSource === 'string' ? d.growthSource : '',
+    curveLibrary,
+    blockCurves,
   }
+}
+function parseCurveLibrary(raw: unknown): LibraryCurve[] {
+  if (raw === undefined) return []
+  if (!Array.isArray(raw) || raw.length > MAX_LIBRARY_CURVES) throw new Error('Invalid or too many loaded curves.')
+  const curves = raw.map((entry) => {
+    const c = entry as LibraryCurve
+    if (
+      !c ||
+      typeof c.id !== 'string' ||
+      !c.id ||
+      c.id.length > 200 ||
+      typeof c.label !== 'string' ||
+      c.label.length > 200 ||
+      typeof c.source !== 'string' ||
+      c.source.length > 500 ||
+      !Array.isArray(c.points)
+    )
+      throw new Error('A loaded height–age curve is missing its name or source.')
+    const points = c.points.map((p) => ({ age: Number(p?.age), height: Number(p?.height) }))
+    const problem = heightCurveProblem(points)
+    if (problem) throw new Error(`Loaded curve ${c.label} ${problem}.`)
+    return { id: c.id, label: c.label, source: c.source, points }
+  })
+  if (new Set(curves.map((c) => c.id)).size !== curves.length) throw new Error('Duplicate loaded curve IDs.')
+  return curves
 }
 export function parseGrowthCurve(text: string) {
   if (!text.trim()) return []
@@ -350,12 +408,26 @@ export function stabilityJobs(scene: ForestryScene): ToolJob[] {
     })
   return jobs
 }
-/** Scheduling is separate from ordinary assessment. Recovery never uses a mean-slope shortcut. */
+/**
+ * Scheduling is separate from ordinary assessment. Recovery never uses a mean-slope shortcut.
+ *
+ * Each block grows on its own loaded curve (`byBlock`, from a Castor yield table) when it has one,
+ * else on the supplied curve. Green-up is the curve's height at the opening's age against the
+ * block's own area-weighted Table 6 height (`requiredHeightById`); outside the curve's recorded
+ * ages the scene's stated green-up age applies, as for any existing opening.
+ *
+ * A partial cut harvested in an earlier year stays a partial cut, so its Table 6 figure (volume
+ * removed against residual height, as recorded) keeps counting until the same green-up test says
+ * the regeneration in its gaps has reached green-up height; from then it counts nothing. The
+ * residual trees are never grown: Table 6 rises with residual height, so growing them would make
+ * an older partial cut read as a larger alteration.
+ */
 export function timelineScene(
   base: ForestryScene,
   year: number,
   curve: ToolsDocument['growthCurve'],
   requiredHeightById: Record<string, number | null>,
+  byBlock: Readonly<Record<string, LibraryCurve>> = {},
 ): ForestryScene {
   return {
     ...base,
@@ -368,24 +440,95 @@ export function timelineScene(
         throw new Error(`Record the planned harvest year for ${t.name}.`)
       if (date > year) return []
       if (date === year) return [t]
-      if (t.harvestSystem === 'partial')
-        throw new Error(
-          'Future partial-cut recovery requires a supported stand model. Compare its harvest year separately.',
-        )
-      const height = heightAtAge(curve, year - date),
+      const own = byBlock[t.id]
+      const points = own?.points ?? curve
+      const curveName = own ? `Castor curve ${own.label}` : 'supplied height curve'
+      const height = points.length ? heightAtAge(points, year - date) : null,
         required = requiredHeightById[t.id]
+      const tested = height !== null && required != null
+      const basis = tested
+        ? `${height.toFixed(2)} m on the ${curveName}; ${required.toFixed(2)} m required`
+        : `stated ${base.settings.greenUpAgeYears}-year green-up age`
+      if (t.harvestSystem === 'partial') {
+        const greenedUp = tested ? height >= required : year - date >= base.settings.greenUpAgeYears
+        if (!greenedUp)
+          return [
+            { ...t, source: `Partial cut harvested ${date}, not yet greened up (${basis}); Table 6 still counts` },
+          ]
+        return [
+          {
+            ...t,
+            role: 'harvested' as const,
+            harvestYear: date,
+            clearcutPercent: 100,
+            recoveryPercent: 100,
+            source: `Partial cut harvested ${date}, greened up (${basis})`,
+          },
+        ]
+      }
       return [
         {
           ...t,
           role: 'harvested' as const,
           harvestYear: date,
           clearcutPercent: 100,
-          recoveryPercent: height !== null && required != null ? (height >= required ? 100 : 0) : null,
-          source: `Scheduled harvest; ${height === null ? 'stated age assumption' : `${height.toFixed(2)} m supplied height curve; ${required ?? 'unknown'} m required`}`,
+          recoveryPercent: tested ? (height >= required ? 100 : 0) : null,
+          source: `Scheduled harvest; ${basis}`,
         },
       ]
     }),
   }
+}
+
+/** The green-up ages the sensitivity compares, either side of the scene's own. */
+export const GREEN_UP_SENSITIVITY_OFFSETS = [-10, -5, 0, 5, 10] as const
+
+export function greenUpSensitivityAges(current: number): number[] {
+  return [...new Set(GREEN_UP_SENSITIVITY_OFFSETS.map((offset) => current + offset))].filter(
+    (age) => Number.isInteger(age) && age >= 1 && age <= 100,
+  )
+}
+
+/**
+ * Existing openings whose count changes somewhere across `ages`: ones the model reads by the
+ * green-up age alone (no field check in use, no supplied recovery estimate) and whose age at the
+ * assessment year lies between the shortest and longest age compared.
+ */
+export function greenUpSensitiveOpenings(
+  scene: ForestryScene,
+  ages: readonly number[],
+  year: number,
+): Array<{ id: string; name: string; harvestYear: number; ageYears: number }> {
+  if (!ages.length) return []
+  const shortest = Math.min(...ages),
+    longest = Math.max(...ages)
+  return scene.targets.flatMap((t) => {
+    if (t.role !== 'harvested' || t.harvestYear == null) return []
+    const reading = greenUpReading(t, year, scene.settings.greenUpAgeYears)
+    if (reading.used !== 'modelled' || reading.modelled.basis !== 'age') return []
+    const ageYears = year - t.harvestYear
+    return ageYears >= shortest && ageYears < longest
+      ? [{ id: t.id, name: t.name, harvestYear: t.harvestYear, ageYears }]
+      : []
+  })
+}
+
+/**
+ * One run per green-up age either side of the scene's own: the same scene with only
+ * `settings.greenUpAgeYears` changed. Openings with a field check or a supplied recovery
+ * estimate keep their share, as in any run. The scene's own age is never changed.
+ */
+export function greenUpJobs(scene: ForestryScene): ToolJob[] {
+  if (!scene.targets.some((t) => t.role === 'harvested' && t.harvestYear != null))
+    throw new Error('No existing opening has a harvest year, so the green-up age changes nothing here.')
+  const current = scene.settings.greenUpAgeYears
+  return greenUpSensitivityAges(current).map((age) => ({
+    id: `greenup-${age}`,
+    name: `Green-up age ${age} years${age === current ? ' (scene)' : ''}`,
+    kind: 'greenup' as const,
+    greenUpAgeYears: age,
+    scene: { ...scene, settings: { ...scene.settings, greenUpAgeYears: age }, viaReview: {} },
+  }))
 }
 export function proposedAreaHa(scene: ForestryScene) {
   return scene.targets.filter((t) => t.role === 'block').reduce((n, t) => n + polygonAreaMeters(t.geometry) / 10000, 0)
@@ -417,7 +560,12 @@ export function summarizeRun(scene: ForestryScene, result: AnalysisResult): RunS
     visibleHa: result.targets.filter((t) => t.role === 'block').reduce((n, t) => n + t.visibleAreaMeters / 10000, 0),
     numericalClass: via.initialClass?.id ?? null,
     via,
+    ...scalesFor(scene, result),
   }
+}
+function scalesFor(scene: ForestryScene, result: AnalysisResult): { scales?: HeadlineScale[] } {
+  const headline = runHeadline(result, findSceneLandform(scene), scene.thresholds)
+  return headline ? { scales: headline.scales } : {}
 }
 
 /** Imported summaries are historical data, but must be safe to display and export. */
@@ -455,6 +603,21 @@ function validateRunSummary(s: RunSummary) {
     (s.sourceNotes !== undefined && !strings(s.sourceNotes))
   )
     throw new Error('A saved numerical summary is invalid.')
+  if (
+    s.scales !== undefined &&
+    (!Array.isArray(s.scales) ||
+      s.scales.length > 2 ||
+      s.scales.some(
+        (scale) =>
+          !scale ||
+          (scale.basis !== 'perspective' && scale.basis !== 'planimetric') ||
+          !finiteOrNull(scale.percent) ||
+          (scale.classId !== null && typeof scale.classId !== 'string') ||
+          (scale.met !== null && typeof scale.met !== 'boolean') ||
+          ![scale.floorPercent, scale.maxPercent].every((v) => typeof v === 'number' && Number.isFinite(v)),
+      ))
+  )
+    throw new Error('A saved objective reading is invalid.')
   if (s.numericalClass !== null && typeof s.numericalClass !== 'string')
     throw new Error('Invalid saved numerical class.')
   const v = s.via

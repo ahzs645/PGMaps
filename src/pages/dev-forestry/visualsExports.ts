@@ -5,6 +5,7 @@
  * the file is written from. No DOM or network access.
  */
 
+import { CASTOR_DENOMINATOR_NOTE, castorConstraintProblem, castorVqoConstraint } from './castorConstraint'
 import { layoutStageLabel, layoutStageOf } from './fieldChecklist'
 import type { SavedDriveView } from './previewState'
 import type { ForestryScene } from './scene'
@@ -28,12 +29,14 @@ export type VisualsExport =
   | 'views'
   | 'workspace'
   | 'scene-package'
+  | 'castor-constraint'
 
-export type VisualsExportGroup = 'documents' | 'files'
+export type VisualsExportGroup = 'documents' | 'files' | 'exchange'
 
 export const VISUALS_EXPORT_GROUP_LABELS: Record<VisualsExportGroup, string> = {
   documents: 'Assessment documents',
   files: 'Save and reopen',
+  exchange: 'For other tools',
 }
 
 export type ExportFormat = { id: string; label: string; extension: string }
@@ -151,6 +154,17 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     description:
       'The road view as a file for other renderers: the ground, every tree drawn within 600 m, the cut ground and where the eye stands. Display only.',
     formats: [JSON_FILE],
+  },
+  {
+    kind: 'castor-constraint',
+    group: 'exchange',
+    label: 'Castor constraint',
+    description:
+      "The landform's objective as a Castor cover constraint (no more than the planimetric allowance below green-up height), with the landform as its zone, for a timber supply scenario.",
+    formats: [
+      { id: 'csv', label: 'constraints.csv', extension: '.csv' },
+      { id: 'geojson', label: 'Zone GeoJSON', extension: '.geojson' },
+    ],
   },
 ]
 
@@ -293,6 +307,11 @@ export type ExportContext = {
   evidence: { loaded: boolean; gaps: string[]; views: number; runs: number; fields: number }
   /** The road view is open with its terrain loaded, so the 3D scene can be written. */
   roadViewReady: boolean
+  /** The Castor constraint as the current run gives it (`castorConstraint.ts`), or why it cannot be written yet. */
+  castor: {
+    constraint: { id: string; zoneId: string; threshold: number; percentage: number; percentageNote: string } | null
+    problem: string | null
+  }
   autoRun: ExportAutoRun
   /** The land status checks (`landStatusChecks.ts`) as the block note would print them now. */
   landChecks: {
@@ -310,7 +329,13 @@ export type ExportContext = {
 }
 
 /** The outputs written from the run: the export runs the assessment first when it is missing or stale. */
-export const RUNS_ON_EXPORT: ReadonlySet<VisualsExport> = new Set(['block-note', 'fs1252', 'field-brief', 'worksheet'])
+export const RUNS_ON_EXPORT: ReadonlySet<VisualsExport> = new Set([
+  'block-note',
+  'fs1252',
+  'field-brief',
+  'worksheet',
+  'castor-constraint',
+])
 
 /** The outputs drawn from the saved views' figures: another engine can draw those again at final quality. */
 export const DRAWS_FIGURES: ReadonlySet<VisualsExport> = new Set(['analysis-sheet', 'via-document', 'via-report'])
@@ -389,6 +414,15 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
       return null
     case 'scene-package':
       return ctx.roadViewReady ? null : 'Open the road view and let its terrain load first.'
+    case 'castor-constraint':
+      if (!ctx.landform) return 'Delineate or adopt one active landform first: it is the constraint’s zone.'
+      if (ctx.run !== 'current')
+        return ctx.autoRun.blocker
+          ? ctx.run === 'stale'
+            ? 'The run is out of date. Run it again to write the constraint.'
+            : `Run the visibility assessment first. ${ctx.autoRun.blocker}`
+          : null
+      return ctx.castor.problem
   }
 }
 
@@ -878,6 +912,30 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           note: 'The eye and the look are where the road view stands now.',
         },
       ]
+    case 'castor-constraint': {
+      const c = ctx.castor.constraint
+      return [
+        landformSection(ctx),
+        {
+          title: 'Constraint',
+          step: 'design',
+          rows: [
+            { label: 'Zone column', value: 'zone:vqo' },
+            { label: 'Zone ID', value: c?.zoneId ?? 'From the landform' },
+            { label: 'Type', value: 'le: at most the percentage of the zone at or below the height' },
+            {
+              label: 'Green-up height',
+              value: c ? `${c.threshold.toFixed(2)} m, the run's area-weighted Table 6 height` : 'From the run',
+            },
+            {
+              label: 'Allowance',
+              value: c ? `${c.percentage}% planimetric. ${c.percentageNote}` : "The objective's planimetric figure",
+            },
+          ],
+          note: CASTOR_DENOMINATOR_NOTE,
+        },
+      ]
+    }
   }
 }
 
@@ -989,6 +1047,7 @@ const roadLengthKm = (coordinates: ReadonlyArray<[number, number]>) => lineLengt
 /** The dialog's context from the page's state. */
 export function buildExportContext(input: ContextInput): ExportContext {
   const { scene, result, stale, assessment } = input
+  const castorConstraint = castorVqoConstraint(scene, result)
   const landform = findSceneLandform(scene)
   const review = scene.viaReview ?? {}
   const checklist = review.fieldChecklist
@@ -1088,6 +1147,16 @@ export function buildExportContext(input: ContextInput): ExportContext {
     },
     evidence: { loaded: input.evidence.loaded, gaps: input.evidence.gaps, ...input.evidence.counts },
     roadViewReady: input.roadViewReady,
+    castor: {
+      constraint: castorConstraint && {
+        id: castorConstraint.id,
+        zoneId: castorConstraint.zoneId,
+        threshold: castorConstraint.threshold,
+        percentage: castorConstraint.percentage,
+        percentageNote: castorConstraint.percentageNote,
+      },
+      problem: castorConstraintProblem(scene, result),
+    },
     autoRun: input.autoRun,
     landChecks: input.landChecks,
     inventory: input.inventory,

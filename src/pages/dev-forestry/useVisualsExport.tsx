@@ -63,6 +63,12 @@ import type { ReportImages } from './viaReport/parts'
 import { assembleReport, findReportRecipe, recipeFormat, REPORT_RECIPES } from './viaReport/recipes'
 import { VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
 import {
+  castorConstraintCsv,
+  castorConstraintProblem,
+  castorVqoConstraint,
+  castorZoneGeoJson,
+} from './castorConstraint'
+import {
   buildExportContext,
   type ContextView,
   type ExportAction,
@@ -806,6 +812,18 @@ export function useVisualsExport(input: {
         return textFile(evidence.workspaceJson(), 'forestry-assessment-workspace.json', 'application/json')
       case 'scene-package':
         return input.scenePackage.build()
+      case 'castor-constraint': {
+        const constraint = castorVqoConstraint(scene, result)
+        if (!constraint)
+          throw new Error(castorConstraintProblem(scene, result) ?? 'Run the visibility assessment first.')
+        return format === 'geojson'
+          ? textFile(
+              castorZoneGeoJson(constraint, new Date()),
+              `castor-vqo-zone-${constraint.zoneId}.geojson`,
+              'application/geo+json',
+            )
+          : textFile(castorConstraintCsv(constraint), 'constraints.csv', 'text/csv')
+      }
     }
   }
 
