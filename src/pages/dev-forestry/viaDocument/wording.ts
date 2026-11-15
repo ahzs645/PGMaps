@@ -24,6 +24,8 @@ export interface Sentence {
   template: string
   /** What the sentence is about when a document repeats it (a block), for "reviewer to complete" lists. */
   about?: string
+  /** The template's human label (`SentenceTemplate.role`), for "reviewer to complete" lists. */
+  label?: string
 }
 
 export type SlotValues = Record<string, string | number | null | undefined>
@@ -52,6 +54,81 @@ export function fillSentence(id: string, template: string, values: SlotValues, s
   const sentence = joined.charAt(0).toUpperCase() + joined.slice(1)
   return { id, text: missing.length ? null : sentence, source, missing, template }
 }
+
+/**
+ * Plain names for the slots a sentence can be missing, as a "reviewer to complete" list prints them; a slot not named
+ * here is spelled out from its own name ("adjustedClass" reads "adjusted class").
+ */
+export const SLOT_NAMES: Readonly<Record<string, string>> = {
+  a: 'line a, % altered by proposed openings',
+  b: 'line b, % in access roads',
+  c: 'line c, % of existing openings not greened up',
+  x: 'initial percent alteration (X)',
+  y: 'total adjustment (Y)',
+  adjusted: 'adjusted percent alteration',
+  adjustedClass: 'class of the adjusted figure',
+  initialClass: 'class of the initial figure',
+  rating: 'extent the objective is met',
+  extent: 'extent the objective is met',
+  extentLower: 'extent the objective is met',
+  rationale: 'rationale',
+  vqo: 'established objective',
+  objective: 'established objective',
+  objectiveName: 'established objective',
+  ocular: 'class by eye',
+  impact: 'level of impact',
+  visibility: 'visibility term',
+  forceLines: 'response to the lines of force',
+  borrow: 'borrowing from natural character',
+  borrowsBorrow: 'borrowing from natural character',
+  edges: 'edge treatment',
+  position: 'position on the landform',
+  design: 'design character',
+  percent: 'percent alteration',
+  km: 'viewing distance',
+  distanceRating: 'viewing distance rating',
+  sizeTerm: 'size term',
+  landform: 'landform',
+  viewpoint: 'viewpoint',
+  block: 'block',
+  blockList: 'blocks',
+  project: 'project name',
+  withinGuidelines: 'within the guidelines',
+  existing: 'existing alteration',
+  proposed: 'proposed alteration',
+  total: 'total alteration',
+  plainVisibility: 'how visible the proposal is',
+  defVisibility: 'objective’s visibility requirement',
+  defScale: 'objective’s scale requirement',
+  defDesign: 'objective’s design requirement',
+  ceiling: 'objective’s ceiling',
+  className: 'class',
+  range: 'class range',
+  hfov: 'field of view',
+}
+
+/** A slot's plain name for a "reviewer to complete" list. */
+export const slotName = (slot: string) =>
+  SLOT_NAMES[slot] ??
+  // A need already written in words ("a key viewpoint that sees Block 3") prints as written.
+  (/\s/.test(slot)
+    ? slot
+    : slot
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[-_]/g, ' ')
+        .toLowerCase())
+
+/**
+ * A sentence waiting on the reviewer, as a "reviewer to complete" list prints it: the template's label (else its id
+ * spelled out) and the plain names of what it needs, never the template's internal codes.
+ */
+export function toCompleteLine(item: { id: string; missing: readonly string[]; label?: string }): string {
+  const what = item.label ?? item.id.replace(/[-_]/g, ' ')
+  const needs = [...new Set(item.missing.map(slotName))]
+  return needs.length ? `${what}: needs ${andJoin(needs)}` : what
+}
+const andJoin = (items: readonly string[]) =>
+  items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 
 // ------------------------------------------------------------------ vocabularies
 
@@ -196,6 +273,24 @@ export const PERSPECTIVE_REPORT = {
     'Group discussion: where the blocks are and that they are seen',
     'run',
     '{blockList} are located on {landform} and are visible from the {viewpoint} viewpoint.',
+  ),
+  groupLocationSub: t(
+    'location',
+    'Group discussion: where the blocks are, on a sub-landform, and that they are seen (23)',
+    'run',
+    '{blockList} are located in {parent} within {landform} and are visible from the {viewpoint} viewpoint.',
+  ),
+  locationSub: t(
+    'location',
+    'Block discussion: where the block is, on a sub-landform, and that it is seen',
+    'run',
+    'Block {block} is located in {parent} within {landform} and is visible from the {viewpoint} viewpoint.',
+  ),
+  distanceRange: t(
+    'distance',
+    'Group discussion: the viewing distance as the range of the blocks’ own distances (23)',
+    'run',
+    'The viewing distance is between {near} and {far} km from the {viewpoint} viewpoint, {distanceRating} viewing distance.',
   ),
   glimpses: t(
     'glimpses',

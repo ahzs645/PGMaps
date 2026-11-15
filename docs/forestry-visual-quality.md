@@ -2392,6 +2392,31 @@ block is at least as far as the nearest block in view. Whether the land has an
 established objective (26) is said only when the inventory was read
 (`SavedFigure.inventoryRead`); otherwise the report says it was not read.
 
+**The visual inventory the reports print.** The page makes one live read of
+`REC_VISUAL_LANDSCAPE_INVENTORY` around the scene (`queryVisualInventory`). The
+plan's and road view's EVQO drapes use it, and so do saved views and Save &
+export. The analysis sheet, the VIA document and the VIA report
+(`READS_INVENTORY`) read it before their file when it has not been read yet, as
+`RUNS_ON_EXPORT` starts the run (the dialog's `prepare`). A preview never
+retries a failed read; a download reads again first. When the read fails, the
+file still writes and says the inventory was not read, never an empty
+inventory. Each saved view keeps what chooses its unit (`inventoryAt`: the
+blocks' visible points, the adopted unit, the landform). A view saved before
+any read takes its own unit at export (`withReadInventory`) by the same rules
+as its sheet's circle. A view saved after a read keeps the unit its sheet
+printed. `buildReportContext` takes the read units as `inventoryUnits`: the
+context lists every unit under the blocks with each block's hectares, plus any
+unit a viewpoint chose (`inventoryUnitRows`). Both test their points through
+`preparePolygons`, because the WFS keeps full-resolution coasts. Around
+Captain Island that is 657,000 vertices in 118 units, and a `pointInPolygon`
+loop took 15 s for 20,000 points against 82 ms prepared. Only one date is carried:
+`UPDATE_DATE`, the day the record was last updated (`BcSensitivityUnit.updated`,
+`date` on each unit's values). The layer records no inventory date as such, so
+the reviewer's office `inventoryDate` takes precedence. Before 15 November 2026
+every report printed "not read". The comparison harness turned on the EVQO
+drape, which had its own read, while the views took their unit only from step
+1's *Look up inventory*, frozen at save time.
+
 **What the reviewer gives for the reports.** Four inputs the run never makes
 are review records (`viaReview`, out of `sceneFingerprint` and `AnalysisInput`),
 each entered once. Step 2's *Viewpoint significance* holds Table 3 per saved
@@ -2503,6 +2528,34 @@ which have none, and how much of the blocks' ground standing timber hides from
 each viewpoint: the run records a sample hidden only by timber as code 3 in
 `visibleByStation` (readers that know only 1 and 2 read it as hidden, as
 before), which the callouts count as `screenedPercent`.
+26's figure page (`ea-figure-pages`) takes location and regional maps of its own
+(`planFigurePageMaps`, `ReportImages.figurePageMaps`), captured only when the
+recipe prints that page; every other part keeps the maps above. Its location
+map is imagery fitted tightly to the view's wedge and the blocks in it at the
+side slot's shape (`FIGURE_PAGE_MAP_ASPECT`, 0.8), the wedge spanning the
+saved view's whole horizontal field with a true arc just past the farthest
+block in it (`figureWedge`), filled teal with a white edge
+(`VIA_FIGURE_MAP.viewWedge`, catalogue `via-figure-view-wedge`), the blocks in
+the block sheets' block-of-interest outline, the viewpoint a cyan star at the
+apex and a small north arrow at the top right: no legend, scale bar, VQO
+hatching or viewpoint name. Its regional map is the plan's vector map at
+`FIGURE_REGIONAL_SCALE` (1:400,000 printed `FIGURE_PAGE_MAP_WIDTH_IN` wide;
+farther out only when the project would not fit), with the project's ground
+outlined and the viewpoints starred. Positron draws roads near-white on
+near-white, so while that map alone is captured the basemap takes a road-map
+look (`figureRegionalLook`, colours in `VIA_FIGURE_MAP.regional`): motorway to
+secondary highways orange from zoom 8, place and water names dark on a white
+halo at a set size, towns and villages from zoom 7 and hamlets from 9; every
+change is put back in `finally`. The frame is `FIGURE_REGIONAL_FRAME_WIDTH`
+(600) CSS pixels wide, which puts 1:400,000 near zoom 10, the first whose
+tiles carry village names, with the basemap's type and highway widths drawn
+twice their size (`regionalTypeScale`) so they print at about 6 pt. The capture
+reads the place names drawn across the whole canvas at that camera, and when
+the nearest lies outside the frame it fits the frame to the project and that
+place (`regionalWithPlace`, never past `FIGURE_REGIONAL_MAX_SCALE`, 1:500,000)
+and takes it again. Where no named place is within reach (Marblehead's nearest
+in the tiles, Kaslo, is about 38 km off), the map shows highways and water
+only. Symbols on both maps are sized in points printed on the slot.
 The overview is also taken as an 11 × 17 topographic sheet (`planOverviewSheet`,
 `ReportImages.overviewSheet`): every block and viewpoint fitted at the largest
 round scale that holds them (`FIT_SCALES`, true at the frame's centre latitude
@@ -2578,6 +2631,47 @@ Kamloops Region summary table (02) prints its twelve numbered rows, notes and
 footer. The consultant reports (`partsConsultant.ts`) carry numbered Tables 1-5
 with their footnotes, the assessment method and a peer-review sign-off.
 
+What the 2001 forms fill since the reference comparison of November 2026:
+
+- **Inventory.** The units the report read (`ReportContext.inventoryUnits`) print one row each, as 01's polygon
+  table, 03's label rows and 02's row 1 do. 05 (`inventoryByBlock`) also splits each block across its units by
+  area. The date is the reviewer's office field, else the record's last update, which is said as such.
+- **The header.** The operation type is *Harvesting* when the scene has proposed blocks. The scene records no
+  proposed road, so road building is listed for the reviewer.
+- **01's current EVC.** Its Yes/No answer is read from the class the arrow marks, for the reviewer to confirm, and
+  its two footnotes print as form wording.
+- **01's viewing angle.** Each viewpoint is rated focal, oblique or peripheral from the seen block nearest the
+  view's centre line (`BlockAtStation.offAxisDeg`, `VIEWING_ANGLE_SCREEN`). That rating is a stated screen, not a
+  guidebook threshold.
+- **01's design factors.** They are rated per viewpoint: tree retention comes from the seen blocks' records on
+  Table 5's bands, and the rest from step 4 at the assessment station. The objective met on design is left
+  unmarked for the reviewer.
+- **The summary forms' worksheet (03, 05).** Each viewpoint's class is printed with the class all the figures
+  meet, ticked from the run.
+- **03's summary.** It asks the long-form questions.
+- **The design notes.** When the arithmetic nets private land or rock out, they say so.
+- **02's rows 9 and 12.** They refer to the attached design rationale.
+- **The contents.** They list the figure pages under *Images*, without page numbers: Chrome's print engine has no
+  `target-counter`.
+
+What the consultant reports (22, 23) fill since the same comparison:
+
+- **Summary and landscape.** They place the blocks from the basemap's named places (`collectPlacesFromMap`,
+  nearest of each kind within `PLACE_REACH_KM`), say which way the blocks' ground faces and how steep it is (the
+  run's samples, `groundAspect`), and which stands the run's inventory read records over the landforms
+  (`standCharacter`), all through `ReportContext.setting` (`viaReport/setting.ts`). The terrain's character in words
+  stays the reviewer's and is listed; a missing source is listed, never guessed.
+- **The method.** It says where the viewpoints are, counting those at one place ("at three locations on a lake"),
+  and cites each key viewpoint's sheet. The landform count names the sub-landforms and the viewpoints that divide
+  them.
+- **The discussion.** A block on a sub-landform is "in {parent} within {sub-landform}" (step 1's record, else the
+  name), and a group's viewing distance is the range of the blocks' own distances when the run gives each.
+- **The appendix.** The viewpoint map is A1; each viewpoint then has its lined-up field photograph when there is one,
+  a *Perspective Viewpoint* page (the plain simulation, `ReportImages.after`) and its *Perspective Viewpoint
+  Analysis* sheet, numbered in Table 3's order (`appendixEntries`, `appendix-sheets`, listed by `appendix-list`).
+  The text cites those numbers.
+- **Sign-off.** Both reports print the certification statements the 2001 forms carry, naming no association.
+
 **The logo.** Printed sheets and reports carry the user's own PNG or JPEG,
 kept in the browser's branding store (`pgmaps-branding` IndexedDB,
 `saveUploadedLogo`, `LogoChooser`) for every sheet and report and never in a
@@ -2644,8 +2738,9 @@ starting (the first render of a session), the scene (PGMaps building the
 package and the frame's real-density stand, the engine building it), the render
 (each frame's warm-up renders, then its samples; scaled by frames, pixels and
 samples) and composing the figure. Before any render here, the rates are the
-library runs' (40 reference viewpoints at 8 samples: medians of 82 s for
-worldgen and 70 s for Nanite a viewpoint), and the tray says *first estimate*.
+profiled runs' of 15 November 2026 (one 2400 × 2769 frame, 24 samples, a
+1.46 M-stem stand, Apple GPU: about 25 s a viewpoint for either engine), and the
+tray says *first estimate*.
 Each finished render is timed by phase and kept in this browser
 (`localStorage`, the newest 12 per engine), and later estimates come from those,
 weighted to the newest (*from your renders*). While an engine renders it sends
@@ -2660,6 +2755,25 @@ Island (one view, three 800 px frames, 24 samples): worldgen 115 s with _about
 2 min_ shown before it started; Nanite Forest 50 s with *about 1 min*. An engine that sends no
 progress is timed from the model alone, and the estimate never reads less than
 the time already spent in a phase says.
+
+**Where a render's time goes** (profiled 15 November 2026, the same request):
+the engines are not the slow part. Of about 25 s a viewpoint, PGMaps spends
+3-7 s before it sends the scene (the capture's VRI and skyline reads, the
+package); the engine builds the scene in 4-8 s; the capture then takes 10-12 s,
+of which the 24 samples are about 2 s (worldgen 65 ms a sample, Nanite Forest
+41 ms) and the rest is each engine's own stand: worldgen placing 1.4 M cards
+(2.2 s), Nanite Forest rebuilding its stand and impostor atlas (6.8 s) and
+rasterising the class layers (1.6 s). Samples past 8-16 change the picture less
+than its JPEG encoding does, so fewer samples save under a second. What PGMaps
+does about it: the frame's stand grows while the engine builds the scene (the
+scene is sent first; the request waits for the stand, `EngineCaptureHandle`
+takes a promise), the engine page stays for `ENGINE_IDLE_MS` after its last job
+while the tray is shown, and in development every queue event is kept on
+`window.__visualsRenderLog` (asked, start, scene, ready, request, done, reset,
+error), which is how a view drawn twice is told from one drawn slowly. The
+basemap's water is read until the plan's tiles have loaded even when the road
+view opens first (`BasemapContextProbe`): opened straight after an import, the
+road view and every package sent to an engine kept an empty water list.
 
 ## Evidence for the defaults (November 2026 accuracy study)
 

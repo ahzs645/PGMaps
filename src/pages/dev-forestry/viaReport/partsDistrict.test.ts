@@ -6,8 +6,25 @@ import { PERCENT_SCALES } from '../viaDocument/scales'
 import type { ViaAssessment } from '../via'
 import { reportHtml, reportMarkdown } from './html'
 import type { ReportBlock } from './model'
-import type { ReportContext } from './parts'
-import { andList, DISTRICT_PARTS, operationArea, rangeFor, withinRange } from './partsDistrict'
+import { viewingAngleTerm } from '../viaDocument/scales'
+import {
+  PRIVATE_LAND_NETTED,
+  ROCK_NETTED,
+  seenRetention,
+  unitsExceed,
+  viewingAngleOf,
+  type InventoryUnitRow,
+  type ReportContext,
+} from './parts'
+import {
+  andList,
+  DISTRICT_PARTS,
+  nettingSentence,
+  operationArea,
+  rangeFor,
+  rationaleSubject,
+  withinRange,
+} from './partsDistrict'
 import { findReportPart } from './registry'
 import { assembleReport, REPORT_RECIPES } from './recipes'
 
@@ -230,9 +247,16 @@ describe('the 2001 form parts (01, 03, 05)', () => {
     )
     expect(plain.toComplete).toEqual(['Licensee name', 'General location'])
     const summary = build('form-header-2001', { ...ctx, recipeParts: ['form-header-2001', 'notes-2001'] })
-    expect(summary.toComplete).toEqual(
-      expect.arrayContaining(['Proposed year of harvest', 'Type of proposed operation']),
+    // The operation is harvesting from the scene's blocks; road building, which the scene does not record, is listed.
+    expect(fieldRows(summary.blocks).find((row) => row.label === 'Type of proposed operation')?.value).toBe(
+      'Harvesting',
     )
+    expect(summary.toComplete).toEqual(
+      expect.arrayContaining(['Proposed year of harvest', 'Type of proposed operation: road building, if any']),
+    )
+    expect(summary.toComplete).not.toContain('Type of proposed operation')
+    const empty = build('form-header-2001', { ...ctx, blocks: [], recipeParts: ['form-header-2001', 'notes-2001'] })
+    expect(empty.toComplete).toContain('Type of proposed operation')
   })
 
   it('tables gross, leave and net with a total, leaving unrecorded leave blank', () => {
@@ -493,5 +517,197 @@ describe('the 2001 summary form’s design questions and attachments (03, 05)', 
     const out = build('notes-2001', ctx)
     expect(all(out.blocks)).not.toContain('Here the definition and intent')
     expect((out.toComplete ?? []).some((item) => item.startsWith('Note 2'))).toBe(false)
+  })
+})
+
+describe('the 2001 form templates from the reference comparison', () => {
+  const units: InventoryUnitRow[] = [
+    { vsu: '381', vsc: '3', vac: 'M', evc: 'P', vqo: 'PR', date: '2016-11-02', blocks: { X1: 1.04 } },
+    { vsu: '382', vsc: '2', vac: 'M', evc: 'PR', vqo: 'PR', date: '2016-11-02', blocks: { X1: 11.36, X2: 8 } },
+  ]
+
+  it('print one inventory row per unit read, the record date, and whether any unit’s EVC exceeds its VQO', () => {
+    const out = build('inventory', context('form-2001-analysis-sheets', [lakeshore], { inventoryUnits: units }))
+    expect(tables(out.blocks)[0]).toMatchObject({
+      title: 'Visual landscape inventory',
+      columns: ['VSU / polygon', 'VSC', 'VAC', 'EVC', 'VQO'],
+      rows: [
+        ['381', '3', 'M', 'P', 'PR'],
+        ['382', '2', 'M', 'PR', 'PR'],
+      ],
+      source: 'run',
+    })
+    expect(fieldRows(out.blocks).find((row) => row.label === 'Date of inventory')?.value).toBe(
+      '2016-11-02 (inventory record last updated)',
+    )
+    expect(choices(out.blocks)[0]).toMatchObject({ chosen: 'No', source: 'run' })
+    // The reviewer's own inventory date wins over the record's.
+    const dated = build(
+      'inventory',
+      context('form-2001-analysis-sheets', [lakeshore], { inventoryUnits: units, office: { inventoryDate: '2003' } }),
+    )
+    expect(fieldRows(dated.blocks).find((row) => row.label === 'Date of inventory')?.value).toBe('2003')
+    // A unit whose EVC is past its own objective answers Yes; one with no codes leaves it blank.
+    expect(unitsExceed([{ vsu: '1', evc: 'M', vqo: 'PR' }])).toBe(true)
+    expect(unitsExceed([{ vsu: '1', vqo: 'PR' }])).toBeNull()
+    // Read and empty is a finding, not a gap.
+    const none = build('inventory', context('form-2001-analysis-sheets', [lakeshore], { inventoryUnits: [] }))
+    expect(all(none.blocks)).toContain('The visual landscape inventory was read: no unit lies under the blocks')
+  })
+
+  it('split each block across the units it falls in when the recipe asks (05)', () => {
+    const ctx = context('form-2001-analysed-photos', [lakeshore], {
+      inventoryUnits: units,
+      recipeOptions: { inventoryByBlock: true },
+    })
+    const byBlock = tables(build('inventory', ctx).blocks).find(
+      (t) => t.kind === 'table' && t.title?.includes('by block'),
+    )
+    expect(byBlock).toMatchObject({
+      columns: ['Block', 'VLI', 'VSC', 'VAC', 'EVC', 'EVQO'],
+      rows: [
+        ['Block X1: 1.0 ha', '381', '3', 'M', 'P', 'PR'],
+        ['Block X1: 11.4 ha', '382', '2', 'M', 'PR', 'PR'],
+        ['Block X2: 8.0 ha', '382', '2', 'M', 'PR', 'PR'],
+      ],
+    })
+    expect(
+      tables(build('inventory', context('form-2001-analysed-photos', [lakeshore], { inventoryUnits: units })).blocks),
+    ).toHaveLength(1)
+  })
+
+  it('fill the district summary’s row 1 from the units read, with their date', () => {
+    const out = build('district-summary-form', context('district-summary', [lakeshore], { inventoryUnits: units }))
+    expect(tables(out.blocks)[0]).toMatchObject({
+      rows: [
+        ['Landform 1', '381', '3', 'M', 'P', 'Partial Retention'],
+        ['Landform 1', '382', '2', 'M', 'PR', 'Partial Retention'],
+      ],
+    })
+    expect(out.toComplete).not.toContain('1. Date of inventory')
+  })
+
+  it('refer rows 9 and 12 to the design rationale when the report carries it', () => {
+    const ctx = context('district-summary', [lakeshore], {
+      recipeParts: ['design-rationale', 'district-summary-form'],
+    })
+    expect(rationaleSubject(ctx)).toBe('A00000 CP 1 blks X1, X2')
+    const out = build('district-summary-form', ctx)
+    const rows = fieldRows(out.blocks)
+    const ref = 'Refer to the attached Visual Landscape Design Rationale for A00000 CP 1 blks X1, X2'
+    expect(rows.find((row) => row.label.startsWith('9.'))).toMatchObject({ value: ref, source: 'run' })
+    expect(rows.find((row) => row.label.startsWith('12.'))).toMatchObject({ value: ref, source: 'run' })
+    expect(out.toComplete?.some((item) => item.startsWith('12.'))).toBe(false)
+    // Without the rationale, both stay the reviewer's.
+    const alone = fieldRows(build('district-summary-form', context('district-summary')).blocks)
+    expect(alone.find((row) => row.label.startsWith('12.'))?.value).toBeNull()
+  })
+
+  it('ask whether the current EVC meets or exceeds the objective, with the form’s two footnotes (01)', () => {
+    const withOpening: DocumentViewpoint = { ...lakeshore, areas: { ...lakeshore.areas!, nonVeg: 900 } }
+    const out = build('current-evc', context('form-2001-analysis-sheets', [withOpening]))
+    // 9% of the landform in existing openings reads M on Table 2: past PR, so Yes, for the reviewer to confirm.
+    expect(choices(out.blocks)[0]).toMatchObject({ chosen: 'Yes', source: 'run' })
+    expect(all(out.blocks)).toContain('² If No, there may be opportunity to add alteration.')
+    expect(all(out.blocks)).toContain('¹ The current EVC does not include the proposed alteration.')
+    expect(out.toComplete).toContain('Current existing visual condition: comments')
+  })
+
+  it('rate the viewing angle from the seen block nearest the centre line, when the recipe asks (01)', () => {
+    expect(viewingAngleTerm(12)).toBe('focal')
+    expect(viewingAngleTerm(-45)).toBe('oblique')
+    expect(viewingAngleTerm(70)).toBe('peripheral')
+    const angled: DocumentViewpoint = {
+      ...lakeshore,
+      blocks: [
+        { id: 'X1', status: 'visible', visiblePercent: 40, offAxisDeg: -41 },
+        { id: 'X2', status: 'not visible', visiblePercent: 0, offAxisDeg: 2 },
+      ],
+    }
+    expect(viewingAngleOf(angled)).toBe('oblique')
+    const ctx = context('form-2001-analysis-sheets', [angled, ridge], { recipeOptions: { viewingAngleClass: true } })
+    const out = build('viewpoints-columns', ctx)
+    const rows = (tables(out.blocks)[0] as Extract<ReportBlock, { kind: 'table' }>).rows
+    expect(rows.find((row) => row[0].startsWith('Viewing angle'))).toEqual([
+      'Viewing angle (focal, oblique, peripheral)',
+      'oblique',
+      '',
+    ])
+    expect(rows.find((row) => row[0] === 'Field of view (horizontal)')).toEqual([
+      'Field of view (horizontal)',
+      '40°',
+      '40°',
+    ])
+    expect(out.toComplete).toContain('Viewing angle (focal, oblique, peripheral): Ridge Road')
+    // Without the option the table keeps its one field-of-view row.
+    const plain = (
+      tables(build('viewpoints-columns', context('form-2001-analysis-sheets')).blocks)[0] as Extract<
+        ReportBlock,
+        { kind: 'table' }
+      >
+    ).rows
+    expect(plain.some((row) => row[0].startsWith('Viewing angle (focal'))).toBe(false)
+  })
+
+  it('rate the design factors per viewpoint, tree retention from the seen blocks’ records (01)', () => {
+    const atStation: DocumentViewpoint = {
+      ...lakeshore,
+      atAssessment: true,
+      review: { forceLines: 'Good', borrow: 'Moderate', edges: 'Good', position: 'Poor' },
+      blocks: [
+        { id: 'X1', status: 'not visible', visiblePercent: 0 },
+        { id: 'X2', status: 'visible', visiblePercent: 50 },
+      ],
+    }
+    const other: DocumentViewpoint = { ...ridge, atAssessment: false, review: { forceLines: 'Poor' } }
+    const ctx = context('form-2001-analysis-sheets', [atStation, other])
+    // X2 is a 40% partial cut: 60% stays standing, over 22% on Table 5, Good.
+    expect(seenRetention(ctx, atStation)).toEqual({ percent: 60, grade: 'Good' })
+    // Ridge Road sees the clearcut X1 too: (12.4 × 0 + 8 × 60) / 20.4 = 23.5%, still Good.
+    expect(seenRetention(ctx, other)?.percent).toBeCloseTo(23.53, 2)
+    // A clearcut alone records nothing about its patches: blank.
+    expect(
+      seenRetention(context('form-2001-analysis-sheets', [{ ...lakeshore, blocks: [lakeshore.blocks[0]] }]), lakeshore),
+    ).toBeNull()
+    const out = build('visual-design', ctx)
+    const table = tables(out.blocks)[0] as Extract<ReportBlock, { kind: 'table' }>
+    expect(table.rows.map((row) => row.slice(1))).toEqual([
+      ['Good', ''],
+      ['Moderate', ''],
+      ['Good', ''],
+      ['Good (60%)', 'Good (24%)'],
+      ['Poor', ''],
+      ['', ''],
+    ])
+    // A judgement at another viewpoint is never taken from its record.
+    expect(out.toComplete).toContain('Section 3, response to visual force lines: Ridge Road')
+  })
+
+  it('ask which objective the design meets after the techniques, unmarked, on 01’s form only', () => {
+    const ctx = context('form-2001-analysis-sheets', [lakeshore], {
+      recipeParts: ['visual-design', 'design-techniques-2001'],
+    })
+    const out = build('design-techniques-2001', ctx)
+    expect(choices(out.blocks)[0]).toMatchObject({
+      label: expect.stringContaining('visual design strategies and tactics'),
+      options: ['P', 'R', 'PR', 'M', 'MM'],
+      chosen: null,
+      source: 'reviewer',
+    })
+    expect(out.toComplete).toContain('The VQO met taking into account visual design strategies and tactics')
+    expect(choices(build('design-techniques-2001', context('form-2001-analysis-sheets')).blocks)).toHaveLength(0)
+  })
+
+  it('say why private land and rock leave the landform, only when the arithmetic nets them out and a view finds some', () => {
+    const privateView: DocumentViewpoint = { ...lakeshore, areas: { ...lakeshore.areas!, privateLand: 200 } }
+    // 05's format nets both: rock alone (500 px) says the rock sentence.
+    expect(nettingSentence(context('form-2001-analysed-photos'))?.text).toBe(
+      'Rock and other non-vegetated ground inside the landform is left out of the percent alteration’s denominator.',
+    )
+    expect(nettingSentence(context('form-2001-analysed-photos', [privateView]))?.text).toBe(
+      `${PRIVATE_LAND_NETTED} ${ROCK_NETTED} Alterations on private land are therefore not counted in the figures.`,
+    )
+    // A gross-landform format nets nothing, so nothing is said.
+    expect(nettingSentence(context('form-2001-analysis-sheets', [privateView]))).toBeNull()
   })
 })

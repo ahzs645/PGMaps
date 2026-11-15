@@ -15,6 +15,13 @@ import { composeEndMap, endMapBasemapFromMap, endMapContours, type EndMapBasemap
 import {
   composeReportMap,
   END_MAP_PIXELS,
+  figureRegionalLook,
+  placeLayerIds,
+  regionalTypeScale,
+  regionalWithPlace,
+  type BasemapLayerInfo,
+  type LabelledPlace,
+  type BasemapOverride,
   OVERVIEW_SHEET_PIXELS,
   type MapFrame,
   type ReportMapFeatures,
@@ -59,7 +66,30 @@ export async function captureReportMap(
 ): Promise<ReportFigure & { notes?: string[] }> {
   if (plan.endMap) return captureEndMap(map, plan, features, frame, endMap)
   const sheet = plan.kind === 'sheet'
-  const shot = await captureAtCamera(map, plan.camera, frame, sheet ? OVERVIEW_SHEET_PIXELS.width : REPORT_MAP_MAX_SIDE)
+  const maxSide = sheet ? OVERVIEW_SHEET_PIXELS.width : REPORT_MAP_MAX_SIDE
+  // 26's regional map is read as a road map: its look goes on the basemap for the capture alone, and comes off after.
+  // It reads the place names drawn across the whole canvas at its camera, and is taken again to take in the nearest
+  // one when that lies outside its frame (`regionalWithPlace`).
+  const regional = plan.style === 'figure-page' && plan.kind === 'regional'
+  const layers = (map.getStyle()?.layers ?? []) as BasemapLayerInfo[]
+  const restore = regional
+    ? applyBasemapOverrides(map, figureRegionalLook(layers, regionalTypeScale(frame.width)))
+    : null
+  let shot: Awaited<ReturnType<typeof captureAtCamera>>
+  try {
+    let places: LabelledPlace[] = []
+    const placeLayers = regional ? placeLayerIds(layers).filter((id) => map.getLayer(id)) : []
+    shot = await captureAtCamera(map, plan.camera, frame, maxSide, (atCamera) => {
+      if (placeLayers.length) places = drawnPlaces(atCamera, placeLayers)
+    })
+    const fitted = regional ? regionalWithPlace(plan, places, features.viewpoints.length) : plan
+    if (fitted !== plan) {
+      plan = fitted
+      shot = await captureAtCamera(map, plan.camera, frame, maxSide)
+    }
+  } finally {
+    restore?.()
+  }
   const composed = composeReportMap(
     plan,
     features,
@@ -79,6 +109,51 @@ export async function captureReportMap(
     ...image,
     // The legend, scale bar and north arrow are drawn on the picture; the rows say what it shows.
     map: { inPicture: true, northUp: true, scale: composed.scale, legend: composed.legendRows },
+  }
+}
+
+/** The place names the map has drawn on its canvas from `layers`, once each. */
+function drawnPlaces(map: MapLibreMap, layers: string[]): LabelledPlace[] {
+  const seen = new Set<string>()
+  const places: LabelledPlace[] = []
+  for (const feature of map.queryRenderedFeatures({ layers })) {
+    const name = String(feature.properties?.name ?? '')
+    if (!name || seen.has(name) || feature.geometry.type !== 'Point') continue
+    seen.add(name)
+    const [lng, lat] = feature.geometry.coordinates
+    places.push({ name, lng, lat })
+  }
+  return places
+}
+
+/**
+ * Sets each override on the map's own basemap layers and returns what puts every one back as it was: a paint property
+ * the style left unset goes back to unset, a zoom range to the layer's own.
+ */
+function applyBasemapOverrides(map: MapLibreMap, overrides: readonly BasemapOverride[]): () => void {
+  const undo: Array<() => void> = []
+  for (const change of overrides) {
+    const layer = map.getLayer(change.id)
+    if (!layer) continue
+    if (change.kind === 'paint') {
+      const property = change.property as Parameters<MapLibreMap['setPaintProperty']>[1]
+      const before = map.getPaintProperty(change.id, property) as Parameters<MapLibreMap['setPaintProperty']>[2]
+      map.setPaintProperty(change.id, property, change.value)
+      undo.push(() => map.setPaintProperty(change.id, property, before))
+    } else if (change.kind === 'layout') {
+      const property = change.property as Parameters<MapLibreMap['setLayoutProperty']>[1]
+      const before = map.getLayoutProperty(change.id, property) as Parameters<MapLibreMap['setLayoutProperty']>[2]
+      map.setLayoutProperty(change.id, property, change.value)
+      undo.push(() => map.setLayoutProperty(change.id, property, before))
+    } else {
+      const { minzoom = 0, maxzoom = 24 } = layer
+      map.setLayerZoomRange(change.id, change.minzoom, change.maxzoom)
+      undo.push(() => map.setLayerZoomRange(change.id, minzoom, maxzoom))
+    }
+  }
+  return () => {
+    for (const step of undo.reverse()) if (map.getStyle()) step()
+    map.triggerRepaint()
   }
 }
 

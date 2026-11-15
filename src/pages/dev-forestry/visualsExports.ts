@@ -294,6 +294,11 @@ export type ExportContext = {
   /** The road view is open with its terrain loaded, so the 3D scene can be written. */
   roadViewReady: boolean
   autoRun: ExportAutoRun
+  /**
+   * The scene's visual landscape inventory, read live from DataBC (the EVQO drape's read), which the outputs in
+   * `READS_INVENTORY` print. Absent: the page offers no read, and those outputs print what the views were saved with.
+   */
+  visualInventory?: { status: 'idle' | 'loading' | 'ready' | 'error'; error: string | null }
   /** The land status checks (`landStatusChecks.ts`) as the block note would print them now. */
   landChecks: {
     include: boolean
@@ -316,16 +321,35 @@ export const RUNS_ON_EXPORT: ReadonlySet<VisualsExport> = new Set(['block-note',
 export const DRAWS_FIGURES: ReadonlySet<VisualsExport> = new Set(['analysis-sheet', 'via-document', 'via-report'])
 
 /**
+ * The outputs that print the visual inventory's units (VSU, VSC, VAC, EVC, VQO): the export reads the scene's
+ * inventory first when it has not been read, so a view saved before any read still prints its unit.
+ */
+export const READS_INVENTORY: ReadonlySet<VisualsExport> = new Set(['analysis-sheet', 'via-document', 'via-report'])
+
+/**
  * What writing an output does before the file: run the assessment (in the analysis worker) when
- * the output reads the run and it is missing or stale, and wait for the land checks the block note
- * prints. `note` says so in the dialog, or is null when nothing waits.
+ * the output reads the run and it is missing or stale, read the visual inventory when the output
+ * prints it and it has not been read (`retry`: also after a failed read, as a download does), and
+ * wait for the land checks the block note prints. `note` says so in the dialog, or is null when
+ * nothing waits.
  */
 export function exportPreparation(
   kind: VisualsExport,
-  ctx: Pick<ExportContext, 'run' | 'autoRun' | 'landChecks' | 'renderer'>,
-): { run: boolean; landChecks: boolean; render: boolean; note: string | null } {
+  ctx: Pick<ExportContext, 'run' | 'autoRun' | 'landChecks' | 'renderer' | 'visualInventory'>,
+  options: { retry?: boolean } = {},
+): { run: boolean; landChecks: boolean; render: boolean; inventory: boolean; note: string | null } {
   const run = RUNS_ON_EXPORT.has(kind) && ctx.run !== 'current' && !ctx.autoRun.blocker
   const landChecks = kind === 'block-note' && ctx.landChecks.include && ctx.landChecks.pending > 0
+  const vi = READS_INVENTORY.has(kind) ? ctx.visualInventory : undefined
+  const inventory =
+    !!vi && (vi.status === 'idle' || vi.status === 'loading' || (vi.status === 'error' && !!options.retry))
+  const inventoryNote = !vi
+    ? null
+    : vi.status === 'idle' || vi.status === 'loading'
+      ? 'Reading the visual landscape inventory from DataBC first, for the units the file prints.'
+      : vi.status === 'error'
+        ? `The visual landscape inventory could not be read (${vi.error ?? 'no reason given'}): the file says it was not read. Downloading reads it again first.`
+        : null
   const r = ctx.renderer
   const render = DRAWS_FIGURES.has(kind) && r.id !== 'pgmaps' && !r.unavailable && r.missing > 0
   const renderNote = !render
@@ -343,8 +367,8 @@ export function exportPreparation(
           : 'Not run yet: the export runs the assessment first, in the background, then writes the file.'
         : landChecks
           ? 'Land status checks are still reading: the file waits for them.'
-          : null
-  return { run, landChecks, render, note }
+          : inventoryNote
+  return { run, landChecks, render, inventory, note }
 }
 
 /** Why an output cannot be written yet, or null when it can. */
@@ -925,6 +949,7 @@ export type ContextInput = {
   autoRun: ExportAutoRun
   landChecks: ExportContext['landChecks']
   inventory: ExportContext['inventory']
+  visualInventory?: ExportContext['visualInventory']
 }
 
 const objectiveName = (id: VisualQualityClassId) => {
@@ -1091,5 +1116,6 @@ export function buildExportContext(input: ContextInput): ExportContext {
     autoRun: input.autoRun,
     landChecks: input.landChecks,
     inventory: input.inventory,
+    ...(input.visualInventory ? { visualInventory: input.visualInventory } : {}),
   }
 }

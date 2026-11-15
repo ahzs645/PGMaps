@@ -28,6 +28,7 @@ import { svgDataUrl } from '@/lib/mapSheet/symbolSvg'
 import type { NoteImage } from './blockNote'
 import { illustrationLine, missingLine, type FigureIllustration } from './engineCapture'
 import type { BlockCallout } from './figureCallouts'
+import type { InventoryBadgeInput } from './inventoryBadge'
 import { cropImageRows } from './mapCapture'
 import { table2Class } from './via'
 
@@ -58,9 +59,12 @@ export type SavedFigure = {
   distanceKm: number | null
   hfovDeg: number
   facts: Array<{ label: string; value: string }>
-  rating: FigureInput['rating']
+  /** The view's inventory unit (`inventoryBadge.ts`), with the record's update date the sheet does not print. */
+  rating: (NonNullable<FigureInput['rating']> & { date?: string }) | null
   /** Which rule chose the inventory unit (`inventoryBadge.ts`). */
   ratingNote?: string
+  /** What chose the unit, so a read made after the save fills it by the same rules (`withReadInventory`). */
+  inventoryAt?: InventoryBadgeInput
   area: string
   viewpoint: string
   /** The road or viewpoint the view was saved on, as the scene names it ("Lakeshore"); the view's own name is `viewpoint`. */

@@ -15,14 +15,30 @@ import {
   endMapDemZoom,
   endMapLayout,
   endMapLegendKeys,
+  FIGURE_PAGE_MAP_ASPECT,
+  FIGURE_PAGE_MAP_WIDTH_IN,
+  FIGURE_PAGE_PADDING_SHARE,
+  FIGURE_REGIONAL_HAMLET_MINZOOM,
+  FIGURE_REGIONAL_PLACE_MINZOOM,
+  FIGURE_REGIONAL_ROAD_MINZOOM,
+  figureRegionalLook,
+  FIGURE_REGIONAL_MAX_SCALE,
+  regionalTypeScale,
+  regionalWithPlace,
+  FIGURE_REGIONAL_FRAME_WIDTH,
+  FIGURE_REGIONAL_SCALE,
+  FIGURE_WEDGE_MIN_ARC_STEPS,
+  figureWedge,
   fitCamera,
   frameProjectionFor,
   MAX_REGIONAL_ZOOM,
   metresPerPixel,
   OVERVIEW_SHEET_PIXELS,
   overviewSheetAspect,
+  planFigurePageMaps,
   planOverviewSheet,
   planReportMaps,
+  printedScale,
   REPORT_MAP_ASPECT,
   SHEET_FURNITURE_SHARE,
   REGIONAL_ZOOM_STEP,
@@ -30,6 +46,7 @@ import {
   utmTickInterval,
   utmZoneOf,
   viewWedge,
+  WEDGE_REACH,
   type ReportMapFeatures,
 } from './reportMaps'
 import {
@@ -233,6 +250,222 @@ describe('report map figure', () => {
     expect(map.labels.filter((label) => /Block name/.test(label))).toHaveLength(3)
     const ys = map.ops.flatMap((op) => (op.op === 'text' && /Block name/.test(op.text) ? [op.y] : []))
     expect(new Set(ys.map((y) => Math.round(y))).size).toBe(3)
+  })
+})
+
+describe('figure page maps (26 Figure 2)', () => {
+  const canvas = { width: 1000, height: 900 }
+  const wide: ReportMapFeatures = {
+    ...features,
+    viewpoints: [{ ...features.viewpoints[0], fovDeg: 70 }],
+  }
+  const eye = { lng: -122.825, lat: 53.993 }
+  const inField = (lng: number, lat: number, span: number) =>
+    Math.abs(((bearingDegrees(eye, { lng, lat }) - 45 + 540) % 360) - 180) <= span / 2
+
+  it('spans the view’s whole field from the viewpoint, with a true arc just past the farthest block in it', () => {
+    const wedge = figureWedge(wide.viewpoints[0], wide.blocks)!
+    expect(wedge.apex).toEqual([eye.lng, eye.lat])
+    expect(wedge.ring[0]).toEqual(wedge.apex)
+    expect(wedge.ring.at(-1)).toEqual(wedge.apex)
+    expect(wedge.spanDeg).toBe(70)
+    // One vertex a degree along the arc: 70 steps, 71 vertices, each on the arc's radius.
+    const arc = wedge.ring.slice(1, -1)
+    expect(arc).toHaveLength(71)
+    for (const [lng, lat] of arc) expect(haversineMeters(eye, { lng, lat })).toBeCloseTo(wedge.lengthM, 3)
+    const bearings = arc.map(([lng, lat]) => bearingDegrees(eye, { lng, lat }))
+    expect(bearings[0]).toBeCloseTo(10, 6)
+    expect(bearings.at(-1)).toBeCloseTo(80, 6)
+    expect(bearings[35]).toBeCloseTo(45, 6)
+    // The reach: just past the farthest corner of a block inside the field.
+    const farthest = Math.max(
+      ...wide.blocks
+        .flatMap((block) => (block.geometry as GeoJSON.Polygon).coordinates[0])
+        .filter(([lng, lat]) => inField(lng, lat, 70))
+        .map(([lng, lat]) => haversineMeters(eye, { lng, lat })),
+    )
+    expect(wedge.lengthM).toBeCloseTo(farthest * WEDGE_REACH, 6)
+    expect(wedge.blocks).toEqual(['EGG1', 'EGG2'])
+    // A narrow field still draws a smooth arc; a panorama's total field is kept, not cut to a lens's.
+    expect(figureWedge({ ...wide.viewpoints[0], fovDeg: 6 }, wide.blocks)!.ring).toHaveLength(
+      FIGURE_WEDGE_MIN_ARC_STEPS + 3,
+    )
+    expect(figureWedge({ ...wide.viewpoints[0], fovDeg: 200 }, wide.blocks)!.spanDeg).toBe(200)
+    expect(figureWedge({ ...wide.viewpoints[0], bearingDeg: null }, wide.blocks)).toBeNull()
+  })
+
+  it('fits the location map tightly to the wedge and the blocks in it, at the side slot’s shape', () => {
+    const plans = planFigurePageMaps(wide, canvas)
+    expect(plans.map((plan) => [plan.kind, plan.key, plan.basemap, plan.style])).toEqual([
+      ['location', 'VP1', 'satellite', 'figure-page'],
+      ['regional', 'regional', 'map', 'figure-page'],
+    ])
+    const [location] = plans
+    const frame = location.frame!
+    expect(frame).toEqual(captureFrame(canvas, FIGURE_PAGE_MAP_ASPECT))
+    expect(frame.width / frame.height).toBeCloseTo(0.8, 2)
+    const project = maplibreProject(location.camera, frame)
+    const pad = { x: frame.width * FIGURE_PAGE_PADDING_SHARE, y: frame.height * FIGURE_PAGE_PADDING_SHARE }
+    const points = [
+      ...location.wedge!.ring,
+      ...wide.blocks.flatMap((block) => (block.geometry as GeoJSON.Polygon).coordinates[0] as [number, number][]),
+    ].map(([lng, lat]) => project(lng, lat))
+    for (const [x, y] of points) {
+      expect(x).toBeGreaterThanOrEqual(pad.x - 1e-6)
+      expect(x).toBeLessThanOrEqual(frame.width - pad.x + 1e-6)
+      expect(y).toBeGreaterThanOrEqual(pad.y - 1e-6)
+      expect(y).toBeLessThanOrEqual(frame.height - pad.y + 1e-6)
+    }
+    // Tight: the ground touches the padding on one side.
+    const xs = points.map(([x]) => x),
+      ys = points.map(([, y]) => y)
+    expect(
+      Math.min(Math.min(...xs) - pad.x, frame.width - pad.x - Math.max(...xs)) < 0.5 ||
+        Math.min(Math.min(...ys) - pad.y, frame.height - pad.y - Math.max(...ys)) < 0.5,
+    ).toBe(true)
+    // Closer than the report's own location map, which keeps room for its legend.
+    const [, reportLocation] = planReportMaps(wide, captureFrame(canvas, REPORT_MAP_ASPECT.location))
+    expect(location.camera.zoom).toBeGreaterThan(reportLocation.camera.zoom)
+    expect(location.caption).toMatch(/facing 45° over its 70° field, toward Blocks EGG1 and EGG2/)
+  })
+
+  it('places the regional map at its fixed scale from a small window, out further only when the project needs it', () => {
+    const regional = planFigurePageMaps(wide, canvas).at(-1)!
+    const frame = regional.frame!
+    expect(frame.width).toBe(FIGURE_REGIONAL_FRAME_WIDTH)
+    expect(frame.width / frame.height).toBeCloseTo(FIGURE_PAGE_MAP_ASPECT, 2)
+    expect(printedScale(regional.camera, frame, FIGURE_PAGE_MAP_WIDTH_IN)).toBeCloseTo(FIGURE_REGIONAL_SCALE, -1)
+    expect(regional.caption).toMatch(/^Regional map at about 1:400,000/)
+    // The project's own ground is outlined, and it sits inside the frame.
+    const [w, s, e, n] = regional.projectArea!
+    const project = maplibreProject(regional.camera, frame)
+    for (const [x, y] of [project(w, n), project(e, s)]) {
+      expect(x).toBeGreaterThan(0)
+      expect(x).toBeLessThan(frame.width)
+      expect(y).toBeGreaterThan(0)
+      expect(y).toBeLessThan(frame.height)
+    }
+    // A project wider than the fixed scale holds is fitted instead.
+    const spread: ReportMapFeatures = {
+      ...wide,
+      blocks: [...wide.blocks, { name: 'Far', geometry: square(-122.2, 54.3, 0.004) }],
+    }
+    const far = planFigurePageMaps(spread, canvas).at(-1)!
+    expect(printedScale(far.camera, far.frame!, FIGURE_PAGE_MAP_WIDTH_IN)).toBeGreaterThan(FIGURE_REGIONAL_SCALE)
+    expect(planFigurePageMaps({ ...wide, blocks: [], viewpoints: [] }, canvas)).toEqual([])
+  })
+
+  it('takes in the nearest named place when it lies outside the regional frame, out to 1:500,000 at most', () => {
+    const regional = planFigurePageMaps(wide, canvas).at(-1)!
+    const frame = regional.frame!
+    // A place already in the frame: the plan as it was.
+    expect(regionalWithPlace(regional, [{ name: 'Near', lng: -122.8, lat: 54.02 }], 1)).toBe(regional)
+    expect(regionalWithPlace(regional, [], 1)).toBe(regional)
+    // The nearest of two outside it is taken in with the project, at a scale no closer than the fixed one.
+    const places = [
+      { name: 'Town', lng: -122.8, lat: 53.86 },
+      { name: 'Farther', lng: -122.8, lat: 53.7 },
+    ]
+    const fitted = regionalWithPlace(regional, places, 1)
+    expect(fitted).not.toBe(regional)
+    const scale = printedScale(fitted.camera, frame, FIGURE_PAGE_MAP_WIDTH_IN)
+    expect(scale).toBeGreaterThanOrEqual(FIGURE_REGIONAL_SCALE - 1)
+    expect(scale).toBeLessThanOrEqual(FIGURE_REGIONAL_MAX_SCALE)
+    const project = maplibreProject(fitted.camera, frame)
+    const [w, s, e, n] = fitted.projectArea!
+    for (const [x, y] of [project(-122.8, 53.86), project(w, n), project(e, s)]) {
+      expect(x).toBeGreaterThan(0)
+      expect(x).toBeLessThan(frame.width)
+      expect(y).toBeGreaterThan(0)
+      expect(y).toBeLessThan(frame.height)
+    }
+    expect(fitted.caption).toMatch(/with Town, the nearest named place,/)
+    // Too far to take in by 1:500,000: the plan as it was.
+    expect(regionalWithPlace(regional, [{ name: 'Far', lng: -122.8, lat: 52.5 }], 1)).toBe(regional)
+  })
+
+  it('gives the basemap a road-map look for the regional capture: highways, place names and villages', () => {
+    const changes = figureRegionalLook([
+      { id: 'background', type: 'background' },
+      { id: 'road_pri_case_noramp', type: 'line', 'source-layer': 'roads', minzoom: 7 },
+      { id: 'road_pri_fill_noramp', type: 'line', 'source-layer': 'roads', minzoom: 10 },
+      { id: 'road_pri_case_ramp', type: 'line', 'source-layer': 'roads', minzoom: 12 },
+      { id: 'road_sec_case_noramp', type: 'line', 'source-layer': 'roads', minzoom: 11, maxzoom: 24 },
+      { id: 'road_minor_case', type: 'line', 'source-layer': 'roads', minzoom: 13 },
+      { id: 'tunnel_mot_case', type: 'line', 'source-layer': 'roads', minzoom: 5 },
+      { id: 'place_hamlet', type: 'symbol', 'source-layer': 'places', minzoom: 12, maxzoom: 16 },
+      { id: 'place_villages', type: 'symbol', 'source-layer': 'places', minzoom: 10, maxzoom: 16 },
+      { id: 'place_town', type: 'symbol', 'source-layer': 'places', minzoom: 8, maxzoom: 14 },
+      { id: 'watername_lake', type: 'symbol', 'source-layer': 'water', minzoom: 4 },
+      { id: 'roadname_major', type: 'symbol', 'source-layer': 'roads', minzoom: 13 },
+    ])
+    const ids = new Set(changes.map((change) => change.id))
+    expect([...ids]).toEqual([
+      'road_pri_case_noramp',
+      'road_pri_fill_noramp',
+      'road_sec_case_noramp',
+      'place_hamlet',
+      'place_villages',
+      'place_town',
+      'watername_lake',
+    ])
+    const zoom = changes.filter((change) => change.kind === 'zoom')
+    expect(zoom).toEqual([
+      { id: 'road_pri_fill_noramp', kind: 'zoom', minzoom: FIGURE_REGIONAL_ROAD_MINZOOM, maxzoom: 24 },
+      { id: 'road_sec_case_noramp', kind: 'zoom', minzoom: FIGURE_REGIONAL_ROAD_MINZOOM, maxzoom: 24 },
+      { id: 'place_hamlet', kind: 'zoom', minzoom: FIGURE_REGIONAL_HAMLET_MINZOOM, maxzoom: 16 },
+      { id: 'place_villages', kind: 'zoom', minzoom: FIGURE_REGIONAL_PLACE_MINZOOM, maxzoom: 16 },
+      { id: 'place_town', kind: 'zoom', minzoom: FIGURE_REGIONAL_PLACE_MINZOOM, maxzoom: 14 },
+    ])
+    const paint = (id: string, property: string) =>
+      changes.find((change) => change.kind === 'paint' && change.id === id && change.property === property)
+    expect(paint('road_pri_case_noramp', 'line-color')).toMatchObject({ value: '#a3601c' })
+    expect(paint('road_pri_fill_noramp', 'line-color')).toMatchObject({ value: '#f0a134' })
+    expect(paint('place_town', 'text-color')).toMatchObject({ value: '#1f2937' })
+    // Every name at a set size that reads on the slot.
+    expect(changes.flatMap((change) => (change.kind === 'layout' ? [[change.id, change.value]] : []))).toEqual([
+      ['place_hamlet', 11],
+      ['place_villages', 11],
+      ['place_town', 12],
+      ['watername_lake', 10],
+    ])
+    // A secondary highway takes the same colours, narrower.
+    expect(paint('road_sec_case_noramp', 'line-width')).toMatchObject({ value: 3 })
+    // A wider capture draws the type and highways larger by its width over 300 px, so they print the same size.
+    const wider = figureRegionalLook([{ id: 'place_town', type: 'symbol', 'source-layer': 'places', minzoom: 8 }], 2)
+    expect(wider.find((change) => change.kind === 'layout')).toMatchObject({ value: 24 })
+    expect(regionalTypeScale(FIGURE_REGIONAL_FRAME_WIDTH)).toBe(2)
+  })
+
+  it('draws the wedge, blocks and a cyan star with a north arrow, and no legend, hatching or viewpoint name', () => {
+    const [location, regional] = planFigurePageMaps(wide, canvas)
+    const map = composeReportMap(location, wide, location.frame!, null, 'Imagery © Esri')
+    expect(map.legend).toEqual([])
+    expect(map.legendRows.map((row) => row.label)).toEqual([
+      'Road',
+      'View from the viewpoint',
+      'Proposed block',
+      'Viewpoint',
+    ])
+    const texts = map.ops.flatMap((op) => (op.op === 'text' ? [op.text] : []))
+    expect(texts).toContain('N')
+    expect(texts).not.toContain('Legend')
+    expect(texts).not.toContain('VP1')
+    expect(texts.some((text) => /PR/.test(text))).toBe(false)
+    expect(map.labels).toEqual(['EGG1', 'EGG2'])
+    const json = JSON.stringify(map.ops)
+    expect(json).toContain('#2bb59a')
+    expect(json).toContain('#3fe0f2')
+    // The north arrow stands at the top right.
+    const north = map.ops.find((op) => op.op === 'text' && op.text === 'N')
+    expect(north && north.op === 'text' && north.x).toBeGreaterThan(location.frame!.width * 0.85)
+    expect(map.scale).toMatch(/^About 1:/)
+
+    const road = composeReportMap(regional, wide, regional.frame!, null, null)
+    expect(road.legend).toEqual([])
+    expect(road.legendRows.map((row) => row.label)).toEqual(['Project area', 'Viewpoint'])
+    expect(road.labels).toEqual([])
+    expect(sheetSvg(road.ops, road.width, road.height)).toContain('<svg')
   })
 })
 

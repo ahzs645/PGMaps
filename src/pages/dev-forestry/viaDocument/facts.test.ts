@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { FIGURE_CLASS } from '@/lib/forestry/viaFigure/composeFigure'
 
 import type { SavedFigure } from '../FigureSheetPanel'
-import { documentFacts, lensMmForHfov, viewpointPlace } from './facts'
+import { documentFacts, lensMmForHfov, offAxisDegrees, viewpointPlace } from './facts'
 import { formatForSource } from './formats'
 import { resolveViaDocument } from './resolve'
 
@@ -65,9 +65,10 @@ describe('document facts from saved views', () => {
   it("reads each view's class pass and callouts, leaving existing openings' callouts out of the blocks", () => {
     const [first] = facts.viewpoints
     expect(first.areas).toEqual({ landform: 80, proposed: 4, nonVeg: 0, privateLand: 16, rock: 0 })
-    // Blocks by the name the sheet prints, unseen ones included; the place, not the saved view's name.
+    // Blocks by the name the sheet prints, unseen ones included; the place, not the saved view's name. A seen block
+    // carries how far its callout lies off the centre line: column 1 of 10 across 39.6° is atan(-0.8 tan 19.8°).
     expect(first.blocks).toEqual([
-      { id: 'X1', status: 'visible', visiblePercent: 30 },
+      { id: 'X1', status: 'visible', visiblePercent: 30, offAxisDeg: -16.1 },
       { id: 'X9', status: 'not visible', visiblePercent: 0 },
     ])
     // Both views stand on the same road: each takes its "place, km along" line, or its number.
@@ -132,10 +133,20 @@ describe('blocks of another sale and viewpoint names', () => {
 
   it('flag a block the scene marks, or whose name says so, as other planned; the rest stay plain', () => {
     expect(facts.viewpoints[0].blocks).toEqual([
-      { id: 'X1', status: 'visible', visiblePercent: 30 },
-      { id: 'X5', status: 'visible', visiblePercent: 20, proposed: false, plannedUnder: 'S33' },
-      { id: 'X7', status: 'visible', visiblePercent: 10, proposed: false },
+      { id: 'X1', status: 'visible', visiblePercent: 30, offAxisDeg: -16.1 },
+      { id: 'X5', status: 'visible', visiblePercent: 20, proposed: false, plannedUnder: 'S33', offAxisDeg: -12.2 },
+      { id: 'X7', status: 'visible', visiblePercent: 10, proposed: false, offAxisDeg: -8.2 },
     ])
+  })
+
+  it('read how far a point lies off the centre line, frame by frame across a panorama', () => {
+    // One 39.6° frame: the centre is 0°, the edges ±19.8°.
+    expect(offAxisDegrees(5, 10, 39.6)).toBeCloseTo(0, 6)
+    expect(offAxisDegrees(10, 10, 39.6)).toBeCloseTo(19.8, 6)
+    // Three frames of 34° across 102°: the middle of the right frame is 34° right, its edge the panorama's.
+    expect(offAxisDegrees(250, 300, 102, 3)).toBeCloseTo(34, 6)
+    expect(offAxisDegrees(300, 300, 102, 3)).toBeCloseTo(51, 6)
+    expect(offAxisDegrees(0, 0, 39.6)).toBeNull()
   })
 
   it('name a viewpoint by its place, never by the "view of the block from" line around it', () => {

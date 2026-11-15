@@ -126,3 +126,93 @@ export const DEFAULT_ROAD_CLEARING_METERS = 20
 export function clearingWidthForRoadClass(roadClass: string | null): number {
   return (roadClass && ROAD_CLEARING_METERS[roadClass]) || DEFAULT_ROAD_CLEARING_METERS
 }
+
+/**
+ * The OpenMapTiles layers that name places: settlements and islands (`place`), lakes, bays and inlets (`water_name`)
+ * and summits (`mountain_peak`). A VIA report places its blocks by them ("6.5 km north of the town").
+ */
+export const PLACE_SOURCE_LAYERS = ['place', 'water_name', 'mountain_peak'] as const
+
+export type PlaceKind = 'settlement' | 'water' | 'peak' | 'island' | 'other'
+
+/** A named place the basemap labels, at its label point. */
+export type PlaceLabel = { name: string; kind: PlaceKind; lngLat: [number, number] }
+
+/** Place classes too large to place a block by (a province, a country). */
+const REGION_CLASSES = new Set(['continent', 'country', 'state', 'province', 'county', 'region'])
+const SETTLEMENT_CLASSES = new Set(['city', 'town', 'village', 'hamlet', 'suburb', 'neighbourhood', 'quarter'])
+
+function labelPoint(geometry: GeoJSON.Geometry): [number, number] | null {
+  if (geometry.type === 'Point') return [geometry.coordinates[0], geometry.coordinates[1]]
+  if (geometry.type === 'MultiPoint' && geometry.coordinates.length)
+    return [geometry.coordinates[0][0], geometry.coordinates[0][1]]
+  // A water name drawn along a line: its middle vertex.
+  const line =
+    geometry.type === 'LineString'
+      ? geometry.coordinates
+      : geometry.type === 'MultiLineString'
+        ? geometry.coordinates[0]
+        : null
+  if (line?.length) {
+    const mid = line[Math.floor(line.length / 2)]
+    return [mid[0], mid[1]]
+  }
+  return null
+}
+
+/**
+ * Named places from one source layer's features, once each by name and kind (tiles repeat a label at their edges).
+ * The English name is preferred where the tiles carry one.
+ */
+export function placesFromFeatures(
+  features: ReadonlyArray<GeoJSON.Feature | null | undefined>,
+  sourceLayer: (typeof PLACE_SOURCE_LAYERS)[number],
+): PlaceLabel[] {
+  const out = new Map<string, PlaceLabel>()
+  for (const feature of features) {
+    if (!feature?.geometry) continue
+    const props = feature.properties ?? {}
+    const name = String(props['name:en'] ?? props.name_en ?? props.name ?? '').trim()
+    if (!name) continue
+    const cls = String(props.class ?? '').toLowerCase()
+    if (sourceLayer === 'place' && REGION_CLASSES.has(cls)) continue
+    const kind: PlaceKind =
+      sourceLayer === 'water_name'
+        ? 'water'
+        : sourceLayer === 'mountain_peak'
+          ? 'peak'
+          : SETTLEMENT_CLASSES.has(cls)
+            ? 'settlement'
+            : cls === 'island' || cls === 'islet'
+              ? 'island'
+              : 'other'
+    const at = labelPoint(feature.geometry)
+    if (!at) continue
+    const key = `${kind}|${name}`
+    if (!out.has(key)) out.set(key, { name, kind, lngLat: at })
+  }
+  return [...out.values()]
+}
+
+/** Every named place the loaded basemap tiles label, from each vector source that carries the place layers. */
+export function collectPlacesFromMap(map: BasemapQueryMap): PlaceLabel[] {
+  const layers = map.getStyle()?.layers ?? []
+  const vectorSources = [
+    ...new Set(
+      layers
+        .filter((layer) => layer.source && layer['source-layer'])
+        .filter((layer) =>
+          [...PLACE_SOURCE_LAYERS, WATER_SOURCE_LAYER].includes(
+            layer['source-layer'] as (typeof PLACE_SOURCE_LAYERS)[number],
+          ),
+        )
+        .map((layer) => layer.source!),
+    ),
+  ]
+  const out = new Map<string, PlaceLabel>()
+  for (const source of vectorSources)
+    for (const sourceLayer of PLACE_SOURCE_LAYERS)
+      for (const place of placesFromFeatures(map.querySourceFeatures(source, { sourceLayer }), sourceLayer))
+        if (!out.has(`${place.kind}|${place.name}`)) out.set(`${place.kind}|${place.name}`, place)
+  return [...out.values()]
+}

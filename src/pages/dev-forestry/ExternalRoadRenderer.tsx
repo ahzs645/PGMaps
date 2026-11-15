@@ -48,9 +48,13 @@ export type EngineCaptureHandle = {
   /**
    * Has the engine draw `scene` (a package sized for the capture), waits until it is ready, then sends the request
    * made for that package and resolves with the engine's reply, raw (`readCaptureReply` checks it). The engine keeps
-   * drawing `scene` afterwards.
+   * drawing `scene` afterwards. The request may be a promise: what it waits on (the frame's stand) is then built
+   * while the engine builds the scene, not before the scene is sent.
    */
-  capture: (scene: ScenePackage, request: (scene: ScenePackage) => EngineCaptureRequest) => Promise<unknown>
+  capture: (
+    scene: ScenePackage,
+    request: (scene: ScenePackage) => EngineCaptureRequest | Promise<EngineCaptureRequest>,
+  ) => Promise<unknown>
 }
 
 /** How often, and how long, the bridge retries a scene the road view cannot build yet (its terrain still loading). */
@@ -178,13 +182,22 @@ export function ExternalRoadRenderer({
         }, CAPTURE_TIMEOUT_MS)
         readyWaiter = () => {
           readyWaiter = null
-          const request = makeRequest(scene)
-          id = request.id
-          replies.set(request.id, (data) => {
-            window.clearTimeout(timer)
-            resolve(data)
-          })
-          post(request, captureTransfer(request))
+          Promise.resolve()
+            .then(() => makeRequest(scene))
+            .then(
+              (request) => {
+                id = request.id
+                replies.set(request.id, (data) => {
+                  window.clearTimeout(timer)
+                  resolve(data)
+                })
+                post(request, captureTransfer(request))
+              },
+              (error: unknown) => {
+                window.clearTimeout(timer)
+                reject(error instanceof Error ? error : new Error(String(error)))
+              },
+            )
         }
         current = scene
         setPhase('building')

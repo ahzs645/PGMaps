@@ -46,6 +46,8 @@ const RUN_START_MS = 4000
 const ROAD_VIEW_SETTLE_MS = 90_000
 /** The land checks are waited for this long; a layer still reading then prints as Not read. */
 const LAND_CHECK_WAIT_MS = 30_000
+/** The visual inventory read is waited for this long (its own request gives up at 30 s); the file then says not read. */
+const INVENTORY_WAIT_MS = 40_000
 
 class Aborted extends Error {}
 
@@ -219,6 +221,7 @@ export function VisualsExportDialog({
   onAction,
   onRun,
   onRender,
+  onReadInventory,
   portalContainer,
 }: {
   open: boolean
@@ -239,6 +242,8 @@ export function VisualsExportDialog({
   onRun?: () => void
   /** Queues the background renders the chosen engine still owes the figures (`useBackgroundRenders`). */
   onRender?: () => void
+  /** Reads the scene's visual inventory, or reads it again after a failure, for the outputs that print it. */
+  onReadInventory?: () => void
   portalContainer?: HTMLElement | null
 }) {
   const [selected, setSelected] = useState<VisualsExport>(initialOutput)
@@ -271,12 +276,14 @@ export function VisualsExportDialog({
   const latestContext = useRef(context)
   const latestRun = useRef(onRun)
   const latestRender = useRef(onRender)
+  const latestReadInventory = useRef(onReadInventory)
   const changedAt = useRef(0)
   useEffect(() => {
     latestBuild.current = build
     latestContext.current = context
     latestRun.current = onRun
     latestRender.current = onRender
+    latestReadInventory.current = onReadInventory
   })
   useEffect(() => {
     changedAt.current = Date.now()
@@ -287,10 +294,31 @@ export function VisualsExportDialog({
    * when it is missing or stale, and the land checks the block note prints. Then waits for the page
    * to settle, so the build that follows (`latestBuild`, from the render after) reads the new run.
    */
-  const prepare = useCallback(async (kind: VisualsExport, signal: AbortSignal) => {
-    const needs = exportPreparation(kind, latestContext.current)
+  const prepare = useCallback(async (kind: VisualsExport, signal: AbortSignal, retry = false) => {
+    const needs = exportPreparation(kind, latestContext.current, { retry })
     const running = () => latestContext.current.autoRun.status === 'running'
     let waited = false
+    // The visual inventory, read alongside the run: a failed read does not stop the file, which then says not read.
+    let inventoryRead: Promise<unknown> = Promise.resolve()
+    if (needs.inventory && latestReadInventory.current) {
+      waited = true
+      const status = () => latestContext.current.visualInventory?.status ?? 'ready'
+      const asked = Date.now()
+      let started = status() === 'loading'
+      latestReadInventory.current()
+      inventoryRead = waitFor(
+        () => {
+          const now = status()
+          if (now === 'loading') started = true
+          if (now === 'ready') return true
+          // An error from before the request counts only once the new read has had time to start.
+          if (now === 'error') return started || Date.now() - asked > RUN_START_MS
+          return false
+        },
+        signal,
+        INVENTORY_WAIT_MS,
+      )
+    }
     if (needs.run || (running() && RUNS_ON_EXPORT.has(kind))) {
       waited = true
       if (!running()) latestRun.current?.()
@@ -311,6 +339,7 @@ export function VisualsExportDialog({
         return false
       }, signal)
     }
+    await inventoryRead
     if (needs.landChecks || (kind === 'block-note' && latestContext.current.landChecks.pending)) {
       waited = true
       await waitFor(
@@ -391,11 +420,12 @@ export function VisualsExportDialog({
     live.current.add(controller)
     try {
       // The previewed file when it is this one and nothing waits; otherwise made and written now.
+      const again = exportPreparation(item.kind, context, { retry: true })
       const ready =
-        !preparation.run && !preparation.landChecks && !preparation.render && context.autoRun.status !== 'running'
+        !again.run && !again.landChecks && !again.render && !again.inventory && context.autoRun.status !== 'running'
       let file = ready ? current?.file : undefined
       if (!file) {
-        await prepare(item.kind, controller.signal)
+        await prepare(item.kind, controller.signal, true)
         file = await latestBuild.current(item.kind, format.id, controller.signal)
       }
       if (controller.signal.aborted) return

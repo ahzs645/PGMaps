@@ -5,6 +5,7 @@ import {
   formatRemaining,
   HISTORY_KEEP,
   parseRenderHistory,
+  PRIOR_RATES,
   queueRemainingMs,
   recordRender,
   remainingMs,
@@ -27,17 +28,28 @@ describe('render estimates', () => {
     const cold = estimateRender('worldgen', work, [], true)
     const warm = estimateRender('worldgen', work, [], false)
     expect(cold.basis).toBe('library')
-    // The library's medians were 70-82 s a viewpoint at 8 samples.
-    expect(cold.totalMs).toBeGreaterThan(50_000)
-    expect(cold.totalMs).toBeLessThan(120_000)
+    // The profiled runs took about 25 s a viewpoint, most of it the scene and the stand.
+    expect(cold.totalMs).toBeGreaterThan(15_000)
+    expect(cold.totalMs).toBeLessThan(45_000)
+    expect(cold.phases.scene).toBeGreaterThan(cold.phases.render / 2)
     expect(cold.totalMs - warm.totalMs).toBe(cold.phases.start)
+    // The profiled request itself (one 2400 x 2769 frame, 24 samples) reads close to what was timed: 25-28 s.
+    const profiled: RenderWork = { frames: 1, width: 2400, height: 2769, samples: 24 }
+    for (const engine of ['worldgen', 'nanite'] as const) {
+      const total = estimateRender(engine, profiled, [], true).totalMs
+      expect(total).toBeGreaterThan(18_000)
+      expect(total).toBeLessThan(32_000)
+    }
   })
 
   it('scale the render phase with samples and pixels', () => {
     const eight = estimateRender('nanite', work, [], false)
     const twentyFour = estimateRender('nanite', { ...work, samples: 24 }, [], false)
-    // (4 + 24) / (4 + 8) warm-up and sample renders a frame, less the fixed per-frame cost.
-    expect(twentyFour.phases.render).toBeGreaterThan(1.8 * eight.phases.render)
+    // (6 + 24) / (6 + 8) warm-up and sample renders a frame over the fixed per-frame cost, which samples do not
+    // change: the samples are a small part of a render, so tripling them adds little.
+    const perFrame = PRIOR_RATES.nanite.frameMs * work.frames
+    expect((twentyFour.phases.render - perFrame) / (eight.phases.render - perFrame)).toBeCloseTo(30 / 14, 5)
+    expect(twentyFour.phases.render).toBeLessThan(1.2 * eight.phases.render)
     expect(twentyFour.phases.scene).toBe(eight.phases.scene)
   })
 

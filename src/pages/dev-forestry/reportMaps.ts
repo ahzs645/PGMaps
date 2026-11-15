@@ -17,7 +17,7 @@
  */
 import proj4 from 'proj4'
 
-import { BLOCK_OF_INTEREST, SHEET_CHROME } from '@/lib/forestry/blockSheet/styles'
+import { BLOCK_OF_INTEREST, SHEET_CHROME, VIA_FIGURE_MAP } from '@/lib/forestry/blockSheet/styles'
 import { viewerConeFeatures } from '@/lib/geo/viewerCone'
 import { boxesMeet, rectRing, type DrawOp, type Point } from '@/lib/mapSheet/drawOps'
 import {
@@ -44,7 +44,7 @@ import {
 import { fitText, textWidth } from '@/lib/mapSheet/textMetrics'
 import { ASSESSMENT_VIEWPOINT_COLOR, ROAD_COLOR } from './planMapStyle'
 import { ROLE_COLORS } from './scene'
-import { DEM_TILE_SIZE, demTileRange } from './terrain'
+import { DEM_TILE_SIZE, demTileRange, EARTH_RADIUS_METERS } from './terrain'
 import type { TargetPolygon } from './types'
 import { blockId } from './viaDocument/resolve'
 import {
@@ -120,6 +120,13 @@ export interface ReportMapPlan {
   sheet?: { scale: number; paper: { widthIn: number; heightIn: number }; style?: OverviewSheetStyle }
   /** The portrait end map's page, grid ticks, contour interval, terrain zoom and key map (`planEndMap`). */
   endMap?: EndMapPlan
+  /**
+   * `figure-page`: the location or regional map as 26's Figure 2 page prints it (`planFigurePageMaps`), with no
+   * legend, scale bar, hatching or viewpoint label. The report's other maps when absent.
+   */
+  style?: 'figure-page'
+  /** The window of the canvas this map is captured from, when it is not the report maps' common one. */
+  frame?: MapFrame
 }
 
 /** Width over height of each map's window of the canvas. */
@@ -364,12 +371,29 @@ export function viewWedge(
   if (viewpoint.bearingDeg === null || !Number.isFinite(viewpoint.bearingDeg)) return null
   const fov = Math.min(170, Math.max(5, viewpoint.fovDeg ?? DEFAULT_WEDGE_FOV_DEG))
   const eye = { lng: viewpoint.lng, lat: viewpoint.lat }
+  const { lengthM, covered } = wedgeReach(viewpoint.bearingDeg, fov, eye, blocks)
+  const cone = viewerConeFeatures({ ...eye, bearing: viewpoint.bearingDeg, fovDegrees: fov }, lengthM).features[0]
+  if (!cone || cone.geometry.type !== 'Polygon') return null
+  return { ring: cone.geometry.coordinates[0] as LngLat[], lengthM, blocks: covered }
+}
+
+/**
+ * How far a wedge from `eye` along `bearingDeg` over `fov` reaches: just past the farthest block corner inside the
+ * field (else the nearest block's middle), by `WEDGE_REACH`, within `MIN_WEDGE_M`–`MAX_WEDGE_M`; and the blocks with
+ * a corner inside it.
+ */
+function wedgeReach(
+  bearingDeg: number,
+  fov: number,
+  eye: { lng: number; lat: number },
+  blocks: ReportMapFeatures['blocks'],
+): { lengthM: number; covered: string[] } {
   let reach = 0
   const covered: string[] = []
   for (const block of blocks) {
     let inside = false
     for (const [lng, lat] of verticesOf(block.geometry)) {
-      if (turn(viewpoint.bearingDeg, bearingDegrees(eye, { lng, lat })) > fov / 2) continue
+      if (turn(bearingDeg, bearingDegrees(eye, { lng, lat })) > fov / 2) continue
       inside = true
       reach = Math.max(reach, haversineMeters(eye, { lng, lat }))
     }
@@ -380,10 +404,7 @@ export function viewWedge(
       const centre = polygonInteriorPoint(block.geometry)
       if (centre) reach = reach ? Math.min(reach, haversineMeters(eye, centre)) : haversineMeters(eye, centre)
     }
-  const lengthM = Math.min(MAX_WEDGE_M, Math.max(MIN_WEDGE_M, (reach || MIN_WEDGE_M) * WEDGE_REACH))
-  const cone = viewerConeFeatures({ ...eye, bearing: viewpoint.bearingDeg, fovDegrees: fov }, lengthM).features[0]
-  if (!cone || cone.geometry.type !== 'Polygon') return null
-  return { ring: cone.geometry.coordinates[0] as LngLat[], lengthM, blocks: covered }
+  return { lengthM: Math.min(MAX_WEDGE_M, Math.max(MIN_WEDGE_M, (reach || MIN_WEDGE_M) * WEDGE_REACH)), covered }
 }
 
 const list = (names: readonly string[]) =>
@@ -461,6 +482,313 @@ export function planReportMaps(features: ReportMapFeatures, frame: MapFrame): Re
     caption: 'Regional map: the project area (the overview map’s ground, outlined in red) in its region.',
   })
   return plans
+}
+
+// ---------------------------------------------------------------- the figure page's maps (26's Figure 2)
+
+/** Width over height of the figure page's side slots ("Location map and viewpoint", "Regional map"). */
+export const FIGURE_PAGE_MAP_ASPECT = 0.8
+/** The side slots' printed width, inches: the figure page's maps size their symbols in points on it. */
+export const FIGURE_PAGE_MAP_WIDTH_IN = 2.3
+/** Share of the location map's frame left round the wedge and the blocks in it, on each side. */
+export const FIGURE_PAGE_PADDING_SHARE = 0.04
+/** At the bottom, room for the sources' line under the viewpoint's star. */
+export const FIGURE_PAGE_BOTTOM_SHARE = 0.07
+/** The wedge's arc has a vertex every this many degrees, and at least `FIGURE_WEDGE_MIN_ARC_STEPS` steps. */
+export const FIGURE_WEDGE_ARC_STEP_DEG = 1
+export const FIGURE_WEDGE_MIN_ARC_STEPS = 12
+/** The widest field a figure wedge draws, degrees: a panorama's total field, short of a full circle. */
+export const FIGURE_WEDGE_MAX_FIELD_DEG = 330
+/** The regional map's scale, true at its centre latitude printed `FIGURE_PAGE_MAP_WIDTH_IN` wide (26: about 1:300,000). */
+export const FIGURE_REGIONAL_SCALE = 400_000
+/**
+ * The regional map's window of the canvas, CSS pixels wide. The basemap draws names and lines at a screen size, so
+ * they print at a size this width sets; and it loads the tiles of its zoom, which this width also sets at a fixed
+ * printed scale. 600 px puts 1:400,000 near zoom 10, whose tiles carry village names (zoom 9's carry only towns), and
+ * the capture draws the basemap's type and highways larger to match (`regionalTypeScale`), so they print at about 6 pt.
+ */
+export const FIGURE_REGIONAL_FRAME_WIDTH = 600
+/** The capture width the regional look's sizes (`VIA_FIGURE_MAP.regional`) are given for. */
+export const FIGURE_REGIONAL_TYPE_BASE_PX = 300
+/** How much larger the regional map's basemap type and highways are drawn on a capture `frameWidth` wide. */
+export const regionalTypeScale = (frameWidth: number) => Math.max(1, frameWidth / FIGURE_REGIONAL_TYPE_BASE_PX)
+/** The regional map goes out to this scale at most to take in the nearest named place (`regionalWithPlace`). */
+export const FIGURE_REGIONAL_MAX_SCALE = 500_000
+/** Share of the regional frame kept clear round the project and the place it is fitted to. */
+export const FIGURE_REGIONAL_PADDING_SHARE = 0.1
+
+/** The point `distanceM` from (lng, lat) along `bearingDeg`, on the sphere `haversineMeters` measures on. */
+export function destinationPoint(lng: number, lat: number, bearingDeg: number, distanceM: number): LngLat {
+  const d = distanceM / EARTH_RADIUS_METERS,
+    theta = bearingDeg * RAD
+  const phi1 = lat * RAD,
+    lambda1 = lng * RAD
+  const phi2 = Math.asin(Math.sin(phi1) * Math.cos(d) + Math.cos(phi1) * Math.sin(d) * Math.cos(theta))
+  const lambda2 =
+    lambda1 + Math.atan2(Math.sin(theta) * Math.sin(d) * Math.cos(phi1), Math.cos(d) - Math.sin(phi1) * Math.sin(phi2))
+  return [(((lambda2 / RAD + 540) % 360) - 180) as number, phi2 / RAD]
+}
+
+export interface FigureWedge {
+  /** The viewpoint, the wedge's apex. */
+  apex: LngLat
+  bearingDeg: number
+  /** The field the wedge spans, degrees: the view's whole horizontal field. */
+  spanDeg: number
+  lengthM: number
+  /** Apex, the arc from the field's left edge to its right, apex again. */
+  ring: LngLat[]
+  /** Blocks with a corner inside the field. */
+  blocks: string[]
+}
+
+/**
+ * The figure page's view wedge: from the viewpoint over the view's whole horizontal field (the saved view's or
+ * panorama's total, `fovDeg`), with straight sides and a true arc at its far end, reaching just past the farthest
+ * block corner in the field as the report's wedge does. Null when the view kept no bearing.
+ */
+export function figureWedge(viewpoint: ReportViewpoint, blocks: ReportMapFeatures['blocks']): FigureWedge | null {
+  if (viewpoint.bearingDeg === null || !Number.isFinite(viewpoint.bearingDeg)) return null
+  const span = Math.min(FIGURE_WEDGE_MAX_FIELD_DEG, Math.max(5, viewpoint.fovDeg ?? DEFAULT_WEDGE_FOV_DEG))
+  const eye = { lng: viewpoint.lng, lat: viewpoint.lat }
+  const { lengthM, covered } = wedgeReach(viewpoint.bearingDeg, span, eye, blocks)
+  const steps = Math.max(FIGURE_WEDGE_MIN_ARC_STEPS, Math.ceil(span / FIGURE_WEDGE_ARC_STEP_DEG))
+  const apex: LngLat = [viewpoint.lng, viewpoint.lat]
+  const arc = Array.from({ length: steps + 1 }, (_, i) =>
+    destinationPoint(viewpoint.lng, viewpoint.lat, viewpoint.bearingDeg! - span / 2 + (span * i) / steps, lengthM),
+  )
+  return { apex, bearingDeg: viewpoint.bearingDeg, spanDeg: span, lengthM, ring: [apex, ...arc, apex], blocks: covered }
+}
+
+/** The zoom at which `frame`, printed `widthIn` wide, shows 1:`scale` at latitude `lat`. */
+export const zoomForPrintedScale = (scale: number, lat: number, frame: MapFrame, widthIn: number) =>
+  Math.log2(
+    (2 * Math.PI * R * Math.cos(lat * RAD)) / (TILE * ((scale * widthIn * METRES_PER_INCH) / Math.max(1, frame.width))),
+  )
+/** The scale `camera` shows when `frame` prints `widthIn` wide. */
+export const printedScale = (camera: MapCamera, frame: MapFrame, widthIn: number) =>
+  (metresPerPixel(camera) * frame.width) / (widthIn * METRES_PER_INCH)
+
+/** A scale rounded to two significant figures, for a caption ("about 1:410,000"). */
+const roundScale = (scale: number) => {
+  const step = 10 ** Math.max(0, Math.floor(Math.log10(scale)) - 1)
+  return Math.round(scale / step) * step
+}
+
+/**
+ * 26's Figure 2 maps, for the figure page (`ea-figure-pages`) only; the report's other maps are `planReportMaps`.
+ * Per viewpoint, a location map on imagery fitted tightly to the view's wedge (`figureWedge`) and the blocks in it, at
+ * the side slot's shape (`FIGURE_PAGE_MAP_ASPECT`); and one regional map on the vector road map at
+ * `FIGURE_REGIONAL_SCALE` (out further only when the project would not fit), from a small window
+ * (`FIGURE_REGIONAL_FRAME_WIDTH`) so its labels print readable, with the project's ground outlined. `canvas` is the
+ * plan map's canvas, CSS pixels; each plan carries its own `frame`. Empty when there are no blocks and no viewpoints.
+ */
+export function planFigurePageMaps(features: ReportMapFeatures, canvas: MapFrame): ReportMapPlan[] {
+  const blockPoints = features.blocks.flatMap((block) => corners(polygonBounds(block.geometry)))
+  const viewpointPoints = features.viewpoints.map((vp): LngLat => [vp.lng, vp.lat])
+  const projectBounds = boundsOf([...blockPoints, ...viewpointPoints])
+  if (!projectBounds) return []
+  const plans: ReportMapPlan[] = []
+  const locationFrame = captureFrame(canvas, FIGURE_PAGE_MAP_ASPECT)
+  for (const viewpoint of features.viewpoints) {
+    const wedge = figureWedge(viewpoint, features.blocks)
+    const seen = wedge ? features.blocks.filter((block) => wedge.blocks.includes(block.name)) : features.blocks
+    const bounds = boundsOf([
+      [viewpoint.lng, viewpoint.lat],
+      ...(wedge?.ring ?? []),
+      ...seen.flatMap((block) => corners(polygonBounds(block.geometry))),
+    ])
+    if (!bounds) continue
+    plans.push({
+      kind: 'location',
+      key: viewpoint.name,
+      style: 'figure-page',
+      frame: locationFrame,
+      camera: fitCamera(bounds, locationFrame, FIGURE_PAGE_PADDING_SHARE, MAX_REPORT_ZOOM, FIGURE_PAGE_BOTTOM_SHARE),
+      basemap: 'satellite',
+      viewpoint,
+      ...(wedge ? { wedge: { ring: wedge.ring, lengthM: wedge.lengthM } } : {}),
+      caption: wedge
+        ? `Location map: ${viewpoint.name}, facing ${Math.round((wedge.bearingDeg + 360) % 360)}° over its ${Math.round(
+            wedge.spanDeg,
+          )}° field${wedge.blocks.length ? `, toward ${blockNames(wedge.blocks)}` : ''}; the view is drawn to ${(wedge.lengthM / 1000).toFixed(1)} km.`
+        : `Location map: ${viewpoint.name} and the proposed blocks (the view’s bearing was not kept).`,
+    })
+  }
+  const regionalWidth = Math.min(
+    canvas.width,
+    FIGURE_REGIONAL_FRAME_WIDTH,
+    Math.floor(canvas.height * FIGURE_PAGE_MAP_ASPECT),
+  )
+  const regionalFrame: MapFrame = {
+    width: Math.floor(regionalWidth),
+    height: Math.floor(regionalWidth / FIGURE_PAGE_MAP_ASPECT),
+  }
+  const fitted = fitCamera(projectBounds, regionalFrame, 0.2, MAX_REGIONAL_ZOOM, 0.2)
+  const zoom = Math.max(
+    MIN_REPORT_ZOOM,
+    Math.min(
+      MAX_REGIONAL_ZOOM,
+      fitted.zoom,
+      zoomForPrintedScale(FIGURE_REGIONAL_SCALE, fitted.center[1], regionalFrame, FIGURE_PAGE_MAP_WIDTH_IN),
+    ),
+  )
+  const camera: MapCamera = { center: fitted.center, zoom }
+  plans.push({
+    kind: 'regional',
+    key: 'regional',
+    style: 'figure-page',
+    frame: regionalFrame,
+    camera,
+    basemap: 'map',
+    projectArea: projectBounds,
+    caption: regionalCaption(camera, regionalFrame, features.viewpoints.length, null),
+  })
+  return plans
+}
+
+const regionalCaption = (camera: MapCamera, frame: MapFrame, viewpoints: number, place: string | null) =>
+  `Regional map at about ${formatScale(roundScale(printedScale(camera, frame, FIGURE_PAGE_MAP_WIDTH_IN)))}: the project (outlined) and its viewpoint${
+    viewpoints === 1 ? '' : 's'
+  } ${place ? `with ${place}, the nearest named place,` : ''} in the region’s roads and towns.`.replace('  ', ' ')
+
+/** A place the basemap names on the regional map (a town, village or hamlet), read at capture. */
+export interface LabelledPlace {
+  name: string
+  lng: number
+  lat: number
+}
+
+/** The basemap's place-name layers (towns, villages, hamlets, cities), whose drawn names `regionalWithPlace` reads. */
+export const placeLayerIds = (layers: readonly BasemapLayerInfo[]) =>
+  layers
+    .filter(
+      (layer) =>
+        layer.type === 'symbol' &&
+        /^places?$/.test(layer['source-layer'] ?? '') &&
+        /hamlet|village|town|city/.test(layer.id.toLowerCase()),
+    )
+    .map((layer) => layer.id)
+
+/**
+ * The figure page's regional map, taking in the nearest named place: when the nearest of `places` (the names the
+ * basemap drew round the regional camera) lies outside the frame, the frame is fitted to the project and that place
+ * together, never closer than `FIGURE_REGIONAL_SCALE` and only when that fits by `FIGURE_REGIONAL_MAX_SCALE`. The plan
+ * as it was when a named place is already in the frame, when there is none, or when the nearest is too far.
+ */
+export function regionalWithPlace(
+  plan: ReportMapPlan,
+  places: readonly LabelledPlace[],
+  viewpointCount: number,
+): ReportMapPlan {
+  if (plan.kind !== 'regional' || plan.style !== 'figure-page' || !plan.projectArea || !plan.frame) return plan
+  const frame = plan.frame
+  const [w, s, e, n] = plan.projectArea
+  const centre = { lng: (w + e) / 2, lat: (s + n) / 2 }
+  const projection = frameProjectionFor(plan.camera, frame)
+  const inFrame = (place: LabelledPlace) => {
+    const [x, y] = projection.project(place.lng, place.lat)
+    const margin = FIGURE_REGIONAL_PADDING_SHARE / 2
+    return (
+      x >= frame.width * margin &&
+      x <= frame.width * (1 - margin) &&
+      y >= frame.height * margin &&
+      y <= frame.height * (1 - margin)
+    )
+  }
+  const named = places.filter((place) => place.name && Number.isFinite(place.lng) && Number.isFinite(place.lat))
+  if (!named.length || named.some(inFrame)) return plan
+  const nearest = named.reduce((best, place) =>
+    haversineMeters(centre, place) < haversineMeters(centre, best) ? place : best,
+  )
+  const bounds = boundsOf([...corners(plan.projectArea), [nearest.lng, nearest.lat]])!
+  const fitted = fitCamera(
+    bounds,
+    frame,
+    FIGURE_REGIONAL_PADDING_SHARE,
+    MAX_REGIONAL_ZOOM,
+    FIGURE_REGIONAL_PADDING_SHARE,
+  )
+  const closest = zoomForPrintedScale(FIGURE_REGIONAL_SCALE, fitted.center[1], frame, FIGURE_PAGE_MAP_WIDTH_IN)
+  const camera: MapCamera = { center: fitted.center, zoom: Math.min(fitted.zoom, closest) }
+  if (printedScale(camera, frame, FIGURE_PAGE_MAP_WIDTH_IN) > FIGURE_REGIONAL_MAX_SCALE * 1.0001) return plan
+  return { ...plan, camera, caption: regionalCaption(camera, frame, viewpointCount, nearest.name) }
+}
+
+/** A basemap layer as `getStyle().layers` lists it: what `figureRegionalLook` reads. */
+export interface BasemapLayerInfo {
+  id: string
+  type: string
+  'source-layer'?: string
+  minzoom?: number
+  maxzoom?: number
+}
+/** One change `figureRegionalLook` makes to the basemap while the regional map is captured. */
+export type BasemapOverride =
+  | { id: string; kind: 'paint'; property: string; value: string | number }
+  | { id: string; kind: 'layout'; property: string; value: string | number }
+  | { id: string; kind: 'zoom'; minzoom: number; maxzoom: number }
+/** Place names are shown from this zoom on the regional map: villages too (positron starts them at 10). */
+export const FIGURE_REGIONAL_PLACE_MINZOOM = 7
+/**
+ * Hamlets are named from this zoom (positron starts them at 12): in rural BC the nearest named place is often one.
+ * Positron's hamlet layer adds city neighbourhoods only from zoom 14, so this brings in no city clutter.
+ */
+export const FIGURE_REGIONAL_HAMLET_MINZOOM = 9
+/** Highway lines are drawn from this zoom on the regional map: secondary ones too (positron starts them at 11). */
+export const FIGURE_REGIONAL_ROAD_MINZOOM = 8
+
+/**
+ * The regional map's road-map look (`VIA_FIGURE_MAP.regional`) as changes to the plan's vector basemap, in CARTO's
+ * Protomaps schema (`roads`, `places`, `water`) or OpenMapTiles' (`transportation`, `place`, `water_name`): highway
+ * lines (motorway, trunk, primary and secondary) orange over a darker edge from `FIGURE_REGIONAL_ROAD_MINZOOM`, place
+ * and water names dark on a white halo, town and village names from `FIGURE_REGIONAL_PLACE_MINZOOM`, and hamlets from `FIGURE_REGIONAL_HAMLET_MINZOOM`, every
+ * name at a set size; sizes and widths are times `typeScale` (`regionalTypeScale` of the capture's width). The capture applies them only while it stands at the regional map's
+ * camera and puts every one back. Positron draws its roads near-white on near-white, which left 26's regional map
+ * with no road or name to read.
+ */
+export function figureRegionalLook(layers: readonly BasemapLayerInfo[], typeScale = 1): BasemapOverride[] {
+  const look = VIA_FIGURE_MAP.regional
+  const out: BasemapOverride[] = []
+  const paint = (id: string, property: string, value: string | number) =>
+    out.push({ id, kind: 'paint', property, value })
+  for (const layer of layers) {
+    const source = layer['source-layer'] ?? ''
+    const id = layer.id.toLowerCase()
+    if (layer.type === 'line' && (source === 'roads' || source === 'transportation')) {
+      const road = /(^|_)(mot|motorway|trunk|pri|primary|sec|secondary)(_|$)/.exec(id)
+      if (!road || /tunnel|rail|path|_ramp|link/.test(id)) continue
+      const casing = /case|casing/.test(id)
+      const width = /^sec/.test(road[2]) ? look.secondaryWidth : look.highwayWidth
+      paint(layer.id, 'line-color', casing ? look.highwayEdge : look.highway)
+      paint(layer.id, 'line-width', (casing ? width + 1.2 : width) * typeScale)
+      if ((layer.minzoom ?? 0) > FIGURE_REGIONAL_ROAD_MINZOOM)
+        out.push({ id: layer.id, kind: 'zoom', minzoom: FIGURE_REGIONAL_ROAD_MINZOOM, maxzoom: layer.maxzoom ?? 24 })
+    } else if (layer.type === 'symbol' && /^(places?|water|water_name)$/.test(source)) {
+      const water = source.startsWith('water')
+      paint(layer.id, 'text-color', water ? look.waterLabel : look.label)
+      paint(layer.id, 'text-halo-color', look.labelHalo)
+      paint(layer.id, 'text-halo-width', look.labelHaloWidth * typeScale)
+      const from = water
+        ? null
+        : /hamlet/.test(id)
+          ? FIGURE_REGIONAL_HAMLET_MINZOOM
+          : /village|town|city/.test(id)
+            ? FIGURE_REGIONAL_PLACE_MINZOOM
+            : null
+      if (from !== null && (layer.minzoom ?? 0) > from)
+        out.push({ id: layer.id, kind: 'zoom', minzoom: from, maxzoom: layer.maxzoom ?? 24 })
+      const size = water
+        ? look.waterLabelSize
+        : /hamlet|village/.test(id)
+          ? look.smallPlaceSize
+          : /town|city/.test(id)
+            ? look.townSize
+            : null
+      if (size !== null) out.push({ id: layer.id, kind: 'layout', property: 'text-size', value: size * typeScale })
+    }
+  }
+  return out
 }
 
 /** The overview sheet's paper: 11 × 17 in, landscape (05's 1:40,000 map, 22/23's Appendix A1). */
@@ -861,13 +1189,19 @@ export function starRing(x: number, y: number, size: number): Point[] {
   })
 }
 
-const starOps = (x: number, y: number, size: number, k: number): DrawOp[] => [
+const starOps = (
+  x: number,
+  y: number,
+  size: number,
+  k: number,
+  colors: { fill: string; edge: string; edgeWidth?: number } = { fill: ASSESSMENT_VIEWPOINT_COLOR, edge: '#000000' },
+): DrawOp[] => [
   {
     op: 'path',
     parts: [starRing(x, y, size)],
     closed: true,
-    fill: ASSESSMENT_VIEWPOINT_COLOR,
-    stroke: { color: '#000000', width: 1.1 * k, join: 'round' },
+    fill: colors.fill,
+    stroke: { color: colors.edge, width: (colors.edgeWidth ?? 1.1) * k, join: 'round' },
   },
 ]
 
@@ -877,11 +1211,15 @@ const HALO = { color: '#ffffff', width: 3 }
  * The north arrow the block sheets draw (`composeSheet.ts`): a red needle with a white edge and an N, here in the
  * frame's top-left corner. The map is north-up Web Mercator, so it points straight up.
  */
-function northArrowOps(frame: Box, k: number): DrawOp[] {
-  const height = 40 * k,
+function northArrowOps(
+  frame: Box,
+  k: number,
+  at: { corner: 'left' | 'right'; height: number } | null = null,
+): DrawOp[] {
+  const height = (at?.height ?? 40) * k,
     width = height * 0.32
-  const cx = frame.x + 22 * k,
-    top = frame.y + 10 * k
+  const cx = at?.corner === 'right' ? frame.x + frame.w - width / 2 - 6 * k : frame.x + 22 * k,
+    top = frame.y + (at ? 4 : 10) * k
   const bottom = top + height
   const notch = bottom - height * 0.18
   const red = SHEET_CHROME.northArrow
@@ -1066,6 +1404,7 @@ export function composeReportMap(
   image: { url: string; width: number; height: number; format: 'PNG' | 'JPEG' } | null,
   attribution: string | null,
 ): ComposedReportMap {
+  if (plan.style === 'figure-page') return composeFigurePageMap(plan, features, frame, image, attribution)
   const projection = frameProjectionFor(plan.camera, frame)
   const box: Box = { x: 0, y: 0, w: frame.width, h: frame.height }
   // Symbol sizes are points at a 640 px frame, as the block sheets scale theirs by paper; on the 11 × 17 sheet they
@@ -1274,5 +1613,166 @@ export function composeReportMap(
     legendRows: legend.map(({ label, color, kind }) => ({ label, color, kind })),
     scale: plan.sheet ? formatScale(plan.sheet.scale) : `Scale bar: ${formatDistance(bar.spanM)}`,
     labels: placedLabels,
+  }
+}
+
+/** The figure page's road and project-area lines, in points printed on its side slot. */
+const FIGURE_PAGE_ROAD: LineSymbol = {
+  kind: 'line',
+  label: 'Road',
+  layers: [
+    { color: '#ffffff', width: 1.8, cap: 'round', join: 'round' },
+    { color: ROAD_COLOR, width: 1, cap: 'round', join: 'round' },
+  ],
+}
+const FIGURE_PAGE_PROJECT_AREA: AreaSymbol = {
+  kind: 'area',
+  label: 'Project area',
+  outline: [
+    { color: '#ffffff', width: 2.2, join: 'miter' },
+    { color: SHEET_CHROME.northArrow, width: 1.2, join: 'miter' },
+  ],
+}
+/** The proposed blocks on the figure page's location map: the block sheets' block of interest, a little lighter. */
+const FIGURE_PAGE_BLOCK_WEIGHT = 0.7
+
+/**
+ * A figure page map (`planFigurePageMaps`) over its capture, sized in points printed on the side slot. The location
+ * map: the road, the view's teal wedge, the proposed blocks in the block sheets' block-of-interest style with their
+ * names, and the viewpoint as a cyan star at the wedge's apex. The regional map: the project's ground outlined and the
+ * viewpoints' stars. Either has a small north arrow at its top right and the sources' attribution, and nothing else:
+ * no legend, scale bar, VQO hatching or viewpoint name (the slot's bar and the page name it).
+ */
+function composeFigurePageMap(
+  plan: ReportMapPlan,
+  features: ReportMapFeatures,
+  frame: MapFrame,
+  image: { url: string; width: number; height: number; format: 'PNG' | 'JPEG' } | null,
+  attribution: string | null,
+): ComposedReportMap {
+  const projection = frameProjectionFor(plan.camera, frame)
+  const box: Box = { x: 0, y: 0, w: frame.width, h: frame.height }
+  const k = frame.width / (FIGURE_PAGE_MAP_WIDTH_IN * POINTS_PER_INCH)
+  const project = ([lng, lat]: LngLat): Point => projection.project(lng, lat)
+  const partsOf = (geometry: PolygonGeometry): Point[][] =>
+    ringsOf(geometry).flatMap((rings) => rings.map((ring) => ring.map(project)))
+  const visible = (geometry: PolygonGeometry) => {
+    const [w, s, e, n] = polygonBounds(geometry)
+    const [west, south, east, north] = projection.bounds
+    return !(e < west || w > east || n < south || s > north)
+  }
+  const ops: DrawOp[] = [
+    image
+      ? { op: 'image', x: 0, y: 0, w: frame.width, h: frame.height, image: { kind: 'url', ...image } }
+      : { op: 'rect', ...box, fill: '#e5e7eb' },
+    { op: 'clip', parts: [rectRing(0, 0, frame.width, frame.height)] },
+  ]
+  const rows: ComposedReportMap['legendRows'] = []
+  const row = (symbol: AreaSymbol | LineSymbol) =>
+    rows.push({ label: symbol.label, color: symbolKeyColor(symbol), kind: symbol.kind })
+  const labels: string[] = []
+  const star = VIA_FIGURE_MAP.viewpoint
+  const starSize = 10 * k
+
+  if (plan.kind === 'location') {
+    const road = features.road?.map(project) ?? []
+    const roadLength = road.reduce(
+      (sum, point, i) => (i ? sum + Math.hypot(point[0] - road[i - 1][0], point[1] - road[i - 1][1]) : 0),
+      0,
+    )
+    if (road.length > 1 && roadLength > starSize * 1.6) {
+      ops.push(...lineSymbolOps([road], FIGURE_PAGE_ROAD, k))
+      row(FIGURE_PAGE_ROAD)
+    }
+    if (plan.wedge) {
+      ops.push(...areaSymbolOps([plan.wedge.ring.map(project)], VIA_FIGURE_MAP.viewWedge, k))
+      row(VIA_FIGURE_MAP.viewWedge)
+    }
+    const blocks = features.blocks.filter((block) => visible(block.geometry))
+    const blockSymbol = { ...BLOCK_OF_INTEREST.default, label: 'Proposed block' }
+    for (const block of blocks)
+      ops.push(...areaSymbolOps(partsOf(block.geometry), blockSymbol, k * FIGURE_PAGE_BLOCK_WEIGHT))
+    if (blocks.length) row(blockSymbol)
+    // Block names at their middles, white on a dark halo as 26 labels its linework; one that meets another is left out.
+    const taken: Box[] = []
+    const size = 6 * k
+    for (const block of blocks) {
+      const centre = polygonInteriorPoint(block.geometry)
+      if (!centre) continue
+      const [x, y] = project([centre.lng, centre.lat])
+      const text = fitText(block.name, size, frame.width * 0.3, 'bold')
+      const w = textWidth(text, size, 'bold')
+      const rect: Box = { x: x - w / 2 - k, y: y - size * 0.6, w: w + 2 * k, h: size * 1.3 }
+      if (rect.x < 2 || rect.y < 2 || rect.x + rect.w > frame.width - 2 || rect.y + rect.h > frame.height - 2) continue
+      if (taken.some((other) => boxesMeet(other, rect))) continue
+      taken.push(rect)
+      labels.push(text)
+      ops.push({
+        op: 'text',
+        x,
+        y,
+        text,
+        size,
+        style: 'bold',
+        color: '#ffffff',
+        align: 'center',
+        baseline: 'middle',
+        halo: { color: '#000000', width: 1.6 * k },
+      })
+    }
+  } else if (plan.projectArea) {
+    const [w, s, e, n] = plan.projectArea
+    const ring: LngLat[] = [
+      [w, s],
+      [e, s],
+      [e, n],
+      [w, n],
+    ]
+    // Never smaller than the star it holds: a single block is a speck at the regional scale.
+    const points = ring.map(project)
+    const [cx, cy] = [(points[0][0] + points[2][0]) / 2, (points[0][1] + points[2][1]) / 2]
+    const half = starSize * 0.9
+    const grown = points.map(
+      ([x, y]): Point => [
+        x < cx ? Math.min(x, cx - half) : Math.max(x, cx + half),
+        y < cy ? Math.min(y, cy - half) : Math.max(y, cy + half),
+      ],
+    )
+    ops.push(...areaSymbolOps([grown], FIGURE_PAGE_PROJECT_AREA, k))
+    row(FIGURE_PAGE_PROJECT_AREA)
+  }
+
+  const viewpoints = plan.viewpoint ? [plan.viewpoint] : features.viewpoints
+  let starred = 0
+  for (const vp of viewpoints) {
+    const [x, y] = project([vp.lng, vp.lat])
+    if (x < 0 || x > frame.width || y < 0 || y > frame.height) continue
+    ops.push(...starOps(x, y, starSize, k, { fill: star.fill, edge: star.edge, edgeWidth: 0.6 }))
+    starred += 1
+  }
+  if (starred) rows.push({ label: 'Viewpoint', color: star.fill, kind: 'point' })
+
+  if (attribution)
+    ops.push({
+      op: 'text',
+      x: frame.width - 2 * k,
+      y: frame.height - 2 * k,
+      text: fitText(attribution, 3.6 * k, frame.width * 0.96),
+      size: 3.6 * k,
+      color: SHEET_CHROME.attribution,
+      align: 'right',
+      halo: { color: '#ffffff', width: 0.8 * k },
+    })
+  ops.push({ op: 'restore' })
+  ops.push(...northArrowOps(box, k, { corner: 'right', height: 16 }))
+  return {
+    ops,
+    width: frame.width,
+    height: frame.height,
+    // Nothing is keyed on the picture: the rows say what it shows.
+    legend: [],
+    legendRows: rows,
+    scale: `About ${formatScale(roundScale(printedScale(plan.camera, frame, FIGURE_PAGE_MAP_WIDTH_IN)))} printed ${FIGURE_PAGE_MAP_WIDTH_IN} in wide`,
+    labels,
   }
 }

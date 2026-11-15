@@ -82,6 +82,11 @@ export interface BlockAtStation {
    * not give it or nothing of the block is seen.
    */
   distanceKm?: number
+  /**
+   * How far the block's callout lies off the view's centre line, degrees (negative to the left), from where its
+   * anchor falls in the framed picture. Absent on older figures.
+   */
+  offAxisDeg?: number
 }
 
 /** The judgements a reviewer gives per viewpoint; every one optional. */
@@ -123,7 +128,8 @@ export interface DocumentViewpoint {
   landform: string
   /** The landform's established objective. */
   objective: ClassCode | null
-  inventory?: { vsu?: string; vsc?: string; vac?: string; evc?: string; vqo?: string } | null
+  /** The view's inventory unit; `date` is the record's last update (`UPDATE_DATE`), the layer's only date. */
+  inventory?: { vsu?: string; vsc?: string; vac?: string; evc?: string; vqo?: string; date?: string } | null
   /** The class pass's areas, pixels; null when the view has no class pass. */
   areas: AlterationAreas | null
   /**
@@ -174,6 +180,21 @@ export interface DocumentFacts {
   screeningModelled?: boolean
   /** Key viewpoints the reviewer chose; absent, the run chooses them all. */
   keyViewpoints?: KeyViewpointPicks
+  /**
+   * Each sub-landform's parent landform as step 1 records it, by the name the viewpoints read; a name read the
+   * references' way ("Landform 1a") gives its parent without a record (`landformParentFromName`).
+   */
+  landformParents?: Readonly<Record<string, string>>
+}
+
+/**
+ * The landform a sub-landform's name places it in, read the references' way: "Landform 1b" and "Sub-landform 1a"
+ * belong to Landform 1. A trailing note in brackets ("Landform 1b (consultant, traced)") is the outline's source.
+ * Null for a name that is not a sub-landform's.
+ */
+export function landformParentFromName(name: string): string | null {
+  const named = name.match(/^(?:sub-?\s*landform|landform)\s+(\d+)[a-z](?:\s*\(.*\))?$/i)
+  return named ? `Landform ${named[1]}` : null
 }
 
 export interface ResolvedViewpoint {
@@ -194,8 +215,8 @@ export interface ResolvedDocument {
   viewpoints: ResolvedViewpoint[]
   /** Document-level sentences (objective paragraph, verdict, conclusion, strip footer). */
   summary: Sentence[]
-  /** Sentences and cells waiting on a reviewer, with the slots they need. */
-  toComplete: Array<{ viewpoint: string | null; id: string; missing: string[]; about?: string }>
+  /** Sentences and cells waiting on a reviewer, with the slots they need and the template's label when it has one. */
+  toComplete: Array<{ viewpoint: string | null; id: string; missing: string[]; about?: string; label?: string }>
   /**
    * Perspective reports: each block, or the blocks assessed together, discussed once from where it is assessed; the
    * same sentences as the viewpoints', in discussion order. Empty for other formats.
@@ -216,7 +237,7 @@ const km = (value: number | null) => (value === null ? null : value.toFixed(1))
 const termAt = (scale: DistanceScale, value: number) => distanceTerm(scale, Number(value.toFixed(1)))
 
 function sentenceFrom(template: SentenceTemplate, values: SlotValues): Sentence {
-  return fillSentence(template.id, template.template, values, template.source)
+  return { ...fillSentence(template.id, template.template, values, template.source), label: template.role }
 }
 
 /** "Block A", "Blocks A and B", "Blocks A, B and C". */
@@ -460,6 +481,8 @@ interface PerspectiveInput {
   viewpoints: readonly DocumentViewpoint[]
   results: readonly (Alteration | null)[]
   choice: KeyViewpointChoice
+  /** A sub-landform's parent landform, or null (`DocumentFacts.landformParents`, else the name). */
+  parentOf?: (landform: string) => string | null
 }
 
 interface PerspectiveOut {
@@ -471,7 +494,13 @@ interface PerspectiveOut {
   extraToComplete: Array<{ viewpoint: string | null; id: string; missing: string[]; about?: string }>
 }
 
-function perspectiveDiscussion({ format, viewpoints, results, choice }: PerspectiveInput): PerspectiveOut {
+function perspectiveDiscussion({
+  format,
+  viewpoints,
+  results,
+  choice,
+  parentOf = () => null,
+}: PerspectiveInput): PerspectiveOut {
   const sections: DiscussionSection[] = []
   const byViewpoint: Sentence[][] = viewpoints.map(() => [])
   const extraToComplete: PerspectiveOut['extraToComplete'] = []
@@ -643,6 +672,37 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
     return [fill(PERSPECTIVE_REPORT.scaleByBlock, { list }, about)]
   }
 
+  // The group's viewing distance: the range of the seen blocks' own distances when the run gives each (23's "between
+  // 6.3 and 7.0 km"), else the nearest block in view's.
+  const groupDistance = (i: number, blocks: readonly BlockAtStation[], about: string): Sentence => {
+    const vp = viewpoints[i]
+    const own = blocks.filter(seen).map((b) => b.distanceKm)
+    if (own.length > 1 && own.every((d): d is number => d !== undefined)) {
+      const near = Math.min(...own),
+        far = Math.max(...own)
+      if (km(near) !== km(far)) {
+        const nearTerm = lower(termAt(format.distanceScale, near))!,
+          farTerm = lower(termAt(format.distanceScale, far))!
+        const rating = nearTerm === farTerm ? nearTerm : `${nearTerm} to ${farTerm}`
+        return fill(
+          PERSPECTIVE_REPORT.distanceRange,
+          {
+            near: km(near),
+            far: km(far),
+            viewpoint: vp.name,
+            distanceRating: `${/^[aeiou]/.test(rating) ? 'an' : 'a'} ${rating}`,
+          },
+          about,
+        )
+      }
+    }
+    return fill(
+      PERSPECTIVE_REPORT.distanceShared,
+      { km: km(vp.distanceKm), viewpoint: vp.name, distanceRating: distanceRatingAt(i) },
+      about,
+    )
+  }
+
   // The group, at its viewpoint (23).
   const groupSection = (i: number, ids: string[]) => {
     const vp = viewpoints[i]
@@ -652,7 +712,11 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
     const glimpsed = blocks.filter((b) => b.status === 'possible glimpses').map((b) => b.id)
     const leftOut = [...choice.byBlock].filter(([id, index]) => index !== i && !ids.includes(id)).map(([id]) => id)
     const opening = [
-      fill(PERSPECTIVE_REPORT.groupLocation, { blockList: about, landform: vp.landform, viewpoint: vp.name }, about),
+      fill(
+        parentOf(vp.landform) ? PERSPECTIVE_REPORT.groupLocationSub : PERSPECTIVE_REPORT.groupLocation,
+        { blockList: about, landform: vp.landform, viewpoint: vp.name, parent: parentOf(vp.landform) },
+        about,
+      ),
       ...(choice.reviewer?.group != null
         ? [
             reviewerReason(
@@ -694,11 +758,7 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
       fill(PERSPECTIVE_REPORT.forceLines, { forceLines: lower(r?.forceLines) }, about),
       fill(PERSPECTIVE_REPORT.borrow, { subject: 'blocks', borrowsBorrow: 'borrow', borrow: lower(r?.borrow) }, about),
       fill(PERSPECTIVE_REPORT.edges, { edges: lower(r?.edges) }, about),
-      fill(
-        PERSPECTIVE_REPORT.distanceShared,
-        { km: km(vp.distanceKm), viewpoint: vp.name, distanceRating: distanceRatingAt(i) },
-        about,
-      ),
+      groupDistance(i, blocks, about),
       fill(PERSPECTIVE_REPORT.groupPosition, { position: lower(r?.position) }, about),
       fill(PERSPECTIVE_REPORT.design, { viewpoint: vp.name, design: lower(r?.design) }, about),
     ]
@@ -731,7 +791,7 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
     const vp = viewpoints[i]
     const about = `Block ${block.id}`
     const r = vp.review
-    const common = { block: block.id, landform: vp.landform, viewpoint: vp.name }
+    const common = { block: block.id, landform: vp.landform, viewpoint: vp.name, parent: parentOf(vp.landform) }
     const others = viewpoints
       .map((other, index) => ({ index, block: other.blocks.find((b) => b.id === block.id && seen(b)) }))
       .filter((entry) => entry.index !== i && entry.block)
@@ -811,7 +871,11 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
     const terms = unseenTerms(block.status)
     const body = [
       fill(
-        block.status === 'possible glimpses' ? PERSPECTIVE_REPORT.glimpses : PERSPECTIVE_REPORT.location,
+        block.status === 'possible glimpses'
+          ? PERSPECTIVE_REPORT.glimpses
+          : parentOf(vp.landform)
+            ? PERSPECTIVE_REPORT.locationSub
+            : PERSPECTIVE_REPORT.location,
         common,
         about,
       ),
@@ -976,14 +1040,21 @@ const CLASS_ORDER: readonly ClassCode[] = ['P', 'R', 'PR', 'M', 'MM']
 
 function appendix1(format: ViaDocumentFormat, vp: DocumentViewpoint, result: Alteration | null) {
   const a1 = vp.appendix1
+  // A figure past the scale's last class reads as the scale's own term for it ("excessive"), never as no class.
   const classOf = (value: number | null | undefined) =>
-    value === null || value === undefined ? undefined : (readPercent(format.percentScale, value)?.code ?? undefined)
+    value === null || value === undefined
+      ? undefined
+      : (readPercent(format.percentScale, value)?.code ?? format.percentScale.beyond)
   const x = a1?.x ?? result?.printedValue
+  // Without the run's breakdown, a and c are the picture's own parts; b (roads outside openings) is no class of the
+  // picture, so the sentence waits on it rather than printing a zero nobody measured.
+  const partOf = (id: 'proposed' | 'nonVeg') =>
+    result ? (result.parts.find((entry) => entry.part === id)?.printed ?? '0.0') : undefined
   const sentences = [
     sentenceFrom(APPENDIX_1.x, {
-      a: a1?.a.toFixed(1) ?? result?.printed,
-      b: a1 ? a1.b.toFixed(1) : '0.0',
-      c: a1 ? a1.c.toFixed(1) : '0.0',
+      a: a1?.a.toFixed(1) ?? partOf('proposed'),
+      b: a1 ? a1.b.toFixed(1) : undefined,
+      c: a1 ? a1.c.toFixed(1) : partOf('nonVeg'),
       x: x?.toFixed(1),
       initialClass: classOf(x),
     }),
@@ -1087,13 +1158,27 @@ function keyFigures(
   })
   const objectives = [...new Set(judged.map(objectiveAt))]
   const rangePhrase = (code: ClassCode) => `the ${CLASS_NAMES[code]} range (${rangeOf(code)})`
+  // A figure under its objective's range is within what the objective allows, never "within PR 1.6-7%" at 1.56%.
+  const below = judged.filter((i) => {
+    const code = readPercent(PERCENT_SCALES.handbookTable2, value(i))?.code
+    return !!code && CLASS_ORDER.indexOf(code) < CLASS_ORDER.indexOf(objectiveAt(i))
+  })
+  const allowed = (code: ClassCode) => `within what ${CLASS_NAMES[code]} allows`
   if (!over.length)
     out.push(
       fillSentence(
         'conclusion-standing',
         objectives.length === 1
-          ? `${judged.length === 1 ? 'The figure is' : 'Each figure is'} within ${rangePhrase(objectives[0])}.`
-          : `Each figure is within the range of its landform’s objective: ${andList(objectives.map(rangePhrase))}.`,
+          ? !below.length
+            ? `${judged.length === 1 ? 'The figure is' : 'Each figure is'} within ${rangePhrase(objectives[0])}.`
+            : below.length === judged.length
+              ? `${judged.length === 1 ? 'The figure is' : 'Each figure is'} below ${rangePhrase(objectives[0])}, ${allowed(objectives[0])}.`
+              : `Each figure is ${allowed(objectives[0])} (${rangeOf(objectives[0])}); ${
+                  below.length === 1
+                    ? `the figure at ${facts[below[0]].name} is`
+                    : `the figures at ${andList(below.map((i) => facts[i].name))} are`
+                } below its range.`
+          : `Each figure is within what its landform’s objective allows: ${andList(objectives.map(rangePhrase))}.`,
         {},
         'run',
       ),
@@ -1130,7 +1215,13 @@ export function resolveViaDocument(formatOrId: ViaDocumentFormat | string, facts
       )
     : null
   const written = choice
-    ? perspectiveDiscussion({ format, viewpoints: facts.viewpoints, results: figures, choice })
+    ? perspectiveDiscussion({
+        format,
+        viewpoints: facts.viewpoints,
+        results: figures,
+        choice,
+        parentOf: (landform) => facts.landformParents?.[landform] ?? landformParentFromName(landform),
+      })
     : null
   const viewpoints: ResolvedViewpoint[] = facts.viewpoints.map((vp, index) => {
     const result = figures[index]
@@ -1295,9 +1386,17 @@ export function resolveViaDocument(formatOrId: ViaDocumentFormat | string, facts
     ...viewpoints.flatMap((vp) =>
       vp.sentences
         .filter((s) => s.text === null)
-        .map((s) => ({ viewpoint: vp.name, id: s.id, missing: s.missing, ...(s.about ? { about: s.about } : {}) })),
+        .map((s) => ({
+          viewpoint: vp.name,
+          id: s.id,
+          missing: s.missing,
+          ...(s.about ? { about: s.about } : {}),
+          ...(s.label ? { label: s.label } : {}),
+        })),
     ),
-    ...summary.filter((s) => s.text === null).map((s) => ({ viewpoint: null, id: s.id, missing: s.missing })),
+    ...summary
+      .filter((s) => s.text === null)
+      .map((s) => ({ viewpoint: null, id: s.id, missing: s.missing, ...(s.label ? { label: s.label } : {}) })),
     ...(written?.extraToComplete ?? []),
     ...(choice?.declined ?? []).map((entry) => ({
       viewpoint: entry.viewpoint,

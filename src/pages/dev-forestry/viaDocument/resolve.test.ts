@@ -6,6 +6,7 @@ import { T4, T5, VIA_DOCUMENT_FORMATS, formatForSource } from './formats'
 import {
   blockList,
   chooseKeyViewpoints,
+  landformParentFromName,
   significanceScore,
   normalizeBlock,
   otherPlannedName,
@@ -653,5 +654,89 @@ describe('key viewpoints the reviewer chose', () => {
       missing: ['a key viewpoint that sees Block B9'],
       about: 'Block B9',
     })
+  })
+})
+
+describe('consultant discussion: sub-landforms and the group’s viewing distance (23)', () => {
+  const doc23 = formatForSource('23')!
+  const doc22 = formatForSource('22')!
+  const pair = (near?: number, far?: number) => [
+    { id: 'B1', status: 'visible' as const, visiblePercent: 90, ...(near === undefined ? {} : { distanceKm: near }) },
+    { id: 'B2', status: 'visible' as const, visiblePercent: 80, ...(far === undefined ? {} : { distanceKm: far }) },
+  ]
+  const facts = (landform: string, blocks: ReturnType<typeof pair>, parents?: Record<string, string>) => ({
+    project: 'the proposed blocks',
+    viewpoints: [
+      vp({
+        name: 'Shore',
+        landform,
+        areas: { landform: 10000, proposed: 300, nonVeg: 0 },
+        blocks,
+        distanceKm: 5.3,
+        review: { importance: 'High (5)' },
+      }),
+    ],
+    ...(parents ? { landformParents: parents } : {}),
+  })
+
+  it('reads a sub-landform’s parent from its name, its trailing source note aside', () => {
+    expect(landformParentFromName('Landform 1a (consultant, traced)')).toBe('Landform 1')
+    expect(landformParentFromName('Sub-landform 5b')).toBe('Landform 5')
+    expect(landformParentFromName('Landform 1')).toBeNull()
+    expect(landformParentFromName('VSU 1284')).toBeNull()
+  })
+
+  it('places the blocks in the parent landform within the sub-landform, from the record or the name', () => {
+    const named = resolveViaDocument(doc23, facts('Landform 1a (traced)', pair(5.3, 5.8)))
+    expect(text(named.viewpoints[0].sentences, 'location')).toBe(
+      'Blocks B1 and B2 are located in Landform 1 within Landform 1a (traced) and are visible from the Shore viewpoint.',
+    )
+    const recorded = resolveViaDocument(doc23, facts('East face', pair(5.3, 5.8), { 'East face': 'Landform 3' }))
+    expect(text(recorded.viewpoints[0].sentences, 'location')).toBe(
+      'Blocks B1 and B2 are located in Landform 3 within East face and are visible from the Shore viewpoint.',
+    )
+    const whole = resolveViaDocument(doc23, facts('Landform 1', pair(5.3, 5.8)))
+    expect(text(whole.viewpoints[0].sentences, 'location')).toBe(
+      'Blocks B1 and B2 are located on Landform 1 and are visible from the Shore viewpoint.',
+    )
+    // Per block (22), the same.
+    const single = resolveViaDocument(doc22, {
+      ...facts('Landform 2b', [{ id: 'B1', status: 'visible', visiblePercent: 90 }]),
+    })
+    expect(text(single.viewpoints[0].sentences, 'location')).toBe(
+      'Block B1 is located in Landform 2 within Landform 2b and is visible from the Shore viewpoint.',
+    )
+  })
+
+  it('gives the group’s viewing distance as the range of the blocks’ own distances, else the nearest block’s', () => {
+    const ranged = resolveViaDocument(doc23, facts('Landform 1', pair(5.31, 5.84)))
+    expect(text(ranged.viewpoints[0].sentences, 'distance')).toBe(
+      'The viewing distance is between 5.3 and 5.8 km from the Shore viewpoint, a good viewing distance.',
+    )
+    const across = resolveViaDocument(doc23, facts('Landform 1', pair(4.2, 6.1)))
+    expect(text(across.viewpoints[0].sentences, 'distance')).toBe(
+      'The viewing distance is between 4.2 and 6.1 km from the Shore viewpoint, a moderate to good viewing distance.',
+    )
+    // A block without its own distance: only the nearest block in view is known.
+    const unknown = resolveViaDocument(doc23, facts('Landform 1', pair(5.3)))
+    expect(text(unknown.viewpoints[0].sentences, 'distance')).toBe(
+      'The nearest block in view is 5.3 km from the Shore viewpoint, a good viewing distance.',
+    )
+  })
+})
+
+describe('conclusion standing', () => {
+  it('says a figure under the objective’s range is below it, within what the objective allows', () => {
+    const blocks = [
+      { id: 'AN03', status: 'visible' as const, visiblePercent: 60 },
+      { id: 'AN15', status: 'visible' as const, visiblePercent: 50 },
+    ]
+    const doc = resolveViaDocument(formatForSource('23')!, {
+      project: 'the proposed blocks',
+      viewpoints: [vp({ name: 'Bay', areas: { landform: 10000, proposed: 150, nonVeg: 0 }, blocks, distanceKm: 5 })],
+    })
+    expect(text(doc.summary, 'conclusion-standing')).toBe(
+      'The figure is below the Partial Retention range (PR 1.6-7%), within what Partial Retention allows.',
+    )
   })
 })

@@ -99,6 +99,11 @@ export type BcSensitivityUnit = {
   evc?: string | null
   /** The inventory's own visual sensitivity unit number (`VSU_NUMBER`), where it has one. */
   vsuNumber?: string | null
+  /**
+   * The date the inventory last updated the record (`UPDATE_DATE`, YYYY-MM-DD): the layer's only date, so the report
+   * prints it as the record's update date. Read from the WFS only; absent on units from other reads.
+   */
+  updated?: string | null
   scenicArea: boolean
   rationale: string | null
   geometry: PolygonGeometry
@@ -201,6 +206,7 @@ export function buildInventoryWfsUrl(bounds: Bounds): string {
       'REC_VSC_FINAL_VALUE_CODE',
       'REC_EVC_FINAL_VALUE_CODE',
       'VSU_NUMBER',
+      'UPDATE_DATE',
       'RATIONALE',
       'GEOMETRY',
     ].join(','),
@@ -241,7 +247,13 @@ export function parseSensitivityUnits(payload: unknown): BcSensitivityUnit[] {
         vac: vacRatingForCode(properties.REC_VAC_FINAL_VALUE_CODE),
         vsc: text(properties.REC_VSC_FINAL_VALUE_CODE),
         evc: text(properties.REC_EVC_FINAL_VALUE_CODE),
-        vsuNumber: properties.VSU_NUMBER == null ? null : text(String(properties.VSU_NUMBER)),
+        // 0 is the layer's "no VSU" (the unit is then known by its VLI polygon number), never unit 0.
+        vsuNumber:
+          properties.VSU_NUMBER == null || Number(properties.VSU_NUMBER) === 0
+            ? null
+            : text(String(properties.VSU_NUMBER)),
+        // GeoServer writes an xsd:date as "2010-08-01Z": keep the day.
+        updated: text(properties.UPDATE_DATE)?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? null,
         scenicArea: text(properties.SCENIC_AREA_IND)?.toUpperCase() === 'Y',
         rationale: text(properties.RATIONALE),
         geometry,

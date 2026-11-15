@@ -115,7 +115,13 @@ import type { BasemapContext } from './dev-forestry/BasemapContextProbe'
 import { FieldPhotoPanel, PhotoOverlay, StreetPhotoInset } from './dev-forestry/FieldPhoto'
 import { useFieldPhoto } from './dev-forestry/useFieldPhoto'
 import type { MapillaryImage } from './dev-forestry/mapillary'
-import { clearingWidthForRoadClass } from './dev-forestry/basemapContext'
+import {
+  clearingWidthForRoadClass,
+  collectPlacesFromMap,
+  type BasemapQueryMap,
+  type PlaceLabel,
+} from './dev-forestry/basemapContext'
+import { reportSetting, type ReportSetting } from './dev-forestry/viaReport/setting'
 import { buildReport } from './dev-forestry/report'
 import { reverseRoadsToGeoJson, type ReverseRoadResult } from './dev-forestry/reverseViewshed'
 import {
@@ -164,6 +170,7 @@ import {
   DEFAULT_OVERVIEW_SHEET_STYLE,
   fitCamera,
   overviewSheetAspect,
+  planFigurePageMaps,
   planOverviewSheet,
   planReportMaps,
   REPORT_MAP_ASPECT,
@@ -188,7 +195,7 @@ import {
   type FigureFrame,
   type FramingPlan,
 } from './dev-forestry/figureFraming'
-import { inventoryBadge } from './dev-forestry/inventoryBadge'
+import { inventoryBadge, thinPoints, type InventoryBadgeInput } from './dev-forestry/inventoryBadge'
 import type { DrivePose } from './dev-forestry/driveController'
 import {
   CLASS_PASS_BACKGROUND,
@@ -1820,55 +1827,113 @@ function DevForestryVisuals() {
     return !!preset && VQO_ZONE_ROLES.some(([role]) => preset.symbols[role])
   })()
   const showEvqo = planShow.evqo || (drive.active && (drive.showEvqo || figureZones))
-  const evqoKey = useMemo(() => {
-    if (!showEvqo) return null
+  // The scene's visual inventory: one live read around the scene, which the EVQO drapes, the saved views' inventory
+  // units and Save & export's reports all use. Read once a drape is on or an export asks (`readSceneInventory`); a
+  // failed read stays an error until asked again, never an empty inventory.
+  const sceneInventoryKey = useMemo(() => {
     const bounds = sceneBounds(scene)
     return bounds
       ? [bounds[0] - 0.08, bounds[1] - 0.05, bounds[2] + 0.08, bounds[3] + 0.05].map((v) => v.toFixed(3)).join(',')
       : null
-  }, [showEvqo, scene])
-  const [evqoDisplay, setEvqoDisplay] = useState<{
+  }, [scene])
+  const [sceneInventoryAsked, setSceneInventoryAsked] = useState(false)
+  const [sceneInventoryAttempt, setSceneInventoryAttempt] = useState(0)
+  const sceneInventoryRequest =
+    sceneInventoryKey && (showEvqo || sceneInventoryAsked) ? `${sceneInventoryKey}#${sceneInventoryAttempt}` : null
+  const [sceneInventoryRead, setSceneInventoryRead] = useState<{
+    request: string
     key: string
-    collection: GeoJSON.FeatureCollection
+    units: BcSensitivityUnit[]
     error: string | null
+    retrievedAt: string | null
   } | null>(null)
   useEffect(() => {
-    if (!evqoKey || evqoDisplay?.key === evqoKey) return
+    if (!sceneInventoryRequest || sceneInventoryRead?.request === sceneInventoryRequest) return
+    const key = sceneInventoryRequest.slice(0, sceneInventoryRequest.indexOf('#'))
     const abort = new AbortController()
-    const bounds = evqoKey.split(',').map(Number) as [number, number, number, number]
+    let timedOut = false
+    const timer = window.setTimeout(() => {
+      timedOut = true
+      abort.abort()
+    }, 30000)
+    const bounds = key.split(',').map(Number) as [number, number, number, number]
     queryVisualInventory(bounds, abort.signal)
-      .then(({ units }) => {
-        if (abort.signal.aborted) return
-        setEvqoDisplay({
-          key: evqoKey,
-          error: null,
-          collection: {
-            type: 'FeatureCollection',
-            features: units.flatMap((unit) =>
-              unit.objectiveId
-                ? [
-                    {
-                      type: 'Feature' as const,
-                      id: unit.id,
-                      geometry: unit.geometry,
-                      properties: { id: unit.id, code: EVQO_CODE_FOR_CLASS[unit.objectiveId] },
-                    },
-                  ]
-                : [],
-            ),
-          },
-        })
+      .then(({ units, retrievedAt }) => {
+        if (!abort.signal.aborted)
+          setSceneInventoryRead({ request: sceneInventoryRequest, key, units, error: null, retrievedAt })
       })
       .catch((error: unknown) => {
-        if (!abort.signal.aborted)
-          setEvqoDisplay({
-            key: evqoKey,
-            error: error instanceof Error ? error.message : String(error),
-            collection: { type: 'FeatureCollection', features: [] },
+        if (!abort.signal.aborted || timedOut)
+          setSceneInventoryRead({
+            request: sceneInventoryRequest,
+            key,
+            units: [],
+            error: timedOut
+              ? 'DataBC did not answer for the visual landscape inventory within 30 s. Retry in a moment.'
+              : error instanceof Error
+                ? error.message
+                : String(error),
+            retrievedAt: null,
           })
       })
-    return () => abort.abort()
-  }, [evqoKey, evqoDisplay?.key])
+      .finally(() => window.clearTimeout(timer))
+    return () => {
+      window.clearTimeout(timer)
+      abort.abort()
+    }
+  }, [sceneInventoryRequest, sceneInventoryRead?.request])
+  const sceneInventory = useMemo(() => {
+    const read = sceneInventoryRead?.key === sceneInventoryKey ? sceneInventoryRead : null
+    const status: 'idle' | 'loading' | 'ready' | 'error' =
+      read && !read.error
+        ? 'ready'
+        : read?.error && read.request === sceneInventoryRequest
+          ? 'error'
+          : sceneInventoryRequest
+            ? 'loading'
+            : read?.error
+              ? 'error'
+              : 'idle'
+    return {
+      status,
+      units: read && !read.error ? read.units : null,
+      error: read?.error ?? null,
+      retrievedAt: read?.retrievedAt ?? null,
+    }
+  }, [sceneInventoryRead, sceneInventoryKey, sceneInventoryRequest])
+  const sceneInventoryRef = useRef(sceneInventory)
+  sceneInventoryRef.current = sceneInventory
+  /** Starts the scene's inventory read, or reads it again after a failure; a read that holds stays. */
+  const readSceneInventory = useCallback(() => {
+    setSceneInventoryAsked(true)
+    if (sceneInventoryRef.current.status === 'error') setSceneInventoryAttempt((attempt) => attempt + 1)
+  }, [])
+  const evqoKey = showEvqo ? sceneInventoryKey : null
+  const evqoDisplay = useMemo(
+    () =>
+      sceneInventoryRead
+        ? {
+            key: sceneInventoryRead.key,
+            error: sceneInventoryRead.error,
+            collection: {
+              type: 'FeatureCollection' as const,
+              features: sceneInventoryRead.units.flatMap((unit) =>
+                unit.objectiveId
+                  ? [
+                      {
+                        type: 'Feature' as const,
+                        id: unit.id,
+                        geometry: unit.geometry,
+                        properties: { id: unit.id, code: EVQO_CODE_FOR_CLASS[unit.objectiveId] },
+                      },
+                    ]
+                  : [],
+              ),
+            } as GeoJSON.FeatureCollection,
+          }
+        : null,
+    [sceneInventoryRead],
+  )
   const evqoCurrent = evqoKey && evqoDisplay?.key === evqoKey ? evqoDisplay : null
   const planEvqoCodes = useMemo(
     () =>
@@ -3075,12 +3140,19 @@ function DevForestryVisuals() {
         if (sight.visibleByStation[row + i] === 1) points.push([sight.positions[i * 2], sight.positions[i * 2 + 1]])
       return points
     })
-    const badge = inventoryBadge(inventory.units, {
-      visibleBlockPoints,
+    // Step 1's lookup and the scene's own read (the EVQO drape's, Save & export's), whichever has been made.
+    const sceneUnits = sceneInventoryRef.current.units
+    const badgeUnits =
+      inventory.status === 'ready'
+        ? [...inventory.units, ...(sceneUnits ?? []).filter((unit) => !inventory.units.some((u) => u.id === unit.id))]
+        : (sceneUnits ?? [])
+    const inventoryRead = inventory.status === 'ready' || !!sceneUnits
+    const inventoryAt: InventoryBadgeInput = {
+      visibleBlockPoints: thinPoints(visibleBlockPoints),
       landformUnitId: landform?.inventoryUnitId ?? null,
       landform: landform?.geometry ?? null,
-      read: inventory.status === 'ready',
-    })
+    }
+    const badge = inventoryBadge(badgeUnits, { ...inventoryAt, read: inventoryRead })
     const partialCuts = figurePartialCuts()
     const nearest = callouts
       .filter((callout) => !callout.secondary)
@@ -3122,11 +3194,12 @@ function DevForestryVisuals() {
       ],
       rating: badge.unit ? badge.values : null,
       ratingNote: badge.note,
+      inventoryAt,
       area: landform?.name ?? 'Landform',
       viewpoint: at.name,
       ...(scene.viewpoint.name ? { place: scene.viewpoint.name } : {}),
       ...(hiddenBlocks.length ? { hidden: hiddenBlocks } : {}),
-      inventoryRead: inventory.status === 'ready',
+      inventoryRead,
       splitFailed: classLayers.failed,
       lines,
       ...(zones ? { zones } : {}),
@@ -3198,9 +3271,11 @@ function DevForestryVisuals() {
     // The report's still: the frame's forest regrown at real density with the road view's own near-band rules
     // (`finalStand.ts`), out past the landform within the frames' bearings. An engine that ignores `quality` draws
     // the active capture and reports no `final`.
+    // It grows (in slices, on this thread) while the engine builds the scene in its own process: the scene is sent
+    // first and the request waits for the stand, where the stand used to hold the scene back by its whole build.
     const standGround = skyline.source ?? previewTerrain.source
-    const stand = standGround
-      ? await buildFinalStand({
+    const growing = standGround
+      ? buildFinalStand({
           origin: eye,
           eye,
           radiusMeters: finalStandRadius(terrain.reachMeters),
@@ -3208,9 +3283,12 @@ function DevForestryVisuals() {
           forest: forestConfiguration,
           elevation: standGround,
         })
-      : null
+      : Promise.resolve(null)
+    // A capture that fails before its request is made must not leave the stand's own failure unhandled.
+    growing.catch(() => {})
     const asked: { request: EngineCaptureRequest | null } = { request: null }
-    const raw = await engine.capture(scenePackage, (pkg) => {
+    const raw = await engine.capture(scenePackage, async (pkg) => {
+      const stand = await growing
       asked.request = captureRequest({
         origin: pkg.origin,
         eye,
@@ -3226,6 +3304,7 @@ function DevForestryVisuals() {
     })
     const request = asked.request
     if (!request) throw new Error(`${engine.label} did not take the capture.`)
+    const stand = await growing
     const reply = readCaptureReply(raw, request)
     const mismatch = cameraMismatch(reply, request)
     if (mismatch) throw new Error(`${engine.label}: ${mismatch}`)
@@ -3720,6 +3799,8 @@ function DevForestryVisuals() {
     }
     /** Map pitch of the oblique renders of the blocks, degrees (`ReportRecipe.obliquePitch`); 60 when absent. */
     obliquePitch?: number
+    /** The report prints 26's figure page: also capture its own location and regional maps (`planFigurePageMaps`). */
+    figurePageMaps?: boolean
   }): Promise<{
     images: ReportImages
     notes: string[]
@@ -3732,6 +3813,7 @@ function DevForestryVisuals() {
       overviewSheet?: ReportFigure
       regionalMap?: ReportFigure
       locationMaps: Record<string, ReportFigure>
+      figurePageMaps?: { location: Record<string, ReportFigure>; regional: ReportFigure | null }
       before: Record<string, ReportFigure & { source: 'photo' | 'render' }>
       overhead: ReportFigure[]
     } = { locationMaps: {}, before: {}, overhead: [] }
@@ -3779,7 +3861,13 @@ function DevForestryVisuals() {
       notes.push('The plan map pane is too small to capture the report’s maps; widen it and build the report again.')
     else {
       const sheet = sheetFrame ? planOverviewSheet(features, sheetFrame, sheetStyle) : null
-      const plans = [...planReportMaps(features, frame), ...(sheet ? [sheet] : [])]
+      // 26's figure page draws its location and regional maps its own way, each from its own window of the canvas.
+      const figurePagePlans =
+        request.figurePageMaps && canvas
+          ? planFigurePageMaps(features, { width: canvas.clientWidth, height: canvas.clientHeight })
+          : []
+      if (figurePagePlans.length) images.figurePageMaps = { location: {}, regional: null }
+      const plans = [...planReportMaps(features, frame), ...(sheet ? [sheet] : []), ...figurePagePlans]
       try {
         for (const basemap of ['satellite', 'map', 'topo'] as const) {
           const group = plans.filter((entry) => entry.basemap === basemap)
@@ -3797,17 +3885,20 @@ function DevForestryVisuals() {
                 plan,
                 entry,
                 features,
-                entry.kind === 'sheet' && sheetFrame ? sheetFrame : frame,
+                entry.frame ?? (entry.kind === 'sheet' && sheetFrame ? sheetFrame : frame),
                 request.overviewSheet,
               )
               notes.push(...mapNotes)
-              if (entry.kind === 'overview') images.overviewMap = figure
+              if (entry.style === 'figure-page' && images.figurePageMaps) {
+                if (entry.kind === 'regional') images.figurePageMaps.regional = figure
+                else images.figurePageMaps.location[entry.key] = figure
+              } else if (entry.kind === 'overview') images.overviewMap = figure
               else if (entry.kind === 'sheet') images.overviewSheet = figure
               else if (entry.kind === 'regional') images.regionalMap = figure
               else images.locationMaps[entry.key] = figure
             } catch (error) {
               notes.push(
-                `The ${entry.kind === 'location' ? `location map for ${entry.key}` : entry.kind === 'sheet' ? '11 × 17 overview sheet' : `${entry.kind} map`} could not be captured: ${error instanceof Error ? error.message : String(error)}`,
+                `The ${entry.style === 'figure-page' ? 'figure page’s ' : ''}${entry.kind === 'location' ? `location map for ${entry.key}` : entry.kind === 'sheet' ? '11 × 17 overview sheet' : `${entry.kind} map`} could not be captured: ${error instanceof Error ? error.message : String(error)}`,
               )
             }
           }
@@ -3947,12 +4038,36 @@ function DevForestryVisuals() {
         overviewSheet: images.overviewSheet ?? null,
         regionalMap: images.regionalMap ?? null,
         locationMaps: images.locationMaps,
+        figurePageMaps: images.figurePageMaps ?? null,
         before: images.before,
         overhead: images.overhead,
       },
       notes,
       beforeRenders,
     }
+  }
+  // The VIA report's setting (named places around the blocks, their ground, the stands): read from the run and the plan
+  // map's loaded labels once per run, so the export dialog can ask on every render.
+  const reportSettingCache = useRef<{ result: unknown; targets: unknown; value: ReportSetting } | null>(null)
+  const getReportSetting = () => {
+    const cached = reportSettingCache.current
+    if (cached && cached.result === result && cached.targets === scene.targets) return cached.value
+    const plan = mapRef.current as unknown as BasemapQueryMap | null
+    let places: PlaceLabel[] = []
+    try {
+      places = plan ? collectPlacesFromMap(plan) : []
+    } catch {
+      places = []
+    }
+    const value = reportSetting({
+      blocks: scene.targets.filter((target) => target.role === 'block').map((target) => target.geometry),
+      targets: result?.targets ?? null,
+      stands: result?.renderStands ?? null,
+      places,
+    })
+    // A map that has not drawn its labels yet is asked again next time.
+    if (places.length || !plan) reportSettingCache.current = { result, targets: scene.targets, value }
+    return value
   }
   const exportDialog = useVisualsExport({
     opener: exportOpener,
@@ -3990,6 +4105,12 @@ function DevForestryVisuals() {
       },
     },
     landChecks,
+    visualInventory: {
+      status: sceneInventory.status,
+      units: sceneInventory.units,
+      error: sceneInventory.error,
+      read: readSceneInventory,
+    },
     viewpointInventory,
     onLoadInventory: (block, options) => void loadViewpoints(block, options),
     onStandAt: (candidate, block) => handleUseViewpoint(candidate, null, block),
@@ -4010,6 +4131,7 @@ function DevForestryVisuals() {
     onBriefBlockId: setBriefBlockId,
     captureReportImages,
     captureBeforeRenders,
+    reportSetting: getReportSetting,
   })
   const maskCollection: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',

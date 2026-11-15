@@ -17,6 +17,7 @@ import { field, fields, heading, text, type FieldRow, type ReportBlock } from '.
 import {
   assessed,
   blank,
+  CERTIFICATION_STATEMENTS,
   CLASS_CODES_BY_ID,
   CLASS_ORDER,
   ha,
@@ -24,8 +25,12 @@ import {
   objectiveOf,
   officeRow,
   paragraph,
+  PRIVATE_LAND_NETTED,
   proposedBlocks,
+  inventoryDateField,
   rangeStanding,
+  ROCK_NETTED,
+  SUMMARY_QUESTIONS_2001,
   yesNo,
   type ReportBlockFacts,
   type ReportContext,
@@ -135,6 +140,19 @@ export function districtFigures(ctx: ReportContext): DistrictFigures[] {
 
 /** Row 1's inventory units: one row per distinct unit the viewpoints read, else the scene's inventory and office. */
 function inventoryRows(ctx: ReportContext): string[][] {
+  // The units the inventory read, one row each, when the report read it.
+  // Only the units a block lies in, when any does: the read covers the whole scene around the viewpoints.
+  const holding = (ctx.inventoryUnits ?? []).filter((unit) => Object.keys(unit.blocks ?? {}).length > 0)
+  const units = holding.length ? holding : (ctx.inventoryUnits ?? [])
+  if (units.length)
+    return units.map((unit) => [
+      ctx.landform?.name ?? '',
+      unit.vsu,
+      unit.vsc ?? '',
+      unit.vac ?? '',
+      unit.evc ?? '',
+      className(unit.vqo),
+    ])
   const rows = ctx.facts.viewpoints.map((vp, index) => {
     const summary = ctx.document.viewpoints[index]?.rows.summary?.[0]
     const unit = vp.inventory
@@ -201,6 +219,12 @@ const DISTRICT_ROW = {
   additional: '12. Additional considerations',
 } as const
 
+/** What the rationale is for, as row 9 names it: the licence, the cutting permit and the blocks ("A00000 CP 1 blks X1, X2"). */
+export function rationaleSubject(ctx: ReportContext): string {
+  const licence = blank(ctx.office.licence)
+  return `${licence ? `${licence} ` : ''}${projectLine(ctx)}`
+}
+
 /** The district form's notes, in its own order. */
 export const DISTRICT_NOTES = [
   'It is strongly recommended that the district visual landscape specialist be consulted before carrying out a VIA to confirm viewpoint locations and VIA content requirements.',
@@ -236,7 +260,7 @@ const districtSummaryForm: ReportPart = {
     const unitColumns = ['Landform', 'VLU #', 'VSR', 'VAC', 'EVC', 'VQO']
     const gaps = unitColumns.filter((_, column) => units.some((row) => !row[column]))
     if (gaps.length) toComplete.push(`1. Inventory data: ${andList(gaps)}`)
-    const inventoryDate = officeRow(ctx, 'inventoryDate', 'Date of inventory')
+    const inventoryDate = inventoryDateField(ctx)
     if (inventoryDate.value === null) toComplete.push('1. Date of inventory')
 
     // Row 2: no lake is known to the page, so the lake and its lakeshore management zone stay to complete.
@@ -264,11 +288,18 @@ const districtSummaryForm: ReportPart = {
       .map((vp) => `${vp.name} ${vp.sightlinePercent!.toFixed(2)}%`)
 
     const rating = ctx.assessment?.rating ?? null
+    // When the report carries the design rationale, rows 9 and 12 refer to it, as the form's users write them; what
+    // the rationale says stays the reviewer's, and its own part lists what it leaves blank.
+    const rationale = ctx.recipeParts?.includes('design-rationale')
+      ? `Refer to the attached Visual Landscape Design Rationale for ${rationaleSubject(ctx)}`
+      : null
     const reviewer = [
-      field(DISTRICT_ROW.design, ctx.measures.length ? ctx.measures.join('; ') : null, 'reviewer'),
+      rationale
+        ? field(DISTRICT_ROW.design, rationale, 'run')
+        : field(DISTRICT_ROW.design, ctx.measures.length ? ctx.measures.join('; ') : null, 'reviewer'),
       field(DISTRICT_ROW.definition, rating ? yesNo(rating.definitionAchieved) : null, 'reviewer'),
       field(DISTRICT_ROW.allOperations, null, 'reviewer'),
-      field(DISTRICT_ROW.additional, null, 'reviewer'),
+      rationale ? field(DISTRICT_ROW.additional, rationale, 'run') : field(DISTRICT_ROW.additional, null, 'reviewer'),
     ]
     toComplete.push(...missingFields(reviewer))
 
@@ -327,7 +358,8 @@ const districtSummaryForm: ReportPart = {
 
 /**
  * The 2001 form's header (01 p1, 03 p1). The summary form that carries notes (03, 05) also asks for the year of
- * harvest, read from the blocks' planned harvest years, and the type of operation, which no record on the page holds.
+ * harvest, read from the blocks' planned harvest years, and the type of operation: harvesting when the scene has
+ * proposed blocks; the scene records no proposed roads, so road building is listed for the reviewer to add.
  */
 const formHeader2001: ReportPart = {
   id: 'form-header-2001',
@@ -345,12 +377,14 @@ const formHeader2001: ReportPart = {
       ...(summaryForm
         ? [
             field('Proposed year of harvest', harvestYearLine(proposedBlocks(ctx)), 'scene'),
-            field('Type of proposed operation', null, 'reviewer'),
+            field('Type of proposed operation', proposedBlocks(ctx).length ? 'Harvesting' : null, 'scene'),
           ]
         : []),
       field('Date', today(ctx), 'run'),
     ]
-    return { blocks: [fields(rows)], toComplete: missingFields(rows) }
+    // The scene records blocks but no proposed roads, so road building is the reviewer's to add.
+    const roads = summaryForm && proposedBlocks(ctx).length ? ['Type of proposed operation: road building, if any'] : []
+    return { blocks: [fields(rows)], toComplete: [...missingFields(rows), ...roads] }
   },
 }
 
@@ -577,25 +611,22 @@ const summary2001Five: ReportPart = {
     const rating = ctx.assessment?.rating ?? null
     const questions: Array<{ label: string; chosen: boolean | null; source: 'run' | 'reviewer' }> = [
       {
-        label:
-          'Does the proposal, in combination with any existing non-VEG alterations, achieve the basic definition for the established VQO?',
+        label: SUMMARY_QUESTIONS_2001.definition,
         chosen: definition,
         source: 'reviewer',
       },
       {
-        label: 'Have visual design concepts and principles been incorporated into block/road design?',
+        label: SUMMARY_QUESTIONS_2001.design,
         chosen: design,
         source: 'reviewer',
       },
       {
-        label:
-          'Does the proposal, in combination with any existing non-VEG alterations, fall within the numerical ranges for the established VQO?',
+        label: SUMMARY_QUESTIONS_2001.numerical,
         chosen: numerical,
         source: 'run',
       },
       {
-        label:
-          'Given the three criteria listed above, does the proposal meet the established VQO from all the selected viewpoint(s)?',
+        label: SUMMARY_QUESTIONS_2001.met,
         chosen: rating ? rating.definitionAchieved : null,
         source: 'reviewer',
       },
@@ -696,28 +727,25 @@ const summaryBoxed: ReportPart = {
       source: 'run' | 'reviewer'
     }> = [
       {
-        label:
-          'Does the proposal, in combination with any existing non-VEG alterations, achieve the basic definition for the established VQO?',
+        label: SUMMARY_QUESTIONS_2001.definition,
         chosen: definition,
         answer: seenAnswer,
         source: 'reviewer',
       },
       {
-        label: 'Have visual design concepts and principles been incorporated into block/road design?',
+        label: SUMMARY_QUESTIONS_2001.design,
         chosen: design,
         answer: blank(ctx.measures.join(' ')) ?? null,
         source: 'reviewer',
       },
       {
-        label:
-          'Does the proposal, in combination with any existing non-VEG alterations, fall within the numerical ranges for the established VQO?',
+        label: SUMMARY_QUESTIONS_2001.numerical,
         chosen: numerical,
         answer: numericalAnswer,
         source: 'run',
       },
       {
-        label:
-          'Given the three criteria listed above, does the proposal meet the established VQO from all the selected viewpoint(s)?',
+        label: SUMMARY_QUESTIONS_2001.met,
         chosen: rating ? rating.definitionAchieved : null,
         answer: blank(ctx.review?.rationale) ?? null,
         source: 'reviewer',
@@ -739,10 +767,7 @@ const summaryBoxed: ReportPart = {
           }),
         ),
         fields(rows),
-        text(
-          'I certify that the work described herein fulfils the standards expected of a registered forest professional, and that I did personally supervise the work.',
-          'fixed',
-        ),
+        text(CERTIFICATION_STATEMENTS.supervised, 'fixed'),
         { kind: 'signature', lines: ['Signature and seal', 'Name, RPF', 'Date'] },
       ],
       toComplete: [
@@ -802,10 +827,7 @@ const certification2001: ReportPart = {
         {
           kind: 'choices',
           label: 'Certification:',
-          options: [
-            'I certify that the work described herein fulfills the standards expected of a registered forest professional and that I did personally supervise the work',
-            'I certify that I have reviewed this document and, while I did not personally supervise the work, have determined that it has been done to the standards expected of a registered forest professional',
-          ],
+          options: [CERTIFICATION_STATEMENTS.supervised, CERTIFICATION_STATEMENTS.reviewed],
           chosen: null,
           source: 'reviewer',
         },
@@ -1001,7 +1023,26 @@ export function designTechniqueSentences(ctx: ReportContext): Sentence[] {
         'run',
       ),
     )
+  const netting = nettingSentence(ctx)
+  if (netting) out.push(netting)
   return out
+}
+
+/**
+ * Why private land and rock leave the landform (05's design comments), said only when the format's arithmetic nets
+ * them out and a view's class pass finds some: the methods' own sentences, and what follows for alterations there.
+ */
+export function nettingSentence(ctx: ReportContext): Sentence | null {
+  const deduct = ctx.document.format.rule.deduct
+  const found = (key: 'privateLand' | 'rock') =>
+    deduct.includes(key) && ctx.facts.viewpoints.some((vp) => (vp.areas?.[key] ?? 0) > 0)
+  const privateLand = found('privateLand')
+  const rock = found('rock')
+  if (!privateLand && !rock) return null
+  const text = privateLand
+    ? `${PRIVATE_LAND_NETTED}${rock ? ` ${ROCK_NETTED}` : ''} Alterations on private land are therefore not counted in the figures.`
+    : 'Rock and other non-vegetated ground inside the landform is left out of the percent alteration’s denominator.'
+  return fillSentence('design-netting', text, {}, 'run')
 }
 
 /** The 2001 form's "additional design techniques" answer: the scene's record, then the reviewer's own line. */
@@ -1016,11 +1057,30 @@ const designTechniques2001: ReportPart = {
       null,
       'reviewer',
     )
+    // 01's form asks, after the techniques, which objective the design meets: the reviewer's mark, never the run's.
+    const strategies = ctx.recipeParts?.includes('visual-design')
     return {
-      blocks: [heading('Design techniques', 3), ...paragraph(sentences), fields([techniques])],
+      blocks: [
+        heading('Design techniques', 3),
+        ...paragraph(sentences),
+        fields([techniques]),
+        ...(strategies
+          ? [
+              {
+                kind: 'choices',
+                label:
+                  'Which VQO definition would the proposed alteration meet from all the selected viewpoints, taking into account visual design strategies and tactics?',
+                options: [...CLASS_ORDER],
+                chosen: null,
+                source: 'reviewer',
+              } satisfies ReportBlock,
+            ]
+          : []),
+      ],
       toComplete: [
         'Design techniques used, or reasons a technique could not be employed',
         ...sentences.filter((s) => !s.text).map((s) => `Design techniques: ${s.id} (needs ${andList(s.missing)})`),
+        ...(strategies ? ['The VQO met taking into account visual design strategies and tactics'] : []),
       ],
     }
   },

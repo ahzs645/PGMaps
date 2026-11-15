@@ -123,6 +123,27 @@ function appendix1At(assessment: ViaAssessment | null, breakdown: AlterationBrea
 }
 
 /**
+ * How far a point at column `x` of a framed picture lies off the view's centre line, degrees (negative to the left):
+ * the picture is `frames` rectilinear frames side by side, each an equal share of the horizontal field.
+ */
+export function offAxisDegrees(x: number, width: number, hfovDeg: number, frames = 1): number | null {
+  if (!(width > 0) || !(hfovDeg > 0) || !Number.isFinite(x)) return null
+  const count = Math.max(1, Math.round(frames))
+  const frameWidth = width / count
+  const frameField = hfovDeg / count
+  const i = Math.min(count - 1, Math.max(0, Math.floor(x / frameWidth)))
+  const centre = -hfovDeg / 2 + (i + 0.5) * frameField
+  const local = (x - (i + 0.5) * frameWidth) / (frameWidth / 2)
+  return centre + (Math.atan(local * Math.tan((frameField * Math.PI) / 360)) * 180) / Math.PI
+}
+
+/** A seen block's `offAxisDeg`, from where its callout's anchor falls in the figure's own frame. */
+function offAxisOf(x: number, figure: SavedFigure): { offAxisDeg?: number } {
+  const deg = offAxisDegrees(x, figure.classes.width, figure.hfovDeg, figure.camera?.frames ?? 1)
+  return deg === null ? {} : { offAxisDeg: Math.round(deg * 10) / 10 }
+}
+
+/**
  * The place a saved view's own line names, without the frame around it: "View of the block from Ruby Lake 2A" is
  * Ruby Lake 2A, so a sentence never reads "from the View of the block from ... viewpoint".
  */
@@ -212,6 +233,9 @@ export function documentFacts(input: {
               : {}),
             ...(callout.screenedPercent !== undefined ? { screenedPercent: callout.screenedPercent } : {}),
             ...(callout.distanceKm !== undefined ? { distanceKm: callout.distanceKm } : {}),
+            ...(callout.status === 'visible' || callout.status === 'possible glimpses'
+              ? offAxisOf(callout.anchor[0], figure)
+              : {}),
           }
         },
       ),

@@ -5,7 +5,14 @@ import { resolveViaDocument, type DocumentFacts, type DocumentViewpoint } from '
 import { reportMarkdown } from './html'
 import type { ReportBlock } from './model'
 import { landformBounding, type ReportContext } from './parts'
-import { CONSULTANT_RECIPE_PARTS } from './partsConsultant'
+import {
+  appendixEntries,
+  CERTIFICATION_STATEMENTS,
+  CONSULTANT_RECIPE_PARTS,
+  keyViewpointCites,
+  viewpointLocations,
+} from './partsConsultant'
+import type { ReportSetting } from './setting'
 import { findReportPart } from './registry'
 import { assembleReport, REPORT_RECIPES } from './recipes'
 
@@ -270,11 +277,18 @@ describe('consultant parts: method, discussion and sign-off', () => {
     expect(table.rows.map((row) => row[0])).toEqual([
       'Name',
       'Professional designation and seal',
-      'Statement',
+      'Certification',
       'Signature',
       'Date',
     ])
     expect(table.rows[0]).toEqual(['Name', 'R. Planner, RPF', ''])
+    // The statements the 2001 forms sign under: the preparer supervised the work, the peer reviewed without supervising.
+    expect(table.rows[2]).toEqual([
+      'Certification',
+      CERTIFICATION_STATEMENTS.supervised,
+      CERTIFICATION_STATEMENTS.reviewed,
+    ])
+    expect(JSON.stringify(table)).not.toMatch(/Association|ABCFP|Chartwell/i)
     expect(out.toComplete).toEqual([
       'Prepared by: designation, seal, signature and date',
       'Peer reviewed by: name, designation, seal, signature and date',
@@ -308,7 +322,7 @@ describe('consultant recipes', () => {
       ).toBe(true)
     }
     expect(CONSULTANT_RECIPE_PARTS['consultant-net-private']).toContain('sign-off-peer')
-    expect(CONSULTANT_RECIPE_PARTS['consultant-gross']).toContain('sign-off')
+    expect(CONSULTANT_RECIPE_PARTS['consultant-gross']).toContain('sign-off-certified')
   })
 
   it('keep T1 in step with Table 1', () => {
@@ -340,5 +354,181 @@ describe('consultant discussion: each block’s own distance', () => {
     expect(t5.rows.find((row) => row[1] === 'Block A2')![distance]).toBe('Moderate 3.4 km')
     const [, unmeasured] = tables(build('assessment-tables', context('perspective-report-net-private')).blocks)
     expect(unmeasured.rows.find((row) => row[1] === 'Block A2')![distance]).toBe('at least 0.7 km')
+  })
+})
+
+// ------------------------------------------------------------------ the templates from the reference comparison
+
+const SETTING: ReportSetting = {
+  places: [
+    { name: 'Townsite', kind: 'settlement', distanceKm: 6.52, direction: 'north' },
+    { name: 'Long Inlet', kind: 'water', distanceKm: 2.5, direction: 'east' },
+    { name: 'Grey Creek', kind: 'settlement', distanceKm: 0.84, direction: 'southeast' },
+  ],
+  ground: { aspect: 'west', slopePercent: 38.4 },
+  landformSlopePercent: 31.2,
+  stand: {
+    species: [
+      { name: 'Douglas-fir', percent: 62 },
+      { name: 'western hemlock', percent: 21 },
+      { name: 'western redcedar', percent: 12 },
+    ],
+    heightM: 33.4,
+    coverPercent: 84,
+  },
+}
+const picture = (view: string, width = 2400, height = 900) => ({
+  view,
+  caption: `${view}: picture`,
+  dataUrl: 'data:image/png;base64,AA',
+  width,
+  height,
+})
+const recipeContext = (id: string, over: Partial<ReportContext> = {}) => {
+  const recipe = REPORT_RECIPES.find((entry) => entry.id === id)!
+  return context(recipe.format, { recipeParts: recipe.parts, ...over })
+}
+
+describe('consultant summary and landscape (22, 23)', () => {
+  it('place the blocks from named places and their ground, and cite the appendix', () => {
+    const out = build('summary', recipeContext('consultant-gross', { setting: SETTING }))
+    const text = words(out.blocks)
+    expect(text).toContain('This report summarizes the visual impact assessment (VIA) of proposed Blocks A1 and A2.')
+    expect(text).toContain(
+      'These two blocks are located 0.8 km southeast of Grey Creek, 6.5 km north of Townsite and 2.5 km east of Long Inlet, on west-facing ground averaging a 38% slope.',
+    )
+    expect(text).toContain(
+      'shown on the viewpoint map (Appendix A1), and the renders from each viewpoint are Appendices A2 to A5.',
+    )
+    expect(out.toComplete).toEqual([])
+    // Without place names the sentence is left out and listed, never guessed.
+    const bare = build('summary', recipeContext('consultant-gross'))
+    expect(words(bare.blocks)).not.toContain('located')
+    expect(bare.toComplete).toEqual([
+      'Where the blocks lie from named places (no place names were read for this report)',
+    ])
+  })
+
+  it('describe the ground and the stands from the run, count the landforms and leave the terrain’s words to the reviewer', () => {
+    const facts: DocumentFacts = {
+      ...FACTS,
+      viewpoints: [...FACTS.viewpoints, vp({ name: 'Point 2', landform: 'Landform 5b (traced)', blocks: [] })],
+    }
+    const ctx = recipeContext('consultant-net-private', {
+      setting: SETTING,
+      facts,
+      document: resolveViaDocument(findDocumentFormat('perspective-report-net-private')!, facts),
+    })
+    const out = build('landforms-and-viewpoints', ctx)
+    const text = words(out.blocks)
+    expect(text).toContain(
+      'The landforms’ ground the run sampled averages a 31% slope; the blocks’ ground faces west at an average 38%.',
+    )
+    expect(text).toContain(
+      'The forest inventory records Douglas-fir-leading stands with western hemlock and western redcedar over the landforms, with a mean projected height of 33 m (84% of the landforms’ sampled ground lies in a recorded treed stand).',
+    )
+    expect(text).toContain(
+      'As viewed from the selected viewpoints, the landscape is composed of 2 landforms (Table 2), with Landform 5 divided into Landform 5a and Landform 5b when viewed from Lake and Point 2.',
+    )
+    expect(text).toContain(
+      'Blocks A1 and A2 are seen on landforms read against visual sensitivity unit #1083 (Table 1).',
+    )
+    expect(text).toContain('listed in Table 3 and shown on the viewpoint map (Appendix A1).')
+    expect(out.toComplete).toEqual(['The topography’s character in words (slopes, ridges, draws, benches)'])
+    // The inventory's own record of which unit holds each block, when it was read.
+    const read = build(
+      'landforms-and-viewpoints',
+      recipeContext('consultant-net-private', {
+        inventoryUnits: [{ vsu: '1107', blocks: { A1: 4 } }, { vsu: '1101', blocks: { A2: 9 } }, { vsu: '1200' }],
+      }),
+    )
+    expect(words(read.blocks)).toContain(
+      'Blocks A1 and A2 are located within visual sensitivity units #1107 and #1101 (Table 1).',
+    )
+    expect(read.toComplete).toContain('The landforms’ slope and stands (not read for this report)')
+  })
+
+  it('say where the viewpoints are, counting those at one place, and cite each key viewpoint’s sheet', () => {
+    const named = (names: string[]): ReportContext => {
+      const facts = { ...FACTS, viewpoints: names.map((name) => vp({ name })) }
+      return context('perspective-report-net-private', {}, facts)
+    }
+    expect(
+      viewpointLocations(named(['Point (VP1)', 'Ruby Lake 1 (VP12)', 'Klein Lake 2', 'Ruby Lake 4 (VP17)', 'Hill 3']))
+        ?.text,
+    ).toBe(
+      'The selected viewpoints (Table 3) are located at Point, at two locations on Ruby Lake, Klein Lake 2 and Hill 3.',
+    )
+    const ctx = recipeContext('consultant-net-private')
+    expect(keyViewpointCites(ctx).map((s) => s.text)).toEqual([
+      'The viewpoint Bay (see Appendix A3) was selected for the detailed assessment of Block A1 (Table 5).',
+      'The viewpoint Lake (see Appendix A5) was selected for the detailed assessment of Block A2 (Table 5).',
+    ])
+  })
+})
+
+describe('consultant appendix (22, 23)', () => {
+  it('number the map A1, then each viewpoint’s photo, plain page and analysis sheet in Table 3’s order', () => {
+    const ctx = recipeContext('consultant-net-private', {
+      images: { before: { Lake: { ...picture('Lake'), source: 'photo' } }, after: { Bay: picture('Bay') } },
+    })
+    expect(appendixEntries(ctx).map((entry) => `${entry.number} ${entry.title}`)).toEqual([
+      'A1 Viewpoint map',
+      'A2 Perspective Viewpoint – Bay',
+      'A3 Perspective Viewpoint Analysis – Bay – VSU 1083',
+      'A4 Photo from viewpoint – Lake',
+      'A5 Perspective Viewpoint – Lake',
+      'A6 Perspective Viewpoint Analysis – Lake – Landform 5a (traced)',
+    ])
+    const list = tables(build('appendix-list', ctx).blocks)[0]
+    expect(list.rows[0]).toEqual(['A1', 'Viewpoint map'])
+    const out = build('appendix-sheets', { ...ctx, figures: [picture('Bay', 1224, 792)] })
+    const pairs = out.blocks.filter((b): b is Extract<ReportBlock, { kind: 'figurePair' }> => b.kind === 'figurePair')
+    // The plain simulation is the page's own after picture; a missing one prints a placeholder and is listed.
+    expect(pairs.map((pair) => [pair.title, pair.slots[0].label, !!pair.slots[0].figure])).toEqual([
+      ['Appendix A2', 'Perspective Viewpoint – Bay', true],
+      ['Appendix A4', 'Photo from viewpoint – Lake', true],
+      ['Appendix A5', 'Perspective Viewpoint – Lake', false],
+    ])
+    const headings = out.blocks.filter((b) => b.kind === 'heading').map((b) => (b as { text: string }).text)
+    expect(headings).toEqual([
+      'Appendix A3: Perspective Viewpoint Analysis – Bay – VSU 1083',
+      'Appendix A6: Perspective Viewpoint Analysis – Lake – Landform 5a (traced)',
+    ])
+    expect(out.toComplete).toEqual([
+      'Perspective Viewpoint pages not captured: Lake',
+      'Perspective Viewpoint Analysis sheets not saved: Lake',
+    ])
+  })
+
+  it('sign 23 with the preparer’s certification statement', () => {
+    const out = build('sign-off-certified', recipeContext('consultant-gross'))
+    expect(words(out.blocks)).toContain(CERTIFICATION_STATEMENTS.supervised)
+    expect(out.toComplete).toEqual(['Prepared by: designation, seal, signature and date'])
+  })
+})
+
+describe('Table 1 from the inventory read', () => {
+  it('gives every unit a block lies in its own row, with the blocks inside it, beside the viewpoints’ units', () => {
+    const ctx = context('perspective-report-net-private', {
+      inventoryUnits: [
+        { vsu: '1083', vsc: '2', vac: 'M', evc: 'PR', vqo: 'PR', blocks: { A1: 4.2 } },
+        { vsu: '2001', vsc: '3', vac: 'H', evc: 'R', vqo: 'R', blocks: { A2: 9 } },
+        { vsu: '3005', vsc: '4', vac: 'L', evc: 'M', vqo: 'M' },
+      ],
+    })
+    const [table] = tables(build('table-1-vsu', ctx).blocks)
+    const units = table.rows.map((row) => row[0])
+    expect(units).toContain('VSU #2001')
+    expect(table.rows.find((row) => row[0] === 'VSU #2001')).toEqual([
+      'VSU #2001',
+      'A2',
+      '3',
+      'H',
+      'R',
+      'R - Retention',
+    ])
+    // A unit no block lies in stays out.
+    expect(units).not.toContain('VSU #3005')
   })
 })

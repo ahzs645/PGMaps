@@ -6,6 +6,7 @@ import {
   buildExportContext,
   exportContents,
   exportPreparation,
+  READS_INVENTORY,
   exportUnavailable,
   VISUALS_EXPORTS,
   type ContextInput,
@@ -376,6 +377,29 @@ describe('visual-quality exports', () => {
     )
     expect(rowValue(exportContents('block-note', signed), 'Visuals paragraph and measures', 'Visuals paragraph')).toBe(
       'Yours, as signed',
+    )
+  })
+})
+
+describe('outputs that print the visual inventory read it first', () => {
+  const read = (status: 'idle' | 'loading' | 'ready' | 'error', error: string | null = null) =>
+    buildExportContext(input(createEmptyScene(), { visualInventory: { status, error } }))
+
+  it('reads it before the report, the document and the sheet, and before nothing else', () => {
+    for (const kind of READS_INVENTORY) expect(exportPreparation(kind, read('idle')).inventory).toBe(true)
+    expect(exportPreparation('via-report', read('idle')).note).toBe(
+      'Reading the visual landscape inventory from DataBC first, for the units the file prints.',
+    )
+    expect(exportPreparation('fs1252', read('idle')).inventory).toBe(false)
+    expect(exportPreparation('via-report', read('ready'))).toMatchObject({ inventory: false, note: null })
+  })
+
+  it('says a failed read is not read, and reads again only on a download', () => {
+    const failed = read('error', 'DataBC answered 503')
+    expect(exportPreparation('via-report', failed).inventory).toBe(false)
+    expect(exportPreparation('via-report', failed, { retry: true }).inventory).toBe(true)
+    expect(exportPreparation('via-report', failed).note).toBe(
+      'The visual landscape inventory could not be read (DataBC answered 503): the file says it was not read. Downloading reads it again first.',
     )
   })
 })

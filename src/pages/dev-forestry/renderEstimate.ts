@@ -5,8 +5,9 @@
  * building the package and the frame's real-density stand, the engine building it), the render itself (each frame's
  * warm-up renders, then its accumulated samples) and composing the figure. Before a render starts, each phase is
  * estimated from this browser's own finished renders of that engine (`RenderHistory`, scaled by the work: frames,
- * pixels, samples), or, with none yet, from the library runs of November 2026 (40 reference viewpoints, 8 samples:
- * a median 82 s a viewpoint for threejs-worldgen and 70 s for Nanite Forest on a desktop GPU). While it runs, an
+ * pixels, samples), or, with none yet, from the profiled runs of 15 November 2026 (one 2400 x 2769 frame, 24 samples
+ * and a 1.46 M-stem stand on an Apple GPU: about 25 s a viewpoint for either engine, most of it building the scene
+ * and the stand, not drawing samples). While it runs, an
  * engine that reports its progress (`pgmaps-capture-progress`: steps done of steps) moves the estimate toward its
  * own pace as the steps go by; one that does not is estimated from the model alone, and the estimate never reads
  * less than the time already spent says. No DOM or network access.
@@ -48,15 +49,21 @@ interface Rates {
 }
 
 /** Warm-up renders a final frame takes before its samples (the engines' FINAL_SETTLE_RENDERS / FINAL_WARM). */
-export const WARM_RENDERS: Record<RenderEngineId, number> = { worldgen: 4, nanite: 4 }
+export const WARM_RENDERS: Record<RenderEngineId, number> = { worldgen: 4, nanite: 6 }
 
 /**
- * Library priors (8 samples, about 2.5 frames of 960 × 700 px, so about 30 render-megapixels a viewpoint): the
- * median totals split by the phase timings the harness logged.
+ * Library priors, from the profiled runs of 15 November 2026 (one 2400 x 2769 frame, 24 samples, a 1.46 M-stem
+ * stand, Apple GPU), stage by stage:
+ * - scene: PGMaps building the package and the stand (7-8 s) and the engine building the scene (worldgen 4.8 s,
+ *   Nanite Forest 7.6 s);
+ * - a frame's fixed cost: worldgen placing the stand's cards and its class passes (2.7 s); Nanite Forest rebuilding
+ *   the stand with its impostor atlas, rasterising the class layers and its passes (9 s);
+ * - a render of one megapixel: worldgen 65 ms a sample at 6.6 megapixels, Nanite Forest 41 ms.
+ * The earlier priors (800-1,100 ms a megapixel-render) read a first render as about 3 min when it took 25 s.
  */
 export const PRIOR_RATES: Record<RenderEngineId, Rates> = {
-  worldgen: { startMs: 8_000, sceneMs: 30_000, renderMsPerMegapixel: 1_100, frameMs: 2_500, composeMs: 3_000 },
-  nanite: { startMs: 10_000, sceneMs: 28_000, renderMsPerMegapixel: 800, frameMs: 2_000, composeMs: 3_000 },
+  worldgen: { startMs: 1_000, sceneMs: 14_000, renderMsPerMegapixel: 10, frameMs: 3_000, composeMs: 1_500 },
+  nanite: { startMs: 1_000, sceneMs: 15_000, renderMsPerMegapixel: 6.5, frameMs: 9_000, composeMs: 1_500 },
 }
 
 /** Renders kept per engine, newest last. */

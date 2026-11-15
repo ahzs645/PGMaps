@@ -5,18 +5,30 @@
  */
 import type { TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 import type { SavedFigure } from '../FigureSheetPanel'
+import { unitValues, type BadgeUnit } from '../inventoryBadge'
 import type { ForestryScene } from '../scene'
 import { findSceneLandform } from '../sceneInput'
 import type { AlterationBreakdown, AssessmentMask, TargetPolygon } from '../types'
 import type { ViaAssessment } from '../via'
 import { atAssessmentStation, documentFacts } from '../viaDocument/facts'
-import { resolveViaDocument } from '../viaDocument/resolve'
+import { resolveViaDocument, type DocumentFacts } from '../viaDocument/resolve'
 import type { ClassCode } from '../viaDocument/scales'
-import { pointInPolygon, polygonAreaMeters, type PolygonGeometry } from '../visibility'
+import { pointInPolygon, polygonAreaMeters, polygonBounds, preparePolygons, type PolygonGeometry } from '../visibility'
 import { EVQO_CODE_FOR_CLASS } from '../visualsNarrative'
 import type { ReportFigure } from './model'
-import type { OfficeFields, ReportBlockFacts, ReportContext, ReportImages } from './parts'
+import type { InventoryUnitRow, OfficeFields, ReportBlockFacts, ReportContext, ReportImages } from './parts'
 import { recipeFormat, type ReportRecipe } from './recipes'
+import type { ReportSetting } from './setting'
+
+/** The facts with each sub-landform's parent as step 1 records it, so the discussion can say "in {parent} within". */
+function withLandformParents(facts: DocumentFacts, scene: ForestryScene): DocumentFacts {
+  const parents = Object.fromEntries(
+    Object.entries(scene.viaReview?.landformRecords ?? {}).flatMap(([name, record]) =>
+      record?.parent ? [[name, record.parent]] : [],
+    ),
+  )
+  return Object.keys(parents).length ? { ...facts, landformParents: parents } : facts
+}
 
 const SYSTEM: Record<string, string> = {
   clearcut: 'Clearcut',
@@ -56,6 +68,62 @@ export function reportBlockFacts(block: TargetPolygon, masks: readonly Assessmen
   }
 }
 
+/** Grid points inside a polygon, about `count` of them: what a block's share of each unit is sampled on. */
+function gridInside(geometry: PolygonGeometry, count = 400): Array<[number, number]> {
+  const [w, s, e, n] = polygonBounds(geometry)
+  const side = Math.max(2, Math.ceil(Math.sqrt(count * 2)))
+  const out: Array<[number, number]> = []
+  for (let j = 0; j < side; j++)
+    for (let i = 0; i < side; i++) {
+      const lng = w + ((i + 0.5) / side) * (e - w)
+      const lat = s + ((j + 0.5) / side) * (n - s)
+      if (pointInPolygon(geometry, lng, lat)) out.push([lng, lat])
+    }
+  return out
+}
+
+/**
+ * The inventory units the report prints, one row each: every unit holding part of a block, with each block's
+ * hectares in it (its BC Albers area times the share of grid samples inside the unit), largest first, then any unit a
+ * viewpoint's figure chose that holds no block. Read from the live inventory only; no DOM or network access.
+ */
+export function inventoryUnitRows(
+  units: readonly BadgeUnit[],
+  blocks: readonly TargetPolygon[],
+  chosen: ReadonlyArray<string | undefined> = [],
+): InventoryUnitRow[] {
+  const held = new Map<BadgeUnit, Record<string, number>>()
+  const prepared = preparePolygons(units.map((unit) => unit.geometry))
+  for (const block of blocks) {
+    const points = gridInside(block.geometry)
+    if (!points.length) continue
+    const areaHa = polygonAreaMeters(block.geometry) / 10_000
+    const counts = new Map<BadgeUnit, number>()
+    for (const [lng, lat] of points) {
+      const unit = units[prepared.indexAt(lng, lat)]
+      if (unit) counts.set(unit, (counts.get(unit) ?? 0) + 1)
+    }
+    for (const [unit, count] of counts) {
+      const row = held.get(unit) ?? {}
+      row[block.name] = (row[block.name] ?? 0) + (areaHa * count) / points.length
+      held.set(unit, row)
+    }
+  }
+  const total = (row: Record<string, number>) => Object.values(row).reduce((sum, ha) => sum + ha, 0)
+  const rows: InventoryUnitRow[] = [...held]
+    .sort((a, b) => total(b[1]) - total(a[1]))
+    .map(([unit, ha]) => ({
+      ...unitValues(unit),
+      blocks: Object.fromEntries(Object.entries(ha).map(([name, value]) => [name, Math.round(value * 100) / 100])),
+    }))
+  for (const vsu of chosen) {
+    if (!vsu || rows.some((row) => row.vsu === vsu)) continue
+    const unit = units.find((entry) => unitValues(entry).vsu === vsu)
+    if (unit) rows.push(unitValues(unit))
+  }
+  return rows
+}
+
 /** Who drew the views' figures when another engine did, with its final render's samples. */
 function drawnBy(views: readonly ReportView[]): string | null {
   const drawn = views.map((view) => view.figure.illustration).filter((entry) => !!entry)
@@ -86,6 +154,13 @@ export function buildReportContext(input: {
   figures: readonly ReportFigure[]
   /** Maps and extra pictures the page captured for the report file; absent for the dialog's own context. */
   images?: ReportImages
+  /**
+   * The scene's visual inventory as read live (`queryVisualInventory`); absent when it has not been read. The views'
+   * own units come with their figures (`withReadInventory` fills those saved before the read).
+   */
+  inventoryUnits?: readonly BadgeUnit[]
+  /** Where the blocks are and what the land is like (`reportSetting`, `setting.ts`), when the page read it. */
+  reportSetting?: ReportSetting | null
   date: Date
 }): ReportContext {
   const { scene } = input
@@ -137,9 +212,18 @@ export function buildReportContext(input: {
         }
       : null,
     inventory,
-    inventoryRead: input.views.some((view) => view.figure.inventoryRead),
+    inventoryRead: !!input.inventoryUnits || input.views.some((view) => view.figure.inventoryRead),
+    ...(input.inventoryUnits
+      ? {
+          inventoryUnits: inventoryUnitRows(
+            input.inventoryUnits,
+            blocks,
+            facts.viewpoints.map((vp) => vp.inventory?.vsu),
+          ),
+        }
+      : {}),
     facts,
-    document: resolveViaDocument(recipeFormat(input.recipe), facts),
+    document: resolveViaDocument(recipeFormat(input.recipe), withLandformParents(facts, scene)),
     assessment: input.assessment,
     review: scene.viaReview ?? null,
     breakdown: input.breakdown,
@@ -155,5 +239,6 @@ export function buildReportContext(input: {
       .filter(Boolean),
     figures: input.figures,
     ...(input.images ? { images: input.images } : {}),
+    ...(input.reportSetting ? { setting: input.reportSetting } : {}),
   }
 }

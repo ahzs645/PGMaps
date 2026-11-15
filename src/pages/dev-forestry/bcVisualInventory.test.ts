@@ -253,3 +253,28 @@ describe('summariseUnits and unitsToGeoJson', () => {
     expect(collection.features[2].properties?.objectiveId).toBe('')
   })
 })
+
+describe('parseSensitivityUnits: VSU number', () => {
+  const square = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 0],
+      ],
+    ],
+  }
+  const unit = (VSU_NUMBER: unknown) =>
+    parseSensitivityUnits({
+      features: [{ geometry: square, properties: { OBJECTID: 1, VLI_POLYGON_NO: '1529', VSU_NUMBER } }],
+    })[0]
+
+  it('reads 0 as no VSU, so the unit is known by its VLI polygon number', () => {
+    expect(unit(0).vsuNumber).toBeNull()
+    expect(unit('0').vsuNumber).toBeNull()
+    expect(unit(27).vsuNumber).toBe('27')
+    expect(unit(null).vsuNumber).toBeNull()
+  })
+})

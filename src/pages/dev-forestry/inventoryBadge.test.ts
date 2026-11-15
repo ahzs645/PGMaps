@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { inventoryBadge, type BadgeUnit } from './inventoryBadge'
+import { inventoryBadge, thinPoints, withReadInventory, type BadgeUnit } from './inventoryBadge'
 
 const box = (w: number, s: number, e: number, n: number): GeoJSON.Polygon => ({
   type: 'Polygon',
@@ -66,5 +66,40 @@ describe('the inventory circle', () => {
   it('says the inventory was not read rather than that no unit is there', () => {
     expect(inventoryBadge([], { visibleBlockPoints: [], read: false }).note).toMatch(/^Visual inventory not read/)
     expect(inventoryBadge([], { visibleBlockPoints: [], read: true }).note).toMatch(/^No visual sensitivity unit/)
+  })
+})
+
+describe('a view saved before the inventory was read', () => {
+  const before = {
+    rating: null,
+    ratingNote: 'Visual inventory not read: look it up in step 1 to fill the circle.',
+    inventoryRead: false,
+    inventoryAt: { visibleBlockPoints: [[1.5, 0.5]] as Array<[number, number]>, landformUnitId: null, landform: null },
+  }
+
+  it('takes its unit from a later read, by the same rules', () => {
+    const filled = withReadInventory(before, [WEST, EAST])
+    expect(filled.inventoryRead).toBe(true)
+    expect(filled.rating).toEqual({ vsu: '45', vsc: '3', vac: 'M', vqo: 'PR' })
+    expect(filled.ratingNote).toBe("VSU 45: under the blocks' visible ground")
+  })
+
+  it('keeps a unit chosen at the save, and stays unread without a read', () => {
+    const saved = { ...before, inventoryRead: true, rating: { vsu: '1107' } }
+    expect(withReadInventory(saved, [WEST, EAST])).toBe(saved)
+    expect(withReadInventory(before, null)).toBe(before)
+  })
+
+  it('records a read that found nothing as no unit, not as unread', () => {
+    expect(withReadInventory(before, [])).toMatchObject({ rating: null, inventoryRead: true })
+  })
+
+  it('thins the kept block points evenly', () => {
+    const points = Array.from({ length: 2000 }, (_, i) => i)
+    const kept = thinPoints(points, 600)
+    expect(kept).toHaveLength(600)
+    expect(kept[0]).toBe(0)
+    expect(kept[599]).toBeGreaterThan(1990)
+    expect(thinPoints([1, 2, 3], 600)).toEqual([1, 2, 3])
   })
 })

@@ -184,3 +184,24 @@ export function distanceTerm(scale: DistanceScale, km: number): string {
 export function handbookClass(percent: number): ClassCode | null {
   return (table2Class(percent)?.code as ClassCode | undefined) ?? null
 }
+
+/**
+ * The 2001 form's viewing angle (01: "focal, oblique, peripheral"), read from how far the seen blocks lie off the
+ * view's centre line. The form gives no bounds, so these are a stated screen, not a guidebook threshold: within 30°
+ * of the centre line is the 60° cone a viewer attends to (focal), to 60° oblique, beyond that peripheral. The reviewer
+ * confirms the class.
+ */
+export const VIEWING_ANGLE_SCREEN = {
+  name: 'Viewing angle screen (focal within 30°, oblique to 60°, peripheral beyond; not a guidebook threshold)',
+  bands: [
+    { maxDeg: 30, term: 'focal' },
+    { maxDeg: 60, term: 'oblique' },
+    { maxDeg: Infinity, term: 'peripheral' },
+  ],
+} as const
+
+/** The viewing angle class of a block `offAxisDeg` off the centre line (`VIEWING_ANGLE_SCREEN`). */
+export function viewingAngleTerm(offAxisDeg: number): 'focal' | 'oblique' | 'peripheral' {
+  const off = Math.abs(offAxisDeg)
+  return (VIEWING_ANGLE_SCREEN.bands.find((band) => off <= band.maxDeg) ?? VIEWING_ANGLE_SCREEN.bands[2]).term
+}

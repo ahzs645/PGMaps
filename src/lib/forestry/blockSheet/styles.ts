@@ -330,6 +330,43 @@ export const VIA_OVERVIEW_MAP = {
   } satisfies AreaSymbol,
 }
 
+/**
+ * The location map on a VIA figure page (26's Figure 2, "Location map and viewpoint"): imagery fitted to the viewpoint
+ * and its view, the view a translucent teal wedge with a thin white edge, and the viewpoint a cyan star at its apex
+ * (docs/forestry-visual-quality.md, **Maps, before pictures and overhead renders**). Colours sampled from the
+ * reference page; widths are points printed on the figure page.
+ */
+export const VIA_FIGURE_MAP = {
+  viewWedge: {
+    kind: 'area',
+    label: 'View from the viewpoint',
+    fill: '#2bb59a',
+    fillOpacity: 0.7,
+    outline: [{ color: WHITE, width: 0.6, join: 'round' }],
+  } satisfies AreaSymbol,
+  /** The viewpoint's star: cyan with a dark edge, so it holds on imagery and on the road map. */
+  viewpoint: { fill: '#3fe0f2', edge: '#083344' },
+  /**
+   * The regional map's road-map look, set on the plan's vector basemap only while it is captured: its pale highways
+   * drawn orange with a darker edge and its place and water names dark on a white halo, as a road atlas prints them.
+   */
+  regional: {
+    highway: '#f0a134',
+    highwayEdge: '#a3601c',
+    highwayWidth: 2.4,
+    /** Secondary highways (a rural BC highway often is one): the same colours, narrower. */
+    secondaryWidth: 1.8,
+    label: '#1f2937',
+    waterLabel: '#2f5f7a',
+    labelHalo: WHITE,
+    labelHaloWidth: 1.6,
+    /** Name sizes, CSS pixels on a 300 px wide capture (about 6 pt printed): positron draws villages 8–9 px here. */
+    townSize: 12,
+    smallPlaceSize: 11,
+    waterLabelSize: 10,
+  },
+}
+
 /** Every in-map label (block, road, contour) carries this white outline. */
 export const LABEL_HALO = { color: WHITE, width: 1.2 } as const
 export const BLOCK_LABEL = { size: 8, color: '#000000' } as const

@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { findDocumentFormat } from '../viaDocument/formats'
 import { resolveViaDocument, type DocumentFacts } from '../viaDocument/resolve'
-import { reportHtml, reportMarkdown } from './html'
+import { imageLabel, reportHtml, reportMarkdown } from './html'
 import { designElementsMatrix, partialCutMatrix, table2Bar } from './matrices'
 import type { ReportBlock } from './model'
 import {
   blockVisibilitySentences,
   rangeStanding,
   runConclusion,
+  SUMMARY_QUESTIONS_2001,
   viewDirection,
   visibilityPhrase,
   type ReportContext,
@@ -123,30 +124,59 @@ describe('report parts', () => {
     // Net of rock and private land: 300 / (10000 - 500) = 3.2% (one decimal), Partial Retention.
     // One worksheet, a column per viewpoint, as the 2001 forms print it.
     const worksheet = numerical.find((b) => b.kind === 'table' && b.title === 'Percent alteration worksheet')
-    expect(worksheet?.kind === 'table' && worksheet.rows.at(-1)).toEqual([
+    expect(worksheet?.kind === 'table' && worksheet.rows.find((row) => row[0].startsWith('4.'))).toEqual([
       '4. Percent alteration ((2 + 3) / 1)',
       '3.2%',
     ])
+    // Each viewpoint's class on the format's scale, and the class met from them all, ticked from the run.
+    expect(worksheet?.kind === 'table' && worksheet.rows.at(-1)).toEqual([
+      'VQO achieved on percent alteration (Handbook Table 2 (perspective view))',
+      'PR',
+    ])
+    // The summary forms (03, 05) ask which class the figures alone meet, ticked from the run, under the form's
+    // instructions; 01's partial-cut form does not ask it.
+    expect(numerical.find((b) => b.kind === 'choices')).toBeUndefined()
+    const form = findReportPart('numerical-data')!.build({ ...ctx, recipeParts: ['numerical-data', 'notes-2001'] })
+    expect(form.blocks.find((b) => b.kind === 'choices')).toMatchObject({
+      label: expect.stringContaining('based on percent alteration only'),
+      chosen: 'PR',
+      source: 'run',
+    })
+    expect(all(form.blocks)).toContain('Complete either the clearcut or partial-cutting section below')
+    expect(all(numerical)).not.toContain('Complete either the clearcut')
     // A clearcut block brings the poster's clearcut guide, read at the run's 3.2%; the partial cut its table.
     expect(all(numerical)).toContain('Clearcut harvesting')
     expect(all(numerical)).toContain('Partial cutting')
     const withoutClearcut = findReportPart('numerical-data')!.build({ ...ctx, blocks: ctx.blocks.slice(1) }).blocks
     expect(all(withoutClearcut)).not.toContain('Clearcut harvesting')
     const summary = findReportPart('summary-2001')!.build(ctx)
-    const within = summary.blocks.find(
-      (b) => b.kind === 'choices' && b.label.startsWith('Is the alteration within the numerical ranges'),
-    )
+    // The form's own long questions (03), the numerical one answered from every viewpoint's figure.
+    const within = summary.blocks.find((b) => b.kind === 'choices' && b.label === SUMMARY_QUESTIONS_2001.numerical)
     expect(within).toMatchObject({ chosen: 'Yes', source: 'run' })
     // The judgements are blank and listed, never filled from the run.
-    expect(summary.toComplete).toEqual(expect.arrayContaining(['Is the VQO met?']))
+    expect(summary.toComplete).toEqual(expect.arrayContaining([SUMMARY_QUESTIONS_2001.met]))
+    expect(all(summary.blocks)).not.toContain('Is the VQO met?')
   })
 
-  it('print Appendix 1 blank without a step 4 record at the assessment station, and say so', () => {
-    const out = findReportPart('appendix-1')!.build(context('appendix-1-net-private-rock'))
+  it('print Appendix 1 blank when no viewpoint sees the proposal and step 4 is not recorded, and say so', () => {
+    const unseen: DocumentFacts = {
+      ...facts,
+      viewpoints: [
+        {
+          ...facts.viewpoints[0],
+          areas: { ...facts.viewpoints[0].areas!, proposed: 0 },
+          blocks: [{ id: 'X1', status: 'not visible', visiblePercent: 0 }],
+        },
+      ],
+    }
+    const format = findDocumentFormat('appendix-1-net-private-rock')!
+    const out = findReportPart('appendix-1')!.build(
+      context(format.id, { facts: unseen, document: resolveViaDocument(format, unseen) }),
+    )
     expect(all(out.blocks)).toContain('not filled')
     // The form itself still prints, its judgements and the viewpoint's lines blank, never filled from another view.
     expect(all(out.blocks)).toContain('3.4.2 Numerical assessment')
-    expect(all(out.blocks)).toContain('"label":"Viewpoint","value":null')
+    expect(all(out.blocks)).toContain('"label":"Viewpoint description","value":null')
     expect(out.blocks.some((b) => b.kind === 'signature')).toBe(true)
     expect(out.toComplete?.[0]).toBe('Step 4 at the assessment station')
   })
@@ -217,7 +247,7 @@ describe('report layout', () => {
     expect(html).toContain('@page{size:legal portrait')
     expect(html).toContain('counter(page) " of " counter(pages)')
     expect(html).toContain('<section class="cover">')
-    expect(html).toContain('<figure class="sheet">')
+    expect(html).toMatch(/<figure class="sheet"( id="f\d+")?>/)
     const consultant = REPORT_RECIPES.find((entry) => entry.id === 'consultant-net-private')!
     const report = reportHtml(assembleReport(consultant, context(consultant.format)), null)
     expect(report).toContain('<nav class="contents"><h2>Contents</h2>')
@@ -227,6 +257,24 @@ describe('report layout', () => {
     const formHtml = reportHtml(assembleReport(form, context(form.format)), null)
     expect(formHtml).not.toContain('<section class="cover">')
     expect(formHtml).toContain('<th>VP 1</th>')
+  })
+
+  it('lists the figure pages under Images in the contents, each linked to an anchor inside its own page', () => {
+    const recipe = REPORT_RECIPES.find((entry) => entry.id === 'form-2001-photos')!
+    const sheet = { view: 'Lakeshore', caption: 'Lakeshore: analysis', dataUrl: 'data:,', width: 1224, height: 792 }
+    const html = reportHtml(assembleReport(recipe, context(recipe.format, { figures: [sheet] })), null)
+    const contents = html.match(/<nav class="contents">.*?<\/nav>/s)?.[0] ?? ''
+    expect(contents).toContain('<h4>Images</h4>')
+    expect(contents).toMatch(/<a href="#f\d+">Lakeshore: analysis<\/a>/)
+    const pair = contents.match(/<a href="#(f\d+)">Lakeshore: [^<]+ \/ [^<]+<\/a>/)
+    expect(pair).not.toBeNull()
+    // The anchor sits just inside the figure's own opening tag, so the page rules that read the tag still apply.
+    expect(html).toContain(` id="${pair![1]}">`)
+    expect(html).toMatch(/<figure class="sheet" id="f\d+">/)
+    expect(
+      imageLabel({ kind: 'figurePage', number: 'Figure 2', title: 'Visualization', facts: [], side: [], main: [] }),
+    ).toBe('Figure 2: Visualization')
+    expect(imageLabel({ kind: 'pageBreak' })).toBeNull()
   })
 })
 
@@ -249,7 +297,7 @@ describe('fixes from the second reading', () => {
   })
 
   it('keeps a heading on the landscape or 11 x 17 page it introduces', () => {
-    const recipe = REPORT_RECIPES.find((entry) => entry.id === 'consultant-net-private')!
+    const recipe = REPORT_RECIPES.find((entry) => entry.id === 'form-2001-sheets')!
     const sheet = {
       view: 'Lakeshore',
       caption: 'Lakeshore: analysis',
@@ -259,8 +307,13 @@ describe('fixes from the second reading', () => {
     }
     const html = reportHtml(assembleReport(recipe, context(recipe.format, { figures: [sheet] })), null)
     // The section heading before it ("Calculations") moves with the viewpoint's heading onto the sheet's page.
-    expect(html).toMatch(/<div class="sheet-page"><h3 id="s\d+">[^<]+<\/h3><h4>Lakeshore<\/h4><figure class="sheet">/)
+    expect(html).toMatch(/<div class="sheet-page"><h3 id="s\d+">[^<]+<\/h3><h4>Lakeshore<\/h4><figure class="sheet"( id="f\d+")?>/)
     expect(html).not.toMatch(/<li>\d+\. /)
+    // The consultant reports number the sheet in their appendix, its heading on the sheet's page.
+    const consultant = REPORT_RECIPES.find((entry) => entry.id === 'consultant-net-private')!
+    expect(reportHtml(assembleReport(consultant, context(consultant.format, { figures: [sheet] })), null)).toMatch(
+      /<div class="sheet-page"><h4>Appendix A\d+: Perspective Viewpoint Analysis – Lakeshore[^<]*<\/h4><figure class="sheet"( id="f\d+")?>/,
+    )
   })
 })
 
@@ -305,7 +358,12 @@ describe('26: why each viewpoint, timber screening, regrowth', () => {
           { id: 'X2', status: 'not visible', visiblePercent: 0, screenedPercent: 60 },
         ],
       },
-      { ...facts.viewpoints[0], name: 'Ridge road', blocks: [{ id: 'X1', status: 'not visible', visiblePercent: 0 }] },
+      {
+        ...facts.viewpoints[0],
+        name: 'Ridge road',
+        areas: { ...facts.viewpoints[0].areas!, proposed: 0 },
+        blocks: [{ id: 'X1', status: 'not visible', visiblePercent: 0 }],
+      },
     ],
   }
   const ctx = context('referral-panoramas', {

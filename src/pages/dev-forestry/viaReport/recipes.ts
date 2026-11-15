@@ -8,12 +8,14 @@
  */
 import type { OverviewSheetStyle } from '../reportMaps'
 import { findDocumentFormat } from '../viaDocument/formats'
-import { proposedBlocks, type ReportContext } from './parts'
+import { toCompleteLine } from '../viaDocument/wording'
+import { inViewpointOrder, proposedBlocks, type ReportContext } from './parts'
 import { CONSULTANT_RECIPE_PARTS } from './partsConsultant'
 import { findReportPart } from './registry'
 
 /** The consultant reports carry their viewpoint map as an 11 x 17 appendix sheet, before the analysis sheets. */
 const withOverviewMap = (parts: readonly string[]) => {
+  if (parts.includes('overview-sheet')) return parts
   const at = parts.indexOf('calculations')
   return at < 0 ? [...parts, 'overview-sheet'] : [...parts.slice(0, at), 'overview-sheet', ...parts.slice(at)]
 }
@@ -53,8 +55,9 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
   {
     id: 'partial-cut-form',
     figureStyle: 'arrows-no-outlines',
-    // 01 pastes the poster, so its guide is lettered as the poster prints it.
-    options: { partialCutGuide: 'poster' },
+    // 01 pastes the poster, so its guide is lettered as the poster prints it; its viewpoint table rates each view's
+    // angle class.
+    options: { partialCutGuide: 'poster', viewingAngleClass: true },
     layout: { paper: 'letter', cover: false, contents: false },
     name: 'Fuel-management VIA form (partial cut)',
     title: 'Visual Impact Assessment',
@@ -124,8 +127,9 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
   },
   {
     id: 'form-2001-photos',
-    // 05 ends on a portrait 11 x 17 VIA overview map.
+    // 05 ends on a portrait 11 x 17 VIA overview map, and lists each block's hectares in each inventory unit.
     overviewSheetStyle: 'end-map-portrait',
+    options: { inventoryByBlock: true },
     layout: { paper: 'letter', cover: true, contents: true },
     name: '2001 VIA with existing / proposed / analysed panels',
     title: 'Visual Impact Assessment',
@@ -182,7 +186,17 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
     title: 'Visual Quality: Simulation and Result',
     sources: ['21'],
     format: 'form-2001-analysed-photos',
-    parts: ['cover', 'regulatory-frame', 'board-comparison', 'methodology', 'overview-map', 'photo-simulation-pairs'],
+    // 21 numbers its before / after pair and captions it in a sentence.
+    options: { numberedPairs: true },
+    parts: [
+      'cover',
+      'regulatory-frame',
+      'board-comparison',
+      'methodology',
+      'overview-map',
+      'photo-simulation-pairs',
+      'references',
+    ],
     purpose: 'Per viewpoint the established objective, the simulated class and the post-harvest class, with findings.',
   },
   {
@@ -225,10 +239,17 @@ export const findReportRecipe = (id: string | null | undefined) =>
 /** Document sentences whose missing judgement these parts already list for the reviewer, by sentence id. */
 const LISTED_BY_PARTS: Readonly<Record<string, readonly string[]>> = {
   ocular: ['basic-definition', 'criteria-rating-2001'],
+  // Appendix 1's forms list their own blank lines (b, the adjustments, the rating and the rationale) per viewpoint.
+  x: ['appendix-1'],
+  y: ['appendix-1'],
+  rating: ['appendix-1'],
+  rationale: ['appendix-1'],
 }
 
 /** Assembles `recipe` from `ctx`: each part in order, with what each leaves for the reviewer. */
 export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): AssembledReport {
+  // Viewpoints print in the order of the numbers their names carry, whatever order the views were saved in.
+  ctx = inViewpointOrder(ctx)
   const blocks: ReportBlock[] = []
   const toComplete: ReportItemToComplete[] = []
   for (const id of recipe.parts) {
@@ -248,7 +269,7 @@ export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): Assemb
   for (const item of ctx.document.toComplete.filter((entry) => !listed(entry.id)))
     toComplete.push({
       part: 'Wording',
-      what: `${item.viewpoint ? `${item.viewpoint}: ` : ''}${item.about ? `${item.about}, ` : ''}${item.id} (needs ${item.missing.join(', ')})`,
+      what: `${item.viewpoint ? `${item.viewpoint}: ` : ''}${item.about ? `${item.about}, ` : ''}${toCompleteLine(item)}`,
     })
   const project = ctx.office.cuttingPermit
     ? `${ctx.office.licence ? `${ctx.office.licence} ` : ''}CP ${ctx.office.cuttingPermit}`

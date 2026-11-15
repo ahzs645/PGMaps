@@ -44,6 +44,7 @@ import {
   SLOPE_CLASSES,
   SLOPE_STEEP_OVERLAY,
   STREAM,
+  VIA_FIGURE_MAP,
   VIA_OVERVIEW_MAP,
 } from './styles'
 
@@ -1230,6 +1231,14 @@ export const SYMBOL_CATALOGUE: readonly CatalogueEntry[] = [
     symbol: reviewPin('#e11d48'),
     spec: 'PGMaps: 6.6 pt dot in the note colour, white 1.0 halo',
     data: { source: "Road tool's map notes" },
+  },
+  {
+    id: 'via-figure-view-wedge',
+    group: 'pgmaps',
+    symbol: VIA_FIGURE_MAP.viewWedge,
+    spec: 'PGMaps: fill #2bb59a at 0.7, white 0.6 outline (a VIA figure page’s location map)',
+    data: { source: 'The saved view’s bearing and horizontal field, out past the farthest block in it' },
+    background: '#4b5d3a',
   },
 ]
 

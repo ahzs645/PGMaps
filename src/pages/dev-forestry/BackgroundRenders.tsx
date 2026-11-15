@@ -62,7 +62,19 @@ export type RenderRunner = (job: RenderJob, engine: EngineCaptureHandle) => Prom
 
 const HISTORY_KEY = 'pgmaps.forestryVisuals.renderHistory'
 /** An engine page that has not said hello by now is not running. */
+/**
+ * Development only: every queue event (asked, started, scene and request sent, drawn, put back, failed) with its
+ * time, on `window.__visualsRenderLog`, so a harness can tell a view drawn twice from one drawn slowly.
+ */
+function renderLog(event: string, detail: Record<string, unknown> = {}) {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return
+  const target = window as unknown as { __visualsRenderLog?: Array<Record<string, unknown>> }
+  ;(target.__visualsRenderLog ??= []).push({ at: Math.round(performance.now()), event, ...detail })
+}
+
 const HELLO_TIMEOUT_MS = 30_000
+/** How long the engine page is kept after its last job, while the tray is shown (it holds GPU memory). */
+export const ENGINE_IDLE_MS = 5 * 60_000
 /** Longest one final capture may take once the scene is ready (the engines' own watchdogs stop sooner). */
 const CAPTURE_TIMEOUT_MS = 15 * 60_000
 /**
@@ -165,16 +177,32 @@ function useCaptureBridge(
         }
         readyWaiter = () => {
           readyWaiter = null
-          const request = makeRequest(scene)
-          id = request.id
-          replies.set(request.id, (data) => {
-            window.clearTimeout(timer)
-            failure = null
-            abandon = null
-            resolve(data)
-          })
-          post(request, captureTransfer(request))
+          renderLog('ready')
+          // The request may still be waiting on the frame's stand, grown while the engine built the scene.
+          Promise.resolve()
+            .then(() => makeRequest(scene))
+            .then(
+              (request) => {
+                if (closed) return
+                id = request.id
+                replies.set(request.id, (data) => {
+                  window.clearTimeout(timer)
+                  failure = null
+                  abandon = null
+                  resolve(data)
+                })
+                renderLog('request', { id: request.id })
+                post(request, captureTransfer(request))
+              },
+              (error: unknown) => {
+                window.clearTimeout(timer)
+                failure = null
+                abandon = null
+                reject(error instanceof Error ? error : new Error(String(error)))
+              },
+            )
         }
+        renderLog('scene', { stems: scene.trees?.count ?? null, water: scene.water?.length ?? 0 })
         post(engineEnvironment(environmentRef.current, scene.origin, new Date()))
         post({ type: 'pgmaps-scene', scene })
         // A still camera at the package's eye: the engine's live picture in the tray. The capture sets its own.
@@ -218,8 +246,20 @@ export function useBackgroundRenders(input: {
   const [, setTick] = useState(0)
   const running = jobs.find((entry) => entry.status === 'running') ?? null
   const next = jobs.find((entry) => entry.status === 'waiting') ?? null
-  // The engine page lives while its jobs do: the running one's, else the next one's.
-  const engine = running?.job.engine ?? next?.job.engine ?? null
+  // The engine page lives while its jobs do: the running one's, else the next one's. After the last job it stays for
+  // `ENGINE_IDLE_MS` while the tray is still shown, so a second export a moment later finds it running, its
+  // pipelines compiled and its tree models grown (a cold page cost 1.5 s on a quiet machine and 10-15 s on a busy one).
+  const [lingering, setLingering] = useState<RenderEngineId | null>(null)
+  const queued = running?.job.engine ?? next?.job.engine ?? null
+  useEffect(() => {
+    if (queued) {
+      setLingering(queued)
+      return
+    }
+    const timer = window.setTimeout(() => setLingering(null), ENGINE_IDLE_MS)
+    return () => window.clearTimeout(timer)
+  }, [queued])
+  const engine = queued ?? (jobs.length ? lingering : null)
   // On a site of its own, so its long scripts run in another process and never freeze the page.
   const configured = engine ? input.urlFor(engine) : null
   const url = configured ? separateSiteUrl(configured, window.location.href).url : null
@@ -253,6 +293,7 @@ export function useBackgroundRenders(input: {
       marks[phase] = Date.now()
       update(job.key, { phase, phaseAt: marks[phase]! })
     }
+    renderLog('start', { key: job.key, cold })
     update(job.key, {
       status: 'running',
       startedAt: started,
@@ -318,10 +359,12 @@ export function useBackgroundRenders(input: {
         const nextHistory = recordRender(historyRef.current, timing)
         saveHistory(nextHistory)
         setHistory(nextHistory)
+        renderLog('done', { key: job.key, ms: timing.ms })
         update(job.key, { status: 'done', phase: null })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         const reset = resets.current.get(job.key) ?? 0
+        renderLog(message === BRIDGE_RESET ? 'reset' : 'error', { key: job.key, message })
         if (message === BRIDGE_RESET && reset < RESET_RETRIES) {
           // Drawn again from the start on the new bridge: the engine page itself is still loaded and warm.
           resets.current.set(job.key, reset + 1)
@@ -352,6 +395,7 @@ export function useBackgroundRenders(input: {
     setJobs((current) => {
       const keys = new Set(current.filter((entry) => entry.status !== 'error').map((entry) => entry.job.key))
       const fresh = add.filter((job) => !keys.has(job.key))
+      if (fresh.length) renderLog('asked', { keys: fresh.map((job) => job.key) })
       return [
         // A failed job asked again is tried again.
         ...current.filter((entry) => !(entry.status === 'error' && fresh.some((job) => job.key === entry.job.key))),

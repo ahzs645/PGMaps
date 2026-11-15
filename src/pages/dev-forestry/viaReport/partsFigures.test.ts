@@ -341,7 +341,7 @@ describe('the 11 x 17 overview sheet', () => {
     expect(block).toMatchObject({ kind: 'figure', figure: sheet })
     expect((block as { caption: string }).caption).toContain('(1:15,000 at 11 × 17)')
     const html = reportHtml(report([block]), null)
-    expect(html).toContain('<figure class="sheet full">')
+    expect(html).toMatch(/<figure class="sheet full"( id="f\d+")?>/)
     expect(html).toContain('@page sheetfull{size:17in 11in;margin:0')
     const without = part('overview-sheet').build(
       context('perspective-report-gross', names, { images: allImages(names) }),
@@ -423,8 +423,19 @@ describe('the portrait end map page', () => {
       map: { scale: '1:25,000', inPicture: true },
     }
     const html = reportHtml(report([{ kind: 'figure', figure: map, caption: 'VIA overview map' }]), null)
-    expect(html).toContain('<figure class="sheet portrait">')
+    expect(html).toMatch(/<figure class="sheet portrait"( id="f\d+")?>/)
     // Equal specificity: the landscape rule must exclude portrait sheets, or it wins by coming later.
     expect(html).toContain('figure.sheet:not(.full):not(.portrait){page:sheet')
+  })
+})
+
+describe('figure pages in a report with an Images contents list', () => {
+  it('anchor the page on its own tag, never as a child that would take a grid cell', () => {
+    const names = ['Lakeshore']
+    const ctx = context('referral-panoramas', names, { images: allImages(names) })
+    const blocks = part('ea-figure-pages').build(ctx).blocks
+    const html = reportHtml({ ...report(blocks), layout: { paper: 'letter', cover: false, contents: true } }, null)
+    expect(html).toMatch(/<section class="vf-page" id="f\d+"><div class="vf-side">/)
+    expect(html).not.toMatch(/<section class="vf-page"><a id=/)
   })
 })

@@ -176,6 +176,8 @@ export type ReportBlock =
       title?: string
       slots: FigureSlot[]
       placement: 'inset' | 'caption'
+      /** A numbered caption under the pair as a whole (21's "Figure 2. View from ..."). */
+      caption?: string
       /** Printed on a landscape page of its own, each picture across its width (02's simulation pages). */
       landscape?: boolean
     }

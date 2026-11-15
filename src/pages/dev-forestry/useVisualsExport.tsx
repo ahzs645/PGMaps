@@ -11,7 +11,9 @@ import { LABEL_STYLES } from '@/lib/mapSheet/callouts'
 
 import type { BlockNoteParts } from './VisualsParagraphPanel'
 import type { NoteImage, ViewpointPage } from './blockNote'
+import type { BcSensitivityUnit } from './bcVisualInventory'
 import { briefViewpoints, buildFieldBrief, fieldBriefFileName, fieldBriefPdf } from './fieldBrief'
+import { withReadInventory } from './inventoryBadge'
 import {
   AnalysisSheetOptions,
   analysisSheetFile,
@@ -60,6 +62,7 @@ import { buildReportContext, type ReportView } from './viaReport/context'
 import { reportHtml, reportMarkdown } from './viaReport/html'
 import type { ReportFigure } from './viaReport/model'
 import type { ReportImages } from './viaReport/parts'
+import type { ReportSetting } from './viaReport/setting'
 import { assembleReport, findReportRecipe, recipeFormat, REPORT_RECIPES } from './viaReport/recipes'
 import { VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
 import {
@@ -164,6 +167,17 @@ export function useVisualsExport(input: {
   }
   /** The land status checks the summary cards read (`useLandChecks`). */
   landChecks: { states: Partial<Record<LandCheckId, LandCheckState>>; unchecked: string | null }
+  /**
+   * The scene's visual landscape inventory, read live around the scene (the EVQO drape's read): `units` once read,
+   * null before and after a failure. `read` starts it, or reads again after a failure; the outputs that print the
+   * inventory ask for it before they are written (`READS_INVENTORY`).
+   */
+  visualInventory?: {
+    status: 'idle' | 'loading' | 'ready' | 'error'
+    units: readonly BcSensitivityUnit[] | null
+    error: string | null
+    read: () => void
+  }
   /** The BC viewpoint inventory as the page last read it, and how to read it around a block. */
   viewpointInventory: ViewpointInventoryState
   onLoadInventory: (block: TargetPolygon, options: { show: boolean }) => void
@@ -203,12 +217,19 @@ export function useVisualsExport(input: {
       project: string | null
     }
     obliquePitch?: number
+    /** The report prints 26's figure page, which takes location and regional maps of its own. */
+    figurePageMaps?: boolean
   }) => Promise<{ images: ReportImages; notes: string[]; beforeRenders?: BeforeRenders }>
   /**
    * Before-harvest renders of saved views from their own framed poses, for the with-timber pixel figure
    * (`timberMeasureFor`); absent, the figure says no before render was taken.
    */
   captureBeforeRenders?: (views: ReadonlyArray<{ id: string; name: string }>) => Promise<BeforeRenders>
+  /**
+   * Where the blocks are and what the land is like for the VIA report's summary and landscape paragraphs
+   * (`viaReport/setting.ts`); the page caches it by run, so calling it on each render costs nothing.
+   */
+  reportSetting?: () => ReportSetting | null
   portalContainer?: HTMLElement | null
 }) {
   const {
@@ -289,16 +310,17 @@ export function useVisualsExport(input: {
         })
       : []
   const missingJobs = engineJobs.filter((job) => !renders?.figures[job.key])
-  const figureImages: typeof images =
-    engineId && renders
-      ? Object.fromEntries(
-          Object.entries(images).map(([id, image]) => {
-            const job = engineJobs.find((entry) => entry.viewId === id)
-            const drawn = job ? renders.figures[job.key] : undefined
-            return [id, drawn ? { ...image, figure: drawn } : image]
-          }),
-        )
-      : images
+  // A view saved before the inventory was read takes its unit from the scene's read, by the rules its sheet uses.
+  const readUnits = input.visualInventory?.units ?? null
+  const withInventory = (image: (typeof images)[string]) =>
+    image?.figure && readUnits ? { ...image, figure: withReadInventory(image.figure, readUnits) } : image
+  const figureImages: typeof images = Object.fromEntries(
+    Object.entries(images).map(([id, image]) => {
+      const job = engineId && renders ? engineJobs.find((entry) => entry.viewId === id) : undefined
+      const drawn = job ? renders?.figures[job.key] : undefined
+      return [id, withInventory(drawn ? { ...image, figure: drawn } : image)]
+    }),
+  )
   const engineState = engineId && renders ? renders.jobs.filter((entry) => entry.job.engine === engineId) : []
   const engineRunning = engineState.some((entry) => entry.status === 'running' || entry.status === 'waiting')
   const engineFailed = engineState.find(
@@ -420,6 +442,8 @@ export function useVisualsExport(input: {
       breakdown: result?.perspectiveAlteration ?? null,
       figures,
       ...(images ? { images } : {}),
+      ...(readUnits ? { inventoryUnits: readUnits } : {}),
+      reportSetting: input.reportSetting?.() ?? null,
       date: new Date(),
     })
   // Placeholder figures stand in for the counts only; the file draws each view's figure.
@@ -543,6 +567,9 @@ export function useVisualsExport(input: {
       pending: input.landChecks.unchecked ? 0 : landChecksPending(input.landChecks.states),
       rows: landRows,
     },
+    ...(input.visualInventory
+      ? { visualInventory: { status: input.visualInventory.status, error: input.visualInventory.error } }
+      : {}),
     inventory: {
       status: inventoryStatus,
       error: inventoryState.error,
@@ -624,6 +651,7 @@ export function useVisualsExport(input: {
             ? `${chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo'}|${draftReport?.subtitle ?? ''}`
             : '',
           reportRecipe.obliquePitch ?? '',
+          reportRecipe.parts.includes('ea-figure-pages') ? 'figure-page-maps' : '',
         ].join('|')
         let captured = reportCaptures.current?.key === captureKey ? reportCaptures.current.value : null
         if (!captured && input.captureReportImages) {
@@ -636,6 +664,7 @@ export function useVisualsExport(input: {
             views: reportViewIds.map((view, index) => ({ id: view.id, name: names[index] ?? view.name })),
             overviewSheet: { style: overviewSheetStyle, logo: endMapLogo, project: draftReport?.subtitle ?? null },
             ...(reportRecipe.obliquePitch !== undefined ? { obliquePitch: reportRecipe.obliquePitch } : {}),
+            ...(reportRecipe.parts.includes('ea-figure-pages') ? { figurePageMaps: true } : {}),
           })
           reportCaptures.current = { key: captureKey, value: captured }
           // What could not be captured prints as a placeholder in the report; the reason goes to the console.
@@ -649,7 +678,7 @@ export function useVisualsExport(input: {
         // Each view's analysed figure in the report's own style, named as the report names its viewpoint. A report
         // with calculation pages composes them on an 11 × 17 page (`tabloidFigure`), which it prints on its own page.
         const style = reportRecipe.figureStyle ?? recipeFormat(reportRecipe).style ?? DEFAULT_FIGURE_STYLE
-        const tabloid = reportRecipe.parts.includes('calculations')
+        const tabloid = reportRecipe.parts.includes('calculations') || reportRecipe.parts.includes('appendix-sheets')
         const figures: ReportFigure[] = await Promise.all(
           reportViewIds.map(async (view, index) => {
             const image = await figureNoteImage(view.image!, style, {
@@ -743,6 +772,7 @@ export function useVisualsExport(input: {
             __viaReportAfter: after,
             __viaReportBefore: images.before,
             __viaReportFacts: context.facts,
+            __viaReportUnits: context.inventoryUnits ?? null,
           })
         const report = assembleReport(reportRecipe, context)
         const fileName = `forestry-via-report-${reportRecipe.id}`
@@ -1003,6 +1033,7 @@ export function useVisualsExport(input: {
       onGoToStep={onGoToStep}
       onAction={onAction}
       onRun={analysis.run}
+      {...(input.visualInventory ? { onReadInventory: input.visualInventory.read } : {})}
       onRender={() => {
         if (missingJobs.length) renders?.enqueue(missingJobs)
       }}

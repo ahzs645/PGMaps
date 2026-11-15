@@ -40,6 +40,7 @@ export const FIGURES_CSS = `@page via-figure{size:letter landscape;margin:0.45in
 .vf-pair-item .vf-pic.vf-empty{height:2.4in;display:flex}
 .vf-inset{position:absolute;top:4px;left:6px;background:rgba(255,255,255,.75);color:#000;font:13px Arial,Helvetica,sans-serif;padding:0 3px}
 .vf-pair-item figcaption,.vf-map figcaption,.vf-grid figcaption{font-size:11px;font-weight:700;color:#1a2530;margin-top:4px}
+.vf-pair-caption{font-size:11px;color:#1a2530;margin:6px 0 0}
 .vf-map{margin:12px 0;break-inside:avoid}.vf-map .vf-fit{width:min(100%,calc(7.2in * var(--ar)))}
 .vf-map .vf-pic.vf-empty{height:3.5in;display:flex}
 .vf-key{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;font-size:10px;margin-top:4px}
@@ -175,7 +176,9 @@ function figurePairHtml(block: FigurePairBlock): string {
         block.placement === 'caption' ? `<figcaption>${e(s.label)}</figcaption>` : ''
       }${note(s)}</figure>`,
   )
-  return `<section class="vf-pair${block.landscape ? ' vf-landscape' : ''}">${block.title ? `<h4>${e(block.title)}</h4>` : ''}${items.join('')}</section>`
+  return `<section class="vf-pair${block.landscape ? ' vf-landscape' : ''}">${block.title ? `<h4>${e(block.title)}</h4>` : ''}${items.join('')}${
+    block.caption ? `<p class="vf-pair-caption">${e(block.caption)}</p>` : ''
+  }</section>`
 }
 
 function mapFigureHtml(block: MapFigureBlock): string {
@@ -223,7 +226,11 @@ export function extraBlockMarkdown(block: ReportBlock): string {
         ...[...block.side, ...block.main].map(slotMarkdown),
       ].join('\n')
     case 'figurePair':
-      return [...(block.title ? [`**${block.title}**`, ''] : []), ...block.slots.map(slotMarkdown)].join('\n')
+      return [
+        ...(block.title ? [`**${block.title}**`, ''] : []),
+        ...block.slots.map(slotMarkdown),
+        ...(block.caption ? ['', `_${block.caption}_`] : []),
+      ].join('\n')
     case 'mapFigure': {
       const map = block.slot.figure?.map
       const key =

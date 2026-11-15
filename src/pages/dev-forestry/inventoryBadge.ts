@@ -13,17 +13,38 @@
  */
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import { visualQualityClass } from './vqo'
-import { pointInPolygon, polygonBounds, type PolygonGeometry } from './visibility'
+import { pointInPolygon, polygonBounds, preparePolygons, type PolygonGeometry } from './visibility'
 
 export type BadgeUnit = Pick<BcSensitivityUnit, 'id' | 'polygonNumber' | 'objectiveId' | 'vac' | 'vsc' | 'geometry'> &
-  Partial<Pick<BcSensitivityUnit, 'evc' | 'vsuNumber'>>
+  Partial<Pick<BcSensitivityUnit, 'evc' | 'vsuNumber' | 'updated'>>
+
+/**
+ * What chose a view's unit, kept with the saved view (`SavedFigure.inventoryAt`), so a read made after the view was
+ * saved fills its unit by the same rules.
+ */
+export type InventoryBadgeInput = {
+  /** The blocks' sample points the view's station sees, thinned to `BADGE_POINTS_KEPT`. */
+  visibleBlockPoints: ReadonlyArray<readonly [number, number]>
+  landformUnitId?: string | null
+  landform?: PolygonGeometry | null
+}
+
+/** Visible block points kept with a saved view: enough for the dominant unit's share to the percent. */
+export const BADGE_POINTS_KEPT = 600
+
+/** Every n-th point, so at most `max` stay, spread over the whole list. */
+export function thinPoints<T>(points: readonly T[], max = BADGE_POINTS_KEPT): T[] {
+  if (points.length <= max) return [...points]
+  const step = points.length / max
+  return Array.from({ length: max }, (_, i) => points[Math.floor(i * step)])
+}
 
 export type InventoryBadge = {
   unit: BadgeUnit | null
   /** The four lines the circle prints: VSU, VSC, VAC / EVC, VQO. Unknown values print "?". */
   lines: [string, string, string, string]
   /** The values themselves, for the sheet's rating code. */
-  values: { vsu?: string; vsc?: string; vac?: string; evc?: string; vqo?: string }
+  values: { vsu?: string; vsc?: string; vac?: string; evc?: string; vqo?: string; date?: string }
   /** Which rule chose the unit, printed small under the circle. */
   note: string
 }
@@ -44,11 +65,16 @@ function pointsInside(geometry: PolygonGeometry, count = 400): Array<[number, nu
   return out
 }
 
-/** The unit holding most of `points`, with its share; null when none holds any. */
+/**
+ * The unit holding most of `points`, with its share; null when none holds any. The units are prepared once
+ * (`preparePolygons`): the WFS keeps full-resolution coasts, 657,000 vertices in 118 units around Captain Island, and
+ * a `pointInPolygon` loop over them took 15 s for 20,000 points.
+ */
 function dominant(units: readonly BadgeUnit[], points: ReadonlyArray<readonly [number, number]>) {
   const counts = new Map<BadgeUnit, number>()
+  const prepared = preparePolygons(units.map((unit) => unit.geometry))
   for (const [lng, lat] of points) {
-    const unit = units.find((entry) => pointInPolygon(entry.geometry, lng, lat))
+    const unit = units[prepared.indexAt(lng, lat)]
     if (unit) counts.set(unit, (counts.get(unit) ?? 0) + 1)
   }
   const best = [...counts].sort((a, b) => b[1] - a[1])[0]
@@ -56,6 +82,18 @@ function dominant(units: readonly BadgeUnit[], points: ReadonlyArray<readonly [n
 }
 
 const label = (unit: BadgeUnit) => unit.vsuNumber || unit.polygonNumber
+
+/** A unit's codes as the circle, the sheets and the reports print them: VSU (else the VLI polygon), VAC as L/M/H. */
+export function unitValues(unit: BadgeUnit): InventoryBadge['values'] & { vsu: string } {
+  return {
+    vsu: label(unit),
+    ...(unit.vsc ? { vsc: unit.vsc } : {}),
+    ...(unit.vac ? { vac: VAC_CODES[unit.vac] } : {}),
+    ...(unit.evc ? { evc: unit.evc } : {}),
+    ...(unit.objectiveId ? { vqo: visualQualityClass(unit.objectiveId).code } : {}),
+    ...(unit.updated ? { date: unit.updated } : {}),
+  }
+}
 
 export function inventoryBadge(
   units: readonly BadgeUnit[],
@@ -95,15 +133,7 @@ export function inventoryBadge(
       note = `VSU ${label(unit)}: holds ${Math.round(held.share * 100)}% of the landform${held.units > 1 ? ` (${held.units} units)` : ''}`
     }
   }
-  const values: InventoryBadge['values'] = unit
-    ? {
-        vsu: label(unit),
-        ...(unit.vsc ? { vsc: unit.vsc } : {}),
-        ...(unit.vac ? { vac: VAC_CODES[unit.vac] } : {}),
-        ...(unit.evc ? { evc: unit.evc } : {}),
-        ...(unit.objectiveId ? { vqo: visualQualityClass(unit.objectiveId).code } : {}),
-      }
-    : {}
+  const values: InventoryBadge['values'] = unit ? unitValues(unit) : {}
   return {
     unit,
     values,
@@ -115,4 +145,24 @@ export function inventoryBadge(
     ],
     note,
   }
+}
+
+/** The part of a saved view (`SavedFigure`) its inventory unit is kept in. */
+export type ViewInventory = {
+  rating: InventoryBadge['values'] | null
+  ratingNote?: string
+  inventoryRead?: boolean
+  inventoryAt?: InventoryBadgeInput
+}
+
+/**
+ * A saved view's inventory unit, filled from a read the page made after the view was saved (Save & export reads the
+ * inventory itself). A view saved after a read keeps its own unit, which is what its sheet printed; one saved before
+ * any read takes the unit the same rules choose from `units`. Unchanged when nothing was read or the view kept no
+ * badge input (saved before the input was kept).
+ */
+export function withReadInventory<F extends ViewInventory>(figure: F, units: readonly BadgeUnit[] | null): F {
+  if (figure.inventoryRead || !units || !figure.inventoryAt) return figure
+  const badge = inventoryBadge(units, { ...figure.inventoryAt, read: true })
+  return { ...figure, rating: badge.unit ? badge.values : null, ratingNote: badge.note, inventoryRead: true }
 }

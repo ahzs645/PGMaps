@@ -85,7 +85,7 @@ table.fields th{width:32%;background:#f8fafc;font-weight:600}table.grid thead th
 table.matrix td.marked{outline:2px solid #b91c1c;outline-offset:-2px;font-weight:600}
 .blank{display:inline-block;min-width:160px;border-bottom:1px solid #64748b;height:1em}
 .note{font-size:11px;color:#64748b;margin:2px 0 8px}.empty{color:#94a3b8}
-.choices .label{font-weight:600;margin-right:8px}.choices .box{margin-right:12px;white-space:nowrap}
+.choices .label{font-weight:600;margin-right:8px}.choices .box{margin-right:12px;white-space:nowrap}.choices .box{display:inline-block;max-width:100%;white-space:normal;vertical-align:top}
 svg.scale{width:100%;max-width:640px;height:auto;display:block}
 table.answer-box{margin:10px 0;break-inside:avoid}table.answer-box td{border:1px solid #1a2530;padding:6px 8px}table.answer-box td.ticks{width:120px;white-space:nowrap;vertical-align:top}table.answer-box b.answer{display:block;margin-top:2px}
 h2,h3,h4{break-after:avoid}table.fields,table.signature,.choices{break-inside:avoid}
@@ -161,6 +161,29 @@ function completeAt(parts: readonly string[]): number {
   return at
 }
 
+/**
+ * What the contents' Images list calls a figure block: its figure number and title, its caption, or its pictures'
+ * labels. Null for a block that is not a picture. Page numbers are not printed: the browser's print engine has no
+ * `target-counter`, so a page number could only be added to the printed PDF afterwards.
+ */
+export function imageLabel(block: ReportBlock): string | null {
+  switch (block.kind) {
+    case 'figure':
+      return block.caption || null
+    case 'figurePage':
+      return `${block.number}: ${block.title}`
+    case 'figurePair': {
+      const panels = block.slots.map((slot) => slot.label).join(' / ')
+      return block.title ? `${block.title}${panels ? `: ${panels}` : ''}` : panels || null
+    }
+    case 'mapFigure':
+    case 'figureGrid':
+      return block.caption || null
+    default:
+      return null
+  }
+}
+
 export function reportHtml(report: AssembledReport, logo: ReportLogo | null): string {
   const [first, ...rest] = report.blocks
   const title = first?.kind === 'heading' ? first.text : report.title
@@ -171,7 +194,21 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
   const bodyBlocks = blocks.slice(coverBlocks.length)
   let sectionNo = 0
   const sections: Array<{ id: string; text: string }> = []
+  // The figure pages, for the contents' Images list; each anchored on its own outer element.
+  const images: Array<{ id: string; text: string }> = []
   const html = (block: ReportBlock): string => {
+    const drawn = blockBody(block)
+    const label = imageLabel(block)
+    if (!label) return drawn
+    const id = `f${images.length + 1}`
+    images.push({ id, text: label })
+    // The id goes on the outer element's own tag, after its class, so the page rules that read the tag (`OWN_PAGE`)
+    // are unchanged; an anchor element inside would become the first cell of a figure page's grid.
+    return drawn.replace(/^<([a-z]+)([^>]*)>/, (_, name: string, attrs: string) =>
+      / id="/.test(attrs) ? `<${name}${attrs}>` : `<${name}${attrs} id="${id}">`,
+    )
+  }
+  const blockBody = (block: ReportBlock): string => {
     if (block.kind === 'heading' && block.level === 2) {
       const id = `s${++sectionNo}`
       sections.push({ id, text: block.text })
@@ -220,7 +257,11 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
     : `<header class="title"><div><h1>${e(title)}</h1><p>${e(report.subtitle)}</p></div>${logoBox}</header>`
   const contents =
     report.layout.contents && sections.length
-      ? `<nav class="contents"><h2>Contents</h2><ol>${sections.map((s) => `<li><a href="#${s.id}">${e(s.text)}</a></li>`).join('')}${report.toComplete.length ? '<li><a href="#complete">To complete before signing</a></li>' : ''}</ol></nav>`
+      ? `<nav class="contents"><h2>Contents</h2><ol>${sections.map((s) => `<li><a href="#${s.id}">${e(s.text)}</a></li>`).join('')}${report.toComplete.length ? '<li><a href="#complete">To complete before signing</a></li>' : ''}</ol>${
+          images.length
+            ? `<h4>Images</h4><ol>${images.map((f) => `<li><a href="#${f.id}">${e(f.text)}</a></li>`).join('')}</ol>`
+            : ''
+        }</nav>`
       : ''
   // One line per part, its items run on: the list stays a checklist without taking pages of its own.
   const byPart = new Map<string, string[]>()

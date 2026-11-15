@@ -26,8 +26,16 @@ export interface FigureWording {
     projectNumber: string
     date: string
   }
-  /** Pictures of one view stacked: the before label by its source, the after label, where labels print. */
-  pair: { before: { photo: string; render: string }; after: string; placement: 'inset' | 'caption' }
+  /**
+   * Pictures of one view stacked: the before label by its source, the after label, where labels print, and the
+   * sentence a numbered pair is captioned with (`numberedPairs`), by the before picture's source.
+   */
+  pair: {
+    before: { photo: string; render: string }
+    after: string
+    placement: 'inset' | 'caption'
+    figure?: { photo: string; render: string }
+  }
   /** The overview map's caption, for one viewpoint and for several. */
   overview: { one: string; many: string }
   /** An overhead render's caption. */
@@ -47,7 +55,16 @@ export const DEFAULT_FIGURE_WORDING: FigureWording = {
     projectNumber: 'Project Number',
     date: 'Date',
   },
-  pair: { before: { photo: 'Photograph', render: 'Before-harvest render' }, after: 'Simulation', placement: 'caption' },
+  pair: {
+    before: { photo: 'Photograph', render: 'Before-harvest render' },
+    after: 'Simulation',
+    placement: 'caption',
+    figure: {
+      photo: 'View from {viewpoint} before harvest, and the simulated view after harvest.',
+      render:
+        'View from {viewpoint} before harvest (rendered from the terrain model), and the simulated view after harvest.',
+    },
+  },
   overview: { one: 'Viewpoint location and proposed harvest', many: 'Viewpoint locations and proposed harvest' },
   overhead: 'Overhead render, model confirmation',
   oblique: { one: 'Oblique render, model confirmation', many: 'Oblique renders, model confirmation' },
@@ -202,12 +219,12 @@ export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording)
         field(w.page.projectNumber, project, 'scene'),
         field(w.page.date, longDate(ctx.date), 'run'),
       ]
-      const regional = ctx.images?.regionalMap ?? null
+      const regional = ctx.images?.figurePageMaps?.regional ?? ctx.images?.regionalMap ?? null
       const toComplete: string[] = []
       if (!project) toComplete.push('Project number (licence and cutting permit)')
       if (!regional) toComplete.push('Regional map')
       const blocks = names.map((name, i): ReportBlock => {
-        const location = ctx.images?.locationMaps?.[name] ?? null
+        const location = ctx.images?.figurePageMaps?.location[name] ?? ctx.images?.locationMaps?.[name] ?? null
         const before = beforeSlot(ctx, name, { photo: w.page.before, render: w.page.before })
         const after = afterSlot(ctx, name, w.page.after, 'unseen')
         if (!location) toComplete.push(`${name}: location map and viewpoint`)
@@ -243,6 +260,8 @@ export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording)
  * before label says whether it is a field photograph or a render. With several viewpoints the captions are numbered.
  */
 export function photoSimulationPairsPart(id = 'photo-simulation-pairs', wording?: FigureWording): ReportPart {
+  // A recipe that numbers its pairs (21) counts one figure per viewpoint; otherwise the pairs take no number.
+  FIGURE_COUNTS.set(id, (ctx) => (ctx.recipeOptions?.numberedPairs ? ctx.facts.viewpoints.length : 0))
   return {
     id,
     title: 'Photographs and simulations',
@@ -254,6 +273,8 @@ export function photoSimulationPairsPart(id = 'photo-simulation-pairs', wording?
         return { blocks: [text(NO_VIEWPOINT, 'run')], toComplete: ['Photographs and simulations: save a viewpoint'] }
       const toComplete: string[] = []
       const many = names.length > 1
+      const first = firstFigureNumber(ctx, id)
+      const numbered = !!ctx.recipeOptions?.numberedPairs
       const blocks = names.map((name, i): ReportBlock => {
         const caption = (label: string) =>
           w.pair.placement === 'caption' ? `${label}${many ? ` ${i + 1}` : ''}: ${name}` : label
@@ -261,9 +282,18 @@ export function photoSimulationPairsPart(id = 'photo-simulation-pairs', wording?
         const after = afterSlot(ctx, name, w.pair.after, 'all')
         if (!before.figure) toComplete.push(`${name}: field photograph or render before harvest`)
         if (!after.figure) toComplete.push(`${name}: simulation (save the viewpoint)`)
+        const sentence = w.pair.figure ?? DEFAULT_FIGURE_WORDING.pair.figure!
         return {
           kind: 'figurePair',
           ...(w.pair.placement === 'inset' ? { title: name } : {}),
+          ...(numbered
+            ? {
+                caption: `${fill(w.number, { n: first + i })}. ${fill(
+                  sentence[ctx.images?.before?.[name]?.source ?? 'photo'],
+                  { viewpoint: name },
+                )}`,
+              }
+            : {}),
           placement: w.pair.placement,
           slots: [
             { ...before, label: caption(before.label) },
