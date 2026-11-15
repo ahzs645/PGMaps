@@ -255,6 +255,7 @@ export function RouteFinder({
             referenceSurfaces: w.referenceSurfaces,
             verticalReference: project.terrain.verticalReference,
             sharedCrossingCosts: project.sharedCrossingCosts,
+            gradeStandards: project.standards,
           },
         },
         {

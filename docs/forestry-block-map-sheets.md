@@ -65,7 +65,7 @@ generic and other tools can adopt it; see [Adopting it in another tool](#adoptin
 | LiDAR Design Slope            | Landscape, side panel (`LIDAR_SIDE_PANEL`)       | 1:10,000      | Slope classes         | 10 m, black | `#000000` 2.5 on white 3 | Source bar, class legend         |
 | LiDAR Design Canopy Height    | Same                                             | 1:10,000      | Canopy height classes | 10 m, black | Same                     | Source bar, class legend         |
 | LiDAR Design Hillshade        | Same                                             | 1:10,000      | Greyscale hillshade   | 10 m, black | Same                     | Source bar                       |
-| General Block Access 1:50,000 | Landscape, bottom panels (`ACCESS_BOTTOM_PANEL`) | 1:50,000      | White                 | None        | `#ffaa00` 2.5 on white 3 | Block Access Comments box        |
+| General Block Access 1:50,000 | Landscape, bottom panels (`ACCESS_BOTTOM_PANEL`) | 1:50,000      | White                 | 20 m, black | `#ffaa00` 2.5 on white 3 | Block Access Comments box        |
 | Field Ops Imagery             | Portrait, bottom panels (`IMAGERY_PORTRAIT`)     | 1:10,000      | Satellite imagery     | 10 m, white | `#ffaa00` 2.5 on white 3 | Ruled notes area, imagery credit |
 
 Letter, ANSI D (22 × 34 in), A3 and A4 use the same fractional layout. ANSI D is exactly twice
@@ -85,6 +85,7 @@ at 80 % (`FIT_FILL`).
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | Title bar      | Fill `#ffd37f`, 1 pt black stroke; title Helvetica Bold 16 pt; Lat, Long, F.L., CP and Block fields Helvetica Bold 12 pt, **black** text   |
 | Header fields  | Laid out left to right after the title and measured; shrunk to 7 pt, then cut with "...", so none overlap                                  |
+| Legend labels  | Wrapped onto two lines within the row, then shrunk to 80 %, then cut with "..." (`fitLabel`, `textMetrics.ts`); never overflow the column  |
 | Section bars   | Fill `#ffd37f`, 1 pt black; Helvetica Bold, black, centred                                                                                 |
 | Panels         | White, 1 pt black                                                                                                                          |
 | Scale bar      | Alternating black and white, about 1 cm a segment rounded to 1, 2, 2.5 or 5 × 10ⁿ m; the left segment halved; 2–6 right segments; "Metres" |
@@ -127,6 +128,16 @@ Flat ground prints grey 180.
 | `onImagery` | `#ffffff` 0.35 pt | `#ffffff` 0.25 pt | 6 pt `#ffffff`, no halo                                   |
 
 Labels run along the line every 220 pt, staggered by level, at least 34 pt apart.
+
+The 1:50,000 access sheet sets its own spacing (`contourIntervalM` 20, `contourIndexEvery` 5, so
+100 m index lines): 10 m crowds a 1:50,000 frame. Contours cover the whole frame: when the project's
+terrain does not, the sheet loads the 22 m regional DEM for the frame (`sheetContourSource`,
+`blockSheet.ts`) if the project is on regional terrain or the sheet is at 1:50,000 or smaller, and
+its source line says "from the regional DEM over the whole frame". A detailed (LiDAR) terrain on a
+design-scale sheet is never replaced by 22 m contours; there, contours stop at the edge of the data.
+The preview keeps the loaded terrain, as it keeps a flat colour for imagery. If the regional tiles
+cannot be loaded, the sheet says so and draws contours from the project's terrain only. The legend's
+index-contour label comes from the spacing drawn (`ContourResult.indexEvery`).
 
 **Features** (detail widths up to 1:25,000, `DETAIL_SCALE_LIMIT`; overview widths beyond):
 
@@ -330,8 +341,12 @@ falls in the cell north or east of it.
   operational and spur are not told apart. A road with a recorded deactivation also carries the
   deactivation crosses.
 - The riparian screen's reserve band draws with the reserve symbol and its management and
-  unresolved bands with the riparian management zone symbol. The management zone covers the
-  reserve, so the reserve shows both hatches.
+  unresolved bands with the riparian management zone symbol. Each band is one dissolved zone, not
+  one buffer per stream reach (`mergeRiparianZones`, `riparianDisplay.ts`): provincial streams arrive
+  as short reaches, and a creek of 27 reaches drew 27 overlapping outlines with circles at every
+  joint and the hatch doubled wherever buffers overlapped. The management zone is drawn only
+  outside the reserve, so each piece of ground carries one hatch. If a union fails, the sheet draws
+  the per-reach shapes rather than nothing.
 - In the road tool the block is a harvest area or an imported reference area; with none, the sheet
   frames the roads and block facts print "not recorded". Other harvest areas draw as other blocks;
   avoid areas draw as constraint areas.

@@ -62,6 +62,22 @@ unless marked.
   (`displayedAlignment` in `DevForestryRoads.tsx`) and the road switcher still names the saved
   road. The searches now wait for **Finish road**; the header itself is unchanged.
 
+## Open: memory per edit on large projects (found 2026-11-13)
+
+- **Each edit still keeps the edited road's analysis alive (confirmed).** Measured with forced
+  garbage collection in headless Chromium on a seven-road, 9.7 km project: adding culverts to a
+  2.9 km road keeps about 23 MB per culvert, linearly past 36 culverts. Until 13 November every
+  road was copied on every commit (`snapshotActiveVerticalAlternative` returned a new road whenever
+  the road had a saved vertical alternative), so every edit re-analysed all seven roads and kept
+  about 93 MB, and a headless renderer ran out of memory after about 24 culverts. That copy now
+  returns the same road when nothing changed, and `analysisReuse.ts` keeps the analyses of roads an
+  edit did not touch. What remains is React 18: it refreshes the props it keeps on a DOM node only
+  when a DOM attribute changes (`commitUpdate`), so a wrapper whose only changing prop is its
+  children (`MarkerContent`'s div, a list row's container) keeps the child tree, and through its
+  handlers the whole render, from when it mounted. Each new culvert mounts such nodes, each pinning
+  that edit's analysis. React 19 refreshes those props on every commit; reusing unchanged
+  cross-sections between analyses would also shrink what each pinned render holds.
+
 ## Open
 
 - The gallery's example report (`docs/assets/forestry-roads/native-example-report.html` and

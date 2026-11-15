@@ -27,6 +27,8 @@ import type { BlockSheetSettings } from './blockSheet'
 import type { PreviewPick } from './previewPick'
 import type { ReportSectionId } from './reportContents'
 import { ReportContentsEditor } from './ReportContentsEditor'
+import { ReportPackageEditor } from './ReportPackageEditor'
+import { EstimateSettingsEditor } from './EstimateSettingsEditor'
 import { SheetSetupLibrary } from './SheetSetupLibrary'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
@@ -59,6 +61,7 @@ export function FilesDialog({
   portalContainer,
   reportSettings,
   onReportSettings,
+  slopeSheet,
   issue,
   onIssue,
   today = '',
@@ -81,6 +84,8 @@ export function FilesDialog({
   portalContainer?: HTMLElement | null
   reportSettings?: RoadReportSettings
   onReportSettings?: (settings: RoadReportSettings) => void
+  /** The project has an imported slope sheet (the report package can check estimates against it). */
+  slopeSheet?: boolean
   /** The project's issue stamp, printed on the report, the map PDF and the plot book. */
   issue?: ProjectIssue
   onIssue?: (issue: ProjectIssue) => void
@@ -88,8 +93,9 @@ export function FilesDialog({
   today?: string
   /** The project's roads, for outputs that can hold one or all of them. */
   roads?: { count: number; activeName: string }
-  roadScope?: RoadScope
-  onRoadScope?: (scope: RoadScope) => void
+  /** The road scope each output uses: a report package starts with every road. */
+  roadScope?: RoadScope | ((kind: RoadExport) => RoadScope)
+  onRoadScope?: (scope: RoadScope, kind: RoadExport) => void
   context: ExportContext
   /** Builds one output's preview; `signal` aborts when the selection or project changes. */
   buildPreview: (kind: RoadExport, signal: AbortSignal) => Promise<ExportPreview>
@@ -120,7 +126,10 @@ export function FilesDialog({
   const setupView = setupViews?.[item.kind]
   const reportContents = item.kind === 'report' || item.kind === 'report-pdf'
   const plotBook = item.kind === 'plotbook' || item.kind === 'plotbook-pdf'
-  const setupAvailable = ((plotBook || reportContents) && !!onReportSettings) || !!setupView
+  const reportPackage = item.kind === 'report-package'
+  const estimate = item.kind === 'estimate-pdf'
+  const setupAvailable =
+    ((plotBook || reportContents || reportPackage || estimate) && !!onReportSettings) || !!setupView
   // A view the selected output does not have falls back to its preview.
   const shownView =
     view === 'setup' ? (setupAvailable ? view : 'preview') : view === 'issue' && !stamped ? 'preview' : view
@@ -264,7 +273,13 @@ export function FilesDialog({
                   options={[
                     { value: 'preview' as const, label: 'Preview' },
                     ...(setupAvailable
-                      ? [{ value: 'setup' as const, label: reportContents ? 'Contents' : 'Sheet setup' }]
+                      ? [
+                          {
+                            value: 'setup' as const,
+                            label:
+                              reportContents || reportPackage ? 'Contents' : estimate ? 'Allowances' : 'Sheet setup',
+                          },
+                        ]
                       : []),
                     ...(stamped ? [{ value: 'issue' as const, label: 'Issue stamp' }] : []),
                   ]}
@@ -284,8 +299,8 @@ export function FilesDialog({
                 size="sm"
                 fullWidth={false}
                 label="Roads in this file"
-                value={roadScope}
-                onChange={(scope) => onRoadScope?.(scope)}
+                value={typeof roadScope === 'function' ? roadScope(item.kind) : roadScope}
+                onChange={(scope) => onRoadScope?.(scope, item.kind)}
                 options={[
                   { value: 'active' as const, label: `This road: ${clipName(roads?.activeName ?? '')}` },
                   { value: 'all' as const, label: `All ${roads?.count} roads` },
@@ -310,6 +325,10 @@ export function FilesDialog({
                   {setupLibrary}
                   {setupView}
                 </div>
+              ) : shownView === 'setup' && onReportSettings && estimate ? (
+                <EstimateSettingsEditor value={reportSettings} onChange={onReportSettings} />
+              ) : shownView === 'setup' && onReportSettings && reportPackage ? (
+                <ReportPackageEditor value={reportSettings} onChange={onReportSettings} slopeSheet={slopeSheet} />
               ) : shownView === 'setup' && onReportSettings && reportContents ? (
                 <ReportContentsEditor value={reportSettings} onChange={onReportSettings} focus={setupFocus?.section} />
               ) : shownView === 'setup' && onReportSettings ? (

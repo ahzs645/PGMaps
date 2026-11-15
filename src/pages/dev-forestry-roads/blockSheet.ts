@@ -32,6 +32,7 @@ import { runCooperatively } from './cooperative'
 import { arrowHead, type MapNote } from './mapNotes'
 import { contextSheetKey, isDeactivatedRoad, riparianSheetKey } from './planSheetSymbols'
 import { riparianMapFeatures } from './riparian'
+import { mergeRiparianZones } from './riparianDisplay'
 import { distinctRoadColors } from './roadColors'
 import type { RoadAnalysis, RoadProject, TerrainSource } from './types'
 import type { ExportBrand } from '@/branding/model'
@@ -138,12 +139,15 @@ export function blockSheetLayers(
     constraints: project.context.flatMap((feature) =>
       feature.kind === 'avoid' && feature.geometry.type === 'Polygon' ? [{ geometry: feature.geometry }] : [],
     ),
-    riparian: riparianMapFeatures(project.context).flatMap((feature) => {
+    // One dissolved zone per band, not one buffer per stream reach (`riparianDisplay.ts`). The sheet
+    // draws two bands, so the unresolved screen joins the management zone as before.
+    riparian: mergeRiparianZones(riparianMapFeatures(project.context), (feature) => {
       const key = riparianSheetKey(feature.properties?.riparianBand)
-      const geometry = feature.geometry
-      if (!key || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) return []
-      return [{ geometry, band: key === 'riparianReserve' ? ('reserve' as const) : ('management' as const) }]
-    }),
+      return key === 'riparianReserve' ? 'reserve' : key === 'riparianManagement' ? 'management' : null
+    }).features.map((feature) => ({
+      geometry: feature.geometry,
+      band: feature.properties?.riparianBand === 'reserve' ? ('reserve' as const) : ('management' as const),
+    })),
     streams: project.context.flatMap((feature) =>
       feature.kind === 'stream' && feature.geometry.type === 'LineString'
         ? [{ line: feature.geometry.coordinates as [number, number][], ncd: contextSheetKey(feature) === 'ncd' }]
@@ -213,6 +217,34 @@ export interface BuiltBlockSheet {
   missing: string[]
 }
 
+/** Scale at and beyond which a sheet is an overview whose contours may come from regional terrain. */
+export const OVERVIEW_SHEET_SCALE = 50000
+
+/**
+ * Where a sheet's contours come from. The road tool loads terrain for its roads' extent only (about
+ * 3 x 4 km for a block), while a 1:50,000 frame covers about 20 x 15 km, so contours stopped at the
+ * edge of a small box in the middle of the sheet. When the project's terrain does not cover the
+ * frame, the frame gets regional terrain of its own if the project is on regional terrain anyway or
+ * the sheet is an overview. A detailed (LiDAR) terrain on a design-scale sheet is never swapped for
+ * 22 m contours: there contours stop at the data edge as before.
+ */
+export function sheetContourSource(
+  terrain: { kind: string; bounds?: readonly number[] } | null | undefined,
+  frameBounds: readonly [number, number, number, number],
+  scale: number,
+): 'project' | 'regional-frame' {
+  const b = terrain?.bounds
+  const covers =
+    !!b &&
+    b.length === 4 &&
+    b[0] <= frameBounds[0] &&
+    b[1] <= frameBounds[1] &&
+    b[2] >= frameBounds[2] &&
+    b[3] >= frameBounds[3]
+  if (covers) return 'project'
+  return terrain?.kind === 'regional' || scale >= OVERVIEW_SHEET_SCALE ? 'regional-frame' : 'project'
+}
+
 /** Preview rasters are coarse: the preview is a thumbnail, not a proof. */
 const PREVIEW_DPI = 40
 
@@ -232,6 +264,28 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
         run.terrain ? { source: run.terrain, spacingM: Math.max(1, run.terrainResolutionM) } : undefined,
       )
     : null
+  // Contours over the whole frame (`sheetContourSource`). The preview keeps the loaded terrain, as it
+  // keeps a flat colour for imagery: a thumbnail should not fetch tiles on every setting change.
+  let frameContours = false
+  const contourMissing: string[] = []
+  if (
+    frame.preset.contours &&
+    !run.preview &&
+    sheetContourSource(run.project.terrain, frame.projection.bounds, frame.projection.scale) === 'regional-frame'
+  ) {
+    const [w, s, e, n] = frame.projection.bounds
+    try {
+      const { loadRegionalTerrain } = await import('./terrain')
+      const loaded = await loadRegionalTerrain([w - 0.002, s - 0.002, e + 0.002, n + 0.002], run.signal)
+      sources.contourTerrain = loaded.source
+      frameContours = true
+    } catch (cause) {
+      if (run.signal?.aborted) throw cause
+      contourMissing.push(
+        `Regional terrain for the whole frame could not be loaded (${cause instanceof Error ? cause.message : 'unknown error'}); contours cover the project's terrain only.`,
+      )
+    }
+  }
   const products = await runCooperatively(
     prepareSheetTerrain(frame, sources, run.preview ? PREVIEW_DPI : undefined),
     { signal: run.signal },
@@ -260,7 +314,7 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
           ? 'Canopy height from the canopy surface'
           : '',
     products.contours
-      ? `contours ${products.contours.result.interval} m${products.contours.result.widened ? ' (widened to fit)' : ''}`
+      ? `contours ${products.contours.result.interval} m${products.contours.result.widened ? ' (widened to fit)' : ''}${frameContours ? ' from the regional DEM over the whole frame' : ''}`
       : '',
   ].filter(Boolean)
   const logo =
@@ -290,7 +344,7 @@ export async function buildBlockSheet(run: BlockSheetRun): Promise<BuiltBlockShe
         'This sheet has insufficient room for the selected brand logo. Choose a larger sheet or turn export branding off.',
       )
   }
-  return { sheet, facts, missing: products.missing }
+  return { sheet, facts, missing: [...contourMissing, ...products.missing] }
 }
 
 /** Builds the sheet and returns its PDF. */

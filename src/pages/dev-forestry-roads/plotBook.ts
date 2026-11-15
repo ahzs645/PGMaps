@@ -11,7 +11,9 @@ import { textWidth } from '@/lib/mapSheet/textMetrics'
 import { horizontalCurveSummary } from './engine'
 import { refuseInvalidResults } from './inputErrors'
 import { unknownEarthworkSpans } from './massHaul'
+import { chartsSheetBody } from './chartsSheet'
 import {
+  chartsOptions,
   createRoadReportSettings,
   formatDrawingLabel,
   MAX_REPORT_SHEETS,
@@ -30,6 +32,17 @@ const formatRoadStation = (value: number) => {
   const rounded = Math.round(Math.max(0, value) * 10) / 10
   return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
 }
+/** The sheet border's inset from the paper edge and its line weight, in drawing units. */
+export const SHEET_FRAME = { x: 20, y: 16, stroke: 1.5 } as const
+/** The title block's size; it sits in the border's bottom-right corner. */
+export const TITLE_BLOCK = { width: 620, height: 114 } as const
+/** The charts sheet's legend and statistics strip: inside the frame, left of the title block. */
+const chartsStrip = (W: number) => ({
+  left: SHEET_FRAME.x + 14,
+  top: H - SHEET_FRAME.y - TITLE_BLOCK.height + 4,
+  width: W - 2 * SHEET_FRAME.x - TITLE_BLOCK.width - 30,
+  height: TITLE_BLOCK.height - 8,
+})
 /** Sheet height in drawing units; the width follows the paper (`REPORT_PAPERS`, `viewWidth`). */
 const H = 1123
 /** Drawing units per paper millimetre across the sheet, for a fixed print scale. */
@@ -101,12 +114,14 @@ function titleBlock(
     const length = shown(text, max).length
     return `font-size="${Number((length > max ? Math.max(full * 0.7, (full * max) / length) : full).toFixed(2))}"`
   }
-  const x = W - 640,
-    y = H - 132,
+  // Anchored in the sheet border's bottom-right corner (`SHEET_FRAME`): 2 units short of the border
+  // and a thinner outline, it read as a box floating inside the frame.
+  const x = W - SHEET_FRAME.x - TITLE_BLOCK.width,
+    y = H - SHEET_FRAME.y - TITLE_BLOCK.height,
     split = x + 470
   const author = [stamp.preparedBy, stamp.organisation].filter(Boolean).join(', ')
   const revision = stamp.revision ? `Rev ${stamp.revision.replace(/^rev(ision)?\.?\s*/i, '')}` : 'Rev not recorded'
-  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="620" height="114" fill="#fff" stroke="#111827"/><line x1="${x}" x2="${x + 620}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + 114}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" ${size(project, 44, 16)} font-weight="700">${html(shown(project, 44))}</text><text x="${x + 610}" y="${y + 21}" ${size(revision, 22, 13)} font-weight="700" text-anchor="end" data-role="revision">${html(shown(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" ${size(road, 62, 12)}>${html(shown(road, 62))}</text><text x="${x + 10}" y="${y + 60}" ${size(sheet, 62, 12)} font-weight="600">${html(shown(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" ${size(`${terrain.name} · ${terrain.verticalReference}`, 84, 10)} fill="#4b5563">${html(shown(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" ${size(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84, 10)} data-role="prepared-by">${html(shown(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" ${size(scale, 24, 10)}>${html(shown(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text>${brand ? brandLogoSvg(brand, split + 10, y + 82, 130, 28, unitsPerMm) : `<text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text>`}</g>`
+  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="${TITLE_BLOCK.width}" height="${TITLE_BLOCK.height}" fill="#fff" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/><line x1="${x}" x2="${x + TITLE_BLOCK.width}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + TITLE_BLOCK.height}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" ${size(project, 44, 16)} font-weight="700">${html(shown(project, 44))}</text><text x="${x + 610}" y="${y + 21}" ${size(revision, 22, 13)} font-weight="700" text-anchor="end" data-role="revision">${html(shown(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" ${size(road, 62, 12)}>${html(shown(road, 62))}</text><text x="${x + 10}" y="${y + 60}" ${size(sheet, 62, 12)} font-weight="600">${html(shown(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" ${size(`${terrain.name} · ${terrain.verticalReference}`, 84, 10)} fill="#4b5563">${html(shown(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" ${size(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84, 10)} data-role="prepared-by">${html(shown(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" ${size(scale, 24, 10)}>${html(shown(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text>${brand ? brandLogoSvg(brand, split + 10, y + 82, 130, 28, unitsPerMm) : `<text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text>`}</g>`
 }
 
 /** One plan-and-profile sheet for the stations between `start` and `end`. */
@@ -620,6 +635,32 @@ export function plotBookHtml({
                 : `H 1:${chapter.horizontalScale}, V×${chapter.verticalExaggeration}`,
           })
       }
+    } else if (chapter.kind === 'charts') {
+      // The whole range (or sheet-length windows of it) as profile, grade and mass-haul charts.
+      const window = Math.max(50, chapter.sheetLengthM)
+      if (Math.ceil((rangeEnd - rangeStart) / window) > MAX_REPORT_SHEETS - sheets.length)
+        throw Error(`The report exceeds ${MAX_REPORT_SHEETS} sheets; shorten ranges or increase intervals.`)
+      for (let start = rangeStart; start < rangeEnd - 1e-6; start += window) {
+        const end = Math.min(rangeEnd, start + window)
+        const body = chartsSheetBody({
+          analysis,
+          alignment,
+          start,
+          end,
+          W,
+          limits: gradeLimits,
+          // Curve-point labels are sized for 250 m sheets; across a whole road they pile into white boxes.
+          profileLabels: false,
+          options: chartsOptions(chapter),
+          strip: chartsStrip(W),
+        })
+        if (body)
+          add({
+            title: `${chapter.title} ${formatRoadStation(start)}–${formatRoadStation(end)}`,
+            body,
+            scale: 'Fitted to the sheet',
+          })
+      }
     } else if (chapter.kind === 'sections' || chapter.kind === 'schedule') {
       const sections = sectionStations(analysis, chapter.sectionIntervalM).filter(
         (s) => s.chainage >= rangeStart - 1e-6 && s.chainage <= rangeEnd + 1e-6,
@@ -694,7 +735,7 @@ export function plotBookHtml({
   const pages = sheets
     .map(
       (sheet, i) =>
-        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"${sheet.chapter ? ` data-chapter="${html(sheet.chapter)}"` : ''}><rect width="${W}" height="${H}" fill="#fff"/><rect x="20" y="16" width="${W - 40}" height="${H - 32}" fill="none" stroke="#111827" stroke-width="1.5"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp, W, branding?.brand, W / REPORT_PAPERS[settings.paper].widthMm)}</svg></section>`,
+        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"${sheet.chapter ? ` data-chapter="${html(sheet.chapter)}"` : ''}><rect width="${W}" height="${H}" fill="#fff"/><rect x="${SHEET_FRAME.x}" y="${SHEET_FRAME.y}" width="${W - 2 * SHEET_FRAME.x}" height="${H - 2 * SHEET_FRAME.y}" fill="none" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp, W, branding?.brand, W / REPORT_PAPERS[settings.paper].widthMm)}</svg></section>`,
     )
     .join('')
   const paper = REPORT_PAPERS[settings.paper]

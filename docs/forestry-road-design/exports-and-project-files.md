@@ -54,6 +54,8 @@ formats are specified in the
 | Plot book (`.pdf` and `.html`)   | Active road: A3 plan-and-profile sheets every 250 m with mass haul, then cross-section sheets of twelve every 20 m; title block on each                                                                                                                                                                                                                                                      | Plan drawn in grid metres, rotated to the road; no coordinate grid               | Culverts, curve data, PI table, legend, a fixed print scale                                                                                                     |
 | Printed report (`-report.html`)  | Active road summary, profile, full station table, crossings, materials, culverts, haul, costs, provenance, assumptions, and up to 240 section plots every 20 m                                                                                                                                                                                                                               | Chainage                                                                         | Drainage, plan view, LandXML-level geometry                                                                                                                     |
 | Block map sheet (`-<sheet>.pdf`) | One block on a printed sheet: field layout, LiDAR slope, canopy height or hillshade, 1:50,000 access or portrait imagery. Title bar, block information (area, centroid, BCGS mapsheet, elevation range, typed fields), a legend of what is drawn, Road Information table, scale bar, north arrow, the plan's notes as review markup. See [block map sheets](../forestry-block-map-sheets.md) | Web Mercator, north up; scale true at the frame's centre latitude; DMS graticule | Sections, profiles, culverts, haul; road surface classes; the reference sheets' BC Albers rotation                                                              |
+| Report package (`-report-package.pdf`, or `.zip`) | The road on screen or every road: a cover with contents and page numbers, the chosen block sheets, each road's report and plot book with the chosen parts; each part placed in an appendix is a PDF of its own with its own cover                                                                                                                                                            |
+| Preliminary estimate (`-preliminary-estimate.pdf`) | Every road (or the one on screen) priced low, medium and high on copies of it, beside its estimate as imported, with the allowances and what each level did |
 
 The plot book and report are self-contained HTML with no scripts or network resources. Open
 them and use the browser's **Print / Save as PDF**; set the paper to A3 landscape for the plot
@@ -243,7 +245,7 @@ Those results are not the current design, so each output follows one rule
 
 | Rule       | Outputs                                                                                                                                       | Why                                                                                                            |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Stamped    | Report HTML, Report PDF, Map PDF, Block map sheet                                                                                             | A person reads them, and the stamp is the first thing on the page                                              |
+| Stamped    | Report HTML, Report PDF, Map PDF, Block map sheet, Report package (refused while it holds plot-book sheets)                                   | A person reads them, and the stamp is the first thing on the page                                              |
 | Refused    | LandXML, DXF, Stakeout CSV, Plot book, Station CSV, GeoJSON, Shapefile, and the Station table, Engineering and Selected-section CSV downloads | They go to a contractor or into other software, and have nowhere to carry a notice their reader will see       |
 | Unaffected | Project JSON, Map notes, Terrain surface and grid, Stream register, Fish & watershed evidence                                                 | They hold no calculated design result. The project JSON is still refused by its own validation, as noted above |
 
@@ -537,10 +539,11 @@ cut_fill_m, epsg`. Cut/fill is ground minus design: positive is cut.
 
 ### One road or every road
 
-GeoJSON and the shapefile can hold more than one road. Save & export offers **This road** and
-**All _N_ roads** for them, and starts on **This road**: a file handed to someone else then carries
+GeoJSON, the shapefile and the report package can hold more than one road. Save & export offers **This road** and
+**All _N_ roads** for them. GeoJSON and the shapefile start on **This road**: a file handed to someone else then carries
 the road on screen, not a superseded alternative or the starter line a project begins with
-(`exportRoads`, `exportCatalog.ts`). The choice is not saved with the project. The project file
+(`exportRoads`, `exportCatalog.ts`). The report package is the project's document and starts on
+**All _N_ roads**, with its own choice. Neither choice is saved with the project. The project file
 always holds every road.
 
 ### Issue stamp
@@ -584,6 +587,52 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   fitted to that window's elevation range. Each auto-fit sheet prints the exaggeration it is drawn
   at ("2.9× on this sheet"); before 13 November 2026 it printed the setting, 1×, whatever was
   drawn. Compare grades by their labels, not by eye across sheets.
+- **Profile, grade & mass haul** is a chapter you add in Sheet setup (`charts`, `chartsSheet.ts`).
+  It draws the chapter's whole station range on one sheet (10,000 m by default) as three stacked
+  charts on one station axis: the profile (ground, design and prepared ground where entered; the
+  curve-point labels stay on the 250 m plan-and-profile sheets, where they have room), the grade with the project's limits from
+  `gradeRule` (with a loaded direction set, the adverse limit drawn on the side loaded trucks climb
+  and the favourable on the other, and the short-pitch allowance), shaded where the design is over
+  the limit its own direction is held to (`sustainedLimit`, as Review judges it), with the ground's grade for comparison, and the mass-haul
+  curve with unknown earthwork shaded. Every panel has a y-axis title (elevation, grade, mass) and
+  the lowest one carries the station labels. Like every sheet it prints as vector PDF and as SVG in
+  the HTML plot book. It is not in the default book, so existing plot books are unchanged.
+- **The charts chapter's options** (`ChartsOptions`, `chartsOptions.ts`; Sheet setup under the
+  chapter) choose:
+  - **Panels:** any of profile, grade and mass haul, at least one. The panels share the sheet's
+    height, the profile taking twice a share.
+  - **Station axis every:** 50, 100, 200, 250, 500 or 1,000 m, or automatic. A spacing too dense
+    to label every tick labels every second, fifth or tenth one.
+  - **Grade axis:** fitted to the steepest design or ground grade (rounded out to 5 %, at most
+    ±100 %), or a fixed ±10–50 %. Grades past a fixed range are drawn at its edge, and the panel
+    title says so.
+  - **Legend and statistics** in the strip left of the title block. The statistics are for the
+    sheet's range (`chartStats`): length, design elevations, climb and descent, the net average
+    grade and the average grade in either direction, the steepest climb and descent, the length
+    over the sustained limit, cut and fill, and the share of the length whose earthwork is known.
+  - **Statistics every:** off, or 100, 200, 250, 500 or 1,000 m. A band under the lowest chart
+    gives each interval a column on the same station axis (`intervalStats`): its start station,
+    the design's net average grade, its steepest design grade (red past the sustained limit), the
+    design's rise, the ground's net grade and the cut and fill of the station intervals ending in
+    it ("—" where the earthwork is unknown). The last interval stops at the sheet's end.
+  - **Statistics shown as:** the table above, or on the profile itself (`profileIntervalsSvg`),
+    where a dashed line marks every interval boundary and each interval's average grade, with its
+    steepest grade under it (red past the sustained limit), prints in a small box **at the top**
+    or **at the bottom** of the interval, or **along the average-grade line**: a dashed line from
+    the interval's first design point to its last, labelled with its grade turned to its slope,
+    and the steepest grade under it only where it is over the limit. Labels sit on a white backing
+    and shrink to fit their interval. Without a profile panel the statistics print as the table.
+  - **Statistics for:** on the profile, the design line alone or the **design and ground
+    lines**. With both, the ground's net grade prints beside the design's, each in its line's
+    colour (darker teal and brown, to read as text): under it in the top and bottom boxes, and in
+    the line style as a second dashed average line along the ground, labelled on the opposite
+    side from the design's. The top and bottom styles stretch the elevation axis by the boxes'
+    height, so the boxes sit in clear space and never cover the profile.
+    A chapter without options prints all three panels with the legend and statistics and no band.
+- **Value axes end on a tick** (`valueAxis`): about one labelled line every 55 drawing units of
+  panel height (at least five), on 1, 2, 2.5 or 5 × 10ⁿ steps, so the gaps above the top line and
+  below the bottom one match the rest. Each y-axis title sits just outside its panel's widest
+  label. A fixed grade range keeps its own ends and labels only the ticks inside it.
 - **Cross-sections are drawn at equal horizontal and vertical scale** inside each cell ("1:1"
   means that, not a print ratio), and each cell has its own scale.
 - **Contours come from the active terrain** over the road's extent plus 0.002°, sampled at 256
@@ -616,6 +665,22 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
 - **A click on a preview sheet opens that chapter's settings,** and a click on a title block
   opens the issue stamp (`previewPick.ts`). The Preview / Sheet setup / Issue stamp switch does
   the same from the keyboard.
+
+### Preliminary estimate
+
+**Save & export → Preliminary estimate** writes `-preliminary-estimate.pdf`: the low, medium and
+high estimate of each road beside its estimate as imported, the same range the package summary can
+print (see **Report package**), as a document of its own. Like the package it starts on **All
+roads**. **Allowances** holds the cross-drain spacing and price and the end-haul rate (blank by
+default; a blank one is counted and named, never priced) and whether its figures include
+contingency. The allowances are saved in the project's report settings (`estimate`) and are the
+same ones the package's range uses; the contingency choice is the export's own. The page prints
+the project and roads, the issue stamp and planning caveat, tiles for the total length, the
+estimate as imported and each level, the findings that bear on the range (the range itself, the
+slope sheet, how much earthwork is known, the terrain), the range table with what each level did
+on each road, and the allowance notes. The high level benches the stretches a slope sheet shows
+steeper whenever the project has one, whatever the package's slope-sheet choice. It is stamped
+like the reports, and the preview is the page it prints.
 
 ### Printed report
 
@@ -660,18 +725,127 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   are stale. The project JSON retains the canonical input
   signature and is the editable restoration format; GeoJSON import does not restore a comparison.
 
+### Report package
+
+Save & export → Documents → **Report package** writes the report, the plot book and block map
+sheets as one PDF with a cover, for the road on screen or every road (`reportPackage.ts`,
+`reportPackagePdf.ts`).
+
+- **Every part goes in the package, in an appendix, or nowhere.** **Contents** lists each report
+  section, each plot-book chapter kind (profile, grade and mass haul; plan and profile; cross-
+  sections; station schedule; curves; culverts; materials) and each block sheet, with **In
+  package**, **Appendix (separate PDF)** or **Leave out**. The choice is saved in the project's
+  `reportSettings.package`, keeping only the parts changed from the default, and **Reset to
+  defaults** clears it. By default the cross-sections and station schedule (report and plot book)
+  are appendices, the field layout sheet, the charts and the plan-and-profile sheets are in the
+  package, and the other plot-book chapters and sheets are left out.
+- **Each appendix part is its own PDF,** named `<project>-appendix-<part>.pdf`, holding that part
+  for every road. More than one PDF downloads as `<project>-report-package.zip`; one downloads as
+  the PDF itself.
+- **Every PDF opens with a cover**: the project, the roads, the issue stamp and planning caveat,
+  what the file holds, a contents list giving the page each road's report and plot book starts on,
+  the package's other files and what it leaves out. A contents list long enough to take the
+  cover to a second page moves every page number on; the cover is laid out twice to count it.
+- **A report in the package prints its always-printed parts** (title, stamps, status, terrain and
+  assumptions, limitations), so each file stands alone. In place of the partial print's
+  left-out line it says which file holds the other sections and which are out of the package
+  (`packageReportNotice`).
+- **Plot-book chapters use the plot book's Sheet setup** for that kind of chapter (range, sheet
+  length, interval) and its subviews and paper. A kind the setup has no chapter for prints with
+  the chapter defaults (`createReportChapter`).
+- **Block sheets print once per file,** not per road, with the Block map sheet setup; the package
+  overrides only the sheet kind.
+- **While an input is invalid** the reports carry the "Not current" stamp and so does the cover;
+  a package that holds plot-book sheets is refused, as the plot book is.
+- **A road with no calculated results is left out** and the notice says so.
+- **Presets.** **Full package** is the default above. **Simplified (summary and charts)** opens
+  with the summary page instead of a cover and prints each road's charts sheet after it, with
+  every other part left out: one or two pages for one road. Its charts sheet shows the profile and
+  the grade without mass haul, stations every 200 m and the statistics band every 200 m. Changing
+  any part, summary or chart option afterwards makes it **Custom**; the contingency choice is kept
+  across presets.
+- **The package's charts** (`ReportPackageSettings.charts`): with the charts sheet in the package,
+  **Contents** offers its panels, **Station axis every**, **Statistics every** and **Statistics
+  shown as**. They sit over the plot book's own charts chapter (or the chapter defaults) for the
+  package only; the plot book export is unchanged.
+- **Front page: cover or summary.** The summary (`packageSummary.ts`) is drawn by the report PDF
+  renderer from the roads' own analyses and readiness rows (`reportReview`, the rows each report
+  prints); it estimates nothing itself. Each of its sections can be switched off:
+  - **Key figures:** length, cut, fill, estimate and cost per kilometre.
+  - **Grade figures:** the net average grade (one road), the average grade in either direction,
+    the steepest design grade, the length over the sustained limit, and climb and descent.
+  - **Findings:** plain statements of what the figures show — the three largest cost groups with
+    their dollars and shares, where the design is steeper than the sustained limit, the share of
+    the length with known earthwork, the readiness counts and what the terrain supports.
+  - **Road summary table**, **cost by category chart** and **cost breakdown table**. The
+    breakdown prints the rate each item was priced at beside it (`costRates.ts`, read from the
+    same inputs the engineering cost uses): material excavation rates per bank m³ (naming each
+    material when they differ), fill placement, surfacing (the delivered rate of an entered
+    source), clearing per m² and ha, the culverts' installed $/m, the haul, borrow and waste rates,
+    mobilization as a lump sum and contingency as a share of the subtotal. With several roads
+    priced differently it says so and points to each report. A road with no engineering inputs
+    still gets its lines: cut, fill, surfacing and clearing at the project's rates plus any
+    crossing estimate (`baseCosts`), with a sentence naming what is not priced (haul, borrow,
+    waste, culverts, site preparation, mobilization, contingency).
+  - **Open items:** each road's readiness checks needing attention, as "check: result".
+  - **Contents:** what follows in the file with its page, the appendix files and what is left out.
+    The summary is laid out twice so its page numbers count its own length.
+- **Slope sheet** (on the summary page, when the project has an imported slope sheet). **Check
+  beside the estimate**, the default, adds a "Slope sheet check" table: for each road the length
+  the sheet reaches, the share of a ±20 m strip it prints at 60%+ against the same share on the
+  ground the estimate was calculated from, and the 200 m stretches where the sheet shows 15
+  points more (`slopeSheetCheck.ts`), with a findings line naming the roads. **Check and high
+  case** adds the high case: each flagged stretch full-benched on a copy of the road
+  (`slopeSheetCase.ts`, `fullBenchProfile`), both copy and road analysed the same way, and what
+  the benching adds printed beside the estimate. The estimate and every other figure stay the
+  road's own. The high case is measured on the estimate's terrain, so it is a floor under the
+  steep-ground cost, not its ceiling, and the surplus cut goes to end haul only where the road
+  prices haul (the page says which). **Not on the summary** leaves both out. The check is also a
+  Review row, so it prints in each road's report whatever this choice is.
+- **Low, medium and high estimates** (on the summary page, off until ticked; the same range is
+  also the **Preliminary estimate** export, below). Each road priced
+  three ways on copies of it (`estimateRange.ts`); its own estimate and every other figure are
+  unchanged. **Low** is the best case of **Compare best and worst case**: the 1:1 fill wherever it
+  closes a section, and the longer reach that closes the rest. **Medium** gives each stretch the
+  fix Review leads with (`stretchFixes`): full bench on ground at `FULL_BENCH_SIDESLOPE_PERCENT` or
+  steeper, else the 1:1 fill, else the reach. **High** full-benches every fill stretch, and the
+  stretches the slope sheet shows steeper when the project has one. A road whose sections all close
+  has the same figure at each level. The as-imported estimate leaves out the sections that do not
+  close, so every level can sit above it, and the page says so. Three allowances are the person's
+  own, blank by default and shared with the Preliminary estimate export
+  (`reportSettings.estimate`): **Cross-drain every (m)** and **Each cross-drain ($)** add culverts
+  past those already entered to medium and high; **End haul ($/m³)** prices the surplus cut of a
+  road that prices no haul of its own, at every level. A blank one is counted and named ("counted
+  but not priced", "has no end-haul price"), never filled with a workspace figure. The summary
+  adds a range tile, a findings line, a table per road with an all-roads row, and what each level
+  did on each road. Ranges are kept per road analysis and allowances, so a preview does not
+  recompute them.
+- **Contingency in or out.** With **Include contingency in estimates and totals** off, every
+  summary figure and total is before contingency, the breakdown ends at "Total before
+  contingency", and the estimate tile says so. The reports' own cost tables always print the
+  subtotal, contingency and total.
+- **Subtotal and total rows print bold and shaded across the table** in every report PDF: a
+  table row made only of header cells is drawn like the header row. A heading directly over a
+  chart keeps the whole chart with it, so a chart taller than the usual keep space never leaves
+  its heading alone at the foot of a page.
+
 ### Autosave and restore
 
 - **Projects are kept in a library in this browser.** **Projects** in the header lists them with
   their terrain, road count and last edit; open, duplicate or delete one there (the open project
-  cannot be deleted). **New project** starts from a regional DEM around a chosen place (a square
+  cannot be deleted). **New project** starts from a block's map files (a folder of shapefiles
+  and company map PDFs: the project is placed on the regional DEM under their roads and blocks,
+  named after the folder, and the [import review](source-pdf-import.md) opens on it), from a
+  regional DEM around a chosen place (a square
   1–10 km wide, recorded as the terrain's `bounds` so a reopened project loads the same square),
   an imported GeoTIFF/LAS/LAZ, the BC LiDAR sample or the training example, and asks for the job's
   [design standards](review-and-standards.md#design-standards) with starting values filled in. The
   new project records them as confirmed that day, and its first road takes the running-surface
   width and the design vehicle. A project always holds
   at least one road, so the first three start with a straight 300 m road (`starterAlignment`) to
-  drag or replace; the BC sample brings its example road. Opening a project file, and the sidebar's
+  drag or replace; the BC sample brings its example road. A project file picked while the
+  workspace is busy opens as soon as it is free, and one picked while a first visit's example
+  road is still loading stops that load (the file replaces it). Opening a project file, and the sidebar's
   **Training example**, start a new project too; the one that was open stays saved.
 - **A project file whose name matches a saved project asks first.** **Replace saved project** opens
   the file in that project's place, overwriting the version in this browser. **Keep both** opens it

@@ -1,5 +1,13 @@
 /** Portable bounded report authoring. Label templates substitute whitelisted data; never eval code. */
 import { parseOmittedSections, type ReportSectionId } from './reportContents'
+import { DEFAULT_CHARTS_OPTIONS, parseChartsOptions, type ChartsOptions } from './chartsOptions'
+import {
+  isDefaultPackage,
+  parseEstimateSettings,
+  parseReportPackage,
+  type EstimateSettings,
+  type ReportPackageSettings,
+} from './reportPackage'
 
 export const REPORT_CHAPTER_KINDS = [
   'plan-profile',
@@ -8,6 +16,7 @@ export const REPORT_CHAPTER_KINDS = [
   'curves',
   'structures',
   'materials',
+  'charts',
 ] as const
 export type ReportChapterKind = (typeof REPORT_CHAPTER_KINDS)[number]
 export const REPORT_COLUMNS = [
@@ -36,6 +45,28 @@ export interface ReportChapter {
   horizontalScale: number | null
   verticalExaggeration: number
   columns: ReportColumn[]
+  /** Profile, grade & mass haul chapters only. Absent reads as `DEFAULT_CHARTS_OPTIONS`. */
+  charts?: ChartsOptions
+}
+
+export {
+  CHART_GRADE_RANGES,
+  CHART_INTERVALS,
+  CHART_INTERVAL_LINES,
+  CHART_INTERVAL_STYLES,
+  CHART_PANELS,
+  CHART_STATION_TICKS,
+  DEFAULT_CHARTS_OPTIONS,
+  chartsTitle,
+  INTERVAL_LINES_LABELS,
+  INTERVAL_STYLE_LABELS,
+  type ChartIntervalLines,
+  type ChartIntervalStyle,
+  type ChartPanel,
+  type ChartsOptions,
+} from './chartsOptions'
+export function chartsOptions(chapter: Pick<ReportChapter, 'charts'>): ChartsOptions {
+  return chapter.charts ?? DEFAULT_CHARTS_OPTIONS
 }
 /**
  * Plot-book paper, landscape. Each sheet is drawn 1123 units high; `viewWidth` keeps the paper's
@@ -84,6 +115,10 @@ export interface RoadReportSettings {
   curveTablePosition: 'chapter' | 'plan-sheet' | 'none'
   /** Report sections left out of the printed report (`reportContents.ts`); absent prints them all. */
   omittedSections?: ReportSectionId[]
+  /** Where each part goes in the report package (`reportPackage.ts`); absent means every default. */
+  package?: ReportPackageSettings
+  /** The preliminary estimate's allowances and contingency (`EstimateSettings`); absent is all blank. */
+  estimate?: EstimateSettings
 }
 export const MAX_REPORT_CHAPTERS = 16
 export const MAX_REPORT_SHEETS = 500
@@ -97,11 +132,13 @@ export function createReportChapter(kind: ReportChapterKind, id: string): Report
       curves: 'Horizontal curves',
       structures: 'Culvert inventory',
       materials: 'Material quantities',
+      charts: 'Profile, grade & mass haul',
     }[kind],
     kind,
     startM: null,
     endM: null,
-    sheetLengthM: 250,
+    // A charts chapter draws its whole range on one sheet unless the range is shortened.
+    sheetLengthM: kind === 'charts' ? 10000 : 250,
     sectionIntervalM: 20,
     horizontalScale: null,
     verticalExaggeration: 1,
@@ -198,6 +235,8 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
       horizontalScale: optional(c.horizontalScale, 50, 100000, 'Horizontal scale denominator'),
       verticalExaggeration: number(c.verticalExaggeration, 0.1, 20, 'Vertical exaggeration'),
       columns: [...c.columns] as ReportColumn[],
+      // Written only when set, so a file saved before chart options existed reads back unchanged.
+      ...(c.charts === undefined ? {} : { charts: parseChartsOptions(c.charts) }),
     }
   })
   if (new Set(chapters.map((c) => c.id)).size !== chapters.length) throw Error('Report chapter IDs must be unique.')
@@ -212,6 +251,8 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
   if (!['chapter', 'plan-sheet', 'none'].includes(r.curveTablePosition as string))
     throw Error('Unknown curve table position.')
   const omittedSections = parseOmittedSections(r.omittedSections)
+  const reportPackage = r.package === undefined ? undefined : parseReportPackage(r.package)
+  const estimate = r.estimate === undefined ? undefined : parseEstimateSettings(r.estimate)
   return {
     schema: 'pgmaps-road-report-v1',
     paper: r.paper as ReportPaper,
@@ -232,5 +273,8 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
     labelOffsetY: number(r.labelOffsetY, -100, 100, 'Label Y offset'),
     curveTablePosition: r.curveTablePosition as RoadReportSettings['curveTablePosition'],
     ...(omittedSections?.length ? { omittedSections } : {}),
+    // Written only when a part was moved from its default, so older files read back unchanged.
+    ...(reportPackage && !isDefaultPackage(reportPackage) ? { package: reportPackage } : {}),
+    ...(estimate && Object.keys(estimate).length ? { estimate } : {}),
   }
 }

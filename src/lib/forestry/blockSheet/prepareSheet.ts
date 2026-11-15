@@ -48,6 +48,8 @@ export interface SheetTerrainSources {
   terrain?: HeightSource
   /** Canopy heights above ground, for the canopy height sheet. */
   canopy?: HeightSource
+  /** Ground elevations covering the whole frame, for contours where `terrain` covers less of it. */
+  contourTerrain?: HeightSource
 }
 
 export type SheetTerrainProducts = Pick<ComposeInput, 'base' | 'contours'> & {
@@ -71,8 +73,9 @@ export function* prepareSheetTerrain(
   }
   const needsRaster = preset.base === 'slope' || preset.base === 'hillshade' || preset.base === 'canopy-height'
   const rasterSource = preset.base === 'canopy-height' ? sources.canopy : sources.terrain
+  const contourSource = sources.contourTerrain ?? sources.terrain
   const total =
-    (needsRaster && rasterSource ? raster.height : 0) + (preset.contours && sources.terrain ? contourSize.height : 0)
+    (needsRaster && rasterSource ? raster.height : 0) + (preset.contours && contourSource ? contourSize.height : 0)
   let done = 0
   let base: SheetTerrainProducts['base']
   if (needsRaster) {
@@ -108,15 +111,19 @@ export function* prepareSheetTerrain(
   }
   let contours: SheetTerrainProducts['contours']
   if (preset.contours) {
-    if (!sources.terrain) missing.push('No terrain is loaded, so the sheet has no contours.')
+    if (!contourSource) missing.push('No terrain is loaded, so the sheet has no contours.')
     else {
-      const steps = sampleSheetGrid(sources.terrain, box, contourSize.width, contourSize.height)
+      const steps = sampleSheetGrid(contourSource, box, contourSize.width, contourSize.height)
       let next = steps.next()
       while (!next.done) {
         yield (done + next.value) / Math.max(1, total)
         next = steps.next()
       }
-      const result: ContourResult = gridContours(next.value, CONTOUR_INTERVAL_M, CONTOUR_INDEX_EVERY)
+      const result: ContourResult = gridContours(
+        next.value,
+        preset.contourIntervalM ?? CONTOUR_INTERVAL_M,
+        preset.contourIndexEvery ?? CONTOUR_INDEX_EVERY,
+      )
       contours = { result, gridWidth: contourSize.width, gridHeight: contourSize.height }
     }
   }

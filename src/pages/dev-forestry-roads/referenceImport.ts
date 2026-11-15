@@ -47,10 +47,12 @@ export function defaultHiddenReferenceLayers(project: RoadProject) {
 
 export function layerImportOptions(file: SpatialFile): LayerImportRole[] {
   if (file.pdf?.contourSurface) return ['terrain']
+  // A PDF's line drawing is one painting operation, not a record: its pieces are never roads. A GIS
+  // record of several parts is (one road per part, `linePartCount`).
   if (
     file.pdf?.sheet ||
     file.pdf?.classGrid ||
-    file.collection.features.some((f) => f.geometry.type === 'MultiLineString')
+    file.collection.features.some((f) => f.geometry.type === 'MultiLineString' && (file.pdf || f.properties?.pdfSource))
   )
     return ['reference']
   const shapes = new Set(file.collection.features.map(shapeOf))
@@ -58,6 +60,83 @@ export function layerImportOptions(file: SpatialFile): LayerImportRole[] {
   if (shapes.size === 1 && shapes.has('polygon')) return ['reference', 'planned-block']
   return ['reference']
 }
+
+/** How many single lines a file's line features hold: a multi-part record loads one road per part. */
+export function linePartCount(file: SpatialFile) {
+  return file.collection.features.reduce(
+    (n, f) =>
+      n +
+      (f.geometry.type === 'MultiLineString'
+        ? f.geometry.coordinates.length
+        : f.geometry.type === 'LineString'
+          ? 1
+          : 0),
+    0,
+  )
+}
+
+/**
+ * WGS84 [west, south, east, north] of the design inputs among the choices: proposed roads and
+ * planned blocks, the ground a terrain has to cover. Null when there are none.
+ */
+export function designExtent(
+  choices: readonly Pick<LayerImportChoice, 'file' | 'role'>[],
+): [number, number, number, number] | null {
+  let w = Infinity,
+    s = Infinity,
+    e = -Infinity,
+    n = -Infinity
+  const visit = (value: unknown): void => {
+    if (!Array.isArray(value)) return
+    if (typeof value[0] === 'number' && typeof value[1] === 'number') {
+      w = Math.min(w, value[0])
+      e = Math.max(e, value[0])
+      s = Math.min(s, value[1])
+      n = Math.max(n, value[1])
+    } else value.forEach(visit)
+  }
+  for (const { file, role } of choices)
+    if (role === 'proposed-road' || role === 'planned-block')
+      for (const f of file.collection.features) if ('coordinates' in f.geometry) visit(f.geometry.coordinates)
+  return Number.isFinite(w + s + e + n) ? [w, s, e, n] : null
+}
+
+/**
+ * WGS84 bounds of every GIS feature the files hold, map sheets and class grids left out: where a
+ * new project goes when the files have no road or block to design on. Null when there are none.
+ */
+export function layersExtent(files: readonly SpatialFile[]) {
+  return designExtent(
+    files
+      .filter((file) => !file.pdf?.sheet && !file.pdf?.classGrid)
+      .map((file) => ({ file, role: 'planned-block' as const })),
+  )
+}
+
+/** A note several files share prints once, naming the files, instead of once per file. */
+export function groupNotes(notes: readonly string[]): string[] {
+  const byText = new Map<string, string[]>()
+  const order: string[] = []
+  for (const note of new Set(notes)) {
+    const match = /^(.+?\.(?:pdf|shp|geojson|json|kml|kmz|zip)): (.+)$/i.exec(note)
+    const key = match ? match[2] : note
+    if (!byText.has(key)) {
+      byText.set(key, [])
+      order.push(key)
+    }
+    if (match) byText.get(key)!.push(match[1])
+  }
+  return order.map((text) => {
+    const files = byText.get(text)!
+    if (files.length === 0) return text
+    if (files.length === 1) return `${files[0]}: ${text}`
+    return `${text} (${files.length} files: ${files.map((f) => f.split('/').at(-1)).join(', ')})`
+  })
+}
+
+/** A copy's name ("x - Copy.pdf", "x (1).pdf", "Copy of x.pdf") sorts after the file it copies. */
+const isCopyName = (path: string) =>
+  /(?: - Copy(?: \(\d+\))?| copy| \(\d+\))\.[a-z]+$/i.test(path) || /(?:^|\/)Copy of /i.test(path)
 
 /** Conservative suggestions shown for review: numbered operational roads and a canonical block file. */
 export function suggestedLayerRole(file: SpatialFile): LayerImportRole {
@@ -141,7 +220,10 @@ export async function readReferenceImport(picked: readonly PickedFile[], signal?
   )
   const byPath = new Map(files.map(({ path, file }) => [path.toLowerCase(), file]))
   const layers = files.filter(({ path }) => LAYER_FILE.test(path)).sort((a, b) => a.path.localeCompare(b.path))
-  const pdfs = files.filter(({ path }) => /\.pdf$/i.test(path)).sort((a, b) => a.path.localeCompare(b.path))
+  // Originals first, so an identical copy is the one named and left out.
+  const pdfs = files
+    .filter(({ path }) => /\.pdf$/i.test(path))
+    .sort((a, b) => Number(isCopyName(a.path)) - Number(isCopyName(b.path)) || a.path.localeCompare(b.path))
   if (!layers.length && !pdfs.length)
     throw Error('Choose a Canfor map PDF, a folder with shapefiles, GeoJSON, KML, KMZ or a shapefile ZIP.')
 

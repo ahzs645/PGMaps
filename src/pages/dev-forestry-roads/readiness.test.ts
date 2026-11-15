@@ -126,6 +126,7 @@ function assess(
     vehicle?: ReadinessInput['vehicle']
     terrain?: ReadinessInput['terrain']
     source?: TerrainSource
+    slopeSheet?: ReadinessInput['slopeSheet']
   } = {},
 ) {
   const alignment = options.alignment ?? road()
@@ -143,6 +144,7 @@ function assess(
     cost: assessCostReadiness(analysis, alignment, settings),
     drainage: options.drainage,
     vehicle: options.vehicle,
+    ...(options.slopeSheet === undefined ? {} : { slopeSheet: options.slopeSheet }),
   })
   const row = (id: string) => {
     const found = rows.find((item) => item.id === id)
@@ -506,6 +508,21 @@ describe('assessReadiness: limits and states', () => {
       terrain: { kind: 'regional', name: 'CDEM', resolutionM: 20, verticalReference: 'CGVD2013' },
     })
     expect(coarse.row('terrain-source')).toMatchObject({ state: 'attention', severity: 'limit' })
+    // A fine grid whose missing cells a coarse source filled is judged by that source too.
+    const filled = assess({
+      terrain: {
+        kind: 'geotiff',
+        name: 'Contours + regional DEM',
+        resolutionM: 2,
+        verticalReference: 'CGVD2013',
+        fill: { name: 'the regional DEM', resolutionM: 22, sharePercent: 68 },
+      },
+    })
+    expect(filled.row('terrain-source')).toMatchObject({
+      state: 'attention',
+      severity: 'limit',
+      result: 'Terrain is too coarse for earthworks where 68% of its cells come from the regional DEM (about 22 m)',
+    })
   })
 
   it('raises an excluded area the centreline enters, and names it', () => {
@@ -1152,5 +1169,48 @@ describe('buildCrossingRegister', () => {
     expect(crossingRegisterSummary(buildCrossingRegister({ alignment, analysis, context }))).toBe(
       '1 mapped · modelled crossings not checked',
     )
+  })
+})
+
+describe('the slope sheet row', () => {
+  const check = (stretches: { from: number; to: number; sheet: number; terrain: number }[]) => ({
+    sheet: 'Slope.pdf',
+    coveredLengthM: 400,
+    roadLengthM: 500,
+    samples: 4000,
+    exactPercent: 30,
+    sheetSteepPercent: 25,
+    terrainSteepPercent: 12,
+    intervals: [],
+    stretches: stretches.map((s) => ({
+      from: s.from,
+      to: s.to,
+      samples: 400,
+      sheetSteepPercent: s.sheet,
+      terrainSteepPercent: s.terrain,
+    })),
+  })
+  it('is left out without a slope sheet, and not assessed where the sheet misses the road', () => {
+    expect(assess().rows.some((r) => r.id === 'slope-sheet')).toBe(false)
+    expect(assess({ slopeSheet: null }).row('slope-sheet')).toMatchObject({
+      state: 'not-assessed',
+      result: 'The slope sheet does not reach this road',
+    })
+  })
+  it('names the stretches the sheet shows steeper, and goes to the first', () => {
+    const { row } = assess({ slopeSheet: check([{ from: 200, to: 390, sheet: 30, terrain: 2 }]) })
+    expect(row('slope-sheet')).toMatchObject({
+      state: 'attention',
+      severity: 'todo',
+      result:
+        'The slope sheet shows more steep ground than the terrain on 1 stretch: full bench and end haul may be understated (0+200.0–0+390.0, 30% against 2%)',
+      action: { target: 'station', chainage: 200 },
+    })
+    expect(row('slope-sheet').measured).toMatch(
+      /^Slope\.pdf: 25% of the strip at 60%\+ against 12% on the terrain, over 400 of 500 m/,
+    )
+  })
+  it('is met when no stretch differs', () => {
+    expect(assess({ slopeSheet: check([]) }).row('slope-sheet').state).toBe('met')
   })
 })

@@ -61,7 +61,8 @@ named alternative roads, visible streams/roads/harvest/review areas, earthworks,
 cables, drainage results, station controls and temporary planning overlays. Reused access,
 loaded material haul and empty return paths have separate entries when those paths are drawn.
 Under **Map settings → Legend and map symbols**, choose **Standard road plan** or **Block sheet
-forestry**. Both symbol sets remain available; the map context and its legend change together.
+forestry**. The plan starts on **Block sheet forestry**, the symbols of printed block-map sheets;
+both sets remain available, and the map context and its legend change together.
 The choice is remembered in this browser across reloads and interface changes, independently of
 branding. Map PDFs capture the selected symbols and any visible legend.
 The list follows the displayed layer data and visibility switches; it does not filter entries

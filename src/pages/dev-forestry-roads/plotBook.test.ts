@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
-import { plotBookHtml, rangedMaterialQuantities } from './plotBook'
+import { plotBookHtml, rangedMaterialQuantities, SHEET_FRAME } from './plotBook'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, exportGrid } from './terrain'
-import { createReportChapter, createRoadReportSettings } from './reportSettings'
+import { createReportChapter, createRoadReportSettings, parseRoadReportSettings } from './reportSettings'
 import { createEngineeringDesign } from './engineeringTypes'
-import type { Alignment, Coordinate, TerrainMetadata } from './types'
+import type { Alignment, Coordinate, RoadStation, TerrainMetadata } from './types'
+import { chartStats, gradeAxis, intervalStats, valueAxis } from './chartsSheet'
+import { chartsTitle } from './chartsOptions'
 
 const origin: Coordinate = [-122.8, 53.9]
 const alignment: Alignment = {
@@ -291,5 +293,324 @@ describe('plot book', () => {
       expect(html).toContain('data-chapter="table"')
       expect(html).not.toContain('NaN')
     }
+  })
+})
+
+describe('profile, grade and mass-haul chapter', () => {
+  it('draws the whole road on one sheet with profile, grade and mass-haul panels', () => {
+    const settings = createRoadReportSettings()
+    settings.chapters = [createReportChapter('charts', 'charts')]
+    const book = plotBookHtml({
+      projectName: 'Demo',
+      alignment,
+      analysis,
+      terrain,
+      ...exportGrid(terrain, origin),
+      settings,
+      gradeLimits: {
+        rule: {
+          favourablePercent: 12,
+          adversePercent: 12,
+          loadedDirection: null,
+          shortPitch: { gradePercent: 18, maxLengthM: 150 },
+        },
+      },
+    })
+    expect(book.match(/<section class="sheet">/g)).toHaveLength(1)
+    expect(book).toContain('Profile, grade &amp; mass haul 0+000.0')
+    for (const role of ['ground', 'design', 'design-grade', 'ground-grade', 'grade-limit', 'mass'])
+      expect(book).toContain(`data-role="${role}"`)
+    expect(book).toContain('+limit 12.0%')
+    expect(book).toContain('short pitch 18.0% ≤ 150 m')
+  })
+
+  it('labels every axis, prints the legend and statistics, and leaves out a panel when asked', () => {
+    const settings = createRoadReportSettings()
+    const rule = { favourablePercent: 12, adversePercent: 12, loadedDirection: null, shortPitch: null }
+    settings.chapters = [createReportChapter('charts', 'charts')]
+    const full = plotBookHtml({
+      projectName: 'Demo',
+      alignment,
+      analysis,
+      terrain,
+      ...exportGrid(terrain, origin),
+      settings,
+      gradeLimits: { rule },
+    })
+    expect([...full.matchAll(/data-role="y-axis-title">([^<]+)</g)].map((m) => m[1])).toEqual([
+      'Elevation (m)',
+      'Grade (%)',
+      'Mass (m³)',
+    ])
+    expect(full).toContain('data-role="chart-legend"')
+    expect(full).toContain('Average grade (net)')
+    settings.chapters = [
+      {
+        ...createReportChapter('charts', 'charts'),
+        charts: {
+          panels: ['profile', 'grade'],
+          stationTickM: 100,
+          gradeRangePercent: null,
+          legend: false,
+          stats: false,
+        },
+      },
+    ]
+    const two = plotBookHtml({
+      projectName: 'Demo',
+      alignment,
+      analysis,
+      terrain,
+      ...exportGrid(terrain, origin),
+      settings: parseRoadReportSettings(JSON.parse(JSON.stringify(settings))),
+      gradeLimits: { rule },
+    })
+    expect(two).not.toContain('data-role="mass"')
+    expect(two).not.toContain('data-role="chart-legend"')
+    expect(two).not.toContain('data-role="chart-stats"')
+    // The lowest panel carries the station labels and the station-axis title.
+    expect(two).toContain('Station (m)')
+    expect(two).toContain('>0+100<')
+  })
+
+  it('works out the sheet statistics from the design line', () => {
+    const station = (chainage: number, z: number, grade: number | null, cut = 10, fill = 5) =>
+      ({
+        chainage,
+        designElevation: z,
+        gradePercent: grade,
+        cutVolumeM3: cut,
+        fillVolumeM3: fill,
+      }) as unknown as RoadStation
+    const stats = chartStats(
+      [station(0, 100, 10, 0, 0), station(100, 110, 10), station(200, 105, -5), station(300, 125, 20)],
+      { favourablePercent: 12, adversePercent: 12, loadedDirection: null, shortPitch: null },
+    )
+    expect(stats.lengthM).toBe(300)
+    expect(stats.climbM).toBe(30)
+    expect(stats.descentM).toBe(5)
+    expect(stats.averageGradePercent).toBeCloseTo(25 / 3)
+    expect(stats.meanAbsoluteGradePercent).toBeCloseTo(35 / 3)
+    expect(stats.steepestClimbPercent).toBe(20)
+    expect(stats.steepestDescentPercent).toBe(-5)
+    expect(stats.overLimitM).toBe(100)
+    expect(stats.cutM3).toBe(30)
+    expect(stats.earthworkKnownShare).toBe(1)
+  })
+
+  it('holds each grade to its direction’s limit when loaded trucks travel one way', () => {
+    const station = (chainage: number, z: number, grade: number) =>
+      ({ chainage, designElevation: z, gradePercent: grade, cutVolumeM3: 0, fillVolumeM3: 0 }) as unknown as RoadStation
+    // 100 m climbing at 12% up-station, then 100 m descending at 12%.
+    const line = [station(0, 100, 12), station(100, 112, 12), station(200, 100, -12)]
+    const rule = (loadedDirection: 'start-to-end' | 'end-to-start') => ({
+      favourablePercent: 16,
+      adversePercent: 9,
+      loadedDirection,
+      shortPitch: null,
+    })
+    // Loaded up-station: the climb is adverse (12% > 9%), the descent favourable (12% < 16%).
+    expect(chartStats(line, rule('start-to-end')).overLimitM).toBe(100)
+    expect(intervalStats(line, 0, 200, 100, rule('start-to-end')).map((i) => i.overLimit)).toEqual([true, true])
+    // Loaded down-station: the other way round; the second interval holds the -12% station only.
+    expect(chartStats(line, rule('end-to-start')).overLimitM).toBe(100)
+    expect(
+      intervalStats([station(0, 100, 12), station(100, 112, 12)], 0, 100, 100, rule('end-to-start'))[0].overLimit,
+    ).toBe(false)
+  })
+
+  it('fits the grade axis to the steepest grade, or holds a fixed range', () => {
+    expect(gradeAxis([12, -12, 31.2, -4], null)).toEqual({ low: -15, high: 35 })
+    expect(gradeAxis([250], null)).toEqual({ low: -5, high: 100 })
+    expect(gradeAxis([31], 20)).toEqual({ low: -20, high: 20 })
+  })
+
+  it('gives each axis about one line per 55 units, ending on a tick at both ends', () => {
+    const z = valueAxis(897, 1195, 400)
+    expect(z.step).toBe(50)
+    expect([z.low, z.high]).toEqual([850, 1200])
+    expect(z.ticks[0]).toBe(z.low)
+    expect(z.ticks.at(-1)).toBe(z.high)
+    const g = valueAxis(-20, 40, 190)
+    expect(g.step).toBe(10)
+    expect(g.ticks).toEqual([-20, -10, 0, 10, 20, 30, 40])
+    expect(valueAxis(-20_000, 15_000, 190).ticks).toEqual([-20_000, -10_000, 0, 10_000, 20_000])
+    expect(valueAxis(897, 1195, 520).step).toBe(50)
+  })
+
+  it('works out each interval of the band from the stations inside it', () => {
+    const station = (chainage: number, z: number, ground: number, grade: number) =>
+      ({
+        chainage,
+        designElevation: z,
+        groundElevation: ground,
+        gradePercent: grade,
+        cutVolumeM3: chainage ? 100 : null,
+        fillVolumeM3: chainage ? 40 : null,
+      }) as unknown as RoadStation
+    const stations = [0, 100, 200, 300, 400, 450].map((c, i) =>
+      station(c, 900 + (c <= 200 ? c * 0.1 : 20 + (c - 200) * 0.14), 900 + c * 0.12, i < 3 ? 10 : 14),
+    )
+    const rule = { favourablePercent: 12, adversePercent: 12, loadedDirection: null, shortPitch: null }
+    const columns = intervalStats(stations, 0, 450, 200, rule)
+    expect(columns.map((c) => [c.from, c.to])).toEqual([
+      [0, 200],
+      [200, 400],
+      [400, 450],
+    ])
+    expect(columns[0].averageGradePercent).toBeCloseTo(10)
+    expect(columns[0].riseM).toBeCloseTo(20)
+    expect(columns[0].groundGradePercent).toBeCloseTo(12)
+    expect(columns[0].cutM3).toBe(200)
+    expect(columns[0].overLimit).toBe(false)
+    expect(columns[1].averageGradePercent).toBeCloseTo(14)
+    expect(columns[1].overLimit).toBe(true)
+  })
+
+  it('prints the interval band under the charts with the stations below it', () => {
+    const settings = createRoadReportSettings()
+    settings.chapters = [
+      {
+        ...createReportChapter('charts', 'charts'),
+        charts: {
+          panels: ['profile', 'grade'],
+          stationTickM: 200,
+          gradeRangePercent: null,
+          legend: true,
+          stats: true,
+          intervalM: 200,
+        },
+      },
+    ]
+    const book = plotBookHtml({
+      projectName: 'Demo',
+      alignment,
+      analysis,
+      terrain,
+      ...exportGrid(terrain, origin),
+      settings: parseRoadReportSettings(JSON.parse(JSON.stringify(settings))),
+    })
+    expect(book).toContain('data-role="interval-band"')
+    expect(book).toContain('Every 200 m')
+    expect(book).toContain('Steepest grade')
+    expect(book).not.toContain('data-role="mass"')
+    expect(book).not.toContain('NaN')
+  })
+
+  it('draws the interval statistics on the profile in the chosen style', () => {
+    const book = (intervalStyle: 'top' | 'bottom' | 'line', panels: ('profile' | 'grade')[] = ['profile', 'grade']) => {
+      const settings = createRoadReportSettings()
+      settings.chapters = [
+        {
+          ...createReportChapter('charts', 'charts'),
+          charts: {
+            panels,
+            stationTickM: 200,
+            gradeRangePercent: null,
+            legend: true,
+            stats: true,
+            intervalM: 200,
+            intervalStyle,
+          },
+        },
+      ]
+      return plotBookHtml({
+        projectName: 'Demo',
+        alignment,
+        analysis,
+        terrain,
+        ...exportGrid(terrain, origin),
+        settings: parseRoadReportSettings(JSON.parse(JSON.stringify(settings))),
+        gradeLimits: { rule: { favourablePercent: 12, adversePercent: 12, loadedDirection: null, shortPitch: null } },
+      })
+    }
+    for (const style of ['top', 'bottom', 'line'] as const) {
+      const html = book(style)
+      expect(html).toContain('data-role="interval-boundary"')
+      expect(html).toContain('data-role="interval-label"')
+      expect(html).not.toContain('data-role="interval-band"')
+      expect(html).toContain('Interval boundary, every 200 m')
+      expect(html).not.toContain('NaN')
+    }
+    expect(book('line')).toContain('data-role="interval-average"')
+    expect(book('top')).not.toContain('data-role="interval-average"')
+    // With both lines, the ground's average prints beside the design's, each in its line's colour.
+    const bothBook = (intervalStyle: 'top' | 'line') => {
+      const settings = createRoadReportSettings()
+      settings.chapters = [
+        {
+          ...createReportChapter('charts', 'charts'),
+          charts: {
+            panels: ['profile', 'grade'],
+            stationTickM: 200,
+            gradeRangePercent: null,
+            legend: true,
+            stats: true,
+            intervalM: 200,
+            intervalStyle,
+            intervalLines: 'both',
+          },
+        },
+      ]
+      return plotBookHtml({
+        projectName: 'Demo',
+        alignment,
+        analysis,
+        terrain,
+        ...exportGrid(terrain, origin),
+        settings: parseRoadReportSettings(JSON.parse(JSON.stringify(settings))),
+      })
+    }
+    const lineBoth = bothBook('line')
+    expect(lineBoth).toContain('data-role="interval-ground-average"')
+    expect(lineBoth).toContain('Ground average grade over the interval')
+    expect(lineBoth).toMatch(/fill="#8a5a2b">[+−]?\d/)
+    expect(lineBoth).toMatch(/fill="#0f766e">[+−]?\d/)
+    expect(bothBook('top')).toMatch(/fill="#8a5a2b">ground /)
+    expect(book('top')).not.toContain('>ground ')
+    // Without a profile to draw on, the statistics fall back to the table.
+    expect(book('line', ['grade'])).toContain('data-role="interval-band"')
+  })
+
+  it('names a charts sheet after the panels it shows', () => {
+    expect(chartsTitle(['profile', 'grade', 'mass'])).toBe(createReportChapter('charts', 'c').title)
+    expect(chartsTitle(['profile', 'grade'])).toBe('Profile & grade')
+    expect(chartsTitle(['mass'])).toBe('Mass haul')
+  })
+
+  it('refuses chart options with no panel', () => {
+    const settings = {
+      ...createRoadReportSettings(),
+      chapters: [
+        {
+          ...createReportChapter('charts', 'c'),
+          charts: { panels: [], stationTickM: null, gradeRangePercent: null, legend: true, stats: true },
+        },
+      ],
+    }
+    expect(() => parseRoadReportSettings(settings)).toThrow('at least one')
+  })
+
+  it('keeps a whole-road default that survives parsing', () => {
+    const chapter = createReportChapter('charts', 'c')
+    expect(chapter.sheetLengthM).toBe(10000)
+    const settings = { ...createRoadReportSettings(), chapters: [chapter] }
+    expect(() => parseRoadReportSettings(JSON.parse(JSON.stringify(settings)))).not.toThrow()
+  })
+})
+
+describe('title block', () => {
+  it('sits in the sheet border corner with the border’s line weight', () => {
+    const book = plotBookHtml({ projectName: 'Demo', alignment, analysis, terrain, ...exportGrid(terrain, origin) })
+    const W = Number(/viewBox="0 0 (\d+) (\d+)"/.exec(book)![1]),
+      H = Number(/viewBox="0 0 (\d+) (\d+)"/.exec(book)![2])
+    const block =
+      /data-role="title-block"><rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*stroke-width="([\d.]+)"/.exec(
+        book,
+      )!
+    const [x, y, w, h, stroke] = block.slice(1).map(Number)
+    expect(x + w).toBe(W - SHEET_FRAME.x)
+    expect(y + h).toBe(H - SHEET_FRAME.y)
+    expect(stroke).toBe(SHEET_FRAME.stroke)
   })
 })

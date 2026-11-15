@@ -23,6 +23,8 @@ export interface ContourResult {
   interval: number
   /** True when the requested interval was doubled to stay within the budget. */
   widened: boolean
+  /** Every how many intervals an index contour falls. */
+  indexEvery: number
   levels: ContourLevel[]
 }
 
@@ -144,6 +146,7 @@ export function gridContours(grid: ValueGrid, interval: number, indexEvery = 2):
   return {
     interval: used,
     widened: used !== interval,
+    indexEvery,
     levels: [...byLevel]
       .sort((a, b) => a[0] - b[0])
       .map(([level, segments]) => ({

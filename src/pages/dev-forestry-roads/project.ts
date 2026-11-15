@@ -592,6 +592,15 @@ function parseTerrain(raw: unknown): TerrainMetadata {
     if (!Number.isFinite(resolution) || Math.abs(resolution - result.resolutionM) > 1e-6 * Math.max(1, resolution))
       throw Error('Terrain resolution does not agree with the embedded native raster cells.')
   }
+  if (r.fill !== undefined) {
+    const f = object(r.fill, 'Terrain fill')
+    if (!result.raster) throw Error('Only an embedded terrain grid records a filling source.')
+    result.fill = {
+      name: text(f.name, 'Terrain fill source', 200),
+      resolutionM: number(f.resolutionM, 'Terrain fill resolution', 0.01, 5000),
+      sharePercent: number(f.sharePercent, 'Terrain fill share', 0, 100),
+    }
+  }
   if (result.kind === 'geotiff' && !result.raster && (!result.sourceUrl || !result.sha256))
     throw Error('A GeoTIFF terrain needs embedded cells or a source URL and checksum.')
   return result
@@ -1713,6 +1722,46 @@ export function terrainProfileReportHtml(name: string, analysis: RoadAnalysis, m
   const groundOnly = { ...analysis, stations: analysis.stations.map((s) => ({ ...s, designElevation: null })) }
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${html(name)} · Terrain profile</title><style>body{font:14px/1.5 Inter,Arial,sans-serif;max-width:1000px;margin:32px auto;padding:0 20px;color:#0b2b4a}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:6px;border-bottom:1px solid #ddd;text-align:right}svg{width:100%}h2{font-size:19px}thead{display:table-header-group}tr{break-inside:avoid}@media print{body{margin:0}}</style></head><body><p style="color:#307795">DDC Access · Resource road planning</p><h1>${html(name)}</h1><p>Ground-only stream / slope transect</p><p>Length ${fmt(analysis.length)} m · supported intervals ${fmt(covered)} m (${fmt(analysis.length ? (100 * covered) / analysis.length : 0)}%) · ground range ${known.length ? `${fmt(Math.min(...known.map((s) => s.groundElevation!)))}–${fmt(Math.max(...known.map((s) => s.groundElevation!)))} m` : 'unknown'} · sampled ascent ${fmt(ascent)} m · sampled descent ${fmt(descent)} m</p><p>${html(metadata.name)} · ${fmt(metadata.resolutionM, 2)} m source spacing · ${html(metadata.verticalReference)} · SHA-256 ${html(metadata.sha256 ?? 'not applicable')}</p>${reportProfile(groundOnly)}<p>No road formation, cut/fill or construction costs are assigned. Missing terrain remains a gap. Ground grades describe sampled intervals; source resolution and sampling determine which terrain features can be resolved.</p><h2>Profile stations</h2><table><thead><tr><th>Station m</th><th>Ground m</th><th>Ground grade %</th><th>Interval m</th></tr></thead><tbody>${rows}</tbody></table></body></html>`
 }
+/**
+ * The readiness review a road's report prints, on the same drainage and vehicle terms. The report
+ * package's summary page lists the same rows, so the two never disagree.
+ */
+export function reportReview(
+  project: RoadProject,
+  analysis: RoadAnalysis,
+  options: { drainageHasLiveRun?: boolean; vehicle?: VehicleFit | null } = {},
+) {
+  const entered = project.alignments.find((a) => a.id === project.activeAlignmentId),
+    active = entered && calculatedAlignment(entered, analysis),
+    metadata = project.terrain
+  const savedDrainage = project.drainage?.records.find((record) => record.alignmentId === active?.id)
+  const drainageFingerprint =
+    savedDrainage && active && project.drainage
+      ? drainageInputFingerprint({
+          alignment: active,
+          roadSettings: project.settings,
+          terrain: metadata,
+          settings: project.drainage.settings,
+          pourPoint: project.drainage.pourPoint,
+          watershedMinAreaHa: project.drainage.watershedMinAreaHa,
+        })
+      : ''
+  // The same rule the drainage section prints its "out of date" line on.
+  const drainageStale =
+    !!savedDrainage &&
+    (savedDrainage.fingerprint !== drainageFingerprint ||
+      savedDrainage.algorithmVersion !== DRAINAGE_ALGORITHM_VERSION ||
+      (!savedDrainage.terrain.immutable && !options.drainageHasLiveRun))
+  let vehicle = options.vehicle
+  if (vehicle === undefined && active?.vehicleCheck)
+    try {
+      vehicle = vehicleFit(analyzeSweptPath(active, active.vehicleCheck))
+    } catch {
+      vehicle = null
+    }
+  const review = active ? projectReadiness(project, active, analysis, { drainageStale, vehicle }) : null
+  return { savedDrainage, drainageFingerprint, review }
+}
 export function projectReportHtml(
   project: RoadProject,
   analysis: RoadAnalysis,
@@ -1722,6 +1771,11 @@ export function projectReportHtml(
     vehicle?: VehicleFit | null
     /** The day of printing, used when the issue stamp has no date of its own. */
     today?: Date
+    /**
+     * Printed in place of the left-out sections line when this report is one part of a report
+     * package, saying where the other sections are (`packageReportNotice`).
+     */
+    packageNotice?: string
   } = {},
 ): string {
   if (!analysis.stations.length)
@@ -1740,39 +1794,14 @@ export function projectReportHtml(
         invalid.leftOut === 'all' || invalidInputMessages(invalid).length > 1 ? 'them' : 'it'
       }. Correct the input and print the report again before relying on it.</p>`
     : ''
-  const savedDrainage = project.drainage?.records.find((record) => record.alignmentId === active?.id)
-  const drainageFingerprint =
-    savedDrainage && active && project.drainage
-      ? drainageInputFingerprint({
-          alignment: active,
-          roadSettings: project.settings,
-          terrain: metadata,
-          settings: project.drainage.settings,
-          pourPoint: project.drainage.pourPoint,
-          watershedMinAreaHa: project.drainage.watershedMinAreaHa,
-        })
-      : ''
+  const { savedDrainage, drainageFingerprint, review } = reportReview(project, analysis, options)
   const drainageReport = savedDrainage
     ? drainageReportHtml(savedDrainage, drainageFingerprint, { hasLiveRun: options.drainageHasLiveRun })
     : ''
-  // The same rule the drainage section prints its "out of date" line on.
-  const drainageStale =
-    !!savedDrainage &&
-    (savedDrainage.fingerprint !== drainageFingerprint ||
-      savedDrainage.algorithmVersion !== DRAINAGE_ALGORITHM_VERSION ||
-      (!savedDrainage.terrain.immutable && !options.drainageHasLiveRun))
-  let vehicle = options.vehicle
-  if (vehicle === undefined && active?.vehicleCheck)
-    try {
-      vehicle = vehicleFit(analyzeSweptPath(active, active.vehicleCheck))
-    } catch {
-      vehicle = null
-    }
-  const review = active ? projectReadiness(project, active, analysis, { drainageStale, vehicle }) : null
   const stamp = issueStamp(project.issue, options.today)
   // Sections the user left out of this print (Save & export → Report → Contents); the rest always print.
   const show = reportIncludes(project.reportSettings?.omittedSections)
-  const omittedNotice = omittedSectionsNotice(project.reportSettings?.omittedSections)
+  const omittedNotice = options.packageNotice ?? omittedSectionsNotice(project.reportSettings?.omittedSections)
   const standardsText = `${gradeRuleText(gradeRule(project.settings, project.standards))} grade; minimum radius ${fmt(project.settings.minRadius)} m${
     project.standards
       ? `${project.standards.designVehicle ? `; design vehicle ${html(vehiclePreset(project.standards.designVehicle)?.label ?? project.standards.designVehicle)}` : ''}${project.standards.designSpeedKmh === null ? '' : `; design speed ${fmt(project.standards.designSpeedKmh, 0)} km/h`}${project.standards.runningSurfaceWidthM === null ? '' : `; running surface ${fmt(project.standards.runningSurfaceWidthM, 2)} m`}${project.standards.maxClearingWidthM === null ? '' : `; clearing limit ${fmt(project.standards.maxClearingWidthM)} m`}${project.standards.maxCrossDrainSpacingM === null ? '' : `; drain spacing ${fmt(project.standards.maxCrossDrainSpacingM, 0)} m`}. ${project.standards.confirmedOn ? `Confirmed ${html(project.standards.confirmedOn)}` : 'Not confirmed: starting values'}${project.standards.source ? `; source: ${html(project.standards.source)}` : ''}`

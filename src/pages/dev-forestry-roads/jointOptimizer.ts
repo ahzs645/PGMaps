@@ -96,6 +96,7 @@ export async function refinePlanAndProfile(
         referenceSurfaces: o.profile.referenceSurfaces,
         verticalReference: o.profile.verticalReference,
         sharedCrossingCosts: o.profile.sharedCrossingCosts,
+        gradeStandards: o.profile.gradeStandards,
       })
       if (!hasCompleteCoverage(analysis)) blockers.push('Incomplete terrain/daylight coverage.')
       if (analysis.crossingEstimate?.complete === false)

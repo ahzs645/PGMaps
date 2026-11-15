@@ -12,6 +12,8 @@ an identical named road does not duplicate it. Numbered names belonging to anoth
 kept distinct, never assigned to the enclosing folder's block.
 
 **Prepare 1 m DEM download boxes after import** opens an area review, without reading elevation.
+It makes boxes for the proposed roads and planned blocks being imported, never their reference
+layers, and starts off when the import also chooses a terrain (a sheet's contours).
 It makes buffered rectangles per feature rather than a huge envelope between distant blocks. Feature envelopes above the per-box budget split into native tiles at most 2,048 m a side (`HRDEM_BOX_SIDE`); all their cells are retained. Envelopes above the total download budget still require a smaller selection.
 Choose individual features, change the buffer, omit boxes, show them on the plan, or download
 their GeoJSON. Reference layers explicitly used as cutblock buffers are excluded from these

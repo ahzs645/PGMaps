@@ -8,6 +8,9 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ListHeader } from '@/components/ui/result-list'
+import { FileDropField } from '@/components/ui/file-drop-field'
+import type { PickedFile } from '@/components/ui/picked-files'
+import { REFERENCE_ACCEPT } from './referenceImport'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { BcAccessDiscoveryPanel } from './BcAccessDiscoveryPanel'
 import { BC_ACCESS_EXAMPLES } from './bcAccessExamples'
@@ -26,6 +29,7 @@ export type NewProject = { name: string; standards?: JobStandards } & (
   | { kind: 'regional'; centre: Coordinate; sizeKm: number }
   | { kind: 'import' }
   | { kind: 'training' }
+  | { kind: 'files'; files: PickedFile[] }
 )
 
 const PLACES: { label: string; centre: Coordinate | null }[] = [
@@ -37,6 +41,11 @@ const PLACES: { label: string; centre: Coordinate | null }[] = [
   { label: 'Smithers', centre: [-127.17, 54.78] },
 ]
 const STARTS = [
+  {
+    kind: 'files',
+    title: 'From block map files',
+    detail: 'A folder of shapefiles and map PDFs: the project is placed on them, then you choose what to import.',
+  },
   {
     kind: 'regional',
     title: 'Regional DEM at a place',
@@ -133,6 +142,7 @@ export function ProjectsDialog({
   const [confirm, setConfirm] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [kind, setKind] = useState<NewProject['kind']>('regional')
+  const [picked, setPicked] = useState<PickedFile[]>([])
   const [place, setPlace] = useState(0)
   const [lat, setLat] = useState<number | null>(null)
   const [lon, setLon] = useState<number | null>(null)
@@ -186,12 +196,22 @@ export function ProjectsDialog({
     }
   }
   const create = () => {
-    const title = name.trim() || (kind === 'regional' ? `Road project near ${PLACES[place].label}` : 'New road project')
+    const folder = picked[0]?.path.split('/')[0]
+    const title =
+      name.trim() ||
+      (kind === 'regional'
+        ? `Road project near ${PLACES[place].label}`
+        : kind === 'files' && folder && picked[0].path.includes('/')
+          ? folder
+          : 'New road project')
     onCreate(
       kind === 'regional'
         ? { name: title, standards, kind, centre: at, sizeKm }
-        : ({ name: title, standards, kind } as NewProject),
+        : kind === 'files'
+          ? { name: title, standards, kind, files: picked }
+          : ({ name: title, standards, kind } as NewProject),
     )
+    setPicked([])
     setName('')
     setStandards(startingStandards)
     close(false)
@@ -614,6 +634,23 @@ export function ProjectsDialog({
                 </p>
               </div>
             )}
+            {kind === 'files' && (
+              <div className={cn(insetBox({ padding: 'lg' }), 'space-y-2')}>
+                <FileDropField
+                  label="Block map files"
+                  filesLabel="Choose files"
+                  folderLabel="Choose folder"
+                  dropHint="Drop the block's folder here"
+                  accept={REFERENCE_ACCEPT}
+                  onFiles={(files) => setPicked(files)}
+                />
+                <p className="text-xs text-muted-foreground" role="status">
+                  {picked.length
+                    ? `${picked.length} ${picked.length === 1 ? 'file' : 'files'} chosen. Create reads them, loads the regional DEM under the roads and blocks, and shows what each layer can be.`
+                    : 'Shapefiles, GeoJSON, KML or the company map PDFs. Nothing is imported until you choose in the next step.'}
+                </p>
+              </div>
+            )}
             {kind === 'import' && (
               <InlineAlert>
                 Create opens the file picker: one GeoTIFF, or one or more LAS/LAZ tiles. You are asked for the CRS or
@@ -635,7 +672,7 @@ export function ProjectsDialog({
                 <DesignStandardsFields value={standards} onChange={setStandards} />
               </section>
             )}
-            <Button className="w-full" onClick={create}>
+            <Button className="w-full" onClick={create} disabled={kind === 'files' && !picked.length}>
               {kind === 'import' ? <Upload className="size-4" /> : <Plus className="size-4" />}
               {kind === 'import' ? 'Create and choose terrain file' : 'Create project'}
             </Button>

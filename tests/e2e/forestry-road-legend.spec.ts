@@ -1,11 +1,12 @@
-import { openWorkbench, selectWorkbench } from './road-workbench'
+import { openWorkbench, selectWorkbench, startOnStandardPlanSymbols } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 20000 })
 test.setTimeout(180000)
 
-async function prepare(page: Page) {
+async function prepare(page: Page, symbols: 'default' | 'standard' = 'standard') {
+  if (symbols === 'standard') await startOnStandardPlanSymbols(page)
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
@@ -57,6 +58,20 @@ async function expandLegend(page: Page) {
     await legend.getByRole('button', { name: 'Expand legend', exact: true }).click()
   return page.getByTestId('road-plan-legend-content')
 }
+
+test('the plan starts on block-sheet symbols', async ({ page }) => {
+  await prepare(page, 'default')
+  const content = await expandLegend(page)
+  await expect(content.locator('[data-sheet-symbol="Stream"]')).toBeVisible()
+  await expect
+    .poll(async () => (await mapData(page))?.symbols)
+    .toEqual({ standard: 'none', sheet: 'visible', fillOpacity: 0 })
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: 'Legend and map symbols', exact: true })).toHaveAttribute(
+    'data-value',
+    'block-sheet',
+  )
+})
 
 test('users can choose either symbol set and the map and legend keep that choice after reload', async ({ page }) => {
   await prepare(page)

@@ -22,6 +22,7 @@ import {
   type LibraryEntry,
 } from './projectLibrary'
 import type { Alignment, RoadAnalysis, RoadProject, TerrainSource } from './types'
+import { reuseAnalyses, type AnalysisCache } from './analysisReuse'
 import type { BrowserSave } from './saveState'
 import {
   addCheckpoint,
@@ -230,6 +231,22 @@ export function useRoadWorkspace() {
     [commit, setProjectId, lastValidInputs, leaveTraining],
   )
 
+  /** The first visit's example road while it loads; null once loaded, or on a return visit. */
+  const exampleLoad = useRef<AbortController | null>(null)
+  /**
+   * Stops loading the first visit's example road (its 1 m terrain takes minutes) because the person
+   * opened a project of their own, which replaces it. True when there was such a load to stop; a
+   * return visit's restore, or the library read before it, is never skipped.
+   */
+  const skipExampleLoad = useCallback(() => {
+    const controller = exampleLoad.current
+    if (!controller || controller.signal.aborted) return false
+    exampleLoad.current = null
+    controller.abort()
+    setBusy('')
+    setReady(true)
+    return true
+  }, [setBusy])
   useEffect(() => {
     const controller = new AbortController()
     abort.current = controller
@@ -267,7 +284,10 @@ export function useRoadWorkspace() {
           setSessionRestored({ name: reopened.name, savedAt, restoredAt: Date.now() })
           setNotice(`Restored ${reopened.name} from this browser.`)
         } else {
+          // Only this stage may be skipped for a project the person opens (`skipExampleLoad`).
+          exampleLoad.current = controller
           const loaded = await loadRoadScenario('bc-lidar', { signal: controller.signal, onProgress: setBusy })
+          exampleLoad.current = null
           if (controller.signal.aborted) return
           startProject(loaded.project, loaded.source)
           setExampleStart(true)
@@ -385,34 +405,15 @@ export function useRoadWorkspace() {
     [projectId],
   )
 
-  // Every edit recalculates every alternative.
+  // An edit recalculates the roads it changed; every road again when a project-wide input changes
+  // (`analysisReuse.ts`). Recalculating every road on every edit cost seven analyses per keystroke on a
+  // seven-road project and pinned ~93 MB of fresh section points per edit in renders kept alive.
   const investigation = isAccessInvestigation(project)
   const referenceSurfaces = useMemo(() => terrainReferenceSurfaces(project.terrain), [project.terrain])
-  const analyses = useMemo(
-    () =>
-      new Map(
-        project.alignments.map((a): [string, RoadAnalysis] => [
-          a.id,
-          investigation || a.id === project.designPlaceholderId
-            ? investigationAnalysis()
-            : safeAnalyzeRoad(
-                a,
-                source,
-                project.settings,
-                project.context,
-                {
-                  referenceSurfaces,
-                  verticalReference: project.terrain.verticalReference,
-                  sharedCrossingCosts: project.sharedCrossingCosts,
-                  gradeStandards: project.standards,
-                },
-                lastValidInputs.get(a.id),
-              ),
-        ]),
-      ),
-    [
+  const analysisCache = useRef<AnalysisCache<Alignment, RoadAnalysis> | null>(null)
+  const analyses = useMemo(() => {
+    const shared = [
       lastValidInputs,
-      project.alignments,
       investigation,
       project.designPlaceholderId,
       project.settings,
@@ -422,8 +423,39 @@ export function useRoadWorkspace() {
       project.terrain.verticalReference,
       project.sharedCrossingCosts,
       project.standards,
-    ],
-  )
+    ]
+    const next = reuseAnalyses(analysisCache.current, shared, project.alignments, (a) =>
+      investigation || a.id === project.designPlaceholderId
+        ? investigationAnalysis()
+        : safeAnalyzeRoad(
+            a,
+            source,
+            project.settings,
+            project.context,
+            {
+              referenceSurfaces,
+              verticalReference: project.terrain.verticalReference,
+              sharedCrossingCosts: project.sharedCrossingCosts,
+              gradeStandards: project.standards,
+            },
+            lastValidInputs.get(a.id),
+          ),
+    )
+    analysisCache.current = next.cache
+    return next.analyses
+  }, [
+    lastValidInputs,
+    project.alignments,
+    investigation,
+    project.designPlaceholderId,
+    project.settings,
+    project.context,
+    source,
+    referenceSurfaces,
+    project.terrain.verticalReference,
+    project.sharedCrossingCosts,
+    project.standards,
+  ])
   // Remember what calculated, after the render that calculated it, for the next invalid edit. While
   // an input is invalid that is the set the results used: the valid edits made since are in it, so
   // a second invalid edit falls back to them and not to an older state.
@@ -512,6 +544,7 @@ export function useRoadWorkspace() {
     lastEdit.current = 0
   }
   return {
+    skipExampleLoad,
     project,
     source,
     referenceSurfaces,

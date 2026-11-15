@@ -74,6 +74,7 @@ export function JointOptimizationControls({
           referenceSurfaces: workspace.referenceSurfaces,
           verticalReference: project.terrain.verticalReference,
           sharedCrossingCosts: project.sharedCrossingCosts,
+          gradeStandards: project.standards,
         },
         signal,
         yieldControl,
