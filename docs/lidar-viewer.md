@@ -35,7 +35,8 @@ the dataset-specific pipeline to another tile.
 
 ## Source and audit
 
-- Supplied source: <https://drive.google.com/file/d/12HM0-w7PNe_cC1t-ThLrFoBZngr4jgfI/view>
+- Source: LidarBC 2024 point cloud, tile 093G086 4.4.4 (<https://nrs.objectstore.gov.bc.ca/gdwuts/093/093g/2024/pointcloud/bc_093g086_4_4_4_xyes_8_utm10_20240713_20240713.laz>,
+  listed in the [LidarBC index](https://lidar.gov.bc.ca/pages/download-discovery))
 - File: `bc_093g086_4_4_4_xyes_8_utm10_20240713_20240713.laz`
 - SHA-256: `f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf`
 - LAS 1.4 / point format 6; 84,608,005 points; 550,572,701 compressed bytes.

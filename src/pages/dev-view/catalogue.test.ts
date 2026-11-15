@@ -7,7 +7,7 @@ const item = {
   title: 'A map',
   bounds: [-126, 53, -124, 55],
   assets: [{ url: 'tiles/one.pmtiles', bounds: [-126, 53, -124, 55], minZoom: 3, maxZoom: 14 }],
-  sources: [{ title: 'Source', url: 'https://drive.google.com/file/d/example/view' }],
+  sources: [{ title: 'Source', url: 'https://data.example.test/sources/one' }],
   download: { url: 'raw/one.tif' },
 }
 afterEach(() => vi.unstubAllGlobals())

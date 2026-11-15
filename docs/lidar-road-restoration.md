@@ -138,8 +138,8 @@ python scripts/lidar/validate_browser_restoration.py \
   --source /path/to/source.laz --products /path/to/extracted-zip
 ```
 
-The opt-in real-data browser test uses the supplied BC tile:
-`bc_093g086_4_4_4_xyes_8_utm10_20240713_20240713.laz`, 550,572,701
+The opt-in real-data browser test uses LidarBC's 2024 tile 093G086 4.4.4,
+[`bc_093g086_4_4_4_xyes_8_utm10_20240713_20240713.laz`](https://nrs.objectstore.gov.bc.ca/gdwuts/093/093g/2024/pointcloud/bc_093g086_4_4_4_xyes_8_utm10_20240713_20240713.laz), 550,572,701
 bytes, 84,608,005 returns, SHA-256
 `f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf`.
 The independent Python validator chunk-reads a single source, rebuilds the

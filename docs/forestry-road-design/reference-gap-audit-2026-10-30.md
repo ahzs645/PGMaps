@@ -10,7 +10,7 @@ are constrained and optimized, terrain preparation, watershed inspection, and dr
 Adding another template or haul panel alone would not close these differences.
 
 This review compares `/dev/forestry/road-design` at **`37058a7`** with the supplied
-[Drive folder](https://drive.google.com/drive/folders/1VbnFAPZb3P1CkCrCM9vrxeLDEDGh432j).
+reference folder (kept outside the repository).
 It is a source-code and documented-workflow audit, with four focused engine checks. It is not
 a side-by-side runtime test of the commercial products or a fresh browser acceptance run.
 No application code was changed by this review.
@@ -19,11 +19,11 @@ No application code was changed by this review.
 
 | Supplied file | Inspection and evidential limit |
 | --- | --- |
-| [RoadEngResource10.zip](https://drive.google.com/file/d/16fC0ZbaxLrAct2S56nVIB-1BT1zqibn-/view) | Downloaded and listed. Contains `RoadEngResource_x64_10.0.664.0.exe`, not a training-data directory. Static executable/container inspection only; not installed or run. |
-| [TerrainToolsForestry10.zip](https://drive.google.com/file/d/1tOygJHjDfgDDjOxGfQHePJhlq1MTULkX/view) | Downloaded and listed. Contains `TerrainToolsForestry_x64_10.0.664.0.exe`. Static executable/container inspection only; not installed or run. |
-| [TerrainTools10.zip](https://drive.google.com/file/d/18qs-e-OHBlj6wnAaYMZnNTEEgDt9Iqun/view) | Downloaded and listed. Contains `TerrainTools_x64_10.0.664.0.exe`. Static executable/container inspection only; not installed or run. |
-| [RoadEng_Tutorial_11.exe](https://drive.google.com/file/d/1HAAc2xcS6EabDBrUPKj6SuSouHFeCYnd/view) | Metadata inspected. Download rejected: 518,846,048 bytes exceeds the Drive connector's 268,435,456-byte limit. Its packaged examples remain unverified. |
-| [V11_RoadEngResourceRoad - FINAL PDF.pdf](https://drive.google.com/file/d/1sMul7UhenA3b7ZXph6m6tz6UENylQQ33/view) | Downloaded; extracted its 245-page text, reviewed its contents and relevant workflow sections. Document version **20 February 2025**. This is the primary functional evidence below. Page references use PDF/printed page numbers. |
+| `RoadEngResource10.zip` | Downloaded and listed. Contains `RoadEngResource_x64_10.0.664.0.exe`, not a training-data directory. Static executable/container inspection only; not installed or run. |
+| `TerrainToolsForestry10.zip` | Downloaded and listed. Contains `TerrainToolsForestry_x64_10.0.664.0.exe`. Static executable/container inspection only; not installed or run. |
+| `TerrainTools10.zip` | Downloaded and listed. Contains `TerrainTools_x64_10.0.664.0.exe`. Static executable/container inspection only; not installed or run. |
+| `RoadEng_Tutorial_11.exe` | Metadata inspected. Download rejected: 518,846,048 bytes exceeds the Drive connector's 268,435,456-byte limit. Its packaged examples remain unverified. |
+| `V11_RoadEngResourceRoad - FINAL PDF.pdf` | Downloaded; extracted its 245-page text, reviewed its contents and relevant workflow sections. Document version **20 February 2025**. This is the primary functional evidence below. Page references use PDF/printed page numbers. |
 
 The three version 10 archives are product packages, not three independent sets of requirements.
 The version 11 manual covers Survey/Map, Terrain, Location and optional Softree Optimal tools

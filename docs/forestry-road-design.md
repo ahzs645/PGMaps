@@ -54,7 +54,7 @@ vendor source code are included in this repository.
 | `image(20261021-050719).png`                                                                               | Manual/optimized alternatives, material layers, mass-haul and cost breakdown                                                                        | Editable alternatives, bounded terrain-cost route assistance, supplied material horizons, deterministic haul allocation and detailed scenario costs; no proprietary/global optimizer |
 | `Pasted text(20261021-051007).txt`, RoadEng “Forest Road Planning Basics” webinar transcript               | Crop/thin LiDAR; landing/D-line exploration; peg horizontal route; design vertical grade; widen by station; duplicate/spur; refine corridor terrain | Workflow ordering, separate horizontal/vertical controls, turnout/landing semantics and terrain provenance                                                                           |
 
-The supplied [RoadEng v11 resource-road tutorial](https://drive.google.com/file/d/1sMul7UhenA3b7ZXph6m6tz6UENylQQ33/view),
+The supplied RoadEng v11 resource-road tutorial (`V11_RoadEngResourceRoad - FINAL PDF.pdf`),
 document version 20 February 2025, is an additional primary workflow reference.
 Chapter 11 (pp89–98) demonstrates mass/haul reporting and pit inputs; chapter 13
 (pp105–115) separates ground materials and stripping; chapters 14–16 (pp116–142)

@@ -7,6 +7,7 @@ import { ExternalLink } from '@/components/ui/text-button'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 import type { AnalysisSummary, RasterKey } from './types'
+import { LIDAR_BC_SAMPLE_LAZ } from './lidarbc/bcLidarIndex'
 
 export function LidarResults({
   summary,
@@ -246,7 +247,7 @@ export function LidarDownloads({ summary, analysisBase }: { summary: AnalysisSum
         </p>
         <div className="flex flex-col items-start gap-2">
           {[
-            ['Original LAZ on Drive', 'https://drive.google.com/file/d/12HM0-w7PNe_cC1t-ThLrFoBZngr4jgfI/view'],
+            ['Original LAZ from LidarBC', LIDAR_BC_SAMPLE_LAZ],
             ['GeoLibre', 'https://github.com/opengeos/GeoLibre'],
             ['LiDAR rendering component', 'https://github.com/opengeos/maplibre-gl-lidar'],
             ['Processing engine', 'https://github.com/opengeos/geolibre-rust'],

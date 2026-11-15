@@ -38,8 +38,8 @@ python -m venv /path/to/grid-venv
 
 Place the downloaded source ZIPs in `/path/to/zips`, using these names:
 `bell-output.zip`, `rogers-output.zip`, `telus-output.zip`, and
-`crtc-network-availability-output.zip`. The source Network folder is
-[on Drive](https://drive.google.com/drive/folders/10Ul9AVUO_HsJ4nhHcb2-wV1Kq74Gv3iI).
+`crtc-network-availability-output.zip`. They come from the maintainer's source
+Network folder, which is kept outside the repository.
 The reference-only `cell-coverage-output.zip` is used by the full archive audit,
 but has no raster tiles to export.
 

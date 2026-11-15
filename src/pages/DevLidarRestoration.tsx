@@ -29,8 +29,7 @@ import {
   restorationZip,
 } from '@/features/lidar-restoration/outputs'
 import { DEFAULT_LOCALE } from '@/lib/format'
-
-const SOURCE_URL = 'https://drive.google.com/file/d/12HM0-w7PNe_cC1t-ThLrFoBZngr4jgfI/view'
+import { LIDAR_BC_SAMPLE_LAZ } from '@/pages/dev-lidar/lidarbc/bcLidarIndex'
 
 export default function DevLidarRestoration() {
   const [files, setFiles] = useState<File[]>([])
@@ -144,11 +143,11 @@ export default function DevLidarRestoration() {
         )}
         <p className="mt-3 text-xs text-muted-foreground">
           The{' '}
-          <a href={SOURCE_URL} target="_blank" rel="noreferrer" className="underline">
-            BC 093G086 sample
+          <a href={LIDAR_BC_SAMPLE_LAZ} target="_blank" rel="noreferrer" className="underline">
+            LidarBC 093G086 sample
           </a>{' '}
-          has 84.6 million returns (525 MiB). Download it, then choose it above. Large files can take several minutes
-          and need a desktop browser with available memory.
+          has 84.6 million returns (525 MiB). Download it from LidarBC, then choose it above. Large files can take
+          several minutes and need a desktop browser with available memory.
         </p>
       </StepSection>
       <StepSection

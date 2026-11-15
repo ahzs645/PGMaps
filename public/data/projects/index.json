@@ -129,7 +129,7 @@
     },
     {
       "file": "echoscreen-climate-health.json",
-      "revision": "7004f306d18f",
+      "revision": "55ec4fe4cb22",
       "catalog": {
         "slug": "echoscreen-climate-health",
         "title": "EchoScreen Cumulative Impacts Study",
@@ -158,10 +158,6 @@
           {
             "label": "Nechako Watershed Portal",
             "href": "https://nechakowatershed-portal.ca/"
-          },
-          {
-            "label": "Original consultant GeoPackage",
-            "href": "https://drive.google.com/file/d/1Qz7bXQbK6pjzBPF1D0uhlqQgf36LpS_l/view"
           }
         ],
         "catalogMetrics": [

@@ -12,6 +12,13 @@
 export const LIDAR_BC_SERVICE =
   'https://services6.arcgis.com/ubm4tcTYICKBpist/arcgis/rest/services/LiDAR_BC_S3_Public/FeatureServer'
 export const LIDAR_BC_PORTAL = 'https://lidar.gov.bc.ca/pages/download-discovery'
+/**
+ * The 2024 point-cloud tile 093G086 4.4.4 near Prince George (84,608,005 returns, 550,572,701 bytes),
+ * the sample the LiDAR viewer's products and the restoration tool's real-data check were built from.
+ * A link only: the object store sends no CORS headers, so the page cannot read it.
+ */
+export const LIDAR_BC_SAMPLE_LAZ =
+  'https://nrs.objectstore.gov.bc.ca/gdwuts/093/093g/2024/pointcloud/bc_093g086_4_4_4_xyes_8_utm10_20240713_20240713.laz'
 
 export type LidarBcProductId = 'pointcloud' | 'dem2500' | 'dem20000' | 'dsm2500' | 'dsm10000' | 'dsm20000'
 

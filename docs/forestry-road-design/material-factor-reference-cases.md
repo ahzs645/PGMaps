@@ -15,7 +15,7 @@ The source for the tutorial values below is the user-supplied review, supplied a
 `Pasted text(4).txt`, of PGMaps commit
 `954226199e6051facc313622ee309527800e538b`. That review identifies a 245-page
 RoadEng 11 manual dated 20 February 2025 in the
-[supplied reference folder](https://drive.google.com/drive/folders/1VbnFAPZb3P1CkCrCM9vrxeLDEDGh432j).
+supplied reference folder (kept outside the repository).
 It cites pp. 227–228 and 242 for the factor convention and pp. 242–243 for the
 worked areas. These are **values transcribed from the supplied review**; the
 primary manual and RoadEng execution were not independently inspected for this
