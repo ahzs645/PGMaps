@@ -58,8 +58,8 @@ import {
   LandPlot,
   FolderTree,
   Locate,
+  LocateFixed,
   MapPinned,
-  Earth,
   MousePointer2,
   Network,
   Save,
@@ -328,7 +328,7 @@ export const workspaceCommands = {
   },
   placeOnMap: {
     label: 'Place on map',
-    icon: Earth,
+    icon: LocateFixed,
     description:
       'Put a project on a flat plane on the map: in its coordinate system, or by matching design points to map positions. Roads, layers and terrain move together.',
   },

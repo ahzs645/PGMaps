@@ -376,7 +376,17 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
     return context.dLineSheetUnavailable ?? 'Draw a D-line in Review first.'
   if (
     context.terrainProfile &&
-    ['plotbook', 'plotbook-pdf', 'report-package', 'estimate-pdf', 'landxml', 'roadeng', 'roadeng-project', 'dxf', 'stakeout'].includes(kind)
+    [
+      'plotbook',
+      'plotbook-pdf',
+      'report-package',
+      'estimate-pdf',
+      'landxml',
+      'roadeng',
+      'roadeng-project',
+      'dxf',
+      'stakeout',
+    ].includes(kind)
   )
     return 'Return to the road first.'
   if ((kind === 'terrain-landxml' || kind === 'terrain-ascii') && !context.hasTerrainGrid)
