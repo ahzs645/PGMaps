@@ -1,5 +1,6 @@
-import { memo, useLayoutEffect, useRef } from 'react'
+import { memo, useLayoutEffect, useRef, type MutableRefObject } from 'react'
 import type { TerrainVertex } from './terrainMesh'
+import type { OcclusionCover } from './terrainOcclusion'
 
 export interface TerrainFace {
   vertices: TerrainVertex[]
@@ -18,11 +19,13 @@ interface Props {
   width: number
   height: number
   wireframe: boolean
+  /** Receives a copy of the ground alone, before the overlays, for `TerrainCover`. */
+  groundLayer?: MutableRefObject<HTMLCanvasElement | null>
 }
 
 /** One canvas replaces thousands of DOM polygons; SVG overlays retain picking and keyboard access. */
 export const TerrainGround = memo(
-  function TerrainGround({ faces, overlays, project, width, height, wireframe }: Props) {
+  function TerrainGround({ faces, overlays, project, width, height, wireframe, groundLayer }: Props) {
     const ref = useRef<HTMLCanvasElement>(null)
     useLayoutEffect(() => {
       const canvas = ref.current
@@ -56,8 +59,14 @@ export const TerrainGround = memo(
           context.lineWidth = overlay ? 0.3 : wireframe ? 0.35 : 0.6
           context.stroke()
         }
+        if (!overlay && groundLayer) {
+          const layer = (groundLayer.current ??= document.createElement('canvas'))
+          layer.width = canvas.width
+          layer.height = canvas.height
+          layer.getContext('2d')!.drawImage(canvas, 0, 0)
+        }
       }
-    }, [faces, overlays, project, width, height, wireframe])
+    }, [faces, overlays, project, width, height, wireframe, groundLayer])
     return (
       <foreignObject width={width} height={height} pointerEvents="none">
         <canvas
@@ -76,4 +85,65 @@ export const TerrainGround = memo(
     a.overlays === b.overlays &&
     a.projectionKey === b.projectionKey &&
     a.wireframe === b.wireframe,
+)
+
+interface CoverProps {
+  /** The ground alone, as `TerrainGround` last painted it. */
+  groundLayer: MutableRefObject<HTMLCanvasElement | null>
+  cover: OcclusionCover | null
+  width: number
+  height: number
+  /** Repaint inputs of the ground layer; the cover repaints whenever the ground does. */
+  faces: TerrainFace[]
+  wireframe: boolean
+  projectionKey: string
+}
+
+/**
+ * The ground drawn back over the parts of the road's overlays it hides (`occlusionTest`'s `cover`).
+ * It sits above the road in the SVG and takes no pointer events. It must come after `TerrainGround`
+ * in the tree, whose layout effect paints the layer first.
+ */
+export const TerrainCover = memo(
+  function TerrainCover({ groundLayer, cover, width, height, faces, wireframe, projectionKey }: CoverProps) {
+    const ref = useRef<HTMLCanvasElement>(null)
+    useLayoutEffect(() => {
+      const canvas = ref.current
+      const layer = groundLayer.current
+      if (!canvas) return
+      canvas.width = layer?.width ?? 1
+      canvas.height = layer?.height ?? 1
+      if (!cover || !layer) return
+      const mask = document.createElement('canvas')
+      mask.width = cover.columns
+      mask.height = cover.rows
+      const pixels = new ImageData(cover.columns, cover.rows)
+      for (let i = 0; i < cover.alpha.length; i++) pixels.data[i * 4 + 3] = cover.alpha[i]
+      mask.getContext('2d')!.putImageData(pixels, 0, 0)
+      const context = canvas.getContext('2d')!
+      context.drawImage(layer, 0, 0)
+      context.globalCompositeOperation = 'destination-in'
+      context.imageSmoothingEnabled = true
+      const scale = canvas.width / width
+      context.drawImage(mask, 0, 0, cover.columns * cover.cell * scale, cover.rows * cover.cell * scale)
+    }, [groundLayer, cover, width, height, faces, wireframe, projectionKey])
+    return (
+      <foreignObject width={width} height={height} pointerEvents="none">
+        <canvas
+          ref={ref}
+          style={{ width, height }}
+          data-testid="road-ground-cover"
+          data-covered-cells={cover ? cover.alpha.reduce((sum, value) => sum + (value ? 1 : 0), 0) : 0}
+          aria-hidden="true"
+        />
+      </foreignObject>
+    )
+  },
+  (a, b) =>
+    a.cover === b.cover &&
+    a.faces === b.faces &&
+    a.wireframe === b.wireframe &&
+    a.projectionKey === b.projectionKey &&
+    a.width === b.width &&
+    a.height === b.height,
 )

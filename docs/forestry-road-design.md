@@ -368,13 +368,18 @@ The grid uses fixed local coordinates and discrete spacing, so moving the follow
 window does not move missing cells across the ground. Up to 65,536 sampled vertices
 (including missing values) are cached. Ground and batters paint onto one canvas;
 formation and structure overlays retain SVG selection. Ground in front of the road
-hides it (`terrainOcclusion.ts`): the formation, batters, centreline, ditches and
-unfinished-batter edges are tested against a 2 px depth buffer of the ground, and a
-face or line is drawn when any of its corners or its centre is in front. The display
-mesh is not excavated, so ground faces over the footprint or within one mesh spacing
-of it are left out of the buffer; otherwise every road in cut would be buried. A
-terrain-only transect lies on the ground it would be tested against and is never
-hidden, and culverts, the selected station and its section line always draw. Camera-only redraws reuse
+hides it (`terrainOcclusion.ts`). The display mesh is not excavated, so the test
+runs against the ground as the road leaves it: ground faces wholly inside the
+footprint (formation and batters) are left out, and faces across its edge have their
+inside corners lowered to the design surface, while ground beside the road, however
+close, stays whole. That ground goes into a 2 px depth buffer. A formation or batter
+face, centreline segment, ditch or unfinished-batter edge with no corner and no
+centre in front of it is not drawn, and the ground canvas is drawn again over the
+road pixel by pixel wherever the ground is nearer, so a strip half behind a crest is
+cut at the crest. The allowance grows with the vertical exaggeration, and specks of
+cover a cell or two across are dropped as mesh error. A terrain-only transect lies on
+the ground it would be tested against and is never hidden, and culverts, the selected
+station and its section line always draw. Camera-only redraws reuse
 the terrain geometry. **Whole road** and **Around station** modes, camera rotation,
 zoom, pan and vertical exaggeration change the presentation only.
 

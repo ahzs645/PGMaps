@@ -5,13 +5,13 @@ import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/re
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Crosshair, Grid3x3, Minus, PaintBucket, Plus, RotateCcw, RotateCw, TriangleRight } from 'lucide-react'
-import { TerrainGround, type TerrainFace as Face } from './TerrainGround'
+import { TerrainCover, TerrainGround, type TerrainFace as Face } from './TerrainGround'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ROAD_CHART_COLORS, formatRoadStation } from './Charts'
 import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { terrainMesh, cachedTerrainSampler, type TerrainVertex as Vertex } from './terrainMesh'
 import { previewEarthwork, type PreviewBatterEdge } from './previewEarthwork'
-import { groundNearFootprint, occlusionTest, type ProjectedPoint } from './terrainOcclusion'
+import { excavatedGround, occlusionTest, type OcclusionCover } from './terrainOcclusion'
 import {
   autoPreviewExaggeration,
   clampPreviewZoom,
@@ -465,9 +465,12 @@ export function TerrainPreview({
     key: string
     occluders: unknown
     showEarthwork: boolean
-    visible: (points: ProjectedPoint[]) => boolean
+    visible: ReturnType<typeof occlusionTest>['visible']
     earthwork: Face[]
+    road: Face[]
+    cover: OcclusionCover | null
   }>()
+  const groundLayer = useRef<HTMLCanvasElement | null>(null)
   // Wheel events can arrive several times per frame; each builds on the last one, not the last render.
   const live = useRef({ zoom, look })
   useLayoutEffect(() => {
@@ -643,19 +646,23 @@ export function TerrainPreview({
     }))
   }, [sourceGeometry, groundColour, exaggeration])
 
-  // Ground the road's overlays are tested against: everything except the ground over and beside the
-  // formation and batters, which the display draws unexcavated over a cut. A terrain-only transect has
-  // no footprint and lies on the ground it would be tested against, so it is never culled.
+  // Ground the road's overlays are tested against: the ground as the formation and batters leave it,
+  // since the display draws it unexcavated over a cut. A terrain-only transect has no footprint and
+  // lies on the ground it would be tested against, so it is never culled.
   const occluders = useMemo(() => {
     if (!sourceGeometry || terrainOnly) return null
-    const ground = sourceGeometry.ground.map((face) => face.vertices)
     const footprint = [...sourceGeometry.road, ...sourceGeometry.earthwork].map((face) => face.vertices)
+    const spacing = sourceGeometry.detailSpacing ?? sourceGeometry.meshSpacing
     return {
-      ground,
-      skip: groundNearFootprint(ground, footprint, sourceGeometry.meshSpacing),
-      tolerance: (sourceGeometry.detailSpacing ?? sourceGeometry.meshSpacing) / 2,
+      ground: excavatedGround(
+        sourceGeometry.ground.map((face) => face.vertices),
+        footprint,
+        spacing / 4,
+      ),
+      // The mesh's error in height is drawn exaggerated, so the allowance grows with the exaggeration.
+      tolerance: (spacing / 2) * Math.max(1, exaggeration),
     }
-  }, [sourceGeometry, terrainOnly])
+  }, [sourceGeometry, terrainOnly, exaggeration])
 
   const following = mode === 'follow' && active ? active : undefined
   const activeElevation = terrainOnly ? active?.groundElevation : (active?.designElevation ?? active?.groundElevation)
@@ -959,20 +966,23 @@ export function TerrainPreview({
                   occlusion.occluders !== (occluders ?? sourceGeometry) ||
                   occlusion.showEarthwork !== showEarthwork
                 ) {
-                  const visible = occluders ? occlusionTest({ ...occluders, project, width, height }) : () => true
+                  const test = occluders ? occlusionTest({ ...occluders, project, width, height }) : null
+                  const visible = test?.visible ?? (() => true)
+                  const shown = (items: Face[]) => items.filter((face) => visible(face.vertices.map(project)))
+                  const road = shown(sourceGeometry.road)
+                  const earthwork = showEarthwork ? shown(sourceGeometry.earthwork) : NO_FACES
                   occlusion = {
                     key: projectionKey,
                     occluders: occluders ?? sourceGeometry,
                     showEarthwork,
                     visible,
-                    earthwork: showEarthwork
-                      ? sourceGeometry.earthwork.filter((face) => visible(face.vertices.map(project)))
-                      : NO_FACES,
+                    road,
+                    earthwork,
+                    cover: test?.cover([...road, ...earthwork].map((face) => face.vertices.map(project))) ?? null,
                   }
                   occlusionCache.current = occlusion
                 }
-                const { visible } = occlusion
-                const visibleRoad = sourceGeometry.road.filter((face) => visible(face.vertices.map(project)))
+                const { visible, road: visibleRoad } = occlusion
                 const { bounds, frame: geometryFrame } = sourceGeometry
                 const route = sourceGeometry.line.slice(1).flatMap((s, index) => {
                   const previous = sourceGeometry.line[index]
@@ -1191,6 +1201,7 @@ export function TerrainPreview({
                       height={height}
                       wireframe={wireframe}
                       projectionKey={projectionKey}
+                      groundLayer={groundLayer}
                     />
                     {faces(visibleRoad).map((face, i) => (
                       <polygon
@@ -1212,51 +1223,6 @@ export function TerrainPreview({
                         onClick={() => onStation(face.station ?? 0)}
                       />
                     ))}
-                    {culverts
-                      .sort(
-                        (a, b) =>
-                          Number(a.culvert.id === selectedCulvertId) - Number(b.culvert.id === selectedCulvertId),
-                      )
-                      .map(({ culvert, segments }) => (
-                        <g
-                          key={culvert.id}
-                          role="button"
-                          tabIndex={segments.length ? 0 : undefined}
-                          aria-label={`Inspect 3D culvert ${culvert.name}`}
-                          aria-pressed={selectedCulvertId === culvert.id}
-                          className="cursor-pointer"
-                          onClick={() => {
-                            onSelectCulvert?.(culvert.id)
-                            onStation(culvert.chainage)
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
-                              event.stopPropagation()
-                              onSelectCulvert?.(culvert.id)
-                              onStation(culvert.chainage)
-                            }
-                          }}
-                        >
-                          {segments.map(({ a, b }, index) => (
-                            <line
-                              key={index}
-                              x1={a.x}
-                              y1={a.y}
-                              x2={b.x}
-                              y2={b.y}
-                              stroke={
-                                selectedCulvertId === culvert.id
-                                  ? ROAD_CHART_COLORS.selected
-                                  : culvert.warnings.length
-                                    ? '#b45309'
-                                    : '#0284c7'
-                              }
-                              strokeWidth={selectedCulvertId === culvert.id ? 6 : 4}
-                            />
-                          ))}
-                        </g>
-                      ))}
                     {showEarthwork &&
                       sourceGeometry.unfinishedEdges.map((edge, index) => {
                         const a = project(edge.a),
@@ -1318,6 +1284,61 @@ export function TerrainPreview({
                         onClick={terrainOnly ? () => onStation(segment.chainage) : undefined}
                       />
                     ))}
+                    {/* The ground in front of the road, drawn back over it pixel by pixel. */}
+                    <TerrainCover
+                      groundLayer={groundLayer}
+                      cover={occlusion.cover}
+                      width={width}
+                      height={height}
+                      faces={groundFaces}
+                      wireframe={wireframe}
+                      projectionKey={projectionKey}
+                    />
+                    {culverts
+                      .sort(
+                        (a, b) =>
+                          Number(a.culvert.id === selectedCulvertId) - Number(b.culvert.id === selectedCulvertId),
+                      )
+                      .map(({ culvert, segments }) => (
+                        <g
+                          key={culvert.id}
+                          role="button"
+                          tabIndex={segments.length ? 0 : undefined}
+                          aria-label={`Inspect 3D culvert ${culvert.name}`}
+                          aria-pressed={selectedCulvertId === culvert.id}
+                          className="cursor-pointer"
+                          onClick={() => {
+                            onSelectCulvert?.(culvert.id)
+                            onStation(culvert.chainage)
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              event.stopPropagation()
+                              onSelectCulvert?.(culvert.id)
+                              onStation(culvert.chainage)
+                            }
+                          }}
+                        >
+                          {segments.map(({ a, b }, index) => (
+                            <line
+                              key={index}
+                              x1={a.x}
+                              y1={a.y}
+                              x2={b.x}
+                              y2={b.y}
+                              stroke={
+                                selectedCulvertId === culvert.id
+                                  ? ROAD_CHART_COLORS.selected
+                                  : culvert.warnings.length
+                                    ? '#b45309'
+                                    : '#0284c7'
+                              }
+                              strokeWidth={selectedCulvertId === culvert.id ? 6 : 4}
+                            />
+                          ))}
+                        </g>
+                      ))}
                     {section.length > 1 && (
                       <path
                         d={section

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { previewCamera } from './previewCamera'
 import type { TerrainVertex } from './terrainMesh'
-import { groundNearFootprint, occlusionTest, polygonsNear } from './terrainOcclusion'
+import { excavatedGround, faceHeightAt, occlusionTest } from './terrainOcclusion'
 
 // Level ground with a 30 m ridge along y = 0; the camera (angle 0) looks toward +y, low over the ground.
 const SPACING = 10
@@ -36,58 +36,102 @@ const strip = (y0: number, y1: number, z: number): TerrainVertex[] => [
 ]
 const test = (footprint: TerrainVertex[][]) =>
   occlusionTest({
-    ground,
-    skip: groundNearFootprint(ground, footprint, SPACING),
+    ground: excavatedGround(ground, footprint),
     project: camera.project,
     width: 800,
     height: 400,
     tolerance: SPACING / 2,
   })
-const seen = (visible: ReturnType<typeof test>, face: TerrainVertex[]) => visible(face.map(camera.project))
+const seen = (occlusion: ReturnType<typeof test>, face: TerrainVertex[]) => occlusion.visible(face.map(camera.project))
+const square = (x: number, y: number, size: number, z = 0): TerrainVertex[] => [
+  { x, y, z },
+  { x: x + size, y, z },
+  { x: x + size, y: y + size, z },
+  { x, y: y + size, z },
+]
 
 describe('terrain occlusion', () => {
   it('hides a road behind a ridge and keeps one in front of it', () => {
     const behind = strip(50, 60, 0.5),
       inFront = strip(-60, -50, 0.5)
-    const visible = test([behind, inFront])
-    expect(seen(visible, behind)).toBe(false)
-    expect(seen(visible, inFront)).toBe(true)
+    const occlusion = test([behind, inFront])
+    expect(seen(occlusion, behind)).toBe(false)
+    expect(seen(occlusion, inFront)).toBe(true)
   })
 
-  it('keeps a road cut through the ridge visible, because the ground over its footprint is not an occluder', () => {
+  it('keeps a road cut through the ridge visible, because the ground over its footprint is excavated', () => {
     const cut = strip(-10, 10, 0.5)
     expect(seen(test([cut]), cut)).toBe(true)
     // The same face tested against the whole, unexcavated ground is buried in the ridge.
-    const unexcavated = occlusionTest({
-      ground,
-      skip: new Set(),
-      project: camera.project,
-      width: 800,
-      height: 400,
-      tolerance: SPACING / 2,
-    })
-    expect(seen(unexcavated, cut)).toBe(false)
+    expect(seen(test([]), cut)).toBe(false)
+  })
+
+  it('still hides a road behind the ridge when the ridge runs right beside the road', () => {
+    // A road through a notch in the ridge, and a road behind the ridge a cell beyond the notch's side:
+    // the ridge beside the notch is not part of the notch's footprint, so it still hides the far road.
+    const notch = [
+      { x: -3, y: -10, z: 0.5 },
+      { x: 3, y: -10, z: 0.5 },
+      { x: 3, y: 10, z: 0.5 },
+      { x: -3, y: 10, z: 0.5 },
+    ]
+    const behind = [
+      { x: 15, y: 50, z: 0.5 },
+      { x: 25, y: 50, z: 0.5 },
+      { x: 25, y: 60, z: 0.5 },
+      { x: 15, y: 60, z: 0.5 },
+    ]
+    expect(seen(test([notch, behind]), behind)).toBe(false)
+  })
+
+  it('covers the part of a strip behind the ground and leaves the part in front', () => {
+    // A strip running from in front of the ridge to behind it is drawn as a face, but the cells the
+    // ridge hides are marked for the ground to be drawn back over.
+    const long = strip(-60, 60, 0.5)
+    const occlusion = test([])
+    expect(seen(occlusion, long)).toBe(true)
+    const cover = occlusion.cover([long.map(camera.project)])!
+    const at = (vertex: TerrainVertex) => {
+      const p = camera.project(vertex)
+      return cover.alpha[Math.floor(p.y / cover.cell) * cover.columns + Math.floor(p.x / cover.cell)]
+    }
+    expect(at({ x: 0, y: -40, z: 0.5 })).toBe(0)
+    expect(at({ x: 0, y: 40, z: 0.5 })).toBe(255)
+    expect(occlusion.cover([strip(-60, -50, 0.5).map(camera.project)])).toBeNull()
   })
 
   it('keeps anything off the depth buffer or over no ground visible', () => {
-    const visible = test([])
-    expect(visible([{ x: -50, y: 10, depth: 1e6 }])).toBe(true)
-    expect(visible([{ x: 400, y: 2, depth: 1e6 }])).toBe(true)
-    expect(visible([])).toBe(false)
+    const occlusion = test([])
+    expect(occlusion.visible([{ x: -50, y: 10, depth: 1e6 }])).toBe(true)
+    expect(occlusion.visible([{ x: 400, y: 2, depth: 1e6 }])).toBe(true)
+    expect(occlusion.visible([])).toBe(false)
   })
 
-  it('finds ground faces that overlap or come within the margin of the footprint', () => {
-    const square = (x: number, y: number, size: number): TerrainVertex[] => [
-      { x, y, z: 0 },
-      { x: x + size, y, z: 0 },
-      { x: x + size, y: y + size, z: 0 },
-      { x, y: y + size, z: 0 },
+  it('drops ground wholly inside the footprint and lowers the inside corners of ground across its edge', () => {
+    const footprint = [square(0, 0, 10, -2)]
+    const result = excavatedGround(
+      [square(2, 2, 4, 5), square(5, 5, 10, 5), square(40, 0, 10, 5), square(-5, -5, 2, -9)],
+      footprint,
+    )
+    expect(result).toHaveLength(3)
+    // Across the edge: the corner inside the footprint drops to the design surface, the rest stay.
+    expect(result[0].map((v) => v.z)).toEqual([-2, 5, 5, 5])
+    // Clear of the footprint: unchanged, the same face.
+    expect(result[1]).toEqual(square(40, 0, 10, 5))
+    expect(result[2]).toEqual(square(-5, -5, 2, -9))
+    // A fill: ground below the design surface stays where it is.
+    expect(excavatedGround([square(5, 5, 10, -6)], footprint)[0].map((v) => v.z)).toEqual([-6, -6, -6, -6])
+  })
+
+  it('reads a face height by its fan triangles', () => {
+    const face = [
+      { x: 0, y: 0, z: 0 },
+      { x: 10, y: 0, z: 10 },
+      { x: 10, y: 10, z: 20 },
+      { x: 0, y: 10, z: 10 },
     ]
-    expect(polygonsNear(square(0, 0, 10), square(5, 5, 10), 0)).toBe(true)
-    expect(polygonsNear(square(0, 0, 10), square(2, 2, 2), 0)).toBe(true)
-    expect(polygonsNear(square(0, 0, 10), square(13, 0, 10), 2)).toBe(false)
-    expect(polygonsNear(square(0, 0, 10), square(11, 0, 10), 2)).toBe(true)
-    const near = groundNearFootprint([square(0, 0, 10), square(40, 0, 10), square(100, 0, 10)], [square(45, 2, 2)], 5)
-    expect([...near]).toEqual([1])
+    expect(faceHeightAt(5, 5, face)).toBeCloseTo(10)
+    expect(faceHeightAt(10, 0, face)).toBeCloseTo(10)
+    expect(faceHeightAt(11, 5, face)).toBeNull()
   })
 })

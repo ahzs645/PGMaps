@@ -54,6 +54,7 @@ vi.mock('./TerrainGround', () => ({
       projectedFaces: props.faces.map((face) => ({ ...face, projected: face.vertices.map(props.project) })),
       projectedOverlays: props.overlays.map((face) => ({ ...face, projected: face.vertices.map(props.project) })),
     }),
+  TerrainCover: () => null,
 }))
 
 let renderer: ReactTestRenderer | undefined
