@@ -162,7 +162,8 @@ test('source gaps remain visible across station selection, charts and the terrai
   const canvas = page.getByTestId('road-ground-canvas')
   await page.getByRole('button', { name: 'Around station', exact: true }).click()
   await expect(preview).toHaveAttribute('data-infilled-cells', /^[1-9][0-9]*$/)
-  await expect(page.getByTestId('road-terrain-infill-note')).toHaveText('Estimated patches · display only')
+  await expect(page.getByTestId('road-terrain-fill-gaps')).toHaveAttribute('data-estimated-patches', 'true')
+  await expect(page.getByTestId('road-terrain-fill-gaps')).toHaveAttribute('title', /^Showing estimated patches/)
   await expect(canvas).toHaveAttribute('data-estimated-face-count', /^[1-9][0-9]*$/)
   // Known vertical design remains visible even where the source ground is unknown.
   await expect(preview.locator('polygon[data-design-over-terrain-gap="true"]')).not.toHaveCount(0)

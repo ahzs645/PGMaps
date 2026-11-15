@@ -353,7 +353,7 @@ classified as unsupported even if their mesh corners have terrain.
 no wider or taller than 80 m receive estimated display patches. Missing preview
 vertices are relaxed toward the mean of their four neighbours, bounded by the
 measured surrounding terrain (at most 128 iterations). Measured vertices are never
-changed. The preview labels these patches **Estimated patches · display only**;
+changed. While patches are drawn, the Fill gaps button's tooltip says so;
 turning Fill gaps off restores the source holes. Components touching a mesh edge
 and larger unsupported areas stay open; the display does not extrapolate outside
 coverage. Infill is never passed to the source sampler, analysis, quantities or
@@ -361,13 +361,20 @@ exports. Profile and section charts still hatch missing terrain intervals, and
 the selected station still explains missing source coverage. Resolving those
 analysis gaps requires a DEM with coverage there.
 The road formation remains continuous wherever its designed elevations and
-widths are known, even if source ground is missing. Those spans identify ground
-as unverified on hover. Batters and ditch geometry still require their computed,
+widths are known, even if source ground is missing; the selected station's note
+says when its ground is unverified. Batters and ditch geometry still require their computed,
 supported sections; display infill never supplies missing earthwork geometry.
 The grid uses fixed local coordinates and discrete spacing, so moving the follow
 window does not move missing cells across the ground. Up to 65,536 sampled vertices
 (including missing values) are cached. Ground and batters paint onto one canvas;
-formation and structure overlays retain SVG selection. Camera-only redraws reuse
+formation and structure overlays retain SVG selection. Ground in front of the road
+hides it (`terrainOcclusion.ts`): the formation, batters, centreline, ditches and
+unfinished-batter edges are tested against a 2 px depth buffer of the ground, and a
+face or line is drawn when any of its corners or its centre is in front. The display
+mesh is not excavated, so ground faces over the footprint or within one mesh spacing
+of it are left out of the buffer; otherwise every road in cut would be buried. A
+terrain-only transect lies on the ground it would be tested against and is never
+hidden, and culverts, the selected station and its section line always draw. Camera-only redraws reuse
 the terrain geometry. **Whole road** and **Around station** modes, camera rotation,
 zoom, pan and vertical exaggeration change the presentation only.
 
@@ -378,9 +385,9 @@ Shift+arrows rotate and tilt, +/− zoom and Home fits. Zoom, rotation and pan a
 work around one focus point on the ground, held at the same place on screen
 (`previewCamera.ts`), so a zoom or a turn never throws what you are looking at off
 the pane. A press that moves less than 3 px is a click, so a click on the road still
-selects its station while a drag that starts on the road pans. The camera stack at
-the top right holds zoom, a compass (click to turn north up), rotate buttons and
-**Centre on selected station**; **Fit** in the toolbar resets the view. The scale
+selects its station while a drag that starts on the road pans. The toolbar holds
+**Fit**, which resets the view, then zoom, a compass (click to turn north up), rotate
+buttons and **Centre on selected station**. The scale
 bar is measured at the focus, and perspective shortens distances beyond it.
 
 Zoomed in past 2×, the ground around the focus is meshed again at finer spacing,

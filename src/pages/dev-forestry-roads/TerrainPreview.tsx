@@ -11,6 +11,7 @@ import { ROAD_CHART_COLORS, formatRoadStation } from './Charts'
 import { sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { terrainMesh, cachedTerrainSampler, type TerrainVertex as Vertex } from './terrainMesh'
 import { previewEarthwork, type PreviewBatterEdge } from './previewEarthwork'
+import { groundNearFootprint, occlusionTest, type ProjectedPoint } from './terrainOcclusion'
 import {
   autoPreviewExaggeration,
   clampPreviewZoom,
@@ -458,6 +459,15 @@ export function TerrainPreview({
   const dragFrame = useRef<number>()
   const pointerStart = useRef<[number, number]>()
   const cameraView = useRef<CameraView>()
+  // The depth test and the batters it lets through, kept while the camera and geometry hold still, so
+  // a station scrub neither rebuilds the buffer nor repaints the ground.
+  const occlusionCache = useRef<{
+    key: string
+    occluders: unknown
+    showEarthwork: boolean
+    visible: (points: ProjectedPoint[]) => boolean
+    earthwork: Face[]
+  }>()
   // Wheel events can arrive several times per frame; each builds on the last one, not the last render.
   const live = useRef({ zoom, look })
   useLayoutEffect(() => {
@@ -633,6 +643,20 @@ export function TerrainPreview({
     }))
   }, [sourceGeometry, groundColour, exaggeration])
 
+  // Ground the road's overlays are tested against: everything except the ground over and beside the
+  // formation and batters, which the display draws unexcavated over a cut. A terrain-only transect has
+  // no footprint and lies on the ground it would be tested against, so it is never culled.
+  const occluders = useMemo(() => {
+    if (!sourceGeometry || terrainOnly) return null
+    const ground = sourceGeometry.ground.map((face) => face.vertices)
+    const footprint = [...sourceGeometry.road, ...sourceGeometry.earthwork].map((face) => face.vertices)
+    return {
+      ground,
+      skip: groundNearFootprint(ground, footprint, sourceGeometry.meshSpacing),
+      tolerance: (sourceGeometry.detailSpacing ?? sourceGeometry.meshSpacing) / 2,
+    }
+  }, [sourceGeometry, terrainOnly])
+
   const following = mode === 'follow' && active ? active : undefined
   const activeElevation = terrainOnly ? active?.groundElevation : (active?.designElevation ?? active?.groundElevation)
   const target = base
@@ -756,6 +780,75 @@ export function TerrainPreview({
           >
             Fit
           </Button>
+          <div role="toolbar" aria-label="3D camera" className="flex items-center">
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Zoom terrain in"
+              title="Zoom in (+)"
+              disabled={!sourceGeometry}
+              onClick={() => zoomAt(1.25)}
+            >
+              <Plus className="size-3.5" />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Zoom terrain out"
+              title="Zoom out (−)"
+              disabled={!sourceGeometry}
+              onClick={() => zoomAt(1 / 1.25)}
+            >
+              <Minus className="size-3.5" />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Face north"
+              title="Compass: click to turn north up"
+              data-north-degrees={Math.round(northDegrees) || 0}
+              disabled={!sourceGeometry}
+              onClick={faceNorth}
+            >
+              <svg viewBox="-10 -10 20 20" className="size-4" aria-hidden="true">
+                <g transform={`rotate(${northDegrees.toFixed(1)})`}>
+                  <path d="M0,-8 L3,0 L-3,0 Z" fill="#e11d48" />
+                  <path d="M0,8 L3,0 L-3,0 Z" fill="currentColor" opacity={0.45} />
+                </g>
+              </svg>
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Rotate terrain left"
+              title="Rotate left (Shift+←)"
+              disabled={!sourceGeometry}
+              onClick={() => setYaw((value) => value - 15)}
+            >
+              <RotateCcw className="size-3.5" />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Rotate terrain right"
+              title="Rotate right (Shift+→)"
+              disabled={!sourceGeometry}
+              onClick={() => setYaw((value) => value + 15)}
+            >
+              <RotateCw className="size-3.5" />
+            </Button>
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Centre on selected station"
+              title="Centre on the selected station"
+              disabled={!sourceGeometry || !activeVertex}
+              onClick={centreOnStation}
+            >
+              <Crosshair className="size-3.5" />
+            </Button>
+          </div>
+          <span aria-hidden="true" className="mx-0.5 h-4 w-px bg-border" />
           {/* Display toggles are icons so the bar fits one row; pressed ones keep a tint. */}
           <Button
             size="icon-xs"
@@ -774,7 +867,9 @@ export function TerrainPreview({
             className="aria-pressed:bg-primary/10 aria-pressed:text-primary"
             aria-label="Fill small gaps in 3D display"
             aria-pressed={fillGaps}
-            title="Fill small gaps: estimate small enclosed gaps for the 3D display only. Turn off to show the original source gaps. Calculations always use the original terrain."
+            data-testid="road-terrain-fill-gaps"
+            data-estimated-patches={!!sourceGeometry?.infilledCells}
+            title={`${sourceGeometry?.infilledCells ? 'Showing estimated patches (display only). ' : ''}Fill small gaps: estimate small enclosed gaps for the 3D display only. Turn off to show the original source gaps. Calculations always use the original terrain.`}
             onClick={() => setFillGaps((value) => !value)}
           >
             <PaintBucket className="size-3.5" />
@@ -845,14 +940,48 @@ export function TerrainPreview({
                   make: (nextZoom, focus) => previewCamera({ ...cameraInputs, zoom: nextZoom, focus }),
                 }
                 const { scale, cameraDistance, project } = camera
+                const projectionKey = JSON.stringify([
+                  width,
+                  height,
+                  target,
+                  targetZ,
+                  angle,
+                  tilt,
+                  scale,
+                  cameraDistance,
+                  exaggeration,
+                  camera.focus,
+                ])
+                let occlusion = occlusionCache.current
+                if (
+                  !occlusion ||
+                  occlusion.key !== projectionKey ||
+                  occlusion.occluders !== (occluders ?? sourceGeometry) ||
+                  occlusion.showEarthwork !== showEarthwork
+                ) {
+                  const visible = occluders ? occlusionTest({ ...occluders, project, width, height }) : () => true
+                  occlusion = {
+                    key: projectionKey,
+                    occluders: occluders ?? sourceGeometry,
+                    showEarthwork,
+                    visible,
+                    earthwork: showEarthwork
+                      ? sourceGeometry.earthwork.filter((face) => visible(face.vertices.map(project)))
+                      : NO_FACES,
+                  }
+                  occlusionCache.current = occlusion
+                }
+                const { visible } = occlusion
+                const visibleRoad = sourceGeometry.road.filter((face) => visible(face.vertices.map(project)))
                 const { bounds, frame: geometryFrame } = sourceGeometry
                 const route = sourceGeometry.line.slice(1).flatMap((s, index) => {
                   const previous = sourceGeometry.line[index]
                   if (!s.vertex || !previous.vertex || !s.connected) return []
                   const clipped = clipLine(previous.vertex, s.vertex, bounds)
-                  return clipped
-                    ? [{ first: project(clipped[0]), last: project(clipped[1]), chainage: s.chainage }]
-                    : []
+                  if (!clipped) return []
+                  const first = project(clipped[0]),
+                    last = project(clipped[1])
+                  return visible([first, last]) ? [{ first, last, chainage: s.chainage }] : []
                 })
                 const faces = (items: Face[]) =>
                   items
@@ -910,6 +1039,7 @@ export function TerrainPreview({
                     role="group"
                     tabIndex={0}
                     data-camera-focus={look ? `${look.x.toFixed(2)},${look.y.toFixed(2)}` : 'fit'}
+                    data-hidden-road-faces={sourceGeometry.road.length - visibleRoad.length}
                     aria-label={
                       terrainOnly
                         ? 'Three dimensional terrain surface and sampled transect. Drag to pan, right-drag or Ctrl-drag to rotate, scroll to zoom; arrow keys pan and Shift+arrows rotate.'
@@ -931,7 +1061,7 @@ export function TerrainPreview({
                       )
                         return
                       const { x, y } = svgPoint(event, event.currentTarget)
-                      const picked = [...sourceGeometry.earthwork]
+                      const picked = [...occlusion.earthwork]
                         .sort(
                           (a, b) =>
                             b.vertices.reduce((sum, v) => sum + project(v).depth, 0) / b.vertices.length -
@@ -1052,33 +1182,17 @@ export function TerrainPreview({
                       action()
                     }}
                   >
-                    <title>
-                      {terrainOnly
-                        ? 'Decimated surface and transect sampled from the same elevation source as the terrain profile.'
-                        : 'Decimated surface sampled from the same elevation source as the road calculations. Road formation is overlaid to remain visible in cut.'}
-                    </title>
                     <rect width={width} height={height} fill="hsl(var(--muted))" opacity={0.3} />
                     <TerrainGround
                       faces={groundFaces}
-                      overlays={showEarthwork ? sourceGeometry.earthwork : NO_FACES}
+                      overlays={occlusion.earthwork}
                       project={project}
                       width={width}
                       height={height}
                       wireframe={wireframe}
-                      projectionKey={JSON.stringify([
-                        width,
-                        height,
-                        target,
-                        targetZ,
-                        angle,
-                        tilt,
-                        scale,
-                        cameraDistance,
-                        exaggeration,
-                        camera.focus,
-                      ])}
+                      projectionKey={projectionKey}
                     />
-                    {faces(sourceGeometry.road).map((face, i) => (
+                    {faces(visibleRoad).map((face, i) => (
                       <polygon
                         key={`road${i}`}
                         data-design-over-terrain-gap={face.terrainGap || undefined}
@@ -1096,12 +1210,7 @@ export function TerrainPreview({
                         opacity={0.95}
                         className="cursor-pointer"
                         onClick={() => onStation(face.station ?? 0)}
-                      >
-                        <title>
-                          Design surface at {formatRoadStation(face.station ?? 0)}
-                          {face.terrainGap ? '; ground is unverified here' : ''}; click to inspect
-                        </title>
-                      </polygon>
+                      />
                     ))}
                     {culverts
                       .sort(
@@ -1146,15 +1255,13 @@ export function TerrainPreview({
                               strokeWidth={selectedCulvertId === culvert.id ? 6 : 4}
                             />
                           ))}
-                          <title>
-                            {culvert.name} · {formatRoadStation(culvert.chainage)} · entered barrel crown geometry
-                          </title>
                         </g>
                       ))}
                     {showEarthwork &&
                       sourceGeometry.unfinishedEdges.map((edge, index) => {
                         const a = project(edge.a),
                           b = project(edge.b)
+                        if (!visible([a, b])) return null
                         return (
                           <line
                             key={`unfinished-${index}`}
@@ -1180,6 +1287,7 @@ export function TerrainPreview({
                       sourceGeometry.ditches.map((segment, index) => {
                         const a = project(segment.a),
                           b = project(segment.b)
+                        if (!visible([a, b])) return null
                         return (
                           <line
                             key={`ditch-${index}`}
@@ -1192,11 +1300,7 @@ export function TerrainPreview({
                             strokeDasharray="3 2"
                             className="cursor-pointer"
                             onClick={() => onStation(segment.chainage)}
-                          >
-                            <title>
-                              {segment.side} ditch bottom at {formatRoadStation(segment.chainage)}
-                            </title>
-                          </line>
+                          />
                         )
                       })}
                     {route.map((segment, i) => (
@@ -1305,7 +1409,7 @@ export function TerrainPreview({
           )}
         </ChartViewport>
         {sourceGeometry && (
-          <div className="pointer-events-none absolute left-2 top-2 z-10 flex max-w-[calc(100%-4rem)] flex-col items-start gap-1 text-3xs">
+          <div className="pointer-events-none absolute left-2 top-2 z-10 flex max-w-[calc(100%-1rem)] flex-col items-start gap-1 text-3xs">
             {following ? (
               <p
                 className="rounded-sm border bg-background/90 px-1.5 py-0.5 font-medium"
@@ -1323,92 +1427,6 @@ export function TerrainPreview({
                 </p>
               )
             )}
-            {!!sourceGeometry.infilledCells && (
-              <p
-                role="status"
-                data-testid="road-terrain-infill-note"
-                className="rounded-sm border bg-background/90 px-2 py-1 text-muted-foreground"
-                title="Small enclosed gaps are estimated from surrounding terrain for display. Station elevations, quantities and reports retain the original missing data."
-              >
-                Estimated patches · display only
-              </p>
-            )}
-          </div>
-        )}
-        {sourceGeometry && (
-          <div
-            className="absolute right-2 top-2 z-20 flex flex-col rounded-md border bg-background/90 shadow-sm"
-            role="toolbar"
-            aria-orientation="vertical"
-            aria-label="3D camera"
-          >
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              className="rounded-none"
-              aria-label="Zoom terrain in"
-              title="Zoom in (+)"
-              onClick={() => zoomAt(1.25)}
-            >
-              <Plus className="size-3.5" />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              className="rounded-none border-b"
-              aria-label="Zoom terrain out"
-              title="Zoom out (−)"
-              onClick={() => zoomAt(1 / 1.25)}
-            >
-              <Minus className="size-3.5" />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              className="rounded-none"
-              aria-label="Face north"
-              title="Compass: click to turn north up"
-              data-north-degrees={Math.round(northDegrees) || 0}
-              onClick={faceNorth}
-            >
-              <svg viewBox="-10 -10 20 20" className="size-4" aria-hidden="true">
-                <g transform={`rotate(${northDegrees.toFixed(1)})`}>
-                  <path d="M0,-8 L3,0 L-3,0 Z" fill="#e11d48" />
-                  <path d="M0,8 L3,0 L-3,0 Z" fill="currentColor" opacity={0.45} />
-                </g>
-              </svg>
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              className="rounded-none"
-              aria-label="Rotate terrain left"
-              title="Rotate left (Shift+←)"
-              onClick={() => setYaw((value) => value - 15)}
-            >
-              <RotateCcw className="size-3.5" />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              className="rounded-none border-b"
-              aria-label="Rotate terrain right"
-              title="Rotate right (Shift+→)"
-              onClick={() => setYaw((value) => value + 15)}
-            >
-              <RotateCw className="size-3.5" />
-            </Button>
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              className="rounded-none"
-              aria-label="Centre on selected station"
-              title="Centre on the selected station"
-              disabled={!activeVertex}
-              onClick={centreOnStation}
-            >
-              <Crosshair className="size-3.5" />
-            </Button>
           </div>
         )}
         {sourceGeometry && groundColour !== 'plain' && (
