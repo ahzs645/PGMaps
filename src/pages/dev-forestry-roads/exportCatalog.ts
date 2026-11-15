@@ -31,6 +31,10 @@ export type RoadExport =
   | 'streams-csv'
   | 'provincial-evidence'
   | 'notes'
+  | 'qgis-project'
+  | 'arcgis-pro'
+  | 'web-map-style'
+  | 'symbol-library'
 
 export type ExportGroup = 'project' | 'documents' | 'gis' | 'survey'
 
@@ -63,8 +67,13 @@ export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = [
   'roadeng-project',
   'report-package',
   'estimate-pdf',
+  'qgis-project',
+  'arcgis-pro',
+  'web-map-style',
 ]
 export type RoadScope = 'active' | 'all'
+/** Outputs that write other programs' styles, so the browser's style library can change what they draw. */
+export const STYLE_LIBRARY_EXPORTS: readonly RoadExport[] = ['shapefile', 'qgis-project', 'arcgis-pro', 'web-map-style']
 
 /**
  * The roads a multi-road output writes. A file handed to someone else carries the road on screen
@@ -115,6 +124,11 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   csv: 'refuse',
   geojson: 'refuse',
   shapefile: 'refuse',
+  'qgis-project': 'refuse',
+  'arcgis-pro': 'refuse',
+  'web-map-style': 'refuse',
+  // The catalogue's symbols only: no road result goes in it.
+  'symbol-library': 'unaffected',
 }
 
 export const EXPORT_GROUP_LABELS: Record<ExportGroup, string> = {
@@ -222,7 +236,39 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     label: 'Shapefile',
     extension: '.zip',
     description:
-      'Road centrelines, stations and culverts as shapefile layers, zipped with their projection files. One road or all.',
+      'Road centrelines, stations and culverts as shapefile layers, zipped with their projection files and a QGIS (.qml), SLD and ArcGIS Pro (.lyrx) style beside each. One road or all.',
+  },
+  {
+    kind: 'qgis-project',
+    group: 'gis',
+    label: 'QGIS project',
+    extension: '.zip',
+    description:
+      'The roads, culverts, stations, streams, existing roads and constraints drawn with the plan’s symbols as a QGIS project (.qgz), with the block sheet layouts as print templates.',
+  },
+  {
+    kind: 'arcgis-pro',
+    group: 'gis',
+    label: 'ArcGIS Pro map',
+    extension: '.zip',
+    description:
+      'The same layers with an ArcGIS Pro layer file (.lyrx) each, a map (.mapx), the block sheet layouts (.pagx) and the map symbols as a style (.stylx).',
+  },
+  {
+    kind: 'web-map-style',
+    group: 'gis',
+    label: 'Web map styles',
+    extension: '.zip',
+    description:
+      'The same layers as a MapLibre style with its sprites, a GeoLibre project and SLD styles for GeoServer, with the data as GeoJSON.',
+  },
+  {
+    kind: 'symbol-library',
+    group: 'gis',
+    label: 'Symbol library',
+    extension: '.zip',
+    description:
+      'Every map symbol PGMaps draws, as a QGIS style library, an ArcGIS Pro style (.stylx) and a GeoLibre style library.',
   },
   {
     kind: 'csv',
@@ -320,7 +366,8 @@ const invalidFor = (kind: RoadExport, context: ExportContext) =>
 
 /** Why an output cannot be made right now, or null when it can. */
 export function exportUnavailable(kind: RoadExport, context: ExportContext): string | null {
-  if (kind === 'project') return null
+  // The symbol library holds the catalogue, which needs no road.
+  if (kind === 'project' || kind === 'symbol-library') return null
   // Notes are drawn, not calculated, so they export whatever state the road is in.
   if (kind === 'notes') return context.hasNotes ? null : 'Draw a note on the plan first.'
   if (context.designPreview) return 'Finish or close the design preview first.'

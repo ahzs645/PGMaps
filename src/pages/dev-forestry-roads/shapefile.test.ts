@@ -3,7 +3,7 @@ import shp from 'shpjs'
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { roadShapefileLayers } from './designExports'
-import { encodeDbf, type ShapeLayer, writeDbf, writeShapefile, writeShapefileLayer } from './shapefile'
+import { encodeDbf, shapefileRings, type ShapeLayer, writeDbf, writeShapefile, writeShapefileLayer } from './shapefile'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, Coordinate } from './types'
 
@@ -43,6 +43,40 @@ describe('shapefile export', () => {
     expect(stations.features).toHaveLength(analysis.stations.length)
     expect(stations.features[3].properties!.STATION_M).toBeCloseTo(analysis.stations[3].chainage, 2)
     expect(stations.features[3].geometry.type).toBe('Point')
+  })
+
+  it('writes polygons with a clockwise outer ring and counter-clockwise holes, which a reader parses back', async () => {
+    const outer: Coordinate[] = [
+      [-122.8, 53.9],
+      [-122.79, 53.9],
+      [-122.79, 53.91],
+      [-122.8, 53.91],
+    ]
+    const hole: Coordinate[] = [
+      [-122.797, 53.903],
+      [-122.797, 53.907],
+      [-122.793, 53.907],
+      [-122.793, 53.903],
+    ]
+    const rings = shapefileRings([outer, hole])
+    const area = (ring: Coordinate[]) =>
+      ring.slice(0, -1).reduce((sum, p, i) => sum + p[0] * ring[i + 1][1] - ring[i + 1][0] * p[1], 0)
+    expect(area(rings[0])).toBeLessThan(0)
+    expect(area(rings[1])).toBeGreaterThan(0)
+    expect(rings.every((ring) => ring[0].join() === ring.at(-1)!.join())).toBe(true)
+    const zip = new JSZip()
+    const layer: ShapeLayer = {
+      name: 'context_areas',
+      type: 'polygon',
+      fields: [{ name: 'NAME', type: 'C', length: 20 }],
+      features: [{ parts: [outer, hole], attributes: { NAME: 'Block' } }],
+    }
+    for (const [name, bytes] of Object.entries(writeShapefile(layer))) zip.file(name, bytes)
+    const parsed = (await shp(await zip.generateAsync({ type: 'arraybuffer' }))) as GeoJSON.FeatureCollection
+    const polygon = parsed.features[0].geometry as GeoJSON.Polygon
+    expect(polygon.type).toBe('Polygon')
+    expect(polygon.coordinates).toHaveLength(2)
+    expect(parsed.features[0].properties!.NAME).toBe('Block')
   })
 
   it('cuts text past 254 bytes on a character boundary and leaves unknown numbers blank', () => {
