@@ -97,6 +97,18 @@ function reviewedCost(alignment: Alignment): FullCostReviewRecord {
     },
   }
 }
+describe('snapshotting an unchanged road', () => {
+  it('returns the same road, so an edit elsewhere does not re-analyse it', () => {
+    const saved = snapshotActiveVerticalAlternative(addVerticalAlternative(road(), 'v2', 'Low cut'))
+    expect(snapshotActiveVerticalAlternative(saved)).toBe(saved)
+    const edited = snapshotActiveVerticalAlternative({
+      ...saved,
+      vertical: saved.vertical.map((p) => ({ ...p, elevation: p.elevation + 1 })),
+    })
+    expect(edited).not.toBe(saved)
+    expect(edited.verticalAlternatives).not.toBe(saved.verticalAlternatives)
+  })
+})
 describe('named vertical alternatives', () => {
   it('retains each profile’s comparison evidence across switches/removal and JSON, without recursive signatures', () => {
     const original = road()

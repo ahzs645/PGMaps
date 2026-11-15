@@ -274,6 +274,13 @@ with K = 0 and no curve length, not on its entered length.
   Levels remain on the entered discrete ladder. "Tie both ends to ground" means
   centreline ground at 0+000 and at the road end, not an existing road's formation. To tie to
   a structure, add a control point at that end instead; a control there overrides the tie.
+- **Grade limit by direction.** With **Loaded trucks travel** and an **adverse limit** set under
+  Review → Design standards, the search holds loaded climbs to the adverse limit and loaded
+  descents to the road-wide grade limit (`gradeRule`, `sustainedLimit`), as Review judges them,
+  and its log names both ("16% favourable, 9% adverse, loaded end to start"). Without a loaded
+  direction both are held to the road-wide limit. Every caller passes the job's standards: the
+  Optimize button, joint refinement, the route comparison's profiles and the designed case of
+  **Compare best and worst case**.
 - Grade and curvature range boundaries are mandatory search stations. Global and range-specific
   sag/crest K values combine with **Curve K** by taking the strictest value. Linear-only ranges
   exclude curves and grade breaks. The DP retains the preceding occupied half-curve and a Pareto

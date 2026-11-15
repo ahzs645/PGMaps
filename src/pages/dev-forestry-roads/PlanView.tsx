@@ -91,6 +91,7 @@ import { AccessHistoryLayers } from './AccessHistoryLayers'
 import { historicalMapFeatures } from './accessHistoryMap'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 import { riparianMapFeatures, RIPARIAN_MAP_COLORS } from './riparian'
+import { mergeRiparianZones } from './riparianDisplay'
 import { areaPatternId, keepSymbolImages, symbolImages, type SymbolImageMap } from '@/lib/mapSheet/mapSymbols'
 import type { AreaSymbol } from '@/lib/mapSheet/symbols'
 import { cutblockBufferSymbol } from './cutblockBufferStyle'
@@ -811,7 +812,8 @@ function Layers(
   const context = useMemo(
     () =>
       fc([
-        ...riparianMapFeatures(props.visibleContext).map((feature) => ({
+        // Riparian screens are drawn dissolved by band (`riparianDisplay.ts`); clicks never read them.
+        ...mergeRiparianZones(riparianMapFeatures(props.visibleContext)).features.map((feature) => ({
           ...feature,
           properties: { ...feature.properties, sheetKey: riparianSheetKey(feature.properties?.riparianBand) },
         })),
@@ -2428,11 +2430,13 @@ export function PlanView(input: PlanProps) {
   const [basemap, setBasemap] = useStoredImageryBasemap('pgmaps-road-basemap')
   const { showContours, setShowContours, showLabels, setShowLabels, showEarthwork, setShowEarthwork, fitRequest, fit } =
     props.display
+  // Block-sheet symbols by default, as printed block-map sheets draw them; a saved choice of
+  // the standard road plan stays this browser's choice.
   const [symbolStyle, setSymbolStyle] = useState<'road-plan' | 'block-sheet'>(() => {
     try {
-      return localStorage.getItem('pgmaps-road-symbol-style') === 'block-sheet' ? 'block-sheet' : 'road-plan'
+      return localStorage.getItem('pgmaps-road-symbol-style') === 'road-plan' ? 'road-plan' : 'block-sheet'
     } catch {
-      return 'road-plan'
+      return 'block-sheet'
     }
   })
   const sheetSymbols = symbolStyle === 'block-sheet'

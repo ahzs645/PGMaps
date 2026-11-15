@@ -61,6 +61,12 @@ buffers**. The outer search envelope is channel half-width + reserve + managemen
 includes the channel half-width; the outer management envelope includes the inner band. Colours and
 legend entries distinguish reserve, management and unresolved extent. Hiding streams hides these map
 bands but never disables their route constraints.
+
+The plan and the block sheets draw the screen **dissolved by band** (`mergeRiparianZones`,
+`riparianDisplay.ts`): reserve first, then management outside the reserve, then the unresolved
+screen outside both, so overlapping reach buffers show one outline and one hatch. Only the drawing
+is merged. The riparian register, route screening, Review's riparian row and exports keep each
+reach with its own class, width and source, and clicks on the plan never read the drawn zones.
 Round caps use a conservative polygon approximation (less than 0.5% outward allowance), so chords
 between cap vertices cannot open small gaps inside the nominal horizontal screen.
 

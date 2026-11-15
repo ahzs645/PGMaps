@@ -1,5 +1,6 @@
 import { EXPORT_ITEMS, type RoadExport } from '@/pages/dev-forestry-roads/exportCatalog'
 import {
+  ReceiptText,
   ZoomIn,
   ZoomOut,
   Sheet,
@@ -44,6 +45,7 @@ import {
   FilePlus2,
   FileSpreadsheet,
   FileStack,
+  PackageOpen,
   FileText,
   FileUp,
   Focus,
@@ -162,6 +164,8 @@ const additionalExportIcons: Partial<Record<RoadExport, LucideIcon>> = {
   dxf: DraftingCompass,
   shapefile: FolderArchive,
   'plotbook-pdf': BookCopy,
+  'report-package': PackageOpen,
+  'estimate-pdf': ReceiptText,
   'terrain-landxml': FileImage,
   'terrain-ascii': Grid3X3,
   'streams-csv': WavesArrowDown,

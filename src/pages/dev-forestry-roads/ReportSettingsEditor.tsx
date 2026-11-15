@@ -5,6 +5,15 @@ import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import {
+  CHART_GRADE_RANGES,
+  CHART_INTERVALS,
+  CHART_INTERVAL_LINES,
+  CHART_INTERVAL_STYLES,
+  INTERVAL_LINES_LABELS,
+  INTERVAL_STYLE_LABELS,
+  CHART_PANELS,
+  CHART_STATION_TICKS,
+  chartsOptions,
   createReportChapter,
   createRoadReportSettings,
   formatDrawingLabel,
@@ -15,6 +24,10 @@ import {
   REPORT_PAPER_IDS,
   REPORT_PAPERS,
   validateLabelTemplate,
+  type ChartIntervalLines,
+  type ChartIntervalStyle,
+  type ChartPanel,
+  type ChartsOptions,
   type ReportChapter,
   type ReportChapterKind,
   type ReportPaper,
@@ -28,6 +41,7 @@ const KIND_LABELS: Record<ReportChapterKind, string> = {
   curves: 'Horizontal curves',
   structures: 'Culvert inventory',
   materials: 'Material quantities',
+  charts: 'Profile, grade & mass haul',
 }
 const COLUMN_LABELS = {
   station: 'Station',
@@ -338,6 +352,7 @@ function ChapterFields({
           />
         )}
       </div>
+      {chapter.kind === 'charts' && <ChartsFields chapter={chapter} onPatch={onPatch} />}
       {chapter.kind === 'materials' && (
         <p className="text-muted-foreground">
           Material totals use the selected range and supported section intervals, including site preparation.
@@ -457,6 +472,117 @@ function DrawingLabelField({
         />
       </Field>
       <p className={`mt-1 ${error ? 'text-warning' : 'text-muted-foreground'}`}>{error ?? `Preview: ${preview}`}</p>
+    </div>
+  )
+}
+
+const CHART_PANEL_LABELS: Record<ChartPanel, string> = {
+  profile: 'Profile',
+  grade: 'Grade',
+  mass: 'Mass haul',
+}
+
+/** The charts chapter's sheet length, station axis, grade axis, panels, legend and statistics. */
+function ChartsFields({
+  chapter,
+  onPatch,
+}: {
+  chapter: ReportChapter
+  onPatch: (changes: Partial<ReportChapter>) => void
+}) {
+  const options = chartsOptions(chapter)
+  const set = (changes: Partial<ChartsOptions>) => onPatch({ charts: { ...options, ...changes } })
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <NumberField
+          label="Maximum metres per sheet"
+          value={chapter.sheetLengthM}
+          min={10}
+          max={10000}
+          step={100}
+          onChange={(sheetLengthM) => onPatch({ sheetLengthM })}
+        />
+        <Field label="Station axis every">
+          <RoadSelect
+            value={options.stationTickM === null ? 'auto' : String(options.stationTickM)}
+            onValueChange={(value) => set({ stationTickM: value === 'auto' ? null : Number(value) })}
+            options={[
+              { value: 'auto', label: 'Automatic' },
+              ...CHART_STATION_TICKS.map((tick) => ({ value: String(tick), label: `${tick} m` })),
+            ]}
+            ariaLabel="Station axis spacing"
+          />
+        </Field>
+        <Field label="Grade axis">
+          <RoadSelect
+            value={options.gradeRangePercent === null ? 'fit' : String(options.gradeRangePercent)}
+            onValueChange={(value) => set({ gradeRangePercent: value === 'fit' ? null : Number(value) })}
+            options={[
+              { value: 'fit', label: 'Fit the steepest grade' },
+              ...CHART_GRADE_RANGES.map((range) => ({ value: String(range), label: `±${range}%` })),
+            ]}
+            ariaLabel="Grade axis range"
+          />
+        </Field>
+        <Field label="Statistics every">
+          <RoadSelect
+            value={options.intervalM ? String(options.intervalM) : 'off'}
+            onValueChange={(value) => set({ intervalM: value === 'off' ? null : Number(value) })}
+            options={[
+              { value: 'off', label: 'Off' },
+              ...CHART_INTERVALS.map((interval) => ({ value: String(interval), label: `${interval} m` })),
+            ]}
+            ariaLabel="Statistics interval"
+          />
+        </Field>
+        <Field label="Statistics shown as">
+          <RoadSelect
+            value={options.intervalStyle ?? 'band'}
+            disabled={!options.intervalM}
+            onValueChange={(value) => set({ intervalStyle: value as ChartIntervalStyle })}
+            options={CHART_INTERVAL_STYLES.map((style) => ({ value: style, label: INTERVAL_STYLE_LABELS[style] }))}
+            ariaLabel="Statistics style"
+          />
+        </Field>
+        <Field label="Statistics for">
+          <RoadSelect
+            value={options.intervalLines ?? 'design'}
+            disabled={!options.intervalM || (options.intervalStyle ?? 'band') === 'band'}
+            onValueChange={(value) => set({ intervalLines: value as ChartIntervalLines })}
+            options={CHART_INTERVAL_LINES.map((lines) => ({ value: lines, label: INTERVAL_LINES_LABELS[lines] }))}
+            ariaLabel="Statistics lines"
+          />
+        </Field>
+      </div>
+      <CheckboxGrid
+        legend="Show on the charts sheet"
+        note="A fixed grade axis draws steeper grades at its edge and says so in the panel title. Statistics every N m prints a band under the charts: each interval's average and steepest grade, rise, ground grade, cut and fill."
+        items={[
+          ...CHART_PANELS.map((panel) => ({
+            key: panel,
+            label: CHART_PANEL_LABELS[panel],
+            checked: options.panels.includes(panel),
+            disabled: options.panels.length === 1 && options.panels.includes(panel),
+            onChange: (checked: boolean) =>
+              set({
+                panels: CHART_PANELS.filter((p) => (p === panel ? checked : options.panels.includes(p))),
+              }),
+          })),
+          {
+            key: 'legend',
+            label: 'Legend',
+            checked: options.legend,
+            onChange: (legend: boolean) => set({ legend }),
+          },
+          {
+            key: 'stats',
+            label: 'Statistics (length, grades, earthwork)',
+            checked: options.stats,
+            onChange: (stats: boolean) => set({ stats }),
+          },
+        ]}
+      />
     </div>
   )
 }

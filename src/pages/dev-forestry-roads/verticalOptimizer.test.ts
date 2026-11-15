@@ -11,6 +11,7 @@ import {
 } from './verticalOptimizer'
 import type { Alignment, Coordinate, RoadSettings, TerrainSource } from './types'
 import type { VerticalControl } from './verticalStandards'
+import { DEFAULT_DESIGN_STANDARDS } from './designStandards'
 
 const ORIGIN: Coordinate = [-122.8, 53.9]
 const settings: RoadSettings = { ...DEFAULT_ROAD_SETTINGS, maxGradePercent: 18 }
@@ -555,5 +556,40 @@ describe('profile optimizer in slices', () => {
     )
     await expect(run).rejects.toMatchObject({ name: 'AbortError', message: 'Profile optimization cancelled.' })
     expect(slices).toBe(3)
+  })
+})
+
+describe('profile optimizer with a loaded direction', () => {
+  // The hillside falls about 6 % to the east, along the road. Loaded trucks running end to start
+  // climb it: those grades are adverse, held to 4 %; running start to end they descend it.
+  const job = (loadedDirection: 'start-to-end' | 'end-to-start') => ({
+    ...DEFAULT_DESIGN_STANDARDS,
+    adverseGradePercent: 4,
+    loadedDirection,
+  })
+  const run = (loadedDirection: 'start-to-end' | 'end-to-start') => {
+    const result = optimizeVerticalProfile(road(200), 200, hillside(), settings, {
+      maxDepthM: 10,
+      levelStepM: 1,
+      tieEndsToGround: false,
+      gradeStandards: job(loadedDirection),
+    })
+    const checked = analyzeRoad({ ...road(200), vertical: result.vertical }, hillside(), settings)
+    const grades = checked.stations.map((s) => s.gradePercent ?? 0)
+    return { result, lowest: Math.min(...grades), highest: Math.max(...grades) }
+  }
+  it('holds loaded climbs to the adverse limit and loaded descents to the road-wide one', () => {
+    const climbing = run('end-to-start')
+    expect(climbing.lowest).toBeGreaterThanOrEqual(-4 - 1e-6)
+    expect(climbing.highest).toBeLessThanOrEqual(18 + 1e-6)
+    const descending = run('start-to-end')
+    expect(descending.lowest).toBeLessThan(-4)
+    expect(descending.highest).toBeLessThanOrEqual(4 + 1e-6)
+  })
+  it('names the directional limits it held in its log', () => {
+    const log = Object.fromEntries(
+      verticalOptimizationLog(run('end-to-start').result.report).map((r) => [r.label, r.value]),
+    )
+    expect(log['Grade limit']).toBe('18% favourable, 4% adverse, loaded end to start')
   })
 })

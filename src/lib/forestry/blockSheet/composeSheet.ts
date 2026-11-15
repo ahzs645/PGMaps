@@ -28,7 +28,7 @@ import {
   type FrameProjection,
 } from '@/lib/mapSheet/scale'
 import { areaSymbolOps, lineSymbolOps, pointSymbolOps, scaleStroke, swatchOps } from '@/lib/mapSheet/symbols'
-import { fitText, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
+import { fitLabel, fitText, LABEL_LINE_HEIGHT, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
 import { blockBounds, type BlockFacts, type BlockGeometry } from './blockFacts'
 import {
   infoFieldLabel,
@@ -343,7 +343,9 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
         }
       mark(level.index ? 'contourIndex' : 'contourIntermediate', {
         kind: 'line',
-        label: level.index ? `Index contour (${result.interval * 2} m)` : `Intermediate contour (${result.interval} m)`,
+        label: level.index
+          ? `Index contour (${result.interval * result.indexEvery} m)`
+          : `Intermediate contour (${result.interval} m)`,
         layers: [stroke],
       })
     }
@@ -953,8 +955,13 @@ function legendPanel(
   }
   const grid = (items: { symbol: SheetSymbol; label: string }[], columns: number, swatchBox = swatch) => {
     const columnWidth = (body.w - pad * 2) / columns
+    const labelWidth = columnWidth - swatchBox.w - 8 * k
+    // A label too long for one line gets a row tall enough for two, rather than being cut.
+    const rowPitch = items.some((item) => textWidth(item.label, size) > labelWidth)
+      ? Math.max(pitch, 2 * size * LABEL_LINE_HEIGHT + 3 * k)
+      : pitch
     const rows = Math.ceil(items.length / columns)
-    const fitRows = Math.max(1, Math.floor((body.y + body.h - pad - y) / pitch))
+    const fitRows = Math.max(1, Math.floor((body.y + body.h - pad - y) / rowPitch))
     const shown = items.slice(0, Math.min(items.length, fitRows * columns))
     // Fill down each column, as the reference legends do.
     const perColumn = Math.min(rows, fitRows)
@@ -962,17 +969,22 @@ function legendPanel(
       const column = Math.floor(i / perColumn),
         row = i % perColumn
       const x = body.x + pad + column * columnWidth
-      const top = y + row * pitch
+      const top = y + row * rowPitch + (rowPitch - pitch) / 2
       drawSwatch(ops, item.symbol, { x, y: top, w: swatchBox.w, h: swatchBox.h }, k)
-      ops.push({
-        op: 'text',
-        x: x + swatchBox.w + 4 * k,
-        y: top + swatchBox.h / 2,
-        text: fitText(item.label, size, columnWidth - swatchBox.w - 8 * k),
-        size,
-        color: '#000000',
-        baseline: 'middle',
-      })
+      // Wrap, then shrink, then shorten: a long label keeps its words where the row has room.
+      const label = fitLabel(item.label, size, labelWidth, rowPitch - 1.5 * k)
+      const lead = label.size * LABEL_LINE_HEIGHT
+      label.lines.forEach((line, n) =>
+        ops.push({
+          op: 'text',
+          x: x + swatchBox.w + 4 * k,
+          y: top + swatchBox.h / 2 + (n - (label.lines.length - 1) / 2) * lead,
+          text: line,
+          size: label.size,
+          color: '#000000',
+          baseline: 'middle',
+        }),
+      )
     })
     if (shown.length < items.length) {
       ops.push({
@@ -985,7 +997,7 @@ function legendPanel(
         align: 'right',
       })
     }
-    y += perColumn * pitch + 4 * k
+    y += perColumn * rowPitch + 4 * k
   }
   const side = preset.template.id === 'lidar-side-panel' || preset.template.id === 'field-side-panel'
   if (classes.length) {

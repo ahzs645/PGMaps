@@ -10,6 +10,10 @@ const text = (value: string) =>
 const NUMERIC_CELL = /^\s*(?:[-+]?\$?\(?[\d,]+(?:\.\d+)?\)?\s*(?:%|m|m²|m³|km|ha)?|-)\s*$/
 /** Elements whose text is never page content. */
 const NON_CONTENT = /^(style|script|template|noscript)$/
+/** A table row's text line and its padding, mm. 3 mm of padding on a 3.1 mm line made the station
+ * schedule of a 3.5 km road 16 pages; 1.6 mm keeps rows apart and cuts every table by about a quarter. */
+const TABLE_LINE_MM = 3.1
+const TABLE_PAD_MM = 1.6
 /** Space a heading needs below it before the next block starts, so it never ends a page alone. */
 const HEADING_KEEP_MM = { h1: 40, h2: 40, h3: 28 } as const
 
@@ -320,6 +324,11 @@ async function svgImage(element: Element) {
 
 /** The existing report is the content contract; write its text/tables as paginated PDF text. */
 export async function exportReportPdf(html: string, filename: string, branding?: ExportBrand) {
+  downloadBlob(await reportPdfBlob(html, branding), filename)
+}
+
+/** The report PDF as a Blob, for the download above and the report package. */
+export async function reportPdfBlob(html: string, branding?: ExportBrand): Promise<Blob> {
   const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const fonts = configurePdfBrand(pdf, branding)
@@ -357,20 +366,27 @@ export async function exportReportPdf(html: string, filename: string, branding?:
     y += 3
   }
   const table = (element: Element) => {
-    const rows = [...element.querySelectorAll('tr')].map((row) =>
+    const rowElements = [...element.querySelectorAll('tr')]
+    const rows = rowElements.map((row) =>
       [...row.querySelectorAll('th,td')].map((cell) => text(cell.textContent ?? '')),
     )
     if (!rows.length) return
-    const columns = Math.max(...rows.map((row) => row.length))
-    const widths = Array.from({ length: columns }, (_, i) =>
-      columns >= 6 ? (i === columns - 1 ? width * 0.3 : (width * 0.7) / (columns - 1)) : width / columns,
+    // A body row of header cells only (a subtotal or total) prints bold and shaded across the table.
+    const strong = rowElements.map(
+      (row) => row.children.length > 0 && [...row.children].every((cell) => cell.tagName.toLowerCase() === 'th'),
     )
+    const columns = Math.max(...rows.map((row) => row.length))
     // Right-align a column (and its heading) when its filled body cells are all quantities.
     const body = rows.slice(1)
     const numeric = Array.from({ length: columns }, (_, i) => {
       const cells = body.map((row) => row[i] ?? '').filter((cell) => cell.trim() && cell.trim() !== '-')
       return cells.length > 0 && cells.every((cell) => NUMERIC_CELL.test(cell))
     })
+    // A wide table keeps its last column wide for notes; a last column of quantities takes an equal share.
+    const notesColumn = columns >= 6 && !numeric[columns - 1]
+    const widths = Array.from({ length: columns }, (_, i) =>
+      notesColumn ? (i === columns - 1 ? width * 0.3 : (width * 0.7) / (columns - 1)) : width / columns,
+    )
     const draw = (row: string[], heading: boolean, offset = 0, limit = Infinity) => {
       setPdfBrandFont(pdf, fonts, heading)
       pdf.setFontSize(7)
@@ -378,15 +394,17 @@ export async function exportReportPdf(html: string, filename: string, branding?:
         pdf.splitTextToSize(cell, widths[i] - 3).slice(offset, offset + limit),
       )
       const lines = Math.max(...cells.map((cell) => cell.length), 1)
-      const height = lines * 3.1 + 3
+      const height = lines * TABLE_LINE_MM + TABLE_PAD_MM
       let x = margin
       if (heading) {
         pdf.setFillColor(238, 242, 245)
         pdf.rect(margin, y, width, height, 'F')
       }
       for (let i = 0; i < columns; i++) {
-        if (numeric[i]) pdf.text(cells[i] ?? [''], x + widths[i] - 1.5, y + 3.5, { align: 'right' })
-        else pdf.text(cells[i] ?? [''], x + 1.5, y + 3.5)
+        // The 7 pt baseline sits one line minus the descent below the row's top padding.
+        const baseline = y + TABLE_PAD_MM / 2 + 2.4
+        if (numeric[i]) pdf.text(cells[i] ?? [''], x + widths[i] - 1.5, baseline, { align: 'right' })
+        else pdf.text(cells[i] ?? [''], x + 1.5, baseline)
         x += widths[i]
       }
       pdf.setDrawColor(210)
@@ -396,24 +414,24 @@ export async function exportReportPdf(html: string, filename: string, branding?:
     const heading = rows[0]
     ensure(18)
     draw(heading, true)
-    for (const row of rows.slice(1)) {
+    for (const [index, row] of rows.slice(1).entries()) {
       setPdfBrandFont(pdf, fonts)
       pdf.setFontSize(7)
       const lines = Math.max(...row.map((cell, i) => pdf.splitTextToSize(cell, widths[i] - 3).length), 1)
-      const height = lines * 3.1 + 3
+      const height = lines * TABLE_LINE_MM + TABLE_PAD_MM
       if (y + height > bottom && height < bottom - margin - 20) {
         page()
         draw(heading, true)
       }
       for (let offset = 0; offset < lines; ) {
-        let available = Math.floor((bottom - y - 3) / 3.1)
+        let available = Math.floor((bottom - y - TABLE_PAD_MM) / TABLE_LINE_MM)
         if (available < 1) {
           page()
           draw(heading, true)
-          available = Math.floor((bottom - y - 3) / 3.1)
+          available = Math.floor((bottom - y - TABLE_PAD_MM) / TABLE_LINE_MM)
         }
         const count = Math.min(available, lines - offset)
-        draw(row, false, offset, count)
+        draw(row, strong[index + 1], offset, count)
         offset += count
         if (offset < lines) {
           page()
@@ -423,6 +441,8 @@ export async function exportReportPdf(html: string, filename: string, branding?:
     }
     y += 5
   }
+  /** Figures already drawn to an image while placing the heading above them. */
+  const figures = new Map<Element, Awaited<ReturnType<typeof svgImage>>>()
   const render = async (element: Element): Promise<void> => {
     if (branding && element.hasAttribute('data-brand-header')) return
     const tag = element.tagName.toLowerCase()
@@ -433,7 +453,12 @@ export async function exportReportPdf(html: string, filename: string, branding?:
         .filter(Boolean)
         .join(' ')
     if (/^h[123]$/.test(tag)) {
-      ensure(HEADING_KEEP_MM[tag as keyof typeof HEADING_KEEP_MM])
+      // A heading over a figure takes the whole figure with it: a chart taller than the usual keep
+      // space otherwise left its heading alone at the foot of the page.
+      const next = element.nextElementSibling
+      const figure = next?.tagName.toLowerCase() === 'svg' ? await svgImage(next) : null
+      if (figure) figures.set(next!, figure)
+      ensure(Math.max(HEADING_KEEP_MM[tag as keyof typeof HEADING_KEEP_MM], figure ? 12 + width * figure.ratio : 0))
       paragraph(element.textContent ?? '', tag === 'h1' ? 18 : 12, true)
     } else if (tag === 'p' || tag === 'li') paragraph((tag === 'li' ? '- ' : '') + inlineText())
     else if (tag === 'ul' || tag === 'ol') {
@@ -451,7 +476,7 @@ export async function exportReportPdf(html: string, filename: string, branding?:
       }
     } else if (tag === 'table') table(element)
     else if (tag === 'svg') {
-      const image = await svgImage(element),
+      const image = figures.get(element) ?? (await svgImage(element)),
         height = width * image.ratio
       ensure(height + 4)
       pdf.addImage(image.image, 'PNG', margin, y, width, height)
@@ -482,5 +507,5 @@ export async function exportReportPdf(html: string, filename: string, branding?:
     pdf.setTextColor(100)
     pdf.text(`${branding?.brand.profile.name ?? 'DDC Access'} | Preliminary planning | ${n} / ${count}`, margin, 290)
   }
-  downloadBlob(pdf.output('blob'), filename)
+  return pdf.output('blob')
 }

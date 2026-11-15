@@ -27,18 +27,25 @@ conversion server, upload, Python, installed GDAL or RustGIS requirement.
 4. Build a terrain surface from the field sheet's labelled contours, offered only as terrain.
    See **Terrain from contours** below.
 5. Show a review dialog with a checkbox and permitted role for each recovered layer. A PDF
-   drawing starts as **Reference**. A simple line layer can explicitly become proposed roads,
-   and a polygon layer can explicitly become planned blocks. A sheet image and compound
+   drawing starts as **Reference**. A line layer can explicitly become proposed roads, and a
+   polygon layer can explicitly become planned blocks. A GIS record of several separate lines
+   (a road shapefile holding a road and its spurs under one name) loads one road per line,
+   named "(part _n_)", and the row says how many; a PDF drawing of several pieces is one
+   painting operation, not a record, and stays reference. A sheet image and compound
    stream drawing and a class raster stay reference. A contour surface can only be
    **Terrain (replaces current)**. The profile does not infer planned/constructed road status,
    stream class, reserve restrictions or legal meaning from colour and symbols.
 6. For several PDFs, initially select the field-layout sheet if present, otherwise the first
    sheet. Initially select its bounded geometry only when native GIS layers were not supplied.
    Select the first class raster of each kind even when native GIS files are supplied. The
-   contour terrain starts selected only over the sample terrain; any other terrain stays
-   unless the person picks the contours. Other sheets and recovered layers remain available
-   to select. A PDF identical (by SHA-256) to one already read is skipped before it is read
-   and named in the notes. A numbered road naming another block beside a canonical block
+   contour terrain starts selected over the sample, training and regional terrains, and over
+   any terrain that does not cover the roads and blocks coming in; an imported terrain that
+   covers them stays unless the person picks the contours. While a terrain is selected,
+   **Prepare 1 m DEM download boxes** starts off. Other sheets and recovered layers remain
+   available to select. A PDF identical (by SHA-256) to one already read is skipped before it
+   is read and named in the notes; an original is read before a copy ("x - Copy.pdf",
+   "x (1).pdf", "Copy of x.pdf"), so the copy is the one left out. A note several files share
+   (the PDF drawings' attribute caveat) prints once, naming the files. A numbered road naming another block beside a canonical block
    shapefile is left unselected for review. Different revisions are never collapsed because
    their filenames resemble each other.
 7. Save accepted source references with the project: file path, SHA-256, page, original layer,
@@ -59,6 +66,12 @@ terrain by themselves; only an accepted contour surface replaces the terrain.
 In **Layers**, expand **Canopy height classes** or **Slope classes**, then its feature.
 Choose an imported/drawn block under **Area to summarize** and **Summarize mapped classes**.
 Make the class layer visible and click the plan in **Inspect map** to read a published range.
+A slope sheet is also set beside each road's estimate: Review's **Ground as steep as the slope
+sheet shows** row and the report package's **Slope sheet** option compare area shares along a
+strip either side of the road, never one pixel, and never change a quantity (see
+[Exports](exports-and-project-files.md), **Report package**). On the supplied block the
+estimate's ground showed 7–11 points less 60%+ ground than the sheet on every road, and up to
+30 points less on single 200 m stretches.
 Visibility follows the layer eye; the plan legend shows the source palette. JPEG estimates
 draw faded, lossless matches draw solid, and not-drawn cells are transparent. The source-sheet
 preview is a separate layer, so hide it to see the classified layer alone.
@@ -193,6 +206,27 @@ The field layout sheet draws its LiDAR contours as vector lines in **Contours - 
 Choose **Terrain (replaces current)** in the import dialog. The sheet prints no vertical datum,
 so the existing terrain question asks for it; the open terrain's datum is never reused. The
 surface becomes an ordinary terrain raster (`contourTerrain.ts`), id ending `-contours`.
+
+### Filling past the contours
+
+A sheet's contours stop at its frame, and an access road usually runs off it: on the supplied
+block the main road had ground under 16% of its length. **Fill past the contours from the
+regional DEM** (on the terrain row, on by default) widens the grid to the roads and blocks being
+imported plus 100 m and takes every cell the contours leave missing from the regional Terrarium
+DEM (`fillBeyondContours`). The contour cells are copied unchanged on the same grid lines. The
+two surfaces are **not shifted** to meet (their datums are not known to agree; see **Against a
+regional DEM along mapped roads**), so a step of a metre or two can show where they join, and
+the import notice says so.
+
+The widened grid keeps the sheet's whole area when that fits the road terrain's cell limit
+(`MAX_ROAD_RASTER_CELLS`) at 2 m; else it is cropped to the roads and blocks; only then do the
+cells grow in 0.5 m steps (the contours resampled bilinearly), which the notice states. On the
+supplied block the roads and block span about 3.8 × 4.7 km, so the cells are 2.5 m. The
+terrain's name gives the filled share, its vertical reference adds "cells beyond the contours:
+regional DEM, datum unverified", and `terrain.fill` records the source, its cell size and the
+share. Review's **Terrain fit for site quantities** row judges the terrain by the fill's cell
+size too: a grid that is two-thirds 22 m regional cells needs attention. A failed regional
+read leaves the contours alone, with the missing ground named in the notice.
 
 Between contours the ground is a plane, so crests and valley floors read flat and nothing finer
 than 10 m of relief is known. Where a triangle's three corners lie on one contour the surface is a

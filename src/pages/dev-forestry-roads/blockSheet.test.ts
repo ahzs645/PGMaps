@@ -10,6 +10,7 @@ import {
   changeBlockSheetSettings,
   DEFAULT_BLOCK_SHEET,
   parseBlockSheetSettings,
+  sheetContourSource,
 } from './blockSheet'
 import { createDemoProject } from './terrain'
 import type { ContextFeature, RoadProject } from './types'
@@ -168,5 +169,28 @@ describe('road tool block sheet', () => {
     expect(built.facts?.areaHa).toBeGreaterThan(0)
     expect(built.missing.join(' ')).toMatch(/no contours/)
     expect(built.sheet.legend.map((item) => item.key)).toContain('block')
+  })
+})
+
+describe('sheet contour source', () => {
+  const frame: [number, number, number, number] = [-121.66, 54.0, -121.38, 54.15]
+  it('uses the project terrain when it covers the frame', () => {
+    expect(sheetContourSource({ kind: 'regional', bounds: [-122, 53.9, -121, 54.3] }, frame, 50000)).toBe('project')
+  })
+  it('loads regional terrain for the frame when the project terrain only covers the roads', () => {
+    expect(
+      sheetContourSource({ kind: 'regional', bounds: [-121.5575, 54.0504, -121.511, 54.0891] }, frame, 10000),
+    ).toBe('regional-frame')
+  })
+  it('loads regional terrain for an overview sheet even over detailed terrain', () => {
+    expect(sheetContourSource({ kind: 'geotiff', bounds: [-121.56, 54.05, -121.51, 54.09] }, frame, 50000)).toBe(
+      'regional-frame',
+    )
+  })
+  it('never swaps detailed terrain for regional contours on a design-scale sheet', () => {
+    expect(sheetContourSource({ kind: 'geotiff', bounds: [-121.56, 54.05, -121.51, 54.09] }, frame, 10000)).toBe(
+      'project',
+    )
+    expect(sheetContourSource({ kind: 'geotiff' }, frame, 10000)).toBe('project')
   })
 })

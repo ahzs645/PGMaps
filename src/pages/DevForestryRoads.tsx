@@ -193,7 +193,7 @@ import {
 } from './dev-forestry-roads/spatialImport'
 import { combinedReferenceBounds, referenceLayerKey, type LayerFeature } from './dev-forestry-roads/referenceFeatures'
 import { ReferencePanel } from './dev-forestry-roads/ReferencePanel'
-import { LayerImportDialog } from './dev-forestry-roads/LayerImportDialog'
+import { LayerImportDialog, type LayerImportOptions } from './dev-forestry-roads/LayerImportDialog'
 import { DetailAreaDialog, type DetailSource, type DetailWindow } from './dev-forestry-roads/DetailAreaDialog'
 import { LIDAR_BC_VERTICAL_REFERENCE } from './dev-forestry-roads/lidarBcDem'
 import { readLocalDemWindow } from './dev-forestry-roads/localDemWindow'
@@ -208,9 +208,12 @@ import {
 import { loadDetailFsrs } from './dev-forestry-roads/detailFsr'
 import {
   applyLayerImport,
+  designExtent,
+  layersExtent,
   loadImportedProposedRoads,
   defaultHiddenReferenceLayers,
   readReferenceImport,
+  suggestedLayerRole,
   removeImportedLayer,
   type LayerImportChoice,
 } from './dev-forestry-roads/referenceImport'
@@ -274,6 +277,7 @@ import {
   parseProject,
   projectGeoJson,
   projectReportHtml,
+  reportReview,
   serializeProject,
   stationsCsv,
   terrainProfileCsv,
@@ -320,11 +324,13 @@ import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout, roadPaneKey, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
 import { useBlockSheet } from './dev-forestry-roads/BlockSheetSetup'
+import { SHEET_PRESETS } from '@/lib/forestry/blockSheet/sheets'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
 import type {
   Alignment,
   ContextFeature,
   Coordinate,
+  RoadAnalysis,
   RoadProject,
   RoadTemplate,
   TerrainMetadata,
@@ -886,6 +892,11 @@ export default function DevForestryRoads({
   } | null>(null)
   // A file for someone else carries the road on screen unless every road is asked for.
   const [roadScope, setRoadScope] = useState<RoadScope>('active')
+  // A report package is the project's document: it starts with every road, other files with the one in view.
+  const [packageScope, setPackageScope] = useState<RoadScope>('all')
+  // The preliminary estimate is a project document too, and shares the package's choice.
+  const scopeFor = (kind: RoadExport) =>
+    kind === 'report-package' || kind === 'estimate-pdf' ? packageScope : roadScope
   // Read when Save & export opens: the date its documents print while no date of issue is entered.
   const [exportDay, setExportDay] = useState('')
   const [newProjectRequest, setNewProjectRequest] = useState(0)
@@ -977,6 +988,8 @@ export default function DevForestryRoads({
   )
   const fileRef = useRef<HTMLInputElement>(null)
   const fileKind = useRef<FileKind>('project')
+  /** A file picked while the workspace was busy, opened as soon as it is free. */
+  const pendingFiles = useRef<{ files: File[]; kind: FileKind } | null>(null)
   const operation = useRef<AbortController | null>(null)
   useDocumentTitle(`${w.project.name} · Forest road design · PGMaps`)
   useEffect(() => () => operation.current?.abort(), [])
@@ -2133,6 +2146,37 @@ export default function DevForestryRoads({
       requestFile('terrain', start.name)
       return
     }
+    if (start.kind === 'files') {
+      // Placed on the files: the regional DEM under their roads and blocks, then the same import
+      // review as Layers → Add folder, on the new project.
+      void run('Reading map layers…', async (signal) => {
+        const decoded = await readReferenceImport(start.files, signal)
+        if (signal.aborted) return
+        const extent =
+          designExtent(
+            decoded.filter((file) => file.selected ?? true).map((file) => ({ file, role: suggestedLayerRole(file) })),
+          ) ?? layersExtent(decoded)
+        if (!extent)
+          throw Error(
+            'None of these files says where the block is. Choose its shapefiles, GeoJSON, KML or company map PDFs.',
+          )
+        const centre: Coordinate = [(extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2]
+        w.setBusy('Loading regional terrain…')
+        const loaded = await loadRegionalTerrain(
+          [extent[0] - 0.006, extent[1] - 0.004, extent[2] + 0.006, extent[3] + 0.004],
+          signal,
+        )
+        if (signal.aborted) return
+        await w.flush()
+        startOn(start.name, loaded.metadata, loaded.source, centre)
+        // A regional terrain: the sheet's contours, where offered, start chosen.
+        setLayerImportFiles(decoded.map((file) => (file.pdf?.contourSurface ? { ...file, selected: true } : file)))
+        w.setNotice(`Started ${start.name} on the regional DEM. Choose what to import from the files.`)
+        setActiveProfile(null)
+        setFitRevision((n) => n + 1)
+      })
+      return
+    }
     void run('Starting a new project…', async (signal) => {
       if (start.kind === 'training') {
         await w.flush()
@@ -2382,6 +2426,19 @@ export default function DevForestryRoads({
       setFitRevision((n) => n + 1)
     })
   }
+  // A file picked while busy opens once the workspace is free (the picker's change handler queued it).
+  const busyNow = !!w.busy
+  const openFiles = useRef(importFile)
+  useEffect(() => {
+    openFiles.current = importFile
+  })
+  useEffect(() => {
+    if (busyNow || !pendingFiles.current) return
+    const { files, kind } = pendingFiles.current
+    pendingFiles.current = null
+    fileKind.current = kind
+    openFiles.current(files)
+  }, [busyNow])
   /** Adds what the chosen roles make of a spatial file, then brings what was created forward. */
   const commitSpatial = (file: SpatialFile, roles: RoleChoice, intent: ImportIntent) => {
     const result = buildSpatialImport(file, roles, intent)
@@ -2426,14 +2483,27 @@ export default function DevForestryRoads({
     run('Reading map layers…', async (signal) => {
       const decoded = await readReferenceImport(files, signal)
       if (signal.aborted) return
-      // Contours beat the sample terrain; any other terrain stays unless the person picks the contours.
+      // Contours beat the sample and the regional terrain, and any terrain that does not cover the
+      // roads and blocks coming in. An imported terrain over them stays unless the person picks the contours.
+      const extent = designExtent(
+        decoded.filter((file) => file.selected ?? true).map((file) => ({ file, role: suggestedLayerRole(file) })),
+      )
+      const covered = terrainBounds(project.terrain)
+      const coversDesign =
+        !!extent &&
+        !!covered &&
+        covered[0] <= extent[0] &&
+        covered[1] <= extent[1] &&
+        covered[2] >= extent[2] &&
+        covered[3] >= extent[3]
+      const preferContours = project.terrain.kind !== 'geotiff' || !coversDesign
       setLayerImportFiles(
-        project.terrain.kind === 'demo'
+        preferContours
           ? decoded.map((file) => (file.pdf?.contourSurface ? { ...file, selected: true } : file))
           : decoded,
       )
     })
-  const commitLayerImport = (choices: LayerImportChoice[], options?: { prepareDem: boolean; loadRoads: boolean }) => {
+  const commitLayerImport = (choices: LayerImportChoice[], options?: LayerImportOptions) => {
     const terrainChoice = choices.find((choice) => choice.role === 'terrain')
     if (!terrainChoice) return applyLayerChoices(choices, options)
     setLayerImportFiles(null)
@@ -2443,12 +2513,46 @@ export default function DevForestryRoads({
       if (!surface || !source) throw Error('That layer has no contour surface.')
       const { contourTerrain } = await import('./dev-forestry-roads/contourTerrain')
       // The sheet prints no vertical datum: always ask, never reuse the open terrain's.
-      const loaded = await importTerrainWithAnswers(
+      let loaded = await importTerrainWithAnswers(
         async (answers) => contourTerrain(surface, source, answers.verticalReference ?? ''),
         askTerrain,
       )
       if (signal.aborted) return
       const others = choices.filter((choice) => choice !== terrainChoice)
+      // A sheet's contours stop at its frame; roads that run off it take the regional DEM there.
+      const extent = loaded && options?.fillBeyondContours ? designExtent(others) : null
+      if (loaded && extent) {
+        // The regional tiles are read a little wider than the grid's 100 m margin.
+        const padded: [number, number, number, number] = [
+          extent[0] - 0.003,
+          extent[1] - 0.002,
+          extent[2] + 0.003,
+          extent[3] + 0.002,
+        ]
+        w.setBusy('Filling past the contours from the regional DEM…')
+        try {
+          const regional = await loadRegionalTerrain(padded, signal)
+          const { fillBeyondContours } = await import('./dev-forestry-roads/contourTerrain')
+          loaded = await fillBeyondContours(
+            loaded,
+            extent,
+            {
+              source: regional.source,
+              resolutionM: regional.metadata.resolutionM,
+              name: 'the regional DEM',
+            },
+            signal,
+          )
+        } catch (cause) {
+          if (signal.aborted) return
+          // The contours alone are still a terrain; say what is missing rather than refuse the import.
+          loaded = {
+            ...loaded,
+            summary: `${loaded.summary} The regional DEM could not fill past them (${cause instanceof Error ? cause.message : 'not loaded'}).`,
+          }
+        }
+        if (signal.aborted) return
+      }
       if (!loaded) {
         if (others.length) applyLayerChoices(others, options)
         w.setNotice(
@@ -2462,7 +2566,7 @@ export default function DevForestryRoads({
   }
   const applyLayerChoices = (
     choices: LayerImportChoice[],
-    options?: { prepareDem: boolean; loadRoads: boolean },
+    options?: LayerImportOptions,
     terrain?: { terrain: TerrainMetadata; summary: string },
   ) => {
     const result = applyLayerImport(project, choices, uid)
@@ -2486,7 +2590,12 @@ export default function DevForestryRoads({
     setLayerImportFiles(null)
     setFocusedReferenceId(null)
     if (options?.prepareDem) {
-      const ids = new Set(result.imported.map((f) => f.id))
+      // Boxes for what is being designed: proposed roads and planned blocks, not reference layers.
+      const ids = new Set(
+        result.imported
+          .filter((f) => ('role' in f && f.role === 'proposed-road') || ('kind' in f && f.kind === 'harvest'))
+          .map((f) => f.id),
+      )
       setImportedDetailAreas(
         projectDetailAreas(result.project).filter((a) => ids.has(a.id.slice(a.id.indexOf(':') + 1))),
       )
@@ -2581,7 +2690,7 @@ export default function DevForestryRoads({
     if (INVALID_INPUT_RULES[kind] === 'unaffected' || (terrainProfile && !MULTI_ROAD_EXPORTS.includes(kind)))
       return undefined
     const roads = MULTI_ROAD_EXPORTS.includes(kind)
-      ? exportRoads(project.alignments, alignment.id, roadScope)
+      ? exportRoads(project.alignments, alignment.id, scopeFor(kind))
       : [alignment]
     return roads.map((road) => w.analyses.get(road.id)?.invalidInput).find((invalid) => invalid)
   }
@@ -2619,12 +2728,61 @@ export default function DevForestryRoads({
         : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
       selectedExportBrand,
     )
+  /** One road's plot book page, with contours over the road's extent from the same terrain source. */
+  const plotBookFor = async (
+    safe: RoadProject,
+    road: Alignment,
+    roadAnalysis: RoadAnalysis,
+    settings: RoadProject['reportSettings'],
+  ) => {
+    const [{ plotBookHtml }, { buildTerrainDisplay }] = await Promise.all([
+      import('./dev-forestry-roads/plotBook'),
+      import('./dev-forestry-roads/terrainDisplay'),
+    ])
+    const lng = roadAnalysis.centerline.map((c) => c[0]),
+      lat = roadAnalysis.centerline.map((c) => c[1])
+    const margin = 0.002
+    let contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString> | undefined,
+      contourError = ''
+    try {
+      contours = buildTerrainDisplay(
+        source,
+        [Math.min(...lng) - margin, Math.min(...lat) - margin, Math.max(...lng) + margin, Math.max(...lat) + margin],
+        256,
+      ).contours
+    } catch (error) {
+      contours = undefined
+      contourError = error instanceof Error ? error.message : 'unknown error'
+    }
+    const html = plotBookHtml({
+      branding: selectedExportBrand,
+      projectName: safe.name,
+      settings,
+      issue: safe.issue,
+      alignment: road,
+      analysis: roadAnalysis,
+      terrain: project.terrain,
+      contours,
+      ...exportGrid(project.terrain, road.points[0].coordinate),
+      gradeLimits: { rule: gradeRule(project.settings, project.standards) },
+    })
+    return { html, contourError }
+  }
   /**
    * One output's file, built the same way for its download and its preview. The PDFs are not here:
    * they render and download in one step, and preview through the report page and the plan map.
    */
   const exportFile = async (
-    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf' | 'block-sheet-pdf' | 'dline-sheet-pdf' | 'plotbook-pdf'>,
+    kind: Exclude<
+      RoadExport,
+      | 'map-pdf'
+      | 'report-pdf'
+      | 'report-package'
+      | 'estimate-pdf'
+      | 'block-sheet-pdf'
+      | 'dline-sheet-pdf'
+      | 'plotbook-pdf'
+    >,
   ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
     const { safe, basename } = exportBasis(kind)
     const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
@@ -2685,48 +2843,13 @@ export default function DevForestryRoads({
         )
       case 'plotbook': {
         if (terrainProfile) throw Error('Return to the road before plotting design sheets.')
-        const [{ plotBookHtml }, { buildTerrainDisplay }] = await Promise.all([
-          import('./dev-forestry-roads/plotBook'),
-          import('./dev-forestry-roads/terrainDisplay'),
-        ])
-        // Contours for the plan: the road's extent plus a margin, from the same terrain source.
-        const lng = analysis.centerline.map((c) => c[0]),
-          lat = analysis.centerline.map((c) => c[1])
-        const margin = 0.002
-        let contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString> | undefined,
-          contourError = ''
-        try {
-          contours = buildTerrainDisplay(
-            source,
-            [
-              Math.min(...lng) - margin,
-              Math.min(...lat) - margin,
-              Math.max(...lng) + margin,
-              Math.max(...lat) + margin,
-            ],
-            256,
-          ).contours
-        } catch (error) {
-          contours = undefined
-          contourError = error instanceof Error ? error.message : 'unknown error'
-        }
+        const book = await plotBookFor(safe, alignment, analysis, safe.reportSettings)
         return text(
-          plotBookHtml({
-            branding: selectedExportBrand,
-            projectName: safe.name,
-            settings: safe.reportSettings,
-            issue: safe.issue,
-            alignment,
-            analysis,
-            terrain: project.terrain,
-            contours,
-            ...exportGrid(project.terrain, alignment.points[0].coordinate),
-            gradeLimits: { rule: gradeRule(project.settings, project.standards) },
-          }),
+          book.html,
           `${basename}-plot-book.html`,
           'text/html;charset=utf-8',
-          contourError
-            ? `Plot book downloaded without contours (${contourError}). Open it and use Print / Save as PDF.`
+          book.contourError
+            ? `Plot book downloaded without contours (${book.contourError}). Open it and use Print / Save as PDF.`
             : 'Plot book downloaded. Open it and use Print / Save as PDF.',
         )
       }
@@ -2818,6 +2941,303 @@ export default function DevForestryRoads({
       caveat: PLANNING_CAVEAT,
     }
   }
+  /** What the package's summary page is drawn from: each road's analysis and readiness rows. */
+  /** Estimate ranges already worked out, per road analysis and per assumptions (`estimateRange.ts`). */
+  const estimateRanges = useRef(
+    new WeakMap<RoadAnalysis, Map<string, import('./dev-forestry-roads/estimateRange').RoadEstimateRange>>(),
+  )
+  const summaryInputFor = async () => {
+    const [
+      { isEmptyFile, slopeSheetMode, includesContingency },
+      { costRates, baseCosts },
+      sheetCheck,
+      { slopeSheetCase },
+      { roadEstimateRange },
+    ] = await Promise.all([
+      import('./dev-forestry-roads/reportPackage'),
+      import('./dev-forestry-roads/costRates'),
+      import('./dev-forestry-roads/slopeSheetCheck'),
+      import('./dev-forestry-roads/slopeSheetCase'),
+      import('./dev-forestry-roads/estimateRange'),
+    ])
+    return (
+      safe: RoadProject,
+      plan: import('./dev-forestry-roads/reportPackage').PackagePlan,
+      stampLines: string[],
+      contents: { label: string; page: number | null }[],
+      /** The Preliminary estimate export: the range always, its own contingency choice, no slope-sheet section. */
+      forEstimate = false,
+    ) => {
+      const settings = parseRoadReportSettings(safe.reportSettings)
+      const mode = forEstimate ? 'check' : slopeSheetMode(settings.package)
+      const sheets = mode === 'off' ? [] : sheetCheck.slopeSheets(safe.reference)
+      const estimate = settings.estimate ?? {}
+      const contingency = forEstimate ? estimate.contingency !== false : includesContingency(settings.package)
+      // The high case and its base are analysed the same way, so their difference is the benching alone.
+      const analyse = (road: Alignment) =>
+        safeAnalyzeRoad(road, source, safe.settings, safe.context, {
+          referenceSurfaces: w.referenceSurfaces,
+          verticalReference: safe.terrain.verticalReference,
+          sharedCrossingCosts: safe.sharedCrossingCosts,
+          gradeStandards: safe.standards,
+        })
+      const roads = exportRoads(safe.alignments, alignment.id, packageScope).flatMap((road) => {
+        const roadAnalysis = w.analyses.get(road.id)
+        if (!roadAnalysis?.stations.length) return []
+        const check = sheets.length ? sheetCheck.bestSlopeSheetCheck(roadAnalysis.stations, sheets) : undefined
+        const high = (() => {
+          if (mode !== 'range' || !check?.stretches.length) return undefined
+          const made = slopeSheetCase(road, roadAnalysis.stations, check.stretches, uid)
+          return 'error' in made ? made : { base: analyse(road), case: analyse(made.alignment), change: made.change }
+        })()
+        // The low, medium and high estimate: each level analyses copies of the road, so it is kept per
+        // analysis and assumptions and a preview does not run it again.
+        const range = (() => {
+          if (!forEstimate && !settings.package?.range) return undefined
+          const key = JSON.stringify([estimate, contingency, check?.stretches ?? [], safe.settings])
+          const kept = estimateRanges.current.get(roadAnalysis)?.get(key)
+          if (kept) return kept
+          const made = roadEstimateRange(road, {
+            source,
+            settings: safe.settings,
+            context: safe.context,
+            analysisOptions: {
+              referenceSurfaces: w.referenceSurfaces,
+              verticalReference: safe.terrain.verticalReference,
+              sharedCrossingCosts: safe.sharedCrossingCosts,
+              gradeStandards: safe.standards,
+            },
+            assumptions: {
+              crossDrainSpacingM: estimate.crossDrainSpacingM ?? null,
+              crossDrainCost: estimate.crossDrainCost ?? null,
+              endHaulRate: estimate.endHaulRate ?? null,
+            },
+            contingency,
+            slopeStretches: check?.stretches ?? [],
+            id: uid,
+          })
+          const byKey = estimateRanges.current.get(roadAnalysis) ?? new Map()
+          byKey.set(key, made)
+          estimateRanges.current.set(roadAnalysis, byKey)
+          return made
+        })()
+        const review = reportReview({ ...safe, activeAlignmentId: road.id }, roadAnalysis, {
+          drainageHasLiveRun: road.id === alignment.id && !!drainageEntry && !drainageStale,
+        }).review
+        // The road as calculated (`safe` holds calculated inputs), so each rate is the one its cost used.
+        return [
+          {
+            name: road.name,
+            analysis: roadAnalysis,
+            review: review?.rows ?? null,
+            rates: costRates(road, safe.settings, roadAnalysis),
+            ...(roadAnalysis.engineering ? {} : { baseCosts: baseCosts(roadAnalysis, safe.settings) }),
+            ...(check === undefined || forEstimate
+              ? {}
+              : { slopeSheet: { check, ...(high ? { highCase: high } : {}) } }),
+            ...(range ? { range } : {}),
+          },
+        ]
+      })
+      return {
+        projectName: safe.name,
+        roads,
+        // The estimate counts contingency by its own choice; the package by the package's.
+        settings: forEstimate ? { parts: {}, contingency, range: true } : settings.package,
+        estimate,
+        rule: gradeRule(safe.settings, safe.standards),
+        terrain: safe.terrain,
+        stamp: stampLines,
+        contents,
+        appendices: plan.appendices
+          .filter((a) => !isEmptyFile(a))
+          .map((a) => ({ filename: a.filename, title: a.title })),
+        omitted: plan.omitted.map((part) => part.label),
+      }
+    }
+  }
+  /** The Preliminary estimate export's page (`estimateHtml`), as its PDF and its preview print it. */
+  const estimatePageHtml = async (safe: RoadProject) => {
+    const [{ estimateHtml }, { packagePlan }, summaryInput] = await Promise.all([
+      import('./dev-forestry-roads/packageSummary'),
+      import('./dev-forestry-roads/reportPackage'),
+      summaryInputFor(),
+    ])
+    const plan = packagePlan(undefined, '')
+    const input = summaryInput(safe, plan, [issueLine(issueStamp(safe.issue)), PLANNING_CAVEAT], [], true)
+    return brandedHtml(estimateHtml({ ...input, appendices: [], omitted: [] }), selectedExportBrand)
+  }
+  /**
+   * The report package (`reportPackage.ts`): a main PDF and one PDF per appendix part, each with a
+   * cover whose contents give the page every part starts on. One file downloads as itself; more
+   * than one go in a zip.
+   */
+  const buildReportPackage = async (safe: RoadProject, basename: string, signal: AbortSignal) => {
+    const [
+      { packagePlan, describeFile, isEmptyFile, omittedFor, packageReportNotice, packageFront },
+      { assemblePackageFile, mergePackageFile, entryStarts, pdfPageCount },
+      { reportPdfBlob },
+      { plotBookPdf },
+      { blockSheetPdf },
+      { createReportChapter, chartsOptions, chartsTitle },
+      { packageSummaryHtml },
+      packageSummaryInput,
+    ] = await Promise.all([
+      import('./dev-forestry-roads/reportPackage'),
+      import('./dev-forestry-roads/reportPackagePdf'),
+      import('./dev-forestry-roads/pdf'),
+      import('./dev-forestry-roads/plotBookPdf'),
+      import('./dev-forestry-roads/blockSheet'),
+      import('./dev-forestry-roads/reportSettings'),
+      import('./dev-forestry-roads/packageSummary'),
+      summaryInputFor(),
+    ])
+    const settings = parseRoadReportSettings(safe.reportSettings)
+    const plan = packagePlan(settings.package, basename)
+    const summaryFront = packageFront(settings.package) === 'summary'
+    const roads = exportRoads(safe.alignments, alignment.id, packageScope)
+    // A summary front page is content of its own, so the main file is written even with no part in it.
+    const files = [plan.main, ...plan.appendices].filter(
+      (file) => !isEmptyFile(file) || (file === plan.main && summaryFront),
+    )
+    if (!files.length) throw Error('Every part is left out of the report package. Put at least one in it.')
+    const invalid = exportInvalidInput('report-package')
+    if (invalid && files.some((file) => file.plotbook.length))
+      throw Error(invalidInputRefusal('A report package with plot-book sheets', invalid))
+    const stamp = issueLine(issueStamp(safe.issue))
+    const bytes = async (blob: Blob) => new Uint8Array(await blob.arrayBuffer())
+    const roadNames = roads.map((road) => road.name)
+    const missing: string[] = []
+    const written: { filename: string; bytes: Uint8Array; pages: number }[] = []
+    for (const file of files) {
+      const entries: { label: string; pdf: Uint8Array }[] = []
+      for (const kind of file.sheets) {
+        signal.throwIfAborted()
+        const sheet = await blockSheetPdf({
+          ...blockSheetRun('report-package', safe),
+          settings: { ...blockSheet.settings, kind },
+          signal,
+          branding: selectedExportBrand,
+        })
+        missing.push(...sheet.built.missing)
+        entries.push({ label: `Block map sheet · ${SHEET_PRESETS[kind].label}`, pdf: await bytes(sheet.blob) })
+      }
+      for (const road of roads) {
+        const roadAnalysis = w.analyses.get(road.id)
+        if (!roadAnalysis?.stations.length) {
+          missing.push(`${road.name} has no calculated results and is left out.`)
+          continue
+        }
+        if (file.report.length) {
+          signal.throwIfAborted()
+          const html = brandedHtml(
+            projectReportHtml(
+              {
+                ...safe,
+                activeAlignmentId: road.id,
+                reportSettings: { ...settings, omittedSections: omittedFor(file) },
+              },
+              roadAnalysis,
+              {
+                drainageHasLiveRun: road.id === alignment.id && !!drainageEntry && !drainageStale,
+                packageNotice: packageReportNotice(plan, file),
+              },
+            ),
+            selectedExportBrand,
+          )
+          entries.push({
+            label: `${road.name} · report`,
+            pdf: await bytes(await reportPdfBlob(html, selectedExportBrand)),
+          })
+        }
+        if (file.plotbook.length) {
+          signal.throwIfAborted()
+          const chapters = file.plotbook.flatMap((kind) => {
+            const own = settings.chapters.filter((chapter) => chapter.kind === kind)
+            const chosen = own.length ? own : [createReportChapter(kind, kind)]
+            // The package's chart choices sit over the plot book's own for its charts sheets.
+            return kind === 'charts' && settings.package?.charts
+              ? chosen.map((chapter) => {
+                  const charts = { ...chartsOptions(chapter), ...settings.package!.charts }
+                  // A chapter still under its default title is renamed for the panels it now shows.
+                  const title =
+                    chapter.title === createReportChapter('charts', 'charts').title
+                      ? chartsTitle(charts.panels)
+                      : chapter.title
+                  return { ...chapter, title, charts }
+                })
+              : chosen
+          })
+          const book = await plotBookFor(safe, road, roadAnalysis, { ...settings, chapters })
+          if (book.contourError) missing.push(`${road.name}: plot book without contours (${book.contourError}).`)
+          entries.push({
+            label: `${road.name} · plot book`,
+            pdf: await bytes(await plotBookPdf(book.html, settings.paper, signal, selectedExportBrand)),
+          })
+        }
+      }
+      const isMain = file === plan.main
+      if (!entries.length && !(isMain && summaryFront)) continue
+      const stampLines = [stamp, PLANNING_CAVEAT, ...(invalid ? [`NOT CURRENT: ${invalidInputNotice(invalid)}`] : [])]
+      const meta = { title: `${safe.name} · ${isMain ? 'report package' : file.title}`, subject: PLANNING_CAVEAT }
+      if (isMain && summaryFront) {
+        // The summary opens the file in place of the cover; its contents list needs its own length first.
+        const summaryPdf = async (contents: { label: string; page: number | null }[]) =>
+          bytes(
+            await reportPdfBlob(
+              brandedHtml(
+                packageSummaryHtml(packageSummaryInput(safe, plan, stampLines, contents)),
+                selectedExportBrand,
+              ),
+              selectedExportBrand,
+            ),
+          )
+        let front = await summaryPdf(entries.map((e) => ({ label: e.label, page: 999 })))
+        const starts = await entryStarts(await pdfPageCount(front), entries)
+        front = await summaryPdf(starts)
+        const merged = await mergePackageFile(front, entries, meta)
+        written.push({ filename: file.filename, bytes: merged.bytes, pages: merged.pages })
+        continue
+      }
+      const assembled = await assemblePackageFile(
+        {
+          eyebrow: 'PGMaps forest road design · report package',
+          title: `${safe.name} · ${isMain ? 'report package' : file.title}`,
+          subtitle: roadNames.length === 1 ? roadNames[0] : `${roadNames.length} roads: ${roadNames.join(', ')}`,
+          stamp: stampLines,
+          holds: describeFile(file),
+          appendices: isMain
+            ? plan.appendices.filter((a) => !isEmptyFile(a)).map((a) => ({ filename: a.filename, title: a.title }))
+            : [{ filename: plan.main.filename, title: 'Report package (the main file)' }],
+          omitted: plan.omitted.map((part) => part.label),
+        },
+        entries,
+        meta,
+      )
+      written.push({ filename: file.filename, bytes: assembled.bytes, pages: assembled.pages })
+    }
+    if (!written.length) throw Error('The report package came out empty: no road has calculated results.')
+    const notice = [
+      written.length === 1
+        ? `Report package downloaded (${written[0].pages} pages).`
+        : `Report package downloaded: ${written.map((f) => `${f.filename} (${f.pages} pages)`).join(', ')}.`,
+      ...new Set(missing),
+    ].join(' ')
+    if (written.length === 1)
+      return {
+        blob: new Blob([written[0].bytes as BlobPart], { type: 'application/pdf' }),
+        filename: written[0].filename,
+        notice,
+      }
+    const { default: JSZip } = await import('jszip')
+    const zip = new JSZip()
+    for (const file of written) zip.file(file.filename, file.bytes)
+    return {
+      blob: await zip.generateAsync({ type: 'blob' }),
+      filename: `${basename}-report-package.zip`,
+      notice,
+    }
+  }
   /** The active D-line's sheet, with the project's issue stamp. */
   const dLineSheetRequest = (safe: RoadProject) => {
     // The live D-line, so a support layout found or checked on screen is the one printed.
@@ -2866,6 +3286,24 @@ export default function DevForestryRoads({
               .replace(/^Plot book downloaded/, 'Plot book PDF downloaded')
               .replace(/ Open it and use Print \/ Save as PDF\.$/, ''),
           )
+        })
+        return
+      }
+      if (kind === 'estimate-pdf') {
+        void run('Pricing each road three ways…', async (signal) => {
+          const html = await estimatePageHtml(safe)
+          signal.throwIfAborted()
+          const { reportPdfBlob } = await import('./dev-forestry-roads/pdf')
+          downloadBlob(await reportPdfBlob(html, selectedExportBrand), `${basename}-preliminary-estimate.pdf`)
+          w.setNotice('Preliminary estimate downloaded.')
+        })
+        return
+      }
+      if (kind === 'report-package') {
+        void run('Building the report package…', async (signal) => {
+          const built = await buildReportPackage(safe, basename, signal)
+          downloadBlob(built.blob, built.filename)
+          w.setNotice(built.notice)
         })
         return
       }
@@ -2938,6 +3376,7 @@ export default function DevForestryRoads({
       source,
       hiddenPanels,
       roadScope,
+      packageScope,
       sheet: blockSheet.settings,
       logo: blockSheet.logo,
       branding,
@@ -2950,6 +3389,7 @@ export default function DevForestryRoads({
       source,
       hiddenPanels,
       roadScope,
+      packageScope,
       blockSheet.settings,
       blockSheet.logo,
       branding,
@@ -2959,6 +3399,36 @@ export default function DevForestryRoads({
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
     const { safe } = exportBasis(kind)
     if (kind === 'report-pdf') return { type: 'html', html: reportHtml(safe) }
+    if (kind === 'estimate-pdf') return { type: 'html', html: await estimatePageHtml(safe) }
+    if (kind === 'report-package') {
+      const [{ packagePlan, packagePreviewHtml, packageFront }, { packageSummaryHtml }, summaryInput] =
+        await Promise.all([
+          import('./dev-forestry-roads/reportPackage'),
+          import('./dev-forestry-roads/packageSummary'),
+          summaryInputFor(),
+        ])
+      const { basename } = exportBasis(kind)
+      const settings = parseRoadReportSettings(safe.reportSettings)
+      const plan = packagePlan(settings.package, basename)
+      const files = packagePreviewHtml(
+        plan,
+        exportRoads(safe.alignments, alignment.id, packageScope).map((road) => road.name),
+        `${basename}-report-package.zip`,
+      )
+      if (packageFront(settings.package) !== 'summary') return { type: 'html', html: files }
+      // The summary page as it prints (page numbers are set when the file is laid out), then the files.
+      const summary = packageSummaryHtml(
+        summaryInput(safe, plan, [issueLine(issueStamp(safe.issue)), PLANNING_CAVEAT], []),
+      )
+      const filesBody = /<body>([\s\S]*)<\/body>/.exec(files)?.[1] ?? ''
+      return {
+        type: 'html',
+        html: brandedHtml(
+          summary.replace('</body>', `<hr style="margin:28px 0">${filesBody}</body>`),
+          selectedExportBrand,
+        ),
+      }
+    }
     // The PDF draws the same sheets, so it previews the plot book page.
     if (kind === 'plotbook-pdf') return { type: 'html', html: (await exportFile('plotbook')).content as string }
     if (kind === 'dline-sheet-pdf') {
@@ -4235,6 +4705,7 @@ export default function DevForestryRoads({
         onSave={save}
         reportSettings={project.reportSettings}
         onReportSettings={(reportSettings) => update((p) => ({ ...p, reportSettings }))}
+        slopeSheet={(project.reference ?? []).some((feature) => feature.classGrid?.kind === 'slope')}
         issue={project.issue}
         onIssue={(issue) => update((p) => ({ ...p, issue }))}
         today={exportDay}
@@ -4242,8 +4713,10 @@ export default function DevForestryRoads({
           count: project.alignments.filter((road) => road.id !== project.designPlaceholderId).length,
           activeName: alignment.name,
         }}
-        roadScope={roadScope}
-        onRoadScope={setRoadScope}
+        roadScope={scopeFor}
+        onRoadScope={(scope, kind) =>
+          (kind === 'report-package' || kind === 'estimate-pdf' ? setPackageScope : setRoadScope)(scope)
+        }
         busy={!!busy}
         portalContainer={ref.current}
         context={exportContext}
@@ -4398,7 +4871,20 @@ export default function DevForestryRoads({
         data-testid="road-file-input"
         onChange={(e) => {
           const files = Array.from(e.target.files ?? [])
-          if (files.length) importFile(files)
+          // Cleared so picking the same file again (after a refusal or a wait) opens it again.
+          e.target.value = ''
+          if (!files.length) return
+          if (w.busy) {
+            // Opened while something else runs: it opens when that finishes, never silently dropped.
+            pendingFiles.current = { files, kind: fileKind.current }
+            // A project of one's own replaces the first visit's example: stop loading it rather than wait.
+            if (fileKind.current === 'project' && w.skipExampleLoad()) return
+            w.setNotice(
+              `${files.length > 1 ? `${files.length} files` : files[0].name} will open when the current task finishes.`,
+            )
+            return
+          }
+          importFile(files)
         }}
       />
       {terrainQuestion && (

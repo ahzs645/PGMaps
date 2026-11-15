@@ -1,4 +1,4 @@
-import { openWorkbench } from './road-workbench'
+import { openWorkbench, startOnStandardPlanSymbols } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose } from './styled-select'
@@ -34,6 +34,8 @@ async function prepare(page: Page, baseURL: string) {
     }
     return route.continue()
   })
+  // The legend checks below read the standard road-plan symbol names.
+  await startOnStandardPlanSymbols(page)
   await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await page.getByRole('button', { name: 'Projects', exact: true }).click()

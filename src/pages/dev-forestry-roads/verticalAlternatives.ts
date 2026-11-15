@@ -1,4 +1,5 @@
 /** Named vertical designs under one horizontal road; pure, immutable and project-file portable. */
+import { shareUnchanged } from './shareUnchanged'
 import type { Alignment, VerticalAlternative } from './types'
 
 export const MAX_VERTICAL_ALTERNATIVES = 12
@@ -29,12 +30,15 @@ export function snapshotActiveVerticalAlternative(road: Alignment): Alignment {
   if (!road.verticalAlternatives?.length) return road
   if (!road.verticalAlternatives.some((v) => v.id === road.activeVerticalAlternativeId))
     throw Error('The active vertical alternative does not exist.')
-  return {
+  // Every commit snapshots every road, so a road whose saved profile already matches must come back
+  // as the same object: a fresh copy made each road look edited, and every edit re-analysed every
+  // road (seven analyses and ~93 MB of new section points per culvert on a seven-road project).
+  return shareUnchanged(road, {
     ...road,
     verticalAlternatives: road.verticalAlternatives.map((v) =>
       v.id === road.activeVerticalAlternativeId ? profile(road, v.id, v.name) : v,
     ),
-  }
+  })
 }
 
 export function activateVerticalAlternative(road: Alignment, id: string): Alignment {

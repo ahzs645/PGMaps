@@ -61,3 +61,29 @@ export function wrapText(text: string, size: number, maxWidth: number, style: Sh
   }
   return lines
 }
+
+/** Line height as a share of the type size, for labels set in more than one line. */
+export const LABEL_LINE_HEIGHT = 1.1
+
+/**
+ * A label fitted to a box: wrap to two lines, then shrink (to `minScale` of `size`), then shorten
+ * with "...", never overflow. A sheet legend cut "Riparian management zone (screen)" to
+ * "Riparian management zon..." in a box that holds it on two lines.
+ */
+export function fitLabel(
+  text: string,
+  size: number,
+  maxWidth: number,
+  maxHeight: number,
+  { minScale = 0.8, style = 'normal' as SheetFontStyle } = {},
+): { lines: string[]; size: number } {
+  if (textWidth(text, size, style) <= maxWidth) return { lines: [text], size }
+  for (const scale of [1, 0.95, 0.9, 0.85, minScale]) {
+    const s = size * scale
+    if (2 * s * LABEL_LINE_HEIGHT > maxHeight) continue
+    const lines = wrapText(text, s, maxWidth, style)
+    if (lines.length <= 2 && lines.every((line) => textWidth(line, s, style) <= maxWidth)) return { lines, size: s }
+  }
+  const s = Math.max(size * minScale, Math.min(size, (size * maxWidth) / textWidth(text, size, style)))
+  return { lines: [fitText(text, s, maxWidth, style)], size: s }
+}

@@ -468,6 +468,12 @@ export interface TerrainMetadata {
   referenceSurfaces?: Array<{ id: string; name: string; raster: LocalRaster }>
   /** Regional DEMs only: the extent loaded, [west, south, east, north], so reopening loads it again. */
   bounds?: [number, number, number, number]
+  /**
+   * Embedded grids only: the cells the primary source left missing that a coarser source filled
+   * (a contour terrain widened with the regional DEM, `fillBeyondContours`). Review judges the
+   * terrain's fitness by this source's cell size too, not the grid's alone.
+   */
+  fill?: { name: string; resolutionM: number; sharePercent: number }
 }
 export interface RoadProject {
   schema: 'pgmaps-road-project-v1'

@@ -80,6 +80,8 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           referenceSurfaces: workspace.referenceSurfaces,
           verticalReference: project.terrain.verticalReference,
           sharedCrossingCosts: project.sharedCrossingCosts,
+          // Loaded climbs held to the adverse limit when the job sets one, as Review judges them.
+          gradeStandards: project.standards,
         },
         {
           signal: controller.signal,

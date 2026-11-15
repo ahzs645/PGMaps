@@ -102,6 +102,10 @@ export interface SheetPreset {
   defaultScale: number
   base: SheetBase
   contours: 'default' | 'onImagery' | null
+  /** Contour interval in metres; `CONTOUR_INTERVAL_M` when absent. */
+  contourIntervalM?: number
+  /** Every how many intervals an index contour falls; `CONTOUR_INDEX_EVERY` when absent. */
+  contourIndexEvery?: number
   blockStyle: 'default' | 'lidar'
   /** Decimal places of the title bar's latitude and longitude. */
   latLngDecimals: number
@@ -226,11 +230,16 @@ export const SHEET_PRESETS: Record<SheetKind, SheetPreset> = {
     kind: 'general-access',
     label: 'General Block Access 1:50,000',
     title: 'General Block Access Map',
-    description: 'Overview at 1:50,000 with block information, access comments and the legend underneath.',
+    description:
+      'Overview at 1:50,000 with 20 m contours, block information, access comments and the legend underneath.',
     template: ACCESS_BOTTOM_PANEL,
     defaultScale: 50000,
     base: 'white',
-    contours: null,
+    // 20 m with 100 m index lines: 10 m crowds a 1:50,000 frame, and the frame is drawn from the
+    // 22 m regional DEM, loaded for the whole frame (blockSheet.ts).
+    contours: 'default',
+    contourIntervalM: 20,
+    contourIndexEvery: 5,
     blockStyle: 'default',
     latLngDecimals: 4,
     blockLabel: 'Block',

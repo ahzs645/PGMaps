@@ -6,13 +6,23 @@ import { StyledSelect } from '@/components/ui/styled-select'
 import { CutblockBufferField } from './CutblockBufferField'
 import type { CutblockBuffer } from './cutblockBuffers'
 import {
+  groupNotes,
   LAYER_IMPORT_LABELS,
   layerImportOptions,
+  linePartCount,
   suggestedLayerRole,
   type LayerImportChoice,
   type LayerImportRole,
 } from './referenceImport'
 import type { SpatialFile } from './spatialImport'
+
+/** What each import option does, as {@link LayerImportDialog} passes it on. */
+export interface LayerImportOptions {
+  prepareDem: boolean
+  loadRoads: boolean
+  /** Widen a contour terrain to the roads and blocks, taking the ground past the contours from the regional DEM. */
+  fillBeyondContours: boolean
+}
 
 const roleHelp: Record<LayerImportRole, string> = {
   reference: 'Shows this layer on the plan.',
@@ -33,7 +43,7 @@ export function LayerImportDialog({
   buffers?: readonly CutblockBuffer[]
   portalContainer: HTMLElement | null
   onCancel: () => void
-  onImport: (choices: LayerImportChoice[], options: { prepareDem: boolean; loadRoads: boolean }) => void
+  onImport: (choices: LayerImportChoice[], options: LayerImportOptions) => void
 }) {
   const [choices, setChoices] = useState<LayerImportChoice[]>(() =>
     files.map((file) => {
@@ -45,15 +55,19 @@ export function LayerImportDialog({
   )
   const [error, setError] = useState('')
   const [included, setIncluded] = useState(() => files.map((file) => file.selected ?? file.pdf?.selected ?? true))
-  const [prepareDem, setPrepareDem] = useState(true)
+  // A terrain chosen here is the import's ground: the 1 m DEM boxes start off unless asked for.
+  const terrainIncluded = choices.some((choice, i) => included[i] && choice.role === 'terrain')
+  const [prepareDemChoice, setPrepareDem] = useState<boolean | null>(null)
+  const prepareDem = prepareDemChoice ?? !terrainIncluded
   const [loadRoads, setLoadRoads] = useState(true)
+  const [fillBeyondContours, setFillBeyondContours] = useState(true)
   const commit = () => {
     try {
       const selected = choices.filter((_, i) => included[i])
       if (!selected.length) throw Error('Choose at least one layer to import.')
       if (selected.filter((choice) => choice.role === 'terrain').length > 1)
         throw Error('Choose one terrain: a project has a single terrain surface.')
-      onImport(selected, { prepareDem, loadRoads })
+      onImport(selected, { prepareDem, loadRoads, fillBeyondContours })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not import the layers.')
     }
@@ -94,7 +108,7 @@ export function LayerImportDialog({
             <details>
               <summary>Source import notes</summary>
               <ul className="mt-2 list-disc space-y-1 pl-4">
-                {[...new Set(files.flatMap((file) => file.notices ?? []))].map((note) => (
+                {groupNotes(files.flatMap((file) => file.notices ?? [])).map((note) => (
                   <li key={note} className="break-words">
                     {note}
                   </li>
@@ -131,13 +145,32 @@ export function LayerImportDialog({
                     setError('')
                   }}
                 />
-                {file.fileName}
+                {/* A path has no spaces to break at: let it wrap anywhere rather than run under the select. */}
+                <span className="min-w-0 [overflow-wrap:anywhere]">{file.fileName}</span>
               </label>
               <p className="text-xs text-muted-foreground">
                 {file.collection.features.length} {file.collection.features.length === 1 ? 'feature' : 'features'} ·{' '}
                 {file.crs}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">{roleHelp[role]}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {role === 'proposed-road' && linePartCount(file) > 1
+                  ? `${linePartCount(file)} separate lines: each loads as its own road, named “(part n)”.`
+                  : roleHelp[role]}
+              </p>
+              {role === 'terrain' && included[index] && (
+                <label className="mt-2 flex items-start gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={fillBeyondContours}
+                    onChange={(event) => setFillBeyondContours(event.target.checked)}
+                  />
+                  <span>
+                    Fill past the contours from the regional DEM (about 22 m), so roads and blocks off the sheet have
+                    ground. The two are not shifted to meet.
+                  </span>
+                </label>
+              )}
               {file.pdf && <p className="mt-1 text-xs text-muted-foreground">{file.pdf.note}</p>}
             </div>
             <StyledSelect

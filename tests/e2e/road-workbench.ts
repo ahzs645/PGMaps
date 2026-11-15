@@ -16,3 +16,19 @@ export async function openWorkbench(page: Page, url: string) {
 export async function selectWorkbench(page: Page) {
   await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'workbench')
 }
+
+/**
+ * Starts the plan on the standard road-plan symbols for suites that read its legend text. The plan
+ * defaults to block-sheet symbols; this fills the stored choice only when the browser has none, so a
+ * choice the test itself makes still survives a reload.
+ */
+export async function startOnStandardPlanSymbols(page: Page) {
+  await page.addInitScript(() => {
+    try {
+      if (!localStorage.getItem('pgmaps-road-symbol-style'))
+        localStorage.setItem('pgmaps-road-symbol-style', 'road-plan')
+    } catch {
+      /* No storage: the test sees the default. */
+    }
+  })
+}

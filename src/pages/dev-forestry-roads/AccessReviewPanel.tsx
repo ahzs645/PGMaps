@@ -314,6 +314,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
             referenceSurfaces: w.referenceSurfaces,
             verticalReference: project.terrain.verticalReference,
             sharedCrossingCosts: project.sharedCrossingCosts,
+            gradeStandards: project.standards,
           },
           options: {
             goals,

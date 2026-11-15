@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PdfContourSurface } from '@/lib/geoPdf/contours'
-import { contourTerrain, isContourTerrain } from './contourTerrain'
+import { contourTerrain, fillBeyondContours, isContourTerrain } from './contourTerrain'
 import { TerrainImportQuestion } from './terrain'
 import { slopeRangeIndex, summarizeTerrainSlopeSteps } from './terrainSlopeClasses'
 import { applyLayerImport, layerImportOptions, suggestedLayerRole } from './referenceImport'
@@ -69,6 +69,81 @@ describe('terrain from a sheet’s contours', () => {
     const result = applyLayerImport(project, [{ file, role: 'terrain' }], () => 'id')
     expect(result.imported).toHaveLength(0)
     expect(result.project.reference ?? []).toHaveLength(project.reference?.length ?? 0)
+  })
+})
+
+describe('filling past a sheet’s contours from the regional DEM', () => {
+  // A flat regional surface 2 m above anything the contours hold, so a filled cell is unmistakable.
+  const regional = { source: { elevationAt: () => 2000 }, resolutionM: 22 }
+  const terrain = () => contourTerrain(surface, source, 'CGVD2013')
+  const box = (x0: number, y0: number, x1: number, y1: number) => {
+    const [w, s] = lonLat(x0, y0),
+      [e, n] = lonLat(x1, y1)
+    return [Math.min(w, e), Math.min(s, n), Math.max(w, e), Math.max(s, n)] as [number, number, number, number]
+  }
+  it('widens the grid to the roads, copies every contour cell and fills only what they leave missing', async () => {
+    const before = terrain()
+    // 100 m past the east edge and 50 m past the south one.
+    const out = await fillBeyondContours(
+      before,
+      box(origin[0] + 20, origin[1] - 195, origin[0] + 295, origin[1] - 20),
+      regional,
+    )
+    const r = out.metadata.raster!,
+      old = before.metadata.raster!
+    expect(r.pixelSize).toEqual([5, -5])
+    // The grid keeps the contours' own lines: it moved a whole number of cells.
+    const dc = (old.origin[0] - r.origin[0]) / 5,
+      dr = (r.origin[1] - old.origin[1]) / 5
+    expect([Number.isInteger(dc), Number.isInteger(dr), dc >= 0, dr >= 0]).toEqual([true, true, true, true])
+    expect(r.width).toBeGreaterThanOrEqual(60)
+    expect(r.height).toBeGreaterThanOrEqual(40)
+    for (let row = 0; row < old.height; row++)
+      for (let col = 0; col < 39; col++)
+        expect(r.values[(row + dr) * r.width + col + dc]).toBe(old.values[row * old.width + col])
+    // The contours' own missing column and everything past the sheet come from the regional DEM.
+    expect(r.values[dr * r.width + dc + 39]).toBe(2000)
+    expect(r.values[r.values.length - 1]).toBe(2000)
+    expect(out.filledShare).toBeGreaterThan(0.3)
+    expect(out.metadata.name).toMatch(/\+ regional DEM beyond them \(\d+% of cells\)$/)
+    expect(out.metadata.verticalReference).toMatch(
+      /^CGVD2013; cells beyond the contours: regional DEM, datum unverified$/,
+    )
+    expect(out.metadata.sha256).not.toBe(before.metadata.sha256)
+    expect(isContourTerrain(r)).toBe(true)
+    expect(out.summary).toMatch(/not shifted to meet them/)
+    expect(out.summary).not.toMatch(/left missing/)
+    expect(out.metadata.fill).toEqual({
+      name: 'the regional DEM',
+      resolutionM: 22,
+      sharePercent: Math.round(out.filledShare * 1000) / 10,
+    })
+  })
+  it('crops the sheet to the roads before it ever coarsens the cells', async () => {
+    // Roads 12 km east and 9 km south: the sheet and the roads together pass the cell limit at 5 m,
+    // the roads alone (plus 100 m) do not.
+    const far = box(origin[0] + 12_000, origin[1] - 9_000, origin[0] + 12_200, origin[1] - 8_800)
+    const out = await fillBeyondContours(terrain(), far, regional)
+    const r = out.metadata.raster!
+    expect(r.pixelSize).toEqual([5, -5])
+    expect(r.width * r.height).toBeLessThan(40_000)
+    expect(out.metadata.name).not.toMatch(/m cells\)$/)
+  })
+  it('leaves a terrain that already covers the roads and has no gap unchanged', async () => {
+    const full = contourTerrain(
+      { ...surface, values: surface.values.map((v) => (Number.isFinite(v) ? v : 950)) },
+      source,
+      'CGVD2013',
+    )
+    const out = await fillBeyondContours(
+      full,
+      box(origin[0] + 20, origin[1] - 100, origin[0] + 150, origin[1] - 20),
+      regional,
+      undefined,
+      0,
+    )
+    expect(out.metadata).toBe(full.metadata)
+    expect(out.filledShare).toBe(0)
   })
 })
 

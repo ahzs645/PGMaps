@@ -47,6 +47,7 @@ import type {
   RoadTemplate,
   TerrainMetadata,
 } from './types'
+import { bestSlopeSheetCheck, SLOPE_SHEET_CHECK, slopeSheets, type SlopeSheetCheck } from './slopeSheetCheck'
 
 export type ReadinessState = 'met' | 'attention' | 'not-assessed'
 export type ReadinessGroup = 'inputs' | 'terrain' | 'alignment' | 'earthwork' | 'water' | 'cost'
@@ -152,7 +153,7 @@ export function vehicleFit(result: SweptPathResult): VehicleFit {
 export interface ReadinessInput {
   settings: RoadSettings
   standards?: DesignStandards
-  terrain: Pick<TerrainMetadata, 'kind' | 'name' | 'resolutionM' | 'verticalReference'>
+  terrain: Pick<TerrainMetadata, 'kind' | 'name' | 'resolutionM' | 'verticalReference' | 'fill'>
   context: readonly ContextFeature[]
   alignment: Alignment
   analysis: RoadAnalysis
@@ -164,8 +165,14 @@ export interface ReadinessInput {
   register?: CrossingRegister
   /** The haul review of this road (`haulReview.ts`). Absent leaves the junction-turn row out. */
   haul?: RoadHaulReview
+  /**
+   * The company slope sheet set beside the estimate's ground (`slopeSheetCheck.ts`). Absent when the
+   * project has no slope sheet; null when it has one that does not reach this road.
+   */
+  slopeSheet?: SlopeSheetCheck | null
 }
 
+const SLOPE_SHEET_JUDGED_ON = `The sheet's share of ground at ${SLOPE_SHEET_CHECK.steepPercent}% or steeper in a ±${SLOPE_SHEET_CHECK.stripHalfWidthM} m strip, per ${SLOPE_SHEET_CHECK.intervalM} m, within ${SLOPE_SHEET_CHECK.flagPoints} points of the terrain's. The sheet's JPEG classes are area estimates (about 9–12%); it is evidence beside the estimate, never an input to it`
 const CROSS_DRAIN_JUDGED_ON = 'A culvert at every modelled stream and cross-drain site; none undersized'
 const EPS = 1e-6
 const station = (chainage: number) => {
@@ -331,6 +338,18 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: siteLimit,
       action: { label: 'Terrain', target: 'terrain' },
     })
+  else if (terrain.fill && terrain.fill.resolutionM > MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M + EPS)
+    add({
+      id: 'terrain-source',
+      group: 'terrain',
+      check: 'Terrain fit for site quantities',
+      state: 'attention',
+      severity: 'limit',
+      result: `Terrain is too coarse for earthworks where ${trim(terrain.fill.sharePercent, 0)}% of its cells come from ${terrain.fill.name} (about ${trim(terrain.fill.resolutionM, 0)} m)`,
+      measured: sourceText,
+      judgedOn: siteLimit,
+      action: { label: 'Terrain', target: 'terrain' },
+    })
   else if (terrain.kind === 'regional' || terrain.resolutionM > MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M + EPS)
     add({
       id: 'terrain-source',
@@ -392,6 +411,50 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
         ? { label: `Go to ${station(gaps[0].start)}`, target: 'station', chainage: gaps[0].start }
         : undefined,
     })
+
+  const sheet = input.slopeSheet
+  if (sheet === null)
+    add({
+      id: 'slope-sheet',
+      group: 'terrain',
+      check: 'Ground as steep as the slope sheet shows',
+      state: 'not-assessed',
+      result: 'The slope sheet does not reach this road',
+      judgedOn: SLOPE_SHEET_JUDGED_ON,
+    })
+  else if (sheet) {
+    const measured = `${sheet.sheet}: ${trim(sheet.sheetSteepPercent)}% of the strip at ${SLOPE_SHEET_CHECK.steepPercent}%+ against ${trim(sheet.terrainSteepPercent)}% on the terrain, over ${num(sheet.coveredLengthM)} of ${num(sheet.roadLengthM)} m · ${trim(sheet.exactPercent, 0)}% of the sheet's points exact, the rest JPEG estimates`
+    const first = sheet.stretches[0]
+    add(
+      first
+        ? {
+            id: 'slope-sheet',
+            group: 'terrain',
+            check: 'Ground as steep as the slope sheet shows',
+            state: 'attention',
+            severity: 'todo',
+            result: `The slope sheet shows more steep ground than the terrain on ${plural(sheet.stretches.length, 'stretch', 'stretches')}: full bench and end haul may be understated (${sheet.stretches
+              .slice(0, 3)
+              .map(
+                (s) =>
+                  `${station(s.from)}–${station(s.to)}, ${trim(s.sheetSteepPercent, 0)}% against ${trim(s.terrainSteepPercent, 0)}%`,
+              )
+              .join('; ')}${sheet.stretches.length > 3 ? ` and ${sheet.stretches.length - 3} more` : ''})`,
+            measured,
+            judgedOn: SLOPE_SHEET_JUDGED_ON,
+            action: { label: `Go to ${station(first.from)}`, target: 'station', chainage: first.from },
+          }
+        : {
+            id: 'slope-sheet',
+            group: 'terrain',
+            check: 'Ground as steep as the slope sheet shows',
+            state: 'met',
+            result: 'The terrain shows as much steep ground as the slope sheet',
+            measured,
+            judgedOn: SLOPE_SHEET_JUDGED_ON,
+          },
+    )
+  }
 
   // ---- Alignment -----------------------------------------------------------------------------
   const rule = gradeRule(settings, standards)
@@ -1981,7 +2044,7 @@ export function junctionTurnRow(haul: RoadHaulReview): ReadinessRow {
  */
 export function projectReadiness(
   project: Pick<RoadProject, 'settings' | 'standards' | 'terrain' | 'context' | 'drainage'> &
-    Partial<Pick<RoadProject, 'alignments' | 'haulDestination'>>,
+    Partial<Pick<RoadProject, 'alignments' | 'haulDestination' | 'reference'>>,
   alignment: Alignment,
   analysis: RoadAnalysis,
   options: { drainageStale: boolean; vehicle?: VehicleFit | null },
@@ -1993,6 +2056,7 @@ export function projectReadiness(
   // Rows that quote an input (the template, a culvert price) quote the one the results used.
   alignment = calculatedAlignment(alignment, analysis)
   const register = buildCrossingRegister({ alignment, analysis, context: project.context, drainage })
+  const sheets = slopeSheets(project.reference)
   return {
     register,
     rows: assessReadiness({
@@ -2015,6 +2079,7 @@ export function projectReadiness(
         alignment,
         analysis.stations.map((s) => s.coordinate),
       ),
+      ...(sheets.length ? { slopeSheet: bestSlopeSheetCheck(analysis.stations, sheets) } : {}),
     }),
   }
 }

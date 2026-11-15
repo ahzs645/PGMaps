@@ -13,6 +13,8 @@ export type RoadExport =
   | 'csv'
   | 'report'
   | 'report-pdf'
+  | 'report-package'
+  | 'estimate-pdf'
   | 'map-pdf'
   | 'block-sheet-pdf'
   | 'dline-sheet-pdf'
@@ -43,6 +45,8 @@ export interface ExportItem {
 export const STAMPED_EXPORTS: readonly RoadExport[] = [
   'report',
   'report-pdf',
+  'report-package',
+  'estimate-pdf',
   'plotbook',
   'plotbook-pdf',
   'map-pdf',
@@ -50,7 +54,7 @@ export const STAMPED_EXPORTS: readonly RoadExport[] = [
   'dline-sheet-pdf',
 ]
 /** Outputs that can hold one road or every road of the project. */
-export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = ['geojson', 'shapefile']
+export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = ['geojson', 'shapefile', 'report-package', 'estimate-pdf']
 export type RoadScope = 'active' | 'all'
 
 /**
@@ -85,6 +89,9 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   'provincial-evidence': 'unaffected',
   report: 'stamp',
   'report-pdf': 'stamp',
+  // Its reports are stamped; a plot-book part is refused while an input is invalid, as the plot book is.
+  'report-package': 'stamp',
+  'estimate-pdf': 'stamp',
   'map-pdf': 'stamp',
   'block-sheet-pdf': 'stamp',
   // No road input reaches a D-line; the D-line's own invalid inputs refuse it (`dLineSheetUnavailable`).
@@ -129,6 +136,22 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     extension: '.pdf',
     description:
       'Planning report: issue stamp, readiness checks, profile, sections, quantities, flags and the station schedule.',
+  },
+  {
+    kind: 'report-package',
+    group: 'documents',
+    label: 'Report package',
+    extension: '.pdf / .zip',
+    description:
+      'One PDF for one road or every road, with a cover and contents: choose which report sections, plot-book chapters and block sheets go in the package, in an appendix PDF of their own, or nowhere.',
+  },
+  {
+    kind: 'estimate-pdf',
+    group: 'documents',
+    label: 'Preliminary estimate',
+    extension: '.pdf',
+    description:
+      'Each road priced low, medium and high on copies of it, from the fixes Review offers for sections that do not close, beside its estimate as imported, with your cross-drain and end-haul allowances.',
   },
   {
     kind: 'report',
@@ -279,7 +302,10 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
   if (!context.hasResults) return 'No calculated results yet.'
   if (kind === 'dline-sheet-pdf' && context.dLineSheetUnavailable !== null)
     return context.dLineSheetUnavailable ?? 'Draw a D-line in Review first.'
-  if (context.terrainProfile && ['plotbook', 'plotbook-pdf', 'landxml', 'dxf', 'stakeout'].includes(kind))
+  if (
+    context.terrainProfile &&
+    ['plotbook', 'plotbook-pdf', 'report-package', 'estimate-pdf', 'landxml', 'dxf', 'stakeout'].includes(kind)
+  )
     return 'Return to the road first.'
   if ((kind === 'terrain-landxml' || kind === 'terrain-ascii') && !context.hasTerrainGrid)
     return 'Needs an imported or prepared terrain grid.'

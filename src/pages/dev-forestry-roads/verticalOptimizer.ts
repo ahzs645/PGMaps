@@ -32,6 +32,7 @@ import { simplifyProfile } from './verticalTools'
 import { fixed9Key, PointCache } from './pointCache'
 import type { Alignment, ContextFeature, RoadAnalysis, RoadSettings, TerrainSource, VerticalPoint } from './types'
 import type { CrossingCostItem } from './crossingPlanTypes'
+import { gradeRule, gradeRuleText, gradeSide, sustainedLimit, type DesignStandards } from './designStandards'
 
 export interface VerticalOptimizationOptions {
   /** Reference-feature/surface components use the same design inputs as the workspace. */
@@ -66,6 +67,12 @@ export interface VerticalOptimizationOptions {
    * analysis prices lowest, haul, borrow and waste included when they are entered.
    */
   objective: 'earthwork' | 'total'
+  /**
+   * The job's design standards. With a loaded direction and an adverse limit (`gradeRule`) the
+   * search holds loaded climbs to the adverse limit and loaded descents to the road-wide one, as
+   * Review judges them; without, both directions are held to the road-wide limit.
+   */
+  gradeStandards?: DesignStandards
 }
 export const DEFAULT_VERTICAL_OPTIMIZATION: VerticalOptimizationOptions = {
   pviSpacingM: 50,
@@ -108,6 +115,8 @@ export interface VerticalOptimizationReport {
   band: { centre: 'ground' | 'design'; depthM: number; levelStepM: number; levelsPerPvi: number }
   limits: {
     maxGradePercent: number
+    /** The sustained limits as held, in words (`gradeRuleText`): "16% favourable, 9% adverse". */
+    gradeRule?: string
     gradeRanges: number
     curveK: number
     minSagK: number | null
@@ -637,13 +646,17 @@ function* profileSearch(
   }
 
   const grade = (i: number, a: number, b: number) => (100 * (levels[i + 1][b] - levels[i][a])) / (pvis[i + 1] - pvis[i])
+  // Climbing and descending up-station each have their limit: the adverse one where loaded trucks climb.
+  const rule = gradeRule(settings, o.gradeStandards)
+  const upLimit = sustainedLimit(rule, 1),
+    downLimit = sustainedLimit(rule, -1)
   /** The signed grade window over the interval after PVI `i`: its station ranges inside the road-wide limit. */
   const gradeLimits = (i: number) => {
     const middle = (pvis[i] + pvis[i + 1]) / 2
     const window = gradeWindowAt(alignment.verticalStandards, middle, length)
     return {
-      low: Math.max(window.low, -settings.maxGradePercent),
-      high: Math.min(window.high, settings.maxGradePercent),
+      low: Math.max(window.low, -downLimit),
+      high: Math.min(window.high, upLimit),
     }
   }
   const gradeAllowed = (i: number, g: number) => {
@@ -1035,7 +1048,18 @@ function* profileSearch(
       referenceSurfaces: o.referenceSurfaces,
       verticalReference: o.verticalReference,
       sharedCrossingCosts: o.sharedCrossingCosts,
+      gradeStandards: o.gradeStandards,
     })
+  /** The steepest station grade past the limit its direction is held to, or null when none is. */
+  const overGrade = (a: RoadAnalysis) => {
+    let worst: number | null = null
+    for (const s of a.stations) {
+      const g = s.gradePercent
+      if (g === null || !Number.isFinite(g) || Math.abs(g) <= sustainedLimit(rule, g) + 1e-6) continue
+      if (worst === null || Math.abs(g) > Math.abs(worst)) worst = g
+    }
+    return worst
+  }
   const earthwork = (a: ReturnType<typeof check>) =>
     a.cutVolumeM3 * settings.cutRate + a.fillVolumeM3 * settings.fillRate
   const score = (a: ReturnType<typeof check>) => (o.objective === 'total' ? a.estimatedCost : earthwork(a))
@@ -1144,7 +1168,7 @@ function* profileSearch(
         const light = check(lighter)
         const ok =
           !light.verticalChecks?.length &&
-          light.maxGradePercent <= settings.maxGradePercent + 1e-6 &&
+          overGrade(light) === null &&
           light.coveragePercent >= analysis.coveragePercent - 1e-6 &&
           score(light) <= score(analysis) * 1.01 + 1
         if (!ok) continue
@@ -1205,11 +1229,18 @@ function* profileSearch(
               message: 'Stream crossing estimates need review or prices before a total cost can be compared.',
               remedy: 'Review or price the crossings under Engineering, or optimize for “Cut and fill”.',
             }
-          : result.analysis.maxGradePercent > settings.maxGradePercent + 1e-6
-            ? {
-                message: `The fitted line reaches ${pct(result.analysis.maxGradePercent)}, over the ${settings.maxGradePercent}% grade limit.`,
-                remedy: 'Widen “Search ±” so the line can cut or fill more, or raise the grade limit.',
-              }
+          : overGrade(result.analysis) !== null
+            ? (() => {
+                const worst = overGrade(result.analysis)!
+                const side = gradeSide(rule, worst)
+                return {
+                  message: `The fitted line reaches ${pct(Math.abs(worst))}${side === 'either' ? '' : ` loaded ${side === 'adverse' ? 'uphill' : 'downhill'}`}, over the ${sustainedLimit(rule, worst)}% ${side === 'either' ? 'grade' : side} limit.`,
+                  remedy:
+                    side === 'adverse'
+                      ? 'Widen “Search ±” so the line can cut or fill more, or raise the adverse limit under Design standards.'
+                      : 'Widen “Search ±” so the line can cut or fill more, or raise the grade limit.',
+                }
+              })()
             : null
     if (failure) {
       failed = failure
@@ -1300,6 +1331,11 @@ function* profileSearch(
       band: { centre: o.bandCenter, depthM: o.maxDepthM, levelStepM: o.levelStepM, levelsPerPvi: 2 * ladder + 1 },
       limits: {
         maxGradePercent: settings.maxGradePercent,
+        ...(rule.loadedDirection
+          ? {
+              gradeRule: `${gradeRuleText(rule)}, loaded ${rule.loadedDirection === 'start-to-end' ? 'start to end' : 'end to start'}`,
+            }
+          : {}),
         gradeRanges: alignment.verticalStandards?.gradeRanges.length ?? 0,
         curveK: o.k,
         minSagK: alignment.verticalStandards?.minSagK ?? null,
@@ -1359,7 +1395,7 @@ export function verticalOptimizationLog(report: VerticalOptimizationReport): { l
     },
     {
       label: 'Grade limit',
-      value: `${limits.maxGradePercent}%${limits.gradeRanges ? ` and ${limits.gradeRanges} station range${limits.gradeRanges === 1 ? '' : 's'}` : ''}`,
+      value: `${limits.gradeRule ?? `${limits.maxGradePercent}%`}${limits.gradeRanges ? ` and ${limits.gradeRanges} station range${limits.gradeRanges === 1 ? '' : 's'}` : ''}`,
     },
     { label: 'Vertical curves', value: curves.join(', ') },
     { label: 'Road ends', value: `Start ${end[ends.start]}; end ${end[ends.end]}` },
