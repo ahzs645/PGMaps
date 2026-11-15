@@ -1,6 +1,7 @@
 import { StyledSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { ColorField } from '@/components/ui/color-field'
 import { InlineAlert, LegendItem, MapGradientLegendItem } from '@/components/ui/map-panels'
 import { downloadText } from '@/lib/download'
 import { errorText } from '@/lib/nechakoPortal'
@@ -37,18 +38,23 @@ function SymbolFields({
 }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      {(['fillColor', 'strokeColor'] as const).map((key) => (
-        <label key={key} className="text-xs">
-          {key === 'fillColor' ? 'Fill color' : 'Stroke color'}
-          <input
-            aria-label={label + ' ' + key}
-            type="color"
-            className="mt-1 block h-9 w-full"
-            value={symbol[key]}
-            onChange={(event) => onChange({ ...symbol, [key]: event.target.value })}
-          />
-        </label>
-      ))}
+      {(['fillColor', 'strokeColor'] as const).map((key) => {
+        const opacityKey = key === 'fillColor' ? 'fillOpacity' : 'strokeOpacity'
+        return (
+          <div key={key} className="grid gap-1 text-xs">
+            {key === 'fillColor' ? 'Fill color' : 'Stroke color'}
+            {/* The picker's opacity rail and the number field below edit the same value. */}
+            <ColorField
+              label={label + ' ' + key}
+              value={symbol[key]}
+              resettable={false}
+              onChange={(color) => color && onChange({ ...symbol, [key]: color })}
+              opacity={Number.isFinite(symbol[opacityKey]) ? symbol[opacityKey] : 1}
+              onOpacityChange={(opacity) => onChange({ ...symbol, [opacityKey]: opacity })}
+            />
+          </div>
+        )
+      })}
       {(
         [
           ['fillOpacity', 'Polygon fill opacity', 1],
@@ -622,15 +628,15 @@ export function PortalVectorStyleEditor({
                   }
                 />
               </label>
-              <input
-                type="color"
-                className="h-10 w-12"
-                aria-label={'Gradient stop ' + (index + 1) + ' color for ' + vector.name}
+              <ColorField
+                label={'Gradient stop ' + (index + 1) + ' color for ' + vector.name}
                 value={stop.color}
-                onChange={(event) =>
+                resettable={false}
+                onChange={(color) =>
+                  color &&
                   update({
                     ...draft,
-                    stops: draft.stops.map((item, i) => (i === index ? { ...item, color: event.target.value } : item)),
+                    stops: draft.stops.map((item, i) => (i === index ? { ...item, color } : item)),
                   })
                 }
               />

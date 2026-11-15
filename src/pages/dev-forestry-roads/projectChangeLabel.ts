@@ -54,6 +54,7 @@ const PROJECT_FIELDS: Partial<Record<keyof RoadProject, string>> = {
   notes: 'Map notes',
   reference: 'Reference features',
   cutblockBuffers: 'Cutblock buffers',
+  referenceStyles: 'Layer looks',
   accessHistory: 'Access history',
   harvestHistoryYear: 'Harvest year',
 }

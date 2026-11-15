@@ -1,13 +1,15 @@
 import buffer from '@turf/buffer'
 import { featuresBounds, type GeometryCarrier } from '@/lib/featureBounds'
+import { AREA_PATTERNS, type AreaPattern } from '@/lib/mapSheet/symbolStyle'
 import type { ContextFeature, Coordinate } from './types'
 import { referenceLayerKey, type ReferenceFeature } from './referenceFeatures'
 
 export const MAX_CUTBLOCK_BUFFER_M = 10_000
 export const CUTBLOCK_BUFFER_COLOR = '#7c3aed'
 export const DEFAULT_CUTBLOCK_BUFFER_M = 400
-export const CUTBLOCK_BUFFER_PATTERNS = ['solid', 'diagonal', 'crosshatch'] as const
-export type CutblockBufferPattern = (typeof CUTBLOCK_BUFFER_PATTERNS)[number]
+/** The shared area patterns; `solid`, `diagonal` and `crosshatch` are the values older projects saved. */
+export const CUTBLOCK_BUFFER_PATTERNS = AREA_PATTERNS
+export type CutblockBufferPattern = AreaPattern
 export type CutblockBuffer = {
   layer: string
   color?: string

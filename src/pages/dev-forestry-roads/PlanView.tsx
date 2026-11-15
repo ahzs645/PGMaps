@@ -26,6 +26,8 @@ import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
 import { NOTE_LAYER_IDS, NotesLayer, NotesToolbar, type NoteTool } from './PlanNotes'
 import {
+  REFERENCE_FILL_OPACITY,
+  REFERENCE_ICON_LAYER_ID,
   REFERENCE_LAYERS,
   REFERENCE_LINEWORK_LAYER_IDS,
   REFERENCE_POINT_LAYER_ID,
@@ -33,9 +35,12 @@ import {
   ReferenceLabels,
   ReferenceSheets,
   referenceLegend,
+  referenceLineDash,
+  referenceLineWidth,
   referencePlanData,
 } from './ReferenceLayer'
 import { referenceLayerKey, referenceLayers, type ReferenceFeature } from './referenceFeatures'
+import { referenceCustomDashes, referenceStyleSymbols, type ReferenceLayerStyle } from './referenceStyles'
 import { CUTBLOCK_BUFFER_COLOR, cutblockBufferFeatures, cutblockBufferKey } from './cutblockBuffers'
 import { CutblockCard } from './CutblockCard'
 import { ExistingRoadCard } from './ExistingRoadCard'
@@ -94,7 +99,7 @@ import { historicalMapFeatures } from './accessHistoryMap'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 import { riparianMapFeatures, RIPARIAN_MAP_COLORS } from './riparian'
 import { areaPatternId, keepSymbolImages, symbolImages, type SymbolImageMap } from '@/lib/mapSheet/mapSymbols'
-import type { AreaSymbol } from '@/lib/mapSheet/symbols'
+import type { AreaSymbol, SheetSymbol } from '@/lib/mapSheet/symbols'
 import { cutblockBufferSymbol } from './cutblockBufferStyle'
 import { keepAttributionFolded } from '@/components/ui/map-attribution'
 import { labelsWithRoom, planLabelWidthPx, PLAN_LABEL_HEIGHT_PX, type LabelBox } from './planLabelRoom'
@@ -332,6 +337,9 @@ function Layers(
     visibleBufferData: GeoJSON.FeatureCollection
     bufferSymbols: readonly AreaSymbol[]
     visibleReference: readonly ReferenceFeature[]
+    /** The looks the person gave reference layers, and the pattern tiles those looks need. */
+    referenceStyles?: readonly ReferenceLayerStyle[]
+    referenceSymbols: readonly SheetSymbol[]
     onPointDragStart: (id: string) => void
     onBendPreview: (afterId: string, coordinate: Coordinate | null) => void
     /** The road with a point drag but without a bend preview. A handle in use has to stay mounted, so handles follow this. */
@@ -947,7 +955,10 @@ function Layers(
   // Reference features change rarely. Their source is created with the plan's other sources, where
   // its layers take their place in the ordered group, and updated by its own effect below, so a
   // road edit does not send up to 50,000 reference vertices through MapLibre's worker again.
-  const reference = useMemo(() => referencePlanData(props.visibleReference), [props.visibleReference])
+  const reference = useMemo(
+    () => referencePlanData(props.visibleReference, props.referenceStyles),
+    [props.visibleReference, props.referenceStyles],
+  )
   const latestReference = useRef(reference)
   const latestBuffers = useRef(props.visibleBufferData)
   const bufferImages = useRef(new Set<string>())
@@ -1612,6 +1623,7 @@ function Layers(
       'road-ditches',
       // A named point shows through the earthwork footprint and sits under the road that ends on it.
       REFERENCE_POINT_LAYER_ID,
+      REFERENCE_ICON_LAYER_ID,
       'road-alignments-halo',
       'road-alignments',
       'road-ticks',
@@ -1681,11 +1693,18 @@ function Layers(
   useEffect(() => {
     if (!map || !isLoaded) return
     ;(map.getSource(REFERENCE_SOURCE) as GeoJSONSource | undefined)?.setData(reference)
-  }, [map, isLoaded, reference])
+    // A custom dash is matched by key, so the line layer's dash follows the project's looks.
+    if (map.getLayer('road-reference-line'))
+      map.setPaintProperty(
+        'road-reference-line',
+        'line-dasharray',
+        referenceLineDash(referenceCustomDashes(props.referenceStyles)),
+      )
+  }, [map, isLoaded, reference, props.referenceStyles])
   useEffect(() => {
     if (!map || !isLoaded) return
     const images = new globalThis.Map(
-      props.bufferSymbols
+      [...props.bufferSymbols, ...props.referenceSymbols]
         .flatMap((symbol) => symbolImages(symbol, window.devicePixelRatio || 1))
         .map((image) => [image.id, image]),
     )
@@ -1704,14 +1723,14 @@ function Layers(
     return () => {
       map.off('styleimagemissing', onMissing)
     }
-  }, [map, isLoaded, props.visibleBufferData, props.bufferSymbols])
+  }, [map, isLoaded, props.visibleBufferData, props.bufferSymbols, props.referenceSymbols])
   useEffect(() => {
     if (!map || !isLoaded) return
     const located: ExpressionSpecification = ['==', ['get', 'id'], props.focusedReferenceId ?? '']
     if (map.getLayer('road-reference-line'))
-      map.setPaintProperty('road-reference-line', 'line-width', ['case', located, 3.5, 1.75])
+      map.setPaintProperty('road-reference-line', 'line-width', referenceLineWidth(0, props.focusedReferenceId))
     if (map.getLayer('road-reference-fill'))
-      map.setPaintProperty('road-reference-fill', 'fill-opacity', ['case', located, 0.3, 0.13])
+      map.setPaintProperty('road-reference-fill', 'fill-opacity', ['case', located, 0.3, REFERENCE_FILL_OPACITY])
     if (map.getLayer(REFERENCE_POINT_LAYER_ID))
       map.setPaintProperty(REFERENCE_POINT_LAYER_ID, 'circle-radius', ['case', located, 9, 6])
   }, [map, isLoaded, props.focusedReferenceId])
@@ -2320,7 +2339,7 @@ function Layers(
             cableSupports: !!activeCable,
           }),
           ...historicalMap.legend,
-          ...referenceLegend(props.visibleReference),
+          ...referenceLegend(props.visibleReference, props.referenceStyles),
           ...(props.visibleBufferData.features.length
             ? [
                 {
@@ -2531,6 +2550,10 @@ export function PlanView(input: PlanProps) {
         return !attachedBufferSources.has(key) && !props.hiddenReferenceLayers?.includes(key)
       }),
     [reference, attachedBufferSources, props.hiddenReferenceLayers],
+  )
+  const referenceSymbols = useMemo(
+    () => referenceStyleSymbols(visibleReference, props.project.referenceStyles),
+    [visibleReference, props.project.referenceStyles],
   )
   const bufferData = useMemo(() => {
     const visible =
@@ -2833,6 +2856,8 @@ export function PlanView(input: PlanProps) {
           visibleBufferData={bufferData.data}
           bufferSymbols={bufferData.symbols}
           visibleReference={visibleReference}
+          referenceStyles={props.project.referenceStyles}
+          referenceSymbols={referenceSymbols}
           noteTool={noteTool}
           planToolActive={!!tools.tool}
           gradeColours={tools.gradeColours}

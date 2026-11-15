@@ -79,6 +79,7 @@ book.
 | Vertical datum text                   | 1–300 characters                                                                                                                                                                                                                              | `project.ts`, `parseTerrain`                                                                                                                                                                                                                                                                               | Refused                                                                                                                    |
 | Spatial file import                   | 120,000,000 bytes; 500 features and 50,000 vertices a file; lines as roads: 20 roads, 2,000 vertices                                                                                                                                          | `spatialImport.ts`, `MAX_SPATIAL_FILE_BYTES`, `MAX_SPATIAL_FEATURES`, `MAX_SPATIAL_VERTICES`; `project.ts`, `importAlignmentGeoJson`                                                                                                                                                                       | Refused, naming the file and what to crop                                                                                  |
 | Reference features                    | 500 features, 50,000 vertices; names 1–200 characters                                                                                                                                                                                         | `referenceFeatures.ts`, `MAX_REFERENCE_FEATURES`, `MAX_REFERENCE_VERTICES`                                                                                                                                                                                                                                 | Refused                                                                                                                    |
+| Reference layer looks                | 500, one a layer; colour `#RRGGBB`; width 0.5–6 pt or 0.5–200 m on the ground; fill opacity 0–1; a custom dash of 2–8 lengths, each 0.25–40 widths; point size 4–24 pt | `referenceStyles.ts`, `MAX_REFERENCE_STYLES`, `parseReferenceStyles`; `src/lib/mapSheet/symbolStyle.ts`, `SYMBOL_WIDTH_LIMITS`, `SYMBOL_GROUND_WIDTH_LIMITS`, `DASH_PATTERN_LIMITS`, `SYMBOL_SIZE_LIMITS`, `AREA_PATTERNS`, `LINE_DASHES`, `LINE_MARKERS`, `POINT_ICONS`, `parseSymbolStyle`                 | Refused, naming the value; a look whose layer is gone is dropped                                                           |
 | Library JSON                          | 2,000,000 characters                                                                                                                                                                                                                          | `project.ts`, `importRoadLibrary`                                                                                                                                                                                                                                                                          | Refused                                                                                                                    |
 | Autosave delay                        | 650 ms after the last edit                                                                                                                                                                                                                    | `useRoadWorkspace.ts`                                                                                                                                                                                                                                                                                      | —                                                                                                                          |
 | New project from a regional DEM       | A 1–10 km square around the chosen point (default 3 km); at most 64 z12 DEM tiles                                                                                                                                                             | `ProjectsDialog.tsx`; `terrain.ts` `loadRegionalTerrain`                                                                                                                                                                                                                                                   | Field clamps; error before loading                                                                                         |
@@ -158,10 +159,29 @@ A planned cutblock layer can have one optional **Cutblock buffer**. Choose a pol
 its imported geometry, or enter a distance from 1 to 10,000 m to generate horizontal offsets
 from each block. Set the buffer on import or inside the cutblock layer. The buffer sits under
 that layer in the tree and has its own visibility and fit controls. **Buffer colour** applies to
-its fill and outline. Choose a solid tint, diagonal hatch or crosshatch under **Buffer pattern**.
+its fill and outline. **Buffer pattern** shows each pattern as the plan will draw it, in the
+buffer's colour: a solid tint, diagonal and reverse diagonal hatch, crosshatch, horizontal and
+vertical lines, a grid, or dots.
 The plan legend uses the same style. It is a map overlay. Removing
 the parent releases a linked source back to the layer tree. The buffer setting travels with the
 project.
+
+A reference or proposed-road layer has its own look. The button beside its eye is the layer's
+symbol as the plan draws it; it opens the colour, the line style (solid, dashed, long dash, dotted,
+dash-dot, or **Custom**: dash and gap lengths typed in line widths) and the width, and for a layer
+with areas the pattern, its colour, the fill opacity and **Outline only** too. A width can be in
+points or in **metres on the ground**: the plan then draws the line to scale at any zoom, corrected
+for the map's stretch at the layer's latitude, so a 12 m right-of-way measures 12 m against the
+scale bar. A line can carry arrows (pointing the way it was drawn), ticks or dots along it, and a
+point layer can take a shape and a size. **Copy look** and **Paste look** move a look from one
+layer to another. **Load QGIS style…** reads a `.qml` file saved from QGIS: the first symbol's
+colour, width, pen or brush style, and it lists whatever it could not carry over. Each
+value is optional: a layer nobody has restyled is drawn as it always was, and **Reset look**
+returns a layer to that. The plan, its legend and the layer row use the same symbol. A look is
+display only, like the layer it belongs to: no calculation reads it. It travels with the project
+(`referenceStyles`), is one named undo step, and is dropped when its layer is deleted. Planned
+cutblocks keep the block sheet's symbol, and a scanned sheet or class raster is an image with no
+look to set.
 
 **Fit all layers** shows and frames the imported layers. The import fits its
 extent in the current plan pane. On narrow screens, fitting a layer or feature closes the drawer

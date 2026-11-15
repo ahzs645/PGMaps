@@ -783,7 +783,8 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   visual-quality road view is the reference.
 - Colours a person picks: `ColorField` (`value`/`onChange` with `null` for
   unset, `presets`, `presetDisplay="picker"` in a dense row, `size="sm"`). Unset
-  is drawn striped, never as white.
+  is drawn striped, never as white. See **Colours, patterns and line styles**
+  below; never an `<input type="color">` or a page's own picker.
 - Scale: `MapScaleBar` (`map-controls.tsx`, `position`, `maxWidth`), a metric
   bar measured great-circle across the map's middle (so Mercator's stretch at
   our latitude, 1.7×, is not read off the zoom), in the app's theme. It hides
@@ -843,6 +844,90 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   `MapMarker` draws, with `tone` colours. Give it an SVG icon rather than a text
   glyph: a glyph's position comes from its font's metrics, so it does not centre,
   and it sizes the box to itself.
+
+## Colours, patterns and line styles
+
+One picker, and one set of fields for the look of a line or an area. Use them wherever a person
+sets the look of **their own** content: a block, a note, an imported layer, a buffer, a ground
+material, a drawn marker or path, the interface theme. Status colours, the block-sheet catalogue,
+VIA figure presets, class-pass palettes and data ramps tied to a legend are fixed on purpose and
+are never pickable.
+
+- **`ColorField`** (`src/components/ui/color-field.tsx`, from the toolkit). The swatch opens the
+  colour picker in a popover: a saturation and value plane and a hue rail drawn in Okhsv
+  (perceptually even, so yellows do not crowd and blues do not sink), a hex box, pick-from-screen
+  where the browser has an EyeDropper, the caller's `presets` and the colours picked on this page
+  (*Recent*, in memory only). It works inside a modal dialog and inside another popover.
+  - **`onChange` is the commit**: once when a drag ends, a key is let go, a hex is entered or a
+    swatch is clicked. Save, write the project and take the undo step there. **`onPreview`** is
+    every colour a drag passes through; pass it only where following the drag is cheap (a marker
+    draft, the Appearance preview), never to write a project or mint a pattern image per frame.
+  - `resettable={false}` for a colour that cannot be unset (a material's colour); otherwise the
+    reset button returns `null`. To show a real default colour while still allowing a reset, pass
+    `value={own ?? defaultColor}` and `resettable={own !== undefined}`.
+  - Opacity is its own value, never an eight-digit hex: `opacity` with `onOpacityChange` adds an
+    opacity rail. `swatch` draws something else in the button (a symbol), `swatchClassName` gives
+    it a host's shape, `side` the preferred side.
+  - `ColorPickerPanel` is the picker without the popover, for a panel that is already open.
+- **`PatternField`** and **`LineDashField`** (`src/components/ui/symbol-style-fields.tsx`): a
+  choice among swatches drawn by the sheet's own renderer, so a hatch reads as a hatch and a dash
+  as a dash. Each takes `symbolFor(option)`, which must return the symbol the map draws for that
+  option, so the picker cannot show a look the map does not.
+- **`SymbolStyleEditor`** is the whole look of a layer, and **`SymbolField`** is the same behind
+  a button that is the layer's own symbol, for a list row. What it offers follows the shape:
+  - a point: colour, a shape from our own icon set (`POINT_ICONS`) and a size;
+  - a line: colour, a line style or a typed dash (*Custom*: lengths in line widths; a dash a line
+    cannot draw stays in the box, flagged), a width, and marks along the line (arrows, ticks, dots);
+  - an area: all of a line's outline settings, a pattern, a pattern colour of its own, a fill
+    opacity (the colour picker's rail) and *Outline only*.
+  - `groundWidth` adds a width in metres for a host whose map draws lines to scale.
+  - *Copy look* and *Paste look* move a look between layers (in memory, this page only); a paste
+    keeps what the target's shape can show (`symbolStyleForShape`).
+  - *Load QGIS style…* reads a `.qml` file (`qmlStyle.ts`): the first symbol's first layer, with a
+    note for everything it could not carry over. It never guesses silently.
+- **`RampField`** (`src/components/ui/ramp-field.tsx`, from the toolkit) picks a colour ramp from a
+  list that shows each as its gradient, grouped (low to high, either side of a middle, detail with
+  no order). The list's footer holds *Reverse* and, with `custom`, *+ New gradient*: the list
+  gives way to an editor with a name, the gradient's colour stops on a bar (click the bar to add
+  one, drag a stop to move it, drag it away or press Delete to remove it, and pick the selected
+  stop's colour in the picker below), a preview of the ramp as the map uses it, and the colours as
+  hex codes to type or paste. A saved gradient is listed under *Yours* with a pencil to change or
+  delete it; Escape leaves the editor before it closes the list. Pass
+  `custom={{ ramps, onSave, onDelete }}` from the app's one store (`customRampStore`,
+  `src/lib/customRamps.ts`, kept in this browser) so every ramp picker offers the same gradients.
+  `onChange(id, colors)` hands back a custom ramp's anchors: keep them with the style (`rampColors`
+  on a classed colour style), so it draws in a browser that has never seen the ramp.
+  `GradientStopsEditor` is the stop bar on its own. The ramps are the toolkit's `COLOR_RAMPS`
+  (`scales/colorRamps`), read from d3's schemes; ids are saved in styles. `/dev/data` is the
+  reference use (`RAMP_OPTIONS` in `layerStyle.ts`, which keeps its original five ramps' colours).
+- Classing a number column: `resolvePaletteScale` takes `quantile`, `equal-interval`,
+  `natural-breaks` (Fisher–Jenks on every observation, thinned past 2,000), `standard-deviation`
+  and `geometric-interval` (equal intervals stand in where the range reaches zero). All return
+  interior boundaries; a value on a boundary is in the class above. Natural breaks alone may end
+  on the maximum, when the top value is a class of its own.
+- The model is `src/lib/mapSheet/symbolStyle.ts` (no DOM or network access): `SymbolStyle` holds
+  only what the person set, `SymbolStyleDefaults` is the layer's look until then, and
+  `styledLineSymbol` / `styledAreaSymbol` return an ordinary `SheetSymbol`. Draw it through
+  `mapSymbols.ts` on the map (`keepSymbolImages` for pattern tiles) and `SheetSymbolSwatch` in a
+  legend, as for any other sheet symbol. Read a saved style with `parseSymbolStyle`. The pattern
+  and line-style ids are stored in project files: rename a label, never an id.
+- GeoJSON properties cannot carry an array to a MapLibre style, so a data-driven dash travels by
+  name and the layer `match`es it to a `line-dasharray`; a custom dash travels by a key the
+  project's looks map back to its lengths (`referenceLineDash`, `ReferenceLayer.tsx`).
+- A ground width is one exponential base-2 zoom interpolation (`referenceLineWidth`): exact for a
+  width that doubles each zoom, and MapLibre takes `zoom` only at the top of an expression, so a
+  pixel width shares it by being the same at both ends. Divide the metres by cos(latitude) first:
+  Web Mercator stretches the ground 1.7× at Prince George, and an equator-referenced width draws
+  a 12 m road as 7 m.
+- E2E specs pick a colour with `pickColor` (`tests/e2e/color-field.ts`): `fill` on the labelled
+  control does not apply to a swatch button. The swatch carries the colour in `data-color-value`.
+- The reference uses are the road designer's Layers pane: a reference layer's look
+  (`referenceStyles.ts`, `SymbolField`) and the cutblock buffer (`CutblockBufferField.tsx`).
+- The colour maths is the toolkit's `scales/okhsv` and `scales/oklch` (`hexToOkhsv`, `okhsvToHex`,
+  `okhsvSwatches` for a generated swatch grid, `hexToOklch`, `oklchToHex` with chroma-reducing
+  gamut mapping). Okhsv follows Björn Ottosson's published method (MIT, `NOTICE-OKHSV.md` in the
+  toolkit). The picker's layout is the toolkit's own; do not port a third-party picker's design
+  into it without checking its licence.
 
 ## Settled map observation and HTML-marker clustering
 

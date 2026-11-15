@@ -224,6 +224,8 @@ export function AppearanceDialog({
                       className="min-w-12 rounded-sm focus-within:ring-2 focus-within:ring-ring"
                       value={draft[mode][role] ?? null}
                       onChange={(colour) => editColour(role, colour)}
+                      // The live preview beside the list follows a drag; the draft is only applied on Apply.
+                      onPreview={(colour) => editColour(role, colour)}
                     />
                   </div>
                 </div>

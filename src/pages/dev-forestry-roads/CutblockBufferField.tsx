@@ -1,13 +1,18 @@
 import { useId } from 'react'
+import { ColorField } from '@/components/ui/color-field'
 import { StyledSelect } from '@/components/ui/styled-select'
+import { PatternField } from '@/components/ui/symbol-style-fields'
+import { cutblockBufferSymbol } from './cutblockBufferStyle'
 import { NumberField } from './Controls'
 import {
   CUTBLOCK_BUFFER_COLOR,
   DEFAULT_CUTBLOCK_BUFFER_M,
   MAX_CUTBLOCK_BUFFER_M,
   type CutblockBuffer,
-  type CutblockBufferPattern,
 } from './cutblockBuffers'
+
+/** Colours that read against forest, hillshade and imagery alike; the picker offers them first. */
+const BUFFER_COLOR_PRESETS = [CUTBLOCK_BUFFER_COLOR, '#2563eb', '#0891b2', '#047857', '#b45309', '#be185d', '#111827']
 
 export function CutblockBufferField({
   layer,
@@ -67,31 +72,29 @@ export function CutblockBufferField({
         />
       )}
       {setting && (
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-end gap-2">
-          <label className="grid gap-1 text-xs font-medium">
-            Buffer colour
-            <input
-              type="color"
-              value={setting.color ?? CUTBLOCK_BUFFER_COLOR}
-              disabled={disabled}
-              className="h-8 w-12 cursor-pointer rounded-md border border-input bg-background p-0.5"
-              onChange={(event) => onChange({ ...setting, color: event.target.value })}
-            />
-          </label>
+        <div className="grid gap-2">
           <div className="grid gap-1">
-            <label htmlFor={`${id}-pattern`} className="text-xs font-medium">
-              Buffer pattern
-            </label>
-            <StyledSelect
-              id={`${id}-pattern`}
+            <span className="text-xs font-medium">Buffer colour</span>
+            <ColorField
+              label="Buffer colour"
+              value={setting.color ?? CUTBLOCK_BUFFER_COLOR}
+              resettable={setting.color !== undefined}
+              resetLabel="Buffer colour: back to the default"
+              presets={BUFFER_COLOR_PRESETS}
+              presetDisplay="picker"
+              disabled={disabled}
+              onChange={(color) => onChange({ ...setting, color: color ?? undefined })}
+            />
+          </div>
+          <div className="grid gap-1">
+            <span className="text-xs font-medium">Buffer pattern</span>
+            <PatternField
+              label="Buffer pattern"
               value={setting.pattern ?? 'solid'}
               disabled={disabled}
-              onChange={(event) => onChange({ ...setting, pattern: event.target.value as CutblockBufferPattern })}
-            >
-              <option value="solid">Solid tint</option>
-              <option value="diagonal">Diagonal hatch</option>
-              <option value="crosshatch">Crosshatch</option>
-            </StyledSelect>
+              symbolFor={(pattern) => cutblockBufferSymbol({ color: setting.color, pattern })}
+              onChange={(pattern) => onChange({ ...setting, pattern })}
+            />
           </div>
         </div>
       )}

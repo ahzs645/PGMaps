@@ -78,6 +78,7 @@ import { parseMapNotes } from './mapNotes'
 import { parseReferenceFeatures, referenceGeoJson } from './referenceFeatures'
 import { parsePdfSource, sourceAttributes } from './sourceMetadata'
 import { CUTBLOCK_BUFFER_PATTERNS, keepCutblockBuffers, MAX_CUTBLOCK_BUFFER_M } from './cutblockBuffers'
+import { keepReferenceStyles, parseReferenceStyles } from './referenceStyles'
 import { gradeRule, gradeRuleText, parseDesignStandards } from './designStandards'
 import { issueStamp, parseProjectIssue, PLANNING_CAVEAT } from './projectIssue'
 import { parseHaulSettings } from './haulReview'
@@ -785,6 +786,8 @@ export function parseProject(raw: unknown): RoadProject {
         )
   if (new Set(cutblockBuffers.map(({ layer }) => layer)).size !== cutblockBuffers.length)
     throw Error('A cutblock layer can have one buffer.')
+  const referenceStyles =
+    r.referenceStyles === undefined ? [] : keepReferenceStyles(parseReferenceStyles(r.referenceStyles), reference ?? [])
   const cables = list(r.cables, 'D-lines', 100).map(parseCable)
   unique(cables, 'D-lines')
   const profiles =
@@ -855,6 +858,7 @@ export function parseProject(raw: unknown): RoadProject {
     ...(r.notes === undefined ? {} : { notes: parseMapNotes(r.notes) }),
     ...(reference === undefined ? {} : { reference }),
     ...(cutblockBuffers.length ? { cutblockBuffers } : {}),
+    ...(referenceStyles.length ? { referenceStyles } : {}),
     ...(r.provincialStreamData === undefined
       ? {}
       : { provincialStreamData: parseProvincialStreamData(r.provincialStreamData) }),

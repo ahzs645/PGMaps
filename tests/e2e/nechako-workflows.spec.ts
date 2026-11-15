@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { pickColor } from './color-field'
 import { choose } from './styled-select'
 
 const portal = 'https://nechakowatershed-portal.ca'
@@ -72,7 +73,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Add stations.geojson to map', exact: true }).click()
     await expect(page).toHaveURL(/view=layers/)
     await expect(page.getByText('Station A', { exact: true })).toBeVisible()
-    await page.getByLabel('Color for stations.geojson').fill('#2563eb')
+    await pickColor(page, 'Color for stations.geojson', '#2563eb')
     await page.getByRole('button', { name: 'Run geometry operation' }).click()
     await expect(page.getByText('buffer: stations.geojson (1)', { exact: false })).toBeVisible()
     await page.getByRole('button', { name: 'Undo vector edit', exact: true }).click()
