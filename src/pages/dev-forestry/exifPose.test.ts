@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { offsetPosition } from './driveMath'
 import {
+  eyeHeightOver,
   fovFrom35mmEquivalent,
   fovFromFocalLength,
   horizontalFovFromVertical,
@@ -198,6 +199,25 @@ describe('the pose a lined-up photo starts from', () => {
 })
 
 describe('the lined-up camera', () => {
+  it('stands a camera with an altitude there, whatever the ground under it', () => {
+    const own = {
+      lng: -122.75,
+      lat: 53.9,
+      bearing: 49,
+      pitch: -5.6,
+      roll: 0.5,
+      hfov: 53,
+      eyeHeightMeters: 1.6,
+      altitudeMeters: 912,
+    }
+    expect(ownPhotoPose(own, 670, 1050, 1400).altitudeMeters).toBe(912)
+    expect(ownPhotoPose(own, 700, 1050, 1400).altitudeMeters).toBe(912)
+    // Its height above the road view's ground follows the ground; without an altitude it is the eye height.
+    expect(eyeHeightOver(own, 670)).toBe(242)
+    expect(eyeHeightOver({ ...own, altitudeMeters: null }, 670)).toBe(1.6)
+    expect(eyeHeightOver(own, Number.NaN)).toBe(1.6)
+  })
+
   it('puts the bearing at the photo’s centre and half the field of view at its edge', () => {
     const pose = ownPhotoPose(
       { lng: -122.75, lat: 53.9, bearing: 90, pitch: 0, roll: 0, hfov: 60, eyeHeightMeters: 1.6 },

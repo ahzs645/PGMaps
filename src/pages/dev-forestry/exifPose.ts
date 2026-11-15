@@ -30,7 +30,7 @@ export const DEFAULT_HORIZONTAL_FOV = 65
 export type HeadingReference = 'true' | 'magnetic' | 'unknown'
 
 /** Where a starting value came from, so the panel can say so beside it. */
-export type PoseSource = 'exif' | 'record' | 'road-view' | 'level' | 'default' | 'reviewer' | 'skyline'
+export type PoseSource = 'exif' | 'record' | 'road-view' | 'level' | 'default' | 'reviewer' | 'skyline' | 'matched'
 
 export type ExifReading = {
   position: { lng: number; lat: number } | null
@@ -39,7 +39,10 @@ export type ExifReading = {
   /** The camera clock's local time, `YYYY-MM-DD HH:MM`; it carries no time zone and may be wrong. */
   takenAt: string | null
   camera: string | null
-  /** Recorded GPS altitude, metres; shown for reference only, never used to place the eye. */
+  /**
+   * Recorded GPS altitude, metres above sea level. It places the eye only when the reviewer says the photo was
+   * taken from the air (`OwnPose.altitudeMeters`); on the ground the eye stands at the terrain plus eye height.
+   */
   altitudeMeters: number | null
 }
 
@@ -56,6 +59,19 @@ export type OwnPose = {
   /** Degrees across the photo's width. */
   hfov: number
   eyeHeightMeters: number
+  /**
+   * The camera's altitude above sea level, when known: a photo taken from the air (its GPS altitude) or a camera
+   * matched by the photo-matching bench. The eye then stands at this altitude, and `eyeHeightOver` gives its height
+   * above whichever ground it stands on; without it the eye stands `eyeHeightMeters` over the ground.
+   */
+  altitudeMeters?: number | null
+}
+
+/** The eye's height above `groundMeters`: from the camera's altitude when it has one, else its eye height. */
+export function eyeHeightOver(pose: Pick<OwnPose, 'eyeHeightMeters' | 'altitudeMeters'>, groundMeters: number): number {
+  return pose.altitudeMeters !== null && pose.altitudeMeters !== undefined && Number.isFinite(groundMeters)
+    ? pose.altitudeMeters - groundMeters
+    : pose.eyeHeightMeters
 }
 
 export type OwnPoseSources = {
@@ -340,7 +356,7 @@ export function startingPose({
   }
 }
 
-/** The pinhole camera of a lined-up photo, standing `eyeHeightMeters` over `groundMeters`. */
+/** The pinhole camera of a lined-up photo, at its altitude when it has one, else `eyeHeightMeters` over `groundMeters`. */
 export function ownPhotoPose(
   pose: OwnPose & { lng: number; lat: number },
   groundMeters: number,
@@ -350,7 +366,7 @@ export function ownPhotoPose(
   return {
     lng: pose.lng,
     lat: pose.lat,
-    altitudeMeters: groundMeters + pose.eyeHeightMeters,
+    altitudeMeters: pose.altitudeMeters ?? groundMeters + pose.eyeHeightMeters,
     bearing: normalizeHeading(pose.bearing),
     pitch: pose.pitch,
     roll: pose.roll,

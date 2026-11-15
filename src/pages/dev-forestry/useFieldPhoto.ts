@@ -5,6 +5,7 @@ import { loadElevationGrid } from './demLoader'
 import { MAX_WALK_METERS, nearestStation } from './driveMath'
 import {
   clampFov,
+  eyeHeightOver,
   normalizeHeading,
   ownPhotoPose,
   readExif,
@@ -18,6 +19,7 @@ import {
   type PoseSource,
   type RoadViewPose,
 } from './exifPose'
+import type { MatchedCamera } from './matchedCamera'
 import {
   fetchMapillaryImage,
   mapillaryToken,
@@ -73,6 +75,14 @@ export type OwnPhoto = {
   headingReference: HeadingReference | null
   /** Degrees east added to a magnetic EXIF heading, when the reviewer gives one. */
   declinationEast: number | null
+  /** The camera matched by the photo-matching bench, when one was applied: how it was found and what to check. */
+  matched?: {
+    fileName: string
+    method: string
+    trusted: boolean | null
+    heldOut: MatchedCamera['heldOut']
+    checks: string[]
+  } | null
 }
 
 /** Whether the road view can stand where the own photo was taken, and why not. */
@@ -377,6 +387,16 @@ export function useFieldPhoto({
       ownLng !== null && ownLat !== null && road.length ? nearestPointOnLine(road, { lng: ownLng, lat: ownLat }) : null,
     [ownLng, ownLat, road],
   )
+  /** The road view's ground under the own photo's spot (the coarse skyline terrain until it loads). */
+  const ownGroundMeters = useMemo(() => {
+    if (ownLng === null || ownLat === null) return Number.NaN
+    const near = ground?.elevationAt(ownLng, ownLat)
+    if (near !== undefined && Number.isFinite(near)) return near
+    const coarse = skylineSource?.elevationAt(ownLng, ownLat)
+    return coarse !== undefined && Number.isFinite(coarse) ? coarse : Number.NaN
+  }, [ownLng, ownLat, ground, skylineSource])
+  /** The own photo's eye above that ground: from its altitude when it has one (from the air, or matched). */
+  const ownEyeHeight = own ? eyeHeightOver(own.pose, ownGroundMeters) : null
   const photoOnRoad = image ? onRoad : ownOnRoad
   const station = result && photoOnRoad ? nearestStation(result.stations, photoOnRoad.distanceAlongMeters) : null
 
@@ -653,6 +673,8 @@ export function useFieldPhoto({
     setOwn((current) => {
       if (!current) return current
       const pose = { ...current.pose, ...patch }
+      // A typed eye height stands the eye over the ground again, unless an altitude comes with it.
+      if (patch.eyeHeightMeters !== undefined && patch.altitudeMeters === undefined) pose.altitudeMeters = null
       if (patch.bearing !== undefined) pose.bearing = normalizeHeading(patch.bearing)
       if (patch.hfov !== undefined) pose.hfov = clampFov(patch.hfov)
       const sources = { ...current.sources }
@@ -661,8 +683,62 @@ export function useFieldPhoto({
       if (patch.pitch !== undefined) sources.pitch = source
       if (patch.roll !== undefined) sources.roll = source
       if (patch.hfov !== undefined) sources.fov = source
-      if (patch.eyeHeightMeters !== undefined) sources.eyeHeight = source
+      if (patch.eyeHeightMeters !== undefined || patch.altitudeMeters !== undefined) sources.eyeHeight = source
       return { ...current, pose, sources }
+    })
+  }, [])
+
+  /**
+   * A camera matched by the photo-matching bench: its position, altitude, heading, pitch, roll and lens, each marked
+   * as matched. It also becomes the pose Reset returns to.
+   */
+  const applyMatchedCamera = useCallback((camera: MatchedCamera, fileName: string, checks: string[]) => {
+    setOwn((current) => {
+      if (!current) return current
+      const pose: OwnPose = {
+        ...current.pose,
+        lng: camera.lng,
+        lat: camera.lat,
+        altitudeMeters: camera.altitudeMeters,
+        bearing: normalizeHeading(camera.bearing),
+        pitch: camera.pitch,
+        roll: camera.roll,
+        hfov: clampFov(camera.hfov),
+      }
+      const sources: OwnPoseSources = {
+        position: 'matched',
+        heading: 'matched',
+        pitch: 'matched',
+        roll: 'matched',
+        fov: 'matched',
+        eyeHeight: 'matched',
+      }
+      return {
+        ...current,
+        pose,
+        sources,
+        start: { pose, sources },
+        matched: {
+          fileName: fileName.slice(0, 200),
+          method: camera.method,
+          trusted: camera.trusted,
+          heldOut: camera.heldOut,
+          checks,
+        },
+      }
+    })
+  }, [])
+
+  /** A photo taken from the air: the eye stands at its GPS altitude (on), or back at the ground plus eye height. */
+  const setFromAir = useCallback((fromAir: boolean) => {
+    setOwn((current) => {
+      const altitude = current?.exif?.altitudeMeters
+      if (!current || (fromAir && (altitude === null || altitude === undefined))) return current
+      return {
+        ...current,
+        pose: { ...current.pose, altitudeMeters: fromAir ? altitude : null },
+        sources: { ...current.sources, eyeHeight: fromAir ? 'exif' : 'default' },
+      }
     })
   }, [])
 
@@ -750,6 +826,12 @@ export function useFieldPhoto({
     openOwnFile,
     openOwnRecord,
     setOwnPose,
+    applyMatchedCamera,
+    setFromAir,
+    /** The road view's ground under the own photo, metres; NaN until it is known. */
+    ownGroundMeters,
+    /** The own photo's eye above that ground; null without an own photo. */
+    ownEyeHeight,
     setDeclination,
     nudge,
     resetNudge,
@@ -757,8 +839,11 @@ export function useFieldPhoto({
     /** Where the road view's eye stands while an own photo is compared; null on the road. */
     standAt:
       comparingOwn && own.pose.lng !== null && own.pose.lat !== null ? { lng: own.pose.lng, lat: own.pose.lat } : null,
-    /** The own photo's eye height while it is compared; the settings' otherwise. */
-    standEyeHeightMeters: comparingOwn ? own.pose.eyeHeightMeters : null,
+    /**
+     * The own photo's eye height while it is compared (from its altitude when it has one, never under a metre, where
+     * the drive camera would refuse it); the settings' otherwise.
+     */
+    standEyeHeightMeters: comparingOwn ? Math.max(1, ownEyeHeight ?? own.pose.eyeHeightMeters) : null,
     clear: () => {
       abort.current?.abort()
       setImage(null)

@@ -864,9 +864,11 @@ street-level photo from Mapillary, or with a photo of your own.
     `FocalPlaneX/YResolution` and the pixel dimensions, turned with a
     quarter-turn `Orientation`; it is the vertical field of view that sets
     MapLibre's lens;
-  - `DateTimeOriginal` shown as the camera clock, and GPS altitude shown for
-    reference only. The eye is placed at the ground under the spot plus the
-    eye height, never at GPS altitude.
+  - `DateTimeOriginal` shown as the camera clock, and the GPS altitude. On the
+    ground the eye is placed at the ground under the spot plus the eye height;
+    the GPS altitude places it only when the reviewer marks the photo **Taken
+    from the air** (phone GPS altitude over ground is too rough for eye level,
+    and fine from a helicopter hundreds of metres up).
   Pitch and roll start level (EXIF records neither); eye height starts at the
   settings' observer height. Every value is editable — latitude and longitude
   typed or **Pick on the plan**, heading, pitch, roll, field of view and eye
@@ -876,6 +878,23 @@ street-level photo from Mapillary, or with a photo of your own.
   pitch to where they started. **Save this pose to the field record** writes
   the camera back to the record it came from (altitude as road-view ground
   plus eye height) and leaves its "I checked…" box unticked for the reviewer.
+- **From the air, and matched cameras.** An own photo can carry an absolute
+  altitude (`OwnPose.altitudeMeters`, metres above sea level): its GPS altitude
+  when it was taken from the air, or the altitude of a **matched camera**.
+  *Use a matched camera…* reads a case file of the photo-matching bench
+  (`scripts/forestry/photo-matching/`, `matchedCamera.ts`, DOM-free and
+  unit-tested). From the air a phone's heading can be 50–140° out; the bench
+  fits heading, pitch and roll to the photo's skyline over all headings, and
+  can refine position against mapped features, so its camera replaces every
+  value, each marked *from the matched camera*, and becomes what Reset returns
+  to. The panel shows how the camera was found and its held-out accuracy, and
+  warns when the case was made for another photo, stands more than 300 m from
+  the photo's GPS fix, or carries a skyline fit the bench did not trust. The
+  eye then stands at the altitude: its height over the road view's ground
+  (`eyeHeightOver`, the same terrain the drive camera stands on) is shown
+  beside the altitude field and given to the road view, never below a metre.
+  The road view still walks at most 2 km off the road line, so draw the
+  scene's road or viewpoint near where the aircraft was.
 - **Standing off the road.** An own photo's eye stands on its recorded spot,
   not the road line: the road view seeks to the nearest road point and
   `DriveCamera`'s `standAt` holds the walker's offset on the photo's position

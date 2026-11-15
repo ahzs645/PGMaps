@@ -102,6 +102,10 @@ node --import tsx scripts/forestry/photo-matching/crop.ts case.json x y w h [--z
    It prints each proposal's area, its share in sight (terrain only, no canopy), its distance and its share of the frame. These are figures about the photo, not a VIA percent alteration.
 - **`crop.ts`** (a helper) writes a zoomed crop with a grid labelled in working-frame pixels, for reading skyline traces, region corners and control points exactly.
 
+## In the visual-quality page
+
+`/dev/forestry/visual-quality` reads a case file directly: open the photo with *Line up a photo of my own* in step 2's Field photo panel, then *Use a matched camera…* and pick the case file. The road view then stands at the matched position and altitude, facing the matched heading, pitch and roll, with the photo laid over it (`src/pages/dev-forestry/matchedCamera.ts`).
+
 ## Notes
 
 - **Warning.** Every run prints tsx's `DeprecationWarning: module.register() is deprecated`; it is harmless, and `match.ts` hides it.

@@ -449,7 +449,7 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
         )}
         <p className="text-3xs leading-4 text-muted-foreground">
           {own
-            ? `Heading ${own.pose.bearing.toFixed(1)}°, pitch ${own.pose.pitch >= 0 ? '+' : ''}${own.pose.pitch.toFixed(2)}°, ${own.pose.hfov.toFixed(1)}° across, eye ${own.pose.eyeHeightMeters} m up. `
+            ? `Heading ${own.pose.bearing.toFixed(1)}°, pitch ${own.pose.pitch >= 0 ? '+' : ''}${own.pose.pitch.toFixed(2)}°, ${own.pose.hfov.toFixed(1)}° across, eye ${Math.round((photo.ownEyeHeight ?? own.pose.eyeHeightMeters) * 10) / 10} m up${own.pose.altitudeMeters !== null && own.pose.altitudeMeters !== undefined ? ` (${Math.round(own.pose.altitudeMeters)} m above sea level)` : ''}. `
             : ''}
           {match.nudge.bearing || match.nudge.pitch
             ? `Nudged ${match.nudge.bearing >= 0 ? '+' : ''}${match.nudge.bearing.toFixed(1)}° heading, ${match.nudge.pitch >= 0 ? '+' : ''}${match.nudge.pitch.toFixed(2)}° pitch. `

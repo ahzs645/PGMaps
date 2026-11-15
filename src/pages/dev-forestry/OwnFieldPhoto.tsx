@@ -1,4 +1,5 @@
-import { Camera, Crosshair, ImagePlus, Loader2, Save, X } from 'lucide-react'
+import { useState } from 'react'
+import { Camera, Crosshair, FileInput, ImagePlus, Loader2, Plane, Save, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
@@ -7,6 +8,7 @@ import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 
 import type { FieldRecord } from './assessmentTools'
 import type { PoseSource, RoadViewPose } from './exifPose'
+import { matchedCameraChecks, parseMatchedCamera } from './matchedCamera'
 import { formatKm } from './measureFormat'
 import type { FieldPhotoState } from './useFieldPhoto'
 
@@ -35,6 +37,7 @@ const SOURCE_TEXT: Record<PoseSource, string> = {
   default: 'a default',
   reviewer: 'set by you',
   skyline: 'fitted to the skyline',
+  matched: 'from the matched camera',
 }
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
@@ -47,6 +50,22 @@ const ACCEPT = 'image/jpeg,image/png,image/webp'
 export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; actions: OwnPhotoActions }) {
   const { own, ownStand, ownFov, ownStatus } = photo
   const comparing = !!own && !!photo.match
+  const [matchedError, setMatchedError] = useState<string | null>(null)
+  const applyMatchedFile = async (file: File) => {
+    if (!own) return
+    try {
+      const camera = parseMatchedCamera(await file.text())
+      const checks = matchedCameraChecks(camera, { name: own.name, gpsPosition: own.exif?.position ?? null })
+      setMatchedError(null)
+      photo.applyMatchedCamera(camera, file.name, checks)
+      // While compared, the road view follows the camera to its spot.
+      if (comparing) actions.onLineUp({ lng: camera.lng, lat: camera.lat })
+    } catch (error) {
+      setMatchedError(error instanceof Error ? error.message : String(error))
+    }
+  }
+  const hasAltitude = own?.pose.altitudeMeters !== null && own?.pose.altitudeMeters !== undefined
+  const fromAir = hasAltitude && own?.sources.eyeHeight === 'exif'
   const moveTo = (point: { lng: number; lat: number }) => {
     photo.setOwnPose(point)
     // While compared, the road view follows the photo to its new spot.
@@ -106,7 +125,7 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
               own.exif && own.exif.altitudeMeters !== null
                 ? {
                     label: 'GPS altitude',
-                    value: `${Math.round(own.exif.altitudeMeters)} m, for reference only`,
+                    value: `${Math.round(own.exif.altitudeMeters)} m${fromAir ? ', the eye stands here' : ''}`,
                   }
                 : null,
               photo.ownOnRoad
@@ -117,6 +136,54 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
                 : null,
             ]}
           />
+          <div className="flex flex-wrap gap-2">
+            <FileButton
+              label="Use a matched camera"
+              accept=".json,application/json"
+              className="h-7 px-2 text-2xs touch:h-10"
+              onFiles={([file]) => {
+                if (file) void applyMatchedFile(file)
+              }}
+            >
+              <FileInput className="h-3.5 w-3.5" />
+              Use a matched camera…
+            </FileButton>
+            {own.exif?.altitudeMeters !== null && own.exif?.altitudeMeters !== undefined && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-2xs touch:h-10"
+                aria-pressed={fromAir}
+                onClick={() => photo.setFromAir(!fromAir)}
+              >
+                <Plane className="h-3.5 w-3.5" />
+                {fromAir ? 'Taken from the air' : 'Taken from the air?'}
+              </Button>
+            )}
+          </div>
+          {matchedError && <InlineAlert tone="error">{matchedError}</InlineAlert>}
+          {own.matched && (
+            <div className="space-y-1" aria-label="Matched camera">
+              <KeyValueRows
+                variant="divided"
+                rows={[
+                  { label: 'Matched camera', value: `${own.matched.fileName} · ${own.matched.method}` },
+                  {
+                    label: 'Held-out accuracy',
+                    value: own.matched.heldOut.length
+                      ? own.matched.heldOut.map((g) => `${g.name} ${Math.round(g.metres)} m`).join(', ')
+                      : 'not measured: skyline and GPS only',
+                  },
+                ]}
+              />
+              {own.matched.checks.map((check) => (
+                <InlineAlert key={check} tone="warning">
+                  {check}
+                </InlineAlert>
+              ))}
+            </div>
+          )}
           {!own.recordId && !own.exif?.position && !own.exif?.heading && !own.exif?.fov && (
             <p className="text-3xs leading-4 text-muted-foreground">
               No camera EXIF in this file: the pose starts from the road view. Set the spot, then turn and widen the
@@ -213,16 +280,34 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
               description={`${ownFov.vertical.toFixed(1)}° down · ${fovNote(own)}`}
               onValueChange={(hfov) => photo.setOwnPose({ hfov })}
             />
-            <NumberField
-              label="Eye height above ground, m"
-              step={0.1}
-              min={0.3}
-              max={100}
-              value={own.pose.eyeHeightMeters}
-              description={SOURCE_TEXT[own.sources.eyeHeight]}
-              onValueChange={(eyeHeightMeters) => photo.setOwnPose({ eyeHeightMeters })}
-            />
+            {hasAltitude ? (
+              <NumberField
+                label="Camera altitude, m above sea level"
+                step={1}
+                min={-500}
+                max={9000}
+                value={Math.round(own.pose.altitudeMeters! * 10) / 10}
+                description={`${SOURCE_TEXT[own.sources.eyeHeight]}${photo.ownEyeHeight !== null && Number.isFinite(photo.ownGroundMeters) ? ` · ${Math.round(photo.ownEyeHeight)} m above the road view’s ground` : ''}`}
+                onValueChange={(altitudeMeters) => photo.setOwnPose({ altitudeMeters })}
+              />
+            ) : (
+              <NumberField
+                label="Eye height above ground, m"
+                step={0.1}
+                min={0.3}
+                max={100}
+                value={own.pose.eyeHeightMeters}
+                description={SOURCE_TEXT[own.sources.eyeHeight]}
+                onValueChange={(eyeHeightMeters) => photo.setOwnPose({ eyeHeightMeters })}
+              />
+            )}
           </div>
+          {hasAltitude && photo.ownEyeHeight !== null && photo.ownEyeHeight < 1 && (
+            <InlineAlert tone="warning">
+              This altitude is {Math.round(1 - photo.ownEyeHeight)} m below a metre over the road view’s ground there;
+              the road view stands the eye a metre up. Check the altitude, or the terrain under the spot.
+            </InlineAlert>
+          )}
           {ownStand?.status === 'no-position' && (
             <InlineAlert>Pick the spot the photo was taken from on the plan, or type it.</InlineAlert>
           )}
@@ -270,8 +355,12 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
               className="w-full touch:h-10"
               disabled={own.pose.lng === null || own.pose.lat === null}
               onClick={() => {
-                const ground =
-                  photo.drawing && photo.own ? photo.drawing.pose.altitudeMeters - own.pose.eyeHeightMeters : null
+                const ground = Number.isFinite(photo.ownGroundMeters) ? photo.ownGroundMeters : null
+                const altitude = hasAltitude
+                  ? own.pose.altitudeMeters!
+                  : ground !== null
+                    ? ground + own.pose.eyeHeightMeters
+                    : null
                 actions.onSaveToRecord?.(own.recordId!, {
                   lng: own.pose.lng,
                   lat: own.pose.lat,
@@ -279,10 +368,14 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
                   pitch: Math.round(own.pose.pitch * 100) / 100,
                   roll: Math.round(own.pose.roll * 100) / 100,
                   hfov: Math.round(own.pose.hfov * 10) / 10,
-                  ...(ground !== null
+                  ...(altitude !== null
                     ? {
-                        altitude: Math.round((ground + own.pose.eyeHeightMeters) * 10) / 10,
-                        verticalReference: `Road-view terrain + ${own.pose.eyeHeightMeters} m eye height (lined up)`,
+                        altitude: Math.round(altitude * 10) / 10,
+                        verticalReference: hasAltitude
+                          ? own.sources.eyeHeight === 'matched'
+                            ? 'Matched camera altitude, above sea level (lined up)'
+                            : 'GPS altitude, above sea level (lined up)'
+                          : `Road-view terrain + ${own.pose.eyeHeightMeters} m eye height (lined up)`,
                       }
                     : {}),
                 })
@@ -293,9 +386,10 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
             </Button>
           )}
           <p className="text-3xs leading-4 text-muted-foreground">
-            The eye stands where the photo was taken, off the road if need be. Every value is a suggestion: phone GPS is
-            often 5–20 m out and a cropped photo no longer has its lens’s field of view. Turn, tilt and widen the view
-            until the drawn skyline sits on the photographed one.
+            The eye stands where the photo was taken, off the road if need be, and at its altitude when it was taken
+            from the air or matched. Every value is a suggestion: phone GPS is often 5–20 m out, a phone’s heading from
+            an aircraft can be far out, and a cropped photo no longer has its lens’s field of view. Turn, tilt and widen
+            the view until the drawn skyline sits on the photographed one.
           </p>
         </div>
       )}

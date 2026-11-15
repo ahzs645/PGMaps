@@ -116,7 +116,16 @@ Never pick a control's map position automatically: a "sharpest nearby bend" pick
   It also prints each proposal's area, its share in sight, its distance, and its share of the frame.
 - **`trace.ts`** carries outlines drawn in the photo (`traces`) to the map as `traces.geojson`. With `compareTo` it measures them against a mapped layer, and with `views` it renders them from other viewpoints.
 
-## 6. Report back
+## 6. Compare in the visual-quality page
+
+`/dev/forestry/visual-quality` can stand its road view at the matched camera:
+1. In step 2's Field photo panel, choose **Line up a photo of my own** and open the photo.
+2. Choose **Use a matched camera…** and pick the case file. Position, altitude, heading, pitch, roll and lens come from it, with the held-out accuracy and any warnings. A case made for another photo, a camera more than 300 m from the photo's GPS fix, and an untrusted fit are each flagged.
+3. **Line up my photo** stands the road view there, with the photo over it.
+
+Without a case file, **Taken from the air** puts the eye at the photo's GPS altitude. The heading still comes from the phone, though, so run the bench for a camera to trust. The road view walks at most 2 km off the scene's road line: draw the road or viewpoint near where the aircraft was. Nothing is uploaded; the page reads both files in the browser.
+
+## 7. Report back
 
 Give the person a short table:
 - the camera (heading, pitch, roll) and how it was found (which skyline reader, regions or controls)
