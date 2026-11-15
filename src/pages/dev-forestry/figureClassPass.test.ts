@@ -31,7 +31,7 @@ describe('class pass layers', () => {
     expect(splitAtLandform([], LANDFORM)).toEqual({ inside: [], outside: [], failed: false })
   })
 
-  it('stacks the classes in VIA precedence and colours them from the palette', () => {
+  it('stacks the classes so private land covers blocks, as the run counts it, and colours them from the palette', () => {
     const { layers, failed } = classPassLayers({
       landform: LANDFORM,
       blocks: [square(-121.995, 54.002, 0.002)],
@@ -40,7 +40,7 @@ describe('class pass layers', () => {
       rock: [square(-121.999, 54.008, 0.001), square(-121.5, 54.5, 0.001)],
     })
     expect(failed).toBe(false)
-    expect(layers.map((l) => l.id)).toEqual(['landform', 'rock', 'privateOut', 'privateIn', 'existingIn', 'proposedIn'])
+    expect(layers.map((l) => l.id)).toEqual(['landform', 'rock', 'existingIn', 'proposedIn', 'privateOut', 'privateIn'])
     expect(layers[0].color).toBe(`#${CLASS_PALETTE.landform.map((v) => v.toString(16).padStart(2, '0')).join('')}`)
     // Rock outside the landform is not a class.
     expect(layers.find((l) => l.id === 'rock')!.data.features).toHaveLength(1)

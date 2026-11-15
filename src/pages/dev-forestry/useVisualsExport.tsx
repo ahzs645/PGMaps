@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { LogoChooser } from '@/branding/LogoChooser'
+import { logoDataUrl } from '@/branding/model'
+import { brandedHtml } from '@/branding/presentation'
+import { exportBrand, printedLogo } from '@/branding/store'
+import { useBranding } from '@/branding/useBranding'
 import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import type { LabelStyleId } from '@/lib/mapSheet/callouts'
 import { LABEL_STYLES } from '@/lib/mapSheet/callouts'
@@ -10,6 +15,8 @@ import { briefViewpoints, buildFieldBrief, fieldBriefFileName, fieldBriefPdf } f
 import {
   AnalysisSheetOptions,
   analysisSheetFile,
+  DEFAULT_FIGURE_STYLE,
+  figureNoteImage,
   NO_FIGURE_CHOICE,
   resolveFigureChoice,
   type FigureChoice,
@@ -32,6 +39,25 @@ import type { AnalysisProgress, AnalysisResult, TargetPolygon } from './types'
 import type { ViewpointInventoryState } from './ViewpointFinderPanel'
 import { viewpointsNearBlock, type ViewpointCandidate } from './viewpointInventory'
 import type { ViaAssessment, ViaStepId } from './via'
+import type { RenderJob, RenderJobState } from './BackgroundRenders'
+import {
+  ROAD_RENDERERS,
+  roadRendererInfo,
+  roadRendererUnavailable,
+  roadRendererUrl,
+  type RoadRendererId,
+} from './externalRenderers'
+import { estimateRender, formatRemaining, type RenderEngineId, type RenderHistory } from './renderEstimate'
+import { documentFacts } from './viaDocument/facts'
+import { VIA_DOCUMENT_FORMATS, findDocumentFormat } from './viaDocument/formats'
+import { documentMarkdown } from './viaDocument/markdown'
+import { resolveViaDocument } from './viaDocument/resolve'
+import { EVQO_CODE_FOR_CLASS } from './visualsNarrative'
+import { buildReportContext, type ReportView } from './viaReport/context'
+import { reportHtml, reportMarkdown } from './viaReport/html'
+import type { ReportFigure } from './viaReport/model'
+import type { ReportImages } from './viaReport/parts'
+import { assembleReport, findReportRecipe, recipeFormat, REPORT_RECIPES } from './viaReport/recipes'
 import { VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
 import {
   buildExportContext,
@@ -138,8 +164,30 @@ export function useVisualsExport(input: {
   worksheet: () => BuiltFile | null
   scenePackage: { ready: boolean; build: () => BuiltFile }
   evidence: EvidenceExports
+  /**
+   * The background renders (`useBackgroundRenders`): the saved views drawn again by another engine at final quality,
+   * the queue, and the job a view would take. Absent, figures are always PGMaps' own.
+   */
+  renders?: {
+    figures: Readonly<Record<string, SavedFigure>>
+    jobs: readonly RenderJobState[]
+    history: RenderHistory
+    leftMs: number | null
+    enqueue: (jobs: RenderJob[]) => void
+    jobFor: (viewId: string, engine: RenderEngineId) => RenderJob | null
+    /** The road view is open with its terrain: an engine draws from it. */
+    ready: boolean
+  }
   briefBlockId: string | null
   onBriefBlockId: (id: string) => void
+  /**
+   * The VIA report's maps and extra pictures (overview, regional and location maps, before pictures, overhead
+   * renders), captured from the page's maps while the report file is built and put back afterwards. Absent, the
+   * report prints placeholders.
+   */
+  captureReportImages?: (request: {
+    views: ReadonlyArray<{ id: string; name: string }>
+  }) => Promise<{ images: ReportImages; notes: string[] }>
   portalContainer?: HTMLElement | null
 }) {
   const {
@@ -168,6 +216,14 @@ export function useVisualsExport(input: {
     setFs1252({ selected: result ? [result.assessmentStationIndex] : [], reviews: {} })
   }
   const [figureChoice, setFigureChoice] = useState<FigureChoice>(NO_FIGURE_CHOICE)
+  // The VIA document's format; until chosen, the one drawn in the road view's figure style.
+  const [documentFormatId, setDocumentFormatId] = useState<string | null>(null)
+  // Who draws the figures of the sheet, the document and the report: PGMaps as saved, or another engine.
+  const [figureRenderer, setFigureRenderer] = useState<RoadRendererId>('pgmaps')
+  // The VIA report's recipe; until chosen, the one that reads the document's format.
+  const [reportRecipeId, setReportRecipeId] = useState<string | null>(null)
+  // The logo printed sheets and reports carry (the user's own, else the brand's), kept in IndexedDB.
+  const branding = useBranding()
   // The block note's choices last as long as the page: views left out, land checks in or out.
   const [excludedViews, setExcludedViews] = useState<ReadonlySet<string>>(() => new Set())
   const [includeLandChecks, setIncludeLandChecks] = useState(true)
@@ -186,19 +242,123 @@ export function useVisualsExport(input: {
     onLoadInventory(noteBlock, { show: false })
   }, [open, noteBlock, inventoryState.status, inventoryState.blockId, onLoadInventory])
 
+  // The report's captured maps and pictures, kept for the scene and views they were taken from.
+  const reportCaptures = useRef<{ key: string; value: { images: ReportImages; notes: string[] } } | null>(null)
+
   // Closed, the dialog costs the page nothing: this page re-renders several times a second while the
   // road view moves, and nothing below is needed until the dialog opens.
   if (!open) return null
 
+  // With another engine chosen, each saved view's figure is that engine's render when it is done.
+  const renders = input.renders
+  const engineId: RenderEngineId | null = figureRenderer === 'pgmaps' ? null : figureRenderer
+  const engineJobs =
+    engineId && renders
+      ? [...otherViews, ...savedViews].flatMap((view) => {
+          const job = images[view.id]?.figure ? renders.jobFor(view.id, engineId) : null
+          return job ? [job] : []
+        })
+      : []
+  const missingJobs = engineJobs.filter((job) => !renders?.figures[job.key])
+  const figureImages: typeof images =
+    engineId && renders
+      ? Object.fromEntries(
+          Object.entries(images).map(([id, image]) => {
+            const job = engineJobs.find((entry) => entry.viewId === id)
+            const drawn = job ? renders.figures[job.key] : undefined
+            return [id, drawn ? { ...image, figure: drawn } : image]
+          }),
+        )
+      : images
+  const engineState = engineId && renders ? renders.jobs.filter((entry) => entry.job.engine === engineId) : []
+  const engineRunning = engineState.some((entry) => entry.status === 'running' || entry.status === 'waiting')
+  const engineFailed = engineState.find(
+    (entry) => entry.status === 'error' && missingJobs.some((job) => job.key === entry.job.key),
+  )
+  const notStartedMs = missingJobs
+    .filter((job) => !engineState.some((entry) => entry.job.key === job.key && entry.status !== 'error'))
+    .reduce(
+      (sum, job, index) =>
+        sum + estimateRender(job.engine, job.work, renders?.history ?? [], index === 0 && !engineRunning).totalMs,
+      0,
+    )
+  const engineLeftMs = engineRunning ? (renders?.leftMs ?? 0) + notStartedMs : missingJobs.length ? notStartedMs : null
+  const engineUnavailable = engineId
+    ? (roadRendererUnavailable(engineId, {
+        url: roadRendererUrl(engineId, import.meta.env),
+        webGpu: typeof navigator !== 'undefined' && 'gpu' in navigator,
+      }) ??
+      (!renders
+        ? 'background renders are not available here.'
+        : !renders.ready && missingJobs.length
+          ? 'open the road view and let its terrain load: the engine draws from it.'
+          : null))
+    : null
+
   const figureViews: FigureView[] = [...otherViews, ...savedViews].map((view) => ({
     id: view.id,
     name: view.name,
-    image: images[view.id],
+    image: figureImages[view.id],
   }))
   const resolved = resolveFigureChoice(figureChoice, figureViews, roadView)
 
   const landform = findSceneLandform(scene)
   const blocks = scene.targets.filter((target) => target.role === 'block')
+
+  // One resolved document feeds the dialog's contents, its preview and the file.
+  const documentFormat =
+    findDocumentFormat(documentFormatId) ??
+    VIA_DOCUMENT_FORMATS.find((format) => format.style === roadView.styleId) ??
+    VIA_DOCUMENT_FORMATS[0]
+  const documentViews = figureViews.flatMap((view) =>
+    view.image?.figure ? [{ name: view.name, figure: view.image.figure }] : [],
+  )
+  const facts = documentViews.length
+    ? documentFacts({
+        project: blocks.length ? blocks.map((entry) => entry.name).join(', ') : 'the proposed blocks',
+        objective: landform ? EVQO_CODE_FOR_CLASS[landform.objectiveId] : null,
+        views: documentViews,
+        assessmentStation: result?.assessmentStationIndex ?? null,
+        review: scene.viaReview ?? null,
+        assessment,
+        breakdown: result?.perspectiveAlteration ?? null,
+        ...(result ? { screeningModelled: !!result.settings.screeningEnabled } : {}),
+      })
+    : null
+  const viaDocument = facts ? resolveViaDocument(documentFormat, facts) : null
+
+  // The report: its recipe, its views and a context assembled without figures for the dialog; the file adds them.
+  const reportRecipe =
+    findReportRecipe(reportRecipeId) ??
+    REPORT_RECIPES.find((recipe) => recipe.format === documentFormat.id) ??
+    REPORT_RECIPES[0]
+  const reportViews: ReportView[] = figureViews.flatMap((view) =>
+    view.image?.figure
+      ? [{ name: view.name, figure: view.image.figure, settings: figureImages[view.id]?.viewpoint?.settings ?? null }]
+      : [],
+  )
+  const reportContext = (figures: readonly ReportFigure[], images?: ReportImages) =>
+    buildReportContext({
+      recipe: reportRecipe,
+      scene,
+      views: reportViews,
+      assessmentStation: result?.assessmentStationIndex ?? null,
+      assessment,
+      breakdown: result?.perspectiveAlteration ?? null,
+      figures,
+      ...(images ? { images } : {}),
+      date: new Date(),
+    })
+  // Placeholder figures stand in for the counts only; the file draws each view's figure.
+  const draftReport = reportViews.length
+    ? assembleReport(
+        reportRecipe,
+        reportContext(
+          reportViews.map((view) => ({ view: view.name, caption: view.name, dataUrl: '', width: 1, height: 1 })),
+        ),
+      )
+    : null
+  const chosenLogo = printedLogo(branding)
   const briefBlock = blocks.find((entry) => entry.id === input.briefBlockId) ?? blocks[0] ?? null
   const briefViews = [
     ...savedViews.map((view) => ({ ...view, onThisRoad: true })),
@@ -257,7 +417,48 @@ export function useVisualsExport(input: {
       style: resolved.preset.name,
       labelStyle: LABEL_STYLES.find((entry) => entry.id === resolved.labelStyle)?.name ?? resolved.labelStyle,
       cameraInfo: resolved.cameraInfo,
+      paintBlocks: resolved.paintBlocks,
     },
+    report: draftReport
+      ? {
+          recipe: reportRecipe.name,
+          sources: reportRecipe.sources.join(', '),
+          parts: reportRecipe.parts.map((id) => id.replace(/-/g, ' ')),
+          figures: reportViews.length,
+          toComplete: draftReport.toComplete.length,
+        }
+      : null,
+    renderer: {
+      id: figureRenderer,
+      label: roadRendererInfo(figureRenderer).label,
+      missing: missingJobs.length,
+      views: engineJobs.length,
+      running: engineRunning,
+      left: engineLeftMs === null ? null : formatRemaining(engineLeftMs),
+      measured: !!engineId && (renders?.history ?? []).some((entry) => entry.engine === engineId),
+      failed: engineFailed ? `${engineFailed.job.viewName}: ${engineFailed.error}` : null,
+      unavailable: engineUnavailable,
+    },
+    logo: chosenLogo
+      ? chosenLogo.source === 'uploaded'
+        ? `Your logo, ${chosenLogo.name}`
+        : `The ${chosenLogo.name} brand’s logo`
+      : 'None: the slot stays empty',
+    document: viaDocument
+      ? {
+          format: documentFormat.name,
+          sources: documentFormat.sources.join(', '),
+          formula: `${documentFormat.rule.formula} (${documentFormat.rule.basis}, ${documentFormat.rule.decimals} dp)`,
+          scale: documentFormat.percentScale.name,
+          images: documentFormat.recipes.map((recipe) => recipe.label),
+          viewpoints: viaDocument.viewpoints.map((vp) => ({
+            name: vp.name,
+            figure: vp.printed ? `${vp.printed.percent}% · ${vp.printed.term}` : 'No class pass',
+          })),
+          toComplete: viaDocument.toComplete.length,
+          gaps: [...documentFormat.gaps],
+        }
+      : null,
     brief: { blockId: briefBlock?.id ?? null, viewpoints: briefPoints.length },
     evidence,
     roadViewReady: input.scenePackage.ready,
@@ -297,6 +498,12 @@ export function useVisualsExport(input: {
     JSON.stringify(scene.viaReview ?? null),
     JSON.stringify(scene.reportMetadata ?? null),
     Object.keys(images).length,
+    documentFormat.id,
+    // A render finishing changes the figures the file is drawn from.
+    figureRenderer,
+    engineJobs.map((job) => (renders?.figures[job.key] ? 1 : 0)).join(''),
+    reportRecipe.id,
+    chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo',
   ].join('|')
 
   const build = async (kind: VisualsExport, format: string): Promise<BuiltFile> => {
@@ -320,8 +527,112 @@ export function useVisualsExport(input: {
           generatedAt: new Date().toISOString(),
         })
       }
-      case 'analysis-sheet':
-        return analysisSheetFile(resolved, format === 'png' ? 'png' : 'pdf')
+      case 'analysis-sheet': {
+        const { printedLogoRaster } = await import('@/branding/raster')
+        return analysisSheetFile(resolved, format === 'png' ? 'png' : 'pdf', await printedLogoRaster(branding))
+      }
+      case 'via-report': {
+        if (!reportViews.length) throw new Error('Save a viewpoint in the road view first.')
+        // Each view's analysed figure in the report's own style, named as the report names its viewpoint.
+        const names = reportContext([]).facts.viewpoints.map((vp) => vp.name)
+        const style = reportRecipe.figureStyle ?? recipeFormat(reportRecipe).style ?? DEFAULT_FIGURE_STYLE
+        const figures: ReportFigure[] = await Promise.all(
+          figureViews
+            .filter((view) => view.image?.figure)
+            .map(async (view, index) => {
+              const image = await figureNoteImage(view.image!, style)
+              return {
+                view: names[index] ?? view.name,
+                caption: `${names[index] ?? view.name}: ${image.caption}${
+                  view.image?.figure?.illustration ? ` Drawn by ${view.image.figure.illustration.renderer}.` : ''
+                }`,
+                dataUrl: image.dataUrl,
+                width: image.width,
+                height: image.height,
+              }
+            }),
+        )
+        // The maps and before pictures are captured now, once per scene and set of views: Preview and Download
+        // build the same file, and the captures move the page's maps for a few seconds each.
+        const reportViewIds = figureViews.filter((view) => view.image?.figure)
+        const captureKey = [
+          input.sceneKey,
+          reportViewIds.map((view) => `${view.id}:${figureImages[view.id]?.savedAt ?? ''}`).join(','),
+          inventoryState.status,
+        ].join('|')
+        let captured = reportCaptures.current?.key === captureKey ? reportCaptures.current.value : null
+        if (!captured && input.captureReportImages) {
+          captured = await input.captureReportImages({
+            views: reportViewIds.map((view, index) => ({ id: view.id, name: names[index] ?? view.name })),
+          })
+          reportCaptures.current = { key: captureKey, value: captured }
+          // What could not be captured prints as a placeholder in the report; the reason goes to the console.
+          if (captured.notes.length) console.warn(`VIA report pictures:\n${captured.notes.join('\n')}`)
+          // Development only: the VIA reference-library harness reads the captures whatever the recipe prints.
+          if (import.meta.env.DEV)
+            (window as unknown as { __viaReportCaptures?: unknown }).__viaReportCaptures = captured
+        }
+        // Each view's plain simulation (its framed capture, else its screenshot) for the "after" pictures.
+        const after = Object.fromEntries(
+          figureViews
+            .filter((view) => view.image?.figure)
+            .map((view, index) => {
+              const picture = view.image!.figure!.frameImage ?? view.image!
+              const name = names[index] ?? view.name
+              return [
+                name,
+                {
+                  view: name,
+                  caption: `${name}: simulation`,
+                  dataUrl: picture.dataUrl,
+                  width: picture.width,
+                  height: picture.height,
+                  // Where each block lies in the picture: the callouts' anchors, which are in this picture's pixels.
+                  marks: [
+                    ...view.image!.figure!.callouts.filter((c) => !c.secondary),
+                    ...(view.image!.figure!.hidden ?? []),
+                  ]
+                    .filter((c) => c.anchor[0] >= 0 && c.anchor[1] >= 0)
+                    .map((c) => ({
+                      x: c.anchor[0] / picture.width,
+                      y: c.anchor[1] / picture.height,
+                      label: c.title,
+                      status: c.status,
+                    }))
+                    .filter((m) => m.x <= 1 && m.y <= 1),
+                },
+              ]
+            }),
+        )
+        const images = { ...(captured?.images ?? {}), after }
+        const context = reportContext(figures, images)
+        // Development only: the pictures and facts the report was built from, for the reference comparison.
+        if (import.meta.env.DEV)
+          Object.assign(window as unknown as Record<string, unknown>, {
+            __viaReportAfter: after,
+            __viaReportFacts: context.facts,
+          })
+        const report = assembleReport(reportRecipe, context)
+        const fileName = `forestry-via-report-${reportRecipe.id}`
+        if (format === 'md') return textFile(reportMarkdown(report), `${fileName}.md`, 'text/markdown')
+        const logo = chosenLogo
+          ? {
+              name: chosenLogo.name,
+              dataUrl:
+                chosenLogo.source === 'uploaded'
+                  ? chosenLogo.logo.dataUrl
+                  : logoDataUrl(chosenLogo.brand.profile.logos.primary),
+            }
+          : null
+        return textFile(brandedHtml(reportHtml(report, logo), exportBrand(branding)), `${fileName}.html`, 'text/html')
+      }
+      case 'via-document': {
+        if (!viaDocument || !facts) throw new Error('Save a viewpoint in the road view first.')
+        const name = `forestry-via-${documentFormat.id}`
+        return format === 'json'
+          ? textFile(JSON.stringify({ facts, document: viaDocument }, null, 2), `${name}.json`, 'application/json')
+          : textFile(documentMarkdown(viaDocument, facts, new Date()), `${name}.md`, 'text/markdown')
+      }
       case 'field-brief': {
         if (!briefBlock) throw new Error('Add a cutblock to brief the crew on it.')
         const brief = buildFieldBrief({
@@ -441,14 +752,48 @@ export function useVisualsExport(input: {
     ...(figureViews.some((view) => view.image)
       ? {
           'analysis-sheet': (
-            <AnalysisSheetOptions
-              views={figureViews}
-              resolved={resolved}
-              onChange={(patch) => setFigureChoice((current) => ({ ...current, ...patch }))}
-            />
+            <div className="grid gap-2">
+              <AnalysisSheetOptions
+                views={figureViews}
+                resolved={resolved}
+                onChange={(patch) => setFigureChoice((current) => ({ ...current, ...patch }))}
+              />
+              <LogoChooser />
+            </div>
           ),
         }
       : {}),
+    'via-report': (
+      <div className="grid gap-2">
+        <StyledSelect
+          aria-label="VIA report structure"
+          className="w-full rounded-md border bg-background p-1"
+          value={reportRecipe.id}
+          onChange={(event) => setReportRecipeId(event.target.value)}
+        >
+          {REPORT_RECIPES.map((recipe) => (
+            <option key={recipe.id} value={recipe.id}>
+              {recipe.name} ({recipe.sources.join(', ')})
+            </option>
+          ))}
+        </StyledSelect>
+        <LogoChooser />
+      </div>
+    ),
+    'via-document': (
+      <StyledSelect
+        aria-label="VIA document format"
+        className="w-full rounded-md border bg-background p-1"
+        value={documentFormat.id}
+        onChange={(event) => setDocumentFormatId(event.target.value)}
+      >
+        {VIA_DOCUMENT_FORMATS.map((format) => (
+          <option key={format.id} value={format.id}>
+            {format.name} ({format.sources.join(', ')})
+          </option>
+        ))}
+      </StyledSelect>
+    ),
     ...(blocks.length > 1
       ? {
           'field-brief': (
@@ -469,6 +814,34 @@ export function useVisualsExport(input: {
       : {}),
   }
 
+  const rendererSelect = (
+    <label className="grid gap-1 text-xs">
+      <span className="text-muted-foreground">Figures drawn by</span>
+      <StyledSelect
+        aria-label="Figures drawn by"
+        className="w-full rounded-md border bg-background p-1"
+        value={figureRenderer}
+        onChange={(event) => setFigureRenderer(event.target.value as RoadRendererId)}
+      >
+        {ROAD_RENDERERS.map((entry) => (
+          <option key={entry.id} value={entry.id}>
+            {entry.id === 'pgmaps'
+              ? 'PGMaps: as saved, ready now'
+              : `${entry.label}: final quality, rendered in the background`}
+          </option>
+        ))}
+      </StyledSelect>
+    </label>
+  )
+  for (const kind of ['analysis-sheet', 'via-document', 'via-report'] as const)
+    if (options[kind] || kind !== 'analysis-sheet')
+      options[kind] = (
+        <div className="grid gap-2">
+          {rendererSelect}
+          {options[kind]}
+        </div>
+      )
+
   const dialog = (
     <VisualsExportDialog
       open={open}
@@ -481,6 +854,9 @@ export function useVisualsExport(input: {
       onGoToStep={onGoToStep}
       onAction={onAction}
       onRun={analysis.run}
+      onRender={() => {
+        if (missingJobs.length) renders?.enqueue(missingJobs)
+      }}
       portalContainer={input.portalContainer}
     />
   )

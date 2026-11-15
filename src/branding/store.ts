@@ -2,13 +2,22 @@ import {
   defaultBrandSettings,
   parseBrandRecord,
   parseBrandSettings,
+  parseUploadedLogo,
   type BrandRecord,
   type BrandSettings,
   type ExportBrand,
+  type UploadedLogo,
 } from './model'
 
-export type BrandingState = { brands: BrandRecord[]; settings: BrandSettings; ready: boolean; error: string }
-const initial: BrandingState = { brands: [], settings: defaultBrandSettings, ready: false, error: '' }
+export type BrandingState = {
+  brands: BrandRecord[]
+  settings: BrandSettings
+  /** The user's own logo for sheets and reports, kept in this browser; null when none was added. */
+  logo: UploadedLogo | null
+  ready: boolean
+  error: string
+}
+const initial: BrandingState = { brands: [], settings: defaultBrandSettings, logo: null, ready: false, error: '' }
 let state = initial
 const listeners = new Set<() => void>()
 let loading: Promise<void> | undefined
@@ -52,14 +61,22 @@ async function request<T>(
 
 async function reload() {
   try {
-    const [records, preferences] = await Promise.all([
+    const [records, preferences, storedLogo] = await Promise.all([
       request<unknown[]>('brands', 'readonly', (s) => s.getAll()),
       request<unknown>('preferences', 'readonly', (s) => s.get('current')),
+      request<unknown>('preferences', 'readonly', (s) => s.get('logo')),
     ])
     const brands = records.map(parseBrandRecord)
     const settings = preferences ? parseBrandSettings(preferences) : { ...defaultBrandSettings }
     if (!brands.some((brand) => brand.key === settings.selected)) settings.selected = null
-    publish({ brands, settings, ready: true, error: '' })
+    // A stored logo that no longer parses is dropped rather than failing the brands with it.
+    let logo: UploadedLogo | null = null
+    try {
+      logo = storedLogo ? parseUploadedLogo(storedLogo) : null
+    } catch {
+      logo = null
+    }
+    publish({ brands, settings, logo, ready: true, error: '' })
   } catch (e) {
     publish({ ...state, ready: true, error: e instanceof Error ? e.message : 'Branding storage is unavailable.' })
   }
@@ -104,6 +121,28 @@ export async function removeBrand(key: string) {
     channel?.postMessage('changed')
   }
 }
+/** Keeps the user's own logo in this browser (or removes it with null), for every sheet and report. */
+export async function saveUploadedLogo(logo: UploadedLogo | null) {
+  if (logo) {
+    const parsed = parseUploadedLogo(logo)
+    await request('preferences', 'readwrite', (s) => s.put(parsed, 'logo'))
+  } else await request('preferences', 'readwrite', (s) => s.delete('logo'))
+  await reload()
+  channel?.postMessage('changed')
+}
+
+/** Which logo a printed sheet or report takes: the user's own first, then the selected brand's when exports use it. */
+export function printedLogo(
+  state: BrandingState,
+):
+  | { source: 'uploaded'; name: string; logo: UploadedLogo }
+  | { source: 'brand'; name: string; brand: BrandRecord }
+  | null {
+  if (state.logo) return { source: 'uploaded', name: state.logo.name, logo: state.logo }
+  const brand = exportBrand(state)
+  return brand ? { source: 'brand', name: brand.brand.profile.name, brand: brand.brand } : null
+}
+
 export function exportBrand(state: BrandingState): ExportBrand | undefined {
   const brand = state.brands.find((brand) => brand.key === state.settings.selected)
   return brand && state.settings.exports

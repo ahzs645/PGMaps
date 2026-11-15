@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -8,15 +8,18 @@ import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines, haulUnitCost } from './engineering'
 import { surfacingSupplyCost } from './gravel'
 import { materialPlanMissing, type HaulSettings } from './engineeringTypes'
-import type { Alignment, GroundMaterial, MaterialQuantity, RoadAnalysis, RoadSettings } from './types'
+import type { Alignment, GroundMaterial, MaterialQuantity, RoadAnalysis, RoadProject, RoadSettings } from './types'
 import { BCCostReferences } from './BCCostReferencesPanel'
-import { RateSources } from './RateAdoption'
-import {
-  rateSourceLines,
-  type AdoptableRateKey,
-  type RateAdoption,
-  type RateEvidence,
-} from './costEvidence/rateAdoption'
+import { RateSources, type RateAdoptionTarget } from './RateAdoption'
+import { applyAdoption, rateSourceLines, withoutAdoption } from './costEvidence/rateAdoption'
+import { adoptionTargets } from './costEvidence/adoptionTargets'
+import { projectCurrency } from './costPlaces/projectLocation'
+import { useCostPreferences } from './costPlaces/useCostPreferences'
+import { CostLocationControl, useLocationSuggestion } from './CostLocation'
+import { projectBudget } from './projectBudget'
+import { ProjectBudgetPanel } from './ProjectBudgetPanel'
+import { CostScenariosPanel } from './CostScenariosPanel'
+import { CollapsibleSection } from '@/components/ui/map-panels'
 import { unpricedQuantities } from './costReadiness'
 import { invalidInputNotice } from './inputErrors'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -60,8 +63,8 @@ type Rate = {
   max?: number
   /** Omitted: the rate is shown, and edited where its note says. */
   onChange?: (value: number) => void
-  /** The project rate behind this cell, so an adopted rate shows its reference on the row. */
-  rateKey?: RateKey
+  /** The adoption target behind this cell (`adoptionTargets.ts`), so an adopted rate shows its reference on the row. */
+  rateKey?: string
 }
 type Row = {
   id: string
@@ -80,7 +83,7 @@ type Row = {
  * excavation rate where none is entered). Their amounts and the material's main row add up to its
  * excavation cost. Rates are edited with the material, in Engineering → Ground.
  */
-function rockRows(m: MaterialQuantity, entered: GroundMaterial | undefined): Row[] {
+function rockRows(m: MaterialQuantity, entered: GroundMaterial | undefined, roadId: string): Row[] {
   const rock = m.rock!
   const rate = (value: number | undefined) => value ?? entered?.cutRate ?? 0
   return [
@@ -91,7 +94,12 @@ function rockRows(m: MaterialQuantity, entered: GroundMaterial | undefined): Row
             item: `Shallow rock · ${m.name}`,
             quantity: rock.shallowBankM3,
             unit: 'bank m³',
-            rate: { value: rate(entered?.shallowCutRate), unit: '$/m³', label: `${m.name} shallow rock rate` },
+            rate: {
+              value: rate(entered?.shallowCutRate),
+              unit: '$/m³',
+              label: `${m.name} shallow rock rate`,
+              rateKey: `${roadId}/material:${m.materialId}.shallowCutRate`,
+            },
             amount: rock.shallowCost,
             note: 'Rock cut no thicker than the template’s shallow depth; its rate is set with the material in Engineering → Ground.',
           },
@@ -104,7 +112,12 @@ function rockRows(m: MaterialQuantity, entered: GroundMaterial | undefined): Row
             item: `Overbreak · ${m.name}`,
             quantity: rock.overbreakBankM3,
             unit: 'bank m³',
-            rate: { value: rate(entered?.overbreakRate), unit: '$/m³', label: `${m.name} overbreak rate` },
+            rate: {
+              value: rate(entered?.overbreakRate),
+              unit: '$/m³',
+              label: `${m.name} overbreak rate`,
+              rateKey: `${roadId}/material:${m.materialId}.overbreakRate`,
+            },
             amount: rock.overbreakCost,
             note: 'Rock blasted below the subgrade to the blasting level and refilled in place; its rate is set with the material in Engineering → Ground.',
           },
@@ -142,9 +155,23 @@ function RateCell({ rate }: { rate?: Rate }) {
   )
 }
 
+/** A project field set, or removed from the file when the value is undefined. */
+function withField<K extends keyof RoadProject>(
+  project: RoadProject,
+  key: K,
+  value: RoadProject[K] | undefined,
+): RoadProject {
+  if (value !== undefined) return { ...project, [key]: value }
+  const rest = { ...project }
+  delete rest[key]
+  return rest
+}
+
 /**
  * How the covered estimate is built: every priced line as quantity × editable rate, so a rate
- * edit recalculates the whole road and the change shows here and in the headline at once.
+ * edit recalculates the whole road and the change shows here and in the headline at once. Beside
+ * it: the project's cost location, where each adopted rate came from, the project budget and the
+ * low and high cases. Opening the dialog writes nothing.
  */
 export function CostBreakdown({
   open,
@@ -152,12 +179,12 @@ export function CostBreakdown({
   analysis,
   alignment,
   settings,
+  project,
   onSettings,
   onHaul,
   onMaterialRate,
-  rateEvidence,
-  onAdoptRate,
-  onRemoveRateSource,
+  onProjectEdit,
+  runCase,
   portalContainer,
 }: {
   open: boolean
@@ -165,20 +192,37 @@ export function CostBreakdown({
   analysis: RoadAnalysis
   alignment: Alignment
   settings: RoadSettings
+  /** The project the estimate belongs to: its location, rate sources, build-ups, budget and scenarios. */
+  project: RoadProject
   onSettings: (patch: Partial<RoadSettings>) => void
   onHaul?: (patch: Partial<HaulSettings>) => void
   onMaterialRate?: (materialId: string, cutRate: number) => void
-  /** The evidence record each adopted rate came from, kept beside the rate (`rateAdoption.ts`). */
-  rateEvidence?: RateEvidence
-  /** Writes a rate and its source together, as one undo step. Absent: BC references is read-only. */
-  onAdoptRate?: (rateKey: AdoptableRateKey, adoption: RateAdoption) => void
-  onRemoveRateSource?: (rateKey: AdoptableRateKey) => void
+  /** One named undo step on the project. Absent: everything beside the rates is read-only. */
+  onProjectEdit?: (edit: (project: RoadProject) => RoadProject, label: string) => void
+  /** Analyses a copy of the road with other inputs, for the low and high cases. */
+  runCase?: (alignment: Alignment, settings: RoadSettings) => RoadAnalysis
   portalContainer?: HTMLElement | null
 }) {
   const [opened, setOpened] = useState<{ open: boolean; total: number }>({ open, total: analysis.estimatedCost })
   if (opened.open !== open) setOpened({ open, total: analysis.estimatedCost })
+  const [preferences] = useCostPreferences()
+  const points = useMemo(() => alignment.points.map((point) => point.coordinate), [alignment.points])
+  const suggestion = useLocationSuggestion(points, open && !project.costLocation)
+  const currency = projectCurrency(project.costLocation)
+  const budget = projectBudget(project, analysis)
+  const adoption: RateAdoptionTarget | undefined = onProjectEdit && {
+    project,
+    currency,
+    targets: adoptionTargets(project, budget.packItems),
+    scheduleItems: budget.packItems,
+    // The rate and the record it came from are one edit, so one undo takes both back.
+    onAdopt: (key, adopted, label) =>
+      onProjectEdit((p) => applyAdoption(p, key, adopted, budget.packItems), `Adopted ${label.toLowerCase()}`),
+    onBuildUps: (next, label) => onProjectEdit((p) => withField(p, 'rateBuildUps', next), label),
+  }
   const result = analysis.engineering
   const haul = alignment.engineering?.haul
+  const roadKey = (key: string) => `${alignment.id}/${key}`
   const setting = (key: RateKey, label: string, unit: string, max = 10000): Rate => ({
     value: settings[key],
     unit,
@@ -189,7 +233,14 @@ export function CostBreakdown({
   })
   const haulRate = (key: keyof HaulSettings, label: string, unit: string, max = 1e9): Rate | undefined =>
     haul && onHaul
-      ? { value: haul[key] as number, unit, label, max, onChange: (value) => onHaul({ [key]: value }) }
+      ? {
+          value: haul[key] as number,
+          unit,
+          label,
+          max,
+          rateKey: roadKey(`haul.${key}`),
+          onChange: (value) => onHaul({ [key]: value }),
+        }
       : undefined
   const costs = result?.costs
   const supply = alignment.engineering?.surfacingSupply
@@ -296,6 +347,7 @@ export function CostBreakdown({
                       unit: '$/m³',
                       label: `${m.name} excavation rate`,
                       max: 10000,
+                      rateKey: roadKey(`material:${m.materialId}.cutRate`),
                       onChange: (value: number) => onMaterialRate(m.materialId, value),
                     }
                   : undefined,
@@ -305,6 +357,7 @@ export function CostBreakdown({
             ? rockRows(
                 m,
                 alignment.engineering?.materials.find((x) => x.id === m.materialId),
+                alignment.id,
               )
             : []),
         ]),
@@ -382,7 +435,7 @@ export function CostBreakdown({
   // Work with a quantity and no rate: its amount is zero because it is unpriced, not because it is free.
   const unpriced = unpricedQuantities(analysis, alignment, settings)
   const unpricedOn = (rowId: string) => unpriced.filter((item) => item.rowId === rowId)
-  const sources = rateSourceLines(rateEvidence, settings)
+  const sources = rateSourceLines(project.rateEvidence, project, budget.packItems)
   const sourceOn = (row: Row) => sources.find((line) => line.rateKey === row.rate?.rateKey)
   return (
     <PanelDialog
@@ -425,7 +478,9 @@ export function CostBreakdown({
           <div className="flex min-h-8 max-w-full flex-wrap items-center gap-2">
             <BCCostReferences
               portalContainer={portalContainer}
-              adoption={onAdoptRate && { rates: settings, rateEvidence, onAdopt: onAdoptRate }}
+              road={{ name: alignment.name, length: analysis.length, stations: analysis.stations }}
+              adoption={adoption}
+              place={project.costLocation?.place}
             />
             <InfoTip label="How amounts are calculated" showLabel>
               Amount = quantity × rate. Contingency = subtotal × %. Quantities cover supported intervals only, with
@@ -433,6 +488,12 @@ export function CostBreakdown({
             </InfoTip>
           </div>
         </div>
+        <CostLocationControl
+          location={project.costLocation}
+          suggestion={suggestion}
+          homePlace={preferences.homePlace}
+          onSet={(location, label) => onProjectEdit?.((p) => withField(p, 'costLocation', location), label)}
+        />
         {analysis.invalidInput && (
           <div data-testid="road-cost-invalid-input">
             <InlineAlert tone="warning" title="This estimate leaves out an invalid input">
@@ -466,7 +527,7 @@ export function CostBreakdown({
                 <ColumnHeader label="Quantity" />
                 <ColumnHeader label="Unit" className="text-left" />
                 <ColumnHeader label="Rate" />
-                <ColumnHeader label="Amount" unit="CAD" />
+                <ColumnHeader label="Amount" unit={currency} />
               </tr>
             </thead>
             <tbody>
@@ -571,7 +632,18 @@ export function CostBreakdown({
             </tfoot>
           </EngineeringTable>
         </div>
-        <RateSources rates={settings} rateEvidence={rateEvidence} onRemove={onRemoveRateSource} />
+        <RateSources
+          lines={sources}
+          onRemove={
+            onProjectEdit &&
+            ((key, label) =>
+              // An emptied record is `undefined` here and leaves the saved file altogether.
+              onProjectEdit(
+                (p) => withField(p, 'rateEvidence', withoutAdoption(p.rateEvidence, key)),
+                `Removed ${label.toLowerCase()} source`,
+              ))
+          }
+        />
         {haul && onHaul && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {(
@@ -597,6 +669,50 @@ export function CostBreakdown({
           </div>
         )}
         {haul && onHaul && <HaulCostGraph haul={haul} />}
+        <div className={insetBox({ padding: 'none' })}>
+          <CollapsibleSection
+            label="Project budget"
+            summary={`$${Math.round(budget.summary.projectBudget).toLocaleString('en-CA')} · ${budget.summary.counts['not-assessed']} not assessed`}
+            defaultOpen={false}
+            className="bg-transparent"
+            toggleProps={{ 'data-testid': 'road-project-budget-toggle' }}
+          >
+            <div className="px-3 pb-3">
+              <ProjectBudgetPanel
+                budget={budget}
+                state={project.costSchedule}
+                currency={currency}
+                onSchedule={
+                  onProjectEdit && ((next, label) => onProjectEdit((p) => withField(p, 'costSchedule', next), label))
+                }
+              />
+            </div>
+          </CollapsibleSection>
+          <CollapsibleSection
+            label="Low and high cases"
+            summary={(() => {
+              const count = Object.keys(project.costScenarios?.drivers ?? {}).length
+              return count ? `${count} ${count === 1 ? 'driver' : 'drivers'}` : 'No drivers set'
+            })()}
+            defaultOpen={false}
+            className="bg-transparent last:border-b-0"
+            toggleProps={{ 'data-testid': 'road-cost-scenarios-toggle' }}
+          >
+            <div className="px-3 pb-3">
+              <CostScenariosPanel
+                analysis={analysis}
+                alignment={alignment}
+                settings={settings}
+                scenarios={project.costScenarios}
+                currency={currency}
+                runCase={runCase}
+                onScenarios={
+                  onProjectEdit && ((next, label) => onProjectEdit((p) => withField(p, 'costScenarios', next), label))
+                }
+              />
+            </div>
+          </CollapsibleSection>
+        </div>
       </div>
     </PanelDialog>
   )

@@ -3,6 +3,7 @@ import { PdfClassInspector } from './PdfClassInspector'
 import type { FitRequest, usePlanDisplay } from './usePlanDisplay'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useTheme } from 'next-themes'
 import type {
   ExpressionSpecification,
   Map as MapLibreMap,
@@ -14,7 +15,7 @@ import type {
 import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, StickyNote, Table2, Waves, X } from 'lucide-react'
 import { Map, MapControls, MapLayersControl, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { IMAGERY_BASEMAPS, SatelliteImagery, useStoredImageryBasemap } from '@/components/ui/map-satellite-imagery'
-import { MapLineLayer } from '@/components/ui/map-layers'
+import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapSketchLayers } from '@/components/ui/map-sketch'
 import { canFinishSketch, nearFirstVertex } from '@/lib/geo/mapSketch'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
@@ -70,6 +71,7 @@ import {
   tickChainages,
 } from './planAnnotations'
 import { terrainBounds } from './terrain'
+import { isLocalPlane, localPlaneGrid } from './localPlane'
 import { roadPlanFitCoordinates } from './planFit'
 import { investigationAnalysis, investigationCoordinates, isAccessInvestigation } from './investigationWorkspace'
 import { MAPPED_ROAD_COLOR } from './mappedRoad'
@@ -278,9 +280,42 @@ function placeOn(alignment: Alignment, chainage: number) {
 /** The DEM display over the basemap; a hillshade over satellite imagery is lighter. */
 const TERRAIN_OPACITY = 0.82
 const IMAGERY_HILLSHADE_OPACITY = 0.5
+/**
+ * Dark theme: the hillshade image (greys 55–255) is dimmed through `raster-brightness-max`, so the
+ * relief keeps its lighting and the image itself, which exports and sheets reuse, stays light.
+ * Slope, aspect and elevation are read by colour against the legend, so they are left as drawn.
+ */
+const DARK_HILLSHADE_BRIGHTNESS_MAX = 0.34
+const CONTOUR_PAINT = {
+  light: { color: '#57534e', opacity: 0.45 },
+  dark: { color: '#d6d3d1', opacity: 0.32 },
+} as const
 
 /** The plan's drawing colour: a pegged road's draft line and a drawn area's sketch. */
 const DRAFT_COLOR = '#0d9488'
+const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+/** Covers the basemap under a project on the flat plane. */
+const PLANE_BACKGROUND: GeoJSON.FeatureCollection = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [-180, -85],
+            [180, -85],
+            [180, 85],
+            [-180, 85],
+            [-180, -85],
+          ],
+        ],
+      },
+    },
+  ],
+}
 
 function Layers(
   props: PlanProps & {
@@ -312,6 +347,8 @@ function Layers(
   },
 ) {
   const { map, isLoaded } = useMap()
+  const { resolvedTheme, forcedTheme } = useTheme()
+  const dark = (forcedTheme ?? resolvedTheme) === 'dark'
   const investigation = isAccessInvestigation(props.project)
   const selectedMappedRoad = useMemo(() => {
     const feature =
@@ -1103,7 +1140,7 @@ function Layers(
       id: 'road-contours',
       type: 'line',
       source: 'road-contours',
-      paint: { 'line-color': '#57534e', 'line-width': 0.65, 'line-opacity': 0.45 },
+      paint: { 'line-width': 0.65 },
     })
     for (const layer of REFERENCE_LAYERS) add(layer)
     add({
@@ -1539,7 +1576,15 @@ function Layers(
         'raster-opacity',
         props.imagery && props.terrainLayer === 'hillshade' ? IMAGERY_HILLSHADE_OPACITY : TERRAIN_OPACITY,
       )
+      map.setPaintProperty(
+        'road-terrain',
+        'raster-brightness-max',
+        dark && !props.imagery && props.terrainLayer === 'hillshade' ? DARK_HILLSHADE_BRIGHTNESS_MAX : 1,
+      )
     }
+    const contourPaint = CONTOUR_PAINT[dark ? 'dark' : 'light']
+    map.setPaintProperty('road-contours', 'line-color', contourPaint.color)
+    map.setPaintProperty('road-contours', 'line-opacity', contourPaint.opacity)
     // Sheet symbols replace the plan's context colours. The context fill stays, transparent, so a
     // click on a harvest area still finds it.
     for (const id of PLAN_SHEET_LAYER_IDS)
@@ -1614,6 +1659,7 @@ function Layers(
     display,
     props.terrainLayer,
     props.imagery,
+    dark,
     props.showContours,
     props.showEarthwork,
     props.terrainOnly,
@@ -2620,6 +2666,21 @@ export function PlanView(input: PlanProps) {
     } else props.onContextSelect?.(feature)
   }
   const hasTerrainBounds = !!terrainBounds(props.project.terrain)
+  const { resolvedTheme: planTheme, forcedTheme: planForcedTheme } = useTheme()
+  const dark = (planForcedTheme ?? planTheme) === 'dark'
+  // A project on the flat plane has no place on Earth: no basemap, online relief or imagery, and
+  // a grid at round file coordinates instead.
+  const plane = isLocalPlane(props.project.terrain) ? (props.project.terrain.localPlane ?? null) : null
+  const planeGrid = useMemo(() => {
+    if (!plane) return EMPTY_COLLECTION
+    const b = terrainBounds(props.project.terrain)
+    if (!b) return EMPTY_COLLECTION
+    // A square around the project, so a long narrow road still sits in a grid.
+    const half = Math.max(b[2] - b[0], b[3] - b[1]),
+      cx = (b[0] + b[2]) / 2,
+      cy = (b[1] + b[3]) / 2
+    return localPlaneGrid(plane, [cx - half, cy - half, cx + half, cy + half])
+  }, [plane, props.project.terrain])
   const settingsButton = useRef<HTMLButtonElement>(null)
   // The toolbar wraps on narrow plans; what sits below it follows its measured height.
   const planView = useRef<HTMLDivElement>(null)
@@ -2706,9 +2767,27 @@ export function PlanView(input: PlanProps) {
         showLoadingOverlay={false}
       >
         <MapTableBridge table={table} />
-        <SatelliteImagery visible={basemap === 'satellite'} />
-        <RegionalDemLayer visible={props.display.terrainLayer !== 'none'} imagery={basemap === 'satellite'} />
-        <HrdemReliefLayer visible={props.display.showHrdem && props.display.terrainLayer !== 'none'} />
+        {/* Mounted first, so it stays under every road layer, and always mounted, so it never moves. */}
+        <MapFillLayer
+          sourceKey="road-local-plane"
+          data={PLANE_BACKGROUND}
+          fillColor={dark ? '#111827' : '#f5f5f2'}
+          fillOpacity={1}
+          lineOpacity={0}
+          interactive={false}
+          visible={!!plane}
+        />
+        <MapLineLayer
+          sourceKey="road-local-plane-grid"
+          data={planeGrid}
+          color={dark ? '#334155' : '#d4d4cf'}
+          width={1}
+          interactive={false}
+          visible={!!plane}
+        />
+        <SatelliteImagery visible={basemap === 'satellite' && !plane} />
+        <RegionalDemLayer visible={props.display.terrainLayer !== 'none' && !plane} imagery={basemap === 'satellite'} />
+        <HrdemReliefLayer visible={props.display.showHrdem && props.display.terrainLayer !== 'none' && !plane} />
         {props.detailArea && (
           <MapLineLayer
             interactive={false}
@@ -2726,7 +2805,7 @@ export function PlanView(input: PlanProps) {
             dashArray={[3, 2]}
           />
         )}
-        {showSentinel && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
+        {showSentinel && !plane && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
         <Layers
           {...props}
           onContextSelect={selectContext}

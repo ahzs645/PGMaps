@@ -208,7 +208,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
       .getByLabel('Imported DEM vertical datum (metres)', { exact: true })
       .fill(imported.metadata.verticalReference)
     const chooser = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: 'Import GeoTIFF, LAS or LAZ', exact: true }).tap()
+    await page.getByRole('button', { name: 'Import GeoTIFF, LAS, LAZ or RoadEng', exact: true }).tap()
     await (await chooser).setFiles(demPath!)
     await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
     await expect(page.getByRole('complementary', { name: 'Road design controls', exact: true })).toContainText(filename)

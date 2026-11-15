@@ -2,6 +2,7 @@ import type { KeyboardEvent } from 'react'
 import {
   curvePointDetail,
   curvePointLabel,
+  curvePointShortLabel,
   curvePointPriority,
   earthworkText,
   isGradeTrouble,
@@ -107,11 +108,14 @@ export function ProfileCurvePoints({
   frame,
   domain,
   onStation,
+  plan,
 }: {
   points: readonly CurvePoint[]
   frame: ProfilePlotFrame
   domain: readonly [number, number]
   onStation: (chainage: number) => void
+  /** Which markers and labels the profile has room for (`planProfileMarks`); else thinned here alone. */
+  plan?: { markers: ReadonlySet<string>; curveLabels: ReadonlySet<string>; crowded?: boolean }
 }) {
   const visible = points.filter((p) => inView(p.chainage, domain))
   if (!visible.length) return null
@@ -121,8 +125,10 @@ export function ProfileCurvePoints({
     y: frame.y(point.elevation),
     priority: curvePointPriority(point),
   }))
-  const markers = placeLabels(items, MARKER_GAP_PX)
-  const labelled = new Set(placeLabels(markers, ROTATED_LABEL_GAP_PX).map((item) => item.point.id))
+  const markers = plan ? items.filter((item) => plan.markers.has(item.point.id)) : placeLabels(items, MARKER_GAP_PX)
+  const labelled = plan
+    ? new Set(markers.filter((item) => plan.curveLabels.has(item.point.id)).map((item) => item.point.id))
+    : new Set(placeLabels(markers, ROTATED_LABEL_GAP_PX).map((item) => item.point.id))
   const select = (event: KeyboardEvent<SVGGElement>, chainage: number) => {
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
@@ -137,7 +143,7 @@ export function ProfileCurvePoints({
           : point.kind === 'bvc' || point.kind === 'evc'
             ? '#7c3aed'
             : '#0f766e'
-        const text = curvePointLabel(point)
+        const text = plan?.crowded ? curvePointShortLabel(point) : curvePointLabel(point)
         const length = text.length * CHAR_PX
         // Above the line when the label fits under the plot's top, else below it.
         const above = y - 9 - length >= frame.top

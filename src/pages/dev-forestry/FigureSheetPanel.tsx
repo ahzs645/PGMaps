@@ -7,6 +7,7 @@ import {
   composeFigure,
   cropRasterRows,
   figureLabelStyle,
+  paintsBlocks,
   rgbaLuminance,
   type ClassRaster,
   type ComposedFigure,
@@ -16,7 +17,7 @@ import {
 import { findPreset, VIA_STYLE_PRESETS, type ViaStylePreset } from '@/lib/forestry/viaFigure/presets'
 import type { CameraInfo } from '@/lib/forestry/viaFigure/cameraInfo'
 import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
-import type { RasterImage } from '@/lib/mapSheet/drawOps'
+import type { DrawOp, RasterImage } from '@/lib/mapSheet/drawOps'
 import { encodeSheetImages } from '@/lib/mapSheet/png'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import { svgDataUrl } from '@/lib/mapSheet/symbolSvg'
@@ -25,6 +26,15 @@ import type { NoteImage } from './blockNote'
 import { illustrationLine, missingLine, type FigureIllustration } from './engineCapture'
 import type { BlockCallout } from './figureCallouts'
 import { cropImageRows } from './mapCapture'
+import { table2Class } from './via'
+
+/** A printed percent read against Table 2, for a calculation line's `{class}`, titled as the forms print it. */
+const table2Reading = (percent: number) => {
+  const found = table2Class(percent)
+  if (found) return { code: found.code, name: found.label.replace(/\b\w/g, (c) => c.toUpperCase()) }
+  // Table 2 stops at 30%: past it the line still prints, saying so, rather than dropping the total.
+  return percent > 30 ? { code: '>MM', name: 'Over 30%, beyond Table 2' } : null
+}
 
 /** What a saved view's VIA figure is composed from, kept with its screenshot for the session. */
 export type SavedFigure = {
@@ -50,6 +60,12 @@ export type SavedFigure = {
   ratingNote?: string
   area: string
   viewpoint: string
+  /** The road or viewpoint the view was saved on, as the scene names it ("Lakeshore"); the view's own name is `viewpoint`. */
+  place?: string
+  /** Blocks the station does not see: listed in the facts, never called out on the picture. */
+  hidden?: BlockCallout[]
+  /** The visual inventory had been read when the view was saved, so "no unit" is a finding rather than a gap. */
+  inventoryRead?: boolean
   /** A landform split fell back: some class may be counted inside the landform that is not. */
   splitFailed: boolean
   /** Sub-landform dividers and lines of force (candidates), projected and cut to the landform. */
@@ -75,8 +91,17 @@ export type SavedFigure = {
   screened?: ClassRaster
 }
 
-/** How an export names features and whether it prints the camera block; the style's own when absent. */
-export type FigureOptions = { labelStyle?: LabelStyleId | null; cameraInfo?: boolean | null }
+/**
+ * How an export names features, whether it prints the camera block and whether it paints the blocks' ground; the
+ * style's own when absent.
+ */
+export type FigureOptions = {
+  labelStyle?: LabelStyleId | null
+  cameraInfo?: boolean | null
+  paintBlocks?: boolean | null
+  /** The logo for the title block (`printedLogoRaster`), or none. */
+  logo?: RasterImage | null
+}
 
 /** A callout moved into a crop's rows, or null when it falls outside them. */
 function shiftCallout<T extends { anchor: [number, number] }>(
@@ -94,7 +119,7 @@ export const DEFAULT_FIGURE_STYLE = 'analysis-sheet-magenta'
 /** PNG pixels per point: 2 is 144 pixels an inch. */
 const PNG_PIXELS_PER_POINT = 2
 
-/** Decodes a saved JPEG to straight RGBA, for styles that re-tone the frame. Browser only. */
+/** Decodes a saved JPEG to straight RGBA, for styles that re-tone or paint the frame. Browser only. */
 async function decodedImage(image: NoteImage): Promise<RasterImage> {
   const element = new Image()
   element.src = image.dataUrl
@@ -142,21 +167,27 @@ export async function figureInput(
     return parts.length ? [{ ...line, parts }] : []
   })
   // The arrow labels read the frame's brightness to colour their leaders: decode the frame for that
-  // only, and keep drawing the JPEG itself so the sheet stays small.
+  // only, and keep drawing the JPEG itself so the sheet stays small. Painting the blocks and greyscale
+  // styles draw the decoded frame (the sheet re-encodes it as JPEG: `jpegFrames`).
   const greyscale = preset.tone === 'greyscale'
+  const paint = !!figure?.classes && paintsBlocks({ preset, paintBlocks: options.paintBlocks ?? undefined })
+  const drawDecoded = greyscale || paint
   const decoded =
-    greyscale || figureLabelStyle({ preset, labelStyle: options.labelStyle ?? undefined }) === 'underlined-arrow'
+    drawDecoded || figureLabelStyle({ preset, labelStyle: options.labelStyle ?? undefined }) === 'underlined-arrow'
       ? await decodedImage(image)
       : null
   return {
     ...(options.labelStyle ? { labelStyle: options.labelStyle } : {}),
     ...(options.cameraInfo != null ? { cameraInfo: options.cameraInfo } : {}),
-    ...(decoded?.kind === 'rgba' && !greyscale ? { luminance: rgbaLuminance(decoded) } : {}),
+    ...(options.paintBlocks != null ? { paintBlocks: options.paintBlocks } : {}),
+    ...(options.logo ? { logo: options.logo } : {}),
+    ...(decoded?.kind === 'rgba' && !drawDecoded ? { luminance: rgbaLuminance(decoded) } : {}),
     zones: figure?.zones ? (crop ? cropRasterRows(figure.zones, crop) : figure.zones) : null,
     camera: figure?.camera ?? null,
+    classify: table2Reading,
     preset,
     image:
-      greyscale && decoded
+      drawDecoded && decoded
         ? decoded
         : { kind: 'url', url: image.dataUrl, format: 'JPEG', width: image.width, height: image.height },
     classes: figure?.classes ? (crop ? cropRasterRows(figure.classes, crop) : figure.classes) : null,
@@ -180,7 +211,8 @@ export async function figureInput(
         .filter((callout) => !callout.secondary)
         .map((callout) => callout.title)
         .join(', '),
-      n: '1',
+      // "Landform 8 (traced)" is landform 8 on the sheet, not landform 1.
+      n: figure?.area.match(/\bLandform\s+(\d+[a-z]?)\b/i)?.[1] ?? '1',
     },
     facts: figure?.facts ?? [],
     rating: figure?.rating ?? null,
@@ -189,9 +221,34 @@ export async function figureInput(
   }
 }
 
+/** JPEG quality of a decoded (painted or toned) frame written back into the sheet. */
+const FRAME_JPEG_QUALITY = 0.92
+
+/**
+ * The sheet's decoded frames (a painted or greyscale picture) encoded as JPEG, as the captured frame itself is, then
+ * anything else raw as PNG: a painted 2000 px strip as PNG made the PDF several times larger. Browser only.
+ */
+async function jpegFrames(ops: readonly DrawOp[]): Promise<DrawOp[]> {
+  const encoded = await Promise.all(
+    ops.map(async (op) => {
+      if (op.op !== 'image' || op.image.kind !== 'rgba') return op
+      const { data, width, height } = op.image
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d')
+      if (!context) return op
+      context.putImageData(new ImageData(new Uint8ClampedArray(data), width, height), 0, 0)
+      const url = canvas.toDataURL('image/jpeg', FRAME_JPEG_QUALITY)
+      return { ...op, image: { kind: 'url', url, format: 'JPEG', width, height } as RasterImage }
+    }),
+  )
+  return encodeSheetImages(encoded)
+}
+
 async function figurePng(figure: ComposedFigure): Promise<Blob> {
   const { sheetPngBlob } = await import('@/lib/mapSheet/sheetPng')
-  const ops = await encodeSheetImages(figure.ops)
+  const ops = await jpegFrames(figure.ops)
   return sheetPngBlob(sheetSvg(ops, figure.width, figure.height), figure.width, figure.height, PNG_PIXELS_PER_POINT)
 }
 
@@ -200,7 +257,7 @@ async function figurePdf(figure: ComposedFigure): Promise<Blob> {
     import('jspdf'),
     import('@/lib/mapSheet/renderPdf'),
   ])
-  const ops = await encodeSheetImages(figure.ops)
+  const ops = await jpegFrames(figure.ops)
   const pdf = createSheetPdf(jspdf, figure.width, figure.height)
   drawSheetPdf(pdf, jspdf, ops)
   return pdf.output('blob')
@@ -245,8 +302,15 @@ export type FigureChoice = {
   styleId: string | null
   labelStyle: LabelStyleId | null
   cameraInfo: boolean | null
+  paintBlocks: boolean | null
 }
-export const NO_FIGURE_CHOICE: FigureChoice = { viewId: null, styleId: null, labelStyle: null, cameraInfo: null }
+export const NO_FIGURE_CHOICE: FigureChoice = {
+  viewId: null,
+  styleId: null,
+  labelStyle: null,
+  cameraInfo: null,
+  paintBlocks: null,
+}
 
 /** A choice with its defaults filled in: the last saved view, the road view's style, the style's labels. */
 export type ResolvedFigure = {
@@ -254,6 +318,7 @@ export type ResolvedFigure = {
   preset: ViaStylePreset
   labelStyle: LabelStyleId
   cameraInfo: boolean
+  paintBlocks: boolean
 }
 
 export function resolveFigureChoice(
@@ -269,20 +334,27 @@ export function resolveFigureChoice(
     preset,
     labelStyle: choice.labelStyle ?? roadView.labelStyle ?? figureLabelStyle({ preset }),
     cameraInfo: choice.cameraInfo ?? preset.cameraInfo ?? false,
+    paintBlocks: choice.paintBlocks ?? paintsBlocks({ preset }),
   }
 }
 
-const composeResolved = async ({ view, preset, labelStyle, cameraInfo }: ResolvedFigure) => {
+const composeResolved = async (
+  { view, preset, labelStyle, cameraInfo, paintBlocks }: ResolvedFigure,
+  logo: RasterImage | null = null,
+) => {
   if (!view?.image) throw new Error('Save a viewpoint in the road view first.')
-  return composeFigure(await figureInput(view.image, view.image.figure, preset, { labelStyle, cameraInfo }))
+  return composeFigure(
+    await figureInput(view.image, view.image.figure, preset, { labelStyle, cameraInfo, paintBlocks, logo }),
+  )
 }
 
 /** The analysis sheet as a file, composed exactly as its preview is. */
 export async function analysisSheetFile(
   resolved: ResolvedFigure,
   format: 'pdf' | 'png',
+  logo: RasterImage | null = null,
 ): Promise<{ blob: Blob; fileName: string }> {
-  const figure = await composeResolved(resolved)
+  const figure = await composeResolved(resolved, logo)
   const blob = format === 'pdf' ? await figurePdf(figure) : await figurePng(figure)
   return { blob, fileName: `via-analysis-${safeName(resolved.view?.name ?? 'view')}-${resolved.preset.id}.${format}` }
 }
@@ -290,13 +362,13 @@ export async function analysisSheetFile(
 /** The analysis sheet as an SVG image for the preview, with the composer's notes. */
 export async function analysisSheetPreview(resolved: ResolvedFigure): Promise<{ src: string; notes: string[] }> {
   const figure = await composeResolved(resolved)
-  const ops = await encodeSheetImages(figure.ops)
+  const ops = await jpegFrames(figure.ops)
   return { src: svgDataUrl(sheetSvg(ops, figure.width, figure.height)), notes: figure.notes }
 }
 
 /**
  * The analysis sheet's options in Save & export: which saved view, the figure style, the label
- * style and the camera block. The class pass taken at *Save viewpoint* gives the outlines (the
+ * style, the camera block and whether the blocks' visible ground is painted as harvested ground. The class pass taken at *Save viewpoint* gives the outlines (the
  * visible edge of each class) and the pixel counts; the run's sightline figure is printed beside
  * the pixel one and stays the assessment's.
  */
@@ -311,7 +383,7 @@ export function AnalysisSheetOptions({
 }) {
   const ready = views.filter((view) => view.image)
   const styleOptions = useMemo(() => VIA_STYLE_PRESETS.filter((entry) => entry.family !== 'G'), [])
-  const { view, preset, labelStyle, cameraInfo } = resolved
+  const { view, preset, labelStyle, cameraInfo, paintBlocks } = resolved
   return (
     <div className="grid gap-2 text-xs sm:grid-cols-2" data-testid="figure-sheet-panel">
       <label className="block">
@@ -359,11 +431,16 @@ export function AnalysisSheetOptions({
           ))}
         </StyledSelect>
       </label>
-      <div className="flex items-end pb-1">
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-1 pb-1">
         <CheckboxField
           label="Camera info on image"
           checked={cameraInfo}
           onCheckedChange={(on) => onChange({ cameraInfo: on })}
+        />
+        <CheckboxField
+          label="Paint blocks"
+          checked={paintBlocks}
+          onCheckedChange={(on) => onChange({ paintBlocks: on })}
         />
       </div>
       {view && !view.image?.figure && (
@@ -379,7 +456,8 @@ export function AnalysisSheetOptions({
       )}
       <p className="text-3xs text-muted-foreground sm:col-span-2">
         Pixel figures count what this picture shows; the sightline figure is the run&apos;s and stays the
-        assessment&apos;s. Both are printed side by side.
+        assessment&apos;s. Both are printed side by side. Paint blocks shows each block&apos;s visible ground as
+        harvested ground, as the reference simulations render it; it changes the picture, never a count.
       </p>
     </div>
   )

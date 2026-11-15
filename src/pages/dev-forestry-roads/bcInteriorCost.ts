@@ -101,6 +101,9 @@ export type InteriorBecZone = 'ESSF' | 'ICH' | 'CWH' | 'SBS' | 'MS' | 'other'
 export type InteriorRoadType = 'long-term' | 'short-term' | 'snow-ice'
 export type InteriorSoilMoisture = 'wet' | 'moist' | 'dry'
 
+/** Above this uphill side slope the Interior equation does not apply: an engineering cost estimate does. */
+export const INTERIOR_SIDESLOPE_LIMIT_PERCENT = 50
+
 export interface InteriorBenchmarkInput {
   roadGroup: number | null
   /** Representative uphill cross slope, perpendicular to the road; not road grade. */
@@ -214,7 +217,8 @@ export function interiorRoadBenchmark(input: InteriorBenchmarkInput): InteriorBe
   if (sideSlopePercent === null) missing.push('Enter the representative uphill side slope.')
   else if (!Number.isFinite(sideSlopePercent) || sideSlopePercent < 0)
     missing.push('Uphill side slope must be a finite, non-negative percent.')
-  else if (sideSlopePercent > 50) excluded.push('Uphill side slope above 50% requires an engineering cost estimate.')
+  else if (sideSlopePercent > INTERIOR_SIDESLOPE_LIMIT_PERCENT)
+    excluded.push(`Uphill side slope above ${INTERIOR_SIDESLOPE_LIMIT_PERCENT}% requires an engineering cost estimate.`)
 
   if (rockPercent === null) missing.push('Enter the section rock percentage.')
   else if (!Number.isFinite(rockPercent) || rockPercent < 0 || rockPercent > 100)

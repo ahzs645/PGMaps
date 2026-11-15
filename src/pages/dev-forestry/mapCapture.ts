@@ -90,6 +90,143 @@ export async function capturePlanMap(
   }
 }
 
+/** A camera to capture from: north-up and flat for the plan map, oblique for the road view's. */
+export type CaptureCamera = {
+  center: [number, number]
+  zoom: number
+  bearing?: number
+  pitch?: number
+  /** Height of the centre above sea level, for a map with 3D terrain whose centre is not clamped to the ground. */
+  elevation?: number
+}
+
+/** Largest canvas side a capture asks MapLibre for (its default `maxCanvasSize`). */
+const MAX_CANVAS_SIDE = 4096
+
+/**
+ * The map at `camera`, read back from the centred `window` of its canvas (CSS pixels) at up to `maxSide` pixels a
+ * side, then put back exactly as it was: camera (roll and centre elevation included), padding and pixel ratio, even
+ * on failure. For the VIA report's maps and renders; the map shows the capture's camera for the frames it takes.
+ */
+export async function captureAtCamera(
+  map: MapLibreMap,
+  camera: CaptureCamera,
+  window_: { width: number; height: number },
+  maxSide = MAX_SIDE,
+): Promise<CapturedImage & { pixelRatio: number }> {
+  const centre = map.getCenter()
+  const elevation = map.getCenterElevation?.()
+  const before = {
+    center: [centre.lng, centre.lat] as [number, number],
+    zoom: map.getZoom(),
+    bearing: map.getBearing(),
+    pitch: map.getPitch(),
+    roll: map.getRoll?.() ?? 0,
+    padding: map.getPadding(),
+    ...(Number.isFinite(elevation) ? { elevation } : {}),
+  }
+  const source = map.getCanvas()
+  const override = (map as unknown as { _overridePixelRatio?: number | null })._overridePixelRatio ?? null
+  const ratioBefore = map.getPixelRatio()
+  const largest = Math.max(1, source.clientWidth, source.clientHeight)
+  const ratio = Math.max(
+    ratioBefore,
+    Math.min(
+      MAX_CAPTURE_PIXEL_RATIO + 1,
+      maxSide / Math.max(1, window_.width, window_.height),
+      MAX_CANVAS_SIDE / largest,
+    ),
+  )
+  try {
+    if (ratio > ratioBefore) map.setPixelRatio(ratio)
+    const wanted = {
+      center: camera.center,
+      zoom: camera.zoom,
+      bearing: camera.bearing ?? 0,
+      // Through `horizonSafePitch`: exactly 90° crashes the GPU process with 3D terrain on.
+      pitch: camera.pitch ? horizonSafePitch(camera.pitch) : 0,
+      // Always given: an omitted roll leaves the camera's matrices null (docs/forestry-visual-quality.md).
+      roll: 0,
+      padding: { top: 0, bottom: 0, left: 0, right: 0 },
+      ...(camera.elevation !== undefined ? { elevation: camera.elevation } : {}),
+    }
+    // The frame read must be drawn from this camera: the road view's drive camera places itself again when its pose
+    // changes (terrain loading under a new view can do that), so a frame from any other camera is read again.
+    const atCamera = () => {
+      const at = map.getCenter()
+      return (
+        Math.abs(map.getZoom() - wanted.zoom) < 0.01 &&
+        Math.abs(map.getPitch() - wanted.pitch) < 0.5 &&
+        Math.abs(((map.getBearing() - wanted.bearing + 540) % 360) - 180) < 0.5 &&
+        Math.abs(at.lng - wanted.center[0]) < 1e-6 &&
+        Math.abs(at.lat - wanted.center[1]) < 1e-6
+      )
+    }
+    const crop = {
+      width: Math.min(1, window_.width / Math.max(1, source.clientWidth)),
+      height: Math.min(1, window_.height / Math.max(1, source.clientHeight)),
+    }
+    const drawn = { width: source.width * crop.width, height: source.height * crop.height }
+    const scale = Math.min(1, maxSide / Math.max(drawn.width, drawn.height))
+    const region: CaptureRegion = {
+      crop,
+      width: Math.round(drawn.width * scale),
+      height: Math.round(drawn.height * scale),
+    }
+    let canvas: HTMLCanvasElement | null = null
+    for (let attempt = 0; attempt < 3 && !canvas; attempt++) {
+      map.jumpTo(wanted)
+      canvas = await readSettledFrame(
+        map,
+        () => (atCamera() ? drawCanvas(map, region, true).canvas : null),
+        'The map',
+        40_000,
+      )
+    }
+    if (!canvas) throw new Error('The map kept moving off the capture’s camera.')
+    return {
+      dataUrl: canvas.toDataURL('image/jpeg', 0.88),
+      width: canvas.width,
+      height: canvas.height,
+      pixelRatio: Math.round((source.width / Math.max(1, source.clientWidth)) * 100) / 100,
+    }
+  } finally {
+    if (ratio > ratioBefore) map.setPixelRatio(override as number)
+    map.jumpTo(before)
+    map.triggerRepaint()
+  }
+}
+
+/**
+ * Sheet operations drawn as a JPEG: their SVG (`sheetSvg`, with every image already a data URL) on a canvas at
+ * `scale` pixels a unit. A JPEG, not the sheets' PNG: an imagery map is several megabytes as a PNG.
+ */
+export async function rasterizeSheet(
+  svg: string,
+  width: number,
+  height: number,
+  scale: number,
+): Promise<CapturedImage> {
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
+  try {
+    const image = new Image()
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () => reject(new Error('The map figure could not be drawn as an image.'))
+      image.src = url
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(width * scale)
+    canvas.height = Math.round(height * scale)
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('No 2D canvas for the map figure.')
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    return { dataUrl: canvas.toDataURL('image/jpeg', 0.88), width: canvas.width, height: canvas.height }
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
 /** Prefix of the class pass's temporary source and layers. */
 const CLASS_PASS_ID = 'vq-class-pass'
 
@@ -125,9 +262,9 @@ function drawCanvas(map: MapLibreMap, target: number | CaptureRegion, smooth: bo
 }
 
 /** Waits for the map to settle (tiles loaded), then reads the next frame. */
-function readSettledFrame<T>(map: MapLibreMap, read: () => T, what: string): Promise<T> {
+function readSettledFrame<T>(map: MapLibreMap, read: () => T, what: string, timeoutMs = 15_000): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error(`${what} did not draw.`)), 15_000)
+    const timer = window.setTimeout(() => reject(new Error(`${what} did not draw.`)), timeoutMs)
     map.once('idle', () => {
       map.once('render', () => {
         window.clearTimeout(timer)

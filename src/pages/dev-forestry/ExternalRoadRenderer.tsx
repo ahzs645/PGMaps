@@ -18,6 +18,7 @@ import {
   needsNewPackage,
   readEngineMessage,
   roadRendererInfo,
+  separateSiteUrl,
   type RoadRendererId,
 } from './externalRenderers'
 import { captureTransfer, type EngineCaptureRequest } from './engineCapture'
@@ -77,7 +78,10 @@ export function ExternalRoadRenderer({
   const [phase, setPhase] = useState<Phase>('starting')
   const [message, setMessage] = useState<string | null>(null)
   const [stats, setStats] = useState<Record<string, unknown> | null>(null)
-  const origin = new URL(url, window.location.href).origin
+  // On a site of its own, so the engine's long scripts (building a stand, a final capture) run in another process and
+  // never freeze PGMaps' page (`separateSiteUrl`): measured at 51-53 s a time on one shared main thread.
+  const frameUrl = separateSiteUrl(url, window.location.href).url
+  const origin = new URL(frameUrl).origin
   // The latest scene builder, for the bridge, which lives outside render.
   const buildRef = useRef(buildScene)
   const environmentRef = useRef(environment)
@@ -267,7 +271,7 @@ export function ExternalRoadRenderer({
     <>
       <iframe
         ref={frameRef}
-        src={url}
+        src={frameUrl}
         title={`Road view drawn by ${info.label}`}
         allow="webgpu"
         data-testid="road-view-engine"

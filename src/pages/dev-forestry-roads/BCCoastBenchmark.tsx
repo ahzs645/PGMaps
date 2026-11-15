@@ -1,30 +1,40 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { downloadText } from '@/lib/download'
-import { NumberField } from './Controls'
+import { NumberField, OptionalNumberField } from './Controls'
 import { ReferenceHeading, ReferenceLink, ReferenceSelect, referenceMoney } from './CostReferenceControls'
 import {
   COAST_BENCHMARK_NOTES,
   COAST_COST_SOURCE,
   COAST_POINTS_OF_ORIGIN,
   COAST_ROAD_CATEGORIES,
+  COAST_TABULAR_SIDESLOPE_LIMIT_PERCENT,
   calculateCoastRoadBenchmark,
   type CoastPointOfOrigin,
   type CoastRoadCategory,
   type CoastRockHardness,
 } from './bcCoastCost'
+import { MeasuredSidehillScreen, measuredSidehillScreen, type SideSlopeRoad } from './MeasuredSideSlope'
 
-/** Deliberately independent of project settings: these are reviewed comparison inputs only. */
-export function BCCoastBenchmark() {
+/**
+ * Deliberately independent of project settings: these are reviewed comparison inputs only. The
+ * road's measured sidehill is shown against the tabular-road limit, never used to confirm it.
+ */
+export function BCCoastBenchmark({ regionName, road }: { regionName?: string; road?: SideSlopeRoad }) {
   const [category, setCategory] = useState<CoastRoadCategory | 'unselected'>('unselected')
   const [hardness, setHardness] = useState<CoastRockHardness | 'unselected'>('unselected')
   const [origin, setOrigin] = useState<CoastPointOfOrigin | 'unselected' | 'none'>('unselected')
   const [isolationFraction, setIsolationFraction] = useState(0)
   const [isolationEligibilityConfirmed, setIsolationEligibilityConfirmed] = useState(false)
   const [tabularEligibilityConfirmed, setTabularEligibilityConfirmed] = useState(false)
+  const [lengthM, setLengthM] = useState<number | null>(null)
+  const screen = useMemo(
+    () => (road ? measuredSidehillScreen(road, COAST_TABULAR_SIDESLOPE_LIMIT_PERCENT) : null),
+    [road],
+  )
   const selectedCategory = COAST_ROAD_CATEGORIES.find((row) => row.code === category)
   const input =
     category !== 'unselected' && hardness !== 'unselected'
@@ -36,6 +46,7 @@ export function BCCoastBenchmark() {
           isolationFraction,
           isolationEligibilityConfirmed,
           tabularEligibilityConfirmed,
+          lengthM,
         }
       : null
   const result = input ? calculateCoastRoadBenchmark(input) : null
@@ -48,7 +59,9 @@ export function BCCoastBenchmark() {
         {
           schema: 'pgmaps-bc-coast-cost-comparison-v1',
           generatedAt: new Date().toISOString(),
+          region: regionName ?? null,
           inputs: { ...input, pointOfOriginSelection: origin },
+          sidehillScreen: screen ?? { kind: road ? 'no-terrain' : 'no-road' },
           result,
           source: COAST_COST_SOURCE,
           limitations: [
@@ -88,9 +101,13 @@ export function BCCoastBenchmark() {
             setCategory(value as CoastRoadCategory | 'unselected')
             setTabularEligibilityConfirmed(false)
           }}
-          hint="Verify the category in the field. A terrain model does not identify material."
+          hint={
+            <>
+              {selectedCategory && <span className="mb-1.5 block">{selectedCategory.description}</span>}
+              Verify the category in the field. A terrain model does not identify material.
+            </>
+          }
         />
-        {selectedCategory && <p className="text-2xs leading-4 text-muted-foreground">{selectedCategory.description}</p>}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <ReferenceSelect
             label="Coast rock hardness"
@@ -138,15 +155,30 @@ export function BCCoastBenchmark() {
           }}
           hint="Eligible isolated cutblocks' net cruise volume ÷ total net cruise volume; not the isolated share of road length. Review the CAM connection-to-community definition, including public-ferry-served communities."
         />
+        <OptionalNumberField
+          label="Road length (m, optional)"
+          value={lengthM}
+          onChange={setLengthM}
+          min={0}
+          max={100000}
+          placeholder="Unit comparison only"
+          hint="Scales the comparison total. Exclude bridge deck and span lengths."
+        />
       </div>
 
       <section className="space-y-2 border-t pt-4" aria-label="Coast eligibility">
-        <ReferenceHeading>Eligibility</ReferenceHeading>
-        <p className="text-2xs leading-4 text-muted-foreground">
-          Confirm new single-lane tabular-road conditions. Main access construction/upgrades, end haul, extensive
-          imported fills, side slopes above 150%, repeated deep gullies, large switchbacks or rock faces above 7.50 m
-          need engineering review.
-        </p>
+        <ReferenceHeading
+          info={`Confirm new single-lane tabular-road conditions. Main access construction/upgrades, end haul, extensive imported fills, side slopes above ${COAST_TABULAR_SIDESLOPE_LIMIT_PERCENT}%, repeated deep gullies, large switchbacks or rock faces above 7.50 m need engineering review.`}
+        >
+          Eligibility
+        </ReferenceHeading>
+        {road && (
+          <MeasuredSidehillScreen
+            screen={screen}
+            roadName={road.name}
+            limitPercent={COAST_TABULAR_SIDESLOPE_LIMIT_PERCENT}
+          />
+        )}
         <ToggleRow
           active={tabularEligibilityConfirmed}
           label="Coast tabular-road eligibility reviewed"
@@ -175,22 +207,19 @@ export function BCCoastBenchmark() {
               <dt className="text-muted-foreground">Point-of-origin addition</dt>
               <dd className="text-right tabular-nums">{referenceMoney(result.pointOfOriginAddOnCadPerKm!)}/km</dd>
             </dl>
-            <p className="text-2xs text-muted-foreground">
-              Rounded to whole CAD; the download keeps the calculated amount.
-            </p>
+            {result.totalCad !== null && (
+              <p className="tabular-nums">
+                {referenceMoney(result.totalCad)} CAD for the entered length, before escalation
+              </p>
+            )}
           </>
         ) : (
           <InlineAlert>
-            {result
-              ? result.errors.join(' ')
-              : 'Select a construction category and rock hardness, then review eligibility to calculate a comparison.'}
+            {result ? result.errors.join(' ') : 'Choose a construction category and rock hardness.'}
           </InlineAlert>
         )}
       </div>
-      <InlineAlert tone="warning">
-        Bundled allowance: do not add it to itemized construction costs. Bridges, culverts and stabilizing-material haul
-        beyond 3.2 km are costed separately; exclude bridge deck/span lengths from the road length.
-      </InlineAlert>
+      <InlineAlert tone="warning">Bundled allowance: do not add it to itemized construction costs.</InlineAlert>
 
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="outline" size="sm" onClick={download} disabled={!downloadable}>

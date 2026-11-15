@@ -7,14 +7,18 @@ import {
   EVIDENCE_FRESHNESS,
   EVIDENCE_KINDS,
   NO_EVIDENCE_FILTER,
+  PROJECT_RECORDS,
   evidenceBasis,
-  evidencePlace,
+  evidencePlaceOptions,
   evidenceTerms,
   filterEvidence,
   formatEvidenceAmount,
   groupEvidence,
   groupTerms,
+  inPlace,
+  recordPlace,
   regionLocalEvidence,
+  sortByRelevance,
   workedEstimateLineTotal,
   type EvidenceRecord,
 } from './costEvidence'
@@ -27,6 +31,7 @@ const record = (id: string) => {
   return found
 }
 const regionIds = BC_COST_REGIONS.map((region) => region.id)
+const qualified = (id: string) => `bc-nr:${id}`
 
 describe('cost evidence catalogue', () => {
   it('holds every generated record in a shape the dialog can print', () => {
@@ -99,26 +104,26 @@ describe('cost evidence catalogue', () => {
   })
 
   it('keeps a region’s supplier prices apart from its fees, awards and project records', () => {
-    const cariboo = regionLocalEvidence(catalogue, 'cariboo')
+    const cariboo = regionLocalEvidence(catalogue, qualified('cariboo'))
     expect(cariboo.suppliers).toEqual([])
     expect(cariboo.other.map((item) => item.kind)).toEqual(['maintenance-award', 'maintenance-award'])
     expect(cariboo.leads.map((lead) => lead.party)).toEqual(['United Concrete & Gravel Ltd.', '93 Mile Aggregates'])
     expect(cariboo.projects.length).toBeGreaterThan(0)
-    const skeena = regionLocalEvidence(catalogue, 'skeena')
+    const skeena = regionLocalEvidence(catalogue, qualified('skeena'))
     expect(skeena.suppliers).toEqual([])
     expect(skeena.other.every((item) => item.kind === 'municipal-fee')).toBe(true)
-    const thompson = regionLocalEvidence(catalogue, 'thompson-okanagan')
+    const thompson = regionLocalEvidence(catalogue, qualified('thompson-okanagan'))
     expect(thompson.suppliers.map((group) => group.name)).toEqual([
       'Cantex Crushing',
       'Grizzly Excavating',
       'Skwlāx Aggregates',
     ])
     // The quote route found in October stays listed although the November research did not revisit it.
-    expect(regionLocalEvidence(catalogue, 'kootenay-boundary').leads.map((lead) => lead.party)).toContain(
+    expect(regionLocalEvidence(catalogue, qualified('kootenay-boundary')).leads.map((lead) => lead.party)).toContain(
       'MacKay Contracting',
     )
     for (const region of regionIds) {
-      const local = regionLocalEvidence(catalogue, region)
+      const local = regionLocalEvidence(catalogue, qualified(region))
       expect(local.suppliers.length + local.leads.length, region).toBeGreaterThan(0)
     }
   })
@@ -130,21 +135,83 @@ describe('cost evidence catalogue', () => {
   })
 
   it('filters by place, type, region and words', () => {
-    const count = (records: EvidenceRecord[], place: string) =>
-      records.filter((item) => evidencePlace(item) === place).length
-    expect(count(catalogue.records, 'bc')).toBe(96)
-    expect(count(catalogue.records, 'canada')).toBe(20)
-    expect(count(catalogue.records, 'us')).toBe(20)
-    expect(count(catalogue.records, 'elsewhere')).toBe(13)
+    const count = (records: EvidenceRecord[], place: string) => records.filter((item) => inPlace(item, place)).length
+    expect(count(catalogue.records, 'CA-BC')).toBe(96)
+    expect(count(catalogue.records, 'CA') - count(catalogue.records, 'CA-BC')).toBe(20)
+    expect(count(catalogue.records, 'CA-AB')).toBe(11)
+    expect(count(catalogue.records, 'US')).toBe(20)
+    expect(count(catalogue.records, 'US-MT')).toBe(5)
+    expect(catalogue.records.length - count(catalogue.records, 'CA') - count(catalogue.records, 'US')).toBe(13)
     expect(filterEvidence(catalogue.records, NO_EVIDENCE_FILTER)).toHaveLength(149)
     const tenders = filterEvidence(catalogue.records, { ...NO_EVIDENCE_FILTER, kind: 'tender-average' })
     expect(groupEvidence(tenders).map((group) => [group.name, group.records.length])).toEqual([
       ['Alberta tender averages', 8],
     ])
-    const culverts = filterEvidence(catalogue.records, { ...NO_EVIDENCE_FILTER, place: 'canada', query: 'CULVERT 600' })
-    expect(culverts.map((item) => item.id)).toEqual(['alberta-upa-2026-4', 'allnorth-labrador-2024-4'])
-    const omineca = filterEvidence(catalogue.records, { ...NO_EVIDENCE_FILTER, place: 'bc', regionId: 'omineca' })
+    const culverts = filterEvidence(catalogue.records, { ...NO_EVIDENCE_FILTER, place: 'CA-AB', query: 'CULVERT 600' })
+    expect(culverts.map((item) => item.id)).toEqual(['alberta-upa-2026-4'])
+    const labrador = filterEvidence(catalogue.records, { ...NO_EVIDENCE_FILTER, place: 'CA-NL', query: 'CULVERT 600' })
+    expect(labrador.map((item) => item.id)).toEqual(['allnorth-labrador-2024-4'])
+    const omineca = filterEvidence(catalogue.records, {
+      ...NO_EVIDENCE_FILTER,
+      place: 'CA-BC',
+      regionId: qualified('omineca'),
+    })
+    expect(omineca.length).toBeGreaterThan(0)
     expect(omineca.every((item) => item.regionId === 'omineca')).toBe(true)
+  })
+
+  it("opens exactly a region's project records from its link, in every region", () => {
+    for (const regionId of regionIds) {
+      const projects = regionLocalEvidence(catalogue, qualified(regionId)).projects
+      const opened = filterEvidence(catalogue.records, {
+        ...NO_EVIDENCE_FILTER,
+        place: 'CA-BC',
+        regionId: qualified(regionId),
+        kind: PROJECT_RECORDS,
+      })
+      expect(opened.map((item) => item.id)).toEqual(projects.map((item) => item.id))
+    }
+    // Omineca lists 1 project record beside its 4 supplier prices; the link once opened all 5.
+    expect(regionLocalEvidence(catalogue, qualified('omineca')).projects).toHaveLength(1)
+  })
+
+  it('places every record by country, province or state, and region', () => {
+    for (const item of catalogue.records) {
+      const place = recordPlace(item)
+      expect(place.country, item.id).toMatch(/^[A-Z]{2}$/)
+      if (place.subdivision) expect(place.subdivision.startsWith(place.country + '-'), item.id).toBe(true)
+      if (item.regionId) expect(place.region, item.id).toBe(qualified(item.regionId))
+    }
+    expect(recordPlace(record('k-agg'))).toEqual({ country: 'US', subdivision: 'US-MI' })
+    expect(recordPlace(record('NZ2018-SPUR'))).toEqual({ country: 'NZ' })
+    // A record from before places existed: a Canadian region tag reads as BC.
+    expect(recordPlace({ country: 'CA', regionId: 'omineca' })).toEqual({
+      country: 'CA',
+      subdivision: 'CA-BC',
+      region: 'bc-nr:omineca',
+    })
+    const options = evidencePlaceOptions(catalogue.records, { country: 'CA', subdivision: 'CA-AB' })
+    expect(options[0]).toMatchObject({ value: 'CA', label: 'Canada' })
+    expect(options[1]).toMatchObject({ value: 'CA-AB', label: 'Canada · Alberta', count: 11 })
+    expect(options.find((option) => option.value === 'CA-BC')?.count).toBe(96)
+  })
+
+  it('orders records nearest the project first, then preferred types, and drops none', () => {
+    const omineca = { country: 'CA', subdivision: 'CA-BC', region: 'bc-nr:omineca' }
+    const sorted = sortByRelevance(catalogue.records, omineca, ['tender-average'])
+    expect(sorted).toHaveLength(catalogue.records.length)
+    const rank = (item: EvidenceRecord) => {
+      const place = recordPlace(item)
+      return place.country !== 'CA' ? 3 : place.subdivision !== 'CA-BC' ? 2 : place.region === omineca.region ? 0 : 1
+    }
+    const ranks = sorted.map(rank)
+    expect([...ranks].sort((a, b) => a - b)).toEqual(ranks)
+    expect(rank(sorted[0])).toBe(0)
+    // Within "same country", Alberta's tender averages come first.
+    const canada = sorted.filter((item) => rank(item) === 2)
+    expect(canada[0].kind).toBe('tender-average')
+    // Without a project location the catalogue order stands.
+    expect(sortByRelevance(catalogue.records, undefined)).toEqual(catalogue.records)
   })
 
   it('reconciles the worked estimates with their printed totals', () => {

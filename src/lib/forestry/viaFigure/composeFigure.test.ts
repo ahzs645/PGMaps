@@ -11,18 +11,24 @@ import {
   composeFigure,
   countClasses,
   decodeClassRaster,
+  existingOpeningCallouts,
   FIGURE_CLASS,
+  figureLabelCallouts,
   figureLuminance,
   fillTemplate,
   fitFrame,
   inLandform,
   NO_INVENTORY_UNIT,
+  paintBlockGround,
+  paintsBlocks,
   landformCropRows,
   cropRasterRows,
   landformCentroid,
   layoutCallouts,
   maskRings,
   presetPercent,
+  calcValues,
+  presetRule,
   rgbaLuminance,
   ringArea,
   roleOverlays,
@@ -243,6 +249,33 @@ describe('figure composition', () => {
     expect(presetPercent(presetById('analysis-sheet-magenta'), counts)).toBe(counts.grossPercent)
   })
 
+  it("prints the total its formula line names, from the style's rule", () => {
+    // 22's box reads (NonVEG + Prop. Blk) / (LF - PL): the total is net of private land, the parts over the landform.
+    const counts = {
+      landform: 101153,
+      privateLand: 55889,
+      nonVeg: 0,
+      proposed: 517,
+      rock: 0,
+      grossPercent: null,
+      netOfPrivatePercent: null,
+      netOfRockPercent: null,
+    }
+    const orange = presetById('analysis-sheet-orange')
+    const values = calcValues(counts, '1', presetRule(orange))
+    expect(values.totalPct).toBe('1.14')
+    expect(values.proposedPct).toBe('0.51')
+    expect(values.netPx).toBe(101153 - 55889)
+    // The photo styles print one decimal and the class the page reads it as; no reading leaves the line out.
+    const photo = presetById('analysed-photo-hatched-rock')
+    const classed = calcValues({ ...counts, privateLand: 0, rock: 1153 }, '1', presetRule(photo), () => ({
+      code: 'R',
+      name: 'Retention',
+    }))
+    expect(classed).toMatchObject({ totalPct: '0.5', class: 'Retention', deductedPx: 1153 })
+    expect(calcValues(counts, '1', presetRule(photo)).class).toBeUndefined()
+  })
+
   it('lays callouts out above the skyline without overlap', () => {
     const preset = presetById('analysis-sheet-magenta')
     const frame = fitFrame({ width: W, height: H }, { x: 0, y: 0, w: 1000, h: 600 })
@@ -296,9 +329,13 @@ describe('figure composition', () => {
   })
 
   it('draws no empty inventory circle: one line when no unit is known', () => {
-    const sheet = analysisSheet({ ...input('analysis-sheet-magenta'), rating: null })
+    const sheet = analysisSheet({ ...input('analysis-sheet-magenta'), rating: null, ratingNote: null })
     const all = texts(sheet.ops)
     expect(all.join(' ')).toContain(NO_INVENTORY_UNIT)
+    // An inventory never read says so, rather than that no unit is there.
+    const unread = 'Visual inventory not read: look it up in step 1 to fill the circle.'
+    const notRead = analysisSheet({ ...input('analysis-sheet-magenta'), rating: null, ratingNote: unread })
+    expect(texts(notRead.ops).join(' ')).toContain('Visual inventory not read')
     expect(all).not.toContain('Visual Inventory Legend')
     expect(all.some((t) => t.startsWith('VSU - Visual Sensitivity Unit'))).toBe(false)
     expect(sheet.ops.some((op) => op.op === 'circle')).toBe(false)
@@ -352,6 +389,167 @@ describe('figure composition', () => {
     const grey = tonedImage(image, 'greyscale')
     expect(grey.kind === 'rgba' && [...grey.data]).toEqual([76, 76, 76, 255])
     expect(tonedImage(image, 'colour')).toBe(image)
+  })
+})
+
+describe('painting block ground', () => {
+  /** A picture lit from the left: bright (200) on the left half, shaded (80) on the right. */
+  const litImage = () => {
+    const data = new Uint8ClampedArray(W * H * 4)
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) data.set(x < 35 ? [200, 200, 200, 255] : [80, 80, 80, 255], (y * W + x) * 4)
+    return { data, width: W, height: H }
+  }
+  const lum = (data: ArrayLike<number>, k: number) =>
+    0.299 * data[k * 4] + 0.587 * data[k * 4 + 1] + 0.114 * data[k * 4 + 2]
+  const paint = { proposed: '#9c817b', existing: '#777e70' }
+
+  it('changes only the pixels of the blocks it paints', () => {
+    const classes = raster()
+    const image = litImage()
+    const proposedOnly = paintBlockGround(image, classes, { proposed: paint.proposed })
+    const both = paintBlockGround(image, classes, paint)
+    let changed = 0
+    for (let k = 0; k < W * H; k++) {
+      const code = classes.codes[k]
+      const proposed = code === FIGURE_CLASS.proposedIn || code === FIGURE_CLASS.proposedOut
+      const existing = code === FIGURE_CLASS.existingIn || code === FIGURE_CLASS.existingOut
+      const same = (out: Uint8ClampedArray) => [0, 1, 2, 3].every((c) => out[k * 4 + c] === image.data[k * 4 + c])
+      if (!proposed) expect(same(proposedOnly), `pixel ${k}`).toBe(true)
+      if (!proposed && !existing) expect(same(both), `pixel ${k}`).toBe(true)
+      if (proposed && !same(proposedOnly)) changed++
+      expect(both[k * 4 + 3]).toBe(255)
+    }
+    // Both blocks (the one in the landform and the one outside it) are painted.
+    expect(changed).toBe(125)
+    expect([...both.slice((32 * W + 52) * 4, (32 * W + 52) * 4 + 3)]).not.toEqual([80, 80, 80])
+  })
+
+  it('keeps the picture’s shading: lit ground stays lighter than shaded ground', () => {
+    // One block across the light and the shade: rows 30–40, columns 30–40 straddle column 35.
+    const classes = raster()
+    const out = paintBlockGround(litImage(), classes, paint)
+    const mean = (x0: number, x1: number) => {
+      let s = 0,
+        n = 0
+      for (let y = 31; y < 39; y++)
+        for (let x = x0; x < x1; x++) {
+          s += lum(out, y * W + x)
+          n++
+        }
+      return s / n
+    }
+    expect(mean(31, 34)).toBeGreaterThan(mean(36, 39) * 1.3)
+    // And it is the paint's colour, not the grey picture: warm, red above blue.
+    const k = (35 * W + 32) * 4
+    expect(out[k]).toBeGreaterThan(out[k + 2] + 10)
+  })
+
+  it('paints the same view the same way every time, and a different seed differently', () => {
+    const classes = raster()
+    const a = paintBlockGround(litImage(), classes, paint)
+    const b = paintBlockGround(litImage(), classes, paint)
+    expect([...a]).toEqual([...b])
+    expect([...paintBlockGround(litImage(), classes, paint, { seed: 7 })]).not.toEqual([...a])
+  })
+
+  it('textures the cut: neighbouring interior pixels of one flat area differ', () => {
+    const flat = { data: new Uint8ClampedArray(W * H * 4).fill(150), width: W, height: H }
+    const out = paintBlockGround(flat, raster(), paint)
+    const values = new Set<number>()
+    for (let y = 32; y < 38; y++) for (let x = 32; x < 38; x++) values.add(Math.round(lum(out, y * W + x)))
+    expect(values.size).toBeGreaterThan(10)
+  })
+
+  it('blends the block’s boundary pixels half and half with the picture', () => {
+    const flat = { data: new Uint8ClampedArray(W * H * 4).fill(150), width: W, height: H }
+    const out = paintBlockGround(flat, raster(), paint)
+    // Pixel (30, 35) is on the block's left edge; (32, 35) inside. The edge sits nearer the picture's 150.
+    const edge = lum(out, 35 * W + 30),
+      inside = lum(out, 35 * W + 33)
+    expect(Math.abs(edge - 150)).toBeLessThan(Math.abs(inside - 150) + 1)
+    expect(Math.abs(edge - 150)).toBeGreaterThan(0)
+  })
+
+  it('never paints over a tree the screened pass draws in front of the block', () => {
+    const classes = raster()
+    // A tree standing on ordinary ground in front of the block's left half: the screened pass reads terrain there.
+    const screened: ClassRaster = { ...classes, codes: classes.codes.slice() }
+    for (let y = 30; y < 40; y++) for (let x = 30; x < 35; x++) screened.codes[y * W + x] = FIGURE_CLASS.terrain
+    const image = litImage()
+    const out = paintBlockGround(image, classes, paint, { screened })
+    for (let y = 30; y < 40; y++)
+      for (let x = 30; x < 35; x++)
+        expect([...out.slice((y * W + x) * 4, (y * W + x) * 4 + 4)]).toEqual([200, 200, 200, 255])
+    expect(lum(out, 35 * W + 37)).not.toBe(80)
+  })
+
+  it('paints nothing when the picture and the class pass differ in size', () => {
+    const image = { data: new Uint8ClampedArray(4 * 4 * 4).fill(90), width: 4, height: 4 }
+    expect([...paintBlockGround(image, raster(), paint)]).toEqual([...image.data])
+  })
+
+  it('paints by the preset’s choice unless the reviewer chooses, and keeps the outline on top', () => {
+    expect(paintsBlocks({ preset: presetById('analysis-sheet-magenta') })).toBe(true)
+    expect(paintsBlocks({ preset: presetById('perspective-overlay') })).toBe(false)
+    expect(paintsBlocks({ preset: presetById('analysis-sheet-magenta'), paintBlocks: false })).toBe(false)
+    const base = { ...input('analysis-sheet-magenta'), image: { kind: 'rgba' as const, ...litImage() } }
+    const imageOf = (figure: ReturnType<typeof composeFigure>) => {
+      const op = figure.ops.find((entry) => entry.op === 'image')!
+      return op.op === 'image' && op.image.kind === 'rgba' ? op.image.data : null
+    }
+    const painted = imageOf(composeFigure(base))!
+    const plain = imageOf(composeFigure({ ...base, paintBlocks: false }))!
+    expect([...plain]).toEqual([...base.image.data])
+    expect([...painted]).not.toEqual([...plain])
+    // The block's outline is drawn after the painted picture.
+    const ops = composeFigure(base).ops
+    const imageAt = ops.findIndex((op) => op.op === 'image')
+    const outlineAt = ops.findIndex((op) => op.op === 'path' && 'stroke' in op && op.stroke?.color === '#4ce600')
+    expect(outlineAt).toBeGreaterThan(imageAt)
+  })
+
+  it('paints private land one flat, shaded colour only when the style gives it one', () => {
+    const classes = raster()
+    const image = litImage()
+    const isPrivate = (k: number) =>
+      classes.codes[k] === FIGURE_CLASS.privateIn || classes.codes[k] === FIGURE_CLASS.privateOut
+    const same = (out: Uint8ClampedArray, k: number) =>
+      [0, 1, 2, 3].every((c) => out[k * 4 + c] === image.data[k * 4 + c])
+    const without = paintBlockGround(image, classes, paint)
+    const withPrivate = paintBlockGround(image, classes, { ...paint, privateLand: '#b702d5' })
+    let painted = 0
+    for (let k = 0; k < W * H; k++) {
+      if (isPrivate(k)) {
+        expect(same(without, k), `pixel ${k}`).toBe(true)
+        if (!same(withPrivate, k)) painted++
+      } else expect([...withPrivate.slice(k * 4, k * 4 + 4)]).toEqual([...without.slice(k * 4, k * 4 + 4)])
+    }
+    expect(painted).toBe(50)
+    // Magenta, and flat: interior pixels on one side of the light are one colour (no cut texture).
+    const at = (x: number, y: number) => [...withPrivate.slice((y * W + x) * 4, (y * W + x) * 4 + 3)]
+    expect(at(64, 47)[2]).toBeGreaterThan(at(64, 47)[1] + 60)
+    expect(at(64, 47)).toEqual(at(66, 47))
+  })
+
+  it('keeps private land’s symbol off a picture that paints it, and its legend row', () => {
+    const base = { ...input('analysis-sheet-orange'), image: { kind: 'rgba' as const, ...litImage() } }
+    const fills = (figure: ReturnType<typeof composeFigure>) =>
+      figure.ops.filter((op) => (op.op === 'path' || op.op === 'rect') && op.fill === '#d004ef').length
+    const painted = composeFigure(base)
+    const plain = composeFigure({ ...base, paintBlocks: false })
+    // Unpainted, the mask is drawn over the picture and again as the legend swatch; painted, only the swatch.
+    expect(fills(plain)).toBeGreaterThan(fills(painted))
+    expect(fills(painted)).toBeGreaterThan(0)
+    expect(texts(painted.ops).join(' ')).toContain('Private Land')
+  })
+
+  it('says so when it cannot paint an encoded frame', () => {
+    const figure = composeFigure({
+      ...input('analysis-sheet-magenta'),
+      image: { kind: 'url', url: 'data:image/jpeg;base64,', format: 'JPEG', width: W, height: H },
+    })
+    expect(figure.notes.join(' ')).toMatch(/could not be painted/)
   })
 })
 
@@ -502,5 +700,51 @@ describe('fitted lines', () => {
     expect(crowded.every((t) => t.y <= box.bottom)).toBe(true)
     expect(crowded.at(-1)!.text.endsWith('...')).toBe(true)
     expect(crowded[0].size).toBeCloseTo(9 * 0.7, 5)
+  })
+})
+
+describe('arrows, no outlines', () => {
+  it('finds each existing opening the class pass shows, largest first, with its arrow on the opening', () => {
+    const classes = raster()
+    // A second, smaller opening outside the landform, and a speck under the minimum share.
+    const codes = classes.codes.slice()
+    for (let y = 22; y < 25; y++) for (let x = 85; x < 89; x++) codes[y * W + x] = FIGURE_CLASS.existingOut
+    codes[58 * W + 2] = FIGURE_CLASS.existingOut
+    const found = existingOpeningCallouts({ ...classes, codes }, 'Existing opening', 0.001, 4)
+    expect(found.map((c) => c.priority)).toEqual([30, 12])
+    expect(found.every((c) => c.secondary && c.title === 'Existing opening')).toBe(true)
+    for (const c of found) {
+      const code = codes[Math.floor(c.anchor[1]) * W + Math.floor(c.anchor[0])]
+      expect([FIGURE_CLASS.existingIn, FIGURE_CLASS.existingOut]).toContain(code)
+    }
+    expect(existingOpeningCallouts({ ...classes, codes }, 'x', 0.001, 1)).toHaveLength(1)
+  })
+
+  it('points out openings only for a style that asks, and never beside the page’s own secondary callouts', () => {
+    const arrows = input('arrows-no-outlines')
+    expect(figureLabelCallouts(arrows).filter((c) => c.secondary)).toHaveLength(1)
+    expect(figureLabelCallouts(input('perspective-overlay'))).toHaveLength(2)
+    const own = {
+      ...arrows,
+      callouts: [...arrows.callouts, { title: 'Old cut', anchor: [52, 33] as [number, number], secondary: true }],
+    }
+    expect(
+      figureLabelCallouts(own)
+        .filter((c) => c.secondary)
+        .map((c) => c.title),
+    ).toEqual(['Old cut'])
+    expect(figureLabelCallouts({ ...arrows, classes: null })).toHaveLength(2)
+  })
+
+  it('draws no outline or legend, and labels the blocks and the opening with arrowheads', () => {
+    const figure = composeFigure(input('arrows-no-outlines'))
+    expect(figure.drawn).toEqual([])
+    const all = texts(figure.ops)
+    expect(all).toEqual(expect.arrayContaining(['Block 1', 'Existing opening', 'Viewpoint 1 - Simulated Harvest']))
+    // No traced ring is stroked: every closed path is an arrowhead (three points) or the frame.
+    const closed = figure.ops.filter((op): op is Extract<DrawOp, { op: 'path' }> => op.op === 'path' && op.closed)
+    expect(closed.every((op) => op.parts.every((part) => part.length <= 4))).toBe(true)
+    // Three arrowheads at least: two blocks and the opening.
+    expect(closed.filter((op) => op.fill && op.parts[0].length === 3).length).toBeGreaterThanOrEqual(3)
   })
 })

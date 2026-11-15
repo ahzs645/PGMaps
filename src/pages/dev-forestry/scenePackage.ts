@@ -45,6 +45,7 @@ import {
   seaPolygons,
   type OpeningTarget,
   type SceneCoverSource,
+  type SceneFire,
 } from './sceneCover'
 import { detailedTreeMesh } from './treeGeometry'
 // A capture's package (`engineCapture.ts`) also carries `farTerrain`, a coarse grid to 15 km, `skylineTerrain` past it
@@ -91,20 +92,34 @@ export type ScenePackage = {
      * Natural ground cover at each post, row-major like `heights` (`SCENE_COVER`): what the ground is where the
      * forest is not closed, from VRI's BC Land Cover Classification and the slope, so bluffs, rock, grass and shrub
      * openings read as they do in the reference renders. 0 forest, 1 sparse forest (open canopy over grass/rock),
-     * 2 shrub, 3 herb/grass, 4 rock or exposed soil (VRI non-vegetated, or a bluff steeper than about 45°),
-     * 5 water, 6 cut ground (an opening); null unknown. Absent from older packages.
+     * 2 shrub, 3 herb/grass, 4 rock or exposed soil (VRI non-vegetated, a bluff steeper than about 45°, or rock
+     * showing through a stand: see below), 5 water, 6 cut ground (an opening), 7 burnt (a recent wildfire: standing
+     * dead snags over herb and shrub regrowth, the fire's year in `burntYear`); null unknown. Absent from older
+     * packages; 7 is absent from packages written before it.
      *
      * Read in this order (`coverOnGrid`): no height → null; the sea (posts at or below 0 m reaching the grid's edge
      * or 3 ha or more) and the basemap's water → 5; an entry in `openings` → 6 (its age in `openings[].ageYears`);
      * VRI water → 5; the grid's own slope past 45° → 4, under any VRI polygon (a bluff in a treed polygon); else the
      * VRI rank-1 polygon's BCLCS (treed: 1 at level 5 `SP` or crown closure under 26 %, else 0; non-vegetated land:
-     * 4; vegetated non-treed: 2 at level 4 `ST`/`SL`, else 3); ground the inventory read reached with no open-ground
-     * polygon → 0; ground it did not reach → null, never forest. Slope is read at the grid's own spacing, so a
-     * coarse grid (60 m and wider) smooths most bluffs below 45°. Stems in `trees` are not thinned by slope: the road
-     * view grows them on a bluff, and `canopy` keeps their closure there. `notes` says where the inventory read
-     * stopped.
+     * 4; vegetated non-treed: 2 at level 4 `ST`/`SL`, else 3); a coastal treed polygon whose non-vegetated cover
+     * components (`NON_VEG_COVER_TYPE_n`) record 10 % or more of bedrock, talus or blockfield → 4 over the whole
+     * polygon, with its stand still standing (`canopy` keeps the stand's closure: draw pale rock ground between the
+     * crowns, as the reference renders do; VRI does not say where in the polygon the rock lies); ground the inventory
+     * read reached with no open-ground polygon → 0; ground it did not reach → null, never forest. Last, a post that
+     * came out 0 or 1 inside a BC Wildfire Service perimeter from the 20 seasons up to the assessment year → 7 (a
+     * perimeter's unburnt islands are not mapped, so this is an upper bound). Slope is read at the grid's own spacing, so a
+     * coarse grid (60 m and wider) smooths most bluffs below 45°. Stems in `trees` are not thinned by slope, rock or
+     * fire: the road view grows them on a bluff and in a burn, and `canopy` keeps their closure there (on burnt
+     * posts, the pre-fire stand's: a guide to snag density). `notes` says where the inventory and fire reads stopped.
      */
     cover?: Array<number | null>
+    /**
+     * The fire season at each burnt post (cover 7), row-major like `heights`, null elsewhere; `fires` gives each
+     * season's years since the fire at the scene's assessment year. An engine draws snags thinning and regrowth
+     * rising with those years (herb and shrub in the first years, young conifers by 10–20). Present only when some
+     * post on the grid burnt.
+     */
+    burntYear?: Array<number | null>
   }
   /**
    * Optional coarser terrain past `terrain`, out to the skyline (a capture's scene), the same layout. Engines draw it
@@ -169,6 +184,12 @@ export type ScenePackage = {
   camera: SceneCamera
   /** Resolved site clock and UTC instant, frozen when written; absent in older packages. */
   environment?: EngineEnvironment
+  /**
+   * The wildfires behind cover 7 on any grid (BC Wildfire Service perimeters), latest first: the fire number, season
+   * (`terrain.burntYear`'s value), years from it to the assessment year (0 for this season's fire), and size in
+   * hectares. Absent when no post burnt.
+   */
+  fires?: Array<{ fireNumber: string | null; year: number; yearsSinceFire: number; sizeHectares: number | null }>
   /** How far out the trees go, metres; the terrain reaches further. */
   treeRadiusMeters: number
   notes: string[]
@@ -196,7 +217,8 @@ export type ScenePackageInput = {
   water?: ReadonlyArray<PolygonGeometry>
   /**
    * The inventory reads `terrain.cover` is drawn from (`SceneCoverSource`: the run's VRI read, a capture's
-   * open-ground read over its terrain). Without one, cover comes only from slope, water, the sea and cut ground.
+   * open-ground read over its terrain, with the wildfire perimeters it read). Without one, cover comes only from
+   * slope, water, the sea and cut ground.
    */
   cover?: ReadonlyArray<SceneCoverSource>
   /**
@@ -429,17 +451,27 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
   // Ground cover under every post (`coverOnGrid`), and the sea the basemap's water leaves out. Where the cover says
   // the road view would grow no stand (water, VRI shrub, herb, rock), the canopy is 0 too, as it is near the eye.
   const cutGround = openingDetails.map((opening) => opening.geometry)
+  const assessmentYear = input.assessmentYear ?? (input.createdAt ?? new Date()).getUTCFullYear()
+  const burntFires = new Set<SceneFire>()
   const sea: Array<{ rings: Array<Array<[number, number]>>; elevationMeters: number; sea: true }> = []
   for (const posts of [terrain, farTerrain, skylineTerrain]) {
     if (!posts) continue
     const seaPosts = seaOnGrid(posts)
-    const { cover, treeless } = coverOnGrid(posts, postAt, {
+    const {
+      cover,
+      treeless,
+      burntYear,
+      burntFires: burntHere,
+    } = coverOnGrid(posts, postAt, {
       sources: input.cover,
       openings: cutGround,
       water: input.water,
       sea: seaPosts,
+      assessmentYear,
     })
     posts.cover = cover
+    if (burntYear) posts.burntYear = burntYear
+    for (const fire of burntHere) burntFires.add(fire)
     if (posts.canopy) for (let i = 0; i < treeless.length; i += 1) if (treeless[i]) posts.canopy[i] = 0
     if (posts === skylineTerrain) continue
     let outlines: ClipMultiPolygon = seaPolygons(posts, seaPosts)
@@ -519,6 +551,18 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
       ...(input.viewport ? { projection: scenePerspective(input.verticalFovDegrees, input.viewport) } : {}),
     },
     ...(input.environment ? { environment: { ...input.environment } } : {}),
+    ...(burntFires.size
+      ? {
+          fires: [...burntFires]
+            .sort((a, b) => b.year - a.year)
+            .map((fire) => ({
+              fireNumber: fire.fireNumber ?? null,
+              year: fire.year,
+              yearsSinceFire: assessmentYear - fire.year,
+              sizeHectares: fire.sizeHectares ?? null,
+            })),
+        }
+      : {}),
     treeRadiusMeters,
     notes: [
       ...(input.notes ?? []),

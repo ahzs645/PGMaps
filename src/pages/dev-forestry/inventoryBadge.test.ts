@@ -62,4 +62,9 @@ describe('the inventory circle', () => {
     expect(none.unit).toBeNull()
     expect(none.lines).toEqual(['VSU ?', '?', '?   /   ?', '?'])
   })
+
+  it('says the inventory was not read rather than that no unit is there', () => {
+    expect(inventoryBadge([], { visibleBlockPoints: [], read: false }).note).toMatch(/^Visual inventory not read/)
+    expect(inventoryBadge([], { visibleBlockPoints: [], read: true }).note).toMatch(/^No visual sensitivity unit/)
+  })
 })

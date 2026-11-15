@@ -8,6 +8,13 @@
 import { niceStep } from './chartScale'
 import { curveDesignAt, horizontalCurveSummary } from './engine'
 import { sectionCrossfall, templateAt } from './templates'
+import {
+  SIDE_SLOPE_REACH_M,
+  sidehillClass,
+  sidehillSpans,
+  type SidehillSpan,
+  type StationSidehill,
+} from './sectionSideSlope'
 import type { Alignment, RoadAnalysis, RoadStation } from './types'
 
 const EPS = 1e-6
@@ -40,7 +47,7 @@ export function bandValueAnchor(
 /** A generous width for band text: digits and signs run about 0.6 em in the UI and print fonts. */
 export const bandTextWidth = (text: string, fontSize: number) => text.length * fontSize * 0.6
 
-export type ValueBandKey = 'ground' | 'design' | 'depth' | 'grade' | 'crossfallLeft' | 'crossfallRight'
+export type ValueBandKey = 'ground' | 'design' | 'depth' | 'grade' | 'crossfallLeft' | 'crossfallRight' | 'sidehill'
 
 export interface BandValue {
   chainage: number
@@ -48,7 +55,8 @@ export interface BandValue {
   value: number | null
   /** What prints: "—" for unknown. */
   text: string
-  tone?: 'cut' | 'fill' | 'unknown' | 'super'
+  /** `appraisal` and `bench` mark a sidehill past the appraisal equation and at the full-bench screen. */
+  tone?: 'cut' | 'fill' | 'unknown' | 'super' | 'appraisal' | 'bench'
 }
 export interface ValueBandRow {
   key: ValueBandKey
@@ -79,6 +87,8 @@ export interface ProfileValueBands {
   curvatureLabels: CurvatureLabel[]
   /** Largest |1/R| in the window, for scaling the diagram; 0 on a straight window. */
   maxCurvaturePerKm: number
+  /** The sidehill row's colour runs over every station in the window; empty without `sidehill`. */
+  sidehillSpans: SidehillSpan[]
 }
 
 /**
@@ -172,9 +182,22 @@ export function profileValueBands(
     end,
     minSpacingM,
     terrainOnly = false,
-  }: { start: number; end: number; minSpacingM: number; terrainOnly?: boolean },
+    sidehill,
+  }: {
+    start: number
+    end: number
+    minSpacingM: number
+    terrainOnly?: boolean
+    /**
+     * Every station's sidehill (`roadSidehill`), in station order. Given, the bands end with a
+     * Sidehill row; absent (the plot book), they are as before.
+     */
+    sidehill?: readonly StationSidehill[]
+  },
 ): ProfileValueBands {
   const stations = bandStations(analysis.stations, start, end, minSpacingM)
+  const sidehillRows: ValueBandRow[] = sidehill ? [sidehillRow(stations, sidehill)] : []
+  const spans = sidehill ? sidehillSpans(sidehill, start, end) : []
   const ground: ValueBandRow = {
     key: 'ground',
     title: 'Ground',
@@ -200,10 +223,12 @@ export function profileValueBands(
               : unknown(s.chainage),
           ),
         },
+        ...sidehillRows,
       ],
       curvature: [],
       curvatureLabels: [],
       maxCurvaturePerKm: 0,
+      sidehillSpans: spans,
     }
   const rows: ValueBandRow[] = [
     ground,
@@ -266,12 +291,39 @@ export function profileValueBands(
       }),
     })
   }
+  rows.push(...sidehillRows)
   const { vertices, labels } = curvatureOf(alignment, start, end)
   return {
     stations,
     rows,
+    sidehillSpans: spans,
     curvature: vertices,
     curvatureLabels: labels,
     maxCurvaturePerKm: Math.max(0, ...vertices.map((v) => Math.abs(v.perKm))),
+  }
+}
+
+/** The Sidehill row: magnitude and uphill side at the labelled stations, "lvl" on level ground. */
+function sidehillRow(stations: readonly RoadStation[], sidehill: readonly StationSidehill[]): ValueBandRow {
+  const byChainage = new Map(sidehill.map((row) => [row.chainage, row]))
+  return {
+    key: 'sidehill',
+    title: 'Sidehill %',
+    detail: `Ground cross slope across the road (%) and its uphill side: one line over ${SIDE_SLOPE_REACH_M} m each side of the centreline. The band is coloured at every station; amber past the Interior appraisal equation, red at the full-bench screen. — where terrain is missing.`,
+    values: stations.map((s) => {
+      const row = byChainage.get(s.chainage)
+      if (!row || row.percent === null) return unknown(s.chainage)
+      const cls = sidehillClass(row.percent)
+      return {
+        chainage: s.chainage,
+        value: row.percent,
+        text: row.uphill ? `${Math.round(row.percent)} ${row.uphill === 'left' ? 'L' : 'R'}` : 'lvl',
+        ...(cls === 'full-bench'
+          ? { tone: 'bench' as const }
+          : cls === 'past-appraisal'
+            ? { tone: 'appraisal' as const }
+            : {}),
+      }
+    }),
   }
 }

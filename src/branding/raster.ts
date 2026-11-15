@@ -1,5 +1,6 @@
 import type { RasterImage } from '../lib/mapSheet/drawOps'
 import { logoDataUrl, type BrandRecord } from './model'
+import { printedLogo, type BrandingState } from './store'
 
 /** The sheet engine already has a user-logo slot, expressed as an embedded raster. */
 export async function brandLogoRaster(brand: BrandRecord): Promise<RasterImage> {
@@ -21,4 +22,15 @@ export async function brandLogoRaster(brand: BrandRecord): Promise<RasterImage> 
   const padding = space * logo.viewBox[2] * scale
   context.drawImage(image, padding, padding, logo.viewBox[2] * scale, logo.viewBox[3] * scale)
   return { kind: 'url', url: canvas.toDataURL('image/png'), format: 'PNG', width, height }
+}
+
+/** The logo a printed sheet or report takes (`printedLogo`): the user's own as is, else the brand's rasterised. */
+export async function printedLogoRaster(state: BrandingState): Promise<RasterImage | null> {
+  const chosen = printedLogo(state)
+  if (!chosen) return null
+  if (chosen.source === 'uploaded') {
+    const { dataUrl, format, width, height } = chosen.logo
+    return { kind: 'url', url: dataUrl, format, width, height }
+  }
+  return brandLogoRaster(chosen.brand)
 }

@@ -10,14 +10,17 @@ const DEM: MapTerrainProps['dem'] = {
 }
 
 // From eye level the top half of the frame is sky. Without one the horizon ends
-// in a hard edge against the page background, and distant ridges lose the haze
-// that makes them read as distant.
+// in a hard edge against the page background. The ground gets no fog
+// (`fog-ground-blend: 1` puts its start at the horizon): MapLibre places terrain
+// fog from the camera's height above sea level, so at a viewpoint a few metres
+// above a lake or the sea it began tens of metres out and turned every hillside
+// the fog colour behind the unfogged trees. Distance haze is `hazeRings`.
 const EYE_LEVEL_SKY: MapTerrainProps['sky'] = {
   'sky-color': '#8ab4dd',
   'horizon-color': '#dce9f5',
   'fog-color': '#e6eef5',
   'horizon-fog-blend': 0.6,
-  'fog-ground-blend': 0.05,
+  'fog-ground-blend': 1,
   'sky-horizon-blend': 0.8,
 }
 

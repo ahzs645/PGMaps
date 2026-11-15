@@ -58,7 +58,15 @@ export function sheetBandsSvg({
     end,
     minSpacingM: SHEET_BAND_VALUE_GAP_PX / Math.max(1e-9, pxPerM),
   })
-  const color = { cut: '#b45309', fill: '#1d4ed8', unknown: '#9ca3af', super: '#111827' } as const
+  // Appraisal and bench tones belong to the sidehill row, which a sheet does not print yet.
+  const color = {
+    cut: '#b45309',
+    fill: '#1d4ed8',
+    unknown: '#9ca3af',
+    super: '#111827',
+    appraisal: '#b45309',
+    bench: '#b91c1c',
+  } as const
   const rows = bands.rows
     .map((row, index) => {
       const y = top + index * SHEET_BAND_ROW_PX

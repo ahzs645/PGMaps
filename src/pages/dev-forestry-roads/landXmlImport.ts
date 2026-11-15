@@ -22,7 +22,7 @@
  */
 import proj4 from 'proj4'
 import { projectedCrsDefinition } from '@/lib/geo/projectedCrs'
-import { alignmentLength, distance } from './engine'
+import { alignmentLength, planFrame } from './engine'
 import type { Alignment, Coordinate, RoadPoint, RoadTemplate, VerticalPoint } from './types'
 
 /** Station length against geometric length: 2π × 1 mm of radius error. */
@@ -112,7 +112,7 @@ const numbers = (text: string) =>
 
 // ---- Geometry -----------------------------------------------------------------------------------
 
-type XY = [number, number]
+export type XY = [number, number]
 export type LandXmlElement =
   | { kind: 'line'; start: XY; end: XY; station: number | null; length: number | null }
   | {
@@ -153,6 +153,8 @@ export interface LandXmlAlignment {
   elements: LandXmlElement[]
   /** Profile stations as in the file; elevations in metres. */
   profile: { station: number; elevation: number; curveLength: number }[]
+  /** The ground profile the file gives (`ProfSurf`), station and elevation in metres; empty without one. */
+  ground: { station: number; elevation: number }[]
   checks: LandXmlCheck[]
   /** Sum of the elements' geometric lengths in grid units, m. */
   gridLengthM: number
@@ -300,12 +302,19 @@ function readAlignment(node: XmlNode, unitM: number): LandXmlAlignment {
     } else warnings.push(`<${element.name}> is not read; only Line, Curve and Spiral are.`)
   }
   const profile = readProfile(node, unitM, warnings)
+  const surface = find(node, 'ProfSurf')[0]
+  const pairs = surface ? numbers(find(surface, 'PntList2D')[0]?.text ?? '') : []
+  const ground: { station: number; elevation: number }[] = []
+  for (let k = 0; k + 1 < pairs.length; k += 2)
+    if (Number.isFinite(pairs[k]) && Number.isFinite(pairs[k + 1]))
+      ground.push({ station: pairs[k] * unitM, elevation: pairs[k + 1] * unitM })
+  ground.sort((a, b) => a.station - b.station)
   const checks = checkElements(elements)
   const gridLengthM = elements.reduce((sum, e) => sum + elementLength(e), 0)
   const lastStation = elements.length ? elements[elements.length - 1].station : null
   const stationedLengthM =
     lastStation !== null ? lastStation + elementLength(elements[elements.length - 1]) - startStation : null
-  return { name, startStation, elements, profile, checks, gridLengthM, stationedLengthM, warnings }
+  return { name, startStation, elements, profile, ground, checks, gridLengthM, stationedLengthM, warnings }
 }
 
 function readProfile(node: XmlNode, unitM: number, warnings: string[]) {
@@ -494,77 +503,221 @@ export interface LandXmlRoad {
 }
 
 /**
+ * A design file that states no coordinate system. The import stops to ask for one (the page's CRS
+ * question) and runs again with the answer; the CRS is never taken from the open terrain.
+ */
+export class AlignmentCrsQuestion extends Error {
+  readonly bounds: [minX: number, minY: number, maxX: number, maxY: number]
+  constructor(message: string, bounds: [number, number, number, number]) {
+    super(message)
+    this.name = 'AlignmentCrsQuestion'
+    this.bounds = bounds
+  }
+}
+
+/** Grid extent of a set of points, in the file's own units. */
+const extent = (points: readonly XY[]): [number, number, number, number] => [
+  Math.min(...points.map((p) => p[0])),
+  Math.min(...points.map((p) => p[1])),
+  Math.max(...points.map((p) => p[0])),
+  Math.max(...points.map((p) => p[1])),
+]
+
+/**
+ * The CRS an alignment file is placed in: the one it states, else the one the person answered,
+ * else a question. Every CRS offered is in metres, so a file in feet that states none is refused
+ * rather than read as metres.
+ */
+export function alignmentCrs(
+  stated: number | null,
+  answered: number | undefined,
+  context: { unitM: number; points: readonly XY[]; what: string },
+): number {
+  if (stated !== null) return stated
+  if (context.unitM !== 1)
+    throw Error(
+      `${context.what} is in feet and names no coordinate system. Its coordinates can be placed only in a CRS measured in feet, which this workspace does not convert. Export it in metres with its EPSG code.`,
+    )
+  if (answered !== undefined) return answered
+  const scale = 1 / context.unitM
+  throw new AlignmentCrsQuestion(
+    `${context.what} names no coordinate system. State the CRS its coordinates are in to place it.`,
+    extent(context.points.map((p) => [p[0] * scale, p[1] * scale])),
+  )
+}
+
+/** Grid to longitude/latitude for a projected EPSG code this workspace converts. */
+export function gridToLonLat(epsg: number): (xy: XY) => Coordinate {
+  const definition = projectedCrsDefinition(epsg)
+  if (!definition)
+    throw Error(
+      `EPSG:${epsg} is not a projected coordinate system this workspace converts. Export the alignment in UTM (NAD83(CSRS), NAD83 or WGS84) or BC Albers.`,
+    )
+  const projection = proj4(definition, 'EPSG:4326')
+  return (xy: XY) => projection.forward([...xy]) as Coordinate
+}
+
+/** An alignment as intersection points and a PVI list in a projected grid, metres. */
+export interface GridAlignment {
+  name: string
+  points: { xy: XY; radiusM: number; spiralM: number }[]
+  /** Stations as in the file, m. */
+  profile: { station: number; elevation: number; curveLength: number }[]
+  startStation: number
+  /** The file's stationed length, m: what its profile stations are measured along. */
+  fileLengthM: number
+}
+
+/**
+ * A road from grid intersection points, keeping each curve's tangent points where the file puts
+ * them. The road model measures on a sphere, whose ratio to a projected grid changes with direction
+ * (at 52° N about 0.32 % east–west against 0.06 % north–south), so it also bends deflections by a
+ * few hundredths of a degree. A curve keeps the file's tangent length, scaled by the smaller ratio
+ * of its two legs, and takes the radius that length gives at the deflection the engine measures:
+ * no leg gains tangent it did not have in the file. Scaling radii by one road-wide ratio instead
+ * made two RoadEng curves whose tangents left 0.14 m of a 282 m leg overlap, and the engine dropped
+ * both. A spiralled curve keeps its radius and spiral scaled by the mean ratio of its legs, the
+ * inverse of the export's per-element chord ratio. Profile stations are
+ * moved to the road's chainage: minus the start station, times the road's length over the file's
+ * stationed length.
+ */
+export function gridAlignmentRoad(
+  source: GridAlignment,
+  toLonLat: (xy: XY) => Coordinate,
+  options: { id: string; color: string; template: RoadTemplate },
+): { alignment: Alignment; stationScale: number; warnings: string[] } {
+  const { points } = source
+  const coordinates = points.map((p) => toLonLat(p.xy))
+  const plane = planFrame(coordinates[0])
+  const model = coordinates.map((c) => plane.toXY(c))
+  const legScale = points.slice(1).map((p, k) => {
+    const grid = Math.hypot(...sub(p.xy, points[k].xy))
+    return grid > 0 ? Math.hypot(...sub(model[k + 1], model[k])) / grid : 1
+  })
+  const deflection = (xy: readonly XY[], k: number) =>
+    Math.abs(wrap(heading(xy[k], xy[k + 1]) - heading(xy[k - 1], xy[k])))
+  let largestChange = 0
+  const placed = points.map((p, k) => {
+    const scale = Math.min(legScale[k - 1] ?? Infinity, legScale[k] ?? Infinity)
+    const planScale = Number.isFinite(scale) ? scale : 1
+    if (k === 0 || k === points.length - 1 || p.radiusM <= 0)
+      return { coordinate: coordinates[k], radiusM: 0, spiralM: 0 }
+    if (p.spiralM > 0) {
+      const mean = (legScale[k - 1] + legScale[k]) / 2
+      return { coordinate: coordinates[k], radiusM: p.radiusM * mean, spiralM: p.spiralM * mean }
+    }
+    const gridTurn = deflection(
+        points.map((q) => q.xy),
+        k,
+      ),
+      modelTurn = deflection(model, k)
+    const radiusM =
+      gridTurn > 1e-9 && modelTurn > 1e-9
+        ? (p.radiusM * Math.tan(gridTurn / 2) * planScale) / Math.tan(modelTurn / 2)
+        : p.radiusM * planScale
+    largestChange = Math.max(largestChange, Math.abs(radiusM / p.radiusM - 1))
+    return { coordinate: coordinates[k], radiusM, spiralM: 0 }
+  })
+  const road = placedAlignmentRoad({ ...source, points: placed }, options)
+  if (largestChange > 0.01)
+    road.warnings.push(
+      `Keeping the file's tangent points changes a radius by up to ${(largestChange * 100).toFixed(1)} % in the road model.`,
+    )
+  return road
+}
+
+/**
+ * A road from intersection points already placed on the sphere, radii in the road model's metres.
+ * Profile stations and vertical curve lengths are moved to the road's chainage: stations minus the
+ * start station, both times the road's length over the file's stationed length.
+ */
+export function placedAlignmentRoad(
+  source: Omit<GridAlignment, 'points'> & { points: { coordinate: Coordinate; radiusM: number; spiralM: number }[] },
+  options: { id: string; color: string; template: RoadTemplate },
+): { alignment: Alignment; stationScale: number; warnings: string[] } {
+  const { id } = options
+  const warnings: string[] = []
+  const roadPoints: RoadPoint[] = source.points.map((p, k) => ({
+    id: `${id}-p${k}`,
+    coordinate: p.coordinate,
+    radiusM: Math.round(p.radiusM * 1000) / 1000,
+    ...(p.spiralM > 0 ? { spiralM: Math.round(p.spiralM * 1000) / 1000 } : {}),
+  }))
+  const draft: Alignment = {
+    id,
+    name: source.name,
+    color: options.color,
+    points: roadPoints,
+    vertical: [],
+    template: options.template,
+    overrides: [],
+  }
+  const length = alignmentLength(draft)
+  const stationScale = source.fileLengthM > 0 ? length / source.fileLengthM : 1
+  const vertical: VerticalPoint[] = source.profile
+    .map((p, k) => ({
+      id: `${id}-v${k}`,
+      chainage: Math.round((p.station - source.startStation) * stationScale * 1000) / 1000,
+      elevation: p.elevation,
+      // Measured along the stations like the PVIs: unscaled, curves that meet end to end in the
+      // file (Softree's 27.8 km sample) overlap by the scale and the profile no longer closes.
+      curveLength: Math.round(p.curveLength * stationScale * 1000) / 1000,
+    }))
+    .filter((p) => p.chainage >= -1e-6 && p.chainage <= length + 0.01)
+    .map((p) => ({ ...p, chainage: Math.max(0, Math.min(length, p.chainage)) }))
+  if (vertical.length < source.profile.length)
+    warnings.push(`${source.profile.length - vertical.length} PVI(s) lie off the alignment and are left out.`)
+  return { alignment: { ...draft, vertical }, stationScale, warnings }
+}
+
+/**
  * Roads from a LandXML file. The coordinate system comes from the file's EPSG code; a file without
- * one is refused, never assumed to be in the terrain's CRS. Each road gets `template` and a new id.
+ * one throws {@link AlignmentCrsQuestion} unless `epsg` answers it, and is never assumed to be in
+ * the terrain's CRS. Each road gets `template` and a new id.
  */
 export function landXmlRoads(
   text: string,
-  options: { newId: () => string; color: (index: number) => string; template: RoadTemplate },
-): { roads: LandXmlRoad[]; epsg: number } {
+  options: { newId: () => string; color: (index: number) => string; template: RoadTemplate; epsg?: number },
+): { roads: LandXmlRoad[]; epsg: number; epsgStated: boolean } {
   const file = parseLandXml(text)
-  if (file.epsg === null)
-    throw Error(
-      'The LandXML file names no coordinate system. Export it again with its EPSG code (<CoordinateSystem epsgCode="…">), so its coordinates are not guessed.',
-    )
-  const definition = projectedCrsDefinition(file.epsg)
-  if (!definition)
-    throw Error(
-      `EPSG:${file.epsg} is not a projected coordinate system this workspace converts. Export the alignment in UTM (NAD83(CSRS), NAD83 or WGS84) or BC Albers.`,
-    )
-  const projection = proj4(definition, 'EPSG:4326')
-  const toLonLat = (xy: XY) => projection.forward([...xy]) as Coordinate
+  const epsg = alignmentCrs(file.epsg, options.epsg, {
+    unitM: file.unitM,
+    points: file.alignments.flatMap((a) => a.elements.flatMap((e) => [e.start, e.end])),
+    what: 'The LandXML file',
+  })
+  const toLonLat = gridToLonLat(epsg)
   const roads = file.alignments.map((source, index): LandXmlRoad => {
     const { points, warnings } = landXmlIntersectionPoints(source)
-    const id = options.newId()
-    const coordinates = points.map((p) => toLonLat(p.xy))
-    // Radii and spirals are grid lengths; the road model measures on the sphere. Scale them by the
-    // ratio of the two along the PIs (the projection's scale factor here).
-    let sphere = 0,
-      grid = 0
-    for (let k = 1; k < points.length; k++) {
-      sphere += distance(coordinates[k - 1], coordinates[k])
-      grid += Math.hypot(...sub(points[k].xy, points[k - 1].xy))
-    }
-    const planScale = grid > 0 ? sphere / grid : 1
-    const roadPoints: RoadPoint[] = points.map((p, k) => ({
-      id: `${id}-p${k}`,
-      coordinate: coordinates[k],
-      radiusM: Math.round(p.radiusM * planScale * 1000) / 1000,
-      ...(p.spiralM > 0 ? { spiralM: Math.round(p.spiralM * planScale * 1000) / 1000 } : {}),
-    }))
-    const draft: Alignment = {
-      id,
-      name: source.name,
-      color: options.color(index),
-      points: roadPoints,
-      vertical: [],
-      template: options.template,
-      overrides: [],
-    }
-    // The road's chainage is measured on the sphere; the file's stations on its grid (or ground).
-    // Profile stations are scaled by the ratio, so PVIs land at the same place along the road.
-    const length = alignmentLength(draft)
-    const fileLength = source.stationedLengthM ?? source.gridLengthM
-    const stationScale = fileLength > 0 ? length / fileLength : 1
-    const vertical: VerticalPoint[] = source.profile
-      .map((p, k) => ({
-        id: `${id}-v${k}`,
-        chainage: Math.round((p.station - source.startStation) * stationScale * 1000) / 1000,
-        elevation: p.elevation,
-        curveLength: p.curveLength,
-      }))
-      .filter((p) => p.chainage >= -1e-6 && p.chainage <= length + 0.01)
-      .map((p) => ({ ...p, chainage: Math.max(0, Math.min(length, p.chainage)) }))
-    if (vertical.length < source.profile.length)
-      warnings.push(`${source.profile.length - vertical.length} PVI(s) lie off the alignment and are left out.`)
+    const road = gridAlignmentRoad(
+      {
+        name: source.name,
+        points,
+        profile: source.profile,
+        startStation: source.startStation,
+        fileLengthM: source.stationedLengthM ?? source.gridLengthM,
+      },
+      toLonLat,
+      { id: options.newId(), color: options.color(index), template: options.template },
+    )
+    // The file's ground profile, in the road's chainage, every point up to the project's limit.
+    const step = Math.ceil(source.ground.length / 10_000)
+    const fileGround = source.ground
+      .filter((_, k) => k % step === 0)
+      .map((g): [number, number] => [
+        Math.round((g.station - source.startStation) * road.stationScale * 1000) / 1000,
+        Math.round(g.elevation * 1000) / 1000,
+      ])
     return {
-      alignment: { ...draft, vertical },
+      alignment: {
+        ...road.alignment,
+        ...(fileGround.length >= 2 ? { fileGround: { source: 'LandXML ground profile', points: fileGround } } : {}),
+      },
       source,
-      stationScale,
-      warnings: [...source.warnings, ...warnings],
+      stationScale: road.stationScale,
+      warnings: [...source.warnings, ...warnings, ...road.warnings],
     }
   })
-  return { roads, epsg: file.epsg }
+  return { roads, epsg, epsgStated: file.epsg !== null }
 }
 
 /** One paragraph per road for the import notice: the checks, the start station and the scale. */

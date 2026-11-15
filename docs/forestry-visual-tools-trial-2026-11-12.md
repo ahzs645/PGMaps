@@ -739,3 +739,94 @@ differs from the consultant's (near hills they do not draw); the VNS renders
 show more pale rock bands than VRI marks as rock; the renders draw dense forest
 where VRI now records burnt or open ground; and Nanite's vertical texture is
 still short of the target.
+
+## 21. Burns, rock under stands, painted blocks (14 November)
+
+The open points from §20, worked through against the same 40 cases.
+
+- *Terrain and eye.* Where the consultants' renders seemed to stand somewhere
+  else, back-projecting their fitted cameras onto our DEM found no real
+  terrain or eye mismatch. What remained is our drawn timber, which raises
+  ridges about 0.8° above the bare skyline the fitted cameras were matched to.
+  The library's metrics script had also counted callout boxes as sky.
+- *Rock.* Pale ground in the Visual Nature Studio renders was registered to
+  25 m ground cells on 12 coastal sheets and compared with every VRI, slope,
+  position and line attribute. Most of it is not rock in any record: 31% of the
+  rock cells lie within 60 m of a transmission line, and no slope or convexity
+  threshold separates the rest from forest. The one rule that does is VRI's own
+  non-vegetated components. A stand recording 10% or more bedrock, talus or
+  blockfield is now rock under its trees, which still grow. That marks 26% of
+  the inland ground the renders draw as rock and 1.6% of what they draw as
+  forest. The method and tables are kept with the VIA research files, not here.
+- *Burns.* Treed ground inside a BC Wildfire perimeter from the last 20 years
+  is a new cover code, `burnt`, carrying the fire's year (`bcWildfire.ts`).
+  Both engines draw it as standing snags at the stand's pre-fire closure,
+  thinning with age, over ground that greens with the years since the fire:
+  ash, then a yellow-green herb flush, then shrubs and a young stand. At Gun
+  Lake the burnt lower slope now reads like the consultant's render. The upper
+  slope stays plain grass because VRI records that ground as herb, not as
+  burnt forest.
+- *Painted blocks.* The references paint a proposed block as harvested ground,
+  not only outline it. `paintBlockGround` (`composeFigure.ts`) paints each
+  pixel the class pass gives a block in the style's cut colour. It keeps the
+  picture's own light and shade and adds a seeded cut texture. A tree that
+  stands in front of the block in the engine's screened pass is never painted
+  over. Figure-style families A and B paint by default, and the sheet's
+  *Paint blocks* option overrides the style either way. Painting is display
+  only; the pixel figure still comes from the class pass.
+- *Fresh cuts in the engines.* Under the VIA look, an opening a year old or
+  less is drawn pinkish-tan with a fine slash speckle. At Lakeview, worldgen's
+  cut measures (148, 120, 102) against the render's (137, 108, 87).
+- *Nanite's far texture.* Far crowns are laid as narrow vertical spires with
+  darker gaps (`pixel-pattern.ts`). The vertical-edge ratio at 3.5–6.5 km
+  rose to 0.82–1.01, still short of the 1.3 target. In that band at Gun and
+  Ruby Lake most of the forest is the final stand's own trees, and the Ruby
+  Lake render itself measures only 0.86 there.
+- *White ground.* Nanite had stripped the trees from rock posts that carry a
+  canopy. They now keep their trees with rock between the crowns. Neither
+  engine shows white ground at Captain Island or Nile Point on a fresh run.
+
+The 40 cases were rerun with all of this in: 120 sheets, none failed, in
+62 minutes with two cases at a time. The two engines' ground pixel figures
+still agree to a median of 0.02 points (largest 0.62). The ground pixel figure
+sits within a median 0.54 points of the sightline figure; the largest gap is
+still a fixed frame narrower than its landform. Drawn in front, the engines'
+trees take a median of about 2.5 points off the ground figure. At 3.5–6.5 km
+(14 registered cases) the median vertical-edge ratio is 1.00 for worldgen,
+0.98 for Nanite, 0.74 for PGMaps' own map and 0.95 for the references.
+Open: PGMaps' own road view drapes the basemap's pale background wherever
+OpenStreetMap has no wood polygon, so coastal hills such as Captain Island
+read white there (display only; no figure reads it). At Lakeview, VRI records
+much of the far hillside as open, post-fire ground, where the 2025 render draws
+closed forest.
+
+Follow-up fixes the same day:
+
+- *White coastal ground in PGMaps' road view.* MapLibre's terrain fog starts
+  from the camera's height above sea level, so from a shore or the water it
+  began tens of metres out and every hillside drew the fog colour behind the
+  unfogged trees. The road view's sky now keeps fog off the ground
+  (`fog-ground-blend: 1`); distance haze is `hazeRings`.
+- *Tan slab in the foreground.* The road surface was drawn over mapped water,
+  so a road starting at a boat launch or a sea viewpoint laid a tan strip across
+  the lake. Water is now drawn above the road and its scar.
+- *Plan clue dots.* Landform clue markers (up to 2,048 per landform) now scale
+  with zoom and lose their white ring, like the sample points.
+- *Private land painted.* The doc 22 style burns private land into its render
+  as flat magenta under the trees in front, with no outline. Its paint now
+  carries `privateLand`, and with *Paint blocks* on the figure does the same
+  instead of drawing the mask over the picture. The library's doc 22 and 23
+  cases now carry the ParcelMap BC private parcels that overlap their landforms,
+  and each case exports in its document's own style. Doc 22 also removes the
+  lots' trees before rendering, so step 2's new *Clear private land* draws them
+  bare in PGMaps and in the engines, and the doc 22 cases turn it on. Our parcels cover more of
+  Captain Island than the consultant's magenta does.
+- *Burns the inventory has been updated for.* At Lakeview the 2023 fire K71649
+  covers 99% of the landform, and the inventory, updated for it, calls 66% of
+  the landform non-treed, so the burnt rule (forest inside a perimeter) missed
+  it and both engines drew green meadow. Sentinel-2 greenness there fell from
+  0.80 in 2022 to 0.40 in 2025. A polygon whose inventory records a burn in the
+  last 20 years (`EARLIEST_NONLOGGING_DIST_TYPE` a `B` code) is now burnt
+  whatever its cover reads. The consultant's 2025 render draws the pre-fire
+  forest. PGMaps' own road view still draws that ground as meadow: it does not
+  read the cover codes.

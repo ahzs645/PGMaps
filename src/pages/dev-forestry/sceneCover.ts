@@ -8,9 +8,10 @@
  * ground, water or non-treed VRI ground; a thinned block keeps its share of crowns at their full width.
  *
  * Also the natural ground cover under each post (`coverOnGrid`, the package's `terrain.cover`): VRI's BC Land Cover
- * Classification read as forest, sparse forest, shrub, herb, rock or water, bluffs from the grid's own slope, cut
- * ground, and the sea (`seaOnGrid`, `seaPolygons`: posts at or below 0 m that reach the grid's edge or are large,
- * traced by marching squares). Display only; DOM-free and network-free.
+ * Classification read as forest, sparse forest, shrub, herb, rock or water, rock under coastal stands whose VRI record
+ * lists bedrock or talus (`ROCKY_GROUND_PERCENT`), bluffs from the grid's own slope, cut ground, treed ground inside a
+ * recent wildfire perimeter as burnt, and the sea (`seaOnGrid`, `seaPolygons`: posts at or below 0 m that reach the
+ * grid's edge or are large, traced by marching squares). Display only; DOM-free and network-free.
  */
 import {
   CANOPY_CLOSES_AT_METERS,
@@ -311,7 +312,8 @@ export function sceneOpenings({
 }
 
 /** `terrain.cover` codes (`scenePackage.ts`). */
-export const SCENE_COVER = { forest: 0, sparse: 1, shrub: 2, herb: 3, rock: 4, water: 5, cut: 6 } as const
+/** 7 burnt: a recent wildfire (BC fire perimeters), drawn as standing dead snags over herb and shrub regrowth. */
+export const SCENE_COVER = { forest: 0, sparse: 1, shrub: 2, herb: 3, rock: 4, water: 5, cut: 6, burnt: 7 } as const
 export type SceneCoverCode = (typeof SCENE_COVER)[keyof typeof SCENE_COVER]
 
 /**
@@ -321,6 +323,17 @@ export type SceneCoverCode = (typeof SCENE_COVER)[keyof typeof SCENE_COVER]
 export const SPARSE_CROWN_CLOSURE_PERCENT = 26
 /** A post steeper than this, degrees, is a bluff: rock, whatever the inventory polygon over it says. */
 export const BLUFF_SLOPE_DEGREES = 45
+/** VRI non-vegetated cover types that are rock: bedrock, talus, blockfield (`NON_VEG_COVER_TYPE_n`). */
+export const ROCKY_NON_VEG_TYPES = ['BR', 'TA', 'BI'] as const
+/**
+ * A coastal stand (VRI `COAST_INTERIOR_CD` `C`) whose first two non-vegetated cover components record at least this
+ * share of bedrock, talus or blockfield, percent, is rock ground under its trees. Fitted to the consultants' Visual
+ * Nature Studio renders (12 registered coastal sheets, `_compare/engine-library/rock-rule.md`): it marks 26 % of the
+ * inland ground they draw as rock and 1.6 % of the ground they draw as forest, where no slope or convexity threshold
+ * did better than 1.5 times chance. Not in the interior: at Gun Lake's registered sheet the same rule marked 29 % of
+ * the ground they draw as forest, and they draw no rock there.
+ */
+export const ROCKY_GROUND_PERCENT = 10
 /** Ground at or below 0 m that does not reach the grid's edge is sea only from this size, square metres (3 ha). */
 export const SEA_MIN_AREA_M2 = 30_000
 
@@ -374,8 +387,17 @@ export function sceneCoverFromGround(cover: GroundCover | null | undefined): Sce
   }
 }
 
-/** One inventory polygon and the cover it records (null: the record does not say). */
-export type SceneCoverPolygon = { geometry: PolygonGeometry; cover: SceneCoverCode | null }
+/**
+ * One inventory polygon and the cover it records (null: the record does not say). `underStand`: rock ground under a
+ * treed polygon (`ROCKY_GROUND_PERCENT`), where the road view still grows the stand.
+ */
+export type SceneCoverPolygon = {
+  geometry: PolygonGeometry
+  cover: SceneCoverCode | null
+  underStand?: true
+  /** A wildfire the inventory records on the polygon (`VriStand.burnYear`): burnt ground while it is recent. */
+  burnYear?: number
+}
 
 /**
  * One read of the inventory for `terrain.cover`: its polygons, and the boxes ([w, s, e, n], degrees) it read
@@ -387,11 +409,28 @@ export type SceneCoverSource = {
   complete: ReadonlyArray<Box>
   /** What the read left out, for the package's notes; absent when it is whole. */
   note?: string
+  /** Wildfire perimeters read over the same ground (`bcWildfire.ts`), any year; `coverOnGrid` keeps the recent ones. */
+  fires?: ReadonlyArray<SceneFire>
+}
+
+/** One wildfire perimeter: its outer edge (unburnt islands inside are not mapped), the fire season and its size. */
+export type SceneFire = {
+  geometry: PolygonGeometry
+  year: number
+  fireNumber?: string | null
+  sizeHectares?: number | null
 }
 
 /**
- * An inventory read as a cover source: each stand's BCLCS through `sceneCoverFromBclcs`. `keepForest` false drops
- * stands that read as closed forest, which a complete box already says.
+ * Treed ground inside a wildfire perimeter is burnt (cover 7) for this many years after the fire: standing dead
+ * snags over herb and shrub regrowth, before the new stand reads as forest again (the scene's 20-year green-up).
+ */
+export const BURNT_RECENT_YEARS = 20
+
+/**
+ * An inventory read as a cover source: each stand's BCLCS through `sceneCoverFromBclcs`, and a coastal treed stand
+ * whose non-vegetated components record `ROCKY_GROUND_PERCENT` or more of bedrock, talus or blockfield
+ * (`rockyPercent`) as rock under its stand. `keepForest` false drops stands that read as closed forest, which a complete box already says.
  */
 export function coverSourceFromVri(
   stands: ReadonlyArray<{
@@ -399,6 +438,9 @@ export function coverSourceFromVri(
     nonVegetated?: boolean
     landCover?: { level2: string | null; level4: string | null; level5: string | null } | null
     crownClosurePercent: number | null
+    rockyPercent?: number | null
+    coastInterior?: 'C' | 'I' | null
+    burnYear?: number | null
   }>,
   complete: ReadonlyArray<Box>,
   { keepForest = false, note }: { keepForest?: boolean; note?: string } = {},
@@ -414,8 +456,17 @@ export function coverSourceFromVri(
       land?.level5,
       stand.crownClosurePercent,
     )
-    if (cover === SCENE_COVER.forest && !keepForest) continue
-    polygons.push({ geometry: stand.geometry, cover })
+    if (
+      (cover === SCENE_COVER.forest || cover === SCENE_COVER.sparse) &&
+      stand.coastInterior === 'C' &&
+      (stand.rockyPercent ?? 0) >= ROCKY_GROUND_PERCENT
+    ) {
+      polygons.push({ geometry: stand.geometry, cover: SCENE_COVER.rock, underStand: true })
+      continue
+    }
+    const burnYear = stand.burnYear ?? null
+    if (cover === SCENE_COVER.forest && !keepForest && !burnYear) continue
+    polygons.push({ geometry: stand.geometry, cover, ...(burnYear ? { burnYear } : {}) })
   }
   return { polygons, complete: [...complete], ...(note ? { note } : {}) }
 }
@@ -662,6 +713,14 @@ export type CoverInputs = {
   /** The grid's sea posts (`seaOnGrid`). */
   sea?: Uint8Array | null
   bluffSlopeDegrees?: number
+  /**
+   * Wildfire perimeters beside the sources' own (`SceneCoverSource.fires`); treed ground inside one that burnt in the
+   * `burntYears` up to `assessmentYear` is burnt.
+   */
+  fires?: ReadonlyArray<SceneFire>
+  /** The year the scene is drawn for (default the current year). */
+  assessmentYear?: number
+  burntYears?: number
 }
 
 /**
@@ -673,17 +732,27 @@ export type CoverInputs = {
  * 4. water where the inventory records water;
  * 5. rock where the grid's own slope (`slopeOnGrid`) passes `bluffSlopeDegrees`, under any inventory polygon (a bluff
  *    in a treed polygon is still a bluff);
- * 6. the inventory's cover (`sceneCoverFromBclcs`; null where its record does not say);
- * 7. forest inside a box a source read completely, else null: ground no read reached is unknown, not forest.
+ * 6. the inventory's cover (`sceneCoverFromBclcs`, rock under a stand with `ROCKY_GROUND_PERCENT` of bedrock or talus;
+ *    null where its record does not say);
+ * 7. forest inside a box a source read completely, else null: ground no read reached is unknown, not forest;
+ * 8. burnt where 6 or 7 gave forest or sparse forest and a wildfire perimeter (the sources' `fires` and `fires`)
+ *    holds the post from a season in the `burntYears` up to `assessmentYear` (the latest such fire's year in
+ *    `burntYear`).
  *
  * `treeless` marks the posts that grow no stand by the road view's own rules (water, and inventory shrub, herb and
- * rock), where the package's canopy is 0; slope alone does not, because the road view still grows stems on a bluff.
+ * rock), where the package's canopy is 0; slope, rock under a stand and burnt ground do not, because the road view
+ * still grows stems there. `burntYear` is null when no post burnt; `burntFires` lists the fires that burnt a post.
  */
 export function coverOnGrid(
   grid: CanopyGrid,
   toLngLat: (x: number, y: number) => [number, number],
   inputs: CoverInputs,
-): { cover: Array<SceneCoverCode | null>; treeless: Uint8Array } {
+): {
+  cover: Array<SceneCoverCode | null>
+  treeless: Uint8Array
+  burntYear: Array<number | null> | null
+  burntFires: SceneFire[]
+} {
   const { west, south, spacing, columns, rows, heights } = grid
   const [w, s] = toLngLat(west, south)
   const [e, n] = toLngLat(west + (columns - 1) * spacing, south + (rows - 1) * spacing)
@@ -701,11 +770,24 @@ export function coverOnGrid(
   const complete = sources
     .flatMap((source) => source.complete)
     .filter(([cw, cs, ce, cn]) => ce >= box[0] && cw <= box[2] && cn >= box[1] && cs <= box[3])
+  // Recent fires, latest first, so the first perimeter holding a post is its latest burn.
+  const year = inputs.assessmentYear ?? new Date().getUTCFullYear()
+  const window = inputs.burntYears ?? BURNT_RECENT_YEARS
+  const fires = [...sources.flatMap((source) => source.fires ?? []), ...(inputs.fires ?? [])]
+    .filter((fire) => fire.year <= year && year - fire.year < window)
+    .sort((a, b) => b.year - a.year)
+  const fireAt = boxedPolygonLookup(
+    fires.map((fire) => fire.geometry),
+    box,
+    buckets,
+  )
   const slope = slopeOnGrid(grid)
   const bluff = inputs.bluffSlopeDegrees ?? BLUFF_SLOPE_DEGREES
   const sea = inputs.sea
   const cover: Array<SceneCoverCode | null> = new Array(columns * rows)
   const treeless = new Uint8Array(columns * rows)
+  let burntYear: Array<number | null> | null = null
+  const burnt = new Set<number>()
   for (let row = 0; row < rows; row += 1)
     for (let column = 0; column < columns; column += 1) {
       const index = row * columns + column
@@ -730,19 +812,47 @@ export function coverOnGrid(
         treeless[index] = 1
         continue
       }
-      if (recorded === SCENE_COVER.shrub || recorded === SCENE_COVER.herb || recorded === SCENE_COVER.rock)
+      // A burn the inventory records: its update reclassifies standing dead timber as shrub or herb, so the
+      // record's year makes the ground burnt whatever cover it now reads (rock aside), snags and all.
+      const recordedBurn = hit >= 0 ? polygons[hit].burnYear : undefined
+      if (
+        recordedBurn !== undefined &&
+        recordedBurn <= year &&
+        year - recordedBurn < window &&
+        recorded !== SCENE_COVER.rock &&
+        !(slope[index] > bluff)
+      ) {
+        cover[index] = SCENE_COVER.burnt
+        burntYear ??= new Array<number | null>(columns * rows).fill(null)
+        burntYear[index] = recordedBurn
+        continue
+      }
+      if (
+        (recorded === SCENE_COVER.shrub || recorded === SCENE_COVER.herb || recorded === SCENE_COVER.rock) &&
+        !polygons[hit].underStand
+      )
         treeless[index] = 1
       if (slope[index] > bluff) {
         cover[index] = SCENE_COVER.rock
         continue
       }
-      if (recorded !== undefined) {
-        cover[index] = recorded
-        continue
+      const here =
+        recorded !== undefined
+          ? recorded
+          : complete.some(([cw, cs, ce, cn]) => lng >= cw && lng <= ce && lat >= cs && lat <= cn)
+            ? SCENE_COVER.forest
+            : null
+      if (here === SCENE_COVER.forest || here === SCENE_COVER.sparse) {
+        const fire = fireAt(lng, lat)
+        if (fire >= 0) {
+          cover[index] = SCENE_COVER.burnt
+          burntYear ??= new Array<number | null>(columns * rows).fill(null)
+          burntYear[index] = fires[fire].year
+          burnt.add(fire)
+          continue
+        }
       }
-      cover[index] = complete.some(([cw, cs, ce, cn]) => lng >= cw && lng <= ce && lat >= cs && lat <= cn)
-        ? SCENE_COVER.forest
-        : null
+      cover[index] = here
     }
-  return { cover, treeless }
+  return { cover, treeless, burntYear, burntFires: [...burnt].sort((a, b) => a - b).map((k) => fires[k]) }
 }

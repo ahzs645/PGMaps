@@ -358,16 +358,6 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             lineWidth={0}
             visible={!drive.imagery}
           />
-          {/* Mapped lakes and rivers read as water from the road; over imagery only a tint. */}
-          <MapFillLayer
-            data={forestGround.water}
-            interactive={false}
-            fillColor={ROAD_VIEW_WATER_COLOR}
-            fillOpacity={drive.imagery ? 0.35 : 0.92}
-            lineColor={ROAD_VIEW_SHORE_COLOR}
-            lineWidth={drive.imagery ? 0 : 1}
-            lineOpacity={0.8}
-          />
           {/* Cut banks read paler than the fill spilled below the road. */}
           <MapFillLayer
             data={previewRoadScar}
@@ -383,6 +373,18 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             fillOpacity={1}
             lineColor="#c0b397"
             lineWidth={1}
+          />
+          {/* Mapped lakes and rivers read as water from the road; over imagery only a tint. Above the road and
+            its scar: a viewpoint on the shore or on the water (a boat launch, a sea view) starts its road there,
+            and the road surface draped on the lake read as a tan slab across the foreground. */}
+          <MapFillLayer
+            data={forestGround.water}
+            interactive={false}
+            fillColor={ROAD_VIEW_WATER_COLOR}
+            fillOpacity={drive.imagery ? 0.35 : 0.92}
+            lineColor={ROAD_VIEW_SHORE_COLOR}
+            lineWidth={drive.imagery ? 0 : 1}
+            lineOpacity={0.8}
           />
         </>
       )}
@@ -547,7 +549,11 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
           />
           <MapCircleLayer
             data={planClues}
-            radius={3}
+            // Up to 2,048 clues a landform, one per terrain sample: small and unringed until zoomed in, like the
+            // sample points, or they cover the landform.
+            radius={['interpolate', ['linear'], ['zoom'], 10, 0.8, 13, 1.6, 16, 3.5]}
+            opacity={0.75}
+            strokeWidth={0}
             color={[
               'match',
               ['get', 'position'],

@@ -158,7 +158,12 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   )
   const interiorDownload = page.getByRole('button', { name: 'Download Interior comparison JSON', exact: true })
   await expect(interiorDownload).toBeDisabled()
-  await chooseOption(page, 'Interior road group', '4 · Cariboo supply blocks / Prince George G–H')
+  // The region's candidate groups are marked in the list; none is chosen for the user.
+  await chooseOption(
+    page,
+    'Interior road group',
+    '4 · Cariboo supply blocks / Prince George G–H · candidate for Cariboo',
+  )
   await page.getByRole('spinbutton', { name: 'Uphill side slope (%)', exact: true }).fill('30')
   await page.getByRole('spinbutton', { name: 'Section rock (%)', exact: true }).fill('20')
   await chooseOption(page, 'Interior road type', 'Long-term · raised subgrade and ditch')
@@ -208,11 +213,24 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   await expect(page.getByTestId('road-coast-benchmark-result')).not.toContainText('CAD/km')
   await chooseOption(page, 'Coast point-of-origin area', 'Graham Island (GRIS) · +$7,548/km')
   await expect(page.getByTestId('road-coast-benchmark-result')).toContainText('$155,533 CAD/km')
+  // Coast gets what Interior gets: the road's measured sidehill (here against the 150% screen, read
+  // only) and an optional length that scales the $/km figure into a total.
+  await expect(page.getByTestId('road-measured-sidehill-screen')).toContainText('150%')
+  await page.getByRole('spinbutton', { name: 'Road length (m, optional)', exact: true }).fill('2000')
+  await expect(page.getByTestId('road-coast-benchmark-result')).toContainText(
+    '$311,065 CAD for the entered length, before escalation',
+  )
   const coast = await downloadJson<{
     schema: string
-    inputs: { isolationFraction: number; pointOfOrigin: string }
-    result: { unitCostCadPerKm: number }
+    region: string
+    inputs: { isolationFraction: number; pointOfOrigin: string; lengthM: number }
+    result: { unitCostCadPerKm: number; totalCad: number }
+    sidehillScreen: { limitPercent?: number; kind?: string }
   }>(page, coastDownload)
+  expect(coast.region).toBe('West Coast')
+  expect(coast.inputs.lengthM).toBe(2000)
+  expect(coast.result.totalCad).toBeCloseTo(311065, 2)
+  expect(coast.sidehillScreen).toBeTruthy()
   expect(coast.schema).toBe('pgmaps-bc-coast-cost-comparison-v1')
   expect(coast.inputs.isolationFraction).toBe(0.5)
   expect(coast.inputs.pointOfOrigin).toBe('GRIS')
@@ -235,9 +253,13 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   await local.getByTestId('road-bc-region-projects').click()
   const evidenceCount = page.getByTestId('road-cost-evidence-count')
   await expect(references.getByRole('tab', { name: 'Evidence', exact: true })).toHaveAttribute('aria-selected', 'true')
-  await expect(evidenceCount).toContainText('records from')
+  // The link opens exactly the project records it counts, not the region's supplier prices too.
+  await expect(evidenceCount).toHaveText('16 records from 6 sources')
+  await expect(page.getByRole('combobox', { name: 'Evidence type', exact: true })).toHaveText(
+    'Project records · every type',
+  )
   await chooseOption(page, 'Where', 'Everywhere')
-  await expect(evidenceCount).toHaveText('149 records from 36 sources')
+  await expect(evidenceCount).toHaveText('161 records from 38 sources')
   await chooseOption(page, 'Evidence type', 'Tender average')
   await expect(evidenceCount).toHaveText('8 records from 1 source')
   const tenderGroup = page.getByTestId('road-cost-evidence-group')
@@ -306,7 +328,7 @@ test('an evidence record is adopted into a project rate with its observation kep
   const form = record.getByTestId('road-rate-adopt-form')
   const save = form.getByTestId('road-rate-adopt-save')
   await expect(save).toBeDisabled()
-  await chooseOption(page, 'Project rate to inform', 'Surfacing rate · now $40.00/m³')
+  await chooseOption(page, 'Project rate to inform', 'Project rates · Surfacing rate · now $40.00/m³')
   // A tonne price is never turned into a cubic-metre rate: the field starts empty.
   const adopted = form.getByRole('spinbutton', { name: 'Adopted rate (CAD/m³)', exact: true })
   await expect(adopted).toHaveValue('')
@@ -356,10 +378,17 @@ test('an evidence record is adopted into a project rate with its observation kep
         url: 'https://www.alberta.ca/system/files/custom_downloaded_images/trans-unit-price-averages.xlsx',
         locator: "'2026 UPA '!B14:H14",
         checked: '2026-11-12',
+        // Every term the record stated is frozen with it, and its place.
+        terms: expect.arrayContaining([expect.objectContaining({ label: 'Tax' })]),
+        where: { country: 'CA', subdivision: 'CA-AB' },
       },
       specificationConfirmed: true,
       reason,
       adoptedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      currency: 'CAD',
+      // The surfacing rate prices supply through compaction; the form starts from that.
+      includes: ['supply', 'processing', 'loading', 'haul', 'placement', 'compaction'],
+      target: { label: 'Surfacing rate', unit: '/m³' },
     },
   })
   expect(saved.alignments).toEqual(before.alignments)
@@ -423,5 +452,155 @@ test('phone cost references scroll to an eligible Coast comparison and download 
   await page.getByTestId('road-bc-cost-references').getByRole('button', { name: 'Close', exact: true }).click()
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(dialog).not.toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('the cost location, own records, budget items, build-ups and low and high cases', async ({ page }, testInfo) => {
+  testInfo.setTimeout(240_000)
+  const errors = await prepare(page)
+  const before = await saveProject(page)
+  for (const key of ['costLocation', 'costSchedule', 'rateBuildUps', 'costScenarios'] as const)
+    expect(before[key]).toBeUndefined()
+
+  // The training road is at Prince George: Omineca is offered from its points, and nothing is written yet.
+  const dialog = await openCosts(page)
+  const location = dialog.getByTestId('road-cost-location')
+  await expect(location).toContainText('No cost location')
+  await expect(location.getByTestId('road-cost-location-suggestion')).toHaveText('Omineca, British Columbia, Canada')
+  await location.getByTestId('road-cost-location-use').click()
+  await expect(dialog.getByTestId('road-cost-location-label')).toHaveText('Omineca, British Columbia, Canada')
+  await expect(location).toContainText('CAD')
+
+  // The references open on the project's region, its local prices first.
+  await page.getByTestId('road-bc-cost-toggle').click()
+  const references = page.getByTestId('road-bc-cost-references')
+  await expect(page.getByRole('combobox', { name: 'BC natural resource region', exact: true })).toHaveText('Omineca')
+  await expect(page.getByTestId('road-bc-local-evidence')).toContainText('GetGravel')
+
+  // An own quote joins the evidence, marked as the person's, without entering the catalogue or project.
+  await references.getByRole('tab', { name: 'My records', exact: true }).click()
+  await page.getByTestId('road-user-record-add').click()
+  const form = page.getByTestId('road-user-record-form')
+  await form.getByRole('textbox', { name: 'Work or product', exact: true }).fill('Pit run, delivered to km 12')
+  await form.getByRole('textbox', { name: 'Where', exact: true }).fill('Bobtail FSR km 12')
+  await form.getByRole('spinbutton', { name: 'Amount (CAD)', exact: true }).fill('28')
+  await form
+    .getByRole('textbox', { name: 'What the price covers', exact: true })
+    .fill('Supply and deliver, 300 m³ minimum')
+  await page.getByTestId('road-user-record-save').click()
+  await expect(page.getByTestId('road-user-cost-records')).toContainText('Pit run, delivered to km 12')
+
+  await references.getByRole('tab', { name: 'Evidence', exact: true }).click()
+  const evidenceCount = page.getByTestId('road-cost-evidence-count')
+  await expect(evidenceCount).toHaveText('162 records from 39 sources')
+  // Nearest the project first: the first group is in the project's own region.
+  await expect(references.getByRole('button', { name: /GetGravel/ }).first()).toContainText('Same region')
+  const search = page.locator('#road-cost-evidence-search')
+  await search.fill('Pit run, delivered to km 12')
+  await expect(page.getByTestId('road-cost-evidence-browser').getByTestId('road-cost-evidence-group')).toContainText(
+    'Own record',
+  )
+
+  // A bundled price: the Canim Lake excavation reused on site includes placing, which the fill rate prices.
+  await search.fill('Common excavation, reused')
+  const reuse = page
+    .getByTestId('road-cost-evidence-group')
+    .getByRole('listitem')
+    .filter({ hasText: 'Common excavation, reused on site' })
+  await reuse.getByTestId('road-rate-adopt-open').click()
+  const adopt = reuse.getByTestId('road-rate-adopt-form')
+  await chooseOption(page, 'Project rate to inform', 'Project rates · Cut rate · now $12.00/m³')
+  // Already in CAD per m³: the figure is offered as a start.
+  await expect(adopt.getByRole('spinbutton', { name: 'Adopted rate (CAD/m³)', exact: true })).toHaveValue('50')
+  await adopt.getByRole('checkbox', { name: 'Placing', exact: true }).check()
+  await expect(adopt.getByTestId('road-rate-adopt-overlaps')).toContainText(
+    'Placing is in this price and also in the fill rate (8/m³).',
+  )
+  await adopt.getByRole('checkbox', { name: 'The specification matches', exact: true }).check()
+  await expect(adopt.getByTestId('road-rate-adopt-problem')).toContainText('say how you accounted for it')
+  await adopt.getByRole('button', { name: 'Cancel', exact: true }).click()
+
+  // A percentage from the same estimate starts a percentage budget item.
+  await search.fill('Bonding and insurance')
+  const bonding = page
+    .getByTestId('road-cost-evidence-group')
+    .getByRole('listitem')
+    .filter({ hasText: 'Bonding and insurance' })
+  await expect(bonding).toContainText('3% of works subtotal')
+  await bonding.getByTestId('road-rate-adopt-open').click()
+  await chooseOption(page, 'Project rate to inform', 'Project budget · Insurance and bonding · now not set')
+  const bondingForm = bonding.getByTestId('road-rate-adopt-form')
+  await expect(bondingForm.getByRole('spinbutton', { name: 'Adopted rate (%)', exact: true })).toHaveValue('3')
+  await bondingForm.getByRole('checkbox', { name: 'The specification matches', exact: true }).check()
+  await bondingForm.getByTestId('road-rate-adopt-save').click()
+  await expect(bonding.getByTestId('road-rate-adopt-saved')).toContainText('Insurance and bonding set to 3%')
+
+  // A saved build-up sets a rate with its formula beside it.
+  await references.getByRole('tab', { name: 'Unit rates', exact: true }).click()
+  await page.getByRole('spinbutton', { name: 'All-in crew rate (CAD/hour)', exact: true }).fill('270')
+  await page.getByRole('spinbutton', { name: 'Net production (bank m³/charged hour)', exact: true }).fill('20')
+  await expect(page.getByTestId('road-equipment-unit-rate')).toHaveText('13.50 CAD/bank m³')
+  await page.getByRole('textbox', { name: 'Equipment and crew build-up name', exact: true }).fill('Excavator crew')
+  await page.getByTestId('road-build-up-save-equipment-button').click()
+  const buildUps = page.getByTestId('road-build-ups')
+  await expect(buildUps).toContainText('270/h ÷ 20 bank m³ an hour = 13.5 per bank m³')
+  await chooseOption(page, 'Apply to', 'Project rates · Cut rate · now $12.00/m³')
+  await buildUps.getByTestId('road-build-up-apply').click()
+  await expect(page.getByTestId('road-build-up-message')).toContainText('Cut rate set to $13.50/m³ from Excavator crew')
+  await references.getByRole('button', { name: 'Close', exact: true }).click()
+
+  // The budget sits beside the estimate: the bonding item is priced off the construction total.
+  const total = await dialog.getByTestId('road-cost-total').innerText()
+  await dialog.getByTestId('road-project-budget-toggle').click()
+  const budget = dialog.getByTestId('road-project-budget')
+  const totalWhole = Math.round(Number(total.replace(/[^\d.]/g, '')))
+  await expect(budget.getByTestId('road-project-budget-construction-estimate')).toHaveText(
+    `$${totalWhole.toLocaleString('en-CA')}`,
+  )
+  await expect(budget.getByTestId('road-project-budget-project-items')).not.toHaveText('$0')
+  await expect(budget.getByTestId('road-project-budget-not-assessed')).not.toHaveText('0')
+  const rateSources = dialog.getByTestId('road-rate-sources-adopted')
+  await expect(rateSources.locator('[data-rate-source="schedule:insurance-bonding"]')).toContainText(
+    'Insurance and bonding 3%',
+  )
+  await expect(rateSources.locator('[data-rate-source="cutRate"]')).toContainText(
+    'Build-up · Equipment and crew · Excavator crew',
+  )
+
+  // Low and high cases run on copies; the estimate does not move.
+  await dialog.getByTestId('road-cost-scenarios-toggle').click()
+  const scenarios = dialog.getByTestId('road-cost-scenarios')
+  await scenarios.locator('[data-scenario-driver="excavation-rate"] input[type="checkbox"]').check()
+  await scenarios.getByTestId('road-cost-scenarios-run').click()
+  const row = scenarios.getByTestId('road-cost-scenarios-table').locator('[data-scenario-row="total"] td')
+  await expect(row).toHaveCount(4)
+  const money = async (index: number) => Number((await row.nth(index).innerText()).replace(/[^\d.]/g, ''))
+  expect(await money(1)).toBeLessThan(await money(2))
+  expect(await money(3)).toBeGreaterThan(await money(2))
+  await expect(dialog.getByTestId('road-cost-total')).toHaveText(total)
+  await page.screenshot({
+    path: testInfo.outputPath('desktop-budget-and-cases.png'),
+    animations: 'disabled',
+    timeout: 60_000,
+  })
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+
+  const saved = await saveProject(page)
+  expect(saved.costLocation).toEqual({
+    place: { country: 'CA', subdivision: 'CA-BC', region: 'bc-nr:omineca' },
+    basis: 'road-location',
+    setOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+  })
+  expect(saved.costSchedule?.entries).toEqual([
+    { id: 'insurance-bonding', status: 'priced', basis: 'percent', percent: 3 },
+  ])
+  expect(saved.settings.cutRate).toBe(13.5)
+  expect(Object.keys(saved.rateEvidence ?? {}).sort()).toEqual(['cutRate', 'schedule:insurance-bonding'])
+  expect(saved.rateEvidence?.cutRate.buildUp).toMatchObject({ name: 'Excavator crew', kind: 'equipment', result: 13.5 })
+  expect(saved.rateBuildUps?.map((item) => item.name)).toEqual(['Excavator crew'])
+  expect(saved.costScenarios).toEqual({ drivers: { 'excavation-rate': { low: 0.9, high: 1.25 } } })
+  // Own records stay in the browser, never in the project file.
+  expect(JSON.stringify(saved)).not.toContain('Pit run, delivered')
+  expect(saved.alignments).toEqual(before.alignments)
   expect(errors).toEqual([])
 })

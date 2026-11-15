@@ -65,10 +65,18 @@ export function inventoryBadge(
     /** The landform's inventory unit id, when it was adopted from one. */
     landformUnitId?: string | null
     landform?: PolygonGeometry | null
+    /**
+     * Whether the visual inventory was read for this area. Unread, the circle says so rather than "no unit": no unit
+     * is a finding only after a read.
+     */
+    read?: boolean
   },
 ): InventoryBadge {
   let unit: BadgeUnit | null = null
-  let note = 'No visual sensitivity unit under the landform or the blocks.'
+  let note =
+    input.read === false
+      ? 'Visual inventory not read: look it up in step 1 to fill the circle.'
+      : 'No visual sensitivity unit under the landform or the blocks.'
   const underBlocks = input.visibleBlockPoints.length ? dominant(units, input.visibleBlockPoints) : null
   const adopted = input.landformUnitId ? (units.find((entry) => entry.id === input.landformUnitId) ?? null) : null
   if (underBlocks) {

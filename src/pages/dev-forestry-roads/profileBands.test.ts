@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { analyzeRoad, curveDesignAt, horizontalCurveSummary, offsetCoordinate } from './engine'
 import { bandStations, bandTextWidth, bandValueAnchor, MAX_BAND_VALUES, profileValueBands } from './profileBands'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
+import { roadSidehill } from './sectionSideSlope'
 import { sectionCrossfall } from './templates'
 import type { Alignment, Coordinate, RoadStation } from './types'
 
@@ -50,6 +51,34 @@ describe('band stations', () => {
 })
 
 describe('profile value bands', () => {
+  it('adds a Sidehill row and its colour spans only when given the road sidehill', () => {
+    const alignment = road()
+    // Ground rising 70 % eastward: the road starts north, so the right side is uphill.
+    const analysis = analyzeRoad(
+      alignment,
+      { elevationAt: (lng) => 800 + 0.7 * (lng - origin[0]) * 111_320 * Math.cos((origin[1] * Math.PI) / 180) },
+      DEFAULT_ROAD_SETTINGS,
+    )
+    const plain = profileValueBands(analysis, alignment, { start: 0, end: analysis.length, minSpacingM: 20 })
+    expect(plain.rows.map((r) => r.key)).not.toContain('sidehill')
+    expect(plain.sidehillSpans).toEqual([])
+    const bands = profileValueBands(analysis, alignment, {
+      start: 0,
+      end: analysis.length,
+      minSpacingM: 20,
+      sidehill: roadSidehill(analysis.stations),
+    })
+    const row = bands.rows.at(-1)!
+    expect(row.key).toBe('sidehill')
+    expect(row.values[0].text).toBe('70 R')
+    expect(row.values[0].tone).toBe('bench')
+    // The road turns east through its curve and then runs along the contour: full bench, then gentle.
+    const spans = bands.sidehillSpans
+    expect(spans[0]).toMatchObject({ start: 0, sidehillClass: 'full-bench' })
+    expect(spans.at(-1)).toMatchObject({ end: analysis.stations.at(-1)!.chainage, sidehillClass: 'gentle' })
+    spans.slice(1).forEach((span, i) => expect(span.start).toBeCloseTo(spans[i].end, 9))
+  })
+
   it('reads ground, design, depth and grade from the calculated stations, unknown where terrain is missing', () => {
     const alignment = road()
     const analysis = analyzeRoad(

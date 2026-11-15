@@ -114,7 +114,7 @@ test('LAZ import classifies ground in the browser and builds a TIN with breaklin
 
   await page.getByLabel('Imported DEM vertical datum (metres)', { exact: true }).fill('CGVD2013 / EPSG:6647')
   chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Import GeoTIFF, LAS or LAZ', exact: true }).click()
+  await page.getByRole('button', { name: 'Import GeoTIFF, LAS, LAZ or RoadEng', exact: true }).click()
   await (await chooser).setFiles({ name: 'hill.laz', mimeType: 'application/octet-stream', buffer: laz })
   await expect(status(page)).toContainText(/LAZ 1\.\d: /, { timeout: 120_000 })
   await expect(status(page)).toContainText('classified here')

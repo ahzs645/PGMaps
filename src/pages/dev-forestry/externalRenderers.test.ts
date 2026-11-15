@@ -10,6 +10,7 @@ import {
   roadRendererUnavailable,
   roadRendererUrl,
   siteTimeZone,
+  separateSiteUrl,
 } from './externalRenderers'
 import { metersPerDegree } from './visibility'
 
@@ -77,6 +78,32 @@ describe('other road-view renderers', () => {
       'Drawn by threejs-worldgen · 15,867 trees · 141 fps',
     )
     expect(engineStatsLine(roadRendererInfo('nanite'), null)).toBe('Drawn by Nanite Forest')
+  })
+})
+
+describe('an engine on a site of its own', () => {
+  it('moves a loopback engine to the other loopback name, so it runs in its own process', () => {
+    expect(
+      separateSiteUrl('http://127.0.0.1:8460/pgmaps-scene.html?embed', 'http://127.0.0.1:5173/dev/forestry'),
+    ).toEqual({
+      url: 'http://localhost:8460/pgmaps-scene.html?embed',
+      shared: false,
+    })
+    expect(separateSiteUrl('http://localhost:8461/x.html', 'http://localhost:5173/').url).toBe(
+      'http://127.0.0.1:8461/x.html',
+    )
+    // Already apart: left as it is.
+    expect(separateSiteUrl('http://127.0.0.1:8460/x.html', 'http://localhost:5173/')).toEqual({
+      url: 'http://127.0.0.1:8460/x.html',
+      shared: false,
+    })
+    expect(separateSiteUrl('https://engines.example.net/w.html', 'https://maps.example.org/')).toMatchObject({
+      shared: false,
+    })
+    // A same-site engine elsewhere cannot be moved, and says so.
+    expect(separateSiteUrl('https://engine.example.org/w.html', 'https://maps.example.org/')).toMatchObject({
+      shared: true,
+    })
   })
 })
 

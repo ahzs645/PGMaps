@@ -1,0 +1,324 @@
+{
+  "checked_at": "2026-11-13",
+  "sources": [
+    {
+      "id": "bc_contracts_2021_q2",
+      "title": "FLNRORD contracts over $10,000, July-September 2021",
+      "url": "https://docs.openinfo.gov.bc.ca/CO26877_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2021.pdf",
+      "role": "Primary government contract disclosure"
+    },
+    {
+      "id": "bc_contracts_2020_q2",
+      "title": "FLNRORD contracts over $10,000, July-September 2020",
+      "url": "https://docs.openinfo.gov.bc.ca/CO23252_Contracts_Over_10000_Ministry_of_Forests_Lands_Natural_Resource_Operations_and_Rural_Development_July_September_2020.pdf",
+      "role": "Primary government contract disclosure"
+    },
+    {
+      "id": "parksville_pathway_phase2_mcelhanney_2026",
+      "title": "Parksville Pathway Phase 2 - Conceptual Design Memo",
+      "consultant": "McElhanney",
+      "owner": "City of Parksville",
+      "location": "Parksville, Vancouver Island, BC",
+      "project_number": "2231-26006-02",
+      "estimate_date": "2026-04-10",
+      "report_date": "2026-04-27",
+      "cost_year": 2026,
+      "cost_year_basis": "Estimate dated April 10, 2026; notes reference recent Vancouver Island experience. No separate earlier cost base specified.",
+      "evidence_type": "consultant_estimate",
+      "estimate_class": "Class D / order of magnitude",
+      "source_url": "https://parksville.civicweb.net/document/81815/",
+      "source_locator": "Report section 6 / printed page 16; Appendix A estimate pages 1-4. PDF pages 23-26 of downloaded document; earthwork at PDF page 25, road materials at PDF page 26.",
+      "scope": "Three municipal multi-use pathway alignments: Pioneer Crescent; Turner/Martindale Roads; Tulip Avenue ROW. Includes electrical lighting, utilities, asphalt, sidewalks, landscaping and civil works; not a forest-road construction project.",
+      "published_totals": [
+        {
+          "option": "1 - Pioneer Crescent",
+          "constructed_works": 932000,
+          "engineering_contingency_administration_percent": 40,
+          "engineering_contingency_administration": 373000,
+          "total_excluding_gst": 1305000
+        },
+        {
+          "option": "2 - Turner Road",
+          "constructed_works": 1326000,
+          "engineering_contingency_administration_percent": 40,
+          "engineering_contingency_administration": 530000,
+          "total_excluding_gst": 1856000
+        },
+        {
+          "option": "3 - Tulip Avenue ROW",
+          "constructed_works": 2150000,
+          "engineering_contingency_administration_percent": 40,
+          "engineering_contingency_administration": 860000,
+          "total_excluding_gst": 3010000
+        }
+      ],
+      "basis": {
+        "tax": "GST excluded explicitly",
+        "engineering": "Included in combined 40% engineering, contingency and administration allowance",
+        "contingency": "Combined 40% allowance",
+        "mobilization": "Separate constructed-work line item, $50,000 / $65,000 / $90,000 for options 1 / 2 / 3",
+        "exclusions": [
+          "Land acquisition / compensation for adjacent properties",
+          "Potential utility replacements not specifically identified",
+          "Potential tariffs, market fluctuations and unforeseen economic impacts"
+        ],
+        "haul": "Common excavation explicitly includes offsite disposal; haul distance not stated"
+      },
+      "quality_flags": [
+        "Published total estimates contain internal arithmetic/subtotal inconsistencies. In Appendix A page 2, Option 1 concrete rows show $57,600 plus $22,880 but concrete subtotal and summary show $57,600. General requirements detail subtotal is $214,000 for option 2 and $394,000 for option 3; summary instead shows $182,000 and $214,000 respectively. Preserve published totals as reported; do not treat them as independently reconciled totals. Selected earthwork/base rates and their individual quantity extensions were visually verified.",
+        "Municipal pathway rates; clearing row is separate from a lump sum tree-removal allowance."
+      ],
+      "candidate_natural_resource_region": "West Coast",
+      "region_status": "Location-based research tag; precise natural-resource boundary not verified.",
+      "project_total_review_status": "published_subtotal_inconsistencies",
+      "role": "Primary consultant report published by public owner"
+    },
+    {
+      "id": "strathcona_area_d_mcelhanney_2025",
+      "title": "SRD Area D Drainage Study / Preliminary Construction Cost Estimate: Underground Stormwater Utilities",
+      "consultant": "McElhanney, Campbell River Branch",
+      "owner": "Strathcona Regional District",
+      "location": "Electoral Area D, south of Campbell River, Vancouver Island, BC",
+      "project_number": "2221-49698-00",
+      "estimate_date": "2025-01-10",
+      "report_date": "2025-01-21",
+      "council_report_date": "2025-03-06",
+      "cost_year": 2025,
+      "cost_year_basis": "Estimate dated January 10, 2025; no separate earlier price base identified.",
+      "evidence_type": "consultant_estimate",
+      "estimate_class": "Class D",
+      "source_url": "https://agenda.strathconard.ca/SRDAttachments/SRDCommittees/Open/EAS/11-Mar-25/20250304-Area-D-Stormwater-Mgmt-Study.pdf",
+      "alternate_source_url": "https://srd.ca/wp-content/uploads/2025/09/20250606-Area-D-Stormwater.pdf",
+      "source_locator": "Appendix B, Study Area estimate. PDF page 21 in the March 11, 2025 agenda attachment; staff financial implications on PDF page 3.",
+      "scope": "Piped stormwater network in MOTI ROWs with road restoration. Study selects medium/high density urban parts of Area D and excludes rural/coastal parcels. Road works assume a 2.5 m wide asphalt cut along the entire storm-main length. Rates below are restoration components, not whole-road costs; PVC storm-main rates are not culvert rates.",
+      "published_totals": [
+        {
+          "direct_construction_rounded": 30974000,
+          "contingency_percent": 40,
+          "contingency": 12390000,
+          "total_site_servicing": 43364000,
+          "road_works_subtotal": 8850000
+        }
+      ],
+      "basis": {
+        "tax": "Not specified in inspected cost table / staff financial summary",
+        "engineering": "Engineering, legal and consulting fees excluded",
+        "contingency": "40% on rounded construction subtotal",
+        "other_allowances": "Traffic management plan 1%; erosion/sediment control 2% as separate construction allowances",
+        "exclusions": [
+          "Engineering, legal and consulting fees",
+          "Environmental and regulatory permitting",
+          "Land acquisition for required easements",
+          "Long-term operation and maintenance"
+        ],
+        "haul": "Not specified"
+      },
+      "quality_flags": [
+        "Use only the separately itemized road-restoration components for road comparison; bundled storm-main totals are utility costs.",
+        "Do not convert $/m2 to $/m3 without retaining layer thickness and construction scope."
+      ],
+      "candidate_natural_resource_region": "West Coast",
+      "region_status": "Location-based research tag; precise natural-resource boundary not verified.",
+      "project_total_review_status": "preserve_source_rounding_and_scope",
+      "role": "Primary consultant report published by public owner"
+    },
+    {
+      "id": "ebenezer_flats_mcelhanney_2018",
+      "title": "Ebenezer Flats Flood Mitigation Study - Roads and Driveways, 1.0 m Raise",
+      "consultant": "McElhanney Consulting Services Ltd.",
+      "owner": "Regional District of Bulkley-Nechako",
+      "location": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
+      "estimate_date": "2018-11-29",
+      "report_date": "2019-03-12",
+      "cost_year": 2018,
+      "cost_year_basis": "Itemized estimate explicitly dated November 29, 2018; report published March 2019. Not 2019 or 2026 rates.",
+      "evidence_type": "consultant_estimate",
+      "estimate_class": "Class D",
+      "source_url": "https://www.rdbn.bc.ca/application/files/8316/0098/4665/20190312_Ebenezer_Flats_Flood_Mitigation_Study_-_Final_Report_-_Signed.pdf",
+      "source_locator": "Appendix C, Class D Cost Estimate - Roads and Driveways (1.0m Raise), estimate pages 1-2; PDF pages 90-91.",
+      "scope": "Raise 1,300 m existing paved roadway and reconstruct 25 driveways for flood protection. Remove pavement, add 0.4 m fill and 0.615 m pavement structure over existing granulars; reconstruct ditches both sides. Driveways assumed 6 m x 14.5 m and ~7% grade. Not new forest-road construction.",
+      "published_totals": [
+        {
+          "roads_driveways": 2231875,
+          "third_party_utility_relocations": 50000,
+          "record_drawings": 10000,
+          "subtotal_rounded": 2291900,
+          "environmental_mitigation_percent": 2,
+          "environmental_mitigation": 45800,
+          "engineering_construction_services_percent": 6,
+          "engineering_construction_services": 137500,
+          "contingency_percent": 40,
+          "contingency": 916800,
+          "project_total_rounded": 3392000
+        }
+      ],
+      "basis": {
+        "tax": "Not specified in inspected estimate",
+        "engineering": "6% engineering and construction services on subtotal",
+        "contingency": "40% on subtotal",
+        "environmental": "2% environmental mitigation, in addition to $20,000 erosion/sediment-control construction item",
+        "traffic": "$115,000 traffic control; 60-day window using 1 m wide, 0.3 m deep gravel widening along existing 1.3 km road",
+        "exclusions": [
+          "Streetlighting, signage and pavement-marking installations, reinstatements or relocations"
+        ],
+        "haul": "Common excavation explicitly includes offsite disposal; haul distance not stated"
+      },
+      "quality_flags": [
+        "Historical 2018 prices; do not silently inflate or relabel as current.",
+        "Imported embankment fill is $65/tonne; CBC and SGSB are $65/m3. Same numeric price, different units.",
+        "Driveway culvert diameter/material/depth not specified in estimate, so $500/m is contextual only."
+      ],
+      "candidate_natural_resource_region": "Skeena",
+      "region_status": "Location-based research tag; precise natural-resource boundary not verified.",
+      "project_total_review_status": "preserve_source_rounding_and_scope",
+      "role": "Primary consultant report published by public owner"
+    },
+    {
+      "id": "jason_creek_bgc_2022",
+      "title": "Jason Creek (Reid Road) Assessment - FINAL, Appendix B Risk-Control Cost Estimates",
+      "consultant": "BGC Engineering Inc.",
+      "owner": "Squamish-Lillooet Regional District",
+      "location": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
+      "project_number": "1358009",
+      "estimate_date": "2022-02-18",
+      "report_date": "2022-02-18",
+      "cost_year": null,
+      "cost_year_basis": "Report dated 2022, but explicitly uses mixed historical cost sources: Heart Creek Alberta average construction bid April 2020; Alberta Transportation 2015-2017 unit averages; North Vancouver creek-crossing bids with no date given. Do not label as verified 2022 market prices.",
+      "evidence_type": "consultant_estimate",
+      "estimate_class": "Order of magnitude, stated uncertainty -50% to >+100%",
+      "source_url": "https://www.slrd.bc.ca/sites/default/files/pdfs/RFP%20Reid%20Road%20Area%20Detailed%20QRA%20Final.pdf",
+      "source_locator": "BGC Appendix B, printed page B-1 / Table B-1, PDF page 62 in the RFP bundle.",
+      "scope": "Risk-control options for debris flows. Selected table is a 1.5 m high diversion berm with access construction, excavation, disposal, fill and riprap. Not a whole forest-road project.",
+      "published_totals": [
+        {
+          "option": "1.5 m high diversion berm",
+          "direct_costs_rounded": 350000,
+          "contractor_general_percent": 15,
+          "contractor_general_rounded": 53000,
+          "unlisted_items_contingency_percent": 10,
+          "unlisted_items_contingency_rounded": 35000,
+          "engineering_permitting_percent": 15,
+          "engineering_permitting_rounded": 53000,
+          "indirect_subtotal_rounded": 140000,
+          "total_rounded": 500000
+        }
+      ],
+      "basis": {
+        "tax": "Not stated in BGC estimate appendix; unrelated RFP tax clauses should not be applied to this estimate",
+        "engineering": "15% engineering and permitting",
+        "contingency": "10% unlisted items, separate from stated order-of-magnitude uncertainty",
+        "contractor_general": "15%",
+        "rounding": "Option totals rounded to nearest $100,000; item extensions rounded to thousands, so source totals are not exact quantity x unit-rate arithmetic",
+        "haul": "Offsite sediment disposal separate from excavation; haul distance not specified"
+      },
+      "quality_flags": [
+        "Mixed Alberta and BC historical bid bases; not a BC-only observed market-price dataset.",
+        "No detailed topography, modelling or field verification at this stage.",
+        "Access width/standard undefined, so $100/m should not be used as general road construction cost."
+      ],
+      "candidate_natural_resource_region": "South Coast",
+      "region_status": "Location-based research tag; precise natural-resource boundary not verified.",
+      "project_total_review_status": "preserve_source_rounding_and_scope",
+      "role": "Primary consultant report published by public owner"
+    },
+    {
+      "id": "delkatla_spit_urban_2023",
+      "title": "Village of Masset - Delkatla Spit Class D Cost Estimate",
+      "consultant": "Urban Systems",
+      "owner": "Village of Masset",
+      "location": "Delkatla / Seaplane Spit, Masset, Haida Gwaii, BC",
+      "project_number": "3995.0004.01",
+      "estimate_date": "2023-10-20",
+      "agenda_date": "2024-08-19",
+      "cost_year": 2023,
+      "cost_year_basis": "Estimate dated October 20, 2023, republished in August 19, 2024 council agenda. Do not relabel as 2024 or current prices.",
+      "evidence_type": "consultant_estimate",
+      "estimate_class": "Class D",
+      "source_url": "https://massetbc.com/images/uploads/pdfs/August_19,_2024_Agenda_Package.pdf",
+      "source_locator": "PDF pages 10-11 in the August 19, 2024 council agenda package.",
+      "scope": "Waterfront recreation concept, granular pedestrian trail, terminal building and site amenities. This is a remote island site-development estimate, not a forest-road standard. The base concept excludes improvements to the existing access road or marina parking; optional/future items include asphalt paving.",
+      "published_totals": [
+        {
+          "base_subtotal_rounded": 1349000,
+          "contingency_percent": 40,
+          "contingency": 539600,
+          "base_total_rounded": 1889000,
+          "optional_future_subtotal": 1614000,
+          "optional_future_contingency_percent": 40,
+          "optional_future_contingency": 645600,
+          "optional_future_total_rounded": 2260000,
+          "total_with_optional_future_rounded": 4149000
+        }
+      ],
+      "basis": {
+        "tax": "Not stated in the inspected cost-estimate pages",
+        "engineering": "No separate engineering allowance identified on the inspected estimate",
+        "contingency": "40%",
+        "mobilization": "$50,000 lump sum",
+        "environmental": "$25,000 environmental permitting and $10,000 tree-preservation allowances",
+        "exclusions": [
+          "Irrigation",
+          "Existing access-road or marina-parking improvements from base estimate; some parking/access paving appears in optional future items"
+        ],
+        "haul": "Not stated"
+      },
+      "quality_flags": [
+        "Granular pedestrian surface is $150/m2 for a 100 mm crushed-rock surface; retain original project-specific item description and treat as context only. Do not convert into a bulk gravel material price.",
+        "Base total includes terminal building, utilities, shoreline landscaping and amenities; no meaningful forest-road $/km can be derived."
+      ],
+      "geography_correction": {
+        "previous_region": "Skeena",
+        "corrected_region": "West Coast",
+        "basis": "The official West Coast regional description explicitly includes Haida Gwaii and Masset. This does not assign an appraisal road group.",
+        "source_url": "https://www2.gov.bc.ca/gov/content/environment/natural-resource-stewardship/cumulative-effects-framework/regional-assessments/west-coast"
+      },
+      "candidate_natural_resource_region": "West Coast",
+      "region_status": "Location-based research tag; precise natural-resource boundary not verified.",
+      "project_total_review_status": "preserve_source_rounding_and_scope",
+      "role": "Primary consultant report published by public owner"
+    },
+    {
+      "id": "cwf_summaries",
+      "title": "Canadian Wildlife Federation fish passage project summaries",
+      "url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+      "primary_basis": "Project delivery/funding partner describes completed works and explicitly labels total project cost.",
+      "publication_date": null,
+      "date_note": "Retrieved compilation includes projects completed through 2024; do not infer publication date from search-engine metadata.",
+      "locator_type": "Numbered project profile"
+    },
+    {
+      "id": "cwf_canton_2024",
+      "title": "Wonderful News For World Wetlands Day",
+      "publisher": "Canadian Wildlife Federation",
+      "publication_date": "2024-02-02",
+      "url": "https://blog.cwf-fcf.org/index.php/en/wonderful-news-for-world-wetlands-day/",
+      "primary_basis": "Written by CWF national fish-passage program coordinator; direct project completion description."
+    },
+    {
+      "id": "moti_lvr_2022",
+      "title": "Best Practices for Low-Volume Road Structures",
+      "publisher": "BC Ministry of Transportation and Infrastructure",
+      "publication_date": "2022-10",
+      "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+      "primary_basis": "Owner's technical guide includes completed case studies, construction years, approximate construction costs, structure descriptions and traffic management."
+    },
+    {
+      "id": "bcts_2020_21",
+      "title": "BC Fish Passage Program Annual Report 2020-2021",
+      "publisher": "BC Ministry of Forests / Fish Passage Technical Working Group",
+      "author": "M.C. Wright and Associates Ltd.",
+      "publication_date": null,
+      "url": "https://www2.gov.bc.ca/assets/gov/environment/plants-animals-and-ecosystems/fish-fish-habitat/fish-passage/fish-passage/bcts_fish_passage_annual_report_2020-2021.pdf",
+      "primary_basis": "Government program annual report prepared by project consultant; completed work and itemized costs."
+    },
+    {
+      "id": "mcdowell_catalog",
+      "title": "McDowell Creek Culvert Replacement",
+      "publisher": "Skeena Salmon Data Centre",
+      "contributing_organization": "Office of the Wet'suwet'en",
+      "publication_year_metadata": 2023,
+      "url": "https://data.skeenasalmon.info/dataset/mcdowell-creek-culvert-replacement",
+      "primary_basis": "Partner-contributed project booklet catalogue, corroborating location/date."
+    }
+  ]
+}

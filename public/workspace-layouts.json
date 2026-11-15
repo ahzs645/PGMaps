@@ -55,7 +55,7 @@
               "primary": "import",
               "rows": 2,
               "items": ["import", "terrainSource"],
-              "more": ["detailedDem", "lidar", "regional", "terrain"]
+              "more": ["detailedDem", "lidar", "regional", "placeOnMap", "terrain"]
             },
             {
               "label": "Import settings",

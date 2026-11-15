@@ -44,6 +44,7 @@ export function useSectionTools({
 }) {
   const [holdScale, setHeld] = useState(false)
   const [roadScale, setRoad] = useStoredFlag('pgmaps-road-section-whole-road-scale')
+  const [sideSlopes, setSideSlopes] = useStoredFlag('pgmaps-road-section-side-slopes', true)
   const setHoldScale = (on: boolean) => {
     setHeld(on)
     if (on) setRoad(false)
@@ -76,6 +77,9 @@ export function useSectionTools({
     setHoldScale,
     roadScale,
     setRoadScale,
+    /** Draw each side's fitted ground side slope on the section; remembered in this browser. */
+    sideSlopes,
+    setSideSlopes,
     pinnedStation: pin?.alignmentId === displayedAlignment.id ? pin.station : undefined,
     pin: (station: RoadStation | undefined) => setPin(station ? { alignmentId: displayedAlignment.id, station } : null),
     range,
@@ -144,7 +148,9 @@ export function SectionViewControls({
           to share this station's formation level; it is dropped when another road is shown. Use this section for… gives
           the section shown here to a range of stations through the template station assignments: a named template by
           name, the base section by clearing the range, and a mixed or transition section as a new template named after
-          its station.
+          its station. Side slope lines draw the ground's fitted side slope each side of the centreline; a line turns
+          amber where the ground is as steep as the template batter, so that batter never catches, or falls away past
+          the full-bench screen.
         </InfoTip>
       </div>
       <Button
@@ -169,6 +175,17 @@ export function SectionViewControls({
       >
         Whole-road scale
         {tools.roadScale && <Check className="ml-auto" aria-hidden />}
+      </Button>
+      <Button
+        size="xs"
+        variant={tools.sideSlopes ? 'secondary' : 'ghost'}
+        className={button}
+        aria-pressed={tools.sideSlopes}
+        title="Draw the ground's side slope each side of the centreline, fitted over 15 m, with its percentage."
+        onClick={() => tools.setSideSlopes(!tools.sideSlopes)}
+      >
+        Side slope lines
+        {tools.sideSlopes && <Check className="ml-auto" aria-hidden />}
       </Button>
       {pinned ? (
         <Button
@@ -225,7 +242,10 @@ export function SectionViewControls({
   )
 }
 
-/** The section's options button; its count is how many of the options are in force. */
+/**
+ * The section's options button; its count is how many of the options are in force. Side slope lines
+ * are a drawing, on by default, and stay out of the count so it still flags a changed frame or a pin.
+ */
 function SectionViewOptions({ inHeader, ...props }: SectionViewProps & { inHeader: boolean }) {
   const { tools } = props
   return (

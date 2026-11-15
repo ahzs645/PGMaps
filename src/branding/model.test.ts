@@ -8,6 +8,7 @@ import {
   parseBrandProfile,
   parseBrandRecord,
   parseBrandSettings,
+  parseUploadedLogo,
   pdfFontProblem,
   type BrandRecord,
 } from './model'
@@ -171,5 +172,17 @@ describe('Brandkit handoff', () => {
     pdf.text('Test brand report', 10, 10)
     expect(pdf.getFont().fontName).toBe('pgmaps-brand-body')
     expect(pdf.output('arraybuffer').byteLength).toBeGreaterThan(10000)
+  })
+})
+
+describe('the uploaded logo', () => {
+  const logo = { name: 'mine.png', format: 'PNG', dataUrl: 'data:image/png;base64,AAAA', width: 300, height: 100 }
+  it('keeps a PNG or JPEG data URL with its size', () => {
+    expect(parseUploadedLogo(logo)).toEqual(logo)
+  })
+  it('refuses an image whose data does not match its format, or a size out of range', () => {
+    expect(() => parseUploadedLogo({ ...logo, format: 'JPEG' })).toThrow(/PNG or JPEG/)
+    expect(() => parseUploadedLogo({ ...logo, dataUrl: 'data:image/svg+xml;base64,AAAA' })).toThrow()
+    expect(() => parseUploadedLogo({ ...logo, width: 0 })).toThrow()
   })
 })

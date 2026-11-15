@@ -101,6 +101,11 @@ function frame(origin: Coordinate) {
     fromXY: (p: XY): Coordinate => offsetCoordinate(origin, Math.atan2(p[0], p[1]) / RAD, norm(p)),
   }
 }
+/**
+ * The plane an alignment's curves are fitted in, centred on its first point. An import that keeps
+ * a file's tangent points measures deflections here, not on the file's grid.
+ */
+export const planFrame = frame
 
 type Piece = {
   start: XY

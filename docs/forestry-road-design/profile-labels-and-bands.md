@@ -58,16 +58,27 @@ readout) and `profileBands.ts` (band values and the curvature diagram). The scre
 
 ## The bands
 
-| Row        | Value                                                                                                     | Unknown when                      |
-| ---------- | --------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| Ground     | Ground elevation at the centreline (m)                                                                    | Terrain is missing at the station |
-| Design     | Formation elevation at the centreline (m)                                                                 | The station has no design         |
-| Cut/fill   | C cut or F fill depth at the centreline (m)                                                               | Terrain is missing                |
-| Grade %    | Design grade at the station, positive climbing; it varies through vertical curves                         | The station has no grade          |
-| X-fall L/R | The section's crossfall each side (%), positive falling away from the centreline; bold when superelevated | Never: it is a design value       |
-| Curvature  | 1/R, right turns above the line and left below, ramping over spirals; each arc labelled R and side        | Never: it is the fitted geometry  |
+| Row        | Value                                                                                                     | Unknown when                              |
+| ---------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Ground     | Ground elevation at the centreline (m)                                                                    | Terrain is missing at the station         |
+| Design     | Formation elevation at the centreline (m)                                                                 | The station has no design                 |
+| Cut/fill   | C cut or F fill depth at the centreline (m)                                                               | Terrain is missing                        |
+| Grade %    | Design grade at the station, positive climbing; it varies through vertical curves                         | The station has no grade                  |
+| X-fall L/R | The section's crossfall each side (%), positive falling away from the centreline; bold when superelevated | Never: it is a design value               |
+| Sidehill % | Ground cross slope across the road and its uphill side ("13 R"), from `sectionSideSlope.ts`; screen only  | Either side has under 5 m of known ground |
+| Curvature  | 1/R, right turns above the line and left below, ramping over spirals; each arc labelled R and side        | Never: it is the fitted geometry          |
 
-A terrain profile has ground and ground grade only. Values are printed only at calculated
+A terrain profile has ground, ground grade and sidehill only.
+
+The Sidehill row is coloured at every calculated station, not only the labelled ones, so a steep
+stretch shows at any zoom: each station stands for the road half-way to its neighbours, and runs of
+one class join (`sidehillSpans`). Under 20 % is untinted, 20–40 % and 40–50 % take rising grey tints
+(display steps only), 50–60 % is amber (past the Interior appraisal equation,
+`INTERIOR_SIDESLOPE_LIMIT_PERCENT`) and 60 % or more red (the full-bench screen,
+`FULL_BENCH_SIDESLOPE_PERCENT`). The plot book's bands leave the row out: `profileValueBands` adds it
+only when given `sidehill`.
+
+Values are printed only at calculated
 stations, never interpolated between them. Stations on a round multiple of the spacing (1, 2, 2.5
 or 5 × 10ⁿ m) are preferred; when the station interval does not divide it, every station far
 enough from the last one kept is used. Unknown values print as —. A value on the plot's left or
@@ -85,8 +96,28 @@ plot and in every band.
 Labels are placed by `placeLabels`: in order of importance (a flagged sag, then high and low
 points, then curve ends), each label is kept only if no label already kept is closer than the gap.
 Zoomed out, BVC and EVC labels go first and their ticks thin; a flagged sag keeps its label longest.
-The tooltip always has the full text. They are placed apart from each other only: a curve-point
-label can still cross a grade label or a PVI callout, which the pass above places separately.
+The tooltip always has the full text.
+
+On screen, curve-point labels and PVI callouts are one row (`planProfileMarks`,
+`profileAnnotations.ts`): every rotated label competes for the same room, 24 px apart, a flagged
+sag first, then high and low points, PVI callouts, curve ends. A vertical curve narrower than 16 px
+on screen shows neither its BVC nor its EVC (its high or low point stays). When not every label
+fits, those shown drop their elevation (`LP 3+121.5 · no culvert`). On Softree's 27.8 km sample
+the whole road went from dozens of overlapping columns to about ten labels on a 380 px chart, the flagged sags; zooming to a
+kilometre brings the curve ends, elevations and stations back. Plot-book sheets keep their own
+thinning.
+
+## Ground from the design file, and design-only roads
+
+A road imported from a design file that records ground along its centreline (RoadEng station
+levels of a road without a profile; a LandXML `ProfSurf`) keeps it as `fileGround`. Where the
+terrain has no ground, the profile draws it dashed, labelled "Ground · design file", with the cut
+and fill shading against it; the summary card gives its range and the station bar its level, "from
+the design file". It is display only: sections, quantities and every band row still need terrain,
+which gives ground across the road. A road with no terrain ground at all and no file ground is a
+design-only road, not a gap: the plot is not hatched, it says "Design only · no terrain under this
+road", the summary card says "No terrain" and the station bar a plain note. Hatching stays for
+real gaps in a terrain that covers part of the road.
 
 ## What the profile has room to show
 
@@ -127,8 +158,10 @@ label can still cross a grade label or a PVI callout, which the pass above place
 | Gap between band values                      | 46 screen px; 60 on sheets                                                      | `BAND_VALUE_MIN_GAP_PX`, `profileBands.ts`; `SHEET_BAND_VALUE_GAP_PX`           |
 | Band area on screen                          | at most 45 % of the chart; the plot keeps min(160 px, half the chart)           | `ChartSlot`, `Charts.tsx`                                                       |
 | Values per band across one window            | 400                                                                             | `MAX_BAND_VALUES`, `profileBands.ts`                                            |
-| Gap between rotated curve-point labels       | 13 screen px; 15 on sheets                                                      | `ROTATED_LABEL_GAP_PX`, `ProfileOverlays.tsx`; `SHEET_LABEL_GAP_PX`             |
-| Gap between curve-point markers              | 5 screen px                                                                     | `MARKER_GAP_PX`, `ProfileOverlays.tsx`                                          |
+| Gap between rotated labels on screen         | 24 screen px, curve points and PVI callouts together; 15 on sheets              | `ROTATED_LABEL_SPACING_PX`, `profileAnnotations.ts`; `SHEET_LABEL_GAP_PX`       |
+| Curve ends shown                             | a curve 16 screen px wide or more                                               | `CURVE_ENDS_MIN_PX`, `profileAnnotations.ts`                                    |
+| Gap between curve-point markers              | 5 screen px                                                                     | `CURVE_MARK_GAP_PX`, `profileAnnotations.ts`                                    |
+| Design-file ground points                    | 10,000 a road                                                                   | `parseFileGround`, `project.ts`                                                 |
 | Sheet band rows and curvature diagram        | 6 × 17 px + 30 px; the profile is 232 px tall and the plan 320 px with bands on | `SHEET_BANDS_HEIGHT`, `plotBookProfile.ts`; `planProfileSheet`, `plotBook.ts`   |
 | Subview values in a saved file               | true or false; absent is off                                                    | `parseRoadReportSettings`                                                       |
 | Ground-grade pieces                          | about 1 per 110 px; at least 50 px each; at most 64 per road                    | `GROUND_GRADE_PIECE_PX`, `GROUND_GRADE_MIN_PIECE_PX`, `GROUND_GRADE_MAX_PIECES` |

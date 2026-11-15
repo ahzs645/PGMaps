@@ -15,7 +15,7 @@ weighted missing source cell. The original source hashes and overlap choice are 
 
 **Combine LAS / LAZ sources** reads up to twelve files in a worker, checks their horizontal and
 vertical CRS keys, combines the points, classifies when requested and creates one grid/TIN.
-It uses the point-cloud options shown above the preparation panel. **Import GeoTIFF, LAS or LAZ**
+It uses the point-cloud options shown above the preparation panel. **Import GeoTIFF, LAS, LAZ or RoadEng**
 at the top of the tab does the same when several LAS/LAZ tiles are chosen at once. Sources with
 conflicting CRS keys are rejected, naming the files. Tiles that carry no CRS are asked about once
 and take the EPSG code stated. Missing vertical keys are asked about in the same question; neither

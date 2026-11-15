@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { readLogoFile } from '@/branding/logoFile'
+import { saveUploadedLogo } from '@/branding/store'
+import { useBranding } from '@/branding/useBranding'
 import { MapSheetSetup, type MapSheetField } from '@/components/ui/map-sheet-setup'
 import { blockFacts } from '@/lib/forestry/blockSheet/blockFacts'
 import {
@@ -26,8 +29,6 @@ import { terrainReferenceSurfaces } from './terrain'
 import type { RoadProject, TerrainSource } from './types'
 
 const STORAGE_KEY = 'pgmaps.forestryRoads.blockSheet'
-/** Largest logo file accepted; it is held in memory for the tab, never saved. */
-export const MAX_SHEET_LOGO_BYTES = 2_000_000
 
 function stored(): BlockSheetSettings {
   try {
@@ -42,11 +43,28 @@ const TITLE_FIELDS: EnteredFieldId[] = ['forestLicence', 'cuttingPermit', 'block
 
 /**
  * The block sheet's settings for the road tool: kept per browser, so the typed fields survive a
- * reload, with the logo held only for the tab. Returns the settings, the canopy surface and the setup form.
+ * reload. The logo is the user's own, kept in the browser's branding store and shared with every sheet
+ * and report (`saveUploadedLogo`), never in the project file. Returns the settings, the canopy surface and the setup form.
  */
 export function useBlockSheet(project: RoadProject, terrain: TerrainSource | null) {
   const [settings, setSettings] = useState<BlockSheetSettings>(stored)
-  const [logo, setLogo] = useState<{ name: string; image: RasterImage } | null>(null)
+  const keptLogo = useBranding().logo
+  const logo: { name: string; image: RasterImage } | null = useMemo(
+    () =>
+      keptLogo
+        ? {
+            name: keptLogo.name,
+            image: {
+              kind: 'url',
+              url: keptLogo.dataUrl,
+              format: keptLogo.format,
+              width: keptLogo.width,
+              height: keptLogo.height,
+            },
+          }
+        : null,
+    [keptLogo],
+  )
   const [logoError, setLogoError] = useState('')
   useEffect(() => {
     try {
@@ -103,28 +121,10 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
   ]
   const chooseLogo = (file: File | null) => {
     setLogoError('')
-    if (!file) return setLogo(null)
-    if (file.size > MAX_SHEET_LOGO_BYTES) return setLogoError('Choose a logo under 2 MB.')
-    const reader = new FileReader()
-    reader.onload = () => {
-      const url = String(reader.result)
-      const image = new Image()
-      image.onload = () =>
-        setLogo({
-          name: file.name,
-          image: {
-            kind: 'url',
-            url,
-            format: file.type === 'image/png' ? 'PNG' : 'JPEG',
-            width: image.naturalWidth,
-            height: image.naturalHeight,
-          },
-        })
-      image.onerror = () => setLogoError('That file is not a PNG or JPEG image.')
-      image.src = url
-    }
-    reader.onerror = () => setLogoError('The logo could not be read.')
-    reader.readAsDataURL(file)
+    const saving = file ? readLogoFile(file).then(saveUploadedLogo) : saveUploadedLogo(null)
+    saving.catch((error: unknown) =>
+      setLogoError(error instanceof Error ? error.message : 'The logo could not be kept.'),
+    )
   }
   const sources = { terrain: terrain ?? undefined, canopy: canopy ?? undefined }
   const setup = (

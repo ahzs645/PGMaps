@@ -228,3 +228,14 @@ describe('the viewpoint clearing', () => {
     expect(parseScene(JSON.parse(serializeScene(off)))!.viewpointClearing).toEqual(off.viewpointClearing)
   })
 })
+
+describe('clearing private land', () => {
+  it('is saved with the scene and never stales the run', () => {
+    const plain = createEmptyScene()
+    const cleared: ForestryScene = { ...plain, clearPrivateLand: true }
+    expect(parseScene(JSON.parse(serializeScene(cleared)))!.clearPrivateLand).toBe(true)
+    expect(parseScene(JSON.parse(serializeScene(plain)))!.clearPrivateLand).toBeUndefined()
+    expect(sceneFingerprint(cleared)).toBe(sceneFingerprint(plain))
+    expect(JSON.stringify(buildSceneInput(cleared))).toBe(JSON.stringify(buildSceneInput(plain)))
+  })
+})

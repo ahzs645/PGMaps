@@ -1,0 +1,14 @@
+{
+  "corrections": [
+    {
+      "id": "bc-masset-natural-resource-region",
+      "record_source_id": "delkatla_spit_urban_2023",
+      "previous_region": "Skeena",
+      "correct_region": "West Coast",
+      "applies_to": "Earlier BC project-evidence package; source-register and consultant source record",
+      "source_url": "https://www2.gov.bc.ca/gov/content/environment/natural-resource-stewardship/cumulative-effects-framework/regional-assessments/west-coast",
+      "basis": "Official regional overview explicitly includes Haida Gwaii and Masset.",
+      "limit": "Does not establish a TSA, supply block or appraisal road group."
+    }
+  ]
+}

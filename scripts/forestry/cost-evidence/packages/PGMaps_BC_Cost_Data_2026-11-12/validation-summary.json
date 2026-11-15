@@ -1,0 +1,12 @@
+{
+  "checked_date": "2026-11-12",
+  "repository_commit": "55255522c950e2313bf6281bece5d0ca54045110",
+  "local_price_rows": 42,
+  "supplier_price_rows": 38,
+  "supplementary_municipal_rows": 4,
+  "numeric_supplier_count": 12,
+  "regions": 8,
+  "quote_only_sources": 6,
+  "source_register_entries": 24,
+  "validation": "JSON parsing, numeric/unit checks, eight-region coverage, unique IDs and explicit comparison-only flags passed. Source values spot-checked against primary tables. No application code was changed or tested."
+}

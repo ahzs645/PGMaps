@@ -8,13 +8,15 @@ Three tools for walking a road station by station and acting on what you find:
 - **Hold scale**, **Whole-road scale** and **Pin this section**, in the cross-section's **Section
   view options** (the sliders button in its title row), keep the section's frame still while
   stepping, give every station of the road one frame, and draw one station's outline behind the
-  others for comparison. The button counts the options in force.
+  others for comparison. The button counts the options in force. **Side slope lines**, in the
+  same popover, draws the ground's side slope each side of the centreline; it is on by default,
+  remembered in this browser, and left out of the count.
 - **Use this section for…**, in the same popover, gives the section at the selected station to a
   range of stations, typed or dragged on the profile, and then lists the stations of that range
   whose cut or fill batter never met the ground. Its form opens under the cross-section and the
   popover closes, so a drag on the profile marks the range.
 
-The calculations are `stationJumps.ts`, `sectionFrame.ts` and `sectionRangeApply.ts`. They have no
+The calculations are `stationJumps.ts`, `sectionFrame.ts`, `sectionSideSlope.ts` and `sectionRangeApply.ts`. They have no
 DOM or network access. The controls are `StationJumpMenu.tsx` and `SectionPaneTools.tsx`.
 
 ## Jumping between places
@@ -74,6 +76,25 @@ formation sits at the same height on screen, so a section on steep sidehill grou
 one on the flat instead of each being stretched to fill the chart. It and Hold scale are exclusive;
 Whole-road scale is remembered in this browser. Culverts and the top of rock are not part of the
 frame, so a long pipe can be cut off, and the line under the readout says so.
+
+## Side slope
+
+The ground's side slope is read from the station's sampled section (`sectionSideSlopes`): a
+least-squares line each side from the centreline out to `SIDE_SLOPE_REACH_M` (15 m), stopping at
+the first terrain gap, and not reported from less than `SIDE_SLOPE_MIN_SPAN_M` (5 m) of known
+ground. A side's percentage is the rise going outward, so the uphill side is positive and the
+downhill side negative; **Side sl L/R** in the readout prints both. **Sidehill** is one line over
+both sides, given as a magnitude and the uphill side ("18% up R"): the representative side slope a
+road appraisal asks for, at this station only. RoadEng's section window reports the same pair as
+Ssl/Ssr.
+
+With **Side slope lines** on, each fitted line is drawn dashed over the ground with its percentage.
+It turns amber, with ⚠, where `sideSlopeChecks` finds the ground falling away at least as steeply
+as that side's template fill batter or rising at least as steeply as its cut batter (that batter
+never catches: RoadEng's SLOPE ERR), or falling away at `FULL_BENCH_SIDESLOPE_PERCENT` (60 %) or
+more, the full-bench screen from `sectionFixes.ts`. These compare the template's batters; entered
+materials and components can change a section's actual batters. The line is a reading, never an
+input: it changes no quantity, cost or check.
 
 An incomplete section shows an amber triangle at the start of the chart's header controls; its
 reason, and that the section is left out of quantities, are behind it on hover, focus or a tap.

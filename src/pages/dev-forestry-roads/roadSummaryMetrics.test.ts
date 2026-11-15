@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, distance, offsetCoordinate } from './engine'
-import { roadSummaryMetrics } from './roadSummaryMetrics'
+import { groundAlong, roadSummaryMetrics } from './roadSummaryMetrics'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, DEMO_ORIGIN } from './terrain'
 import type { Alignment, RoadAnalysis } from './types'
 
@@ -83,5 +83,19 @@ describe('overall road grade', () => {
     expect(overallGrade({ ...analysis, length: 0 }).value).toBe('Missing')
     expect(overallGrade({ ...analysis, stations: analysis.stations.slice(0, 1) }).value).toBe('Missing')
     expect(overallGrade({ ...analysis, stations: [] }).value).toBe('Missing')
+  })
+})
+
+describe('design-file ground', () => {
+  it('reads straight between recorded points and nothing outside them', () => {
+    const pairs: [number, number][] = [
+      [0, 100],
+      [50, 105],
+      [150, 100],
+    ]
+    expect(groundAlong(pairs, 25)).toBeCloseTo(102.5, 9)
+    expect(groundAlong(pairs, 100)).toBeCloseTo(102.5, 9)
+    expect(groundAlong(pairs, 151)).toBeNull()
+    expect(groundAlong([], 10)).toBeNull()
   })
 })

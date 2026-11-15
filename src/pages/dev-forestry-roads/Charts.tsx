@@ -1,4 +1,5 @@
 import { RoadSelect } from './Controls'
+import { groundAlong } from './roadSummaryMetrics'
 import type { RoadSelectionRange } from './roadSelection'
 import {
   createContext,
@@ -30,6 +31,7 @@ import {
 } from './ProfileOverlays'
 import {
   curvePoints,
+  planProfileMarks,
   isGradeTrouble,
   pviDragReadout,
   signedValue,
@@ -39,7 +41,9 @@ import {
 import { ProfileValueBands, useStoredFlag } from './ProfileValueBands'
 import { SightDistanceBand } from './SightDistanceBand'
 import { verticalCurveSummary } from './engine'
-import { templateAt } from './templates'
+import { sideValue, templateAt } from './templates'
+import { FULL_BENCH_SIDESLOPE_PERCENT } from './sectionFixes'
+import { SIDE_SLOPE_REACH_M, sectionSideSlopes, sideSlopeChecks, type SideSlopeCheck } from './sectionSideSlope'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
 import {
   JUNCTION_LABEL_FONT_PX,
@@ -118,6 +122,20 @@ export const ROAD_CHART_COLORS = {
 /** The section's top-of-rock and blasting-level lines. */
 const ROCK_COLOR = '#57534e'
 const BLAST_COLOR = '#be123c'
+/** The fitted side-slope lines: the foreground colour, so they read in both themes beside the ground. */
+const SIDE_SLOPE_COLOR = 'hsl(var(--foreground))'
+const SIDE_SLOPE_WARNING_COLOR = 'hsl(var(--warning))'
+const SIDE_SLOPE_CHECK_TEXT: Record<SideSlopeCheck, string> = {
+  'fill-never-catches':
+    'falls away at least as steeply as the template fill batter, so a fill on this side never catches',
+  'cut-never-catches': 'rises at least as steeply as the template cut batter, so a cut on this side never catches',
+  'full-bench-screen': `falls away at ${FULL_BENCH_SIDESLOPE_PERCENT}% or more, where full bench and end haul lead (a screen, not a BC rule)`,
+}
+/** A signed percentage with a true minus sign: −12%, +14%. */
+const signedPercent = (value: number) => {
+  const rounded = Math.round(value)
+  return `${rounded < 0 ? '−' : rounded > 0 ? '+' : ''}${Math.abs(rounded)}%`
+}
 type Domain = [number, number, number, number]
 type Point = { x: number; ground: number | null; design: number | null }
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n))
@@ -825,6 +843,20 @@ export function ProfileChart({
     ground: s.groundElevation,
     design: terrainOnly ? null : s.designElevation,
   }))
+  // Ground a design file recorded along the centreline, drawn where the terrain has none. Display
+  // only: sections and quantities need ground across the road, which the file does not give.
+  const fileGround = useMemo(() => {
+    const recorded = terrainOnly ? undefined : alignment.fileGround?.points
+    if (!recorded || recorded.length < 2) return null
+    const series = analysis.stations.map((s) => ({
+      x: s.chainage,
+      ground: finite(s.groundElevation) ? null : groundAlong(recorded, s.chainage),
+      design: null,
+    }))
+    return series.some((p) => finite(p.ground)) ? series : null
+  }, [alignment.fileGround, analysis.stations, terrainOnly])
+  const knownGround = fileGround ? points.map((p, k) => ({ ...p, ground: p.ground ?? fileGround[k].ground })) : points
+  const hasTerrainGround = points.some((p) => finite(p.ground))
   const ditches = useMemo(() => {
     if (terrainOnly) return []
     const templates = new Map(analysis.engineering?.stations.map((s) => [s.chainage, s.template]))
@@ -841,12 +873,12 @@ export function ProfileChart({
     ...ditches.flatMap((ditch) =>
       ditch.points.filter((p) => p.x >= visibleStart && p.x <= visibleEnd).map((p) => p.design),
     ),
-    ...points
+    ...knownGround
       .filter(
         (p, index) =>
           (p.x >= visibleStart && p.x <= visibleEnd) ||
-          (p.x < visibleStart && points[index + 1]?.x > visibleStart) ||
-          (p.x > visibleEnd && points[index - 1]?.x < visibleEnd),
+          (p.x < visibleStart && knownGround[index + 1]?.x > visibleStart) ||
+          (p.x > visibleEnd && knownGround[index - 1]?.x < visibleEnd),
       )
       .flatMap((p) => [p.ground, p.design]),
     ...(terrainOnly
@@ -1192,7 +1224,10 @@ export function ProfileChart({
                 terrainOnly
                   ? [{ label: 'Ground', color: ROAD_CHART_COLORS.ground }]
                   : [
-                      { label: 'Ground', color: ROAD_CHART_COLORS.ground },
+                      ...(hasTerrainGround || !fileGround
+                        ? [{ label: 'Ground', color: ROAD_CHART_COLORS.ground }]
+                        : []),
+                      ...(fileGround ? [{ label: 'Ground · design file', color: ROAD_CHART_COLORS.ground }] : []),
                       {
                         label: alignment.vertical.length ? 'Formation' : 'Formation · follows ground',
                         color: ROAD_CHART_COLORS.design,
@@ -1254,15 +1289,24 @@ export function ProfileChart({
             labelledCurves.add(curve.pviId)
             lastLabelX = x
           }
-        const calloutIds = new Set<string>()
+        const calloutCandidates: { id: string; chainage: number }[] = []
         let lastCalloutX = -Infinity
         for (const p of sorted) {
           if (p.chainage < displayedDomain[0] || p.chainage > displayedDomain[1]) continue
           const x = f.x(p.chainage)
           if (x - lastCalloutX < 30) continue
-          calloutIds.add(p.id)
+          calloutCandidates.push({ id: p.id, chainage: p.chainage })
           lastCalloutX = x
         }
+        // Curve points and PVI callouts share one row of rotated labels, spaced by what fits at this
+        // zoom (`planProfileMarks`): a long road shows its flagged sags and a few stations, not all.
+        const marks = planProfileMarks({
+          points: curvePointList,
+          callouts: calloutCandidates,
+          x: f.x,
+          domain: [displayedDomain[0], displayedDomain[1]],
+        })
+        const calloutIds = marks.callouts
         const handleRadius = typicalGap < 18 ? 3.5 : typicalGap < 30 ? 4.5 : 6
         // A profile with a PVI at every station (Full bench writes one) draws as a row of overlapping
         // rings. Where they crowd, draw a handle only every PVI_HANDLE_MIN_GAP_PX, plus the ends and the
@@ -1547,7 +1591,13 @@ export function ProfileChart({
                 hideXAxis={sharedXAxis}
               />
               <g clipPath={`url(#profile-${id})`}>
-                <TerrainGapBands points={points} x={f.x} top={f.top} height={f.plotHeight} />
+                {/* A design with no terrain at all is a mode, not a gap: nothing to hatch. */}
+                <TerrainGapBands
+                  points={hasTerrainGround || fileGround ? knownGround : []}
+                  x={f.x}
+                  top={f.top}
+                  height={f.plotHeight}
+                />
                 <SelectionBand range={selectedRange} frame={f} />
                 {rangePick?.range && (
                   <rect
@@ -1589,7 +1639,7 @@ export function ProfileChart({
                       ))}
                     </g>
                   ))}
-                {differencePolygons(points, f.x, f.y).map((p, i) => (
+                {differencePolygons(knownGround, f.x, f.y).map((p, i) => (
                   <polygon key={i} points={p.points} fill={p.color} opacity={0.23} />
                 ))}
                 <path
@@ -1598,6 +1648,18 @@ export function ProfileChart({
                   stroke={ROAD_CHART_COLORS.ground}
                   strokeWidth={1.7}
                 />
+                {fileGround && (
+                  <path
+                    data-testid="road-profile-file-ground"
+                    d={linePath(fileGround, 'ground', f.x, f.y)}
+                    fill="none"
+                    stroke={ROAD_CHART_COLORS.ground}
+                    strokeWidth={1.7}
+                    strokeDasharray="5 3"
+                  >
+                    <title>{`Ground from ${alignment.fileGround?.source ?? 'the design file'}, along the centreline`}</title>
+                  </path>
+                )}
                 <path
                   d={linePath(points, 'design', f.x, f.y)}
                   fill="none"
@@ -1806,6 +1868,7 @@ export function ProfileChart({
                   frame={annotationFrame}
                   domain={[displayedDomain[0], displayedDomain[1]]}
                   onStation={onStation}
+                  plan={marks}
                 />
                 {sorted
                   .filter((p) => calloutIds.has(p.id))
@@ -1995,15 +2058,17 @@ export function ProfileChart({
                   frame={annotationFrame}
                 />
               )}
-              {!points.some((p) => finite(p.ground)) && (
+              {!hasTerrainGround && (
                 <text
-                  x={width / 2}
-                  y={height / 2}
+                  x={f.left + 8}
+                  y={f.top + 24}
                   fill="hsl(var(--muted-foreground))"
-                  fontSize="12"
-                  textAnchor="middle"
+                  fontSize="10.5"
+                  data-testid="road-profile-design-only"
                 >
-                  No terrain samples on this alignment
+                  {fileGround
+                    ? 'Ground from the design file, along the centreline · no terrain loaded'
+                    : 'Design only · no terrain under this road'}
                 </text>
               )}
               {editing.cursor(f, width)}
@@ -2029,6 +2094,7 @@ export function CrossSectionChart({
   holdScale = false,
   roadScale = false,
   pinnedStation,
+  showSideSlopes = false,
 }: {
   station: RoadStation | undefined
   onShift?: (meters: number) => void
@@ -2044,6 +2110,8 @@ export function CrossSectionChart({
   roadScale?: boolean
   /** One station's section drawn faintly behind this one, at this one's formation level. */
   pinnedStation?: RoadStation
+  /** Draw each side's fitted ground side slope (`sectionSideSlope.ts`) with its percentage. */
+  showSideSlopes?: boolean
 }) {
   const id = useId().replace(/:/g, '')
   const drag = useRef<number | null>(null)
@@ -2161,6 +2229,24 @@ export function CrossSectionChart({
   const domain: Domain = framed || autoDomain
   const clipped = !!framed && sectionExceedsFrame(points, domain)
   const pinned = pinnedStation && station ? pinnedSectionOutline(pinnedStation, station, terrainOnly) : null
+  // Ground side slope each side of the centreline, and the template batters it is screened against.
+  const sideSlopes = station ? sectionSideSlopes(station.section) : null
+  const slopeSides = (['left', 'right'] as const).flatMap((s) => {
+    const line = sideSlopes?.[s]
+    if (!line) return []
+    const checks =
+      terrainOnly || !template
+        ? []
+        : sideSlopeChecks(
+            line.percent,
+            { cutHV: sideValue(template, s, 'CutSlope'), fillHV: sideValue(template, s, 'FillSlope') },
+            FULL_BENCH_SIDESLOPE_PERCENT,
+          )
+    const where = s === 'left' ? 'Left' : 'Right'
+    const title = `${where} ground side slope ${signedPercent(line.percent)} (${line.percent >= 0 ? 'rising' : 'falling'} away from the road), fitted over ${format(line.spanM)} m out from the centreline${checks.length ? `. It ${checks.map((c) => SIDE_SLOPE_CHECK_TEXT[c]).join('; it ')}.` : '.'}`
+    return [{ side: s, line, checks, title }]
+  })
+  const across = sideSlopes?.across
   const side = (left: number | undefined, right: number | undefined, digits = 1) =>
     `${fixed(left, digits)} / ${fixed(right, digits)}`
   const centreDepth =
@@ -2174,6 +2260,37 @@ export function CrossSectionChart({
     station && !terrainOnly && !station.complete
       ? `Incomplete section: ${station.incompleteReasons?.join('; ') || 'terrain coverage or daylight limit'}`
       : null
+  function sideSlopeReadout(): ReadoutItem {
+    const value = (s: 'left' | 'right') => {
+      const line = sideSlopes?.[s]
+      return line ? signedPercent(line.percent) : '—'
+    }
+    return {
+      label: 'Side sl L/R',
+      value: `${value('left')} / ${value('right')}`,
+      title: `Ground side slope each side: a least-squares line from the centreline out to ${SIDE_SLOPE_REACH_M} m, stopping at a terrain gap. Positive rises away from the road (uphill side), negative falls away (downhill side); — means less than 5 m of known ground.${
+        slopeSides.some((s) => s.checks.length)
+          ? ' ' +
+            slopeSides
+              .filter((s) => s.checks.length)
+              .map((s) => s.title)
+              .join(' ')
+          : ''
+      }`,
+      tone: slopeSides.some((s) => s.checks.length) ? 'warning' : 'default',
+    }
+  }
+  function sidehillReadout(): ReadoutItem {
+    return {
+      label: 'Sidehill',
+      value: !across
+        ? '—'
+        : across.uphill
+          ? `${Math.abs(across.percent).toFixed(0)}% up ${across.uphill === 'left' ? 'L' : 'R'}`
+          : 'level',
+      title: `Ground cross slope across the road: one least-squares line over both sides out to ${SIDE_SLOPE_REACH_M} m, with the uphill side. This is the representative side slope a road appraisal asks for, read at this station only.`,
+    }
+  }
   // Section status block, in the abbreviations of a road-design section window.
   const sectionReadout: Array<ReadoutItem | null | undefined> = !station
     ? []
@@ -2181,6 +2298,8 @@ export function CrossSectionChart({
       ? [
           { label: 'L-Stn', value: formatRoadStation(station.chainage), title: 'Selected station along the line' },
           { label: 'Grd Z', value: `${fixed(station.groundElevation, 2)} m`, title: 'Ground elevation at the line' },
+          sideSlopeReadout(),
+          sidehillReadout(),
           {
             label: 'View',
             value: 'up-station',
@@ -2226,6 +2345,8 @@ export function CrossSectionChart({
                 ? 'Formation follows sampled ground; no vertical design has been set (m)'
                 : 'Formation (subgrade) elevation at the centreline (m)',
           },
+          sideSlopeReadout(),
+          sidehillReadout(),
           {
             label: 'Width L/R',
             value: side(station.leftWidth, station.rightWidth),
@@ -2574,6 +2695,53 @@ export function CrossSectionChart({
                 stroke={ROAD_CHART_COLORS.ground}
                 strokeWidth={1.8}
               />
+              {showSideSlopes &&
+                slopeSides.map(({ side: s, line, checks, title }) => {
+                  const color = checks.length ? SIDE_SLOPE_WARNING_COLOR : SIDE_SLOPE_COLOR
+                  const x1 = f.x(line.from.offset),
+                    y1 = f.y(line.from.z),
+                    x2 = f.x(line.to.offset),
+                    y2 = f.y(line.to.z)
+                  // The label sits above the outer end, inside the plot, rotated to the line as drawn.
+                  const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI
+                  const upright = s === 'left' ? angle + 180 : angle
+                  return (
+                    <g
+                      key={s}
+                      pointerEvents="none"
+                      data-testid="road-section-side-slope"
+                      data-side={s}
+                      data-percent={line.percent.toFixed(1)}
+                    >
+                      <line
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke={color}
+                        strokeWidth={1.2}
+                        strokeDasharray="6 3"
+                        opacity={checks.length ? 0.9 : 0.55}
+                      />
+                      <text
+                        transform={`translate(${x1 + (x2 - x1) * 0.7},${y1 + (y2 - y1) * 0.7}) rotate(${upright})`}
+                        dy={-5}
+                        textAnchor="middle"
+                        fontSize="9.5"
+                        fontWeight={checks.length ? 600 : 500}
+                        pointerEvents="auto"
+                        fill={color}
+                        stroke="hsl(var(--background))"
+                        strokeWidth={3}
+                        paintOrder="stroke"
+                      >
+                        {s === 'left' ? 'L' : 'R'} {signedPercent(line.percent)}
+                        {checks.length ? ' ⚠' : ''}
+                      </text>
+                      <title>{title}</title>
+                    </g>
+                  )
+                })}
               {hasPreparation && (
                 <path
                   d={linePath(preparedPoints, 'ground', f.x, f.y)}

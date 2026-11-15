@@ -1,0 +1,12 @@
+{
+  "README.md": "c9a338b0ffde679d7a19943f8b44fa4696e48d05e66733161c779dd07c97dc95",
+  "bc-appraisal-reference-data.json": "d9f8e4c4ae2bf6a8e849b16a4b2d0360359bd650a8e7bc3dcdb441973dd93438",
+  "bc-geographic-source-catalogue.json": "fc0644b1d7b814dc09ce3064b0f54895744988ec01ae7678d6bf6bb6ab401eab",
+  "bc-local-cost-evidence.csv": "dbebbcf582dc216e60dc1f05c868daa0dd342c451de91770ad64ba85fcb5b87e",
+  "bc-local-cost-evidence.json": "61e736e422d31460f43b970afa9018cc72242ea31641137932c7596adb2750c9",
+  "bc-monthly-fuel-reference.json": "e396e3038c61391295ad8f54b43b14b4e3c897c69ee400067d47bb4951034a24",
+  "bc-region-coverage.csv": "be3c90f9ac30749496a07ee707c54b6702f94a8829a3ca34ef7dfa76bfd6df7d",
+  "bc-region-coverage.json": "d1e4501dc3237fbfea33bc5dcf8d8e502a43f18067bc5e32b7dc94530f861f6e",
+  "bc-source-register.csv": "8e545e9c5384ea33e084c73f39d90642d548d2963e5ee6c4fdb7e3b977700873",
+  "validation-summary.json": "12668ff91543aba5a5ad835b4febb80877cc2883688b18352441037657bfdc88"
+}

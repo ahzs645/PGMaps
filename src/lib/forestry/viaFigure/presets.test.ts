@@ -57,6 +57,21 @@ describe('VIA figure style presets', () => {
       for (const ramp of preset.ramps ?? []) for (const c of ramp.classes) expect(c.color).toMatch(HEX)
   })
 
+  it('paint block ground where the reference renders cut ground, with sampled colours and a cited spec', () => {
+    for (const preset of VIA_STYLE_PRESETS) {
+      if (!preset.paint) continue
+      expect(preset.paint.proposed, preset.id).toMatch(HEX)
+      if (preset.paint.existing) expect(preset.paint.existing, preset.id).toMatch(HEX)
+      expect(preset.paint.spec, preset.id).toMatch(/\b\d{2} p\d+/)
+    }
+    const painting = VIA_STYLE_PRESETS.filter((preset) => preset.paint).map((preset) => preset.family)
+    // The analysis sheets, the analysed panels, and the arrows-only style, whose blocks show only as cut ground.
+    expect(new Set(painting)).toEqual(new Set(['A', 'B', 'J']))
+    expect(
+      VIA_STYLE_PRESETS.filter((preset) => preset.family === 'A' || preset.family === 'B').every((p) => p.paint),
+    ).toBe(true)
+  })
+
   it('list in the legend only roles they define, and only those drawn', () => {
     for (const preset of VIA_STYLE_PRESETS) {
       for (const { role } of preset.legend.order) expect(preset.symbols[role], `${preset.id} ${role}`).toBeDefined()
@@ -81,9 +96,22 @@ describe('VIA figure style presets', () => {
         ...(preset.titles?.lines.map((l) => l.text) ?? []),
         ...(preset.panelLabels?.labels ?? []),
         ...(preset.vsuBadge ? [...preset.vsuBadge.lines, ...preset.vsuBadge.keyLines] : []),
+        ...(preset.labels?.existing ? [preset.labels.existing.title] : []),
       ]
       for (const text of strings) expect(pdfTextUnfolded(text), text).toEqual([])
     }
+  })
+
+  it('offer an arrows-only style: no outline, no fill, no legend, the blocks and existing openings on arrows', () => {
+    const arrows = presetById('arrows-no-outlines')
+    expect(Object.keys(arrows.symbols)).toEqual([])
+    expect(arrows.legend.where).toBe('none')
+    expect(arrows.labelStyle).toBe('underlined-arrow')
+    expect(arrows.labels?.existing?.title).toBe('Existing opening')
+    expect(arrows.labels?.existing?.spec).toMatch(/\b0[12] p\d+/)
+    expect(arrows.sources.map((s) => s.slice(0, 2))).toEqual(expect.arrayContaining(['01', '02']))
+    // Nothing to drape: the road view's picker leaves it out, the analysis sheet offers it.
+    expect(LIVE_PRESETS).not.toContain(arrows)
   })
 
   it('name every role, and offer the road view only presets it can drape', () => {

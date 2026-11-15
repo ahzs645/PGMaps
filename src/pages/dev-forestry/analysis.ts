@@ -324,7 +324,9 @@ export function computeAnalysis(
             target.role === 'landscape' ? { ...options, targetOffsetMeters: 0 } : options,
             canopy ?? undefined,
           )
-          const code = sight.status === 'unknown' ? 2 : sight.visible ? 1 : 0
+          // 3: hidden only by standing timber (the bare ground is in line of sight). Readers that know only 1 and 2
+          // read it as hidden, as before.
+          const code = sight.status === 'unknown' ? 2 : sight.visible ? 1 : sight.occludedBy === 'canopy' ? 3 : 0
           matrix[s * grid.length + p] = code
           if (code === 1 || sight.occludedBy === 'canopy') bareEarth[p] = 1
           if (code === 1) {

@@ -7,6 +7,7 @@ import {
   profileValueBands,
   type BandValue,
 } from './profileBands'
+import { roadSidehill, SIDEHILL_CLASSES, type SidehillClass } from './sectionSideSlope'
 import { formatStation } from './verticalStandards'
 import type { Alignment, RoadAnalysis } from './types'
 
@@ -16,14 +17,28 @@ const CURVATURE_PX = 30
 /** The profile chart's plot margins (`chartFrame`, `Charts.tsx`), so values sit under their stations. */
 const plotLeft = (width: number) => (width < 380 ? 48 : 58)
 const PLOT_RIGHT = 16
-/** Two rows (ground, ground grade) on a terrain profile; six and the curvature diagram on a road. */
-const bandsHeight = (terrainOnly: boolean) => (terrainOnly ? 2 * ROW_PX : 6 * ROW_PX + CURVATURE_PX) + 2
+/**
+ * Three rows (ground, ground grade, sidehill) on a terrain profile; seven and the curvature diagram on
+ * a road.
+ */
+const bandsHeight = (terrainOnly: boolean) => (terrainOnly ? 3 * ROW_PX : 7 * ROW_PX + CURVATURE_PX) + 2
+
+/** The sidehill strip's fill by class: none on gentle ground, rising tints, then amber and red. */
+const SIDEHILL_FILL: Record<SidehillClass, string | null> = {
+  gentle: null,
+  moderate: 'hsl(var(--foreground) / 0.07)',
+  steep: 'hsl(var(--foreground) / 0.16)',
+  'past-appraisal': 'hsl(var(--warning) / 0.3)',
+  'full-bench': 'hsl(var(--destructive) / 0.3)',
+}
 
 const TONE_FILL: Record<NonNullable<BandValue['tone']>, string> = {
   cut: '#d97706',
   fill: '#3b82f6',
   unknown: 'hsl(var(--muted-foreground))',
   super: 'hsl(var(--foreground))',
+  appraisal: 'hsl(var(--warning))',
+  bench: 'hsl(var(--destructive))',
 }
 
 /**
@@ -119,9 +134,11 @@ function ValueBandsSvg({
   const metresPerPx = (end - start) / plotWidth
   // Round the spacing to whole pixels' worth of metres so a resize by a pixel does not reshuffle values.
   const minSpacingM = Number((BAND_VALUE_MIN_GAP_PX * metresPerPx).toPrecision(2))
+  // Every station's sidehill once per analysis; panning and zooming only re-window it.
+  const sidehill = useMemo(() => roadSidehill(analysis.stations), [analysis.stations])
   const bands = useMemo(
-    () => profileValueBands(analysis, alignment, { start, end, minSpacingM, terrainOnly }),
-    [analysis, alignment, start, end, minSpacingM, terrainOnly],
+    () => profileValueBands(analysis, alignment, { start, end, minSpacingM, terrainOnly, sidehill }),
+    [analysis, alignment, start, end, minSpacingM, terrainOnly, sidehill],
   )
   const x = (chainage: number) => left + ((chainage - start) / Math.max(1e-9, end - start)) * plotWidth
   const showCurvature = !terrainOnly
@@ -155,6 +172,27 @@ function ValueBandsSvg({
         return (
           <g key={row.key} data-band={row.key}>
             <rect x={left} y={y + 1} width={plotWidth} height={ROW_PX - 2} fill="hsl(var(--muted))" opacity={0.5} />
+            {row.key === 'sidehill' &&
+              bands.sidehillSpans.map((span) => {
+                const fill = span.sidehillClass && SIDEHILL_FILL[span.sidehillClass]
+                if (!fill) return null
+                const label = SIDEHILL_CLASSES.find((c) => c.id === span.sidehillClass)!.label
+                return (
+                  <rect
+                    key={span.start}
+                    x={x(span.start)}
+                    y={y + 1}
+                    width={Math.max(1, x(span.end) - x(span.start))}
+                    height={ROW_PX - 2}
+                    fill={fill}
+                    data-sidehill-class={span.sidehillClass}
+                  >
+                    <title>
+                      Sidehill {label}: {formatStation(span.start)}–{formatStation(span.end)}
+                    </title>
+                  </rect>
+                )
+              })}
             <text x={3} y={y + 11} fontSize="9" fill="hsl(var(--muted-foreground))">
               {row.title}
               <title>{row.detail}</title>

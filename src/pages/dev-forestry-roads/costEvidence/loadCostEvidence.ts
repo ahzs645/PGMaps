@@ -4,6 +4,7 @@ import type {
   EvidenceRecord,
   EvidenceSource,
   FuelAdjustment,
+  PendingSource,
   WorkedEstimate,
 } from './costEvidence'
 
@@ -14,6 +15,7 @@ import type {
 const CARRIED_LEADS: EvidenceLead[] = [
   {
     regionId: 'kootenay-boundary',
+    subdivision: 'CA-BC',
     party: 'MacKay Contracting',
     place: 'Cranbrook / East Kootenay',
     products: ['crushed aggregates', 'rip rap', 'custom crushing', 'material supply and delivery'],
@@ -34,7 +36,10 @@ export function loadCostEvidence(): Promise<CostEvidenceCatalogue> {
     import('./bcLocal.generated.json'),
     import('./bcProjects.generated.json'),
     import('./external.generated.json'),
-  ]).then(([local, projects, external]) => assembleCostEvidence(local.default, projects.default, external.default))
+    import('./additions.generated.json'),
+  ]).then(([local, projects, external, additions]) =>
+    assembleCostEvidence(local.default, projects.default, external.default, additions.default),
+  )
   pending.catch(() => {
     pending = null
   })
@@ -45,14 +50,36 @@ export function assembleCostEvidence(
   local: { checked: string; records: unknown[]; leads: unknown[]; fuel: FuelAdjustment },
   projects: { checked: string; limits: string[]; records: unknown[] },
   external: { checked: string; records: unknown[]; sources: unknown[]; estimates: unknown[] },
+  additions: { checked: string; records: unknown[]; estimates: unknown[]; pending: unknown[] } = {
+    checked: '',
+    records: [],
+    estimates: [],
+    pending: [],
+  },
 ): CostEvidenceCatalogue {
   return {
-    checked: [local.checked, projects.checked, external.checked].sort().at(-1)!,
-    records: [...local.records, ...projects.records, ...external.records] as EvidenceRecord[],
+    checked: [local.checked, projects.checked, external.checked, additions.checked].sort().at(-1)!,
+    records: [...local.records, ...projects.records, ...external.records, ...additions.records] as EvidenceRecord[],
     leads: [...(local.leads as EvidenceLead[]), ...CARRIED_LEADS],
     sources: external.sources as EvidenceSource[],
-    estimates: external.estimates as WorkedEstimate[],
+    estimates: [...external.estimates, ...additions.estimates] as WorkedEstimate[],
     fuel: local.fuel,
     projectLimits: projects.limits,
+    pending: additions.pending as PendingSource[],
+  }
+}
+
+/**
+ * The catalogue with the person's own records added after it, marked `origin: 'user'`. They are read
+ * and adopted like any record and never written back to the catalogue.
+ */
+export function withUserRecords(
+  catalogue: CostEvidenceCatalogue,
+  records: readonly EvidenceRecord[],
+): CostEvidenceCatalogue {
+  if (!records.length) return catalogue
+  return {
+    ...catalogue,
+    records: [...catalogue.records, ...records.map((record) => ({ ...record, origin: 'user' as const }))],
   }
 }

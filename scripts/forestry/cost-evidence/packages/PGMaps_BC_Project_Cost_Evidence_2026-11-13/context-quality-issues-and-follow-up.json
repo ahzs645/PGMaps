@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-11-13",
+  "purpose": "Context, unresolved source issues, and discovery leads; excluded from verified unit-rate evidence.",
+  "annual_accounting_context": [
+    {
+      "owner": "McBride Community Forest Corporation",
+      "location": "McBride",
+      "region": "Omineca",
+      "period": "Year ended December 31, 2024",
+      "source_url": "https://mcfc.ca/wp-content/uploads/2025/04/2024-Financial-Statement.pdf",
+      "auditor": "KPMG",
+      "auditor_report_date": "2025-03-13",
+      "status": "Reported actual annual accounting expenses; not a single project final cost",
+      "schedule": "Schedule 1, printed page 14; PDF page 17 zero-index",
+      "rows": [
+        {
+          "category": "road construction",
+          "cad_2024": 244791,
+          "cad_2023": 184101
+        },
+        {
+          "category": "road rehabilitation",
+          "cad_2024": 185126,
+          "cad_2023": 2475
+        },
+        {
+          "category": "road maintenance",
+          "cad_2024": 126924,
+          "cad_2023": 107698
+        },
+        {
+          "category": "deactivations",
+          "cad_2024": 37800,
+          "cad_2023": 38405
+        },
+        {
+          "category": "bridge maintenance",
+          "cad_2024": 46031,
+          "cad_2023": 14247
+        }
+      ],
+      "tax_basis": "Not explicitly stated for these expense categories",
+      "quantity": null,
+      "limitations": "Annual accounting categories span projects. Capitalized road acquisition is reported separately ($46,852 in 2024); access road costs are amortized. Cannot combine with yearly km to derive construction cash cost without accounting reconciliation.",
+      "latest_followup_url": "https://mcfc.ca/wp-content/uploads/2026/04/2025-Financial-Statement.pdf",
+      "latest_followup_status": "2025 report publicly linked but image-only in web extraction; amounts not transcribed."
+    }
+  ],
+  "approved_funding_context": [
+    {
+      "project": "Road rehabilitation in Burns Lake area",
+      "applicant": "SERNbc",
+      "location": "Burns Lake",
+      "region": "Skeena",
+      "amount_cad": 134349,
+      "source_year": 2020,
+      "value_status": "Current approved funding, not paid construction cost",
+      "source_url": "https://fesbc.ca/wp-content/uploads/2024/07/2020-accomplishments.pdf",
+      "quantity": null,
+      "scope": "Ecological road rehabilitation / forest carbon project",
+      "limitations": "Do not compare with building an operational resource road; no km or detailed costs disclosed."
+    },
+    {
+      "project": "Road rehabilitation in the Chilcotin",
+      "applicant": "Terraforma Environmental Ltd.",
+      "location": "Alexis Creek",
+      "region": "Cariboo",
+      "amount_cad": 121248,
+      "source_year": 2020,
+      "value_status": "Current approved funding, not paid construction cost",
+      "source_url": "https://fesbc.ca/wp-content/uploads/2024/07/2020-accomplishments.pdf",
+      "quantity": null,
+      "scope": "Wildlife habitat enhancement",
+      "limitations": "Funding scope is ecological road restoration; no km disclosed."
+    },
+    {
+      "project": "Rehabilitation of linear disturbance features in Northeast BC",
+      "applicant": "SERNbc",
+      "location": "Tumbler Ridge",
+      "region": "Northeast",
+      "amount_cad": 209402,
+      "source_year": 2020,
+      "value_status": "Current approved funding, not paid construction cost",
+      "source_url": "https://fesbc.ca/wp-content/uploads/2024/07/2020-accomplishments.pdf",
+      "quantity": null,
+      "scope": "Wildlife habitat enhancement",
+      "limitations": "Includes linear disturbance restoration, not an operational-road construction reference."
+    }
+  ],
+  "optional_nonroad_case": {
+    "id": "sitlika_2021",
+    "project": "Sitlika Creek culvert removal",
+    "location": "North end of Takla Lake, Takla Nation territory",
+    "completion_date": "2021-09; planting in following spring",
+    "cost_amount_cad": 857759,
+    "cost_kind": "reported_completed_project_cost",
+    "source_id": "cwf_summaries",
+    "source_locator": "Project 14, Sitlika Creek",
+    "scope": "Culvert removal from inactive railway embankment, new creek channel, terrain stabilization and planting.",
+    "quality_flags": [
+      "Railway reclamation, not road construction",
+      "No structure dimensions or excavation quantities",
+      "Tax basis unspecified"
+    ]
+  },
+  "held_for_source_review": [
+    {
+      "project": "Gollen Creek 24 m bridge",
+      "source_id": "bcts_2020_21",
+      "locator": "Printed page 9",
+      "reported_total_cad": 599239.44,
+      "reason": "Extracted partner-year rows sum $604,144.44, $4,905 above published total. Report also contains a mistyped installation year (2021/20). Do not publish as a clean benchmark until the source is reconciled.",
+      "extracted_rows_cad": [
+        220371,
+        75000,
+        47373.6,
+        261399.84
+      ]
+    },
+    {
+      "project": "Burman River side channels and two bridges",
+      "source_id": "bcts_2020_21",
+      "locator": "Printed pages 3-4",
+      "reported_total_cad": 571475.12,
+      "alternate_source_id": "cwf_summaries",
+      "alternate_locator": "Project 3",
+      "alternate_reported_total_cad": 577776,
+      "reason": "Two sources provide different totals for a mixed habitat/bridge package. BCTS fiscal-year amount $485,700.50 is not the multiyear total. Cost-table text extraction interleaves row labels and amounts; direct visual reconciliation needed before component extraction.",
+      "scope_quantities": {
+        "bridges": 2,
+        "reported_bridge_lengths_ft": [
+          40,
+          60
+        ],
+        "excavation_m3": 10822
+      }
+    }
+  ],
+  "unverified_secondary_leads": [
+    {
+      "project": "Leo Creek FSR realignment 58-64 km",
+      "location": "Fort St James / Prince George administrative location",
+      "region": "Omineca",
+      "year": 2026,
+      "reported_amount_cad": 551917.48,
+      "reported_contractor": "Tanizul Timber Ltd.",
+      "reported_status": "Award subject to final approval",
+      "reported_quantity": {
+        "new_road_km": 1.8,
+        "existing_road_adjustment_km": 1
+      },
+      "source_url": "https://projects.constructconnect.com/details/7626218-leo-creek-fsr-realignment-construction-58km-64km%26find_loc%3D-V2L-4X4",
+      "primary_status": "Not verified against BC Bid",
+      "limitations": "Secondary aggregator only; tax and inclusions unknown; cannot treat as verified awarded/final rate. Earlier 58-62 km tender was cancelled."
+    },
+    {
+      "project": "TS120 Russell Creek construction and reconstruction",
+      "location": "Near Sayward",
+      "region": "West Coast",
+      "year": 2026,
+      "reported_amount_cad": 1825944.75,
+      "reported_contractor": "Axton Timber Ltd.",
+      "reported_status": "Awarded according to aggregator",
+      "reported_quantity": {
+        "new_road_km": 4,
+        "reconstruction_km": 3
+      },
+      "reported_scope": "Major end haul, culverts, bridges, engineered large fills, quarry/pit preparation, erosion/sediment control",
+      "source_url": "https://projects.constructconnect.com/details/7253251-road-construction-ts120-russell-creek%26find_loc%3D-V0N-1A0?_hsmi=null",
+      "primary_status": "Not verified against BC Bid",
+      "limitations": "Mixed new/rebuild/bridge scope; no reliable uniform $/km."
+    },
+    {
+      "project": "Maxan FSR road and bridge construction",
+      "contract_id": "EN27TAH7504",
+      "location": "Southwest of Burns Lake, off Maxan West FSR at about 12 km",
+      "region": "Skeena",
+      "year": 2026,
+      "reported_amount_cad": 114811,
+      "reported_status": "Award Sept 7, 2026 according to Publicus",
+      "reported_quantity": {
+        "new_road_km": 1.35,
+        "bridge_span_m": 6.096
+      },
+      "reported_scope": "Steel girder/timber deck bridge installation and P.Eng crossing professional sign-off",
+      "award_source_url": "https://publicus.ai/buyers/babine-british-columbia",
+      "scope_source_url": "https://www.biddetail.com/latest-tenders/116091010%2453f6bf22-7136-4d32-a46f-49710091765a",
+      "primary_status": "Not verified against BC Bid",
+      "limitations": "Primary tender documents, tax basis, bridge supply vs installation inclusions missing."
+    },
+    {
+      "project": "As & When Forest Service Road Repairs",
+      "contract_id": "41220",
+      "year": 2026,
+      "reported_amount_cad": 717650,
+      "reported_contractor": "ARDA Creek Contracting Ltd.",
+      "reported_status": "Award Sept 17, 2026 according to CLEATUS; Sept 16 according to Publicus",
+      "source_url": "https://www.cleat.ai/government/contracts/as-and-when-forest-service-road-repairs-226x",
+      "primary_status": "Not verified; original source link leads to subscription",
+      "quantity": null,
+      "limitations": "Location, quantity, term and ceiling-vs-spend unknown. Not suitable for unit rate."
+    },
+    {
+      "project": "Blueridge 500 FSR construction",
+      "location": "Kootenay Lake / Kaslo",
+      "region": "Kootenay Boundary",
+      "year": 2026,
+      "reported_amount_cad": 228542,
+      "reported_quantity": {
+        "new_road_km": 0.9
+      },
+      "reported_scope": "Timber cutting/removal, end haul, drill/blast, placed rock fill, surfacing",
+      "source_url": "https://projects.constructconnect.com/details/7348738-blueridge-500-fsr-construction-kootenay-lake%26find_loc%3D-V0G-1M0",
+      "reported_status": "Award subject to final approval",
+      "primary_status": "Not verified against BC Bid",
+      "limitations": "Tax basis unknown, contractor not captured; price shown in aggregate value field."
+    },
+    {
+      "project": "Frank Creek 62-085, Cariboo River FSR",
+      "lead_url": "https://projects.constructconnect.com/details/5830143-bridge-installation-at-frank-creek-62-085-forest-service-road%26find_loc%3DBC-V2G-2K7",
+      "claimed_value_cad": 436020,
+      "claimed_year": 2022,
+      "description": "20 m skewed compo-girder bridge on steel pipe piles, old culvert disposal, riprap/approaches, 12 m temporary bridge.",
+      "status": "Third-party tender aggregator; primary award not verified; exclude from confirmed data."
+    },
+    {
+      "project": "Cous Creek road and bridge upgrade",
+      "lead_url": "https://projects.constructconnect.com/details/6038291-cous-creek-road-and-bridge-upgrade-and-construction%26find_loc%3DBC-V0R-2B0",
+      "claimed_value_cad": 724955,
+      "description": "8.786 km upgrade, 0.917 km new road, 18.2 m/24.4 m portable bridges and culverts near Port Alberni.",
+      "status": "Third-party tender aggregator; primary award not verified; description contains apparent 33000 mm culvert typo; exclude from confirmed data."
+    }
+  ],
+  "remaining_gaps": [
+    "No primary current 2026 accepted forestry-road bill of quantities recovered.",
+    "No verified Northeast operational-road construction price in this pass.",
+    "Most awarded-contract summaries lack lengths, quantities, and final payment accounts.",
+    "Forest-road costs require width, terrain, rock, drainage, haul, access and work-type matching."
+  ]
+}

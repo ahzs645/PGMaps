@@ -88,6 +88,27 @@ export function roadRendererUrl(id: RoadRendererId, env: { DEV?: boolean; [key: 
   return env.DEV && info.devUrl ? info.devUrl : null
 }
 
+/**
+ * The engine's address on a different site from the page, so the browser draws it in its own process. A same-site
+ * frame shares the page's main thread: an engine building a stand or a final frame (tens of seconds of script) then
+ * freezes PGMaps for as long. Development serves both on the loopback address, which is one site to the browser
+ * whatever the port, so the other loopback name is used (`127.0.0.1` and `localhost` are separate sites and reach
+ * the same server). Any other same-site engine stays as it is, with `shared` saying so.
+ */
+export function separateSiteUrl(url: string, pageHref: string): { url: string; shared: boolean } {
+  const engine = new URL(url, pageHref)
+  const page = new URL(pageHref)
+  const loopback = ['127.0.0.1', 'localhost']
+  if (engine.hostname !== page.hostname) {
+    // Different hosts can still be one site (a.example.org and b.example.org); loopback names never are.
+    const site = (host: string) => (loopback.includes(host) ? host : host.split('.').slice(-2).join('.'))
+    return { url: engine.href, shared: site(engine.hostname) === site(page.hostname) }
+  }
+  if (!loopback.includes(engine.hostname)) return { url: engine.href, shared: true }
+  engine.hostname = engine.hostname === 'localhost' ? '127.0.0.1' : 'localhost'
+  return { url: engine.href, shared: false }
+}
+
 /** Why an engine cannot be chosen here, or null when it can. */
 export function roadRendererUnavailable(
   id: RoadRendererId,

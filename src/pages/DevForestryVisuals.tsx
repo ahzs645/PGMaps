@@ -93,12 +93,15 @@ import { fetchSceneCover } from './dev-forestry/bcVegetationInventory'
 import type { SceneCoverSource } from './dev-forestry/sceneCover'
 import { buildFinalStand, finalStandBearings, finalStandRadius, moveStandOrigin } from './dev-forestry/finalStand'
 import { ExternalRoadRenderer, type EngineCaptureHandle } from './dev-forestry/ExternalRoadRenderer'
+import { useBackgroundRenders, type RenderJob } from './dev-forestry/BackgroundRenders'
+import type { RenderEngineId } from './dev-forestry/renderEstimate'
 import {
   ENGINE_CLASS_PALETTE,
   cameraMismatch,
   captureRequest,
   captureTerrain,
   depthSummary,
+  FINAL_SAMPLES,
   readCaptureReply,
   type EngineCaptureRequest,
   type FigureIllustration,
@@ -146,6 +149,7 @@ import {
   type ViewpointPage,
 } from './dev-forestry/blockNote'
 import {
+  captureAtCamera,
   captureClassPass,
   captureFramed,
   FRAMED_WIDTH,
@@ -153,6 +157,19 @@ import {
   captureMapImage,
   capturePlanMap,
 } from './dev-forestry/mapCapture'
+import {
+  captureFrame,
+  fitCamera,
+  planOverviewSheet,
+  planReportMaps,
+  REPORT_MAP_ASPECT,
+  reportMapFeatures,
+  type ReportMapPlan,
+  type ReportViewpoint,
+} from './dev-forestry/reportMaps'
+import { captureReportMap, waitUntil } from './dev-forestry/reportMapCapture'
+import type { ReportImages } from './dev-forestry/viaReport/parts'
+import type { ReportFigure } from './dev-forestry/viaReport/model'
 import { matchingDesign } from './dev-forestry/assessmentTools'
 import {
   focalForHfov,
@@ -203,7 +220,13 @@ import {
 } from './dev-forestry/viewpointInventory'
 import { EVQO_CODE_FOR_CLASS, viewCaption, type EvqoCode, type ViewpointFinding } from './dev-forestry/visualsNarrative'
 import { distanceAlongRoad, hazeRings, roadPath, roadPlacement } from './dev-forestry/driveMath'
-import { metersPerDegree, pointInPolygon, polygonInteriorPoint, type PolygonGeometry } from './dev-forestry/visibility'
+import {
+  haversineMeters,
+  metersPerDegree,
+  pointInPolygon,
+  polygonInteriorPoint,
+  type PolygonGeometry,
+} from './dev-forestry/visibility'
 import {
   createEmptyScene,
   createId,
@@ -230,7 +253,13 @@ import {
 } from './dev-forestry/treeFreeAreas'
 import { standingPoint, surveyedEyeElevation } from './dev-forestry/viewpointStand'
 import { StoodViewpointPanel } from './dev-forestry/StoodViewpointPanel'
-import { DEFAULT_PLAN_SHOW, togglePlanLegendKey, type PlanBasemap, type PlanShow } from './dev-forestry/planLayers'
+import {
+  DEFAULT_PLAN_SHOW,
+  togglePlanLegendKey,
+  type PlanBasemap,
+  type PlanLegendKey,
+  type PlanShow,
+} from './dev-forestry/planLayers'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { useVisualQualityTable } from './dev-forestry/useVisualQualityTable'
 import { ViewpointSummary, useViewpointSummaryPreferences } from './dev-forestry/ViewpointSummary'
@@ -248,7 +277,7 @@ import {
 } from './dev-forestry/visualsWorkspace'
 import { assessVia, fs1252ReviewFromVia, table2Class, viaStepStatuses, type ViaReview } from './dev-forestry/via'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
-import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
+import { bearingDegrees, lineLengthMeters, polygonAreaMeters, polygonBounds } from './dev-forestry/visibility'
 
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 const NO_TARGETS: TargetPolygon[] = []
@@ -314,6 +343,50 @@ function captureSamplesFromUrl(): number | undefined {
   if (!import.meta.env.DEV) return undefined
   const samples = Number(new URLSearchParams(window.location.search).get('captureSamples'))
   return Number.isInteger(samples) && samples >= 1 && samples <= 256 ? samples : undefined
+}
+
+/**
+ * Every plan legend row, hidden while the VIA report captures its maps: the report's map figure draws the blocks,
+ * openings, road, inventory and viewpoints itself (`reportMaps.ts`), over the plan's basemap alone.
+ */
+const REPORT_HIDDEN_PLAN_KEYS: ReadonlySet<PlanLegendKey> = new Set<PlanLegendKey>([
+  'block',
+  'landform',
+  'opening',
+  'road',
+  'tree-free',
+  'samples:visible',
+  'samples:hidden',
+  'samples:unknown',
+  'viewpoint',
+  'exposure',
+  'candidate:ridge-layer',
+  'candidate:facing',
+  'candidate:visible-face',
+  'other-ridge-layers',
+  'clue:ridge',
+  'clue:hollow',
+  'clue:other',
+  'vli-viewpoint',
+  'arrow',
+  'rec-site',
+  'screening',
+  'mask:natural',
+  'mask:private',
+  'mask:permanent',
+  'mask:retained',
+])
+
+/** Where a saved view's figure is taken from: the station, the eye and the drive's exact pose, the lens. */
+type FigureAt = {
+  stationIndex: number
+  eye: { lng: number; lat: number } | null
+  fov: number
+  name: string
+  /** The drive's own pose: the eye's exact place and height. */
+  pose: DrivePose | null
+  /** A field photo's horizontal field, when the view is lined up on one. */
+  photoHfov: number | null
 }
 
 type InventoryState = {
@@ -452,6 +525,22 @@ function DevForestryVisuals() {
   // The plan map's basemap and overlays (its Layers button) and the legend rows hidden;
   // the road view keeps its set on `drive`.
   const [planShow, setPlanShow] = useState<PlanShow>(DEFAULT_PLAN_SHOW)
+  // While the VIA report captures its maps, the plan draws only its basemap (the figure draws the rest) on the
+  // basemap the map asks for; null the rest of the time. `reportBasemapShown` follows once the plan has rendered it.
+  // `topo` is the vector map with the plan's own hillshade, for the 11 × 17 overview sheet.
+  const [reportBasemap, setReportBasemap] = useState<ReportMapPlan['basemap'] | null>(null)
+  const reportBasemapShown = useRef<ReportMapPlan['basemap'] | null>(null)
+  useEffect(() => {
+    reportBasemapShown.current = reportBasemap
+  }, [reportBasemap])
+  const planLook: PlanShow = reportBasemap
+    ? {
+        basemap: reportBasemap === 'topo' ? 'map' : reportBasemap,
+        hillshade: reportBasemap === 'topo',
+        evqo: false,
+        hidden: REPORT_HIDDEN_PLAN_KEYS,
+      }
+    : planShow
   const [seenRoadClass, setSeenRoadClass] = useState<string | null>(null)
   const [autoClearing, setAutoClearing] = useState(DEFAULT_DRIVE.roadClearWidthMeters)
   if (basemap.roadClass !== seenRoadClass) {
@@ -1207,8 +1296,19 @@ function DevForestryVisuals() {
   // With each, the class pass, callouts and run figures its VIA figure is composed from (`FigureSheetPanel`),
   // and its viewpoint record (design, settings, any lined-up field photo) for the report's per-viewpoint pages.
   const [viewImages, setViewImages] = useState<
-    Record<string, NoteImage & { savedAt: number; figure?: SavedFigure; viewpoint?: Omit<ViewpointPage, 'simulation'> }>
+    Record<
+      string,
+      NoteImage & {
+        savedAt: number
+        figure?: SavedFigure
+        viewpoint?: Omit<ViewpointPage, 'simulation'>
+        /** Where the view's figure was taken from, so another engine can draw it again later (`useBackgroundRenders`). */
+        figureAt?: FigureAt
+      }
+    >
   >({})
+  // The saved views' figures drawn again by another engine in the background, by view, engine and scene.
+  const [engineFigures, setEngineFigures] = useState<Record<string, SavedFigure>>({})
   // The block note's views as composed VIA figures (FigureSheetPanel) rather than plain screenshots.
   const [noteFigures, setNoteFigures] = useState(false)
   // Save & export: where it opens, the note's text from the Visuals panel, and the field brief's block.
@@ -1723,6 +1823,12 @@ function DevForestryVisuals() {
     // Whole degrees, so the stand is not regrown for a fraction of one.
     return centre ? Math.round(bearingDegrees(standPoint, centre)) : null
   }, [standPoint, drive.lookBearing, drive.lookAtTargetId, scene.targets, selectedTargetId, sceneLandform])
+  const privateLandClearing = useMemo(() => {
+    const lots = (scene.masks ?? []).filter((mask) => mask.kind === 'private')
+    if (!lots.length) return null
+    const hectares = lots.reduce((sum, mask) => sum + polygonAreaMeters(mask.geometry) / 10_000, 0)
+    return { cleared: !!scene.clearPrivateLand, hectares }
+  }, [scene.masks, scene.clearPrivateLand])
   const viewpointClearing = useMemo(
     () => (standPoint ? viewpointClearingArea(standPoint, clearingFacing, viewpointClearingSetting) : null),
     [standPoint, clearingFacing, viewpointClearingSetting],
@@ -2174,7 +2280,9 @@ function DevForestryVisuals() {
     return [
       ...openings,
       ...basemap.water,
-      ...(scene.masks ?? []).filter((m) => m.kind === 'natural').map((m) => m.geometry),
+      ...(scene.masks ?? [])
+        .filter((m) => m.kind === 'natural' || (scene.clearPrivateLand && m.kind === 'private'))
+        .map((m) => m.geometry),
       ...(scene.treeFreeAreas ?? []).map((area) => area.geometry),
       ...(viewpointClearing ? [viewpointClearing.geometry] : []),
       ...(corridor ? [corridor] : []),
@@ -2186,6 +2294,7 @@ function DevForestryVisuals() {
     drive.roadClearWidthMeters,
     scene.viewpoint,
     scene.masks,
+    scene.clearPrivateLand,
     scene.treeFreeAreas,
     viewpointClearing,
     basemap.water,
@@ -2479,6 +2588,7 @@ function DevForestryVisuals() {
             sampleCount: target.sampleCount,
             visibleByStation: target.visibleByStation,
             interior: interior ? { lng: interior.lng, lat: interior.lat, elevation } : null,
+            apparentByStation: target.visibleApparentSolidAngleByStation,
           },
         ]
       }),
@@ -2668,6 +2778,9 @@ function DevForestryVisuals() {
     cameraStatus === 'ready' &&
     // Without drawn timber (the note screenshot look) there is no forest to wait for.
     (!drive.forest || (!!currentForestStatus?.ready && !currentForestStatus.error))
+  // The VIA report's before-harvest renders wait on it after switching the harvest phase.
+  const canSaveViewRef = useRef(canSaveView)
+  canSaveViewRef.current = canSaveView
   /** "View from Hwy 97 going north." — the caption a planning note puts under the screenshot. */
   const captionForView = (lookBearing: number | null) => {
     const coordinates = scene.viewpoint.coordinates
@@ -2693,26 +2806,13 @@ function DevForestryVisuals() {
     })
   }
   /**
-   * The class pass of the road view as it stands, and what its VIA figure prints: callouts from the
-   * run's own sightlines at this station, the run's perspective figure there, the lens and facts.
+   * Where a saved view's figure is framed from: the eye at the drive's exact pose and the frames that put the landform
+   * (or, with none, the blocks) mid-frame as the reference sheets crop it (figureFraming.ts). The VIA report's
+   * before-harvest render takes the same frames, so it lines up with the view's figure.
    */
-  const captureViewFigure = async (
-    map: NonNullable<typeof eyeMapRef.current>,
-    at: {
-      stationIndex: number
-      eye: { lng: number; lat: number } | null
-      fov: number
-      name: string
-      /** The drive's own pose: the eye's exact place and height. */
-      pose: DrivePose | null
-      /** A field photo's horizontal field, when the view is lined up on one. */
-      photoHfov: number | null
-    },
-  ): Promise<SavedFigure> => {
+  const figureFramingFor = (at: FigureAt) => {
     const ground = previewTerrain.source
     const eye = at.pose ? { lng: at.pose.lng, lat: at.pose.lat, elevation: at.pose.eyeElevationMeters } : null
-    // Frame the landform (or, with none, the blocks) as the reference sheets crop it, then put the
-    // reviewer's camera back (figureFraming.ts, captureFramed).
     const blocksOnly = scene.targets.filter((target) => target.role === 'block')
     const subject: PolygonGeometry | null =
       sceneLandform?.geometry ??
@@ -2731,6 +2831,20 @@ function DevForestryVisuals() {
       : extent
         ? planFraming(extent, { lensHfovDeg: at.photoHfov ?? HFOV_50_MM })
         : null
+    return { ground, eye, plan }
+  }
+  /**
+   * The class pass of the road view as it stands, and what its VIA figure prints: callouts from the
+   * run's own sightlines at this station, the run's perspective figure there, the lens and facts.
+   */
+  const captureViewFigure = async (
+    map: NonNullable<typeof eyeMapRef.current>,
+    at: FigureAt,
+    /** Who draws the frames: the road view's engine when it has one, else PGMaps; a background render passes its own. */
+    engine: EngineCaptureHandle | null = drive.renderer !== 'pgmaps' ? engineCaptureRef.current : null,
+  ): Promise<SavedFigure> => {
+    // Frame the landform (or, with none, the blocks), then put the reviewer's camera back (captureFramed).
+    const { ground, eye, plan } = figureFramingFor(at)
     let classes: ReturnType<typeof decodeClassRaster>
     let frameImage: NoteImage | undefined
     let project: (lng: number, lat: number, elevation: number) => [number, number] | null
@@ -2748,7 +2862,6 @@ function DevForestryVisuals() {
     let engineTreeHeight: number | null | undefined
     // The engine's pass with its trees drawn, for the screened pixel figure beside the ground one.
     let screened: ReturnType<typeof decodeClassRaster> | null = null
-    const engine = drive.renderer !== 'pgmaps' ? engineCaptureRef.current : null
     if (plan && eye) {
       let framed: Pick<Awaited<ReturnType<typeof captureFramed>>, 'image' | 'classes' | 'zones' | 'frameWidth'>
       if (engine) {
@@ -2836,6 +2949,7 @@ function DevForestryVisuals() {
       visibleBlockPoints,
       landformUnitId: sceneLandform?.inventoryUnitId ?? null,
       landform: sceneLandform?.geometry ?? null,
+      read: inventory.status === 'ready',
     })
     const nearest = callouts
       .filter((callout) => !callout.secondary)
@@ -2879,6 +2993,9 @@ function DevForestryVisuals() {
       ratingNote: badge.note,
       area: sceneLandform?.name ?? 'Landform',
       viewpoint: at.name,
+      ...(scene.viewpoint.name ? { place: scene.viewpoint.name } : {}),
+      ...(hiddenBlocks.length ? { hidden: hiddenBlocks } : {}),
+      inventoryRead: inventory.status === 'ready',
       splitFailed: figureClasses.failed,
       lines,
       ...(zones ? { zones } : {}),
@@ -3080,7 +3197,10 @@ function DevForestryVisuals() {
           setPreviewMessage(`Saved ${view.name}, but its screenshot could not be taken.`)
           return
         }
-        setViewImages((current) => ({ ...current, [view.id]: { ...image, caption, savedAt, viewpoint } }))
+        setViewImages((current) => ({
+          ...current,
+          [view.id]: { ...image, caption, savedAt, viewpoint, figureAt: at },
+        }))
         // Another engine takes seconds to draw the sheet's frames: say so, and say who drew them.
         const engine = drive.renderer !== 'pgmaps' ? engineCaptureRef.current : null
         if (engine) setPreviewMessage(`Saved ${view.name}. ${engine.label} is drawing its analysis sheet…`)
@@ -3323,6 +3443,300 @@ function DevForestryVisuals() {
     analysisRunning: analysis.state.status === 'running' || analysis.reverseState.status === 'running',
     onOpenExport: exportOpener.openExport,
   })
+  // Saved views drawn again by another engine at final quality, in the background (`BackgroundRenders.tsx`).
+  const captureViewFigureRef = useRef(captureViewFigure)
+  captureViewFigureRef.current = captureViewFigure
+  const viewImagesRef = useRef(viewImages)
+  viewImagesRef.current = viewImages
+  const backgroundRenders = useBackgroundRenders({
+    urlFor: (engine) => roadRendererUrl(engine, import.meta.env),
+    environment: drive.engineEnvironment,
+    run: async (job, handle) => {
+      const image = viewImagesRef.current[job.viewId]
+      if (!image?.figureAt) throw new Error('its camera was not kept: save the view again.')
+      const map = eyeMapRef.current
+      if (!map) throw new Error('the road view is closed: open it, the engine draws from its terrain.')
+      const figure = await captureViewFigureRef.current(map, image.figureAt, handle)
+      setEngineFigures((current) => ({ ...current, [job.key]: figure }))
+    },
+  })
+  /** The render job for a saved view by `engine`, sized from the figure it already has. */
+  const renderJobFor = (viewId: string, engine: RenderEngineId): RenderJob | null => {
+    const image = viewImages[viewId]
+    const figure = image?.figure
+    if (!image?.figureAt || !figure) return null
+    const frames = figure.camera?.frames ?? 1
+    return {
+      key: `${viewId}|${engine}|${key ?? ''}`,
+      viewId,
+      viewName: savedViews.find((view) => view.id === viewId)?.name ?? image.caption.replace(/\.$/, ''),
+      engine,
+      work: {
+        frames,
+        width: Math.floor(FRAMED_WIDTH / frames),
+        height: figure.frameImage?.height ?? figure.classes.height,
+        samples: captureSamplesFromUrl() ?? FINAL_SAMPLES,
+      },
+    }
+  }
+  /**
+   * The VIA report's maps and extra pictures, captured while the report file is built (Save & export, `via-report`):
+   * the overview, the overview again as an 11 × 17 topographic sheet, a location map per viewpoint and the regional map
+   * from the plan map (`reportMaps.ts`), each view's
+   * before picture (its lined-up field photo, else a before-harvest render from the view's own framed pose) and
+   * overhead and oblique renders of the blocks from the road view. Every capture puts the maps, the plan's look and the
+   * harvest phase back in `finally`, and none writes to the scene. What cannot be captured is left out, with a note.
+   */
+  const captureReportImages = async (request: {
+    /** The saved views the report prints, with the name the report gives each viewpoint. */
+    views: ReadonlyArray<{ id: string; name: string }>
+  }): Promise<{ images: ReportImages; notes: string[] }> => {
+    const notes: string[] = []
+    const images: {
+      overviewMap?: ReportFigure
+      overviewSheet?: ReportFigure
+      regionalMap?: ReportFigure
+      locationMaps: Record<string, ReportFigure>
+      before: Record<string, ReportFigure & { source: 'photo' | 'render' }>
+      overhead: ReportFigure[]
+    } = { locationMaps: {}, before: {}, overhead: [] }
+    const viewpoints: ReportViewpoint[] = request.views.flatMap((view) => {
+      const image = viewImages[view.id]
+      const camera = image?.figure?.camera
+      const pose = image?.figureAt?.pose
+      const lng = camera?.lng ?? pose?.lng ?? image?.figureAt?.eye?.lng
+      const lat = camera?.lat ?? pose?.lat ?? image?.figureAt?.eye?.lat
+      if (lng === undefined || lat === undefined) return []
+      return [
+        {
+          name: view.name,
+          lng,
+          lat,
+          bearingDeg: camera?.azimuthDeg ?? image?.viewpoint?.bearingDegrees ?? null,
+          fovDeg: camera?.fovDeg ?? image?.figure?.hfovDeg ?? null,
+        },
+      ]
+    })
+    const features = reportMapFeatures({
+      targets: scene.targets,
+      units: inventory.status === 'ready' ? inventory.units : [],
+      evqo: evqoCurrent && !evqoCurrent.error ? evqoCurrent.collection : null,
+      road: scene.viewpoint.mode === 'corridor' ? (scene.viewpoint.coordinates as Array<[number, number]>) : null,
+      viewpoints,
+    })
+
+    // The plan map: on imagery for the overview and location maps, on the vector map for the regional one, and on
+    // the vector map with its hillshade for the 11 × 17 overview sheet (17:11, its own window of the canvas).
+    const plan = mapRef.current as unknown as import('maplibre-gl').Map | null
+    const canvas = plan?.getCanvas()
+    const frame = canvas
+      ? captureFrame({ width: canvas.clientWidth, height: canvas.clientHeight }, REPORT_MAP_ASPECT.overview)
+      : null
+    const sheetFrame = canvas
+      ? captureFrame({ width: canvas.clientWidth, height: canvas.clientHeight }, REPORT_MAP_ASPECT.sheet)
+      : null
+    if (!plan || !frame)
+      notes.push('The plan map is not open, so the report has no overview, location or regional map.')
+    else if (frame.width < 240 || frame.height < 180)
+      notes.push('The plan map pane is too small to capture the report’s maps; widen it and build the report again.')
+    else {
+      const sheet = sheetFrame ? planOverviewSheet(features, sheetFrame) : null
+      const plans = [...planReportMaps(features, frame), ...(sheet ? [sheet] : [])]
+      try {
+        for (const basemap of ['satellite', 'map', 'topo'] as const) {
+          const group = plans.filter((entry) => entry.basemap === basemap)
+          if (!group.length) continue
+          setReportBasemap(basemap)
+          if (!(await waitUntil(() => reportBasemapShown.current === basemap, 5000))) {
+            notes.push(
+              `The plan map did not switch to its ${basemap === 'satellite' ? 'imagery' : basemap === 'topo' ? 'topographic map' : 'vector map'} in time.`,
+            )
+            continue
+          }
+          for (const entry of group) {
+            try {
+              const figure = await captureReportMap(
+                plan,
+                entry,
+                features,
+                entry.kind === 'sheet' && sheetFrame ? sheetFrame : frame,
+              )
+              if (entry.kind === 'overview') images.overviewMap = figure
+              else if (entry.kind === 'sheet') images.overviewSheet = figure
+              else if (entry.kind === 'regional') images.regionalMap = figure
+              else images.locationMaps[entry.key] = figure
+            } catch (error) {
+              notes.push(
+                `The ${entry.kind === 'location' ? `location map for ${entry.key}` : entry.kind === 'sheet' ? '11 × 17 overview sheet' : `${entry.kind} map`} could not be captured: ${error instanceof Error ? error.message : String(error)}`,
+              )
+            }
+          }
+        }
+      } finally {
+        setReportBasemap(null)
+      }
+    }
+
+    // Before pictures: a lined-up field photo, a view saved before harvest, else a render from the view's framed pose.
+    const toRender: Array<{ name: string; at: FigureAt }> = []
+    for (const view of request.views) {
+      const image = viewImages[view.id]
+      const photo = image?.viewpoint?.photo
+      if (photo) {
+        images.before[view.name] = {
+          view: view.name,
+          caption: `Before: the lined-up field photograph from ${view.name}. ${photo.caption}`,
+          dataUrl: photo.dataUrl,
+          width: photo.width,
+          height: photo.height,
+          source: 'photo',
+        }
+      } else if (image?.viewpoint?.harvestPhase === 'before' && image.figure?.frameImage) {
+        const frameImage = image.figure.frameImage
+        images.before[view.name] = {
+          view: view.name,
+          caption: `Before harvest: the road view from ${view.name} as saved, before harvest.`,
+          dataUrl: frameImage.dataUrl,
+          width: frameImage.width,
+          height: frameImage.height,
+          source: 'render',
+        }
+      } else if (image?.figureAt?.pose) toRender.push({ name: view.name, at: image.figureAt })
+      else notes.push(`${view.name} has no before picture: no field photo was lined up and its camera was not kept.`)
+    }
+    const eyeMap = eyeMapRef.current as unknown as import('maplibre-gl').Map | null
+    const roadViewReady = !!eyeMap && driveRef.current.active && !!previewTerrain.source
+    const blocks = scene.targets.filter((target) => target.role === 'block')
+    if ((toRender.length || blocks.length) && !roadViewReady)
+      notes.push(
+        'The road view is closed, so the report has no before-harvest renders (field photos only) and no overhead renders: open it and build the report again.',
+      )
+    if (roadViewReady && eyeMap) {
+      const phaseBefore = driveRef.current.harvestPhase
+      const showPhase = async (phase: 'before' | 'after') => {
+        if (driveRef.current.harvestPhase === phase) return true
+        updateDrive({ harvestPhase: phase })
+        await waitUntil(() => driveRef.current.harvestPhase === phase, 5000)
+        // The stand is regrown for the phase: give it a moment to start, then wait until the view could be saved.
+        await new Promise((resolve) => window.setTimeout(resolve, 600))
+        return waitUntil(() => canSaveViewRef.current, 60_000)
+      }
+      try {
+        if (toRender.length) {
+          if (!(await showPhase('before')))
+            notes.push('The road view did not finish drawing before harvest, so the before renders were left out.')
+          else
+            for (const entry of toRender) {
+              const framing = figureFramingFor(entry.at)
+              if (!framing.plan || !framing.eye) {
+                notes.push(`${entry.name}: the before render could not be framed (no terrain under the view yet).`)
+                continue
+              }
+              try {
+                const shot = await captureFramed(eyeMap, framing.plan, framing.eye, null)
+                images.before[entry.name] = {
+                  view: entry.name,
+                  caption: `Before harvest: the road view from ${entry.name}, framed as its analysis figure (${framing.plan.label}), drawn without the proposed blocks.`,
+                  ...shot.image,
+                  source: 'render',
+                }
+              } catch (error) {
+                notes.push(
+                  `${entry.name}: the before render could not be taken: ${error instanceof Error ? error.message : String(error)}`,
+                )
+              }
+            }
+        }
+        // Overhead and oblique renders of the blocks after harvest, as the road view draws them (01 p7).
+        if (blocks.length && (await showPhase('after'))) {
+          const ground = previewTerrain.source
+          const eyeCanvas = eyeMap.getCanvas()
+          const window_ = captureFrame({ width: eyeCanvas.clientWidth, height: eyeCanvas.clientHeight }, 4 / 3)
+          const box = blocks.reduce<[number, number, number, number]>(
+            (acc, block) => {
+              const b = polygonBounds(block.geometry)
+              return [Math.min(acc[0], b[0]), Math.min(acc[1], b[1]), Math.max(acc[2], b[2]), Math.max(acc[3], b[3])]
+            },
+            [Infinity, Infinity, -Infinity, -Infinity],
+          )
+          const elevationAt = (lng: number, lat: number) => {
+            const value = ground?.elevationAt(lng, lat)
+            return value !== undefined && Number.isFinite(value) ? value : undefined
+          }
+          const overhead = fitCamera(box, window_, 0.08)
+          try {
+            const shot = await captureAtCamera(
+              eyeMap,
+              { ...overhead, elevation: elevationAt(...overhead.center) },
+              window_,
+            )
+            images.overhead.push({
+              view: 'overhead',
+              caption: `Overhead render: ${blocks.length === 1 ? 'the proposed block' : `the ${blocks.length} proposed blocks`} after harvest, as the road view draws them on the terrain.`,
+              dataUrl: shot.dataUrl,
+              width: shot.width,
+              height: shot.height,
+            })
+          } catch (error) {
+            notes.push(
+              `The overhead render could not be taken: ${error instanceof Error ? error.message : String(error)}`,
+            )
+          }
+          // Obliques of the blocks nearest the first viewpoint, looked at the way that viewpoint looks.
+          const from = viewpoints[0] ?? null
+          const ranked = blocks
+            .map((block) => ({ block, centre: polygonInteriorPoint(block.geometry) }))
+            .filter((entry): entry is { block: TargetPolygon; centre: { lng: number; lat: number } } => !!entry.centre)
+            .sort((a, b) => (from ? haversineMeters(from, a.centre) - haversineMeters(from, b.centre) : 0))
+            .slice(0, 4)
+          for (const { block, centre } of ranked) {
+            const b = polygonBounds(block.geometry)
+            const padX = (b[2] - b[0]) * 0.6,
+              padY = (b[3] - b[1]) * 0.6
+            const camera = fitCamera([b[0] - padX, b[1] - padY, b[2] + padX, b[3] + padY], window_, 0.05)
+            const bearing = from ? bearingDegrees(from, centre) : 0
+            try {
+              const shot = await captureAtCamera(
+                eyeMap,
+                {
+                  center: [centre.lng, centre.lat],
+                  zoom: camera.zoom,
+                  bearing,
+                  pitch: 60,
+                  elevation: elevationAt(centre.lng, centre.lat),
+                },
+                window_,
+              )
+              images.overhead.push({
+                view: block.name,
+                caption: `Oblique render: ${block.name} after harvest, looking ${Math.round(bearing)}°${from ? ` (from ${from.name}'s side)` : ''}.`,
+                dataUrl: shot.dataUrl,
+                width: shot.width,
+                height: shot.height,
+              })
+            } catch (error) {
+              notes.push(
+                `The oblique render of ${block.name} could not be taken: ${error instanceof Error ? error.message : String(error)}`,
+              )
+            }
+          }
+        }
+      } finally {
+        if (driveRef.current.harvestPhase !== phaseBefore) updateDrive({ harvestPhase: phaseBefore })
+      }
+    }
+    return {
+      images: {
+        overviewMap: images.overviewMap ?? null,
+        overviewSheet: images.overviewSheet ?? null,
+        regionalMap: images.regionalMap ?? null,
+        locationMaps: images.locationMaps,
+        before: images.before,
+        overhead: images.overhead,
+      },
+      notes,
+    }
+  }
   const exportDialog = useVisualsExport({
     opener: exportOpener,
     scene,
@@ -3366,8 +3780,18 @@ function DevForestryVisuals() {
     worksheet: worksheetFile,
     scenePackage: { ready: drive.active && !!previewTerrain.source && !!driveEye, build: scenePackageFile },
     evidence: tools.evidence,
+    renders: {
+      figures: engineFigures,
+      jobs: backgroundRenders.jobs,
+      history: backgroundRenders.history,
+      leftMs: backgroundRenders.status.leftMs,
+      enqueue: backgroundRenders.enqueue,
+      jobFor: renderJobFor,
+      ready: !!eyeMapRef.current && !!previewTerrain.source,
+    },
     briefBlockId: briefBlockId ?? selectedTargetId,
     onBriefBlockId: setBriefBlockId,
+    captureReportImages,
   })
   const maskCollection: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
@@ -3505,8 +3929,8 @@ function DevForestryVisuals() {
     scene,
     result,
     preliminaryDrive,
-    planShow,
-    showInventory,
+    planShow: planLook,
+    showInventory: showInventory && !reportBasemap,
     inventory,
     selectedTargetId,
     drawMode,
@@ -3808,6 +4232,15 @@ function DevForestryVisuals() {
         area: viewpointClearing,
       }}
       onViewpointClearingChange={(setting) => setScene((current) => ({ ...current, viewpointClearing: setting }))}
+      privateLandClearing={privateLandClearing}
+      onPrivateLandClearingChange={(cleared) =>
+        setScene((current) => {
+          const next = { ...current }
+          if (cleared) next.clearPrivateLand = true
+          else delete next.clearPrivateLand
+          return next
+        })
+      }
       onRemoveTreeFreeArea={(areaId) =>
         setScene((current) => ({
           ...current,
@@ -3975,6 +4408,7 @@ function DevForestryVisuals() {
           </Button>
         </div>
         {exportDialog}
+        {backgroundRenders.tray}
         {/* The panes already sit below the phone's floating toolbar, so overlays in them need not clear it. */}
         <div className="flex min-h-0 flex-1 [--map-mobile-toolbar-height:0px]">
           <TiledWorkspace
@@ -4044,11 +4478,11 @@ function DevForestryVisuals() {
                         <TerrainSupport
                           terrain={false}
                           exaggeration={1}
-                          hillshade={planShow.hillshade}
+                          hillshade={planLook.hillshade}
                           hillshadeIntensity={0.45}
                         />
                         <VisualQualityLayers mode="plan" data={layerData} />
-                        <MapViewerCone viewer={planViewer} />
+                        <MapViewerCone viewer={reportBasemap ? null : planViewer} />
                         <MapSketch sketch={measure} testId="visuals-measure" />
                         {measuring && (
                           <MapOverlay

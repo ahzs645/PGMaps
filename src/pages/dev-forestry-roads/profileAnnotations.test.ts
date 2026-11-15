@@ -10,9 +10,13 @@ import {
   earthworkText,
   isGradeTrouble,
   placeLabels,
+  planProfileMarks,
+  CURVE_ENDS_MIN_PX,
+  ROTATED_LABEL_SPACING_PX,
   pviDragReadout,
   SAG_CULVERT_SEARCH_M,
   tangentGrades,
+  type CurvePoint,
 } from './profileAnnotations'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, Coordinate, VerticalPoint } from './types'
@@ -155,6 +159,67 @@ describe('curve points', () => {
     expect(points).toEqual([
       { id: 'p1-high', kind: 'high', chainage: 200, elevation: 820, pviId: 'p1', curve: undefined },
     ])
+  })
+})
+
+describe('what a long profile has room for', () => {
+  // A 27.8 km road: 236 vertical curves 100 m long, every sag without a culvert.
+  const points: CurvePoint[] = Array.from({ length: 236 }, (_, i) => {
+    const chainage = 100 + i * 117
+    return [
+      {
+        id: `p${i}-bvc`,
+        kind: 'bvc' as const,
+        chainage: chainage - 50,
+        elevation: 300,
+        pviId: `p${i}`,
+        curve: { lengthM: 100, k: 30 },
+      },
+      {
+        id: `p${i}-evc`,
+        kind: 'evc' as const,
+        chainage: chainage + 50,
+        elevation: 300,
+        pviId: `p${i}`,
+        curve: { lengthM: 100, k: 30 },
+      },
+      i % 2
+        ? { id: `p${i}-low`, kind: 'low' as const, chainage, elevation: 299, pviId: `p${i}`, noCulvert: true }
+        : { id: `p${i}-high`, kind: 'high' as const, chainage, elevation: 301, pviId: `p${i}` },
+    ]
+  }).flat()
+  const callouts = Array.from({ length: 236 }, (_, i) => ({ id: `p${i}`, chainage: 100 + i * 117 }))
+  const plan = (domain: [number, number], width = 380) =>
+    planProfileMarks({ points, callouts, x: (c) => ((c - domain[0]) / (domain[1] - domain[0])) * width, domain })
+
+  it('shows the whole road as a few flagged sags, no curve ends, and labels never closer than the spacing', () => {
+    const whole = plan([0, 27_800])
+    expect([...whole.markers].some((id) => id.endsWith('-bvc') || id.endsWith('-evc'))).toBe(false)
+    const labels = [...whole.curveLabels, ...whole.callouts].length
+    expect(labels).toBeLessThanOrEqual(Math.floor(380 / ROTATED_LABEL_SPACING_PX) + 1)
+    // Flagged sags outrank everything else, so the labels shown are sags.
+    expect([...whole.curveLabels].every((id) => id.endsWith('-low'))).toBe(true)
+    expect(whole.callouts.size).toBe(0)
+  })
+
+  it('brings curve ends, stations and labels back when zoomed in', () => {
+    const near = plan([5_000, 6_000])
+    expect((100 * 380) / 1000).toBeGreaterThanOrEqual(CURVE_ENDS_MIN_PX)
+    expect([...near.markers].some((id) => id.endsWith('-bvc'))).toBe(true)
+    // Every high and low point in view keeps its label; curve ends take the room left between them.
+    const extremes = points.filter(
+      (p) => (p.kind === 'high' || p.kind === 'low') && p.chainage >= 5_000 && p.chainage <= 6_000,
+    )
+    expect(extremes.every((p) => near.curveLabels.has(p.id))).toBe(true)
+    // A PVI callout gives way to the high or low point labelled at the same station.
+    expect(near.callouts.size).toBe(0)
+    const plain = planProfileMarks({
+      points: [],
+      callouts,
+      x: (c) => ((c - 5_000) / 1_000) * 380,
+      domain: [5_000, 6_000],
+    })
+    expect(plain.callouts.size).toBeGreaterThan(5)
   })
 })
 

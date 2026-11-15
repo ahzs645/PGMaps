@@ -18,6 +18,7 @@
    "place": "Quesnel",
    "regionId": "cariboo",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 348539.05
@@ -42,6 +43,7 @@
    "party": "West Horizon Contracting Inc.",
    "place": "Canyon Creek",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 237730
@@ -67,6 +69,7 @@
    "place": "Nakusp area",
    "regionId": "kootenay-boundary",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 823555
@@ -92,6 +95,7 @@
    "place": "Kootenay Lake area",
    "regionId": "kootenay-boundary",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 233524
@@ -117,6 +121,7 @@
    "place": "Castlegar area",
    "regionId": "kootenay-boundary",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 821371.12
@@ -142,6 +147,7 @@
    "place": "Port Neville",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 1186701
@@ -167,6 +173,7 @@
    "place": "Prince George",
    "regionId": "omineca",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 101811.16
@@ -192,6 +199,7 @@
    "place": "Hazelton",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 100386
@@ -217,6 +225,7 @@
    "place": "Chilliwack/Coquihalla area",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 637646.43
@@ -242,6 +251,7 @@
    "place": "Various sites, Williams Lake TSA",
    "regionId": "cariboo",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 118165
@@ -267,6 +277,7 @@
    "place": "Burns Lake area",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 385516
@@ -292,6 +303,7 @@
    "place": "Smithers area",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 141386
@@ -317,6 +329,7 @@
    "place": "Houston area",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 199945
@@ -342,6 +355,7 @@
    "place": "Smithers area",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 162340
@@ -367,6 +381,7 @@
    "place": "Black Creek-Cruiser Lake Forest Service Road, Horsefly River watershed, Cariboo Chilcotin",
    "regionId": "cariboo",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 94613
@@ -393,6 +408,7 @@
    "place": "Babine Lake Road, tributary of Babine Lake, Lake Babine Nation territory",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 602545
@@ -419,6 +435,7 @@
    "place": "Nass River side-channel crossing, northwest British Columbia",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 423424
@@ -444,6 +461,7 @@
    "title": "Pedley Creek culvert replacement",
    "place": "Near Hixon, Pedley/Naver Creek confluence, Central Interior",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 1515439
@@ -470,6 +488,7 @@
    "place": "Near Telkwa, approximately 130 m upstream of the Bulkley River confluence",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 75000
@@ -496,6 +515,7 @@
    "place": "Head Bay Forest Service Road, west Vancouver Island, access route to Tahsis",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 501000
@@ -521,6 +541,7 @@
    "place": "Lakeshore Road near Sproat Lake, Alberni-Clayoquot",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 907500
@@ -547,6 +568,7 @@
    "place": "Training Berm, Squamish Central Estuary, Howe Sound",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 819310
@@ -573,6 +595,7 @@
    "title": "Tako Creek bridge 8147",
    "place": "Clarkson Road, approximately 67 km south of Prince George",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 625000
@@ -600,6 +623,7 @@
    "place": "Mill Creek Road, approximately 16 km from Merritt",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 850000
@@ -626,6 +650,7 @@
    "place": "Applegrove Road, 57 km southwest of Nakusp",
    "regionId": "kootenay-boundary",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 2160000
@@ -653,6 +678,7 @@
    "place": "North Barriere Lake Road, approximately 30 km from Barriere",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 900000
@@ -678,6 +704,7 @@
    "place": "Off Yahk-Meadow Creek Road, approximately 18 km south of Yahk",
    "regionId": "kootenay-boundary",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 215930
@@ -704,6 +731,7 @@
    "place": "4.8 km Loveland Bay Forest Service Road, northwest of Campbell River",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 189603.09
@@ -731,6 +759,7 @@
    "place": "Parksville, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 15
@@ -759,6 +788,7 @@
    "place": "Parksville, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 65
@@ -787,6 +817,7 @@
    "place": "Parksville, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 3
@@ -814,6 +845,7 @@
    "place": "Parksville, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 90
@@ -841,6 +873,7 @@
    "place": "Parksville, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 25
@@ -869,6 +902,7 @@
    "place": "Parksville, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 20
@@ -896,6 +930,7 @@
    "place": "Electoral Area D, south of Campbell River, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 40
@@ -924,6 +959,7 @@
    "place": "Electoral Area D, south of Campbell River, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 50
@@ -952,6 +988,7 @@
    "place": "Electoral Area D, south of Campbell River, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 7500
@@ -982,6 +1019,7 @@
    "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 38000
@@ -1010,6 +1048,7 @@
    "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 25
@@ -1038,6 +1077,7 @@
    "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 65
@@ -1067,6 +1107,7 @@
    "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 65
@@ -1095,6 +1136,7 @@
    "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 65
@@ -1123,6 +1165,7 @@
    "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 35
@@ -1151,6 +1194,7 @@
    "place": "Columbia Street, 22nd Avenue and 25 driveways, Ebenezer Flats near Smithers, BC",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 500
@@ -1182,6 +1226,7 @@
    "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 100
@@ -1211,6 +1256,7 @@
    "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 6
@@ -1237,6 +1283,7 @@
    "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 6
@@ -1264,6 +1311,7 @@
    "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 16
@@ -1290,6 +1338,7 @@
    "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 34
@@ -1316,6 +1365,7 @@
    "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 137
@@ -1342,6 +1392,7 @@
    "place": "Jason Creek / Reid Road, 4.5 km north of Pemberton, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 5
@@ -1368,6 +1419,7 @@
    "place": "Delkatla / Seaplane Spit, Masset, Haida Gwaii, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 30
@@ -1397,6 +1449,7 @@
    "place": "Delkatla / Seaplane Spit, Masset, Haida Gwaii, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 150
@@ -1426,6 +1479,7 @@
    "place": "Delkatla / Seaplane Spit, Masset, Haida Gwaii, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 100

@@ -1,0 +1,16 @@
+{
+  "title": "BC Hired Equipment Program monthly fuel adjustment",
+  "source_url": "https://www2.gov.bc.ca/gov/content/industry/construction-industry/transportation-infrastructure/hired-equipment-program/fuel-price-adjustment",
+  "source_updated_date": "2026-11-02",
+  "adjustment_month": "2026-11",
+  "checked_date": "2026-11-12",
+  "currency": "CAD",
+  "unit": "hour",
+  "on_road_addition": 26.1,
+  "off_road_addition": 60.9,
+  "underlying_average_fuel_month": "2026-10",
+  "underlying_average_fuel_CAD_per_litre": 2.68,
+  "program_base_fuel_CAD_per_litre": 0.94,
+  "comparison_only": true,
+  "limitations": "Transportation Hired Equipment Program only. Not a general contractor surcharge and not the IAM appraisal fuel allowance. Never add to fuel-inclusive quotes without a justified contract basis."
+}

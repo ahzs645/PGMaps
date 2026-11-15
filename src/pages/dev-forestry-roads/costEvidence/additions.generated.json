@@ -1,0 +1,746 @@
+{
+ "checked": "2026-11-14",
+ "records": [
+  {
+   "id": "canim-2025-o1-bypass",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Temporary flow bypass",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 50000
+   },
+   "unit": " allowance",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "Allowance of 1 in every option",
+   "scope": "Class D conceptual estimate for replacing a culvert on a gravel-surfaced provincial road, option 1 (1800 × 900 mm concrete box). Built from quantity take-offs, the consultant's in-house costs and supplier pricing.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "Property acquisition and associated fees are excluded.",
+    "A conceptual-design allowance, not a quote or a tendered price."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 1 summary of estimated costs, item 1.01 (PDF p. 30)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-o1-excavation-reuse",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Common excavation, reused on site",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 50
+   },
+   "unit": "/m³",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "180 m³ in the estimate, option 1",
+   "scope": "Class D conceptual estimate for replacing a culvert on a gravel-surfaced provincial road, option 1 (1800 × 900 mm concrete box). Built from quantity take-offs, the consultant's in-house costs and supplier pricing.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "Excavation at a culvert site, at a few hundred cubic metres; not a road-length earthwork rate.",
+    "The volume basis (bank or loose) is not stated."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 1, item 1.02 (PDF p. 30)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-o1-excavation-offsite",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Common excavation, offsite disposal",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 200
+   },
+   "unit": "/m³",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "40 m³ in the estimate, option 1",
+   "scope": "Class D conceptual estimate for replacing a culvert on a gravel-surfaced provincial road, option 1 (1800 × 900 mm concrete box). Built from quantity take-offs, the consultant's in-house costs and supplier pricing.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "Excavation, loading, haul and disposal off site in one rate; do not add the project's own haul and waste lines to it.",
+    "The disposal site and haul distance are not stated."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 1, item 1.03 (PDF p. 30)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-o1-riprap",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Riprap armouring",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 350
+   },
+   "unit": "/m³",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "60 m³ in the estimate, option 1",
+   "scope": "Class D conceptual estimate for replacing a culvert on a gravel-surfaced provincial road, option 1 (1800 × 900 mm concrete box). Built from quantity take-offs, the consultant's in-house costs and supplier pricing.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "Riprap class and source are not stated; sized in the next design phase."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 1, item 1.04 (PDF p. 30)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-o1-box-culvert",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "1800 × 900 mm concrete box culvert, supply and installation",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 3123
+   },
+   "unit": "/m",
+   "unitNote": "Per lineal metre of culvert.",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "21 m in the estimate, option 1",
+   "scope": "Class D conceptual estimate for replacing a culvert on a gravel-surfaced provincial road, option 1 (1800 × 900 mm concrete box). Built from quantity take-offs, the consultant's in-house costs and supplier pricing.",
+   "tax": "All values exclude GST",
+   "installation": "Supply and installation",
+   "cautions": [
+    "The printed line is $66,837, not 21 × $3,123 = $65,583: the printed quantity or rate is rounded.",
+    "Bypass, excavation, riprap and traffic control are separate lines."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 1, item 1.05 (PDF p. 30)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-o1-traffic",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Traffic control and detour road",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 250000
+   },
+   "unit": " allowance",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "Allowance of 1 in every option",
+   "scope": "Class D conceptual estimate for replacing a culvert on a gravel-surfaced provincial road, option 1 (1800 × 900 mm concrete box). Built from quantity take-offs, the consultant's in-house costs and supplier pricing.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "More than half the option's works subtotal: the road stays open to traffic on a public road. A forest road closed during the work may need none of it."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 1, item 1.06 (PDF p. 30)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-o1-road-gravel",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Road works, gravel subbase and base",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 200
+   },
+   "unit": "/m²",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "80 m² in the estimate, option 1",
+   "scope": "Class D conceptual estimate for replacing a culvert on a gravel-surfaced provincial road, option 1 (1800 × 900 mm concrete box). Built from quantity take-offs, the consultant's in-house costs and supplier pricing.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "Per square metre of road, with the layer depths unstated: not convertible to a cubic-metre surfacing rate without them.",
+    "A small patch over a culvert; not a road-length surfacing price."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 1, item 1.07 (PDF p. 30)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-bonding",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Bonding and insurance",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 3
+   },
+   "unit": "% of works subtotal",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "All four options",
+   "scope": "A percentage added to the works subtotal of every option in the Canim Lake Class D estimate.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "Option 3's table leaves the bonding amount blank although its other percentages are printed."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, each option's summary (PDF pp. 30–33)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-mobilization",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Mobilization and demobilization",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 10
+   },
+   "unit": "% of works subtotal",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "All four options",
+   "scope": "A percentage added to the works subtotal of every option in the Canim Lake Class D estimate.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "Remote forest roads often carry a larger share; a percentage of a small job is not a mobilization rate."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, each option's summary (PDF pp. 30–33)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-engineering-qep",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Engineering services and QEP monitoring",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 10
+   },
+   "unit": "% of works subtotal",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025, Appendix B dated 31 January 2025",
+   "sample": "All four options",
+   "scope": "Engineering services and qualified environmental professional monitoring, as one percentage of the works subtotal.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "Engineering and environmental monitoring are one line; split them before using either alone."
+   ],
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, each option's summary (PDF pp. 30–33)",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "canim-2025-contingency",
+   "kind": "estimate",
+   "group": "McElhanney · Canim Lake South Road culvert",
+   "title": "Global contingency at conceptual design",
+   "party": "McElhanney for the BC Ministry of Transportation and Transit",
+   "place": "Canim Lake South Road culvert, 100 Mile House area",
+   "regionId": "cariboo",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 40
+   },
+   "unit": "% of works subtotal",
+   "costYear": 2025,
+   "dateNote": "Class D estimate; memo dated 13 March 2025",
+   "sample": "All four options",
+   "scope": "The memo's contingency 'for uncertainties' at this stage of design, applied to the works subtotal.",
+   "tax": "All values exclude GST",
+   "cautions": [
+    "A Class D allowance for undefined design, not a measured risk. It shrinks as the design firms up."
+   ],
+   "contextOnly": true,
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Section 4.4 and Table 9 (PDF p. 19); Appendix B",
+   "checked": "2026-11-14"
+  },
+  {
+   "id": "payne-2025-award",
+   "kind": "contract-award",
+   "group": "City of Chilliwack contract awards",
+   "title": "Payne Road culvert replacement (Elkview Creek)",
+   "party": "Rick Weigelmann Rock Trucks and Excavating Ltd.",
+   "place": "Payne Road at Elkview Creek, Chilliwack",
+   "regionId": "south-coast",
+   "subdivision": "CA-BC",
+   "country": "CA",
+   "currency": "CAD",
+   "amounts": {
+    "value": 196350
+   },
+   "costYear": 2025,
+   "dateNote": "Bid 2025-05, closed 21 May 2025",
+   "sample": "10 bids, from $196,350.00 to $498,444.50; the second-lowest was $210,274.08",
+   "scope": "Supply all labour, materials and equipment for the Payne Road culvert replacement: primarily culvert replacement, road widening and stream flow management.",
+   "cautions": [
+    "An award at bid; no quantities, unit prices or final cost are published.",
+    "The bid page does not say whether the amounts include GST.",
+    "The bids span 2.5 times the lowest: read one award as one contractor's price, not the cost of the work."
+   ],
+   "url": "https://www.chilliwack.com/main/page.cfm?bidid=1119&id=400&showwhat=details&whattoshow=closedbids",
+   "locator": "Closed bids, 2025-05 Payne Road Culvert Replacement",
+   "checked": "2026-11-14"
+  }
+ ],
+ "estimates": [
+  {
+   "id": "canim-2025-option-1",
+   "title": "McElhanney · Canim Lake South Road, option 1 (1800 × 900 mm concrete box)",
+   "sourceId": "addition:2026-11-14-review",
+   "currency": "CAD",
+   "costYear": 2025,
+   "status": "Class D conceptual estimate",
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 1 (PDF p. 30)",
+   "lines": [
+    {
+     "label": "Temporary flow bypass",
+     "quantity": 1,
+     "unit": "allowance",
+     "rate": 50000,
+     "amount": 50000
+    },
+    {
+     "label": "Common excavation, reuse",
+     "quantity": 180,
+     "unit": "m³",
+     "rate": 50,
+     "amount": 9000
+    },
+    {
+     "label": "Common excavation, offsite disposal",
+     "quantity": 40,
+     "unit": "m³",
+     "rate": 200,
+     "amount": 8000
+    },
+    {
+     "label": "Riprap armouring",
+     "quantity": 60,
+     "unit": "m³",
+     "rate": 350,
+     "amount": 21000
+    },
+    {
+     "label": "1800 × 900 mm box culvert, supply and installation",
+     "quantity": 21,
+     "unit": "m",
+     "rate": 3123,
+     "amount": 66837
+    },
+    {
+     "label": "Traffic control and detour road",
+     "quantity": 1,
+     "unit": "allowance",
+     "rate": 250000,
+     "amount": 250000
+    },
+    {
+     "label": "Road works, gravel subbase and base",
+     "quantity": 80,
+     "unit": "m²",
+     "rate": 200,
+     "amount": 16000
+    },
+    {
+     "label": "Asphalt pavement",
+     "quantity": 40,
+     "unit": "m²",
+     "rate": 350,
+     "amount": 14000
+    }
+   ],
+   "totals": [
+    {
+     "label": "Subtotal for project, as printed",
+     "amount": 440000
+    },
+    {
+     "label": "Bonding and insurance, 3%",
+     "amount": 13200
+    },
+    {
+     "label": "Mobilization and demobilization, 10%",
+     "amount": 44000
+    },
+    {
+     "label": "Engineering services and QEP monitoring, 10%",
+     "amount": 44000
+    },
+    {
+     "label": "Global contingency, 40%",
+     "amount": 176000
+    },
+    {
+     "label": "Total amount, rounded",
+     "amount": 720000
+    }
+   ],
+   "notes": [
+    "All values exclude GST; property acquisition and its fees are excluded.",
+    "The lines sum to $434,837; the printed subtotal is rounded to $440,000. The culvert line does not equal its printed quantity × rate.",
+    "Bonding, mobilization, engineering and contingency are percentages of the works subtotal: the shape the project budget's percentage items follow."
+   ]
+  },
+  {
+   "id": "canim-2025-option-2",
+   "title": "McElhanney · Canim Lake South Road, option 2 (twin 1390 × 970 mm CSP pipe-arch)",
+   "sourceId": "addition:2026-11-14-review",
+   "currency": "CAD",
+   "costYear": 2025,
+   "status": "Class D conceptual estimate",
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 2 (PDF p. 31)",
+   "lines": [
+    {
+     "label": "Temporary flow bypass",
+     "quantity": 1,
+     "unit": "allowance",
+     "rate": 50000,
+     "amount": 50000
+    },
+    {
+     "label": "Common excavation, reuse",
+     "quantity": 220,
+     "unit": "m³",
+     "rate": 50,
+     "amount": 11000
+    },
+    {
+     "label": "Common excavation, offsite disposal",
+     "quantity": 20,
+     "unit": "m³",
+     "rate": 200,
+     "amount": 4000
+    },
+    {
+     "label": "Riprap armouring",
+     "quantity": 70,
+     "unit": "m³",
+     "rate": 350,
+     "amount": 24500
+    },
+    {
+     "label": "1390 × 970 mm pipe-arch culvert, supply and installation",
+     "quantity": 43,
+     "unit": "m",
+     "rate": 1068,
+     "amount": 46355
+    },
+    {
+     "label": "Traffic control and detour road",
+     "quantity": 1,
+     "unit": "allowance",
+     "rate": 250000,
+     "amount": 250000
+    },
+    {
+     "label": "Road works, gravel subbase and base",
+     "quantity": 80,
+     "unit": "m²",
+     "rate": 200,
+     "amount": 16000
+    },
+    {
+     "label": "Asphalt pavement",
+     "quantity": 50,
+     "unit": "m²",
+     "rate": 350,
+     "amount": 17500
+    }
+   ],
+   "totals": [
+    {
+     "label": "Subtotal for project, as printed",
+     "amount": 420000
+    },
+    {
+     "label": "Bonding and insurance, 3%",
+     "amount": 12600
+    },
+    {
+     "label": "Mobilization and demobilization, 10%",
+     "amount": 42000
+    },
+    {
+     "label": "Engineering services and QEP monitoring, 10%",
+     "amount": 42000
+    },
+    {
+     "label": "Global contingency, 40%",
+     "amount": 168000
+    },
+    {
+     "label": "Total amount, rounded",
+     "amount": 680000
+    }
+   ],
+   "notes": [
+    "All values exclude GST; property acquisition and its fees are excluded."
+   ]
+  },
+  {
+   "id": "canim-2025-option-3",
+   "title": "McElhanney · Canim Lake South Road, option 3 (twin 1800 × 900 mm concrete box)",
+   "sourceId": "addition:2026-11-14-review",
+   "currency": "CAD",
+   "costYear": 2025,
+   "status": "Class D conceptual estimate",
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 3 (PDF p. 32)",
+   "lines": [
+    {
+     "label": "Temporary flow bypass",
+     "quantity": 1,
+     "unit": "allowance",
+     "rate": 50000,
+     "amount": 50000
+    },
+    {
+     "label": "Common excavation, reuse",
+     "quantity": 40,
+     "unit": "m³",
+     "rate": 50,
+     "amount": 2000
+    },
+    {
+     "label": "Common excavation, offsite disposal",
+     "quantity": 270,
+     "unit": "m³",
+     "rate": 200,
+     "amount": 54000
+    },
+    {
+     "label": "Riprap armouring",
+     "quantity": 70,
+     "unit": "m³",
+     "rate": 350,
+     "amount": 24500
+    },
+    {
+     "label": "1800 × 900 mm box culvert, supply and installation",
+     "quantity": 43,
+     "unit": "m",
+     "rate": 3177,
+     "amount": 135978
+    },
+    {
+     "label": "Traffic control and detour road",
+     "quantity": 1,
+     "unit": "allowance",
+     "rate": 250000,
+     "amount": 250000
+    },
+    {
+     "label": "Road works, gravel subbase and base",
+     "quantity": 100,
+     "unit": "m²",
+     "rate": 200,
+     "amount": 20000
+    },
+    {
+     "label": "Asphalt pavement",
+     "quantity": 60,
+     "unit": "m²",
+     "rate": 350,
+     "amount": 21000
+    }
+   ],
+   "totals": [
+    {
+     "label": "Subtotal for project, as printed",
+     "amount": 560000
+    },
+    {
+     "label": "Mobilization and demobilization, 10%",
+     "amount": 56000
+    },
+    {
+     "label": "Engineering services and QEP monitoring, 10%",
+     "amount": 56000
+    },
+    {
+     "label": "Global contingency, 40%",
+     "amount": 224000
+    },
+    {
+     "label": "Total amount, rounded, as printed in Appendix B",
+     "amount": 900000
+    }
+   ],
+   "notes": [
+    "The appendix prints no bonding amount for this option, and its total ($900,000) differs from the memo's Table 9 ($910K), which includes 3% bonding.",
+    "All values exclude GST; property acquisition and its fees are excluded."
+   ]
+  },
+  {
+   "id": "canim-2025-option-4",
+   "title": "McElhanney · Canim Lake South Road, option 4 (2700 × 1200 mm concrete box)",
+   "sourceId": "addition:2026-11-14-review",
+   "currency": "CAD",
+   "costYear": 2025,
+   "status": "Class D conceptual estimate",
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26174-0000/sch_t3_-_3_-_canim_lake_south_road_culvert__hydrotechnical_options_analysis_and_conceptual_design__march_13_2025.pdf",
+   "locator": "Appendix B, Option 4 (PDF p. 33)",
+   "lines": [
+    {
+     "label": "Temporary flow bypass",
+     "quantity": 1,
+     "unit": "allowance",
+     "rate": 50000,
+     "amount": 50000
+    },
+    {
+     "label": "Common excavation, reuse",
+     "quantity": 60,
+     "unit": "m³",
+     "rate": 50,
+     "amount": 3000
+    },
+    {
+     "label": "Common excavation, offsite disposal",
+     "quantity": 190,
+     "unit": "m³",
+     "rate": 200,
+     "amount": 38000
+    },
+    {
+     "label": "Riprap armouring",
+     "quantity": 80,
+     "unit": "m³",
+     "rate": 350,
+     "amount": 28000
+    },
+    {
+     "label": "2700 × 1200 mm box culvert, supply and installation",
+     "quantity": 22,
+     "unit": "m",
+     "rate": 8880,
+     "amount": 196251
+    },
+    {
+     "label": "Traffic control and detour road",
+     "quantity": 1,
+     "unit": "allowance",
+     "rate": 250000,
+     "amount": 250000
+    },
+    {
+     "label": "Road works, gravel subbase and base",
+     "quantity": 80,
+     "unit": "m²",
+     "rate": 200,
+     "amount": 16000
+    },
+    {
+     "label": "Asphalt pavement",
+     "quantity": 50,
+     "unit": "m²",
+     "rate": 350,
+     "amount": 17500
+    }
+   ],
+   "totals": [
+    {
+     "label": "Subtotal for project, as printed",
+     "amount": 600000
+    },
+    {
+     "label": "Bonding and insurance, 3%",
+     "amount": 18000
+    },
+    {
+     "label": "Mobilization and demobilization, 10%",
+     "amount": 60000
+    },
+    {
+     "label": "Engineering services and QEP monitoring, 10%",
+     "amount": 60000
+    },
+    {
+     "label": "Global contingency, 40%",
+     "amount": 240000
+    },
+    {
+     "label": "Total amount, rounded",
+     "amount": 980000
+    }
+   ],
+   "notes": [
+    "All values exclude GST; property acquisition and its fees are excluded."
+   ]
+  }
+ ],
+ "pending": [
+  {
+   "id": "ice-lake-2024",
+   "title": "Ice Lake Road South master plan, road cost estimate",
+   "place": "Whitehorse",
+   "country": "CA",
+   "subdivision": "CA-YT",
+   "url": "https://emrlibrary.gov.yk.ca/city-of-whitehorse/ice-lake-road-south-master-plan-2024.pdf",
+   "reason": "The library refuses automated downloads (HTTP 403 on 2026-11-14) and the audit read only an indexed, rounded table. Record its reuse, import, rock, base and ditch rates once the full table is read."
+  },
+  {
+   "id": "cinderella-2025",
+   "title": "Cinderella Creek, Highway 26: augering against open-cut culvert installation",
+   "place": "Highway 26, Cariboo",
+   "country": "CA",
+   "subdivision": "CA-BC",
+   "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/contracting-with-the-province/documents/26564-2025/schedule_t3_-_4_-_environmental_management_report.pdf",
+   "reason": "The official PDF returned 404 in the audit; only indexed text was read. Recover the document before recording its two option totals."
+  }
+ ]
+}

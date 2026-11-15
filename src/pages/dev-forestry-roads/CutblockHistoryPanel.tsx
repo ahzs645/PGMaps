@@ -255,7 +255,7 @@ export function CutblockHistoryPanel({
         summary={`${planned.length} planned · ${harvested.length} harvested`}
         open={open}
         onOpenChange={setOpen}
-        help="Load historical harvested areas near the project roads, or import cutblock polygons as GeoJSON, a zipped shapefile, KML or KMZ. A polygon with no harvest evidence is planned or harvested as you choose. Ages are elapsed calendar years since the reported harvest dates or estimated source year, not tree age. Nearby road sections are geographic candidates; their connection, surface, bridges, access and rehabilitation still need review."
+        help="Load historical harvested areas near the project roads, or import cutblock polygons as GeoJSON, a zipped shapefile, KML, KMZ or DXF. A polygon with no harvest evidence is planned or harvested as you choose. Ages are elapsed calendar years since the reported harvest dates or estimated source year, not tree age. Nearby road sections are geographic candidates; their connection, surface, bridges, access and rehabilitation still need review."
       >
         <div className="space-y-3" data-testid="road-cutblock-history">
           {/* Planned blocks are the ones roads get built to; harvested ones are history to read. */}

@@ -27,10 +27,12 @@ import type { LuminanceSampler } from '@/lib/mapSheet/contrastRuns'
 import { rectRing, type DrawOp, type Point, type RasterImage, type StrokeStyle } from '@/lib/mapSheet/drawOps'
 import { areaSymbolOps, lineSymbolOps, swatchOps, type SheetSymbol } from '@/lib/mapSheet/symbols'
 import { fitText, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
+import { ALTERATION_RULES, alteration, type Alteration, type AlterationRule } from './alteration'
 import { cameraInfoLines, type CameraInfo } from './cameraInfo'
 import {
   legendEntries,
   VQO_ZONE_ROLES,
+  type BlockPaint,
   type CalloutStyle,
   type LegendStyle,
   type TextStyle,
@@ -506,6 +508,201 @@ export function tonedImage(image: RasterImage, tone: ViaStylePreset['tone']): Ra
   return { ...image, data }
 }
 
+// ------------------------------------------------------------------ block paint
+
+/** Base colours when painting is asked of a style whose reference does not paint (or a style's paint gives no regrowth). */
+export const DEFAULT_BLOCK_PAINT: Required<Omit<BlockPaint, 'privateLand'>> = {
+  proposed: '#a78872',
+  existing: '#8f9a86',
+  spec: "Fresh cut: the lit quarter of 03 p1's cut ground (Lakeview, median #a78872); regrowth: 23 p15's NonV.E.G. grey-green (#777e70) lightened for a view without its haze",
+}
+
+/** Shading kept from the picture: luminance relative to the painted area's mean, to this power, within these bounds. */
+const PAINT_SHADE = { power: 0.6, min: 0.6, max: 1.45 }
+/** Texture amplitude about the base colour: fresh cut, regrowth. */
+const PAINT_TEXTURE = { proposed: 0.3, existing: 0.14 }
+
+/** A hash of a lattice point to [0, 1): deterministic, no state. */
+function hash01(x: number, y: number, seed: number): number {
+  let h = (Math.imul(x | 0, 0x27d4eb2d) ^ Math.imul(y | 0, 0x165667b1) ^ Math.imul(seed | 0, 0x9e3779b9)) >>> 0
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b) >>> 0
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
+}
+
+/** Value noise on a lattice `cellX` × `cellY` pixels, smoothly interpolated between lattice hashes, in [0, 1). */
+function valueNoise(x: number, y: number, cellX: number, cellY: number, seed: number): number {
+  const fx = x / cellX,
+    fy = y / cellY
+  const x0 = Math.floor(fx),
+    y0 = Math.floor(fy)
+  const tx = fx - x0,
+    ty = fy - y0
+  const sx = tx * tx * (3 - 2 * tx),
+    sy = ty * ty * (3 - 2 * ty)
+  const a = hash01(x0, y0, seed),
+    b = hash01(x0 + 1, y0, seed),
+    c = hash01(x0, y0 + 1, seed),
+    d = hash01(x0 + 1, y0 + 1, seed)
+  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy
+}
+
+const smoothstep = (a: number, b: number, v: number) => {
+  const t = Math.min(1, Math.max(0, (v - a) / (b - a)))
+  return t * t * (3 - 2 * t)
+}
+
+const hexRgb = (hex: string): [number, number, number] => {
+  const v = parseInt(hex.replace('#', '').slice(0, 6), 16)
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255]
+}
+
+const PROPOSED_CODES = new Set<number>([FIGURE_CLASS.proposedIn, FIGURE_CLASS.proposedOut])
+const EXISTING_CODES = new Set<number>([FIGURE_CLASS.existingIn, FIGURE_CLASS.existingOut])
+const PRIVATE_CODES = new Set<number>([FIGURE_CLASS.privateIn, FIGURE_CLASS.privateOut])
+
+/**
+ * The picture with each block's visible ground painted as harvested ground, as the reference simulations render it:
+ * proposed blocks (inside or outside the landform) in `paint.proposed`, existing openings still counting in
+ * `paint.existing` when given (a lighter, quieter regrowth). Each painted pixel is the base colour times the picture's
+ * own shading (its luminance, a 3 × 3 mean, over the painted class's mean, so a sunlit face stays lighter than a
+ * shaded one) times a multi-scale cut texture (patches, clumps, single-pixel speckle and light slash flecks) seeded by
+ * the pixel's position, so the same view always paints the same. The boundary pixels of each painted area are blended
+ * half and half with the picture, a 1-pixel soft edge; nothing outside the classes changes.
+ *
+ * Private land, when `paint.privateLand` is given, is painted that one colour with the picture's shading and no
+ * texture, as the references burn their de-vegetated private land into the render.
+ *
+ * `classes` is the class pass of the same camera and size. When it is a ground pass (an engine's, no trees),
+ * `screened` is the pass with the trees in front: a pixel is painted only where that pass shows the same kind,
+ * so a tree standing in front of a block is never painted over. A size mismatch paints nothing.
+ */
+export function paintBlockGround(
+  image: { data: ArrayLike<number>; width: number; height: number },
+  classes: ClassRaster,
+  paint: Pick<BlockPaint, 'proposed' | 'existing' | 'privateLand'>,
+  options: { screened?: ClassRaster | null; seed?: number } = {},
+): Uint8ClampedArray {
+  const { width: w, height: h } = image
+  const out = new Uint8ClampedArray(image.data)
+  const screened = options.screened ?? null
+  if (classes.width !== w || classes.height !== h) return out
+  if (screened && (screened.width !== w || screened.height !== h)) return out
+  const seed = options.seed ?? 0x5eed
+  const n = w * h
+  // 1 proposed, 2 existing, 3 private land, 0 left as captured.
+  const kind = new Uint8Array(n)
+  for (let k = 0; k < n; k++) {
+    const code = classes.codes[k]
+    const set = PROPOSED_CODES.has(code)
+      ? PROPOSED_CODES
+      : paint.existing && EXISTING_CODES.has(code)
+        ? EXISTING_CODES
+        : paint.privateLand && PRIVATE_CODES.has(code)
+          ? PRIVATE_CODES
+          : null
+    if (!set) continue
+    if (screened && !set.has(screened.codes[k])) continue
+    kind[k] = set === PROPOSED_CODES ? 1 : set === EXISTING_CODES ? 2 : 3
+  }
+  const luma = (o: number) => 0.299 * image.data[o] + 0.587 * image.data[o + 1] + 0.114 * image.data[o + 2]
+  // The picture's shading, a 3 × 3 mean so single bright or dark pixels (a stem, a crown) do not print as dots.
+  const shade = new Float32Array(n)
+  const sum = [0, 0, 0, 0],
+    count = [0, 0, 0, 0]
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const k = y * w + x
+      if (!kind[k]) continue
+      let s = 0,
+        m = 0
+      for (let j = Math.max(0, y - 1); j <= Math.min(h - 1, y + 1); j++)
+        for (let i = Math.max(0, x - 1); i <= Math.min(w - 1, x + 1); i++) {
+          s += luma((j * w + i) * 4)
+          m++
+        }
+      shade[k] = s / m
+      sum[kind[k]] += shade[k]
+      count[kind[k]]++
+    }
+  const mean = sum.map((total, i) => total / (count[i] || 1))
+  const bases = [
+    null,
+    hexRgb(paint.proposed),
+    paint.existing ? hexRgb(paint.existing) : null,
+    paint.privateLand ? hexRgb(paint.privateLand) : null,
+  ]
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const k = y * w + x
+      const kd = kind[k]
+      if (!kd) continue
+      const base = bases[kd]!
+      const relative = mean[kd] > 0 ? shade[k] / mean[kd] : 1
+      const lit = Math.min(PAINT_SHADE.max, Math.max(PAINT_SHADE.min, relative ** PAINT_SHADE.power))
+      const o = k * 4
+      // A 1-pixel soft edge: a boundary pixel is half picture, half paint.
+      const edge =
+        (x > 0 && kind[k - 1] !== kd) ||
+        (x < w - 1 && kind[k + 1] !== kd) ||
+        (y > 0 && kind[k - w] !== kd) ||
+        (y < h - 1 && kind[k + w] !== kd)
+      const a = edge ? 0.5 : 1
+      if (kd === 3) {
+        // Private land: one flat colour, shaded, no texture.
+        for (let c = 0; c < 3; c++) out[o + c] = image.data[o + c] * (1 - a) + base[c] * lit * a
+        continue
+      }
+      // Cut texture, as the reference renders read: broad patches, lumps of slash wider than tall (lying across
+      // the slope) with dark gaps between them, and a little per-pixel grain.
+      // Two sheared lattices, so no grid lines show.
+      const patches = valueNoise(x + 0.21 * y, y, 16, 10, seed)
+      const lumps =
+        0.6 * valueNoise(x + 0.37 * y, y, 5, 2.6, seed + 1) +
+        0.4 * valueNoise(x - 0.29 * y + 101, y + 57, 3.2, 1.8, seed + 4)
+      const grain = hash01(x, y, seed + 2)
+      const v = 0.3 * patches + 0.55 * lumps + 0.15 * grain - 0.5
+      const amplitude = kd === 1 ? PAINT_TEXTURE.proposed : PAINT_TEXTURE.existing
+      let t = 1 + 2 * amplitude * v
+      if (kd === 1) {
+        // Shadowed gaps between lumps and lit lump tops, both eased in, then sparse flecks of bleached wood.
+        t *= 0.86 + 0.14 * smoothstep(0.2, 0.4, lumps)
+        t *= 1 + 0.1 * smoothstep(0.6, 0.75, lumps)
+        const fleck = hash01(x >> 1, y, seed + 3)
+        if (fleck > 0.955) t *= 1.16
+      }
+      // Lit lump tops read warmer and pinker, the gaps and damp patches greyer.
+      const warm = (0.6 * (lumps - 0.5) + 0.4 * (patches - 0.5)) * 0.14
+      const painted = [base[0] * lit * t * (1 + warm), base[1] * lit * t, base[2] * lit * t * (1 - warm)]
+      for (let c = 0; c < 3; c++) out[o + c] = image.data[o + c] * (1 - a) + painted[c] * a
+    }
+  return out
+}
+
+/** Whether a figure paints block ground: the reviewer's choice, else the preset's own. */
+export const paintsBlocks = (input: Pick<FigureInput, 'preset' | 'paintBlocks'>) =>
+  input.paintBlocks ?? !!input.preset.paint
+
+/** Whether the figure paints private land into its picture (`BlockPaint.privateLand`) rather than drawing its symbol. */
+export const paintsPrivateLand = (input: FigureInput) =>
+  paintsBlocks(input) && input.image.kind === 'rgba' && !!input.classes && !!input.preset.paint?.privateLand
+
+/**
+ * The frame as the figure prints it: block ground painted when the figure paints (an RGBA frame with a class pass
+ * only), then toned. An encoded frame cannot be painted; the page decodes it when painting is on.
+ */
+export function figureImage(input: FigureInput): RasterImage {
+  let image = input.image
+  if (paintsBlocks(input) && image.kind === 'rgba' && input.classes) {
+    const paint = input.preset.paint ?? DEFAULT_BLOCK_PAINT
+    image = {
+      ...image,
+      data: paintBlockGround(image, input.classes, paint, { screened: input.screenedClasses ?? null }),
+    }
+  }
+  return tonedImage(image, input.preset.tone)
+}
+
 /** The figure's symbols over its overlays, clipped to the frame. Returns the roles drawn. */
 export function overlayOps(
   preset: ViaStylePreset,
@@ -604,6 +801,86 @@ export interface FigureCallout {
   secondary?: boolean
   /** Which callouts give way first when the row has no room for them all: lowest first (the share seen). */
   priority?: number
+}
+
+/**
+ * Secondary callouts for the existing openings a picture shows, from its class pass: one per opening (4-connected
+ * existing-opening pixels, inside the landform or out) covering at least `minShare` of the picture, the largest
+ * `max`, each pointing at the opening's pixel nearest its centroid, so the arrow lands on the opening even when it is
+ * crescent-shaped. For styles that point existing openings out rather than outline them (`labels.existing`).
+ */
+export function existingOpeningCallouts(
+  raster: ClassRaster,
+  title: string,
+  minShare: number,
+  max: number,
+): FigureCallout[] {
+  const { width, height, codes } = raster
+  const isOpening = (code: number) => code === FIGURE_CLASS.existingIn || code === FIGURE_CLASS.existingOut
+  const seen = new Uint8Array(width * height)
+  const stack: number[] = []
+  const minPixels = Math.max(1, minShare * width * height)
+  const found: Array<{ pixels: number[]; cx: number; cy: number }> = []
+  for (let start = 0; start < codes.length; start++) {
+    if (seen[start] || !isOpening(codes[start])) continue
+    const pixels: number[] = []
+    let sx = 0,
+      sy = 0
+    seen[start] = 1
+    stack.push(start)
+    while (stack.length) {
+      const i = stack.pop()!
+      pixels.push(i)
+      const x = i % width,
+        y = (i - x) / width
+      sx += x + 0.5
+      sy += y + 0.5
+      const next = [
+        x > 0 ? i - 1 : -1,
+        x < width - 1 ? i + 1 : -1,
+        y > 0 ? i - width : -1,
+        y < height - 1 ? i + width : -1,
+      ]
+      for (const j of next)
+        if (j >= 0 && !seen[j] && isOpening(codes[j])) {
+          seen[j] = 1
+          stack.push(j)
+        }
+    }
+    if (pixels.length >= minPixels) found.push({ pixels, cx: sx / pixels.length, cy: sy / pixels.length })
+  }
+  return found
+    .sort((a, b) => b.pixels.length - a.pixels.length)
+    .slice(0, Math.max(0, max))
+    .map(({ pixels, cx, cy }) => {
+      let best = pixels[0],
+        bestD = Infinity
+      for (const i of pixels) {
+        const x = (i % width) + 0.5,
+          y = Math.floor(i / width) + 0.5
+        const d = (x - cx) ** 2 + (y - cy) ** 2
+        if (d < bestD) {
+          bestD = d
+          best = i
+        }
+      }
+      return {
+        title,
+        anchor: [(best % width) + 0.5, Math.floor(best / width) + 0.5] as Point,
+        secondary: true,
+        priority: pixels.length,
+      }
+    })
+}
+
+/**
+ * The callouts a figure labels: the page's, and when the style points existing openings out (`labels.existing`) and
+ * the page sent none, the openings the class pass shows.
+ */
+export function figureLabelCallouts(input: Pick<FigureInput, 'preset' | 'classes' | 'callouts'>) {
+  const spec = input.preset.labels?.existing
+  if (!spec || !input.classes || input.callouts.some((callout) => callout.secondary)) return input.callouts
+  return [...input.callouts, ...existingOpeningCallouts(input.classes, spec.title, spec.minShare, spec.max)]
 }
 
 /** Gap kept between a callout box and the skyline above its anchor, points. */
@@ -710,6 +987,16 @@ export interface FigureInput {
   camera?: CameraInfo | null
   /** Print the camera information block on the image; the preset's own choice when absent. */
   cameraInfo?: boolean
+  /**
+   * Paint the blocks' visible ground as harvested ground (`paintBlockGround`); the preset's own choice (`paint`) when
+   * absent. Needs an RGBA frame and a class pass.
+   */
+  paintBlocks?: boolean
+  /**
+   * Reads a printed percent as a class for `{class}` in a calculation line (Table 2 from the page); without it such a
+   * line is left out rather than printed with braces.
+   */
+  classify?: ((percent: number) => ClassReading | null) | null
   /** The page's sightline alteration at this station, percent: the assessment's figure. */
   sightlinePercent: number | null
   /** Its Table 2 class name, if any. */
@@ -732,6 +1019,8 @@ export interface FigureInput {
   rating?: { vsu?: string; vsc?: string; vac?: string; evc?: string; vqo?: string } | null
   /** Which rule chose the rating's unit, printed small under the inventory circle. */
   ratingNote?: string | null
+  /** The user's logo (or their brand's) for the title block's logo slot; absent leaves the slot empty. */
+  logo?: RasterImage | null
   generatedAt: Date
 }
 
@@ -760,11 +1049,41 @@ const fixed = (value: number | null, digits = 2) =>
 export const footerLine = (preset: ViaStylePreset, at: Date) =>
   `PGMaps figure in the "${preset.name}" style - generated ${at.toISOString().slice(0, 10)} - terrain model and draped data, not a field-verified simulation`
 
-/** The values a preset's calculation lines are filled from. */
-export function calcValues(counts: FigureCounts | null, n = '1'): Record<string, string | number> {
+/** The alteration a class pass gives under `rule`: the counts as the rule's areas. */
+export function countsAlteration(rule: AlterationRule, counts: FigureCounts | null): Alteration | null {
+  if (!counts) return null
+  return alteration(rule, {
+    landform: counts.landform,
+    proposed: counts.proposed,
+    nonVeg: counts.nonVeg,
+    privateLand: counts.privateLand,
+    rock: counts.rock,
+  })
+}
+
+/** The rule a preset's calculation prints: its own, else (no calculation box) the gross landform. */
+export const presetRule = (preset: ViaStylePreset): AlterationRule => preset.calc?.rule ?? ALTERATION_RULES.grossPixels
+
+/** A class reading for a printed percent: Table 2 by default, supplied by the page (`FigureInput.classify`). */
+export type ClassReading = { code: string; name: string }
+
+/** The values a preset's calculation lines are filled from, all from the preset's rule. */
+export function calcValues(
+  counts: FigureCounts | null,
+  n = '1',
+  rule: AlterationRule = ALTERATION_RULES.grossPixels,
+  classify?: ((percent: number) => ClassReading | null) | null,
+): Record<string, string | number> {
   if (!counts) return { n }
-  const pct = (part: number) => fixed(counts.landform ? (100 * part) / counts.landform : null)
-  const net = counts.landform - counts.rock
+  const result = countsAlteration(rule, counts)
+  const part = (name: 'nonVeg' | 'proposed') => {
+    const found = result?.parts.find((p) => p.part === name)
+    if (found) return found.printed
+    // A part the rule leaves out of the sum still prints its share of the landform.
+    return fixed(counts.landform ? (100 * counts[name]) / counts.landform : null, rule.decimals)
+  }
+  const net = result?.denominator ?? counts.landform
+  const reading = result && classify ? classify(result.printedValue) : null
   return {
     n,
     landformPx: counts.landform,
@@ -772,10 +1091,13 @@ export function calcValues(counts: FigureCounts | null, n = '1'): Record<string,
     nonVegPx: counts.nonVeg,
     proposedPx: counts.proposed,
     rockPx: counts.rock,
+    deductedPx: counts.landform - net,
     netPx: net,
-    nonVegPct: pct(counts.nonVeg),
-    proposedPct: pct(counts.proposed),
-    totalPct: fixed(counts.grossPercent),
+    nonVegPct: part('nonVeg'),
+    proposedPct: part('proposed'),
+    ...(result ? { totalPct: result.printed } : {}),
+    ...(reading ? { class: reading.name, classCode: reading.code } : {}),
+    basis: rule.basis,
     landformArea: `${counts.landform} px`,
     proposedArea: `${counts.proposed} px`,
     nonVegArea: `${counts.nonVeg} px`,
@@ -785,25 +1107,26 @@ export function calcValues(counts: FigureCounts | null, n = '1'): Record<string,
   }
 }
 
-/** The alteration a preset's calculation reads: net of private land or rock when it names them. */
+/** The alteration a preset's calculation prints, unrounded: its rule over the class pass. */
 export function presetPercent(preset: ViaStylePreset, counts: FigureCounts | null): number | null {
-  if (!counts) return null
-  const lines = preset.calc?.lines.join(' ') ?? ''
-  if (/LF - PL/.test(lines)) return counts.netOfPrivatePercent
-  if (/Net VLU|\{rockPx\}/.test(lines)) return counts.netOfRockPercent
-  return counts.grossPercent
+  return countsAlteration(presetRule(preset), counts)?.percent ?? null
 }
 
 /** The image, its outlines, labels and callouts in `frame`. Shared by every sheet form. */
 function figurePanel(input: FigureInput, frame: Frame, calloutArea?: Box) {
   const { preset } = input
-  const ops: DrawOp[] = [{ op: 'image', ...frame, image: tonedImage(input.image, preset.tone) }]
+  const shown = figureImage(input)
+  const ops: DrawOp[] = [{ op: 'image', ...frame, image: shown }]
+  // Private land painted into the picture takes no symbol over it; its legend row still stands.
+  const paintedPrivate = paintsPrivateLand(input)
+  const roles = input.classes ? roleOverlays(preset, input.classes) : []
   const overlays = [
     ...(input.zones ? zoneOverlays(preset, input.zones) : []),
-    ...(input.classes ? roleOverlays(preset, input.classes) : []),
+    ...roles.filter((overlay) => !(paintedPrivate && overlay.role === 'privateLand')),
     ...(input.lines ?? []),
   ]
   const { ops: drawnOps, drawn } = overlayOps(preset, overlays, frame)
+  if (paintedPrivate && roles.some((overlay) => overlay.role === 'privateLand')) drawn.add('privateLand')
   ops.push(...drawnOps)
   const centroid = input.classes ? landformCentroid(input.classes) : null
   const label = preset.labels?.landform
@@ -817,8 +1140,15 @@ function figurePanel(input: FigureInput, frame: Frame, calloutArea?: Box) {
         if (!/\{\w+\}/.test(text)) ops.push(...textOps(x, y + (i + 1) * lineHeight(rating), text, rating, 'center'))
       })
   }
-  const placedLabels = input.callouts.length
-    ? figureLabelOps(input, frame, calloutArea ?? { x: frame.x + 4, y: frame.y + 4, w: frame.w - 8, h: frame.h - 8 })
+  // Labels read the brightness of the picture as printed: the painted frame, when it was painted.
+  const printed = shown.kind === 'rgba' && paintsBlocks(input) ? { ...input, image: shown, luminance: null } : input
+  const callouts = figureLabelCallouts(input)
+  const placedLabels = callouts.length
+    ? figureLabelOps(
+        { ...printed, callouts },
+        frame,
+        calloutArea ?? { x: frame.x + 4, y: frame.y + 4, w: frame.w - 8, h: frame.h - 8 },
+      )
     : { ops: [], key: [] }
   ops.push(...placedLabels.ops)
   if ((input.cameraInfo ?? preset.cameraInfo ?? false) && input.camera) ops.push(...cameraInfoOps(input.camera, frame))
@@ -963,7 +1293,7 @@ function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: 
   const ops: DrawOp[] = []
   if (!calc) return { ops, bottom: y }
   const values = {
-    ...calcValues(counts, input.titles.n),
+    ...calcValues(counts, input.titles.n, presetRule(input.preset), input.classify),
     ...(input.distanceKm != null ? { distanceKm: input.distanceKm.toFixed(1) } : {}),
     ...(input.hfovDeg != null ? { hfov: Math.round(input.hfovDeg) } : {}),
   }
@@ -1052,16 +1382,24 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
     )
   })
   const logo = { x: title.x + title.w - 190, y: title.y + 10, w: 170, h: 46 }
-  ops.push(rectStroke(logo, { color: '#bfbfbf', width: 0.5, dash: [3, 2] }))
-  ops.push(
-    ...textOps(
-      logo.x + logo.w / 2,
-      logo.y + logo.h / 2 + 3,
-      'Logo (your own)',
-      { size: 7, color: '#9c9c9c' },
-      'center',
-    ),
-  )
+  if (input.logo) {
+    // The user's own logo or their brand's, fitted to the slot at its own proportions, right-aligned.
+    const scale = Math.min(logo.w / input.logo.width, logo.h / input.logo.height)
+    const w = input.logo.width * scale,
+      h = input.logo.height * scale
+    ops.push({ op: 'image', x: logo.x + logo.w - w, y: logo.y + (logo.h - h) / 2, w, h, image: input.logo })
+  } else {
+    ops.push(rectStroke(logo, { color: '#bfbfbf', width: 0.5, dash: [3, 2] }))
+    ops.push(
+      ...textOps(
+        logo.x + logo.w / 2,
+        logo.y + logo.h / 2 + 3,
+        'Logo (your own)',
+        { size: 7, color: '#9c9c9c' },
+        'center',
+      ),
+    )
+  }
   // Facts.
   const facts = cell('facts')
   const factStyle = preset.facts ?? { size: 12.96, style: 'bolditalic' as const, color: BLACK }
@@ -1079,8 +1417,9 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
   const inventory = cell('inventory')
   const badge = preset.vsuBadge
   if (badge && !input.rating) {
-    // No unit to show: one line, not a circle of placeholder labels.
-    wrapText(NO_INVENTORY_UNIT, 7.92, inventory.w - 16).forEach((line, i, all) =>
+    // No unit to show: one line, not a circle of placeholder labels. The page's note says whether the inventory was
+    // read and held none, or was not read at all.
+    wrapText(input.ratingNote || NO_INVENTORY_UNIT, 7.92, inventory.w - 16).forEach((line, i, all) =>
       ops.push(
         ...textOps(
           inventory.x + inventory.w / 2,
@@ -1329,6 +1668,14 @@ function notesFor(input: FigureInput, drawn: ReadonlySet<ViaRole>): string[] {
   const notes: string[] = []
   if (!input.classes)
     notes.push('No class pass was captured with this view, so the figure has no traced outlines or pixel counts.')
+  if (
+    paintsBlocks(input) &&
+    input.classes &&
+    (input.image.kind !== 'rgba' ||
+      input.classes.width !== input.image.width ||
+      input.classes.height !== input.image.height)
+  )
+    notes.push('The blocks could not be painted: the picture and its class pass were not read at one size.')
   const missing = (Object.keys(input.preset.symbols) as ViaRole[]).filter((role) => !drawn.has(role))
   if (missing.length) notes.push(`Not in this view or not yet available: ${missing.join(', ')}.`)
   return notes

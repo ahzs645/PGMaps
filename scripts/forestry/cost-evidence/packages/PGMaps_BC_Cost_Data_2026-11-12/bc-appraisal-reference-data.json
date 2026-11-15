@@ -1,0 +1,630 @@
+{
+  "schema_version": "1.0",
+  "checked_date": "2026-11-12",
+  "currency": "CAD",
+  "purpose": "Research input for separate PGMaps comparison references; not a supplier quote, regional default or total project budget.",
+  "sources": [
+    {
+      "id": "iam2026",
+      "title": "2026 Interior Appraisal Manual",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/interior-appraisal-manual/iam_2026_master_b.pdf",
+      "effective_date": "2026-07-01",
+      "cost_base_year": 2024,
+      "verification": "Primary PDF successfully opened through published index link; initial direct requests and search snippets were stale/failed. Current manual verified."
+    },
+    {
+      "id": "interior_ece2026",
+      "title": "Interior Engineering Cost Estimate Procedures Manual",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/interior_ece_procedures_manual_july_1_2026.pdf",
+      "effective_date": "2026-07-01",
+      "verification": "Primary 75-page PDF read."
+    },
+    {
+      "id": "cam2026",
+      "title": "2026 Coast Appraisal Manual",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/coast-timber-pricing/coast-appraisal-manual/cam_2026_master.pdf",
+      "effective_date": "2026-01-01",
+      "cost_base_year": 2024,
+      "verification": "Primary PDF read. Landing page retrieval failed, so later amendments cannot be conclusively ruled out by this agent."
+    },
+    {
+      "id": "coast_ece2025",
+      "title": "Coast Engineering Cost Estimate Procedures",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/coast-timber-pricing/ndc_procedures_jan_25.pdf",
+      "effective_date": "2025-01-01",
+      "verification": "Primary PDF read."
+    },
+    {
+      "id": "coast_training5_2025",
+      "title": "Coast Appraisal Training Module 5: Road Development Cost",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/coast-timber-pricing/coast-appraisal-data-submissions/appraisal-training-modules/module_5_development_cost.pdf",
+      "effective_date": null,
+      "published_year": 2025,
+      "verification": "Official training document; subordinate to applicable manual and ECE procedures."
+    },
+    {
+      "id": "interior_templates",
+      "title": "Interior ECE procedures and templates landing page",
+      "url": "https://www2.gov.bc.ca/gov/content/industry/forestry/competitive-forest-industry/timber-pricing/interior-timber-pricing/interior-ece",
+      "page_updated_date": "2026-07-07",
+      "verification": "Live HTML with current 2026 downloadable links read."
+    }
+  ],
+  "scope_matrix": [
+    {
+      "id": "interior_subgrade",
+      "source_id": "iam2026",
+      "locator": "section 4.3.2.1; printed page 4-11; PDF page index 75",
+      "unit": "CAD/km",
+      "includes": [
+        "clearing/grubbing/stripping",
+        "debris and stump removal",
+        "ditches",
+        "turnouts",
+        "materials",
+        "pipe culverts below 950 mm or equivalent area",
+        "single-log-abutment culverts up to 3.4 m span",
+        "construction-equipment low-bedding when not already onsite/adjacent"
+      ],
+      "excludes": [
+        "right-of-way felling/logging",
+        "drilling/explosives/blasting",
+        "landings"
+      ],
+      "separate_components": [
+        "additional stabilization",
+        "larger drainage structures",
+        "bridges"
+      ],
+      "note": "Road Group 1 uses the distinct ECE Item Q route."
+    },
+    {
+      "id": "interior_stabilization",
+      "source_id": "iam2026",
+      "locator": "sections 4.3.4 and 4.3.4.1; printed pages 4-20 through 4-22; PDF indices 84-86",
+      "unit": "CAD/km",
+      "includes": [
+        "borrow-pit preparation",
+        "loosening/pushing borrow material",
+        "truck loading",
+        "trucking",
+        "spreading/compaction"
+      ],
+      "excludes": [
+        "borrow-pit drilling/blasting",
+        "new access road to borrow pit"
+      ],
+      "eligibility": "Additional imported gravel/broken rock when subgrade/ditch material is insufficient. Specialized processed material, geofabric/geogrids/corduroy and certain inseparable ECE works use other procedures. Not available for snow/ice roads."
+    },
+    {
+      "id": "coast_tabular_road",
+      "source_ids": [
+        "cam2026",
+        "coast_training5_2025",
+        "interior_ece2026"
+      ],
+      "locator": "CAM 5.3.3.1/Table 5-1, printed 5-14 to 5-16; official training pp12,15; Interior ECE Item Q p54",
+      "unit": "CAD/km",
+      "includes": [
+        "subgrade",
+        "associated stabilizing material",
+        "clearing/grubbing/stripping/stumping",
+        "incidental log decking",
+        "ditches",
+        "landings and turnouts",
+        "drilling/blasting represented by rock-face category"
+      ],
+      "excludes": [
+        "pipe culverts",
+        "wood culverts",
+        "bridges"
+      ],
+      "separate_components": [
+        "eligible additional stabilization haul beyond 3.2 km",
+        "eligible isolation/point-of-origin add-ons"
+      ],
+      "note": "Bundled scope differs from Interior subgrade. Never add full imported stabilization again without assessing overlap."
+    },
+    {
+      "id": "interior_culvert_A",
+      "source_id": "iam2026",
+      "locator": "4.3.3.1 and Table 4-3; printed 4-17/4-18; PDF indices81/82",
+      "unit": "CAD/installed structure",
+      "includes": [
+        "supply",
+        "transport to site",
+        "installation to final subgrade"
+      ],
+      "excludes": [],
+      "note": "Part A is the installed structure total; Part B is supply/delivery per metre. Do not multiply Part A by length or add Part B to Part A. Culverts below 950 mm are already included in ordinary tabular subgrade. ECE is required above 1.8 m diameter or above 20 m length; 20 m itself is tabulated. No interpolation."
+    },
+    {
+      "id": "coast_culvert",
+      "source_id": "cam2026",
+      "locator": "5.3.3.2.3/Table 5-4; printed 5-21",
+      "unit": "CAD/lineal metre",
+      "includes": [
+        "culvert materials including couplers when required",
+        "installation"
+      ],
+      "note": "Column A includes materials and installation; Column B is the materials-only alternative for applicable non-tabular estimates. Use A or B as appropriate; never add B to A. Pipe diameters 0.3-1.8 m. Wood culverts up to 3.4 m span have a separate CAD 2,700 allowance. Ordinary Coast tabular road costs exclude these culvert allowances."
+    },
+    {
+      "id": "interior_bridge",
+      "source_id": "iam2026",
+      "locator": "4.3.3.2/Table 4-4; printed 4-18 to4-20; PDF indices82-84",
+      "unit": "CAD/component",
+      "includes": [
+        "listed materials",
+        "delivery",
+        "installation or dismantling as applicable"
+      ],
+      "limits": "Single-span, single-lane steel girders6-15m, timber decks,4.268m width, specified sill/lock-block foundations1-2tiers. Components are combined to match design; a girder purchase rate is not the complete bridge. Delivery beyond200km can qualify for additional ECE."
+    },
+    {
+      "id": "coast_bridge",
+      "source_id": "cam2026",
+      "locator": "5.3.3.2.2/Table 5-3; printed 5-19/5-20",
+      "unit": "thousand CAD/structure",
+      "includes": [
+        "certification/supervision/design",
+        "site preparation",
+        "supply/installation",
+        "freight/haulage",
+        "riprap to flood design"
+      ],
+      "excludes": [
+        "barging"
+      ],
+      "limits": "Specified2.0-25.4m spans,0-2.4m abutments,L60-L165; excludes multispan, certain piles/reused bridges/extra width/out-of-table cases."
+    },
+    {
+      "id": "equipment",
+      "source_ids": [
+        "iam2026",
+        "cam2026"
+      ],
+      "locator": "Appendix I",
+      "unit": "CAD/hour",
+      "includes": [
+        "operator wages and benefits for all-found equipment",
+        "expenses and profits",
+        "insurance",
+        "WorkSafeBC"
+      ],
+      "note": "Do not add operator/benefits/overhead a second time. Small equipment may exclude labour; check row. Interior wage rows already include 50% payroll loading."
+    }
+  ],
+  "interior_eligibility": {
+    "source_id": "iam2026",
+    "locator": "4.3.2.2 and4.3.6(8); printed 4-11/4-12 and4-24/4-25",
+    "requires_verified": [
+      "TSA/supply-block/TFL road group",
+      "representative uphill side slope",
+      "rock percentage",
+      "long-term/short-term definition",
+      "BEC",
+      "absolute soil moisture",
+      "new construction applicability"
+    ],
+    "ECE_triggers": [
+      "uphill side slope>50%",
+      "rock>50%",
+      "terrain classesIV/V",
+      "required end haul",
+      "required overland construction",
+      "long-term primary access finished width>6m",
+      "existing-road reconstruction/reactivation/upgrades"
+    ],
+    "note": "Rock percentage is an applicability gate; it is not a coefficient in the2026 tabular subgrade equation. Small segments must follow aggregation rules; typical sections>=1km, exceptions>=100m."
+  },
+  "geographic_notes": [
+    {
+      "source_id": "iam2026",
+      "locator": "Definitions; printed1-6/1-7",
+      "note": "Interior North includes Northeast,Omineca,Skeena except the identified coastal TSA portion; South includes Cariboo,Kootenay-Boundary,Thompson-Okanagan. Region alone does not choose the road group."
+    },
+    {
+      "source_id": "interior_ece2026",
+      "locator": "Item Q; pages54-56",
+      "note": "RoadGroup1 is a hybrid: Coast bank-height road tables where eligible, Interior pipe-culvert and nonlog-bridge methods, Coast log-bridge/wood-culvert methods; possible additional stabilization haul beyond3.2km. Do not assign a regular Interior group equation."
+    }
+  ],
+  "interior_subgrade_equations": {
+    "source_id": "iam2026",
+    "locator": "4.3.2.3; printed 4-14; PDF index78",
+    "unit": "CAD/km",
+    "common": {
+      "slope_percent": 263,
+      "long_term": 7153,
+      "wet": 945
+    },
+    "groups": [
+      {
+        "group": 2,
+        "constant": 8559,
+        "ESSF": 2078,
+        "ICH_or_CWH": 5696
+      },
+      {
+        "group": 3,
+        "constant": 8427,
+        "ESSF": 2078
+      },
+      {
+        "group": 4,
+        "constant": 7281,
+        "ESSF": 2078
+      },
+      {
+        "group": 5,
+        "constant": 6888,
+        "ESSF": 2078
+      },
+      {
+        "group": 6,
+        "constant": 5497,
+        "ESSF": 2078,
+        "SBS": 4961
+      },
+      {
+        "group": 7,
+        "constant": 4452,
+        "ESSF": 2078
+      },
+      {
+        "group": 8,
+        "constant": 6596,
+        "ESSF": 7108
+      },
+      {
+        "group": 9,
+        "constant": 13105,
+        "ESSF": 2078,
+        "ICH": 4614,
+        "MS": 5267
+      },
+      {
+        "group": 10,
+        "constant": 9017,
+        "ESSF": 6129
+      },
+      {
+        "group": 11,
+        "constant": 31715,
+        "ESSF": 2078
+      },
+      {
+        "group": 12,
+        "constant": 18975,
+        "ESSF": 6353
+      }
+    ],
+    "snow_ice_road_CAD_per_km": 9814
+  },
+  "interior_stabilization_equations": {
+    "source_id": "iam2026",
+    "locator": "4.3.4.1; printed 4-22; PDF index86",
+    "unit": "CAD/km",
+    "formula": "constant + 0 * D + 4277 * RRQR",
+    "constants_by_road_group": {
+      "2": 26848,
+      "3": 23582,
+      "4": 24910,
+      "5": 23233,
+      "6": 32391,
+      "7": 43682,
+      "8": 28260,
+      "9": 28260,
+      "10": 35760,
+      "11": 35760,
+      "12": 35760
+    },
+    "variables": {
+      "D": "Distance from source to stabilization-section midpoint; current published coefficient is zero.",
+      "RRQR": "1 for ripped/quarry rock, otherwise 0."
+    },
+    "caution": "The zero appraisal coefficient does not mean real haul distance has zero project cost."
+  },
+  "illustrative_cariboo_scenarios": {
+    "source_id": "iam2026",
+    "derivation": "Arithmetic from2026 equations; not a published region-wide allowance.",
+    "inputs": {
+      "slope_percent": 30,
+      "long_term": 1,
+      "wet": 1,
+      "BEC": "ESSF"
+    },
+    "subgrade_CAD_per_km": [
+      {
+        "road_group": 4,
+        "value": 25347
+      },
+      {
+        "road_group": 8,
+        "value": 29692
+      },
+      {
+        "road_group": 12,
+        "value": 41316
+      }
+    ]
+  },
+  "interior_culvert_examples": {
+    "source_id": "iam2026",
+    "locator": "Table 4-3; printed 4-18; PDF index82",
+    "length_m": 12,
+    "rows": [
+      {
+        "diameter_m": 0.3,
+        "installed_partA_CAD": 963,
+        "supply_delivery_partB_CAD_per_m": 57
+      },
+      {
+        "diameter_m": 0.6,
+        "installed_partA_CAD": 2027,
+        "supply_delivery_partB_CAD_per_m": 114
+      },
+      {
+        "diameter_m": 0.95,
+        "installed_partA_CAD": 4405,
+        "supply_delivery_partB_CAD_per_m": 232
+      },
+      {
+        "diameter_m": 1.2,
+        "installed_partA_CAD": 6728,
+        "supply_delivery_partB_CAD_per_m": 347
+      },
+      {
+        "diameter_m": 1.6,
+        "installed_partA_CAD": 11594,
+        "supply_delivery_partB_CAD_per_m": 588
+      },
+      {
+        "diameter_m": 1.8,
+        "installed_partA_CAD": 14525,
+        "supply_delivery_partB_CAD_per_m": 734
+      }
+    ]
+  },
+  "coast_road_rows": {
+    "source_id": "cam2026",
+    "locator": "Table 5-1; printed 5-16",
+    "unit": "CAD/km",
+    "rows": [
+      {
+        "category": "OMLB",
+        "rock_face_height_m": null,
+        "soft_medium": 72601,
+        "hard": 72601
+      },
+      {
+        "category": "OMPR",
+        "rock_face_height_m": null,
+        "soft_medium": 85856,
+        "hard": 85856
+      },
+      {
+        "category": "OMRB",
+        "rock_face_height_m": null,
+        "soft_medium": 114855,
+        "hard": 116090
+      },
+      {
+        "category": "TOE",
+        "rock_face_height_m": "up to 1.50",
+        "soft_medium": 114855,
+        "hard": 116090
+      },
+      {
+        "category": "MRK",
+        "rock_face_height_m": "1.51-3.00",
+        "soft_medium": 141239,
+        "hard": 144177
+      },
+      {
+        "category": "HRK",
+        "rock_face_height_m": "3.01-4.50",
+        "soft_medium": 177964,
+        "hard": 191315
+      },
+      {
+        "category": "XRK",
+        "rock_face_height_m": "4.51-6.00",
+        "soft_medium": 207524,
+        "hard": 223856
+      },
+      {
+        "category": "XXRK",
+        "rock_face_height_m": "6.01-7.50",
+        "soft_medium": 225412,
+        "hard": 250466
+      }
+    ],
+    "addons": [
+      {
+        "condition": "Applicable isolated variable (full/fraction)",
+        "CAD_per_km": 7615
+      },
+      {
+        "condition": "DRSE,GKIN,GRIS,MIDC or NTHC point-of-origin area",
+        "CAD_per_km": 7548
+      }
+    ]
+  },
+  "coast_culvert_examples": {
+    "source_id": "cam2026",
+    "locator": "Table 5-4; printed 5-21",
+    "unit": "CAD/lineal metre",
+    "rows": [
+      {
+        "diameter_m": 0.3,
+        "columnA_installed": 148,
+        "columnB_materials": 104
+      },
+      {
+        "diameter_m": 0.6,
+        "columnA_installed": 173,
+        "columnB_materials": 130
+      },
+      {
+        "diameter_m": 0.9,
+        "columnA_installed": 270,
+        "columnB_materials": 203
+      },
+      {
+        "diameter_m": 1.2,
+        "columnA_installed": 440,
+        "columnB_materials": 322
+      },
+      {
+        "diameter_m": 1.6,
+        "columnA_installed": 779,
+        "columnB_materials": 554
+      },
+      {
+        "diameter_m": 1.8,
+        "columnA_installed": 996,
+        "columnB_materials": 701
+      }
+    ]
+  },
+  "interior_equipment_examples": {
+    "source_id": "iam2026",
+    "locator": "Appendix I; printed A-3 through A-7; PDF indices 147-151",
+    "rate_basis": "2024-2025 BlueBook all-found base; apply applicable fuel rules separately, not today's contractor quote.",
+    "unit": "CAD/hour",
+    "rows": [
+      {
+        "equipment": "Forestry excavator class 2, 46,000-54,999 lb / 125-150 hp (Cat 320, Case CX210D examples)",
+        "base_rate": 238.95,
+        "fuel_addon_type": "off-road",
+        "operator_included": true
+      },
+      {
+        "equipment": "Crawler tractor/dozer class 4, 130-189.9 FWHP (Cat D4/D5, Deere 700L/750L examples)",
+        "base_rate": 270.75,
+        "fuel_addon_type": "off-road",
+        "operator_included": true
+      },
+      {
+        "equipment": "Gravel loader class 10, 5-5.49 cu yd / 3.82-4.2 m3",
+        "base_rate": 268.75,
+        "fuel_addon_type": "off-road",
+        "operator_included": true
+      },
+      {
+        "equipment": "Gravel dump truck, standard haul, 14 cu yd / 10.7 m3",
+        "base_rate": 170.45,
+        "fuel_addon_type": "on-road",
+        "operator_included": true
+      },
+      {
+        "equipment": "Grader class 6, 200-249 FWHP",
+        "base_rate": 214.85,
+        "fuel_addon_type": "on-road",
+        "operator_included": true
+      }
+    ]
+  },
+  "official_templates": [
+    {
+      "title": "Tabular Bridge Cost Estimate 2026",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/tabular_bridges_cost_estimate_july_2026b.xlsx",
+      "effective_date": "2026-07-01",
+      "source_id": "interior_templates",
+      "verification": "Exact href followed; XLSX content unsupported by web tool."
+    },
+    {
+      "title": "Road Reactivation Cost Estimate 2026",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/road_reactivation_cost_estimate_july_2026b.xlsx",
+      "effective_date": "2026-07-01",
+      "source_id": "interior_templates",
+      "verification": "Exact href followed; XLSX content unsupported by web tool."
+    },
+    {
+      "title": "Portable Platforms Cost Estimate 2026",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/portable_platforms_cost_estimate_july_2026.xlsx",
+      "effective_date": "2026-07-01",
+      "source_id": "interior_templates",
+      "verification": "Exact published href; byte retrieval returned HTTP 502."
+    },
+    {
+      "title": "Distance to Support Centre Calculation 2026",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/distance_support_centre_template_2026.xlsx",
+      "effective_date": "2026-07-01",
+      "source_id": "interior_templates",
+      "verification": "Exact published href; byte retrieval returned HTTP 502."
+    },
+    {
+      "title": "North Area Productivity Estimating Guide",
+      "url": "https://www2.gov.bc.ca/assets/gov/farming-natural-resources-and-industry/forestry/timber-pricing/interior-timber-pricing/north_area_ece_productivity_estimating_guide.pdf",
+      "effective_date": "2010-01-27",
+      "source_id": "interior_templates",
+      "verification": "Exact published href; byte retrieval returned HTTP 502. Date corroborated by the 2026 ECE references; treat productivity assumptions as historical."
+    }
+  ],
+  "implementation_notes": [
+    "Keep comparisons separate from estimate writes.",
+    "Use explicit component inclusion/exclusion tags to avoid culvert,operator,haul or stabilization double counting.",
+    "Store effective date and cost-base year separately from verification date.",
+    "Keep source units unchanged; installed structure costs and per-metre materials costs are different fields.",
+    "Use exact authority/road-group boundaries and verified site conditions rather than one average per natural-resource region.",
+    "Real project budgets may include items omitted from appraisal because accounted for elsewhere in stumpage. Appraisal exclusion is not zero real-world cost.",
+    "2026 ECE culvert/special-structure approach fills included in structure costs must be deducted from road subgrade overlap.",
+    "Source retrieval can be stale in search snippets; current landing-page clicks yielded correct2026 manuals.",
+    "Keep IAM fixed appraisal fuel add-ons distinct from transportation monthly hired-equipment fuel adjustments; they are separate pricing methods."
+  ],
+  "interior_labour_examples": {
+    "source_id": "iam2026",
+    "locator": "Appendix I; printed A-7; PDF index 151",
+    "unit": "CAD/hour",
+    "effective_wage_date": "2024-06-15",
+    "rate_basis": "2024-2030 United Steelworkers agreement rates, with 50% payroll loading included; published in 2026 IAM.",
+    "rows": [
+      {
+        "role": "Labourer, Group I",
+        "rate": 52.7
+      },
+      {
+        "role": "Roadman, Group II",
+        "rate": 53.11
+      },
+      {
+        "role": "Crib/culvert maker, powderman, Group VII",
+        "rate": 55.77
+      },
+      {
+        "role": "Bridgeman, tradesman",
+        "rate": 71.2
+      }
+    ],
+    "note": "Do not add these wages to all-found machinery operator costs already included."
+  },
+  "interior_appraisal_fuel_addons": {
+    "source_id": "iam2026",
+    "locator": "Appendix I; printed A-8; PDF index 152",
+    "unit": "CAD/hour",
+    "on_road": 10.23,
+    "off_road": 23.86,
+    "effective_manual_date": "2026-07-01",
+    "note": "Explicit IAM appraisal add-ons. They differ from monthly transportation hired-equipment fuel supplements; do not automatically substitute the latter into an appraisal comparison."
+  },
+  "interior_crew_addons": {
+    "source_id": "iam2026",
+    "locator": "Appendix I; printed A-8; PDF index 152",
+    "crew_transport_CAD_per_vehicle_day": 186,
+    "camp_CAD_per_person_day": 175,
+    "conditions": "Only where qualifying costs are incurred and not already included elsewhere in the appraisal; camp qualification applies."
+  },
+  "schema": "pgmaps-bc-appraisal-reference-data-v1",
+  "comparison_only": true,
+  "automatic_estimate_application": false,
+  "verification_limits": [
+    "2026 Interior manual and its 2026 ECE procedure were verified in their primary PDFs.",
+    "The January 2026 Coast master was verified; its index was inaccessible, so this review does not establish that no later amendment exists.",
+    "Published XLSX links were verified at the official index; workbook formulas were not extracted, recalculated or audited.",
+    "The historical North Area productivity guide is a method lead, not evidence of current production or pricing.",
+    "Transcription is research data, not an approved implementation of every appraisal eligibility rule."
+  ]
+}

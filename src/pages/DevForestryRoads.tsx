@@ -1,4 +1,6 @@
 import { ribbonFields } from './dev-forestry-roads/SharedRoadFields'
+import { groundAlong } from './dev-forestry-roads/roadSummaryMetrics'
+import { LOCAL_PLANE_EPSG } from '@/lib/geo/projectedCrs'
 import { MAX_PROJECT_ROADS, roadCount } from './dev-forestry-roads/roadLimits'
 import {
   detailTitle,
@@ -42,7 +44,6 @@ import { revealEditorSection } from '@/components/interfaces/ribbonEditorSection
 import { type CommandState, WorkspaceTools } from '@/components/interfaces/WorkspaceTools'
 import { TerrainLayerSelect } from './dev-forestry-roads/TerrainLayerSelect'
 import { RoadSelect } from './dev-forestry-roads/Controls'
-import { ADOPTABLE_RATES, applyAdoption, withoutAdoption } from './dev-forestry-roads/costEvidence/rateAdoption'
 import { AccessHistoryPanel } from './dev-forestry-roads/AccessHistoryPanel'
 import { loadBcAccessPilotScenario } from './dev-forestry-roads/bcAccessPilotScenario'
 import {
@@ -181,11 +182,13 @@ import { RoadStationProvider } from './dev-forestry-roads/roadStation'
 import { memoWithLatestHandlers } from '@/lib/memoWithLatestHandlers'
 import { SpatialImportDialog } from './dev-forestry-roads/SpatialImportDialog'
 import { TerrainImportDialog } from './dev-forestry-roads/TerrainImportDialog'
+import { PlaceOnMapDialog } from './dev-forestry-roads/PlaceOnMapDialog'
 import {
   applySpatialImport,
   buildSpatialImport,
   proposeRoles,
   readSpatialImport,
+  SpatialCrsQuestion,
   SPATIAL_ACCEPT,
   type ImportIntent,
   type RoleChoice,
@@ -293,6 +296,8 @@ import {
   localMetricGrid,
   starterAlignment,
   terrainBounds,
+  terrainFromMetadata,
+  TerrainImportQuestion,
   type TerrainImportAnswers,
   type TerrainImportNeeds,
 } from './dev-forestry-roads/terrain'
@@ -342,7 +347,10 @@ import {
 
 const uid = () => crypto.randomUUID()
 /** What each spatial picker is for; the reader asks about anything in the file outside it. */
-const SPATIAL_INTENTS: Record<Exclude<FileKind, 'project' | 'terrain' | 'breaklines' | 'landxml'>, ImportIntent> = {
+const SPATIAL_INTENTS: Record<
+  Exclude<FileKind, 'project' | 'terrain' | 'breaklines' | 'landxml' | 'roadeng'>,
+  ImportIntent
+> = {
   alignment: 'road',
   context: 'streams',
   cutblocks: 'cutblocks',
@@ -611,6 +619,7 @@ export default function DevForestryRoads({
     intent: ImportIntent
   } | null>(null)
   // A terrain import waiting to be told a CRS or vertical datum its files do not state.
+  const [placingOnMap, setPlacingOnMap] = useState(false)
   const [terrainQuestion, setTerrainQuestion] = useState<{
     needs: TerrainImportNeeds
     resolve: (answers: TerrainImportAnswers | null) => void
@@ -2224,16 +2233,17 @@ export default function DevForestryRoads({
     if (fileRef.current) {
       fileRef.current.accept =
         kind === 'terrain'
-          ? '.tif,.tiff,.las,.laz'
+          ? '.tif,.tiff,.las,.laz,.terx'
           : kind === 'project'
-            ? '.json'
+            ? '.json,.dsnx,.terx,.zip'
             : kind === 'landxml'
               ? '.xml,application/xml,text/xml'
               : kind === 'alignment'
-                ? `${SPATIAL_ACCEPT},.xml,application/xml,text/xml`
+                ? `${SPATIAL_ACCEPT},.xml,application/xml,text/xml,.dsnx`
                 : SPATIAL_ACCEPT
-      // Several LAS/LAZ tiles of one job import together as one surface.
-      fileRef.current.multiple = kind === 'terrain'
+      // Several LAS/LAZ tiles of one job import together as one surface; a RoadEng design comes
+      // with its terrain files.
+      fileRef.current.multiple = kind === 'terrain' || kind === 'project' || kind === 'alignment'
       fileRef.current.value = ''
       fileRef.current.click()
     }
@@ -2244,13 +2254,154 @@ export default function DevForestryRoads({
       new Promise<TerrainImportAnswers | null>((resolve) => setTerrainQuestion({ needs, resolve })),
     [],
   )
+  /**
+   * A RoadEng project, design or terrain (`roadEngProject.ts`). `newProject` set: it opens as a new
+   * project (named after the files, or the name given), on its terrain's CRS or a flat plane. Null:
+   * its terrain replaces this project's and its drawn features join it, in the terrain's CRS, the
+   * project's own plane, or a CRS asked for.
+   */
+  const importRoadEng = async (files: File[], target: { newProject: string | null } | null, signal: AbortSignal) => {
+    const { collectRoadEngFiles, roadEngProject, MAX_ROADENG_PROJECT_BYTES } =
+      await import('./dev-forestry-roads/roadEngProject')
+    const { isLocalPlane } = await import('./dev-forestry-roads/localPlane')
+    const big = files.find((f) => f.size > MAX_ROADENG_PROJECT_BYTES)
+    if (big) throw Error(`${big.name} is over 300 MB.`)
+    const read = await Promise.all(
+      files.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })),
+    )
+    const collected = collectRoadEngFiles(read)
+    if (!target && !collected.terrains.length)
+      throw Error('Choose a RoadEng terrain (.terx). Bring a design in with Import line, or open it as a project.')
+    const hashes = new Map<Uint8Array, string>()
+    for (const terrain of collected.terrains)
+      hashes.set(
+        terrain.bytes,
+        Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', Uint8Array.from(terrain.bytes))), (b) =>
+          b.toString(16).padStart(2, '0'),
+        ).join(''),
+      )
+    const plane = !target && isLocalPlane(project.terrain) ? project.terrain.localPlane : undefined
+    // Only ground needs a datum: a terrain with no TIN gives drawn features and no levels.
+    const { readRoadEngTerrainArchive } = await import('./dev-forestry-roads/roadEngTerrain')
+    const withGround = collected.terrains.filter((t) => readRoadEngTerrainArchive(t.bytes).terrain.tin)
+    const result = await importTerrainWithAnswers(async (answers) => {
+      // RoadEng records no vertical datum; with ground to state it for, it is asked.
+      if (withGround.length && answers.verticalReference === undefined)
+        throw new TerrainImportQuestion('RoadEng does not record what its elevations are measured from.', {
+          verticalDatum: { files: withGround.map((t) => t.name) },
+        })
+      try {
+        return roadEngProject([...collected.designs, ...collected.terrains], {
+          newId: uid,
+          color: (index) => colors[((target ? 0 : project.alignments.length) + index) % colors.length],
+          template: { ...alignment.template },
+          verticalReference: answers.verticalReference ?? '',
+          sha256Of: (file) => hashes.get(file.bytes),
+          noCrs: target ? 'plane' : (plane ?? 'ask'),
+          ...(answers.epsg !== undefined ? { epsg: answers.epsg } : {}),
+        })
+      } catch (error) {
+        const { AlignmentCrsQuestion } = await import('./dev-forestry-roads/landXmlImport')
+        if (error instanceof AlignmentCrsQuestion)
+          throw new TerrainImportQuestion(error.message, {
+            crs: { files: collected.terrains.map((t) => t.name), bounds: error.bounds, subject: 'alignment' },
+          })
+        throw error
+      }
+    }, askTerrain)
+    if (signal.aborted) return
+    if (!result) {
+      w.setNotice('RoadEng import cancelled. Nothing was changed.')
+      return
+    }
+    const label = files.map((f) => f.name).join(', ')
+    const notice = result.notes.join(' ')
+    if (target) {
+      const name = target.newProject ?? result.name
+      const roads = result.roads.map((road) => road.alignment)
+      const bounds = terrainBounds(result.terrain)
+      const centre: Coordinate = bounds ? [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2] : [0, 0]
+      const placeholder = roads.length ? null : starterAlignment(centre)
+      const opened = withNewProjectStandards(
+        parseProject({
+          ...createDemoProject(),
+          name,
+          terrain: result.terrain,
+          alignments: placeholder ? [placeholder] : roads,
+          activeAlignmentId: (placeholder ?? roads[0]).id,
+          workspaceMode: 'design',
+          ...(placeholder ? { designPlaceholderId: placeholder.id } : {}),
+          context: result.context,
+          cables: result.cables,
+          reference: result.reference,
+          profiles: [],
+          settings: project.settings,
+        }),
+      )
+      const existing = w.library.find((entry) => entry.name === opened.name)
+      if (existing) {
+        setFileConflict({
+          opened,
+          fileName: label,
+          existing,
+          keepBothName: distinctProjectName(
+            opened.name,
+            w.library.map((entry) => entry.name),
+          ),
+          openedAt: Date.now(),
+        })
+        return
+      }
+      await w.flush()
+      await w.restore(opened, signal)
+      w.setNotice(`Opened ${label} as a new project. ${notice}`)
+    } else {
+      const source = terrainFromMetadata(result.terrain)
+      if (!source) throw Error('The RoadEng terrain could not be read as ground.')
+      if (
+        !commitValidated({
+          ...project,
+          terrain: result.terrain,
+          context: [...project.context, ...result.context],
+          cables: [...project.cables, ...result.cables],
+          reference: [...(project.reference ?? []), ...result.reference],
+          scenario: undefined,
+        })
+      )
+        return
+      w.setSource(source)
+      w.setNotice(`Imported ${label}. ${notice}`)
+    }
+    w.enablePersistence()
+    setActiveProfile(null)
+    setFitRevision((n) => n + 1)
+  }
   const importFile = (files: File[]) => {
     const file = files[0]
     const label = files.length > 1 ? `${files.length} point-cloud tiles` : file.name
     return void run(`Opening ${label}…`, async (signal) => {
+      // RoadEng designs, terrains and zipped projects are read by their content, whichever button chose them.
+      if (fileKind.current === 'project' || fileKind.current === 'terrain') {
+        const { isRoadEngTerrain } = await import('./dev-forestry-roads/roadEngTerrain')
+        const heads = await Promise.all(files.map(async (f) => new Uint8Array(await f.slice(0, 4096).arrayBuffer())))
+        const zip = (h: Uint8Array) => h[0] === 0x50 && h[1] === 0x4b
+        if (fileKind.current === 'project' ? heads.some(zip) : heads.some(isRoadEngTerrain)) {
+          const name = pendingProject.current
+          pendingProject.current = null
+          await importRoadEng(
+            files,
+            fileKind.current === 'project' || name !== null ? { newProject: name } : null,
+            signal,
+          )
+          return
+        }
+      }
       if (fileKind.current === 'alignment') {
+        // The content decides the reader, never the file's name.
         const { isLandXml } = await import('./dev-forestry-roads/landXmlImport')
-        if (isLandXml(await file.slice(0, 4096).text())) fileKind.current = 'landxml'
+        const { isRoadEngDesign } = await import('./dev-forestry-roads/roadEngImport')
+        if (isRoadEngDesign(new Uint8Array(await file.slice(0, 4096).arrayBuffer()))) fileKind.current = 'roadeng'
+        else if (isLandXml(await file.slice(0, 4096).text())) fileKind.current = 'landxml'
       }
       if (fileKind.current === 'terrain') {
         const name = pendingProject.current
@@ -2313,31 +2464,61 @@ export default function DevForestryRoads({
           `${lines.length} breakline${lines.length === 1 ? '' : 's'} from ${file.name} will be used by the next LAS/LAZ TIN import.`,
         )
         return
-      } else if (fileKind.current === 'landxml') {
-        const { landXmlImportSummary, landXmlRoads, MAX_LANDXML_BYTES } =
-          await import('./dev-forestry-roads/landXmlImport')
-        if (file.size > MAX_LANDXML_BYTES) throw Error(`${file.name} is over 50 MB.`)
-        const { roads } = landXmlRoads(await file.text(), {
+      } else if (fileKind.current === 'landxml' || fileKind.current === 'roadeng') {
+        const xml = await import('./dev-forestry-roads/landXmlImport')
+        const native = await import('./dev-forestry-roads/roadEngImport')
+        const isNative = fileKind.current === 'roadeng'
+        if (file.size > (isNative ? native.MAX_ROADENG_BYTES : xml.MAX_LANDXML_BYTES))
+          throw Error(`${file.name} is over 50 MB.`)
+        // A RoadEng design takes its CRS from a terrain chosen with it, or this project's flat plane.
+        const roadEngExtras = isNative
+          ? await Promise.all(
+              files.slice(1).map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })),
+            )
+          : []
+        const { isLocalPlane } = await import('./dev-forestry-roads/localPlane')
+        const plane = isLocalPlane(project.terrain) ? project.terrain.localPlane : undefined
+        const contents = isNative ? new Uint8Array(await file.arrayBuffer()) : await file.text()
+        const options = {
           newId: uid,
-          color: (index) => colors[(project.alignments.length + index) % colors.length],
+          color: (index: number) => colors[(project.alignments.length + index) % colors.length],
           template: { ...alignment.template },
-        })
+        }
+        // A design that names no CRS is asked for one, never placed in the open terrain's.
+        const imported = await importTerrainWithAnswers(async ({ epsg }) => {
+          try {
+            if (typeof contents === 'string') {
+              const { roads } = xml.landXmlRoads(contents, { ...options, epsg })
+              return { alignments: roads.map((road) => road.alignment), summary: roads.map(xml.landXmlImportSummary) }
+            }
+            const { roadEngProject } = await import('./dev-forestry-roads/roadEngProject')
+            const placed = roadEngProject([{ name: file.name, bytes: contents }, ...roadEngExtras], {
+              ...options,
+              verticalReference: '',
+              noCrs: plane ?? 'ask',
+              ...(epsg !== undefined ? { epsg } : {}),
+            })
+            return { alignments: placed.roads.map((road) => road.alignment), summary: placed.roadNotes }
+          } catch (error) {
+            if (error instanceof xml.AlignmentCrsQuestion)
+              throw new TerrainImportQuestion(error.message, {
+                crs: { files: [file.name], bounds: error.bounds, subject: 'alignment' },
+              })
+            throw error
+          }
+        }, askTerrain)
         if (signal.aborted) return
-        if (roadCount(project) + roads.length > MAX_PROJECT_ROADS)
+        if (!imported) {
+          w.setNotice(`Import of ${file.name} cancelled. Nothing was changed.`)
+          return
+        }
+        if (roadCount(project) + imported.alignments.length > MAX_PROJECT_ROADS)
           throw Error(
-            `A project holds at most ${MAX_PROJECT_ROADS} roads. Remove some before importing ${roads.length}.`,
+            `A project holds at most ${MAX_PROJECT_ROADS} roads. Remove some before importing ${imported.alignments.length}.`,
           )
         // New roads only: an import never replaces the active road.
-        if (
-          !commitValidated(
-            withAddedAlignments(
-              project,
-              roads.map((road) => road.alignment),
-            ),
-          )
-        )
-          return
-        w.setNotice(`Imported from ${file.name}. ${roads.map(landXmlImportSummary).join(' ')}`)
+        if (!commitValidated(withAddedAlignments(project, imported.alignments))) return
+        w.setNotice(`Imported from ${file.name}. ${imported.summary.join(' ')}`)
         w.enablePersistence()
         setFitRevision((n) => n + 1)
         return
@@ -2413,7 +2594,29 @@ export default function DevForestryRoads({
     if (planMap.current) fitPlanPoints(planMap.current, points)
   }
   const readSpatial = async (file: File, intent: ImportIntent, signal?: AbortSignal) => {
-    const read = await readSpatialImport(file)
+    // A CAD drawing states no CRS and often not its units: it is asked, or on a flat-plane project
+    // read in the plane's own file coordinates (a plan from the same job shares them).
+    const plane = project.terrain.epsg === LOCAL_PLANE_EPSG ? project.terrain.localPlane : undefined
+    const read = await importTerrainWithAnswers(async (answers) => {
+      try {
+        return await readSpatialImport(file, {
+          ...(answers.epsg !== undefined ? { crs: { epsg: answers.epsg } } : plane ? { crs: { plane } } : {}),
+          ...(answers.unitM !== undefined ? { unitM: answers.unitM } : {}),
+        })
+      } catch (error) {
+        if (!(error instanceof SpatialCrsQuestion)) throw error
+        throw new TerrainImportQuestion(
+          error.message,
+          error.reason === 'units'
+            ? { units: { files: [error.fileName], stated: error.unitName } }
+            : { crs: { files: [error.fileName], bounds: error.bounds, subject: 'drawing' } },
+        )
+      }
+    }, askTerrain)
+    if (!read) {
+      w.setNotice(`Import of ${file.name} cancelled. Nothing was changed.`)
+      return
+    }
     if (signal?.aborted) return
     const proposal = proposeRoles(read, intent)
     if (proposal.ask) setSpatialChoice({ file: read, roles: proposal.roles, intent })
@@ -2619,6 +2822,41 @@ export default function DevForestryRoads({
         : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
       selectedExportBrand,
     )
+  /** The roads an export covers as a RoadEng design, in the same grid as LandXML and DXF. */
+  /** The grid a RoadEng file is written in: the export grid, or a flat-plane project's own file coordinates. */
+  const roadEngGrid = async () => {
+    const { roadEngExportGrid } = await import('./dev-forestry-roads/roadEngProjectExport')
+    return roadEngExportGrid(project.terrain, exportGrid(project.terrain, alignment.points[0].coordinate))
+  }
+  /** The roads an export covers as a RoadEng design, in the same grid as LandXML and DXF. */
+  const roadEngFile = async (safe: RoadProject) => {
+    const { roadEngDesign } = await import('./dev-forestry-roads/roadEngExport')
+    const roads = exportRoads(safe.alignments, alignment.id, roadScope)
+    const grid = await roadEngGrid()
+    const written = roadEngDesign(
+      roads.map((road) => ({ alignment: road, analysis: w.analyses.get(road.id) })),
+      grid.toGrid,
+      { designSpeedKmh: project.standards?.designSpeedKmh ?? undefined },
+    )
+    return { ...written, roads: roads.length, epsg: grid.epsg }
+  }
+  /** The same roads with their terrain and the project's drawn layers, as a zipped RoadEng project. */
+  const roadEngProjectFile = async (safe: RoadProject) => {
+    const { roadEngProjectExport } = await import('./dev-forestry-roads/roadEngProjectExport')
+    const roads = exportRoads(safe.alignments, alignment.id, roadScope)
+    const grid = await roadEngGrid()
+    const written = roadEngProjectExport({
+      name: safe.name,
+      roads: roads.map((road) => ({ alignment: road, analysis: w.analyses.get(road.id) })),
+      grid,
+      context: safe.context,
+      cables: safe.cables,
+      reference: safe.reference ?? [],
+      elevationAt: (c) => source.elevationAt(c[0], c[1]),
+      designSpeedKmh: project.standards?.designSpeedKmh ?? undefined,
+    })
+    return { ...written, roads: roads.length, epsg: grid.epsg }
+  }
   /**
    * One output's file, built the same way for its download and its preview. The PDFs are not here:
    * they render and download in one step, and preview through the report page and the plan map.
@@ -2765,6 +3003,32 @@ export default function DevForestryRoads({
           'application/dxf',
           `DXF downloaded: plan in EPSG:${grid.epsg} grid metres, profile and sections at true scale below it.`,
         )
+      }
+      case 'roadeng-project': {
+        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
+        const written = await roadEngProjectFile(safe)
+        return {
+          content: new Blob([Uint8Array.from(written.bytes)], { type: 'application/zip' }),
+          filename: written.fileName,
+          mime: 'application/zip',
+          notice: [
+            `RoadEng project downloaded: ${written.roads} road${written.roads === 1 ? '' : 's'} with terrain and layers, in ${written.epsg === null ? 'the design file’s own coordinates' : `EPSG:${written.epsg} grid metres`}.`,
+            ...written.notes,
+          ].join(' '),
+        }
+      }
+      case 'roadeng': {
+        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
+        const written = await roadEngFile(safe)
+        return {
+          content: new Blob([Uint8Array.from(written.bytes)], { type: 'application/octet-stream' }),
+          filename: `${basename}.dsnx`,
+          mime: 'application/octet-stream',
+          notice: [
+            `RoadEng design downloaded: ${written.roads} road${written.roads === 1 ? '' : 's'} in ${written.epsg === null ? 'the design file’s own coordinates' : `EPSG:${written.epsg} grid metres`}.`,
+            ...written.notes,
+          ].join(' '),
+        }
       }
       case 'landxml':
       case 'stakeout': {
@@ -2978,6 +3242,14 @@ export default function DevForestryRoads({
       const { mapImage } = await import('./dev-forestry-roads/pdf')
       const capture = await mapImage(map, signal)
       return { type: 'image', src: capture.image, width: capture.width, height: capture.height }
+    }
+    if (kind === 'roadeng-project') {
+      const written = await roadEngProjectFile(safe)
+      return textPreview(written.notes.join('\n') || 'The design and its terrain, zipped.')
+    }
+    if (kind === 'roadeng') {
+      // The archive is binary; preview the first road's line records, as written.
+      return textPreview((await roadEngFile(safe)).parts['Location1.ds2'])
     }
     if (kind === 'shapefile') {
       // The zip holds binary layers; preview the same layers' geometry instead.
@@ -3579,6 +3851,7 @@ export default function DevForestryRoads({
     lidar: () => requestTerrain('lidar'),
     regional: () => loadTerrain('regional'),
     detailedDem: () => openDetailArea(),
+    placeOnMap: () => setPlacingOnMap(true),
     peg: () => drawFromRibbon('road'),
     extend: () => drawFromRibbon('extend'),
     editPoints: () => drawFromRibbon('edit'),
@@ -3634,6 +3907,13 @@ export default function DevForestryRoads({
   const designResultsUnavailable = editLocked || noRoad || !!terrainProfile
   // Why a command is unavailable, in the order a user would have to clear them; shown in its tooltip.
   const busyReason = busy ? 'Wait for the current task to finish.' : undefined
+  // A road with no terrain ground anywhere is a design-only road: its station bar reads the
+  // design file's centreline ground where there is one ('none' without), never a missing-data warning.
+  const designOnlyGround: number | 'none' | null = displayedAnalysis.stations.some((s) => s.groundElevation !== null)
+    ? null
+    : (groundAlong(alignment.fileGround?.points ?? [], station) ?? 'none')
+  // A project opened from a design without a coordinate system: on the flat plane until placed.
+  const onFlatPlane = project.terrain.epsg === LOCAL_PLANE_EPSG && !!project.terrain.localPlane
   const lockedReason = busyReason ?? (costPreview ? 'Close the cost preview first.' : undefined)
   const noRoadReason = noRoad ? 'Peg or sketch a road first.' : undefined
   const roadLimitReason = roadLimitReached ? `A project holds at most ${MAX_PROJECT_ROADS} roads.` : undefined
@@ -3734,6 +4014,13 @@ export default function DevForestryRoads({
     lidar: { disabled: !!busy, reason: busyReason },
     regional: { disabled: !!busy, reason: busyReason },
     detailedDem: { disabled: !!busy, reason: busyReason, pressed: detailOpen },
+    placeOnMap: {
+      disabled: !!busy || !onFlatPlane || editLocked,
+      reason: !onFlatPlane
+        ? 'This project is on the map already. Place on map is for a design opened without a coordinate system.'
+        : (lockedReason ?? busyReason),
+      pressed: placingOnMap,
+    },
 
     open: { disabled: !!busy },
     export: { disabled: !!busy, label: investigation ? 'Save project' : undefined },
@@ -4286,22 +4573,16 @@ export default function DevForestryRoads({
         settings={project.settings}
         portalContainer={ref.current}
         onSettings={(patch) => update((p) => ({ ...p, settings: { ...p.settings, ...patch } }))}
-        rateEvidence={project.rateEvidence}
-        // The rate and the record it came from are one edit, so one undo takes both back.
-        onAdoptRate={(rateKey, adoption) =>
-          update(
-            (p) => ({ ...p, ...applyAdoption(p, rateKey, adoption) }),
-            `Adopted ${ADOPTABLE_RATES[rateKey].label.toLowerCase()} from evidence`,
-            { ownStep: true },
-          )
-        }
-        onRemoveRateSource={(rateKey) =>
-          update(
-            // An emptied record is `undefined` here and leaves the saved file altogether.
-            (p) => ({ ...p, rateEvidence: withoutAdoption(p.rateEvidence, rateKey) }),
-            `Removed ${ADOPTABLE_RATES[rateKey].label.toLowerCase()} source`,
-            { ownStep: true },
-          )
+        project={project}
+        // Each cost-dialog write (location, adoption, build-up, budget, scenarios) is its own undo step.
+        onProjectEdit={(edit, label) => update(edit, label, { ownStep: true })}
+        runCase={(caseAlignment, caseSettings) =>
+          safeAnalyzeRoad(caseAlignment, source, caseSettings, project.context, {
+            referenceSurfaces: w.referenceSurfaces,
+            verticalReference: project.terrain.verticalReference,
+            sharedCrossingCosts: project.sharedCrossingCosts,
+            gradeStandards: project.standards,
+          })
         }
         onHaul={
           busy || terrainProfile || draftAlignment || numericPegAlignment || templatePreview || costPreview
@@ -4427,6 +4708,28 @@ export default function DevForestryRoads({
           if (files.length) importFile(files)
         }}
       />
+      {placingOnMap && project.terrain.localPlane && (
+        <PlaceOnMapDialog
+          project={project}
+          portalContainer={ref.current}
+          onCancel={() => setPlacingOnMap(false)}
+          onPlace={(placement) => {
+            setPlacingOnMap(false)
+            void run('Placing the project on the map…', async () => {
+              const { placeProject } = await import('./dev-forestry-roads/localPlane')
+              const placed = placeProject(project, placement)
+              const source = terrainFromMetadata(placed.project.terrain)
+              if (!source) throw Error('The placed terrain could not be read.')
+              if (!commitValidated(placed.project)) return
+              w.setSource(source)
+              w.setNotice(
+                `Placed on the map in EPSG:${placed.epsg}. ${placed.notes.join(' ')} Undo puts it back on the plane.`,
+              )
+              setFitRevision((n) => n + 1)
+            })
+          }}
+        />
+      )}
       {terrainQuestion && (
         <TerrainImportDialog
           needs={terrainQuestion.needs}
@@ -5201,6 +5504,7 @@ export default function DevForestryRoads({
                                         <CrossSectionChart
                                           holdScale={sectionTools.holdScale}
                                           roadScale={sectionTools.roadScale}
+                                          showSideSlopes={sectionTools.sideSlopes}
                                           pinnedStation={sectionTools.pinnedStation}
                                           selectedCulvertId={currentCulvertId}
                                           onSelectCulvert={selectCulvert}
@@ -5684,7 +5988,17 @@ export default function DevForestryRoads({
                             className="w-[34ch] shrink-0 text-left font-mono text-xs tabular-nums"
                             data-testid="road-selected-station"
                           >
-                            {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
+                            {at && at.groundElevation === null && designOnlyGround !== null ? (
+                              // A design without terrain is a mode: its ground, if the file gave any, is shown plainly.
+                              <span
+                                className="block text-left font-sans text-muted-foreground"
+                                data-testid="road-station-design-only"
+                              >
+                                {designOnlyGround === 'none'
+                                  ? `Design only at ${formatRoadStation(station)}: no terrain under this road.`
+                                  : `${formatRoadStation(station)} · ground ${designOnlyGround.toFixed(2)} m, from the design file`}
+                              </span>
+                            ) : at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
                               <span
                                 className="block text-left font-sans text-warning"
                                 data-testid="road-station-terrain-gap"

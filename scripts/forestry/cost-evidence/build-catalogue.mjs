@@ -1,30 +1,64 @@
 #!/usr/bin/env node
 /**
- * Builds the road-cost evidence catalogue the BC references dialog reads
- * (`src/pages/dev-forestry-roads/costEvidence/*.generated.json`) from the three research packages
- * reviewed in November 2026. The packages themselves are not in the repository; pass the folders:
+ * Builds the road-cost evidence catalogue the cost references dialog reads
+ * (`src/pages/dev-forestry-roads/costEvidence/*.generated.json`) from the reviewed research packages
+ * kept beside this script in `packages/`, and the reviewed additions in `additions/`:
  *
- *   node scripts/forestry/cost-evidence/build-catalogue.mjs \
- *     --bc-local <PGMaps_BC_Cost_Data_…> \
- *     --bc-projects <PGMaps_BC_Project_Cost_Evidence_…> \
- *     --external <PGMaps_External_Cost_References_…>
+ *   npm run cost-evidence:build          # rebuild the generated files
+ *   npm run cost-evidence:check          # fail if they differ from a rebuild (CI runs this)
  *
+ * A newer package is passed by folder (`--bc-local`, `--bc-projects`, `--external`). Each package's
+ * own `checksums-sha256.json` is verified before anything is read, so a hand-edited input fails.
  * Nothing is converted, escalated or averaged here: each record keeps its own currency, unit, price
- * year, source and limits. See docs/forestry-road-design/bc-cost-evidence.md.
+ * year, place, source and limits. See docs/forestry-road-design/bc-cost-evidence.md.
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+const here = dirname(fileURLToPath(import.meta.url))
+const PACKAGES = {
+  'bc-local': join(here, 'packages/PGMaps_BC_Cost_Data_2026-11-12'),
+  'bc-projects': join(here, 'packages/PGMaps_BC_Project_Cost_Evidence_2026-11-13'),
+  external: join(here, 'packages/PGMaps_External_Cost_References_2026-11-12'),
+}
+const ADDITIONS = join(here, 'additions')
 const args = process.argv.slice(2)
+const checkOnly = args.includes('--check')
 const arg = (name) => {
   const at = args.indexOf('--' + name)
-  if (at < 0 || !args[at + 1]) throw new Error(`Missing --${name} <folder>`)
-  return resolve(args[at + 1])
+  if (at >= 0 && !args[at + 1]) throw new Error(`Missing folder after --${name}`)
+  return at >= 0 ? resolve(args[at + 1]) : PACKAGES[name]
 }
 const read = (folder, file) => JSON.parse(readFileSync(join(folder, file), 'utf8'))
-const outDir = join(dirname(fileURLToPath(import.meta.url)), '../../../src/pages/dev-forestry-roads/costEvidence')
-const write = (file, value) => writeFileSync(join(outDir, file), JSON.stringify(value, null, 1) + '\n')
+const outDir = join(here, '../../../src/pages/dev-forestry-roads/costEvidence')
+const outputs = new Map()
+const write = (file, value) => outputs.set(file, JSON.stringify(value, null, 1) + '\n')
+
+/** Every file a package lists in its own checksums must match, or the build stops. */
+function verifyPackage(folder) {
+  const sums = read(folder, 'checksums-sha256.json')
+  for (const [file, expected] of Object.entries(sums)) {
+    const actual = createHash('sha256')
+      .update(readFileSync(join(folder, file)))
+      .digest('hex')
+    if (actual !== expected) throw new Error(`${folder}/${file} does not match its checksum; the package was edited.`)
+  }
+  return folder
+}
+
+/** Provinces and states of the sources outside BC; a national or multi-state source has none. */
+const SOURCE_SUBDIVISION = {
+  'alberta-upa-2026': 'CA-AB',
+  'allnorth-labrador-2024': 'CA-NL',
+  'kneehill-mcelhanney-2025': 'CA-AB',
+  'norwich-burnside-2024': 'CA-ON',
+  'usfs-kilkenny-2024': 'US-MI',
+  'usfs-herring-2025': 'US-MI',
+  'usfs-rocking-chair-2025': 'US-MT',
+  uk_fr_woodland_costs_2025_2023prices: 'GB-ENG',
+}
 
 const REGION_IDS = [
   'cariboo',
@@ -121,6 +155,7 @@ function buildLocal(folder) {
       place: record.location,
       regionId: region,
       country: 'CA',
+      subdivision: 'CA-BC',
       currency: 'CAD',
       amounts: { value: record.amount_cad },
       unit,
@@ -152,6 +187,7 @@ function buildLocal(folder) {
     if (!region) throw new Error(`Unmapped lead region ${lead.region}`)
     return compact({
       regionId: region,
+      subdivision: 'CA-BC',
       party: lead.supplier,
       place: lead.location,
       products: lead.products ?? (lead.product ? [lead.product] : []),
@@ -210,6 +246,7 @@ function buildProjects(folder) {
         place: record.location,
         regionId: regionId(record.candidate_natural_resource_region),
         country: 'CA',
+        subdivision: 'CA-BC',
         currency: 'CAD',
         amounts: { value: record.amount_cad },
         unit: null,
@@ -241,6 +278,7 @@ function buildProjects(folder) {
         place: record.location,
         regionId: regionId(record.candidate_natural_resource_region),
         country: 'CA',
+        subdivision: 'CA-BC',
         currency: 'CAD',
         amounts: { value: amount },
         unit: null,
@@ -276,6 +314,7 @@ function buildProjects(folder) {
         place: source.location,
         regionId: regionId(source.candidate_natural_resource_region),
         country: 'CA',
+        subdivision: 'CA-BC',
         currency: 'CAD',
         amounts: { value: row.unit_rate },
         unit: '/' + String(row.unit).replace('m2', 'm²').replace('m3', 'm³'),
@@ -383,6 +422,7 @@ function buildExternal(folder) {
       title: record.title,
       place: record.geography,
       country: record.country_code,
+      subdivision: SOURCE_SUBDIVISION[record.source_id] ?? null,
       currency: record.currency,
       amounts: record.amounts,
       unit,
@@ -608,7 +648,129 @@ function buildExternal(folder) {
   return { records: records.length, sources: sources.length, estimates: estimates.length }
 }
 
-mkdirSync(outDir, { recursive: true })
-console.log('BC local', buildLocal(arg('bc-local')))
-console.log('BC projects', buildProjects(arg('bc-projects')))
-console.log('External', buildExternal(arg('external')))
+// ---------------------------------------------------------------------------------------------
+// Reviewed additions: records read from their sources after the packages, one file per review
+// ---------------------------------------------------------------------------------------------
+
+const KINDS = new Set([
+  'supplier-price',
+  'supplier-haul',
+  'municipal-fee',
+  'maintenance-award',
+  'contract-award',
+  'completed-project',
+  'approximate-project',
+  'tender-average',
+  'estimate',
+  'appraisal-allowance',
+  'survey',
+  'field-trial',
+  'maintenance-model',
+  'funding',
+])
+const CURRENCIES = new Set(['CAD', 'USD', 'NZD', 'GBP', 'AUD', 'EUR'])
+const ADDITION_FIELDS = new Set([
+  'id',
+  'kind',
+  'group',
+  'title',
+  'party',
+  'place',
+  'regionId',
+  'subdivision',
+  'country',
+  'currency',
+  'amounts',
+  'unit',
+  'unitNote',
+  'costYear',
+  'effectiveDate',
+  'dateNote',
+  'sample',
+  'scope',
+  'tax',
+  'loading',
+  'delivery',
+  'installation',
+  'minimum',
+  'cautions',
+  'contextOnly',
+  'url',
+  'locator',
+  'checked',
+])
+
+function additionRecord(record, file) {
+  const where = `${file}: ${record.id ?? 'record'}`
+  for (const key of Object.keys(record))
+    if (!ADDITION_FIELDS.has(key)) throw new Error(`${where} has unknown field ${key}`)
+  for (const key of ['id', 'kind', 'group', 'title', 'place', 'country', 'currency', 'url', 'checked'])
+    if (typeof record[key] !== 'string' || !record[key].trim()) throw new Error(`${where} needs ${key}`)
+  if (!KINDS.has(record.kind)) throw new Error(`${where} has unknown kind ${record.kind}`)
+  if (!CURRENCIES.has(record.currency)) throw new Error(`${where} has unknown currency ${record.currency}`)
+  if (record.regionId && !REGION_IDS.includes(record.regionId)) throw new Error(`${where} has unknown region`)
+  if (record.subdivision && !record.subdivision.startsWith(record.country + '-'))
+    throw new Error(`${where}: ${record.subdivision} is not in ${record.country}`)
+  if (!/^https?:\/\//.test(record.url)) throw new Error(`${where} needs a web address`)
+  const amounts = record.amounts ?? {}
+  if (!Object.keys(amounts).length || Object.values(amounts).some((v) => typeof v !== 'number' || !(v >= 0)))
+    throw new Error(`${where} needs its amounts`)
+  return compact({ ...record, cautions: record.cautions ?? [] })
+}
+
+function buildAdditions(folder) {
+  const files = readdirSync(folder)
+    .filter((file) => file.endsWith('.json'))
+    .sort()
+  const records = [],
+    estimates = [],
+    pending = []
+  let checked = ''
+  for (const file of files) {
+    const data = read(folder, file)
+    checked = data.reviewed > checked ? data.reviewed : checked
+    records.push(...data.records.map((record) => additionRecord(record, file)))
+    for (const item of data.estimates ?? [])
+      estimates.push({
+        id: item.id,
+        title: item.title,
+        sourceId: `addition:${file.replace(/\.json$/, '')}`,
+        currency: item.currency,
+        costYear: item.costYear ?? null,
+        status: item.status,
+        url: item.sourceUrl,
+        locator: item.locator,
+        lines: item.lines.map(([label, quantity, unit, rate, amount]) => ({ label, quantity, unit, rate, amount })),
+        totals: item.totals.map(([label, amount]) => ({ label, amount })),
+        notes: item.notes ?? [],
+      })
+    pending.push(...(data.pending ?? []))
+  }
+  const ids = records.map((record) => record.id)
+  if (new Set(ids).size !== ids.length) throw new Error('Additions repeat a record id')
+  write('additions.generated.json', { checked, records, estimates, pending })
+  return { records: records.length, estimates: estimates.length, pending: pending.length }
+}
+
+console.log('BC local', buildLocal(verifyPackage(arg('bc-local'))))
+console.log('BC projects', buildProjects(verifyPackage(arg('bc-projects'))))
+console.log('External', buildExternal(verifyPackage(arg('external'))))
+console.log('Additions', buildAdditions(ADDITIONS))
+
+if (checkOnly) {
+  const stale = [...outputs].filter(([file, text]) => {
+    try {
+      return readFileSync(join(outDir, file), 'utf8') !== text
+    } catch {
+      return true
+    }
+  })
+  if (stale.length) {
+    console.error(`Out of date: ${stale.map(([file]) => file).join(', ')}. Run npm run cost-evidence:build.`)
+    process.exit(1)
+  }
+  console.log('The generated catalogue matches its inputs.')
+} else {
+  mkdirSync(outDir, { recursive: true })
+  for (const [file, text] of outputs) writeFileSync(join(outDir, file), text)
+}

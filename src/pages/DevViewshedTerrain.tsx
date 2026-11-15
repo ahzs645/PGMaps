@@ -297,7 +297,7 @@ export default function DevViewshedTerrain() {
         </label>
         <p className="text-xs text-muted-foreground">
           Single-band elevations in metres; up to 1,048,576 native cells and 64 MB. BC Albers, WGS84, Web Mercator and
-          NAD83/WGS84 UTM zones 7–11 are supported. Match the crop to the observer and radius.
+          NAD83, NAD83(CSRS) or WGS84 UTM zones are supported. Match the crop to the observer and radius.
         </p>
         {importing && (
           <p role="status" className="text-sm">

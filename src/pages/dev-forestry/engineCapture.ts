@@ -21,7 +21,10 @@
  * bearing (clockwise from north), pitch (up from level), horizontal and vertical field and pixel size, drawn as a
  * pinhole (`projectToFrame`); and the class layers, bottom first, in package metres. Engine → parent:
  * `{ type: 'pgmaps-engine-capture', id, … }` (`EngineCaptureReply`) with `frames` in request order, or
- * `{ type: 'pgmaps-engine-capture', id, error }`. Buffers travel as transferables.
+ * `{ type: 'pgmaps-engine-capture', id, error }`. Buffers travel as transferables. While it renders, an engine may
+ * send `{ type: 'pgmaps-capture-progress', id, done, total, stage? }` (`EngineCaptureProgress`): render steps done
+ * of the request's total (each frame's warm-up renders and samples), at most a few times a second. PGMaps uses it
+ * only to estimate the time left (`renderEstimate.ts`); an engine that never sends it is timed from the model.
  *
  * DOM-free and network-free: the page joins the images (`engineFramedCapture.ts`).
  */
@@ -584,4 +587,19 @@ function formatStems(stems: number): string {
   if (stems >= 1_000_000) return `${(stems / 1_000_000).toFixed(2)} M`
   if (stems >= 10_000) return `${Math.round(stems / 1000)} k`
   return String(stems)
+}
+
+/** A capture's progress as an engine reports it: render steps done of the request's total. */
+export type EngineCaptureProgress = { id: string; done: number; total: number; stage: string | null }
+
+/** `{ type: 'pgmaps-capture-progress', … }` checked, or null for anything else or anything malformed. */
+export function readCaptureProgress(data: unknown): EngineCaptureProgress | null {
+  if (!isRecord(data) || data.type !== 'pgmaps-capture-progress' || typeof data.id !== 'string') return null
+  if (!finite(data.done) || !finite(data.total) || data.total <= 0 || data.done < 0) return null
+  return {
+    id: data.id,
+    done: Math.min(Math.round(data.done), Math.round(data.total)),
+    total: Math.round(data.total),
+    stage: typeof data.stage === 'string' ? data.stage.slice(0, 80) : null,
+  }
 }

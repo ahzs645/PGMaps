@@ -125,6 +125,8 @@
     "projects:scorebuilder": "tsx scripts/generate-scorebuilder-projects.ts && npm run projects:index",
     "projects:index": "node scripts/generate-project-index.mjs",
     "projects:index:check": "node scripts/generate-project-index.mjs --check",
+    "cost-evidence:build": "node scripts/forestry/cost-evidence/build-catalogue.mjs",
+    "cost-evidence:check": "node scripts/forestry/cost-evidence/build-catalogue.mjs --check",
     "projects:build": "tsx scripts/generate-scorebuilder-projects.ts && npm run projects:index",
     "projects:climate-stories": "node scripts/generate-climate-stories.mjs && npm run projects:index",
     "projects:bec-representation": "node scripts/bec-representation.mjs && node scripts/generate-bec-story.mjs && npm run projects:index",

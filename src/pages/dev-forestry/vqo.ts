@@ -293,7 +293,7 @@ export function vegHeightForSlope(slopePercent: number): number {
  * letter cannot be added into a sum; a percentage can. The class is then
  * derived from it through Table 3, so the two can never disagree.
  */
-const PARTIAL_CUT_EQUIVALENT: ReadonlyArray<ReadonlyArray<number>> = [
+export const PARTIAL_CUT_EQUIVALENT: ReadonlyArray<ReadonlyArray<number>> = [
   [0.1, 0.2, 0.4, 0.6, 0.7, 0.8, 1.0, 1.2, 1.8, 2.2],
   [0.3, 0.4, 0.7, 1.0, 1.2, 1.4, 1.8, 2.2, 3.3, 4.4],
   [0.7, 0.9, 1.2, 1.4, 2.0, 2.4, 3.3, 4.2, 5.0, 6.5],

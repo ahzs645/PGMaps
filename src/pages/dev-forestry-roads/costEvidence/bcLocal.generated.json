@@ -10,6 +10,7 @@
    "place": "180 River Road, Prince George",
    "regionId": "omineca",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 49.99
@@ -43,6 +44,7 @@
    "place": "180 River Road, Prince George",
    "regionId": "omineca",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 14.99
@@ -76,6 +78,7 @@
    "place": "180 River Road, Prince George",
    "regionId": "omineca",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 60.99
@@ -109,6 +112,7 @@
    "place": "180 River Road, Prince George",
    "regionId": "omineca",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 71.99
@@ -142,6 +146,7 @@
    "place": "Fort St. John; pit at 7069 265 Road",
    "regionId": "northeast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 16
@@ -168,6 +173,7 @@
    "place": "Fort St. John; pit at 7069 265 Road",
    "regionId": "northeast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 12.25
@@ -193,6 +199,7 @@
    "place": "Fort St. John; pit at 7069 265 Road",
    "regionId": "northeast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 13.4
@@ -218,6 +225,7 @@
    "place": "Fort St. John; pit at 7069 265 Road",
    "regionId": "northeast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 13.35
@@ -243,6 +251,7 @@
    "place": "Fort St. John; pit at 7069 265 Road",
    "regionId": "northeast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 18.65
@@ -268,6 +277,7 @@
    "place": "New Hazelton",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 147
@@ -301,6 +311,7 @@
    "place": "New Hazelton",
    "regionId": "skeena",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 85.5
@@ -333,6 +344,7 @@
    "place": "Williams Lake",
    "regionId": "cariboo",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 34.86
@@ -362,6 +374,7 @@
    "place": "Williams Lake",
    "regionId": "cariboo",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 275.8
@@ -390,6 +403,7 @@
    "place": "Summerland, BC; 17202 Bathville Road",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 15.38
@@ -424,6 +438,7 @@
    "place": "Summerland, BC; 17202 Bathville Road",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 14.25
@@ -458,6 +473,7 @@
    "place": "Summerland, BC; 17202 Bathville Road",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 15.27
@@ -492,6 +508,7 @@
    "place": "Summerland, BC; 17202 Bathville Road",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 9.23
@@ -526,6 +543,7 @@
    "place": "181 Green Mountain Road aggregate yard, Penticton, BC",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 16.95
@@ -560,6 +578,7 @@
    "place": "181 Green Mountain Road aggregate yard, Penticton, BC",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 16.5
@@ -594,6 +613,7 @@
    "place": "181 Green Mountain Road aggregate yard, Penticton, BC",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 15
@@ -628,6 +648,7 @@
    "place": "181 Green Mountain Road aggregate yard, Penticton, BC",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 145
@@ -662,6 +683,7 @@
    "place": "Cowichan Valley and Greater Victoria; yard at 841 Malahat Drive, Malahat, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 17.6
@@ -694,6 +716,7 @@
    "place": "Cowichan Valley and Greater Victoria; yard at 841 Malahat Drive, Malahat, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 21.45
@@ -726,6 +749,7 @@
    "place": "Cowichan Valley and Greater Victoria; yard at 841 Malahat Drive, Malahat, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 24.75
@@ -758,6 +782,7 @@
    "place": "Cowichan Valley and Greater Victoria; yard at 841 Malahat Drive, Malahat, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 145
@@ -790,6 +815,7 @@
    "place": "Campbell River / Oyster River, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 9.99
@@ -824,6 +850,7 @@
    "place": "Campbell River / Oyster River, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 11.5
@@ -858,6 +885,7 @@
    "place": "Campbell River / Oyster River, Vancouver Island, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 19.99
@@ -892,6 +920,7 @@
    "place": "45895 Promontory Road, Chilliwack, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 14.75
@@ -922,6 +951,7 @@
    "place": "5378 Allen Road, Sechelt, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 27
@@ -957,6 +987,7 @@
    "place": "5378 Allen Road, Sechelt, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 13
@@ -991,6 +1022,7 @@
    "place": "5378 Allen Road, Sechelt, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 20
@@ -1025,6 +1057,7 @@
    "place": "5378 Allen Road, Sechelt, BC",
    "regionId": "south-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 165
@@ -1059,6 +1092,7 @@
    "place": "891 Squilax-Anglemont Road, Chase, BC",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 13
@@ -1094,6 +1128,7 @@
    "place": "891 Squilax-Anglemont Road, Chase, BC",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 12.75
@@ -1129,6 +1164,7 @@
    "place": "891 Squilax-Anglemont Road, Chase, BC",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 7.35
@@ -1164,6 +1200,7 @@
    "place": "891 Squilax-Anglemont Road, Chase, BC",
    "regionId": "thompson-okanagan",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 160
@@ -1199,6 +1236,7 @@
    "place": "Creston, BC",
    "regionId": "kootenay-boundary",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 40
@@ -1231,6 +1269,7 @@
    "place": "Creston, BC",
    "regionId": "kootenay-boundary",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 40
@@ -1263,6 +1302,7 @@
    "place": "2306 Crystal Springs Road, Nelson, BC; offer for Nelson, Castlegar and Crescent Valley",
    "regionId": "kootenay-boundary",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 253.5
@@ -1296,6 +1336,7 @@
    "place": "Nanaimo, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 33
@@ -1326,6 +1367,7 @@
    "place": "Nanaimo, BC",
    "regionId": "west-coast",
    "country": "CA",
+   "subdivision": "CA-BC",
    "currency": "CAD",
    "amounts": {
     "value": 55
@@ -1353,6 +1395,7 @@
  "leads": [
   {
    "regionId": "cariboo",
+   "subdivision": "CA-BC",
    "party": "United Concrete & Gravel Ltd.",
    "place": "Quesnel, Williams Lake, 100 Mile House",
    "products": [
@@ -1368,6 +1411,7 @@
   },
   {
    "regionId": "cariboo",
+   "subdivision": "CA-BC",
    "party": "93 Mile Aggregates",
    "place": "5499 Little Fort Highway, 100 Mile House",
    "products": [
@@ -1384,6 +1428,7 @@
   },
   {
    "regionId": "skeena",
+   "subdivision": "CA-BC",
    "party": "JL's Excavating Ltd.",
    "place": "Terrace; Copper Mountain aggregate mine",
    "products": [
@@ -1400,6 +1445,7 @@
   },
   {
    "regionId": "skeena",
+   "subdivision": "CA-BC",
    "party": "Skeena Concrete Products Ltd.",
    "place": "3751 Old Lakelse Lake Drive, Terrace",
    "products": [
@@ -1415,6 +1461,7 @@
   },
   {
    "regionId": "skeena",
+   "subdivision": "CA-BC",
    "party": "Steti Transport Ltd.",
    "place": "Smithers and Bulkley Valley",
    "products": [
@@ -1429,6 +1476,7 @@
   },
   {
    "regionId": "kootenay-boundary",
+   "subdivision": "CA-BC",
    "party": "The Yard Depot Cranbrook",
    "place": "2300 Cranbrook Street North, Cranbrook, BC",
    "products": [

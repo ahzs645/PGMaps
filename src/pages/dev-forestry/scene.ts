@@ -54,6 +54,12 @@ export type ForestryScene = {
    */
   viewpointClearing?: ViewpointClearingSetting
   /**
+   * Draw private land without its timber, as VIAs that leave forest cover on private land unmodelled do ("artificially
+   * de-vegetated for purposes of analysis"): the scene's private masks join the drawn clearings, in PGMaps' road view
+   * and in an engine's package. Display only, like the tree-free areas; off when absent.
+   */
+  clearPrivateLand?: boolean
+  /**
    * The analysis sheet's frame when set: this bearing span rather than one framed on the landform, as a reference
    * VIA's panorama was taken (`planFixedFraming`). Display only, like the tree-free areas: it changes the picture and
    * its pixel figure, never the run.
@@ -385,6 +391,12 @@ type SerializedScene = {
   treeFreeAreas?: TreeFreeArea[]
   viewpointClearing?: ViewpointClearingSetting
   /**
+   * Draw private land without its timber, as VIAs that leave forest cover on private land unmodelled do ("artificially
+   * de-vegetated for purposes of analysis"): the scene's private masks join the drawn clearings, in PGMaps' road view
+   * and in an engine's package. Display only, like the tree-free areas; off when absent.
+   */
+  clearPrivateLand?: boolean
+  /**
    * The analysis sheet's frame when set: this bearing span rather than one framed on the landform, as a reference
    * VIA's panorama was taken (`planFixedFraming`). Display only, like the tree-free areas: it changes the picture and
    * its pixel figure, never the run.
@@ -541,6 +553,7 @@ export function parseScene(input: unknown): ForestryScene | null {
     ...(raw.viewpointClearing !== undefined
       ? { viewpointClearing: parseViewpointClearing(raw.viewpointClearing) }
       : {}),
+    ...(raw.clearPrivateLand === true ? { clearPrivateLand: true } : {}),
     ...(parseFigureFrame(raw.figureFrame) ? { figureFrame: parseFigureFrame(raw.figureFrame)! } : {}),
     viewpoint: {
       id: typeof raw.viewpoint?.id === 'string' ? raw.viewpoint.id : base.viewpoint.id,

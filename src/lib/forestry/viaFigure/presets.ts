@@ -18,6 +18,8 @@ import type { LabelStyleId, LeaderStyle, SheetTextStyle } from '@/lib/mapSheet/c
 import type { StrokeStyle } from '@/lib/mapSheet/drawOps'
 import type { AreaSymbol, LineSymbol, SheetSymbol } from '@/lib/mapSheet/symbols'
 
+import { ALTERATION_RULES, type AlterationRule } from './alteration'
+
 export type { LeaderStyle }
 
 // ---------------------------------------------------------------- shared shapes
@@ -102,6 +104,11 @@ export interface CalcBlockStyle {
   align: 'left' | 'center'
   /** Line templates; {name} fields are filled from the run. Wording follows the source. */
   lines: string[]
+  /**
+   * The arithmetic the lines print (`alteration.ts`): what is added, what leaves the landform, decimals and rounding.
+   * `{totalPct}`, the parts' percents, `{netPx}` and `{class}` all come from it, never from the wording of a line.
+   */
+  rule?: AlterationRule
   footnote?: TextStyle & { text: string }
 }
 
@@ -126,7 +133,7 @@ export interface Entry<S extends SheetSymbol = SheetSymbol> {
 export interface ViaStylePreset {
   id: string
   name: string
-  family: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
+  family: 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'
   /** Reference documents by number, with page and crop id. */
   sources: string[]
   /** How the base image is toned before symbols go on. */
@@ -139,6 +146,12 @@ export interface ViaStylePreset {
     rating?: TextStyle & { lines: string[]; spec: string }
     vsu?: TextStyle & { template: string; leader?: LeaderStyle }
     block?: TextStyle & { leader?: LeaderStyle; box?: AreaSymbol; spec: string }
+    /**
+     * Point out the existing openings the picture shows, as secondary labels with arrows (`existingOpeningCallouts`,
+     * `composeFigure.ts`), when the page's callouts carry none: one per opening covering at least `minShare` of the
+     * picture, the largest `max`.
+     */
+    existing?: { title: string; minShare: number; max: number; spec: string }
   }
   /** The red-circle visual inventory key (A sheets). */
   vsuBadge?: {
@@ -157,6 +170,12 @@ export interface ViaStylePreset {
   labelStyle?: LabelStyleId
   /** Print the camera information block on the image (handbook Appendix 7) by default. */
   cameraInfo?: boolean
+  /**
+   * The reference paints each block's visible ground as harvested ground (a cut texture in the render, not a symbol
+   * fill): the base colours `paintBlockGround` (`composeFigure.ts`) shades and textures. Present turns *Paint blocks*
+   * on by default; absent leaves the picture as captured.
+   */
+  paint?: BlockPaint
   /** Crop the framed strip to the landform; false keeps the sky (a title drawn in it). Default true. */
   cropToLandform?: boolean
   /** Footer facts (A sheets: viewpoint, location, distance), bold italic in the originals. */
@@ -168,6 +187,20 @@ export interface ViaStylePreset {
   ramps?: { id: string; title: string; classes: { label: string; color: string; pattern?: string }[]; spec: string }[]
   /** What the reference does that the preset cannot express yet. */
   gaps: string[]
+}
+
+/** Base colours for painting block ground, each sampled from the reference's own render. */
+export interface BlockPaint {
+  /** Fresh cut on proposed blocks. */
+  proposed: string
+  /** Existing openings still counting, as regrowth; absent leaves them unpainted. */
+  existing?: string
+  /**
+   * Private land, de-vegetated for the analysis and burned into the render as one flat colour under the trees in
+   * front, with no outline (22 p27). Absent leaves private land to its symbol, drawn over the picture.
+   */
+  privateLand?: string
+  spec: string
 }
 
 // ---------------------------------------------------------------- helpers
@@ -260,7 +293,8 @@ const A_BADGE: ViaStylePreset['vsuBadge'] = {
   ],
 }
 
-const A_CALC = (denominator: string): CalcBlockStyle => ({
+const A_CALC = (denominator: string, rule: AlterationRule): CalcBlockStyle => ({
+  rule,
   title: { text: 'Percent Alteration Calculation', size: 9.84, style: 'bold', color: BLACK },
   line: { size: 9.84, color: BLACK },
   emphasis: { size: 9.84, style: 'bold', color: BLACK },
@@ -317,6 +351,10 @@ export const ANALYSIS_SHEET_MAGENTA: ViaStylePreset = {
     proposedBlock: PROPOSED_BLOCK_A,
     existingNonVeg: NONVEG_A,
   },
+  paint: {
+    proposed: '#927465',
+    spec: 'Proposed block ground is a pinkish-tan cut render of slash lumps lying across the slope, with light flecks, inside the green outline (03 p1): cut pixels median #8d6e5a (Lakeview) and #987a70 (West Gun), mean of the two #927465; luminance 10th–90th percentile about ±25 % of the median',
+  },
   callout: A_CALLOUT,
   labels: {
     landform: { template: 'Landform {n}', size: 9.84, color: '#c500ff', halo: HALO },
@@ -328,13 +366,13 @@ export const ANALYSIS_SHEET_MAGENTA: ViaStylePreset = {
     { role: 'vsuLine', label: 'VSU' },
     { role: 'landform', label: 'Landform' },
   ]),
-  calc: A_CALC('VSU'),
+  calc: A_CALC('VSU', ALTERATION_RULES.grossPixels),
   titles: A_TITLES('{area}'),
   sheet: A_SHEET,
   facts: A_FACTS,
   gaps: [
     'Footer facts are Arial Bold Italic 12.96 pt; the PDF prints Helvetica Bold Oblique.',
-    'Proposed block ground in the original is a textured pink-grey render (median #9c817b), not a symbol fill.',
+    'Proposed block ground in the original is cut ground rendered under the trees; PGMaps paints the visible ground procedurally (Paint blocks), it does not model the stand left round it.',
   ],
 }
 
@@ -359,6 +397,11 @@ export const ANALYSIS_SHEET_ORANGE: ViaStylePreset = {
         source: 'Private-land assessment masks (kind "private"): ParcelMap BC parcels the reviewer adds, or drawn',
       },
     },
+  },
+  paint: {
+    proposed: '#b3a486',
+    privateLand: '#b702d5',
+    spec: 'Proposed block ground is sandy cut ground with slash and scattered regrowth tufts (22 p40–p42): median #b3a486 across the cut. Private land is the legend fill #d004ef burned into the render under the trees in front, no outline (22 p27): median #b702d5 after shading',
   },
   callout: A_CALLOUT,
   labels: {
@@ -387,7 +430,7 @@ export const ANALYSIS_SHEET_ORANGE: ViaStylePreset = {
     },
   ),
   calc: {
-    ...A_CALC('(LF - PL)'),
+    ...A_CALC('(LF - PL)', ALTERATION_RULES.netOfPrivatePixels),
     lines: [
       'Area of Landform (LF) = {landformPx}',
       'Area of Private Land (PL) = {privatePx}',
@@ -402,7 +445,7 @@ export const ANALYSIS_SHEET_ORANGE: ViaStylePreset = {
   facts: A_FACTS,
   gaps: [
     'The landform label and rating code carry a white halo built from text outlines (243 line segments); jsPDF fillThenStroke reproduces it.',
-    'Private land is a raster fill under the trees in the original; PGMaps drapes the mask as a flat fill.',
+    'Private land is a raster fill under the trees in the original; PGMaps paints it into the picture under the trees in front only with Paint blocks on, and otherwise drapes the mask as a flat fill over them.',
   ],
 }
 
@@ -436,6 +479,11 @@ export const ANALYSIS_SHEET_PURPLE: ViaStylePreset = {
       },
     },
   },
+  paint: {
+    proposed: '#83786a',
+    existing: '#777e70',
+    spec: 'Inside the green outlines a pink-grey cut texture (median #83786a), inside the yellow NonV.E.G. outlines a lighter grey-green regrowth (median #777e70), both under 23 p15 distance haze',
+  },
   callout: A_CALLOUT,
   labels: { landform: { template: 'Landform {n}', size: 9.84, color: '#8400a8', halo: HALO } },
   vsuBadge: A_BADGE,
@@ -448,7 +496,7 @@ export const ANALYSIS_SHEET_PURPLE: ViaStylePreset = {
     ],
     { text: '*Private Land is only depicted within Landform 1', size: 6, color: '#9c9c9c', role: 'privateLand' },
   ),
-  calc: { ...A_CALC('Landform'), lines: [...A_CALC('Landform').lines] },
+  calc: A_CALC('Landform', ALTERATION_RULES.grossPixelsSumOfParts),
   titles: A_TITLES('{area} - {viewpoint}'),
   sheet: A_SHEET,
   facts: A_FACTS,
@@ -460,19 +508,20 @@ export const ANALYSIS_SHEET_PURPLE: ViaStylePreset = {
 // ---------------------------------------------------------------- family B: existing / proposed / analysed
 
 /** Calculations block under the three panels (07 p3 text: Arial 12, colour #0d0d0d, centred). */
-const B_CALC: CalcBlockStyle = {
+const B_CALC = (rule: AlterationRule, deducted: string): CalcBlockStyle => ({
+  rule,
   title: { text: 'Calculations', size: 12, style: 'bold', color: '#0d0d0d', underline: { width: 0.8 } },
   line: { size: 12, color: '#0d0d0d' },
   align: 'center',
   lines: [
     'VLU= {landformPx} px',
-    'Rock= {rockPx} px',
+    `${deducted}= {deductedPx} px`,
     'Net VLU= {netPx} px',
     'Proposed Development= {proposedPx} px',
     'Existing Non-Veg State= {nonVegPx} px',
     'Alteration= {totalPct}% ({class})',
   ],
-}
+})
 
 const B_LEGEND_BOX: AreaSymbol = {
   kind: 'area',
@@ -518,6 +567,10 @@ export const ANALYSED_PHOTO_HATCHED_ROCK: ViaStylePreset = {
       data: { source: 'Existing openings still counting' },
     },
   },
+  paint: {
+    proposed: '#94948d',
+    spec: 'The proposed panel paints each opening as pale grey cut ground over the photo (07 p3 middle panel): median #94948d',
+  },
   legend: {
     where: 'inset-right',
     entry: { size: 5, color: BLACK },
@@ -536,7 +589,7 @@ export const ANALYSED_PHOTO_HATCHED_ROCK: ViaStylePreset = {
     sizeShare: 0.018,
     labels: ['Existing Condition', 'Proposed Development', 'Proposed Development'],
   },
-  calc: B_CALC,
+  calc: B_CALC(ALTERATION_RULES.netOfRockCm2, 'Rock'),
   sheet: {
     paper: {
       width: 612,
@@ -580,6 +633,10 @@ export const ANALYSED_PHOTO_ROCK_OUTLINE: ViaStylePreset = {
       data: { source: 'Proposed blocks, visible part' },
     },
   },
+  paint: {
+    proposed: '#8e8f88',
+    spec: 'Inside each green outline the proposed alteration is painted as grey cut ground over the photo (05 p13, block 405-4): median #8e8f88',
+  },
   labels: {
     block: {
       size: 10.5,
@@ -606,7 +663,7 @@ export const ANALYSED_PHOTO_ROCK_OUTLINE: ViaStylePreset = {
     sizeShare: 0.017,
     labels: ['Existing Condition', 'Proposed Alteration'],
   },
-  calc: B_CALC,
+  calc: B_CALC(ALTERATION_RULES.netOfRockAndPrivateCm2, 'Rock and Private Land'),
   gaps: ['05 pages print the analysed photo at 1584 × 1584 pt with a 10 pt black frame.'],
 }
 
@@ -634,6 +691,10 @@ export const ANALYSED_PHOTO_PRIVATE_LAND: ViaStylePreset = {
       },
     },
   },
+  paint: {
+    proposed: '#c8b9a0',
+    spec: 'The simulation paints block 421-3 as pale tan cut ground inside the green outline (06 p5): sampled ≈ #c8b9a0',
+  },
   labels: {
     block: {
       size: 12.5,
@@ -656,7 +717,7 @@ export const ANALYSED_PHOTO_PRIVATE_LAND: ViaStylePreset = {
     ],
   },
   panelLabels: { text: { size: 10, color: BLACK }, labels: ['Photo', 'Simulation'] },
-  calc: B_CALC,
+  calc: B_CALC(ALTERATION_RULES.netOfRockAndPrivateCm2, 'Private Land and Rock'),
   gaps: [
     '06 sets a header attribute table (Distance, VLI No., VSC, VAC, EVQO, lat/long, View Duration) in Arial Bold 14.04 #595959 above the panels.',
   ],
@@ -909,6 +970,7 @@ export const CALCULATION_ON_PHOTO: ViaStylePreset = {
     ],
   },
   calc: {
+    rule: ALTERATION_RULES.grossCm2,
     title: { text: 'VP {n}', size: 9.5, style: 'bold', color: BLACK },
     line: { size: 9.5, style: 'bold', color: BLACK },
     align: 'left',
@@ -1137,6 +1199,49 @@ export const PERSPECTIVE_OVERLAY: ViaStylePreset = {
   ],
 }
 
+// ---------------------------------------------------------------- family J: labelled perspective, no outlines
+
+/**
+ * A perspective with nothing outlined: the cut shows as cut ground in the render, each proposed block is named by a
+ * label whose underline turns down into an arrow at its ground, and existing openings are pointed out the same way,
+ * smaller and plainer. The form 2001 partial-cut simulations and the district rationale's simulated cutblocks draw
+ * their perspectives this way.
+ */
+export const ARROWS_NO_OUTLINES: ViaStylePreset = {
+  id: 'arrows-no-outlines',
+  name: 'Perspective · arrows, no outlines',
+  family: 'J',
+  sources: [
+    "01 p7 (Figure 3, oblique renders: each block's name with a straight leader line down to its cut ground; no block or landform outline)",
+    '01 p8–11 (simulations: block names in a small box on a leader, no outlines; the box is the small-extras label box)',
+    "02 p5 (simulated cutblock: the block's name underlined in white, the underline turning into white arrows down to the cut; no outline)",
+    '02 p6 (oblique simulated cutblock: the name written on the cut; no outline)',
+  ],
+  tone: 'colour',
+  labelStyle: 'underlined-arrow',
+  cropToLandform: false,
+  // Nothing is outlined or filled: the arrows and the cut ground say where each block is.
+  symbols: {},
+  paint: {
+    proposed: '#968955',
+    spec: "Proposed block ground is the render's cut, dry grass and slash with no outline: median #948754 (02 p5) and #978a55 (02 p6), mean #968955. The oblique renders of 01 p7 paint the cut a pale pink-tan (median #d4af9d); pick that colour in Paint blocks to match them",
+  },
+  labels: {
+    existing: {
+      title: 'Existing opening',
+      minShare: 0.002,
+      max: 4,
+      spec: '02 p5 points out the cut it simulates and leaves the older openings above it unlabelled; 01 p7–11 names neighbouring blocks on leaders. PGMaps points out each existing opening the picture shows over 0.2 % of it, the four largest, small white text on a white arrow (the secondary label of `labelOps`)',
+    },
+  },
+  legend: { where: 'none', entry: { size: 9, color: BLACK }, swatch: { w: 0, h: 0, gap: 0 }, rowPitch: 0, order: [] },
+  titles: { align: 'left', lines: [{ text: '{viewpoint} - Simulated Harvest', size: 11, color: BLACK }] },
+  gaps: [
+    "01 p7 draws its leaders black with no arrowhead; the underlined-arrow label takes the ink that reads over the picture and ends in a head. Choose the Halo label style for 01's plain leader.",
+    'The references print no calculation on the figure; PGMaps prints its two measures under it.',
+  ],
+}
+
 export const VIA_STYLE_PRESETS: readonly ViaStylePreset[] = [
   ANALYSIS_SHEET_MAGENTA,
   ANALYSIS_SHEET_ORANGE,
@@ -1151,6 +1256,7 @@ export const VIA_STYLE_PRESETS: readonly ViaStylePreset[] = [
   TIME_STEP_RAMPS,
   EXTRAS,
   PERSPECTIVE_OVERLAY,
+  ARROWS_NO_OUTLINES,
 ]
 
 export const presetById = (id: string) => {

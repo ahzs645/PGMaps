@@ -182,6 +182,10 @@ export type TargetVisibility = {
    * this set is screened, not behind a ridge. Absent on runs saved before it.
    */
   anyBareEarthVisible?: Uint8Array
+  /**
+   * Per station, per sample: 1 visible, 2 unknown (missing terrain), 3 hidden only by standing timber, else hidden.
+   * Runs saved before code 3 carry 0 there.
+   */
   visibleByStation: Uint8Array
   visibleDistances: Float64Array
   sampleCount: number

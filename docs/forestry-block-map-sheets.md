@@ -4,7 +4,9 @@ A block map sheet is a printed PDF of one harvest block: a map frame at a stated
 bar, block information, a legend that lists only what is drawn, a scale bar, a north arrow and a
 footer. Six presets reproduce the layout and symbology of a set of ArcGIS Pro block-map sheets
 (field layout, three LiDAR design sheets, a 1:50,000 access sheet and a portrait imagery sheet).
-No licensee names or logos come with them; a user can add one logo of their own.
+No licensee names or logos come with them; a user can add one logo of their own. It is kept in the browser's
+branding store (IndexedDB) and used by every sheet and report, never in a project file; without one, the brand
+selected in Branding supplies its logo.
 
 The road design tool offers it as **Files → Project & exports → Block map sheet**. The engine is
 generic and other tools can adopt it; see [Adopting it in another tool](#adopting-it-in-another-tool).
@@ -305,7 +307,7 @@ falls in the cell north or east of it.
 | Access comments             | 2,000 characters                               | `sheets.ts`, `MAX_SHEET_COMMENTS_LENGTH`                                        | Cut; lines past the box end in "(continues: shorten …)"    |
 | Road table                  | 10 roads (two halves of `ROAD_TABLE_ROWS` = 5) | `composeSheet.ts`, `ROAD_TABLE_ROWS`                                            | Nine listed and "+N more roads"                            |
 | Legend                      | As many rows as the panel holds                | `composeSheet.ts`, `legendPanel`                                                | "+N more not shown"                                        |
-| Logo                        | 2 MB, PNG or JPEG                              | `BlockSheetSetup.tsx`, `MAX_SHEET_LOGO_BYTES`                                   | Refused with a message                                     |
+| Logo                        | 2 MB, PNG or JPEG                              | `src/branding/model.ts`, `MAX_UPLOADED_LOGO_BYTES`                              | Refused with a message                                     |
 | Smallest type               | 4.5 pt                                         | `layout.ts`, `MIN_SHEET_FONT_PT`                                                | Held at 4.5 pt                                             |
 | Markers along one line      | 4,000                                          | `drawOps.ts`, `MAX_LINE_MARKERS`                                                | Spacing widened so the count fits                          |
 | Icons in one marker fill    | 5,000                                          | `symbols.ts`, `MAX_MARKER_FILL`                                                 | Grid widened so the count fits                             |

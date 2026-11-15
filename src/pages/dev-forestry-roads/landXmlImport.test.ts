@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { designProfileAt, distance, horizontalCurveSummary, offsetCoordinate, analyzeRoad } from './engine'
 import { landXml } from './designExports'
 import {
+  AlignmentCrsQuestion,
   isLandXml,
   checkElements,
   landXmlImportSummary,
@@ -102,12 +103,54 @@ describe('LandXML alignment import', () => {
     const minified = exported.replace(/>\s+</g, '><')
     expect(landXmlRoads(minified, options).roads[0].alignment.points).toHaveLength(4)
   })
-  it('refuses a file with no coordinate system, or one in degrees', () => {
+  it('asks for the CRS of a file that names none, and places it only in the answer', () => {
     const noCrs = exported.replace(/<CoordinateSystem[^>]*\/>/, '')
-    expect(() => landXmlRoads(noCrs, options)).toThrow(/names no coordinate system/)
+    expect(noCrs).not.toContain('CoordinateSystem')
+    let question: unknown
+    try {
+      landXmlRoads(noCrs, options)
+    } catch (error) {
+      question = error
+    }
+    expect(question).toBeInstanceOf(AlignmentCrsQuestion)
+    expect((question as AlignmentCrsQuestion).message).toMatch(/names no coordinate system/)
+    // The question shows the file's own coordinates, so they can be checked against a zone.
+    const [minX, minY, maxX, maxY] = (question as AlignmentCrsQuestion).bounds
+    const easting = Number(/<Start>\s*\S+\s+([^<\s]+)/.exec(exported)![1])
+    expect(easting).toBeGreaterThanOrEqual(minX)
+    expect(easting).toBeLessThanOrEqual(maxX)
+    expect(maxY).toBeGreaterThan(minY)
+    const answered = landXmlRoads(noCrs, { ...options, epsg: grid.epsg })
+    expect(answered.epsgStated).toBe(false)
+    const stated = landXmlRoads(exported, options).roads[0].alignment
+    answered.roads[0].alignment.points.forEach((point, k) =>
+      expect(distance(point.coordinate, stated.points[k].coordinate)).toBeLessThan(0.001),
+    )
+  })
+  it('never lets an answer override the CRS a file states', () => {
+    const elsewhere = grid.epsg === 26910 ? 26911 : 26910
+    const result = landXmlRoads(exported, { ...options, epsg: elsewhere })
+    expect(result.epsg).toBe(grid.epsg)
+    expect(result.epsgStated).toBe(true)
+  })
+  it('refuses a file in feet that names no CRS, and one in degrees', () => {
+    const feet = exported
+      .replace(/<CoordinateSystem[^>]*\/>/, '')
+      .replace(/<Units>[\s\S]*?<\/Units>/, '<Units><Imperial linearUnit="foot"/></Units>')
+    expect(() => landXmlRoads(feet, { ...options, epsg: grid.epsg })).toThrow(/in feet and names no coordinate system/)
     const degrees = exported.replace(/epsgCode="\d+"/, 'epsgCode="4326"')
     expect(() => landXmlRoads(degrees, options)).toThrow(/not a projected coordinate system/)
   })
+  it("keeps a file's ground profile as the road's design-file ground", () => {
+    const withGround = exported.replace(
+      /<Profile([^>]*)>/,
+      '<Profile$1><ProfSurf name="Ground"><PntList2D>0 800 100 802.5 200 801</PntList2D></ProfSurf>',
+    )
+    const [road] = landXmlRoads(withGround, options).roads
+    expect(road.alignment.fileGround!.source).toBe('LandXML ground profile')
+    expect(road.alignment.fileGround!.points.map((p) => p[1])).toEqual([800, 802.5, 801])
+  })
+
   it('converts feet', () => {
     const feet = parseLandXml(
       '<LandXML><Units><Imperial linearUnit="USSurveyFoot"/></Units><Alignments><Alignment name="F" staStart="0"><CoordGeom><Line><Start>0 0</Start><End>1000 0</End></Line></CoordGeom></Alignment></Alignments></LandXML>',

@@ -1,5 +1,6 @@
 /** Raster sampling and validation have no browser or network dependencies. */
 import proj4 from 'proj4'
+import { LOCAL_PLANE_DEFINITION, LOCAL_PLANE_EPSG, projectedCrsDefinition } from '@/lib/geo/projectedCrs'
 import { mercatorToLngLat, type ElevationSource } from './terrain'
 import type { CanopySource } from './canopy'
 import type { LocalRaster } from './types'
@@ -9,15 +10,17 @@ proj4.defs(
   '+proj=aea +lat_1=50 +lat_2=58.5 +lat_0=45 +lon_0=-126 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m +no_defs',
 )
 export const MAX_RASTER_CELLS = 1_048_576
+/** What a raster's CRS may be, for messages. */
+export const RASTER_CRS_TEXT = 'WGS84, Web Mercator, BC Albers, or a NAD83, NAD83(CSRS) or WGS84 UTM zone'
+/**
+ * lon/lat ↔ the raster's grid. Every projected CRS `projectedCrsDefinition` supports is accepted,
+ * plus lon/lat, Web Mercator and the local plane of a design placed without a coordinate system.
+ */
 export function rasterProjection(epsg: number) {
-  if (![4326, 3857, 3005].includes(epsg) && !(epsg >= 26907 && epsg <= 26911) && !(epsg >= 32607 && epsg <= 32611))
-    throw new Error('Use WGS84, Web Mercator, BC Albers, or NAD83/WGS84 UTM zones 7–11.')
-  if (!proj4.defs(`EPSG:${epsg}`))
-    proj4.defs(
-      `EPSG:${epsg}`,
-      `+proj=utm +zone=${epsg % 100} +datum=${epsg < 30000 ? 'NAD83' : 'WGS84'} +units=m +no_defs`,
-    )
-  return proj4('EPSG:4326', `EPSG:${epsg}`)
+  if (epsg === 4326 || epsg === 3857) return proj4('EPSG:4326', `EPSG:${epsg}`)
+  const definition = epsg === LOCAL_PLANE_EPSG ? LOCAL_PLANE_DEFINITION : projectedCrsDefinition(epsg)
+  if (!definition) throw new Error(`Use ${RASTER_CRS_TEXT}.`)
+  return proj4('EPSG:4326', definition)
 }
 export function parseRasters(raw: unknown): LocalRaster[] {
   if (raw == null) return []

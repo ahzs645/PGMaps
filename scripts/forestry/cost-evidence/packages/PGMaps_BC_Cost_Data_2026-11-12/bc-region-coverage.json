@@ -1,0 +1,98 @@
+[
+  {
+    "region_id": "cariboo",
+    "region": "Cariboo",
+    "reference_method": "Interior",
+    "candidate_interior_groups": "4, 8, 12",
+    "supplier_price_rows": 0,
+    "supplementary_municipal_rows": 2,
+    "numeric_supplier_count": 0,
+    "evidence_status": "No comparable public bulk construction road-base price verified; winter-maintenance contract is supplementary.",
+    "checked_date": "2026-11-12",
+    "geographic_note": "Group list is a candidate guide from PGMaps main; verify actual TSA, supply block, TFL and manual jurisdiction. It is not a spatial crosswalk."
+  },
+  {
+    "region_id": "kootenay-boundary",
+    "region": "Kootenay-Boundary",
+    "reference_method": "Interior",
+    "candidate_interior_groups": "10, 11",
+    "supplier_price_rows": 3,
+    "supplementary_municipal_rows": 0,
+    "numeric_supplier_count": 2,
+    "evidence_status": "Published promotion and stale undated retail list; current industrial quote remains needed.",
+    "checked_date": "2026-11-12",
+    "geographic_note": "Group list is a candidate guide from PGMaps main; verify actual TSA, supply block, TFL and manual jurisdiction. It is not a spatial crosswalk."
+  },
+  {
+    "region_id": "northeast",
+    "region": "Northeast",
+    "reference_method": "Interior",
+    "candidate_interior_groups": "7",
+    "supplier_price_rows": 5,
+    "supplementary_municipal_rows": 0,
+    "numeric_supplier_count": 1,
+    "evidence_status": "Public tonne prices; effective date and commercial inclusions unspecified.",
+    "checked_date": "2026-11-12",
+    "geographic_note": "Group list is a candidate guide from PGMaps main; verify actual TSA, supply block, TFL and manual jurisdiction. It is not a spatial crosswalk."
+  },
+  {
+    "region_id": "omineca",
+    "region": "Omineca",
+    "reference_method": "Interior",
+    "candidate_interior_groups": "4, 5, 6, 7, 12",
+    "supplier_price_rows": 4,
+    "supplementary_municipal_rows": 0,
+    "numeric_supplier_count": 1,
+    "evidence_status": "Undated retail yard prices; winter closure; bulk contractor quote remains needed.",
+    "checked_date": "2026-11-12",
+    "geographic_note": "Group list is a candidate guide from PGMaps main; verify actual TSA, supply block, TFL and manual jurisdiction. It is not a spatial crosswalk."
+  },
+  {
+    "region_id": "skeena",
+    "region": "Skeena",
+    "reference_method": "Mixed; check jurisdiction and Group 1 ECE Item Q",
+    "candidate_interior_groups": "1, 2, 3",
+    "supplier_price_rows": 0,
+    "supplementary_municipal_rows": 2,
+    "numeric_supplier_count": 0,
+    "evidence_status": "No comparable public bulk road-base price verified; municipal access fees are supplementary.",
+    "checked_date": "2026-11-12",
+    "geographic_note": "Group list is a candidate guide from PGMaps main; verify actual TSA, supply block, TFL and manual jurisdiction. It is not a spatial crosswalk."
+  },
+  {
+    "region_id": "thompson-okanagan",
+    "region": "Thompson-Okanagan",
+    "reference_method": "Interior",
+    "candidate_interior_groups": "9, 11, 12",
+    "supplier_price_rows": 12,
+    "supplementary_municipal_rows": 0,
+    "numeric_supplier_count": 3,
+    "evidence_status": "Dated 2026 supplier material and haul lists available.",
+    "checked_date": "2026-11-12",
+    "geographic_note": "Group list is a candidate guide from PGMaps main; verify actual TSA, supply block, TFL and manual jurisdiction. It is not a spatial crosswalk."
+  },
+  {
+    "region_id": "south-coast",
+    "region": "South Coast",
+    "reference_method": "Coast",
+    "candidate_interior_groups": "",
+    "supplier_price_rows": 5,
+    "supplementary_municipal_rows": 0,
+    "numeric_supplier_count": 2,
+    "evidence_status": "Dated 2025 and undated supplier lists; freight/fees require explicit treatment.",
+    "checked_date": "2026-11-12",
+    "geographic_note": "Group list is a candidate guide from PGMaps main; verify actual TSA, supply block, TFL and manual jurisdiction. It is not a spatial crosswalk."
+  },
+  {
+    "region_id": "west-coast",
+    "region": "West Coast",
+    "reference_method": "Coast",
+    "candidate_interior_groups": "",
+    "supplier_price_rows": 9,
+    "supplementary_municipal_rows": 0,
+    "numeric_supplier_count": 3,
+    "evidence_status": "Dated or year-labelled 2026 and undated supplier lists; supplier locations are not region-wide prices.",
+    "checked_date": "2026-11-12",
+    "geographic_note": "Group list is a candidate guide from PGMaps main; verify actual TSA, supply block, TFL and manual jurisdiction. It is not a spatial crosswalk."
+  }
+]

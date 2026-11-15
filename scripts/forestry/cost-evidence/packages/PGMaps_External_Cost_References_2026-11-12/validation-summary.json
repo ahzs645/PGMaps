@@ -1,0 +1,54 @@
+{
+  "reviewed_at": "2026-11-12",
+  "counts": {
+    "catalogue_records": 53,
+    "numerical_sources": 13,
+    "method_only_sources": 5,
+    "worked_examples": 8,
+    "cost_observations_excluding_funding_context": 50,
+    "funding_context_records": 3,
+    "records_by_currency": {
+      "CAD": 20,
+      "USD": 20,
+      "NZD": 8,
+      "GBP": 2,
+      "AUD": 1,
+      "EUR": 2
+    },
+    "records_by_cost_kind": {
+      "tender_bid_average": 8,
+      "consultant_estimate": 7,
+      "reported_local_cost": 1,
+      "consultant_model_estimate": 3,
+      "funding_model": 1,
+      "engineer_estimate": 15,
+      "appraisal_allowance": 5,
+      "survey_estimate": 2,
+      "field_trial_cost_model": 6,
+      "expert_estimate": 2,
+      "consultant_indicative_estimate": 1,
+      "grant_ceiling": 2
+    }
+  },
+  "checks": {
+    "unique_identifiers_and_source_joins": true,
+    "original_currencies_preserved": true,
+    "no_default_or_automatic_rates": true,
+    "grant_policy_year_separate_from_cost_year": true,
+    "source_locators_present": true,
+    "us_rate_extensions_checked": 20,
+    "us_package_totals_and_road_sums_reconcile": true,
+    "rocking_chair_rounding_and_appraisal_adjustment_reconcile": true,
+    "canadian_exact_rate_extensions": 7,
+    "alberta_display_rounding_tolerances_checked": 8,
+    "canadian_project_budget_totals_reconcile": true,
+    "norwich_derived_average_reconciles": true,
+    "masset_correction_applied_to_previous_package": true,
+    "json_schema": "Passed Draft 2020-12 validation."
+  },
+  "limits": [
+    "Arithmetic checks do not establish local applicability or certify source estimates.",
+    "Source inconsistencies remain in source records; no assumed compacted-volume conversion is introduced.",
+    "Worked examples overlap source records and are not extra independent cost samples."
+  ]
+}

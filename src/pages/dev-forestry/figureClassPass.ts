@@ -3,8 +3,10 @@
  * landform's edge so a block inside the landform and one outside it read as different classes.
  * `mapCapture.ts` draws them on the road view's own camera and reads the pixels back; the codes
  * then come from `decodeClassRaster`. Inside the landform the order bottom to top is landform,
- * rock, private land, existing opening, proposed block, so the class a pixel shows follows the
- * VIA precedence (a block on private land is a block). No DOM or network access.
+ * rock, existing opening, proposed block, private land: a block over an opening is a block, and
+ * private land covers both, because the run counts no alteration under a private-land mask
+ * (`maskAt`, `assessmentMasks.ts`) and the pixel figure must measure the same ground as the
+ * sightline figure printed beside it. No DOM or network access.
  */
 import clipping, { type MultiPolygon } from 'polygon-clipping'
 import { classColor, zoneColor, type FigureClass } from '@/lib/forestry/viaFigure/composeFigure'
@@ -94,12 +96,13 @@ export function classPassLayers(input: ClassPassInput): { layers: ClassPassLayer
   const layers = [
     layer('landform', input.landform ? asMulti(input.landform) : []),
     layer('rock', rock.inside),
-    layer('privateOut', privateLand.outside),
-    layer('privateIn', privateLand.inside),
     layer('existingOut', existing.outside),
     layer('existingIn', existing.inside),
     layer('proposedOut', blocks.outside),
     layer('proposedIn', blocks.inside),
+    // Over the blocks and openings: the run counts no alteration under private land.
+    layer('privateOut', privateLand.outside),
+    layer('privateIn', privateLand.inside),
   ].filter((entry) => entry.data.features.length)
   return { layers, failed: kept.failed || [rock, privateLand, existing, blocks].some((split) => split.failed) }
 }

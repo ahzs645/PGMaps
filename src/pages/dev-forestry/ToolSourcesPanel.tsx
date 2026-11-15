@@ -191,7 +191,7 @@ export function ToolSourcesPanel({
       <ToolDisclosure
         toggleProps={{ 'data-forestry-disclosure': '' }}
         label="Import terrain or canopy GeoTIFF"
-        help="Use a cropped, single-band, metre-valued GeoTIFF. Native cells and no-data are preserved. Supported coordinates: WGS84, Web Mercator, BC Albers and NAD83/WGS84 UTM zones 7–11."
+        help="Use a cropped, single-band, metre-valued GeoTIFF. Native cells and no-data are preserved. Supported coordinates: WGS84, Web Mercator, BC Albers and NAD83, NAD83(CSRS) or WGS84 UTM zones."
       >
         <div className="space-y-2 text-xs">
           <FormField label="Local surface type">

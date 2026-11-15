@@ -186,8 +186,8 @@ export function MapSheetSetup({
             </>
           )}
           <InfoTip label="About the logo">
-            A PNG or JPEG printed in the footer's logo box. It stays in this browser tab and is not saved in the project
-            file.
+            A PNG or JPEG printed in the footer's logo box. It is kept in this browser for every sheet and report, and
+            is not saved in the project file.
           </InfoTip>
         </div>
       )}

@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PGMaps external-cost research catalogue",
+  "description": "Proposed evidence exchange schema; no application import compatibility is asserted.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "reviewed_at",
+    "timezone",
+    "policy",
+    "records"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "reviewed_at": {
+      "type": "string"
+    },
+    "timezone": {
+      "const": "America/Vancouver"
+    },
+    "policy": {
+      "type": "object"
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    }
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "required": [
+        "id",
+        "source_id",
+        "title",
+        "currency",
+        "cost_kind",
+        "record_role",
+        "work_category",
+        "cost_year",
+        "amounts",
+        "reported_unit",
+        "source_url",
+        "source_locator",
+        "use_policy",
+        "original_observation"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "currency": {
+          "enum": [
+            "CAD",
+            "USD",
+            "NZD",
+            "GBP",
+            "AUD",
+            "EUR"
+          ]
+        },
+        "cost_year": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "policy_year": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "amounts": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "source_url": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "source_locator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "use_policy": {
+          "type": "object",
+          "required": [
+            "automatically_apply_to_estimate",
+            "default_rate",
+            "calibration_eligibility"
+          ],
+          "properties": {
+            "automatically_apply_to_estimate": {
+              "const": false
+            },
+            "default_rate": {
+              "const": false
+            },
+            "calibration_eligibility": {
+              "enum": [
+                "requires_scope_and_local_review",
+                "ineligible_funding_context"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

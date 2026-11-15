@@ -1,0 +1,23 @@
+{
+  "checked_at": "2026-11-13",
+  "counts": {
+    "disclosed_contract_records": 14,
+    "crossing_cost_records": 14,
+    "crossing_records_with_explicit_cost_discrepancy": 2,
+    "consultant_estimate_sources": 5,
+    "consultant_unit_rate_rows": 26,
+    "unverified_secondary_leads": 7
+  },
+  "validation": {
+    "unique_record_identifiers": true,
+    "positive_costs_and_https_sources": true,
+    "unit_rate_rows_with_exact_quantity_extension": 19,
+    "unit_rate_rows_with_published_rounding_preserved": 7,
+    "freeman_components_reconcile": true,
+    "loveland_published_total_minus_components_cad": 2.91,
+    "smithers_amendment_reconciles": true,
+    "parksville_published_subtotal_errors_flagged": true,
+    "no_derived_generic_road_or_bridge_unit_rates": true
+  },
+  "limitations": "Checks preserve published discrepancies; they do not certify designs, historical costs, source accounting boundaries, or regional applicability."
+}

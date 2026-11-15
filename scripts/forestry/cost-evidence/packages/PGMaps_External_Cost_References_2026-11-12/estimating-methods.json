@@ -1,0 +1,130 @@
+{
+  "reviewed_at": "2026-11-12",
+  "interpretation": "Research synthesis and suggested PGMaps design, not claims that all methods are currently implemented.",
+  "methods": [
+    {
+      "id": "quantity_and_bid_rates",
+      "title": "Quantities multiplied by matched bid or estimate rates",
+      "sources": [
+        "alberta-upa-2026",
+        "usfs-kilkenny-2024",
+        "usfs-herring-2025",
+        "kneehill-mcelhanney-2025"
+      ],
+      "formula": "item_cost = measured_quantity * unit_price",
+      "project_inputs": [
+        "work specification",
+        "quantity and unit",
+        "rate year",
+        "cost status",
+        "inclusions",
+        "sample count/quantity"
+      ],
+      "pgmaps_recommendation": "Retain the evidence observation and the separately adopted project rate; never label an estimate as a final account."
+    },
+    {
+      "id": "resource_productivity",
+      "title": "Machine and crew productivity",
+      "sources": [
+        "fao_road_cost_control_1992",
+        "nzfoa_live_manual_5_9",
+        "nz_hetherington_trials_2024"
+      ],
+      "formula": "unit_cost = all_in_crew_cost_per_paid_hour / net_production_per_paid_hour",
+      "project_inputs": [
+        "material and volume state",
+        "equipment/operators",
+        "hourly inclusions",
+        "net production",
+        "working conditions",
+        "mobilization"
+      ],
+      "pgmaps_recommendation": "Use historical completed-work records to calibrate production. Preserve performance requirements and uncertainty."
+    },
+    {
+      "id": "haul_and_material_allocation",
+      "title": "Haul cycles and material movement",
+      "sources": [
+        "softree_design_time_costing",
+        "fao_road_cost_control_1992"
+      ],
+      "formula": "haul_cost_per_payload_unit = truck_cost_per_hour * full_cycle_hours / payable_payload",
+      "project_inputs": [
+        "source suitability",
+        "load/queue/unload time",
+        "loaded and empty routes",
+        "speeds",
+        "payload basis",
+        "source capacity",
+        "placement capacity"
+      ],
+      "pgmaps_recommendation": "Avoid double counting loading or return when a quoted rate already includes them. Fleet output must respect loader and placement limits."
+    },
+    {
+      "id": "project_budget",
+      "title": "Whole-project scope and allowances",
+      "sources": [
+        "allnorth-labrador-2024",
+        "kneehill-mcelhanney-2025",
+        "usfs-rocking-chair-2025"
+      ],
+      "formula": "project_budget = sum(item_costs) + explicit_project_allowances",
+      "project_inputs": [
+        "mobilization",
+        "source development",
+        "access",
+        "traffic",
+        "environmental work",
+        "engineering",
+        "overhead/profit",
+        "contingency basis",
+        "escalation",
+        "tax"
+      ],
+      "pgmaps_recommendation": "Use inclusion/exclusion/unknown states and explicit percentage bases. An appraisal adjustment is not a project-cost multiplier."
+    },
+    {
+      "id": "parametric_comparison",
+      "title": "Road-class and treatment comparisons",
+      "sources": [
+        "nz_brown_visser_2018",
+        "uk_fr_woodland_costs_2025_2023prices",
+        "au_green_triangle_geddes_2023",
+        "scion_fif_hawkes_bay_2019"
+      ],
+      "formula": "comparison = matched_cost_per_length * comparable_length",
+      "project_inputs": [
+        "new/upgrade/maintenance",
+        "width",
+        "surface standard",
+        "terrain",
+        "rock",
+        "crossings",
+        "haul",
+        "traffic",
+        "service life"
+      ],
+      "pgmaps_recommendation": "Use as a plausibility comparison. Keep missing-denominator Scion figures excluded; a source range is not a route confidence interval."
+    },
+    {
+      "id": "life_cycle",
+      "title": "Recurring maintenance and economic alternatives",
+      "sources": [
+        "norwich-burnside-2024",
+        "world_bank_red_4",
+        "au_green_triangle_geddes_2023"
+      ],
+      "formula": "present_cost = initial_cost + sum(future_cost_t / (1+discount_rate)^t)",
+      "project_inputs": [
+        "analysis horizon",
+        "work frequency",
+        "traffic/timber served",
+        "rehabilitation",
+        "closure",
+        "price basis",
+        "consistent escalation and discount assumptions"
+      ],
+      "pgmaps_recommendation": "Distinguish owner financial costs from wider economic benefits. Compare road extension against incremental forwarding over the timber volume served."
+    }
+  ]
+}

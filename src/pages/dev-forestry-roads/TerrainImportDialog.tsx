@@ -4,7 +4,12 @@ import { PanelDialog } from '@/components/ui/dialog-shell'
 import { CheckboxField } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Field, roadFieldClass, RoadSelect } from './Controls'
-import { POINT_CLOUD_CRS_CHOICES, type TerrainImportAnswers, type TerrainImportNeeds } from './terrain'
+import {
+  ALIGNMENT_CRS_CHOICES,
+  POINT_CLOUD_CRS_CHOICES,
+  type TerrainImportAnswers,
+  type TerrainImportNeeds,
+} from './terrain'
 import type { TerrainMetadata } from './types'
 
 /**
@@ -24,7 +29,9 @@ const listed = (files: string[]) =>
 
 /**
  * Asks for what a terrain file does not state: the CRS of a point cloud without one, the vertical
- * datum, or both. Nothing is taken from the open terrain unless it is chosen here.
+ * datum, or both. Nothing is taken from the open terrain unless it is chosen here. It also asks
+ * for the CRS of an alignment file that names none (`needs.crs.subject: 'alignment'`), for which
+ * the open terrain's CRS is never preselected.
  */
 export function TerrainImportDialog({
   needs,
@@ -40,8 +47,12 @@ export function TerrainImportDialog({
   onCancel: () => void
   portalContainer?: HTMLElement | null
 }) {
-  const offered = (epsg: number | undefined) => POINT_CLOUD_CRS_CHOICES.some((choice) => choice.epsg === epsg)
-  const openEpsg = current.kind === 'geotiff' && offered(current.epsg) ? current.epsg : undefined
+  const drawing = needs.crs?.subject === 'drawing'
+  const alignment = needs.crs?.subject === 'alignment' || drawing
+  const [unit, setUnit] = useState('')
+  const choices = alignment ? ALIGNMENT_CRS_CHOICES : POINT_CLOUD_CRS_CHOICES
+  const offered = (epsg: number | undefined) => choices.some((choice) => choice.epsg === epsg)
+  const openEpsg = !alignment && current.kind === 'geotiff' && offered(current.epsg) ? current.epsg : undefined
   const [epsg, setEpsg] = useState(String(needs.crs?.suggestedEpsg ?? openEpsg ?? ''))
   const openDatum =
     current.kind === 'geotiff' && !VERTICAL_DATUM_CHOICES.includes(current.verticalReference as never)
@@ -51,15 +62,26 @@ export function TerrainImportDialog({
   const [otherDatum, setOtherDatum] = useState('')
   const [metres, setMetres] = useState(false)
   const stated = datum === OTHER ? otherDatum.trim() : datum
-  const ready = (!needs.crs || !!epsg) && (!needs.verticalDatum || (!!stated && stated.length <= 300 && metres))
-  const files = [...new Set([...(needs.crs?.files ?? []), ...(needs.verticalDatum?.files ?? [])])]
+  const ready =
+    (!needs.crs || !!epsg) &&
+    (!needs.units || !!unit) &&
+    (!needs.verticalDatum || (!!stated && stated.length <= 300 && metres))
+  const files = [
+    ...new Set([...(needs.crs?.files ?? []), ...(needs.verticalDatum?.files ?? []), ...(needs.units?.files ?? [])]),
+  ]
   return (
     <PanelDialog
       open
       onOpenChange={(open) => {
         if (!open) onCancel()
       }}
-      title="Finish the terrain import"
+      title={
+        drawing || needs.units
+          ? 'Place the imported drawing'
+          : alignment
+            ? 'Place the imported alignment'
+            : 'Finish the terrain import'
+      }
       subtitle={listed(files)}
       size="md"
       portalContainer={portalContainer}
@@ -75,6 +97,7 @@ export function TerrainImportDialog({
             onClick={() =>
               onAnswer({
                 ...(needs.crs ? { epsg: Number(epsg) } : {}),
+                ...(needs.units ? { unitM: Number(unit) } : {}),
                 ...(needs.verticalDatum ? { verticalReference: stated } : {}),
               })
             }
@@ -92,23 +115,23 @@ export function TerrainImportDialog({
                 {needs.crs.files.length === 1 ? 'This file states' : 'These files state'} no CRS
               </p>
               <InfoTip label="About stating a CRS">
-                The CRS turns the file&apos;s coordinates into a place. The tool cannot check it: in the wrong zone the
-                terrain lands somewhere else, and every station of a road reads as missing. A CRS a file states is never
-                overridden.
+                {alignment
+                  ? "The CRS turns the design's coordinates into a place. The tool cannot check it: in the wrong zone the road lands somewhere else, off its terrain. Ask whoever made the design which CRS its coordinates are in."
+                  : 'The CRS turns the file’s coordinates into a place. The tool cannot check it: in the wrong zone the terrain lands somewhere else, and every station of a road reads as missing. A CRS a file states is never overridden.'}
               </InfoTip>
             </div>
             <p className="text-xs tabular-nums text-muted-foreground" data-testid="road-terrain-import-extent">
-              Header extent: X {whole(needs.crs.bounds[0])} to {whole(needs.crs.bounds[2])} · Y{' '}
-              {whole(needs.crs.bounds[1])} to {whole(needs.crs.bounds[3])}
+              {alignment ? 'Coordinate extent' : 'Header extent'}: X {whole(needs.crs.bounds[0])} to{' '}
+              {whole(needs.crs.bounds[2])} · Y {whole(needs.crs.bounds[1])} to {whole(needs.crs.bounds[3])}
             </p>
-            <Field label="CRS of the point cloud">
+            <Field label={drawing ? 'CRS of the drawing' : alignment ? 'CRS of the design' : 'CRS of the point cloud'}>
               <RoadSelect
-                ariaLabel="CRS of the point cloud"
+                ariaLabel={drawing ? 'CRS of the drawing' : alignment ? 'CRS of the design' : 'CRS of the point cloud'}
                 className={roadFieldClass}
                 value={epsg}
                 placeholder="Choose the CRS"
                 onValueChange={setEpsg}
-                options={POINT_CLOUD_CRS_CHOICES.map((choice) => ({
+                options={choices.map((choice) => ({
                   value: String(choice.epsg),
                   label:
                     choice.epsg === needs.crs?.suggestedEpsg
@@ -117,6 +140,35 @@ export function TerrainImportDialog({
                         ? `${choice.label} (the open terrain)`
                         : choice.label,
                 }))}
+              />
+            </Field>
+          </div>
+        )}
+        {needs.units && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium">
+                {needs.units.stated
+                  ? `The drawing says its units are ${needs.units.stated}`
+                  : 'The drawing does not say its units'}
+              </p>
+              <InfoTip label="About drawing units">
+                CAD templates set a drawing&apos;s units by default, so the stated unit is often not what the
+                coordinates are in. Choose what the coordinates were measured in; a projected CRS takes metres.
+              </InfoTip>
+            </div>
+            <Field label="Coordinates are in">
+              <RoadSelect
+                ariaLabel="Coordinates are in"
+                className={roadFieldClass}
+                value={unit}
+                placeholder="Choose the unit"
+                onValueChange={setUnit}
+                options={[
+                  { value: '1', label: 'Metres' },
+                  { value: '0.3048', label: 'International feet' },
+                  { value: String(1200 / 3937), label: 'US survey feet' },
+                ]}
               />
             </Field>
           </div>

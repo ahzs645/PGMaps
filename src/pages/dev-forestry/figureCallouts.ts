@@ -18,10 +18,12 @@ export type BlockSight = {
   positions: ArrayLike<number>
   elevations: ArrayLike<number>
   sampleCount: number
-  /** 1 visible, 2 unknown (missing terrain), else hidden, for every station's samples in a row. */
+  /** 1 visible, 2 unknown (missing terrain), 3 screened by timber, else hidden, for every station's samples in a row. */
   visibleByStation: ArrayLike<number>
   /** A point inside the footprint and its ground elevation, for a block nothing of which is seen. */
   interior: { lng: number; lat: number; elevation: number } | null
+  /** The run's visible apparent size (solid angle) of the block per station, when the run gives it. */
+  apparentByStation?: ArrayLike<number>
 }
 
 export type CalloutStatus = 'visible' | 'possible glimpses' | 'not visible' | 'unknown'
@@ -46,6 +48,10 @@ export type BlockCallout = FigureCallout & {
   blockId: string
   status: CalloutStatus
   visiblePercent: number
+  /** The run's visible apparent size of the block at this station (solid angle); absent on older figures. */
+  apparent?: number
+  /** Share of its samples hidden only by standing timber at this station, percent; absent on older figures. */
+  screenedPercent?: number
 }
 
 /**
@@ -65,12 +71,14 @@ export function blockCallouts(
     const row = stationIndex * block.sampleCount
     let visible = 0,
       unknown = 0,
+      screened = 0,
       sx = 0,
       sy = 0,
       projected = 0
     for (let i = 0; i < block.sampleCount; i++) {
       const state = block.visibleByStation[row + i]
       if (state === 2) unknown++
+      if (state === 3) screened++
       if (state !== 1) continue
       visible++
       const p = project(block.positions[i * 2], block.positions[i * 2 + 1], block.elevations[i])
@@ -91,6 +99,18 @@ export function blockCallouts(
     const title = block.name.toLowerCase().startsWith(prefix.trim().toLowerCase())
       ? block.name
       : `${prefix}${block.name}`
-    return [{ blockId: block.id, title, body: STATUS_TEXT[status], anchor, status, visiblePercent }]
+    const apparent = block.apparentByStation?.[stationIndex]
+    return [
+      {
+        blockId: block.id,
+        title,
+        body: STATUS_TEXT[status],
+        anchor,
+        status,
+        visiblePercent,
+        screenedPercent: (100 * screened) / total,
+        ...(apparent !== undefined && Number.isFinite(apparent) ? { apparent } : {}),
+      },
+    ]
   })
 }

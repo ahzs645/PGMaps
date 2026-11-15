@@ -104,6 +104,19 @@ describe('Coast appraisal road benchmark', () => {
     ).toBe(80216)
   })
 
+  it('scales the $/km figure by an entered length, as the Interior comparison does', () => {
+    expect(calculateCoastRoadBenchmark(baseline).totalCad).toBeNull()
+    const result = calculateCoastRoadBenchmark({ ...baseline, lengthM: 520 })
+    expect(result.unitCostCadPerKm).toBe(72601)
+    expect(result.totalCad).toBeCloseTo(72601 * 0.52, 6)
+    for (const lengthM of [0, -5, NaN, Infinity]) {
+      const refused = calculateCoastRoadBenchmark({ ...baseline, lengthM })
+      expect(refused.valid).toBe(false)
+      expect(refused.totalCad).toBeNull()
+      expect(refused.errors.join(' ')).toContain('Road length')
+    }
+  })
+
   it.each([-0.01, 1.01, NaN, Infinity, -Infinity])(
     'refuses invalid isolation fraction %s rather than clamping it',
     (isolationFraction) => {

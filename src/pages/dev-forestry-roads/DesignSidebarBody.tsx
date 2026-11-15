@@ -29,6 +29,8 @@ export type FileKind =
   | 'mapped-roads'
   /** A LandXML alignment brought in as a road (`landXmlImport.ts`). */
   | 'landxml'
+  /** A RoadEng design (`.dsnx`) brought in as roads (`roadEngImport.ts`). */
+  | 'roadeng'
 export interface PointCloudChoice {
   classify: boolean | 'auto'
   surface: 'mean' | 'tin'

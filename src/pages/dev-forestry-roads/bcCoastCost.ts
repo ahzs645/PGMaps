@@ -118,13 +118,16 @@ export const COAST_POINTS_OF_ORIGIN = [
 export type CoastPointOfOrigin = (typeof COAST_POINTS_OF_ORIGIN)[number]['code']
 export const COAST_ISOLATION_ADD_ON_CAD_PER_KM = 7615
 
+/** CAM tabular-road screen: uphill side slopes over this need engineering review, %. */
+export const COAST_TABULAR_SIDESLOPE_LIMIT_PERCENT = 150
+
 export const COAST_BENCHMARK_NOTES: readonly string[] = [
   'Published appraisal allowance with a 2024 cost base; not a current contractor quotation or a construction-ready total.',
   'Select the category from field-supported construction conditions. Soft/medium means RMC 1–4; hard means RMC 5. A terrain model cannot establish rock hardness.',
   'The bundled road allowance includes clearing, grubbing, stripping, stump removal, incidental log decking, ditches, landings, turnouts and the category’s ballast/surfacing. Do not add it to the itemized road estimate.',
   'Bridges and culverts are separate. Exclude bridge deck/span lengths from road length when applying this $/km benchmark.',
   'Additional stabilizing-material haul beyond 3.2 km and work outside tabular conditions need separate engineering cost estimates.',
-  'Confirm new single-lane logging-road eligibility. Main access upgrades, end haul, extensive imported fills, uphill side slopes over 150%, repeated deep gullies, large switchbacks and rock faces above 7.50 m require engineering review.',
+  `Confirm new single-lane logging-road eligibility. Main access upgrades, end haul, extensive imported fills, uphill side slopes over ${COAST_TABULAR_SIDESLOPE_LIMIT_PERCENT}%, repeated deep gullies, large switchbacks and rock faces above 7.50 m require engineering review.`,
   'Isolation uses the CAM’s eligible cutblock net-cruise-volume fraction, not a road-length fraction. A public-ferry-served community is included when checking connection to the nearest qualifying community.',
   'Point-of-origin areas are appraisal boundaries, not natural-resource-region multipliers. Select a published area or explicitly confirm that no eligible addition applies; unknown geography cannot be priced as zero.',
 ]
@@ -142,6 +145,11 @@ export interface CoastRoadBenchmarkInput {
   pointOfOriginReviewed?: boolean
   /** Explicit review of new single-lane tabular-road conditions, not a map-derived flag. */
   tabularEligibilityConfirmed: boolean
+  /**
+   * Optional road length, m, bridge deck and span lengths excluded. It only scales the $/km figure
+   * into a total, as the Interior comparison's section length does; absent, the result is per km.
+   */
+  lengthM?: number | null
 }
 
 export interface CoastRoadBenchmark {
@@ -150,6 +158,8 @@ export interface CoastRoadBenchmark {
   baseCadPerKm: number | null
   isolationAddOnCadPerKm: number | null
   pointOfOriginAddOnCadPerKm: number | null
+  /** The $/km figure over `lengthM`, before escalation; null without a length. */
+  totalCad: number | null
   errors: string[]
   notes: readonly string[]
   source: typeof COAST_COST_SOURCE
@@ -177,6 +187,9 @@ export function calculateCoastRoadBenchmark(input: CoastRoadBenchmarkInput): Coa
   } else if (input.pointOfOrigin !== null && !origin) {
     errors.push('Select a published CAM point-of-origin area, or explicitly confirm that no eligible addition applies.')
   }
+  if (input.lengthM != null && (!Number.isFinite(input.lengthM) || input.lengthM <= 0)) {
+    errors.push('Road length must be finite and greater than zero when supplied.')
+  }
   if (errors.length || !category) {
     return {
       valid: false,
@@ -184,6 +197,7 @@ export function calculateCoastRoadBenchmark(input: CoastRoadBenchmarkInput): Coa
       baseCadPerKm: null,
       isolationAddOnCadPerKm: null,
       pointOfOriginAddOnCadPerKm: null,
+      totalCad: null,
       errors,
       notes: COAST_BENCHMARK_NOTES,
       source: COAST_COST_SOURCE,
@@ -192,12 +206,14 @@ export function calculateCoastRoadBenchmark(input: CoastRoadBenchmarkInput): Coa
   const baseCadPerKm = input.hardness === 'hard' ? category.hardCadPerKm : category.softMediumCadPerKm
   const isolationAddOnCadPerKm = input.isolationFraction * COAST_ISOLATION_ADD_ON_CAD_PER_KM
   const pointOfOriginAddOnCadPerKm = origin?.addOnCadPerKm ?? 0
+  const unitCostCadPerKm = baseCadPerKm + isolationAddOnCadPerKm + pointOfOriginAddOnCadPerKm
   return {
     valid: true,
-    unitCostCadPerKm: baseCadPerKm + isolationAddOnCadPerKm + pointOfOriginAddOnCadPerKm,
+    unitCostCadPerKm,
     baseCadPerKm,
     isolationAddOnCadPerKm,
     pointOfOriginAddOnCadPerKm,
+    totalCad: input.lengthM == null ? null : (unitCostCadPerKm * input.lengthM) / 1000,
     errors,
     notes: COAST_BENCHMARK_NOTES,
     source: COAST_COST_SOURCE,

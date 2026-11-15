@@ -216,6 +216,7 @@ export function VisualsExportDialog({
   onGoToStep,
   onAction,
   onRun,
+  onRender,
   portalContainer,
 }: {
   open: boolean
@@ -234,6 +235,8 @@ export function VisualsExportDialog({
   onAction?: (action: ExportAction) => void
   /** Starts the visibility run in the analysis worker, for an output that reads it. */
   onRun?: () => void
+  /** Queues the background renders the chosen engine still owes the figures (`useBackgroundRenders`). */
+  onRender?: () => void
   portalContainer?: HTMLElement | null
 }) {
   const [selected, setSelected] = useState<VisualsExport>(initialOutput)
@@ -265,11 +268,13 @@ export function VisualsExportDialog({
   const latestBuild = useRef(build)
   const latestContext = useRef(context)
   const latestRun = useRef(onRun)
+  const latestRender = useRef(onRender)
   const changedAt = useRef(0)
   useEffect(() => {
     latestBuild.current = build
     latestContext.current = context
     latestRun.current = onRun
+    latestRender.current = onRender
   })
   useEffect(() => {
     changedAt.current = Date.now()
@@ -311,6 +316,17 @@ export function VisualsExportDialog({
         signal,
         LAND_CHECK_WAIT_MS,
       )
+    }
+    // Another engine's renders run in the background, in order; the file waits for the last of its views.
+    if (needs.render) {
+      waited = true
+      latestRender.current?.()
+      await waitFor(() => {
+        const r = latestContext.current.renderer
+        if (r.failed) throw new Error(`${r.label} could not draw ${r.failed}`)
+        if (r.unavailable) throw new Error(`${r.label} cannot draw the figures: ${r.unavailable}`)
+        return r.missing === 0
+      }, signal)
     }
     if (waited) await waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal)
   }, [])
@@ -367,7 +383,8 @@ export function VisualsExportDialog({
     live.current.add(controller)
     try {
       // The previewed file when it is this one and nothing waits; otherwise made and written now.
-      const ready = !preparation.run && !preparation.landChecks && context.autoRun.status !== 'running'
+      const ready =
+        !preparation.run && !preparation.landChecks && !preparation.render && context.autoRun.status !== 'running'
       let file = ready ? current?.file : undefined
       if (!file) {
         await prepare(item.kind, controller.signal)
@@ -477,7 +494,13 @@ export function VisualsExportDialog({
             </InlineAlert>
           )}
           {!unavailable && preparation.note && (
-            <InlineAlert loading={context.autoRun.status === 'running' || (saving && preparation.landChecks)}>
+            <InlineAlert
+              loading={
+                context.autoRun.status === 'running' ||
+                (saving && preparation.landChecks) ||
+                (preparation.render && context.renderer.running)
+              }
+            >
               <span role="status">{preparation.note}</span>
             </InlineAlert>
           )}

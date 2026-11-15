@@ -116,7 +116,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
   await openRoadPanel(page, 'Import options')
   await page.getByLabel('Imported DEM vertical datum (metres)', { exact: true }).fill(metadata.verticalReference)
   const chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Import GeoTIFF, LAS or LAZ', exact: true }).click()
+  await page.getByRole('button', { name: 'Import GeoTIFF, LAS, LAZ or RoadEng', exact: true }).click()
   await (await chooser).setFiles(root + '/kamloops.tif')
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
   const importedProject = await save(page, info.outputPath('imported.road.json'))

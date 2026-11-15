@@ -54,7 +54,29 @@ describe('vegetationQueryUrl', () => {
     expect(fields).toContain('SPECIES_CD_6')
     expect(fields).toContain('SPECIES_PCT_6')
     expect(fields).toContain('BCLCS_LEVEL_5')
-    expect(fields.length).toBeLessThan(30)
+    // Bedrock and talus inside a stand (`rockyPercent`), for the scene package's rock under a stand.
+    expect(fields).toContain('NON_VEG_COVER_TYPE_2')
+    expect(fields.length).toBeLessThan(32)
+  })
+
+  it('reads a burn the inventory records, and no other disturbance', () => {
+    const { stands } = parseVegetationStands({
+      type: 'FeatureCollection',
+      features: [
+        standFeature({
+          BCLCS_LEVEL_2: 'N',
+          EARLIEST_NONLOGGING_DIST_TYPE: 'B',
+          EARLIEST_NONLOGGING_DIST_DATE: '2023-01-01Z',
+        }),
+        standFeature({
+          BCLCS_LEVEL_2: 'T',
+          EARLIEST_NONLOGGING_DIST_TYPE: 'IBM',
+          EARLIEST_NONLOGGING_DIST_DATE: '2017',
+        }),
+        standFeature({ BCLCS_LEVEL_2: 'T' }),
+      ],
+    })
+    expect(stands.map((stand) => stand.burnYear)).toEqual([2023, undefined, undefined])
   })
 
   it('reads every recorded species with its share, and the land cover', () => {

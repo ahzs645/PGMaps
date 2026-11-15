@@ -358,9 +358,9 @@ describe('point-cloud import', () => {
       assumedEpsg: 26910,
     })
     expect(other.metadata.sha256).not.toBe(metadata.sha256)
-    // A CRS outside the accepted list is refused before anything is read into it.
+    // A CRS outside the accepted list (here a state plane in US feet) is refused before anything is read into it.
     await expect(
-      loadLas(tile('Tile_1.las'), 'CGVD2013; metres', { classify: 'auto', surface: 'mean', assumedEpsg: 2955 }),
+      loadLas(tile('Tile_1.las'), 'CGVD2013; metres', { classify: 'auto', surface: 'mean', assumedEpsg: 2286 }),
     ).rejects.toThrow(/Use WGS84, Web Mercator, BC Albers/)
   })
 

@@ -4,14 +4,55 @@
     {
       "name": "vite-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "name": "vite-dev-alt",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5175", "--strictPort"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5175",
+        "--strictPort"
+      ],
       "port": 5175
+    },
+    {
+      "name": "threejs-nanites",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/ahmadjalil/github/threejs-nanites",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "8461",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 8461
+    },
+    {
+      "name": "threejs-worldgen",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/ahmadjalil/github/threejs-worldgen",
+        "run",
+        "dev",
+        "--",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 8460
     }
   ]
 }

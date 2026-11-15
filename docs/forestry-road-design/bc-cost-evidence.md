@@ -1,7 +1,15 @@
 # BC road-cost evidence and estimation roadmap
 
+The idea and structure behind these tools, and how to extend them to another
+province, rate or budget item, are in
+[Cost estimating: the idea, the structure and how to extend it](cost-estimating-architecture.md).
+
 Research checked **26 October 2026**; the evidence catalogue was extended on
-**12–13 November 2026** (see [The evidence catalogue](#the-evidence-catalogue)).
+**12–13 November 2026** and **14 November 2026** (see
+[The evidence catalogue](#the-evidence-catalogue)). Cost locations, region
+packs, the project budget, saved build-ups and low/high cases were added on
+14 November 2026 (see [Cost locations and region packs](#cost-locations-and-region-packs)
+onwards).
 Amounts below are CAD unless a record says otherwise. This is an evidence
 inventory for preliminary road planning, not a provincial survey of awarded
 construction prices. A local list price, an appraisal allowance and an installed
@@ -9,8 +17,9 @@ contract rate describe different work.
 
 ## The evidence catalogue
 
-**BC references** in the cost dialog reads a catalogue of 149 records and 8
-worked estimates. It is evidence to read beside an estimate. No record converts
+**Cost references** in the cost dialog (formerly _BC references_) reads a
+catalogue of 161 records, 12 worked estimates and 2 sources awaiting a readable
+copy, plus the person's own records. It is evidence to read beside an estimate. No record converts
 a currency, escalates a price or averages across sources, and browsing writes
 nothing. A record reaches a project rate only when the user adopts it (see
 [Adopting a record into a project rate](#adopting-a-record-into-a-project-rate)).
@@ -20,6 +29,7 @@ nothing. A record reaches a project rate only when the user adopts it (see
 | BC local | 42, plus 7 quote-only leads | Supplier material and trucking prices from 12 suppliers, two municipal access fees and two maintenance supply awards |
 | BC projects | 54 | 14 ministry contract awards, 14 crossing and deactivation project costs, 26 rates from five consultant estimates |
 | Beyond BC | 53, from 13 sources | Alberta tender averages, consultant and US Forest Service estimates, New Zealand survey and field trials, England, Australia, and three funding references |
+| Reviewed additions | 12, 4 worked estimates, 2 pending | McElhanney's Canim Lake South Road culvert Class D estimate (2025, Cariboo: line rates, the bonding, mobilization and engineering percentages, its contingency as context only, and all four options as worked estimates) and the City of Chilliwack's Payne Road culvert award with its ten bids (2025, South Coast). Ice Lake Road (Whitehorse) and Cinderella Creek (Highway 26) are listed as pending, with no amounts, until their sources can be read in full |
 
 Each record keeps its own amount, unit, currency, price year or effective date,
 source link and locator, and the date it was checked. Where the source states
@@ -45,13 +55,13 @@ The type says what a number can be used for. It is the first thing to read.
 
 ### Where it shows
 
-- **Appraisal → Local material prices** lists the selected region's suppliers,
+- **Region → Local material prices** lists the selected region's suppliers,
   each folded to its first price. Cariboo and Skeena have no comparable public
   construction-aggregate price, so they read _Local quote required_ with their
   quote-only suppliers; the Williams Lake winter-sand award and the New Hazelton
   fees sit under _Other local records_. A link opens the region's project
   records, whose region tag follows the location and is not a verified boundary.
-- **Appraisal → What each allowance covers** states, for the selected method,
+- **Region → What each allowance covers** states, for the selected method,
   what the allowance covers, leaves out and prices separately (`appraisalScope.ts`),
   one folded row per allowance showing its unit and manual section,
   with the culvert tables (IAM Table 4-3, CAM Table 5-4) and the Interior
@@ -59,8 +69,10 @@ The type says what a number can be used for. It is the first thing to read.
   separate stabilizing-material allowance for the chosen road group
   (IAM 4.3.4.1: a constant by group, plus $4,277/km for ripped or quarry rock).
   It is never summed into the subgrade figure.
-- **Evidence → Records** filters every record by place, evidence type, BC region
-  and words. **Evidence → Worked estimates** shows eight complete estimates with
+- **Evidence → Records** filters every record by place (a country or a
+  province/state), evidence type, the pack's region and words, and lists them
+  nearest the project's cost location first: same region, same province or
+  state, same country, elsewhere. Each group's summary names how near it is. **Evidence → Worked estimates** shows eight complete estimates with
   their quantities, rates, allowances and totals, so a rate is read inside the
   estimate it came from. Several share a project or source and are not
   independent samples.
@@ -68,85 +80,241 @@ The type says what a number can be used for. It is the first thing to read.
   ($10.23/hour on-road, $23.86/hour off-road) and the Hired Equipment Program's
   monthly adjustment (November 2026: +$26.10 and +$60.90). It also lists the
   provincial timber supply area and BEC layers that can propose an appraisal
-  input for review, and five references on estimating methods.
+  input for review, five references on estimating methods, and the sources
+  awaiting a readable copy.
+- **My records** holds the person's own quotes and finished jobs (see
+  [Own records and preferences](#own-records-and-preferences)).
 
 ### Adopting a record into a project rate
 
 Every record that can inform a rate has **Use for a project rate** under it, in
-**Evidence → Records** and in a region's local prices. The form asks for four
-things and writes nothing until **Save rate and source**:
+**Evidence → Records**, in a region's local prices and under **My records**. The
+form writes nothing until **Save rate and source**:
 
-1. **The project rate.** One of the four base rates in `project.settings`: cut
-   (CAD per bank m³), fill (CAD per m³ placed), surfacing (CAD per m³ in place)
-   or clearing (CAD per m²). The tool does not guess which one a record is about.
-2. **The specification matches.** A tick the user gives after reading the
-   record's scope, tax, loading and delivery terms.
-3. **The adopted rate,** typed by the user. The field starts empty unless the
-   record is one CAD figure already in the rate's unit (`adoptionPrefill`); a
-   tonne, a yard, a square metre for a cubic-metre rate, a range and every other
-   currency start empty. No conversion or escalation is computed anywhere.
-4. **A reason** for any difference between the record and the rate (unit
-   conversion, date, quantity, haul). It is required unless the record's own
-   figure was kept unchanged.
+1. **The rate.** Any rate the project or its active road holds
+   (`adoptionTargets.ts`): the four project rates (cut, fill, surfacing,
+   clearing); the road's haul and loading rates, default borrow and waste rates
+   and mobilization; each ground material's excavation rate, and a rock
+   material's shallow-rock and overbreak rates; each material site's rate and
+   opening cost; the surfacing source's acquisition, processing, loading, haul
+   and placement; each culvert's installed cost per metre; and every one-time
+   project-budget item (lump sum, % of construction or per km). Each target
+   states the basis its figure is entered on and the parts of the work it is
+   meant to price. The tool does not guess which one a record is about.
+2. **What the price is measured on** (bank, loose or compacted m³, tonne, metre,
+   m², km, hour, lump sum, percent), or _Not stated by the source_.
+3. **What the price includes** (excavation, supply, processing, loading, haul,
+   placing, compaction, disposal, clearing, installation, mobilization), starting
+   from what the target prices. A part beyond the target's own work that another
+   line of the project already prices is an **overlap**: the form lists each one
+   (_Haul is in this price and also in the road's overhaul rate (1.2/m³·km)_),
+   and the reason must say how it was accounted for. BC's 2025 standard
+   specifications (section 201) pay excavation and borrow as bundles that can
+   include haul and placement; this is the check that keeps such a price from
+   being counted twice.
+4. **The specification matches,** ticked after reading the record's terms.
+5. **The adopted rate,** typed by the user. It starts at the record's figure only
+   when the record is one amount in the project's currency, in the rate's unit
+   and, when stated, on the rate's basis (`adoptionPrefill`): a tonne, a yard, a
+   loose volume for a bank rate, a range and every other currency start empty.
+   No conversion or escalation is computed anywhere.
+6. **A reason** for any difference between the record and the rate, required
+   unless the record's own figure was kept unchanged, and always when there is
+   an overlap.
 
 Saving is one named undo step that sets the rate and stores, in
-`project.rateEvidence` under the rate's key, the observation as it was read
-(record id, evidence type, title, source, place, amounts, unit, currency, price
-year or effective date, source URL, locator, checked date), the typed rate, the
-reason and the adoption date. The stored observation is never refreshed from a
-later catalogue.
+`project.rateEvidence` under the target's key, the observation as it was read:
+record id, evidence type, title, source, place name and coded place, amounts,
+unit, currency, price year or effective date, source URL, locator, checked date,
+and **every term the record stated** (scope, tax, loading, delivery, placement,
+minimum, surcharges, availability) with its cautions. Beside it go the typed
+rate, the currency, the measured basis, the included work, the overlaps
+accounted for, the reason and the adoption date, and the target's own name and
+unit, so a line still reads if its material or culvert is later removed. The
+stored observation is never refreshed from a later catalogue.
+
+Keys: the four project rates keep their bare names (`cutRate`), so files from
+before 14 November read unchanged; a road's rates are keyed by the road
+(`<roadId>/haul.borrowRate`, `<roadId>/material:<id>.cutRate`,
+`<roadId>/site:<id>.unitRate`, `<roadId>/supply.haulRate`,
+`<roadId>/culvert:<id>.unitCost`), a budget item by `schedule:<id>`. A file with
+any other key is refused.
 
 The observation then shows in three places, so "why $74/m³ when the reference
 says $33.70/tonne?" has an answer:
 
 - **The cost dialog.** The rate's row reads _Rate adopted from $33.70/tonne ·
-  CAD · 2026_, and **Rate sources** under the table gives the source, locator,
-  checked date, adoption date and reason. **Remove source** deletes the record
-  from the project and leaves the rate's value alone.
+  CAD · 2026_ (material, rock, borrow, waste and mobilization rows included),
+  and **Rate sources** under the table gives the source, locator, checked date,
+  adoption date, measured basis, included work, reason, accounted overlaps and,
+  folded, the terms as read. **Remove source** deletes the record from the
+  project and leaves the rate's value alone.
 - **The report.** _Rate sources_ under _Cost assumptions_, in the part that is
-  always printed.
+  always printed, with the same detail.
 - **The project file.** `rateEvidence` is optional, so a project without it
   loads and saves exactly as before.
 
 A rate edited after its adoption keeps the record, and all three places say the
-rate is now a different figure that the record no longer explains.
+rate is now a different figure that the record no longer explains; a rate whose
+material, site or culvert was removed says so too.
 
 These records cannot be adopted (`adoptionRefusal`) and show no button: funding
 references, context-only records, municipal fees, maintenance awards, a
 whole-project amount with no unit, and a record with no published amount. A
 project file carrying one of them as a rate source is refused.
 
-Not covered: material, structure, haul, borrow, waste and mobilization rates,
-which are per road; a record adopted for one of the four base rates explains
-that rate only.
-
 ### Limits and upkeep
 
 | Limit | Value | Where |
 | --- | --- | --- |
 | Currency conversion, escalation, cross-source averages | None | `costEvidence/costEvidence.ts`, `costEvidence/rateAdoption.ts` |
-| Ways a record can change the estimate | One: the confirmed adoption form | `RateAdoption.tsx`; `BCCostReferences` receives only `adoption.onAdopt` |
-| Rates a record can be adopted into | Cut, fill, surfacing, clearing | `ADOPTABLE_RATE_KEYS`, `rateAdoption.ts` |
-| Adopted rate | Above 0, at most 10,000 CAD per unit | `ADOPTED_RATE_MAX`, `rateAdoption.ts` |
+| Ways a record can change the estimate | One: the confirmed adoption form | `RateAdoption.tsx`; `BCCostReferences` receives only `adoption.onAdopt` and `adoption.onBuildUps` |
+| Rates a record can be adopted into | Project rates, the active road's haul, material, site, surfacing-source and culvert rates, one-time budget items | `adoptionTargets.ts` |
+| Adopted rate | Above 0, at most the target's limit: 10,000 per unit for the project rates, materials and per-m³ rates up to 1,000,000, lump sums up to 1,000,000,000, percentages up to 200 | `AdoptionTarget.max`, `adoptionTargets.ts` |
+| Saved rate sources | At most 500 | `parseRateEvidence`, `rateAdoption.ts` |
 | Adjustment reason | 8–500 characters; optional only when the record's own figure is kept | `ADOPTION_REASON_MIN`, `ADOPTION_REASON_MAX`, `rateAdoption.ts` |
 | Interior stabilizing allowance | Road groups 2–12; none for group 1 or snow and ice roads | `interiorStabilizationPerKm`, `bcInteriorCost.ts` |
 | Culvert tables shown | Six selected diameters; Interior Part A at 12 m only | `appraisalScope.ts` |
 
 The records are generated: `scripts/forestry/cost-evidence/build-catalogue.mjs`
-turns the three research packages into
-`src/pages/dev-forestry-roads/costEvidence/*.generated.json`. Change a record in
-its package and rebuild, never by hand in the JSON. `costEvidence.test.ts` checks
+turns the three reviewed research packages, now kept beside it in
+`scripts/forestry/cost-evidence/packages/`, and the reviewed additions in
+`additions/` into `src/pages/dev-forestry-roads/costEvidence/*.generated.json`.
+`npm run cost-evidence:build` rebuilds them; `npm run cost-evidence:check` (also
+a unit test, `costSchedule.test.ts`) fails when a generated file differs from a
+rebuild, and each package's own `checksums-sha256.json` is verified first, so a
+hand-edited package fails too. Change a record in its package or in a new
+additions file and rebuild, never by hand in the JSON. An additions file is one
+review: each record in the catalogue's shape with its coded place, read from its
+source on the date given, and a `pending` list for sources that could not be read
+in full (named, linked, never priced). A newer research package is passed by
+folder (`--bc-local`, `--bc-projects`, `--external`). `costEvidence.test.ts` checks
 every record's shape and reconciles the worked estimates with their printed
 totals. The stabilization constants, both culvert tables, the equipment, labour
 and fuel figures and the allowance scopes were read from the 2026 manuals on
 12 November 2026; the Coast manual's index was not reachable that day, so a
 later amendment is not ruled out.
 
-Not built yet: adoption into the per-road material, structure and haul rates,
-intersection of the road with the timber supply and
-BEC layers, the official bridge and road-reactivation workbooks, and sensitivity
-runs on rock, haul and production inputs. The remaining market gap is current BC
-accepted forestry-road schedules and final accounts matched to geometry and haul.
+Not built yet: intersection of the road with the timber supply and BEC layers,
+the official bridge and road-reactivation workbooks, and a pack for any
+jurisdiction other than BC. The remaining market gap is current BC accepted
+forestry-road schedules and final accounts matched to geometry and haul; **My
+records** is where a person's own finished jobs now collect.
+
+## Cost locations and region packs
+
+A project has an optional **cost location** (`project.costLocation`,
+`costPlaces/`): a country (ISO 3166-1, `CA`), a province or state (ISO 3166-2,
+`CA-BC`), a region named by the scheme that defines it (`bc-nr:omineca`) and a
+free-text town. The cost dialog's location line offers the region holding most
+of the road's points, read against each pack's boundary file (BC: the
+natural resource regions in `data/boundaries/BCNR/nr_regions.geojson`, loaded
+through `withBase` only while the project has no location), or else the
+person's home place. It is written only on **Use** or **Save location**, as one
+undo step, with the date and whether it came from the road or was chosen.
+
+The location:
+
+- orders evidence nearest first (same region, then province or state, then
+  country, then elsewhere) and labels each group with its distance;
+- picks the **pack** whose regions, local evidence, budget items and reference
+  tools the dialog shows;
+- sets the currency rates are entered in, and with it the currency a record
+  must be in to be offered as a starting figure.
+
+It never weights, adjusts or averages a price. A project without a location
+reads as before: CAD, the BC pack with no region chosen, catalogue order.
+
+A **pack** (`costPlaces/packs.ts`) is one jurisdiction's knowledge: name,
+currency (or the country's), tax notes, region scheme with its boundary file and
+each region's guidance, extra budget items, and the reference tools it brings
+(`bc-appraisal`, `bc-fuel`). Adding Alberta or the Yukon is adding a pack to
+`COST_PACKS` and its records (with their `subdivision` and `regionId`) to an
+additions file: nothing in the estimate engine changes. A place with no pack
+still works at country level: its records filter and sort by place, its
+currency comes from `COUNTRIES`, and the dialog's Region tab says there is no
+pack yet.
+
+| Limit | Value | Where |
+| --- | --- | --- |
+| Countries with a currency | CA, US, NZ, AU, GB, IE | `COUNTRIES`, `costPlaces/packs.ts` |
+| Packs | British Columbia | `COST_PACKS` |
+| Region suggestion | The region holding most of the active road's points; none outside every boundary | `suggestPlace`, `costPlaces/locate.ts` |
+| Location writes | Only Use, Save location or Clear; opening the dialog writes nothing | `CostLocation.tsx` |
+
+## Own records and preferences
+
+**My records** (`costPlaces/costPreferences.ts`, `useCostPreferences.ts`) keeps
+the person's own preferences in this browser, with Export and Import as a JSON
+file: a **home place** (offered as a project's location when the road says
+nothing), the **evidence types read first** within each distance from the
+project, and **own records**, quotes and finished jobs in the catalogue's
+record shape with a coded place, currency, unit, date, terms and an optional
+link. A finished job can carry the breakdown the Interior Logging Cost Report's
+road schedule separates (road length, subgrade, stabilization, structures,
+other); the record then shows its own cost per km. Own records are marked _Own
+record_, are adopted like any record, and never enter the catalogue, the project
+file or another person's view. Preferences order and suggest; they never write a
+rate or a location.
+
+## Saved build-ups
+
+The **Unit rates** calculators (material quote, truck cycle, equipment crew)
+save their inputs as named build-ups in `project.rateBuildUps`
+(`costEvidence/rateBuildUps.ts`), with where the input prices came from. A truck
+cycle can be built from its parts: load, loaded travel at its speed, unload,
+empty return at its speed, queue. **Apply** sets a rate whose basis matches the
+build-up's result (material and truck: per compacted m³; equipment: per bank m³)
+and stores the formula and result beside it as its source. Editing the build-up
+later never moves the rate: the rate source says _The build-up now gives …;
+apply it again_. Deleting it keeps the formula on the rate. The report lists each
+build-up with its formula.
+
+## Project budget
+
+The **Project budget** section of the cost dialog (`costSchedule.ts`,
+`projectBudget.ts`, `ProjectBudgetPanel.tsx`) lists everything a road budget
+needs beyond the covered construction estimate, in six groups after the FHWA
+Western Federal Lands Estimating Handbook (December 2025): investigation and
+design, construction support, environmental work, contractor indirects, owner
+and project costs, and future work. The pack adds its own (BC: GST, PST on
+taxable materials, FPPR terrain and riparian assessments). Each item is
+**priced**, an **allowance**, **included elsewhere** (naming the line),
+**excluded** (with the reason) or **not assessed**, the default. A priced item
+is a lump sum, a percentage of the construction estimate or an amount per km of
+road. Mobilization reads as included when the estimate has a mobilization line.
+
+The budget sits beside the construction estimate and never changes
+`estimatedCost`: route searches and the profile optimizer compare roads on
+construction alone. _Project budget_ = construction estimate + priced and
+allowance items. Not-assessed items are counted and named, never read as zero.
+Future work (maintenance, regravelling, inspections, deactivation) takes a first
+year and an interval, and is costed over a stated horizon, undiscounted and, with
+a discount rate, as a present value; it is kept out of the construction-period
+budget. Only edits write `project.costSchedule`; the report prints the budget
+after the cost assumptions.
+
+| Limit | Value | Where |
+| --- | --- | --- |
+| Items stored | 100 | `SCHEDULE_LIMITS.maxEntries` |
+| Percentage of construction | 0–200 | `SCHEDULE_LIMITS.maxPercent` |
+| Horizon | 1–100 years, default 20 | `SCHEDULE_LIMITS`, `DEFAULT_LIFECYCLE` |
+| Discount rate | 0–30 % a year, default 0 | `SCHEDULE_LIMITS.maxDiscountPercent` |
+
+## Low and high cases
+
+**Low and high cases** (`costScenarios.ts`, `CostScenariosPanel.tsx`) state a
+low and a high multiplier for each driver: excavation productivity, rock
+excavation cost, depth to rock, suitable share of cut, truck-cycle cost, haul
+distance, aggregate supply, crossing structures and clearing. A case is a copy
+of the road and settings with every driver at its low or high multiplier,
+analysed in full by the same engine (as **Compare best and worst case** does for
+terrain); neither is applied. The table shows the construction estimate,
+excavation, borrow and waste, haul and structures for low, base and high, and
+lists what each case changed. The bounds are the estimator's, not a confidence
+interval; only the bounds are stored (`project.costScenarios`), never the
+results. Multipliers run from 0.1 to 5. Surfacing thickness is a template
+change, not a driver.
 
 ## What the supplied $1.373 million example reveals
 
@@ -187,6 +355,24 @@ unrounded model quantities.
    Coast construction categories are implemented as pure calculations with
    missing-input and applicability checks, source dates and downloadable
    comparison records. They do not change the road's itemized estimate.
+   The Interior comparison offers the road's measured sidehill as its uphill
+   side slope (`MeasuredSideSlope.tsx`): the length-weighted median of each
+   station's cross slope (`sidehillSummary`, `sectionSideSlope.ts`) over a
+   station range, whole road by default. It fills the field only on **Use**,
+   only in the comparison's temporary inputs, and the field then reads
+   _measured suggestion_ with a visible note that it comes from the terrain
+   model, not a field measurement. Typing a value clears that mark, and the
+   JSON download records which one was used (`sideSlopeSource`).
+   Every region gets the same two comparisons and the same road-informed help.
+   The Coast comparison has no side-slope input, so it shows the whole road's
+   measured sidehill against its 150% tabular-road screen
+   (`COAST_TABULAR_SIDESLOPE_LIMIT_PERCENT`, `MeasuredSidehillScreen`) as a
+   read-only check that never confirms eligibility; its download keeps it as
+   `sidehillScreen`. Both comparisons take an optional length that only scales
+   the $/km figure into a total, and both downloads record the region. The
+   Interior road-group list marks the region's candidate groups without
+   choosing one, and says so where a region lists none. A region's
+   "project records" link opens exactly those records (`PROJECT_RECORDS`).
 5. **Unit and production calculations.** Material quote conversion, truck-cycle
    costing and equipment productivity calculations require explicit conversion
    factors and operational inputs. Nothing assumes a density, swell factor,
@@ -327,18 +513,22 @@ while also charging it as borrow supply.
 
 ## Calculation priorities beyond this change
 
+The audit of 14 November 2026 closed several items this table used to list:
+rate evidence is now recorded per item with its terms, basis and included work;
+survey, engineering and project allowances are budget items with an explicit
+state; lifecycle costs and low/high cases exist. The structure behind them and
+what comes next are in
+[Cost estimating: the idea, the structure and how to extend it](cost-estimating-architecture.md).
+What remains from the original list:
+
 | Priority | Improvement | Inputs and acceptance conditions |
 | --- | --- | --- |
 | 1 | Price and allocate borrow, waste and haul | Use existing Engineering inputs; verify suitable material, actual sites, capacity and access. Unallocated material stays visible. |
 | 1 | Complete geometry and crossings | Resolve missing terrain/daylight and review drainage structures; never scale 95.7% into a full road by an assumed average. |
-| 1 | Record rate evidence per item | Supplier/source, quote date/expiry, location, currency, unit basis, quantity tier, included activities, fuel/tax terms and estimator assumptions. |
 | 2 | Strip beneath fills and replace unsuitable ground | Remove measured organic/weak layers before placing fill; add excavation/disposal/replacement without duplicating existing cut. |
 | 2 | Model ROW clearing separately | Add a reviewed clearing envelope beyond daylight, plus separate grubbing and disposal where needed. Do not infer land tenure or timber value. |
 | 2 | Strengthen haul physics | Loose volume, density, payload/weight limits, grade-dependent speeds, return trip, queueing and fleet productivity; preserve bank/compacted balance. |
-| 2 | Expand scoped work items | Bridges, walls, geotextiles, rip rap, erosion control, pit development, mobilization/demobilization, crew accommodation and traffic/access work. |
-| 2 | Survey, engineering and project allowances | Record explicit inclusion/exclusion for layout, investigation, design, monitoring, testing, administration, overhead/profit and applicable tax. |
-| 3 | Construction phase and lifecycle | Separate new road, upgrade/reactivation, seasonal access, routine maintenance, deactivation and rehabilitation. |
-| 3 | Sensitivity and uncertainty | Compare material suitability, rate, haul and ground-condition scenarios. A contingency percentage is not a calibrated P50/P80 estimate. |
+| 2 | Expand scoped work items | Bridges, walls, geotextiles, rip rap, pit development and crew accommodation as reusable work items built from crew, equipment and production. |
 | 3 | Actual-cost calibration | Retain tender scope, quantities, change orders and final costs; validate future predictions on comparable held-out jobs. |
 
 The present cut classification is not a field investigation. Likewise, more
@@ -361,8 +551,10 @@ the separate stabilizing allowance, a region's evidence and its stated gap, the
 evidence filters, a worked estimate's totals, the two fuel figures, unchanged
 saved project values, an adoption (no button on a funding reference, an empty
 rate field for a tonne price, the cost dialog's source line, the saved
-`rateEvidence` and one undo taking back both), and access to controls on a
-phone viewport.
+`rateEvidence` and one undo taking back both), the cost location (suggested from
+the road, written only on Use), a road-rate adoption with an overlap, a saved and
+applied build-up, the project budget and the low and high cases, an own record,
+and access to controls on a phone viewport.
 These verify the implemented arithmetic and workflow, not agreement with
 actual contractor bids.
 

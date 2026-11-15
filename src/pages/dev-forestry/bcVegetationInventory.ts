@@ -23,12 +23,31 @@
  * feature cap below.
  */
 
-import { coverSourceFromVri, SPARSE_CROWN_CLOSURE_PERCENT, type SceneCoverSource } from './sceneCover'
+import { fetchFirePerimeters, FIRE_READ_YEARS } from './bcWildfire'
+import {
+  BURNT_RECENT_YEARS,
+  coverSourceFromVri,
+  ROCKY_NON_VEG_TYPES,
+  SPARSE_CROWN_CLOSURE_PERCENT,
+  type SceneCoverSource,
+} from './sceneCover'
 import { metersPerDegree, polygonBounds, type PolygonGeometry } from './visibility'
 
 export const BC_VEGETATION_WFS = 'https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY/ows'
 
 const TYPE_NAME = 'pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY'
+
+/**
+ * The first two non-vegetated cover components (type and percent): bedrock and talus inside a treed polygon, and
+ * whether the polygon is coastal (`rockyPercent`).
+ */
+const NON_VEG_COVER_FIELDS = [
+  'COAST_INTERIOR_CD',
+  ...[1, 2].flatMap((rank) => [`NON_VEG_COVER_TYPE_${rank}`, `NON_VEG_COVER_PCT_${rank}`]),
+]
+
+/** A burn the inventory has been updated for (a `B` code with its date): the ground reads shrub or herb after it. */
+const BURN_FIELDS = ['EARLIEST_NONLOGGING_DIST_TYPE', 'EARLIEST_NONLOGGING_DIST_DATE']
 
 /**
  * The layer carries 189 attributes. Asking for the two dozen the page uses is
@@ -50,6 +69,8 @@ const FIELDS = [
   'CROWN_CLOSURE',
   'VRI_LIVE_STEMS_PER_HA',
   'PROJ_AGE_1',
+  ...NON_VEG_COVER_FIELDS,
+  ...BURN_FIELDS,
   'GEOMETRY',
 ]
 
@@ -88,6 +109,20 @@ export type VriStand = {
   /** Projected height of the leading species, in metres. */
   heightMeters: number | null
   crownClosurePercent: number | null
+  /**
+   * Share of the polygon, percent, its first two non-vegetated cover components record as bedrock, talus or
+   * blockfield (`NON_VEG_COVER_TYPE_n`/`NON_VEG_COVER_PCT_n` with a `ROCKY_NON_VEG_TYPES` code): rock showing
+   * through a stand. Absent where none is recorded, and on stands parsed before it.
+   */
+  rockyPercent?: number
+  /** `COAST_INTERIOR_CD`: the inventory's coast (`C`) or interior (`I`) standard. */
+  coastInterior?: 'C' | 'I' | null
+  /**
+   * The year of a wildfire the inventory records on this polygon (`EARLIEST_NONLOGGING_DIST_TYPE` a `B` code, with
+   * its `EARLIEST_NONLOGGING_DIST_DATE`). An inventory updated for a burn reclassifies the ground as shrub or herb
+   * while it is standing dead timber. Absent when none is recorded.
+   */
+  burnYear?: number
   /** Live stems per hectare (`VRI_LIVE_STEMS_PER_HA`); draws the stand at its own density. */
   stemsPerHa?: number | null
   ageYears: number | null
@@ -124,12 +159,16 @@ export function clampVegetationBounds(
   ]
 }
 
+const ROCKY_CODES = ROCKY_NON_VEG_TYPES.map((code) => `'${code}'`).join(',')
+
 /**
- * Ground VRI does not record as closed forest: unclassified, non-treed, or treed with sparse crowns. A scene's ground
+ * Ground VRI does not record as closed forest: unclassified, non-treed, treed with sparse crowns, or a stand with
+ * bedrock, talus or blockfield among its non-vegetated cover components (`ROCKY_GROUND_PERCENT`). A scene's ground
  * cover asks only for this (`fetchSceneCover`); over the Sechelt Inlet shore it is a seventh of the polygons and of
- * the bytes (157 of 1,152 polygons, 0.4 of 2.6 MB over 0.15° × 0.1°, November 2026).
+ * the bytes (157 of 1,152 polygons, 0.4 of 2.6 MB over 0.15° × 0.1°, November 2026, before the rocky stands). A
+ * stand with a recorded burn comes back too, closed or not (`VriStand.burnYear`).
  */
-const OPEN_GROUND_FILTER = `(BCLCS_LEVEL_2 IS NULL OR BCLCS_LEVEL_2 <> 'T' OR BCLCS_LEVEL_5 = 'SP' OR CROWN_CLOSURE < ${SPARSE_CROWN_CLOSURE_PERCENT})`
+const OPEN_GROUND_FILTER = `(BCLCS_LEVEL_2 IS NULL OR BCLCS_LEVEL_2 <> 'T' OR BCLCS_LEVEL_5 = 'SP' OR CROWN_CLOSURE < ${SPARSE_CROWN_CLOSURE_PERCENT} OR (COAST_INTERIOR_CD = 'C' AND (NON_VEG_COVER_TYPE_1 IN (${ROCKY_CODES}) OR NON_VEG_COVER_TYPE_2 IN (${ROCKY_CODES}))) OR EARLIEST_NONLOGGING_DIST_TYPE LIKE 'B%')`
 
 /** What ground cover reads: the land cover classes and crown closure, nothing else. */
 const OPEN_GROUND_FIELDS = [
@@ -140,6 +179,8 @@ const OPEN_GROUND_FIELDS = [
   'BCLCS_LEVEL_4',
   'BCLCS_LEVEL_5',
   'CROWN_CLOSURE',
+  ...NON_VEG_COVER_FIELDS,
+  ...BURN_FIELDS,
   'GEOMETRY',
 ]
 
@@ -208,6 +249,17 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
       const height = rank <= 2 ? finiteNumber(properties[`PROJ_HEIGHT_${rank}`]) : null
       return [{ code, percent, heightMeters: height }]
     })
+    const coastInterior = trimmed(properties.COAST_INTERIOR_CD)?.toUpperCase()
+    let rockyPercent = 0
+    for (const rank of [1, 2]) {
+      const type = trimmed(properties[`NON_VEG_COVER_TYPE_${rank}`])?.toUpperCase()
+      const percent = finiteNumber(properties[`NON_VEG_COVER_PCT_${rank}`])
+      if (type && percent && percent > 0 && (ROCKY_NON_VEG_TYPES as readonly string[]).includes(type))
+        rockyPercent += percent
+    }
+    const disturbance = trimmed(properties.EARLIEST_NONLOGGING_DIST_TYPE)?.toUpperCase()
+    const disturbedYear = Number(String(properties.EARLIEST_NONLOGGING_DIST_DATE ?? '').match(/^\d{4}/)?.[0])
+    const burnYear = disturbance?.startsWith('B') && disturbedYear > 1800 ? disturbedYear : null
     return [
       {
         featureId: finiteNumber(properties.FEATURE_ID),
@@ -220,6 +272,9 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
         heightMeters: finiteNumber(properties.PROJ_HEIGHT_1),
         crownClosurePercent: finiteNumber(properties.CROWN_CLOSURE),
         stemsPerHa: finiteNumber(properties.VRI_LIVE_STEMS_PER_HA),
+        ...(rockyPercent > 0 ? { rockyPercent: Math.min(100, rockyPercent) } : {}),
+        coastInterior: coastInterior === 'C' || coastInterior === 'I' ? coastInterior : null,
+        ...(burnYear ? { burnYear } : {}),
         ageYears: finiteNumber(properties.PROJ_AGE_1),
         speciesComposition,
         landCover: {
@@ -321,6 +376,10 @@ export function sceneCoverTiles(
  * four at a time. A tile that came back whole is a complete box, where ground with no open polygon is closed forest;
  * a tile that failed or hit the feature cap is not, and its unread ground stays unknown. Never rejects: a failed read
  * is a source with fewer complete boxes and a note saying so.
+ *
+ * Beside it, over the same tiles, the BC Wildfire Service perimeters (`fetchFirePerimeters`) since
+ * `BURNT_RECENT_YEARS` before `assessmentYear` (default: since `FIRE_READ_YEARS` before this year), for burnt ground;
+ * `fires: false` skips them.
  */
 export async function fetchSceneCover(
   eye: { lng: number; lat: number },
@@ -331,12 +390,16 @@ export async function fetchSceneCover(
     tileDegrees = SCENE_COVER_TILE_DEGREES,
     maxTiles = MAX_SCENE_COVER_TILES,
     timeoutMs = 30_000,
+    fires = true,
+    assessmentYear,
   }: {
     signal?: AbortSignal
     fetchImpl?: typeof fetch
     tileDegrees?: number
     maxTiles?: number
     timeoutMs?: number
+    fires?: boolean
+    assessmentYear?: number
   } = {},
 ): Promise<SceneCoverSource> {
   const scale = metersPerDegree(eye.lat)
@@ -384,7 +447,17 @@ export async function fetchSceneCover(
       }
     }
   }
+  const fireRead = fires
+    ? fetchFirePerimeters(
+        read,
+        assessmentYear !== undefined
+          ? assessmentYear - BURNT_RECENT_YEARS
+          : new Date().getUTCFullYear() - FIRE_READ_YEARS,
+        { signal, fetchImpl, timeoutMs },
+      )
+    : null
   await Promise.all(Array.from({ length: Math.min(4, read.length) }, worker))
+  const burnt = await fireRead
   const km = (radiusMeters / 1000).toFixed(1)
   const gaps = [
     failed ? `${failed} failed` : '',
@@ -394,5 +467,6 @@ export async function fetchSceneCover(
   const note = gaps.length
     ? `Ground cover: VRI open ground read ${complete.length} of ${tiles.length} tiles within ${km} km (${gaps.join(', ')}); the rest is unknown past the run's own read.`
     : `Ground cover: VRI open ground read within ${km} km of the eye; slope, water and sea past it.`
-  return coverSourceFromVri(stands, complete, { note })
+  const source = coverSourceFromVri(stands, complete, { note: burnt ? `${note} ${burnt.note}` : note })
+  return burnt ? { ...source, fires: burnt.fires } : source
 }

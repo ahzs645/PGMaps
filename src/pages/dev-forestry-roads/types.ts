@@ -249,6 +249,13 @@ export interface Alignment {
   routeSearch?: RouteSearchRecord
   /** Set on a road Find the best route made: the settings it searched with (`foundRoadSearch.ts`). */
   searchSettings?: import('./foundRoadSearch').FoundRoadSearchSettings
+  /**
+   * Ground along the centreline as a design file recorded it (RoadEng station levels of a road with
+   * no profile, a LandXML ground profile): [chainage, elevation] pairs in this road's chainage.
+   * Drawn where the terrain has no ground; never used for sections or quantities, which need ground
+   * across the road.
+   */
+  fileGround?: { source: string; points: [number, number][] }
   /** Recorded origin and destination of a generated FSR connector; later edits may change the junction. */
   fsrConnection?: {
     targetFeatureId: string
@@ -468,6 +475,11 @@ export interface TerrainMetadata {
   referenceSurfaces?: Array<{ id: string; name: string; raster: LocalRaster }>
   /** Regional DEMs only: the extent loaded, [west, south, east, north], so reopening loads it again. */
   bounds?: [number, number, number, number]
+  /**
+   * A design placed without a coordinate system: `epsg` is the local plane (`LOCAL_PLANE_EPSG`) and
+   * this says where its coordinates came from, so **Place on map** can put it in its CRS exactly.
+   */
+  localPlane?: import('./localPlane').LocalPlacement
 }
 export interface RoadProject {
   schema: 'pgmaps-road-project-v1'
@@ -495,6 +507,14 @@ export interface RoadProject {
    * any difference (`costEvidence/rateAdoption.ts`). Written only by a confirmed adoption.
    */
   rateEvidence?: import('./costEvidence/rateAdoption').RateEvidence
+  /** Where the project's prices come from: country, province/state and region (`costPlaces/`). Set only by the user. */
+  costLocation?: import('./costPlaces/projectLocation').ProjectCostLocation
+  /** Project-wide budget items beside the construction estimate, and future work (`costSchedule.ts`). */
+  costSchedule?: import('./costSchedule').CostScheduleState
+  /** Saved material, truck-cycle and equipment rate calculations (`costEvidence/rateBuildUps.ts`). */
+  rateBuildUps?: import('./costEvidence/rateBuildUps').RateBuildUp[]
+  /** Stated low and high multipliers for the cost scenarios (`costScenarios.ts`). */
+  costScenarios?: import('./costScenarios').CostScenarioSettings
   /** What the roads are designed to. Grade and radius limits themselves stay in `settings`. */
   standards?: import('./designStandards').DesignStandards
   /** Printed on the report and every plot-book sheet: author, organisation, revision and date. */

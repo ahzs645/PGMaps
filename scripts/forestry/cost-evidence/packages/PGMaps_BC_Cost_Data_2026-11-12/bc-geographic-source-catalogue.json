@@ -1,0 +1,56 @@
+{
+  "checked_date": "2026-11-12",
+  "intent": "Suggest source context for user review; do not mark geotechnical conditions verified automatically.",
+  "sources": [
+    {
+      "id": "fadm-tsa-tsb",
+      "title": "FADM Timber Supply Areas and Blocks",
+      "metadata_url": "https://catalogue.data.gov.bc.ca/dataset/8daa29da-d7f4-401c-83ae-d962e3a28980",
+      "service_url": "https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/557",
+      "warehouse_layer": "WHSE_ADMIN_BOUNDARIES.FADM_TSA",
+      "useful_fields": [
+        "TSA_NUMBER",
+        "TSA_NUMBER_DESCRIPTION",
+        "TSB_NUMBER",
+        "TSB_NUMBER_DESCRIPTION",
+        "EFFECTIVE_DATE",
+        "RETIREMENT_DATE",
+        "WHEN_UPDATED"
+      ],
+      "geometry": "polygon",
+      "source_crs": "EPSG:3005",
+      "maximum_records_per_response": 1000,
+      "pagination_supported": true,
+      "geojson_supported": true,
+      "proposed_use": "Intersect each road segment with TSA/TSB context, resolve TFL exceptions separately, and map to the selected manual Table 4-2 for reviewer confirmation."
+    },
+    {
+      "id": "bec-map",
+      "title": "Biogeoclimatic Ecosystem Classification Map",
+      "metadata_url": "https://catalogue.data.gov.bc.ca/dataset/f358a53b-ffde-4830-a325-a5a03ff672c3",
+      "service_url": "https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/38",
+      "warehouse_layer": "WHSE_FOREST_VEGETATION.BEC_BIOGEOCLIMATIC_POLY",
+      "useful_fields": [
+        "ZONE",
+        "SUBZONE",
+        "VARIANT",
+        "PHASE",
+        "MAP_LABEL",
+        "BGC_LABEL"
+      ],
+      "geometry": "polygon",
+      "source_crs": "EPSG:3005",
+      "maximum_records_per_response": 1000,
+      "pagination_supported": true,
+      "geojson_supported": true,
+      "proposed_use": "Propose BEC attributes from intersected mapped polygons; retain version, source, boundary conflicts and reviewer acceptance. BEC zone alone does not determine site moisture."
+    }
+  ],
+  "implementation_limits": [
+    "Service metadata inspected; application query behavior, complete province extraction and browser CORS were not tested.",
+    "Retain source identifiers and query bounds; paginate and check completeness.",
+    "TSA/TSB overlays alone do not resolve every TFL, jurisdiction or manual-specific boundary.",
+    "Rock percentage, absolute soil moisture and terrain-stability approval require supporting site evidence.",
+    "Compute candidate uphill side slope across the road, not from longitudinal road grade; retain terrain resolution and segment review."
+  ]
+}

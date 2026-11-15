@@ -62,6 +62,7 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
     // Tree-free areas, the viewpoint clearing among them, only change the drawn timber.
     delete assessed.treeFreeAreas
     delete assessed.viewpointClearing
+    delete assessed.clearPrivateLand
     // The sheet's fixed frame only changes the picture.
     delete assessed.figureFrame
     // A surveyed eye elevation counts as the run reads it: only while it applies to where the eye

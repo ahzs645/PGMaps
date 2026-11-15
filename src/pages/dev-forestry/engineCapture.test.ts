@@ -11,6 +11,7 @@ import {
   captureTransfer,
   illustrationLine,
   joinFrames,
+  readCaptureProgress,
   readCaptureReply,
   screeningCounts,
   type EngineCaptureRequest,
@@ -325,5 +326,21 @@ describe('a final capture', () => {
     expect(illustrationLine({ ...base, final: null })).toBe(
       'Picture and pixel measures: Nanite Forest d838ab2, one capture; active render (final not drawn)',
     )
+  })
+})
+
+describe('an engine capture’s progress', () => {
+  it('reads steps done of the total, clamped, and refuses anything else', () => {
+    expect(
+      readCaptureProgress({ type: 'pgmaps-capture-progress', id: 'c1', done: 7.2, total: 36, stage: 'frame 1 of 3' }),
+    ).toEqual({
+      id: 'c1',
+      done: 7,
+      total: 36,
+      stage: 'frame 1 of 3',
+    })
+    expect(readCaptureProgress({ type: 'pgmaps-capture-progress', id: 'c1', done: 40, total: 36 })?.done).toBe(36)
+    expect(readCaptureProgress({ type: 'pgmaps-capture-progress', id: 'c1', done: 1, total: 0 })).toBeNull()
+    expect(readCaptureProgress({ type: 'pgmaps-engine-capture', id: 'c1' })).toBeNull()
   })
 })

@@ -44,7 +44,21 @@ function input(scene: ForestryScene, overrides: Partial<ContextInput> = {}): Con
     fs1252: { selected: [], reviews: {} },
     blockNote: null,
     noteFigures: false,
-    figure: { viewId: null, style: 'Analysis sheet', labelStyle: 'Box', cameraInfo: false },
+    figure: { viewId: null, style: 'Analysis sheet', labelStyle: 'Box', cameraInfo: false, paintBlocks: true },
+    document: null,
+    report: null,
+    logo: 'None',
+    renderer: {
+      id: 'pgmaps',
+      label: 'PGMaps',
+      missing: 0,
+      views: 0,
+      running: false,
+      left: null,
+      measured: false,
+      failed: null,
+      unavailable: null,
+    },
     brief: { blockId: null, viewpoints: 0 },
     evidence: { loaded: true, gaps: [], counts: { views: 0, runs: 0, fields: 0 } },
     roadViewReady: false,
@@ -71,11 +85,92 @@ describe('visual-quality exports', () => {
     expect(exportUnavailable('block-note', ctx)).toMatch(/cutblock/)
     expect(exportUnavailable('fs1252', ctx)).toMatch(/Run the visibility assessment/)
     expect(exportUnavailable('analysis-sheet', ctx)).toMatch(/Save a viewpoint/)
+    expect(exportUnavailable('via-document', ctx)).toMatch(/Save a viewpoint/)
+    expect(exportUnavailable('via-report', ctx)).toMatch(/Save a viewpoint/)
     expect(exportUnavailable('worksheet', ctx)).toMatch(/Run the visibility assessment/)
     expect(exportUnavailable('scene-package', ctx)).toMatch(/road view/)
     // A scene can always be saved.
     expect(exportUnavailable('scene', ctx)).toBeNull()
     expect(exportUnavailable('views', ctx)).toBeNull()
+  })
+
+  it('shows what the VIA document is filled from, as the file is', () => {
+    const document = {
+      format: 'Perspective report, landform net of private land',
+      sources: '22',
+      formula: '(NonVEG + Prop. Blk) / (LF - PL) (landform net of private land, 2 dp)',
+      scale: 'Size and scale terms (consultant reports)',
+      images: ['Perspective viewpoint (unannotated render)', 'Perspective viewpoint analysis'],
+      viewpoints: [{ name: 'Lakeshore', figure: '1.14% · Small' }],
+      toComplete: 6,
+      gaps: [],
+    }
+    const ctx = buildExportContext(input(createEmptyScene(), { document }))
+    expect(exportUnavailable('via-document', ctx)).toBeNull()
+    const sections = exportContents('via-document', ctx)
+    expect(rowValue(sections, 'Format', 'Percent alteration')).toBe(document.formula)
+    expect(sections.find((section) => section.title === 'Viewpoints')?.items?.[0]).toEqual({
+      title: 'Lakeshore',
+      subtitle: '1.14% · Small',
+    })
+    expect(rowValue(sections, 'Reviewer to complete', 'Sentences and cells')).toBe('6 items')
+  })
+
+  it('waits for another engine’s background renders before the figures, saying how long, and not for PGMaps', () => {
+    const renderer = {
+      id: 'worldgen' as const,
+      label: 'threejs-worldgen',
+      missing: 2,
+      views: 3,
+      running: false,
+      left: 'about 4 min',
+      measured: false,
+      failed: null,
+      unavailable: null,
+    }
+    const ctx = buildExportContext(input(createEmptyScene(), { renderer }))
+    const waiting = exportPreparation('via-report', ctx)
+    expect(waiting.render).toBe(true)
+    expect(waiting.note).toBe(
+      'threejs-worldgen draws 2 saved views at final quality first, in the background: about 4 min (first estimate). Then the file is written.',
+    )
+    const running = exportPreparation('analysis-sheet', {
+      ...ctx,
+      renderer: { ...renderer, running: true, measured: true },
+    })
+    expect(running.note).toMatch(/1 of 3 done, about 4 min left/)
+    // Outputs not drawn from the figures never wait, and neither does PGMaps' own drawing.
+    expect(exportPreparation('fs1252', ctx).render).toBe(false)
+    expect(exportPreparation('via-report', { ...ctx, renderer: { ...renderer, id: 'pgmaps' } }).render).toBe(false)
+    // An engine that cannot draw here says why instead of waiting.
+    const blocked = buildExportContext(
+      input(createEmptyScene(), {
+        renderer: { ...renderer, unavailable: 'Needs WebGPU, which this browser does not offer.' },
+      }),
+    )
+    expect(exportUnavailable('via-report', blocked)).toBe(
+      'threejs-worldgen cannot draw the figures: Needs WebGPU, which this browser does not offer.',
+    )
+  })
+
+  it('shows the VIA report’s structure, its logo and what is left to complete', () => {
+    const report = {
+      recipe: '2022 handbook report with Appendix 1',
+      sources: '06, 07',
+      parts: ['cover', 'appendix 1'],
+      figures: 2,
+      toComplete: 3,
+    }
+    const ctx = buildExportContext(input(createEmptyScene(), { report, logo: 'Your logo, mine.png' }))
+    expect(exportUnavailable('via-report', ctx)).toBeNull()
+    const sections = exportContents('via-report', ctx)
+    expect(rowValue(sections, 'Report', 'Logo')).toBe('Your logo, mine.png')
+    expect(rowValue(sections, 'Report', 'Figures')).toBe('2 saved views')
+    expect(sections.find((section) => section.title === 'Parts, in order')?.items?.map((item) => item.title)).toEqual([
+      'cover',
+      'appendix 1',
+    ])
+    expect(rowValue(sections, 'To complete before signing', 'Items')).toBe('3 items')
   })
 
   it('withholds the FS1252 and the worksheet from a stale run', () => {
@@ -235,7 +330,13 @@ describe('visual-quality exports', () => {
     const ctx = buildExportContext(
       input(createSampleScene(), {
         views: [view('a')],
-        figure: { viewId: 'a', style: 'Perspective view', labelStyle: 'Underlined label', cameraInfo: true },
+        figure: {
+          viewId: 'a',
+          style: 'Perspective view',
+          labelStyle: 'Underlined label',
+          cameraInfo: true,
+          paintBlocks: false,
+        },
       }),
     )
     expect(exportUnavailable('analysis-sheet', ctx)).toBeNull()
@@ -243,6 +344,7 @@ describe('visual-quality exports', () => {
     expect(rowValue(sections, 'Figure', 'Saved view')).toBe(ctx.views[0].name)
     expect(rowValue(sections, 'Figure', 'Label style')).toBe('Underlined label')
     expect(rowValue(sections, 'Figure', 'Camera information')).toBe('On the image')
+    expect(rowValue(sections, 'Figure', 'Block ground')).toBe('As captured')
     expect(sections.find((section) => section.title === 'View settings')?.rows).toHaveLength(3)
   })
 

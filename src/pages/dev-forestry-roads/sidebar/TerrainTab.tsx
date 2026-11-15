@@ -126,12 +126,14 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           </Button>
         </div>
         <div className="mt-1 grid">
+          {/* Only a project opened without a coordinate system has anything to place. */}
+          {project.terrain.localPlane && sourceTool('placeOnMap', {})}
           {sourceTool('detailedDem', {})}
           <CommandButton
             id="import"
             surface="sidebar"
             state={p.commandStates?.import}
-            presentation={{ caption: 'Import GeoTIFF, LAS or LAZ' }}
+            presentation={{ caption: 'Import GeoTIFF, LAS, LAZ or RoadEng' }}
             onRun={run}
           />
         </div>
@@ -211,8 +213,8 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
                   {p.breaklines ? 'Replace breaklines' : 'Add breaklines'}
                 </Button>
                 <InfoTip label="About breaklines">
-                  GeoJSON, a zipped shapefile, KML or KMZ. Lines with Z, a <code>z</code> property, or draped on the
-                  ground; KML altitude is not read. The next TIN import keeps them as hard edges.
+                  GeoJSON, a zipped shapefile, KML, KMZ or DXF. Lines with Z, a <code>z</code> property, or draped on
+                  the ground; KML altitude is not read. The next TIN import keeps them as hard edges.
                 </InfoTip>
                 {p.breaklines && (
                   <Button variant="ghost" size="sm" onClick={p.onClearBreaklines} title={p.breaklines}>

@@ -9,6 +9,7 @@
    "title": "Crush to Stockpile",
    "place": "Alberta, provincial highway projects",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 6.99
@@ -31,6 +32,7 @@
    "title": "Crush, Haul and Stockpile Gravel",
    "place": "Alberta, provincial highway projects",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 42.58
@@ -53,6 +55,7 @@
    "title": "Granular Base Course — Des.2 Cl.25",
    "place": "Alberta, provincial highway projects",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 33.7
@@ -75,6 +78,7 @@
    "title": "Culverts — Supply and Install (600 mm dia. CSP)",
    "place": "Alberta, provincial highway projects",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 372.67
@@ -97,6 +101,7 @@
    "title": "Common Excavation",
    "place": "Alberta, provincial highway projects",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 11.22
@@ -119,6 +124,7 @@
    "title": "Borrow Excavation",
    "place": "Alberta, provincial highway projects",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 15.99
@@ -141,6 +147,7 @@
    "title": "Overhaul",
    "place": "Alberta, provincial highway projects",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 1.6
@@ -163,6 +170,7 @@
    "title": "Truck Haul of Common and/or Borrow Excavation",
    "place": "Alberta, provincial highway projects",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 0.49
@@ -185,6 +193,7 @@
    "title": "Clearing",
    "place": "Northern Labrador",
    "country": "CA",
+   "subdivision": "CA-NL",
    "currency": "CAD",
    "amounts": {
     "value": 6000
@@ -207,6 +216,7 @@
    "title": "Grading fill/cuts/borrow/ditches/muskeg or bog including overhaul",
    "place": "Northern Labrador",
    "country": "CA",
+   "subdivision": "CA-NL",
    "currency": "CAD",
    "amounts": {
     "value": 22
@@ -229,6 +239,7 @@
    "title": "Maintenance Grade No.3 — 250 mm thick",
    "place": "Northern Labrador",
    "country": "CA",
+   "subdivision": "CA-NL",
    "currency": "CAD",
    "amounts": {
     "value": 32
@@ -251,6 +262,7 @@
    "title": "Supply and install aluminized Type2 pipe culverts, 600–1000 mm",
    "place": "Northern Labrador",
    "country": "CA",
+   "subdivision": "CA-NL",
    "currency": "CAD",
    "amounts": {
     "value": 1000
@@ -273,6 +285,7 @@
    "title": "Structural excavation",
    "place": "Range Road 251 at Threehills Creek, Kneehill County, Alberta",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 50
@@ -294,6 +307,7 @@
    "title": "Granular backfill",
    "place": "Range Road 251 at Threehills Creek, Kneehill County, Alberta",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 100
@@ -315,6 +329,7 @@
    "title": "Granular Base Course (Des.2 Cl.25)",
    "place": "Range Road 251 at Threehills Creek, Kneehill County, Alberta",
    "country": "CA",
+   "subdivision": "CA-AB",
    "currency": "CAD",
    "amounts": {
     "value": 30
@@ -336,6 +351,7 @@
    "title": "Granular A maintenance gravel supply",
    "place": "Norwich, Ontario",
    "country": "CA",
+   "subdivision": "CA-ON",
    "currency": "CAD",
    "amounts": {
     "value": 18
@@ -356,6 +372,7 @@
    "title": "Grading hourly rate",
    "place": "Norwich, Ontario",
    "country": "CA",
+   "subdivision": "CA-ON",
    "currency": "CAD",
    "amounts": {
     "value": 150
@@ -375,6 +392,7 @@
    "title": "Gravel-road maintenance in gravel application year",
    "place": "Norwich, Ontario",
    "country": "CA",
+   "subdivision": "CA-ON",
    "currency": "CAD",
    "amounts": {
     "value": 9260
@@ -394,6 +412,7 @@
    "title": "Existing gravel road: nominal base strengthening, year1",
    "place": "Norwich, Ontario",
    "country": "CA",
+   "subdivision": "CA-ON",
    "currency": "CAD",
    "amounts": {
     "value": 64780
@@ -434,6 +453,7 @@
    "title": "Mobilization allocation across 10 specified roads",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 150
@@ -456,6 +476,7 @@
    "title": "Excavation and embankment — earth berms",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 150
@@ -478,6 +499,7 @@
    "title": "Light linear grading",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 3500
@@ -500,6 +522,7 @@
    "title": "Linear grading, L-turnaround",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 500
@@ -522,6 +545,7 @@
    "title": "Linear grading, T-turnaround",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 600
@@ -544,6 +568,7 @@
    "title": "Aggregate 23A",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 17
@@ -566,6 +591,7 @@
    "title": "Pit-run aggregate",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 10
@@ -588,6 +614,7 @@
    "title": "Engineering costs, DRES",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 3334
@@ -609,6 +636,7 @@
    "title": "Mobilization allocation across six road/landing work areas",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 200
@@ -631,6 +659,7 @@
    "title": "Remove earth berms",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 100
@@ -653,6 +682,7 @@
    "title": "Construct earth berms",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 150
@@ -675,6 +705,7 @@
    "title": "Linear grading, 120-foot temporary landing",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 600
@@ -697,6 +728,7 @@
    "title": "Aggregate 23A",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 19
@@ -719,6 +751,7 @@
    "title": "Recondition roadbed",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 2500
@@ -741,6 +774,7 @@
    "title": "Engineering costs, DRES",
    "place": "United States; Michigan; Hiawatha National Forest East Zone",
    "country": "US",
+   "subdivision": "US-MI",
    "currency": "USD",
    "amounts": {
     "value": 2314
@@ -762,6 +796,7 @@
    "title": "New temporary roads #4: clearing and grubbing",
    "place": "United States; Meagher County, Montana",
    "country": "US",
+   "subdivision": "US-MT",
    "currency": "USD",
    "amounts": {
     "value": 10047
@@ -784,6 +819,7 @@
    "title": "New temporary roads #4: excavation",
    "place": "United States; Meagher County, Montana",
    "country": "US",
+   "subdivision": "US-MT",
    "currency": "USD",
    "amounts": {
     "value": 2770
@@ -806,6 +842,7 @@
    "title": "New temporary roads #4: obliteration, including seeding",
    "place": "United States; Meagher County, Montana",
    "country": "US",
+   "subdivision": "US-MT",
    "currency": "USD",
    "amounts": {
     "value": 5772.6
@@ -828,6 +865,7 @@
    "title": "New temporary roads #4: drainage dips",
    "place": "United States; Meagher County, Montana",
    "country": "US",
+   "subdivision": "US-MT",
    "currency": "USD",
    "amounts": {
     "value": 250
@@ -850,6 +888,7 @@
    "title": "New temporary roads #4: 18-inch CMP allowance",
    "place": "United States; Meagher County, Montana",
    "country": "US",
+   "subdivision": "US-MT",
    "currency": "USD",
    "amounts": {
     "value": 585
@@ -1051,6 +1090,7 @@
    "title": "Commercial-grade haulage road",
    "place": "England / UK forestry expert context",
    "country": "GB",
+   "subdivision": "GB-ENG",
    "currency": "GBP",
    "amounts": {
     "low": 50,
@@ -1074,6 +1114,7 @@
    "title": "Forwarder track",
    "place": "England / UK forestry expert context",
    "country": "GB",
+   "subdivision": "GB-ENG",
    "currency": "GBP",
    "amounts": {
     "low": 25,

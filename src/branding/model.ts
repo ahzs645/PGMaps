@@ -250,6 +250,24 @@ export function parseBrandSettings(input: unknown): BrandSettings {
   return result
 }
 
+/**
+ * The user's own logo for printed sheets and reports: a PNG or JPEG kept in this browser's branding store (IndexedDB),
+ * never in a project or scene file. It takes precedence over a selected brand's logo.
+ */
+export type UploadedLogo = { name: string; format: 'PNG' | 'JPEG'; dataUrl: string; width: number; height: number }
+export const MAX_UPLOADED_LOGO_BYTES = 2_000_000
+
+export function parseUploadedLogo(input: unknown): UploadedLogo {
+  const value = object(input, 'logo')
+  const format = oneOf(value.format, 'logo format', ['PNG', 'JPEG'] as const)
+  const dataUrl = text(value.dataUrl, 'logo image', Math.ceil(MAX_UPLOADED_LOGO_BYTES * 1.4) + 100)
+  if (!dataUrl.startsWith(format === 'PNG' ? 'data:image/png;base64,' : 'data:image/jpeg;base64,'))
+    throw Error('The logo must be a PNG or JPEG image.')
+  const width = int(value.width, 'logo width', 1, 20_000),
+    height = int(value.height, 'logo height', 1, 20_000)
+  return { name: text(value.name, 'logo name', 200), format, dataUrl, width, height }
+}
+
 export const logoDataUrl = (logo: BrandLogo) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(logo.svg)
 export function pdfFontProblem(brand: BrandRecord): string | null {
   for (const role of ['body', 'heading'] as const) {

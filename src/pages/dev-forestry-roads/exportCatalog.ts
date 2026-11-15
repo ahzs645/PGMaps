@@ -17,6 +17,8 @@ export type RoadExport =
   | 'block-sheet-pdf'
   | 'dline-sheet-pdf'
   | 'landxml'
+  | 'roadeng'
+  | 'roadeng-project'
   | 'dxf'
   | 'stakeout'
   | 'shapefile'
@@ -50,7 +52,7 @@ export const STAMPED_EXPORTS: readonly RoadExport[] = [
   'dline-sheet-pdf',
 ]
 /** Outputs that can hold one road or every road of the project. */
-export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = ['geojson', 'shapefile']
+export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = ['geojson', 'shapefile', 'roadeng', 'roadeng-project']
 export type RoadScope = 'active' | 'all'
 
 /**
@@ -92,6 +94,8 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   plotbook: 'refuse',
   'plotbook-pdf': 'refuse',
   landxml: 'refuse',
+  roadeng: 'refuse',
+  'roadeng-project': 'refuse',
   dxf: 'refuse',
   stakeout: 'refuse',
   csv: 'refuse',
@@ -219,6 +223,20 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     description: 'Horizontal and vertical alignment with cross-sections, for civil design software.',
   },
   {
+    kind: 'roadeng',
+    group: 'survey',
+    label: 'RoadEng design',
+    extension: '.dsnx',
+    description: 'Horizontal and vertical alignment of each road as a Softree RoadEng design, in grid metres.',
+  },
+  {
+    kind: 'roadeng-project',
+    group: 'survey',
+    label: 'RoadEng project',
+    extension: '.zip',
+    description: "Each road's design with its terrain and the project's drawn layers, as a zipped RoadEng project.",
+  },
+  {
     kind: 'dxf',
     group: 'survey',
     label: 'CAD drawing (DXF)',
@@ -279,7 +297,10 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
   if (!context.hasResults) return 'No calculated results yet.'
   if (kind === 'dline-sheet-pdf' && context.dLineSheetUnavailable !== null)
     return context.dLineSheetUnavailable ?? 'Draw a D-line in Review first.'
-  if (context.terrainProfile && ['plotbook', 'plotbook-pdf', 'landxml', 'dxf', 'stakeout'].includes(kind))
+  if (
+    context.terrainProfile &&
+    ['plotbook', 'plotbook-pdf', 'landxml', 'roadeng', 'roadeng-project', 'dxf', 'stakeout'].includes(kind)
+  )
     return 'Return to the road first.'
   if ((kind === 'terrain-landxml' || kind === 'terrain-ascii') && !context.hasTerrainGrid)
     return 'Needs an imported or prepared terrain grid.'

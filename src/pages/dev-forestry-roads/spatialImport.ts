@@ -2,18 +2,35 @@
  * One reader for every spatial import in the road workspace, and the rules for what an imported
  * feature becomes.
  *
- * `readSpatialImport` turns GeoJSON, a zipped shapefile, KML or KMZ into WGS84 features, reprojecting
- * from the file's own CRS and keeping each feature's name. `proposeRoles` says what the features can
+ * `readSpatialImport` turns GeoJSON, a zipped shapefile, KML, KMZ or an ASCII DXF drawing into WGS84
+ * features, reprojecting from the file's own CRS and keeping each feature's name. A DXF states no
+ * CRS, so it is read only in one the caller passes (`crs`); without one it throws
+ * {@link SpatialCrsQuestion} for the page to ask. `proposeRoles` says what the features can
  * be without asking; anything it cannot settle is the user's choice. `buildSpatialImport` then makes
  * roads, context features and reference features through the same validators a project file passes.
  *
  * No DOM access. shpjs and JSZip are imported when a file first needs them.
  */
 import proj4 from 'proj4'
-import { CSRS_TOWGS84, crsDefinition, csrsUtmZone } from '@/lib/geo/projectedCrs'
+import { CSRS_TOWGS84, crsDefinition, csrsUtmZone, projectedCrsDefinition } from '@/lib/geo/projectedCrs'
+import {
+  decodeDxfBytes,
+  describeDxfSkipped,
+  DXF_JOIN_TOLERANCE_M,
+  DxfError,
+  isBinaryDxf,
+  isDxfText,
+  joinDxfLines,
+  pgmapsDxfEpsg,
+  PGMAPS_DXF_FRAME_LAYERS,
+  readDxf,
+  type DxfDrawing,
+  type DxfFeature,
+} from './dxfImport'
 import { importExistingRoads } from './existingRoads'
 import { importHarvestHistory } from './harvestHistory'
 import { withAddedAlignments } from './investigationWorkspace'
+import { localPlaneProjection } from './localPlane'
 import { importAlignmentGeoJson, importContextGeoJson, parseProject } from './project'
 import { parseReferenceFeatures, type ReferenceFeature } from './referenceFeatures'
 import { kmzDocument, parseKml } from './surveyInterchange'
@@ -22,9 +39,10 @@ import type { PdfSheet, PdfSource, PdfClassGrid } from '@/lib/geoPdf/types'
 import { sourceAttributes } from './sourceMetadata'
 
 /** The `accept` list of every spatial file picker. */
-export const SPATIAL_ACCEPT = '.geojson,.json,.zip,.kml,.kmz,application/geo+json,application/json'
+export const SPATIAL_ACCEPT =
+  '.geojson,.json,.zip,.kml,.kmz,.dxf,application/geo+json,application/json,application/dxf,image/vnd.dxf'
 /** The formats, as a message names them. */
-export const SPATIAL_FORMATS = 'GeoJSON (.geojson or .json), a zipped shapefile (.zip), KML or KMZ'
+export const SPATIAL_FORMATS = 'GeoJSON (.geojson or .json), a zipped shapefile (.zip), KML, KMZ or DXF (.dxf)'
 export const MAX_SPATIAL_FILE_BYTES = 120_000_000
 export const MAX_SPATIAL_FEATURES = 500
 export const MAX_SPATIAL_VERTICES = 50_000
@@ -32,7 +50,7 @@ const MAX_ROADS = 20
 const MAX_NAME = 200
 
 export type SpatialShape = 'point' | 'line' | 'polygon'
-export type SpatialFormat = 'GeoJSON' | 'shapefile' | 'zipped shapefile' | 'KML' | 'KMZ' | 'GeoPDF'
+export type SpatialFormat = 'GeoJSON' | 'shapefile' | 'zipped shapefile' | 'KML' | 'KMZ' | 'GeoPDF' | 'DXF'
 export interface SpatialFile {
   fileName: string
   format: SpatialFormat
@@ -62,6 +80,65 @@ export class SpatialImportError extends Error {
 }
 function fail(message: string): never {
   throw new SpatialImportError(message)
+}
+
+/**
+ * Where a file that states no coordinate system (a DXF drawing) is read:
+ *
+ * - `{ epsg }`: a projected CRS in metres that `projectedCrsDefinition` knows (BC Albers, a UTM zone);
+ * - `{ plane }`: the open project's flat plane (`TerrainMetadata.localPlane`): file metres =
+ *   plane metres + `offsetM`, and `unitM` is metres per file unit (0.3048 for a design in feet).
+ */
+export type SpatialCrsChoice = { epsg: number } | { plane: { offsetM: [number, number]; unitM: number } }
+
+/**
+ * A file that cannot be placed without the person's answer. `reason` says which:
+ *
+ * - `'crs'`: the file states no coordinate system. Ask, then read it again with `crs`.
+ * - `'units'`: the drawing states a length unit that does not fit the chosen CRS or plane (a drawing
+ *   in feet given a CRS in metres), or a unit this reader does not know. Ask what its coordinates
+ *   are, then read it again with `unitM` (metres per drawing unit) as the person confirms it.
+ *
+ * `bounds` are [minX, minY, maxX, maxY] of what would be imported, in the file's own units, and
+ * `unitM`/`unitName` the unit the drawing states (null when it states none).
+ */
+export class SpatialCrsQuestion extends SpatialImportError {
+  readonly fileName: string
+  readonly bounds: [number, number, number, number]
+  readonly unitM: number | null
+  readonly unitName: string | null
+  readonly reason: 'crs' | 'units'
+  constructor(
+    message: string,
+    {
+      fileName,
+      bounds,
+      unitM,
+      unitName,
+      reason,
+    }: {
+      fileName: string
+      bounds: [number, number, number, number]
+      unitM: number | null
+      unitName: string | null
+      reason: 'crs' | 'units'
+    },
+  ) {
+    super(message)
+    this.name = 'SpatialCrsQuestion'
+    this.fileName = fileName
+    this.bounds = bounds
+    this.unitM = unitM
+    this.unitName = unitName
+    this.reason = reason
+  }
+}
+
+/** How a DXF drawing is placed; see {@link readSpatialImport}. */
+export interface DrawingPlacement {
+  crs?: SpatialCrsChoice
+  /** Metres per drawing unit, as the person confirmed it. It wins over the drawing's `$INSUNITS`. */
+  unitM?: number
 }
 
 // --- coordinate reference systems -----------------------------------------------------------------
@@ -391,15 +468,18 @@ export async function readSpatialImport(
   file: Readable,
   {
     keepHeights = false,
+    crs,
+    unitM,
   }: {
     /**
      * Keep every third coordinate, for breaklines. Without it only a GeoJSON feature that states
-     * its vertical datum keeps its heights. KML altitude is never kept.
+     * its vertical datum keeps its heights. KML altitude is never kept; a DXF entity's heights are
+     * kept (in metres) only when they are not all zero, because a 2D plan is drawn at elevation 0.
      */
     keepHeights?: boolean
-  } = {},
+  } & DrawingPlacement = {},
 ): Promise<SpatialFile> {
-  const [spatial] = await readSpatialFiles(file, file.name ?? 'This file', keepHeights, false)
+  const [spatial] = await readSpatialFiles(file, file.name ?? 'This file', keepHeights, false, { crs, unitM })
   return spatial
 }
 
@@ -409,12 +489,15 @@ export async function readSpatialFiles(
   path: string,
   keepHeights = false,
   separateLayers = true,
+  placement: DrawingPlacement = {},
 ): Promise<SpatialFile[]> {
   const fileName = path.slice(-MAX_NAME)
   if (file.size > MAX_SPATIAL_FILE_BYTES)
     fail(`${fileName} is over 120 MB. Crop it to the area of the job and import it again.`)
   const bytes = new Uint8Array(await file.arrayBuffer())
   let format: SpatialFormat, crs: string, features: GeoJSON.Feature[]
+  if (isBinaryDxf(bytes))
+    fail(`${fileName} is a binary DXF. Save it from the CAD program as an ASCII DXF and import it again.`)
   if (isZip(bytes)) {
     const shapefiles = await readShapefileZip(bytes, fileName, keepHeights)
     if (shapefiles) {
@@ -457,6 +540,10 @@ export async function readSpatialFiles(
           keepHeights || statesVerticalDatum(feature),
         ),
       }))
+    } else if (isDxfText(text)) {
+      const drawing = readDxfFile(bytes, fileName, keepHeights, placement)
+      const spatial = checkedSpatialFile(fileName, 'DXF', drawing.crs, drawing.features)
+      return [drawing.notices.length ? { ...spatial, notices: drawing.notices } : spatial]
     } else if (/\.(shp|shx|dbf|prj|cpg)$/i.test(fileName))
       return fail(
         `${fileName} is one part of a shapefile. Zip its .shp, .shx, .dbf and .prj files together and import the .zip.`,
@@ -491,11 +578,6 @@ function checkedSpatialFile(
   crs: string,
   features: GeoJSON.Feature[],
 ): SpatialFile {
-  if (!features.length) fail(`${fileName} has no point, line or polygon features to import.`)
-  if (features.length > MAX_SPATIAL_FEATURES)
-    fail(
-      `${fileName} has ${features.length.toLocaleString('en-CA')} features; one import takes at most ${MAX_SPATIAL_FEATURES}. Crop it to the area of the job and import it again.`,
-    )
   let vertices = 0
   for (const feature of features) {
     const points = positions(feature.geometry)
@@ -508,10 +590,7 @@ function checkedSpatialFile(
           : `${fileName} holds coordinates outside the longitude/latitude range after reprojection. Check the file's coordinate system.`,
       )
   }
-  if (vertices > MAX_SPATIAL_VERTICES)
-    fail(
-      `${fileName} has ${vertices.toLocaleString('en-CA')} vertices; one import takes at most ${MAX_SPATIAL_VERTICES.toLocaleString('en-CA')}. Crop or simplify it and import it again.`,
-    )
+  checkSpatialCounts(fileName, features.length, vertices)
   return {
     fileName: fileName.slice(-MAX_NAME),
     format,
@@ -527,6 +606,234 @@ function checkedSpatialFile(
       }),
     },
   }
+}
+
+/** The feature and vertex limits of one import. */
+function checkSpatialCounts(fileName: string, features: number, vertices: number) {
+  if (!features) fail(`${fileName} has no point, line or polygon features to import.`)
+  if (features > MAX_SPATIAL_FEATURES)
+    fail(
+      `${fileName} has ${features.toLocaleString('en-CA')} features; one import takes at most ${MAX_SPATIAL_FEATURES}. Crop it to the area of the job and import it again.`,
+    )
+  if (vertices > MAX_SPATIAL_VERTICES)
+    fail(
+      `${fileName} has ${vertices.toLocaleString('en-CA')} vertices; one import takes at most ${MAX_SPATIAL_VERTICES.toLocaleString('en-CA')}. Crop or simplify it and import it again.`,
+    )
+}
+
+// --- DXF ------------------------------------------------------------------------------------------
+
+/** RoadEng writes its profile and section drawings to their own files, named `<plan>-proNN.dxf` and `<plan>-secNN.dxf`. */
+const ROADENG_NON_PLAN = /-(pro|sec|multi|miulti)\d+\.dxf$/i
+const isUtm = (epsg: number) =>
+  csrsUtmZone(epsg) !== null ||
+  (epsg >= 26901 && epsg <= 26923) ||
+  (epsg >= 32601 && epsg <= 32660) ||
+  (epsg >= 32701 && epsg <= 32760)
+const unitWords = (unitM: number, drawing: DxfDrawing) =>
+  unitM === 1
+    ? 'metres'
+    : unitM === drawing.unitM && drawing.unitName
+      ? drawing.unitName
+      : Math.abs(unitM - 0.3048) < 1e-12
+        ? 'feet'
+        : `units of ${unitM} m`
+
+/**
+ * The drawing's unit in metres for the chosen placement, or null when the person has to say.
+ *
+ * 1. `unitM` given by the caller is the person's word and wins.
+ * 2. A drawing that states a unit this reader does not know (`$INSUNITS` that is not a length) asks.
+ * 3. With `{ epsg }` the coordinates are that CRS's metres: a drawing stating metres, or stating no
+ *    unit (every R12 drawing), is read as metres. A drawing stating feet, inches, millimetres… asks,
+ *    because its coordinates are in the metric grid only if someone scaled them from it, which the
+ *    file cannot say, and `$INSUNITS` is often just the CAD template's default.
+ * 4. With `{ plane }` a drawing stating no unit is read in the plane's unit (the design's own file
+ *    unit); one stating the same unit is read in it; one stating another unit asks.
+ *
+ * Without a placement the stated unit (else metres) is returned, only to size the joining tolerance.
+ */
+function drawingUnit(drawing: DxfDrawing, choice: SpatialCrsChoice | null, confirmed?: number): number | null {
+  if (confirmed !== undefined) return confirmed
+  const stated = drawing.insUnits !== null && drawing.insUnits !== 0
+  if (stated && drawing.unitM === null) return null
+  if (!choice) return drawing.unitM ?? 1
+  if ('epsg' in choice) return !stated || drawing.unitM === 1 ? 1 : null
+  const plane = choice.plane.unitM
+  return !stated || Math.abs(drawing.unitM! - plane) <= 1e-9 * plane ? plane : null
+}
+
+const boundsOf = (features: readonly DxfFeature[]): [number, number, number, number] => {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity
+  for (const feature of features)
+    for (const [x, y] of feature.points) {
+      minX = Math.min(minX, x)
+      minY = Math.min(minY, y)
+      maxX = Math.max(maxX, x)
+      maxY = Math.max(maxY, y)
+    }
+  return [minX, minY, maxX, maxY]
+}
+
+/**
+ * A DXF drawing as WGS84 features. PGMaps' own profile and section frames are left out, line pieces
+ * that meet on one layer are joined, and nothing is placed without a CRS: the caller's, or the EPSG
+ * code PGMaps' own export writes in its header comment. Throws {@link SpatialCrsQuestion} when the
+ * person has to say where the drawing is or what its units are.
+ */
+function readDxfFile(
+  bytes: Uint8Array,
+  fileName: string,
+  keepHeights: boolean,
+  { crs: chosen, unitM: confirmed }: DrawingPlacement,
+): { crs: string; features: GeoJSON.Feature[]; notices: string[] } {
+  if (ROADENG_NON_PLAN.test(fileName))
+    fail(
+      `${fileName} looks like a RoadEng profile, section or multi-plot drawing: its coordinates are stations, offsets or paper units, not the map. Import the plan drawing (the file without the -pro, -sec or -multi suffix).`,
+    )
+  if (confirmed !== undefined && !(confirmed > 0 && Number.isFinite(confirmed)))
+    fail(`The drawing unit for ${fileName} must be a positive number of metres.`)
+  let drawing: DxfDrawing
+  try {
+    drawing = readDxf(decodeDxfBytes(bytes))
+  } catch (error) {
+    if (error instanceof DxfError) fail(`${fileName} could not be read as DXF: ${error.message}`)
+    throw error
+  }
+  const notices: string[] = []
+  const frames = new Set<string>()
+  const plan = drawing.features.filter((feature) => {
+    if (!PGMAPS_DXF_FRAME_LAYERS.has(feature.layer.toUpperCase())) return true
+    frames.add(feature.layer)
+    return false
+  })
+  if (frames.size)
+    notices.push(
+      `Left out the profile and cross-section drawings (layers ${[...frames].join(', ')}): PGMaps draws them below the plan in their own frames, so their coordinates are stations and offsets, not the map.`,
+    )
+  if (drawing.hiddenLayers.length)
+    notices.push(
+      `Left out what is on layers that are off or frozen in the drawing: ${drawing.hiddenLayers.join(', ')}.`,
+    )
+  const skipped = describeDxfSkipped(
+    Object.fromEntries(Object.entries(drawing.skipped).filter(([key]) => key !== 'hiddenLayer')),
+  )
+  if (skipped) notices.push(skipped)
+
+  const stated = pgmapsDxfEpsg(drawing.comments)
+  const statedKnown = stated !== null && projectedCrsDefinition(stated) !== null ? stated : null
+  const choice: SpatialCrsChoice | null = chosen ?? (statedKnown !== null ? { epsg: statedKnown } : null)
+  if (chosen && statedKnown !== null && !('epsg' in chosen && chosen.epsg === statedKnown))
+    notices.push(`The drawing says PGMaps wrote it in EPSG:${statedKnown}; it was read where you chose instead.`)
+  const unitM = drawingUnit(drawing, choice, confirmed)
+  // A CAD plan is all line layers: which is the road is the drawing's to say, by a centreline layer.
+  // PGMaps' own drawing says so with its CL layer; its 3D section lines, ticks and labels are output,
+  // skipped by the role dialog but kept in the file read (a breakline import wants the 3D lines).
+  const ownDrawing = stated !== null
+  const output = (f: { layer: string }) => ownDrawing && PGMAPS_DXF_OUTPUT_LAYERS.has(f.layer.toUpperCase())
+  const onCentreline = (f: { shape: string; layer: string }) =>
+    f.shape === 'line' && CENTRELINE_LAYER.test(f.layer.trim())
+  const centreline = plan.some(onCentreline)
+  if (ownDrawing && plan.some(output))
+    notices.push(
+      "The road is the drawing's CL layer; PGMaps' 3D section lines, station ticks and labels are drawing output.",
+    )
+  else if (centreline)
+    notices.push(
+      `Lines on the drawing's centreline layer (${[...new Set(plan.filter(onCentreline).map((f) => f.layer))].join(', ')}) are roads; the other layers come in as reference layers.`,
+    )
+  const features = joinDxfLines(plan, DXF_JOIN_TOLERANCE_M / (unitM ?? drawing.unitM ?? 1))
+  checkSpatialCounts(
+    fileName,
+    features.length,
+    features.reduce((sum, feature) => sum + feature.points.length, 0),
+  )
+  const bounds = boundsOf(features)
+  const question = (message: string, reason: 'crs' | 'units') =>
+    new SpatialCrsQuestion(message, {
+      fileName,
+      bounds,
+      unitM: drawing.unitM,
+      unitName: drawing.unitName,
+      reason,
+    })
+  if (!choice)
+    throw question(
+      `${fileName} is a DXF drawing, which states no coordinate system. Choose the system its coordinates are in, or the project's plane, and import it again.`,
+      'crs',
+    )
+  if (unitM === null)
+    throw question(
+      drawing.unitM === null
+        ? `${fileName} states drawing units this import does not read ($INSUNITS ${drawing.insUnits}). Say what length one drawing unit is and import it again.`
+        : 'epsg' in choice
+          ? `${fileName} says it is drawn in ${drawing.unitName}, and EPSG:${choice.epsg} is in metres. Say whether its coordinates are metres of that system, or ${drawing.unitName} to convert, and import it again.`
+          : `${fileName} says it is drawn in ${drawing.unitName}, and the project's plane is in ${choice.plane.unitM === 1 ? 'metres' : `units of ${choice.plane.unitM} m`}. Say which unit its coordinates are in and import it again.`,
+      'units',
+    )
+
+  let toLonLat: (metres: [number, number]) => [number, number], label: string
+  if ('epsg' in choice) {
+    const known = projectedCrsDefinition(choice.epsg) ? knownCrs(choice.epsg) : null
+    if (!known?.toWgs84)
+      return fail(`EPSG:${choice.epsg} is not a projected coordinate system in metres this import reads.`)
+    if (isUtm(choice.epsg) && (bounds[0] * unitM < 100_000 || bounds[2] * unitM > 900_000))
+      fail(
+        `${fileName} runs from ${Math.round(bounds[0] * unitM).toLocaleString('en-CA')} m to ${Math.round(bounds[2] * unitM).toLocaleString('en-CA')} m east, outside any UTM zone's eastings (100,000–900,000 m), so it is not in EPSG:${choice.epsg}. Choose the system it is in, or the project's plane.`,
+      )
+    toLonLat = known.toWgs84
+    label = `${known.label}${choice === chosen ? '' : ', as the drawing states'}`
+  } else {
+    const { offsetM, unitM: planeUnit } = choice.plane
+    if (!offsetM.every(Number.isFinite) || !(planeUnit > 0 && Number.isFinite(planeUnit)))
+      fail(`The project's plane for ${fileName} has no usable offset or unit.`)
+    toLonLat = localPlaneProjection(offsetM).toLonLat
+    label = "the project's flat plane"
+  }
+  const from =
+    confirmed !== undefined
+      ? 'as you confirmed'
+      : drawing.unitM !== null && drawing.insUnits
+        ? 'as the drawing states'
+        : 'the drawing states no units'
+  label += `; drawing in ${unitWords(unitM, drawing)} (${from})`
+
+  const geojson = features.map((feature): GeoJSON.Feature => {
+    const heights = keepHeights && feature.points.some((p) => p[2] !== 0)
+    const position = ([x, y, z]: number[]) => {
+      const lonLat = toLonLat([x * unitM, y * unitM])
+      return heights ? [lonLat[0], lonLat[1], z * unitM] : [lonLat[0], lonLat[1]]
+    }
+    const geometry: GeoJSON.Geometry =
+      feature.shape === 'point'
+        ? { type: 'Point', coordinates: position(feature.points[0]) }
+        : feature.shape === 'line'
+          ? { type: 'LineString', coordinates: feature.points.map(position) }
+          : { type: 'Polygon', coordinates: [feature.points.map(position)] }
+    return {
+      type: 'Feature',
+      properties: {
+        name: feature.name,
+        layer: feature.layer,
+        dxfEntity: feature.entity,
+        // What the drawing says each feature is (`statedRole`), where it names a centreline layer.
+        ...(output(feature)
+          ? { kind: 'dxf-output' }
+          : centreline
+            ? { kind: onCentreline(feature) ? 'alignment' : 'reference' }
+            : {}),
+        ...(feature.colour !== null ? { dxfColour: feature.colour } : {}),
+        ...(feature.rgb ? { dxfRgb: feature.rgb } : {}),
+        ...(feature.text !== undefined ? { text: feature.text } : {}),
+        ...(feature.block ? { dxfBlock: feature.block } : {}),
+      },
+      geometry,
+    }
+  })
+  return { crs: label, features: geojson, notices }
 }
 
 function kml(text: string, fileName: string): GeoJSON.Feature[] {
@@ -604,7 +911,25 @@ export const ROLE_OPTIONS: Record<SpatialShape, RoleOption[]> = {
   ],
 }
 
+/** A DXF layer that holds a road centreline: CL, C-Line, centreline, Road CL, an alignment. */
+const CENTRELINE_LAYER =
+  /^(c[-_ ]?l|cl[-_ ]?2d|c[-_ ]?line|cent(re|er)[-_ ]?lines?|road[-_ ]?c[-_ ]?l|h[-_ ]?align\w*|alignments?)$/i
+/** What PGMaps' own DXF draws besides the plan centreline: section feature lines, ticks, labels. */
+const PGMAPS_DXF_OUTPUT_LAYERS = new Set([
+  'CL_3D',
+  'EDGE_L',
+  'EDGE_R',
+  'DITCH_L',
+  'DITCH_R',
+  'CATCH_L',
+  'CATCH_R',
+  'STATIONS',
+  'LABELS',
+])
+
 const EXPORT_ONLY = new Set([
+  // PGMaps' own DXF output beside its plan centreline (`PGMAPS_DXF_OUTPUT_LAYERS`).
+  'dxf-output',
   'crossing-review',
   'culvert',
   'borrow-site',

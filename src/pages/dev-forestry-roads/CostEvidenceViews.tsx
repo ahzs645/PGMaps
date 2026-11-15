@@ -8,31 +8,35 @@ import { CollapsibleSection, InlineAlert, SearchInput } from '@/components/ui/ma
 import { EmptyHint } from '@/components/ui/result-list'
 import { cn } from '@/lib/utils'
 import { ReferenceHeading, ReferenceLink, ReferenceSelect } from './CostReferenceControls'
-import { BC_COST_REGIONS } from './bcCostReferences'
 import {
   EVIDENCE_FRESHNESS,
   EVIDENCE_KINDS,
-  EVIDENCE_PLACES,
   evidenceBasis,
   evidenceKindsIn,
-  evidencePlace,
+  evidencePlaceOptions,
   filterEvidence,
   formatEvidenceAmount,
   formatEvidenceMoney,
   groupEvidence,
   groupTerms,
+  isProjectRecord,
+  PROJECT_RECORDS,
+  recordPlace,
   regionLocalEvidence,
+  sortByRelevance,
   workedEstimateLineTotal,
   type CostEvidenceCatalogue,
   type EvidenceFilter,
   type EvidenceGroup,
   type EvidenceKind,
-  type EvidencePlace,
   type EvidenceRecord,
   type EvidenceSource,
   type EvidenceTerm,
 } from './costEvidence/costEvidence'
 import { loadCostEvidence } from './costEvidence/loadCostEvidence'
+import { actualPerKm } from './costPlaces/costPreferences'
+import { COST_PACKS } from './costPlaces/packs'
+import { PLACE_RELATIONS, placeRelation, type CostPlace } from './costPlaces/places'
 import { AdoptRecord } from './RateAdoption'
 
 export type CostEvidenceState =
@@ -120,8 +124,19 @@ function Terms({ terms, cautions }: { terms: EvidenceTerm[]; cautions: string[] 
 
 function RecordBadges({ record }: { record: EvidenceRecord }) {
   const freshness = record.freshness ? EVIDENCE_FRESHNESS[record.freshness] : null
+  const perKm = actualPerKm(record)
   return (
     <>
+      {record.origin === 'user' && (
+        <Badge tone="info" variant="outline">
+          Own record
+        </Badge>
+      )}
+      {perKm !== null && (
+        <span data-testid="road-evidence-per-km">
+          {formatEvidenceMoney(Math.round(perKm), record.currency)} per km over {record.actual!.lengthKm} km
+        </span>
+      )}
       {freshness && (
         <Badge tone={freshness.tone} variant="outline">
           {freshness.label}
@@ -192,7 +207,7 @@ function EvidenceGroupBody({ group, source }: { group: EvidenceGroup; source?: E
         </p>
       )}
       <p className="text-2xs leading-4 text-muted-foreground">
-        {urls.map((url, index) => (
+        {urls.filter(Boolean).map((url, index) => (
           <span key={url}>
             {index > 0 && ' · '}
             <ReferenceLink href={url}>{urls.length > 1 ? `Source ${index + 1}` : 'Source'}</ReferenceLink>
@@ -216,7 +231,17 @@ function groupSummary(group: EvidenceGroup): string {
   return `${group.records.length} ${group.records.length === 1 ? 'record' : 'records'} · ${kinds.join(', ')}`
 }
 
-function EvidenceGroupList({
+/** "Same region · 3 records · Estimate": how near the group is to the project, then what it holds. */
+const nearSummary = (project: CostPlace | undefined) => (group: EvidenceGroup) => {
+  const nearest = group.records
+    .map((record) => placeRelation(recordPlace(record), project))
+    .sort((a, b) => PLACE_RELATIONS[a].rank - PLACE_RELATIONS[b].rank)[0]
+  return project && nearest !== 'unplaced'
+    ? `${PLACE_RELATIONS[nearest].label} · ${groupSummary(group)}`
+    : groupSummary(group)
+}
+
+export function EvidenceGroupList({
   groups,
   sources,
   defaultOpen = false,
@@ -261,7 +286,10 @@ function EvidenceGroupList({
   )
 }
 
-/** A region's supplier prices, its other local records and its quote-only leads, each kept apart. */
+/**
+ * A region's supplier prices, its other local records and its quote-only leads, each kept apart.
+ * `regionId` is qualified (`bc-nr:omineca`).
+ */
 export function RegionLocalEvidence({
   catalogue,
   regionId,
@@ -340,25 +368,34 @@ export function RegionLocalEvidence({
 
 const ALL = 'all'
 
-/** Every record in the catalogue, narrowed by place, evidence type, region and words. */
+/**
+ * Every record in the catalogue, narrowed by place, evidence type, region and words, nearest the
+ * project's location first and then the person's preferred evidence types. Ordering only.
+ */
 export function EvidenceBrowser({
   catalogue,
   filter,
   onFilter,
+  projectPlace,
+  preferredKinds,
 }: {
   catalogue: CostEvidenceCatalogue
   filter: EvidenceFilter
   onFilter: (filter: EvidenceFilter) => void
+  projectPlace?: CostPlace
+  preferredKinds?: readonly EvidenceKind[]
 }) {
   const inPlace = useMemo(
     () => filterEvidence(catalogue.records, { ...filter, kind: ALL, query: '' }),
     [catalogue.records, filter],
   )
-  const shown = useMemo(() => filterEvidence(catalogue.records, filter), [catalogue.records, filter])
-  const groups = useMemo(() => groupEvidence(shown), [shown])
-  const places = (Object.keys(EVIDENCE_PLACES) as EvidencePlace[]).filter((place) =>
-    catalogue.records.some((record) => evidencePlace(record) === place),
+  const shown = useMemo(
+    () => sortByRelevance(filterEvidence(catalogue.records, filter), projectPlace, preferredKinds),
+    [catalogue.records, filter, projectPlace, preferredKinds],
   )
+  const groups = useMemo(() => groupEvidence(shown), [shown])
+  const places = useMemo(() => evidencePlaceOptions(catalogue.records, projectPlace), [catalogue.records, projectPlace])
+  const scheme = COST_PACKS.find((pack) => pack.subdivision === filter.place)?.regionScheme
   const filtered = filter.place !== ALL || filter.kind !== ALL || filter.regionId !== ALL || filter.query !== ''
   return (
     <div className="space-y-3" data-testid="road-cost-evidence-browser">
@@ -368,7 +405,7 @@ export function EvidenceBrowser({
           value={filter.place}
           options={[
             { value: ALL, label: 'Everywhere' },
-            ...places.map((place) => ({ value: place, label: EVIDENCE_PLACES[place] })),
+            ...places.map((place) => ({ value: place.value, label: `${place.label} (${place.count})` })),
           ]}
           onChange={(value) =>
             onFilter({ ...filter, place: value as EvidenceFilter['place'], kind: ALL, regionId: ALL })
@@ -379,23 +416,27 @@ export function EvidenceBrowser({
           value={filter.kind}
           options={[
             { value: ALL, label: 'Every type' },
+            // Every project record at once: what a region's "project records" link opens.
+            ...(inPlace.some(isProjectRecord)
+              ? [{ value: PROJECT_RECORDS, label: 'Project records · every type' }]
+              : []),
             ...evidenceKindsIn(inPlace).map((kind) => ({ value: kind, label: EVIDENCE_KINDS[kind].label })),
           ]}
-          onChange={(value) => onFilter({ ...filter, kind: value as EvidenceKind | typeof ALL })}
+          onChange={(value) => onFilter({ ...filter, kind: value as EvidenceFilter['kind'] })}
         />
-        {filter.place === 'bc' && (
+        {scheme && (
           <ReferenceSelect
-            label="BC region"
+            label={scheme.name.charAt(0).toUpperCase() + scheme.name.slice(1)}
             value={filter.regionId}
             options={[
-              { value: ALL, label: 'All of BC' },
-              ...BC_COST_REGIONS.map((region) => ({ value: region.id, label: region.name })),
+              { value: ALL, label: 'Every region' },
+              ...scheme.regions.map((region) => ({ value: region.id, label: region.name })),
             ]}
             onChange={(regionId) => onFilter({ ...filter, regionId, kind: ALL })}
             hint="A project's region tag follows its location; the boundary is not verified."
           />
         )}
-        <div className={cn('space-y-1', filter.place !== 'bc' && 'sm:col-span-2')}>
+        <div className={cn('space-y-1', !scheme && 'sm:col-span-2')}>
           <label htmlFor="road-cost-evidence-search" className="text-2xs font-medium text-muted-foreground">
             Work or source
           </label>
@@ -409,7 +450,11 @@ export function EvidenceBrowser({
         </div>
       </div>
       {filter.kind !== ALL && (
-        <p className="text-2xs leading-4 text-muted-foreground">{EVIDENCE_KINDS[filter.kind].use}</p>
+        <p className="text-2xs leading-4 text-muted-foreground">
+          {filter.kind === PROJECT_RECORDS
+            ? 'Contract awards, completed work and estimates. Each is one project of its own scope, not a unit price.'
+            : EVIDENCE_KINDS[filter.kind].use}
+        </p>
       )}
       <div className="flex items-center gap-1 text-2xs text-muted-foreground" aria-live="polite">
         <span data-testid="road-cost-evidence-count">
@@ -428,6 +473,7 @@ export function EvidenceBrowser({
           groups={groups}
           sources={catalogue.sources}
           defaultOpen={groups.length === 1}
+          summary={nearSummary(projectPlace)}
         />
       ) : (
         <EmptyHint>
@@ -515,5 +561,28 @@ export function WorkedEstimates({ catalogue }: { catalogue: CostEvidenceCatalogu
         {source?.priceBasis && <li>Price basis: {source.priceBasis}</li>}
       </ul>
     </div>
+  )
+}
+
+/** Sources the review found but could not read in full: named, linked, never priced. */
+export function PendingSources({ catalogue }: { catalogue: CostEvidenceCatalogue }) {
+  if (!catalogue.pending.length) return null
+  return (
+    <section className="space-y-1.5" aria-label="Awaiting a readable source" data-testid="road-cost-pending-sources">
+      <ReferenceHeading info="Found in the review but not read in full, so no figure is recorded. A figure quoted elsewhere is not evidence until its source is read.">
+        Awaiting a readable source
+      </ReferenceHeading>
+      <ul className={cn(insetBox({ padding: 'none' }), 'divide-y')}>
+        {catalogue.pending.map((item) => (
+          <li key={item.id} className="space-y-0.5 px-3 py-2 text-2xs leading-4">
+            <p className="text-xs font-medium text-foreground">
+              <ReferenceLink href={item.url}>{item.title}</ReferenceLink>
+              <span className="font-normal text-muted-foreground"> · {item.place}</span>
+            </p>
+            <p className="text-muted-foreground">{item.reason}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

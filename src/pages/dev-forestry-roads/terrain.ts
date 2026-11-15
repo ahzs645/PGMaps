@@ -666,7 +666,18 @@ export interface TerrainImportNeeds {
    * Point clouds that carry no CRS, with the header extent so the numbers can be checked against a
    * zone, and the CRS the other files of the same import state, when some do.
    */
-  crs?: { files: string[]; bounds: [minX: number, minY: number, maxX: number, maxY: number]; suggestedEpsg?: number }
+  crs?: {
+    files: string[]
+    bounds: [minX: number, minY: number, maxX: number, maxY: number]
+    suggestedEpsg?: number
+    /**
+     * What is being placed. An alignment (a LandXML or RoadEng design) is offered every UTM zone
+     * across Canada, and the open terrain's CRS is never preselected for it.
+     */
+    subject?: 'point-cloud' | 'alignment' | 'drawing'
+  }
+  /** A CAD drawing whose units are not a length, or not ones its CRS can take: what its coordinates are in. */
+  units?: { files: string[]; stated: string | null }
   /** Files whose elevations name no vertical datum. */
   verticalDatum?: { files: string[] }
 }
@@ -674,6 +685,8 @@ export interface TerrainImportAnswers {
   /** The CRS of point clouds that carry none. Never overrides a CRS a file states. */
   epsg?: number
   verticalReference?: string
+  /** Metres per drawing unit, as the person stated it for a drawing that asked. */
+  unitM?: number
 }
 /**
  * A terrain import stopped to ask. It is an error only until someone answers: `needs` says what to
@@ -687,19 +700,42 @@ export class TerrainImportQuestion extends Error {
     this.needs = needs
   }
 }
-/** The projected CRSs a point cloud can be stated in: the ones terrain is accepted in. */
-export const POINT_CLOUD_CRS_CHOICES: ReadonlyArray<{ epsg: number; label: string }> = [
+/**
+ * Every projected CRS terrain, point clouds and alignments are accepted in (`projectedCrsDefinition`):
+ * BC Albers, NAD83(CSRS) UTM 7–16N, NAD83 UTM 1–23N and WGS84 UTM 1–60 north and south. British
+ * Columbia's come first.
+ */
+export const PROJECTED_CRS_CHOICES: ReadonlyArray<{ epsg: number; label: string }> = [
   { epsg: 3157, label: 'EPSG:3157 · NAD83(CSRS) / UTM zone 10N' },
   { epsg: 3005, label: 'EPSG:3005 · NAD83 / BC Albers' },
-  ...[7, 8, 9, 10, 11].map((zone) => ({
+  ...[
+    [7, 3154],
+    [8, 3155],
+    [9, 3156],
+    [11, 2955],
+    [12, 2956],
+    [13, 2957],
+    [14, 3158],
+    [15, 3159],
+    [16, 3160],
+  ].map(([zone, epsg]) => ({ epsg, label: `EPSG:${epsg} · NAD83(CSRS) / UTM zone ${zone}N` })),
+  ...Array.from({ length: 23 }, (_, i) => i + 1).map((zone) => ({
     epsg: 26900 + zone,
     label: `EPSG:${26900 + zone} · NAD83 / UTM zone ${zone}N`,
   })),
-  ...[7, 8, 9, 10, 11].map((zone) => ({
+  ...Array.from({ length: 60 }, (_, i) => i + 1).map((zone) => ({
     epsg: 32600 + zone,
     label: `EPSG:${32600 + zone} · WGS84 / UTM zone ${zone}N`,
   })),
+  ...Array.from({ length: 60 }, (_, i) => i + 1).map((zone) => ({
+    epsg: 32700 + zone,
+    label: `EPSG:${32700 + zone} · WGS84 / UTM zone ${zone}S`,
+  })),
 ]
+/** The CRSs a point cloud that states none can be given. */
+export const POINT_CLOUD_CRS_CHOICES = PROJECTED_CRS_CHOICES
+/** The CRSs an alignment that states none can be placed in. */
+export const ALIGNMENT_CRS_CHOICES = PROJECTED_CRS_CHOICES
 /**
  * Runs a terrain import, asking for whatever its files do not state and running it again with the
  * answers. `attempt` throws {@link TerrainImportQuestion} to ask; `ask` resolves to null when the

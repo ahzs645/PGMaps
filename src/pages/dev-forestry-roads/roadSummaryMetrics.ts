@@ -62,6 +62,7 @@ export function roadSummaryMetrics(source: SummarySource): RoadSummaryMetric[] {
     analysis.length > 0 && analysis.stations.length > 1 && elevationChange !== null
       ? (100 * elevationChange) / analysis.length
       : null
+  const recorded = alignment.fileGround?.points ?? []
   const metrics: RoadSummaryMetric[] = [
     {
       key: 'length',
@@ -72,10 +73,17 @@ export function roadSummaryMetrics(source: SummarySource): RoadSummaryMetric[] {
     {
       key: 'elevation',
       label: 'Ground elevation',
-      value: elevations ? `${number(low, 0)}–${number(high, 0)} m` : 'Missing',
+      // A design opened without terrain is a mode, not a fault: say where its ground comes from.
+      value: elevations
+        ? `${number(low, 0)}–${number(high, 0)} m`
+        : recorded.length >= 2
+          ? `${number(Math.min(...recorded.map((p) => p[1])), 0)}–${number(Math.max(...recorded.map((p) => p[1])), 0)} m`
+          : 'No terrain',
       note: elevations
         ? `${number(high - low)} m vertical range across ${elevations} stations`
-        : 'No sampled ground elevations',
+        : recorded.length >= 2
+          ? `Along the centreline, from ${alignment.fileGround!.source}; no terrain loaded`
+          : 'Design only: no terrain under this road',
     },
     {
       key: 'grade',
@@ -174,4 +182,22 @@ export function roadSummaryMetrics(source: SummarySource): RoadSummaryMetric[] {
     },
   )
   return metrics
+}
+
+/**
+ * Ground at a chainage from [chainage, elevation] pairs (a road's `fileGround`), straight between
+ * them; null outside them.
+ */
+export function groundAlong(pairs: readonly (readonly [number, number])[], chainage: number): number | null {
+  if (pairs.length < 2 || chainage < pairs[0][0] - 1e-6 || chainage > pairs[pairs.length - 1][0] + 1e-6) return null
+  let low = 0,
+    high = pairs.length - 1
+  while (high - low > 1) {
+    const mid = (low + high) >> 1
+    if (pairs[mid][0] <= chainage) low = mid
+    else high = mid
+  }
+  const [c0, z0] = pairs[low],
+    [c1, z1] = pairs[high]
+  return c1 > c0 ? z0 + ((z1 - z0) * (chainage - c0)) / (c1 - c0) : z0
 }

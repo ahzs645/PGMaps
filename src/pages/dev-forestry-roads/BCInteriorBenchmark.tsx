@@ -17,6 +17,7 @@ import {
   type InteriorRoadType,
   type InteriorSoilMoisture,
 } from './bcInteriorCost'
+import { MeasuredSideSlope, type MeasuredSideSlopeRecord, type SideSlopeRoad } from './MeasuredSideSlope'
 
 const choose = { value: 'unselected', label: 'Not checked' }
 const scopeFlags = [
@@ -24,11 +25,39 @@ const scopeFlags = [
   ['requiresEndHaul', 'End-haul construction required'],
   ['requiresOverlandConstruction', 'Overland construction required'],
 ] as const
+const requiredInputs = [
+  ['roadGroup', 'road group'],
+  ['sideSlopePercent', 'side slope'],
+  ['rockPercent', 'section rock'],
+  ['roadType', 'road type'],
+  ['becZone', 'BEC zone'],
+  ['soilMoisture', 'soil moisture'],
+] as const
+/** The equation's sentences for a blank input, which the short "Still needed" line replaces. */
+const BLANK_INPUT_ERRORS = new Set(
+  interiorRoadBenchmark({
+    roadGroup: null,
+    sideSlopePercent: null,
+    rockPercent: null,
+    roadType: null,
+    becZone: null,
+    soilMoisture: null,
+  }).errors,
+)
 const scopeStatement =
   'New representative tabular section; verified group boundaries; terrain outside classes IV/V; no required end haul or overland construction; any long-term primary access running surface is no wider than 6 m.'
 
 /** Temporary, downloadable source comparison; never writes project cost settings. */
-export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
+export function BCInteriorBenchmark({
+  regionName,
+  candidateGroups,
+  road,
+}: {
+  regionName?: string
+  /** The region's candidate road groups: marked in the list, never chosen for the user. */
+  candidateGroups?: readonly number[]
+  road?: SideSlopeRoad
+}) {
   const [inputs, setInputs] = useState<InteriorBenchmarkInput>({
     roadGroup: null,
     sideSlopePercent: null,
@@ -38,6 +67,8 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
     soilMoisture: null,
   })
   const [reviewed, setReviewed] = useState(false)
+  // Set when the side slope came from the road's terrain; typing a value of one's own clears it.
+  const [measured, setMeasured] = useState<MeasuredSideSlopeRecord | null>(null)
   const [rippedOrQuarryRock, setRippedOrQuarryRock] = useState(false)
   const update = (patch: Partial<InteriorBenchmarkInput>) => {
     setInputs((current) => ({ ...current, ...patch }))
@@ -46,6 +77,8 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
   const group = INTERIOR_ROAD_GROUPS.find((item) => item.id === inputs.roadGroup)
   const result = interiorRoadBenchmark(inputs)
   const ready = reviewed && result.status === 'available'
+  // Blank inputs read as one short line; an entered value the equation refuses keeps its own sentence.
+  const blanks = requiredInputs.filter(([key]) => inputs[key] == null).map(([, label]) => label)
   const stabilizationPerKm = interiorStabilizationPerKm(inputs.roadGroup, inputs.roadType, rippedOrQuarryRock)
   const download = () => {
     if (!ready) return
@@ -58,6 +91,9 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
           region: regionName ?? null,
           roadGroup: group,
           inputs,
+          sideSlopeSource: measured
+            ? { kind: 'measured-suggestion', ...measured }
+            : { kind: inputs.sideSlopePercent === null ? 'not-entered' : 'entered' },
           scopeReviewed: reviewed,
           reviewedScope: scopeStatement,
           result,
@@ -93,15 +129,39 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
         <ReferenceSelect
           label="Interior road group"
           value={inputs.roadGroup?.toString() ?? choose.value}
-          options={[choose, ...INTERIOR_ROAD_GROUPS.map(({ id, label }) => ({ value: String(id), label }))]}
+          options={[
+            choose,
+            ...INTERIOR_ROAD_GROUPS.map(({ id, label }) => ({
+              value: String(id),
+              label: regionName && candidateGroups?.includes(id) ? `${label} · candidate for ${regionName}` : label,
+            })),
+          ]}
           onChange={(value) => update({ roadGroup: value === choose.value ? null : Number(value) })}
+          hint={group?.boundaries}
         />
-        {group && <p className="text-2xs leading-4 text-muted-foreground">{group.boundaries}</p>}
+        {regionName && candidateGroups && candidateGroups.length === 0 && (
+          <p className="text-2xs leading-4 text-warning" data-testid="road-iam-no-candidate-group">
+            No Interior road group lists {regionName}. Check IAM Table 4-2 before using one.
+          </p>
+        )}
+        {road && (
+          <MeasuredSideSlope
+            road={road}
+            inUse={measured}
+            onUse={(record) => {
+              update({ sideSlopePercent: record.percent })
+              setMeasured(record)
+            }}
+          />
+        )}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <OptionalNumberField
-            label="Uphill side slope (%)"
+            label={measured ? 'Uphill side slope · measured suggestion (%)' : 'Uphill side slope (%)'}
             value={inputs.sideSlopePercent}
-            onChange={(sideSlopePercent) => update({ sideSlopePercent })}
+            onChange={(sideSlopePercent) => {
+              setMeasured(null)
+              update({ sideSlopePercent })
+            }}
             min={0}
             max={500}
             placeholder="Not checked"
@@ -165,7 +225,9 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
       </div>
 
       <section className="space-y-2 border-t pt-4" aria-label="Applicability and exclusions">
-        <ReferenceHeading info="Unknown conditions need review before you confirm. The equation does not certify ECE eligibility, survey quality or engineering approval.">
+        <ReferenceHeading
+          info={`Confirm: ${scopeStatement} Unknown conditions need review before you confirm. The equation does not certify ECE eligibility, survey quality or engineering approval.`}
+        >
           Applicability
         </ReferenceHeading>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -209,7 +271,6 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
             />
           ))}
         </div>
-        <p className="text-2xs leading-4 text-muted-foreground">Confirm: {scopeStatement}</p>
         <ToggleRow
           active={reviewed}
           label="Applicability reviewed"
@@ -227,13 +288,19 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
             ))}
           </InlineAlert>
         ) : result.status === 'needs-input' ? (
-          <div className="text-2xs leading-4 text-muted-foreground">
-            <p className="font-medium text-foreground">Still needed</p>
-            <ul className="mt-1 list-disc space-y-0.5 pl-4">
-              {result.errors.map((error) => (
-                <li key={error}>{error}</li>
+          <div className="space-y-1 text-2xs leading-4 text-muted-foreground">
+            {blanks.length > 0 && (
+              <p data-testid="road-interior-still-needed">
+                <span className="font-medium text-foreground">Still needed:</span> {blanks.join(', ')}
+              </p>
+            )}
+            {result.errors
+              .filter((error) => !BLANK_INPUT_ERRORS.has(error))
+              .map((error) => (
+                <p key={error} className="text-warning">
+                  {error}
+                </p>
               ))}
-            </ul>
           </div>
         ) : !reviewed ? (
           <InlineAlert>Review applicability to show the comparison.</InlineAlert>

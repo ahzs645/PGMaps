@@ -179,7 +179,7 @@ test('shapefile and plot book exports, template components, spirals and LAS terr
   await dialogsClosed(page)
   await workflow.getByRole('tab', { name: 'Terrain' }).click()
   const chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Import GeoTIFF, LAS or LAZ', exact: true }).click()
+  await page.getByRole('button', { name: 'Import GeoTIFF, LAS, LAZ or RoadEng', exact: true }).click()
   await (await chooser).setFiles({ name: 'ground.las', mimeType: 'application/octet-stream', buffer: lasFile() })
   await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('points are ground')
   // Imported LiDAR is not a warning, so the header carries no terrain badge.

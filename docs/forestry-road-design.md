@@ -204,7 +204,7 @@ not add measured resolution or establish survey accuracy.
 
 ### Imported LAS and LAZ
 
-"Import GeoTIFF, LAS or LAZ" accepts a LAS or LAZ point cloud of up to 1 GB. The page reads
+"Import GeoTIFF, LAS, LAZ or RoadEng" accepts a LAS or LAZ point cloud of up to 1 GB. The page reads
 the header and the SHA-256, then transfers the file (not a copy) to a worker
 (`pointCloud.worker.ts`) that reads it, classifies ground when needed and grids it, so the page
 stays responsive and only the grid comes back.

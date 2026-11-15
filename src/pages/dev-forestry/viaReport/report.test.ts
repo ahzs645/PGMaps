@@ -1,0 +1,329 @@
+import { describe, expect, it } from 'vitest'
+
+import { findDocumentFormat } from '../viaDocument/formats'
+import { resolveViaDocument, type DocumentFacts } from '../viaDocument/resolve'
+import { reportHtml, reportMarkdown } from './html'
+import { designElementsMatrix, partialCutMatrix, table2Bar } from './matrices'
+import type { ReportBlock } from './model'
+import { blockVisibilitySentences, visibilityPhrase, type ReportContext } from './parts'
+import { CONSULTANT_RECIPE_PARTS } from './partsConsultant'
+import { findReportPart, REPORT_PARTS } from './registry'
+import { assembleReport, recipeFormat, REPORT_RECIPES } from './recipes'
+
+const facts: DocumentFacts = {
+  project: 'Block X1',
+  viewpoints: [
+    {
+      name: 'Lakeshore',
+      landform: 'Landform 1',
+      objective: 'PR',
+      inventory: { vsu: '12', vsc: '2', vac: 'M', evc: 'R', vqo: 'PR' },
+      areas: { landform: 10000, proposed: 300, nonVeg: 0, privateLand: 0, rock: 500 },
+      sightlinePercent: 3.1,
+      distanceKm: 2.6,
+      hfovDeg: 39.6,
+      lensMm: 50,
+      lngLat: [-122.5, 53.9],
+      blocks: [
+        { id: 'X1', status: 'visible', visiblePercent: 40 },
+        { id: 'X2', status: 'not visible', visiblePercent: 0 },
+      ],
+    },
+  ],
+}
+
+function context(recipeFormatId: string, over: Partial<ReportContext> = {}): ReportContext {
+  return {
+    date: new Date('2026-11-14T12:00:00Z'),
+    office: { licence: 'A00000', cuttingPermit: '1' },
+    blocks: [
+      { name: 'X1', areaHa: 12.4, system: 'Clearcut', retentionPercent: null, partialCut: null },
+      {
+        name: 'X2',
+        areaHa: 8,
+        system: 'Partial cut',
+        retentionPercent: null,
+        partialCut: { removedPercent: 40, residualHeightM: 25 },
+      },
+    ],
+    landform: { name: 'Landform 1', objective: 'PR', vac: 'M', areaHa: 410, source: 'drawn in step 1' },
+    inventory: facts.viewpoints[0].inventory ?? null,
+    inventoryRead: true,
+    facts,
+    document: resolveViaDocument(findDocumentFormat(recipeFormatId)!, facts),
+    assessment: null,
+    review: null,
+    breakdown: null,
+    method: { terrain: 'AWS Open Data terrain', vegetation: 'VRI', eyeHeightM: 1.6 },
+    measures: [],
+    figures: [],
+    ...over,
+  }
+}
+
+const all = (blocks: ReportBlock[]) => JSON.stringify(blocks)
+
+describe('VIA report recipes', () => {
+  it('name only parts and formats that exist, and cover every report asked for', () => {
+    for (const recipe of REPORT_RECIPES) {
+      expect(() => recipeFormat(recipe), recipe.id).not.toThrow()
+      for (const id of recipe.parts) expect(findReportPart(id), `${recipe.id}: ${id}`).not.toBeNull()
+    }
+    const covered = new Set(REPORT_RECIPES.flatMap((recipe) => recipe.sources))
+    for (const doc of ['01', '02', '03', '05', '06', '21', '22', '23', '26']) expect(covered.has(doc), doc).toBe(true)
+  })
+
+  it('register each part id once across the modules', () => {
+    const ids = REPORT_PARTS.map((part) => part.id)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
+  it('share their parts: every part serves at least one recipe, most serve several', () => {
+    const uses = new Map(REPORT_PARTS.map((part) => [part.id, 0]))
+    // The consultant reports' part lists, from `partsConsultant.ts`, which `recipes.ts` reads.
+    const lists = [...REPORT_RECIPES.map((recipe) => recipe.parts), ...Object.values(CONSULTANT_RECIPE_PARTS)]
+    for (const parts of lists) for (const id of new Set(parts)) uses.set(id, (uses.get(id) ?? 0) + 1)
+    expect([...uses].filter(([, n]) => n === 0)).toEqual([])
+    expect([...uses.values()].filter((n) => n > 1).length).toBeGreaterThan(REPORT_PARTS.length / 2)
+  })
+
+  it('assemble every recipe, printing blanks rather than placeholders, and list what is left', () => {
+    for (const recipe of REPORT_RECIPES) {
+      const report = assembleReport(recipe, context(recipe.format))
+      const html = reportHtml(report, null)
+      expect(html, recipe.id).not.toMatch(/\{\w+\}|undefined|NaN/)
+      expect(reportMarkdown(report), recipe.id).not.toMatch(/\{\w+\}|undefined|NaN/)
+      expect(report.toComplete.length, recipe.id).toBeGreaterThan(0)
+      expect(html).toContain('Logo (your own)')
+    }
+  })
+
+  it('puts the logo in the title block when there is one', () => {
+    const recipe = REPORT_RECIPES.find((entry) => entry.id === 'consultant-net-private')!
+    const html = reportHtml(assembleReport(recipe, context(recipe.format)), {
+      name: 'mine.png',
+      dataUrl: 'data:image/png;base64,AAAA',
+    })
+    expect(html).toContain('<div class="logo"><img src="data:image/png;base64,AAAA" alt="mine.png">')
+    expect(html).not.toContain('Logo (your own)')
+  })
+})
+
+describe('report parts', () => {
+  it('read the 2001 worksheet on the format’s rule and answer the numerical question from the run', () => {
+    const ctx = context('form-2001-analysed-photos')
+    const numerical = findReportPart('numerical-data')!.build(ctx).blocks
+    // Net of rock and private land: 300 / (10000 - 500) = 3.2% (one decimal), Partial Retention.
+    expect(all(numerical)).toContain('"value":"3.2%"')
+    // A clearcut block brings the poster's clearcut guide, read at the run's 3.2%; the partial cut its table.
+    expect(all(numerical)).toContain('Clearcut harvesting')
+    expect(all(numerical)).toContain('Partial cutting')
+    const withoutClearcut = findReportPart('numerical-data')!.build({ ...ctx, blocks: ctx.blocks.slice(1) }).blocks
+    expect(all(withoutClearcut)).not.toContain('Clearcut harvesting')
+    const summary = findReportPart('summary-2001')!.build(ctx)
+    const within = summary.blocks.find(
+      (b) => b.kind === 'choices' && b.label.startsWith('Is the alteration within the numerical ranges'),
+    )
+    expect(within).toMatchObject({ chosen: 'Yes', source: 'run' })
+    // The judgements are blank and listed, never filled from the run.
+    expect(summary.toComplete).toEqual(expect.arrayContaining(['Is the VQO met?']))
+  })
+
+  it('leave Appendix 1 unfilled without a step 4 record at the assessment station, and say so', () => {
+    const out = findReportPart('appendix-1')!.build(context('appendix-1-net-private-rock'))
+    expect(all(out.blocks)).toContain('not filled')
+    expect(out.toComplete).toEqual(['Step 4 at the assessment station'])
+  })
+
+  it('write the EA memo’s existing conditions from the inventory read, and visibility from the run', () => {
+    const noVqo = context('referral-panoramas', { landform: null, inventory: null })
+    const memo = all(findReportPart('ea-visual-memo')!.build(noVqo).blocks)
+    expect(memo).toContain('not in an area with an established visual quality objective')
+    expect(memo).toContain('Lakeshore: the development is expected to be partly visible: 1 of 2 blocks in view')
+    // A few pixels of the landform, or glimpses only, are never called visible.
+    expect(visibilityPhrase([{ status: 'visible', visiblePercent: 8 }], '0.04')).toMatch(
+      /^may be seen only in glimpses/,
+    )
+    expect(visibilityPhrase([{ status: 'possible glimpses', visiblePercent: 2 }], '1.20')).toMatch(/glimpses/)
+    expect(visibilityPhrase([{ status: 'unknown', visiblePercent: 0 }], '1.20')).toBeNull()
+    const unread = all(findReportPart('ea-visual-memo')!.build({ ...noVqo, inventoryRead: false }).blocks)
+    expect(unread).toContain('was not read')
+  })
+})
+
+describe('the templates the reference comparison found missing', () => {
+  it('state each viewpoint’s answer to the numerical question, and ask for reasons only when it is over', () => {
+    const out = all(findReportPart('summary-2001')!.build(context('form-2001-analysed-photos')).blocks)
+    expect(out).toContain(
+      'From Lakeshore, the alteration is 3.2% of the landform net of rock and private land, within the Partial Retention range (PR 1.6-7%).',
+    )
+    expect(out).not.toContain('Reasons the alteration exceeds')
+  })
+
+  it('write a viewpoint page’s rationale and each block’s visibility from the run', () => {
+    const ctx = context('appendix-1-net-private-rock')
+    const page = all(findReportPart('viewpoint-pages')!.build(ctx).blocks)
+    expect(page).toContain(
+      'Lakeshore looks toward Landform 1, 2.6 km from the nearest block it sees; Block X1 is in view (3.2% of the landform in the picture).',
+    )
+    expect(blockVisibilitySentences(ctx).map((s) => s.text)).toEqual([
+      'From Lakeshore, Block X1 is visible, with 40% of its ground in view.',
+      'From Lakeshore, Block X2 is not expected to be visible.',
+    ])
+  })
+
+  it('adopt the inventory unit in a sentence, offer the certification, and state the purpose', () => {
+    const ctx = context('perspective-report-net-private')
+    expect(all(findReportPart('inventory')!.build(ctx).blocks)).toContain(
+      'Landform 1 takes visual sensitivity unit 12 from the visual landscape inventory: sensitivity class 2, absorption capability M, existing visual condition R and an established objective of PR.',
+    )
+    const signOff = findReportPart('sign-off')!
+      .build(ctx)
+      .blocks.find((b) => b.kind === 'choices')
+    expect(signOff).toMatchObject({ chosen: null, source: 'reviewer' })
+    expect(all(findReportPart('purpose')!.build(ctx).blocks)).toContain(
+      'This assessment tests whether Blocks X1 and X2 meet the Partial Retention (PR) objective established for Landform 1, as seen from 1 viewpoint.',
+    )
+  })
+})
+
+describe('report layout', () => {
+  it('prints on its own paper, with a cover, contents, page numbers, landscape tables and 11 x 17 sheets', () => {
+    const recipe = REPORT_RECIPES.find((entry) => entry.id === 'appendix-1-report')!
+    const sheet = {
+      view: 'Lakeshore',
+      caption: 'Lakeshore: analysis',
+      dataUrl: 'data:image/png;base64,AA',
+      width: 1224,
+      height: 792,
+    }
+    const html = reportHtml(assembleReport(recipe, context(recipe.format, { figures: [sheet] })), null)
+    expect(html).toContain('@page{size:legal portrait')
+    expect(html).toContain('counter(page) " of " counter(pages)')
+    expect(html).toContain('<section class="cover">')
+    expect(html).toContain('<figure class="sheet">')
+    const consultant = REPORT_RECIPES.find((entry) => entry.id === 'consultant-net-private')!
+    const report = reportHtml(assembleReport(consultant, context(consultant.format)), null)
+    expect(report).toContain('<nav class="contents"><h2>Contents</h2>')
+    // Table 5 has thirteen columns: a landscape page.
+    expect(report).toMatch(/<div class="wide"><h4>Table 5: Detailed assessment of visual impact from the key viewpoint/)
+    const form = REPORT_RECIPES.find((entry) => entry.id === 'form-2001-sheets')!
+    const formHtml = reportHtml(assembleReport(form, context(form.format)), null)
+    expect(formHtml).not.toContain('<section class="cover">')
+    expect(formHtml).toContain('<th>VP 1</th>')
+  })
+})
+
+describe('fixes from the second reading', () => {
+  it('names a viewpoint that brings its own article once, and lists the reasons line for an over-range viewpoint', () => {
+    const over = {
+      ...facts.viewpoints[0],
+      name: 'The Shores',
+      areas: { landform: 1000, proposed: 300, nonVeg: 0, privateLand: 0, rock: 0 },
+    }
+    const ctx = context('form-2001-analysis-sheets', {
+      facts: { ...facts, viewpoints: [over] },
+      document: resolveViaDocument(findDocumentFormat('form-2001-analysis-sheets')!, { ...facts, viewpoints: [over] }),
+    })
+    const out = findReportPart('summary-2001')!.build(ctx)
+    expect(all(out.blocks)).toContain('From The Shores, the alteration is 30.00%')
+    expect(all(out.blocks)).toContain('Reasons the alteration exceeds the range')
+    expect(out.toComplete).toContain('Reasons the alteration exceeds the numerical range')
+  })
+
+  it('keeps a heading on the landscape or 11 x 17 page it introduces', () => {
+    const recipe = REPORT_RECIPES.find((entry) => entry.id === 'consultant-net-private')!
+    const sheet = {
+      view: 'Lakeshore',
+      caption: 'Lakeshore: analysis',
+      dataUrl: 'data:image/png;base64,AA',
+      width: 1224,
+      height: 792,
+    }
+    const html = reportHtml(assembleReport(recipe, context(recipe.format, { figures: [sheet] })), null)
+    // The section heading before it ("Calculations") moves with the viewpoint's heading onto the sheet's page.
+    expect(html).toMatch(/<div class="sheet-page"><h3 id="s\d+">[^<]+<\/h3><h4>Lakeshore<\/h4><figure class="sheet">/)
+    expect(html).not.toMatch(/<li>\d+\. /)
+  })
+})
+
+describe('matrices and scales', () => {
+  it('places a partial cut’s X in the clearcut-equivalent table', () => {
+    const matrix = partialCutMatrix({ removedPercent: 40, residualHeightM: 25 })
+    if (matrix.kind !== 'matrix') throw new Error('matrix expected')
+    expect(matrix.point).toEqual({ row: 3, column: 4 })
+    expect(matrix.cells[3][4]).toBe('3.4')
+    expect(partialCutMatrix(null).kind === 'matrix' && (partialCutMatrix(null) as { marks: unknown[] }).marks).toEqual(
+      [],
+    )
+  })
+
+  it('marks each rated design element on its own row and leaves unrated rows bare', () => {
+    const matrix = designElementsMatrix({ 'force-lines': -1, 'edge-treatment': 1 }, 'reviewer')
+    if (matrix.kind !== 'matrix') throw new Error('matrix expected')
+    expect(matrix.marks).toEqual([
+      { row: 0, column: 0 },
+      { row: 2, column: 2 },
+    ])
+  })
+
+  it('places X on the Appendix 1 bar and draws it', () => {
+    const bar = table2Bar('Initial percent alteration (X)', 7.8, 'run')
+    expect(bar).toMatchObject({ kind: 'scale', mark: 7.8, markLabel: '7.8%' })
+    const recipe = REPORT_RECIPES.find((entry) => entry.id === 'appendix-1-report')!
+    const html = reportHtml({ ...assembleReport(recipe, context(recipe.format)), blocks: [bar] }, null)
+    expect(html).toContain('<svg class="scale"')
+    expect(html).toContain('30+')
+  })
+})
+
+describe('26: why each viewpoint, timber screening, regrowth', () => {
+  const screenedFacts: DocumentFacts = {
+    ...facts,
+    viewpoints: [
+      {
+        ...facts.viewpoints[0],
+        blocks: [
+          { id: 'X1', status: 'visible', visiblePercent: 40, screenedPercent: 30 },
+          { id: 'X2', status: 'not visible', visiblePercent: 0, screenedPercent: 60 },
+        ],
+      },
+      { ...facts.viewpoints[0], name: 'Ridge road', blocks: [{ id: 'X1', status: 'not visible', visiblePercent: 0 }] },
+    ],
+  }
+  const ctx = context('referral-panoramas', {
+    facts: screenedFacts,
+    document: resolveViaDocument(findDocumentFormat('referral-panoramas')!, screenedFacts),
+    recipeParts: ['ea-visual-memo', 'overview-map'],
+  })
+  const memo = JSON.stringify(findReportPart('ea-visual-memo')!.build(ctx).blocks)
+
+  it('says which viewpoints were simulated and why, from the run', () => {
+    expect(memo).toContain(
+      'Lakeshore is simulated because the run finds a line of sight from it to the proposed blocks; Ridge road has none and is shown with the blocks’ position marked.',
+    )
+  })
+
+  it('gives the timber screening by area, and the proposal, the map and regrowth', () => {
+    // X1 12.4 ha at 30%, X2 8 ha at 60%: 41.8% screened; 40% and 0% in sight: 24.3%.
+    expect(memo).toContain(
+      'From Lakeshore, standing timber between the viewer and the blocks hides 42% of their ground; 24% is in line of sight.',
+    )
+    expect(memo).toContain('Figure 1 shows the 2 observer viewpoints and the proposed blocks.')
+    expect(memo).toContain('which the simulations do not model')
+    expect(memo).not.toContain('From Ridge road, standing timber')
+    expect(memo).not.toContain('read bare ground')
+  })
+
+  it('says when the run read bare ground only', () => {
+    const bare = { ...screenedFacts, screeningModelled: false }
+    const out = JSON.stringify(
+      findReportPart('ea-visual-memo')!.build({
+        ...ctx,
+        facts: bare,
+        document: resolveViaDocument(findDocumentFormat('referral-panoramas')!, bare),
+      }).blocks,
+    )
+    expect(out).toContain('standing timber was not counted as screening')
+  })
+})

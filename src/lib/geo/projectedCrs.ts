@@ -10,6 +10,16 @@ export const CSRS_TOWGS84 = '+towgs84=-0.991,1.9072,0.5129,0.0257899075194932,0.
 export const BC_ALBERS =
   '+proj=aea +lat_1=50 +lat_2=58.5 +lat_0=45 +lon_0=-126 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m +no_defs'
 
+/**
+ * A flat plane for designs whose coordinate system is unknown: a transverse Mercator on the road
+ * engine's sphere (radius 6,371,008.8 m) through 0°, 0° with scale 1, so lengths on it agree with the
+ * engine's to about a millionth within 15 km of the centre. Its code is in EPSG's range reserved for
+ * user definitions (32768–60000), never a real system, and only terrain and road placement accept it.
+ */
+export const LOCAL_PLANE_EPSG = 59999
+export const LOCAL_PLANE_DEFINITION =
+  '+proj=tmerc +lat_0=0 +lon_0=0 +k=1 +x_0=0 +y_0=0 +R=6371008.8 +units=m +approx +no_defs'
+
 /** NAD83(CSRS) / UTM zone N codes are not contiguous: 2955–2957 are 11–13N, 3154–3157 are 7–10N, 3158–3160 are 14–16N. */
 export function csrsUtmZone(epsg: number): number | null {
   if (epsg >= 2955 && epsg <= 2957) return epsg - 2944

@@ -2,10 +2,12 @@ import JSZip from 'jszip'
 import proj4 from 'proj4'
 import { describe, expect, it } from 'vitest'
 import { projectionDefinition } from '@/lib/geo/projectedCrs'
-import { analyzeRoad, offsetCoordinate } from './engine'
+import { roadDxf } from './dxfExport'
+import { analyzeRoad, centrelineSamples, horizontalGeometry, offsetCoordinate } from './engine'
+import { localPlaneProjection } from './localPlane'
 import { sectionCodePoints } from './sectionGeometry'
 import { featureSectionAnchor } from './sectionReferences'
-import { createDemoProject, DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
+import { createDemoProject, DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, localMetricGrid } from './terrain'
 import { writeShapefileLayer, type ShapeLayer } from './shapefile'
 import {
   applyLayerImport,
@@ -28,11 +30,12 @@ import {
   readSpatialImport,
   spatialFeatureName,
   spatialInventory,
+  SpatialCrsQuestion,
   SpatialImportError,
   statedRole,
   type SpatialFile,
 } from './spatialImport'
-import type { Alignment, Coordinate } from './types'
+import type { Alignment, Coordinate, TerrainSource } from './types'
 
 /** The ESRI projection file of a NAD83(CSRS) / UTM zone 10N shapefile: no authority code in it. */
 const CSRS_UTM10_PRJ =
@@ -438,7 +441,7 @@ describe('reading a spatial file', () => {
   it('names the file and the accepted formats instead of showing a parser error', async () => {
     const reads = (name: string, content: string | Uint8Array) => readSpatialImport(file(name, content))
     await expect(reads('notes.txt', 'station,offset\n0,1')).rejects.toThrow(
-      'notes.txt is not a file this import can read. Use GeoJSON (.geojson or .json), a zipped shapefile (.zip), KML or KMZ.',
+      'notes.txt is not a file this import can read. Use GeoJSON (.geojson or .json), a zipped shapefile (.zip), KML, KMZ or DXF (.dxf).',
     )
     await expect(reads('broken.geojson', '{"type":"FeatureCollection",')).rejects.toThrow(
       /^broken\.geojson is not valid GeoJSON\. This import reads GeoJSON/,
@@ -673,5 +676,259 @@ describe('what an imported feature becomes', () => {
     expect(withPoints.reference?.map((f) => f.name)).toEqual(['Landing 1'])
     expect(withPoints.context).toEqual(twice.context)
     expect(withPoints.alignments).toEqual(twice.alignments)
+  })
+})
+
+/** An R12-style DXF built from group-code pairs, with an optional `$INSUNITS`. */
+function dxfText(entities: Array<[number, string | number]>, insUnits?: number) {
+  const pairs: Array<[number, string | number]> = [
+    [0, 'SECTION'],
+    [2, 'HEADER'],
+    [9, '$ACADVER'],
+    [1, insUnits === undefined ? 'AC1009' : 'AC1032'],
+    ...(insUnits === undefined
+      ? []
+      : ([
+          [9, '$INSUNITS'],
+          [70, insUnits],
+        ] as Array<[number, number | string]>)),
+    [0, 'ENDSEC'],
+    [0, 'SECTION'],
+    [2, 'ENTITIES'],
+    ...entities,
+    [0, 'ENDSEC'],
+    [0, 'EOF'],
+  ]
+  return pairs.map(([code, value]) => `${code}\n${value}`).join('\n') + '\n'
+}
+const dxfLine = (a: number[], b: number[], layer = 'ROAD'): Array<[number, number | string]> => [
+  [0, 'LINE'],
+  [8, layer],
+  [10, a[0]],
+  [20, a[1]],
+  [30, 0],
+  [11, b[0]],
+  [21, b[1]],
+  [31, 0],
+]
+
+describe('reading a DXF drawing', () => {
+  const utm = [
+    [512100, 5972300],
+    [512050, 5971800],
+  ]
+  const toLonLat26910 = proj4(projectionDefinition(26910), 'EPSG:4326')
+
+  it('reads a drawing in the projected CRS the person chose, with its layer and entity', async () => {
+    const read = await readSpatialImport(file('plan.dxf', dxfText(dxfLine(utm[0], utm[1]))), { crs: { epsg: 26910 } })
+    expect(read.format).toBe('DXF')
+    expect(read.crs).toBe('EPSG:26910 (NAD83 / UTM zone 10N); drawing in metres (the drawing states no units)')
+    const [feature] = read.collection.features
+    expect(feature.properties).toEqual({ name: 'ROAD', layer: 'ROAD', dxfEntity: 'LINE' })
+    const coordinates = (feature.geometry as GeoJSON.LineString).coordinates
+    coordinates.forEach((c, i) => {
+      const expected = toLonLat26910.forward(utm[i])
+      expect(c).toHaveLength(2)
+      expect(c[0]).toBeCloseTo(expected[0], 9)
+      expect(c[1]).toBeCloseTo(expected[1], 9)
+    })
+  })
+
+  it('asks where a drawing is rather than guessing, with its extent in file units', async () => {
+    const reading = readSpatialImport(file('plan.dxf', dxfText(dxfLine(utm[0], utm[1]))))
+    await expect(reading).rejects.toBeInstanceOf(SpatialCrsQuestion)
+    const question = (await reading.catch((error: unknown) => error)) as SpatialCrsQuestion
+    expect(question).toBeInstanceOf(SpatialImportError)
+    expect(question).toMatchObject({
+      reason: 'crs',
+      fileName: 'plan.dxf',
+      bounds: [512050, 5971800, 512100, 5972300],
+      unitM: null,
+      unitName: null,
+    })
+    expect(question.message).toMatch(/^plan\.dxf is a DXF drawing, which states no coordinate system/)
+  })
+
+  it('never reads feet as metres: it asks, and converts only on the person’s word', async () => {
+    const feet = utm.map(([x, y]) => [x / 0.3048, y / 0.3048])
+    const drawing = () => file('plan.dxf', dxfText(dxfLine(feet[0], feet[1]), 2))
+    const question = (await readSpatialImport(drawing(), { crs: { epsg: 26910 } }).catch((e: unknown) => e)) as
+      | SpatialCrsQuestion
+      | undefined
+    expect(question).toBeInstanceOf(SpatialCrsQuestion)
+    expect(question).toMatchObject({ reason: 'units', unitM: 0.3048, unitName: 'feet' })
+    expect(question!.message).toMatch(/says it is drawn in feet, and EPSG:26910 is in metres/)
+    const converted = await readSpatialImport(drawing(), { crs: { epsg: 26910 }, unitM: 0.3048 })
+    const first = (converted.collection.features[0].geometry as GeoJSON.LineString).coordinates[0]
+    const expected = toLonLat26910.forward(utm[0])
+    expect(first[0]).toBeCloseTo(expected[0], 9)
+    expect(first[1]).toBeCloseTo(expected[1], 9)
+    expect(converted.crs).toMatch(/drawing in feet \(as you confirmed\)$/)
+  })
+
+  it('places a drawing on the project’s plane in the plane’s unit, and asks when the drawing says otherwise', async () => {
+    const plane = { offsetM: [1000, 2000] as [number, number], unitM: 0.3048 }
+    const local = [
+      [3300, 6500],
+      [3400, 6600],
+    ]
+    for (const insUnits of [undefined, 2]) {
+      const read = await readSpatialImport(file('plan.dxf', dxfText(dxfLine(local[0], local[1]), insUnits)), {
+        crs: { plane },
+      })
+      const first = (read.collection.features[0].geometry as GeoJSON.LineString).coordinates[0]
+      const expected = localPlaneProjection(plane.offsetM).toLonLat([3300 * 0.3048, 6500 * 0.3048])
+      expect(first[0]).toBeCloseTo(expected[0], 12)
+      expect(first[1]).toBeCloseTo(expected[1], 12)
+      expect(read.crs).toMatch(/^the project's flat plane; drawing in feet/)
+    }
+    await expect(
+      readSpatialImport(file('plan.dxf', dxfText(dxfLine(local[0], local[1]), 6)), { crs: { plane } }),
+    ).rejects.toMatchObject({ reason: 'units', unitM: 1 })
+  })
+
+  it('refuses a UTM zone for a drawing in local coordinates, binary DXF and RoadEng profile files', async () => {
+    await expect(
+      readSpatialImport(file('plan.dxf', dxfText(dxfLine([0, 0], [100, 50]))), { crs: { epsg: 26910 } }),
+    ).rejects.toThrow(/outside any UTM zone's eastings/)
+    await expect(
+      readSpatialImport(file('plan.dxf', dxfText(dxfLine(utm[0], utm[1]))), { crs: { epsg: 3857 } }),
+    ).rejects.toThrow(/EPSG:3857 is not a projected coordinate system in metres this import reads/)
+    await expect(
+      readSpatialImport(file('plan.dxf', new TextEncoder().encode('AutoCAD Binary DXF\r\n\x1a\x00\x00'))),
+    ).rejects.toThrow(/^plan\.dxf is a binary DXF/)
+    await expect(
+      readSpatialImport(file('Spur7-pro01.dxf', dxfText(dxfLine(utm[0], utm[1]))), { crs: { epsg: 26910 } }),
+    ).rejects.toThrow(/looks like a RoadEng profile, section or multi-plot drawing/)
+    await expect(readSpatialImport(file('plan.dxf', '0\nSECTION\n2\nENTITIES\n0\nLINE\n'))).rejects.toThrow(
+      /^plan\.dxf could not be read as DXF: it ends inside its ENTITIES section/,
+    )
+  })
+
+  describe('a round trip of PGMaps’ own DXF export', () => {
+    const origin: Coordinate = [-122.75, 53.917]
+    const at = (east: number, north: number) =>
+      offsetCoordinate(origin, (Math.atan2(east, north) * 180) / Math.PI, Math.hypot(east, north))
+    const spur: Alignment = {
+      id: 'r',
+      name: 'Spur 7',
+      color: '#000000',
+      points: [
+        { id: 'a', coordinate: at(0, 0), radiusM: 0 },
+        { id: 'b', coordinate: at(0, 150), radiusM: 60 },
+        { id: 'c', coordinate: at(120, 220), radiusM: 50, spiralM: 20 },
+        { id: 'd', coordinate: at(120, 380), radiusM: 0 },
+      ],
+      vertical: [
+        { id: 'v0', chainage: 0, elevation: 800, curveLength: 0 },
+        { id: 'v1', chainage: 380, elevation: 812, curveLength: 0 },
+      ],
+      template: { ...DEFAULT_TEMPLATE },
+      overrides: [],
+    }
+    const hill: TerrainSource = {
+      elevationAt: (lon, lat) => 800 + (lat - origin[1]) * 3000 + (lon - origin[0]) * 800,
+    }
+    const grid = localMetricGrid(origin)
+    const drawing = roadDxf({
+      name: 'Spur 7',
+      alignment: spur,
+      analysis: analyzeRoad(spur, hill, DEFAULT_ROAD_SETTINGS),
+      terrain: { name: 'DEM', verticalReference: 'CGVD2013' },
+      ...grid,
+    })
+
+    it('brings the plan centreline back on the road, as one line, and leaves the profile and sections out', async () => {
+      // The export names its grid in a header comment, so no CRS has to be asked.
+      const read = await readSpatialImport(file('Spur 7.dxf', drawing))
+      expect(read.crs).toMatch(/^EPSG:32610 \(WGS84 \/ UTM zone 10N\), as the drawing states/)
+      const layers = new Set(read.collection.features.map((f) => f.properties?.layer))
+      for (const layer of layers) expect(layer).not.toMatch(/^(PROF|SECT)_/)
+      expect(read.notices?.[0]).toMatch(
+        /^Left out the profile and cross-section drawings \(layers PROF_TEXT, PROF_GRID, PROF_GROUND, PROF_DESIGN, SECT_TEXT, SECT_GRID, SECT_GROUND, SECT_DESIGN\)/,
+      )
+      const centrelines = read.collection.features.filter((f) => f.properties?.layer === 'CL')
+      expect(centrelines).toHaveLength(1)
+      expect(centrelines[0].properties).toMatchObject({ name: 'CL', dxfEntity: 'LINE+ARC+POLYLINE' })
+      const imported = (centrelines[0].geometry as GeoJSON.LineString).coordinates.map((c) =>
+        grid.toGrid(c as Coordinate),
+      )
+      const dense = centrelineSamples(spur, 0.25)
+      const truth = dense.samples.map((s) => grid.toGrid(dense.toCoordinate(s.x, s.y)))
+      const offRoad = (p: [number, number]) => {
+        let best = Infinity
+        for (let i = 1; i < truth.length; i++) {
+          const [ax, ay] = truth[i - 1],
+            [bx, by] = truth[i]
+          const dx = bx - ax,
+            dy = by - ay
+          const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (dx * dx + dy * dy || 1)))
+          best = Math.min(best, Math.hypot(p[0] - ax - t * dx, p[1] - ay - t * dy))
+        }
+        return best
+      }
+      // Every vertex lies on what the export drew: its lines, spiral vertices and true grid arcs.
+      const arcs = horizontalGeometry(spur).flatMap((piece) => {
+        if (piece.kind !== 'arc') return []
+        const a = grid.toGrid(piece.start),
+          b = grid.toGrid(piece.end)
+        const delta = piece.length / piece.radius
+        const chord = Math.hypot(b[0] - a[0], b[1] - a[1])
+        const radius = chord / (2 * Math.sin(delta / 2))
+        const toCentre = (piece.rotation === 'ccw' ? 1 : -1) * radius * Math.cos(delta / 2)
+        const centre = [
+          (a[0] + b[0]) / 2 - ((b[1] - a[1]) / chord) * toCentre,
+          (a[1] + b[1]) / 2 + ((b[0] - a[0]) / chord) * toCentre,
+        ]
+        return [{ centre, radius }]
+      })
+      const offDrawing = (p: [number, number]) =>
+        Math.min(
+          offRoad(p),
+          ...arcs.map(({ centre, radius }) => Math.abs(Math.hypot(p[0] - centre[0], p[1] - centre[1]) - radius)),
+        )
+      expect(Math.max(...imported.map(offDrawing))).toBeLessThan(0.001)
+      // The export draws each curve as a circle in the UTM grid, where the engine's arc is very slightly
+      // elliptical (sphere against ellipsoid scale): about 1 cm mid-curve on this 60 m radius.
+      expect(Math.max(...imported.map(offRoad))).toBeLessThan(0.015)
+      // Same direction and ends as the road.
+      expect(Math.hypot(imported[0][0] - truth[0][0], imported[0][1] - truth[0][1])).toBeLessThan(0.005)
+      const last = imported[imported.length - 1],
+        end = truth[truth.length - 1]
+      expect(Math.hypot(last[0] - end[0], last[1] - end[1])).toBeLessThan(0.005)
+      let length = 0
+      for (let i = 1; i < imported.length; i++)
+        length += Math.hypot(imported[i][0] - imported[i - 1][0], imported[i][1] - imported[i - 1][1])
+      expect(Math.abs(length - dense.length)).toBeLessThan(0.5)
+    })
+
+    it('keeps the 3D feature lines’ heights only when asked', async () => {
+      const flat = await readSpatialImport(file('Spur 7.dxf', drawing))
+      const raised = await readSpatialImport(file('Spur 7.dxf', drawing), { keepHeights: true })
+      const centreline3d = (read: SpatialFile) =>
+        (read.collection.features.find((f) => f.properties?.layer === 'CL_3D')!.geometry as GeoJSON.LineString)
+          .coordinates
+      expect(centreline3d(flat)[0]).toHaveLength(2)
+      expect(centreline3d(raised)[0][2]).toBeCloseTo(800, 0)
+      // The 2D plan centreline stays 2D: a drawing at elevation 0 states no heights.
+      const plan = raised.collection.features.find((f) => f.properties?.layer === 'CL')!
+      expect((plan.geometry as GeoJSON.LineString).coordinates[0]).toHaveLength(2)
+    })
+
+    it('says its CL layer is the road and the rest drawing output', async () => {
+      const read = await readSpatialImport(file('Spur 7.dxf', drawing))
+      const byLayer = (layer: string) => read.collection.features.find((f) => f.properties?.layer === layer)!
+      expect(statedRole(byLayer('CL'))).toBe('road')
+      for (const layer of ['CL_3D', 'EDGE_L', 'CATCH_R', 'STATIONS', 'LABELS'])
+        expect(statedRole(byLayer(layer))).toBe('skip')
+      expect(read.notices).toContain(
+        "The road is the drawing's CL layer; PGMaps' 3D section lines, station ticks and labels are drawing output.",
+      )
+      // Through the road picker: one road, and nothing else made of the drawing output.
+      expect(buildSpatialImport(read, proposeRoles(read, 'road').roles, 'road').alignments).toHaveLength(1)
+      const labels = read.collection.features.filter((f) => f.properties?.dxfEntity === 'TEXT')
+      expect(labels.length).toBeGreaterThan(5)
+      expect(labels[0].properties).toMatchObject({ name: '0+000', text: '0+000', layer: 'LABELS' })
+    })
   })
 })

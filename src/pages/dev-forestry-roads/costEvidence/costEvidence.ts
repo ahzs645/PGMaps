@@ -5,8 +5,13 @@
  * Evidence only. Nothing here converts a currency, escalates a price, averages across sources or
  * writes a project rate; a record is read beside an estimate, never into it. The one way a record
  * reaches a rate is the user's own adoption (`rateAdoption.ts`). The records are built
- * by `scripts/forestry/cost-evidence/build-catalogue.mjs`. Free of DOM and network access.
+ * by `scripts/forestry/cost-evidence/build-catalogue.mjs`; the user's own records (quotes, finished
+ * jobs) join them from the preferences file with `origin: 'user'`. Every record carries a place
+ * (country, province/state, region) that orders it against the project's location and never
+ * adjusts it. Free of DOM and network access.
  */
+import { regionLocalId, type CostPlace } from '../costPlaces/places'
+import { countryInfo, packOfRegion, subdivisionName, COST_PACKS } from '../costPlaces/packs'
 
 export type EvidenceKind =
   | 'supplier-price'
@@ -36,9 +41,14 @@ export interface EvidenceRecord {
   title: string
   party?: string
   place: string
-  /** A BC natural resource region: the supplier's own for local prices, a location-based candidate otherwise. */
+  /**
+   * A region of the subdivision's pack, by its id inside the scheme (`omineca` for `bc-nr:omineca`):
+   * the supplier's own for local prices, a location-based candidate otherwise.
+   */
   regionId?: string
   country: string
+  /** ISO 3166-2 province or state (`CA-BC`); absent for a national or multi-state record. */
+  subdivision?: string
   currency: EvidenceCurrency
   amounts: EvidenceAmounts
   /** Reads straight after the amount ("/t", " per mile"). Absent for a whole-project amount. */
@@ -69,10 +79,27 @@ export interface EvidenceRecord {
   url: string
   locator?: string
   checked: string
+  /** `user`: the person's own record, kept in their preferences, never in the catalogue. */
+  origin?: 'user'
+  /**
+   * A finished job's own breakdown (the user's records), shaped after the BC Interior Logging Cost
+   * Report's Schedule 10: road length and the subgrade, stabilization and structure costs apart.
+   */
+  actual?: ActualCostBreakdown
+}
+
+export interface ActualCostBreakdown {
+  lengthKm?: number
+  subgrade?: number
+  stabilization?: number
+  structures?: number
+  other?: number
 }
 
 export interface EvidenceLead {
   regionId: string
+  /** ISO 3166-2; the region is read inside it. */
+  subdivision?: string
   party: string
   place: string
   products: string[]
@@ -126,6 +153,17 @@ export interface FuelAdjustment {
   url: string
 }
 
+/** A source the review found but could not read in full: listed, never priced. */
+export interface PendingSource {
+  id: string
+  title: string
+  place: string
+  country: string
+  subdivision?: string
+  url: string
+  reason: string
+}
+
 export interface CostEvidenceCatalogue {
   /** Latest date any part was checked against its source. */
   checked: string
@@ -135,6 +173,7 @@ export interface CostEvidenceCatalogue {
   estimates: WorkedEstimate[]
   fuel: FuelAdjustment
   projectLimits: string[]
+  pending: PendingSource[]
 }
 
 export const EVIDENCE_KINDS: Record<EvidenceKind, { label: string; use: string }> = {
@@ -206,19 +245,61 @@ export const EVIDENCE_FRESHNESS: Record<EvidenceFreshness, { label: string; tone
     award: { label: 'Awarded', tone: 'neutral' },
   }
 
-export type EvidencePlace = 'bc' | 'canada' | 'us' | 'elsewhere'
-export const EVIDENCE_PLACES: Record<EvidencePlace, string> = {
-  bc: 'British Columbia',
-  canada: 'Canada outside BC',
-  us: 'United States',
-  elsewhere: 'New Zealand, England, Australia, Ireland',
+/**
+ * A record's place. A BC record built before places existed carried a region but no province; it is
+ * read as BC, the only province whose regions the catalogue used.
+ */
+export function recordPlace(record: Pick<EvidenceRecord, 'country' | 'subdivision' | 'regionId'>): CostPlace {
+  const subdivision = record.subdivision ?? (record.country === 'CA' && record.regionId ? 'CA-BC' : undefined)
+  const scheme = subdivision ? COST_PACKS.find((pack) => pack.subdivision === subdivision)?.regionScheme : undefined
+  return {
+    country: record.country,
+    ...(subdivision ? { subdivision } : {}),
+    ...(record.regionId && scheme ? { region: `${scheme.id}:${record.regionId}` } : {}),
+  }
 }
 
-/** BC records carry a region or come from a BC package; everything else is placed by country. */
-export function evidencePlace(record: EvidenceRecord): EvidencePlace {
-  if (record.country === 'US') return 'us'
-  if (record.country !== 'CA') return 'elsewhere'
-  return record.sourceId ? 'canada' : 'bc'
+/** A lead's place, read the same way. */
+export const leadPlace = (lead: EvidenceLead): CostPlace =>
+  recordPlace({ country: 'CA', subdivision: lead.subdivision, regionId: lead.regionId })
+
+export interface PlaceOption {
+  /** A country code (`CA`) or a subdivision code (`CA-BC`). */
+  value: string
+  label: string
+  count: number
+}
+
+/**
+ * The places present in a set of records, for the "Where" filter: each country, then each of its
+ * provinces/states with records, nearest the project first when one is given.
+ */
+export function evidencePlaceOptions(records: readonly EvidenceRecord[], project?: CostPlace): PlaceOption[] {
+  const countries = new Map<string, number>()
+  const subdivisions = new Map<string, number>()
+  for (const record of records) {
+    const place = recordPlace(record)
+    countries.set(place.country, (countries.get(place.country) ?? 0) + 1)
+    if (place.subdivision) subdivisions.set(place.subdivision, (subdivisions.get(place.subdivision) ?? 0) + 1)
+  }
+  const rank = (code: string) =>
+    project && (code === project.subdivision || code === project.country) ? 0 : code === 'CA' ? 1 : 2
+  const options: PlaceOption[] = []
+  for (const country of [...countries.keys()].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))) {
+    const name = countryInfo(country)?.name ?? country
+    options.push({ value: country, label: name, count: countries.get(country)! })
+    for (const sub of [...subdivisions.keys()]
+      .filter((code) => code.startsWith(country + '-'))
+      .sort((a, b) => rank(a) - rank(b) || subdivisionName(a).localeCompare(subdivisionName(b))))
+      options.push({ value: sub, label: `${name} · ${subdivisionName(sub)}`, count: subdivisions.get(sub)! })
+  }
+  return options
+}
+
+/** Whether a record lies in a filter place: a country code takes every subdivision inside it. */
+export function inPlace(record: EvidenceRecord, place: string): boolean {
+  const own = recordPlace(record)
+  return place.includes('-') ? own.subdivision === place : own.country === place
 }
 
 const CURRENCY_SYMBOL: Record<EvidenceCurrency, string> = {
@@ -244,6 +325,9 @@ export function formatEvidenceAmount(record: Pick<EvidenceRecord, 'amounts' | 'c
   const { amounts, currency } = record
   const money = (value: number) => formatEvidenceMoney(value, currency)
   const unit = record.unit ?? ''
+  // "3% of works subtotal": a share of other lines, not money.
+  if (unit.startsWith('%') && amounts.value !== undefined)
+    return `${amounts.value.toLocaleString('en-CA', { maximumFractionDigits: 2 })}${unit.replace(/^% ?/, '% ')}`
   if (amounts.value !== undefined) return money(amounts.value) + unit
   if (amounts.ceiling !== undefined) return 'up to ' + money(amounts.ceiling) + unit
   if (amounts.low !== undefined && amounts.high !== undefined) {
@@ -296,9 +380,20 @@ export function evidenceTerms(record: EvidenceRecord): EvidenceTerm[] {
   return terms
 }
 
+/**
+ * A record of what a project cost or was estimated to cost (awards, completed work, estimates), as
+ * against a dated price that ages (`freshness`): supplier prices, fees and maintenance awards.
+ */
+export const isProjectRecord = (record: EvidenceRecord) => record.freshness === undefined
+
+/** The evidence-type filter's choice for every project record at once, whatever its kind. */
+export const PROJECT_RECORDS = 'projects'
+
 export interface EvidenceFilter {
-  place: EvidencePlace | 'all'
-  kind: EvidenceKind | 'all'
+  /** A country (`CA`) or province/state (`CA-BC`) code. */
+  place: string | 'all'
+  kind: EvidenceKind | typeof PROJECT_RECORDS | 'all'
+  /** A scheme-qualified region (`bc-nr:omineca`). */
   regionId: string | 'all'
   /** Words that must all appear in the title, group, place or scope. */
   query: string
@@ -309,9 +404,12 @@ export const NO_EVIDENCE_FILTER: EvidenceFilter = { place: 'all', kind: 'all', r
 export function filterEvidence(records: readonly EvidenceRecord[], filter: EvidenceFilter): EvidenceRecord[] {
   const words = filter.query.toLowerCase().split(/\s+/).filter(Boolean)
   return records.filter((record) => {
-    if (filter.place !== 'all' && evidencePlace(record) !== filter.place) return false
-    if (filter.kind !== 'all' && record.kind !== filter.kind) return false
-    if (filter.regionId !== 'all' && record.regionId !== filter.regionId) return false
+    if (filter.place !== 'all' && !inPlace(record, filter.place)) return false
+    if (
+      filter.kind === PROJECT_RECORDS ? !isProjectRecord(record) : filter.kind !== 'all' && record.kind !== filter.kind
+    )
+      return false
+    if (filter.regionId !== 'all' && recordPlace(record).region !== filter.regionId) return false
     if (!words.length) return true
     const haystack = [record.title, record.group, record.party, record.place, record.scope].join(' ').toLowerCase()
     return words.every((word) => haystack.includes(word))
@@ -342,17 +440,52 @@ export function evidenceKindsIn(records: readonly EvidenceRecord[]): EvidenceKin
 
 /**
  * A region's own supplier prices and trucking rates, apart from the fees and maintenance awards
- * that describe different work and must not be read as road-base offers.
+ * that describe different work and must not be read as road-base offers. `region` is qualified
+ * (`bc-nr:omineca`), so two provinces' schemes never mix.
  */
-export function regionLocalEvidence(catalogue: CostEvidenceCatalogue, regionId: string) {
-  const local = catalogue.records.filter((record) => record.regionId === regionId && record.freshness !== undefined)
+export function regionLocalEvidence(catalogue: CostEvidenceCatalogue, region: string) {
+  const inRegion = (record: EvidenceRecord) => recordPlace(record).region === region
+  const local = catalogue.records.filter((record) => inRegion(record) && !isProjectRecord(record))
   const supplier = (record: EvidenceRecord) => record.kind === 'supplier-price' || record.kind === 'supplier-haul'
   return {
     suppliers: groupEvidence(local.filter(supplier)),
     other: local.filter((record) => !supplier(record)),
-    leads: catalogue.leads.filter((lead) => lead.regionId === regionId),
-    projects: catalogue.records.filter((record) => record.regionId === regionId && record.freshness === undefined),
+    leads: catalogue.leads.filter((lead) => leadPlace(lead).region === region),
+    projects: catalogue.records.filter((record) => inRegion(record) && isProjectRecord(record)),
   }
+}
+
+/** The region's local id for a qualified id whose pack is known; null for another scheme. */
+export const knownRegionLocalId = (region: string) => (packOfRegion(region) ? regionLocalId(region) : null)
+
+/**
+ * Records ordered by how near they are to the project (same region, province/state, country,
+ * elsewhere), then by the person's preferred evidence types, keeping catalogue order within a tie.
+ * Ordering only: nothing is weighted, dropped or averaged.
+ */
+export function sortByRelevance(
+  records: readonly EvidenceRecord[],
+  project: CostPlace | undefined,
+  preferredKinds: readonly EvidenceKind[] = [],
+): EvidenceRecord[] {
+  const rank = (record: EvidenceRecord) => {
+    const place = recordPlace(record)
+    const near = !project
+      ? 0
+      : place.country !== project.country
+        ? 3
+        : place.subdivision && place.subdivision === project.subdivision
+          ? place.region && place.region === project.region
+            ? 0
+            : 1
+          : 2
+    const kind = preferredKinds.indexOf(record.kind)
+    return near * 100 + (kind < 0 ? 50 : kind)
+  }
+  return records
+    .map((record, index) => ({ record, index, rank: rank(record) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map(({ record }) => record)
 }
 
 /** Sum of an estimate's lines, for checking it against its printed subtotal. */

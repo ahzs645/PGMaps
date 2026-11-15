@@ -1,0 +1,725 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-11-13",
+  "common_limits": [
+    "Reported completed-project cost and approximate construction cost are evidence categories; neither establishes an audited final payment or an awarded bid.",
+    "Tax treatment, contingency treatment, cash versus in-kind support, price escalation, owner costs and inclusions beyond the described works are unspecified unless a record says otherwise.",
+    "Amounts retain their historical project years; no escalation to 2026 or extrapolation to a generic per-km or per-m rate was performed.",
+    "Locations are supported by sources. Suggested natural-resource-region tags are geographic inferences requiring GIS boundary verification; highway districts and MoTI regions are different classifications.",
+    "A restored habitat distance is not road construction length. No habitat distance was used as a costing denominator.",
+    "Different reports for the same project may have different dates or accounting boundaries; keep their values separate."
+  ],
+  "policy": {
+    "comparisons_change_project_estimate": false,
+    "inflation_applied": false,
+    "regional_averages_calculated": false,
+    "cost_per_road_km_derived": false,
+    "unknown_unit_rate": null,
+    "unknown_tax_means": "Unknown, never automatically tax-free or tax-inclusive.",
+    "region_tags": "Research candidates, not verified GIS assignment, TSA, supply block, or appraisal road group.",
+    "habitat_km": "Ecological output, never constructed road length."
+  },
+  "sources": [
+    {
+      "id": "cwf_summaries",
+      "title": "Canadian Wildlife Federation fish passage project summaries",
+      "url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+      "primary_basis": "Project delivery/funding partner describes completed works and explicitly labels total project cost.",
+      "publication_date": null,
+      "date_note": "Retrieved compilation includes projects completed through 2024; do not infer publication date from search-engine metadata.",
+      "locator_type": "Numbered project profile"
+    },
+    {
+      "id": "cwf_canton_2024",
+      "title": "Wonderful News For World Wetlands Day",
+      "publisher": "Canadian Wildlife Federation",
+      "publication_date": "2024-02-02",
+      "url": "https://blog.cwf-fcf.org/index.php/en/wonderful-news-for-world-wetlands-day/",
+      "primary_basis": "Written by CWF national fish-passage program coordinator; direct project completion description."
+    },
+    {
+      "id": "moti_lvr_2022",
+      "title": "Best Practices for Low-Volume Road Structures",
+      "publisher": "BC Ministry of Transportation and Infrastructure",
+      "publication_date": "2022-10",
+      "url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+      "primary_basis": "Owner's technical guide includes completed case studies, construction years, approximate construction costs, structure descriptions and traffic management."
+    },
+    {
+      "id": "bcts_2020_21",
+      "title": "BC Fish Passage Program Annual Report 2020-2021",
+      "publisher": "BC Ministry of Forests / Fish Passage Technical Working Group",
+      "author": "M.C. Wright and Associates Ltd.",
+      "publication_date": null,
+      "url": "https://www2.gov.bc.ca/assets/gov/environment/plants-animals-and-ecosystems/fish-fish-habitat/fish-passage/fish-passage/bcts_fish_passage_annual_report_2020-2021.pdf",
+      "primary_basis": "Government program annual report prepared by project consultant; completed work and itemized costs."
+    },
+    {
+      "id": "mcdowell_catalog",
+      "title": "McDowell Creek Culvert Replacement",
+      "publisher": "Skeena Salmon Data Centre",
+      "contributing_organization": "Office of the Wet'suwet'en",
+      "publication_year_metadata": 2023,
+      "url": "https://data.skeenasalmon.info/dataset/mcdowell-creek-culvert-replacement",
+      "primary_basis": "Partner-contributed project booklet catalogue, corroborating location/date."
+    }
+  ],
+  "records": [
+    {
+      "id": "boscar_lake_2022",
+      "project": "Boscar Lake Creek culvert removal and road deactivation",
+      "location": "Black Creek-Cruiser Lake Forest Service Road, Horsefly River watershed, Cariboo Chilcotin",
+      "candidate_natural_resource_region": "Cariboo",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2022-08",
+      "cost_amount_cad": 94613,
+      "cost_kind": "reported_completed_project_cost",
+      "approximate": false,
+      "source_id": "cwf_summaries",
+      "source_locator": "Project 1, Boscar Lake Creek",
+      "work_family": "Crossing removal and forest-road deactivation",
+      "scope": "Culvert removal, channel/riparian restoration, 200 m road deactivation each side.",
+      "quantities": [
+        {
+          "measure": "road_deactivation_length_each_side",
+          "value": 200,
+          "unit": "m"
+        },
+        {
+          "measure": "road_deactivation_length_total",
+          "value": 400,
+          "unit": "m",
+          "basis": "Calculated: two sides x 200 m; mixed project cost must not be divided into a road-only rate"
+        },
+        {
+          "measure": "natural_channel_width_approximate",
+          "value": 10,
+          "unit": "m"
+        }
+      ],
+      "comparability": "Strong example for a decommissioning package; includes the crossing and restoration.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "No work-item breakdown or contractor award",
+        "Culvert dimensions not supplied"
+      ],
+      "source_url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review"
+    },
+    {
+      "id": "cross_creek_2021",
+      "project": "Cross Creek culvert replacement",
+      "location": "Babine Lake Road, tributary of Babine Lake, Lake Babine Nation territory",
+      "candidate_natural_resource_region": "Skeena",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2021-summer",
+      "cost_amount_cad": 602545,
+      "cost_kind": "reported_completed_project_cost",
+      "approximate": false,
+      "source_id": "cwf_summaries",
+      "source_locator": "Project 5, Cross Creek",
+      "work_family": "Public-road fish-passable arch replacement",
+      "scope": "Two culverts replaced by reinforced-soil arch; creek bed and wildlife passage restored.",
+      "quantities": [
+        {
+          "measure": "culverts_removed",
+          "value": 2,
+          "unit": "each"
+        }
+      ],
+      "structure_dimensions": null,
+      "comparability": "Use for arch replacement with stream works; not an isolated pipe supply price.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Arch span/length not provided",
+        "Public-road context differs from a new forestry road"
+      ],
+      "source_url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review"
+    },
+    {
+      "id": "ginlulak_2021",
+      "project": "Ginlulak Creek culvert-to-bridge replacement",
+      "location": "Nass River side-channel crossing, northwest British Columbia",
+      "candidate_natural_resource_region": "Skeena",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2021-02",
+      "cost_amount_cad": 423424,
+      "cost_kind": "reported_completed_project_cost",
+      "approximate": false,
+      "source_id": "cwf_summaries",
+      "source_locator": "Project 7, Ginlulak Creek",
+      "work_family": "Concrete bridge replacing timber culvert",
+      "scope": "18 m concrete clear-span bridge; old culvert/debris removal and streambed restoration.",
+      "quantities": [
+        {
+          "measure": "new_bridge_span",
+          "value": 18,
+          "unit": "m"
+        },
+        {
+          "measure": "old_timber_culvert_cross_section",
+          "value": [
+            1,
+            3
+          ],
+          "unit": "m",
+          "basis": "Source gives 1 m x 3 m, without defining width versus height"
+        }
+      ],
+      "comparability": "Useful bridge package comparator; no published deck width/loading/foundation schedule.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Road name/class not given",
+        "No detailed cost breakdown"
+      ],
+      "source_url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review"
+    },
+    {
+      "id": "pedley_2022",
+      "project": "Pedley Creek culvert replacement",
+      "location": "Near Hixon, Pedley/Naver Creek confluence, Central Interior",
+      "candidate_natural_resource_region": null,
+      "region_status": "Unassigned pending GIS check; do not copy MoTI district as natural-resource region",
+      "completion_date": "2022-11",
+      "cost_amount_cad": 1515439,
+      "cost_kind": "reported_completed_project_cost",
+      "approximate": false,
+      "source_id": "cwf_summaries",
+      "source_locator": "Project 10, Pedley Creek",
+      "work_family": "Culvert-to-bridge replacement and channel restoration",
+      "scope": "Bridge replacement with streambed regrading and habitat reconstruction.",
+      "quantities": [],
+      "structure_dimensions": null,
+      "comparability": "Locally relevant to Prince George/Hixon; geometry and road standard needed before matching.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Span and road length not supplied",
+        "MoTI partner; do not assume a forestry bridge standard"
+      ],
+      "source_url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review",
+      "candidate_natural_resource_regions": [
+        "Omineca",
+        "Cariboo"
+      ]
+    },
+    {
+      "id": "mcdowell_2023",
+      "project": "McDowell Creek culvert replacement",
+      "location": "Near Telkwa, approximately 130 m upstream of the Bulkley River confluence",
+      "candidate_natural_resource_region": "Skeena",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2023",
+      "cost_amount_cad": 75000,
+      "cost_kind": "reported_completed_project_cost",
+      "approximate": false,
+      "source_id": "cwf_summaries",
+      "source_locator": "Project 18, McDowell Creek",
+      "corroborating_sources": [
+        {
+          "source_id": "mcdowell_catalog",
+          "locator": "Dataset description and publication_yr metadata"
+        }
+      ],
+      "work_family": "Small precast bridge replacement",
+      "scope": "7 m precast concrete bridge and restored streambed.",
+      "quantities": [
+        {
+          "measure": "bridge_length",
+          "value": 7,
+          "unit": "m"
+        }
+      ],
+      "comparability": "Small crossing benchmark; loading, width, reused/donated components and in-kind work unspecified.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Do not assume this inexpensive project represents an industrial forestry-load bridge",
+        "No component price breakdown"
+      ],
+      "source_url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review"
+    },
+    {
+      "id": "canton_2023",
+      "project": "Canton Wetland crossing replacement",
+      "location": "Head Bay Forest Service Road, west Vancouver Island, access route to Tahsis",
+      "candidate_natural_resource_region": "West Coast",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2023-summer",
+      "cost_amount_cad": 501000,
+      "cost_kind": "reported_completed_project_cost",
+      "approximate": false,
+      "source_id": "cwf_canton_2024",
+      "source_locator": "Solutions for Salmon section",
+      "corroborating_sources": [
+        {
+          "source_id": "cwf_summaries",
+          "locator": "Project 19, Canton Wetland"
+        }
+      ],
+      "work_family": "Forest-service-road culvert-to-bridge replacement",
+      "scope": "Clear-span bridge and reconstructed natural channel through tidal wetland crossing.",
+      "quantities": [],
+      "structure_dimensions": null,
+      "comparability": "Strong FSR project comparator but public access and tidal-site constraints are material.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Bridge dimensions not provided",
+        "No contract/final account or cost breakdown"
+      ],
+      "source_url": "https://blog.cwf-fcf.org/index.php/en/wonderful-news-for-world-wetlands-day/",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review"
+    },
+    {
+      "id": "shuhum_2022",
+      "project": "Shuhum Creek culvert replacement",
+      "location": "Lakeshore Road near Sproat Lake, Alberni-Clayoquot",
+      "candidate_natural_resource_region": "West Coast",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2022-07",
+      "cost_amount_cad": 907500,
+      "cost_kind": "reported_completed_project_cost",
+      "approximate": false,
+      "source_id": "cwf_summaries",
+      "source_locator": "Project 13, Shuhum Creek",
+      "work_family": "Open-bottom arch and stream restoration",
+      "scope": "Bedrock-anchored reinforced-soil arch, streambed restoration, four spawning platforms and three pools.",
+      "quantities": [
+        {
+          "measure": "spawning_platforms",
+          "value": 4,
+          "unit": "each"
+        },
+        {
+          "measure": "pools",
+          "value": 3,
+          "unit": "each"
+        }
+      ],
+      "structure_dimensions": null,
+      "comparability": "Arch/habitat construction package; restoration scope materially extends beyond culvert installation.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Arch span/length not provided",
+        "Public-road project"
+      ],
+      "source_url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review"
+    },
+    {
+      "id": "central_estuary_2020",
+      "project": "Central Squamish Estuary culvert replacement",
+      "location": "Training Berm, Squamish Central Estuary, Howe Sound",
+      "candidate_natural_resource_region": "South Coast",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2020-summer-and-fall",
+      "cost_amount_cad": 819310,
+      "cost_kind": "reported_completed_project_cost",
+      "approximate": false,
+      "source_id": "cwf_summaries",
+      "source_locator": "Project 4, Central Estuary",
+      "work_family": "Estuary box culvert and habitat restoration",
+      "scope": "Profile describes site 4 replacement with 3 x 3 m box culvert and planting.",
+      "quantities": [
+        {
+          "measure": "box_culvert_cross_section",
+          "value": [
+            3,
+            3
+          ],
+          "unit": "m"
+        }
+      ],
+      "comparability": "Secondary comparator pending accounting-boundary clarification.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Source also discusses a wider multi-component estuary project; confirm whether reported total is exclusively site 4 before deriving a unit rate",
+        "Culvert length omitted",
+        "Estuary berm differs from ordinary resource-road corridor"
+      ],
+      "source_url": "https://cwf-fcf.org/en/resources/research-papers/FP_Summaries_EN.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "accounting_scope_requires_review"
+    },
+    {
+      "id": "tako_2020",
+      "project": "Tako Creek bridge 8147",
+      "location": "Clarkson Road, approximately 67 km south of Prince George",
+      "ministry_district_as_reported": "Cariboo District (MoTI)",
+      "candidate_natural_resource_region": null,
+      "region_status": "Unassigned pending GIS check; MoTI district differs from natural-resource region",
+      "completion_date": "2020",
+      "cost_amount_cad": 625000,
+      "cost_kind": "reported_approximate_construction_cost",
+      "approximate": true,
+      "source_id": "moti_lvr_2022",
+      "source_locator": "Section 12.3, printed page 28",
+      "work_family": "Low-volume-road bridge replacement",
+      "scope": "25 m steel-girder/precast-deck bridge; girders reused; spread footings; road closed.",
+      "quantities": [
+        {
+          "measure": "girder_length",
+          "value": 25,
+          "unit": "m"
+        },
+        {
+          "measure": "traffic_lanes",
+          "value": 1,
+          "unit": "each"
+        }
+      ],
+      "foundation": "Pile-pedestal spread footings",
+      "traffic_during_construction": "Road closed to vehicles",
+      "comparability": "Useful nearby bridge example; reused girders prevent comparison with all-new supply-and-install prices.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Approximate construction cost, not total project cost or certified final account",
+        "Girders reused"
+      ],
+      "source_url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review",
+      "candidate_natural_resource_regions": [
+        "Omineca",
+        "Cariboo"
+      ]
+    },
+    {
+      "id": "clapperton_bridge_2019",
+      "project": "Clapperton Creek 2 bridge 10215",
+      "location": "Mill Creek Road, approximately 16 km from Merritt",
+      "ministry_district_as_reported": "Thompson Nicola Highway District",
+      "candidate_natural_resource_region": "Thompson Okanagan",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2019",
+      "cost_amount_cad": 850000,
+      "cost_kind": "reported_approximate_construction_cost",
+      "approximate": true,
+      "source_id": "moti_lvr_2022",
+      "source_locator": "Section 12.2, printed page 25",
+      "work_family": "Low-volume-road bridge replacement",
+      "scope": "18 m precast-concrete bridge, piled abutments, unpaved approaches and temporary detour bridge.",
+      "quantities": [
+        {
+          "measure": "girder_length",
+          "value": 18,
+          "unit": "m"
+        },
+        {
+          "measure": "traffic_lanes",
+          "value": 1,
+          "unit": "each"
+        }
+      ],
+      "foundation": "Piled cast-in-place concrete abutments",
+      "traffic_during_construction": "Single-lane detour bridge",
+      "comparability": "Scope-rich bridge example; temporary traffic accommodation included in project description.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Approximate construction cost",
+        "Do not confuse with CWF Clapperton irrigation dam removal completed in 2024"
+      ],
+      "source_url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review"
+    },
+    {
+      "id": "heart_2018",
+      "project": "Heart Creek 2 bridge 7240",
+      "location": "Applegrove Road, 57 km southwest of Nakusp",
+      "ministry_district_as_reported": "West Kootenay District",
+      "candidate_natural_resource_region": "Kootenay Boundary",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2018",
+      "cost_amount_cad": 2160000,
+      "cost_kind": "reported_approximate_construction_cost",
+      "approximate": true,
+      "source_id": "moti_lvr_2022",
+      "source_locator": "Section 12.4, printed page 31",
+      "work_family": "Low-volume-road bridge and fish-habitat reconstruction",
+      "scope": "42 m steel-girder/precast-deck bridge, piled abutments and 18 step pools.",
+      "quantities": [
+        {
+          "measure": "girder_length",
+          "value": 42,
+          "unit": "m"
+        },
+        {
+          "measure": "traffic_lanes",
+          "value": 1,
+          "unit": "each"
+        },
+        {
+          "measure": "fish_step_pools",
+          "value": 18,
+          "unit": "each"
+        }
+      ],
+      "foundation": "Piled cast-in-place concrete abutments",
+      "traffic_during_construction": "Road closed",
+      "comparability": "Larger bridge with substantial habitat works; keep distinct from a bridge-only benchmark.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "Approximate construction cost",
+        "Historical 2018 amount",
+        "Includes substantial fisheries restoration"
+      ],
+      "source_url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review"
+    },
+    {
+      "id": "birk_2019",
+      "project": "Birk Creek bridge 7532",
+      "location": "North Barriere Lake Road, approximately 30 km from Barriere",
+      "candidate_natural_resource_region": "Thompson Okanagan",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2019-05",
+      "cost_amount_cad": 900000,
+      "cost_kind": "reported_approximate_construction_cost",
+      "approximate": true,
+      "source_id": "moti_lvr_2022",
+      "source_locator": "Section 12.1, printed page 22",
+      "work_family": "Low-volume-road bridge replacement",
+      "scope": "18 m precast-concrete bridge, spread footings, unpaved approaches and temporary detour bridge.",
+      "quantities": [
+        {
+          "measure": "girder_length",
+          "value": 18,
+          "unit": "m"
+        },
+        {
+          "measure": "traffic_lanes",
+          "value": 1,
+          "unit": "each"
+        }
+      ],
+      "foundation": "Precast concrete spread-footing abutments",
+      "traffic_during_construction": "Single-lane detour bridge",
+      "alternate_reported_cost": {
+        "amount_cad": 812000,
+        "cost_kind": "reported_completed_project_cost",
+        "source_id": "cwf_summaries",
+        "locator": "Project 17, Birk Creek"
+      },
+      "comparability": "Good scope description; cost disagreement requires two separate observations or review status.",
+      "tax_basis": "Unspecified",
+      "quality_flags": [
+        "MoTI approximate $900,000 construction cost differs from CWF $812,000 project total; do not average or reconcile without accounting detail"
+      ],
+      "source_url": "https://www2.gov.bc.ca/assets/gov/driving-and-transportation/transportation-infrastructure/engineering-standards-and-guidelines/bridge/volume-5/bsm-vol-5-best-practices-for-lvr-structures.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "source_discrepancy_requires_review"
+    },
+    {
+      "id": "freeman_2020",
+      "project": "Freeman Creek 12 m bridge",
+      "location": "Off Yahk-Meadow Creek Road, approximately 18 km south of Yahk",
+      "latitude_dms": "49°01'47.4\"N",
+      "longitude_dms": "115°52'29.6\"W",
+      "candidate_natural_resource_region": "Kootenay Boundary",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2020-09",
+      "cost_years": [
+        2018,
+        2020
+      ],
+      "cost_amount_cad": 215930,
+      "cost_kind": "reported_multiyear_project_cost_with_components",
+      "tax_basis": "Unspecified",
+      "source_id": "bcts_2020_21",
+      "source_locator": "Section 2.2.1, printed page 7",
+      "quantities": [
+        {
+          "measure": "bridge_length",
+          "value": 12,
+          "unit": "m"
+        }
+      ],
+      "scope": "Culvert removal, 12 m concrete girder bridge, stream shaping, habitat wood, planting and cattle exclusion fencing.",
+      "components": [
+        {
+          "year": 2018,
+          "label": "Habitat confirmation",
+          "amount_cad": 3000
+        },
+        {
+          "year": 2018,
+          "label": "Environmental plan",
+          "amount_cad": 1800
+        },
+        {
+          "year": 2018,
+          "label": "Engineering survey/control",
+          "amount_cad": 3000
+        },
+        {
+          "year": 2018,
+          "label": "Engineering design",
+          "amount_cad": 4500
+        },
+        {
+          "year": 2018,
+          "label": "Bridge fabrication",
+          "amount_cad": 80400
+        },
+        {
+          "year": 2020,
+          "label": "Bridge installation contract",
+          "amount_cad": 82000
+        },
+        {
+          "year": 2020,
+          "label": "Engineering supervision/sign-off",
+          "amount_cad": 8400
+        },
+        {
+          "year": 2020,
+          "label": "Foreman supervision",
+          "amount_cad": 2400
+        },
+        {
+          "year": 2020,
+          "label": "Environmental monitoring",
+          "amount_cad": 10800
+        },
+        {
+          "year": 2020,
+          "label": "BCTS administration, labelled 10%",
+          "amount_cad": 19630
+        }
+      ],
+      "derived_subtotals": [
+        {
+          "label": "2018 rows",
+          "amount_cad": 92700
+        },
+        {
+          "label": "2020 rows",
+          "amount_cad": 123230
+        }
+      ],
+      "arithmetic_status": "All components reconcile exactly to $215,930.",
+      "quality_flags": [
+        "Annual summary reports only $123,230 for 2020; it is not the whole bridge project total.",
+        "Do not merge with CWF's $244,487 Freeman Creek and Meadow profile, which describes two bridges and a wider scope.",
+        "Installation contract component is reported in a completion report; no original award record was retrieved."
+      ],
+      "source_url": "https://www2.gov.bc.ca/assets/gov/environment/plants-animals-and-ecosystems/fish-fish-habitat/fish-passage/fish-passage/bcts_fish_passage_annual_report_2020-2021.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "project_analogue_with_scope_review"
+    },
+    {
+      "id": "loveland_2020",
+      "project": "Loveland Bay FSR embedded culvert",
+      "location": "4.8 km Loveland Bay Forest Service Road, northwest of Campbell River",
+      "latitude_dms": "50°03'07.8\"N",
+      "longitude_dms": "125°23'16.9\"W",
+      "candidate_natural_resource_region": "West Coast",
+      "region_status": "Geographic inference; boundary not checked",
+      "completion_date": "2020-06-23 to 2020-07-15",
+      "cost_amount_cad": 189603.09,
+      "cost_kind": "reported_completed_project_cost_with_components",
+      "tax_basis": "Unspecified",
+      "source_id": "bcts_2020_21",
+      "source_locator": "Section 2.1.2, printed page 5",
+      "quantities": [
+        {
+          "measure": "culvert_diameter",
+          "value": 2700,
+          "unit": "mm"
+        },
+        {
+          "measure": "culvert_length",
+          "value": 36,
+          "unit": "m"
+        },
+        {
+          "measure": "channel_rehabilitation_upstream",
+          "value": 40,
+          "unit": "m"
+        },
+        {
+          "measure": "channel_rehabilitation_downstream",
+          "value": 36,
+          "unit": "m"
+        }
+      ],
+      "scope": "Collapsed timber culvert replaced with embedded corrugated metal pipe and simulated streambed, plus channel restoration.",
+      "components": [
+        {
+          "label": "Construction",
+          "amount_cad": 114125
+        },
+        {
+          "label": "Materials",
+          "amount_cad": 23544
+        },
+        {
+          "label": "Professional services",
+          "amount_cad": 51931.18
+        }
+      ],
+      "arithmetic_status": "Published components total $189,600.18, $2.91 less than published total $189,603.09. Preserve source total and flag discrepancy.",
+      "quality_flags": [
+        "Source arithmetic discrepancy",
+        "Professional-services scope/tax unspecified",
+        "No separate supply-only pipe unit rate"
+      ],
+      "source_url": "https://www2.gov.bc.ca/assets/gov/environment/plants-animals-and-ecosystems/fish-fish-habitat/fish-passage/fish-passage/bcts_fish_passage_annual_report_2020-2021.pdf",
+      "currency": "CAD",
+      "currency_basis": "Canadian project/source context; not all source tables explicitly label CAD.",
+      "checked_at": "2026-11-13",
+      "unit_rate": null,
+      "comparison_status": "source_discrepancy_requires_review"
+    }
+  ]
+}

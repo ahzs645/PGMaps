@@ -244,8 +244,8 @@ export function RasterPanel({
           />
         </label>
         <p className="mm-help">
-          Up to 64 MB / 1,048,576 native cells. WGS84, Web Mercator, BC Albers and UTM zones 7–11. Local raster bytes
-          remain in this tab and are excluded from mission files and links.
+          Up to 64 MB / 1,048,576 native cells. WGS84, Web Mercator, BC Albers and NAD83, NAD83(CSRS) or WGS84 UTM
+          zones. Local raster bytes remain in this tab and are excluded from mission files and links.
         </p>
         {raster && (
           <>

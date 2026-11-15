@@ -19,6 +19,8 @@ export type VisualsExport =
   | 'block-note'
   | 'fs1252'
   | 'analysis-sheet'
+  | 'via-document'
+  | 'via-report'
   | 'field-brief'
   | 'worksheet'
   | 'evidence'
@@ -72,6 +74,28 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     description:
       'A saved view drawn as a perspective viewpoint analysis: outlines from its class pass, block callouts, a legend, and the pixel percent beside the sightline percent.',
     formats: [PDF, { id: 'png', label: 'PNG', extension: '.png' }],
+  },
+  {
+    kind: 'via-document',
+    group: 'documents',
+    label: 'VIA document',
+    description:
+      "A reference VIA format filled from the saved views: each view's figure on the format's own arithmetic and scale beside the sightline figure, its tables and wording, the images it needs, and what the reviewer still has to complete.",
+    formats: [
+      { id: 'md', label: 'Markdown', extension: '.md' },
+      { id: 'json', label: 'JSON', extension: '.json' },
+    ],
+  },
+  {
+    kind: 'via-report',
+    group: 'documents',
+    label: 'VIA report',
+    description:
+      'A whole report in a reference VIA’s structure, assembled from shared parts: cover, inventory, criteria, method, the scales and matrices with their readings marked, tables, calculations, the form or Appendix 1, discussion, sign-off and figures, with your logo.',
+    formats: [
+      { id: 'html', label: 'Printable HTML', extension: '.html' },
+      { id: 'md', label: 'Markdown', extension: '.md' },
+    ],
   },
   {
     kind: 'field-brief',
@@ -217,8 +241,49 @@ export type ExportContext = {
     measures: number
     figures: boolean
   } | null
+  /** VIA document: the format chosen and what it was filled from, or null before a view has a class pass. */
+  document: {
+    format: string
+    sources: string
+    formula: string
+    scale: string
+    images: string[]
+    viewpoints: Array<{ name: string; figure: string }>
+    toComplete: number
+    gaps: string[]
+  } | null
+  /** VIA report: the recipe chosen and what it holds, or null before a view has a class pass. */
+  report: {
+    recipe: string
+    sources: string
+    parts: string[]
+    figures: number
+    toComplete: number
+  } | null
+  /** The logo printed sheets and reports carry, in words ("Your logo, x.png" / "Brand: y" / "None"). */
+  logo: string
+  /**
+   * Who draws the figures of the analysis sheet, the VIA document and the VIA report: PGMaps (the saved views as
+   * saved) or another engine at final quality, rendered in the background (`BackgroundRenders.tsx`).
+   */
+  renderer: {
+    id: 'pgmaps' | 'worldgen' | 'nanite'
+    label: string
+    /** Saved views not yet drawn by the engine, and all the views the output uses. */
+    missing: number
+    views: number
+    /** Renders queued or running for this engine. */
+    running: boolean
+    /** The time left, worded (`formatRemaining`), and whether it comes from this browser's own renders. */
+    left: string | null
+    measured: boolean
+    /** A render that failed, worded, or null. */
+    failed: string | null
+    /** Why this engine cannot draw here, or null. */
+    unavailable: string | null
+  }
   /** Analysis sheet: the view and the look chosen. */
-  figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean }
+  figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean; paintBlocks: boolean }
   brief: { block: string | null; viewpoints: number; screenshots: number }
   evidence: { loaded: boolean; gaps: string[]; views: number; runs: number; fields: number }
   /** The road view is open with its terrain loaded, so the 3D scene can be written. */
@@ -242,6 +307,9 @@ export type ExportContext = {
 /** The outputs written from the run: the export runs the assessment first when it is missing or stale. */
 export const RUNS_ON_EXPORT: ReadonlySet<VisualsExport> = new Set(['block-note', 'fs1252', 'field-brief', 'worksheet'])
 
+/** The outputs drawn from the saved views' figures: another engine can draw those again at final quality. */
+export const DRAWS_FIGURES: ReadonlySet<VisualsExport> = new Set(['analysis-sheet', 'via-document', 'via-report'])
+
 /**
  * What writing an output does before the file: run the assessment (in the analysis worker) when
  * the output reads the run and it is missing or stale, and wait for the land checks the block note
@@ -249,12 +317,20 @@ export const RUNS_ON_EXPORT: ReadonlySet<VisualsExport> = new Set(['block-note',
  */
 export function exportPreparation(
   kind: VisualsExport,
-  ctx: Pick<ExportContext, 'run' | 'autoRun' | 'landChecks'>,
-): { run: boolean; landChecks: boolean; note: string | null } {
+  ctx: Pick<ExportContext, 'run' | 'autoRun' | 'landChecks' | 'renderer'>,
+): { run: boolean; landChecks: boolean; render: boolean; note: string | null } {
   const run = RUNS_ON_EXPORT.has(kind) && ctx.run !== 'current' && !ctx.autoRun.blocker
   const landChecks = kind === 'block-note' && ctx.landChecks.include && ctx.landChecks.pending > 0
-  const note =
-    ctx.autoRun.status === 'running' && RUNS_ON_EXPORT.has(kind)
+  const r = ctx.renderer
+  const render = DRAWS_FIGURES.has(kind) && r.id !== 'pgmaps' && !r.unavailable && r.missing > 0
+  const renderNote = !render
+    ? null
+    : r.running
+      ? `${r.label} is drawing the saved views at final quality in the background: ${r.views - r.missing} of ${r.views} done${r.left ? `, ${r.left} left` : ''}. The file is written when they finish; the page stays usable.`
+      : `${r.label} draws ${r.missing} saved view${r.missing === 1 ? '' : 's'} at final quality first, in the background${r.left ? `: ${r.left}` : ''}${r.left ? (r.measured ? ' (from your renders)' : ' (first estimate)') : ''}. Then the file is written.`
+  const note = renderNote
+    ? renderNote
+    : ctx.autoRun.status === 'running' && RUNS_ON_EXPORT.has(kind)
       ? `Running the visibility assessment${ctx.autoRun.progress ? ` · ${ctx.autoRun.progress}` : ''}. The file is written when it finishes.`
       : run
         ? ctx.run === 'stale'
@@ -263,11 +339,13 @@ export function exportPreparation(
         : landChecks
           ? 'Land status checks are still reading: the file waits for them.'
           : null
-  return { run, landChecks, note }
+  return { run, landChecks, render, note }
 }
 
 /** Why an output cannot be written yet, or null when it can. */
 export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): string | null {
+  if (DRAWS_FIGURES.has(kind) && ctx.renderer.id !== 'pgmaps' && ctx.renderer.unavailable)
+    return `${ctx.renderer.label} cannot draw the figures: ${ctx.renderer.unavailable}`
   switch (kind) {
     case 'block-note':
       return ctx.blockNote ? null : 'Add a cutblock in step 1 to write its note.'
@@ -281,6 +359,14 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
       return ctx.views.some((view) => view.hasScreenshot)
         ? null
         : 'Save a viewpoint in the road view first: its screenshot and class pass are what the sheet is drawn from.'
+    case 'via-report':
+      return ctx.report
+        ? null
+        : 'Save a viewpoint in the road view first: the report’s figures and calculations come from each saved view.'
+    case 'via-document':
+      return ctx.document
+        ? null
+        : 'Save a viewpoint in the road view first: the document’s figures come from each saved view’s class pass.'
     case 'field-brief':
       return ctx.brief.block ? null : 'Add a cutblock in step 1 to brief the crew on it.'
     case 'worksheet':
@@ -324,6 +410,14 @@ export type ExportSection = {
 const hectares = (ha: number) =>
   `${ha.toLocaleString('en-CA', { maximumFractionDigits: ha < 10 ? 1 : 0, minimumFractionDigits: ha < 10 ? 1 : 0 })} ha`
 const percent = (value: number | null) => (value === null ? 'withheld' : `${value.toFixed(2)}%`)
+/** Who draws the figures, and whether they are ready. */
+const rendererRow = (ctx: ExportContext) =>
+  ctx.renderer.id === 'pgmaps'
+    ? 'PGMaps, as each view was saved'
+    : ctx.renderer.missing
+      ? `${ctx.renderer.label} at final quality: ${ctx.renderer.missing} of ${ctx.renderer.views} still to render`
+      : `${ctx.renderer.label} at final quality, rendered`
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 function runSection(ctx: ExportContext): ExportSection {
@@ -615,9 +709,12 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           step: 'visit',
           rows: [
             { label: 'Saved view', value: view?.name ?? 'None' },
+            { label: 'Drawn by', value: rendererRow(ctx) },
             { label: 'Figure style', value: ctx.figure.style },
             { label: 'Label style', value: ctx.figure.labelStyle },
             { label: 'Camera information', value: ctx.figure.cameraInfo ? 'On the image' : 'Off' },
+            ...(ctx.figure.style.startsWith('Analysis sheet') ? [{ label: 'Logo', value: ctx.logo }] : []),
+            { label: 'Block ground', value: ctx.figure.paintBlocks ? 'Painted as harvested ground' : 'As captured' },
             {
               label: 'Outlines and pixel figure',
               value: view?.hasClassPass ? 'From the view’s class pass' : 'None: saved without a class pass',
@@ -628,6 +725,63 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           ? [{ title: 'View settings', step: 'visit' as const, rows: view.settings, empty: 'Not recorded.' }]
           : []),
         landformSection(ctx),
+        runSection(ctx),
+      ]
+    }
+    case 'via-report': {
+      const report = ctx.report
+      if (!report) return [{ title: 'Report', rows: [], empty: 'No saved view with a class pass yet.' }]
+      return [
+        {
+          title: 'Report',
+          rows: [
+            { label: 'Structure of', value: `${report.recipe} (reference document ${report.sources})` },
+            { label: 'Logo', value: ctx.logo },
+            { label: 'Figures', value: plural(report.figures, 'saved view') },
+            { label: 'Drawn by', value: rendererRow(ctx) },
+          ],
+        },
+        { title: 'Parts, in order', items: report.parts.map((part) => ({ title: part })) },
+        {
+          title: 'To complete before signing',
+          step: 'assess',
+          rows: [{ label: 'Items', value: report.toComplete ? plural(report.toComplete, 'item') : 'None' }],
+          note: 'Judgements, office fields and signatures the run cannot give print blank and are listed at the end of the report.',
+        },
+        runSection(ctx),
+      ]
+    }
+    case 'via-document': {
+      const doc = ctx.document
+      if (!doc) return [{ title: 'Format', rows: [], empty: 'No saved view with a class pass yet.' }]
+      return [
+        {
+          title: 'Format',
+          rows: [
+            { label: 'Format', value: doc.format },
+            { label: 'Structure of', value: `Reference document ${doc.sources}` },
+            { label: 'Percent alteration', value: doc.formula },
+            { label: 'Read against', value: doc.scale },
+          ],
+        },
+        {
+          title: 'Images it needs',
+          step: 'visit',
+          items: doc.images.map((image) => ({ title: image })),
+          note: 'The saved views give the analysis image; the other images are listed with their settings.',
+        },
+        {
+          title: 'Viewpoints',
+          step: 'visit',
+          items: doc.viewpoints.map((vp) => ({ title: vp.name, subtitle: vp.figure })),
+        },
+        {
+          title: 'Reviewer to complete',
+          step: 'assess',
+          rows: [{ label: 'Sentences and cells', value: doc.toComplete ? plural(doc.toComplete, 'item') : 'None' }],
+          note: 'Judgements the run never makes (visibility term, lines of force, edges, the extent met) come from step 4 at the assessment station only, and are listed, never invented.',
+        },
+        ...(doc.gaps.length ? [{ title: 'Not filled by PGMaps', items: doc.gaps.map((gap) => ({ title: gap })) }] : []),
         runSection(ctx),
       ]
     }
@@ -754,7 +908,11 @@ export type ContextInput = {
   fs1252: { selected: number[]; reviews: Record<number, unknown> }
   blockNote: { header: Row[]; landform: Row[]; measures: number } | null
   noteFigures: boolean
-  figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean }
+  figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean; paintBlocks: boolean }
+  document: ExportContext['document']
+  report: ExportContext['report']
+  logo: string
+  renderer: ExportContext['renderer']
   brief: { blockId: string | null; viewpoints: number }
   evidence: { loaded: boolean; gaps: string[]; counts: { views: number; runs: number; fields: number } }
   roadViewReady: boolean
@@ -914,6 +1072,10 @@ export function buildExportContext(input: ContextInput): ExportContext {
       : [],
     blockNote: input.blockNote ? { ...input.blockNote, figures: input.noteFigures } : null,
     figure: input.figure,
+    document: input.document,
+    report: input.report,
+    logo: input.logo,
+    renderer: input.renderer,
     brief: {
       block: briefBlock?.name ?? null,
       viewpoints: input.brief.viewpoints,

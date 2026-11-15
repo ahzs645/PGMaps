@@ -317,6 +317,59 @@ export function placeLabels<T extends { x: number; priority?: number }>(
   return placed.sort((a, b) => a.x - b.x)
 }
 
+/** Curve-point markers closer than this on screen are thinned, highest priority kept. */
+export const CURVE_MARK_GAP_PX = 5
+/** Rotated labels, curve points and PVI callouts alike, share one row this far apart. */
+export const ROTATED_LABEL_SPACING_PX = 24
+/** A vertical curve narrower than this on screen shows neither end; its high or low point stays. */
+export const CURVE_ENDS_MIN_PX = 16
+
+/**
+ * What the profile has room to mark at the current zoom (Charts.tsx draws what comes back). A 28 km
+ * road holds hundreds of curve points and PVIs in a few hundred pixels, so detail gives way in order:
+ * curve ends of curves too short on screen go first, markers thin to `CURVE_MARK_GAP_PX`, and every
+ * rotated label competes for one row `ROTATED_LABEL_SPACING_PX` apart, a flagged sag first, then high
+ * and low points, PVI callouts, curve ends. Zooming in brings each back; tooltips keep the full text.
+ */
+export function planProfileMarks(input: {
+  points: readonly CurvePoint[]
+  callouts: readonly { id: string; chainage: number }[]
+  x: (chainage: number) => number
+  domain: readonly [number, number]
+}): { markers: Set<string>; curveLabels: Set<string>; callouts: Set<string>; crowded: boolean } {
+  const { points, callouts, x, domain } = input
+  const pxPerM = domain[1] > domain[0] ? Math.abs(x(domain[1]) - x(domain[0])) / (domain[1] - domain[0]) : 0
+  const inView = (chainage: number) => chainage >= domain[0] - 1e-6 && chainage <= domain[1] + 1e-6
+  const shown = points.filter(
+    (p) =>
+      inView(p.chainage) &&
+      (p.kind === 'high' || p.kind === 'low' || (p.curve?.lengthM ?? 0) * pxPerM >= CURVE_ENDS_MIN_PX),
+  )
+  const markers = placeLabels(
+    shown.map((point) => ({ id: point.id, x: x(point.chainage), priority: curvePointPriority(point) })),
+    CURVE_MARK_GAP_PX,
+  )
+  const ranked = [
+    ...markers.map((m) => ({ ...m, kind: 'curve' as const, priority: [0, 5, 20, 30][m.priority ?? 0] })),
+    ...callouts
+      .filter((c) => inView(c.chainage))
+      .map((c) => ({ id: c.id, x: x(c.chainage), priority: 10, kind: 'callout' as const })),
+  ]
+  const labels = placeLabels(ranked, ROTATED_LABEL_SPACING_PX)
+  return {
+    markers: new Set(markers.map((m) => m.id)),
+    curveLabels: new Set(labels.filter((l) => l.kind === 'curve').map((l) => l.id)),
+    callouts: new Set(labels.filter((l) => l.kind === 'callout').map((l) => l.id)),
+    // Not every label fits: those shown drop their elevation (`curvePointShortLabel`).
+    crowded: labels.length < ranked.length,
+  }
+}
+
+/** The label a curve point prints where the profile is crowded: name and station, a flagged sag says so. */
+export function curvePointShortLabel(point: CurvePoint): string {
+  return `${CURVE_POINT_NAMES[point.kind]} ${formatStation(point.chainage)}${point.noCulvert ? ' · no culvert' : ''}`
+}
+
 /** The deepest centreline cut and fill on one tangent, from the analysed stations. */
 export interface TangentEarthwork {
   start: number

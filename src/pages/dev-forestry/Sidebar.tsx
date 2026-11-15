@@ -438,6 +438,9 @@ type SidebarProps = {
    */
   viewpointClearing?: { stood: boolean; setting: ViewpointClearingSetting; area: TreeFreeArea | null }
   onViewpointClearingChange?: (setting: ViewpointClearingSetting) => void
+  /** Private land drawn without its timber (`ForestryScene.clearPrivateLand`); null when the scene has no private land. */
+  privateLandClearing?: { cleared: boolean; hectares: number } | null
+  onPrivateLandClearingChange?: (cleared: boolean) => void
 
   drawMode: DrawMode
   onDrawModeChange: (mode: DrawMode) => void
@@ -547,6 +550,8 @@ export function Sidebar({
   onRemoveTreeFreeArea,
   viewpointClearing,
   onViewpointClearingChange,
+  privateLandClearing,
+  onPrivateLandClearingChange,
   drawMode,
   onDrawModeChange,
   onSnapToRoad,
@@ -1361,6 +1366,24 @@ export function Sidebar({
                               />
                             </div>
                           )}
+                        </div>
+                      )}
+                      {privateLandClearing && onPrivateLandClearingChange && (
+                        <div className="flex min-w-0 items-center gap-1" data-testid="private-land-clearing">
+                          <CheckboxField
+                            className="min-w-0 flex-1"
+                            label={<span className="text-2xs font-medium">Clear private land</span>}
+                            checked={privateLandClearing.cleared}
+                            onCheckedChange={onPrivateLandClearingChange}
+                          />
+                          <InfoTip label="About clearing private land">
+                            Some VIAs leave forest cover on private land unmodelled and draw the lots de-vegetated
+                            &quot;for purposes of analysis&quot;, painted in the private-land colour. This draws the
+                            scene&apos;s private land (
+                            {formatMeasure(privateLandClearing.hectares, 'ha', { maximumFractionDigits: 1 })}) without
+                            its timber, in this road view and in an engine&apos;s. Display only: the run and its figures
+                            never change.
+                          </InfoTip>
                         </div>
                       )}
                       <Button
