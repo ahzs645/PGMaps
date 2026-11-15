@@ -125,9 +125,6 @@ export function VriVolumeWorkspace({
           >
             <div aria-label="VRI volume summary">
               <StatGroup
-                variant="inline"
-                size="sm"
-                columns={3}
                 items={[
                   {
                     label: partial ? 'Known net volume · partial dead data' : 'Inventory net volume',
