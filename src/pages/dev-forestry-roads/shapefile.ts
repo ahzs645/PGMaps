@@ -1,5 +1,5 @@
 /**
- * A minimal ESRI shapefile writer: Point and PolyLine layers with a dBase III attribute table,
+ * A minimal ESRI shapefile writer: Point, PolyLine and Polygon layers with a dBase III attribute table,
  * WGS84 coordinates (.prj) and UTF-8 text (.cpg). Pure; the caller zips the returned files.
  */
 import type { Coordinate } from './types'
@@ -16,6 +16,13 @@ export type ShapeLayer =
       name: string
       type: 'polyline'
       fields: ShapeField[]
+      features: { parts: Coordinate[][]; attributes: Record<string, unknown> }[]
+    }
+  | {
+      name: string
+      type: 'polygon'
+      fields: ShapeField[]
+      /** Rings of each feature: GeoJSON order (outer first, then holes); orientation is fixed on write. */
       features: { parts: Coordinate[][]; attributes: Record<string, unknown> }[]
     }
 
@@ -162,8 +169,31 @@ export function writeDbf(fields: ShapeField[], rows: Record<string, unknown>[]):
  * The .shp, .shx, .dbf, .prj and .cpg files of one layer, keyed by file name, with a warning for
  * each attribute field whose values had to be blanked or cut to fit the dBase table.
  */
+/** Twice the signed area of a ring; positive when it runs counter-clockwise with y up. */
+function ringArea(ring: Coordinate[]) {
+  let sum = 0
+  for (let i = 0; i < ring.length - 1; i++) sum += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+  return sum
+}
+
+/**
+ * A polygon's rings as the shapefile specification draws them: closed, the outer ring clockwise and
+ * holes counter-clockwise. The first ring of each feature is its outer ring, as in GeoJSON.
+ */
+export function shapefileRings(rings: Coordinate[][]): Coordinate[][] {
+  return rings
+    .filter((ring) => ring.length >= 3)
+    .map((ring, index) => {
+      const first = ring[0],
+        last = ring[ring.length - 1]
+      const closed = first[0] === last[0] && first[1] === last[1] ? ring : [...ring, first]
+      const clockwise = ringArea(closed) < 0
+      return clockwise === (index === 0) ? closed : [...closed].reverse()
+    })
+}
+
 export function writeShapefileLayer(layer: ShapeLayer): { files: Record<string, Uint8Array>; warnings: string[] } {
-  const shapeType = layer.type === 'point' ? 1 : 3
+  const shapeType = layer.type === 'point' ? 1 : layer.type === 'polygon' ? 5 : 3
   const contents = layer.features.map((feature) => {
     if (layer.type === 'point') {
       const [x, y] = (feature as { point: Coordinate }).point
@@ -174,11 +204,12 @@ export function writeShapefileLayer(layer: ShapeLayer): { files: Record<string, 
       view.setFloat64(12, y, true)
       return { bytes, points: [[x, y] as Coordinate] }
     }
-    const parts = (feature as { parts: Coordinate[][] }).parts.filter((p) => p.length >= 2)
+    const raw = (feature as { parts: Coordinate[][] }).parts
+    const parts = layer.type === 'polygon' ? shapefileRings(raw) : raw.filter((p) => p.length >= 2)
     const points = parts.flat()
     const bytes = new Uint8Array(44 + 4 * parts.length + 16 * points.length)
     const view = new DataView(bytes.buffer)
-    view.setInt32(0, 3, true)
+    view.setInt32(0, shapeType, true)
     bounds(points).forEach((value, i) => view.setFloat64(4 + i * 8, value, true))
     view.setInt32(36, parts.length, true)
     view.setInt32(40, points.length, true)

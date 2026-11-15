@@ -10,6 +10,10 @@ import {
   FileCode2,
   DraftingCompass,
   FolderArchive,
+  Earth,
+  Globe,
+  LayersPlus,
+  SwatchBook,
   BookCopy,
   FileImage,
   Grid3X3,
@@ -167,6 +171,10 @@ const additionalExportIcons: Partial<Record<RoadExport, LucideIcon>> = {
   'streams-csv': WavesArrowDown,
   'provincial-evidence': Files,
   notes: NotebookPen,
+  'qgis-project': LayersPlus,
+  'arcgis-pro': Earth,
+  'web-map-style': Globe,
+  'symbol-library': SwatchBook,
 }
 
 export const workspaceCommands = {

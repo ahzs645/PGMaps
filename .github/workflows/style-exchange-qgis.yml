@@ -1,0 +1,47 @@
+name: Verify QGIS style exchange
+
+on:
+  # Feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: style-exchange-qgis-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qgis:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # The current release and the long-term release.
+        image: ['qgis/qgis:latest', 'qgis/qgis:3.40']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Write the fixture export
+        run: |
+          npx tsx scripts/style-exchange/write-fixture-export.ts style-exchange-qgis
+          cp scripts/style-exchange/qgis-check.py style-exchange-qgis/
+      - name: Open it in QGIS
+        run: |
+          docker run --rm -e QT_QPA_PLATFORM=offscreen -v "$PWD/style-exchange-qgis:/w" ${{ matrix.image }} \
+            python3 /w/qgis-check.py /w
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: style-exchange-qgis-${{ strategy.job-index }}
+          path: |
+            style-exchange-qgis/renders
+            style-exchange-qgis/qgis-saved
+            style-exchange-qgis/*-results.json

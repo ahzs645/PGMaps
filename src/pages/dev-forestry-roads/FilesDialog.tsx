@@ -69,6 +69,7 @@ export function FilesDialog({
   buildPreview,
   previewVersion,
   setupViews,
+  setupLabels,
   blockSheetSettings,
 }: {
   open: boolean
@@ -97,6 +98,8 @@ export function FilesDialog({
   previewVersion: unknown
   /** A Sheet setup view for outputs other than the plot book, e.g. the block map sheet. */
   setupViews?: Partial<Record<RoadExport, ReactNode>>
+  /** The setup view's tab caption where it is not "Sheet setup", e.g. "Styles". */
+  setupLabels?: Partial<Record<RoadExport, string>>
   /** The block sheet's settings, so a saved sheet setup can be saved from and applied to it. */
   blockSheetSettings?: { value: BlockSheetSettings; onApply: (settings: BlockSheetSettings) => void }
 }) {
@@ -264,7 +267,12 @@ export function FilesDialog({
                   options={[
                     { value: 'preview' as const, label: 'Preview' },
                     ...(setupAvailable
-                      ? [{ value: 'setup' as const, label: reportContents ? 'Contents' : 'Sheet setup' }]
+                      ? [
+                          {
+                            value: 'setup' as const,
+                            label: reportContents ? 'Contents' : (setupLabels?.[item.kind] ?? 'Sheet setup'),
+                          },
+                        ]
                       : []),
                     ...(stamped ? [{ value: 'issue' as const, label: 'Issue stamp' }] : []),
                   ]}

@@ -134,6 +134,7 @@ import {
   geoJsonPreview,
   INVALID_INPUT_RULES,
   MULTI_ROAD_EXPORTS,
+  STYLE_LIBRARY_EXPORTS,
   textPreview,
   type ExportPreview,
   type RoadScope,
@@ -318,6 +319,10 @@ import { incompleteReasonSummary } from './dev-forestry-roads/sectionCompletenes
 import { unpricedQuantities } from './dev-forestry-roads/costReadiness'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
+import { exportedRoadStyles } from './dev-forestry-roads/exportStyles'
+import { roleOverrides } from './dev-forestry-roads/styleLibrary'
+import { readStoredStyleLibrary, StyleLibraryPanel } from './dev-forestry-roads/StyleLibraryPanel'
+import type { StyledExportKind } from './dev-forestry-roads/styledExports'
 import { RoadPaneLayout, roadPaneKey, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
 import { useBlockSheet } from './dev-forestry-roads/BlockSheetSetup'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
@@ -443,6 +448,8 @@ export default function DevForestryRoads({
   } = useWorkspaceLayout(initialInterface)
   const [choosingInterface, setChoosingInterface] = useState(false)
   const [brandingOpen, setBrandingOpen] = useState(false)
+  // Bumped when the browser's style library changes, so a styled export's preview is rebuilt.
+  const [styleLibraryRevision, setStyleLibraryRevision] = useState(0)
   const branding = useBranding()
   const selectedExportBrand = exportBrand(branding)
   const [customizingRibbon, setCustomizingRibbon] = useState(false)
@@ -2587,7 +2594,8 @@ export default function DevForestryRoads({
   }
   /** The project as saved and the file name stem, after the checks every results export shares. */
   const exportBasis = (kind: RoadExport) => {
-    const calculated = kind !== 'project' && kind !== 'notes'
+    // The symbol library is the catalogue: like the project file and notes, it holds no calculated result.
+    const calculated = kind !== 'project' && kind !== 'notes' && kind !== 'symbol-library'
     // The project file holds the inputs as entered. A results file holds the inputs its results were
     // calculated from, so a stamped report never prints an invalid value beside the old quantities.
     const safe = parseProject(
@@ -2598,7 +2606,7 @@ export default function DevForestryRoads({
           }
         : project,
     )
-    if (investigation && kind !== 'project' && kind !== 'notes')
+    if (investigation && calculated)
       throw Error(
         'This is an access investigation. Export its evidence bundle or report in Access history; start a design before exporting engineering results.',
       )
@@ -2619,6 +2627,31 @@ export default function DevForestryRoads({
         : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
       selectedExportBrand,
     )
+  /** The files of a styled GIS export, from the same shapefile layers the Shapefile output writes. */
+  const styledBundle = async (kind: StyledExportKind, safe: RoadProject) => {
+    const [{ styledExportBundle }, { contextShapefileLayers }, { encodePng }, { loadSqlJs }] = await Promise.all([
+      import('./dev-forestry-roads/styledExports'),
+      import('./dev-forestry-roads/exportStyles'),
+      import('@/lib/mapSheet/png'),
+      import('@/lib/browserSqlite'),
+    ])
+    const needsSql = kind === 'arcgis-pro' || kind === 'symbol-library'
+    const roads = kind === 'symbol-library' ? [] : exportRoads(safe.alignments, alignment.id, roadScope)
+    const layers =
+      kind === 'symbol-library'
+        ? []
+        : [...contextShapefileLayers(safe.context), ...roadShapefileLayers(roads, w.analyses, alignment.id)]
+    return styledExportBundle(
+      kind,
+      {
+        name: safe.name,
+        layers,
+        roads: exportedRoadStyles({ alignments: roads }),
+        overrides: roleOverrides(readStoredStyleLibrary()),
+      },
+      { encodePng, SQL: needsSql ? await loadSqlJs() : undefined },
+    )
+  }
   /**
    * One output's file, built the same way for its download and its preview. The PDFs are not here:
    * they render and download in one step, and preview through the report page and the plan map.
@@ -2731,28 +2764,59 @@ export default function DevForestryRoads({
         )
       }
       case 'shapefile': {
-        const [{ default: JSZip }, { writeShapefileLayer }] = await Promise.all([
+        const [{ default: JSZip }, { writeShapefileLayer }, { shapefileStyleSidecars }] = await Promise.all([
           import('jszip'),
           import('./dev-forestry-roads/shapefile'),
+          import('./dev-forestry-roads/styledExports'),
         ])
         const zip = new JSZip(),
           warnings: string[] = []
-        for (const layer of roadShapefileLayers(
-          exportRoads(safe.alignments, alignment.id, roadScope),
-          w.analyses,
-          alignment.id,
-        )) {
+        const roads = exportRoads(safe.alignments, alignment.id, roadScope)
+        const layers = roadShapefileLayers(roads, w.analyses, alignment.id)
+        for (const layer of layers) {
           const written = writeShapefileLayer(layer)
           warnings.push(...written.warnings)
           for (const [name, bytes] of Object.entries(written.files)) zip.file(name, bytes)
         }
+        // A style of each kind beside each layer, so it opens in QGIS or ArcGIS Pro looking as it does here.
+        const styles = shapefileStyleSidecars(
+          safe.name,
+          layers,
+          exportedRoadStyles({ alignments: roads }),
+          roleOverrides(readStoredStyleLibrary()),
+        )
+        for (const file of styles.files) zip.file(file.path, file.content)
         return {
           content: await zip.generateAsync({ type: 'blob' }),
           filename: `${basename}-shapefiles.zip`,
           mime: 'application/zip',
           notice: warnings.length
             ? `Shapefiles downloaded with ${warnings.length} field warning${warnings.length === 1 ? '' : 's'}: ${warnings.join(' ')}`
-            : 'Shapefiles downloaded.',
+            : 'Shapefiles downloaded with QGIS, SLD and ArcGIS Pro styles.',
+        }
+      }
+      case 'qgis-project':
+      case 'arcgis-pro':
+      case 'web-map-style':
+      case 'symbol-library': {
+        const [{ default: JSZip }, bundle] = await Promise.all([import('jszip'), styledBundle(kind, safe)])
+        const zip = new JSZip()
+        for (const file of bundle.files) zip.file(file.path, file.content)
+        const label = EXPORT_ITEMS.find((item) => item.kind === kind)?.label ?? 'Export'
+        const approximations = bundle.diagnostics.filter((d) => d.severity !== 'info').length
+        return {
+          content: await zip.generateAsync({ type: 'blob' }),
+          filename: `${basename}-${kind}.zip`,
+          mime: 'application/zip',
+          notice: [
+            `${label} downloaded.`,
+            approximations
+              ? `${approximations} symbol part${approximations === 1 ? ' is' : 's are'} approximated; README.txt lists ${approximations === 1 ? 'it' : 'them'}.`
+              : '',
+            bundle.dataWarnings.length ? `Field warnings: ${bundle.dataWarnings.join(' ')}` : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
         }
       }
       case 'dxf': {
@@ -2941,6 +3005,7 @@ export default function DevForestryRoads({
       sheet: blockSheet.settings,
       logo: blockSheet.logo,
       branding,
+      styleLibraryRevision,
     }),
     [
       project,
@@ -2953,6 +3018,7 @@ export default function DevForestryRoads({
       blockSheet.settings,
       blockSheet.logo,
       branding,
+      styleLibraryRevision,
     ],
   )
   /** What the Save & export dialog shows for one output, from the content its download writes. */
@@ -2978,6 +3044,15 @@ export default function DevForestryRoads({
       const { mapImage } = await import('./dev-forestry-roads/pdf')
       const capture = await mapImage(map, signal)
       return { type: 'image', src: capture.image, width: capture.width, height: capture.height }
+    }
+    if (kind === 'qgis-project' || kind === 'arcgis-pro' || kind === 'web-map-style' || kind === 'symbol-library') {
+      // The zip holds binary layers and other programs' styles: preview its legend, files and approximations.
+      const [bundle, { styledExportPreviewHtml }] = await Promise.all([
+        styledBundle(kind, safe),
+        import('./dev-forestry-roads/styledExportPreview'),
+      ])
+      const label = EXPORT_ITEMS.find((item) => item.kind === kind)?.label ?? 'Export'
+      return { type: 'html', html: styledExportPreviewHtml(label, bundle) }
     }
     if (kind === 'shapefile') {
       // The zip holds binary layers; preview the same layers' geometry instead.
@@ -4275,7 +4350,16 @@ export default function DevForestryRoads({
         context={exportContext}
         buildPreview={buildExportPreview}
         previewVersion={exportPreviewVersion}
-        setupViews={{ 'block-sheet-pdf': blockSheet.setup }}
+        setupViews={{
+          'block-sheet-pdf': blockSheet.setup,
+          ...Object.fromEntries(
+            STYLE_LIBRARY_EXPORTS.map((kind) => [
+              kind,
+              <StyleLibraryPanel key="styles" onChange={() => setStyleLibraryRevision((n) => n + 1)} />,
+            ]),
+          ),
+        }}
+        setupLabels={Object.fromEntries(STYLE_LIBRARY_EXPORTS.map((kind) => [kind, 'Styles']))}
         blockSheetSettings={{ value: blockSheet.settings, onApply: blockSheet.apply }}
       />
       <CostBreakdown
