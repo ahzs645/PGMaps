@@ -3,6 +3,7 @@ import { Check, Clipboard, Layers, Moon, Mountain, RotateCcw, Sun } from 'lucide
 import { Button } from '@/components/ui/button'
 import { ColorField } from '@/components/ui/color-field'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ColorVisionSelect } from '@/components/ui/color-vision-preview'
 import { Slider } from '@/components/ui/slider'
 import { StyledSelect } from '@/components/ui/styled-select'
 import { useTheme } from 'next-themes'
@@ -136,6 +137,7 @@ export function AppearanceDialog({
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
   const radiusLabel = useId()
+  const colourVisionId = useId()
   const css = showCss ? exportThemeCss(draft, defaultRadius) : ''
   const currentRadius = draft.radius ?? defaultRadius
 
@@ -231,6 +233,15 @@ export function AppearanceDialog({
                 </div>
               ))}
             </fieldset>
+            <div className="space-y-1.5 border-t border-border pt-3">
+              <label htmlFor={colourVisionId} className="block text-sm font-semibold">
+                Colour-vision preview
+              </label>
+              <ColorVisionSelect id={colourVisionId} />
+              <p className="text-xs text-muted-foreground">
+                Shows the whole site as someone with that colour vision sees it, right away and for this tab only.
+              </p>
+            </div>
             <div className="space-y-3 border-t border-border pt-3">
               <div className="flex justify-between gap-2 text-sm">
                 <span id={radiusLabel} className="font-semibold">

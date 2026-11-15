@@ -8,12 +8,22 @@ import {
   type SharedMapProps,
 } from '@pgmaps/geo-toolkit/map/persistent-map'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from './map-styles'
+import { MapEssentials, resolveMapEssentials, type MapEssentialsOptions } from './map-essentials'
 import { usePaneResizing } from './pane-resize'
 export * from '@pgmaps/geo-toolkit/map/persistent-map'
-/** Follows the application's shared pane drag, as the application's `Map` does. */
-export function SharedMap(props: SharedMapProps) {
+/**
+ * Follows the application's shared pane drag, as the application's `Map` does, and adds the map
+ * essentials (right-click menu, status bar, camera keys) on the same terms.
+ */
+export function SharedMap({ essentials, ...props }: SharedMapProps & { essentials?: MapEssentialsOptions | boolean }) {
   const resizing = usePaneResizing()
-  return <ToolkitSharedMap {...props} deferResize={props.deferResize ?? resizing} />
+  const parts = resolveMapEssentials(essentials, props.controls)
+  return (
+    <ToolkitSharedMap {...props} deferResize={props.deferResize ?? resizing}>
+      {props.children}
+      {parts && <MapEssentials {...parts} />}
+    </ToolkitSharedMap>
+  )
 }
 export function PersistentMapProvider(props: PersistentMapProviderProps) {
   const { resolvedTheme } = useTheme()

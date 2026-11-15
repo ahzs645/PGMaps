@@ -4621,6 +4621,8 @@ function DevForestryVisuals() {
                         <>
                           <Map
                             ref={eyeMapRef}
+                            // The drive camera owns this view: N/U/R or a right-click menu would move it off the road.
+                            essentials={false}
                             center={driveEye ? [driveEye.lng, driveEye.lat] : PG_CENTER}
                             zoom={14}
                             maxPitch={85}

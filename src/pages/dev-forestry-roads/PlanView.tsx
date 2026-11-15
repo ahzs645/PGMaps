@@ -2965,7 +2965,10 @@ export function PlanView(input: PlanProps) {
             }
           />
         )}
-        <MapScaleBar position="bottom-left" className="road-map-scale left-2 bottom-2" />
+        <MapScaleBar
+          position="bottom-left"
+          className="road-map-scale left-2 bottom-[calc(var(--map-bottom-left-controls-height,0px)+0.5rem)]"
+        />
         {table.layout.bottomPane && (
           <div
             className="absolute inset-x-0 bottom-0 z-30 max-h-[70%] overflow-hidden border-t bg-background"

@@ -1,7 +1,7 @@
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { StyledSelect } from '@/components/ui/form-field'
 import { visibilityOutline } from '@/features/terrain-viewshed'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { StyleSpecification } from 'maplibre-gl'
 import { Eye, MapPin, Mountain, Sun } from 'lucide-react'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -16,6 +16,7 @@ import {
   type MapRef,
 } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
+import { useMapContextMenuActions, type MapContextMenuAction } from '@/components/ui/map-context-menu'
 import {
   InlineAlert,
   LegendItem,
@@ -562,6 +563,7 @@ export default function DevViewshed() {
         />
         <MapLineLayer data={boundary} color="#cbd5e1" width={1} dashArray={[3, 3]} interactive={false} />
         <MapLineLayer data={sunLine} color="#f59e0b" width={2} dashArray={[3, 2]} />
+        <PlaceObserverMenuAction onPlace={placeObserver} />
         <MapDrawCapture
           active={placing}
           onPoint={([lng, lat]) => {
@@ -610,4 +612,26 @@ export default function DevViewshed() {
       </Map>
     </MapSectionLayout>
   )
+}
+
+/** Adds "Place the observer here" to the map's right-click menu, beside *Place on map*. */
+function PlaceObserverMenuAction({ onPlace }: { onPlace: (point: GeoPoint) => void }) {
+  const onPlaceRef = useRef(onPlace)
+  useEffect(() => {
+    onPlaceRef.current = onPlace
+  }, [onPlace])
+  const actions = useMemo<MapContextMenuAction[]>(
+    () => [
+      {
+        id: 'viewshed-place-observer',
+        label: 'Place the observer here',
+        description: 'Recompute what is visible from this point',
+        icon: Eye,
+        onSelect: ({ lng, lat }) => onPlaceRef.current({ lng, lat }),
+      },
+    ],
+    [],
+  )
+  useMapContextMenuActions(actions)
+  return null
 }

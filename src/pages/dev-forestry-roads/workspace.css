@@ -57,10 +57,11 @@
   z-index: 45;
 }
 
-/* This map has no overlaid phone sheet. Its scale stays at the map edge. */
+/* This map has no overlaid phone sheet. Its scale stays at the map edge, above MapLibre's own
+   bottom-left corner (the map status bar). */
 .road-workspace [data-testid='road-plan-view'] .road-map-scale {
   left: 0.5rem;
-  bottom: 0.5rem;
+  bottom: calc(var(--map-bottom-left-controls-height, 0px) + 0.5rem);
 }
 
 .road-plan-view {
@@ -155,11 +156,12 @@
   background: hsl(var(--accent));
 }
 
-/* Attribution sits above the scale, leaving both bottom corners aligned. */
+/* Attribution sits above the scale, which sits above the status bar in MapLibre's bottom-left
+   corner, leaving both bottom corners aligned. */
 .road-workspace [data-testid='road-plan-view'] .maplibregl-ctrl-bottom-right {
   left: 0.5rem;
   right: auto;
-  bottom: 2rem;
+  bottom: calc(var(--map-bottom-left-controls-height, 0px) + 2rem);
   z-index: 20;
 }
 

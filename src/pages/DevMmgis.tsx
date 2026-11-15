@@ -911,6 +911,8 @@ export default function DevMmgis() {
   )
   const plan = (
     <Map
+      // The workbench prints its own pointer coordinate; a second readout would repeat it.
+      essentials={{ statusBar: false }}
       center={mission.camera.center}
       zoom={mission.camera.zoom}
       bearing={mission.camera.bearing}
@@ -937,6 +939,7 @@ export default function DevMmgis() {
   )
   const scene = (
     <Map
+      essentials={{ statusBar: false }}
       center={mission.camera.center}
       zoom={mission.camera.zoom}
       pitch={55}
