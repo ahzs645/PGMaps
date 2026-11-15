@@ -144,3 +144,208 @@ describe('blocks of another sale and viewpoint names', () => {
     expect(viewpointPlace('Lakeshore')).toBe('Lakeshore')
   })
 })
+
+describe("the reviewer's Table 3 and key viewpoints, per saved view", () => {
+  const facts = documentFacts({
+    project: 'Block X1',
+    objective: 'PR',
+    views: [
+      { name: 'a', figure: { ...figure(3), place: 'Bay' } },
+      { name: 'b', figure: { ...figure(7), place: 'Ferry' } },
+    ],
+    assessmentStation: 7,
+    review: {
+      ocular: { visibleness: 'easy' },
+      viewpointRecords: {
+        a: {
+          significance: 'High (5)',
+          reason: 'High boat traffic',
+          experience: 'Sustained focal views',
+          duration: 'Sustained',
+        },
+        b: { significance: 'Low to Moderate (2)' },
+        gone: { significance: 'Moderate (3)' },
+      },
+      keyViewpoints: { blocks: { X1: { view: 'a', reason: 'Most used' }, X9: { view: 'not saved' } } },
+    },
+    assessment: null,
+    breakdown: null,
+  })
+
+  it('gives every view its own Table 3 entry, and the step 4 judgements to the assessment station only', () => {
+    const [bay, ferry] = facts.viewpoints
+    expect(bay.review).toEqual({
+      importance: 'High (5)',
+      selectionReason: 'High boat traffic',
+      viewingExperience: 'Sustained focal views',
+      duration: 'Sustained',
+    })
+    expect(bay.atAssessment).toBe(false)
+    expect(ferry.review).toEqual({ importance: 'Low to Moderate (2)', visibility: 'Easy to see' })
+    expect(ferry.atAssessment).toBe(true)
+    expect(bay.appendix1).toBeUndefined()
+  })
+
+  it('carries the key viewpoints by the names the document gives the views, dropping a view it does not hold', () => {
+    expect(facts.keyViewpoints).toEqual({ blocks: { X1: { viewpoint: 'Bay', reason: 'Most used' } } })
+    const chosen = resolveViaDocument(formatForSource('22')!, facts)
+    expect(chosen.keyViewpoints?.choice.byBlock.get('X1')).toBe(0)
+    expect(chosen.viewpoints[0].sentences.find((s) => s.id === 'key-viewpoint')?.text).toBe(
+      'The reviewer chose this viewpoint for the detailed assessment: most used.',
+    )
+  })
+})
+
+describe('the viewpoint’s camera and each block’s own distance', () => {
+  it('carries the eye elevation of a framed view, the view’s bearing, and a block’s distance from its callout', () => {
+    const framed: SavedFigure = {
+      ...figure(3),
+      frameImage: { dataUrl: 'data:,', width: 10, height: 10, caption: 'x' },
+      callouts: [{ ...figure(3).callouts[0], distanceKm: 2.2 } as SavedFigure['callouts'][number]],
+    }
+    const [vp] = documentFacts({
+      project: 'x',
+      objective: 'PR',
+      views: [{ name: 'a', figure: framed }],
+      assessmentStation: null,
+      review: null,
+      assessment: null,
+      breakdown: null,
+    }).viewpoints
+    expect(vp).toMatchObject({ elevationM: 700, bearingDeg: 90 })
+    expect(vp.blocks[0]).toMatchObject({ id: 'X1', distanceKm: 2.2 })
+    // An unframed view's camera prints 0 m when no eye was known: its elevation is not a fact.
+    const [unframed] = documentFacts({
+      project: 'x',
+      objective: 'PR',
+      views: [{ name: 'a', figure: figure(3) }],
+      assessmentStation: null,
+      review: null,
+      assessment: null,
+      breakdown: null,
+    }).viewpoints
+    expect(unframed.elevationM).toBeNull()
+    expect(unframed.blocks[0].distanceKm).toBeUndefined()
+  })
+})
+
+describe('the with-timber pixel figure', () => {
+  const base = { project: 'x', objective: 'PR' as const, assessmentStation: null, review: null, assessment: null }
+  const timberClasses = () => {
+    // Two of the four proposed pixels seen past the timber; the other two read as the landform in front.
+    const codes = new Uint8Array(figure(3).classes.codes)
+    codes[2] = codes[3] = FIGURE_CLASS.landform
+    return { width: 10, height: 10, codes }
+  }
+
+  it('carries PGMaps’ measure as a second set of areas, and resolves it on the format’s rule', () => {
+    const facts = documentFacts({
+      ...base,
+      breakdown: null,
+      views: [
+        {
+          name: 'a',
+          figure: figure(3),
+          timber: { kind: 'measured', classes: timberClasses(), proposedPx: 4, seenPx: 2 },
+        },
+      ],
+    })
+    expect(facts.viewpoints[0].withTimber).toMatchObject({ source: 'pgmaps', areas: { landform: 80, proposed: 2 } })
+    // The ground pass's areas are unchanged beside it.
+    expect(facts.viewpoints[0].areas).toMatchObject({ landform: 80, proposed: 4 })
+    const resolved = resolveViaDocument(formatForSource('22')!, facts).viewpoints[0]
+    expect(resolved.printed?.percent).not.toBe((resolved.withTimber as { percent: string }).percent)
+    expect(Number((resolved.withTimber as { percent: string }).percent)).toBeCloseTo(
+      Number(resolved.printed!.percent) / 2,
+      1,
+    )
+  })
+
+  it('says why when there was no before render, never 0, and takes an engine’s screened pass', () => {
+    const [vp] = documentFacts({ ...base, breakdown: null, views: [{ name: 'a', figure: figure(3) }] }).viewpoints
+    expect(vp.withTimber).toEqual({ absent: 'no before-harvest render of this view' })
+    const [engine] = documentFacts({
+      ...base,
+      breakdown: null,
+      views: [{ name: 'a', figure: { ...figure(3), screened: timberClasses() } }],
+    }).viewpoints
+    expect(engine.withTimber).toMatchObject({ source: 'engine', areas: { proposed: 2 } })
+  })
+})
+
+describe('a framed panorama’s bearing', () => {
+  it('prints in [0, 360): a centre line of 372.5° is 12.5°, -10° is 350°', () => {
+    const at = (azimuthDeg: number) =>
+      documentFacts({
+        project: 'x',
+        objective: 'PR',
+        views: [{ name: 'a', figure: { ...figure(3), camera: { ...figure(3).camera!, azimuthDeg } } }],
+        assessmentStation: null,
+        review: null,
+        assessment: null,
+        breakdown: null,
+      }).viewpoints[0].bearingDeg
+    expect(at(372.5)).toBeCloseTo(12.5)
+    expect(at(-10)).toBeCloseTo(350)
+    expect(at(90)).toBe(90)
+  })
+})
+
+describe('a partial cut in the document facts', () => {
+  /** Figure 3 with a partial cut, block P1: 10 pixels of the landform, called out beside block X1. */
+  function withPartialCut(): SavedFigure {
+    const base = figure(3)
+    const codes = new Uint8Array(base.classes.codes)
+    for (let i = 20; i < 30; i++) codes[i] = FIGURE_CLASS.partialIn
+    return {
+      ...base,
+      classes: { ...base.classes, codes },
+      hidden: [],
+      callouts: [
+        { ...base.callouts[0], apparent: 3 } as SavedFigure['callouts'][number],
+        { blockId: 'P1', title: 'Block P1', anchor: [3, 3], status: 'visible', visiblePercent: 80, apparent: 9 },
+      ],
+      partialCuts: [
+        {
+          id: 'P1',
+          name: 'P1',
+          visible: true,
+          equivalentPercent: 0.8,
+          volumeRemovedPercent: 10,
+          residualHeightMeters: 27.5,
+        },
+      ],
+    }
+  }
+  const facts = (view: SavedFigure) =>
+    documentFacts({
+      project: 'x',
+      objective: 'PR',
+      views: [{ name: 'a', figure: view }],
+      assessmentStation: null,
+      review: null,
+      assessment: null,
+      breakdown: null,
+    }).viewpoints[0]
+
+  it('states its pixels apart from the proposed (cleared-ground) ones and gives it no share of them', () => {
+    const vp = facts(withPartialCut())
+    expect(vp.areas).toEqual({ landform: 80, proposed: 4, nonVeg: 0, privateLand: 16, rock: 0, partialCut: 10 })
+    const [clear, partial] = vp.blocks
+    // The clearcut block holds the whole proposed figure; the partial cut none, however much of it is seen.
+    expect(clear.share).toBe(1)
+    expect(partial).toMatchObject({ id: 'P1', partialCut: true })
+    expect(partial.share).toBeUndefined()
+  })
+
+  it('leaves the figure the same as a scene where the partial cut was never drawn', () => {
+    const vp = facts(withPartialCut())
+    const plain = facts(figure(3))
+    const format = formatForSource('23')!
+    const a = resolveViaDocument(format, { project: 'x', viewpoints: [vp] }).viewpoints[0]
+    const b = resolveViaDocument(format, { project: 'x', viewpoints: [plain] }).viewpoints[0]
+    expect(a.printed?.percent).toBe('5.00')
+    expect(a.printed?.percent).toBe(b.printed?.percent)
+    expect(plain.areas).not.toHaveProperty('partialCut')
+  })
+})

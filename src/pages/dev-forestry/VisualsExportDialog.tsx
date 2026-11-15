@@ -42,6 +42,8 @@ const WAIT_POLL_MS = 150
 const SETTLE_MS = 400
 /** A run that has not started by now never will: the scene refused it. */
 const RUN_START_MS = 4000
+/** How long an export waits for the road view's terrain to reload before an engine render counts it unavailable. */
+const ROAD_VIEW_SETTLE_MS = 90_000
 /** The land checks are waited for this long; a layer still reading then prints as Not read. */
 const LAND_CHECK_WAIT_MS = 30_000
 
@@ -321,10 +323,16 @@ export function VisualsExportDialog({
     if (needs.render) {
       waited = true
       latestRender.current?.()
+      const asked = Date.now()
       await waitFor(() => {
         const r = latestContext.current.renderer
         if (r.failed) throw new Error(`${r.label} could not draw ${r.failed}`)
-        if (r.unavailable) throw new Error(`${r.label} cannot draw the figures: ${r.unavailable}`)
+        // The road view's terrain reloading after a run is a wait, not a failure, for a while.
+        if (r.unavailable && !(r.settling && Date.now() - asked < ROAD_VIEW_SETTLE_MS))
+          throw new Error(`${r.label} cannot draw the figures: ${r.unavailable}`)
+        // A view still missing with nothing queued (its render was kept under a scene the page has since moved on
+        // from) is asked for again: the wait used to sit on it for good.
+        if (r.missing > 0 && !r.running) latestRender.current?.()
         return r.missing === 0
       }, signal)
     }

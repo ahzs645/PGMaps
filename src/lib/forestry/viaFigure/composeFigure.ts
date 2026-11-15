@@ -54,8 +54,17 @@ export const FIGURE_CLASS = {
   existingOut: 7,
   privateIn: 8,
   privateOut: 9,
+  // 10 and 11 are an engine's own (`ENGINE_CLASS`, engineCapture.ts).
+  /**
+   * A partial-cut block: drawn as a block, but not cleared ground (handbook 3.4.4). Its pixels are counted apart from
+   * `proposedIn`, as the run leaves the block out of the cleared-ground ledger and adds its Table 6 figure to X.
+   */
+  partialIn: 12,
+  partialOut: 13,
 } as const
 export type FigureClass = keyof typeof FIGURE_CLASS
+/** The partial-cut classes, which only a scene with a partial cut paints (`classPaletteEntries`). */
+export const PARTIAL_CUT_CLASSES = ['partialIn', 'partialOut'] as const satisfies readonly FigureClass[]
 
 /**
  * The flat colour each class is painted in the class pass. Sky is the transparent clear colour.
@@ -72,6 +81,20 @@ export const CLASS_PALETTE: Record<Exclude<FigureClass, 'sky'>, readonly [number
   existingOut: [0, 0, 255],
   privateIn: [0, 210, 210],
   privateOut: [255, 140, 255],
+  // At least 70 from every colour above, the engine's two and black, and from every blend between any two of them.
+  partialIn: [255, 0, 150],
+  partialOut: [105, 255, 30],
+}
+
+/**
+ * The decode palette of a class pass: every class colour, the partial-cut ones only when the pass painted a partial
+ * cut. Leaving them out otherwise keeps a scene with no partial cut decoding exactly as before they existed (a blended
+ * edge pixel's nearest colour cannot become one).
+ */
+export function classPaletteEntries(partialCuts = false): Array<{ code: number; rgb: readonly number[] }> {
+  return (Object.entries(CLASS_PALETTE) as Array<[Exclude<FigureClass, 'sky'>, readonly number[]]>)
+    .filter(([name]) => partialCuts || !(PARTIAL_CUT_CLASSES as readonly string[]).includes(name))
+    .map(([name, rgb]) => ({ code: FIGURE_CLASS[name], rgb }))
 }
 
 export const classColor = (name: Exclude<FigureClass, 'sky'>) =>
@@ -96,9 +119,7 @@ export function decodeClassRaster(
   rgba: ArrayLike<number>,
   width: number,
   height: number,
-  palette: ReadonlyArray<{ code: number; rgb: readonly number[] }> = (
-    Object.entries(CLASS_PALETTE) as Array<[Exclude<FigureClass, 'sky'>, readonly number[]]>
-  ).map(([name, rgb]) => ({ code: FIGURE_CLASS[name], rgb })),
+  palette: ReadonlyArray<{ code: number; rgb: readonly number[] }> = classPaletteEntries(),
 ): ClassRaster {
   const n = width * height
   if (rgba.length < n * 4) throw new Error('The class pass is smaller than its stated size.')
@@ -173,6 +194,7 @@ const IN_LANDFORM = new Set<number>([
   FIGURE_CLASS.proposedIn,
   FIGURE_CLASS.existingIn,
   FIGURE_CLASS.privateIn,
+  FIGURE_CLASS.partialIn,
 ])
 export const inLandform = (code: number) => IN_LANDFORM.has(code)
 
@@ -184,8 +206,13 @@ export interface FigureCounts {
   privateLand: number
   /** NonVEG: existing openings still counting, in the landform. */
   nonVeg: number
-  /** Proposed blocks in the landform. */
+  /** Proposed blocks in the landform, cleared ground only: a partial cut is `partialCut`, never here. */
   proposed: number
+  /**
+   * Partial-cut blocks in the landform (handbook 3.4.4): not cleared ground, so in no figure's numerator; the run adds
+   * each visible cut's Table 6 clearcut equivalent to X instead. Present only when the pass shows one.
+   */
+  partialCut?: number
   /** VRI non-vegetated land in the landform, not under a block, opening or private land. */
   rock: number
   /** (NonVEG + Proposed) / LF, percent. */
@@ -201,7 +228,8 @@ export function countClasses(raster: ClassRaster): FigureCounts {
     privateLand = 0,
     nonVeg = 0,
     proposed = 0,
-    rock = 0
+    rock = 0,
+    partialCut = 0
   for (const code of raster.codes) {
     if (!IN_LANDFORM.has(code)) continue
     landform++
@@ -209,6 +237,7 @@ export function countClasses(raster: ClassRaster): FigureCounts {
     else if (code === FIGURE_CLASS.existingIn) nonVeg++
     else if (code === FIGURE_CLASS.proposedIn) proposed++
     else if (code === FIGURE_CLASS.rock) rock++
+    else if (code === FIGURE_CLASS.partialIn) partialCut++
   }
   const altered = nonVeg + proposed
   const share = (denominator: number) => (denominator > 0 ? (100 * altered) / denominator : null)
@@ -218,6 +247,7 @@ export function countClasses(raster: ClassRaster): FigureCounts {
     nonVeg,
     proposed,
     rock,
+    ...(partialCut ? { partialCut } : {}),
     grossPercent: share(landform),
     netOfPrivatePercent: share(landform - privateLand),
     netOfRockPercent: share(landform - rock),
@@ -324,8 +354,9 @@ export function maskRings(
 /** Which class codes each role's outline is traced from. */
 export const ROLE_CLASSES: Partial<Record<ViaRole, readonly number[]>> = {
   landform: [...IN_LANDFORM],
-  proposedBlock: [FIGURE_CLASS.proposedIn, FIGURE_CLASS.proposedOut],
-  treatedGround: [FIGURE_CLASS.proposedIn, FIGURE_CLASS.proposedOut],
+  // A partial cut is outlined as the block it is; only its count is kept apart.
+  proposedBlock: [FIGURE_CLASS.proposedIn, FIGURE_CLASS.proposedOut, FIGURE_CLASS.partialIn, FIGURE_CLASS.partialOut],
+  treatedGround: [FIGURE_CLASS.proposedIn, FIGURE_CLASS.proposedOut, FIGURE_CLASS.partialIn, FIGURE_CLASS.partialOut],
   existingNonVeg: [FIGURE_CLASS.existingIn, FIGURE_CLASS.existingOut],
   privateLand: [FIGURE_CLASS.privateIn, FIGURE_CLASS.privateOut],
   rockNonVeg: [FIGURE_CLASS.rock],
@@ -697,7 +728,10 @@ export function figureImage(input: FigureInput): RasterImage {
     const paint = input.preset.paint ?? DEFAULT_BLOCK_PAINT
     image = {
       ...image,
-      data: paintBlockGround(image, input.classes, paint, { screened: input.screenedClasses ?? null }),
+      // A tree in front is never painted over: the engine's screened pass, else PGMaps' with-timber pass.
+      data: paintBlockGround(image, input.classes, paint, {
+        screened: input.screenedClasses ?? (input.timber && 'classes' in input.timber ? input.timber.classes : null),
+      }),
     }
   }
   return tonedImage(image, input.preset.tone)
@@ -967,6 +1001,13 @@ export interface FigureInput {
    * front, for a second, screened pixel measure. Never drawn or outlined.
    */
   screenedClasses?: ClassRaster | null
+  /**
+   * PGMaps' own renderer's with-timber pass (`timberScreenedClasses`, `timberScreen.ts`): the class pass with every
+   * proposed pixel that does not change between the before-harvest render and this picture given to the ground in
+   * front, `classes`' size. `absent` says why there is none ("not measured", never 0). Absent for an engine's
+   * capture, whose `screenedClasses` measures the same thing. Never drawn or outlined.
+   */
+  timber?: { classes: ClassRaster } | { absent: string } | null
   callouts: readonly FigureCallout[]
   /**
    * Line roles projected into the image (sub-landform dividers, lines of force), already cut to
@@ -997,6 +1038,12 @@ export interface FigureInput {
    * line is left out rather than printed with braces.
    */
   classify?: ((percent: number) => ClassReading | null) | null
+  /**
+   * The scene's partial-cut blocks, with the Table 6 figure the run adds to X for each (`partialCutEntries`, via.ts).
+   * Their pixels are `FigureCounts.partialCut`, never proposed alteration; the sheet states both. Absent or empty: no
+   * partial cut, and the sheet prints exactly as before.
+   */
+  partialCuts?: readonly PartialCutNote[] | null
   /** The page's sightline alteration at this station, percent: the assessment's figure. */
   sightlinePercent: number | null
   /** Its Table 2 class name, if any. */
@@ -1022,6 +1069,17 @@ export interface FigureInput {
   /** The user's logo (or their brand's) for the title block's logo slot; absent leaves the slot empty. */
   logo?: RasterImage | null
   generatedAt: Date
+}
+
+/** A partial-cut block as the sheet states it: handbook 3.4.4's Table 6 reading, not cleared ground. */
+export interface PartialCutNote {
+  name: string
+  /** Whether the run sees ground where the cut occurs; one it cannot see adds nothing to X. */
+  visible: boolean
+  /** Table 6's clearcut-equivalent percent, or null until volume removed and residual height are entered. */
+  equivalentPercent: number | null
+  volumeRemovedPercent: number | null
+  residualHeightMeters: number | null
 }
 
 export interface ComposedFigure {
@@ -1058,6 +1116,8 @@ export function countsAlteration(rule: AlterationRule, counts: FigureCounts | nu
     nonVeg: counts.nonVeg,
     privateLand: counts.privateLand,
     rock: counts.rock,
+    // Stated, never summed: a partial cut is not cleared ground (`AlterationAreas.partialCut`).
+    ...(counts.partialCut ? { partialCut: counts.partialCut } : {}),
   })
 }
 
@@ -1317,6 +1377,62 @@ function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: 
 }
 
 /**
+ * PGMaps' own renderer's second pixel figure: the proposed blocks seen past the drawn timber, or why it was not
+ * measured. Existing openings keep the ground pass's count, and the line says so when there are any.
+ */
+export function timberLine(input: Pick<FigureInput, 'timber' | 'preset' | 'classes'>): string | null {
+  const timber = input.timber
+  if (!timber) return null
+  if ('absent' in timber) return `Pixel measure, with drawn timber: not measured (${timber.absent})`
+  const counts = countClasses(timber.classes)
+  const openings = counts.nonVeg > 0 ? ' (existing openings as on the ground)' : ''
+  return `Pixel measure, with drawn timber: ${fixed(presetPercent(input.preset, counts))}%${openings}`
+}
+
+const trimmed = (value: number) => String(Math.round(value * 10) / 10)
+
+/**
+ * What the sheet says about partial cuts: their pixels, left out of the proposed (cleared-ground) count as the run
+ * leaves them out of its ledger, and each cut's Table 6 clearcut equivalent, which the run adds to X in step 4 rather
+ * than to this figure (handbook 3.4.4, the 2001 forms' partial-cut table). Empty with no partial cut in the scene or
+ * the pass.
+ */
+export function partialCutLines(input: Pick<FigureInput, 'partialCuts'>, counts: FigureCounts | null): string[] {
+  const cuts = input.partialCuts ?? []
+  const px = counts?.partialCut ?? 0
+  if (!cuts.length && !px) return []
+  const lines = [
+    px
+      ? `Partial cut, not cleared ground (handbook 3.4.4): ${px} px of the landform, left out of Proposed Blocks`
+      : 'Partial cut, not cleared ground (handbook 3.4.4): none in the landform in this image',
+  ]
+  // Cuts that read the same are named together: "FP1, FP2: 0.8% each (10% removed, 27.5 m left)".
+  const groups = new Map<string, string[]>()
+  for (const cut of cuts) {
+    const reading =
+      cut.equivalentPercent === null
+        ? cut.volumeRemovedPercent !== null && cut.volumeRemovedPercent < 10
+          ? 'under 10% removed, adds 0'
+          : 'volume removed and residual height not entered'
+        : `${trimmed(cut.equivalentPercent)}%${cut.visible ? '' : ', not seen by the run: adds 0'} (${trimmed(cut.volumeRemovedPercent ?? 0)}% removed, ${trimmed(cut.residualHeightMeters ?? 0)} m left)`
+    groups.set(reading, [...(groups.get(reading) ?? []), cut.name])
+  }
+  if (groups.size)
+    lines.push(
+      `Table 6 clearcut equivalent, added to X in step 4, not to this figure: ${[...groups]
+        .map(
+          ([reading, names]) =>
+            `${names.join(', ')} ${names.length > 1 && /^\d/.test(reading) ? reading.replace('%', '% each') : reading}`,
+        )
+        .join('; ')}`,
+    )
+  return lines
+}
+
+/** How many of `measureLines` are figures (sightline, pixel and, when there is one, the second pixel figure). */
+const figureLineCount = (input: FigureInput) => 2 + (input.screenedClasses ? 1 : 0) + (timberLine(input) ? 1 : 0)
+
+/**
  * PGMaps' figures side by side, and what each one is. The class pass is the ground under the trees (no drawn
  * timber, as the reference VIAs outline the ground), so the pixel measure says so when trees were drawn in the
  * picture; an engine's capture adds a second figure with its trees in front.
@@ -1335,6 +1451,8 @@ function measureLines(input: FigureInput, counts: FigureCounts | null): string[]
     `Sightline measure (PGMaps run, the assessment figure): ${fixed(input.sightlinePercent)}%${input.sightlineClass ? ` (${input.sightlineClass})` : ''}`,
     `Pixel measure, this image${ground}: ${fixed(pixel)}%`,
     ...(input.screenedClasses ? [`Pixel measure with the drawn trees in front: ${fixed(screened)}%`] : []),
+    ...(timberLine(input) ? [timberLine(input)!] : []),
+    ...partialCutLines(input, counts),
     ...(input.illustration ?? []),
     `View: ${input.lens}`,
   ]
@@ -1481,7 +1599,10 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
   const measureBottom = calcCell.y + calcCell.h - (preset.calc?.footnote ? 12 : 4)
   ops.push(
     ...fittedLines(
-      measureLines(input, counts).map((text, i) => ({ text, style: i < 2 ? OWN : { ...OWN, size: 7.92 } })),
+      measureLines(input, counts).map((text, i) => ({
+        text,
+        style: i < figureLineCount(input) ? OWN : { ...OWN, size: 7.92 },
+      })),
       { x: measureX, top: measureTop, bottom: measureBottom, width: measureWidth },
     ),
   )
@@ -1647,7 +1768,7 @@ export function overlaySheet(input: FigureInput): ComposedFigure {
     ...textOps(
       W / 2,
       y,
-      measureLines(input, counts).slice(0, 2).join('   ·   '),
+      measureLines(input, counts).slice(0, figureLineCount(input)).join('   ·   '),
       { size: 8, color: '#1d4ed8' },
       'center',
     ),
@@ -1655,6 +1776,60 @@ export function overlaySheet(input: FigureInput): ComposedFigure {
   y += 12
   ops.push(...textOps(W / 2, y, footerLine(preset, input.generatedAt), FOOTER, 'center'))
   return { width: W, height, ops, frame, drawn: [...panel.drawn], counts, notes: notesFor(input, panel.drawn) }
+}
+
+/** An 11 × 17 landscape page, points: what a report prints on a page of its own (`isSheet`, `viaReport/html.ts`). */
+export const TABLOID_PAGE = { width: 1224, height: 792 } as const
+
+/** `ops` moved by (dx, dy). */
+export function translateOps(ops: readonly DrawOp[], dx: number, dy: number): DrawOp[] {
+  const move = (parts: Point[][]) => parts.map((part) => part.map(([x, y]) => [x + dx, y + dy] as Point))
+  return ops.map((op) => {
+    switch (op.op) {
+      case 'path':
+      case 'clip':
+        return { ...op, parts: move(op.parts) }
+      case 'restore':
+        return op
+      default:
+        return { ...op, x: op.x + dx, y: op.y + dy }
+    }
+  })
+}
+
+/**
+ * A view's figure on an 11 × 17 landscape page, for a report's calculation pages: an analysis sheet (family A) as
+ * composed, any other style's analysed figure composed as wide as the page holds it (the picture scales with the
+ * width, the calculation lines do not) and centred on the page. Never stretched: the picture keeps its aspect.
+ */
+export function tabloidFigure(input: FigureInput): ComposedFigure {
+  const { width: W, height: H } = TABLOID_PAGE
+  const composed = composeFigure(input)
+  if (Math.abs(composed.width - W) < 1 && Math.abs(composed.height - H) < 1) return composed
+  // The widest figure whose height fits the page, by bisection on the width (its height grows with its width).
+  const margin = 12
+  let lo = 240,
+    hi = W - margin * 2
+  let best = analysedFigure(input, lo)
+  for (let i = 0; i < 12 && hi - lo > 2; i++) {
+    const mid = (lo + hi) / 2
+    const trial = analysedFigure(input, mid)
+    if (trial.height <= H - margin * 2) {
+      best = trial
+      lo = mid
+    } else hi = mid
+  }
+  const top = analysedFigure(input, hi)
+  if (top.height <= H - margin * 2) best = top
+  const dx = (W - best.width) / 2,
+    dy = (H - best.height) / 2
+  return {
+    ...best,
+    width: W,
+    height: H,
+    ops: translateOps(best.ops, dx, dy),
+    frame: { ...best.frame, x: best.frame.x + dx, y: best.frame.y + dy },
+  }
 }
 
 export const composeFigure = (input: FigureInput): ComposedFigure =>

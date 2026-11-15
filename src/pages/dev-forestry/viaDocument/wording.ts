@@ -137,6 +137,30 @@ export const PERSPECTIVE_REPORT = {
     'run',
     'The {viewpoint} viewpoint is the only one assessed that sees the block ({share}% of its ground in view), so the block is assessed from there.',
   ),
+  keyReviewer: t(
+    'key-viewpoint',
+    'Block discussion: why this viewpoint, when the reviewer chose it',
+    'reviewer',
+    'The reviewer chose this viewpoint for the detailed assessment.',
+  ),
+  keyReviewerReason: t(
+    'key-viewpoint',
+    'Block discussion: why this viewpoint, when the reviewer chose it and said why',
+    'reviewer',
+    'The reviewer chose this viewpoint for the detailed assessment: {reason}.',
+  ),
+  keyGroupReviewer: t(
+    'key-viewpoint',
+    'Group discussion: why one viewpoint for the blocks together, when the reviewer chose it',
+    'reviewer',
+    'The reviewer chose this viewpoint to assess the blocks as a group.',
+  ),
+  keyGroupReviewerReason: t(
+    'key-viewpoint',
+    'Group discussion: why one viewpoint for the blocks together, when the reviewer chose it and said why',
+    'reviewer',
+    'The reviewer chose this viewpoint to assess the blocks as a group: {reason}.',
+  ),
   keyGroup: t(
     'key-viewpoint',
     'Group discussion: why one viewpoint for the blocks together',
@@ -263,6 +287,12 @@ export const PERSPECTIVE_REPORT = {
     'Block discussion: viewing distance as a design rating',
     'run',
     'The block is located at a {distanceRating} viewing distance of {km} km from the {viewpoint} viewpoint.',
+  ),
+  distanceAtLeast: t(
+    'distance',
+    'Block discussion: viewing distance when only the nearest block in view is measured',
+    'run',
+    'Block {block} is at least {km} km from the {viewpoint} viewpoint, the distance to the nearest block in view; its own distance was not measured.',
   ),
   distanceShared: t(
     'distance',

@@ -210,9 +210,16 @@ describe('consultant parts: method, discussion and sign-off', () => {
     const headings = out.blocks.filter((b) => b.kind === 'heading').map((b) => (b.kind === 'heading' ? b.text : ''))
     expect(headings).toEqual(['Discussion', 'Block A1 – VSU 1083', 'Block A2 – Landform 5a (traced)'])
     const text = words(out.blocks)
-    expect(text).toContain('No islands or patches of timber are kept inside Block A1.')
+    // A scene that maps no retention patch inside A1 says so, and leaves whether any are kept to the reviewer.
+    expect(text).toContain(
+      'The scene records no islands or patches of timber inside Block A1; any kept there are the reviewer’s to describe.',
+    )
+    expect(text).not.toContain('No islands or patches of timber are kept')
     expect(text).toContain('Block A2 keeps 2 internal retention patches, islands of timber inside the opening.')
-    expect(out.toComplete).toEqual(['Block A2 – Landform 5a (traced): islands rating'])
+    expect(out.toComplete).toEqual([
+      'Block A1 – VSU 1083: islands or patches of timber kept, if any (none recorded in the scene)',
+      'Block A2 – Landform 5a (traced): islands rating',
+    ])
     expect(text).not.toContain('Block E5 is located')
   })
 
@@ -239,7 +246,7 @@ describe('consultant parts: method, discussion and sign-off', () => {
     expect(paragraphs.some((p) => p.startsWith('Visibility –'))).toBe(false)
   })
 
-  it('mark Table 5’s islands None for a block that keeps none, and number Tables 4 and 5 with their notes', () => {
+  it('leave Table 5’s islands to the reviewer, and number Tables 4 and 5 with their notes', () => {
     const [t4, t5] = tables(build('assessment-tables', context('perspective-report-net-private')).blocks)
     expect(t4.title).toMatch(/^Table 4: /)
     expect(t4.note).toContain('⁶ Visibility, in the terms of FPPR s. 1.1')
@@ -251,7 +258,8 @@ describe('consultant parts: method, discussion and sign-off', () => {
     const islands = t5.columns.indexOf(T5.islands)
     const a1 = t5.rows.find((row) => row[1] === 'Block A1')!
     const a2 = t5.rows.find((row) => row[1] === 'Block A2')!
-    expect([a1[islands], a2[islands]]).toEqual(['None', ''])
+    // The scene mapping no patch in A1 is not a finding that none are kept: the rating stays blank.
+    expect([a1[islands], a2[islands]]).toEqual(['', ''])
     expect(t5.rows.some((row) => row[1].includes('E5'))).toBe(false)
   })
 
@@ -279,7 +287,10 @@ describe('consultant parts: method, discussion and sign-off', () => {
     const conclusion = words(build('conclusion', ctx).blocks)
     expect(conclusion).toContain('From the key viewpoints, the percent alteration is')
     const empty = context('perspective-report-net-private', {}, { project: 'x', viewpoints: [vp({ areas: null })] })
-    expect(words(build('conclusion', empty).blocks)).toContain('The conclusion is written once the extent')
+    // With no figure the format's own conclusion is empty: the run's facts conclude, never a placeholder.
+    const fromRun = words(build('conclusion', empty).blocks)
+    expect(fromRun).toContain('Bay sees none of Blocks A1 and A2.')
+    expect(fromRun).not.toContain('The conclusion is written once the extent')
   })
 })
 
@@ -302,5 +313,32 @@ describe('consultant recipes', () => {
 
   it('keep T1 in step with Table 1', () => {
     expect(TABLE_1.columns).toEqual(Object.values(T1))
+  })
+})
+
+describe('consultant discussion: each block’s own distance', () => {
+  it('gives the block’s own distance when the run measured it, else only the bound the nearest block sets', () => {
+    // A2 shares the Lake view with A1, so the viewpoint's distance (0.7 km, the nearest block in view) is not A2's.
+    const bound = words(build('block-discussion', context('perspective-report-net-private')).blocks)
+    expect(bound).toContain(
+      'Block A2 is at least 0.7 km from the Lake viewpoint, the distance to the nearest block in view; its own distance was not measured.',
+    )
+    expect(bound).not.toContain('The nearest block in view is 0.7 km')
+    // With the run's own distance for A2 (its nearest sample seen), the sentence and its rating are A2's.
+    const measured: DocumentFacts = {
+      ...FACTS,
+      viewpoints: FACTS.viewpoints.map((entry) =>
+        entry.name === 'Lake'
+          ? { ...entry, blocks: entry.blocks.map((b) => (b.id === 'A2' ? { ...b, distanceKm: 3.4 } : b)) }
+          : entry,
+      ),
+    }
+    const own = words(build('block-discussion', context('perspective-report-net-private', {}, measured)).blocks)
+    expect(own).toContain('The block is located at a moderate viewing distance of 3.4 km from the Lake viewpoint.')
+    const [, t5] = tables(build('assessment-tables', context('perspective-report-net-private', {}, measured)).blocks)
+    const distance = t5.columns.indexOf(T5.distance)
+    expect(t5.rows.find((row) => row[1] === 'Block A2')![distance]).toBe('Moderate 3.4 km')
+    const [, unmeasured] = tables(build('assessment-tables', context('perspective-report-net-private')).blocks)
+    expect(unmeasured.rows.find((row) => row[1] === 'Block A2')![distance]).toBe('at least 0.7 km')
   })
 })

@@ -13,6 +13,7 @@ import {
   figureWording,
   firstFigureNumber,
   DEFAULT_FIGURE_WORDING,
+  SIMULATION_DISCLAIMER,
 } from './partsFigures'
 
 const viewpoint = (name: string): DocumentFacts['viewpoints'][number] => ({
@@ -89,8 +90,9 @@ const report = (blocks: ReportBlock[]): AssembledReport => ({
 })
 
 describe('figure parts', () => {
-  it('register five parts with their own ids', () => {
+  it('register six parts with their own ids', () => {
     expect(FIGURE_PARTS.map((p) => p.id)).toEqual([
+      'simulation-pages',
       'overview-map',
       'overview-sheet',
       'overhead-renders',
@@ -263,18 +265,20 @@ describe('figure parts', () => {
         context('form-2001-analysis-sheets', names, { images: allImages(names) }),
       )
       expect(out.toComplete).toEqual([])
-      expect(kinds(out.blocks)).toEqual(['mapFigure', 'figureGrid'])
-      expect(out.blocks[0]).toMatchObject({ caption: 'Figure 2: Overhead render, model confirmation' })
-      expect(out.blocks[1]).toMatchObject({
+      // The renders start a page, the overhead drawn compact so its obliques share the page (01 p7).
+      expect(kinds(out.blocks)).toEqual(['pageBreak', 'mapFigure', 'figureGrid'])
+      expect(out.blocks[1]).toMatchObject({ caption: 'Figure 2: Overhead render, model confirmation', compact: true })
+      expect(extraBlockHtml(out.blocks[1])).toContain('vf-map vf-compact')
+      expect(out.blocks[2]).toMatchObject({
         columns: 2,
         caption: 'Figure 3: Oblique renders, model confirmation - Blocks X1 and X2',
       })
-      expect(extraBlockHtml(out.blocks[1])).toContain('vf-cols-2')
+      expect(extraBlockHtml(out.blocks[2])).toContain('vf-cols-2')
     })
 
     it('print an overhead and an oblique placeholder when no render was given', () => {
       const out = part('overhead-renders').build(context('form-2001-analysis-sheets', ['Lakeshore']))
-      expect(kinds(out.blocks)).toEqual(['mapFigure', 'figureGrid'])
+      expect(kinds(out.blocks)).toEqual(['pageBreak', 'mapFigure', 'figureGrid'])
       expect(out.toComplete).toEqual(['Overhead render of the blocks', 'Oblique renders of the blocks'])
       expect(andList(['A', 'B', 'C'])).toBe('A, B and C')
     })
@@ -343,5 +347,84 @@ describe('the 11 x 17 overview sheet', () => {
       context('perspective-report-gross', names, { images: allImages(names) }),
     )
     expect(without.blocks[0].kind).toBe('mapFigure')
+  })
+})
+
+describe('simulation pages (02)', () => {
+  it('print each simulation on a landscape page with the accuracy disclaimer, then the obliques together', () => {
+    const names = ['Lakeshore']
+    const sheet = { ...picture('Lakeshore', 'Lakeshore: simulation'), width: 1224, height: 498 }
+    const ctx = context('district-summary', names, {
+      images: allImages(names),
+      figures: [sheet],
+      recipeParts: ['simulation-pages'],
+    })
+    const out = part('simulation-pages').build(ctx)
+    expect(kinds(out.blocks)).toEqual(['figurePair', 'figureGrid'])
+    expect(out.blocks[0]).toMatchObject({ landscape: true })
+    const pair = out.blocks[0]
+    expect(pair.kind === 'figurePair' && pair.slots[0]).toMatchObject({
+      label: 'Figure 1: Lakeshore – Simulated cutblocks',
+      figure: sheet,
+      note: SIMULATION_DISCLAIMER,
+    })
+    expect(out.blocks[1]).toMatchObject({ landscape: true, caption: 'Figure 2: Oblique renders, model confirmation' })
+    expect(SIMULATION_DISCLAIMER).toContain('not a field-verified photograph')
+    const html = extraBlockHtml(out.blocks[0])
+    expect(html).toContain('class="vf-pair vf-landscape"')
+    expect(html).toContain('not a field-verified photograph')
+    expect(FIGURES_CSS).toContain('.vf-landscape{page:via-figure')
+    expect(extraBlockHtml(out.blocks[1])).toContain('vf-grid vf-landscape')
+    // Without a saved view: a placeholder, listed.
+    const empty = part('simulation-pages').build(
+      context('district-summary', names, { recipeParts: ['simulation-pages'], figures: [] }),
+    )
+    expect(empty.toComplete).toEqual(['Lakeshore: simulation (save the viewpoint)'])
+  })
+})
+
+describe('panorama figure pages (26)', () => {
+  const names = ['Hwy 31']
+  const tall = (view: string): ReportFigure => ({
+    ...picture(view),
+    width: 2400,
+    height: 2769,
+    landformRows: { y: 1500, height: 200 },
+    marks: [{ x: 0.2, y: 0.58, label: 'Block 2', status: 'possible glimpses' }],
+  })
+  const images = { ...allImages(names), after: { 'Hwy 31': tall('after') } }
+
+  it('shows a wide band round the landform when the recipe asks, the marks in the same band', () => {
+    const ctx = context('referral-panoramas', names, { images, recipeOptions: { figurePanorama: 2.4 } })
+    const html = part('ea-figure-pages').build(ctx).blocks.map(extraBlockHtml).join('')
+    // 2400 / 1000 rows: the box is 2.4:1, the band 1100-2100 of 2769.
+    expect(html).toContain('class="vf-pic vf-fit vf-pano" style="--ar:2.4000"')
+    expect(html).toContain('object-fit:cover;object-position:50% 62.18%')
+    // The slot round it takes the band's shape too, so the box is as wide as the column allows.
+    expect(html).toContain('<div class="vf-slot vf-sized" style="--ar:2.4000"><div class="vf-bar">After project')
+    expect(html).toContain('viewBox="0 1100 2400 1000"')
+  })
+
+  it('shows the whole picture without the option', () => {
+    const html = part('ea-figure-pages')
+      .build(context('referral-panoramas', names, { images }))
+      .blocks.map(extraBlockHtml)
+      .join('')
+    expect(html).not.toContain('vf-pano')
+  })
+})
+
+describe('the portrait end map page', () => {
+  it('is never taken over by the landscape analysis-sheet page rule', () => {
+    const map: ReportFigure = {
+      ...picture('end map'),
+      width: 2135,
+      height: 3300,
+      map: { scale: '1:25,000', inPicture: true },
+    }
+    const html = reportHtml(report([{ kind: 'figure', figure: map, caption: 'VIA overview map' }]), null)
+    expect(html).toContain('<figure class="sheet portrait">')
+    // Equal specificity: the landscape rule must exclude portrait sheets, or it wins by coming later.
+    expect(html).toContain('figure.sheet:not(.full):not(.portrait){page:sheet')
   })
 })

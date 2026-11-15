@@ -7,6 +7,8 @@ import {
   planFraming,
   parseFigureFrame,
   planFixedFraming,
+  panoramaBand,
+  savedFigureFraming,
 } from './figureFraming'
 import { metersPerDegree } from './visibility'
 
@@ -92,6 +94,21 @@ describe('framing a landform', () => {
     expect(wide.crop.height).toBeCloseTo(1)
     expect(wide.crop.width).toBeLessThan(1)
   })
+
+  it('draws through a wider field when asked, cropping the same pinhole window from it', () => {
+    const frame = { bearingDeg: 0, pitchDeg: 0, hfovDeg: 27.1, vfovDeg: 30.13 }
+    const plain = canvasWindow(frame, 1.04)
+    const wide = canvasWindow(frame, 1.04, 75)
+    expect(wide.verticalFovDeg).toBeCloseTo(75)
+    // The window's half-angles are the frame's own either way: tan(half field) × crop share.
+    const tan = (deg: number) => Math.tan((deg * Math.PI) / 360)
+    for (const w of [plain, wide]) {
+      expect(tan(w.verticalFovDeg) * w.crop.height).toBeCloseTo(tan(frame.vfovDeg), 9)
+      expect(tan(w.verticalFovDeg) * 1.04 * w.crop.width).toBeCloseTo(tan(frame.hfovDeg), 9)
+    }
+    // A field already wider than the minimum is left alone.
+    expect(canvasWindow(frame, 1.04, 10)).toEqual(plain)
+  })
 })
 
 describe('projecting into a framed capture', () => {
@@ -149,5 +166,34 @@ describe('a fixed frame, as a reference panorama was taken', () => {
     expect(parseFigureFrame({ bearingDeg: 10, spanDeg: 200 })).toBeNull()
     expect(parseFigureFrame({ bearingDeg: 10 })).toBeNull()
     expect(parseFigureFrame(null)).toBeNull()
+  })
+})
+
+describe('panoramaBand', () => {
+  it('takes a band at least minAspect wide round the landform rows, kept inside the picture', () => {
+    // 2400 x 2769 portrait, landform rows 1500-1700: a 1000-row band centred on them.
+    expect(panoramaBand({ y: 1500, height: 200 }, 2400, 2769, 2.4)).toEqual({ y: 1100, height: 1000 })
+    // Near the bottom: clamped to the picture.
+    expect(panoramaBand({ y: 2600, height: 150 }, 2400, 2769, 2.4)).toEqual({ y: 1769, height: 1000 })
+    // A landform taller than the band keeps all its rows, with 15% to spare.
+    expect(panoramaBand({ y: 200, height: 1200 }, 2400, 2769, 2.4)).toEqual({ y: 110, height: 1380 })
+    // Already wide, or no rows: no crop.
+    expect(panoramaBand({ y: 100, height: 100 }, 2400, 800, 2.4)).toBeNull()
+    expect(panoramaBand(null, 2400, 2769, 2.4)).toBeNull()
+  })
+})
+
+describe('a saved view drawn again', () => {
+  it('keeps the frame and landform it was saved with, whatever scene is open by then', () => {
+    const open = { figureFrame: { bearingDeg: 200, spanDeg: 60 }, landform: 'landform at the last viewpoint' }
+    const first = { figureFrame: { bearingDeg: 12.5, spanDeg: 115 }, landform: 'landform at the first viewpoint' }
+    expect(savedFigureFraming(first, open)).toEqual(first)
+    // Saved framed on its landform (no fixed frame): it stays so, and is not given the open scene's frame.
+    expect(savedFigureFraming({ figureFrame: null, landform: null }, open)).toEqual({
+      figureFrame: null,
+      landform: null,
+    })
+    // Saved before these were kept: the open scene's.
+    expect(savedFigureFraming({}, open)).toEqual(open)
   })
 })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MIN_LEDGER_CELLS_PER_PROPOSAL, computeAnalysis, prepareTargets } from './analysis'
+import type { CanopyStand } from './canopy'
 import type { ElevationSource } from './terrain'
 import { DEFAULT_ANALYSIS_SETTINGS, type AnalysisInput, type TargetPolygon } from './types'
 import { polygonAreaMeters } from './visibility'
@@ -695,5 +696,45 @@ describe('a partial cut', () => {
     expect(partial.perspectiveAlteration!.proposedPercent).toBe(0)
     expect(partial.targets.find((target) => target.targetId === 'block')!.visibleAreaMeters).toBeGreaterThan(0)
     expect(partial.quality!.underResolvedTargetIds).toEqual([])
+  })
+})
+
+describe('what hides a sample', () => {
+  // A block 3.3 km east of an eye 20 m above flat ground: the bare ground is in sight.
+  const BLOCK = box(-0.004, -0.004, 0.004, 0.004)
+  const STAND = box(-0.02, -0.01, -0.015, 0.01)
+  const RIDGE: ElevationSource = { elevationAt: (lng) => (lng > -0.01 && lng < -0.009 ? 60 : 0) }
+
+  function codes(source: ElevationSource, stands: CanopyStand[]) {
+    const input: AnalysisInput = {
+      viewpoint: { mode: 'spot', coordinates: [[-0.03, 0]] },
+      targets: [
+        { id: 'block', name: 'block', role: 'block', geometry: BLOCK, harvestYear: null, clearcutPercent: null },
+      ],
+      settings: {
+        ...DEFAULT_ANALYSIS_SETTINGS,
+        observerHeightMeters: 20,
+        maxViewDistanceMeters: 40000,
+        sampleBudget: 100,
+        screeningEnabled: true,
+      },
+      assessmentYear: 2026,
+    }
+    const result = computeAnalysis(source, input, TERRAIN, undefined, stands)
+    return [...result.targets.find((target) => target.targetId === 'block')!.visibleByStation]
+  }
+  const timber: CanopyStand = { geometry: STAND, heightMeters: 25, crownClosurePercent: 70 }
+
+  it('sees the block over open flat ground', () => {
+    expect(new Set(codes(FLAT, []))).toEqual(new Set([1]))
+  })
+
+  it('marks a sample hidden only by standing timber as 3, never as visible', () => {
+    expect(new Set(codes(FLAT, [timber]))).toEqual(new Set([3]))
+  })
+
+  it('marks a sample the ground itself hides as 0, with or without timber in front', () => {
+    expect(new Set(codes(RIDGE, []))).toEqual(new Set([0]))
+    expect(new Set(codes(RIDGE, [timber]))).toEqual(new Set([0]))
   })
 })

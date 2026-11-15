@@ -142,7 +142,14 @@ export const findAlterationRule = (id: string | null | undefined): AlterationRul
 /** Measured areas, all in one unit. `landform` is the whole visible landform, private land and rock included. */
 export interface AlterationAreas {
   landform: number
+  /** Proposed blocks measured as cleared ground. A partial cut is never in it: see `partialCut`. */
   proposed: number
+  /**
+   * Partial-cut blocks in the landform (handbook 3.4.4). Not cleared ground, so no rule adds it: its Table 6 clearcut
+   * equivalent is added to X by the run (`partialCutEntries`, via.ts), and the sheet and documents state the area
+   * beside the figure. Kept here so a document can say what was left out.
+   */
+  partialCut?: number
   nonVeg: number
   otherPlanned?: number
   privateLand?: number

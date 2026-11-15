@@ -31,6 +31,8 @@ export interface ReportFigure {
    * (`figureCallouts.ts`). A part draws a marker from them, never an outline.
    */
   marks?: ReadonlyArray<{ x: number; y: number; label: string; status: string }>
+  /** The landform's rows in the picture, pixels, when a framed render knows them: what a panorama slot centres on. */
+  landformRows?: { y: number; height: number }
 }
 
 /** What a map picture carries beside the picture itself. Nothing is drawn for what is absent. */
@@ -61,6 +63,11 @@ export interface FigureSlot {
    * seen (26); `all`, an arrow and label to every block (05/06's labelled simulations). None when absent.
    */
   markBlocks?: 'unseen' | 'all'
+  /**
+   * Show the picture as a panorama at least this many times as wide as tall, a band round its `landformRows`
+   * (`panoramaBand`), as 26's Figure 2 prints them. The picture itself is unchanged; without rows it shows whole.
+   */
+  panorama?: number
 }
 
 export type ReportBlock =
@@ -129,7 +136,17 @@ export type ReportBlock =
       /** Printed before the tick labels, e.g. the handbook form's "%alt:". */
       axisLabel?: string
     }
-  | { kind: 'choices'; label: string; options: string[]; chosen: string | null; source: Provenance }
+  | {
+      kind: 'choices'
+      label: string
+      options: string[]
+      chosen: string | null
+      source: Provenance
+      /** A one-line answer printed under the question in bold (the boxed summary's justification); blank when null. */
+      answer?: string | null
+      /** Drawn as a ruled box with the tick boxes on the right, as the boxed VIA summary prints each question. */
+      boxed?: boolean
+    }
   | { kind: 'figure'; figure: ReportFigure | null; caption: string; placeholder?: string }
   | { kind: 'signature'; lines: string[] }
   | { kind: 'pageBreak' }
@@ -154,11 +171,31 @@ export type ReportBlock =
    * Pictures of one view stacked one over the other (photograph over simulation, existing over proposed), on a page
    * of their own. `inset` prints each label in the picture's top-left corner (05, 06), `caption` under it (01).
    */
-  | { kind: 'figurePair'; title?: string; slots: FigureSlot[]; placement: 'inset' | 'caption' }
+  | {
+      kind: 'figurePair'
+      title?: string
+      slots: FigureSlot[]
+      placement: 'inset' | 'caption'
+      /** Printed on a landscape page of its own, each picture across its width (02's simulation pages). */
+      landscape?: boolean
+    }
   /** A map across the page, its legend, scale and north arrow (`ReportFigure.map`), and its caption. */
-  | { kind: 'mapFigure'; slot: FigureSlot; caption: string }
+  | {
+      kind: 'mapFigure'
+      slot: FigureSlot
+      caption: string
+      /** Shares its page with the figures after it (01's overhead over its obliques): drawn at most about 4 in tall. */
+      compact?: boolean
+    }
   /** Pictures side by side in `columns` columns, each with its label under it, and one caption for them all. */
-  | { kind: 'figureGrid'; slots: FigureSlot[]; columns: 1 | 2 | 3; caption: string }
+  | {
+      kind: 'figureGrid'
+      slots: FigureSlot[]
+      columns: 1 | 2 | 3
+      caption: string
+      /** Printed on a landscape page of its own (02's oblique simulations). */
+      landscape?: boolean
+    }
 
 export interface ReportItemToComplete {
   part: string

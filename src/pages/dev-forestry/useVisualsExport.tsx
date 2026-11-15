@@ -19,10 +19,12 @@ import {
   figureNoteImage,
   NO_FIGURE_CHOICE,
   resolveFigureChoice,
+  timberMeasureFor,
   type FigureChoice,
   type FigureView,
   type SavedFigure,
 } from './FigureSheetPanel'
+import { TIMBER_ABSENT, type TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 import { FS1252_OFFICE_FIELDS, Fs1252Options, type Fs1252Choice } from './Fs1252Options'
 import {
   LAND_CHECK_CAVEAT,
@@ -48,6 +50,7 @@ import {
   type RoadRendererId,
 } from './externalRenderers'
 import { estimateRender, formatRemaining, type RenderEngineId, type RenderHistory } from './renderEstimate'
+import { DEFAULT_OVERVIEW_SHEET_STYLE, OVERVIEW_SHEET_STYLES, type OverviewSheetStyle } from './reportMaps'
 import { documentFacts } from './viaDocument/facts'
 import { VIA_DOCUMENT_FORMATS, findDocumentFormat } from './viaDocument/formats'
 import { documentMarkdown } from './viaDocument/markdown'
@@ -102,6 +105,13 @@ const progressText = (progress: AnalysisProgress | null) =>
     : progress.phase === 'terrain'
       ? `fetching terrain, ${progress.completed} of ${progress.total} tiles`
       : `tracing sightlines${progress.total ? `, ${Math.round((100 * progress.completed) / progress.total)}%` : ''}`
+
+/** Before-harvest renders by view id, and why a view has none (`captureBeforeRenders` on the page). */
+type BeforeRenders = {
+  renders: Record<string, { dataUrl: string; width: number; height: number }>
+  absent: Record<string, string>
+  notes: string[]
+}
 
 /** Whether Save & export is open and on which output; made before the panels that open it. */
 export function useExportOpener() {
@@ -187,7 +197,18 @@ export function useVisualsExport(input: {
    */
   captureReportImages?: (request: {
     views: ReadonlyArray<{ id: string; name: string }>
-  }) => Promise<{ images: ReportImages; notes: string[] }>
+    overviewSheet?: {
+      style: OverviewSheetStyle
+      logo: import('@/lib/mapSheet/drawOps').RasterImage | null
+      project: string | null
+    }
+    obliquePitch?: number
+  }) => Promise<{ images: ReportImages; notes: string[]; beforeRenders?: BeforeRenders }>
+  /**
+   * Before-harvest renders of saved views from their own framed poses, for the with-timber pixel figure
+   * (`timberMeasureFor`); absent, the figure says no before render was taken.
+   */
+  captureBeforeRenders?: (views: ReadonlyArray<{ id: string; name: string }>) => Promise<BeforeRenders>
   portalContainer?: HTMLElement | null
 }) {
   const {
@@ -222,6 +243,8 @@ export function useVisualsExport(input: {
   const [figureRenderer, setFigureRenderer] = useState<RoadRendererId>('pgmaps')
   // The VIA report's recipe; until chosen, the one that reads the document's format.
   const [reportRecipeId, setReportRecipeId] = useState<string | null>(null)
+  // The 11 × 17 overview sheet's style; until chosen, the recipe's (`overviewSheetStyle`), else landscape topographic.
+  const [overviewSheetChoice, setOverviewSheetChoice] = useState<OverviewSheetStyle | null>(null)
   // The logo printed sheets and reports carry (the user's own, else the brand's), kept in IndexedDB.
   const branding = useBranding()
   // The block note's choices last as long as the page: views left out, land checks in or out.
@@ -243,7 +266,13 @@ export function useVisualsExport(input: {
   }, [open, noteBlock, inventoryState.status, inventoryState.blockId, onLoadInventory])
 
   // The report's captured maps and pictures, kept for the scene and views they were taken from.
-  const reportCaptures = useRef<{ key: string; value: { images: ReportImages; notes: string[] } } | null>(null)
+  const reportCaptures = useRef<{
+    key: string
+    value: { images: ReportImages; notes: string[]; beforeRenders?: BeforeRenders }
+  } | null>(null)
+  // The with-timber measures made this session, by scene, view and save: a before render moves the road view for a
+  // few seconds, so a view is rendered once. Only measured ones are kept; an absent one is looked for again.
+  const timberMeasures = useRef(new Map<string, TimberMeasure>())
 
   // Closed, the dialog costs the page nothing: this page re-renders several times a second while the
   // road view moves, and nothing below is needed until the dialog opens.
@@ -283,14 +312,19 @@ export function useVisualsExport(input: {
       0,
     )
   const engineLeftMs = engineRunning ? (renders?.leftMs ?? 0) + notStartedMs : missingJobs.length ? notStartedMs : null
-  const engineUnavailable = engineId
-    ? (roadRendererUnavailable(engineId, {
+  const engineBlocked = engineId
+    ? roadRendererUnavailable(engineId, {
         url: roadRendererUrl(engineId, import.meta.env),
         webGpu: typeof navigator !== 'undefined' && 'gpu' in navigator,
-      }) ??
+      })
+    : null
+  // The road view's terrain reloads after a run (a report runs one when stale): the renders wait for it.
+  const engineSettling = !!engineId && !engineBlocked && !!renders && !renders.ready && missingJobs.length > 0
+  const engineUnavailable = engineId
+    ? (engineBlocked ??
       (!renders
         ? 'background renders are not available here.'
-        : !renders.ready && missingJobs.length
+        : engineSettling
           ? 'open the road view and let its terrain load: the engine draws from it.'
           : null))
     : null
@@ -302,6 +336,37 @@ export function useVisualsExport(input: {
   }))
   const resolved = resolveFigureChoice(figureChoice, figureViews, roadView)
 
+  // PGMaps' with-timber pixel figure: the view's before-harvest render against its after picture (`timberScreen.ts`).
+  const timberKey = (id: string) => `${input.sceneKey}|${id}|${images[id]?.savedAt ?? ''}`
+  /** Each view's measure from `before` (or one kept from earlier), or why it has none. Keeps the measured ones. */
+  const measureTimber = async (
+    views: ReadonlyArray<{ id: string }>,
+    before: BeforeRenders | null,
+  ): Promise<Record<string, TimberMeasure>> => {
+    const out: Record<string, TimberMeasure> = {}
+    for (const view of views) {
+      const kept = timberMeasures.current.get(timberKey(view.id))
+      const figure = images[view.id]?.figure
+      if (kept) out[view.id] = kept
+      else if (figure) {
+        const render = before?.renders[view.id] ?? null
+        const measure: TimberMeasure = render
+          ? await timberMeasureFor(figure, render)
+          : { kind: 'absent', reason: before?.absent[view.id] ?? TIMBER_ABSENT.noBefore }
+        if (measure.kind === 'measured') timberMeasures.current.set(timberKey(view.id), measure)
+        out[view.id] = measure
+      }
+    }
+    return out
+  }
+  /** As `measureTimber`, rendering before harvest the views not yet measured (this moves the road view). */
+  const timberFor = async (views: ReadonlyArray<{ id: string; name: string }>) => {
+    const missing = views.filter((view) => !timberMeasures.current.has(timberKey(view.id)) && images[view.id]?.figure)
+    const before = missing.length && input.captureBeforeRenders ? await input.captureBeforeRenders(missing) : null
+    if (before?.notes.length) console.warn(`With-timber pixel figure:\n${before.notes.join('\n')}`)
+    return measureTimber(views, before)
+  }
+
   const landform = findSceneLandform(scene)
   const blocks = scene.targets.filter((target) => target.role === 'block')
 
@@ -310,9 +375,11 @@ export function useVisualsExport(input: {
     findDocumentFormat(documentFormatId) ??
     VIA_DOCUMENT_FORMATS.find((format) => format.style === roadView.styleId) ??
     VIA_DOCUMENT_FORMATS[0]
-  const documentViews = figureViews.flatMap((view) =>
-    view.image?.figure ? [{ name: view.name, figure: view.image.figure }] : [],
-  )
+  // A with-timber measure made this session (by the analysis sheet or the report) reaches the document too.
+  const documentViews = figureViews.flatMap((view) => {
+    const timber = timberMeasures.current.get(timberKey(view.id))
+    return view.image?.figure ? [{ name: view.name, figure: view.image.figure, ...(timber ? { timber } : {}) }] : []
+  })
   const facts = documentViews.length
     ? documentFacts({
         project: blocks.length ? blocks.map((entry) => entry.name).join(', ') : 'the proposed blocks',
@@ -332,16 +399,22 @@ export function useVisualsExport(input: {
     findReportRecipe(reportRecipeId) ??
     REPORT_RECIPES.find((recipe) => recipe.format === documentFormat.id) ??
     REPORT_RECIPES[0]
+  const overviewSheetStyle: OverviewSheetStyle =
+    overviewSheetChoice ?? reportRecipe.overviewSheetStyle ?? DEFAULT_OVERVIEW_SHEET_STYLE
   const reportViews: ReportView[] = figureViews.flatMap((view) =>
     view.image?.figure
       ? [{ name: view.name, figure: view.image.figure, settings: figureImages[view.id]?.viewpoint?.settings ?? null }]
       : [],
   )
-  const reportContext = (figures: readonly ReportFigure[], images?: ReportImages) =>
+  const reportContext = (
+    figures: readonly ReportFigure[],
+    images?: ReportImages,
+    views: readonly ReportView[] = reportViews,
+  ) =>
     buildReportContext({
       recipe: reportRecipe,
       scene,
-      views: reportViews,
+      views,
       assessmentStation: result?.assessmentStationIndex ?? null,
       assessment,
       breakdown: result?.perspectiveAlteration ?? null,
@@ -438,6 +511,7 @@ export function useVisualsExport(input: {
       measured: !!engineId && (renders?.history ?? []).some((entry) => entry.engine === engineId),
       failed: engineFailed ? `${engineFailed.job.viewName}: ${engineFailed.error}` : null,
       unavailable: engineUnavailable,
+      settling: engineSettling,
     },
     logo: chosenLogo
       ? chosenLogo.source === 'uploaded'
@@ -503,6 +577,7 @@ export function useVisualsExport(input: {
     figureRenderer,
     engineJobs.map((job) => (renders?.figures[job.key] ? 1 : 0)).join(''),
     reportRecipe.id,
+    overviewSheetStyle,
     chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo',
   ].join('|')
 
@@ -529,29 +604,14 @@ export function useVisualsExport(input: {
       }
       case 'analysis-sheet': {
         const { printedLogoRaster } = await import('@/branding/raster')
-        return analysisSheetFile(resolved, format === 'png' ? 'png' : 'pdf', await printedLogoRaster(branding))
+        // PGMaps' own figure prints its with-timber pixel figure: the view rendered before harvest, once a session.
+        const view = resolved.view
+        const timber = view && !view.image?.figure?.illustration ? ((await timberFor([view]))[view.id] ?? null) : null
+        return analysisSheetFile(resolved, format === 'png' ? 'png' : 'pdf', await printedLogoRaster(branding), timber)
       }
       case 'via-report': {
         if (!reportViews.length) throw new Error('Save a viewpoint in the road view first.')
-        // Each view's analysed figure in the report's own style, named as the report names its viewpoint.
         const names = reportContext([]).facts.viewpoints.map((vp) => vp.name)
-        const style = reportRecipe.figureStyle ?? recipeFormat(reportRecipe).style ?? DEFAULT_FIGURE_STYLE
-        const figures: ReportFigure[] = await Promise.all(
-          figureViews
-            .filter((view) => view.image?.figure)
-            .map(async (view, index) => {
-              const image = await figureNoteImage(view.image!, style)
-              return {
-                view: names[index] ?? view.name,
-                caption: `${names[index] ?? view.name}: ${image.caption}${
-                  view.image?.figure?.illustration ? ` Drawn by ${view.image.figure.illustration.renderer}.` : ''
-                }`,
-                dataUrl: image.dataUrl,
-                width: image.width,
-                height: image.height,
-              }
-            }),
-        )
         // The maps and before pictures are captured now, once per scene and set of views: Preview and Download
         // build the same file, and the captures move the page's maps for a few seconds each.
         const reportViewIds = figureViews.filter((view) => view.image?.figure)
@@ -559,11 +619,23 @@ export function useVisualsExport(input: {
           input.sceneKey,
           reportViewIds.map((view) => `${view.id}:${figureImages[view.id]?.savedAt ?? ''}`).join(','),
           inventoryState.status,
+          overviewSheetStyle,
+          overviewSheetStyle === 'end-map-portrait'
+            ? `${chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo'}|${draftReport?.subtitle ?? ''}`
+            : '',
+          reportRecipe.obliquePitch ?? '',
         ].join('|')
         let captured = reportCaptures.current?.key === captureKey ? reportCaptures.current.value : null
         if (!captured && input.captureReportImages) {
+          // The portrait end map's title block takes the printed logo and the report's project line.
+          const endMapLogo =
+            overviewSheetStyle === 'end-map-portrait'
+              ? await (await import('@/branding/raster')).printedLogoRaster(branding)
+              : null
           captured = await input.captureReportImages({
             views: reportViewIds.map((view, index) => ({ id: view.id, name: names[index] ?? view.name })),
+            overviewSheet: { style: overviewSheetStyle, logo: endMapLogo, project: draftReport?.subtitle ?? null },
+            ...(reportRecipe.obliquePitch !== undefined ? { obliquePitch: reportRecipe.obliquePitch } : {}),
           })
           reportCaptures.current = { key: captureKey, value: captured }
           // What could not be captured prints as a placeholder in the report; the reason goes to the console.
@@ -572,8 +644,31 @@ export function useVisualsExport(input: {
           if (import.meta.env.DEV)
             (window as unknown as { __viaReportCaptures?: unknown }).__viaReportCaptures = captured
         }
+        // The with-timber pixel figure of each PGMaps view, from the before renders just taken (or kept from earlier).
+        const timber = await measureTimber(reportViewIds, captured?.beforeRenders ?? null)
+        // Each view's analysed figure in the report's own style, named as the report names its viewpoint. A report
+        // with calculation pages composes them on an 11 × 17 page (`tabloidFigure`), which it prints on its own page.
+        const style = reportRecipe.figureStyle ?? recipeFormat(reportRecipe).style ?? DEFAULT_FIGURE_STYLE
+        const tabloid = reportRecipe.parts.includes('calculations')
+        const figures: ReportFigure[] = await Promise.all(
+          reportViewIds.map(async (view, index) => {
+            const image = await figureNoteImage(view.image!, style, {
+              ...(timber[view.id] ? { timber: timber[view.id] } : {}),
+              tabloid,
+            })
+            return {
+              view: names[index] ?? view.name,
+              caption: `${names[index] ?? view.name}: ${image.caption}${
+                view.image?.figure?.illustration ? ` Drawn by ${view.image.figure.illustration.renderer}.` : ''
+              }`,
+              dataUrl: image.dataUrl,
+              width: image.width,
+              height: image.height,
+            }
+          }),
+        )
         // Each view's plain simulation (its framed capture, else its screenshot) for the "after" pictures.
-        const after = Object.fromEntries(
+        const after: Record<string, ReportFigure> = Object.fromEntries(
           figureViews
             .filter((view) => view.image?.figure)
             .map((view, index) => {
@@ -605,11 +700,48 @@ export function useVisualsExport(input: {
             }),
         )
         const images = { ...(captured?.images ?? {}), after }
-        const context = reportContext(figures, images)
+        // Where the landform lies in each render (the figure's crop rows), so a recipe that prints panoramas (26)
+        // shows a wide band round it (`panoramaBand`, drawn by the report). Before renders share the view's frame;
+        // a field photograph has its own framing and takes none.
+        {
+          // The after pictures are keyed by the report's names, the before pictures by the views' own.
+          const viewsByName = new Map(
+            figureViews.flatMap((view, index) => [
+              [view.name, view],
+              [names[index] ?? view.name, view],
+            ]),
+          )
+          const rowsFor = (name: string, picture: { width: number; height: number }) => {
+            const figure = viewsByName.get(name)?.image?.figure
+            const frame = figure?.frameImage
+            const rows = figure?.landformRows ?? figure?.crop
+            if (!frame || !rows || frame.width !== picture.width || frame.height !== picture.height) return null
+            return rows
+          }
+          for (const [name, picture] of Object.entries(after)) {
+            const rows = rowsFor(name, picture)
+            if (rows) after[name] = { ...picture, landformRows: rows }
+          }
+          const before = { ...(images.before ?? {}) }
+          for (const [name, picture] of Object.entries(before)) {
+            const rows = picture.source === 'render' ? rowsFor(name, picture) : null
+            if (rows) before[name] = { ...picture, landformRows: rows }
+          }
+          images.before = before
+        }
+        const context = reportContext(
+          figures,
+          images,
+          reportViews.map((view) => {
+            const id = figureViews.find((entry) => entry.name === view.name)?.id
+            return id && timber[id] ? { ...view, timber: timber[id] } : view
+          }),
+        )
         // Development only: the pictures and facts the report was built from, for the reference comparison.
         if (import.meta.env.DEV)
           Object.assign(window as unknown as Record<string, unknown>, {
             __viaReportAfter: after,
+            __viaReportBefore: images.before,
             __viaReportFacts: context.facts,
           })
         const report = assembleReport(reportRecipe, context)
@@ -777,6 +909,23 @@ export function useVisualsExport(input: {
             </option>
           ))}
         </StyledSelect>
+        {reportRecipe.parts.includes('overview-sheet') && (
+          <label className="grid gap-1 text-xs">
+            <span className="text-muted-foreground">Overview sheet</span>
+            <StyledSelect
+              aria-label="Overview sheet"
+              className="w-full rounded-md border bg-background p-1"
+              value={overviewSheetStyle}
+              onChange={(event) => setOverviewSheetChoice(event.target.value as OverviewSheetStyle)}
+            >
+              {OVERVIEW_SHEET_STYLES.map((style) => (
+                <option key={style.id} value={style.id}>
+                  {style.id === 'topo-landscape' ? 'Landscape topographic' : 'Portrait end map'} (11 × 17)
+                </option>
+              ))}
+            </StyledSelect>
+          </label>
+        )}
         <LogoChooser />
       </div>
     ),

@@ -24,6 +24,9 @@ export type FormMetadata = {
   recommendedVqc?: string
   sourceDocument?: string
   evaluator?: string
+  /** Not on the FS1252: VIA reports read these (the district summary's inventory date and lake row). */
+  lakeManagementZone?: string
+  inventoryDate?: string
 }
 /** Five items because the supplied 2008 form is not the six-item 2022 VIA form. */
 export type FormReview = {

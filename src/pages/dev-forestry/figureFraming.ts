@@ -225,6 +225,22 @@ export function planFraming(extent: AngularExtent, rule: FramingRule = {}): Fram
  */
 export type FigureFrame = { bearingDeg: number; spanDeg: number; pitchDeg?: number; vfovDeg?: number }
 
+/**
+ * What a saved view is framed and split by when it is drawn again (its before render, an engine's background render):
+ * the fixed frame and the landform it was saved with, never those of the scene open by then, which in a scene whose
+ * viewpoint changed between saves framed every earlier view on the last viewpoint's frame. A saved null stays null
+ * (the view was framed on its landform); only a view saved before these were kept (`undefined`) takes the open ones.
+ */
+export function savedFigureFraming<L>(
+  saved: { figureFrame?: FigureFrame | null; landform?: L | null },
+  open: { figureFrame: FigureFrame | null; landform: L | null },
+): { figureFrame: FigureFrame | null; landform: L | null } {
+  return {
+    figureFrame: saved.figureFrame !== undefined ? saved.figureFrame : open.figureFrame,
+    landform: saved.landform !== undefined ? saved.landform : open.landform,
+  }
+}
+
 /** Widest single frame of a fixed framing; wider spans are tiled, which approximates a cylindrical panorama. */
 export const FIXED_FRAME_MAX_HFOV = 40
 
@@ -272,14 +288,16 @@ export function planFixedFraming(frame: FigureFrame, extent: AngularExtent | nul
 /**
  * The part of a canvas showing `frame` when the map is drawn at its `hfovDeg` across: the map's
  * vertical field to set, and the centred crop (shares of width and height) that leaves the frame's
- * own window. Never stretched: the canvas covers at least the frame both ways.
+ * own window. Never stretched: the canvas covers at least the frame both ways. `minVerticalFovDeg`
+ * widens the map's field further, the window shrinking to match, so the frame's pixels are the same
+ * pinhole view (`mapCapture.ts` uses it for the terrain's level of detail).
  */
-export function canvasWindow(frame: FrameCamera, canvasAspect: number) {
+export function canvasWindow(frame: FrameCamera, canvasAspect: number, minVerticalFovDeg = 0) {
   const tanH = Math.tan((frame.hfovDeg * DEG) / 2),
     tanV = Math.tan((frame.vfovDeg * DEG) / 2)
   // The map's vertical field when the canvas is exactly as wide as the frame.
   const canvasTanV = tanH / canvasAspect
-  const mapTanV = Math.max(canvasTanV, tanV)
+  const mapTanV = Math.max(canvasTanV, tanV, Math.tan((Math.min(170, minVerticalFovDeg) * DEG) / 2))
   return {
     verticalFovDeg: (2 * Math.atan(mapTanV)) / DEG,
     crop: { width: Math.min(1, tanH / (mapTanV * canvasAspect)), height: Math.min(1, tanV / mapTanV) },
@@ -333,4 +351,23 @@ export function projectToFrames(
     }
     return null
   }
+}
+
+/**
+ * A wide band of a framed capture for a report's panorama panels (26's Figure 2): at least `minAspect` wide for its
+ * height, centred on the landform's rows (`crop`), never cutting into them (they take 15% more when taller than the
+ * band). Null when the picture is already that wide or the band would be the whole picture.
+ */
+export function panoramaBand(
+  crop: { y: number; height: number } | null | undefined,
+  width: number,
+  height: number,
+  minAspect: number,
+): { y: number; height: number } | null {
+  if (!crop || width <= 0 || height <= 0 || width / height >= minAspect) return null
+  const band = Math.round(Math.min(height, Math.max(width / minAspect, crop.height * 1.15)))
+  if (band >= height) return null
+  const centre = crop.y + crop.height / 2
+  const y = Math.round(Math.min(height - band, Math.max(0, centre - band / 2)))
+  return { y, height: band }
 }

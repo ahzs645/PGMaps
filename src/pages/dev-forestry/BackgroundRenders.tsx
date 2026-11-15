@@ -65,6 +65,15 @@ const HISTORY_KEY = 'pgmaps.forestryVisuals.renderHistory'
 const HELLO_TIMEOUT_MS = 30_000
 /** Longest one final capture may take once the scene is ready (the engines' own watchdogs stop sooner). */
 const CAPTURE_TIMEOUT_MS = 15 * 60_000
+/**
+ * What a capture in flight is rejected with when the bridge it was posted through is torn down (its effect re-ran:
+ * a hot reload in development, or the engine page changing). The engine's `ready` then reaches the new bridge, which
+ * has nothing waiting, so the capture used to sit until `CAPTURE_TIMEOUT_MS`: a job stuck at "building the scene" for
+ * 15 min, on a page that had been open long enough to see a reload. The runner puts such a job back in the queue.
+ */
+export const BRIDGE_RESET = 'The connection to the engine page was reset.'
+/** How many times a job is put back after a bridge reset before it fails. */
+const RESET_RETRIES = 2
 
 function loadHistory(): RenderHistory {
   try {
@@ -107,6 +116,10 @@ function useCaptureBridge(
     let progress: ((p: { done: number; total: number }) => void) | null = null
     const replies = new Map<string, (data: unknown) => void>()
     let failure: ((message: string) => void) | null = null
+    // The capture in flight, to reject when this bridge is torn down rather than leave it waiting.
+    let abandon: (() => void) | null = null
+    // A handle taken before the bridge was torn down must not post into a bridge nothing listens to any more.
+    let closed = false
     const post = (data: unknown, transfer: Transferable[] = []) =>
       frame.current?.contentWindow?.postMessage(data, { targetOrigin: origin, transfer })
     const onMessage = (event: MessageEvent) => {
@@ -131,6 +144,10 @@ function useCaptureBridge(
     window.addEventListener('message', onMessage)
     const capture: EngineCaptureHandle['capture'] = (scene: ScenePackage, makeRequest) =>
       new Promise((resolve, reject) => {
+        if (closed) {
+          reject(new Error(BRIDGE_RESET))
+          return
+        }
         let id: string | null = null
         const timer = window.setTimeout(() => {
           readyWaiter = null
@@ -139,7 +156,12 @@ function useCaptureBridge(
         }, CAPTURE_TIMEOUT_MS)
         failure = (message) => {
           window.clearTimeout(timer)
+          abandon = null
           reject(new Error(`${info.label}: ${message}`))
+        }
+        abandon = () => {
+          window.clearTimeout(timer)
+          reject(new Error(BRIDGE_RESET))
         }
         readyWaiter = () => {
           readyWaiter = null
@@ -148,6 +170,7 @@ function useCaptureBridge(
           replies.set(request.id, (data) => {
             window.clearTimeout(timer)
             failure = null
+            abandon = null
             resolve(data)
           })
           post(request, captureTransfer(request))
@@ -172,7 +195,10 @@ function useCaptureBridge(
       onProgress: (cb) => (progress = cb),
     }
     return () => {
+      closed = true
       window.removeEventListener('message', onMessage)
+      abandon?.()
+      abandon = null
       replies.clear()
       readyWaiter = null
       handleRef.current = null
@@ -204,6 +230,8 @@ export function useBackgroundRenders(input: {
     runRef.current = input.run
   })
   const warmEngine = useRef<RenderEngineId | null>(null)
+  // Bridge resets per job key: a job is put back after one, at most `RESET_RETRIES` times.
+  const resets = useRef(new Map<string, number>())
   const historyRef = useRef(history)
   useEffect(() => {
     historyRef.current = history
@@ -292,8 +320,16 @@ export function useBackgroundRenders(input: {
         setHistory(nextHistory)
         update(job.key, { status: 'done', phase: null })
       } catch (error) {
-        update(job.key, { status: 'error', error: error instanceof Error ? error.message : String(error) })
-        warmEngine.current = null
+        const message = error instanceof Error ? error.message : String(error)
+        const reset = resets.current.get(job.key) ?? 0
+        if (message === BRIDGE_RESET && reset < RESET_RETRIES) {
+          // Drawn again from the start on the new bridge: the engine page itself is still loaded and warm.
+          resets.current.set(job.key, reset + 1)
+          update(job.key, { status: 'waiting', phase: null, startedAt: null, phaseAt: null, steps: null })
+        } else {
+          update(job.key, { status: 'error', error: message })
+          warmEngine.current = null
+        }
       } finally {
         busy.current = false
       }

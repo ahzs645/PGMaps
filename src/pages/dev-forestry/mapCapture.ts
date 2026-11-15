@@ -113,6 +113,8 @@ export async function captureAtCamera(
   camera: CaptureCamera,
   window_: { width: number; height: number },
   maxSide = MAX_SIDE,
+  /** Read the map while it still stands at the camera with its frame drawn (the end map reads its basemap here). */
+  onCamera?: (map: MapLibreMap) => void,
 ): Promise<CapturedImage & { pixelRatio: number }> {
   const centre = map.getCenter()
   const elevation = map.getCenterElevation?.()
@@ -184,6 +186,7 @@ export async function captureAtCamera(
       )
     }
     if (!canvas) throw new Error('The map kept moving off the capture’s camera.')
+    onCamera?.(map)
     return {
       dataUrl: canvas.toDataURL('image/jpeg', 0.88),
       width: canvas.width,
@@ -369,7 +372,20 @@ export type FramedCapture = {
 }
 
 /** Highest pixel ratio a framed capture draws the road view at. */
-export const MAX_CAPTURE_PIXEL_RATIO = 3
+export const MAX_CAPTURE_PIXEL_RATIO = 4
+
+/**
+ * Least vertical field a framed capture draws the map at, the frame's own window cropped from the middle. MapLibre
+ * picks each terrain tile's zoom by how steeply the camera looks down on it, measured against the height between the
+ * camera and its centre point. An eye-level frame has that height near zero, so every distant tile reads as seen
+ * edge-on, and the narrower the field the harder it is cut: at The Shores (VP4, 30° frames looking 0.15° down) the
+ * blocks 5.5 km away stood on one z6 terrain tile, whose mesh sagged behind a ridge 3.5 km out, so neither the
+ * picture nor the class pass showed them (0 px against a 1.82% sightline figure). Drawn through 75° the same tile is
+ * z8 and the blocks show (about 1,450 px). The terrain's tile manager takes no level-of-detail setting
+ * (`setSourceTileLodParams` does not reach it), so the field is the one lever. The frame's pixels are the same
+ * pinhole view either way.
+ */
+export const CAPTURE_MIN_VERTICAL_FOV_DEG = 75
 
 /**
  * The pixel ratio that gives each frame's window of the canvas `frameWidth` drawn pixels, so the sheet takes the
@@ -392,9 +408,10 @@ export function capturePixelRatio(input: {
 /**
  * The road view framed for an analysis sheet: for each of the plan's frames the eye map looks along
  * the frame's bearing and pitch from `eye` (pitch through `horizonSafePitch`, roll 0, so the
- * camera's matrices stay valid), at the frame's field, and the display and the class pass are read
- * from the centred window of the canvas that frame takes in. Frames are joined side by side. The
- * camera and field of view are put back as they were, even on failure.
+ * camera's matrices stay valid), through at least `CAPTURE_MIN_VERTICAL_FOV_DEG` of field, and the
+ * display and the class pass are read from the centred window of the canvas that frame takes in.
+ * Frames are joined side by side. The camera and field of view are put back as they were, even on
+ * failure.
  */
 export async function captureFramed(
   map: MapLibreMap,
@@ -428,7 +445,9 @@ export async function captureFramed(
   const ratio = capturePixelRatio({
     frameWidth,
     clientWidth: source.clientWidth,
-    cropWidth: Math.min(...plan.frames.map((frame) => canvasWindow(frame, aspect).crop.width)),
+    cropWidth: Math.min(
+      ...plan.frames.map((frame) => canvasWindow(frame, aspect, CAPTURE_MIN_VERTICAL_FOV_DEG).crop.width),
+    ),
     current: ratioBefore,
   })
   const joined = document.createElement('canvas')
@@ -446,7 +465,7 @@ export async function captureFramed(
     if (ratio > ratioBefore) map.setPixelRatio(ratio)
     for (let i = 0; i < plan.frames.length; i++) {
       const frame = plan.frames[i]
-      const window_ = canvasWindow(frame, aspect)
+      const window_ = canvasWindow(frame, aspect, CAPTURE_MIN_VERTICAL_FOV_DEG)
       map.setVerticalFieldOfView(window_.verticalFovDeg)
       // As the drive controller does: a target 40 m ahead keeps the near clip plane close.
       const pitch = horizonSafePitch(90 + frame.pitchDeg) - 90

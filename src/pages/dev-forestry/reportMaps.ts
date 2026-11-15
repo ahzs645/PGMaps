@@ -15,6 +15,8 @@
  * `FrameProjection` built from them (`frameProjectionFor`) lands every vertex where MapLibre drew it, and the scale
  * bar holds at the frame's centre latitude. No DOM or network access.
  */
+import proj4 from 'proj4'
+
 import { BLOCK_OF_INTEREST, SHEET_CHROME } from '@/lib/forestry/blockSheet/styles'
 import { viewerConeFeatures } from '@/lib/geo/viewerCone'
 import { boxesMeet, rectRing, type DrawOp, type Point } from '@/lib/mapSheet/drawOps'
@@ -42,6 +44,7 @@ import {
 import { fitText, textWidth } from '@/lib/mapSheet/textMetrics'
 import { ASSESSMENT_VIEWPOINT_COLOR, ROAD_COLOR } from './planMapStyle'
 import { ROLE_COLORS } from './scene'
+import { DEM_TILE_SIZE, demTileRange } from './terrain'
 import type { TargetPolygon } from './types'
 import { blockId } from './viaDocument/resolve'
 import {
@@ -72,6 +75,8 @@ export interface ReportViewpoint {
 export interface ReportMapFeatures {
   blocks: ReadonlyArray<{ name: string; geometry: PolygonGeometry }>
   openings: ReadonlyArray<{ name: string; geometry: PolygonGeometry }>
+  /** Wildlife tree patches and retention (the scene's `retained` masks); the end map draws them as WTRA. */
+  retention?: ReadonlyArray<{ name: string; geometry: PolygonGeometry }>
   /** The visual inventory's polygons with their established VQO (null: none established); empty when not read. */
   inventory: ReadonlyArray<{ id: string; code: EvqoCode | null; label: string | null; geometry: PolygonGeometry }>
   /** The road the viewpoints are on, when the scene has one. */
@@ -108,8 +113,13 @@ export interface ReportMapPlan {
   wedge?: { ring: LngLat[]; lengthM: number }
   /** Regional maps: the overview's ground, marked as the project area. */
   projectArea?: LngLatBounds
-  /** The 11 × 17 sheet: the round scale it states, true at the frame's centre latitude, and the paper it is drawn for. */
-  sheet?: { scale: number; paper: { widthIn: number; heightIn: number } }
+  /**
+   * The 11 × 17 sheet: the round scale it states, true at the frame's centre latitude, the paper it is drawn for, and
+   * its style (the landscape topographic sheet when absent).
+   */
+  sheet?: { scale: number; paper: { widthIn: number; heightIn: number }; style?: OverviewSheetStyle }
+  /** The portrait end map's page, grid ticks, contour interval, terrain zoom and key map (`planEndMap`). */
+  endMap?: EndMapPlan
 }
 
 /** Width over height of each map's window of the canvas. */
@@ -225,6 +235,8 @@ export function reportMapFeatures(input: {
   evqo: GeoJSON.FeatureCollection | null
   road: readonly LngLat[] | null
   viewpoints: readonly ReportViewpoint[]
+  /** The scene's assessment masks; only wildlife tree patches / retention (`retained`) are drawn. */
+  masks?: ReadonlyArray<{ name: string; kind: string; geometry: PolygonGeometry }>
 }): ReportMapFeatures {
   const inventory: Array<ReportMapFeatures['inventory'][number]> = input.units.map((unit) => ({
     id: unit.id,
@@ -245,6 +257,9 @@ export function reportMapFeatures(input: {
     blocks: input.targets.filter((target) => target.role === 'block').map(({ name, geometry }) => ({ name, geometry })),
     openings: input.targets
       .filter((target) => target.role === 'harvested')
+      .map(({ name, geometry }) => ({ name, geometry })),
+    retention: (input.masks ?? [])
+      .filter((mask) => mask.kind === 'retained')
       .map(({ name, geometry }) => ({ name, geometry })),
     inventory,
     road: input.road && input.road.length > 1 ? input.road : null,
@@ -466,7 +481,12 @@ export const SHEET_SYMBOL_SCALE = 1.25
  * `captureFrame`); its zoom puts the stated scale at the frame's centre latitude when the frame prints
  * `OVERVIEW_SHEET_PAPER` wide. Null when there are no blocks and no viewpoints.
  */
-export function planOverviewSheet(features: ReportMapFeatures, frame: MapFrame): ReportMapPlan | null {
+export function planOverviewSheet(
+  features: ReportMapFeatures,
+  frame: MapFrame,
+  style: OverviewSheetStyle = DEFAULT_OVERVIEW_SHEET_STYLE,
+): ReportMapPlan | null {
+  if (style === 'end-map-portrait') return planEndMap(features, frame)
   const bounds = boundsOf([
     ...features.blocks.flatMap((block) => corners(polygonBounds(block.geometry))),
     ...features.viewpoints.map((vp): LngLat => [vp.lng, vp.lat]),
@@ -509,6 +529,308 @@ export function planOverviewSheet(features: ReportMapFeatures, frame: MapFrame):
     }, on the topographic base map.`,
   }
 }
+
+// ---------------------------------------------------------------- the portrait end map
+
+/**
+ * How the 11 × 17 overview sheet is drawn: the landscape topographic sheet (vector map and hillshade, VQO polygons
+ * hatched; 22/23's Appendix A1) or the portrait end map a consultant prints as the last page of a 2001-form VIA
+ * (contours on a plain base, VQO linework, a title block and key map; 05's "VIA Overview Map").
+ */
+export type OverviewSheetStyle = 'topo-landscape' | 'end-map-portrait'
+export const OVERVIEW_SHEET_STYLES: ReadonlyArray<{ id: OverviewSheetStyle; label: string }> = [
+  { id: 'topo-landscape', label: 'Landscape topographic (17 × 11)' },
+  { id: 'end-map-portrait', label: 'Portrait end map (11 × 17)' },
+]
+export const DEFAULT_OVERVIEW_SHEET_STYLE: OverviewSheetStyle = 'topo-landscape'
+
+/** The end map's paper: 11 × 17 in, portrait. */
+export const END_MAP_PAPER = { widthIn: 11, heightIn: 17 } as const
+/** Its pixels: the topographic sheet's 3300 along the long side (about 194 dpi), 11:17. */
+export const END_MAP_PIXELS = { width: Math.round((3300 * 11) / 17), height: 3300 } as const
+/** Page margin, title band, the strip for the grid tick labels round the neat line and the footer line, points. */
+export const END_MAP_MARGIN_PT = 22
+export const END_MAP_TITLE_PT = 92
+export const END_MAP_TICK_MARGIN_PT = 22
+export const END_MAP_FOOTER_PT = 14
+/** The key map is this many times the sheet's scale (2⁴, as the regional map's four zoom levels). */
+export const KEY_MAP_SCALE_FACTOR = 16
+/** Round grid intervals, metres; the ticks take the first at least `UTM_TICK_MIN_IN` apart on paper. */
+export const UTM_TICK_INTERVALS = [100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000] as const
+export const UTM_TICK_MIN_IN = 0.8
+/** Contours are traced on a grid of one sample per this many points of paper, as the block sheets trace theirs. */
+export const END_MAP_CONTOUR_GRID_PT = 2.5
+/** Terrain tiles the end map reads for its contours, at most; past it the terrain zoom steps out. */
+export const END_MAP_MAX_DEM_TILES = 64
+/** Closest and farthest terrain zooms read for contours (z13 is about 12 m a pixel in central BC). */
+export const END_MAP_DEM_ZOOMS = { min: 8, max: 13 } as const
+
+type PageBox = { x: number; y: number; w: number; h: number }
+
+/** Where everything sits on the end map's page, points from its top-left. */
+export interface EndMapLayout {
+  page: PageBox
+  /** The title band across the top: the logo slot at its left, the title in its middle, the key map at its right. */
+  title: PageBox
+  logo: PageBox
+  heading: PageBox
+  keyMap: PageBox
+  /** The map's neat line; the grid tick labels sit in the strip outside it. */
+  map: PageBox
+  /** The line under the map for the grid, contour and source notes. */
+  footer: PageBox
+}
+
+export function endMapLayout(): EndMapLayout {
+  const W = END_MAP_PAPER.widthIn * POINTS_PER_INCH,
+    H = END_MAP_PAPER.heightIn * POINTS_PER_INCH
+  const m = END_MAP_MARGIN_PT
+  const title: PageBox = { x: m, y: m, w: W - 2 * m, h: END_MAP_TITLE_PT }
+  const keyH = title.h,
+    keyW = Math.round(keyH * 1.15)
+  const logo: PageBox = { x: title.x, y: title.y + 10, w: 190, h: title.h - 20 }
+  const keyMap: PageBox = { x: title.x + title.w - keyW, y: title.y, w: keyW, h: keyH }
+  const heading: PageBox = {
+    x: logo.x + logo.w + 10,
+    y: title.y,
+    w: keyMap.x - 10 - (logo.x + logo.w + 10),
+    h: title.h,
+  }
+  const t = END_MAP_TICK_MARGIN_PT
+  const mapTop = title.y + title.h + 6 + t
+  const footer: PageBox = { x: m, y: H - m - END_MAP_FOOTER_PT, w: W - 2 * m, h: END_MAP_FOOTER_PT }
+  const map: PageBox = { x: m + t, y: mapTop, w: W - 2 * (m + t), h: footer.y - t - mapTop }
+  return { page: { x: 0, y: 0, w: W, h: H }, title, logo, heading, keyMap, map, footer }
+}
+/** Width over height of the end map's neat line: the window of the canvas it is captured from. */
+export const END_MAP_ASPECT = (() => {
+  const { map } = endMapLayout()
+  return map.w / map.h
+})()
+
+/** The window of the canvas each overview sheet style is captured from, width over height. */
+export const overviewSheetAspect = (style: OverviewSheetStyle) =>
+  style === 'end-map-portrait' ? END_MAP_ASPECT : REPORT_MAP_ASPECT.sheet
+
+export interface UtmTick {
+  /** Easting or northing, metres. */
+  value: number
+  label: string
+  /** Paper position along its edge: x on the top and bottom, y on the left and right. */
+  at: number
+}
+export interface UtmTicks {
+  zone: number
+  /** The sheet's grid datum; NAD83 and WGS84 differ by about a metre here, under a tick's width at these scales. */
+  datum: 'NAD83'
+  intervalM: number
+  top: UtmTick[]
+  bottom: UtmTick[]
+  left: UtmTick[]
+  right: UtmTick[]
+}
+
+/** The UTM zone a longitude falls in (BC is zones 7 to 11). */
+export const utmZoneOf = (lng: number) => Math.max(1, Math.min(60, Math.floor((lng + 180) / 6) + 1))
+
+/** The first round grid interval whose ticks fall at least `UTM_TICK_MIN_IN` apart at `scale`. */
+export function utmTickInterval(scale: number): number {
+  const inches = (metres: number) => metres / (scale * METRES_PER_INCH)
+  return UTM_TICK_INTERVALS.find((interval) => inches(interval) >= UTM_TICK_MIN_IN) ?? UTM_TICK_INTERVALS.at(-1)!
+}
+
+/**
+ * UTM grid ticks round the neat line of a north-up Web Mercator frame: where each round easting crosses the top and
+ * bottom edges and each round northing the left and right, in the zone of the frame's centre. Grid lines are not
+ * parallel to the frame's edges (grid convergence), so each edge is solved on its own, by bisection.
+ */
+export function utmTicks(projection: FrameProjection, intervalM: number): UtmTicks {
+  const zone = utmZoneOf(projection.center[0])
+  const south = projection.center[1] < 0
+  const forward = proj4('EPSG:4326', `+proj=utm +zone=${zone}${south ? ' +south' : ''} +datum=NAD83 +units=m +no_defs`)
+    .forward as (p: [number, number]) => [number, number]
+  const { x, y, w, h } = projection.frame
+  const at = (px: number, py: number) => forward(projection.unproject(px, py))
+  /** Ticks along one edge, `read` giving the grid value at a share 0–1 along it (monotonic). */
+  const edge = (read: (share: number) => number, toPaper: (share: number) => number, format: (v: number) => string) => {
+    const a = read(0),
+      b = read(1)
+    const rising = b > a
+    const lo = Math.min(a, b),
+      hi = Math.max(a, b)
+    const ticks: UtmTick[] = []
+    for (let value = Math.ceil(lo / intervalM) * intervalM; value <= hi; value += intervalM) {
+      let s0 = 0,
+        s1 = 1
+      for (let i = 0; i < 40; i++) {
+        const mid = (s0 + s1) / 2
+        if (read(mid) < value === rising) s0 = mid
+        else s1 = mid
+      }
+      ticks.push({ value, label: format(value), at: toPaper((s0 + s1) / 2) })
+    }
+    return ticks.sort((p, q) => p.at - q.at)
+  }
+  const whole = (v: number) => String(Math.round(v))
+  return {
+    zone,
+    datum: 'NAD83',
+    intervalM,
+    top: edge(
+      (s) => at(x + s * w, y)[0],
+      (s) => x + s * w,
+      whole,
+    ),
+    bottom: edge(
+      (s) => at(x + s * w, y + h)[0],
+      (s) => x + s * w,
+      whole,
+    ),
+    left: edge(
+      (s) => at(x, y + s * h)[1],
+      (s) => y + s * h,
+      whole,
+    ),
+    right: edge(
+      (s) => at(x + w, y + s * h)[1],
+      (s) => y + s * h,
+      whole,
+    ),
+  }
+}
+
+/** The contour interval and index spacing for an end map at `scale`: 20 m with 100 m index lines at 1:40,000. */
+export function endMapContourInterval(scale: number): { intervalM: number; indexEvery: number } {
+  const intervalM = scale <= 12500 ? 5 : scale <= 25000 ? 10 : scale <= 60000 ? 20 : scale <= 120000 ? 40 : 100
+  return { intervalM, indexEvery: 5 }
+}
+
+/**
+ * The terrain zoom read for the end map's contours: the coarsest whose pixel is no larger than the contour grid's
+ * cell, within `END_MAP_DEM_ZOOMS`, stepped out until the frame takes at most `END_MAP_MAX_DEM_TILES` tiles.
+ */
+export function endMapDemZoom(projection: FrameProjection): number {
+  const cellM = END_MAP_CONTOUR_GRID_PT * metresPerPoint(projection.scale)
+  const cos = Math.cos(projection.center[1] * RAD)
+  let zoom: number = END_MAP_DEM_ZOOMS.max
+  for (let z = END_MAP_DEM_ZOOMS.min; z <= END_MAP_DEM_ZOOMS.max; z++)
+    if ((2 * Math.PI * R * cos) / (DEM_TILE_SIZE * 2 ** z) <= cellM) {
+      zoom = z
+      break
+    }
+  while (zoom > END_MAP_DEM_ZOOMS.min && demTileRange(projection.bounds, zoom).tileCount > END_MAP_MAX_DEM_TILES)
+    zoom -= 1
+  return zoom
+}
+
+export interface EndMapPlan {
+  layout: EndMapLayout
+  /** The sheet's projection in page points: the map's neat line at the stated scale. */
+  projection: FrameProjection
+  ticks: UtmTicks
+  contours: { intervalM: number; indexEvery: number }
+  demZoom: number
+  /** The key map: its camera and the window of the map's frame it is captured from, and the scale it is drawn at. */
+  keyMap: { camera: MapCamera; frame: MapFrame; scale: number }
+}
+
+/**
+ * The overview as the portrait end map: every block and viewpoint fitted inside the neat line's padding at the
+ * largest round scale of `FIT_SCALES` (from `MIN_SHEET_SCALE`) that holds them, centred. `frame` is the canvas window
+ * it is captured from (`END_MAP_ASPECT`); its zoom puts the stated scale at the frame's centre latitude when the
+ * neat line prints its width on the 11 × 17 paper. Null when there are no blocks and no viewpoints.
+ */
+export function planEndMap(features: ReportMapFeatures, frame: MapFrame): ReportMapPlan | null {
+  const bounds = boundsOf([
+    ...features.blocks.flatMap((block) => corners(polygonBounds(block.geometry))),
+    ...features.viewpoints.map((vp): LngLat => [vp.lng, vp.lat]),
+  ])
+  if (!bounds) return null
+  const layout = endMapLayout()
+  const box = layout.map
+  const availableW = box.w * (1 - 2 * FIT_PADDING_SHARE),
+    availableH = box.h * (1 - 2 * FIT_PADDING_SHARE)
+  const x0 = mercatorX(bounds[0]),
+    x1 = mercatorX(bounds[2])
+  const y0 = mercatorY(bounds[1]),
+    y1 = mercatorY(bounds[3])
+  const cos = Math.cos(inverseMercator(0, (y0 + y1) / 2)[1] * RAD)
+  const scales = FIT_SCALES.filter((scale) => scale >= MIN_SHEET_SCALE)
+  const scale =
+    scales.find(
+      (candidate) =>
+        ((x1 - x0) * cos) / metresPerPoint(candidate) <= availableW &&
+        ((y1 - y0) * cos) / metresPerPoint(candidate) <= availableH,
+    ) ?? scales[scales.length - 1]
+  const center = inverseMercator((x0 + x1) / 2, (y0 + y1) / 2)
+  const zoomFor = (scaleOf: number, widthPt: number, widthPx: number) =>
+    Math.log2(
+      (2 * Math.PI * R * Math.cos(center[1] * RAD)) /
+        (TILE * ((scaleOf * (widthPt / POINTS_PER_INCH) * METRES_PER_INCH) / widthPx)),
+    )
+  const projection = frameProjection(box, center, scale)
+  const keyFrame = captureFrame(frame, layout.keyMap.w / layout.keyMap.h)
+  // Held to the regional map's zooms, the key map states the scale it is drawn at, not the one asked for.
+  const keyZoom = Math.max(
+    MIN_REPORT_ZOOM,
+    Math.min(MAX_REGIONAL_ZOOM, zoomFor(scale * KEY_MAP_SCALE_FACTOR, layout.keyMap.w, keyFrame.width)),
+  )
+  const keyScale =
+    (((2 * Math.PI * R * Math.cos(center[1] * RAD)) / (TILE * 2 ** keyZoom)) * keyFrame.width) /
+    ((layout.keyMap.w / POINTS_PER_INCH) * METRES_PER_INCH)
+  const names = features.blocks.map((block) => block.name)
+  const viewpoints = features.viewpoints.map((vp) => vp.name)
+  return {
+    kind: 'sheet',
+    key: 'sheet',
+    camera: { center, zoom: zoomFor(scale, box.w, frame.width) },
+    basemap: 'map',
+    sheet: { scale, paper: { ...END_MAP_PAPER }, style: 'end-map-portrait' },
+    endMap: {
+      layout,
+      projection,
+      ticks: utmTicks(projection, utmTickInterval(scale)),
+      contours: endMapContourInterval(scale),
+      demZoom: endMapDemZoom(projection),
+      keyMap: {
+        camera: { center, zoom: keyZoom },
+        frame: keyFrame,
+        scale: keyScale,
+      },
+    },
+    caption: `VIA overview map at ${formatScale(scale)} (11 × 17 portrait): ${names.length ? `proposed ${blockNames(names).replace(/^B/, 'b')}` : 'the viewpoints'}${
+      names.length && viewpoints.length ? ` and viewpoint${viewpoints.length === 1 ? '' : 's'} ${list(viewpoints)}` : ''
+    }, over contours and the visual landscape inventory’s VQO linework.`,
+  }
+}
+
+/** The end map's legend rows, in the order a 2001-form VIA's overview map keys them. */
+export type EndMapLegendKey =
+  | 'viewpoint'
+  | 'existingRoad'
+  | 'highway'
+  | 'block'
+  | 'vqo'
+  | 'lake'
+  | 'creek'
+  | 'wtra'
+  | 'harvested'
+  | 'parks'
+export const END_MAP_LEGEND_ORDER: readonly EndMapLegendKey[] = [
+  'viewpoint',
+  'existingRoad',
+  'highway',
+  'block',
+  'vqo',
+  'lake',
+  'creek',
+  'wtra',
+  'harvested',
+  'parks',
+]
+/** Only the rows the map has drawn, in the legend's order. */
+export const endMapLegendKeys = (drawn: ReadonlySet<EndMapLegendKey>) =>
+  END_MAP_LEGEND_ORDER.filter((key) => drawn.has(key))
 
 // ---------------------------------------------------------------- composing
 

@@ -51,6 +51,7 @@ import { cn } from '@/lib/utils'
 
 import { summariseUnits, type BcSensitivityUnit } from './bcVisualInventory'
 import { ResultsPanel } from './ResultsPanel'
+import { SubLandformFields } from './ReviewRecordFields'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
 import { MAX_DEM_ZOOM, MIN_DEM_ZOOM, demResolutionMeters } from './terrain'
 import type { AnalysisSettings, HarvestSystem, TargetPolygon, TargetRole, Viewpoint } from './types'
@@ -509,6 +510,8 @@ type SidebarProps = {
   fieldPhoto?: ReactNode
   /** Step 2: the pre-layout field brief for the layout crew, and the crew's checklist answered back. */
   fieldBrief?: ReactNode
+  /** Step 2: each saved view's Table 3 record and the key viewpoints the reviewer chose (`ReviewRecordFields`). */
+  viewpointRecords?: ReactNode
   /** Step 3: which landform the run measures, and its green area. */
   landformScope: ReactNode
   /** Step 3: assessment masks and local terrain or canopy surfaces, a folded section of its own. */
@@ -588,6 +591,7 @@ export function Sidebar({
   visit,
   fieldPhoto,
   fieldBrief,
+  viewpointRecords,
   landformScope,
   localSources,
   wildlifeTreePatches,
@@ -1146,6 +1150,13 @@ export function Sidebar({
             ) : (
               <ul className="space-y-1.5">{landforms.map(renderTarget)}</ul>
             )}
+            {landforms.length > 0 && (
+              <SubLandformFields
+                landforms={landforms.map((target) => target.name)}
+                review={via.review}
+                onReviewChange={via.onReviewChange}
+              />
+            )}
           </div>
         </ToolSection>
         {openings.length > 0 && (
@@ -1503,6 +1514,7 @@ export function Sidebar({
             hideLabel
           />
         </ToolSection>
+        {viewpointRecords}
         {fieldBrief}
       </div>
 

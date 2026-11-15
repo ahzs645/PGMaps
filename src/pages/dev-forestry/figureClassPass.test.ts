@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CLASS_PALETTE } from '@/lib/forestry/viaFigure/composeFigure'
-import { classPassLayers, splitAtLandform } from './figureClassPass'
+import { classPassLayers, paintsPartialCut, splitAtLandform } from './figureClassPass'
 import { polygonAreaMeters } from './visibility'
 
 const square = (x0: number, y0: number, size: number): GeoJSON.Polygon => ({
@@ -73,5 +73,33 @@ describe('the zone pass', () => {
     expect(layers.map((l) => l.id)).toEqual(['zone-R', 'zone-PR'])
     expect(layers[1].color).toBe(zoneColor(3))
     expect(layers[1].data.features).toHaveLength(2)
+  })
+})
+
+describe('a partial cut in the class pass', () => {
+  it('paints it as its own class above the clearcut blocks, net of retention, and nothing new without one', () => {
+    const input = {
+      landform: LANDFORM,
+      blocks: [square(-121.995, 54.002, 0.002)],
+      existing: [],
+      privateLand: [],
+      rock: [],
+    }
+    const plain = classPassLayers(input)
+    expect(plain.layers.map((l) => l.id)).toEqual(['landform', 'proposedIn'])
+    expect(paintsPartialCut(plain.layers)).toBe(false)
+    expect(classPassLayers({ ...input, partialCuts: [] })).toEqual(plain)
+    const cut = square(-121.998, 54.006, 0.002)
+    const withCut = classPassLayers({
+      ...input,
+      partialCuts: [cut, square(-121.5, 54.5, 0.001)],
+      retained: [square(-121.998, 54.006, 0.0005)],
+    })
+    expect(withCut.layers.map((l) => l.id)).toEqual(['landform', 'proposedIn', 'partialOut', 'partialIn'])
+    expect(paintsPartialCut(withCut.layers)).toBe(true)
+    const inside = withCut.layers.find((l) => l.id === 'partialIn')!
+    expect(inside.color).toBe(`#${CLASS_PALETTE.partialIn.map((v) => v.toString(16).padStart(2, '0')).join('')}`)
+    const area = polygonAreaMeters(inside.data.features[0].geometry as GeoJSON.MultiPolygon)
+    expect(area / polygonAreaMeters(cut)).toBeCloseTo(1 - 1 / 16, 2)
   })
 })

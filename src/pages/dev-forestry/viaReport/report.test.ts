@@ -5,7 +5,14 @@ import { resolveViaDocument, type DocumentFacts } from '../viaDocument/resolve'
 import { reportHtml, reportMarkdown } from './html'
 import { designElementsMatrix, partialCutMatrix, table2Bar } from './matrices'
 import type { ReportBlock } from './model'
-import { blockVisibilitySentences, visibilityPhrase, type ReportContext } from './parts'
+import {
+  blockVisibilitySentences,
+  rangeStanding,
+  runConclusion,
+  viewDirection,
+  visibilityPhrase,
+  type ReportContext,
+} from './parts'
 import { CONSULTANT_RECIPE_PARTS } from './partsConsultant'
 import { findReportPart, REPORT_PARTS } from './registry'
 import { assembleReport, recipeFormat, REPORT_RECIPES } from './recipes'
@@ -114,7 +121,12 @@ describe('report parts', () => {
     const ctx = context('form-2001-analysed-photos')
     const numerical = findReportPart('numerical-data')!.build(ctx).blocks
     // Net of rock and private land: 300 / (10000 - 500) = 3.2% (one decimal), Partial Retention.
-    expect(all(numerical)).toContain('"value":"3.2%"')
+    // One worksheet, a column per viewpoint, as the 2001 forms print it.
+    const worksheet = numerical.find((b) => b.kind === 'table' && b.title === 'Percent alteration worksheet')
+    expect(worksheet?.kind === 'table' && worksheet.rows.at(-1)).toEqual([
+      '4. Percent alteration ((2 + 3) / 1)',
+      '3.2%',
+    ])
     // A clearcut block brings the poster's clearcut guide, read at the run's 3.2%; the partial cut its table.
     expect(all(numerical)).toContain('Clearcut harvesting')
     expect(all(numerical)).toContain('Partial cutting')
@@ -129,10 +141,14 @@ describe('report parts', () => {
     expect(summary.toComplete).toEqual(expect.arrayContaining(['Is the VQO met?']))
   })
 
-  it('leave Appendix 1 unfilled without a step 4 record at the assessment station, and say so', () => {
+  it('print Appendix 1 blank without a step 4 record at the assessment station, and say so', () => {
     const out = findReportPart('appendix-1')!.build(context('appendix-1-net-private-rock'))
     expect(all(out.blocks)).toContain('not filled')
-    expect(out.toComplete).toEqual(['Step 4 at the assessment station'])
+    // The form itself still prints, its judgements and the viewpoint's lines blank, never filled from another view.
+    expect(all(out.blocks)).toContain('3.4.2 Numerical assessment')
+    expect(all(out.blocks)).toContain('"label":"Viewpoint","value":null')
+    expect(out.blocks.some((b) => b.kind === 'signature')).toBe(true)
+    expect(out.toComplete?.[0]).toBe('Step 4 at the assessment station')
   })
 
   it('write the EA memo’s existing conditions from the inventory read, and visibility from the run', () => {
@@ -227,8 +243,9 @@ describe('fixes from the second reading', () => {
     })
     const out = findReportPart('summary-2001')!.build(ctx)
     expect(all(out.blocks)).toContain('From The Shores, the alteration is 30.00%')
-    expect(all(out.blocks)).toContain('Reasons the alteration exceeds the range')
-    expect(out.toComplete).toContain('Reasons the alteration exceeds the numerical range')
+    // The reasons line names the viewpoint it is for.
+    expect(all(out.blocks)).toContain('Reasons the alteration exceeds the range from The Shores')
+    expect(out.toComplete).toContain('Reasons the alteration exceeds the numerical range from The Shores')
   })
 
   it('keeps a heading on the landscape or 11 x 17 page it introduces', () => {
@@ -315,6 +332,43 @@ describe('26: why each viewpoint, timber screening, regrowth', () => {
     expect(memo).not.toContain('read bare ground')
   })
 
+  it('prints the with-timber pixel figure beside the visibility, or why it was not measured', () => {
+    const withTimber = (timber: DocumentFacts['viewpoints'][number]['withTimber']): DocumentFacts => ({
+      ...screenedFacts,
+      viewpoints: screenedFacts.viewpoints.map((vp) => ({ ...vp, ...(timber ? { withTimber: timber } : {}) })),
+    })
+    const build = (part: string, facts: DocumentFacts, format = 'referral-panoramas') =>
+      JSON.stringify(
+        findReportPart(part)!.build({
+          ...ctx,
+          facts,
+          document: resolveViaDocument(findDocumentFormat(format)!, facts),
+        }).blocks,
+      )
+    const areas = { ...screenedFacts.viewpoints[0].areas!, proposed: 0 }
+    const measured = build('ea-visual-memo', withTimber({ areas, source: 'pgmaps' }))
+    expect(measured).toMatch(
+      /Lakeshore: the development [^"]*; with the drawn timber in front, [\d.]+% of the landform/,
+    )
+    const absent = build('ea-visual-memo', withTimber({ absent: 'no before-harvest render of this view' }))
+    expect(absent).toContain(
+      'the figure with the drawn timber in front was not measured (no before-harvest render of this view)',
+    )
+    // The calculation strip: a field of its own, beside the pixel and sightline figures, never instead of them.
+    const calc = build(
+      'calculations',
+      withTimber({ absent: 'no before-harvest render of this view' }),
+      'appendix-1-net-private-rock',
+    )
+    expect(calc).toContain(
+      '"label":"Pixel figure, with drawn timber","value":"Not measured: no before-harvest render of this view"',
+    )
+    expect(calc).toContain('Sightline figure (the assessment’s)')
+    expect(build('calculations', withTimber(undefined), 'appendix-1-net-private-rock')).not.toContain(
+      'with drawn timber',
+    )
+  })
+
   it('says when the run read bare ground only', () => {
     const bare = { ...screenedFacts, screeningModelled: false }
     const out = JSON.stringify(
@@ -325,5 +379,133 @@ describe('26: why each viewpoint, timber screening, regrowth', () => {
       }).blocks,
     )
     expect(out).toContain('standing timber was not counted as screening')
+  })
+})
+
+describe('report layout and the 2001 forms, third reading', () => {
+  const sheet = { view: 'Lakeshore', caption: 'Lakeshore: analysis', dataUrl: 'data:,', width: 2448, height: 1584 }
+
+  it('prints the viewpoint’s elevation, direction of view and viewing angle where the run knows them', () => {
+    const at = { ...facts.viewpoints[0], elevationM: 883.6, bearingDeg: 10, hfovDeg: 60 }
+    const known = { ...facts, viewpoints: [at] }
+    const out = findReportPart('viewpoints-columns')!.build(context('form-2001-analysis-sheets', { facts: known }))
+    const table = out.blocks.find((b) => b.kind === 'table')
+    const row = (label: string) => (table?.kind === 'table' ? table.rows.find((r) => r[0] === label) : undefined)
+    expect(row('Viewpoint elevation')).toEqual(['Viewpoint elevation', '884 m'])
+    // The field's left and right edges, three digits, across north as 03 prints "315-030".
+    expect(row('Direction of view')).toEqual(['Direction of view', '340°–040°'])
+    expect(row('Viewing angle (horizontal field)')).toEqual(['Viewing angle (horizontal field)', '60°'])
+    // Unknown stays blank, never 0 m.
+    const blank = findReportPart('viewpoints-columns')!.build(context('form-2001-analysis-sheets'))
+    const empty = blank.blocks.find((b) => b.kind === 'table')
+    expect(empty?.kind === 'table' && empty.rows.find((r) => r[0] === 'Viewpoint elevation')).toEqual([
+      'Viewpoint elevation',
+      '',
+    ])
+    expect(viewDirection({ bearingDeg: 200 })).toBe('200°')
+    expect(viewDirection({ bearingDeg: null, hfovDeg: 60 })).toBe('')
+    // 06's viewpoint pages and Appendix 1 carry them too.
+    const pages = all(
+      findReportPart('viewpoint-pages')!.build(context('appendix-1-net-private-rock', { facts: known })).blocks,
+    )
+    expect(pages).toContain('"label":"Elevation","value":"884 m"')
+    expect(pages).toContain('"label":"Viewing direction","value":"340°–040°"')
+  })
+
+  it('asks section 1 by viewpoint columns and one class, as 03 and 05 print it', () => {
+    const out = findReportPart('basic-definition')!.build(context('form-2001-analysis-sheets'))
+    const table = out.blocks.find((b) => b.kind === 'table')
+    expect(table?.kind === 'table' && table.columns).toEqual([
+      'Describe the level of impact from each viewpoint',
+      'VP 1',
+    ])
+    expect(out.blocks.filter((b) => b.kind === 'choices')).toHaveLength(1)
+    expect(out.toComplete).toContain('Basic VQO definition met from all viewpoints (class by eye, step 4)')
+  })
+
+  it('prints the partial-cut evaluation, not the whole table, when no block is cut so', () => {
+    const ctx = context('form-2001-analysis-sheets', { blocks: [context('form-2001-analysis-sheets').blocks[0]] })
+    const out = all(findReportPart('numerical-data')!.build(ctx).blocks)
+    expect(out).toContain('Not applicable: no block is recorded as a partial cut')
+    expect(out).not.toContain('printed for reference')
+  })
+
+  it('concludes on the run’s facts when the format writes no conclusion of its own', () => {
+    const sentences = runConclusion(context('appendix-1-net-private-rock'))
+    const text = sentences.map((s) => s.text).join(' ')
+    expect(text).toContain('Lakeshore sees part of Blocks X1 and X2.')
+    // 300 / (10000 - 500) = 3.2%, read on the format's own scale.
+    expect(text).toContain('the percent alteration of the landform is 3.2% from Lakeshore (Partial Retention)')
+    expect(text).toContain('The figure is within the Partial Retention range')
+    const out = all(findReportPart('conclusion')!.build(context('appendix-1-net-private-rock')).blocks)
+    expect(out).not.toContain('The conclusion is written once')
+  })
+
+  it('prints an analysis sheet on the full 11 x 17 page with its calculation as one strip under it', () => {
+    const blocks: ReportBlock[] = [
+      { kind: 'heading', level: 1, text: 'Report' },
+      { kind: 'text', text: 'Body.', source: 'fixed' },
+      { kind: 'heading', level: 2, text: 'Calculations' },
+      { kind: 'figure', figure: sheet, caption: sheet.caption },
+      { kind: 'fields', rows: [{ label: 'Landform', value: '100 px', source: 'run' }] },
+    ]
+    const html = reportHtml(
+      {
+        id: 'x',
+        title: 'Report',
+        subtitle: 's',
+        sources: [],
+        blocks,
+        footer: 'f',
+        layout: { paper: 'letter', cover: false, contents: false },
+        toComplete: [
+          { part: 'Header', what: 'Licence' },
+          { part: 'Header', what: 'Permit' },
+        ],
+      },
+      null,
+    )
+    expect(html).toContain('<table class="sheet-calc"><tr><th>Landform</th></tr><tr><td>100 px</td></tr></table>')
+    expect(html).not.toContain('height:7.4in')
+    expect(html).toMatch(/\.sheet-page\{page:sheet;display:flex;flex-direction:column;height:10\.2in/)
+    // The list goes before the trailing sheet, one line per part, so it never takes a last page of its own.
+    expect(html.indexOf('id="complete"')).toBeLessThan(html.indexOf('class="sheet-page"'))
+    expect(html).toContain('<li><b>Header:</b> Licence; Permit</li>')
+    // A full-size map sheet keeps its own rules.
+    expect(html).toContain('figure.sheet.full{page:sheetfull')
+  })
+
+  it('lists a document sentence once when a part already lists the same judgement', () => {
+    const recipe = REPORT_RECIPES.find((entry) => entry.id === 'form-2001-sheets')!
+    const report = assembleReport(recipe, context(recipe.format))
+    expect(report.toComplete.some((item) => item.part === 'Wording' && /ocular/.test(item.what))).toBe(false)
+  })
+
+  it('gives 03 the yes / no design questions and 02 the full certification and landscape simulations', () => {
+    const form = REPORT_RECIPES.find((entry) => entry.id === 'form-2001-sheets')!
+    expect(form.parts).toContain('design-questions-2001')
+    expect(form.parts).not.toContain('visual-design')
+    const rationale = REPORT_RECIPES.find((entry) => entry.id === 'design-rationale')!
+    expect(rationale.parts).toEqual(expect.arrayContaining(['certification-2001', 'simulation-pages']))
+    expect(rationale.parts).not.toContain('sign-off')
+    const handbook = REPORT_RECIPES.find((entry) => entry.id === 'appendix-1-report')!
+    expect(handbook.parts.indexOf('sign-off')).toBeGreaterThan(handbook.parts.indexOf('conclusion'))
+    const report = assembleReport(rationale, context(rationale.format, { figures: [sheet] }))
+    const html = reportHtml(report, null)
+    expect(html).toContain('I certify that I have reviewed this document')
+    expect(html).toContain('vf-pair vf-landscape')
+    expect(html).toContain('not a field-verified photograph')
+    // 02 prints no overview map, so its attachments never claim one.
+    expect(JSON.stringify(report.blocks)).not.toContain('VIA overview map')
+  })
+})
+
+describe('rangeStanding', () => {
+  it('says below, within or over the objective’s range, never "within" a range the figure is under', () => {
+    expect(rangeStanding('R', 'PR', 'PR 1.6-7%')).toBe(
+      'below the Partial Retention range (PR 1.6-7%), within what Partial Retention allows',
+    )
+    expect(rangeStanding('PR', 'PR', 'PR 1.6-7%')).toBe('within the Partial Retention range (PR 1.6-7%)')
+    expect(rangeStanding('M', 'PR', 'PR 1.6-7%')).toBe('over the Partial Retention range (PR 1.6-7%)')
   })
 })

@@ -29,6 +29,7 @@ import {
   CONTOUR_STYLES,
   EXISTING_ROAD,
   FOREST_SERVICE_ROAD,
+  LAKE_FILL,
   NCD_STREAM,
   OTHER_BLOCK,
   proposedRoad,
@@ -43,6 +44,7 @@ import {
   SLOPE_CLASSES,
   SLOPE_STEEP_OVERLAY,
   STREAM,
+  VIA_OVERVIEW_MAP,
 } from './styles'
 
 export type CatalogueGroupId =
@@ -54,6 +56,7 @@ export type CatalogueGroupId =
   | 'points'
   | 'final-layout'
   | 'design-polygons'
+  | 'via-overview'
   | 'pgmaps'
 
 /** Groups in the order of the source catalogue's §2. */
@@ -66,6 +69,7 @@ export const CATALOGUE_GROUPS: readonly { id: CatalogueGroupId; title: string }[
   { id: 'points', title: 'Point features' },
   { id: 'final-layout', title: 'Final layout map features' },
   { id: 'design-polygons', title: 'GPS and design polygons' },
+  { id: 'via-overview', title: 'VIA overview end map' },
   { id: 'pgmaps', title: 'PGMaps additions' },
 ]
 
@@ -579,7 +583,7 @@ export const SYMBOL_CATALOGUE: readonly CatalogueEntry[] = [
   {
     id: 'lake',
     group: 'hydrology',
-    symbol: area('Lake / river', { fill: '#97dbf2', outline: [outline('#4065eb', 0.4)] }),
+    symbol: area('Lake / river', { fill: LAKE_FILL, outline: [outline('#4065eb', 0.4)] }),
     spec: 'Fill #97dbf2, outline #4065eb 0.4 (0.2 at 1:50,000)',
     data: { missing: NO_FWA_WATER },
   },
@@ -1158,6 +1162,45 @@ export const SYMBOL_CATALOGUE: readonly CatalogueEntry[] = [
     spec: 'Outline #ff0000 2.0',
     data: { missing: NO_FIELD },
   },
+
+  // ---- VIA overview end map (`VIA_OVERVIEW_MAP`): the visual quality tool's 11 × 17 portrait overview ----
+  ...(
+    [
+      ['via-overview-contour-index', contourLine('Index contour', VIA_OVERVIEW_MAP.contours.index), '#a8442a 0.55'],
+      [
+        'via-overview-contour-intermediate',
+        contourLine('Intermediate contour', VIA_OVERVIEW_MAP.contours.intermediate),
+        '#b4a59a 0.25',
+      ],
+      ['via-overview-viewpoint', VIA_OVERVIEW_MAP.viewpoint, '9 pt triangle #2b8cbe, black edge and eye, numbered'],
+      ['via-overview-existing-road', VIA_OVERVIEW_MAP.existingRoad, '#000000 0.9, dash 3.5/1.8'],
+      ['via-overview-highway', VIA_OVERVIEW_MAP.highway, '#ff2a00 2.0 over #a80000 2.8'],
+      ['via-overview-block', VIA_OVERVIEW_MAP.block, '#000000 2.4 outline with a white 0.8 dash 3/2 inside it'],
+      ['via-overview-vqo', VIA_OVERVIEW_MAP.vqo, '#df73ff 2.0 outline, class label #b23fd9'],
+      ['via-overview-lake', VIA_OVERVIEW_MAP.lake, `Fill ${LAKE_FILL}, no outline (tile seams would show)`],
+      ['via-overview-creek', VIA_OVERVIEW_MAP.creek, '#00a9e6 0.45'],
+      ['via-overview-wtra', VIA_OVERVIEW_MAP.wtra, 'Fill #98e600 at 0.75, #38a800 0.4 cross-hatch 4 pt, outline 0.8'],
+      ['via-overview-harvested', VIA_OVERVIEW_MAP.harvested, 'Fill #e8f5d6, outline #9c9c9c 0.4'],
+      ['via-overview-parks', VIA_OVERVIEW_MAP.parks, 'Fill #a3c98f'],
+    ] as const
+  ).map(
+    ([id, symbol, spec]): CatalogueEntry => ({
+      id,
+      group: 'via-overview',
+      symbol,
+      spec: `PGMaps: ${spec}`,
+      data: {
+        source:
+          id === 'via-overview-wtra' || id === 'via-overview-block' || id === 'via-overview-harvested'
+            ? 'The visual quality scene (blocks, existing openings, wildlife tree patch / retention masks)'
+            : id === 'via-overview-vqo' || id === 'via-overview-viewpoint'
+              ? 'The visual landscape inventory and the saved views'
+              : id.startsWith('via-overview-contour')
+                ? 'Contours traced from the terrain tiles at capture'
+                : 'The plan’s vector basemap, read at capture',
+      },
+    }),
+  ),
 
   // ---- PGMaps additions: things the road tool draws that the reference sheets had no symbol for ----
   {

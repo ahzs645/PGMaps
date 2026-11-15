@@ -3,10 +3,12 @@
  * landform's edge so a block inside the landform and one outside it read as different classes.
  * `mapCapture.ts` draws them on the road view's own camera and reads the pixels back; the codes
  * then come from `decodeClassRaster`. Inside the landform the order bottom to top is landform,
- * rock, existing opening, proposed block, private land: a block over an opening is a block, and
+ * rock, existing opening, proposed block, partial cut, private land: a block over an opening is a block, and
  * private land covers both, because the run counts no alteration under a private-land mask
  * (`maskAt`, `assessmentMasks.ts`) and the pixel figure must measure the same ground as the
- * sightline figure printed beside it. No DOM or network access.
+ * sightline figure printed beside it. A partial-cut block is its own class (`partialIn`/`partialOut`): outlined as a
+ * block, but not cleared ground, so the pixel figure leaves it out of Proposed as the run leaves it out of its
+ * ledger (handbook 3.4.4). A scene with none paints exactly the layers it did before. No DOM or network access.
  */
 import clipping, { type MultiPolygon } from 'polygon-clipping'
 import { classColor, zoneColor, type FigureClass } from '@/lib/forestry/viaFigure/composeFigure'
@@ -16,7 +18,10 @@ import type { PolygonGeometry } from './visibility'
 export type ClassPassInput = {
   /** The landform being assessed; null makes every class an outside one. */
   landform: PolygonGeometry | null
+  /** Proposed blocks cut clear (clearcut or dispersed retention): cleared ground. */
   blocks: readonly PolygonGeometry[]
+  /** Proposed partial-cut blocks: drawn as blocks, counted apart (handbook 3.4.4). */
+  partialCuts?: readonly PolygonGeometry[]
   /** Existing openings still counting (alteration weight above zero). */
   existing: readonly PolygonGeometry[]
   /** Private land: the scene's private-land assessment masks. */
@@ -93,6 +98,8 @@ export function classPassLayers(input: ClassPassInput): { layers: ClassPassLayer
   const existing = splitAtLandform(input.existing, input.landform)
   const kept = netOfRetained(input.blocks, input.retained ?? [])
   const blocks = splitAtLandform(kept.blocks, input.landform)
+  const keptPartial = netOfRetained(input.partialCuts ?? [], input.retained ?? [])
+  const partial = splitAtLandform(keptPartial.blocks, input.landform)
   const layers = [
     layer('landform', input.landform ? asMulti(input.landform) : []),
     layer('rock', rock.inside),
@@ -100,12 +107,22 @@ export function classPassLayers(input: ClassPassInput): { layers: ClassPassLayer
     layer('existingIn', existing.inside),
     layer('proposedOut', blocks.outside),
     layer('proposedIn', blocks.inside),
+    layer('partialOut', partial.outside),
+    layer('partialIn', partial.inside),
     // Over the blocks and openings: the run counts no alteration under private land.
     layer('privateOut', privateLand.outside),
     layer('privateIn', privateLand.inside),
   ].filter((entry) => entry.data.features.length)
-  return { layers, failed: kept.failed || [rock, privateLand, existing, blocks].some((split) => split.failed) }
+  return {
+    layers,
+    failed:
+      kept.failed || keptPartial.failed || [rock, privateLand, existing, blocks, partial].some((split) => split.failed),
+  }
 }
+
+/** Whether the pass paints a partial cut, so its decode needs the partial-cut colours (`classPaletteEntries`). */
+export const paintsPartialCut = (layers: readonly ClassPassLayer[]) =>
+  layers.some((layer) => layer.id === 'partialIn' || layer.id === 'partialOut')
 
 /** The blocks less their retention; when clipping fails on a degenerate shape the blocks stay whole and `failed` says so. */
 function netOfRetained(

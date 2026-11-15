@@ -29,7 +29,7 @@
  * DOM-free and network-free: the page joins the images (`engineFramedCapture.ts`).
  */
 
-import { CLASS_PALETTE, FIGURE_CLASS, type ClassRaster, type FigureClass } from '@/lib/forestry/viaFigure/composeFigure'
+import { classPaletteEntries, type ClassRaster } from '@/lib/forestry/viaFigure/composeFigure'
 import type { ClassPassLayer } from './figureClassPass'
 import type { FinalStand } from './finalStand'
 import type { FrameCamera } from './figureFraming'
@@ -46,15 +46,17 @@ export const ENGINE_CLASS_COLOUR: Record<keyof typeof ENGINE_CLASS, readonly [nu
   water: [255, 128, 0],
 }
 
-/** The palette to decode an engine's class pass with (`decodeClassRaster`). */
-export const ENGINE_CLASS_PALETTE: ReadonlyArray<{ code: number; rgb: readonly number[] }> = [
-  ...(Object.entries(CLASS_PALETTE) as Array<[Exclude<FigureClass, 'sky'>, readonly number[]]>).map(([name, rgb]) => ({
-    code: FIGURE_CLASS[name],
-    rgb,
-  })),
+/**
+ * The palette to decode an engine's class pass with (`decodeClassRaster`): the sheet's classes (the partial-cut ones
+ * only when the request painted a partial cut, `classPaletteEntries`) and the engine's own two.
+ */
+export const engineClassPalette = (partialCuts = false): Array<{ code: number; rgb: readonly number[] }> => [
+  ...classPaletteEntries(partialCuts),
   { code: ENGINE_CLASS.vegetation, rgb: ENGINE_CLASS_COLOUR.vegetation },
   { code: ENGINE_CLASS.water, rgb: ENGINE_CLASS_COLOUR.water },
 ]
+/** As `engineClassPalette()`: a pass with no partial cut. */
+export const ENGINE_CLASS_PALETTE: ReadonlyArray<{ code: number; rgb: readonly number[] }> = engineClassPalette()
 
 type Rgb = [number, number, number]
 /** Package metres, x east and y north: polygons of rings of points. */

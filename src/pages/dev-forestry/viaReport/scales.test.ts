@@ -187,3 +187,21 @@ describe('form tables', () => {
     expect(html.match(/class="marked"/g)).toHaveLength(1)
   })
 })
+
+describe('the partial-cut guide, table or poster', () => {
+  it('reads every cell on Table 2 by default, and prints the poster’s two differing cells only when asked', () => {
+    const table = matrix(partialCutMatrix(null))
+    const poster = matrix(partialCutMatrix(null, 'poster'))
+    // 20% removed, 25 and 30 m residual: 1.2% and 1.4%, R on Table 2, PR as the poster prints them.
+    expect([table.letters![1][4], table.letters![1][5]]).toEqual(['R', 'R'])
+    expect([poster.letters![1][4], poster.letters![1][5]]).toEqual(['PR', 'PR'])
+    const differs = table.letters!.flatMap((row, r) =>
+      row.flatMap((code, c) => (code !== poster.letters![r][c] ? [[r, c]] : [])),
+    )
+    expect(differs).toEqual([
+      [1, 4],
+      [1, 5],
+    ])
+    expect(poster.note).toContain('as the provincial poster prints it')
+  })
+})

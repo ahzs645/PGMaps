@@ -5,6 +5,7 @@
  */
 import { escapeHtml as e } from '@/branding/presentation'
 
+import { panoramaBand } from '../figureFraming'
 import type { FieldRow, FigureSlot, MapFurniture, ReportBlock, ReportFigure } from './model'
 
 type FigurePageBlock = Extract<ReportBlock, { kind: 'figurePage' }>
@@ -48,6 +49,8 @@ export const FIGURES_CSS = `@page via-figure{size:letter landscape;margin:0.45in
 .vf-grid{margin:12px 0;break-inside:avoid}.vf-cells{display:grid;gap:12px}.vf-cols-1{grid-template-columns:1fr}.vf-cols-2{grid-template-columns:1fr 1fr}.vf-cols-3{grid-template-columns:1fr 1fr 1fr}
 .vf-cell .vf-fit{width:100%}.vf-cell .vf-pic.vf-empty{height:1.8in;display:flex}
 .vf-cell .vf-label{font-size:10px;color:#475569;margin-top:2px}
+.vf-map.vf-compact .vf-fit{width:min(100%,calc(4.2in * var(--ar)))}
+.vf-landscape{page:via-figure;break-before:page;margin:0}.vf-landscape .vf-pair-item .vf-fit{width:min(100%,calc(6.3in * var(--ar)))}.vf-grid.vf-landscape .vf-cell .vf-fit{width:min(100%,calc(5.6in * var(--ar)))}
 @media screen{.vf-page{border:1px solid #cbd5e1;padding:12px;margin:16px 0;height:auto;min-height:640px;aspect-ratio:10/7.3}}`
 
 const NORTH_ARROW =
@@ -69,6 +72,21 @@ function picture(slot: FigureSlot, inset?: string, fit = false): string {
   if (!slot.figure) return `<div class="vf-pic vf-empty"><p>${e(slot.placeholder)}</p></div>`
   const map = slot.figure.map
   const north = map?.northUp && !map.inPicture ? NORTH_ARROW : ''
+  // A panorama shows a band of the picture round its landform rows: the box takes the band's shape and the picture
+  // covers it, positioned so the band shows; the marks' view box is the same band.
+  const band = slot.panorama
+    ? panoramaBand(slot.figure.landformRows, slot.figure.width, slot.figure.height, slot.panorama)
+    : null
+  if (band) {
+    const position = band.y / Math.max(1, slot.figure.height - band.height)
+    return `<div class="vf-pic vf-fit vf-pano" style="--ar:${(slot.figure.width / band.height).toFixed(4)}">${img(
+      slot.figure,
+      slot.label,
+    ).replace(
+      '<img ',
+      `<img style="object-fit:cover;object-position:50% ${(position * 100).toFixed(2)}%" `,
+    )}${blockMarks(slot, band)}${north}${label}</div>`
+  }
   const aspect = fit ? aspectOf(slot.figure) : 0
   return `<div class="vf-pic${aspect ? ' vf-fit' : ''}"${aspect ? ` style="--ar:${aspect.toFixed(4)}"` : ''}>${img(
     slot.figure,
@@ -87,7 +105,7 @@ const UNSEEN: Record<string, string> = {
  * `object-fit: contain`. An unseen block gets a dashed ring and its name with what is seen of it; with `all`, a seen
  * block gets an arrow from above and its name, never an outline.
  */
-function blockMarks(slot: FigureSlot): string {
+function blockMarks(slot: FigureSlot, band: { y: number; height: number } | null = null): string {
   const figure = slot.figure
   if (!figure?.marks?.length || !slot.markBlocks) return ''
   const w = figure.width,
@@ -107,7 +125,7 @@ function blockMarks(slot: FigureSlot): string {
     const top = Math.max(size * 1.2, y - size * 4)
     return `<line x1="${x.toFixed(1)}" y1="${(top + size * 0.4).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(y - size * 0.5).toFixed(1)}" stroke="#fff" stroke-width="${(size * 0.22).toFixed(1)}"/><path d="M${(x - size * 0.45).toFixed(1)} ${(y - size * 0.9).toFixed(1)} L${x.toFixed(1)} ${y.toFixed(1)} L${(x + size * 0.45).toFixed(1)} ${(y - size * 0.9).toFixed(1)} Z" fill="#fff"/><text x="${x.toFixed(1)}" y="${top.toFixed(1)}" font-size="${size.toFixed(1)}" text-anchor="middle" fill="#fff" stroke="#000" stroke-width="${(size * 0.18).toFixed(1)}" paint-order="stroke" font-family="Arial,Helvetica,sans-serif" font-weight="700">${e(text)}</text>`
   })
-  return `<svg class="vf-marks" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${items.join('')}</svg>`
+  return `<svg class="vf-marks" viewBox="0 ${band ? band.y : 0} ${w} ${band ? band.height : h}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${items.join('')}</svg>`
 }
 
 /** A map's legend and scale under it, unless the picture prints its own. */
@@ -130,7 +148,13 @@ function figurePageHtml(block: FigurePageBlock): string {
   // The right column's boxes take their picture's shape, as wide as the column allows (26 fits each to its picture);
   // a missing picture's box takes what height is left. The maps fit inside their boxes.
   const slot = (s: FigureSlot, sized = false) => {
-    const aspect = sized && s.figure && s.figure.width > 0 && s.figure.height > 0 ? s.figure.width / s.figure.height : 0
+    // A panorama's box takes the band's shape, not the whole picture's.
+    const band =
+      s.panorama && s.figure ? panoramaBand(s.figure.landformRows, s.figure.width, s.figure.height, s.panorama) : null
+    const aspect =
+      sized && s.figure && s.figure.width > 0 && s.figure.height > 0
+        ? s.figure.width / (band ? band.height : s.figure.height)
+        : 0
     return `<div class="vf-slot${aspect ? ' vf-sized' : ''}"${aspect ? ` style="--ar:${aspect.toFixed(4)}"` : ''}><div class="vf-bar">${e(
       s.label,
     )}</div>${picture(s)}${note(s)}</div>`
@@ -151,11 +175,11 @@ function figurePairHtml(block: FigurePairBlock): string {
         block.placement === 'caption' ? `<figcaption>${e(s.label)}</figcaption>` : ''
       }${note(s)}</figure>`,
   )
-  return `<section class="vf-pair">${block.title ? `<h4>${e(block.title)}</h4>` : ''}${items.join('')}</section>`
+  return `<section class="vf-pair${block.landscape ? ' vf-landscape' : ''}">${block.title ? `<h4>${e(block.title)}</h4>` : ''}${items.join('')}</section>`
 }
 
 function mapFigureHtml(block: MapFigureBlock): string {
-  return `<figure class="vf-map">${picture(block.slot, undefined, true)}${mapKey(block.slot.figure?.map)}${note(block.slot)}<figcaption>${e(
+  return `<figure class="vf-map${block.compact ? ' vf-compact' : ''}">${picture(block.slot, undefined, true)}${mapKey(block.slot.figure?.map)}${note(block.slot)}<figcaption>${e(
     block.caption,
   )}</figcaption></figure>`
 }
@@ -165,7 +189,7 @@ function figureGridHtml(block: FigureGridBlock): string {
     (s) =>
       `<div class="vf-cell">${picture(s, undefined, true)}${s.figure ? `<p class="vf-label">${e(s.label)}</p>` : ''}${note(s)}</div>`,
   )
-  return `<figure class="vf-grid"><div class="vf-cells vf-cols-${block.columns}">${cells.join('')}</div><figcaption>${e(
+  return `<figure class="vf-grid${block.landscape ? ' vf-landscape' : ''}"><div class="vf-cells vf-cols-${block.columns}">${cells.join('')}</div><figcaption>${e(
     block.caption,
   )}</figcaption></figure>`
 }

@@ -251,11 +251,33 @@ export function clearcutGuide(percent: number | null, source: Provenance = 'run'
  * tree height, drawn as the poster's partial cut harvesting alteration guide: each cell in the colour of the class its
  * number reads as (Table 2), the class letter large and PGMaps' number under it, the cut's nearest cell marked.
  */
-export function partialCutMatrix(cut: { removedPercent: number; residualHeightM: number } | null): ReportBlock {
+/**
+ * Where the provincial poster's printed letters differ from its own numbers read on Table 2: at 20% removed with 25
+ * and 30 m residual trees it prints PR for 1.2% and 1.4%, which Table 2 reads as R (and which the poster's own 10%
+ * row prints as R at 1.2%). By row (10% steps from 10%) and column (5 m steps from 5 m).
+ */
+export const POSTER_LETTERS: ReadonlyArray<{ row: number; column: number; code: ClassCode }> = [
+  { row: 1, column: 4, code: 'PR' },
+  { row: 1, column: 5, code: 'PR' },
+]
+
+/**
+ * How the partial-cut guide letters its cells: `table` (default) reads each clearcut-equivalent number on Table 2;
+ * `poster` prints the letters as the provincial poster does, as a form that pastes the poster shows them. The class
+ * the run reads on line (a) always comes from the number.
+ */
+export type PartialCutGuide = 'table' | 'poster'
+
+export function partialCutMatrix(
+  cut: { removedPercent: number; residualHeightM: number } | null,
+  guide: PartialCutGuide = 'table',
+): ReportBlock {
   const rows = PARTIAL_CUT_EQUIVALENT.map((_, index) => String((index + 1) * 10))
   const columns = PARTIAL_CUT_EQUIVALENT[0].map((_, index) => String((index + 1) * 5))
-  const letters = PARTIAL_CUT_EQUIVALENT.map((row) =>
-    row.map((value) => {
+  const letters = PARTIAL_CUT_EQUIVALENT.map((row, r) =>
+    row.map((value, c) => {
+      const printed = guide === 'poster' ? POSTER_LETTERS.find((entry) => entry.row === r && entry.column === c) : null
+      if (printed) return printed.code
       const found = classifyAlteration(value, 'perspective', DEFAULT_VISUAL_QUALITY_THRESHOLDS)
       return found ? (found.code as ClassCode) : null
     }),
@@ -289,9 +311,15 @@ export function partialCutMatrix(cut: { removedPercent: number; residualHeightM:
     ...(point ? { point } : {}),
     cellValues: false,
     markSource: 'scene',
-    note: point
-      ? `X: ${cut!.removedPercent}% of the volume removed, residual trees ${cut!.residualHeightM} m tall (the block's record). Each cell reads as the class of its clearcut-equivalent alteration (FS1252 Table 4) on Table 2; the nearest cell's figure goes on line (a).`
-      : 'Each cell reads as the class of its clearcut-equivalent alteration (FS1252 Table 4) on Table 2.',
+    note: `${
+      point
+        ? `X: ${cut!.removedPercent}% of the volume removed, residual trees ${cut!.residualHeightM} m tall (the block's record). `
+        : ''
+    }${
+      guide === 'poster'
+        ? 'Lettered as the provincial poster prints it; at 20% removed and 25-30 m the poster prints PR where Table 2 reads its 1.2-1.4% as R.'
+        : 'Each cell reads as the class of its clearcut-equivalent alteration (FS1252 Table 4) on Table 2.'
+    }${point ? ' The nearest cell’s figure goes on line (a).' : ''}`,
   }
 }
 

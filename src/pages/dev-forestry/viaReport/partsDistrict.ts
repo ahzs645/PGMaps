@@ -7,13 +7,15 @@
  * office gave, and the reviewer's step 4 record fills judgements at the assessment station only. Anything else prints
  * blank and is listed as to complete. Registered in `registry.ts`. No DOM or network access.
  */
-import { blockList } from '../viaDocument/resolve'
+import { blockId, blockList, significanceScore } from '../viaDocument/resolve'
+import { atAssessmentStation } from '../viaDocument/facts'
 import { CLASS_NAMES, PERCENT_SCALES, readPercent, type ClassCode, type PercentScale } from '../viaDocument/scales'
 import { fillSentence, type Sentence } from '../viaDocument/wording'
-import { SCALE_TERMS, SHAPE_TERMS, VIEWPOINT_TYPES, VISIBLENESS_TERMS } from '../via'
+import { SCALE_TERMS, SHAPE_TERMS, VIEWPOINT_TYPES, VISIBLENESS_TERMS, type DesignElementId } from '../via'
 import { designDistanceScore } from '../vqe'
 import { field, fields, heading, text, type FieldRow, type ReportBlock } from './model'
 import {
+  assessed,
   blank,
   CLASS_CODES_BY_ID,
   CLASS_ORDER,
@@ -22,6 +24,8 @@ import {
   objectiveOf,
   officeRow,
   paragraph,
+  proposedBlocks,
+  rangeStanding,
   yesNo,
   type ReportBlockFacts,
   type ReportContext,
@@ -171,6 +175,15 @@ export function operationArea(blocks: readonly ReportBlockFacts[]): string | nul
   return `${ha(total)} ha (${sizes}${retained > 0 ? `; includes about ${ha(retained)} ha of recorded retention` : ''})`
 }
 
+/** The proposed year of harvest from each block's planned harvest year; null until every block has one. */
+export function harvestYearLine(blocks: readonly ReportBlockFacts[]): string | null {
+  if (!blocks.length || blocks.some((block) => block.plannedHarvestYear == null)) return null
+  const years = [...new Set(blocks.map((block) => block.plannedHarvestYear))]
+  return years.length === 1
+    ? String(years[0])
+    : blocks.map((block) => `${block.name} ${block.plannedHarvestYear}`).join(', ')
+}
+
 const DISTRICT_ROW = {
   inventory: '1. Visual Landscape Inventory/Analysis Data',
   lake: '2. Lake (if applicable)',
@@ -223,11 +236,17 @@ const districtSummaryForm: ReportPart = {
     const unitColumns = ['Landform', 'VLU #', 'VSR', 'VAC', 'EVC', 'VQO']
     const gaps = unitColumns.filter((_, column) => units.some((row) => !row[column]))
     if (gaps.length) toComplete.push(`1. Inventory data: ${andList(gaps)}`)
-    const inventoryDate = field('Date of inventory', null, 'scene')
-    toComplete.push('1. Date of inventory')
+    const inventoryDate = officeRow(ctx, 'inventoryDate', 'Date of inventory')
+    if (inventoryDate.value === null) toComplete.push('1. Date of inventory')
 
     // Row 2: no lake is known to the page, so the lake and its lakeshore management zone stay to complete.
-    toComplete.push('2. Lake name, number and class, and the LMZ area and alteration (if a lake applies)')
+    // The reviewer's lake or management zone (office fields) names the row; its areas stay to complete.
+    const lmz = blank(ctx.office.lakeManagementZone)
+    toComplete.push(
+      lmz
+        ? `2. ${lmz}: lake number and class, and the LMZ area and alteration`
+        : '2. Lake name, number and class, and the LMZ area and alteration (if a lake applies)',
+    )
 
     const area = field(DISTRICT_ROW.area, operationArea(ctx.blocks), 'scene')
     toComplete.push(...missingFields([area]))
@@ -277,7 +296,7 @@ const districtSummaryForm: ReportPart = {
           'Area of proposed alteration in LMZ',
           'Total percent alteration in LMZ',
         ],
-        rows: [['', '', '', '', '', '', '']],
+        rows: [[lmz ?? '', '', '', '', '', '', '']],
         source: 'reviewer',
       },
       fields([area]),
@@ -308,7 +327,7 @@ const districtSummaryForm: ReportPart = {
 
 /**
  * The 2001 form's header (01 p1, 03 p1). The summary form that carries notes (03, 05) also asks for the year of
- * harvest and the type of operation, which no record on the page holds.
+ * harvest, read from the blocks' planned harvest years, and the type of operation, which no record on the page holds.
  */
 const formHeader2001: ReportPart = {
   id: 'form-header-2001',
@@ -324,7 +343,10 @@ const formHeader2001: ReportPart = {
       officeRow(ctx, 'generalLocation', 'General location'),
       field('Proposed silvicultural system', systemsLine(ctx.blocks), 'scene'),
       ...(summaryForm
-        ? [field('Proposed year of harvest', null, 'reviewer'), field('Type of proposed operation', null, 'reviewer')]
+        ? [
+            field('Proposed year of harvest', harvestYearLine(proposedBlocks(ctx)), 'scene'),
+            field('Type of proposed operation', null, 'reviewer'),
+          ]
         : []),
       field('Date', today(ctx), 'run'),
     ]
@@ -403,7 +425,7 @@ const criteriaRating2001: ReportPart = {
         value: (vp) =>
           allHidden(vp)
             ? 'Not visible'
-            : vp.review
+            : atAssessmentStation(vp)
               ? (VISIBLENESS_TERMS.find((t) => t.id === ocular?.visibleness)?.label ?? '')
               : '',
       },
@@ -411,7 +433,7 @@ const criteriaRating2001: ReportPart = {
         label: 'Scale of alteration',
         options: SCALE_TERMS.map((t) => t.label).join(', '),
         value: (vp, index) => {
-          const chosen = vp.review ? SCALE_TERMS.find((t) => t.id === ocular?.scale)?.label : undefined
+          const chosen = atAssessmentStation(vp) ? SCALE_TERMS.find((t) => t.id === ocular?.scale)?.label : undefined
           if (chosen) return chosen
           const printed = ctx.document.viewpoints[index]?.printed
           return printed ? `${printed.term.charAt(0).toUpperCase()}${printed.term.slice(1)} (${printed.percent}%)` : ''
@@ -428,14 +450,19 @@ const criteriaRating2001: ReportPart = {
         value: (vp) =>
           allHidden(vp)
             ? 'No visible alteration'
-            : vp.review
+            : atAssessmentStation(vp)
               ? (SHAPE_TERMS.find((t) => t.id === ocular?.shape)?.label ?? '')
               : '',
       },
       {
         label: 'Viewpoint importance and duration',
         options: 'Low 1 2 3 4 5 High',
-        value: (vp) => (vp.review && ctx.review?.viewpointType ? String(ctx.review.viewpointType) : ''),
+        value: (vp) =>
+          String(
+            significanceScore(vp.review?.importance) ??
+              (atAssessmentStation(vp) ? ctx.review?.viewpointType : null) ??
+              '',
+          ),
       },
       {
         label: 'Distance from viewpoint',
@@ -446,7 +473,7 @@ const criteriaRating2001: ReportPart = {
         label: 'Category of visually altered landform',
         options: CLASS_ORDER.map((code) => CLASS_NAMES[code]).join(', '),
         value: (vp) => {
-          const id = vp.review ? ctx.assessment?.ocular?.classId : undefined
+          const id = atAssessmentStation(vp) ? ctx.assessment?.ocular?.classId : undefined
           const code = id ? CLASS_CODES_BY_ID[id] : undefined
           return code ? CLASS_NAMES[code] : ''
         },
@@ -509,14 +536,18 @@ function numericStatements(ctx: ReportContext): Sentence[] {
     return [
       fillSentence(
         'numeric-statement',
-        'From {viewpoint}, the alteration is {percent}% of the {basis}, {standing} the {objective} range ({range}).',
+        'From {viewpoint}, the alteration is {percent}% of the {basis}, {standing}.',
         {
           viewpoint: vp.name,
           percent: vp.printed.percent,
           basis: ctx.document.format.rule.basis,
-          standing: within ? 'within' : 'over',
-          objective: CLASS_NAMES[objective],
-          range: rangeFor(scale, objective),
+          // The class the figure reads as on this scale; over the range when the scale reads none past its bands.
+          standing: rangeStanding(
+            readPercent(scale, vp.alteration?.printedValue ?? Number(vp.printed.percent))?.code ??
+              (within ? objective : 'MM'),
+            objective,
+            rangeFor(scale, objective),
+          ),
         },
         'run',
       ),
@@ -604,6 +635,126 @@ const summary2001Five: ReportPart = {
   },
 }
 
+/**
+ * The boxed VIA summary a consultant's 2001-form VIA ends on (05 p5): "VIA Summary - {project}", the four questions
+ * each in a ruled box with its Yes/No and a bold one-line answer, then who completed it and when, and the registered
+ * professional's signature with the certification statement. The run answers the numerical question and its line;
+ * the other answers are the reviewer's, from step 4 at the assessment station, else blank.
+ */
+/** "CP 405 blks 1, 2, 4, 5, 7": the cutting permit and the proposed blocks, as the boxed summary's title names them. */
+const projectLine = (ctx: ReportContext) => {
+  const permit = blank(ctx.office.cuttingPermit)
+  const ids = proposedBlocks(ctx).map((block) => blockId(block.name))
+  return (
+    [
+      permit ? `CP ${permit.trim()}` : null,
+      ids.length ? `${ids.length === 1 ? 'blk' : 'blks'} ${ids.join(', ')}` : null,
+    ]
+      .filter(Boolean)
+      .join(' ') || 'the proposed blocks'
+  )
+}
+
+const summaryBoxed: ReportPart = {
+  id: 'summary-boxed',
+  title: 'VIA summary',
+  sources: ['05'],
+  build: (ctx) => {
+    const objective = objectiveOf(ctx)
+    const scale = ctx.document.format.percentScale
+    const readings = ctx.document.viewpoints.flatMap((vp, index) => {
+      const facts = ctx.facts.viewpoints[index]
+      const at = facts ? objectiveAt(ctx, facts) : objective
+      const value = vp.alteration ? vp.alteration.printedValue : null
+      const within = withinRange(scale, value, at)
+      return within === null || value === null ? [] : [{ name: vp.name, within, value, printed: vp.printed!.percent }]
+    })
+    const numerical = readings.length ? readings.every((reading) => reading.within) : null
+    // The objective's ceiling as the scale prints it (PR: 7.0), for "Less than 7.0 percent alteration".
+    const ceiling = objective ? (scale.bands.find((b) => b.code === objective)?.max ?? null) : null
+    const highest = readings.reduce<(typeof readings)[number] | null>((a, b) => (!a || b.value > a.value ? b : a), null)
+    const numericalAnswer =
+      numerical === null || !highest
+        ? null
+        : numerical && ceiling !== null
+          ? `Less than ${ceiling.toFixed(1)} percent alteration (at most ${highest.printed}%, from ${highest.name}).`
+          : `${highest.printed}% alteration from ${highest.name}, over the ${objective ? CLASS_NAMES[objective] : ''} range.`
+    const ocular = ctx.assessment?.ocular ?? null
+    const definition = ocular && objective ? rank(CLASS_CODES_BY_ID[ocular.classId]) <= rank(objective) : null
+    const design = ctx.assessment?.designTotal == null ? null : ctx.assessment.designTotal <= 0
+    const rating = ctx.assessment?.rating ?? null
+    // The reviewer's own words where step 4 has them: the impact and visibility terms, the rationale.
+    const review = assessed(ctx)?.review
+    const seenAnswer =
+      review?.visibility || review?.impact
+        ? `Activities are ${(review.visibility ?? 'visible').toLowerCase()}${review.impact ? `, and remain ${review.impact.toLowerCase()}` : ''}.`
+        : null
+    const questions: Array<{
+      label: string
+      chosen: boolean | null
+      answer: string | null
+      source: 'run' | 'reviewer'
+    }> = [
+      {
+        label:
+          'Does the proposal, in combination with any existing non-VEG alterations, achieve the basic definition for the established VQO?',
+        chosen: definition,
+        answer: seenAnswer,
+        source: 'reviewer',
+      },
+      {
+        label: 'Have visual design concepts and principles been incorporated into block/road design?',
+        chosen: design,
+        answer: blank(ctx.measures.join(' ')) ?? null,
+        source: 'reviewer',
+      },
+      {
+        label:
+          'Does the proposal, in combination with any existing non-VEG alterations, fall within the numerical ranges for the established VQO?',
+        chosen: numerical,
+        answer: numericalAnswer,
+        source: 'run',
+      },
+      {
+        label:
+          'Given the three criteria listed above, does the proposal meet the established VQO from all the selected viewpoint(s)?',
+        chosen: rating ? rating.definitionAchieved : null,
+        answer: blank(ctx.review?.rationale) ?? null,
+        source: 'reviewer',
+      },
+    ]
+    const rows = [officeRow(ctx, 'evaluator', 'Completed by'), field('Date completed', null, 'reviewer')]
+    return {
+      blocks: [
+        heading(`VIA Summary - ${projectLine(ctx)}`),
+        ...questions.map(
+          (q): ReportBlock => ({
+            kind: 'choices',
+            label: q.label,
+            options: ['Yes', 'No'],
+            chosen: yesNo(q.chosen),
+            answer: q.answer,
+            boxed: true,
+            source: q.source,
+          }),
+        ),
+        fields(rows),
+        text(
+          'I certify that the work described herein fulfils the standards expected of a registered forest professional, and that I did personally supervise the work.',
+          'fixed',
+        ),
+        { kind: 'signature', lines: ['Signature and seal', 'Name, RPF', 'Date'] },
+      ],
+      toComplete: [
+        ...questions.filter((q) => q.chosen === null).map((q) => q.label),
+        ...questions.filter((q) => q.source === 'reviewer' && !q.answer).map((q) => `Summary answer: ${q.label}`),
+        ...missingFields(rows),
+        'Signature and certification',
+      ],
+    }
+  },
+}
+
 // ------------------------------------------------------------------ 01, 05: certification and attachments
 
 /** 01's signature page: the qualified registered professional, a certification statement, and the attachments. */
@@ -614,16 +765,31 @@ const certification2001: ReportPart = {
   build: (ctx) => {
     const before = ctx.images?.before ? Object.keys(ctx.images.before).length : 0
     const vps = ctx.facts.viewpoints.length
+    // Only what the report itself prints is listed: a part the recipe leaves out attaches nothing.
+    const prints = (...ids: string[]) => !ctx.recipeParts || ids.some((id) => ctx.recipeParts!.includes(id))
     const attachments: Array<{ name: string; attached: boolean }> = [
-      { name: 'VIA overview map', attached: !!ctx.images?.overviewMap },
-      { name: 'Overhead model renders', attached: !!ctx.images?.overhead?.length },
-      {
-        name:
-          before && before < vps
-            ? `Site photography by viewpoint (${before} of ${vps} viewpoints)`
-            : 'Site photography by viewpoint',
-        attached: before > 0,
-      },
+      ...(prints('overview-map', 'overview-sheet')
+        ? [{ name: 'VIA overview map', attached: !!(ctx.images?.overviewMap ?? ctx.images?.overviewSheet) }]
+        : []),
+      ...(prints('overhead-renders', 'simulation-pages')
+        ? [
+            {
+              name: prints('overhead-renders') ? 'Overhead model renders' : 'Oblique model renders',
+              attached: !!ctx.images?.overhead?.length,
+            },
+          ]
+        : []),
+      ...(prints('photo-simulation-pairs', 'ea-figure-pages')
+        ? [
+            {
+              name:
+                before && before < vps
+                  ? `Site photography by viewpoint (${before} of ${vps} viewpoints)`
+                  : 'Site photography by viewpoint',
+              attached: before > 0,
+            },
+          ]
+        : []),
       { name: 'Harvest simulations by viewpoint', attached: ctx.figures.length > 0 },
     ]
     const rows = [officeRow(ctx, 'evaluator', 'Qualified registered professional responsible for VIA findings')]
@@ -690,12 +856,14 @@ const notes2001: ReportPart = {
     )
     // The five-year question is asked once: in the summary when the report's summary carries it (01).
     const asked = !!ctx.recipeParts?.includes('summary-2001-five')
+    // Note 2 read for this proposal repeats the figures the 2001 summary already states per viewpoint (03).
+    const stated = !!ctx.recipeParts?.includes('summary-2001')
     const comments = field('Comments', null, 'reviewer')
     return {
       blocks: [
         heading('Notes', 3),
         { kind: 'list', items: [...NOTES_2001], ordered: true, source: 'fixed' },
-        ...paragraph([tests]),
+        ...(stated ? [] : paragraph([tests])),
         heading('Additional considerations', 3),
         ...(asked
           ? []
@@ -717,7 +885,7 @@ const notes2001: ReportPart = {
       toComplete: [
         ...(asked ? [] : ['Additional considerations: all known alterations for the next 5 years']),
         'Additional considerations: comments (if any)',
-        ...(tests.text ? [] : [`Note 2 for this proposal (needs ${andList(tests.missing)})`]),
+        ...(tests.text || stated ? [] : [`Note 2 for this proposal (needs ${andList(tests.missing)})`]),
       ],
     }
   },
@@ -858,12 +1026,86 @@ const designTechniques2001: ReportPart = {
   },
 }
 
+// ------------------------------------------------------------------ 03, 05: design as yes / no questions
+
+/**
+ * The 2001 summary form's section 2 (03 p2, 05 p3): five yes / no design questions and a line for design deficiencies.
+ * The first three answer from step 4's design ratings at the assessment station (good is Yes, poor is No, moderate is
+ * the reviewer's); islands answer Yes when the scene maps a retention patch inside a block, else they are the
+ * reviewer's; poor design in the unit is always the reviewer's.
+ */
+const designQuestions2001: ReportPart = {
+  id: 'design-questions-2001',
+  title: 'Assessing visual design',
+  sources: ['03', '05'],
+  build: (ctx) => {
+    const rating = (id: DesignElementId): boolean | null => {
+      const value = ctx.assessment?.design[id]?.rating ?? null
+      return value === -1 ? true : value === 1 ? false : null
+    }
+    const islands = ctx.blocks.some((block) => (block.islands ?? 0) > 0) ? true : null
+    const questions: Array<{ short: string; label: string; chosen: boolean | null; source: 'reviewer' | 'scene' }> = [
+      {
+        short: 'major lines of force',
+        label:
+          'Have major lines of force been identified and used to develop the size and shape of the proposed operation? (If Yes, attach the visual force analysis.)',
+        chosen: rating('force-lines'),
+        source: 'reviewer',
+      },
+      {
+        short: 'borrowing from the natural character',
+        label: 'Has the proposed operation borrowed from the natural character of the landscape?',
+        chosen: rating('natural-character'),
+        source: 'reviewer',
+      },
+      {
+        short: 'edge treatments',
+        label:
+          'Have edge treatments been incorporated into the design of the proposed operation (feathered edges, irregular cutblock design, etc.)?',
+        chosen: rating('edge-treatment'),
+        source: 'reviewer',
+      },
+      {
+        short: 'islands or patches of trees',
+        label:
+          'Have “islands,” or patches of trees, been maintained to mitigate visual impacts and other resource management objectives?',
+        chosen: islands,
+        source: islands ? 'scene' : 'reviewer',
+      },
+      {
+        short: 'existing alterations of poor design in the unit',
+        label: 'Are there any existing human-made alterations visible in the unit that exhibit poor design?',
+        chosen: null,
+        source: 'reviewer',
+      },
+    ]
+    return {
+      blocks: [
+        heading('2. Assessing visual design'),
+        ...questions.map(
+          (q): ReportBlock => ({
+            kind: 'choices',
+            label: q.label,
+            options: ['Yes', 'No'],
+            chosen: yesNo(q.chosen),
+            source: q.source,
+          }),
+        ),
+        fields([field('If Yes, describe the design deficiencies', null, 'reviewer')]),
+      ],
+      toComplete: questions.filter((q) => q.chosen === null).map((q) => q.short),
+    }
+  },
+}
+
 export const DISTRICT_PARTS: readonly ReportPart[] = [
+  designQuestions2001,
   districtSummaryForm,
   formHeader2001,
   blockAreas2001,
   criteriaRating2001,
   summary2001Five,
+  summaryBoxed,
   certification2001,
   notes2001,
   designTechniques2001,

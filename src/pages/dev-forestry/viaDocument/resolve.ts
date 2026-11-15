@@ -72,6 +72,16 @@ export interface BlockAtStation {
   share?: number
   /** Share of the block's ground hidden only by standing timber from this viewpoint, percent; absent on older runs. */
   screenedPercent?: number
+  /**
+   * A partial cut (handbook 3.4.4): not cleared ground, so it takes no `share` of the viewpoint's proposed figure;
+   * its pixels are `areas.partialCut` and the run adds its Table 6 figure to X.
+   */
+  partialCut?: true
+  /**
+   * The block's own distance from this viewpoint, km: its nearest sample seen from the eye. Absent when the run does
+   * not give it or nothing of the block is seen.
+   */
+  distanceKm?: number
 }
 
 /** The judgements a reviewer gives per viewpoint; every one optional. */
@@ -116,15 +126,44 @@ export interface DocumentViewpoint {
   inventory?: { vsu?: string; vsc?: string; vac?: string; evc?: string; vqo?: string } | null
   /** The class pass's areas, pixels; null when the view has no class pass. */
   areas: AlterationAreas | null
+  /**
+   * The same areas with the drawn timber in front (an engine's screened pass, or PGMaps' before/after measure,
+   * `timberScreen.ts`), or why they were not measured. A second pixel figure printed beside `areas`' and the
+   * sightline figure, never instead of either. Absent: not looked for (hand-built facts).
+   */
+  withTimber?: { areas: AlterationAreas; source: 'engine' | 'pgmaps' } | { absent: string }
   /** The run's sightline figure at the station, percent: the assessment's figure. */
   sightlinePercent: number | null
   distanceKm: number | null
   hfovDeg?: number | null
   lensMm?: number | null
   lngLat?: [number, number] | null
+  /** The eye's elevation above sea level, metres, when the view was framed at a known pose. */
+  elevationM?: number | null
+  /** The view's centre line, degrees clockwise from north (the camera's azimuth). */
+  bearingDeg?: number | null
   blocks: readonly BlockAtStation[]
   review?: ViewpointReview
+  /**
+   * Whether this view stands at the run's assessment station, the one view the step 4 judgements belong to. Absent
+   * (hand-built facts): the view carrying a `review` is taken as it (`atAssessmentStation`, `facts.ts`).
+   */
+  atAssessment?: boolean
   appendix1?: ViewpointAppendix1 | null
+}
+
+/** A key viewpoint the reviewer chose, by the viewpoint's name in these facts, with the reason they gave. */
+export interface KeyViewpointPick {
+  viewpoint: string
+  reason?: string
+}
+
+/** The reviewer's own key viewpoints, which override the run's choice (`chooseKeyViewpoints`). */
+export interface KeyViewpointPicks {
+  /** By block, under the name the scene gives it. */
+  blocks?: Readonly<Record<string, KeyViewpointPick>>
+  /** Group mode: the viewpoint the blocks are assessed from together. */
+  group?: KeyViewpointPick | null
 }
 
 export interface DocumentFacts {
@@ -133,6 +172,8 @@ export interface DocumentFacts {
   viewpoints: readonly DocumentViewpoint[]
   /** Whether the run's sightlines counted standing timber as screening; false: bare ground only. Absent: unknown. */
   screeningModelled?: boolean
+  /** Key viewpoints the reviewer chose; absent, the run chooses them all. */
+  keyViewpoints?: KeyViewpointPicks
 }
 
 export interface ResolvedViewpoint {
@@ -140,6 +181,8 @@ export interface ResolvedViewpoint {
   alteration: Alteration | null
   /** The figure as the format prints it, with the class or term it reads as. */
   printed: { percent: string; term: string; classCode: ClassCode | null } | null
+  /** The with-timber pixel figure on the format's rule, or why it was not measured; absent when not looked for. */
+  withTimber?: { percent: string } | { absent: string }
   distance: { km: string; term: string } | null
   rows: Record<string, Array<Record<string, string>>>
   sentences: Sentence[]
@@ -233,6 +276,10 @@ export interface KeyViewpointChoice {
   group: { index: number; blocks: string[] } | null
   /** What they were chosen by (`visibility` when absent). */
   rule?: KeyViewpointRule
+  /** The choices the reviewer made, with the reason given ('' for none): blocks by id, and the group's. */
+  reviewer?: { blocks: Map<string, string>; group: string | null }
+  /** Reviewer choices not taken: the viewpoint named does not see the block (or, for a group, two of them). */
+  declined?: Array<{ block: string | null; viewpoint: string }>
 }
 
 const SIGNIFICANCE_WORDS: Array<[RegExp, number]> = [
@@ -260,6 +307,10 @@ export function significanceScore(text: string | null | undefined): number | nul
  *   whose landform shows the alteration, then the largest summed share. A block it does not see takes its own.
  *
  * Blocks of another sale or permit never have a key viewpoint: they are assessed in their own VIA.
+ *
+ * A key viewpoint the reviewer chose (`picks`) overrides the run's, when that viewpoint sees the block (for a group,
+ * two or more of the blocks); a block the reviewer gives its own viewpoint leaves the group. A choice that cannot be
+ * taken is listed in `declined` and the run's stands.
  */
 export function chooseKeyViewpoints(
   viewpoints: readonly DocumentViewpoint[],
@@ -269,6 +320,59 @@ export function chooseKeyViewpoints(
   rule: KeyViewpointRule = 'visibility',
   /** The percent alteration of a viewpoint's landform, for the `impact` rule. */
   percentAt: (index: number) => number | null = () => null,
+  picks: KeyViewpointPicks | null = null,
+): KeyViewpointChoice {
+  const run = chooseFromRun(viewpoints, mode, altered, rule, percentAt)
+  const blockPicks = Object.entries(picks?.blocks ?? {})
+  const groupPick = mode === 'group' ? (picks?.group ?? null) : null
+  if (!blockPicks.length && !groupPick) return run
+  const own = (index: number) =>
+    viewpoints[index].blocks.filter((block) => seen(block) && !isOtherPlanned(block)).map((block) => block.id)
+  const indexOf = (name: string) => viewpoints.findIndex((vp) => vp.name === name)
+  const single = mode === 'group' ? chooseFromRun(viewpoints, 'per-block', altered, rule, percentAt).byBlock : null
+  const byBlock = new Map(run.byBlock)
+  let group = run.group ? { index: run.group.index, blocks: [...run.group.blocks] } : null
+  const reviewer = { blocks: new Map<string, string>(), group: null as string | null }
+  const declined: NonNullable<KeyViewpointChoice['declined']> = []
+  if (groupPick) {
+    const index = indexOf(groupPick.viewpoint)
+    const members = index < 0 ? [] : own(index)
+    if (members.length >= 2) {
+      // Blocks of the run's group this viewpoint does not see go back to their own key viewpoints.
+      for (const id of group?.blocks ?? []) if (!members.includes(id)) byBlock.set(id, single?.get(id) ?? -1)
+      for (const id of members) byBlock.set(id, index)
+      group = { index, blocks: members }
+      reviewer.group = groupPick.reason?.trim() ?? ''
+    } else declined.push({ block: null, viewpoint: groupPick.viewpoint })
+  }
+  for (const [name, pick] of blockPicks) {
+    const index = indexOf(pick.viewpoint)
+    const id =
+      index < 0 ? undefined : own(index).find((entry) => blockId(entry) === blockId(otherPlannedName(name)?.id ?? name))
+    if (id === undefined) {
+      declined.push({ block: name, viewpoint: pick.viewpoint })
+      continue
+    }
+    byBlock.set(id, index)
+    reviewer.blocks.set(id, pick.reason?.trim() ?? '')
+    if (group && group.index !== index) group.blocks = group.blocks.filter((entry) => entry !== id)
+  }
+  if (group && group.blocks.length < 2) {
+    // A group left with one block is that block at its own key viewpoint, unless the reviewer put it there.
+    for (const id of group.blocks) if (!reviewer.blocks.has(id)) byBlock.set(id, single?.get(id) ?? group.index)
+    group = null
+    reviewer.group = null
+  }
+  for (const [id, index] of byBlock) if (index < 0) byBlock.delete(id)
+  return { byBlock, group, rule, reviewer, ...(declined.length ? { declined } : {}) }
+}
+
+function chooseFromRun(
+  viewpoints: readonly DocumentViewpoint[],
+  mode: KeyViewpointMode,
+  altered: (index: number) => boolean,
+  rule: KeyViewpointRule,
+  percentAt: (index: number) => number | null,
 ): KeyViewpointChoice {
   const own = (vp: DocumentViewpoint) => vp.blocks.filter((block) => seen(block) && !isOtherPlanned(block))
   // Compared in order, larger first; the first difference decides. Visibility: the share, then an altered landform.
@@ -381,6 +485,10 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
     viewpoints[i].distanceKm === null ? undefined : lower(termAt(format.distanceScale, viewpoints[i].distanceKm!))
   const zeroAt = (i: number) => results[i] !== null && results[i]!.printedValue === 0
   const seenAt = (i: number) => viewpoints[i].blocks.filter(seen)
+  // A block's own distance from the viewpoint: the run's, else the nearest block in view's when it is the only one.
+  const ownDistanceAt = (i: number, block: BlockAtStation): number | null =>
+    block.distanceKm ??
+    (seen(block) && seenAt(i).every((other) => other.id === block.id) ? viewpoints[i].distanceKm : null)
   // A block's own figure at a viewpoint: the proposed part of the viewpoint's figure, split by the block's share of
   // the proposed blocks' visible apparent size in the run. Null when the run gives no share.
   const blockPercentAt = (i: number, block: BlockAtStation) => {
@@ -454,8 +562,15 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
         : zeroAt(i)
           ? ''
           : (blockPercentAt(i, block)?.printed ?? '')
+    // The block's own distance; with one block in view the nearest block's is its own. Otherwise the nearest block
+    // in view only bounds it, so no rating is read from it.
+    const own = ownDistanceAt(i, block)
     const distance =
-      vp.distanceKm === null ? '' : `${termAt(format.distanceScale, vp.distanceKm)} ${km(vp.distanceKm)} km`
+      own !== null
+        ? `${termAt(format.distanceScale, own)} ${km(own)} km`
+        : isSeen && vp.distanceKm !== null
+          ? `at least ${km(vp.distanceKm)} km`
+          : ''
     return {
       [T5.viewpoint]: vp.name,
       [T5.block]: `Block ${block.id}`,
@@ -504,6 +619,17 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
     ]
   }
 
+  // A key viewpoint the reviewer chose, with their reason when they gave one.
+  const reviewerReason = (bare: SentenceTemplate, withReason: SentenceTemplate, given: string, about: string) => {
+    const reason = given.trim().replace(/[.\s]+$/, '')
+    // The reason follows a colon: its first letter drops to lower case unless it starts a name or an acronym.
+    const flowing =
+      /^[A-Z][a-z]/.test(reason) && !/^[A-Z][a-z]+\s+[A-Z]/.test(reason)
+        ? reason.charAt(0).toLowerCase() + reason.slice(1)
+        : reason
+    return reason ? fill(withReason, { reason: flowing }, about) : fill(bare, {}, about)
+  }
+
   // Each block's own size term (23's "AN15 and AN3A small; AN03 small to medium"), when the run splits the figure.
   const scaleByBlock = (i: number, blocks: readonly BlockAtStation[], about: string): Sentence[] => {
     const split = blocks.map((block) => ({ block, figure: blockPercentAt(i, block) }))
@@ -527,18 +653,27 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
     const leftOut = [...choice.byBlock].filter(([id, index]) => index !== i && !ids.includes(id)).map(([id]) => id)
     const opening = [
       fill(PERSPECTIVE_REPORT.groupLocation, { blockList: about, landform: vp.landform, viewpoint: vp.name }, about),
-      ...(choice.rule === 'impact'
-        ? impactReason(i, ids, about)
-        : [
-            fill(
-              PERSPECTIVE_REPORT.keyGroup,
-              {
-                seenCount: allOf(ids.length),
-                shares: andList(blocks.map((b) => `${Math.round(b.visiblePercent)}%`)),
-              },
+      ...(choice.reviewer?.group != null
+        ? [
+            reviewerReason(
+              PERSPECTIVE_REPORT.keyGroupReviewer,
+              PERSPECTIVE_REPORT.keyGroupReviewerReason,
+              choice.reviewer.group,
               about,
             ),
-          ]),
+          ]
+        : choice.rule === 'impact'
+          ? impactReason(i, ids, about)
+          : [
+              fill(
+                PERSPECTIVE_REPORT.keyGroup,
+                {
+                  seenCount: allOf(ids.length),
+                  shares: andList(blocks.map((b) => `${Math.round(b.visiblePercent)}%`)),
+                },
+                about,
+              ),
+            ]),
       ...(glimpsed.length
         ? [fillSentence('group-glimpses', `Of these, ${blockList(glimpsed)} may be seen only in glimpses.`, {}, 'run')]
         : []),
@@ -601,23 +736,27 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
       .map((other, index) => ({ index, block: other.blocks.find((b) => b.id === block.id && seen(b)) }))
       .filter((entry) => entry.index !== i && entry.block)
       .sort((a, b) => b.block!.visiblePercent - a.block!.visiblePercent)
-    const reason = others.length
-      ? fill(
-          PERSPECTIVE_REPORT.keyViewpoint,
-          {
-            share: Math.round(block.visiblePercent),
-            compare:
-              Math.round(others[0].block!.visiblePercent) >= Math.round(block.visiblePercent)
-                ? 'as much as any other viewpoint assessed'
-                : others.length === 1
-                  ? 'more than the one other viewpoint that sees it'
-                  : `more than any of the other ${NUMBER_WORDS[others.length] ?? others.length} viewpoints that see it`,
-            runnerUp: viewpoints[others[0].index].name,
-            runnerShare: Math.round(others[0].block!.visiblePercent),
-          },
-          about,
-        )
-      : fill(PERSPECTIVE_REPORT.keyOnly, { viewpoint: vp.name, share: Math.round(block.visiblePercent) }, about)
+    const picked = choice.reviewer?.blocks.get(block.id)
+    const reason =
+      picked !== undefined
+        ? reviewerReason(PERSPECTIVE_REPORT.keyReviewer, PERSPECTIVE_REPORT.keyReviewerReason, picked, about)
+        : others.length
+          ? fill(
+              PERSPECTIVE_REPORT.keyViewpoint,
+              {
+                share: Math.round(block.visiblePercent),
+                compare:
+                  Math.round(others[0].block!.visiblePercent) >= Math.round(block.visiblePercent)
+                    ? 'as much as any other viewpoint assessed'
+                    : others.length === 1
+                      ? 'more than the one other viewpoint that sees it'
+                      : `more than any of the other ${NUMBER_WORDS[others.length] ?? others.length} viewpoints that see it`,
+                runnerUp: viewpoints[others[0].index].name,
+                runnerShare: Math.round(others[0].block!.visiblePercent),
+              },
+              about,
+            )
+          : fill(PERSPECTIVE_REPORT.keyOnly, { viewpoint: vp.name, share: Math.round(block.visiblePercent) }, about)
     const inView = seenAt(i).filter((b) => b.id !== block.id)
     const scale = zeroAt(i)
       ? outside(i, [block.id], about, firstHere)
@@ -644,15 +783,31 @@ function perspectiveDiscussion({ format, viewpoints, results, choice }: Perspect
               ),
             ]
           : [fill(PERSPECTIVE_REPORT.scale, { sizeTerm: sizeTermAt(i), percent: results[i]?.printed }, about)]
-    const distance = firstHere
-      ? []
-      : [
-          fill(
-            inView.length ? PERSPECTIVE_REPORT.distanceShared : PERSPECTIVE_REPORT.distance,
-            { distanceRating: distanceRatingAt(i), km: km(vp.distanceKm), viewpoint: vp.name },
-            about,
-          ),
-        ]
+    // The block's own distance when the run gives it (or it is the only block in view); else only what is known, the
+    // nearest block in view, which bounds it and gives no rating.
+    const ownKm = ownDistanceAt(i, block)
+    const distance =
+      ownKm !== null
+        ? [
+            fill(
+              PERSPECTIVE_REPORT.distance,
+              {
+                distanceRating: lower(termAt(format.distanceScale, ownKm)),
+                km: km(ownKm),
+                viewpoint: vp.name,
+              },
+              about,
+            ),
+          ]
+        : firstHere || vp.distanceKm === null
+          ? []
+          : [
+              fill(
+                PERSPECTIVE_REPORT.distanceAtLeast,
+                { block: block.id, km: km(vp.distanceKm), viewpoint: vp.name },
+                about,
+              ),
+            ]
     const terms = unseenTerms(block.status)
     const body = [
       fill(
@@ -971,6 +1126,7 @@ export function resolveViaDocument(formatOrId: ViaDocumentFormat | string, facts
         (index) => (figures[index]?.printedValue ?? 0) > 0,
         format.keyViewpointRule ?? 'visibility',
         (index) => figures[index]?.printedValue ?? null,
+        facts.keyViewpoints ?? null,
       )
     : null
   const written = choice
@@ -1066,7 +1222,22 @@ export function resolveViaDocument(formatOrId: ViaDocumentFormat | string, facts
         rows = calculationOnPhoto(vp, result)
         break
     }
-    return { name: vp.name, alteration: result, printed, distance, rows, sentences }
+    const timber = vp.withTimber
+    const timberResult = timber && 'areas' in timber ? alteration(format.rule, timber.areas) : null
+    const withTimber = timberResult
+      ? { percent: timberResult.printed }
+      : timber && 'absent' in timber
+        ? { absent: timber.absent }
+        : undefined
+    return {
+      name: vp.name,
+      alteration: result,
+      printed,
+      ...(withTimber ? { withTimber } : {}),
+      distance,
+      rows,
+      sentences,
+    }
   })
 
   const summary: Sentence[] = []
@@ -1128,6 +1299,16 @@ export function resolveViaDocument(formatOrId: ViaDocumentFormat | string, facts
     ),
     ...summary.filter((s) => s.text === null).map((s) => ({ viewpoint: null, id: s.id, missing: s.missing })),
     ...(written?.extraToComplete ?? []),
+    ...(choice?.declined ?? []).map((entry) => ({
+      viewpoint: entry.viewpoint,
+      id: 'key-viewpoint-declined',
+      missing: [
+        entry.block
+          ? `a key viewpoint that sees Block ${blockId(entry.block)}`
+          : 'a group viewpoint that sees two or more of the blocks',
+      ],
+      ...(entry.block ? { about: `Block ${blockId(entry.block)}` } : {}),
+    })),
   ]
   return {
     format,

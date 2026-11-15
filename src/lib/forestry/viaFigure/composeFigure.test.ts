@@ -28,6 +28,9 @@ import {
   maskRings,
   presetPercent,
   calcValues,
+  classPaletteEntries,
+  countsAlteration,
+  partialCutLines,
   presetRule,
   rgbaLuminance,
   ringArea,
@@ -746,5 +749,109 @@ describe('arrows, no outlines', () => {
     expect(closed.every((op) => op.parts.every((part) => part.length <= 4))).toBe(true)
     // Three arrowheads at least: two blocks and the opening.
     expect(closed.filter((op) => op.fill && op.parts[0].length === 3).length).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe('a partial cut in the class pass (handbook 3.4.4)', () => {
+  /** The synthetic view with a partial cut, 10 × 8 = 80 px, inside the landform beside the clearcut block. */
+  function withPartialCut() {
+    const rgba = syntheticRgba()
+    for (let y = 46; y < 54; y++)
+      for (let x = 30; x < 40; x++) {
+        const o = (y * W + x) * 4
+        ;[rgba[o], rgba[o + 1], rgba[o + 2]] = CLASS_PALETTE.partialIn
+      }
+    return decodeClassRaster(rgba, W, H, classPaletteEntries(true))
+  }
+  const cuts = [
+    { name: 'FP1', visible: true, equivalentPercent: 0.8, volumeRemovedPercent: 10, residualHeightMeters: 27.5 },
+    { name: 'FP2', visible: true, equivalentPercent: 0.8, volumeRemovedPercent: 10, residualHeightMeters: 27.5 },
+  ]
+
+  it('counts its pixels in the landform but never as proposed alteration', () => {
+    const counts = countClasses(withPartialCut())
+    expect(counts).toMatchObject({ landform: 1800, proposed: 100, nonVeg: 30, partialCut: 80 })
+    // The figures are the clearcut ones: (100 + 30) / 1800, as with no partial cut in the view.
+    expect(counts.grossPercent).toBeCloseTo((100 * 130) / 1800)
+    for (const preset of VIA_STYLE_PRESETS.filter((p) => p.calc))
+      expect(presetPercent(preset, counts)).toBe(presetPercent(preset, countClasses(raster())))
+    const result = countsAlteration(presetRule(presetById('analysis-sheet-orange')), counts)
+    expect(result?.numerator).toBe(130)
+    expect(calcValues(counts).proposedPx).toBe(100)
+  })
+
+  it('outlines it as the block it is', () => {
+    const rings = roleOverlays(presetById('analysis-sheet-orange'), withPartialCut()).find(
+      (overlay) => overlay.role === 'proposedBlock',
+    )!.parts
+    const area = rings.reduce((sum, ring) => sum + Math.abs(ringArea(ring)), 0)
+    // The two blocks inside the landform and the one outside: 100 + 80 + 25 px of outline area, about.
+    expect(area).toBeGreaterThan(180)
+  })
+
+  it('says on the sheet what was left out, and the Table 6 figure the run adds to X instead', () => {
+    const counts = countClasses(withPartialCut())
+    const lines = partialCutLines({ partialCuts: cuts }, counts)
+    expect(lines).toEqual([
+      'Partial cut, not cleared ground (handbook 3.4.4): 80 px of the landform, left out of Proposed Blocks',
+      'Table 6 clearcut equivalent, added to X in step 4, not to this figure: FP1, FP2 0.8% each (10% removed, 27.5 m left)',
+    ])
+    const printed = texts(analysisSheet({ ...input('analysis-sheet-orange', withPartialCut()), partialCuts: cuts }).ops)
+    expect(printed.join(' ')).toContain('left out of Proposed')
+    expect(printed.join(' ')).toContain('Table 6 clearcut equivalent')
+    expect(
+      partialCutLines(
+        {
+          partialCuts: [
+            { ...cuts[0], equivalentPercent: null, volumeRemovedPercent: null, residualHeightMeters: null },
+            { ...cuts[1], visible: false },
+          ],
+        },
+        null,
+      ),
+    ).toEqual([
+      'Partial cut, not cleared ground (handbook 3.4.4): none in the landform in this image',
+      'Table 6 clearcut equivalent, added to X in step 4, not to this figure: FP1 volume removed and residual height not entered; FP2 0.8%, not seen by the run: adds 0 (10% removed, 27.5 m left)',
+    ])
+  })
+
+  it('leaves a scene with no partial cut exactly as before', () => {
+    // The decode palette is the nine colours it always was.
+    expect(classPaletteEntries()).toEqual([
+      { code: 1, rgb: [96, 96, 96] },
+      { code: 2, rgb: [0, 160, 0] },
+      { code: 3, rgb: [150, 70, 210] },
+      { code: 4, rgb: [255, 0, 0] },
+      { code: 5, rgb: [255, 230, 0] },
+      { code: 6, rgb: [130, 0, 40] },
+      { code: 7, rgb: [0, 0, 255] },
+      { code: 8, rgb: [0, 210, 210] },
+      { code: 9, rgb: [255, 140, 255] },
+    ])
+    expect(countClasses(raster())).not.toHaveProperty('partialCut')
+    expect(partialCutLines({}, countClasses(raster()))).toEqual([])
+    const plain = analysisSheet(input('analysis-sheet-orange'))
+    const empty = analysisSheet({ ...input('analysis-sheet-orange'), partialCuts: [] })
+    expect(JSON.stringify(empty.ops)).toBe(JSON.stringify(plain.ops))
+  })
+
+  it('keeps its colours far from every other class and from every blend of two of them', () => {
+    const others = [
+      ...Object.entries(CLASS_PALETTE)
+        .filter(([name]) => !name.startsWith('partial'))
+        .map(([, rgb]) => rgb),
+      [255, 255, 255],
+      [255, 128, 0],
+      [0, 0, 0],
+    ]
+    const d = (a: readonly number[], b: readonly number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+    for (const colour of [CLASS_PALETTE.partialIn, CLASS_PALETTE.partialOut])
+      for (let i = 0; i < others.length; i++)
+        for (let j = i; j < others.length; j++)
+          for (let t = 0; t <= 1; t += 0.05) {
+            const blend = others[i].map((v, k) => v + (others[j][k] - v) * t)
+            expect(d(colour, blend)).toBeGreaterThan(60)
+          }
+    expect(d(CLASS_PALETTE.partialIn, CLASS_PALETTE.partialOut)).toBeGreaterThan(60)
   })
 })

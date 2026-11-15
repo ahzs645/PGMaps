@@ -3,12 +3,13 @@
  * figures (through `documentFacts`), the run's assessment and the reviewer's record, and the settings each view was
  * saved with. One function, so the dialog's contents and the file read the same context. No DOM or network access.
  */
+import type { TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 import type { SavedFigure } from '../FigureSheetPanel'
 import type { ForestryScene } from '../scene'
 import { findSceneLandform } from '../sceneInput'
 import type { AlterationBreakdown, AssessmentMask, TargetPolygon } from '../types'
 import type { ViaAssessment } from '../via'
-import { documentFacts } from '../viaDocument/facts'
+import { atAssessmentStation, documentFacts } from '../viaDocument/facts'
 import { resolveViaDocument } from '../viaDocument/resolve'
 import type { ClassCode } from '../viaDocument/scales'
 import { pointInPolygon, polygonAreaMeters, type PolygonGeometry } from '../visibility'
@@ -51,6 +52,7 @@ export function reportBlockFacts(block: TargetPolygon, masks: readonly Assessmen
     retentionPercent: block.harvestSystem === 'retention' ? (block.retentionPercent ?? null) : null,
     partialCut: cut,
     islands: islandsIn(block, masks),
+    plannedHarvestYear: block.plannedHarvestYear ?? null,
   }
 }
 
@@ -70,6 +72,8 @@ export interface ReportView {
   figure: SavedFigure
   /** The settings the view was saved with (`ViewpointPage.settings`), when its screenshot was kept. */
   settings?: ReadonlyArray<{ label: string; value: string }> | null
+  /** PGMaps' with-timber measure of the view (`timberMeasureFor`), or why it has none; absent when not looked for. */
+  timber?: TimberMeasure | null
 }
 
 export function buildReportContext(input: {
@@ -91,7 +95,11 @@ export function buildReportContext(input: {
   const facts = documentFacts({
     project: blocks.length ? blocks.map((entry) => entry.name).join(', ') : 'the proposed blocks',
     objective,
-    views: input.views.map((view) => ({ name: view.name, figure: view.figure })),
+    views: input.views.map((view) => ({
+      name: view.name,
+      figure: view.figure,
+      ...(view.timber ? { timber: view.timber } : {}),
+    })),
     assessmentStation: input.assessmentStation,
     review: scene.viaReview ?? null,
     assessment: input.assessment,
@@ -100,7 +108,7 @@ export function buildReportContext(input: {
   const setting = (label: string) =>
     input.views.flatMap((view) => view.settings ?? []).find((row) => row.label === label)?.value ?? null
   const inventory =
-    facts.viewpoints.find((vp) => vp.review && vp.inventory)?.inventory ??
+    facts.viewpoints.find((vp) => atAssessmentStation(vp) && vp.inventory)?.inventory ??
     facts.viewpoints.find((vp) => vp.inventory)?.inventory ??
     null
   return {
@@ -108,8 +116,17 @@ export function buildReportContext(input: {
     office: (scene.reportMetadata ?? {}) as OfficeFields,
     blocks: blocks.map((block) => reportBlockFacts(block, scene.masks ?? [])),
     // Every landform the scene holds, by the name the viewpoints read; descriptions and EVC overrides are the
-    // reviewer's, so only names come from the scene.
-    landforms: scene.targets.filter((target) => target.role === 'landscape').map((target) => ({ name: target.name })),
+    // reviewer's, so only names come from the scene, and a sub-landform's parent and divider from step 1's record.
+    landforms: scene.targets
+      .filter((target) => target.role === 'landscape')
+      .map((target) => {
+        const record = scene.viaReview?.landformRecords?.[target.name]
+        return {
+          name: target.name,
+          ...(record?.parent ? { parent: record.parent } : {}),
+          ...(record?.divider ? { divider: record.divider } : {}),
+        }
+      }),
     landform: landform
       ? {
           name: landform.name,

@@ -603,6 +603,33 @@ export function finalRating(input: {
 // ---------------------------------------------------------------------------
 // The reviewer's record, and the whole assessment
 
+/** Table 3's viewpoint significance on the MOF 2005 five-point scale, stored as printed (`significanceScore` reads it). */
+export const VIEWPOINT_SIGNIFICANCE = [
+  'Low (1)',
+  'Low to Moderate (2)',
+  'Moderate (3)',
+  'Moderate to High (4)',
+  'High (5)',
+] as const
+export type ViewpointSignificance = (typeof VIEWPOINT_SIGNIFICANCE)[number]
+
+/** One saved view's Table 3 entry (22, 23): facts the reviewer gives per viewpoint, not step 4 judgements. */
+export type ViewpointRecord = {
+  significance?: ViewpointSignificance
+  /** Why the viewpoint was chosen ("high boat traffic"). */
+  reason?: string
+  /** What viewing from it is like ("sustained focal and side views from watercraft"). */
+  experience?: string
+  /** How long the proposal stays in view ("sustained", "under 10 seconds"). */
+  duration?: string
+}
+
+/** A key viewpoint the reviewer chose for the report: a saved view's name, and why. */
+export type KeyViewpointRecord = { view: string; reason?: string }
+
+/** Where a sub-landform sits: the landform it is part of, and what divides it from the rest (a draw, a creek). */
+export type LandformRecord = { parent?: string; divider?: string }
+
 export type ViaReview = {
   ocular?: OcularInput
   design?: Partial<Record<DesignElementId, DesignRating | null>>
@@ -628,6 +655,15 @@ export type ViaReview = {
   layoutStage?: LayoutStage | null
   /** What the layout crew found, answered back from the field brief (`fieldChecklist.ts`). */
   fieldChecklist?: FieldChecklist
+  /** Table 3 per saved view, by the view's name (step 2's Saved views). */
+  viewpointRecords?: Record<string, ViewpointRecord>
+  /**
+   * The key viewpoints the reviewer chose for the VIA report, overriding the run's (`chooseKeyViewpoints`): per block,
+   * by block name, and for the blocks as a group.
+   */
+  keyViewpoints?: { blocks?: Record<string, KeyViewpointRecord>; group?: KeyViewpointRecord | null }
+  /** Sub-landforms by landform name: what each is part of and where it is divided (step 1). */
+  landformRecords?: Record<string, LandformRecord>
 }
 
 export type DesignSuggestion = { rating: DesignRating; basis: string }
@@ -812,6 +848,51 @@ function member<T extends string>(set: Set<T>, value: unknown): T | null {
   return typeof value === 'string' && set.has(value as T) ? (value as T) : null
 }
 
+const SIGNIFICANCE_SET = new Set<string>(VIEWPOINT_SIGNIFICANCE)
+const text = (value: unknown, max = 2000) =>
+  typeof value === 'string' && value.trim() ? value.slice(0, max) : undefined
+/** A record keyed by name, each entry parsed by `entry`; empty entries and names are dropped, at most 200 kept. */
+function namedRecords<T extends object>(
+  raw: unknown,
+  entry: (value: Record<string, unknown>) => T,
+): Record<string, T> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<string, T> = {}
+  for (const [name, value] of Object.entries(raw as Record<string, unknown>).slice(0, 200)) {
+    if (!name.trim() || !value || typeof value !== 'object') continue
+    const parsed = entry(value as Record<string, unknown>)
+    if (Object.keys(parsed).length) out[name.slice(0, 200)] = parsed
+  }
+  return Object.keys(out).length ? out : undefined
+}
+const strip = <T extends object>(value: T) =>
+  Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T
+function parseViewpointRecord(value: Record<string, unknown>): ViewpointRecord {
+  return strip({
+    significance:
+      typeof value.significance === 'string' && SIGNIFICANCE_SET.has(value.significance)
+        ? (value.significance as ViewpointSignificance)
+        : undefined,
+    reason: text(value.reason),
+    experience: text(value.experience),
+    duration: text(value.duration, 200),
+  })
+}
+function parseKeyViewpoint(value: unknown): KeyViewpointRecord | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const view = text((value as Record<string, unknown>).view, 200)
+  return view ? strip({ view, reason: text((value as Record<string, unknown>).reason) }) : undefined
+}
+function parseKeyViewpoints(raw: unknown): ViaReview['keyViewpoints'] {
+  if (!raw || typeof raw !== 'object') return undefined
+  const value = raw as Record<string, unknown>
+  const blocks = namedRecords(value.blocks, (entry) => parseKeyViewpoint(entry) ?? {}) as
+    | Record<string, KeyViewpointRecord>
+    | undefined
+  const group = parseKeyViewpoint(value.group)
+  return blocks || group ? strip({ blocks, group }) : undefined
+}
+
 /** A review read back from storage or an imported scene; anything unrecognised is dropped. */
 export function parseViaReview(raw: unknown): ViaReview | undefined {
   if (!raw || typeof raw !== 'object') return undefined
@@ -827,6 +908,11 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
   const viewpointType = value.viewpointType
   const layoutStage = parseLayoutStage(value.layoutStage)
   const fieldChecklist = parseFieldChecklist(value.fieldChecklist)
+  const viewpointRecords = namedRecords(value.viewpointRecords, parseViewpointRecord)
+  const keyViewpoints = parseKeyViewpoints(value.keyViewpoints)
+  const landformRecords = namedRecords(value.landformRecords, (entry) =>
+    strip<LandformRecord>({ parent: text(entry.parent, 200), divider: text(entry.divider) }),
+  )
   return {
     ocular: {
       visibleness: member(VISIBLENESS_IDS, ocularRaw.visibleness),
@@ -850,6 +936,9 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
     // Only when recorded, so a review saved before them reads back unchanged.
     ...(layoutStage ? { layoutStage } : {}),
     ...(fieldChecklist ? { fieldChecklist } : {}),
+    ...(viewpointRecords ? { viewpointRecords } : {}),
+    ...(keyViewpoints ? { keyViewpoints } : {}),
+    ...(landformRecords ? { landformRecords } : {}),
   }
 }
 

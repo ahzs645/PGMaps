@@ -12,9 +12,16 @@
 import type { AlterationBreakdown } from '../types'
 import type { DocumentFacts, ResolvedDocument, ResolvedViewpoint } from '../viaDocument/resolve'
 import { andList, blockList, otherPlannedName } from '../viaDocument/resolve'
-import { T5 } from '../viaDocument/formats'
-import { CLASS_NAMES, DISTANCE_SCALES, PERCENT_SCALES, handbookClass, type ClassCode } from '../viaDocument/scales'
-import { fillSentence, type Sentence } from '../viaDocument/wording'
+import { atAssessmentStation } from '../viaDocument/facts'
+import {
+  CLASS_NAMES,
+  DISTANCE_SCALES,
+  PERCENT_SCALES,
+  handbookClass,
+  readPercent,
+  type ClassCode,
+} from '../viaDocument/scales'
+import { fillSentence, IMPACT_TERMS, type Sentence } from '../viaDocument/wording'
 import {
   RETENTION_LEVELS,
   SCALE_TERMS,
@@ -30,6 +37,7 @@ import {
   effectsTable,
   extentMatrix,
   partialCutMatrix,
+  type PartialCutGuide,
   clearcutGuide,
   pmmArrow,
   retentionMatrix,
@@ -65,7 +73,9 @@ export type OfficeFields = Partial<
     | 'evc'
     | 'recommendedVqc'
     | 'sourceDocument'
-    | 'evaluator',
+    | 'evaluator'
+    | 'lakeManagementZone'
+    | 'inventoryDate',
     string
   >
 >
@@ -81,6 +91,8 @@ export interface ReportBlockFacts {
    * when not counted; 0 says the block keeps none.
    */
   islands?: number
+  /** The block's planned harvest year (step 3's assessment years), when recorded. */
+  plannedHarvestYear?: number | null
 }
 
 /**
@@ -121,6 +133,12 @@ export interface ReportContext {
   figures: readonly ReportFigure[]
   /** The parts of the report being assembled (`assembleReport` sets it), so a part can leave out what another shows. */
   recipeParts?: readonly string[]
+  /** How the recipe draws what a part can draw more than one way (`ReportRecipe.options`); set by `assembleReport`. */
+  recipeOptions?: {
+    partialCutGuide?: PartialCutGuide
+    /** Figure pages show their before and after pictures as panoramas this many times as wide as tall (26). */
+    figurePanorama?: number
+  }
   /**
    * Maps and extra pictures the page captured for the report (`useVisualsExport`); all optional, a part without the
    * one it needs prints a placeholder and lists it to complete.
@@ -172,6 +190,21 @@ export const officeRow = (ctx: ReportContext, key: keyof OfficeFields, label: st
   field(label, blank(ctx.office[key]), 'scene')
 export const missingFields = (rows: FieldRow[]) => rows.filter((row) => row.value === null).map((row) => row.label)
 
+/**
+ * Where a figure stands against the objective's range, in words: within it, over it, or below it (a figure under the
+ * range's lower bound is within what the objective allows, never "within the PR 1.6-7% range").
+ */
+export function rangeStanding(code: ClassCode | null, objective: ClassCode, range: string | null | undefined): string {
+  const name = CLASS_NAMES[objective]
+  const shown = range?.trim() ? ` (${range.trim()})` : ''
+  if (!code) return `against the ${name} range${shown}`
+  const at = CLASS_ORDER.indexOf(code),
+    limit = CLASS_ORDER.indexOf(objective)
+  if (at > limit) return `over the ${name} range${shown}`
+  if (at < limit) return `below the ${name} range${shown}, within what ${name} allows`
+  return `within the ${name} range${shown}`
+}
+
 export const paragraph = (sentences: Sentence[]): ReportBlock[] =>
   sentences.some((s) => s.text) ? [{ kind: 'paragraph', sentences: sentences.filter((s) => s.text) }] : []
 
@@ -184,7 +217,7 @@ export const objectiveName = (ctx: ReportContext) => {
 }
 
 /** The viewpoint standing at the run's assessment station, whose figures the reviewer's record judges. */
-export const assessed = (ctx: ReportContext) => ctx.facts.viewpoints.find((vp) => vp.review)
+export const assessed = (ctx: ReportContext) => ctx.facts.viewpoints.find(atAssessmentStation)
 export const resolved = (ctx: ReportContext, name: string): ResolvedViewpoint | undefined =>
   ctx.document.viewpoints.find((vp) => vp.name === name)
 export const figureFor = (ctx: ReportContext, name: string) =>
@@ -279,6 +312,23 @@ export function inventoryAdoption(ctx: ReportContext): Sentence | null {
   )
 }
 export const CLASS_ORDER: readonly ClassCode[] = ['P', 'R', 'PR', 'M', 'MM']
+
+/** A compass bearing as the forms print it, three digits ("030"). */
+const bearing3 = (deg: number) => String(Math.round(((deg % 360) + 360) % 360) % 360).padStart(3, '0')
+/**
+ * The view's direction as the 2001 forms print it, the field's left and right edges ("315°–030°"), from the camera's
+ * centre line and horizontal field; the centre line alone without a field. Blank when the run has no bearing.
+ */
+export function viewDirection(vp: { bearingDeg?: number | null; hfovDeg?: number | null }): string {
+  if (vp.bearingDeg === null || vp.bearingDeg === undefined) return ''
+  const half = vp.hfovDeg ? vp.hfovDeg / 2 : 0
+  return half > 0
+    ? `${bearing3(vp.bearingDeg - half)}°–${bearing3(vp.bearingDeg + half)}°`
+    : `${bearing3(vp.bearingDeg)}°`
+}
+/** The eye's elevation above sea level, metres, as printed; blank when the run does not know it. */
+export const eyeElevation = (vp: { elevationM?: number | null }) =>
+  vp.elevationM === null || vp.elevationM === undefined ? '' : `${Math.round(vp.elevationM)} m`
 
 // ------------------------------------------------------------------ parts
 
@@ -537,10 +587,12 @@ const viewpointsColumns: ReportPart = {
               return `${vp.distanceKm.toFixed(1)} km${zone ? ` (${zone})` : ''}`
             }),
             row('Duration', (vp) => vp.review?.duration ?? ''),
+            row('Viewpoint elevation', eyeElevation),
             row('Lens', (vp) => (vp.lensMm ? `${Math.round(vp.lensMm)} mm` : '')),
-            row('Field of view', (vp) => (vp.hfovDeg ? `${vp.hfovDeg.toFixed(0)}°` : '')),
+            row('Direction of view', viewDirection),
+            row('Viewing angle (horizontal field)', (vp) => (vp.hfovDeg ? `${vp.hfovDeg.toFixed(0)}°` : '')),
           ],
-          note: 'Importance and duration are the reviewer’s.',
+          note: 'Importance and duration are the reviewer’s; elevation, direction and angle the simulation camera’s.',
           source: 'run',
         },
       ],
@@ -558,16 +610,8 @@ const documentTables: ReportPart = {
     const group = ctx.document.keyViewpoints?.choice.group
     return {
       blocks: ctx.document.format.tables.map((table) => {
-        // A block that keeps no islands says so; a rating of the islands it keeps stays the reviewer's.
-        const rows = ctx.document.viewpoints
-          .flatMap((vp) => vp.rows[table.id] ?? [])
-          .map((row) =>
-            table.id === 'detailed-assessment' &&
-            !row[T5.islands] &&
-            blockFacts(ctx, (row[T5.block] ?? '').replace(/^Block\s+/, ''))?.islands === 0
-              ? { ...row, [T5.islands]: 'None' }
-              : row,
-          )
+        // Islands are the reviewer's to rate: a scene that maps no retention patch says nothing about what is kept.
+        const rows = ctx.document.viewpoints.flatMap((vp) => vp.rows[table.id] ?? [])
         const lead =
           table.id === 'detailed-assessment'
             ? group
@@ -636,6 +680,16 @@ const calculations: ReportPart = {
               : null,
             'run',
           ),
+          // The second pixel figure, with the drawn timber in front, beside the first; never instead of it.
+          ...(out?.withTimber
+            ? [
+                field(
+                  'Pixel figure, with drawn timber',
+                  'percent' in out.withTimber ? `${out.withTimber.percent}%` : `Not measured: ${out.withTimber.absent}`,
+                  'run' as const,
+                ),
+              ]
+            : []),
           field(
             'Sightline figure (the assessment’s)',
             vp.sightlinePercent === null ? null : `${vp.sightlinePercent.toFixed(2)}%`,
@@ -648,48 +702,66 @@ const calculations: ReportPart = {
   },
 }
 
-/** 2001 form section 1: the basic definition by eye, per viewpoint. */
+/**
+ * 2001 form section 1 (03, 05): the level of impact and the FPPR terms by eye, a column per viewpoint; then the one
+ * class the alteration meets from all the viewpoints, and a line for the reasons it falls short. The terms are the
+ * reviewer's at the assessment station; a viewpoint that sees none of the blocks reads "Not visible" from the run.
+ */
 const basicDefinition: ReportPart = {
   id: 'basic-definition',
   title: 'Assessing the basic VQO definition',
-  sources: ['01', '03', '05'],
+  sources: ['03', '05'],
   build: (ctx) => {
-    const blocks: ReportBlock[] = [heading('1. Assessing the basic VQO definition')]
-    const toComplete: string[] = []
-    for (const vp of ctx.facts.viewpoints) {
-      const ocular = vp.review ? ctx.assessment?.ocular : null
-      const code = ocular ? (CLASS_CODES_BY_ID[ocular.classId] ?? null) : null
-      blocks.push(heading(vp.name, 3))
-      const visibleness = vp.review ? ctx.review?.ocular?.visibleness : null
-      const scale = vp.review ? ctx.review?.ocular?.scale : null
-      const shape = vp.review ? ctx.review?.ocular?.shape : null
-      blocks.push(
+    const vps = ctx.facts.viewpoints
+    const ocular = ctx.review?.ocular ?? null
+    const hidden = (vp: (typeof vps)[number]) =>
+      vp.blocks.length > 0 && vp.blocks.every((block) => block.status === 'not visible')
+    const term = (vp: (typeof vps)[number], value: (at: (typeof vps)[number]) => string | undefined) =>
+      hidden(vp) ? 'Not visible' : atAssessmentStation(vp) ? (value(vp) ?? '') : ''
+    const line = (label: string, value: (vp: (typeof vps)[number]) => string) => [label, ...vps.map(value)]
+    const rows = [
+      line(`Level of impact (${IMPACT_TERMS.join(', ')})`, (vp) => term(vp, (at) => at.review?.impact)),
+      line('Visibility', (vp) => term(vp, () => VISIBLENESS_TERMS.find((t) => t.id === ocular?.visibleness)?.label)),
+      line('Scale', (vp) =>
+        hidden(vp) ? 'N/A' : term(vp, () => SCALE_TERMS.find((t) => t.id === ocular?.scale)?.label),
+      ),
+      line('Design', (vp) =>
+        hidden(vp) ? 'N/A' : term(vp, () => SHAPE_TERMS.find((t) => t.id === ocular?.shape)?.label),
+      ),
+    ]
+    const code = ctx.assessment?.ocular ? (CLASS_CODES_BY_ID[ctx.assessment.ocular.classId] ?? null) : null
+    const missing = vps.filter((_, i) => rows.some((row) => !row[i + 1])).map((vp) => vp.name)
+    return {
+      blocks: [
+        heading('1. Assessing the basic VQO definition'),
         {
-          kind: 'choices',
-          label: 'Visibility',
-          options: VISIBLENESS_TERMS.map((t) => t.label),
-          chosen: VISIBLENESS_TERMS.find((t) => t.id === visibleness)?.label ?? null,
+          kind: 'table',
+          columns: ['Describe the level of impact from each viewpoint', ...vps.map((vp, i) => `VP ${vp.n ?? i + 1}`)],
+          rows,
+          note: 'Terms by eye are the reviewer’s (step 4, at the assessment station); Not visible is the run’s.',
           source: 'reviewer',
         },
         {
           kind: 'choices',
-          label: 'Scale',
-          options: SCALE_TERMS.map((t) => t.label),
-          chosen: SCALE_TERMS.find((t) => t.id === scale)?.label ?? null,
+          label:
+            'Which basic VQO definition would the proposed alteration, in combination with any existing non-VEG alterations, meet from all the selected viewpoints, taking into account viewpoint importance, viewing distance and viewing duration?',
+          options: [...CLASS_ORDER],
+          chosen: code,
           source: 'reviewer',
         },
-        {
-          kind: 'choices',
-          label: 'Design',
-          options: SHAPE_TERMS.map((t) => t.label),
-          chosen: SHAPE_TERMS.find((t) => t.id === shape)?.label ?? null,
-          source: 'reviewer',
-        },
-        pmmArrow('Class by eye', code, 'reviewer'),
-      )
-      if (!code) toComplete.push(`${vp.name}: ocular class (step 4)`)
+        fields([
+          field(
+            'If applicable, state reasons why the proposed alteration(s) does not achieve the basic definition of the established VQO from any of the selected viewpoints',
+            null,
+            'reviewer',
+          ),
+        ]),
+      ],
+      toComplete: [
+        ...(missing.length ? [`Level of impact and FPPR terms by eye: ${andList(missing)}`] : []),
+        ...(code ? [] : ['Basic VQO definition met from all viewpoints (class by eye, step 4)']),
+      ],
     }
-    return { blocks, toComplete }
   },
 }
 
@@ -724,24 +796,29 @@ const numericalData: ReportPart = {
   sources: ['01', '03', '05'],
   build: (ctx) => {
     const blocks: ReportBlock[] = [heading('3. Assessing numerical data')]
-    for (const vp of ctx.facts.viewpoints) {
-      const out = resolved(ctx, vp.name)
-      const a = vp.areas
-      blocks.push(
-        fields(
-          [
-            field(
-              `1. Area of landform (${ctx.document.format.rule.basis})`,
-              a ? `${out?.alteration?.denominator ?? a.landform} px` : null,
-              'run',
-            ),
-            field('2. Proposed alteration', a ? `${a.proposed} px` : null, 'run'),
-            field('3. Existing alteration not greened up', a ? `${a.nonVeg} px` : null, 'run'),
-            field('4. Percent alteration ((2 + 3) / 1)', out?.printed ? `${out.printed.percent}%` : null, 'run'),
-          ],
-          vp.name,
-        ),
-      )
+    // The clearcut worksheet as the 2001 forms print it: its four lines down the side, a column per viewpoint.
+    const vps = ctx.facts.viewpoints
+    if (vps.length) {
+      const line = (label: string, value: (vp: (typeof vps)[number]) => string) => [label, ...vps.map(value)]
+      const px = (value: number | undefined) => (value === undefined ? '' : `${value} px`)
+      blocks.push({
+        kind: 'table',
+        title: 'Percent alteration worksheet',
+        columns: ['', ...vps.map((vp, i) => `VP ${vp.n ?? i + 1}: ${vp.name}`)],
+        rows: [
+          line(`1. Area of landform (${ctx.document.format.rule.basis})`, (vp) =>
+            px(vp.areas ? (resolved(ctx, vp.name)?.alteration?.denominator ?? vp.areas.landform) : undefined),
+          ),
+          line('2. Proposed alteration', (vp) => px(vp.areas?.proposed)),
+          line('3. Existing alteration not greened up', (vp) => px(vp.areas?.nonVeg)),
+          line('4. Percent alteration ((2 + 3) / 1)', (vp) => {
+            const printed = resolved(ctx, vp.name)?.printed
+            return printed ? `${printed.percent}%` : ''
+          }),
+        ],
+        note: 'Pixels of each view’s class pass, on the format’s arithmetic.',
+        source: 'run',
+      })
     }
     // The poster's clearcut guide beside its partial-cut table, read at the highest viewpoint's alteration.
     if (ctx.blocks.some((block) => block.system === 'Clearcut')) {
@@ -755,8 +832,19 @@ const numericalData: ReportPart = {
       )
     }
     const cut = ctx.blocks.find((block) => block.partialCut)?.partialCut ?? null
-    blocks.push(heading('Partial cutting', 3), partialCutMatrix(cut))
-    if (!cut) blocks.push(text('No block is recorded as a partial cut; the table is printed for reference.', 'scene'))
+    // The partial-cut table only when a block is cut so; otherwise the form's evaluation lines, answered from the scene.
+    blocks.push(
+      heading('Partial cutting', 3),
+      cut
+        ? partialCutMatrix(cut, ctx.recipeOptions?.partialCutGuide)
+        : fields([
+            field(
+              'What percent volume or stems retention is proposed?',
+              'Not applicable: no block is recorded as a partial cut',
+              'scene',
+            ),
+          ]),
+    )
     return { blocks }
   },
 }
@@ -824,45 +912,52 @@ const summary2001: ReportPart = {
       return [
         fillSentence(
           'numeric-statement',
-          'From {viewpoint}, the alteration is {percent}% of the {basis}, {standing} the {objective} range ({range}).',
+          'From {viewpoint}, the alteration is {percent}% of the {basis}, {standing}.',
           {
             viewpoint: vp.name,
             percent: vp.printed.percent,
             basis: ctx.document.format.rule.basis,
-            standing: over ? 'over' : 'within',
-            objective: CLASS_NAMES[objective],
-            range: range?.trim(),
+            standing: rangeStanding(vp.printed.classCode, objective, range),
           },
           'run',
         ),
         ...(over
           ? [
-              fillSentence(
-                'reasons-not-met',
-                'Reasons the alteration exceeds the range from {viewpoint}: {reasons}',
-                { viewpoint: vp.name, reasons: ctx.review?.rationale },
-                'reviewer',
-              ),
+              {
+                ...fillSentence(
+                  'reasons-not-met',
+                  'Reasons the alteration exceeds the range from {viewpoint}: {reasons}',
+                  { viewpoint: vp.name, reasons: ctx.review?.rationale },
+                  'reviewer',
+                ),
+                about: vp.name,
+              },
             ]
           : []),
       ]
     })
-    const reasons = statements.filter((sentence) => sentence.id === 'reasons-not-met' && !sentence.text)
+    // An over-range viewpoint's reasons are the reviewer's: a line to write them on, named by its viewpoint.
+    const reasons = statements.flatMap((sentence) =>
+      sentence.id === 'reasons-not-met' && !sentence.text ? [String(sentence.about)] : [],
+    )
     return {
       blocks: [
         heading('VIA summary'),
         ...choices,
         ...paragraph(statements),
-        // An over-range viewpoint's reasons are the reviewer's: a line to write them on, never left out silently.
-        ...reasons.map(
-          (): ReportBlock => fields([field('Reasons the alteration exceeds the range', null, 'reviewer')]),
-        ),
+        ...(reasons.length
+          ? [
+              fields(
+                reasons.map((name) => field(`Reasons the alteration exceeds the range from ${name}`, null, 'reviewer')),
+              ),
+            ]
+          : []),
       ],
       toComplete: [
         ...choices
           .filter((c) => c.kind === 'choices' && c.chosen === null)
           .map((c) => (c.kind === 'choices' ? c.label : '')),
-        ...reasons.map(() => 'Reasons the alteration exceeds the numerical range'),
+        ...(reasons.length ? [`Reasons the alteration exceeds the numerical range from ${andList(reasons)}`] : []),
       ],
     }
   },
@@ -876,17 +971,60 @@ const appendix1: ReportPart = {
   build: (ctx) => {
     const vp = assessed(ctx)
     const a = ctx.assessment
-    if (!vp || !a)
+    // The recipe's own Table 7 part prints the extent scale (marked from the same rating): it is not printed twice.
+    const tableSevenFollows = !!ctx.recipeParts?.includes('extent-scale')
+    if (!vp || !a) {
+      // The form still prints, as the handbook lays it out: the office and scene facts filled, every judgement and
+      // the viewpoint's own lines blank for the reviewer.
+      const site = [
+        officeRow(ctx, 'licence', 'Licence'),
+        officeRow(ctx, 'cuttingPermit', 'Cutting permit'),
+        field(
+          'Blocks',
+          proposedBlocks(ctx)
+            .map((b) => b.name)
+            .join(', '),
+          'scene',
+        ),
+        field('Established VQO', objectiveName(ctx), 'scene'),
+        officeRow(ctx, 'sourceDocument', 'FSP / objective source'),
+      ]
       return {
         blocks: [
           heading('Appendix 1: Visual impact assessment summary form'),
           text(
-            'No viewpoint stands at the run’s assessment station with a step 4 record, so the form is not filled.',
+            'No viewpoint stands at the run’s assessment station with a step 4 record, so the form is not filled: it is printed for the reviewer to complete at the key viewpoint.',
             'run',
           ),
+          fields(site, '3.1 Site and objective'),
+          fields(
+            ['Viewpoint', 'Location', 'Elevation', 'Viewing direction', 'Distance to the alteration', 'Lens'].map(
+              (label) => field(label, null, 'reviewer'),
+            ),
+            '3.2 Viewpoint and simulation',
+          ),
+          heading('3.4.1 Ocular assessment', 3),
+          pmmArrow('Class by eye', null, 'reviewer'),
+          heading('3.4.2 Numerical assessment', 3),
+          fields([
+            field('a) % of landform altered by proposed openings', null, 'run'),
+            field('b) % of landform in access roads (outside openings)', null, 'run'),
+            field('c) % non-VEG contribution of existing openings', null, 'run'),
+          ]),
+          table2Bar('Initial percent alteration (X)', null, 'run'),
+          heading('3.4.3 Adjustment', 3),
+          designElementsMatrix(null, 'reviewer'),
+          roadsMatrix(null),
+          retentionMatrix(null, 'reviewer'),
+          table2Bar('Adjusted percent alteration, X (1 + 0.14 Y)', null, 'reviewer'),
+          heading('3.5 Rating and rationale', 3),
+          ...(tableSevenFollows ? [] : [extentMatrix(null)]),
+          fields([field('3.5.2 Rationale', null, 'reviewer')]),
+          { kind: 'signature', lines: ['Evaluated by', 'Signature', 'Date'] },
         ],
-        toComplete: ['Step 4 at the assessment station'],
+        toComplete: ['Step 4 at the assessment station', ...missingFields(site)],
       }
+    }
     const a1 = vp.appendix1
     const level = ctx.review?.retention ?? a.retentionMeasured?.level ?? null
     const out = resolved(ctx, vp.name)
@@ -906,6 +1044,8 @@ const appendix1: ReportPart = {
         [
           field('Viewpoint', vp.name, 'run'),
           field('Location', vp.lngLat ? `${vp.lngLat[1].toFixed(5)}, ${vp.lngLat[0].toFixed(5)}` : null, 'run'),
+          field('Elevation', eyeElevation(vp) || null, 'run'),
+          field('Viewing direction', viewDirection(vp) || null, 'run'),
           field('Distance to the alteration', vp.distanceKm === null ? null : `${vp.distanceKm.toFixed(1)} km`, 'run'),
           field('Lens', vp.lensMm ? `${Math.round(vp.lensMm)} mm, ${vp.hfovDeg?.toFixed(1)}° across` : null, 'run'),
           field('Viewpoint importance', vp.review?.importance, 'reviewer'),
@@ -918,7 +1058,10 @@ const appendix1: ReportPart = {
       ...paragraph(out?.sentences.filter((s) => s.id === 'x') ?? []),
       table2Bar('Initial percent alteration (X)', x, 'run'),
       ...(ctx.blocks.some((block) => block.partialCut)
-        ? [heading('3.4.4 Partial cuts', 3), partialCutMatrix(ctx.blocks.find((b) => b.partialCut)!.partialCut)]
+        ? [
+            heading('3.4.4 Partial cuts', 3),
+            partialCutMatrix(ctx.blocks.find((b) => b.partialCut)!.partialCut, ctx.recipeOptions?.partialCutGuide),
+          ]
         : []),
       heading('3.4.3 Adjustment', 3),
       designElementsMatrix(
@@ -930,7 +1073,7 @@ const appendix1: ReportPart = {
       ...paragraph(out?.sentences.filter((s) => s.id === 'y') ?? []),
       table2Bar('Adjusted percent alteration, X (1 + 0.14 Y)', a1?.adjusted ?? null, 'reviewer'),
       heading('3.5 Rating and rationale', 3),
-      extentMatrix(a.rating?.id ?? null),
+      ...(tableSevenFollows ? [] : [extentMatrix(a.rating?.id ?? null)]),
       ...(ctx.review?.rationale ? [text(ctx.review.rationale, 'reviewer')] : []),
       { kind: 'signature', lines: ['Evaluated by', 'Signature', 'Date'] },
     ]
@@ -943,9 +1086,15 @@ const appendix1: ReportPart = {
 function islandSentences(ctx: ReportContext, id: string, rating: string | undefined): Sentence[] {
   const count = blockFacts(ctx, id)?.islands
   if (count === undefined) return []
+  // The scene maps no retention patch inside the block: it says so, and whether any are kept is the reviewer's.
   if (count === 0)
     return [
-      fillSentence('islands', 'No islands or patches of timber are kept inside Block {block}.', { block: id }, 'scene'),
+      fillSentence(
+        'islands-none-recorded',
+        'The scene records no islands or patches of timber inside Block {block}; any kept there are the reviewer’s to describe.',
+        { block: id },
+        'scene',
+      ),
     ]
   return [
     fillSentence(
@@ -1007,7 +1156,12 @@ const blockDiscussion: ReportPart = {
         if (edges >= 0) {
           const islands = section.blocks.flatMap((id) => islandSentences(ctx, id, review?.islands))
           sentences.splice(edges + 1, 0, ...islands)
-          toComplete.push(...islands.filter((s) => !s.text).map(() => `${section.heading}: islands rating`))
+          toComplete.push(
+            ...islands.filter((s) => !s.text).map(() => `${section.heading}: islands rating`),
+            ...islands
+              .filter((s) => s.id === 'islands-none-recorded')
+              .map(() => `${section.heading}: islands or patches of timber kept, if any (none recorded in the scene)`),
+          )
         }
         if (index === 0) sentences = [...sentences, ...subLandformSentence(ctx, section.landform)]
         const filled = sentences.filter((s) => s.text)
@@ -1048,8 +1202,10 @@ const conclusion: ReportPart = {
   sources: ['02', '05', '06', '21', '22', '23'],
   build: (ctx) => {
     const rating = ctx.assessment?.rating
+    // A format with no conclusion wording of its own (06's Appendix 1 report) concludes on the run's facts.
+    const own = ctx.document.summary.filter((s) => s.text)
     const sentences: Sentence[] = [
-      ...ctx.document.summary,
+      ...(own.length ? ctx.document.summary : runConclusion(ctx)),
       fillSentence(
         'rating',
         'The assessment rates the {objective} objective {rating} at the assessment station.',
@@ -1068,6 +1224,114 @@ const conclusion: ReportPart = {
       toComplete: sentences.filter((s) => !s.text).map((s) => `Conclusion: ${s.id}`),
     }
   },
+}
+
+/**
+ * A conclusion from what the run measured: which viewpoints see the proposal, each viewpoint's percent alteration on the
+ * format's scale against the objective's range, and the blocks no viewpoint sees. No judgement: whether the objective
+ * is met stays the reviewer's sentence.
+ */
+export function runConclusion(ctx: ReportContext): Sentence[] {
+  const vps = ctx.facts.viewpoints
+  if (!vps.length) return []
+  const scale = ctx.document.format.percentScale
+  const objective = objectiveOf(ctx)
+  const ids = proposedBlocks(ctx).map((block) => block.name)
+  const proposed = (block: { id: string; proposed?: boolean }) =>
+    block.proposed !== false && !isOtherPlannedBlock(ctx, block.id)
+  const seeing = vps.filter((vp) =>
+    vp.blocks.some((b) => proposed(b) && (b.status === 'visible' || b.status === 'possible glimpses')),
+  )
+  const blocks = ids.length ? blockList(ids) : 'the proposed blocks'
+  const out: Sentence[] = [
+    vps.length === 1
+      ? fillSentence(
+          'conclusion-seen',
+          '{viewpoint} {sees} {blocks}.',
+          { viewpoint: vps[0].name, sees: seeing.length ? 'sees part of' : 'sees none of', blocks },
+          'run',
+        )
+      : fillSentence(
+          'conclusion-seen',
+          '{seen} of the {count} viewpoints simulated {verb} part of {blocks}.',
+          {
+            seen: seeing.length === vps.length ? 'All' : seeing.length ? String(seeing.length) : 'None',
+            count: NUMBER_WORDS[vps.length] ?? vps.length,
+            verb: seeing.length === 1 ? 'sees' : 'see',
+            blocks,
+          },
+          'run',
+        ),
+  ]
+  const figures = ctx.document.viewpoints.flatMap((vp) => {
+    if (!vp.printed || !vp.alteration) return []
+    const band = readPercent(scale, vp.alteration.printedValue)
+    return [{ name: vp.name, percent: vp.printed.percent, value: vp.alteration.printedValue, code: band?.code ?? null }]
+  })
+  if (figures.length)
+    out.push(
+      fillSentence(
+        'conclusion-figures',
+        'Measured on the simulations, the percent alteration of the landform is {figures}.',
+        {
+          figures: andList(
+            figures.map((f) => `${f.percent}% from ${f.name}${f.code ? ` (${CLASS_NAMES[f.code]})` : ''}`),
+          ),
+        },
+        'run',
+      ),
+    )
+  if (figures.length && objective) {
+    const range = scale.printed
+      .split(';')
+      .map((part) => part.trim())
+      .find((part) => new RegExp(`^${objective}(?=[\\s=<])`).test(part))
+    const over = figures.filter((f) => !f.code || CLASS_ORDER.indexOf(f.code) > CLASS_ORDER.indexOf(objective))
+    out.push(
+      over.length
+        ? fillSentence(
+            'conclusion-range',
+            '{over} {isAre} over the {objective} range{range}; the other measures of the objective decide whether it is met.',
+            {
+              over:
+                over.length === figures.length
+                  ? figures.length === 1
+                    ? 'The figure'
+                    : 'Every figure'
+                  : `The figure${over.length === 1 ? '' : 's'} from ${andList(over.map((f) => f.name))}`,
+              isAre: over.length === 1 ? 'is' : 'are',
+              objective: CLASS_NAMES[objective],
+              range: range ? ` (${range})` : '',
+            },
+            'run',
+          )
+        : fillSentence(
+            'conclusion-range',
+            '{all} within the {objective} range{range}.',
+            {
+              all: figures.length === 1 ? 'The figure is' : 'Every figure is',
+              objective: CLASS_NAMES[objective],
+              range: range ? ` (${range})` : '',
+            },
+            'run',
+          ),
+    )
+  }
+  const unseen = ids.filter(
+    (id) =>
+      vps.every((vp) => vp.blocks.some((b) => b.id === id)) &&
+      vps.every((vp) => vp.blocks.every((b) => b.id !== id || b.status === 'not visible')),
+  )
+  if (unseen.length)
+    out.push(
+      fillSentence(
+        'conclusion-unseen',
+        '{blocks} {isAre} not expected to be visible from any viewpoint assessed.',
+        { blocks: blockList(unseen), isAre: unseen.length === 1 ? 'is' : 'are' },
+        'run',
+      ),
+    )
+  return out
 }
 
 const limitations: ReportPart = {
@@ -1229,6 +1493,9 @@ const viewpointPages: ReportPart = {
             vp.lngLat ? `${vp.lngLat[1].toFixed(4)}, ${vp.lngLat[0].toFixed(4)}` : null,
             'run',
           ),
+          field('Elevation', eyeElevation(vp) || null, 'run'),
+          field('Viewing direction', viewDirection(vp) || null, 'run'),
+          field('Viewing angle', vp.hfovDeg ? `${vp.hfovDeg.toFixed(0)}° horizontal` : null, 'run'),
           field('View duration', vp.review?.duration, 'reviewer'),
         ]),
         ...paragraph([
@@ -1401,12 +1668,28 @@ const eaMemo: ReportPart = {
         : 'The project area is not in an area with an established visual quality objective; the land use plan’s visual guidance applies instead.'
     const seen = ctx.document.viewpoints.map((vp, index) => {
       const facts = ctx.facts.viewpoints[index]
-      return fillSentence(
-        'visibility',
-        '{viewpoint}: the development {visibility}.',
-        { viewpoint: vp.name, visibility: visibilityPhrase(facts.blocks, vp.printed?.percent ?? null) },
-        'run',
-      )
+      const visibility = visibilityPhrase(facts.blocks, vp.printed?.percent ?? null)
+      // The with-timber pixel figure beside the ground one: what the picture shows with the drawn timber in front.
+      const timber = vp.withTimber
+      return timber && visibility
+        ? fillSentence(
+            'visibility',
+            'percent' in timber
+              ? '{viewpoint}: the development {visibility}; with the drawn timber in front, {timber}% of the landform in the picture shows it.'
+              : '{viewpoint}: the development {visibility}; the figure with the drawn timber in front was not measured ({reason}).',
+            {
+              viewpoint: vp.name,
+              visibility,
+              ...('percent' in timber ? { timber: timber.percent } : { reason: timber.absent }),
+            },
+            'run',
+          )
+        : fillSentence(
+            'visibility',
+            '{viewpoint}: the development {visibility}.',
+            { viewpoint: vp.name, visibility },
+            'run',
+          )
     })
     // What the proposal is and how big, from the scene; where the map is; and that the run measures at harvest.
     const proposed = proposedBlocks(ctx)

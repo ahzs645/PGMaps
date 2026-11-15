@@ -9,12 +9,15 @@ import {
   figureLabelStyle,
   paintsBlocks,
   rgbaLuminance,
+  tabloidFigure,
   type ClassRaster,
   type ComposedFigure,
   type FigureInput,
   type Overlay,
+  type PartialCutNote,
 } from '@/lib/forestry/viaFigure/composeFigure'
 import { findPreset, VIA_STYLE_PRESETS, type ViaStylePreset } from '@/lib/forestry/viaFigure/presets'
+import { TIMBER_ABSENT, timberScreenedClasses, type TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 import type { CameraInfo } from '@/lib/forestry/viaFigure/cameraInfo'
 import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
 import type { DrawOp, RasterImage } from '@/lib/mapSheet/drawOps'
@@ -72,6 +75,8 @@ export type SavedFigure = {
   lines?: Overlay[]
   /** The VQO zone pass of the same frames, when EVQO polygons were loaded. */
   zones?: ClassRaster
+  /** The landform's rows in the frame (`landformCropRows`), also under a fixed frame: what report panoramas centre on. */
+  landformRows?: { y: number; height: number }
   /**
    * The landform's rows (`landformCropRows`): applied at export by styles that crop to the
    * landform, so one saved view serves a strip and a full frame with the title in its sky.
@@ -89,6 +94,11 @@ export type SavedFigure = {
    * ground pass. Absent for PGMaps' own map.
    */
   screened?: ClassRaster
+  /**
+   * The scene's partial-cut blocks when the view was saved, by block id, with the Table 6 figure the run adds to X
+   * (`partialCutEntries`). Their pixels are counted apart from Proposed (`FigureCounts.partialCut`). Absent: none.
+   */
+  partialCuts?: Array<PartialCutNote & { id: string }>
 }
 
 /**
@@ -101,6 +111,11 @@ export type FigureOptions = {
   paintBlocks?: boolean | null
   /** The logo for the title block (`printedLogoRaster`), or none. */
   logo?: RasterImage | null
+  /**
+   * PGMaps' with-timber measure of the view (`timberMeasureFor`); absent, the sheet says no before-harvest render was
+   * taken. Ignored for an engine's figure, whose screened pass measures the same thing.
+   */
+  timber?: TimberMeasure | null
 }
 
 /** A callout moved into a crop's rows, or null when it falls outside them. */
@@ -120,7 +135,7 @@ export const DEFAULT_FIGURE_STYLE = 'analysis-sheet-magenta'
 const PNG_PIXELS_PER_POINT = 2
 
 /** Decodes a saved JPEG to straight RGBA, for styles that re-tone or paint the frame. Browser only. */
-async function decodedImage(image: NoteImage): Promise<RasterImage> {
+async function decodedImage(image: Pick<NoteImage, 'dataUrl' | 'width' | 'height'>): Promise<RasterImage> {
   const element = new Image()
   element.src = image.dataUrl
   await element.decode()
@@ -136,6 +151,25 @@ async function decodedImage(image: NoteImage): Promise<RasterImage> {
     width: image.width,
     height: image.height,
   }
+}
+
+/**
+ * A view's with-timber measure (`timberScreenedClasses`) from its before-harvest render, a render of the figure's own
+ * framing (`captureFramed`) at the same size as its framed capture; absent with the reason otherwise. Browser only
+ * (decodes the two JPEGs); the arithmetic is DOM-free.
+ */
+export async function timberMeasureFor(
+  figure: SavedFigure,
+  before: Pick<NoteImage, 'dataUrl' | 'width' | 'height'> | null,
+): Promise<TimberMeasure> {
+  const after = figure.frameImage
+  if (!after) return { kind: 'absent', reason: TIMBER_ABSENT.noFrame }
+  if (!before) return { kind: 'absent', reason: TIMBER_ABSENT.noBefore }
+  if (before.width !== after.width || before.height !== after.height || figure.classes.width !== after.width)
+    return { kind: 'absent', reason: TIMBER_ABSENT.size }
+  const [b, a] = await Promise.all([decodedImage(before), decodedImage(after)])
+  if (b.kind !== 'rgba' || a.kind !== 'rgba') return { kind: 'absent', reason: TIMBER_ABSENT.size }
+  return timberScreenedClasses(figure.classes, b, a)
 }
 
 /** The composer's input for a saved view in `preset`. */
@@ -192,10 +226,20 @@ export async function figureInput(
         : { kind: 'url', url: image.dataUrl, format: 'JPEG', width: image.width, height: image.height },
     classes: figure?.classes ? (crop ? cropRasterRows(figure.classes, crop) : figure.classes) : null,
     screenedClasses: figure?.screened ? (crop ? cropRasterRows(figure.screened, crop) : figure.screened) : null,
+    // PGMaps' own picture: the with-timber figure, or why it was not measured; an engine's has its screened pass.
+    ...(figure && !figure.illustration && !figure.screened
+      ? {
+          timber:
+            options.timber?.kind === 'measured'
+              ? { classes: crop ? cropRasterRows(options.timber.classes, crop) : options.timber.classes }
+              : { absent: options.timber?.kind === 'absent' ? options.timber.reason : TIMBER_ABSENT.noBefore },
+        }
+      : {}),
     callouts,
     lines,
     sightlinePercent: figure?.sightlinePercent ?? null,
     sightlineClass: figure?.sightlineClass ?? null,
+    ...(figure?.partialCuts?.length ? { partialCuts: figure.partialCuts } : {}),
     illustration: figure?.illustration
       ? [illustrationLine(figure.illustration), missingLine(figure.illustration)].filter(
           (line): line is string => line !== null,
@@ -270,10 +314,15 @@ async function figurePdf(figure: ComposedFigure): Promise<Blob> {
 export async function figureNoteImage(
   image: NoteImage & { figure?: SavedFigure },
   styleId: string,
-  options: FigureOptions = {},
+  options: FigureOptions & {
+    /** Compose on an 11 × 17 landscape page (`tabloidFigure`), as a report's calculation pages print it. */
+    tabloid?: boolean
+  } = {},
 ): Promise<NoteImage> {
   const preset = findPreset(styleId) ?? findPreset(DEFAULT_FIGURE_STYLE)!
-  const figure = analysedFigure(await figureInput(image, image.figure, preset, options))
+  const input = await figureInput(image, image.figure, preset, options)
+  // A report's calculation page is an 11 × 17 sheet; the block note keeps the figure alone at a letter page's width.
+  const figure = options.tabloid ? tabloidFigure(input) : analysedFigure(input)
   const blob = await figurePng(figure)
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -341,10 +390,11 @@ export function resolveFigureChoice(
 const composeResolved = async (
   { view, preset, labelStyle, cameraInfo, paintBlocks }: ResolvedFigure,
   logo: RasterImage | null = null,
+  timber: TimberMeasure | null = null,
 ) => {
   if (!view?.image) throw new Error('Save a viewpoint in the road view first.')
   return composeFigure(
-    await figureInput(view.image, view.image.figure, preset, { labelStyle, cameraInfo, paintBlocks, logo }),
+    await figureInput(view.image, view.image.figure, preset, { labelStyle, cameraInfo, paintBlocks, logo, timber }),
   )
 }
 
@@ -353,8 +403,10 @@ export async function analysisSheetFile(
   resolved: ResolvedFigure,
   format: 'pdf' | 'png',
   logo: RasterImage | null = null,
+  /** The view's with-timber measure (`timberMeasureFor`), or why it has none. */
+  timber: TimberMeasure | null = null,
 ): Promise<{ blob: Blob; fileName: string }> {
-  const figure = await composeResolved(resolved, logo)
+  const figure = await composeResolved(resolved, logo, timber)
   const blob = format === 'pdf' ? await figurePdf(figure) : await figurePng(figure)
   return { blob, fileName: `via-analysis-${safeName(resolved.view?.name ?? 'view')}-${resolved.preset.id}.${format}` }
 }

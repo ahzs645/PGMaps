@@ -48,10 +48,18 @@ function blockHtml(block: ReportBlock): string {
       return matrixHtml(block)
     case 'scale':
       return scaleHtml(block)
-    case 'choices':
-      return `<p class="choices"><span class="label">${e(block.label)}</span> ${block.options
+    case 'choices': {
+      const boxes = block.options
         .map((option) => `<span class="box">${option === block.chosen ? '☒' : '☐'} ${e(option)}</span>`)
-        .join(' ')}</p>`
+        .join(' ')
+      if (block.boxed)
+        return `<table class="answer-box"><tr><td>${e(block.label)}${
+          block.answer === undefined ? '' : `<b class="answer">${block.answer ? e(block.answer) : BLANK}</b>`
+        }</td><td class="ticks">${boxes}</td></tr></table>`
+      return `<p class="choices"><span class="label">${e(block.label)}</span> ${boxes}${
+        block.answer ? ` <b class="answer">${e(block.answer)}</b>` : ''
+      }</p>`
+    }
     case 'figure':
       return block.figure
         ? `<figure><img src="${block.figure.dataUrl}" width="${block.figure.width}" height="${block.figure.height}" alt="${e(block.caption)}"><figcaption>${e(block.caption)}</figcaption></figure>`
@@ -79,13 +87,15 @@ table.matrix td.marked{outline:2px solid #b91c1c;outline-offset:-2px;font-weight
 .note{font-size:11px;color:#64748b;margin:2px 0 8px}.empty{color:#94a3b8}
 .choices .label{font-weight:600;margin-right:8px}.choices .box{margin-right:12px;white-space:nowrap}
 svg.scale{width:100%;max-width:640px;height:auto;display:block}
+table.answer-box{margin:10px 0;break-inside:avoid}table.answer-box td{border:1px solid #1a2530;padding:6px 8px}table.answer-box td.ticks{width:120px;white-space:nowrap;vertical-align:top}table.answer-box b.answer{display:block;margin-top:2px}
 h2,h3,h4{break-after:avoid}table.fields,table.signature,.choices{break-inside:avoid}
 figure{margin:12px 0;break-inside:avoid}figure img{max-width:100%;height:auto;border:1px solid #cbd5e1}figcaption{font-size:11px;color:#475569}
 figure.placeholder{border:1px dashed #94a3b8;padding:24px;text-align:center;color:#94a3b8}
 table.signature th{width:32%}table.signature td{height:28px}
-.complete{border:1px solid #b7791f;background:#fffaf0;padding:8px 16px;margin-top:24px}
+.complete{border:1px solid #b7791f;background:#fffaf0;padding:4px 12px;margin-top:14px;font-size:10px;line-height:1.25}.complete h2{font-size:14px;margin:4px 0}.complete ul{margin:4px 0;padding-left:16px}.complete li{margin:0 0 3px}
 footer{margin-top:24px;font-size:11px;color:#64748b;border-top:1px solid #cbd5e1;padding-top:6px}
 .page-break{break-after:page}button{margin:8px 0}
+.vf-landscape + .page-break,.vf-page + .page-break,.sheet-page + .page-break,figure.sheet + .page-break{display:none}
 @media print{body{margin:0;max-width:none}button{display:none}}`
 
 /** Tables and matrices wider than this many columns print on a landscape page. */
@@ -98,6 +108,9 @@ const isWide = (block: ReportBlock) =>
 /** A figure this wide for its height is an 11 × 17 analysis sheet (1224 × 792 pt), printed on a page of its own. */
 const isSheet = (figure: { width: number; height: number }) =>
   Math.abs(figure.width / figure.height - 1224 / 792) < 0.05
+/** A map this tall for its width is the portrait 11 × 17 end map (792 × 1224 pt), printed full-size on its own page. */
+const isPortraitSheet = (figure: { width: number; height: number; map?: unknown }) =>
+  !!figure.map && Math.abs(figure.width / figure.height - 792 / 1224) < 0.02
 
 /** Print rules for the report's paper: running header, page numbers, and the landscape and 11 × 17 pages. */
 function pageCss(report: AssembledReport): string {
@@ -109,13 +122,43 @@ function pageCss(report: AssembledReport): string {
 @page wide{size:${paper} landscape}
 @page sheet{size:17in 11in;margin:8mm;@top-left{content:none}@bottom-right{content:"Page " counter(page) " of " counter(pages);font:8pt system-ui,sans-serif;color:#64748b}}
 @page sheetfull{size:17in 11in;margin:0;@top-left{content:none}@bottom-right{content:none}}
+@page sheetportrait{size:11in 17in;margin:0;@top-left{content:none}@bottom-right{content:none}}
+figure.sheet.portrait{page:sheetportrait;margin:0 0 0 -24px;width:11in;break-before:page;break-after:page}figure.sheet.portrait img{width:11in;height:16.98in;object-fit:contain;border:0;max-width:none;display:block}figure.sheet.portrait figcaption{display:none}
 @page cover{@top-left{content:none}@bottom-right{content:none}}
 figure.sheet.full{page:sheetfull;margin:0 0 0 -24px;width:17in;break-before:page;break-after:page}figure.sheet.full img{width:17in;height:10.98in;object-fit:contain;border:0;max-width:none;display:block}figure.sheet.full figcaption{display:none}
-.wide{page:wide}td .blank{min-width:40px;width:100%;display:block}.wide-page table,.wide table{width:100%;font-size:9px;table-layout:auto}.wide-page td,.wide-page th,.wide td,.wide th{overflow-wrap:break-word;hyphens:auto}figure.sheet{page:sheet;margin:0;text-align:center}figure.sheet img{width:100%;height:7.4in;object-fit:contain;border:0}
+.wide{page:wide}td .blank{min-width:40px;width:100%;display:block}.wide-page table,.wide table{width:100%;font-size:9px;table-layout:auto}.wide-page td,.wide-page th,.wide td,.wide th{overflow-wrap:break-word;hyphens:auto}figure.sheet:not(.full):not(.portrait){page:sheet;margin:0;text-align:center;display:flex;flex-direction:column;height:10.2in;break-before:page;break-after:page}figure.sheet:not(.full):not(.portrait) img{flex:1 1 auto;min-height:0;width:100%;height:100%;object-fit:contain;border:0}figure.sheet:not(.full):not(.portrait) figcaption{flex:none}
 section.cover{page:cover;break-after:page;min-height:80vh;display:flex;flex-direction:column;justify-content:center;gap:18px}
 section.cover .logo{width:260px;height:110px}section.cover h1{font-size:34px}section.cover p.sub{font-size:18px;color:#334155}
 nav.contents{break-after:page}nav.contents ol{list-style:none;padding-left:0}nav.contents li{margin:3px 0}nav.contents a{color:inherit;text-decoration:none}
-figure.sheet + table.fields,.sheet-page table.fields{font-size:11px}.sheet-page{page:sheet}.sheet-page figure.sheet{page:auto}.wide-page{page:wide}.wide-page .wide{page:auto}`
+figure.sheet + table.fields,.sheet-page table.fields{font-size:11px}.sheet-page{page:sheet;display:flex;flex-direction:column;height:10.2in;break-before:page;break-after:page}.sheet-page > *{flex:none}.sheet-page h3,.sheet-page h4{margin:0 0 4px}.sheet-page figure.sheet:not(.full):not(.portrait){page:auto;flex:1 1 auto;min-height:0;height:auto;break-before:auto;break-after:auto}
+table.sheet-calc{font-size:10px;margin:4px 0 0;table-layout:fixed}table.sheet-calc th{background:#f8fafc;font-weight:600}table.sheet-calc td .blank{min-width:40px}.wide-page{page:wide}.wide-page .wide{page:auto}`
+}
+
+/**
+ * The calculation fields under an analysis sheet as one strip, a column per field, so the sheet keeps the rest of the
+ * 11 × 17 page.
+ */
+function sheetFieldsHtml(block: Extract<ReportBlock, { kind: 'fields' }>): string {
+  return `${block.title ? `<h4>${e(block.title)}</h4>` : ''}<table class="sheet-calc"><tr>${block.rows
+    .map((row) => `<th>${e(row.label)}</th>`)
+    .join(
+      '',
+    )}</tr><tr>${block.rows.map((row) => `<td>${row.value === null ? BLANK : e(row.value)}</td>`).join('')}</tr></table>`
+}
+
+/** Pages of their own at the end of a report (analysis sheets, figure pages, photo pairs, map sheets). */
+const OWN_PAGE =
+  /^<(div class="(sheet-page|page-break)|section class="vf-(pair|page)|figure class="(sheet|vf-(map|grid)))/
+/** Where the to-complete list goes: before the run of figure pages the report ends on, so it never takes a page alone. */
+function completeAt(parts: readonly string[]): number {
+  let at = parts.length
+  // A picture and the calculation fields printed under it (a calculation that is not an 11 × 17 sheet) count too.
+  const figureWithFields = (i: number) =>
+    /^<figure/.test(parts[i]) || (/^<table class="fields"/.test(parts[i]) && i > 0 && /^<figure/.test(parts[i - 1]))
+  while (at > 0 && (OWN_PAGE.test(parts[at - 1]) || /^<h[2-5]/.test(parts[at - 1]) || figureWithFields(at - 1))) at--
+  // Headings left at the cut belong to the text before them, which stops the walk: keep them with it.
+  while (at < parts.length && /^<h[2-5]/.test(parts[at])) at++
+  return at
 }
 
 export function reportHtml(report: AssembledReport, logo: ReportLogo | null): string {
@@ -137,6 +180,8 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
     const drawn = blockHtml(block)
     if (isWide(block)) return `<div class="wide">${drawn}</div>`
     // A map sheet prints full-size, so the scale it states is true on paper; an analysis sheet keeps its margins.
+    if (block.kind === 'figure' && block.figure && isPortraitSheet(block.figure))
+      return drawn.replace('<figure>', '<figure class="sheet portrait">')
     if (block.kind === 'figure' && block.figure && isSheet(block.figure))
       return drawn.replace('<figure>', block.figure.map ? '<figure class="sheet full">' : '<figure class="sheet">')
     return drawn
@@ -155,14 +200,18 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
     if (block.kind === 'heading' && (nextWide || nextSheet)) {
       const group = bodyBlocks.slice(i, last + 2).map(html)
       i = last + 1
-      if (nextSheet && bodyBlocks[i + 1]?.kind === 'fields') group.push(html(bodyBlocks[++i]))
+      const calc = bodyBlocks[i + 1]
+      if (nextSheet && calc?.kind === 'fields') {
+        group.push(sheetFieldsHtml(calc))
+        i++
+      }
       parts.push(`<div class="${nextSheet ? 'sheet-page' : 'wide-page'}">${group.join('')}</div>`)
     } else if (block.kind === 'figure' && block.figure && isSheet(block.figure) && next?.kind === 'fields') {
-      parts.push(`<div class="sheet-page">${html(block)}${html(next)}</div>`)
+      parts.push(`<div class="sheet-page">${html(block)}${sheetFieldsHtml(next)}</div>`)
       i++
     } else parts.push(html(block))
   }
-  const body = parts.join('\n')
+  const at = completeAt(parts)
   const logoBox = logo
     ? `<div class="logo"><img src="${logo.dataUrl}" alt="${e(logo.name)}"></div>`
     : '<div class="logo empty">Logo (your own)</div>'
@@ -173,9 +222,12 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
     report.layout.contents && sections.length
       ? `<nav class="contents"><h2>Contents</h2><ol>${sections.map((s) => `<li><a href="#${s.id}">${e(s.text)}</a></li>`).join('')}${report.toComplete.length ? '<li><a href="#complete">To complete before signing</a></li>' : ''}</ol></nav>`
       : ''
+  // One line per part, its items run on: the list stays a checklist without taking pages of its own.
+  const byPart = new Map<string, string[]>()
+  for (const item of report.toComplete) byPart.set(item.part, [...(byPart.get(item.part) ?? []), item.what])
   const complete = report.toComplete.length
-    ? `<section class="complete" id="complete"><h2>To complete before signing</h2><ul>${report.toComplete
-        .map((item) => `<li><b>${e(item.part)}:</b> ${e(item.what)}</li>`)
+    ? `<section class="complete" id="complete"><h2>To complete before signing</h2><ul>${[...byPart]
+        .map(([part, items]) => `<li><b>${e(part)}:</b> ${items.map(e).join('; ')}</li>`)
         .join('')}</ul></section>`
     : ''
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'unsafe-inline'"><title>${e(title)} - ${e(report.subtitle)}</title><style>${CSS}
@@ -185,9 +237,10 @@ ${pageCss(report)}</style></head><body>
 ${head}
 <button onclick="window.print()">Print / save as PDF</button>
 ${contents}
-${body}
+${parts.slice(0, at).join('\n')}
 ${complete}
 <footer>${e(report.footer)}</footer>
+${parts.slice(at).join('\n')}
 </body></html>`
 }
 
@@ -231,6 +284,7 @@ export function reportMarkdown(report: AssembledReport): string {
       case 'choices':
         lines.push(
           `- ${block.label} ${block.options.map((o) => `${o === block.chosen ? '[x]' : '[ ]'} ${o}`).join('  ')}`,
+          ...(block.answer ? [`  **${block.answer}**`] : []),
           '',
         )
         break

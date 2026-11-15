@@ -236,6 +236,100 @@ export function reviewPin(color: string): PointSymbol {
   return { kind: 'point', label: 'Review pin', icon: 'dot', size: 6.6, color, halo: { color: WHITE, width: 1 } }
 }
 
+/** Lakes and rivers drawn as areas: the block sheets' lake fill. */
+export const LAKE_FILL = '#97dbf2'
+
+/**
+ * The VIA overview end map: the last page of a 2001-form VIA, an 11 × 17 portrait sheet of the whole
+ * area at a round scale (docs/forestry-visual-quality.md, **Maps, before pictures and overhead
+ * renders**). Contour linework over a plain base, blue water, the visual landscape inventory as
+ * magenta linework labelled with its VQO, the highway red, proposed blocks outlined black, retention
+ * green and viewpoints as numbered triangles. Drawn to read like the consultant end maps it follows;
+ * the colours are PGMaps' own picks for those roles, defined here once.
+ */
+export const VIA_OVERVIEW_MAP = {
+  contours: {
+    index: { color: '#a8442a', width: 0.55, cap: 'round', join: 'round' },
+    intermediate: { color: '#b4a59a', width: 0.25, cap: 'round', join: 'round' },
+    indexLabel: '#a8442a',
+    intermediateLabel: '#8c7b6f',
+    labelSize: 5.5,
+    halo: { color: WHITE, width: 1.2 },
+  } satisfies ContourStyle,
+  /** Paper under the map: the contours and features carry it. */
+  base: '#ffffff',
+  viewpoint: {
+    kind: 'point',
+    label: 'Viewpoints',
+    icon: 'viewpoint',
+    size: 9,
+    color: '#2b8cbe',
+    secondary: '#000000',
+    halo: { color: WHITE, width: 1 },
+  } satisfies PointSymbol,
+  existingRoad: {
+    kind: 'line',
+    label: 'Existing roads',
+    layers: [{ color: '#000000', width: 0.9, dash: [3.5, 1.8], join: 'round' }],
+  } satisfies LineSymbol,
+  highway: {
+    kind: 'line',
+    label: 'Hwy',
+    layers: [
+      { color: '#a80000', width: 2.8, cap: 'round', join: 'round' },
+      { color: '#ff2a00', width: 2, cap: 'round', join: 'round' },
+    ],
+  } satisfies LineSymbol,
+  block: {
+    kind: 'area',
+    label: 'Proposed block',
+    outline: [
+      { color: '#000000', width: 2.4, join: 'round' },
+      { color: WHITE, width: 0.8, dash: [3, 2], join: 'round' },
+    ],
+  } satisfies AreaSymbol,
+  vqo: {
+    kind: 'area',
+    label: 'VQO linework',
+    outline: [{ color: '#df73ff', width: 2, join: 'round' }],
+  } satisfies AreaSymbol,
+  /** The VQO's class label, in the linework's own hue, darker so 6 pt text reads. */
+  vqoLabel: '#b23fd9',
+  lake: { kind: 'area', label: 'Main lakes', fill: LAKE_FILL, outline: [] } satisfies AreaSymbol,
+  creek: {
+    kind: 'line',
+    label: 'Creeks',
+    layers: [{ color: '#00a9e6', width: 0.45, cap: 'round', join: 'round' }],
+  } satisfies LineSymbol,
+  wtra: {
+    kind: 'area',
+    label: 'WTRA',
+    fill: '#98e600',
+    fillOpacity: 0.75,
+    hatches: [
+      { angleDeg: 45, spacing: 4, stroke: { color: '#38a800', width: 0.4 } },
+      { angleDeg: 135, spacing: 4, stroke: { color: '#38a800', width: 0.4 } },
+    ],
+    outline: [{ color: '#38a800', width: 0.8, join: 'round' }],
+  } satisfies AreaSymbol,
+  harvested: {
+    kind: 'area',
+    label: 'Harvested',
+    fill: '#e8f5d6',
+    outline: [{ color: '#9c9c9c', width: 0.4, join: 'round' }],
+  } satisfies AreaSymbol,
+  parks: { kind: 'area', label: 'Parks', fill: '#a3c98f', outline: [] } satisfies AreaSymbol,
+  /** The key map's mark of the sheet's ground. */
+  keyMapArea: {
+    kind: 'area',
+    label: 'Map area',
+    outline: [
+      { color: WHITE, width: 2.2, join: 'miter' },
+      { color: '#ff0000', width: 1.2, join: 'miter' },
+    ],
+  } satisfies AreaSymbol,
+}
+
 /** Every in-map label (block, road, contour) carries this white outline. */
 export const LABEL_HALO = { color: WHITE, width: 1.2 } as const
 export const BLOCK_LABEL = { size: 8, color: '#000000' } as const

@@ -419,3 +419,79 @@ describe('the district and 2001 parts in a report', () => {
     }
   })
 })
+
+describe('the boxed VIA summary (05 p5)', () => {
+  const ctx = context('form-2001-analysed-photos', [lakeshore, ridge])
+  const out = build('summary-boxed', ctx)
+
+  it('titles it by permit and blocks and boxes each question, the run answering the numerical one', () => {
+    expect(out.blocks[0]).toMatchObject({ kind: 'heading', text: 'VIA Summary - CP 1 blks X1, X2' })
+    const boxes = out.blocks.filter((b): b is Extract<ReportBlock, { kind: 'choices' }> => b.kind === 'choices')
+    expect(boxes).toHaveLength(4)
+    expect(boxes.every((b) => b.boxed)).toBe(true)
+    // Ridge Road reads 8% (over PR): No, and the line says from where.
+    const numerical = boxes[2]
+    expect(numerical.source).toBe('run')
+    expect(numerical.chosen).toBe('No')
+    expect(numerical.answer).toMatch(/% alteration from Ridge Road, over the Partial Retention range\.$/)
+    const within = build('summary-boxed', context('form-2001-analysed-photos', [lakeshore])).blocks.filter(
+      (b): b is Extract<ReportBlock, { kind: 'choices' }> => b.kind === 'choices',
+    )[2]
+    expect(within.chosen).toBe('Yes')
+    expect(within.answer).toMatch(/^Less than 7\.0 percent alteration \(at most [\d.]+%, from Lakeshore\)\.$/)
+    // Judgements the reviewer has not given stay blank and are listed.
+    expect(boxes[0].answer).toBeNull()
+    expect(out.toComplete).toContain('Signature and certification')
+    const html = reportHtml(assembleReport(REPORT_RECIPES.find((r) => r.id === 'form-2001-photos')!, ctx), null)
+    expect(html).toContain('<table class="answer-box">')
+    expect(html).toContain('<b class="answer">')
+  })
+})
+
+describe('the 2001 summary form’s design questions and attachments (03, 05)', () => {
+  const assessment = (ratings: Record<string, -1 | 0 | 1>) =>
+    ({
+      design: Object.fromEntries(Object.entries(ratings).map(([id, rating]) => [id, { rating }])),
+    }) as unknown as ViaAssessment
+
+  it('asks the five yes / no design questions, answering only from step 4 ratings and the scene’s patches', () => {
+    const blank = build('design-questions-2001', context('form-2001-analysis-sheets'))
+    expect(choices(blank.blocks)).toHaveLength(5)
+    expect(choices(blank.blocks).every((c) => c.kind === 'choices' && c.chosen === null)).toBe(true)
+    expect(blank.toComplete).toEqual([
+      'major lines of force',
+      'borrowing from the natural character',
+      'edge treatments',
+      'islands or patches of trees',
+      'existing alterations of poor design in the unit',
+    ])
+    expect(fieldRows(blank.blocks).map((row) => row.label)).toEqual(['If Yes, describe the design deficiencies'])
+    // Good is Yes, poor is No, moderate stays the reviewer's; a mapped patch answers the islands question.
+    const ctx = context('form-2001-analysis-sheets', [lakeshore], {
+      assessment: assessment({ 'force-lines': -1, 'natural-character': 1, 'edge-treatment': 0 }),
+      blocks: [{ name: 'X1', areaHa: 12, system: 'Clearcut', retentionPercent: null, partialCut: null, islands: 2 }],
+    })
+    const answered = choices(build('design-questions-2001', ctx).blocks).map((c) =>
+      c.kind === 'choices' ? c.chosen : null,
+    )
+    expect(answered).toEqual(['Yes', 'No', null, 'Yes', null])
+  })
+
+  it('lists as attachments only what the recipe prints', () => {
+    const ctx = context('district-summary', [lakeshore], {
+      recipeParts: ['design-rationale', 'certification-2001', 'simulation-pages'],
+      images: { overviewMap: { view: 'o', caption: 'o', dataUrl: 'data:,', width: 1, height: 1 } },
+    })
+    const out = build('certification-2001', ctx)
+    expect(all(out.blocks)).not.toContain('VIA overview map')
+    expect(out.toComplete).toContain('Attachment: Oblique model renders')
+    expect(out.toComplete).not.toContain('Attachment: Site photography by viewpoint')
+  })
+
+  it('does not restate the figures in note 2 when the summary already states them per viewpoint', () => {
+    const ctx = context('form-2001-analysis-sheets', [lakeshore], { recipeParts: ['summary-2001', 'notes-2001'] })
+    const out = build('notes-2001', ctx)
+    expect(all(out.blocks)).not.toContain('Here the definition and intent')
+    expect((out.toComplete ?? []).some((item) => item.startsWith('Note 2'))).toBe(false)
+  })
+})

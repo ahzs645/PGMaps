@@ -8,6 +8,8 @@
 
 > **Report survey:** [November 2026](forestry-visual-quality-report-survey-2026-11-11.md) — what 26 real visual-quality assessments ask of the page.
 
+> **Photo matching:** [November 2026 trial](research/landscape-photo-matching-2026-11-14.md) — fitting helicopter and landscape photos to terrain, what worked, and what others have built.
+
 > **Criteria reference:** [wording, tables, factors and criteria](forestry-visual-quality-criteria-reference.md) — every definition, table, conversion factor and decision rule found in those assessments.
 
 > **Simulation formats:** [the simulation and report formats to remake](forestry-visual-quality-simulation-formats.md) — the figure and sheet formats the analysis sheet's styles reproduce.
@@ -34,8 +36,8 @@ is typed survives switching.
 
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
-| 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (spot or length of road, draw, import, snap); folded *Which roads see the block* and *Viewpoints and rec sites*; **Cutblocks** with their objective and harvest system; **Landform and objective**; folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view the stand (folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*); **Saved views**; folded *Where you stand* at a spot or pullout (surveyed eye elevation); folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Field brief and crew checklist* |
+| 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (spot or length of road, draw, import, snap); folded *Which roads see the block* and *Viewpoints and rec sites*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
+| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view the stand (folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*); **Saved views**; folded *Where you stand* at a spot or pullout (surveyed eye elevation); folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Viewpoint significance* and *Key viewpoints*; folded *Field brief and crew checklist* |
 | 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
 | 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **Package**: buttons that open *Save & export* on the block note, the FS1252 form, the analysis sheet or the scene; folded *VIA evidence package* (recording a run and the evidence checklist) |
@@ -1131,7 +1133,7 @@ squeezed into a column; the per-stem tint touches foliage only (tinted bark
 turned birch stems pink); and the shader divides colour by coverage, which
 takes out the dark fringe filtering left around every crown.
 
-Two details the billboard path turns on:
+Three details the billboard path turns on:
 
 - **Cut out, do not blend.** Blended foliage needs back-to-front sorting and a
   stand has no back to front. A hard alpha edge costs some aliasing and keeps
@@ -1142,6 +1144,13 @@ Two details the billboard path turns on:
   distance from the camera along the view axis, so its gradient
   `(m[3], m[7], m[11])` is the view direction — enough to turn a cylindrical
   billboard, and it cannot disagree with the matrix that drew the ground.
+- **From overhead the card lies down.** A cylindrical card seen from straight
+  above is edge-on and draws nothing, which left the report's overhead render
+  bare ground. Looking down more than about 58° (`TOP_DOWN_SIN`), each card lies
+  flat at three quarters of the stem's height as one crown-wide disc sampled
+  from the middle of its crown picture, darker at the rim. The road view looks
+  near level and the oblique renders 30° down, so neither reaches it, and what a
+  tree covers there (`screenCoverage.test.ts`) is unchanged.
 
 ### Growing the patch
 
@@ -1979,6 +1988,63 @@ the pixel figure is what this one picture shows at this lens; the sightline
 figure is the run's terrain sightlines in perspective. Neither replaces the
 other, and the panel says so.
 
+**A partial cut in the pixel figure.** A partial-cut block is painted in its
+own class (`partialIn`/`partialOut`), outlined as the block it is but never
+counted as Proposed: the run leaves it out of the cleared-ground ledger and adds
+its Table 6 clearcut equivalent to X in step 4 (**Harvest systems** above), and
+the 2001 forms keep the partial-cut table apart from the clearcut worksheet in
+the same way. The calculation cell says what was left out ("Partial cut, not
+cleared ground: N px of the landform, left out of Proposed Blocks") and gives
+each cut's Table 6 figure, "added to X in step 4, not to this figure". Paska
+Lake VP1 (four partial cuts, 10% removed, 27.5 m left) had printed 76,184 /
+134,841 px = 56.5% beside a 0% sightline figure; the pass now counts no
+proposed pixel there. The pixels are `FigureCounts.partialCut` and
+`AlterationAreas.partialCut`, stated in the document facts and never summed by
+an `AlterationRule`; a partial cut takes no `share` of a viewpoint's proposed
+figure. The partial-cut colours join the decode palette only when the pass
+painted one (`classPaletteEntries`, `engineClassPalette`), so a scene with no
+partial cut decodes, counts and prints exactly as before.
+
+**The pixel figure with the drawn timber in front.** The class pass is the
+ground under the trees, so a block that riverside timber hides at eye level still
+counts in full: marblehead-vp1-hwy31 printed 43.97% beside a picture where
+nothing changes. An engine's capture adds its `screened` pass for that. PGMaps'
+own renderer adds a third figure, *Pixel measure, with drawn timber*, from the
+difference between two pictures of the same framing: the view's before-harvest
+render (`captureFramed` from the saved pose, the report's *before* picture) and
+its after picture (the figure's `frameImage`). The road view grows its stand from
+seeds keyed to each cell's coordinates, so the two renders differ only where
+harvest cleared the ground (on that view, 23 of 6.6 million pixels differ by more
+than 32 in RGB). A pixel the class pass gives to a proposed block whose colour
+changes by more than `TIMBER_CHANGE_DISTANCE` (32) is cut ground seen past the
+timber; one that does not change is hidden, and takes the class of the ground in
+front (landform inside the landform, other terrain outside), so the landform's
+pixels stay the ground pass's and only the proposed count falls
+(`timberScreenedClasses`, `src/lib/forestry/viaFigure/timberScreen.ts`, DOM-free
+with its tests; `timberMeasureFor` in `FigureSheetPanel.tsx` decodes the two
+JPEGs and feeds it). Existing openings are not harvested between the pictures,
+so they keep the ground pass's count, and the line says "(existing openings as
+on the ground)" when there are any. A cut pixel inside a block that the block's
+own gap already showed before harvest does not change, which errs toward less
+alteration.
+
+A class pass with the tree stand drawn, each stem in its ground's class, was the
+other way; it was not taken because `treeLayer.ts` would need a flat-colour
+cutout mode for both its cards and its detailed meshes, matching the coverage
+`screenCoverage.test.ts` pins, and a per-stem class lookup, where the difference
+needs only two pictures the report already takes. The cost is one before render
+per view: the analysis sheet takes it for its view on Preview or Download (once a
+session, `timberMeasures` in `useVisualsExport.tsx`), and the VIA report takes it
+for every view saved after harvest, a photographed one too, because a field
+photograph is not the figure's framing. Without one (the road view closed, a view
+saved before harvest, a view with no framed capture) the line reads "not
+measured" with the reason, never 0. The figure prints beside the pixel and
+sightline figures, never instead of either, and reaches the VIA document facts
+as `DocumentViewpoint.withTimber` (an engine's screened pass fills the same
+field), the calculation strip as *Pixel figure, with drawn timber*, and 26's
+memo, whose visibility line adds it. Painting the blocks reads it as an engine's
+screened pass: no tree in front is painted over.
+
 **Framing.** The figure is not the reviewer's road-view screenshot (that stays the
 block note's). At *Save viewpoint* the page reads, from the drive's exact pose
 over the DEM, the bearings and elevation angles of the landform ground the eye
@@ -1992,11 +2058,22 @@ frame takes up to four frames of the lens side by side across its bearings (the
 consultants' renders are 60–141° panoramas), and a long, low landform makes a
 strip up to 4:1. `captureFramed` (`mapCapture.ts`) stands the eye map at the pose
 on each frame (`calculateCameraOptionsFromTo` to a target 40 m ahead, pitch
-through `horizonSafePitch`, roll 0), sets the frame's vertical field, reads the
-display and the class pass from the frame's window of the canvas, joins the
-frames, and puts the camera and field back. It draws at the pixel ratio that
+through `horizonSafePitch`, roll 0), sets a vertical field of at least
+`CAPTURE_MIN_VERTICAL_FOV_DEG` (75°), reads the
+display and the class pass from the frame's centred window of the canvas, joins the
+frames, and puts the camera and field back. The wide field is for the terrain, not
+the framing: MapLibre picks each terrain tile's zoom by how steeply the camera
+looks down on it, measured from the height between the camera and its centre
+point, which an eye-level frame has at almost nothing, and it cuts harder the
+narrower the field. Drawn at a 30° frame's own field, The Shores (VP4) put its
+blocks 5.5 km out on one z6 terrain tile, whose mesh sagged behind a ridge 3.5 km
+out: the picture showed sky there and the class pass 0 px against a 1.82%
+sightline figure. Through 75° the tile is z8 and the blocks show. The terrain's
+tile manager takes no level-of-detail setting (`setSourceTileLodParams` does not
+reach it), and the window is the same pinhole either way, so `projectToFrames` is
+unchanged. It draws at the pixel ratio that
 gives each frame's window of the canvas the frame's own width
-(`capturePixelRatio`: at least the map's own, at most 3×, then MapLibre's 4096 px
+(`capturePixelRatio`: at least the map's own, at most 4×, then MapLibre's 4096 px
 canvas limit), restored in `finally`, so the sheet takes drawn pixels rather than
 an upscaled crop (a 515 px canvas had been blown up 2.33×, a pixel 12.6 m at
 9 km). A one-frame capture from a 321 px road view at 3× took about 2 s with
@@ -2071,7 +2148,8 @@ reference, with the spec citing it) times the picture's own shading (its luminan
 painted area's mean, so a lit face stays lighter than a shaded one) times a procedural cut
 texture seeded by pixel position (the same view always paints the same), with a 1-pixel soft
 edge; the outlines are drawn on top. The class pass is the ground under the trees, so for an
-engine's capture a pixel is painted only where its `screened` pass also shows the block: a tree in
+engine's capture a pixel is painted only where its `screened` pass also shows the block, and for
+PGMaps' own picture where its with-timber pass does (when a before render was taken): a tree in
 front is never painted over. Families A and B paint by default; the others, whose references
 fill blocks as a flat symbol or not at all, do not. Painting changes the picture only, never a
 count, and the page decodes the JPEG frame to paint it and writes it back as JPEG. A style whose
@@ -2286,10 +2364,41 @@ is marked and the table says so.
 **Nothing is invented.** Office fields come from the FS1252 office information;
 the reviewer's judgements from step 4 at the assessment station's view only;
 anything else prints as a blank line and is listed under _To complete before
-signing_ at the end of the report. Appendix 1 is filled only for the view at
-the assessment station with a step 4 record. Whether the land has an
+signing_ after the report's text, before the figure and sheet pages it ends
+on, one line per part. Appendix 1 is filled only for the view at the
+assessment station with a step 4 record; without one the form prints blank.
+A block's distance in the discussion and Table 5 is its own (its nearest sample
+seen, `BlockCallout.distanceKm`); without it the report says only that the
+block is at least as far as the nearest block in view. Whether the land has an
 established objective (26) is said only when the inventory was read
 (`SavedFigure.inventoryRead`); otherwise the report says it was not read.
+
+**What the reviewer gives for the reports.** Four inputs the run never makes
+are review records (`viaReview`, out of `sceneFingerprint` and `AnalysisInput`),
+each entered once. Step 2's *Viewpoint significance* holds Table 3 per saved
+view, by the view's name (`viewpointRecords`): significance on the MOF 2005
+five-point scale, stored as printed ("High (5)", which `significanceScore`
+reads), why it was chosen, the viewing experience and the view duration.
+`documentFacts` gives them to **every** view as `ViewpointReview.importance`,
+`selectionReason`, `viewingExperience` and `duration`; the step 4 judgements
+stay with the assessment station's view, which `atAssessment` marks
+(`atAssessmentStation` in `facts.ts`, used wherever a part asks which view is
+judged). Step 2's *Key viewpoints* names a saved view per block, and one for
+the blocks together (`keyViewpoints`); `documentFacts` carries it as
+`DocumentFacts.keyViewpoints` and `chooseKeyViewpoints` takes it over the
+run's choice when that view sees the block (for the group, two or more of
+them), a block given its own view leaving the group. The discussion then says
+"The reviewer chose this viewpoint for the detailed assessment", with the
+reason when given; a choice it cannot take is listed to complete and the run's
+stands. Step 1's *Sub-landforms* (inside **Landform and objective**,
+`landformRecords`) gives a landform's parent and divider, which reach
+`ctx.landforms` for Table 2 and the sub-landform sentences. The lake or
+landscape management zone and the inventory date are office fields beside the
+FS1252's (`lakeManagementZone`, `inventoryDate`; the FS1252 does not print
+them): the district summary prints the date and names its lake row from the
+zone. The 2001 header's proposed year of harvest is read from the blocks'
+planned harvest years (step 3's *Design comparisons* → *Harvest scheduling
+and recovery*), printed once every block has one.
 
 **Key viewpoints and run-written sentences.** In the consultant formats each
 block is discussed once, from its key viewpoint (`chooseKeyViewpoints`,
@@ -2332,7 +2441,15 @@ templates miss from 46 of 141 to 24.
 report), a cover page and a table of contents (`ReportLayout`). Every page
 carries a running header and "Page n of N" (CSS page-margin boxes). Tables and
 matrices wider than seven columns print on a landscape page, and each analysis
-sheet on its own 11 × 17 landscape page with the calculation fields under it; a
+sheet fills its own 11 × 17 landscape page with the calculation fields as one
+strip under it. A report with a `calculations` part composes its figures on that
+page (`tabloidFigure`): a family A style is already an 11 × 17 sheet, and any
+other style's analysed figure is composed as wide as the page holds it and
+centred. Before, every report figure was the block note's 612 pt analysed figure,
+so 06's (`analysed-photo-private-land`, 612 pt wide whatever the view) missed
+the 11 × 17 test (`isSheet`) and printed at the legal page's text width, a
+two-frame panorama a thin band; a
+
 heading moves onto the page it introduces rather than staying at the foot of the
 one before. The 2001 forms list their viewpoints in columns. Print the HTML from
 the browser (*Print / save as PDF*): the page sizes are the report's own.
@@ -2346,7 +2463,12 @@ scale bar and north arrow drawn by the block-sheet engine (01's VLI map, 22's
 Appendix A1, 26's Figure 1); a location map per viewpoint with its view wedge
 and a regional map (26); a before picture per viewpoint (a lined-up field photo,
 else a before-harvest render of the view's own framing); and an overhead render
-with obliques of the nearest blocks (01 p7). Every capture puts the plan map,
+with obliques of the nearest blocks (01 p7). The obliques' map pitch is the
+recipe's (`ReportRecipe.obliquePitch`, `DEFAULT_OBLIQUE_PITCH` 60°, looking down
+on the blocks as 01's model confirmation does); 02 (`design-rationale`) takes 75°,
+near eye level from the viewpoint's side as its reference obliques are. Either
+goes through `horizonSafePitch` with roll 0 in `captureAtCamera`, which puts the
+camera back in `finally`. Every capture puts the plan map,
 the road view and the harvest phase back in `finally`, writes nothing to the
 scene, and runs only for the report file. Figure parts (`partsFigures.ts`) lay
 them out: the overview map page, 26's figure page (title, project and date,
@@ -2370,6 +2492,36 @@ hidden, 3300 px wide (17:11, so the report prints it on its own sheet page),
 with its scale stated over the scale bar. The 05, 22 and 23 recipes print it
 (`overview-sheet`) full-size on a 17 × 11 in page with no margins, so the
 stated scale is true on paper; without a sheet they print the overview map.
+The sheet has a second style, chosen in Save & export's VIA report options
+(*Overview sheet*, `OverviewSheetStyle`: `topo-landscape`, the default, or
+`end-map-portrait`; a recipe's `overviewSheetStyle` sets its default): the
+portrait "VIA Overview Map" a consultant prints as a 2001-form VIA's last page
+(`planEndMap` in `reportMaps.ts`, drawn by `reportEndMap.ts`, both DOM-free). It
+is 11 in wide and 17 in tall (`END_MAP_PIXELS`): a title block with the printed
+logo (`printedLogoRaster`, never a company name), "VIA Overview Map", the
+report's project line and the stated scale, a key map at 16 × the scale
+(`KEY_MAP_SCALE_FACTOR`, held to the regional map's zooms and stating the scale
+it is drawn at) with the sheet's ground outlined, and the map inside a neat line
+fitted like the landscape sheet, with UTM ticks (NAD83, the zone of the frame's
+centre, the first round interval at least 0.8 in apart, each tick solved on its
+own edge because grid lines converge). Its base is plain: contours are traced
+from the Terrarium tiles at capture (`endMapContours`, 20 m with 100 m index
+lines at 1:40,000, `endMapContourInterval`; the tile zoom stepped out to at most
+`END_MAP_MAX_DEM_TILES`), and water, parks, creeks, existing roads and the
+highway (motorway, trunk and primary) are read from the plan's vector tiles,
+in OpenMapTiles' schema or CARTO's (`endMapBasemapFromMap`), while the map
+stands at the sheet's camera (`captureAtCamera`'s `onCamera`); nothing is
+added to the map, so nothing needs putting back. Where
+the tiles carry none of those layers the vector map's picture is the base and
+the capture notes it. Inventory polygons with a VQO are magenta linework
+labelled with their class, blocks black outlines, the scene's wildlife tree
+patch / retention masks WTRA, existing openings Harvested, and viewpoints
+numbered triangles labelled "VP n Name". The legend keys only what was drawn,
+in the reference's order; it has no Proposed road or Timber reserve rows, because
+the scene carries neither. Every symbol is `VIA_OVERVIEW_MAP` in the block
+sheets' `styles.ts`, listed in the symbol catalogue's *VIA overview end map*
+group. The report prints it full-size on an 11 × 17 portrait page with no
+margins (`figure.sheet.portrait` in `viaReport/html.ts`).
 
 **Scales, matrices and forms.** The P-MM scale and the Appendix 1 bar draw as
 the forms print them: an axis with ticks, class labels above, a red arrow at the
@@ -2384,7 +2536,23 @@ white rule where the class changes) on a portrait page, the prescription marked
 with an X between cells where it falls (`point`), as 01 marks it; the nearest
 cell's clearcut-equivalent still goes on line (a). `clearcutGuide` draws the
 poster's clearcut alteration guide in the numerical data whenever a block is
-clearcut. The 2001 forms (`partsDistrict.ts`) carry their own header, block areas
+clearcut. A recipe chooses how the partial-cut guide is lettered
+(`options.partialCutGuide`): `table` (the default) reads every cell's number on
+Table 2; `poster` prints the letters as the poster does, which differ in two
+cells (20% removed at 25 and 30 m, 1.2% and 1.4%: PR on the poster, R on Table 2
+and in the poster's own 10% row). 01 pastes the poster, so its recipe uses
+`poster`; the class read on line (a) always comes from the number. The boxed
+summary (`summary-boxed`, 05's last form page) titles itself by permit and
+blocks ("VIA Summary - CP 1 blks X1, X2"), boxes each of the four questions with
+its Yes/No and a bold one-line answer (the run writes the numerical one: "Less
+than 7.0 percent alteration …"; the others are the reviewer's), then who
+completed it and the signature with the certification statement. 05's recipe
+uses it in place of the plain summary and the separate certification. A recipe
+with `options.figurePanorama` (26) shows its before and after renders as a band
+at least that many times as wide as tall round the landform's rows
+(`ReportFigure.landformRows`, `panoramaBand`), drawn by the report itself (the
+picture covers a box of the band's shape), so the view's framing, the pictures
+and every figure stay unchanged; a field photograph keeps its own framing. The 2001 forms (`partsDistrict.ts`) carry their own header, block areas
 (gross, leave, net), the criteria rating per viewpoint, the five-question
 summary, certification, notes 1-4 and the design techniques sentence; the
 Kamloops Region summary table (02) prints its twelve numbered rows, notes and
@@ -2416,8 +2584,12 @@ drawn from the same views, waits for nothing. A view is drawn again from where i
 was saved (`figureAt`: station, eye, the drive's pose, the lens), through the
 same `captureViewFigure` as *Save viewpoint*, so its framing, class pass,
 callouts and pixel figures are made exactly as an engine-drawn save makes them.
-The engine draws from the road view's terrain, so the road view must be open
-with its terrain loaded; the dialog says so otherwise.
+`figureAt` also keeps the scene's fixed figure frame and the landform the view
+was saved with, so a view saved before the viewpoint changed is framed, split
+and cropped as it was saved, in its before render as in its engine render,
+never on the open scene's frame. The engine draws from the road view's terrain,
+so the road view must be open with its terrain loaded; the dialog says so
+otherwise.
 
 **The engine page** runs in that small frame rather than hidden, because a
 browser stops drawing a frame it cannot see, and on a site of its own
@@ -2431,6 +2603,22 @@ never more than 0.8 s at once, through a whole render. An engine deployed on
 the same site as PGMaps would share its thread again; the function reports that
 case. Once the queue is empty the engine page is unloaded, which frees its GPU
 memory.
+
+**A job never waits on a bridge nobody listens to.** The engine page's message
+bridge is an effect; when it re-subscribes (a hot reload in development re-runs
+it, as does the engine's address changing) a capture in flight is rejected with
+`BRIDGE_RESET` and the job goes back in the queue (at most twice), instead of
+sitting at *building the scene* until the 15 min capture timeout: the engine's
+*ready* reached the new bridge, which had nothing waiting. That is what kept a
+render queued on a page that had already built a VIA report at "0 of 1 done":
+the long-open page in the shared checkout saw a reload mid-capture. A job also
+waits (up to 90 s) for the road view's terrain, which reloads whenever the
+scene's polygons change, rather than drawing the unframed road view, and the
+export waits through that reload (`renderer.settling`) instead of failing with
+*let its terrain load*; a view still missing with nothing queued is queued
+again. In development `window.__visualsSavedViews` lists the saved and shelved
+views (name, station, pose, harvest phase, frame, landform, whether the figure
+is ready) for the reference-library harness.
 
 **The time left** (`renderEstimate.ts`) is estimated per phase: the engine
 starting (the first render of a session), the scene (PGMaps building the

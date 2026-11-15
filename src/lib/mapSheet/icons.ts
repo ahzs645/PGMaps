@@ -380,6 +380,23 @@ export const ICONS = {
       circle(0, 0.26, 0.05, 'secondary'),
     ],
   },
+  // A viewpoint as an overview end map marks one: a triangle standing on its base, an eye at its middle.
+  viewpoint: {
+    label: 'Viewpoint',
+    parts: [
+      shape(
+        [
+          [0, -0.46],
+          [0.48, 0.38],
+          [-0.48, 0.38],
+        ],
+        'primary',
+        'secondary',
+        0.08,
+      ),
+      circle(0, 0.1, 0.13, 'secondary'),
+    ],
+  },
   marsh: {
     label: 'Marsh mark',
     parts: [

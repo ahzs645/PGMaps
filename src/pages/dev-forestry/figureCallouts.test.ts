@@ -56,3 +56,22 @@ describe('figure callouts from the run', () => {
     expect(blockCallouts([behind], 0, project, { width: 100, height: 100 })).toEqual([])
   })
 })
+
+describe('each block’s own distance from the eye', () => {
+  it('is its nearest sample seen from the station, and absent without an eye or a seen sample', () => {
+    // Samples 0.01° and 0.02° of latitude north of the eye; only the farther one is seen.
+    const sight: BlockSight = {
+      id: '1',
+      name: '1',
+      positions: [0, 50.01, 0, 50.02],
+      elevations: [0, 0],
+      sampleCount: 2,
+      visibleByStation: [0, 1],
+      interior: null,
+    }
+    const wide = (lng: number, lat: number): [number, number] => [lng + 10, (lat - 50) * 1000]
+    const [callout] = blockCallouts([sight], 0, wide, { width: 100, height: 100 }, 'Block ', { lng: 0, lat: 50 })
+    expect(callout.distanceKm).toBeCloseTo(2.224, 2)
+    expect(blockCallouts([sight], 0, wide, { width: 100, height: 100 })[0].distanceKm).toBeUndefined()
+  })
+})

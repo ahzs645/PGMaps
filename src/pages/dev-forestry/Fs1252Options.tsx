@@ -30,6 +30,9 @@ export const FS1252_OFFICE_FIELDS: ReadonlyArray<[keyof FormMetadata, string]> =
   ['recommendedVqc', 'Recommended VQC'],
   ['sourceDocument', 'Objective source document'],
   ['evaluator', 'Prepared/evaluated by (optional)'],
+  // Not printed on the FS1252; the VIA reports read them.
+  ['lakeManagementZone', 'Lake or landscape management zone (LMZ)'],
+  ['inventoryDate', 'Visual landscape inventory date'],
 ]
 
 const DESIGN_LABELS = [

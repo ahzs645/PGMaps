@@ -32,6 +32,12 @@ import { coveragePreservingMips, type MipLevel } from './atlasMips'
 
 /** The alpha below which a card's pixel is cut away, as the fragment shader cuts it. */
 const CARD_ALPHA_CUT = 0.45
+/**
+ * How steeply the camera must look down (the sine of the angle below the horizon, 0.85 ≈ 58°) before a card lies
+ * flat as the crown seen from above. The road view looks near level and the oblique renders 30° down, so neither
+ * reaches it; only an overhead render does.
+ */
+const TOP_DOWN_SIN = '0.85'
 
 /**
  * The atlas's mip chain with each crown's coverage kept, or null where the
@@ -215,6 +221,12 @@ out vec3 v_across;
 out vec3 v_facing;
 /** Which way the camera looks, mercator frame. */
 out vec3 v_view;
+/** 1 where the card lies flat as the crown seen from above (an overhead view), else 0. */
+out float v_top;
+/** The middle of this tree's crown picture, the colour a crown seen from above falls back to. */
+out vec2 v_core;
+/** A crown's width over its card's, for the crown seen from above: a clump card is wider than the crown it stands for. */
+uniform float u_topCrown;
 
 void main() {
   // Which way the camera looks, read off the matrix it handed us. The row that
@@ -237,12 +249,25 @@ void main() {
   }
 
   vec3 metres = vec3(across * (a_corner.x * a_scale.x), a_corner.y * a_scale.y);
+  // From steeply above, a standing card is edge-on and draws nothing, which left an overhead render bare ground.
+  // Looking down more than TOP_DOWN_SIN, the card lies flat at crown height instead, one crown-wide square cut
+  // round in the fragment shader: the crown seen from above. The road view and the obliques look down far less,
+  // so what they draw, and what a tree covers there, is unchanged.
+  v_top = -normalize(view).z > ${TOP_DOWN_SIN} ? 1.0 : 0.0;
+  if (v_top > 0.5) {
+    vec2 along = vec2(-across.y, across.x);
+    metres = vec3((across * a_corner.x + along * (a_corner.y - 0.5)) * a_scale.x * u_topCrown, a_scale.y * 0.75);
+  }
   v_distance = length(a_offset.xy - u_eye.xy) / u_meterScale;
   v_fade = fade(v_distance);
-  bool shown = v_fade.x > 0.0 && v_fade.y < 1.0 && v_distance >= u_nearCut && !inGap(a_offset.xy, v_distance);
+  // A lying crown is one card: crossed foreground planes would stack copies of it.
+  bool shown = v_fade.x > 0.0 && v_fade.y < 1.0 && v_distance >= u_nearCut && !inGap(a_offset.xy, v_distance) &&
+    !(v_top > 0.5 && a_corner.z > 0.5);
   gl_Position = shown ? u_matrix * vec4(a_offset + metres * u_meterScale, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
 
-  // The atlas is drawn y-down from the top of the cell.
+  // The atlas is drawn y-down from the top of the cell. A crown from above takes the crown picture's average
+  // colour, read from a coarse mip at the middle of the crown.
+  v_core = a_cell + vec2(0.5, 1.0 - 0.6) * u_cellSize;
   v_uv = a_cell + vec2(a_corner.x + 0.5, 1.0 - a_corner.y) * u_cellSize;
   v_tint = a_tint;
   v_card = vec2(a_corner.x + 0.5, a_corner.y);
@@ -262,6 +287,8 @@ in vec2 v_card;
 in vec3 v_across;
 in vec3 v_facing;
 in vec3 v_view;
+in float v_top;
+in vec2 v_core;
 uniform sampler2D u_atlas;
 uniform float u_lit;
 in vec2 v_fade;
@@ -302,7 +329,12 @@ vec3 litCard(vec3 colour, float foliage) {
 
 void main() {
   clipCoverage();
-  vec4 texel = texture(u_atlas, v_uv);
+  // A crown seen from above is round, darker toward its rim where the eye looks into its side.
+  float rim = v_top > 0.5 ? length(v_card - 0.5) * 2.0 : 0.0;
+  if (rim > 1.0) discard;
+  vec4 texel = v_top > 0.5 ? textureLod(u_atlas, v_core, 3.0) : texture(u_atlas, v_uv);
+  // From above the disc is the crown: never cut by the side picture's outline.
+  if (v_top > 0.5) texel = texel.a > 0.02 ? vec4(texel.rgb / texel.a, 1.0) : vec4(0.2, 0.32, 0.17, 1.0);
   // Cut out rather than blend: blended foliage needs back-to-front sorting, and
   // a stand has no back to front. A hard edge costs some aliasing and keeps the
   // depth buffer honest, so trees behind a ridge stay behind it.
@@ -313,7 +345,8 @@ void main() {
   // Tint the foliage only: bark is not green, and a tinted birch stem went pink.
   float foliage = clamp((colour.g - max(colour.r, colour.b)) * 12.0, 0.0, 1.0);
   colour *= mix(vec3(1.0), v_tint, foliage);
-  if (u_lit > 0.5) colour = litCard(colour, foliage);
+  if (v_top > 0.5) colour *= 1.12 - 0.45 * rim * rim;
+  else if (u_lit > 0.5) colour = litCard(colour, foliage);
   fragColor = vec4(mix(colour, vec3(0.68, 0.76, 0.79), min(0.65, v_distance / 22000.0)), 1.0);
 }`
 
@@ -424,6 +457,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
   let rangeLocation: WebGLUniformLocation | null = null
   let nearCutLocation: WebGLUniformLocation | null = null
   let litLocation: WebGLUniformLocation | null = null
+  let topCrownLocation: WebGLUniformLocation | null = null
   let viewLocation: WebGLUniformLocation | null = null
   let nearCut = 0
   const translated = new Float32Array(16)
@@ -541,6 +575,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       crossedLocation = gl.getUniformLocation(program, 'u_cardPlanes')
       nearCutLocation = gl.getUniformLocation(program, 'u_nearCut')
       litLocation = gl.getUniformLocation(program, 'u_lit')
+      topCrownLocation = gl.getUniformLocation(program, 'u_topCrown')
       viewLocation = gl.getUniformLocation(program, 'u_view')
 
       vao = gl.createVertexArray()
@@ -708,6 +743,12 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       gl.uniform1f(meterScaleLocation, meterScale)
       gl.uniform1f(nearCutLocation, nearCut)
       gl.uniform1f(litLocation, options.look === 'lit' ? 1 : 0)
+      // A single tree's card is `BILLBOARD_ASPECT` of its height at the species' crown ratio (a spruce's taken for
+      // all); a clump's is `CLUMP_WIDTH_FACTOR` × the crown width it stands for.
+      gl.uniform1f(
+        topCrownLocation,
+        options.clumps ? 1 / CLUMP_WIDTH_FACTOR : SPECIES_CROWN_RATIO.spruce / BILLBOARD_ASPECT,
+      )
       // The view direction, read off the matrix as the vertex shader does.
       gl.uniform3f(viewLocation, translated[3], translated[7], translated[11])
 

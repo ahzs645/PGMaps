@@ -541,3 +541,117 @@ describe('fillSentence block names', () => {
     )
   })
 })
+
+describe('key viewpoints the reviewer chose', () => {
+  const seen = (id: string, share: number) => ({ id, status: 'visible' as const, visiblePercent: share })
+  const doc22 = formatForSource('22')!
+  const doc23 = formatForSource('23')!
+
+  it('per block: the reviewer’s viewpoint wins when it sees the block; one that does not is declined', () => {
+    const viewpoints = [
+      vp({ name: 'A', blocks: [seen('X', 30), seen('Y', 10)] }),
+      vp({ name: 'B', blocks: [seen('X', 50)] }),
+    ]
+    expect(chooseKeyViewpoints(viewpoints).byBlock.get('X')).toBe(1)
+    const choice = chooseKeyViewpoints(
+      viewpoints,
+      'per-block',
+      () => true,
+      'visibility',
+      () => null,
+      {
+        blocks: { X: { viewpoint: 'A', reason: 'the ferry route' }, Y: { viewpoint: 'B' } },
+      },
+    )
+    expect(choice.byBlock.get('X')).toBe(0)
+    expect(choice.reviewer?.blocks.get('X')).toBe('the ferry route')
+    // B does not see Y: the run's choice stands and the reviewer's is listed.
+    expect(choice.byBlock.get('Y')).toBe(0)
+    expect(choice.reviewer?.blocks.has('Y')).toBe(false)
+    expect(choice.declined).toEqual([{ block: 'Y', viewpoint: 'B' }])
+  })
+
+  it('group: the reviewer’s group viewpoint, and a block given its own viewpoint leaves the group', () => {
+    const viewpoints = [
+      vp({ name: 'Wide', blocks: [seen('X', 90), seen('Y', 90), seen('Z', 90)] }),
+      vp({ name: 'Near', blocks: [seen('X', 40), seen('Y', 40), seen('Z', 10)] }),
+    ]
+    expect(chooseKeyViewpoints(viewpoints, 'group').group).toEqual({ index: 0, blocks: ['X', 'Y', 'Z'] })
+    const choice = chooseKeyViewpoints(
+      viewpoints,
+      'group',
+      () => true,
+      'visibility',
+      () => null,
+      {
+        group: { viewpoint: 'Near' },
+        blocks: { Z: { viewpoint: 'Wide' } },
+      },
+    )
+    expect(choice.group).toEqual({ index: 1, blocks: ['X', 'Y'] })
+    expect(choice.byBlock.get('Z')).toBe(0)
+    expect(choice.reviewer?.group).toBe('')
+  })
+
+  it('says the reviewer chose it, with the reason when given, and lists a choice it could not take', () => {
+    const facts = {
+      project: 'the proposed blocks',
+      viewpoints: [
+        vp({
+          name: 'Bay',
+          areas: { landform: 10000, proposed: 300, nonVeg: 0 },
+          blocks: [seen('A1', 30)],
+          distanceKm: 2,
+        }),
+        vp({
+          name: 'Ferry',
+          areas: { landform: 10000, proposed: 300, nonVeg: 0 },
+          blocks: [seen('A1', 60)],
+          distanceKm: 2,
+        }),
+      ],
+    }
+    const run = resolveViaDocument(doc22, facts)
+    expect(text(run.viewpoints[1].sentences, 'key-viewpoint')).toMatch(/^This viewpoint was chosen/)
+    const chosen = resolveViaDocument(doc22, { ...facts, keyViewpoints: { blocks: { A1: { viewpoint: 'Bay' } } } })
+    expect(chosen.discussion.map((section) => section.viewpoint)).toEqual(['Bay'])
+    expect(text(chosen.viewpoints[0].sentences, 'key-viewpoint')).toBe(
+      'The reviewer chose this viewpoint for the detailed assessment.',
+    )
+    const declined = resolveViaDocument(doc22, {
+      ...facts,
+      keyViewpoints: { blocks: { A1: { viewpoint: 'Nowhere' } } },
+    })
+    expect(declined.discussion.map((section) => section.viewpoint)).toEqual(['Ferry'])
+    const group = resolveViaDocument(doc23, {
+      project: 'the proposed blocks',
+      viewpoints: [
+        vp({
+          name: 'Bay',
+          areas: { landform: 10000, proposed: 300, nonVeg: 0 },
+          blocks: [seen('A1', 30), seen('A2', 30)],
+        }),
+        vp({
+          name: 'Ferry',
+          areas: { landform: 10000, proposed: 300, nonVeg: 0 },
+          blocks: [seen('A1', 60), seen('A2', 60)],
+        }),
+      ],
+      keyViewpoints: { group: { viewpoint: 'Bay', reason: 'Most people see it from the beach.' } },
+    })
+    expect(group.keyViewpoints?.choice.group?.index).toBe(0)
+    expect(text(group.viewpoints[0].sentences, 'key-viewpoint')).toBe(
+      'The reviewer chose this viewpoint to assess the blocks as a group: most people see it from the beach.',
+    )
+    const unseen = resolveViaDocument(doc22, {
+      ...facts,
+      keyViewpoints: { blocks: { A1: { viewpoint: 'Bay' }, B9: { viewpoint: 'Bay' } } },
+    })
+    expect(unseen.toComplete.find((item) => item.id === 'key-viewpoint-declined')).toEqual({
+      viewpoint: 'Bay',
+      id: 'key-viewpoint-declined',
+      missing: ['a key viewpoint that sees Block B9'],
+      about: 'Block B9',
+    })
+  })
+})

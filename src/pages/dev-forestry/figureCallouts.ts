@@ -8,6 +8,8 @@
  */
 import type { FigureCallout } from '@/lib/forestry/viaFigure/composeFigure'
 
+import { haversineMeters, type GeoPoint } from './visibility'
+
 /** Below this share of its samples seen, a block is a possible glimpse rather than visible, percent. */
 export const GLIMPSE_PERCENT = 5
 
@@ -52,6 +54,11 @@ export type BlockCallout = FigureCallout & {
   apparent?: number
   /** Share of its samples hidden only by standing timber at this station, percent; absent on older figures. */
   screenedPercent?: number
+  /**
+   * The block's own distance from the eye, km: its nearest sample seen from this station. Absent when the eye was not
+   * given or nothing of the block is seen.
+   */
+  distanceKm?: number
 }
 
 /**
@@ -64,6 +71,8 @@ export function blockCallouts(
   project: Projector,
   size: { width: number; height: number },
   prefix = 'Block ',
+  /** Where the eye stands: each callout then carries its block's own distance (`distanceKm`). */
+  eye: GeoPoint | null = null,
 ): BlockCallout[] {
   const inside = (p: [number, number] | null): p is [number, number] =>
     !!p && p[0] >= 0 && p[1] >= 0 && p[0] < size.width && p[1] < size.height
@@ -74,13 +83,19 @@ export function blockCallouts(
       screened = 0,
       sx = 0,
       sy = 0,
-      projected = 0
+      projected = 0,
+      nearest = Infinity
     for (let i = 0; i < block.sampleCount; i++) {
       const state = block.visibleByStation[row + i]
       if (state === 2) unknown++
       if (state === 3) screened++
       if (state !== 1) continue
       visible++
+      if (eye)
+        nearest = Math.min(
+          nearest,
+          haversineMeters(eye, { lng: block.positions[i * 2], lat: block.positions[i * 2 + 1] }),
+        )
       const p = project(block.positions[i * 2], block.positions[i * 2 + 1], block.elevations[i])
       if (!inside(p)) continue
       sx += p[0]
@@ -109,6 +124,7 @@ export function blockCallouts(
         status,
         visiblePercent,
         screenedPercent: (100 * screened) / total,
+        ...(Number.isFinite(nearest) ? { distanceKm: nearest / 1000 } : {}),
         ...(apparent !== undefined && Number.isFinite(apparent) ? { apparent } : {}),
       },
     ]

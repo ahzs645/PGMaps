@@ -281,6 +281,11 @@ export type ExportContext = {
     failed: string | null
     /** Why this engine cannot draw here, or null. */
     unavailable: string | null
+    /**
+     * `unavailable` is only the road view's terrain reloading (after a run or an import): an export waits for it
+     * rather than failing. Absent: false.
+     */
+    settling?: boolean
   }
   /** Analysis sheet: the view and the look chosen. */
   figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean; paintBlocks: boolean }

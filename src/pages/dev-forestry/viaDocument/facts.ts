@@ -1,15 +1,23 @@
 /**
  * The facts a VIA document is filled from, read off what the page already holds: each saved view's figure (its
- * class pass, callouts, sightline figure, distance, lens and inventory unit) and, for the view standing at the
- * assessment station only, the reviewer's step 4 record and the handbook figures `assessVia` worked from it. A
- * judgement made at one station is never copied to another. No DOM or network access.
+ * class pass, callouts, sightline figure, distance, lens and inventory unit), each view's Table 3 entry (significance,
+ * why it was chosen, the viewing experience and duration) and, for the view standing at the assessment station only,
+ * the reviewer's step 4 record and the handbook figures `assessVia` worked from it. A judgement made at one station is
+ * never copied to another. The reviewer's key viewpoints are carried by view. No DOM or network access.
  */
-import { countClasses } from '@/lib/forestry/viaFigure/composeFigure'
+import { countClasses, type FigureCounts } from '@/lib/forestry/viaFigure/composeFigure'
+import { TIMBER_ABSENT, type TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 
 import type { SavedFigure } from '../FigureSheetPanel'
 import type { AlterationBreakdown } from '../types'
-import type { DesignElementId, ViaAssessment, ViaReview, Visibleness } from '../via'
-import { otherPlannedName, type DocumentFacts, type DocumentViewpoint, type ViewpointReview } from './resolve'
+import type { DesignElementId, ViaAssessment, ViaReview, ViewpointRecord, Visibleness } from '../via'
+import {
+  otherPlannedName,
+  type DocumentFacts,
+  type DocumentViewpoint,
+  type KeyViewpointPicks,
+  type ViewpointReview,
+} from './resolve'
 import type { ClassCode } from './scales'
 
 const VISIBILITY_TERM: Record<Visibleness, string> = {
@@ -29,6 +37,34 @@ export interface FactsView {
   figure: SavedFigure
   /** Where the eye stood, [lng, lat], when known. */
   lngLat?: [number, number] | null
+  /**
+   * PGMaps' with-timber measure (`timberMeasureFor`), or why it has none. Absent for PGMaps' own figure, the
+   * viewpoint says no before-harvest render was taken; an engine's figure takes its screened pass instead.
+   */
+  timber?: TimberMeasure | null
+}
+
+/** A class pass's areas; a partial cut's are stated apart from the proposed (cleared-ground) ones, never in them. */
+const areasOf = (counts: FigureCounts) => ({
+  landform: counts.landform,
+  proposed: counts.proposed,
+  nonVeg: counts.nonVeg,
+  privateLand: counts.privateLand,
+  rock: counts.rock,
+  ...(counts.partialCut ? { partialCut: counts.partialCut } : {}),
+})
+
+/** A bearing in [0, 360): a framed panorama's centre line is its first frame's bearing plus half the span. */
+const wrapBearing = (degrees: number) => ((degrees % 360) + 360) % 360
+
+/**
+ * The view's pixel areas with the drawn timber in front: an engine's screened pass, else PGMaps' before/after
+ * measure; when PGMaps' was not measured, why. Never zero for a measure that was not made.
+ */
+function withTimberOf(view: FactsView): DocumentViewpoint['withTimber'] {
+  if (view.figure.screened) return { areas: areasOf(countClasses(view.figure.screened)), source: 'engine' }
+  if (view.timber?.kind === 'measured') return { areas: areasOf(countClasses(view.timber.classes)), source: 'pgmaps' }
+  return { absent: view.timber?.kind === 'absent' ? view.timber.reason : TIMBER_ABSENT.noBefore }
 }
 
 function reviewAt(review: ViaReview | null, assessment: ViaAssessment | null): ViewpointReview {
@@ -52,6 +88,22 @@ function reviewAt(review: ViaReview | null, assessment: ViaAssessment | null): V
   if (review?.rationale?.trim()) out.rationale = review.rationale.trim()
   return out
 }
+
+/** A view's Table 3 entry as the documents read it: facts the reviewer gives for every viewpoint, not only one. */
+function tableThree(record: ViewpointRecord | undefined): ViewpointReview {
+  const out: ViewpointReview = {}
+  if (record?.significance) out.importance = record.significance
+  if (record?.reason?.trim()) out.selectionReason = record.reason.trim()
+  if (record?.experience?.trim()) out.viewingExperience = record.experience.trim()
+  if (record?.duration?.trim()) out.duration = record.duration.trim()
+  return out
+}
+
+/**
+ * Whether a viewpoint stands at the assessment station, the one view the step 4 judgements belong to. Facts from
+ * `documentFacts` say so; hand-built facts without the flag are read the old way, by which view carries a review.
+ */
+export const atAssessmentStation = (vp: DocumentViewpoint) => vp.atAssessment ?? !!vp.review
 
 /** The handbook's a, b, c, X, Y and adjusted figure for the assessment station, once the run gives X. */
 function appendix1At(assessment: ViaAssessment | null, breakdown: AlterationBreakdown | null) {
@@ -101,8 +153,15 @@ export function documentFacts(input: {
   const viewpoints = input.views.map((view, index): DocumentViewpoint => {
     const figure = view.figure
     const counts = countClasses(figure.classes)
+    // Partial cuts take no share of the proposed (cleared-ground) figure: their pixels are counted apart.
+    const partialCuts = new Set((figure.partialCuts ?? []).map((cut) => cut.id))
     const atAssessment = input.assessmentStation !== null && figure.stationIndex === input.assessmentStation
     const objective = input.objective ?? ((figure.rating?.vqo as ClassCode | undefined) || null)
+    // Table 3 is given per view; the step 4 judgements only at the assessment station.
+    const review: ViewpointReview = {
+      ...tableThree(input.review?.viewpointRecords?.[view.name]),
+      ...(atAssessment ? reviewAt(input.review, input.assessment) : {}),
+    }
     return {
       // Several views on one road share its name: the sheet's "place, km along" line tells them apart.
       name: repeated(view)
@@ -112,24 +171,26 @@ export function documentFacts(input: {
       landform: figure.area || 'the landform',
       objective,
       inventory: figure.rating ?? null,
-      areas: {
-        landform: counts.landform,
-        proposed: counts.proposed,
-        nonVeg: counts.nonVeg,
-        privateLand: counts.privateLand,
-        rock: counts.rock,
-      },
+      areas: areasOf(counts),
+      withTimber: withTimberOf(view),
       sightlinePercent: figure.sightlinePercent,
       distanceKm: figure.distanceKm,
       hfovDeg: figure.hfovDeg,
       // A panorama's lens is one frame's, never the whole span's (three 59 mm frames are not a 15 mm lens).
       lensMm: figure.camera?.focalMm ?? (figure.hfovDeg ? lensMmForHfov(figure.hfovDeg) : null),
       lngLat: view.lngLat ?? (figure.camera ? [figure.camera.lng, figure.camera.lat] : null),
+      // The eye's elevation is known only when the view was framed at the drive's pose (an unframed view's camera
+      // prints 0); the view's centre line is the camera's azimuth either way.
+      elevationM: figure.camera && figure.frameImage ? figure.camera.elevationM : null,
+      bearingDeg: figure.camera ? wrapBearing(figure.camera.azimuthDeg) : null,
       blocks: [...figure.callouts.filter((callout) => !callout.secondary), ...(figure.hidden ?? [])].map(
         (callout, _, list) => {
           // Each proposed block's part of the view's visible apparent size, when every block carries the run's figure.
           const proposed = list.filter(
-            (entry) => !otherPlannedName(entry.title.replace(/^Block\s+/, '')) && !otherPlanned.has(entry.blockId),
+            (entry) =>
+              !otherPlannedName(entry.title.replace(/^Block\s+/, '')) &&
+              !otherPlanned.has(entry.blockId) &&
+              !partialCuts.has(entry.blockId),
           )
           const total = proposed.every((entry) => entry.apparent !== undefined)
             ? proposed.reduce((sum, entry) => sum + (entry.apparent ?? 0), 0)
@@ -138,28 +199,62 @@ export function documentFacts(input: {
           const name = callout.title.replace(/^Block\s+/, '') || callout.blockId
           const named = otherPlannedName(name)
           const other = !!named || otherPlanned.has(callout.blockId) || otherPlanned.has(name)
+          const partial = partialCuts.has(callout.blockId)
           return {
             id: named?.id ?? name,
             status: callout.status,
             visiblePercent: callout.visiblePercent,
             ...(other ? { proposed: false } : {}),
             ...(named?.plannedUnder ? { plannedUnder: named.plannedUnder } : {}),
-            ...(!other && total > 0 && callout.apparent !== undefined ? { share: callout.apparent / total } : {}),
+            ...(partial ? { partialCut: true as const } : {}),
+            ...(!other && !partial && total > 0 && callout.apparent !== undefined
+              ? { share: callout.apparent / total }
+              : {}),
             ...(callout.screenedPercent !== undefined ? { screenedPercent: callout.screenedPercent } : {}),
+            ...(callout.distanceKm !== undefined ? { distanceKm: callout.distanceKm } : {}),
           }
         },
       ),
-      ...(atAssessment
-        ? {
-            review: reviewAt(input.review, input.assessment),
-            appendix1: appendix1At(input.assessment, input.breakdown),
-          }
-        : {}),
+      ...(atAssessment || Object.keys(review).length ? { review } : {}),
+      atAssessment,
+      ...(atAssessment ? { appendix1: appendix1At(input.assessment, input.breakdown) } : {}),
     }
   })
+  const keyViewpoints = keyViewpointPicks(input.review, input.views, viewpoints)
   return {
     project: input.project,
     viewpoints,
     ...(input.screeningModelled !== undefined ? { screeningModelled: input.screeningModelled } : {}),
+    ...(keyViewpoints ? { keyViewpoints } : {}),
   }
+}
+
+/**
+ * The reviewer's key viewpoints, from saved-view names to the names these facts give the views. A choice naming a
+ * view the document does not hold is dropped: the run chooses there.
+ */
+function keyViewpointPicks(
+  review: ViaReview | null,
+  views: readonly FactsView[],
+  viewpoints: readonly DocumentViewpoint[],
+): KeyViewpointPicks | null {
+  const record = review?.keyViewpoints
+  if (!record) return null
+  const nameOf = (view: string) => {
+    const index = views.findIndex((entry) => entry.name === view)
+    return index < 0 ? null : viewpoints[index].name
+  }
+  const pick = (entry: { view: string; reason?: string } | null | undefined) => {
+    const viewpoint = entry ? nameOf(entry.view) : null
+    return viewpoint ? { viewpoint, ...(entry?.reason?.trim() ? { reason: entry.reason.trim() } : {}) } : null
+  }
+  const blocks = Object.fromEntries(
+    Object.entries(record.blocks ?? {}).flatMap(([block, entry]) => {
+      const chosen = pick(entry)
+      return chosen ? [[block, chosen]] : []
+    }),
+  )
+  const group = pick(record.group)
+  if (!Object.keys(blocks).length && !group) return null
+  return { ...(Object.keys(blocks).length ? { blocks } : {}), ...(group ? { group } : {}) }
 }

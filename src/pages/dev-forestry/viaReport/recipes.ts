@@ -6,6 +6,7 @@
  * and the environmental assessment memo (26) are the two that assess without a VQO rating of their own.
  * Structure only, never branding. No DOM or network access.
  */
+import type { OverviewSheetStyle } from '../reportMaps'
 import { findDocumentFormat } from '../viaDocument/formats'
 import { proposedBlocks, type ReportContext } from './parts'
 import { CONSULTANT_RECIPE_PARTS } from './partsConsultant'
@@ -33,12 +34,27 @@ export interface ReportRecipe {
   figureStyle?: string
   /** Paper, cover and contents; letter with neither when absent. */
   layout?: Partial<ReportLayout>
+  /** How its parts draw what they can draw more than one way. */
+  options?: ReportContext['recipeOptions']
+  /** Its overview sheet's style when the reviewer has not chosen one (landscape topographic when absent). */
+  overviewSheetStyle?: OverviewSheetStyle
+  /**
+   * Map pitch of its oblique renders of the blocks, degrees (`DEFAULT_OBLIQUE_PITCH` when absent): 60 looks down on
+   * the blocks as 01's model confirmation does; about 75 stands near eye level on the viewpoint's side, as 02's
+   * obliques do. Drawn through `horizonSafePitch` with roll 0.
+   */
+  obliquePitch?: number
 }
+
+/** Map pitch of the report's oblique renders when a recipe gives none, degrees: about 60° down on the blocks. */
+export const DEFAULT_OBLIQUE_PITCH = 60
 
 export const REPORT_RECIPES: readonly ReportRecipe[] = [
   {
     id: 'partial-cut-form',
     figureStyle: 'arrows-no-outlines',
+    // 01 pastes the poster, so its guide is lettered as the poster prints it.
+    options: { partialCutGuide: 'poster' },
     layout: { paper: 'letter', cover: false, contents: false },
     name: 'Fuel-management VIA form (partial cut)',
     title: 'Visual Impact Assessment',
@@ -66,6 +82,8 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
   {
     id: 'design-rationale',
     figureStyle: 'arrows-no-outlines',
+    // 02's obliques look across at the blocks from near eye level, on the viewpoint's side.
+    obliquePitch: 75,
     layout: { paper: 'letter', cover: false, contents: false },
     name: 'Design rationale with district summary table',
     title: 'Visual Landscape Design Rationale',
@@ -75,9 +93,8 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
       'cover',
       'design-rationale',
       'recommendations',
-      'sign-off',
-      'figures',
-      'overhead-renders',
+      'certification-2001',
+      'simulation-pages',
       'district-summary-form',
     ],
     purpose: 'A narrative rationale, the recommendations, then the district summary table against strict % guidelines.',
@@ -95,7 +112,7 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
       'inventory',
       'viewpoints-columns',
       'basic-definition',
-      'visual-design',
+      'design-questions-2001',
       'design-techniques-2001',
       'numerical-data',
       'summary-2001',
@@ -107,6 +124,8 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
   },
   {
     id: 'form-2001-photos',
+    // 05 ends on a portrait 11 x 17 VIA overview map.
+    overviewSheetStyle: 'end-map-portrait',
     layout: { paper: 'letter', cover: true, contents: true },
     name: '2001 VIA with existing / proposed / analysed panels',
     title: 'Visual Impact Assessment',
@@ -119,11 +138,10 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
       'distance-zones',
       'viewpoints-columns',
       'basic-definition',
-      'visual-design',
+      'design-questions-2001',
       'design-techniques-2001',
       'numerical-data',
-      'summary-2001',
-      'certification-2001',
+      'summary-boxed',
       'notes-2001',
       'recommendations',
       'limitations',
@@ -151,6 +169,7 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
       'photo-simulation-pairs',
       'calculations',
       'conclusion',
+      'sign-off',
       'appendix-1',
       'extent-scale',
     ],
@@ -188,6 +207,8 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
   },
   {
     id: 'ea-visual-memo',
+    // 26's Figure 2 prints its before and after pictures as wide panoramas.
+    options: { figurePanorama: 2.4 },
     layout: { paper: 'letter', cover: false, contents: false },
     name: 'Environmental assessment visual memo (no VQO)',
     title: 'Visual Aesthetics',
@@ -201,6 +222,11 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
 export const findReportRecipe = (id: string | null | undefined) =>
   REPORT_RECIPES.find((recipe) => recipe.id === id) ?? null
 
+/** Document sentences whose missing judgement these parts already list for the reviewer, by sentence id. */
+const LISTED_BY_PARTS: Readonly<Record<string, readonly string[]>> = {
+  ocular: ['basic-definition', 'criteria-rating-2001'],
+}
+
 /** Assembles `recipe` from `ctx`: each part in order, with what each leaves for the reviewer. */
 export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): AssembledReport {
   const blocks: ReportBlock[] = []
@@ -208,12 +234,18 @@ export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): Assemb
   for (const id of recipe.parts) {
     const part = findReportPart(id)
     if (!part) throw new Error(`Unknown report part: ${id}`)
-    const out = part.build({ ...ctx, recipeParts: recipe.parts })
+    const out = part.build({
+      ...ctx,
+      recipeParts: recipe.parts,
+      recipeOptions: { ...recipe.options, ...ctx.recipeOptions },
+    })
     blocks.push(...out.blocks)
     for (const what of out.toComplete ?? []) toComplete.push({ part: part.title, what })
   }
-  // The document's own unfilled sentences, once each, named by viewpoint and block.
-  for (const item of ctx.document.toComplete)
+  // The document's own unfilled sentences, once each, named by viewpoint and block; one a part of this recipe already
+  // lists in its own words (the class by eye) is not listed twice.
+  const listed = (id: string) => (LISTED_BY_PARTS[id] ?? []).some((part) => recipe.parts.includes(part))
+  for (const item of ctx.document.toComplete.filter((entry) => !listed(entry.id)))
     toComplete.push({
       part: 'Wording',
       what: `${item.viewpoint ? `${item.viewpoint}: ` : ''}${item.about ? `${item.about}, ` : ''}${item.id} (needs ${item.missing.join(', ')})`,

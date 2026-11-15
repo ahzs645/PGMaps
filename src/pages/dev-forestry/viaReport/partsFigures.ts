@@ -162,6 +162,12 @@ function afterSlot(ctx: ReportContext, name: string, label: string, markBlocks?:
   }
 }
 
+/** A figure page's slot as a panorama when the recipe asks for one (26). */
+const panoramic = (ctx: ReportContext, slot: FigureSlot): FigureSlot =>
+  ctx.recipeOptions?.figurePanorama && slot.figure?.landformRows
+    ? { ...slot, panorama: ctx.recipeOptions.figurePanorama }
+    : slot
+
 const NO_VIEWPOINT = 'No saved viewpoint yet: save one in the road view.'
 
 /** "A12345 CP 7", the licence alone, or null. */
@@ -224,7 +230,7 @@ export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording)
               placeholder: 'Regional map placing the project in its region',
             },
           ],
-          main: [before, after],
+          main: [panoramic(ctx, before), panoramic(ctx, after)],
         }
       })
       return { blocks, toComplete }
@@ -361,7 +367,8 @@ export function overheadRendersPart(id = 'overhead-renders', wording?: FigureWor
       const number = () => fill(w.number, { n: n++ })
       const names = ctx.blocks.map((block) => block.name)
       const blockList = names.length ? ` - ${names.length > 1 ? 'Blocks' : 'Block'} ${andList(names)}` : ''
-      const blocks: ReportBlock[] = []
+      // The renders start a page of their own (01 p7), so the overhead and its obliques print together.
+      const blocks: ReportBlock[] = obliqueFigure && tops.length === 1 ? [{ kind: 'pageBreak' }] : []
       const toComplete: string[] = []
       for (const figure of tops) {
         const caption = `${number()}: ${w.overhead}`
@@ -369,6 +376,8 @@ export function overheadRendersPart(id = 'overhead-renders', wording?: FigureWor
           kind: 'mapFigure',
           caption,
           slot: { label: caption, figure, placeholder: 'Overhead render of the blocks on the terrain model' },
+          // One overhead shares its page with the obliques under it, as 01 p7 prints them.
+          ...(obliqueFigure && tops.length === 1 ? { compact: true } : {}),
         })
         if (!figure) toComplete.push('Overhead render of the blocks')
       }
@@ -376,7 +385,7 @@ export function overheadRendersPart(id = 'overhead-renders', wording?: FigureWor
         const caption = `${number()}: ${oblique.length > 1 ? w.oblique.many : w.oblique.one}${blockList}`
         blocks.push({
           kind: 'figureGrid',
-          columns: oblique.length === 1 ? 1 : oblique.length > 4 ? 3 : 2,
+          columns: oblique.length === 1 ? 1 : oblique.length === 2 || oblique.length === 4 ? 2 : 3,
           caption,
           slots: oblique.length
             ? oblique.map((figure) => ({ label: figure.caption || figure.view, figure, placeholder: '' }))
@@ -389,7 +398,60 @@ export function overheadRendersPart(id = 'overhead-renders', wording?: FigureWor
   }
 }
 
+/** What a simulation is and is not, printed under each simulation page (02 prints its own under its simulation). */
+export const SIMULATION_DISCLAIMER =
+  'Simulated from a terrain model and timber drawn from the forest inventory; not a field-verified photograph. A simulation is only as accurate as the data it is drawn from, and conditions on the site may differ.'
+
+/**
+ * The simulations on landscape pages of their own (02 pp. 5-6): per viewpoint, the view's figure (its own style's
+ * labels on it) else its plain simulation across the page with the accuracy disclaimer under it; then the oblique
+ * renders together on one more landscape page. A view with neither prints a placeholder and is listed.
+ */
+export function simulationPagesPart(id = 'simulation-pages', wording?: FigureWording): ReportPart {
+  FIGURE_COUNTS.set(id, (ctx) => ctx.facts.viewpoints.length + (overheadLayout(ctx).oblique.length ? 1 : 0))
+  return {
+    id,
+    title: 'Simulations',
+    sources: ['02'],
+    build: (ctx): PartOutput => {
+      const w = wording ?? figureWording(ctx.document.format.id)
+      const names = viewpointNames(ctx)
+      if (!names.length) return { blocks: [text(NO_VIEWPOINT, 'run')], toComplete: ['Simulations: save a viewpoint'] }
+      let n = firstFigureNumber(ctx, id)
+      const toComplete: string[] = []
+      const blocks = names.map((name): ReportBlock => {
+        const figure = figureFor(ctx, name) ?? ctx.images?.after?.[name] ?? null
+        if (!figure) toComplete.push(`${name}: simulation (save the viewpoint)`)
+        return {
+          kind: 'figurePair',
+          placement: 'caption',
+          landscape: true,
+          slots: [
+            {
+              label: `${fill(w.number, { n: n++ })}: ${name} – ${w.pair.after}`,
+              figure,
+              placeholder: `${name}: the simulation; save the viewpoint in the road view`,
+              note: SIMULATION_DISCLAIMER,
+            },
+          ],
+        }
+      })
+      const { oblique } = overheadLayout(ctx)
+      if (oblique.length)
+        blocks.push({
+          kind: 'figureGrid',
+          landscape: true,
+          columns: oblique.length === 1 ? 1 : oblique.length === 2 || oblique.length === 4 ? 2 : 3,
+          caption: `${fill(w.number, { n: n++ })}: ${oblique.length > 1 ? w.oblique.many : w.oblique.one}`,
+          slots: oblique.map((figure) => ({ label: figure.caption || figure.view, figure, placeholder: '' })),
+        })
+      return { blocks, toComplete }
+    },
+  }
+}
+
 export const FIGURE_PARTS: readonly ReportPart[] = [
+  simulationPagesPart(),
   overviewMapPart(),
   overviewSheetPart(),
   overheadRendersPart(),
