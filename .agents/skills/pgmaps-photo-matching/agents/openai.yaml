@@ -1,0 +1,4 @@
+interface:
+  display_name: 'PGMaps Photo Matching'
+  short_description: 'Fit a field or aircraft photo to the terrain and draw proposals into it'
+  default_prompt: 'Use $pgmaps-photo-matching to line up this photo with the terrain and check it against the map.'

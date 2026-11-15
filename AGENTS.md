@@ -249,6 +249,11 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - Region aggregation reads `PointGrid.near`, and `scoreRegionRows` hands the toolkit values already normalized by `normalizedRows`. The toolkit's percentile walks the whole value list for each value, which is regions² per metric on each of about 57 scoring passes, so do not route scoring back through it. Exports list only the metrics the view shows. Without this pair, large study areas freeze the page for minutes.
 - `public/data/cimd/prince_george_cimd_2021.json` comes from `npm run cimd:sync -- <bc_scores_quintiles_EN.csv>`. StatCan publishes four dimensions as signed factor scores and no composite: dimensions are BC percentiles, and the composite is the user guide's summed-quintiles score. It is a PGMaps-derived figure, so say so where it is shown.
 
+## Photo matching
+
+- To line a field or aircraft photo up with the terrain, check it against the map, or draw proposed blocks and roads into it, read `.agents/skills/pgmaps-photo-matching/SKILL.md`. The bench is `scripts/forestry/photo-matching/`; the method and its measured accuracy are in `docs/research/landscape-photo-matching-2026-11-14.md`.
+- Case files, photos and outputs record where a photo was taken: keep them outside the repository and never commit them. Never trust a phone's recorded heading from an aircraft, and accept a camera only after looking at its check images.
+
 ## Project packages
 
 - For project-package creation, renderer changes, capability additions, or package audits, read `.agents/skills/pgmaps-project-builder/SKILL.md` and only the references it routes to for the active project mode.
