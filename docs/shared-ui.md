@@ -764,6 +764,53 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   glyph: a glyph's position comes from its font's metrics, so it does not centre,
   and it sizes the box to itself.
 
+## Map essentials
+
+Every map rendered through the application's `Map` (`src/components/ui/map.tsx`) or `SharedMap`
+(`persistent-map.tsx`) gets `MapEssentials` (`map-essentials.tsx`) without asking:
+
+- **Right-click menu** (`map-context-menu.tsx`; a long-press on touch): the point in the chosen
+  coordinate format, the terrain elevation when the map has 3D terrain, *Copy coordinates*
+  (`lat, lng`), *Copy as degrees, minutes, seconds*, *Copy as UTM (WGS 84)*, *What's here?*,
+  *Centre map here*, the page's own actions, *Open in Google Maps*, the colour-vision preview
+  and the keyboard shortcuts. MapLibre 6 already holds `contextmenu` back during a right-drag
+  rotate, so the menu listens to the map's own event. It opens after every other handler and stays
+  closed when one called `event.preventDefault()`: that is how a tool keeps right-click for itself
+  (the road designer's peg tool undoes a point; the Explorer opens its neighbourhood report).
+- **Page actions**: `useMapContextMenuActions([{ id, label, onSelect }])` inside the map adds
+  entries after *Centre map here*, e.g. "Viewshed from here". Keep the array stable (`useMemo`).
+- **What's here?** (`map-whats-here.tsx`, grouping in `src/lib/geo/whatsHere.ts`): every feature
+  drawn within 4 px of the point, one section per layer name with fill/outline duplicates and
+  hover/selection layers dropped, and the basemap's features folded at the end. A source counts as
+  basemap by its tile host (Carto, OpenFreeMap, Esri…), so page data served from Pages, R2 or
+  bcdatamapper is never folded away.
+- **Status bar** (`map-status-bar.tsx`): pointer coordinate (click for the next format; the choice
+  is remembered for every map, `map-coordinate-format.ts`), ground elevation from the map's own
+  terrain (divided by the exaggeration; a readout at the drawn detail, never a survey value), zoom,
+  and the bearing and pitch once turned or tilted. It is a MapLibre control in the bottom-left
+  corner, so chrome that stacks on `--map-bottom-left-controls-height` stacks above it; give new
+  bottom-left chrome that offset rather than a fixed `bottom-2`. It updates its text directly once a
+  frame (no React state per pointer move), leaves phones out, and steps aside when the bottom-right
+  corner (a long attribution, a narrow card map) would reach it.
+- **Camera keys** (`map-camera-keys.tsx`, `src/lib/geo/mapCameraKeys.ts`): N north up, U straight
+  down, R back to the camera after the page's opening fit, ? the shortcut sheet. They act on the map
+  under the pointer or holding focus, never while typing, in a dialog or menu, or with Ctrl, Cmd or
+  Alt.
+- **Colour-vision preview** (`color-vision-preview.tsx`, `src/lib/colorVision.ts`): protanopia,
+  deuteranopia, tritanopia and greyscale as SVG filters on the root element, so legends and
+  sidebars are simulated with the map. It lasts for the tab (sessionStorage) and shows a notice with
+  *Turn off*. Choose it from the map menu or the Appearance dialog. Adapted from GeoLibre (MIT,
+  `src/lib/NOTICE-GEOLIBRE.md`).
+
+Switch parts off with `essentials={false}` or e.g. `essentials={{ statusBar: false }}`: a map that
+owns its camera (a story, the visual-quality road view) or already prints a pointer readout (MMGIS)
+does. A map with `controls={null}` is taken for an inset or figure and goes without unless it passes
+`essentials`.
+
+`BasemapThumbnailLabel` (`basemap-thumbnail.tsx`) puts one tile over Prince George beside a
+basemap's name in `MapLayersControl`; `IMAGERY_BASEMAPS` uses it. Pass it any XYZ template, or one
+per theme.
+
 ## Settled map observation and HTML-marker clustering
 
 `map-viewport.ts` exports `MapViewportSnapshot` (`bounds` in west/south/east/north

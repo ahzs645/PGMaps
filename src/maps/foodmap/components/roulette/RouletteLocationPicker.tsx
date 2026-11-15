@@ -38,6 +38,8 @@ export function RouletteLocationPicker({
         zoom={sourceLocation ? 12 : ZOOM}
         // This map sits inside a scrolling sheet: one finger scrolls the sheet.
         cooperativeGestures={isMobile}
+        // A small picker in a sheet: the menu and keys help, a status bar would crowd it.
+        essentials={{ statusBar: false }}
       >
         <MapClickHandler onMapClick={handleMapClick} />
         <RadiusCircle sourceLocation={sourceLocation} maxDistance={maxDistance} />

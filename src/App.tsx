@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate, Link, useLocation, useParams } from 'react-router-dom'
 import { MapPinned } from 'lucide-react'
 import { Shell } from '@/components/layout/Shell'
+import { ColorVisionPreview } from '@/components/ui/color-vision-preview'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Button } from '@/components/ui/button'
 import { MapLoader } from '@/components/ui/map-loader'
@@ -111,6 +112,7 @@ function App() {
 
   return (
     <Shell>
+      <ColorVisionPreview />
       <ErrorBoundary>
         <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>

@@ -266,7 +266,14 @@ export function ReferencePane({
         {table.button}
       </div>
       <div className="relative h-[26rem] sm:h-[30.5rem]" data-testid="georeference-reference">
-        <AppMap styles={styles} center={[-125.4, 53.8]} zoom={6} cooperativeGestures>
+        <AppMap
+          styles={styles}
+          center={[-125.4, 53.8]}
+          zoom={6}
+          cooperativeGestures
+          // The control-pair notice spans the map's bottom edge where the status bar would sit.
+          essentials={{ statusBar: false }}
+        >
           <MapTableBridge table={table} />
           <MapInteraction bounds={bounds} focus={focus} armed={armed && !readOnly} onPick={onPick} />
           {source?.record?.assets.map((asset, i) => (

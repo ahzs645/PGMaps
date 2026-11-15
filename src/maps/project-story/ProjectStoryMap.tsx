@@ -999,6 +999,8 @@ function StoryMapRuntime({
         minZoom={config.map.minZoom}
         maxZoom={config.map.maxZoom}
         styles={mapStyles}
+        // A story steers the camera from its scenes; the status bar and camera keys would fight it.
+        essentials={false}
         // 'hidden' removes the zoom/compass controls. Scrolly keeps them on
         // desktop only, where the story layer lets the pointer through to the
         // map; on a phone the card lane covers the map and they would be dead
