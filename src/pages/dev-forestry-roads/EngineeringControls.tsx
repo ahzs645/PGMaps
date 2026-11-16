@@ -29,6 +29,8 @@ import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, invalidInputMessages, type EngineeringInputList } from './inputErrors'
 import { horizonReplacements, MAX_HORIZON_DEPTH_M, nextHorizon } from './groundHorizons'
 import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './culvertGrade'
+import { CulvertOptionFields, CulvertStandards } from './culverts/CulvertEditorParts'
+import { buildCulvertSchedule } from './culverts/culvertSchedule'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { nearestStation } from './engine'
 import {
@@ -314,6 +316,7 @@ export function EngineeringControls({
   templateRequest,
   inputsRequest,
   onShowDrainage,
+  drainageStale,
 }: {
   workspace: RoadWorkspace
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
@@ -329,6 +332,8 @@ export function EngineeringControls({
   inputsRequest?: { tab: 'templates' | 'materials' | 'haul'; sequence: number }
   /** Opens the drainage check (streams, ponds, catchments) beside the culvert inputs. */
   onShowDrainage?: () => void
+  /** The saved drainage check no longer matches the road; unknown is read as out of date. */
+  drainageStale?: boolean
 }) {
   // The sidebar is memoized: a click reads the station as it is now (see roadStation.tsx).
   const readStation = useStationReader(w)
@@ -377,6 +382,20 @@ export function EngineeringControls({
   const replacedHorizons = horizonReplacements(design.strata)
   // The pipe roughness the drainage run uses, so the capacity shown here is the one it will check.
   const manningN = project.drainage?.settings?.manningN ?? DEFAULT_DRAINAGE_SETTINGS.manningN
+  // One row per culvert (construction cost, appraisal treatment, design checks), built only while
+  // the culvert inputs show.
+  const culvertSchedule =
+    activeTab === 'culverts' && design.culverts.length
+      ? buildCulvertSchedule({
+          alignment,
+          analysis,
+          place: project.costLocation?.place,
+          drainage: {
+            record: project.drainage?.records.find((record) => record.alignmentId === alignment.id),
+            stale: drainageStale ?? true,
+          },
+        })
+      : null
   const constrainedAllocation = !!(
     design.fillRequirements?.length ||
     design.haul.directionRanges?.length ||
@@ -1481,6 +1500,14 @@ export function EngineeringControls({
                     }))
                   }
                 />
+                <CulvertOptionFields
+                  culvert={c}
+                  label={`Culvert ${index + 1}`}
+                  error={errorsFor('culverts', c.id)}
+                  onChange={(next) =>
+                    edit((e) => ({ ...e, culverts: e.culverts.map((x) => (x.id === c.id ? next : x)) }))
+                  }
+                />
                 <label className="flex items-center gap-1 text-xs">
                   <input
                     type="checkbox"
@@ -1556,7 +1583,7 @@ export function EngineeringControls({
                 <p className="text-2xs leading-4 text-muted-foreground" data-testid="road-culvert-capacity">
                   {(() => {
                     const pipe = culvertScreeningCapacity(c, manningN)
-                    return `Full-pipe capacity ${pipe.capacityM3s.toFixed(3)} m³/s at ${(pipe.slope * 100).toFixed(2)} %${pipe.slopeAssumed ? ', assumed until the outlet is below the inlet' : ''} (Manning n ${manningN}). The peak flow it must carry needs a drainage run.`
+                    return `Full-pipe capacity ${pipe.capacityM3s.toFixed(3)} m³/s at ${(pipe.slope * 100).toFixed(2)} %${pipe.slopeAssumed ? ', assumed until the outlet is below the inlet' : ''} (Manning n ${pipe.manningN}${pipe.approximate ? '; an arch is read as the round pipe of the same end area' : ''}). The peak flow it must carry needs a drainage run.`
                   })()}
                 </p>
                 {result && (
@@ -1571,6 +1598,10 @@ export function EngineeringControls({
                     ))}
                   </p>
                 )}
+                {(() => {
+                  const row = culvertSchedule?.rows.find((item) => item.id === c.id)
+                  return row ? <CulvertStandards row={row} appraisalBasis={culvertSchedule?.appraisal?.basis} /> : null
+                })()}
               </div>
             )
           })}

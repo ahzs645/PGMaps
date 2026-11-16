@@ -3,18 +3,38 @@ import { insetBox } from '@/components/ui/inset-box'
 import { CollapsibleSection } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { ReferenceHeading, referenceMoney } from './CostReferenceControls'
+import { BC_COAST_2026, BC_INTERIOR_2026 } from './culverts/appraisalPacks'
 import {
   COAST_ALLOWANCE_SCOPES,
-  COAST_CULVERT_ROWS,
   INTERIOR_ALLOWANCE_SCOPES,
   INTERIOR_APPRAISAL_FUEL,
-  INTERIOR_CULVERT_ROWS,
   INTERIOR_EQUIPMENT_RATES,
   INTERIOR_LABOUR_RATES,
   type AllowanceScope,
 } from './appraisalScope'
 
 const tableClass = '[&_td]:bg-background [&_th]:bg-background'
+
+// Every diameter the manuals tabulate, from the packs the culvert schedule reads (`culverts/appraisalPacks.ts`).
+const interiorTable = BC_INTERIOR_2026.table
+const interiorCulvertRows =
+  interiorTable.kind === 'installed-by-length'
+    ? interiorTable.diametersM.map((diameterM, column) => ({
+        diameterM,
+        installed12mCad: interiorTable.installedCad[interiorTable.lengthsM.indexOf(12)][column],
+        supplyPerMCad: interiorTable.supplyPerMCad[column],
+        inSubgrade: diameterM < (BC_INTERIOR_2026.inSubgradeBelowDiameterM ?? 0),
+      }))
+    : []
+const coastTable = BC_COAST_2026.table
+const coastCulvertRows =
+  coastTable.kind === 'per-metre'
+    ? coastTable.diametersM.map((diameterM, column) => ({
+        diameterM,
+        installedPerMCad: coastTable.installedPerMCad[column],
+        materialsPerMCad: coastTable.supplyPerMCad[column],
+      }))
+    : []
 const rate = (value: number) => '$' + value.toFixed(2)
 
 function ScopeColumn({ title, items }: { title: string; items: readonly string[] }) {
@@ -73,7 +93,7 @@ export function AppraisalScopePanel({ method }: { method: 'interior' | 'coast' }
         ))}
         <CollapsibleSection
           label={<span>Culvert allowances</span>}
-          summary={interior ? 'IAM Table 4-3, selected diameters' : 'CAM Table 5-4, selected diameters'}
+          summary={interior ? 'IAM Table 4-3, at 12 m' : 'CAM Table 5-4'}
           className="bg-transparent last:border-b-0"
           contentClassName="space-y-1.5 px-3 pb-3"
           toggleProps={{ 'data-testid': 'road-appraisal-culverts-toggle' }}
@@ -90,7 +110,7 @@ export function AppraisalScopePanel({ method }: { method: 'interior' | 'coast' }
                   </tr>
                 </thead>
                 <tbody>
-                  {INTERIOR_CULVERT_ROWS.map((row) => (
+                  {interiorCulvertRows.map((row) => (
                     <tr key={row.diameterM}>
                       <td>{row.diameterM.toFixed(2)}</td>
                       <td>{referenceMoney(row.installed12mCad)}</td>
@@ -112,7 +132,7 @@ export function AppraisalScopePanel({ method }: { method: 'interior' | 'coast' }
                   </tr>
                 </thead>
                 <tbody>
-                  {COAST_CULVERT_ROWS.map((row) => (
+                  {coastCulvertRows.map((row) => (
                     <tr key={row.diameterM}>
                       <td>{row.diameterM.toFixed(2)}</td>
                       <td>{referenceMoney(row.installedPerMCad)}</td>
@@ -125,8 +145,12 @@ export function AppraisalScopePanel({ method }: { method: 'interior' | 'coast' }
           )}
           <p className="text-2xs leading-4 text-muted-foreground">
             {interior
-              ? 'Part A changes with length (9 m to 20 m in the table); 12 m is shown. Use Part A or Part B, never both. The table is not interpolated.'
-              : 'Coast tabular road costs leave culverts out, so the chosen column is added. Use Column A or Column B, never both.'}
+              ? 'Part A changes with length (9 m to 20 m in the table); 12 m is shown. Use Part A or Part B, never both. The table is not interpolated. Over 1.8 m in diameter or 20 m long, and any multiple, arched or embedded culvert, is an engineered estimate.'
+              : 'Coast tabular road costs leave culverts out, so the chosen column is added. Use Column A or Column B, never both. Over 1.8 m in diameter is an engineered estimate.'}
+          </p>
+          <p className="text-2xs leading-4 text-muted-foreground" data-testid="road-appraisal-culverts-where">
+            How each culvert of the road is treated is listed with it in Engineering → Drainage and in the culvert
+            schedule export, beside its construction cost and never in place of it.
           </p>
         </CollapsibleSection>
         {interior && (

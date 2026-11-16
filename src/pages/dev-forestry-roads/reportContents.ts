@@ -19,7 +19,13 @@ export const REPORT_SECTIONS = [
   {
     id: 'engineering',
     label: 'Costs, materials, culverts and haul',
-    heading: ['Engineering cost breakdown', 'Material quantities', 'Culvert geometry', 'Haul scenario'],
+    heading: [
+      'Engineering cost breakdown',
+      'Material quantities',
+      'Culvert geometry',
+      'Culvert schedule',
+      'Haul scenario',
+    ],
   },
   { id: 'sections', label: 'Cross-sections', heading: 'Cross-sections' },
   { id: 'model-flags', label: 'Model flags', heading: 'Model flags' },

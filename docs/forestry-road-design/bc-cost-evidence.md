@@ -69,6 +69,10 @@ The type says what a number can be used for. It is the first thing to read.
   separate stabilizing-material allowance for the chosen road group
   (IAM 4.3.4.1: a constant by group, plus $4,277/km for ripped or quarry rock).
   It is never summed into the subgrade figure.
+  The culvert tables list every tabulated diameter (`culverts/appraisalPacks.ts`).
+  How each culvert of the road is treated (in the subgrade allowance, a table
+  allowance or an engineered estimate) is shown with the culvert, beside its
+  construction cost and never in place of it: see [Culverts](culverts.md).
 - **Evidence → Records** filters every record by place (a country or a
   province/state), evidence type, the pack's region and words, and lists them
   nearest the project's cost location first: same region, same province or

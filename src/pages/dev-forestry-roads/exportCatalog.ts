@@ -36,6 +36,7 @@ export type RoadExport =
   | 'softree-location-ascii'
   | 'softree-terrain-ascii'
   | 'streams-csv'
+  | 'culvert-schedule-csv'
   | 'provincial-evidence'
   | 'notes'
   | 'qgis-project'
@@ -115,6 +116,8 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   // The RoadEng terrain's ground and drawn layers: no calculated design result.
   'softree-terrain-ascii': 'unaffected',
   'streams-csv': 'unaffected',
+  // Prints each culvert's inputs beside what was calculated from them, and has nowhere to carry a notice.
+  'culvert-schedule-csv': 'refuse',
   'provincial-evidence': 'unaffected',
   report: 'stamp',
   'report-pdf': 'stamp',
@@ -302,6 +305,14 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     description: 'Each stream with its imported, suggested and reviewed class, channel width, reserves and evidence.',
   },
   {
+    kind: 'culvert-schedule-csv',
+    group: 'gis',
+    label: 'Culvert schedule',
+    extension: '.csv',
+    description:
+      'Each culvert with its size, inverts, cover, construction cost, appraisal treatment and design checks.',
+  },
+  {
     kind: 'provincial-evidence',
     group: 'gis',
     label: 'Fish & watershed evidence',
@@ -416,6 +427,8 @@ export interface ExportContext {
   hasProvincialEvidence: boolean
   /** The project has at least one stream, so the stream register has a row to write. */
   hasStreams: boolean
+  /** The active road has at least one culvert. */
+  hasCulverts: boolean
   hasNotes: boolean
   /**
    * The project holds no road yet, only a terrain with a grid (one opened from a RoadEng `.terx`):
@@ -472,6 +485,7 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
       'optimal-inputs',
       'softree-location-ascii',
       'softree-terrain-ascii',
+      'culvert-schedule-csv',
     ].includes(kind)
   )
     return 'Return to the road first.'
@@ -481,6 +495,8 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
   if (kind === 'provincial-evidence' && !context.hasProvincialEvidence) return 'Load provincial stream evidence first.'
   if (kind === 'streams-csv' && !context.hasStreams)
     return 'No streams in this project yet. Import or load streams first.'
+  if (kind === 'culvert-schedule-csv' && !context.hasCulverts)
+    return 'No culverts on this road yet. Add one in Engineering → Drainage.'
   const invalid = invalidFor(kind, context)
   if (invalid && INVALID_INPUT_RULES[kind] === 'refuse')
     return `Correct the invalid input first. ${invalidInputMessages(invalid).join(' ')}`

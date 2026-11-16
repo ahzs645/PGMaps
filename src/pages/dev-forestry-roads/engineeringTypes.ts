@@ -142,9 +142,28 @@ export interface Culvert {
    * grade (%) to the inlet invert, like RoadEng's culvert dip. Omitted means no dip.
    */
   ditchDipPercent?: number
-  /** CAD per installed barrel metre, plus the explicit fixed amount. */
+  /** CAD per installed barrel metre (each barrel of a multiple installation), plus the explicit fixed amount. */
   unitCost: number
   fixedCost: number
+  /**
+   * The opening's shape (`culverts/culvertShape.ts`). Omitted is a round pipe. For another shape
+   * `diameterM` is the rise and `spanM` the width.
+   */
+  shape?: import('./culverts/culvertShape').CulvertShape
+  /** Width of a box or arch, m. Not used by a round pipe. */
+  spanM?: number
+  /** An arch's end area as its supplier states it, m². Omitted: an ellipse of span and rise, said to be approximate. */
+  openingAreaM2?: number
+  /** Barrels side by side at this site. Omitted is one. */
+  barrels?: number
+  /** Pipe material: its Manning n replaces the drainage run's for this culvert. Omitted keeps the run's. */
+  material?: import('./culverts/engineeringManual').CulvertMaterial
+  /** Depth of streambed built inside a closed-bottom culvert, m, from the invert. Omitted is none. */
+  embedmentM?: number
+  /** How the inlet end is finished, for the headwater check. Omitted is a projecting pipe. */
+  inletEdge?: import('./culverts/engineeringManual').CulvertInletEdge
+  /** Temporary: on site three years or less, which changes the design flood (FPPR s. 74). Omitted is permanent. */
+  service?: 'permanent' | 'temporary'
   /**
    * Set on a culvert read from a RoadEng (Softree) traverse: what the traverse held that this model
    * has no field for, written back to it (`roadEngCulverts.ts`). Never read by a calculation.

@@ -151,6 +151,7 @@ import { SoftreeLocationOptions } from './dev-forestry-roads/SoftreeLocationOpti
 import type { LocationAsciiOptions } from './dev-forestry-roads/softreeExports'
 import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
+import { buildCulvertSchedule, culvertScheduleCsv } from './dev-forestry-roads/culverts/culvertSchedule'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
 import { FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { insetBox } from '@/components/ui/inset-box'
@@ -289,7 +290,12 @@ import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from
 import { analyzeCable, createRoadStationSampler, distance, offsetCoordinate } from './dev-forestry-roads/engine'
 import { checkPlanEdit } from './dev-forestry-roads/planEditCheck'
 import { roadStationAt, typedStationNote } from './dev-forestry-roads/stationAt'
-import { hasStationing, resolveTypedStation, setScreenStationing } from './dev-forestry-roads/roadStationing'
+import {
+  hasStationing,
+  resolveTypedStation,
+  setScreenStationing,
+  withStationing,
+} from './dev-forestry-roads/roadStationing'
 import { StationBox } from './dev-forestry-roads/StationBox'
 import { StationJumpMenu } from './dev-forestry-roads/StationJumpMenu'
 import { SectionPaneTools, useSectionTools } from './dev-forestry-roads/SectionPaneTools'
@@ -3457,6 +3463,23 @@ export default function DevForestryRoads({
         )
       case 'streams-csv':
         return text(streamRegisterCsv(safe, w.analyses), `${basename}-streams.csv`, 'text/csv;charset=utf-8')
+      case 'culvert-schedule-csv':
+        // The road's own stationing names its stations, whatever the screen shows.
+        return text(
+          withStationing(alignment.stationing, () =>
+            culvertScheduleCsv(
+              buildCulvertSchedule({
+                alignment,
+                analysis,
+                place: project.costLocation?.place,
+                drainage: { record: drainageEvidence, stale: drainageStale },
+              }),
+            ),
+          ),
+          `${basename}-culverts.csv`,
+          'text/csv;charset=utf-8',
+          'Culvert schedule exported. Its appraisal columns are the manual’s figures, not part of the estimate.',
+        )
       case 'provincial-evidence':
         if (!safe.provincialStreamData)
           throw Error('Load provincial stream evidence before exporting its source records.')
@@ -4736,6 +4759,7 @@ export default function DevForestryRoads({
     terrainOnly:
       !!project.terrain.raster && project.alignments.every((road) => road.id === project.designPlaceholderId),
     hasStreams: project.context.some((feature) => feature.kind === 'stream'),
+    hasCulverts: !!alignment.engineering?.culverts.length,
     dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
     optimalHaulUnavailable: optimalHaulUnavailable(analysis.engineering?.haul),
   }

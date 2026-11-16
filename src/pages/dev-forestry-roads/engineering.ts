@@ -24,6 +24,7 @@ import type {
 import { hasCompleteCoverage } from './analysisResult'
 import { materialPlanMissing } from './engineeringTypes'
 import { curveDesignAt, surfaceLayersAt } from './engine'
+import { barrelOpeningArea, culvertBarrels } from './culverts/culvertShape'
 import { sectionCrossfall, templateAt } from './templates'
 import { solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
 import { fillPlacementCost } from './fillPlacement'
@@ -813,7 +814,9 @@ function calculateCulvert(
   if (gradePercent !== null && gradePercent >= -EPS)
     warnings.push('The entered outlet is not lower than the inlet; review flow direction and pipe grade.')
   if (profile.some((p) => p.groundElevation === null)) warnings.push('Terrain is missing along part of the barrel.')
-  const barrelAreaM2 = (Math.PI * c.diameterM ** 2) / 4
+  // One barrel's end area; a culvert with no shape fields is one round pipe, as before they existed.
+  const barrelAreaM2 = barrelOpeningArea(c).areaM2,
+    barrels = culvertBarrels(c)
   const barrelLengthM = knownInverts ? Math.hypot(c.lengthM, c.outletInvertM! - c.inletInvertM!) : null
   return {
     id: c.id,
@@ -828,8 +831,8 @@ function calculateCulvert(
     gradePercent,
     barrelLengthM,
     barrelAreaM2,
-    barrelInternalVolumeM3: barrelAreaM2 * (barrelLengthM ?? c.lengthM),
-    installedCost: (barrelLengthM ?? c.lengthM) * c.unitCost + c.fixedCost,
+    barrelInternalVolumeM3: barrels * barrelAreaM2 * (barrelLengthM ?? c.lengthM),
+    installedCost: barrels * (barrelLengthM ?? c.lengthM) * c.unitCost + c.fixedCost,
     profile,
     complete: coverM !== null && requiredLengthM !== null && associationResolved,
     warnings,

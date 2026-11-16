@@ -9,6 +9,7 @@ import type {
   SectionComponent,
 } from './types'
 import type { TemplateAssignment } from './engineeringTypes'
+import { culvertOptionProblems } from './culverts/culvertOptions'
 import { EngineeringInputError, requireInRange, requireStationRange, type EngineeringInputTarget } from './inputErrors'
 import { validatePreparation, validateSectionAssembly } from './sectionAssembly'
 import { validateAllocationPolicy } from './allocationPolicy'
@@ -623,6 +624,8 @@ export function validateEngineering(e: AlignmentEngineering): void {
       })
     if (c.inletInvertM !== null) field('inletInvertM', 'inlet invert elevation (m)', -12000, 12000)
     if (c.outletInvertM !== null) field('outletInvertM', 'outlet invert elevation (m)', -12000, 12000)
+    for (const problem of culvertOptionProblems(c))
+      throw new EngineeringInputError(`${owner}: ${problem.message}`, { ...target, field: problem.field })
   }
   for (const s of e.sites) {
     const owner = s.name || 'Site',

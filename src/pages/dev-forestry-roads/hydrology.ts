@@ -8,6 +8,7 @@
  * culvert check is a full-pipe Manning capacity against a Rational-method peak.
  * Pure: projection is passed in, no DOM or network access.
  */
+import { culvertFullFlowCapacity, culvertManningN, hasHydraulicOptions } from './culverts/culvertHydraulics'
 import { carveCulvert, roadFrame, type CulvertChannel } from './designSurface'
 import {
   cellCentre,
@@ -595,12 +596,13 @@ export interface CulvertCheck {
   existingAreaHa: number
   /** Rational-method peak on the design catchment, m³/s. */
   designFlowM3s: number
-  /** Full-pipe Manning capacity of the entered diameter, m³/s. */
+  /** Barrel-full Manning capacity of the entered opening, every barrel together, m³/s. */
   capacityM3s: number
   slope: number
   /** True when the slope is the 2% default because the inverts are missing or not falling. */
   slopeAssumed: boolean
   diameterM: number
+  /** Smallest standard single round pipe that carries the peak at this slope and roughness. */
   minimumDiameterM: number | null
   adequate: boolean
 }
@@ -959,7 +961,12 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
     const { slope, slopeAssumed } = culvertCapacitySlope(c, defaultSlope)
     const designAreaHa = designArea / 10_000
     const designFlowM3s = rationalPeakFlow(input.runoffCoefficient, input.rainfallMmPerHr, designAreaHa)
-    const capacityM3s = fullPipeCapacity(c.diameterM, slope, input.manningN)
+    // A culvert with a shape, barrel count or material of its own is read through them; a plain
+    // round pipe keeps the run's roughness and the figure it always had.
+    const own = hasHydraulicOptions(c)
+    const capacityM3s = own
+      ? culvertFullFlowCapacity(c, slope, input.manningN).capacityM3s
+      : fullPipeCapacity(c.diameterM, slope, input.manningN)
     if (channel.assumedInverts) warnings.push(`${c.name}: inverts missing; channel set 0.3 m below the lower end.`)
     culvertChecks.push({
       id: c.id,
@@ -972,7 +979,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
       slope,
       slopeAssumed,
       diameterM: c.diameterM,
-      minimumDiameterM: minimumDiameter(designFlowM3s, slope, input.manningN),
+      minimumDiameterM: minimumDiameter(designFlowM3s, slope, culvertManningN(c, input.manningN).n),
       adequate: capacityM3s >= designFlowM3s,
     })
   }

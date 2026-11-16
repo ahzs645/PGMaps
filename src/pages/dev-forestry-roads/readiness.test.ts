@@ -154,6 +154,41 @@ function assess(
   return { rows, row, analysis, alignment }
 }
 
+describe('assessReadiness: culverts against the Engineering Manual', () => {
+  const withCulverts = (...culverts: Culvert[]) =>
+    assess({ alignment: road({ engineering: { ...createEngineeringDesign(), culverts } }) }).row('culvert-standards')
+  it('is not assessed with no culverts, or while a culvert has no inverts', () => {
+    expect(assess().row('culvert-standards')).toMatchObject({
+      state: 'not-assessed',
+      result: 'No culverts are entered, so there is nothing to check',
+    })
+    expect(withCulverts(culvert({}))).toMatchObject({
+      state: 'not-assessed',
+      result: '1 culvert has cover or gradient not checked',
+      action: { target: 'culverts', chainage: 100 },
+    })
+  })
+  it('is met when every culvert has the manual’s cover and gradient', () => {
+    // The road is at 805 m at station 100: a 0.8 m pipe with its crown near 804.1 m has about 0.8 m of cover.
+    const row = withCulverts(culvert({ inletInvertM: 803.3, outletInvertM: 803.0 }))
+    expect(row).toMatchObject({ state: 'met', result: 'The 1 culvert meets the cover and gradient rules' })
+    expect(row.measured).toBe('Inlet headwater not assessed for 1 culvert')
+  })
+  it('needs attention for a pipe short of cover or too steep, naming the culvert and the rule', () => {
+    const shallow = withCulverts(culvert({ inletInvertM: 803.9, outletInvertM: 803.6 }))
+    expect(shallow).toMatchObject({ state: 'attention', severity: 'limit' })
+    expect(shallow.result).toBe('1 culvert does not meet the manual’s rules')
+    expect(shallow.measured).toMatch(/^Culvert 1: least cover \d\.\d+ m is under 0\.6 m/)
+    const steep = withCulverts(culvert({ inletInvertM: 803.6, outletInvertM: 802.0 }))
+    expect(steep.measured).toContain('Culvert 1: falls 13.33%, over 10%')
+  })
+  it('names a major culvert as work for a professional engineer', () => {
+    const row = withCulverts(culvert({ diameterM: 2, lengthM: 20, inletInvertM: 801.6, outletInvertM: 801.2 }))
+    expect(row).toMatchObject({ state: 'attention' })
+    expect(row.measured).toContain('Culvert 1: major culvert: diameter 2 m against 2 m or more')
+  })
+})
+
 describe('assessReadiness: curves superelevated within their limits', () => {
   it('appears only with curve criteria, and flags a curve its table leaves blank or that needs more than e max', () => {
     expect(assess().rows.some((r) => r.id === 'superelevation')).toBe(false)
@@ -982,6 +1017,8 @@ describe('assessReadiness: a check that was not made never reads as met', () => 
     ['crossing-approach', 'No sections were calculated, so crossings were not found', 'met'],
     ['riparian-areas', 'No sections were calculated, so the areas were not tested', 'met'],
     ['cross-drain-spacing', 'No road to measure', 'attention'],
+    // The road's one culvert has no inverts: once calculated it is still not checked, for that reason.
+    ['culvert-standards', 'No sections were calculated, so culverts were not checked', 'not-assessed'],
     ['constraints', 'No sections were calculated, so the areas were not tested', 'attention'],
     ['rates', 'No quantities were calculated, so no rate is in use', 'attention'],
     ['haul', 'No earthwork was calculated', 'attention'],
@@ -1029,6 +1066,7 @@ describe('assessReadiness: a check that was not made never reads as met', () => 
       'riparian-areas': 'not-assessed',
       drainage: 'not-assessed',
       'cross-drain-spacing': 'not-assessed',
+      'culvert-standards': 'not-assessed',
       constraints: 'not-assessed',
       'structure-costs': 'not-assessed',
     })

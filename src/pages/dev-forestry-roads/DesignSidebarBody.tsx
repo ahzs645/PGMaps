@@ -287,6 +287,7 @@ export function DesignSidebar(p: SidebarProps) {
               templateRequest={templateRequest}
               inputsRequest={p.engineeringInputsRequest}
               onShowDrainage={p.onShowDrainage}
+              drainageStale={p.drainageStale}
             />
           </div>
           <div data-workflow-editor="review" hidden={tab !== 'review'}>

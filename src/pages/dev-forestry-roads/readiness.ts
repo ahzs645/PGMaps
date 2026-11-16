@@ -20,6 +20,7 @@ import { MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M } from './connectorCheckOptions
 import { CONSTRAINT_LABELS, resolveConstraint } from './constraints'
 import { assessCostReadiness, type CostReadinessAssessment } from './costReadiness'
 import { buildCrossingRegister, type CrossingRegister } from './crossingRegister'
+import { buildCulvertSchedule } from './culverts/culvertSchedule'
 import {
   CROSSING_APPROACH_TANGENT_M,
   CROSSING_SKEW_SCREEN_DEG,
@@ -1610,6 +1611,93 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
             measured: spacingText,
             judgedOn: `Maximum spacing ${trim(spacingLimit)} m, between culverts and from each road end`,
           },
+    )
+  }
+
+  // Culverts against the Engineering Manual's own rules (`culverts/culvertChecks.ts`): the same
+  // checks the culvert editor and the culvert schedule print. Capacity stays with the rows above.
+  const CULVERT_RULES_JUDGED_ON =
+    'Cover, pipe gradient, embedment and inlet headwater by the Engineering Manual and Fish-stream Crossing Guidebook; major culverts named'
+  const culvertRule = { id: 'culvert-standards', group: 'water', check: 'Culverts meet the manual’s rules' } as const
+  const scheduled = buildCulvertSchedule({
+    alignment,
+    analysis,
+    place: undefined,
+    drainage: input.drainage,
+  }).rows.filter((row) => row.cost.installedCad !== null)
+  if (!scheduled.length)
+    add({
+      ...culvertRule,
+      state: 'not-assessed',
+      result: stations.length
+        ? 'No culverts are entered, so there is nothing to check'
+        : 'No sections were calculated, so culverts were not checked',
+      judgedOn: CULVERT_RULES_JUDGED_ON,
+    })
+  else {
+    const judged = (row: (typeof scheduled)[number]) =>
+      row.checks.filter((check) => ['cover', 'gradient', 'embedment', 'headwater'].includes(check.id))
+    const failing = scheduled.filter((row) => judged(row).some((check) => check.state === 'not-met'))
+    const majors = scheduled.filter((row) => row.class.major)
+    // Cover and gradient need both inverts; a culvert without them has not been checked at all.
+    const unchecked = scheduled.filter((row) =>
+      judged(row).some((check) => (check.id === 'cover' || check.id === 'gradient') && check.state === 'not-assessed'),
+    )
+    const lines = [
+      ...failing.flatMap((row) =>
+        judged(row)
+          .filter((check) => check.state === 'not-met')
+          .map((check) => `${row.name}: ${check.result.charAt(0).toLowerCase()}${check.result.slice(1)}`),
+      ),
+      ...majors.map((row) => `${row.name}: ${row.class.summary.charAt(0).toLowerCase()}${row.class.summary.slice(1)}`),
+      unchecked.length
+        ? `${plural(unchecked.length, 'culvert has', 'culverts have')} cover or gradient not checked`
+        : '',
+    ].filter(Boolean)
+    const first = failing[0] ?? majors[0] ?? unchecked[0]
+    const action = first ? { label: 'Open culvert', target: 'culverts' as const, chainage: first.chainage } : undefined
+    add(
+      failing.length
+        ? {
+            ...culvertRule,
+            state: 'attention',
+            severity: 'limit',
+            result: `${plural(failing.length, 'culvert does', 'culverts do')} not meet the manual’s rules`,
+            measured: lines.join(' · '),
+            judgedOn: CULVERT_RULES_JUDGED_ON,
+            action,
+          }
+        : majors.length
+          ? {
+              ...culvertRule,
+              state: 'attention',
+              severity: 'todo',
+              result: `${plural(majors.length, 'major culvert needs', 'major culverts need')} a professional engineer’s design`,
+              measured: lines.join(' · '),
+              judgedOn: CULVERT_RULES_JUDGED_ON,
+              action,
+            }
+          : unchecked.length
+            ? {
+                ...culvertRule,
+                state: 'not-assessed',
+                result: `${plural(unchecked.length, 'culvert has', 'culverts have')} cover or gradient not checked`,
+                measured: 'Enter both inverts on resolved ground',
+                judgedOn: CULVERT_RULES_JUDGED_ON,
+                action,
+              }
+            : {
+                ...culvertRule,
+                state: 'met',
+                result: `${every(scheduled.length, 'culvert meets', 'culverts meet')} the cover and gradient rules`,
+                measured: (() => {
+                  const open = scheduled.filter((row) =>
+                    row.checks.some((check) => check.id === 'headwater' && check.state === 'not-assessed'),
+                  ).length
+                  return open ? `Inlet headwater not assessed for ${plural(open, 'culvert')}` : undefined
+                })(),
+                judgedOn: CULVERT_RULES_JUDGED_ON,
+              },
     )
   }
 

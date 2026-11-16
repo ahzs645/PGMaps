@@ -22,6 +22,7 @@ const ready: ExportContext = {
   hasTerrainGrid: true,
   hasProvincialEvidence: true,
   hasStreams: true,
+  hasCulverts: true,
   hasNotes: true,
   dLineSheetUnavailable: null,
 }
@@ -42,6 +43,8 @@ describe('export catalog', () => {
     expect(exportUnavailable('terrain-ascii', { ...ready, hasTerrainGrid: false })).toMatch(/terrain grid/)
     expect(exportUnavailable('provincial-evidence', { ...ready, hasProvincialEvidence: false })).toMatch(/provincial/)
     expect(exportUnavailable('streams-csv', { ...ready, hasStreams: false })).toMatch(/No streams/)
+    expect(exportUnavailable('culvert-schedule-csv', { ...ready, hasCulverts: false })).toMatch(/No culverts/)
+    expect(exportUnavailable('culvert-schedule-csv', { ...ready, terrainProfile: true })).toMatch(/Return to the road/)
     expect(exportUnavailable('plotbook-pdf', { ...ready, terrainProfile: true })).toMatch(/Return to the road/)
     expect(exportUnavailable('notes', { ...ready, designPreview: true, hasResults: false })).toBeNull()
     expect(exportUnavailable('notes', { ...ready, hasNotes: false })).toMatch(/Draw a note/)

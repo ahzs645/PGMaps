@@ -143,6 +143,7 @@ describe('DXF export', () => {
         hasTerrainGrid: false,
         hasProvincialEvidence: false,
         hasStreams: false,
+        hasCulverts: false,
         hasNotes: false,
       }),
     ).toMatch(/Return to the road/)

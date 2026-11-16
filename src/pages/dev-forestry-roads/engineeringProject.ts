@@ -1,4 +1,5 @@
 /** Bounded validation for optional engineering inputs in v1 road projects. */
+import { parseCulvertOptions } from './culverts/culvertOptions'
 import { parseRoadEngCulvertRecord } from './roadEngCulverts'
 import { parseRoadEngPlacedCulvertRecord } from './roadEngPlacedCulverts'
 import type { AlignmentEngineering, RoadTemplate } from './types'
@@ -139,6 +140,7 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       fixedCost: numeric(v.fixedCost, 'Culvert fixed cost', 0, 1e9),
       ...(v.kind === undefined ? {} : { kind: oneOf(v.kind, ['stream', 'cross-drain'] as const, 'Culvert kind') }),
       ...(v.sourceFeatureId === undefined ? {} : { sourceFeatureId: key(v.sourceFeatureId, 'Culvert source feature') }),
+      ...parseCulvertOptions(v),
       ...(v.roadEng === undefined ? {} : { roadEng: parseRoadEngCulvertRecord(v.roadEng) }),
       ...(v.roadEngDesign === undefined ? {} : { roadEngDesign: parseRoadEngPlacedCulvertRecord(v.roadEngDesign) }),
     }

@@ -286,6 +286,12 @@ equivalence with the RoadEng tutorial's filling or outlet-selection algorithms.
   check uses 2 %, which is optimistic for a pipe laid flat.
 - **The minimum diameter** is the smallest size in the standard list whose full-pipe capacity
   carries Q at that slope and n. Larger or non-round structures are not considered.
+- **A culvert with a shape, barrel count or material of its own** is checked through them: every
+  barrel together, a box by its own wetted perimeter, an arch as the round pipe of the same end
+  area, and the material's Manning n in place of the run's ([Culverts](culverts.md)). A plain
+  round pipe keeps the figures above. The minimum diameter stays a single round pipe.
+- **Inlet-control headwater** is checked from this run's peak in the culvert editor and the
+  culvert schedule, not here: see [Culverts](culverts.md#inlet-control-headwater).
 
 ## Reading the results
 
