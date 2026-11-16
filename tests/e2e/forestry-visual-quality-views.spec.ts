@@ -386,12 +386,14 @@ test('plans views of interest, captures them without driving and writes them thr
   await test.step('Add to views on an inventory viewpoint adds its two arrows aimed at the block', async () => {
     // The finder sits under the views of interest in step 2, which it adds to.
     await unfold(page, 'visit', 'inventory-viewpoints')
-    const finder = page.locator('[data-via-panel="visit"]').locator('section', {
-      has: page.getByRole('list', { name: 'Inventory viewpoints near the block' }),
-    })
+    // Found by its fold, not its list: the list only exists once loaded.
+    const finder = page
+      .locator('[data-via-panel="visit"] > *')
+      .filter({ has: page.locator('[data-forestry-disclosure="inventory-viewpoints"]') })
     await finder.getByRole('button', { name: 'Load around the block' }).click()
     const list = finder.getByRole('list', { name: 'Inventory viewpoints near the block' })
-    const candidate = list.getByRole('button', { name: new RegExp(`^${VLI_NAME}`) })
+    // The row itself, not its own Add button, which reads "… is in the views" once added.
+    const candidate = list.getByRole('button', { name: new RegExp(`^${VLI_NAME}(?! is in the views)`) })
     await expect(candidate).toBeVisible({ timeout: 30_000 })
     await expect(candidate).toContainText('3 arrows, 2 at it')
     await candidate.click()

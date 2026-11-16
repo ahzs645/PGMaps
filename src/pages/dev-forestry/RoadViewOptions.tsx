@@ -654,10 +654,13 @@ export function RoadViewOptionsButton(props: Parameters<typeof RoadViewOptions>[
       label="View options"
       icon={<SlidersHorizontal className="size-3.5" aria-hidden="true" />}
       count={roadViewOptionsCount(props.drive)}
-      width={320}
+      width={344}
       buttonClassName="touch:size-10"
     >
-      <RoadViewOptions {...props} />
+      {/* The popover adds no padding of its own. */}
+      <div className="p-3">
+        <RoadViewOptions {...props} />
+      </div>
     </ToolbarPopover>
   )
 }
@@ -674,7 +677,9 @@ export function DrawnTimberButton(props: Parameters<typeof DrawnTimberPanel>[0])
       width={320}
       buttonClassName="touch:size-10"
     >
-      <DrawnTimberPanel {...props} />
+      <div className="p-3">
+        <DrawnTimberPanel {...props} />
+      </div>
     </ToolbarPopover>
   )
 }

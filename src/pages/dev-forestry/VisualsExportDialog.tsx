@@ -428,8 +428,9 @@ export function VisualsExportDialog({
   portalContainer?: HTMLElement | null
 }) {
   const [selected, setSelected] = useState<VisualsExport>(initialOutput)
-  // The package's entry is open in place of an output's pane.
-  const [packageOpen, setPackageOpen] = useState(false)
+  // The package's entry is open in place of an output's pane. The page mounts the dialog only while it is open, so
+  // the first render takes `initialPackage` here: the open transition below never runs for that mount.
+  const [packageOpen, setPackageOpen] = useState(open && initialPackage && !!packagePane)
   // Teal in the built-in theme; an Appearance theme's own selection colours under one.
   const themed = useInterfaceThemeApplied()
   const [view, setView] = useState<'contents' | 'preview'>('contents')

@@ -399,7 +399,7 @@ export function ViewpointFinderPanel({
                           disabled={!block}
                           title={
                             block
-                              ? `Plan ${facing === 'default' && highlighted.length > 1 ? 'these views' : 'this view'} for ${block.name} in step 2, without opening the road view`
+                              ? `Plan ${facing === 'default' && highlighted.length > 1 ? 'these views' : 'this view'} for ${block.name} in the views of interest above, without opening the road view`
                               : 'Add a cutblock first'
                           }
                           onClick={() =>
@@ -439,7 +439,7 @@ export function ViewpointFinderPanel({
           variant="outline"
           size="xs"
           className="w-full whitespace-normal"
-          title={`Plan them as views of interest for ${block.name} in step 2`}
+          title={`Plan them as views of interest for ${block.name}`}
           onClick={() =>
             add(
               BULK_SCOPE,

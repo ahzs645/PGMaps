@@ -1945,8 +1945,10 @@ export function DrawnTimberPanel({
 > & { inventory: Pick<InventoryState, 'stands'> }) {
   return (
     <div className="space-y-2">
-      <p className="text-2xs leading-4 text-muted-foreground">
-        <>
+      {/* Headed like View options' groups, with the explanation behind its (i). */}
+      <h3 className="flex items-center gap-1 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Drawn timber
+        <InfoTip label="About the drawn timber">
           Timber fills the view, and the proposed and existing openings take it off, so a cut reads as a gap. It is a
           drawing: stand height, cleared width and stem style change only the picture, never the percentages. A 28 m
           tree 15 m away fills the sky, so widen the cleared strip to open the foreground
@@ -1954,12 +1956,14 @@ export function DrawnTimberPanel({
             ? `; it started at ${roadClearing.widthMeters} m from the basemap's class for this road (${roadClearing.roadClass})`
             : ''}
           {roadClearing?.waterPolygons ? ', and mapped water is left open' : ''}.
-        </>
-      </p>
+        </InfoTip>
+      </h3>
       <div className="space-y-2">
         <CheckboxField
           className="text-xs"
           label="Draw standing timber"
+          // Focus lands here on opening, not on the heading's (i), whose bubble would cover the panel.
+          data-autofocus
           checked={drive.forest}
           onCheckedChange={(forest) => onDriveChange({ forest })}
         />

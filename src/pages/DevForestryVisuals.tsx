@@ -1675,6 +1675,10 @@ function DevForestryVisuals() {
   )
   // Drawing or snapping another road ends the stand; there is nothing to step back to.
   const standingNow = standing && scene.viewpoint.id.startsWith('stand-') ? standing : null
+  // Step 1's *Assess from: A view* chosen while the road is still assessed: the road stays until a view is chosen or
+  // added, so the stand keeps it to go back to. Any change of viewpoint (standing at the view, another scene) ends it.
+  const [assessFromViewChosen, setAssessFromViewChosen] = useState(false)
+  useEffect(() => setAssessFromViewChosen(false), [scene.viewpoint])
   // ---------------------------------------------------------------------------------------------------------------
   // Views of interest (`viewsOfInterest.ts`): planned on the plan, captured as saved views by `useViewCapture`.
   const viewsOfInterest = useMemo(() => scene.viewsOfInterest ?? [], [scene.viewsOfInterest])
@@ -1698,7 +1702,9 @@ function DevForestryVisuals() {
       const count = result.views.length - viewsOfInterest.length
       if (count > 0) setViewsOfInterest(() => result.views)
       const parts = [
-        count > 0 ? `Added ${count} view${count === 1 ? '' : 's'} for ${block.name} to step 2.` : 'Nothing added.',
+        count > 0
+          ? `Added ${count} view${count === 1 ? '' : 's'} for ${block.name} to the views of interest.`
+          : 'Nothing added.',
         result.duplicates ? `${result.duplicates} already listed.` : '',
         result.overLimit ? `${result.overLimit} left out: the list holds ${result.views.length}.` : '',
       ]
@@ -1909,6 +1915,9 @@ function DevForestryVisuals() {
   /** *Assess from*: a view (standing at one) or a length of road; leaving a view goes back to the road it left. */
   const handleAssessModeChange = useCallback(
     (mode: Viewpoint['mode']) => {
+      // Choosing *A view* keeps the road: it is what the stand goes back to.
+      if (mode === 'spot' && sceneRef.current.viewpoint.mode === 'corridor') return setAssessFromViewChosen(true)
+      if (mode === 'corridor' && assessFromViewChosen) return setAssessFromViewChosen(false)
       if (mode === 'corridor' && standing && sceneRef.current.viewpoint.id.startsWith('stand-')) {
         const previous = standing.previous
         if (previous.mode === 'corridor' && previous.coordinates.length >= 2) return handleBackToRoad()
@@ -1918,7 +1927,7 @@ function DevForestryVisuals() {
       }
       setViewpoint({ ...sceneRef.current.viewpoint, mode, coordinates: [] })
     },
-    [standing, moveViewpoint, handleBackToRoad, setViewpoint],
+    [standing, assessFromViewChosen, moveViewpoint, handleBackToRoad, setViewpoint],
   )
 
   const handleUseRoad = useCallback(
@@ -5751,7 +5760,7 @@ function DevForestryVisuals() {
           />
         )
       }
-      assessMode={standingNow ? 'spot' : scene.viewpoint.mode}
+      assessMode={standingNow || assessFromViewChosen ? 'spot' : scene.viewpoint.mode}
       onAssessModeChange={handleAssessModeChange}
       assessFromView={
         <AssessFromView
@@ -5805,31 +5814,30 @@ function DevForestryVisuals() {
         />
       }
       viewpointFinder={
-        !drive.active && (
-          <ViewpointFinderPanel
-            blockName={viewpointBlock?.name ?? null}
-            state={viewpointInventory}
-            candidates={viewpointCandidates}
-            reverseRows={finderReverseRows}
-            reverseRunning={analysis.reverseState.status === 'running'}
-            onLoad={() => void loadViewpoints()}
-            onCheck={handleRunReverse}
-            onUse={handleUseViewpoint}
-            standingName={standingNow?.name ?? null}
-            backName={standingNow ? standingNow.previous.name || 'the road' : null}
-            onBack={handleBackToRoad}
-            onShow={(candidate) =>
-              mapRef.current?.flyTo({
-                center: [candidate.lng, candidate.lat],
-                zoom: Math.max(13, mapRef.current.getZoom()),
-              })
-            }
-            block={viewpointBlock}
-            listedKeys={listedViewKeys}
-            onAddViews={addCandidateViews}
-            onHighlightArrows={highlightFinderArrows}
-          />
-        )
+        // In step 2 under the views of interest, open with the road view too: adding a view never needs it closed.
+        <ViewpointFinderPanel
+          blockName={viewpointBlock?.name ?? null}
+          state={viewpointInventory}
+          candidates={viewpointCandidates}
+          reverseRows={finderReverseRows}
+          reverseRunning={analysis.reverseState.status === 'running'}
+          onLoad={() => void loadViewpoints()}
+          onCheck={handleRunReverse}
+          onUse={handleUseViewpoint}
+          standingName={standingNow?.name ?? null}
+          backName={standingNow ? standingNow.previous.name || 'the road' : null}
+          onBack={handleBackToRoad}
+          onShow={(candidate) =>
+            mapRef.current?.flyTo({
+              center: [candidate.lng, candidate.lat],
+              zoom: Math.max(13, mapRef.current.getZoom()),
+            })
+          }
+          block={viewpointBlock}
+          listedKeys={listedViewKeys}
+          onAddViews={addCandidateViews}
+          onHighlightArrows={highlightFinderArrows}
+        />
       }
       viewsOfInterest={
         <ViewsOfInterestPanel
