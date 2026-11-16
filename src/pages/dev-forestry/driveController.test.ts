@@ -132,6 +132,25 @@ describe('resizing the road view', () => {
     controller.tick(32, o)
     expect(jumps).toBe(2)
   })
+
+  it('places the camera again when the lens changes the field of view', () => {
+    const { map } = fakeMap()
+    let fov = 36.87
+    let jumps = 0
+    map.getVerticalFieldOfView = () => fov
+    map.jumpTo = () => {
+      jumps++
+    }
+    const controller = new DriveController(map, ROAD, [], GROUND)
+    controller.start(0)
+    const o = options()
+    controller.tick(0, o)
+    controller.tick(16, o)
+    expect(jumps).toBe(1)
+    fov = 26.99
+    controller.tick(32, o)
+    expect(jumps).toBe(2)
+  })
 })
 
 describe('distance haze', () => {

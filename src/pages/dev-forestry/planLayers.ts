@@ -42,6 +42,10 @@ export type PlanLegendKey =
   | 'rec-site'
   | 'screening'
   | `evqo:${EvqoCode}`
+  /** The planned views of interest: a numbered point and its lens's cone (`viewsOfInterestGeometry.ts`). */
+  | 'view-of-interest'
+  /** The inventory arrows the planned views face along, and those the finder's open row would add. */
+  | 'view-arrow'
 
 export type LandformCluePosition = 'ridge' | 'hollow' | 'other'
 

@@ -458,10 +458,10 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
               </MarkerContent>
             </MapMarker>
           )}
-          {/* A viewpoint is one click; a road or an area is drawn as the measure tool draws: numbered
-            points, a rubber band to the pointer, closed on its first point or a double-click. */}
-          <MapDrawCapture active={drawMode === 'spot'} onPoint={handleMapPoint} />
-          {drawMode !== 'none' && drawMode !== 'spot' && (
+          {/* A viewpoint or a view of interest is one click; a road or an area is drawn as the measure tool
+            draws: numbered points, a rubber band to the pointer, closed on its first point or a double-click. */}
+          <MapDrawCapture active={drawMode === 'spot' || drawMode === 'view'} onPoint={handleMapPoint} />
+          {drawMode !== 'none' && drawMode !== 'spot' && drawMode !== 'view' && (
             <MapSketchDraft
               shape={drawMode === 'corridor' ? 'line' : 'polygon'}
               points={draftCoordinates}

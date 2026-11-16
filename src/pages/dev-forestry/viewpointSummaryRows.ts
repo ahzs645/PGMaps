@@ -32,8 +32,19 @@ export type ViewpointSummaryInput = {
   driving: boolean
   /** The road or viewpoint's name; "Standing at …" names a viewpoint the road view stands at. */
   viewpointName: string
-  /** The block the road view faces or the sidebar selects; its share in view and slope are read. */
+  /**
+   * The block the road view faces or the sidebar (or the summary's own switcher) selects; its share in view and
+   * slope are read. A block the run does not hold (added or changed since) reads as not in the run, never as
+   * another block's figures. Null reads the run's first block.
+   */
   block: { targetId: string; name: string } | null
+  /** The planned view of interest the reviewer stands at, when they stand at one (`summaryViewSwitch.ts`). */
+  plannedViewName?: string | null
+  /**
+   * The landform adopted for that planned view, when it is not the landform the run assessed: the alteration
+   * figures are then the run's landform's, and the rows say so.
+   */
+  viewLandformName?: string | null
   /** The landform being assessed, with the objective it carries. */
   landform: Pick<TargetPolygon, 'name' | 'objectiveId' | 'vac'> | null
   /** Where the landform's objective came from, when it was adopted from the inventory. */
@@ -43,6 +54,17 @@ export type ViewpointSummaryInput = {
 }
 
 const km = (meters: number) => formatKm(meters, 2)
+
+/**
+ * The run's own record of the block the summary reads. A named block the run does not hold is `missing`: its
+ * figures are not in the run, and no other block's stand in for them.
+ */
+function runBlock(result: AnalysisResult, chosen: ViewpointSummaryInput['block']) {
+  const blocks = result.targets.filter((target) => target.role === 'block')
+  if (!chosen) return { block: blocks[0], blockName: 'the block', missing: false }
+  const block = blocks.find((target) => target.targetId === chosen.targetId)
+  return { block, blockName: chosen.name, missing: !block }
+}
 const metres = (value: number, digits = 0) =>
   formatMeasure(value, 'm', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 
@@ -75,10 +97,7 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
   const station = result.stations[index]
   const corridor = result.stations.length > 1
   const numericalReady = !!result.quality?.numericalReady
-  const block =
-    result.targets.find((target) => target.targetId === input.block?.targetId && target.role === 'block') ??
-    result.targets.find((target) => target.role === 'block')
-  const blockName = input.block?.targetId === block?.targetId ? input.block?.name : 'the block'
+  const { block, blockName, missing } = runBlock(result, input.block)
   const here = input.driving ? 'road view station' : 'assessment station'
   const withheld = 'Withheld while the run is provisional; see Numerical figures'
   const rows: MetricSummaryItem[] = []
@@ -87,9 +106,9 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     rows.push({
       key: 'viewpoint',
       label: 'Viewpoint',
-      qualifier: input.driving ? 'road view' : 'assessment station',
+      qualifier: input.plannedViewName ? 'planned view' : input.driving ? 'road view' : 'assessment station',
       value: corridor ? `${km(station.distanceAlongMeters)} along` : 'Spot',
-      note: `${input.viewpointName || 'The road'} · ${here} · ${
+      note: `${input.plannedViewName ? `${input.plannedViewName} · ` : ''}${input.viewpointName || 'The road'} · ${here} · ${
         station.terrainGroundElevationMeters !== undefined
           ? `eye at the surveyed ${metres(station.groundElevationMeters + result.settings.observerHeightMeters)}; the terrain model's ground there is ${
               Number.isFinite(station.terrainGroundElevationMeters)
@@ -103,6 +122,16 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     })
   }
 
+  if (missing) {
+    rows.push({
+      key: 'in-view',
+      label: 'Block ground in view',
+      qualifier: 'this station',
+      value: 'Not in this run',
+      note: `${blockName} was added or changed after the run; run visibility again for its figures`,
+      tone: 'warning',
+    })
+  }
   const exposure = block?.stations[index]
   if (block && exposure) {
     const incomplete = (exposure.unknownPercent ?? 0) > 0
@@ -120,15 +149,21 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
 
   if (landform) {
     const atStation = result.perspectiveByStation[index] ?? null
+    // A planned view with a landform of its own: the figures here are still the run's landform's.
+    const otherLandform = input.viewLandformName
+      ? ` · against ${landform.name}, not this view's landform (${input.viewLandformName}); run against that one for its figures`
+      : ''
     if (!numericalReady || !atStation) {
       rows.push({
         key: 'perspective',
         label: 'Alteration here',
         qualifier: 'perspective scale',
         value: numericalReady ? 'Unknown here' : 'Withheld',
-        note: numericalReady
-          ? 'This station has no complete view of the landform (missing terrain or no visible green area)'
-          : withheld,
+        note: `${
+          numericalReady
+            ? 'This station has no complete view of the landform (missing terrain or no visible green area)'
+            : withheld
+        }${otherLandform}`,
         tone: numericalReady ? 'warning' : 'muted',
       })
     } else {
@@ -138,8 +173,8 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
         label: 'Alteration here',
         qualifier: 'perspective scale',
         value: formatPct(atStation.cumulativePercent),
-        note: `From this station, apparent area · ${verdict.note}`,
-        tone: verdict.met ? 'default' : 'warning',
+        note: `From this station, apparent area · ${verdict.note}${otherLandform}`,
+        tone: verdict.met && !otherLandform ? 'default' : 'warning',
       })
     }
 
@@ -259,10 +294,7 @@ export function runResultMetrics(
   const numericalReady = !!result.quality?.numericalReady
   const corridor = result.stations.length > 1
   const whole = corridor ? 'whole road' : 'the viewpoint'
-  const block =
-    result.targets.find((target) => target.targetId === input.block?.targetId && target.role === 'block') ??
-    result.targets.find((target) => target.role === 'block')
-  const blockName = input.block?.targetId === block?.targetId ? input.block?.name : 'the block'
+  const { block, blockName } = runBlock(result, input.block)
   const landscape = result.targets.find((target) => target.role === 'landscape')
   const station = result.stations[result.assessmentStationIndex]
   const rows: MetricSummaryItem[] = []

@@ -10,7 +10,7 @@ import { MapOverlay } from '@/components/ui/map-panels'
 import { PlaybackControls } from '@/components/ui/playback-controls'
 import { cn } from '@/lib/utils'
 import { DriveController, type DriveMap, type DriveOptions, type DrivePose, type DriveStatus } from './driveController'
-import { offsetFrom } from './exifPose'
+import { offsetFrom, verticalFovFromHorizontal } from './exifPose'
 import { PreviewFrameBudget } from './previewState'
 import {
   DRIVE_SPEEDS_KMH,
@@ -68,6 +68,11 @@ type Props = {
   fixedLook?: { bearing: number; pitch: number } | null
   /** Match a photo's lens while comparing against it; MapLibre's own default otherwise. */
   verticalFovDegrees?: number | null
+  /**
+   * A lens's horizontal field (View options → *Lens*, or a planned view being captured), held across the canvas's
+   * width: the vertical field follows the canvas's shape. `verticalFovDegrees` wins while both are given.
+   */
+  horizontalFovDegrees?: number | null
   /**
    * Stand the eye here while paused, off the road if need be: where the
    * reviewer's own field photo was taken. It holds the walker there, so walking
@@ -154,6 +159,27 @@ export function DriveCamera(props: Props) {
       map.triggerRepaint()
     }
   }, [map, isLoaded, props.active, props.verticalFovDegrees])
+  const lensHfov = props.verticalFovDegrees ? null : (props.horizontalFovDegrees ?? null)
+  useEffect(() => {
+    if (!map || !isLoaded || !props.active || !lensHfov) return
+    const previous = map.getVerticalFieldOfView()
+    // The controller places the camera again on the new field (`driveController.ts` keys the pose on it).
+    const apply = () => {
+      const canvas = map.getCanvas()
+      if (!canvas.clientWidth || !canvas.clientHeight) return
+      const vertical = verticalFovFromHorizontal(lensHfov, canvas.clientWidth, canvas.clientHeight)
+      if (Math.abs(vertical - map.getVerticalFieldOfView()) < 1e-3) return
+      map.setVerticalFieldOfView(vertical)
+      map.triggerRepaint()
+    }
+    apply()
+    map.on('resize', apply)
+    return () => {
+      map.off('resize', apply)
+      map.setVerticalFieldOfView(previous)
+      map.triggerRepaint()
+    }
+  }, [map, isLoaded, props.active, lensHfov])
   useEffect(() => {
     if (!props.active || !map || !isLoaded || !path.length) return
     const controller = new DriveController(map as unknown as DriveMap, path, props.stations, props.elevation)

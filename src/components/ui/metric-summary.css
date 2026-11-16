@@ -55,6 +55,17 @@
 .metric-summary-menu-action:focus {
   background: hsl(var(--muted));
 }
+/* Opt-in controls under the heading; they wrap rather than widen a narrow panel. */
+.metric-summary-toolbar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  padding: 0 5px 5px 10px;
+  font-size: 12px;
+}
 .metric-summary-menu-action {
   width: 100%;
   padding: 8px;

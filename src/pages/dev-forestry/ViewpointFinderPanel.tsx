@@ -1,5 +1,5 @@
-import { Loader2, MapPin, Radar } from 'lucide-react'
-import { useState } from 'react'
+import { ListPlus, Loader2, MapPin, Radar } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { insetBox } from '@/components/ui/inset-box'
@@ -17,7 +17,29 @@ import {
   type ViewpointInventory,
   viewpointCandidateSummary,
 } from './viewpointInventory'
+import type { PolygonGeometry } from './visibility'
 import { compassPoint } from './visualsNarrative'
+import { viewsForCandidate } from './viewsOfInterest'
+
+/** One candidate to add to the views of interest, with the arrows it faces along (undefined: the default ones). */
+export type CandidateViewRequest = { candidate: ViewpointCandidate; arrowIds?: string[] }
+
+/**
+ * The arrows a candidate adds as views for `facing` ('default', 'block' or `arrow:<id>`), as `viewsForCandidate`
+ * picks them: the default is up to two aimed at the block, else none (one view facing it).
+ */
+export function arrowIdsForFacing(
+  candidate: ViewpointCandidate,
+  block: { id: string; name: string; geometry: PolygonGeometry } | null,
+  facing: string,
+): string[] {
+  if (facing === 'block') return []
+  if (facing.startsWith('arrow:')) return [facing.slice('arrow:'.length)]
+  if (!block) return []
+  return viewsForCandidate(candidate, block).flatMap((view) =>
+    view.facing.kind === 'bearing' && view.facing.arrowId ? [view.facing.arrowId] : [],
+  )
+}
 
 export type ViewpointInventoryState = {
   status: 'idle' | 'loading' | 'ready' | 'error'
@@ -54,6 +76,10 @@ export function ViewpointFinderPanel({
   standingName = null,
   backName = null,
   onBack,
+  block = null,
+  listedKeys,
+  onAddViews,
+  onHighlightArrows,
 }: {
   blockName: string | null
   state: ViewpointInventoryState
@@ -70,18 +96,47 @@ export function ViewpointFinderPanel({
   standingName?: string | null
   backName?: string | null
   onBack?: () => void
+  /** The block the list is ranked for and views are added for (`blockName`'s). */
+  block?: { id: string; name: string; geometry: PolygonGeometry } | null
+  /** Candidate keys already in the views of interest (`ViewOfInterest.source.key`). */
+  listedKeys?: ReadonlySet<string>
+  /** Adds candidates to the views of interest; returns a line saying what was added. */
+  onAddViews?: (requests: CandidateViewRequest[]) => string | null
+  /** The arrows the open row would add, highlighted on the plan; empty when no row is open. */
+  onHighlightArrows?: (arrowIds: string[]) => void
 }) {
   const data = state.data
   const shown = candidates.slice(0, 10)
   // One row open at a time: its directions and its one Stand here, rather than a button under every row.
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
-  const [facing, setFacing] = useState<string>('block')
+  // 'default' until the reviewer picks: *Stand here* then faces the block, and *Add to views* adds the arrows aimed at
+  // it (up to two), else one view facing it. Picking the block or an arrow sets both.
+  const [facing, setFacing] = useState<string>('default')
+  const [addMessage, setAddMessage] = useState<string | null>(null)
   const select = (candidate: ViewpointCandidate) => {
     setSelectedKey(candidate.key)
-    // A newly picked row faces the block until one of its arrows is chosen.
-    setFacing('block')
+    setFacing('default')
+    setAddMessage(null)
     onShow(candidate)
   }
+  const selectedCandidate = shown.find((candidate) => candidate.key === selectedKey) ?? null
+  const highlighted = useMemo(
+    () => (selectedCandidate ? arrowIdsForFacing(selectedCandidate, block, facing) : []),
+    [selectedCandidate, block, facing],
+  )
+  const highlightKey = JSON.stringify(highlighted)
+  useEffect(() => {
+    onHighlightArrows?.(JSON.parse(highlightKey) as string[])
+    // Keyed by the ids, so a re-render with the same arrows does not write the page's state again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightKey])
+  useEffect(() => () => onHighlightArrows?.([]), [onHighlightArrows])
+  // Every row the reverse run found the block in view from, else every viewpoint with an arrow at the block.
+  const seen = shown.filter((candidate) => (reverseRows.get(candidate.key)?.maxVisiblePercent ?? 0) > 0)
+  const bulk = (reverseRows.size > 0 ? seen : shown.filter((candidate) => candidate.arrows.some((a) => a.aims))).filter(
+    (candidate) => !listedKeys?.has(candidate.key),
+  )
+  const add = (requests: CandidateViewRequest[]) => setAddMessage(onAddViews?.(requests) ?? null)
   return (
     <ToolSection
       title="Viewpoints and rec sites"
@@ -105,6 +160,10 @@ export function ViewpointFinderPanel({
           Pick a row to see it on the map, choose which way to face — the block or one of its arrows — and stand there:
           the full assessment runs from it and the road view opens. Rows the block is in view from go into the step 5
           Visuals paragraph; the check is bare earth from one point.
+          <br />
+          Or plan it without standing there: <em>Add to views</em> lists the row in step 2&apos;s views of interest for
+          this block — by default up to two of its arrows aimed at the block (highlighted on the map), else one view
+          facing it; pick the block or one arrow above to add just that.
         </>
       }
     >
@@ -172,7 +231,14 @@ export function ViewpointFinderPanel({
                   className="px-2 py-1.5"
                   selected={selected}
                   onClick={() => select(candidate)}
-                  title={<span className="text-xs">{candidate.name}</span>}
+                  title={
+                    <span className="text-xs">
+                      {candidate.name}
+                      {listedKeys?.has(candidate.key) && (
+                        <span className="ml-1 font-normal text-muted-foreground">· in views</span>
+                      )}
+                    </span>
+                  }
                   subtitle={
                     <span className="whitespace-normal text-3xs leading-4">{viewpointCandidateSummary(candidate)}</span>
                   }
@@ -211,11 +277,11 @@ export function ViewpointFinderPanel({
                             key={option.key}
                             type="button"
                             role="radio"
-                            aria-checked={facing === option.key}
+                            aria-checked={facing === option.key || (facing === 'default' && option.key === 'block')}
                             onClick={() => setFacing(option.key)}
                             className={cn(
                               'rounded-md border px-2 py-1 text-2xs transition-colors touch:min-h-10',
-                              facing === option.key
+                              facing === option.key || (facing === 'default' && option.key === 'block')
                                 ? 'border-primary bg-primary text-primary-foreground'
                                 : 'border-border bg-background text-foreground hover:bg-accent',
                             )}
@@ -225,21 +291,74 @@ export function ViewpointFinderPanel({
                         ))}
                       </div>
                     )}
-                    <Button
-                      type="button"
-                      size="xs"
-                      className="w-full"
-                      title="Run the assessment from here and open the road view"
-                      onClick={() => onUse(candidate, arrow)}
-                    >
-                      Stand here{arrow ? `, facing ${compassPoint(arrow.bearing)}` : ', facing the block'}
-                    </Button>
+                    <div className={cn('grid gap-1.5', onAddViews && 'grid-cols-2')}>
+                      <Button
+                        type="button"
+                        size="xs"
+                        className="whitespace-normal"
+                        title="Run the assessment from here and open the road view"
+                        onClick={() => onUse(candidate, arrow)}
+                      >
+                        Stand here{arrow ? `, facing ${compassPoint(arrow.bearing)}` : ', facing the block'}
+                      </Button>
+                      {onAddViews && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          className="whitespace-normal"
+                          disabled={!block}
+                          title={
+                            block
+                              ? `Plan ${facing === 'default' && highlighted.length > 1 ? 'these views' : 'this view'} for ${block.name} in step 2, without opening the road view`
+                              : 'Add a cutblock first'
+                          }
+                          onClick={() => add([{ candidate, arrowIds: facing === 'default' ? undefined : highlighted }])}
+                        >
+                          <ListPlus className="h-3.5 w-3.5" />
+                          {facing === 'default' && highlighted.length > 1
+                            ? `Add ${highlighted.length} views`
+                            : 'Add to views'}
+                        </Button>
+                      )}
+                    </div>
+                    {facing === 'default' && highlighted.length > 0 && onAddViews && (
+                      <p className="text-3xs text-muted-foreground">
+                        Adds {highlighted.length === 1 ? 'the arrow' : `the ${highlighted.length} arrows`} aimed at the
+                        block, shown on the map. Pick a direction above to add just that one.
+                      </p>
+                    )}
+                    {addMessage && (
+                      <p className="text-3xs text-muted-foreground" role="status">
+                        {addMessage}
+                      </p>
+                    )}
                   </ResultRowDetail>
                 )}
               </li>
             )
           })}
         </ul>
+      )}
+      {onAddViews && block && bulk.length > 0 && (
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          className="w-full whitespace-normal"
+          title={`Plan them as views of interest for ${block.name} in step 2`}
+          onClick={() => add(bulk.map((candidate) => ({ candidate })))}
+        >
+          <ListPlus className="h-3.5 w-3.5" />
+          {reverseRows.size > 0
+            ? `Add the ${bulk.length} that see the block to views`
+            : `Add the ${bulk.length} with arrows at the block to views`}
+        </Button>
+      )}
+      {addMessage && !selectedCandidate && (
+        <p className="text-3xs text-muted-foreground" role="status">
+          {addMessage}
+        </p>
       )}
       {data && data.droppedErrorViewpoints > 0 && (
         <p className="text-3xs text-muted-foreground">

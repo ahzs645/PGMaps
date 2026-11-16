@@ -19,6 +19,7 @@ import {
   TERRAIN_CANDIDATE_COLOR,
   VISIBLE_FACE_CANDIDATE_COLOR,
   UNKNOWN_COLOR,
+  VIEW_OF_INTEREST_COLORS,
   VISIBLE_COLOR,
 } from './planMapStyle'
 import type { PlanLegendKey } from './planLayers'
@@ -47,6 +48,37 @@ function ArrowSwatch() {
         strokeWidth="1.5"
         fill={INVENTORY_COLORS.viewpoint}
         fillOpacity="0.45"
+      />
+    </svg>
+  )
+}
+
+/** A numbered point with its lens cone, as the plan draws a planned view of interest. */
+function ViewSwatch() {
+  return (
+    <svg viewBox="0 0 20 12" className="h-3 w-5" aria-hidden="true">
+      <path
+        d="M4 6L19 1v10z"
+        stroke={VIEW_OF_INTEREST_COLORS.view}
+        strokeWidth="1"
+        fill={VIEW_OF_INTEREST_COLORS.view}
+        fillOpacity="0.15"
+      />
+      <circle cx="4" cy="6" r="3.5" fill={VIEW_OF_INTEREST_COLORS.view} stroke="#ffffff" strokeWidth="1" />
+    </svg>
+  )
+}
+
+/** An inventory arrow a view faces along, outlined heavier than the inventory's own. */
+function ChosenArrowSwatch() {
+  return (
+    <svg viewBox="0 0 20 12" className="h-3 w-5" aria-hidden="true">
+      <path
+        d="M1 6h12M13 2l6 4-6 4z"
+        stroke={VIEW_OF_INTEREST_COLORS.arrow}
+        strokeWidth="2"
+        fill={VIEW_OF_INTEREST_COLORS.arrow}
+        fillOpacity="0.35"
       />
     </svg>
   )
@@ -125,6 +157,8 @@ export type PlanMapLegendProps = {
   standStrip?: boolean
   /** The established VQO classes drawn, when the Layers button has EVQO on. */
   evqo: ReadonlyArray<EvqoCode>
+  /** Views of interest drawn (`ViewsOfInterestLayers`), and the inventory arrows they or the finder's row face along. */
+  viewsOfInterest?: { views: boolean; arrows: boolean }
   /** Rows switched off; with `onToggle`, every row is a button that hides its layer. */
   hidden?: ReadonlySet<PlanLegendKey>
   onToggle?: (key: PlanLegendKey) => void
@@ -157,7 +191,9 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
     !masks.length &&
     !evqo.length &&
     !props.treeFreeAreas &&
-    !props.standTrees
+    !props.standTrees &&
+    !props.viewsOfInterest?.views &&
+    !props.viewsOfInterest?.arrows
   )
     return null
   const toggles = props.onToggle ? { hidden: props.hidden ?? new Set<PlanLegendKey>(), onToggle: props.onToggle } : null
@@ -272,6 +308,27 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
                     />
                   )}
                 </>
+              )}
+            </MapLegendSection>
+          )}
+
+          {(props.viewsOfInterest?.views || props.viewsOfInterest?.arrows) && (
+            <MapLegendSection title="Views of interest" data-legend-section="views-of-interest">
+              {props.viewsOfInterest.views && (
+                <Row
+                  id="view-of-interest"
+                  color={VIEW_OF_INTEREST_COLORS.view}
+                  swatch={<ViewSwatch />}
+                  label="View of interest · its lens"
+                />
+              )}
+              {props.viewsOfInterest.arrows && (
+                <Row
+                  id="view-arrow"
+                  color={VIEW_OF_INTEREST_COLORS.arrow}
+                  swatch={<ChosenArrowSwatch />}
+                  label="Arrow a view faces along"
+                />
               )}
             </MapLegendSection>
           )}

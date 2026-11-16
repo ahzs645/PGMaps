@@ -18,6 +18,7 @@ const DRAFT_NOUNS: Record<Exclude<DrawMode, 'none'>, string> = {
   landscape: 'landform',
   'tree-free': 'area to draw without timber',
   'wildlife-tree-patch': 'wildlife tree patch',
+  view: 'view of interest',
 }
 
 function ActionButton({ className, ...props }: ButtonProps) {
@@ -65,10 +66,12 @@ export function PreviewWorkflow(props: Props) {
           <p role="status">
             {props.drawMode === 'spot'
               ? 'Click the road to drop the viewpoint.'
-              : `Click the map to trace the ${DRAFT_NOUNS[props.drawMode]}. ${props.pointCount} points added — double-click or Finish to ${props.drawMode === 'corridor' ? 'end the line' : 'close the shape'}.`}
+              : props.drawMode === 'view'
+                ? 'Click the plan where the view of interest stands.'
+                : `Click the map to trace the ${DRAFT_NOUNS[props.drawMode]}. ${props.pointCount} points added — double-click or Finish to ${props.drawMode === 'corridor' ? 'end the line' : 'close the shape'}.`}
           </p>
           <div className="mt-2 flex gap-2">
-            {props.drawMode !== 'spot' && (
+            {props.drawMode !== 'spot' && props.drawMode !== 'view' && (
               <ActionButton
                 disabled={props.pointCount < (props.drawMode === 'corridor' ? 2 : 3)}
                 onClick={props.onFinish}

@@ -68,7 +68,9 @@ import type { ReportFigure } from './viaReport/model'
 import type { ReportImages } from './viaReport/parts'
 import type { ReportSetting } from './viaReport/setting'
 import { assembleReport, findReportRecipe, recipeFormat, REPORT_RECIPES } from './viaReport/recipes'
-import { VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
+import { ExportPackagePane, VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
+import type { ViewCaptureApi, ViewCaptureReport } from './useViewCapture'
+import { viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
 import {
   castorConstraintCsv,
   castorConstraintProblem,
@@ -77,6 +79,7 @@ import {
 } from './castorConstraint'
 import {
   buildExportContext,
+  resolvePackage,
   type ContextView,
   type ExportAction,
   type ExportAutoRun,
@@ -106,7 +109,10 @@ export type EvidenceExports = {
 
 /** What the block note's file carries besides its text, chosen in the dialog. */
 export type BlockNoteChoices = {
-  /** Saved views the reviewer left out, by id. */
+  /**
+   * Saved views left out of the package, by id: those left out by hand, the captures of views of interest left out,
+   * and every capture superseded by a later one or an edit (`resolvePackage`'s `excludedViews`).
+   */
   excludedViews: ReadonlySet<string>
   /** The land status checks as printed, or null when left out. */
   landStatus: { rows: Array<{ label: string; value: string; note: string }>; caveat: string } | null
@@ -243,6 +249,17 @@ export function useVisualsExport(input: {
    * (`viaReport/setting.ts`); the page caches it by run, so calling it on each render costs nothing.
    */
   reportSetting?: () => ReportSetting | null
+  /**
+   * The views of interest planned on the plan map (`scene.viewsOfInterest`) and how to change them: the package's
+   * checklist writes a view's `include`. Absent: none are planned.
+   */
+  viewsOfInterest?: readonly ViewOfInterest[]
+  setViewsOfInterest?: (update: (views: ViewOfInterest[]) => ViewOfInterest[]) => void
+  /**
+   * Captures views of interest as saved views (`useViewCapture`): the outputs that draw views call it on Preview and
+   * Download for the included views not yet captured, and show its progress with a Cancel.
+   */
+  viewCapture?: Pick<ViewCaptureApi, 'state' | 'capture' | 'cancel'>
   portalContainer?: HTMLElement | null
 }) {
   const {
@@ -275,15 +292,19 @@ export function useVisualsExport(input: {
   const [documentFormatId, setDocumentFormatId] = useState<string | null>(null)
   // Who draws the figures of the sheet, the document and the report: PGMaps as saved, or another engine.
   const [figureRenderer, setFigureRenderer] = useState<RoadRendererId>('pgmaps')
-  // The VIA report's recipe; until chosen, the one that reads the document's format.
-  const [reportRecipeId, setReportRecipeId] = useState<string | null>(null)
+  // The package's recipe (the VIA report's structure, and the VIA document's format it names); until chosen, none:
+  // the report follows the document's format.
+  const [packageRecipeId, setPackageRecipeId] = useState<string | null>(null)
   // The 11 × 17 overview sheet's style; until chosen, the recipe's (`overviewSheetStyle`), else landscape topographic.
   const [overviewSheetChoice, setOverviewSheetChoice] = useState<OverviewSheetStyle | null>(null)
   // The logo printed sheets and reports carry (the user's own, else the brand's), kept in IndexedDB.
   const branding = useBranding()
-  // The block note's choices last as long as the page: views left out, land checks in or out.
+  // The package's saved views left out by hand, read by every output that draws views; and the block note's land
+  // checks in or out. Both last as long as the page.
   const [excludedViews, setExcludedViews] = useState<ReadonlySet<string>>(() => new Set())
   const [includeLandChecks, setIncludeLandChecks] = useState(true)
+  // Views of interest whose capture failed, under the key they failed with: a preview skips them, a download retries.
+  const [captureFailures, setCaptureFailures] = useState<Readonly<Record<string, { key: string; reason: string }>>>({})
 
   // The inventory near the note's block is read when the dialog opens on it, once per block, without
   // switching the plan's inventory layer on. Nothing to press; the section says when it is reading.
@@ -312,12 +333,28 @@ export function useVisualsExport(input: {
   // road view moves, and nothing below is needed until the dialog opens.
   if (!open) return null
 
+  // The package, chosen once for every output: the recipe and the document format it names, and the views that go
+  // in (the saved views not left out, and the current capture of each view of interest included).
+  const plannedViews = input.viewsOfInterest ?? []
+  const allViews = [...otherViews, ...savedViews]
+  const pkg = resolvePackage({
+    choice: { recipeId: packageRecipeId, documentFormatId, excludedViews },
+    recipes: REPORT_RECIPES,
+    formats: VIA_DOCUMENT_FORMATS,
+    roadViewStyleId: roadView.styleId,
+    planned: plannedViews,
+    blocks: scene.targets.filter((target) => target.role === 'block'),
+    savedViews: allViews,
+    failures: captureFailures,
+  })
+  const packageViews = allViews.filter((view) => pkg.viewIds.has(view.id))
+
   // With another engine chosen, each saved view's figure is that engine's render when it is done.
   const renders = input.renders
   const engineId: RenderEngineId | null = figureRenderer === 'pgmaps' ? null : figureRenderer
   const engineJobs =
     engineId && renders
-      ? [...otherViews, ...savedViews].flatMap((view) => {
+      ? packageViews.flatMap((view) => {
           const job = images[view.id]?.figure ? renders.jobFor(view.id, engineId) : null
           return job ? [job] : []
         })
@@ -327,7 +364,7 @@ export function useVisualsExport(input: {
   // asked again or waited for: that pair falls back to PGMaps for both pictures, and says so.
   const beforeJobs =
     engineId && renders
-      ? [...otherViews, ...savedViews].flatMap((view) => {
+      ? packageViews.flatMap((view) => {
           const job = images[view.id]?.figure ? renders.jobFor(view.id, engineId, 'before') : null
           return job ? [job] : []
         })
@@ -377,7 +414,8 @@ export function useVisualsExport(input: {
           : null))
     : null
 
-  const figureViews: FigureView[] = [...otherViews, ...savedViews].map((view) => ({
+  // The views the sheet, the document and the report draw: the package's.
+  const figureViews: FigureView[] = packageViews.map((view) => ({
     id: view.id,
     name: view.name,
     image: figureImages[view.id],
@@ -420,10 +458,8 @@ export function useVisualsExport(input: {
   const blocks = scene.targets.filter((target) => target.role === 'block')
 
   // One resolved document feeds the dialog's contents, its preview and the file.
-  const documentFormat =
-    findDocumentFormat(documentFormatId) ??
-    VIA_DOCUMENT_FORMATS.find((format) => format.style === roadView.styleId) ??
-    VIA_DOCUMENT_FORMATS[0]
+  // The package's recipe names it; with none, the document's own choice, else the road view's figure style.
+  const documentFormat = findDocumentFormat(pkg.documentFormatId) ?? VIA_DOCUMENT_FORMATS[0]
   // A with-timber measure made this session (by the analysis sheet or the report) reaches the document too.
   const documentViews = figureViews.flatMap((view) => {
     const timber = timberMeasures.current.get(timberKey(view.id))
@@ -445,10 +481,7 @@ export function useVisualsExport(input: {
   const viaDocument = facts ? resolveViaDocument(documentFormat, facts) : null
 
   // The report: its recipe, its views and a context assembled without figures for the dialog; the file adds them.
-  const reportRecipe =
-    findReportRecipe(reportRecipeId) ??
-    REPORT_RECIPES.find((recipe) => recipe.format === documentFormat.id) ??
-    REPORT_RECIPES[0]
+  const reportRecipe = findReportRecipe(pkg.recipeId) ?? REPORT_RECIPES[0]
   const overviewSheetStyle: OverviewSheetStyle =
     overviewSheetChoice ?? reportRecipe.overviewSheetStyle ?? DEFAULT_OVERVIEW_SHEET_STYLE
   const reportViews: ReportView[] = figureViews.flatMap((view) =>
@@ -507,7 +540,7 @@ export function useVisualsExport(input: {
     screenshot: !!images[view.id],
     classPass: !!images[view.id]?.figure,
     settings: images[view.id]?.viewpoint?.settings ?? null,
-    inReport: !excludedViews.has(view.id),
+    inReport: pkg.viewIds.has(view.id),
   }))
   const analysis = input.analysis
   const autoRun: ExportAutoRun = {
@@ -602,6 +635,18 @@ export function useVisualsExport(input: {
     ...(input.visualInventory
       ? { visualInventory: { status: input.visualInventory.status, error: input.visualInventory.error } }
       : {}),
+    planned: pkg.planned,
+    ...(input.viewCapture
+      ? {
+          capture: {
+            status: input.viewCapture.state.status,
+            message: input.viewCapture.state.message,
+            done: input.viewCapture.state.done,
+            total: input.viewCapture.state.total,
+          },
+        }
+      : {}),
+    recipe: pkg.recipeChosen ? reportRecipe.name : null,
     inventory: {
       status: inventoryStatus,
       error: inventoryState.error,
@@ -616,7 +661,7 @@ export function useVisualsExport(input: {
     },
   })
   const noteChoices: BlockNoteChoices = {
-    excludedViews,
+    excludedViews: pkg.excludedViews,
     landStatus: includeLandChecks
       ? { rows: landRows.map(({ label, value, note }) => ({ label, value, note })), caveat: LAND_CHECK_CAVEAT }
       : null,
@@ -624,8 +669,8 @@ export function useVisualsExport(input: {
   // What a preview depends on beyond the context: the text, the review, the office fields.
   const version = [
     input.sceneKey,
-    // The run's progress is not content: a preview waiting on the run must not restart each tick.
-    JSON.stringify({ ...context, autoRun: null }),
+    // The run's and the capture's progress are not content: a preview waiting on them must not restart each tick.
+    JSON.stringify({ ...context, autoRun: null, capture: null }),
     JSON.stringify(fs1252),
     JSON.stringify(blockNoteParts),
     JSON.stringify(scene.viaReview ?? null),
@@ -666,11 +711,12 @@ export function useVisualsExport(input: {
         const { printedLogoRaster } = await import('@/branding/raster')
         // PGMaps' own figure prints its with-timber pixel figure: the view rendered before harvest, once a session.
         const view = resolved.view
+        if (!view) throw new Error('No view in the package has a screenshot to draw the sheet from.')
         const timber = view && !view.image?.figure?.illustration ? ((await timberFor([view]))[view.id] ?? null) : null
         return analysisSheetFile(resolved, format === 'png' ? 'png' : 'pdf', await printedLogoRaster(branding), timber)
       }
       case 'via-report': {
-        if (!reportViews.length) throw new Error('Save a viewpoint in the road view first.')
+        if (!reportViews.length) throw new Error('No view in the package has a class pass to draw the report from.')
         const names = reportContext([]).facts.viewpoints.map((vp) => vp.name)
         // The maps and before pictures are captured now, once per scene and set of views: Preview and Download
         // build the same file, and the captures move the page's maps for a few seconds each.
@@ -829,7 +875,8 @@ export function useVisualsExport(input: {
         return textFile(brandedHtml(reportHtml(report, logo), exportBrand(branding)), `${fileName}.html`, 'text/html')
       }
       case 'via-document': {
-        if (!viaDocument || !facts) throw new Error('Save a viewpoint in the road view first.')
+        if (!viaDocument || !facts)
+          throw new Error('No view in the package has a class pass to fill the document from.')
         const name = `forestry-via-${documentFormat.id}`
         return format === 'json'
           ? textFile(JSON.stringify({ facts, document: viaDocument }, null, 2), `${name}.json`, 'application/json')
@@ -921,7 +968,6 @@ export function useVisualsExport(input: {
     }
   }
 
-  const noteViews = contextViews.filter((entry) => entry.screenshot)
   const options: Partial<Record<VisualsExport, ReactNode>> = {
     'block-note': (
       <div className="grid gap-1.5">
@@ -935,26 +981,6 @@ export function useVisualsExport(input: {
           checked={includeLandChecks}
           onCheckedChange={setIncludeLandChecks}
         />
-        {noteViews.length > 0 && (
-          <fieldset className="grid gap-1 pt-1">
-            <legend className="pb-1 text-2xs text-muted-foreground">Views in the report</legend>
-            {noteViews.map(({ view }) => (
-              <CheckboxField
-                key={view.id}
-                label={view.name}
-                checked={!excludedViews.has(view.id)}
-                onCheckedChange={(on) =>
-                  setExcludedViews((current) => {
-                    const next = new Set(current)
-                    if (on) next.delete(view.id)
-                    else next.add(view.id)
-                    return next
-                  })
-                }
-              />
-            ))}
-          </fieldset>
-        )}
       </div>
     ),
     fs1252: (
@@ -984,18 +1010,11 @@ export function useVisualsExport(input: {
       : {}),
     'via-report': (
       <div className="grid gap-2">
-        <StyledSelect
-          aria-label="VIA report structure"
-          className="w-full rounded-md border bg-background p-1"
-          value={reportRecipe.id}
-          onChange={(event) => setReportRecipeId(event.target.value)}
-        >
-          {REPORT_RECIPES.map((recipe) => (
-            <option key={recipe.id} value={recipe.id}>
-              {recipe.name} ({recipe.sources.join(', ')})
-            </option>
-          ))}
-        </StyledSelect>
+        <p className="text-xs text-muted-foreground">
+          Structure of {reportRecipe.name} ({reportRecipe.sources.join(', ')})
+          {pkg.recipeChosen ? ', the package’s recipe.' : ', which reads the VIA document’s format.'} The recipe, who
+          draws the figures and the views are chosen under Package.
+        </p>
         {reportRecipe.parts.includes('overview-sheet') && (
           <label className="grid gap-1 text-xs">
             <span className="text-muted-foreground">Overview sheet</span>
@@ -1016,7 +1035,13 @@ export function useVisualsExport(input: {
         <LogoChooser />
       </div>
     ),
-    'via-document': (
+    // The package's recipe names the document's format, so the two agree; with none, the format is chosen here.
+    'via-document': pkg.recipeChosen ? (
+      <p className="text-xs text-muted-foreground">
+        {documentFormat.name} ({documentFormat.sources.join(', ')}), the format of the package’s recipe,{' '}
+        {reportRecipe.name}. Choose No recipe under Package to pick another format.
+      </p>
+    ) : (
       <StyledSelect
         aria-label="VIA document format"
         className="w-full rounded-md border bg-background p-1"
@@ -1050,33 +1075,95 @@ export function useVisualsExport(input: {
       : {}),
   }
 
-  const rendererSelect = (
-    <label className="grid gap-1 text-xs">
-      <span className="text-muted-foreground">Figures drawn by</span>
-      <StyledSelect
-        aria-label="Figures drawn by"
-        className="w-full rounded-md border bg-background p-1"
-        value={figureRenderer}
-        onChange={(event) => setFigureRenderer(event.target.value as RoadRendererId)}
-      >
-        {ROAD_RENDERERS.map((entry) => (
-          <option key={entry.id} value={entry.id}>
-            {entry.id === 'pgmaps'
+  // The package's choices, shown once under its own entry in the dialog's list.
+  const setPlannedInclude = (id: string, on: boolean) =>
+    input.setViewsOfInterest?.((views) =>
+      views.map((view) => {
+        if (view.id !== id) return view
+        // Absent reads as included (`isIncluded`), so including a view drops the flag rather than storing true.
+        const next = { ...view }
+        if (on) delete next.include
+        else next.include = false
+        return next
+      }),
+    )
+  const setSavedInclude = (id: string, on: boolean) =>
+    setExcludedViews((current) => {
+      const next = new Set(current)
+      if (on) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const shownView = (id: string | null) => (id ? (images[id]?.dataUrl ?? null) : null)
+  const packagePane = (
+    <ExportPackagePane
+      recipe={{
+        value: pkg.recipeChosen ? reportRecipe.id : '',
+        options: [
+          { value: '', label: 'No recipe: the VIA document’s format chooses the report' },
+          ...REPORT_RECIPES.map((recipe) => ({
+            value: recipe.id,
+            label: `${recipe.name} (${recipe.sources.join(', ')})`,
+          })),
+        ],
+        onChange: (id) => setPackageRecipeId(id || null),
+        note: pkg.recipeChosen
+          ? `The VIA report takes its structure and the VIA document its format (${documentFormat.name}) from it.`
+          : `The VIA document is ${documentFormat.name}; the report follows it, as ${reportRecipe.name}.`,
+      }}
+      renderer={{
+        value: figureRenderer,
+        options: ROAD_RENDERERS.map((entry) => ({
+          value: entry.id,
+          label:
+            entry.id === 'pgmaps'
               ? 'PGMaps: as saved, ready now'
-              : `${entry.label}: final quality, rendered in the background`}
-          </option>
-        ))}
-      </StyledSelect>
-    </label>
+              : `${entry.label}: final quality, rendered in the background`,
+        })),
+        onChange: (id) => setFigureRenderer(id as RoadRendererId),
+        unavailable: engineUnavailable,
+      }}
+      planned={pkg.planned.map((view) => ({ ...view, thumbnail: shownView(view.savedViewId) }))}
+      saved={pkg.saved.map((view) => {
+        const entry = contextViews.find((candidate) => candidate.view.id === view.id)
+        return {
+          ...view,
+          detail: [
+            entry?.here
+              ? `${(entry.view.positionMeters / 1000).toFixed(2)} km along the road`
+              : 'At an earlier viewpoint',
+            entry?.view.harvestPhase === 'before' ? 'before harvest' : 'after harvest',
+            entry?.screenshot ? (entry.classPass ? 'screenshot and class pass' : 'screenshot only') : 'no screenshot',
+          ].join(' · '),
+          thumbnail: shownView(view.id),
+        }
+      })}
+      onPlannedInclude={input.setViewsOfInterest ? setPlannedInclude : undefined}
+      onSavedInclude={setSavedInclude}
+    />
   )
-  for (const kind of ['analysis-sheet', 'via-document', 'via-report'] as const)
-    if (options[kind] || kind !== 'analysis-sheet')
-      options[kind] = (
-        <div className="grid gap-2">
-          {rendererSelect}
-          {options[kind]}
-        </div>
-      )
+
+  /** Captures views of interest for an output, remembering each failure under the key it failed with. */
+  const captureViews = async (ids: readonly string[]): Promise<ViewCaptureReport> => {
+    if (!input.viewCapture) throw new Error('Views of interest cannot be captured here.')
+    const keys = Object.fromEntries(
+      plannedViews.filter((view) => ids.includes(view.id)).map((view) => [view.id, viewCaptureKey(view)]),
+    )
+    const report = await input.viewCapture.capture(ids)
+    setCaptureFailures((current) => {
+      const next = { ...current }
+      for (const id of report.captured) delete next[id]
+      for (const failure of report.failures)
+        if (keys[failure.viewId]) next[failure.viewId] = { key: keys[failure.viewId], reason: failure.reason }
+      // A cancelled capture leaves the rest untried: a preview does not start it again, a download does.
+      if (report.cancelled)
+        for (const id of ids)
+          if (!report.captured.includes(id) && !next[id] && keys[id])
+            next[id] = { key: keys[id], reason: 'Its capture was cancelled.' }
+      return next
+    })
+    return report
+  }
 
   const dialog = (
     <VisualsExportDialog
@@ -1091,6 +1178,8 @@ export function useVisualsExport(input: {
       onAction={onAction}
       onRun={analysis.run}
       {...(input.visualInventory ? { onReadInventory: input.visualInventory.read } : {})}
+      packagePane={packagePane}
+      {...(input.viewCapture ? { onCapture: captureViews, onCancelCapture: input.viewCapture.cancel } : {})}
       onRender={(kind) => {
         // Only the VIA report prints before pictures: the other outputs never wait for them.
         const owed = kind === 'via-report' ? [...missingJobs, ...missingBeforeJobs] : missingJobs

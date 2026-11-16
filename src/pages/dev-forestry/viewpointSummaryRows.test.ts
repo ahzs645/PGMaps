@@ -123,6 +123,48 @@ describe('viewpoint summary rows', () => {
       /not read from the inventory/,
     )
   })
+
+  it("reads the block the summary's switcher picks, and never another block's figures for one the run lacks", () => {
+    const result = run() as unknown as { targets: Array<Record<string, unknown>> }
+    result.targets.push({
+      ...result.targets[0],
+      targetId: 'b2',
+      meanSlopePercent: 12,
+      stations: [
+        { visiblePercent: 5, unknownPercent: 0 },
+        { visiblePercent: 9, unknownPercent: 0 },
+      ],
+    })
+    const two = result as unknown as AnalysisResult
+    const second = viewpointSummaryMetrics(input({ result: two, block: { targetId: 'b2', name: 'CHU_26_2' } }))
+    expect(row(second, 'in-view')?.value).toBe('5%')
+    expect(row(second, 'in-view')?.note).toMatch(/^CHU_26_2:/)
+    expect(row(second, 'slope')?.value).toMatch(/^12%/)
+
+    const added = viewpointSummaryMetrics(input({ block: { targetId: 'b9', name: 'New block' } }))
+    expect(row(added, 'in-view')).toMatchObject({ value: 'Not in this run', tone: 'warning' })
+    expect(row(added, 'in-view')?.note).toMatch(/^New block was added or changed after the run/)
+    expect(row(added, 'slope')).toBeUndefined()
+    expect(row(added, 'distance')).toBeUndefined()
+    const results = runResultMetrics({ ...input({ block: { targetId: 'b9', name: 'New block' } }) })
+    expect(row(results, 'result-block-seen')).toBeUndefined()
+  })
+
+  it('names the planned view the reviewer stands at', () => {
+    const rows = viewpointSummaryMetrics(input({ plannedViewName: 'VLI 144, arrow 1' }))
+    expect(row(rows, 'viewpoint')).toMatchObject({ qualifier: 'planned view' })
+    expect(row(rows, 'viewpoint')?.note).toMatch(/^VLI 144, arrow 1 · Hwy 97 · assessment station/)
+    expect(row(viewpointSummaryMetrics(input()), 'viewpoint')?.qualifier).toBe('assessment station')
+  })
+
+  it("says the figures are the run's landform's when the planned view has a landform of its own", () => {
+    const own = row(viewpointSummaryMetrics(input({ viewLandformName: 'Visible face round CHU_26_1' })), 'perspective')
+    // The figure is still the run's, never recomputed for the view's landform.
+    expect(own?.value).toBe('6.0%')
+    expect(own?.tone).toBe('warning')
+    expect(own?.note).toContain("against Davie ridge, not this view's landform (Visible face round CHU_26_1)")
+    expect(row(viewpointSummaryMetrics(input()), 'perspective')?.tone).toBe('default')
+  })
 })
 
 describe('the run results as summary cards', () => {

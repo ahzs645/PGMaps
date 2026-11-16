@@ -76,6 +76,13 @@ export const INVENTORY_COLORS = {
   screening: '#0f766e',
 } as const
 
+/**
+ * The planned views of interest (`viewsOfInterest.ts`): their numbered points and lens cones, and the inventory
+ * arrows they face along drawn over the inventory's own in a heavier outline. Indigo, apart from the inventory's
+ * pink, the road view's red viewer cone and the assessment viewpoint's yellow.
+ */
+export const VIEW_OF_INTEREST_COLORS = { view: '#4338ca', arrow: '#4338ca' } as const
+
 /** Assessment masks by kind; their labels are `MASK_LABELS` in `assessmentMasks.ts`. */
 export const MASK_COLORS: Record<AssessmentMaskKind, string> = {
   natural: '#64748b',

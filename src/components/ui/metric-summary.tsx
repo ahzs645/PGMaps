@@ -180,6 +180,7 @@ export function MetricSummary({
   variant = 'aside',
   empty,
   id = 'metric-summary-measurements',
+  toolbar,
 }: {
   /** "Road summary": names the region, its heading and its buttons. */
   title: string
@@ -198,6 +199,11 @@ export function MetricSummary({
   empty?: ReactNode
   /** The rows' element id, for the small screen's expand button. */
   id?: string
+  /**
+   * Controls under the heading that choose what the rows read (e.g. which viewpoint or block). They wrap on a
+   * narrow panel; opt in, nothing shows without them.
+   */
+  toolbar?: ReactNode
 }) {
   const [menu, setMenu] = useState<{ metric?: MetricSummaryItem; container: Element | null } | null>(null)
   const anchor = useRef<HTMLElement | null>(null)
@@ -256,6 +262,7 @@ export function MetricSummary({
           </button>
         </div>
       )}
+      {toolbar && <div className="metric-summary-toolbar">{toolbar}</div>}
       {pane && !shown.length ? (
         <div className="metric-summary-empty">
           {metrics.length ? 'All measurements are hidden. Choose which to show in the settings.' : empty}

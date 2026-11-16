@@ -83,6 +83,11 @@ export type DriveMap = {
    * off its station (a taller canvas puts it further back from the target), so a resize places the camera again.
    */
   getCanvas?(): { clientWidth: number; clientHeight: number }
+  /**
+   * The vertical field of view. MapLibre keeps the zoom through a change of field as it does through a resize, which
+   * moves the camera along its view (a narrower lens stands it further back), so a new lens places the camera again.
+   */
+  getVerticalFieldOfView?(): number
   getMaxPitch(): number
   setMaxPitch(value: number): unknown
   getCenterClampedToGround(): boolean
@@ -271,7 +276,8 @@ export class DriveController {
         : desired
     this.rotation = rotation
     // The canvas size is part of the pose: after a resize the same zoom stands the camera somewhere else. Going
-    // fullscreen once put it 29 m behind the station, with the stems behind the station drawn in front of it.
+    // fullscreen once put it 29 m behind the station, with the stems behind the station drawn in front of it. The
+    // field of view is too, for the same reason: a lens change (View options → Lens, a field photo) keeps the zoom.
     const canvas = this.map.getCanvas?.()
     const key = [
       placement.lng,
@@ -281,6 +287,7 @@ export class DriveController {
       rotation.pitch,
       canvas?.clientWidth,
       canvas?.clientHeight,
+      this.map.getVerticalFieldOfView?.(),
     ].join('|')
     if (key !== this.lastPoseKey) {
       // Keep the map target close to the eye. The rotation-only helper targets

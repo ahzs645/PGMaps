@@ -13,7 +13,13 @@
  *
  * Pure: no DOM or network access.
  */
-import { bearingDegrees, haversineMeters, polygonInteriorPoint, type GeoPoint, type PolygonGeometry } from './visibility'
+import {
+  bearingDegrees,
+  haversineMeters,
+  polygonInteriorPoint,
+  type GeoPoint,
+  type PolygonGeometry,
+} from './visibility'
 import { ARROW_AIM_DEGREES, type CandidateArrow, type ViewpointCandidate } from './viewpointInventory'
 
 /** Where a view stands: picked on the map, or one of BC's inventory viewpoints or rec sites. */
@@ -55,7 +61,7 @@ export type ViewOfInterest = {
   /** Full-frame-equivalent focal length, millimetres (`LENS_FOCAL_LENGTHS`). */
   focalMm: number
   framing: ViewOfInterestFraming
-  /** A landform target (`role: 'landform'`) this view is assessed against, when the reviewer adopted one for it. */
+  /** A landform target (`role: 'landscape'`) this view is assessed against, when the reviewer adopted one for it. */
   landformId?: string | null
   /** Left out of every export while false; absent reads as included. */
   include?: boolean
@@ -282,7 +288,8 @@ export function parseViewsOfInterest(raw: unknown): ViewOfInterest[] {
             }
           : null
     if (!parsedFacing) continue
-    const focalMm = finite(value.focalMm) && value.focalMm >= 10 && value.focalMm <= 300 ? value.focalMm : DEFAULT_FOCAL_MM
+    const focalMm =
+      finite(value.focalMm) && value.focalMm >= 10 && value.focalMm <= 300 ? value.focalMm : DEFAULT_FOCAL_MM
     views.push({
       id: value.id,
       name: value.name,
@@ -310,11 +317,9 @@ export function orphanedViews(
   targets: ReadonlyArray<{ id: string; role: string }>,
 ): { missingBlock: string[]; missingLandform: string[] } {
   const blocks = new Set(targets.filter((target) => target.role === 'block').map((target) => target.id))
-  const landforms = new Set(targets.filter((target) => target.role === 'landform').map((target) => target.id))
+  const landforms = new Set(targets.filter((target) => target.role === 'landscape').map((target) => target.id))
   return {
     missingBlock: views.filter((view) => !blocks.has(view.blockId)).map((view) => view.id),
-    missingLandform: views
-      .filter((view) => view.landformId && !landforms.has(view.landformId))
-      .map((view) => view.id),
+    missingLandform: views.filter((view) => view.landformId && !landforms.has(view.landformId)).map((view) => view.id),
   }
 }

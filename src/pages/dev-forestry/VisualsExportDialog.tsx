@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Download, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
@@ -12,18 +13,24 @@ import { downloadBlob } from '@/lib/download'
 import { useInterfaceThemeApplied } from '@/lib/interfaceTheme'
 import { cn } from '@/lib/utils'
 
+import type { ViewCaptureReport } from './useViewCapture'
 import { VIA_STEPS, type ViaStepId } from './via'
 import {
   exportContents,
   exportPreparation,
+  OPEN_PACKAGE_ACTION,
+  packageSummary,
   rendererMissing,
+  uncapturedNote,
   exportUnavailable,
   findVisualsExport,
+  USES_PACKAGE_VIEWS,
   VISUALS_EXPORT_GROUP_LABELS,
   VISUALS_EXPORTS,
   RUNS_ON_EXPORT,
   type ExportAction,
   type ExportContext,
+  type ExportPlannedView,
   type ExportSection,
   type VisualsExport,
   type VisualsExportGroup,
@@ -51,6 +58,16 @@ const LAND_CHECK_WAIT_MS = 30_000
 const INVENTORY_WAIT_MS = 40_000
 
 class Aborted extends Error {}
+
+/** `promise`, or Aborted as soon as `signal` aborts; the work behind `promise` carries on either way. */
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new Aborted('Stopped.'))
+    const onAbort = () => reject(new Aborted('Stopped.'))
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort))
+  })
+}
 
 /** Resolves once `ready()` holds, looking again every poll; `ready` may throw to fail the wait. */
 function waitFor(ready: () => boolean, signal: AbortSignal, timeoutMs = Infinity): Promise<'ready' | 'timeout'> {
@@ -85,8 +102,8 @@ async function previewOf(file: BuiltFile): Promise<Preview> {
 }
 
 type PreviewResult =
-  | { request: object; file: BuiltFile; preview: Preview; error?: undefined }
-  | { request: object; file?: undefined; preview?: undefined; error: string }
+  | { request: object; file: BuiltFile; preview: Preview; error?: undefined; missing: string | null }
+  | { request: object; file?: undefined; preview?: undefined; error: string; missing?: undefined }
 
 const stepLabel = (id: ViaStepId) => {
   const step = VIA_STEPS.find((entry) => entry.id === id)
@@ -205,6 +222,140 @@ function PreviewView({ preview, title }: { preview: Preview; title: string }) {
   }
 }
 
+type PackageSelect = {
+  value: string
+  options: ReadonlyArray<{ value: string; label: string }>
+  onChange: (value: string) => void
+}
+
+const CAPTURE_LABELS: Record<ExportPlannedView['state'], string> = {
+  captured: 'Captured',
+  outdated: 'Changed since its capture: captured again on Preview or Download',
+  'not-captured': 'To capture on Preview or Download',
+}
+
+function PackageHeading({ children }: { children: ReactNode }) {
+  return <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">{children}</h4>
+}
+
+/** A view's picture in the checklist, or an empty frame saying why there is none. */
+function ViewThumbnail({ src, empty }: { src: string | null; empty: string }) {
+  return src ? (
+    <img src={src} alt="" className="aspect-video w-16 shrink-0 rounded-sm border bg-muted object-cover" />
+  ) : (
+    <span className="flex aspect-video w-16 shrink-0 items-center justify-center rounded-sm border border-dashed px-1 text-center text-3xs leading-tight text-muted-foreground">
+      {empty}
+    </span>
+  )
+}
+
+/**
+ * The package, chosen once for every output: the recipe the VIA report and the VIA document follow, who draws the
+ * figures, and the views that go in, each planned view of interest with its capture state and every saved view not
+ * captured for one.
+ */
+export function ExportPackagePane({
+  recipe,
+  renderer,
+  planned,
+  saved,
+  onPlannedInclude,
+  onSavedInclude,
+}: {
+  recipe: PackageSelect & { note: string }
+  renderer: PackageSelect & { unavailable: string | null }
+  planned: ReadonlyArray<ExportPlannedView & { thumbnail: string | null }>
+  saved: ReadonlyArray<{ id: string; name: string; included: boolean; detail: string; thumbnail: string | null }>
+  /** Writes a view of interest's `include`; absent, the checklist only shows it. */
+  onPlannedInclude?: (id: string, on: boolean) => void
+  onSavedInclude: (id: string, on: boolean) => void
+}) {
+  const select = (choice: PackageSelect, label: string) => (
+    <StyledSelect
+      aria-label={label}
+      className="w-full rounded-md border bg-background p-1"
+      value={choice.value}
+      onChange={(event) => choice.onChange(event.target.value)}
+    >
+      {choice.options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </StyledSelect>
+  )
+  return (
+    <div className="grid gap-4 pb-2">
+      <section className="space-y-1.5" aria-label="Recipe">
+        <PackageHeading>Recipe</PackageHeading>
+        {select(recipe, 'Package recipe')}
+        <p className="text-2xs text-muted-foreground">{recipe.note}</p>
+      </section>
+      <section className="space-y-1.5" aria-label="Figures drawn by">
+        <PackageHeading>Figures drawn by</PackageHeading>
+        {select(renderer, 'Figures drawn by')}
+        {renderer.unavailable ? (
+          <p className="rounded-md border border-warning-border bg-warning-surface p-2 text-2xs text-warning-foreground">
+            {renderer.unavailable}
+          </p>
+        ) : (
+          <p className="text-2xs text-muted-foreground">
+            The analysis sheet, the VIA document and the VIA report. Another engine draws each view again at final
+            quality in the background before the file is written.
+          </p>
+        )}
+      </section>
+      <section className="space-y-1.5" aria-label="Views">
+        <PackageHeading>Views</PackageHeading>
+        {planned.length > 0 && (
+          <ul aria-label="Views of interest" className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}>
+            {planned.map((view) => (
+              <li key={view.id} className="flex items-start gap-2 px-2.5 py-2">
+                <ViewThumbnail src={view.thumbnail} empty={view.state === 'captured' ? 'No picture' : 'Not captured'} />
+                <CheckboxField
+                  className="min-w-0 flex-1"
+                  label={view.name}
+                  checked={view.include}
+                  disabled={!onPlannedInclude}
+                  onCheckedChange={(on) => onPlannedInclude?.(view.id, on)}
+                  description={[
+                    view.block,
+                    view.lens,
+                    view.failed && view.state !== 'captured'
+                      ? `Not captured: ${view.failed.replace(/[.\s]*$/, '')}`
+                      : CAPTURE_LABELS[view.state],
+                  ].join(' · ')}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        {saved.length > 0 && (
+          <ul aria-label="Saved views" className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}>
+            {saved.map((view) => (
+              <li key={view.id} className="flex items-start gap-2 px-2.5 py-2">
+                <ViewThumbnail src={view.thumbnail} empty="No screenshot" />
+                <CheckboxField
+                  className="min-w-0 flex-1"
+                  label={view.name}
+                  checked={view.included}
+                  onCheckedChange={(on) => onSavedInclude(view.id, on)}
+                  description={`Saved view · ${view.detail}`}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-2xs text-muted-foreground">
+          {planned.length || saved.length
+            ? 'The block note, the analysis sheet, the VIA document and the VIA report take these views. A view of interest not yet captured is captured on Preview or Download: the page stands there, runs and saves it as Save viewpoint does.'
+            : 'No views yet. Add a view of interest in step 2, or save one in the road view.'}
+        </p>
+      </section>
+    </div>
+  )
+}
+
 /**
  * Every output of the visual-quality page in one list, grouped, with what goes into the selected
  * one — the landform, the viewpoints and saved views with their settings, the blocks, the run and
@@ -223,6 +374,9 @@ export function VisualsExportDialog({
   onRun,
   onRender,
   onReadInventory,
+  packagePane,
+  onCapture,
+  onCancelCapture,
   portalContainer,
 }: {
   open: boolean
@@ -248,21 +402,30 @@ export function VisualsExportDialog({
   onRender?: (kind: VisualsExport) => void
   /** Reads the scene's visual inventory, or reads it again after a failure, for the outputs that print it. */
   onReadInventory?: () => void
+  /** The package's choices (`ExportPackagePane`), shown under its own entry first in the list. Absent: no entry. */
+  packagePane?: ReactNode
+  /** Captures views of interest as saved views (`viewsToCapture`), before an output that draws them is written. */
+  onCapture?: (viewIds: readonly string[]) => Promise<ViewCaptureReport>
+  /** Stops a capture in flight; the views captured so far are kept. */
+  onCancelCapture?: () => void
   portalContainer?: HTMLElement | null
 }) {
   const [selected, setSelected] = useState<VisualsExport>(initialOutput)
+  // The package's entry is open in place of an output's pane.
+  const [packageOpen, setPackageOpen] = useState(false)
   // Teal in the built-in theme; an Appearance theme's own selection colours under one.
   const themed = useInterfaceThemeApplied()
   const [view, setView] = useState<'contents' | 'preview'>('contents')
   const [formats, setFormats] = useState<Partial<Record<VisualsExport, string>>>({})
   const [saving, setSaving] = useState(false)
-  const [status, setStatus] = useState<{ tone: 'info' | 'error'; text: string } | null>(null)
+  const [status, setStatus] = useState<{ tone: 'info' | 'warning' | 'error'; text: string } | null>(null)
   // Open on the requested output, including when the previous session used another.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
     setWasOpen(open)
     if (open) {
       setSelected(initialOutput)
+      setPackageOpen(false)
       setView('contents')
       setStatus(null)
     }
@@ -281,6 +444,11 @@ export function VisualsExportDialog({
   const latestRun = useRef(onRun)
   const latestRender = useRef(onRender)
   const latestReadInventory = useRef(onReadInventory)
+  const latestCapture = useRef(onCapture)
+  const latestCancelCapture = useRef(onCancelCapture)
+  // The capture this dialog started, while it runs: every wait shares it rather than starting another, since the
+  // capture moves the page and each move restarts the preview.
+  const captureInFlight = useRef<Promise<ViewCaptureReport> | null>(null)
   const changedAt = useRef(0)
   useEffect(() => {
     latestBuild.current = build
@@ -288,20 +456,46 @@ export function VisualsExportDialog({
     latestRun.current = onRun
     latestRender.current = onRender
     latestReadInventory.current = onReadInventory
+    latestCapture.current = onCapture
+    latestCancelCapture.current = onCancelCapture
   })
   useEffect(() => {
     changedAt.current = Date.now()
   }, [version])
 
   /**
-   * Makes what the output reads before it is written: the visibility run, in the analysis worker,
-   * when it is missing or stale, and the land checks the block note prints. Then waits for the page
-   * to settle, so the build that follows (`latestBuild`, from the render after) reads the new run.
+   * Makes what the output reads before it is written: the views of interest the package includes and has not
+   * captured (first, since capturing stands at each and runs there), the visibility run, in the analysis worker,
+   * when it is missing or stale, and the land checks the block note prints. Then waits for the page to settle, so
+   * the build that follows (`latestBuild`, from the render after) reads the new run and the views as captured.
+   * Resolves with the views of interest the file goes without, worded, or null.
    */
   const prepare = useCallback(async (kind: VisualsExport, signal: AbortSignal, retry = false) => {
+    let waited = false
+    const toCapture = exportPreparation(kind, latestContext.current, { retry }).capture
+    const capturing = () => latestContext.current.capture.status === 'running'
+    if (captureInFlight.current || (USES_PACKAGE_VIEWS.has(kind) && capturing()) || toCapture.length) {
+      waited = true
+      if (!captureInFlight.current && !capturing() && latestCapture.current) {
+        const pending = latestCapture.current(toCapture)
+        captureInFlight.current = pending
+        const clear = () => {
+          if (captureInFlight.current === pending) captureInFlight.current = null
+        }
+        pending.then(clear, clear)
+      }
+      if (captureInFlight.current) {
+        const report = await untilAborted(captureInFlight.current, signal)
+        if (report.cancelled)
+          throw new Error(
+            'Capturing the views of interest was cancelled, so nothing was written. Preview writes the file with the views captured so far; Download tries the rest again.',
+          )
+      } else await waitFor(() => !capturing(), signal)
+      // The capture steps back to where the reviewer stood: let the page settle before reading what it needs now.
+      await waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal)
+    }
     const needs = exportPreparation(kind, latestContext.current, { retry })
     const running = () => latestContext.current.autoRun.status === 'running'
-    let waited = false
     // The visual inventory, read alongside the run: a failed read does not stop the file, which then says not read.
     let inventoryRead: Promise<unknown> = Promise.resolve()
     if (needs.inventory && latestReadInventory.current) {
@@ -371,37 +565,50 @@ export function VisualsExportDialog({
       }, signal)
     }
     if (waited) await waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal)
+    return uncapturedNote(kind, latestContext.current)
   }, [])
 
-  // A wait in flight stops with the dialog.
+  // A wait in flight stops with the dialog, and so does a capture it started: it drives the page.
   const live = useRef(new Set<AbortController>())
   useEffect(() => {
     const controllers = live.current
-    return () => controllers.forEach((controller) => controller.abort())
+    return () => {
+      controllers.forEach((controller) => controller.abort())
+      if (captureInFlight.current) latestCancelCapture.current?.()
+    }
   }, [])
 
   useEffect(() => {
-    if (!open || unavailable || view !== 'preview') return
+    if (!open || unavailable || view !== 'preview' || packageOpen) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
+      let missing: string | null = null
       prepare(request.kind, controller.signal)
-        .then(() => latestBuild.current(request.kind, request.format, controller.signal))
+        .then((note) => {
+          missing = note
+          return latestBuild.current(request.kind, request.format, controller.signal)
+        })
         .then(async (file) => {
           const preview = await previewOf(file)
           if (controller.signal.aborted) {
             if ('url' in preview) URL.revokeObjectURL(preview.url)
-          } else setResult({ request, file, preview })
+          } else setResult({ request, file, preview, missing })
         })
         .catch((error: unknown) => {
           if (!controller.signal.aborted)
-            setResult({ request, error: error instanceof Error ? error.message : 'Could not prepare a preview.' })
+            setResult({
+              request,
+              error: [error instanceof Error ? error.message : 'Could not prepare a preview.', missing]
+                .filter(Boolean)
+                .join(' '),
+            })
         })
     }, PREVIEW_DELAY_MS)
     return () => {
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [open, request, unavailable, view, prepare])
+  }, [open, request, unavailable, view, packageOpen, prepare])
   // Object URLs live as long as their preview.
   useEffect(() => {
     const preview = result?.preview
@@ -414,6 +621,7 @@ export function VisualsExportDialog({
   const pane = useRef<HTMLElement>(null)
   const select = (kind: VisualsExport) => {
     setSelected(kind)
+    setPackageOpen(false)
     setStatus(null)
     // Stacked on a phone, the pane sits under the list; bring it up. Side by side this does nothing.
     requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
@@ -424,18 +632,30 @@ export function VisualsExportDialog({
     const controller = new AbortController()
     live.current.add(controller)
     try {
-      // The previewed file when it is this one and nothing waits; otherwise made and written now.
+      // The previewed file when it is this one and nothing waits; otherwise made and written now. A download tries
+      // again the views of interest whose capture failed.
       const again = exportPreparation(item.kind, context, { retry: true })
       const ready =
-        !again.run && !again.landChecks && !again.render && !again.inventory && context.autoRun.status !== 'running'
+        !again.run &&
+        !again.landChecks &&
+        !again.render &&
+        !again.inventory &&
+        !again.capture.length &&
+        context.autoRun.status !== 'running' &&
+        !(USES_PACKAGE_VIEWS.has(item.kind) && context.capture.status === 'running')
       let file = ready ? current?.file : undefined
+      let missing = ready ? (current?.missing ?? null) : null
       if (!file) {
-        await prepare(item.kind, controller.signal, true)
+        missing = await prepare(item.kind, controller.signal, true)
         file = await latestBuild.current(item.kind, format.id, controller.signal)
       }
       if (controller.signal.aborted) return
       downloadBlob(file.blob, file.fileName)
-      setStatus({ tone: 'info', text: `Saved ${file.fileName}.` })
+      setStatus(
+        missing
+          ? { tone: 'warning', text: `Saved ${file.fileName}. ${missing}` }
+          : { tone: 'info', text: `Saved ${file.fileName}.` },
+      )
     } catch (error) {
       if (error instanceof Aborted) return
       setStatus({ tone: 'error', text: error instanceof Error ? error.message : 'The file could not be written.' })
@@ -444,6 +664,21 @@ export function VisualsExportDialog({
       if (!controller.signal.aborted) setSaving(false)
     }
   }
+
+  const openPackage = () => {
+    setPackageOpen(true)
+    setStatus(null)
+    requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+  }
+  // The package's entry is the dialog's own; every other action is the page's.
+  const act = (action: ExportAction) => (action.id === OPEN_PACKAGE_ACTION ? openPackage() : onAction?.(action))
+  const capture = context.capture
+  const captureRunning = capture.status === 'running'
+  const cancelCapture = onCancelCapture && captureRunning && (
+    <TextButton className="ml-2 text-2xs" onClick={onCancelCapture}>
+      Cancel capture
+    </TextButton>
+  )
 
   return (
     <PanelDialog
@@ -461,6 +696,22 @@ export function VisualsExportDialog({
           aria-label="Files"
           className="border-b border-border py-1 sm:min-h-0 sm:overflow-y-auto overscroll-none sm:border-b-0 sm:border-r"
         >
+          {packagePane && (
+            <div>
+              <h3 className="px-3 pb-1 pt-3 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Chosen once
+              </h3>
+              <ResultRow
+                accent={themed ? 'theme' : 'teal'}
+                selected={packageOpen}
+                title="Package"
+                subtitle={packageSummary(context)}
+                className="py-2"
+                aria-label={`Package: ${packageSummary(context)}`}
+                onClick={openPackage}
+              />
+            </div>
+          )}
           {GROUPS.map((group) => (
             <div key={group}>
               <h3 className="px-3 pb-1 pt-3 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -473,7 +724,7 @@ export function VisualsExportDialog({
                   <ResultRow
                     key={entry.kind}
                     accent={themed ? 'theme' : 'teal'}
-                    selected={entry.kind === item.kind}
+                    selected={!packageOpen && entry.kind === item.kind}
                     title={entry.label}
                     subtitle={reason ?? undefined}
                     trailing={<span className="text-3xs font-normal text-muted-foreground">{shown.extension}</span>}
@@ -486,102 +737,136 @@ export function VisualsExportDialog({
             </div>
           ))}
         </nav>
-        <section
-          ref={pane}
-          aria-label={`${item.label} export`}
-          className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5"
-        >
-          <div className="flex items-start justify-between gap-3">
+        {packageOpen && packagePane ? (
+          <section ref={pane} aria-label="Package" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold">
-                {item.label} <span className="font-normal text-muted-foreground">{format.extension}</span>
-              </h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
+              <h3 className="text-sm font-semibold">Package</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Chosen once for every output: the recipe the VIA report and the VIA document follow, who draws the
+                figures, and the views that go in.
+              </p>
             </div>
-            <Button
-              className="shrink-0"
-              disabled={!!unavailable || saving}
-              aria-label={`Download ${item.label}`}
-              onClick={() => void download()}
-            >
-              {saving ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-              {item.group === 'files' ? 'Save' : 'Download'}
-            </Button>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <SegmentedControl
-              size="sm"
-              fullWidth={false}
-              label={`${item.label} view`}
-              value={view}
-              onChange={setView}
-              options={[
-                { value: 'contents' as const, label: 'What goes in' },
-                { value: 'preview' as const, label: 'Preview' },
-              ]}
-            />
-            {item.formats.length > 1 && (
+            {captureRunning && (
+              <InlineAlert loading>
+                <span role="status">
+                  {capture.message ??
+                    `Capturing the views of interest${capture.total ? `, ${capture.done} of ${capture.total}` : ''}.`}
+                </span>
+                {cancelCapture}
+              </InlineAlert>
+            )}
+            <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">{packagePane}</div>
+          </section>
+        ) : (
+          <section
+            ref={pane}
+            aria-label={`${item.label} export`}
+            className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">
+                  {item.label} <span className="font-normal text-muted-foreground">{format.extension}</span>
+                </h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
+              </div>
+              <Button
+                className="shrink-0"
+                disabled={!!unavailable || saving}
+                aria-label={`Download ${item.label}`}
+                onClick={() => void download()}
+              >
+                {saving ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                {item.group === 'files' ? 'Save' : 'Download'}
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <SegmentedControl
                 size="sm"
                 fullWidth={false}
-                label={`${item.label} format`}
-                value={format.id}
-                onChange={(id) => setFormats((current) => ({ ...current, [item.kind]: id }))}
-                options={item.formats.map((entry) => ({ value: entry.id, label: entry.label }))}
+                label={`${item.label} view`}
+                value={view}
+                onChange={setView}
+                options={[
+                  { value: 'contents' as const, label: 'What goes in' },
+                  { value: 'preview' as const, label: 'Preview' },
+                ]}
               />
+              {item.formats.length > 1 && (
+                <SegmentedControl
+                  size="sm"
+                  fullWidth={false}
+                  label={`${item.label} format`}
+                  value={format.id}
+                  onChange={(id) => setFormats((current) => ({ ...current, [item.kind]: id }))}
+                  options={item.formats.map((entry) => ({ value: entry.id, label: entry.label }))}
+                />
+              )}
+            </div>
+            {status && (
+              <InlineAlert tone={status.tone === 'info' ? 'success' : status.tone}>
+                <span role="status">{status.text}</span>
+              </InlineAlert>
             )}
-          </div>
-          {status && (
-            <InlineAlert tone={status.tone === 'error' ? 'error' : 'success'}>
-              <span role="status">{status.text}</span>
-            </InlineAlert>
-          )}
-          {!unavailable && preparation.note && (
-            <InlineAlert
-              loading={
-                context.autoRun.status === 'running' ||
-                (saving && preparation.landChecks) ||
-                (preparation.render && context.renderer.running)
-              }
-            >
-              <span role="status">{preparation.note}</span>
-            </InlineAlert>
-          )}
-          {unavailable && (
-            <p
-              role="status"
-              className="rounded-md border border-warning-border bg-warning-surface p-2 text-xs text-warning-foreground"
-            >
-              {unavailable}
-            </p>
-          )}
-          {/* Side by side the pane scrolls; stacked on a phone it flows with the dialog. */}
-          <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">
-            {view === 'contents' ? (
-              <div className="grid gap-4 pb-2">
-                {options[item.kind] && (
-                  <section className="space-y-1.5" aria-label="Options">
-                    <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Options</h4>
-                    {options[item.kind]}
-                  </section>
-                )}
-                {sections.map((section) => (
-                  <ContentsSection key={section.title} section={section} onGoToStep={onGoToStep} onAction={onAction} />
-                ))}
-              </div>
-            ) : unavailable ? (
-              <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
+            {!unavailable && preparation.note && (
+              <InlineAlert
+                loading={
+                  context.autoRun.status === 'running' ||
+                  (USES_PACKAGE_VIEWS.has(item.kind) && captureRunning) ||
+                  (saving && preparation.landChecks) ||
+                  (preparation.render && context.renderer.running)
+                }
+              >
+                <span role="status">{preparation.note}</span>
+                {USES_PACKAGE_VIEWS.has(item.kind) && cancelCapture}
+              </InlineAlert>
+            )}
+            {unavailable && (
+              <p
+                role="status"
+                className="rounded-md border border-warning-border bg-warning-surface p-2 text-xs text-warning-foreground"
+              >
                 {unavailable}
               </p>
-            ) : current?.preview ? (
-              <PreviewView preview={current.preview} title={item.label} />
-            ) : current?.error ? (
-              <InlineAlert tone="error">{current.error}</InlineAlert>
-            ) : (
-              <InlineAlert loading>Preparing preview…</InlineAlert>
             )}
-          </div>
-        </section>
+            {/* Side by side the pane scrolls; stacked on a phone it flows with the dialog. */}
+            <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">
+              {view === 'contents' ? (
+                <div className="grid gap-4 pb-2">
+                  {options[item.kind] && (
+                    <section className="space-y-1.5" aria-label="Options">
+                      <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Options</h4>
+                      {options[item.kind]}
+                    </section>
+                  )}
+                  {sections.map((section) => (
+                    <ContentsSection
+                      key={section.title}
+                      section={section}
+                      onGoToStep={onGoToStep}
+                      onAction={onAction || packagePane ? act : undefined}
+                    />
+                  ))}
+                </div>
+              ) : unavailable ? (
+                <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
+                  {unavailable}
+                </p>
+              ) : current?.preview ? (
+                <div className="flex h-full min-h-0 flex-col gap-2">
+                  {current.missing && <InlineAlert tone="warning">{current.missing}</InlineAlert>}
+                  <div className="min-h-0 flex-1">
+                    <PreviewView preview={current.preview} title={item.label} />
+                  </div>
+                </div>
+              ) : current?.error ? (
+                <InlineAlert tone="error">{current.error}</InlineAlert>
+              ) : (
+                <InlineAlert loading>Preparing preview…</InlineAlert>
+              )}
+            </div>
+          </section>
+        )}
       </div>
     </PanelDialog>
   )

@@ -89,7 +89,16 @@ import {
   type VisualQualityThresholds,
 } from './vqo'
 
-export type DrawMode = 'none' | 'spot' | 'corridor' | 'block' | 'landscape' | 'tree-free' | 'wildlife-tree-patch'
+/** `view`: the next plan click places a view of interest (`ViewsOfInterestPanel`). */
+export type DrawMode =
+  | 'none'
+  | 'spot'
+  | 'corridor'
+  | 'block'
+  | 'landscape'
+  | 'tree-free'
+  | 'wildlife-tree-patch'
+  | 'view'
 
 export type InventoryState = {
   status: 'idle' | 'loading' | 'ready' | 'error'
@@ -577,6 +586,11 @@ type SidebarProps = {
   evidence?: ReactNode
   /** Step 1: inventory viewpoints and rec sites near the block. */
   viewpointFinder?: ReactNode
+  /**
+   * Step 2, first: the views of interest planned on the plan map and captured without driving
+   * (`ViewsOfInterestPanel`). Step 1's finder adds to it.
+   */
+  viewsOfInterest?: ReactNode
   /** Step 2, in the road view: the existing forest and regrowth records the timber is drawn from. */
   roadViewForest?: ReactNode
   /** Step 5: the block's planning-note summary and Visuals paragraph. */
@@ -649,6 +663,7 @@ export function Sidebar({
   runRevision,
   evidence,
   viewpointFinder,
+  viewsOfInterest,
   roadViewForest,
   visualsParagraph,
   roadClearing,
@@ -1315,6 +1330,7 @@ export function Sidebar({
       {/* Step 2 — 3.2: travel the road as a visitor would and record the views. */}
       <div {...stepPanelProps('visit')}>
         <StepIntro id="visit" status={via.statuses.visit} summary={summaries.visit} />
+        {viewsOfInterest}
         {/* The map's bar plays, saves and exits, and its View options hold how the view
           looks (`RoadViewOptions.tsx`); what is drawn here is the stand and its records. */}
         {result && drive.active && (

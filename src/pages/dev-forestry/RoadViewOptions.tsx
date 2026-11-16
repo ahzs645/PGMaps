@@ -26,6 +26,7 @@ import {
 import { setEngineBrowserOptions, useEngineBrowserOptions } from './engineBrowserOptions'
 import type { DriveState } from './Sidebar'
 import type { TargetPolygon } from './types'
+import { LENS_FOCAL_LENGTHS, lensLabel } from './viewsOfInterest'
 import { compassPoint, EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
 
 const SELECT_CLASS =
@@ -80,6 +81,8 @@ export function RoadViewOptions({
   blocks,
   lookArrows = [],
   jump,
+  lensMm = null,
+  onLensChange,
 }: {
   drive: DriveState
   onDriveChange: (patch: Partial<DriveState>) => void
@@ -88,6 +91,12 @@ export function RoadViewOptions({
   lookArrows?: ReadonlyArray<LookArrow>
   /** *Go to a view of the block*: places on the road that see the most of it. */
   jump?: ReactNode
+  /**
+   * The road view's lens, full-frame-equivalent millimetres (`LENS_FOCAL_LENGTHS`); null for MapLibre's own field.
+   * Display only: a view saved with a lens set frames its analysis sheet with that lens.
+   */
+  lensMm?: number | null
+  onLensChange?: (focalMm: number | null) => void
 }) {
   const arrowAt = (bearing: number) => lookArrows.find((entry) => Math.abs(entry.bearing - bearing) < 0.5)
   const engineOptions = useEngineBrowserOptions()
@@ -145,6 +154,34 @@ export function RoadViewOptions({
             )}
           </StyledSelect>
         </FormField>
+        {onLensChange && (
+          <FormField
+            label="Lens"
+            contentClassName="block"
+            labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
+            hintAction={
+              <InfoTip label="About the lens">
+                The field of view across the road view, as a full-frame camera lens. 50 mm is the reference sheets&apos;
+                lens. A view saved with a lens set frames its analysis sheet with that lens; the field photo, while one
+                is lined up, sets its own.
+              </InfoTip>
+            }
+          >
+            <StyledSelect
+              className={cn(SELECT_CLASS, 'w-full')}
+              value={lensMm === null ? '' : String(lensMm)}
+              onChange={(event) => onLensChange(event.target.value ? Number(event.target.value) : null)}
+              aria-label="Lens"
+            >
+              <option value="">Road view default</option>
+              {LENS_FOCAL_LENGTHS.map((focal) => (
+                <option key={focal} value={focal}>
+                  {lensLabel(focal)}
+                </option>
+              ))}
+            </StyledSelect>
+          </FormField>
+        )}
         {jump}
       </Group>
 

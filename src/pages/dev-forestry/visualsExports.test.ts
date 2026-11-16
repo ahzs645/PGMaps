@@ -2,8 +2,16 @@ import { describe, expect, it } from 'vitest'
 
 import { createEmptyScene, createSampleScene, type ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
+import { createViewOfInterestId, viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
+import { REPORT_RECIPES, recipeFormat } from './viaReport/recipes'
+import { VIA_DOCUMENT_FORMATS } from './viaDocument/formats'
 import {
   buildExportContext,
+  packageSummary,
+  resolvePackage,
+  uncapturedNote,
+  viewsToCapture,
+  type ExportPlannedView,
   exportContents,
   exportPreparation,
   READS_INVENTORY,
@@ -86,9 +94,8 @@ describe('visual-quality exports', () => {
     const ctx = buildExportContext(input(createEmptyScene()))
     expect(exportUnavailable('block-note', ctx)).toMatch(/cutblock/)
     expect(exportUnavailable('fs1252', ctx)).toMatch(/Run the visibility assessment/)
-    expect(exportUnavailable('analysis-sheet', ctx)).toMatch(/Save a viewpoint/)
-    expect(exportUnavailable('via-document', ctx)).toMatch(/Save a viewpoint/)
-    expect(exportUnavailable('via-report', ctx)).toMatch(/Save a viewpoint/)
+    for (const kind of ['analysis-sheet', 'via-document', 'via-report'] as const)
+      expect(exportUnavailable(kind, ctx)).toMatch(/^Add a view of interest in step 2, or save one in the road view/)
     expect(exportUnavailable('worksheet', ctx)).toMatch(/Run the visibility assessment/)
     expect(exportUnavailable('scene-package', ctx)).toMatch(/road view/)
     // A scene can always be saved.
@@ -249,7 +256,7 @@ describe('visual-quality exports', () => {
       'Listed as missing: no screenshot',
       'Left out',
     ])
-    expect(section?.note).toMatch(/^1 view in the report/)
+    expect(section?.note).toMatch(/^1 saved view in the report\. Choose which under Package/)
     expect(section?.note).toMatch(/never redrawn at export/)
   })
 
@@ -443,5 +450,194 @@ describe('outputs that print the visual inventory read it first', () => {
     expect(exportPreparation('via-report', failed).note).toBe(
       'The visual landscape inventory could not be read (DataBC answered 503): the file says it was not read. Downloading reads it again first.',
     )
+  })
+})
+
+const planned = (id: string, overrides: Partial<ViewOfInterest> = {}): ViewOfInterest => ({
+  id,
+  name: `Viewpoint ${id}, toward Block 1`,
+  source: { kind: 'map' },
+  lng: -122.75,
+  lat: 53.9,
+  blockId: 'block-1',
+  facing: { kind: 'block' },
+  focalMm: 50,
+  framing: 'landform',
+  ...overrides,
+})
+
+const exportPlanned = (id: string, overrides: Partial<ExportPlannedView> = {}): ExportPlannedView => ({
+  id,
+  key: `key-${id}`,
+  name: `Viewpoint ${id}`,
+  block: 'Block 1',
+  lens: '50 mm · 39.6° across',
+  state: 'not-captured',
+  include: true,
+  savedViewId: null,
+  failed: null,
+  ...overrides,
+})
+
+describe('the package: one recipe, one renderer and one set of views for every output', () => {
+  const base = {
+    recipes: REPORT_RECIPES,
+    formats: VIA_DOCUMENT_FORMATS,
+    roadViewStyleId: null,
+    planned: [] as ViewOfInterest[],
+    blocks: [{ id: 'block-1', name: 'Block 1' }],
+    savedViews: [] as Array<{ id: string; name: string; plannedViewId?: string; plannedKey?: string }>,
+  }
+  const choice = { recipeId: null, documentFormatId: null, excludedViews: new Set<string>() }
+
+  it('lets a recipe set the VIA document’s format, so the document and the report agree', () => {
+    for (const recipe of REPORT_RECIPES) {
+      const pkg = resolvePackage({ ...base, choice: { ...choice, recipeId: recipe.id, documentFormatId: 'other' } })
+      expect(pkg.recipeChosen).toBe(true)
+      expect(pkg.recipeId).toBe(recipe.id)
+      expect(pkg.documentFormatId).toBe(recipeFormat(recipe).id)
+    }
+  })
+
+  it('without a recipe, follows the document’s own format, else the road view’s style, and the report reads it', () => {
+    const format = VIA_DOCUMENT_FORMATS.find((entry) => REPORT_RECIPES.some((recipe) => recipe.format === entry.id))!
+    const own = resolvePackage({ ...base, choice: { ...choice, documentFormatId: format.id } })
+    expect(own.recipeChosen).toBe(false)
+    expect(own.documentFormatId).toBe(format.id)
+    expect(REPORT_RECIPES.find((recipe) => recipe.id === own.recipeId)?.format).toBe(format.id)
+    const styled = VIA_DOCUMENT_FORMATS.find((entry) => entry.style)!
+    expect(resolvePackage({ ...base, roadViewStyleId: styled.style, choice }).documentFormatId).toBe(styled.id)
+    // An unknown recipe is no recipe.
+    expect(resolvePackage({ ...base, choice: { ...choice, recipeId: 'gone' } }).recipeChosen).toBe(false)
+  })
+
+  it('takes each included view’s current capture and every saved view not left out, and leaves the rest out', () => {
+    const a = planned('a')
+    const b = planned('b', { include: false })
+    const c = planned('c', { focalMm: 35 })
+    const pkg = resolvePackage({
+      ...base,
+      choice: { ...choice, excludedViews: new Set(['own-2']) },
+      planned: [a, b, c],
+      savedViews: [
+        { id: 'own-1', name: 'Pullout' },
+        { id: 'own-2', name: 'Bridge' },
+        { id: 'a-old', name: 'A', plannedViewId: 'a', plannedKey: viewCaptureKey(a) },
+        { id: 'a-new', name: 'A', plannedViewId: 'a', plannedKey: viewCaptureKey(a) },
+        { id: 'b-1', name: 'B', plannedViewId: 'b', plannedKey: viewCaptureKey(b) },
+        // Captured with a 50 mm lens before the view was changed to 35 mm: out of date.
+        { id: 'c-1', name: 'C', plannedViewId: 'c', plannedKey: viewCaptureKey({ ...c, focalMm: 50 }) },
+        // Captured for a view no longer planned: an ordinary saved view.
+        { id: 'gone-1', name: 'Gone', plannedViewId: createViewOfInterestId(), plannedKey: 'x' },
+      ],
+    })
+    expect(pkg.planned.map((view) => [view.id, view.state, view.include, view.savedViewId])).toEqual([
+      ['a', 'captured', true, 'a-new'],
+      ['b', 'captured', false, 'b-1'],
+      ['c', 'outdated', true, null],
+    ])
+    expect(pkg.planned[2].lens).toBe('35 mm · 54.4° across')
+    expect(pkg.planned[0].block).toBe('Block 1')
+    expect(pkg.saved.map((view) => [view.id, view.included])).toEqual([
+      ['own-1', true],
+      ['own-2', false],
+      ['gone-1', true],
+    ])
+    expect([...pkg.viewIds].sort()).toEqual(['a-new', 'gone-1', 'own-1'])
+    // The block note's builder leaves out the rest: by hand, a view left out, a superseded or outdated capture.
+    expect([...pkg.excludedViews].sort()).toEqual(['a-old', 'b-1', 'c-1', 'own-2'])
+  })
+
+  it('keeps a failed capture only under the key it failed with', () => {
+    const a = planned('a')
+    const failures = { a: { key: viewCaptureKey(a), reason: 'The run failed.' } }
+    expect(resolvePackage({ ...base, choice, planned: [a], failures }).planned[0].failed).toBe('The run failed.')
+    // Moved since: tried again.
+    const moved = { ...a, lng: -122.7 }
+    expect(resolvePackage({ ...base, choice, planned: [moved], failures }).planned[0].failed).toBeNull()
+  })
+})
+
+describe('views of interest in the exports', () => {
+  const withPlanned = (views: ExportPlannedView[], overrides: Partial<ContextInput> = {}) =>
+    buildExportContext(input(createSampleScene(), { planned: views, ...overrides }))
+
+  it('makes the sheet, the document and the report available while included views of interest wait to be captured', () => {
+    const ctx = withPlanned([exportPlanned('a')])
+    for (const kind of ['analysis-sheet', 'via-document', 'via-report'] as const)
+      expect(exportUnavailable(kind, ctx)).toBeNull()
+    // All left out: nothing to draw, and it says where to include one.
+    const out = withPlanned([exportPlanned('a', { include: false })])
+    expect(exportUnavailable('via-report', out)).toBe(
+      'Every view is left out of the package: include one under Package.',
+    )
+    const savedOut = buildExportContext(input(createSampleScene(), { views: [view('v', { inReport: false })] }))
+    expect(exportUnavailable('analysis-sheet', savedOut)).toMatch(/left out of the package/)
+  })
+
+  it('captures the included views not yet captured first, for the outputs that draw views only', () => {
+    const ctx = withPlanned([
+      exportPlanned('a'),
+      exportPlanned('b', { state: 'outdated' }),
+      exportPlanned('c', { state: 'captured', savedViewId: 'c-1' }),
+      exportPlanned('d', { include: false }),
+      exportPlanned('e', { failed: 'The run failed.' }),
+    ])
+    expect(viewsToCapture('via-report', ctx)).toEqual(['a', 'b'])
+    // A failed view is tried again on a download only, so a preview never loops on it.
+    expect(viewsToCapture('via-report', ctx, { retry: true })).toEqual(['a', 'b', 'e'])
+    expect(viewsToCapture('fs1252', ctx)).toEqual([])
+    const prep = exportPreparation('block-note', ctx)
+    expect(prep.capture).toEqual(['a', 'b'])
+    expect(prep.note).toMatch(/^2 views of interest are captured first/)
+    expect(exportPreparation('worksheet', ctx).capture).toEqual([])
+    const running = exportPreparation('analysis-sheet', {
+      ...ctx,
+      capture: { status: 'running', message: 'Capturing 1 of 2: Viewpoint a…', done: 0, total: 2 },
+    })
+    expect(running.note).toBe('Capturing 1 of 2: Viewpoint a… The file is written when the views are saved.')
+  })
+
+  it('names the views a file goes without, and why', () => {
+    const ctx = withPlanned([
+      exportPlanned('a', { failed: 'The road view did not open.' }),
+      exportPlanned('b', { state: 'captured', savedViewId: 'b-1' }),
+    ])
+    expect(uncapturedNote('via-report', ctx)).toBe(
+      'A view of interest is not in the file because it was not captured: Viewpoint a (The road view did not open).',
+    )
+    expect(uncapturedNote('scene', ctx)).toBeNull()
+    expect(exportPreparation('via-report', ctx).note).toMatch(/Download tries them again\.$/)
+  })
+
+  it('lists each view of interest with its block, lens and capture state in what goes in', () => {
+    const ctx = withPlanned([
+      exportPlanned('a'),
+      exportPlanned('b', { state: 'captured', savedViewId: 'b-1' }),
+      exportPlanned('c', { include: false }),
+    ])
+    for (const kind of ['block-note', 'analysis-sheet', 'via-document', 'via-report'] as const) {
+      const section = exportContents(kind, ctx).find((entry) => entry.title === 'Views of interest')
+      expect(section?.action?.id).toBe('open-package')
+      expect(section?.items?.map((item) => item.subtitle)).toEqual([
+        'Block 1 · 50 mm · 39.6° across · To capture: captured before the file is written',
+        'Block 1 · 50 mm · 39.6° across · Captured: in the file',
+        'Block 1 · 50 mm · 39.6° across · Left out',
+      ])
+      expect(section?.note).toMatch(/^2 views of interest in the file, 1 to capture first/)
+    }
+    expect(exportContents('fs1252', ctx).some((entry) => entry.title === 'Views of interest')).toBe(false)
+    // Before any capture the report says where its figures will come from.
+    expect(exportContents('via-report', ctx)[0].note).toMatch(/once they are captured/)
+  })
+
+  it('lists a capture with its view of interest, not again among the saved views', () => {
+    const ctx = withPlanned([exportPlanned('a', { state: 'captured', savedViewId: 'v-a' })], {
+      views: [view('v-a', { view: { ...view('v-a').view, plannedViewId: 'a' } }), view('own')],
+    })
+    const section = exportContents('block-note', ctx).find((entry) => entry.title === 'Viewpoints in the report')
+    expect(section?.items?.map((item) => item.title)).toEqual(['View from the road going north own'])
+    expect(packageSummary({ ...ctx, recipe: 'District summary' })).toBe('District summary · PGMaps · 2 views')
+    expect(packageSummary(withPlanned([exportPlanned('a')]))).toBe('No recipe · PGMaps · 1 view, 1 to capture')
   })
 })
