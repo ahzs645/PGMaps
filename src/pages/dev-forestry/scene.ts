@@ -42,6 +42,7 @@ import { parseSurveyedEye } from './viewpointStand'
 import { parseFieldGreenUp } from './greenUp'
 import { parseFigureFrame, type FigureFrame } from './figureFraming'
 import { parsePrescription } from './stand/prescription'
+import { parseViewsOfInterest, type ViewOfInterest } from './viewsOfInterest'
 
 export const SCENE_STORAGE_KEY = 'pgmaps.forestry-visual-quality.v1'
 
@@ -66,6 +67,11 @@ export type ForestryScene = {
    * its pixel figure, never the run.
    */
   figureFrame?: FigureFrame
+  /**
+   * The views planned on the plan map (`viewsOfInterest.ts`): where to stand, which way to face, which block, the
+   * lens. A plan, not an input: out of `sceneFingerprint` and the run, like the tree-free areas.
+   */
+  viewsOfInterest?: ViewOfInterest[]
   localRasters?: LocalRaster[]
   activeLandformId?: string | null
   assessmentYear?: number
@@ -403,6 +409,7 @@ type SerializedScene = {
    * its pixel figure, never the run.
    */
   figureFrame?: FigureFrame
+  viewsOfInterest?: unknown
   localRasters?: LocalRaster[]
   activeLandformId?: string | null
   assessmentYear?: number
@@ -559,6 +566,9 @@ export function parseScene(input: unknown): ForestryScene | null {
       : {}),
     ...(raw.clearPrivateLand === true ? { clearPrivateLand: true } : {}),
     ...(parseFigureFrame(raw.figureFrame) ? { figureFrame: parseFigureFrame(raw.figureFrame)! } : {}),
+    ...(parseViewsOfInterest(raw.viewsOfInterest).length
+      ? { viewsOfInterest: parseViewsOfInterest(raw.viewsOfInterest) }
+      : {}),
     viewpoint: {
       id: typeof raw.viewpoint?.id === 'string' ? raw.viewpoint.id : base.viewpoint.id,
       name: typeof raw.viewpoint?.name === 'string' ? raw.viewpoint.name : base.viewpoint.name,

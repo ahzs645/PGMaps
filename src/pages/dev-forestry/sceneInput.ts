@@ -65,6 +65,8 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
     delete assessed.clearPrivateLand
     // The sheet's fixed frame only changes the picture.
     delete assessed.figureFrame
+    // The planned views are a plan: capturing one stands there and runs again, editing the list never stales the run.
+    delete assessed.viewsOfInterest
     // A surveyed eye elevation counts as the run reads it: only while it applies to where the eye
     // stands, so one left behind by a moved viewpoint does not stale the run.
     const viewpoint = { ...scene.viewpoint }

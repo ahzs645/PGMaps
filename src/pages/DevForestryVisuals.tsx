@@ -59,6 +59,8 @@ import type { RidgeLayer } from './dev-forestry/ridgeLayers'
 import type { CanopyStand } from './dev-forestry/canopy'
 import { createRoadsideDriveScene, ROADSIDE_DEMO_ID, roadsideDriveCue } from './dev-forestry/driveScenario'
 import { createPurdenLakeScene } from './dev-forestry/purdenLakeScenario'
+import type { ViewOfInterest } from './dev-forestry/viewsOfInterest'
+import { useViewCapture } from './dev-forestry/useViewCapture'
 import { PreviewWorkflow } from './dev-forestry/PreviewWorkflow'
 import {
   candidateDriveViews,
@@ -1549,6 +1551,19 @@ function DevForestryVisuals() {
   )
   // Drawing or snapping another road ends the stand; there is nothing to step back to.
   const standingNow = standing && scene.viewpoint.id.startsWith('stand-') ? standing : null
+  // ---------------------------------------------------------------------------------------------------------------
+  // Views of interest (`viewsOfInterest.ts`): planned on the plan, captured as saved views by `useViewCapture`.
+  const viewsOfInterest = useMemo(() => scene.viewsOfInterest ?? [], [scene.viewsOfInterest])
+  const setViewsOfInterest = useCallback(
+    (update: (views: ViewOfInterest[]) => ViewOfInterest[]) =>
+      setScene((current) => {
+        const next = update(current.viewsOfInterest ?? [])
+        return next.length ? { ...current, viewsOfInterest: next } : { ...current, viewsOfInterest: undefined }
+      }),
+    [setScene],
+  )
+  const viewCapture = useViewCapture()
+  // ---------------------------------------------------------------------------------------------------------------
   /** The block note as Excel or PDF: the panel's text, every saved view's screenshot, and the plan map. */
   const buildBlockNote = useCallback(
     async (format: 'xlsx' | 'pdf', parts: BlockNoteParts, choices: BlockNoteChoices): Promise<BuiltFile> => {

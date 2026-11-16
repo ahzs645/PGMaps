@@ -1,0 +1,124 @@
+import { describe, expect, it } from 'vitest'
+import type { ViewpointCandidate } from './viewpointInventory'
+import {
+  addViews,
+  groupByPlace,
+  lensHfovDeg,
+  MAX_VIEWS_OF_INTEREST,
+  parseViewsOfInterest,
+  viewAtPoint,
+  viewBearing,
+  viewCaptureKey,
+  viewCaptureState,
+  viewsForCandidate,
+} from './viewsOfInterest'
+import { sceneFingerprint } from './sceneInput'
+import { createSampleScene, parseScene, serializeScene } from './scene'
+
+const block = {
+  id: 'block-1',
+  name: 'Block A',
+  geometry: {
+    type: 'Polygon' as const,
+    coordinates: [
+      [
+        [-122.6, 53.9],
+        [-122.59, 53.9],
+        [-122.59, 53.91],
+        [-122.6, 53.91],
+        [-122.6, 53.9],
+      ],
+    ],
+  },
+}
+
+// A viewpoint due west of the block: the block lies at about 90°.
+const candidate = (bearings: number[]): ViewpointCandidate => ({
+  key: 'vli:1',
+  kind: 'vli',
+  name: 'VLI 144',
+  lng: -122.65,
+  lat: 53.905,
+  distanceMeters: 3000,
+  bearingToBlock: 90,
+  arrow: null,
+  arrows: bearings.map((bearing, index) => ({
+    id: `a${index}`,
+    bearing,
+    offsetDegrees: Math.abs(bearing - 90),
+    lengthMeters: 500,
+    aims: Math.abs(bearing - 90) <= 30,
+  })),
+  weight: 1,
+})
+
+describe('viewsForCandidate', () => {
+  it('adds the two arrows aimed nearest the block, nearest first', () => {
+    const views = viewsForCandidate(candidate([200, 100, 70, 85]), block)
+    expect(views.map((view) => view.facing)).toEqual([
+      { kind: 'bearing', degrees: 85, arrowId: 'a3' },
+      { kind: 'bearing', degrees: 100, arrowId: 'a1' },
+    ])
+    expect(views[0].name).toBe('VLI 144, arrow 4')
+  })
+  it('faces the block when no arrow aims at it', () => {
+    const views = viewsForCandidate(candidate([200, 300]), block)
+    expect(views).toHaveLength(1)
+    expect(views[0].facing).toEqual({ kind: 'block' })
+    expect(views[0].name).toBe('VLI 144, toward Block A')
+  })
+  it('takes the arrows the reviewer picked', () => {
+    const views = viewsForCandidate(candidate([200, 100]), block, { arrowIds: ['a0'] })
+    expect(views.map((view) => view.facing)).toEqual([{ kind: 'bearing', degrees: 200, arrowId: 'a0' }])
+  })
+})
+
+describe('the list', () => {
+  it('skips repeats and stops at the limit', () => {
+    const first = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
+    const again = { ...first, id: 'other' }
+    const result = addViews([first], [again])
+    expect(result).toMatchObject({ duplicates: 1, overLimit: 0 })
+    const many = Array.from({ length: MAX_VIEWS_OF_INTEREST + 2 }, (_, index) =>
+      viewAtPoint({ lng: -122.7 + index * 0.01, lat: 53.9 }, block, []),
+    )
+    expect(addViews([], many)).toMatchObject({ overLimit: 2 })
+  })
+  it('groups views standing at one place', () => {
+    const views = viewsForCandidate(candidate([80, 100]), block)
+    const other = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
+    expect(groupByPlace([...views, other]).map((group) => group.length)).toEqual([2, 1])
+  })
+  it('faces the block from where it stands', () => {
+    const view = viewAtPoint({ lng: -122.65, lat: 53.905 }, block, [])
+    expect(viewBearing(view, { lng: -122.595, lat: 53.905 })).toBeCloseTo(90, 0)
+  })
+  it('reads a 50 mm lens as 39.6° across', () => {
+    expect(lensHfovDeg(50)).toBeCloseTo(39.6, 1)
+  })
+})
+
+describe('capture state', () => {
+  it('needs capturing again once the facing changes, not the name', () => {
+    const view = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
+    const saved = [{ plannedViewId: view.id, plannedKey: viewCaptureKey(view) }]
+    expect(viewCaptureState(view, saved)).toBe('captured')
+    expect(viewCaptureState({ ...view, name: 'Renamed', include: false }, saved)).toBe('captured')
+    expect(viewCaptureState({ ...view, facing: { kind: 'bearing', degrees: 10 } }, saved)).toBe('outdated')
+    expect(viewCaptureState(view, [])).toBe('not-captured')
+  })
+})
+
+describe('in the scene', () => {
+  it('round-trips through the scene file and never stales the run', () => {
+    const scene = createSampleScene()
+    const blockId = scene.targets.find((target) => target.role === 'block')!.id
+    const views = [viewAtPoint({ lng: -122.7, lat: 53.9 }, { id: blockId, name: 'B' }, [])]
+    const planned = { ...scene, viewsOfInterest: views }
+    expect(sceneFingerprint(planned)).toBe(sceneFingerprint(scene))
+    expect(parseScene(JSON.parse(serializeScene(planned)))?.viewsOfInterest).toEqual(views)
+  })
+  it('drops malformed entries', () => {
+    expect(parseViewsOfInterest([{ id: 'x' }, null, 4])).toEqual([])
+  })
+})

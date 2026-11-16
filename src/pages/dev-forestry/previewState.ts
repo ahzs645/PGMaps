@@ -25,6 +25,9 @@ export type SavedDriveView = {
    * and after a redesign.
    */
   designName?: string
+  /** The planned view this was captured for (`viewsOfInterest.ts`), and that view's `viewCaptureKey` then. */
+  plannedViewId?: string
+  plannedKey?: string
 }
 export const PREVIEW_STORAGE_KEY = 'pgmaps.forestry-driving-views.v1'
 
@@ -152,6 +155,8 @@ export function parsePreview(input: unknown): { scene: ForestryScene; views: Sav
         ...(typeof v.designName === 'string' && v.designName.trim()
           ? { designName: v.designName.trim().slice(0, 120) }
           : {}),
+        ...(typeof v.plannedViewId === 'string' ? { plannedViewId: v.plannedViewId } : {}),
+        ...(typeof v.plannedKey === 'string' ? { plannedKey: v.plannedKey } : {}),
         ...(typeof v.projectRecordedHeights === 'boolean' ? { projectRecordedHeights: v.projectRecordedHeights } : {}),
         ...(Number.isFinite(v.growthMetersPerYear) && v.growthMetersPerYear! >= 0.1 && v.growthMetersPerYear! <= 1
           ? { growthMetersPerYear: v.growthMetersPerYear }
