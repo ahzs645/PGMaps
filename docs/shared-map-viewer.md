@@ -14,11 +14,15 @@ The actual collection capability URLs are **not committed to this public reposit
 
 Collection links open a scrolling image library, including older links that contain a `map` identifier. All raster representations are available by default; a separate selections tab shows curated stories. Search and the virtualized preview grid keep large catalogues usable without fetching every image or opening a basemap.
 
-On phones, the header, filters and cards scroll together so the full card actions and the final record stay reachable, including when filters are expanded. Desktop keeps the header and toolbar above a separately scrolling card grid. Check this at short phone heights as well as full desktop sizes.
+The library is one scrolling page at every width (`MapLibrary.tsx`). The title row (collection name, **Copy link**, a **More** menu) scrolls away; the search row below it stays pinned, with the scope switch beside it from 640 px and scrolling out from under it on a phone. The collection's description, its counts and **Open another map URL** are in the **More** menu, not above the maps. The phone's floating navigation covers the band above the scroller, so the scroller starts below it and nothing scrolls behind it.
 
-Choose **View image** to inspect a larger raster image, then **Open on map** to explore its geographic placement. The larger preview is assembled on demand from existing raster tiles (up to 1,800 pixels on its longest side); it is a display derivative, not a replacement for the native GeoTIFF. Full source sheets, available legend crops, source notes and original downloads remain accessible from the image preview.
+Filters are one row of dropdowns from 1024 px. Below that a **Filters** button opens the same dropdowns in a bottom sheet, and each filter in use shows as a removable chip beside the count, so a narrowed list always says why. Filters apply as they are chosen. The count line names what the scope lists ("126 of 902 maps").
 
-Map links explicitly add `&view=map&map=<map id>`. The map's **Library** button returns to browsing with the current search and scroll position retained. The mobile map title sits below the main navigation, has a dismiss button, and can be restored with **Map info**. Loading background imagery does not block its controls or the historic overlay.
+Cards are sized from the page's own width (`libraryColumns`): two across on any phone, then as many as keep a card at least 264 px wide. A card shows its thumbnail with the placement confidence in the corner, the title, the primary subject, and its date, page and variant on one line; a record with no date gets no "Date unknown" line. The whole card opens the image; its footer holds **Open on map** and, where the source has several layers, a link that filters to them. Check the library at 320 px, a short phone, a tablet and a wide desktop.
+
+The image opens in the shared `DialogShell`, a bottom sheet on a phone, with **Open on map** and **Notes & sources** in a footer that stays in view. The larger preview is assembled on demand from existing raster tiles (up to 1,800 pixels on its longest side); it is a display derivative, not a replacement for the native GeoTIFF. Full source sheets, available legend crops, source notes and original downloads remain accessible from the image preview.
+
+Map links explicitly add `&view=map&map=<map id>`. The map's **Library** button returns to browsing with the current search and scroll position retained. The map's sidebar leads with the selected map (opacity, basemap, source image, notes, share link) and lists the rest of the collection below it. The mobile map title sits below the main navigation, has a dismiss button, and can be restored with **Map info**. Loading background imagery does not block its controls or the historic overlay.
 
 ## What the viewer accepts
 
@@ -128,7 +132,7 @@ Changing a catalogue can take up to its cache TTL to appear. Revocation requires
 
 ```sh
 node --test scripts/shared-maps-worker/worker.test.mjs
-npx vitest run src/pages/dev-view/catalogue.test.ts
+npx vitest run src/pages/dev-view
 npx tsc -b
 npx eslint src/pages/DevView.tsx src/pages/dev-view
 ```

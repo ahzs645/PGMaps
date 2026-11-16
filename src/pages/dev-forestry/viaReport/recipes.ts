@@ -46,6 +46,12 @@ export interface ReportRecipe {
    * obliques do. Drawn through `horizonSafePitch` with roll 0.
    */
   obliquePitch?: number
+  /**
+   * A recipe someone made from the shared parts (`userRecipes.ts`), kept in their browser: the recipe it was copied
+   * from, if any. Absent on the built-in recipes. Its report says it is an own recipe, never "in the structure of" a
+   * reference document it no longer follows.
+   */
+  own?: { basedOn: string | null }
 }
 
 /** Map pitch of the report's oblique renders when a recipe gives none, degrees: about 60° down on the blocks. */
@@ -248,12 +254,35 @@ const LISTED_BY_PARTS: Readonly<Record<string, readonly string[]>> = {
   rationale: ['appendix-1'],
 }
 
+/** One part as it printed in an assembled report: what it drew and what it left for the reviewer. */
+export interface AssembledPart {
+  id: string
+  title: string
+  sources: readonly string[]
+  /** Its first block, as an object in `report.blocks`; null when it printed nothing for this assessment. */
+  first: ReportBlock | null
+  blocks: number
+  toComplete: number
+}
+
 /** Assembles `recipe` from `ctx`: each part in order, with what each leaves for the reviewer. */
 export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): AssembledReport {
+  return assembleReportParts(recipe, ctx).report
+}
+
+/**
+ * As `assembleReport`, also saying which part printed what (`AssembledPart`), for the draft's part list and its marks
+ * in the page. The report is the same object `assembleReport` returns.
+ */
+export function assembleReportParts(
+  recipe: ReportRecipe,
+  ctx: ReportContext,
+): { report: AssembledReport; parts: AssembledPart[] } {
   // Viewpoints print in the order of the numbers their names carry, whatever order the views were saved in.
   ctx = inViewpointOrder(ctx)
   const blocks: ReportBlock[] = []
   const toComplete: ReportItemToComplete[] = []
+  const parts: AssembledPart[] = []
   for (const id of recipe.parts) {
     const part = findReportPart(id)
     if (!part) throw new Error(`Unknown report part: ${id}`)
@@ -261,6 +290,14 @@ export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): Assemb
       ...ctx,
       recipeParts: recipe.parts,
       recipeOptions: { ...recipe.options, ...ctx.recipeOptions },
+    })
+    parts.push({
+      id: part.id,
+      title: part.title,
+      sources: part.sources,
+      first: out.blocks[0] ?? null,
+      blocks: out.blocks.length,
+      toComplete: out.toComplete?.length ?? 0,
     })
     blocks.push(...out.blocks)
     for (const what of out.toComplete ?? []) toComplete.push({ part: part.title, what })
@@ -278,7 +315,10 @@ export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): Assemb
     : proposedBlocks(ctx)
         .map((block) => block.name)
         .join(', ') || 'Proposed blocks'
-  return {
+  const structure = recipe.own
+    ? `PGMaps report from your own recipe, ${recipe.name}, built of shared parts${recipe.sources.length ? ` from reference document${recipe.sources.length > 1 ? 's' : ''} ${recipe.sources.join(', ')}` : ''}`
+    : `PGMaps report in the structure of reference document${recipe.sources.length > 1 ? 's' : ''} ${recipe.sources.join(', ')}`
+  const report: AssembledReport = {
     id: recipe.id,
     title: recipe.title,
     subtitle: project,
@@ -286,8 +326,9 @@ export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): Assemb
     blocks: [heading(recipe.title, 1), ...blocks],
     toComplete,
     layout: { paper: 'letter', cover: false, contents: false, ...recipe.layout },
-    footer: `PGMaps report in the structure of reference document${recipe.sources.length > 1 ? 's' : ''} ${recipe.sources.join(', ')} · generated ${ctx.date.toISOString().slice(0, 10)} · terrain model and drawn timber, not a field-verified simulation`,
+    footer: `${structure} · generated ${ctx.date.toISOString().slice(0, 10)} · terrain model and drawn timber, not a field-verified simulation`,
   }
+  return { report, parts }
 }
 
 /**

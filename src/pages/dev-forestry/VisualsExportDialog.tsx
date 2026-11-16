@@ -13,6 +13,7 @@ import { downloadBlob } from '@/lib/download'
 import { useInterfaceThemeApplied } from '@/lib/interfaceTheme'
 import { cn } from '@/lib/utils'
 
+import { ReportDraftView, type ReportDraftResult } from './ReportDraftView'
 import type { ViewCaptureReport } from './useViewCapture'
 import { VIA_STEPS, type ViaStepId } from './via'
 import {
@@ -39,6 +40,15 @@ import {
 
 /** A written file: what the download saves and the preview shows. */
 export type BuiltFile = { blob: Blob; fileName: string }
+
+/**
+ * An output's draft (the VIA report's): laid out at once without capturing anything, with stand-ins for pictures not
+ * drawn yet, and `draw` to draw one picture group of it now.
+ */
+export type OutputDraft = {
+  build: () => Promise<ReportDraftResult>
+  draw: (id: string) => Promise<void>
+}
 
 const GROUPS = Object.keys(VISUALS_EXPORT_GROUP_LABELS) as VisualsExportGroup[]
 // Option edits rebuild the preview; a short pause keeps typing from rebuilding it per key.
@@ -265,6 +275,7 @@ function ViewThumbnail({ src, empty }: { src: string | null; empty: string }) {
  */
 export function ExportPackagePane({
   recipe,
+  recipeTools,
   renderer,
   planned,
   saved,
@@ -272,6 +283,8 @@ export function ExportPackagePane({
   onSavedInclude,
 }: {
   recipe: PackageSelect & { note: string }
+  /** Making, editing, sharing and importing your own recipes (`OwnRecipeTools`), under the recipe. */
+  recipeTools?: ReactNode
   renderer: PackageSelect & { unavailable: string | null }
   planned: ReadonlyArray<ExportPlannedView & { thumbnail: string | null }>
   saved: ReadonlyArray<{ id: string; name: string; included: boolean; detail: string; thumbnail: string | null }>
@@ -299,6 +312,7 @@ export function ExportPackagePane({
         <PackageHeading>Recipe</PackageHeading>
         {select(recipe, 'Package recipe')}
         <p className="text-2xs text-muted-foreground">{recipe.note}</p>
+        {recipeTools}
       </section>
       <section className="min-w-0 space-y-1.5" aria-label="Figures drawn by">
         <PackageHeading>Figures drawn by</PackageHeading>
@@ -387,6 +401,7 @@ export function VisualsExportDialog({
   onRender,
   onReadInventory,
   packagePane,
+  drafts,
   onCapture,
   onCancelCapture,
   portalContainer,
@@ -418,6 +433,8 @@ export function VisualsExportDialog({
   onReadInventory?: () => void
   /** The package's choices (`ExportPackagePane`), shown under its own entry first in the list. Absent: no entry. */
   packagePane?: ReactNode
+  /** Outputs with a draft view (`OutputDraft`): the VIA report. */
+  drafts?: Partial<Record<VisualsExport, OutputDraft>>
   /**
    * Captures views of interest as saved views (`viewsToCapture`, `beforeToCapture`) before an output that draws them
    * is written; `before`, with each one's before-harvest render where it stands.
@@ -433,7 +450,15 @@ export function VisualsExportDialog({
   const [packageOpen, setPackageOpen] = useState(open && initialPackage && !!packagePane)
   // Teal in the built-in theme; an Appearance theme's own selection colours under one.
   const themed = useInterfaceThemeApplied()
-  const [view, setView] = useState<'contents' | 'preview'>('contents')
+  const [view, setView] = useState<'contents' | 'draft' | 'preview'>('contents')
+  // The draft of the selected output, for its own request; the picture group drawing now, and why a draw failed.
+  const [draftResult, setDraftResult] = useState<
+    | { request: object; draft: ReportDraftResult; error?: undefined }
+    | { request: object; draft?: undefined; error: string }
+    | null
+  >(null)
+  const [drawing, setDrawing] = useState<string | null>(null)
+  const [drawError, setDrawError] = useState<string | null>(null)
   const [formats, setFormats] = useState<Partial<Record<VisualsExport, string>>>({})
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<{ tone: 'info' | 'warning' | 'error'; text: string } | null>(null)
@@ -449,6 +474,9 @@ export function VisualsExportDialog({
     }
   }
   const item = findVisualsExport(selected)
+  const draftOf = drafts?.[item.kind]
+  // An output without a draft shows its contents in place of one.
+  const shownView = view === 'draft' && !draftOf ? 'contents' : view
   const format = item.formats.find((entry) => entry.id === formats[item.kind]) ?? item.formats[0]
   const unavailable = exportUnavailable(item.kind, context)
   const sections = useMemo(() => exportContents(item.kind, context), [item.kind, context])
@@ -469,6 +497,7 @@ export function VisualsExportDialog({
   const latestReadInventory = useRef(onReadInventory)
   const latestCapture = useRef(onCapture)
   const latestCancelCapture = useRef(onCancelCapture)
+  const latestDrafts = useRef(drafts)
   // The capture this dialog started, while it runs: every wait shares it rather than starting another, since the
   // capture moves the page and each move restarts the preview.
   const captureInFlight = useRef<Promise<ViewCaptureReport> | null>(null)
@@ -481,6 +510,7 @@ export function VisualsExportDialog({
     latestReadInventory.current = onReadInventory
     latestCapture.current = onCapture
     latestCancelCapture.current = onCancelCapture
+    latestDrafts.current = drafts
   })
   useEffect(() => {
     changedAt.current = Date.now()
@@ -629,7 +659,7 @@ export function VisualsExportDialog({
   )
 
   useEffect(() => {
-    if (!open || unavailable || view !== 'preview' || packageOpen) return
+    if (!open || unavailable || shownView !== 'preview' || packageOpen) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       let missing: string | null = null
@@ -660,7 +690,51 @@ export function VisualsExportDialog({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [open, request, unavailable, view, packageOpen, prepare, writeFile])
+  }, [open, request, unavailable, shownView, packageOpen, prepare, writeFile])
+  // The draft is laid out again whenever the output's content changes; it captures nothing, so it waits for nothing.
+  useEffect(() => {
+    if (!open || unavailable || shownView !== 'draft' || packageOpen) return
+    let stopped = false
+    const timer = window.setTimeout(() => {
+      const draft = latestDrafts.current?.[request.kind]
+      if (!draft) return
+      draft
+        .build()
+        .then((built) => !stopped && setDraftResult({ request, draft: built }))
+        .catch(
+          (error: unknown) =>
+            !stopped &&
+            setDraftResult({
+              request,
+              error: error instanceof Error ? error.message : 'The draft could not be laid out.',
+            }),
+        )
+    }, PREVIEW_DELAY_MS)
+    return () => {
+      stopped = true
+      window.clearTimeout(timer)
+    }
+  }, [open, request, unavailable, shownView, packageOpen])
+  // The last draft stays up while the next is laid out, so drawing a picture does not blank the page.
+  const shownDraft = draftResult && (draftResult.request === request || draftResult.draft) ? draftResult : null
+  /** Draws one picture group of the draft, after any file being written: both move the page's maps. */
+  const drawPicture = async (id: string) => {
+    const draft = latestDrafts.current?.[item.kind]
+    if (!draft || drawing) return
+    setDrawing(id)
+    setDrawError(null)
+    try {
+      await buildInFlight.current
+      const job = draft.draw(id)
+      buildInFlight.current = job.catch(() => undefined)
+      await job
+    } catch (error) {
+      setDrawError(error instanceof Error ? error.message : 'The picture could not be drawn.')
+    } finally {
+      setDrawing(null)
+    }
+  }
+
   // Object URLs live as long as their preview.
   useEffect(() => {
     const preview = result?.preview
@@ -793,7 +867,22 @@ export function VisualsExportDialog({
         {packageOpen && packagePane ? (
           <section ref={pane} aria-label="Package" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold">Package</h3>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-sm font-semibold">Package</h3>
+                {drafts?.['via-report'] && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => {
+                      select('via-report')
+                      setView('draft')
+                    }}
+                  >
+                    See the report’s draft
+                  </Button>
+                )}
+              </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Chosen once for every output: the recipe the VIA report and the VIA document follow, who draws the
                 figures, and the views that go in.
@@ -838,7 +927,7 @@ export function VisualsExportDialog({
                 size="sm"
                 fullWidth={false}
                 label={`${item.label} view`}
-                value={view}
+                value={shownView}
                 onChange={(next) => {
                   // A download's line (saved, or why not) belongs to that download, not to the next view.
                   setView(next)
@@ -846,6 +935,7 @@ export function VisualsExportDialog({
                 }}
                 options={[
                   { value: 'contents' as const, label: 'What goes in' },
+                  ...(draftOf ? [{ value: 'draft' as const, label: 'Draft' }] : []),
                   { value: 'preview' as const, label: 'Preview' },
                 ]}
               />
@@ -865,7 +955,7 @@ export function VisualsExportDialog({
                 <span role="status">{status.text}</span>
               </InlineAlert>
             )}
-            {!unavailable && preparation.note && !(view === 'preview' && preparation.noteIsSkipped && current) && (
+            {!unavailable && preparation.note && !(shownView === 'preview' && preparation.noteIsSkipped && current) && (
               <InlineAlert
                 loading={
                   context.autoRun.status === 'running' ||
@@ -888,7 +978,21 @@ export function VisualsExportDialog({
             )}
             {/* Side by side the pane scrolls; stacked on a phone it flows with the dialog. */}
             <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">
-              {view === 'contents' ? (
+              {shownView === 'draft' && !unavailable ? (
+                shownDraft?.draft ? (
+                  <ReportDraftView
+                    draft={shownDraft.draft}
+                    options={options[item.kind]}
+                    drawing={drawing}
+                    onDraw={(id) => void drawPicture(id)}
+                    drawError={drawError}
+                  />
+                ) : shownDraft?.error ? (
+                  <InlineAlert tone="error">{shownDraft.error}</InlineAlert>
+                ) : (
+                  <InlineAlert loading>Laying out the draft…</InlineAlert>
+                )
+              ) : shownView === 'contents' ? (
                 <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 pb-2">
                   {options[item.kind] && (
                     <section className="space-y-1.5" aria-label="Options">

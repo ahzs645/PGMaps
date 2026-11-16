@@ -1,17 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileImage, Library, Link2, MapPinned, X } from 'lucide-react'
+import { FileImage, Info, Library, Link2, MapPinned, X } from 'lucide-react'
 import type { StyleSpecification } from 'maplibre-gl'
 import { Map as AppMap } from '@/components/ui/map'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { textColumn } from '@/components/map/tableColumns'
 import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
-import { InlineAlert, MapOverlay, MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
+import {
+  InlineAlert,
+  KeyValueRows,
+  MapOverlay,
+  MapSidebarShell,
+  SearchInput,
+  SidebarSection,
+} from '@/components/ui/map-panels'
+import { ActionMenu } from '@/components/ui/action-menu'
+import { PanelDialog } from '@/components/ui/dialog-shell'
 import { ResultRow, ListHeader } from '@/components/ui/result-list'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ExternalLink } from '@/components/ui/text-button'
 import { formatBytes, formatNumber } from '@/lib/format'
@@ -36,8 +44,10 @@ import {
   isRaster,
   matchesLibraryItem,
   organizationOptions,
+  resultCount,
   type LibraryItem,
 } from './dev-view/libraryOrganization'
+import { cn } from '@/lib/utils'
 import { StyledSelect } from '@/components/ui/styled-select'
 
 const STREET: StyleSpecification = {
@@ -112,6 +122,8 @@ export default function DevView() {
   const [error, setError] = useState('')
   const [tileError, setTileError] = useState('')
   const [details, setDetails] = useState(false)
+  const [urlOpen, setUrlOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [sheetPage, setSheetPage] = useState(0)
   const [legend, setLegend] = useState(false)
@@ -151,17 +163,20 @@ export default function DevView() {
     setQuery('')
     changeFilters({ ...EMPTY_FILTERS, sourceGroup: id })
   }
-  const categoryControls = (
-    <LibraryFilters
-      values={filters}
-      options={filterOptions}
-      sourceMode={scope === 'sources'}
-      onChange={changeFilters}
-    />
-  )
-  const coverageSummary = catalogue
-    ? `${formatNumber(catalogue.representationCount)} raster representations${catalogue.coverage?.sourceDocuments ? ` · ${formatNumber(catalogue.coverage.sourceDocuments)} source documents` : ''}${catalogue.unplacedSources.length ? ` · ${formatNumber(catalogue.unplacedSources.length)} source-image records` : ''}`
-    : undefined
+  const filterProps = {
+    values: filters,
+    options: filterOptions,
+    sourceMode: scope === 'sources',
+    onChange: changeFilters,
+  }
+  const scopeTotal = catalogue
+    ? scope === 'sources'
+      ? catalogue.unplacedSources.length
+      : scope === 'featured' && catalogue.featured.length
+        ? catalogue.featured.length
+        : catalogue.items.length
+    : 0
+  const countLabel = resultCount(libraryItems.length, scopeTotal, scope)
   const style = base === 'satellite' ? SATELLITE : STREET
   const styles = useMemo(() => ({ light: style, dark: style }), [style])
   useEffect(() => {
@@ -309,6 +324,7 @@ export default function DevView() {
       <form
         onSubmit={(event) => {
           event.preventDefault()
+          setUrlOpen(false)
           setView('library')
           setPreview(null)
           libraryScroll.current = 0
@@ -349,43 +365,46 @@ export default function DevView() {
       )}
     </>
   )
-  const collectionControls = catalogue && (
+  const hasScopes = !!catalogue && (!!catalogue.featured.length || !!catalogue.unplacedSources.length)
+  const scopeTabs = (className?: string) =>
+    catalogue &&
+    hasScopes && (
+      <SegmentedControl
+        label="Map scope"
+        className={className}
+        value={scope}
+        onChange={(value) => {
+          const next = value as 'featured' | 'all' | 'sources'
+          setScope(next)
+          setQuery('')
+          libraryScroll.current = 0
+          if (next === 'sources' && view === 'map') openLibrary()
+          if (view === 'map' && next !== 'sources') {
+            const item = (next === 'featured' ? catalogue.featured : catalogue.items)[0]
+            choose(item)
+            navigate({ hash: new URL(shareLink(source, item.id, 'map')).hash }, { replace: true })
+          }
+        }}
+        options={[
+          ...(catalogue.featured.length
+            ? [{ value: 'featured', label: `Selections ${formatNumber(catalogue.featured.length)}` }]
+            : []),
+          { value: 'all', label: `All ${formatNumber(catalogue.items.length)}` },
+          ...(catalogue.unplacedSources.length
+            ? [{ value: 'sources', label: `Source images ${formatNumber(catalogue.unplacedSources.length)}` }]
+            : []),
+        ]}
+      />
+    )
+  const searchField = (wrapperClassName?: string) => (
     <>
-      {(!!catalogue.featured.length || !!catalogue.unplacedSources.length) && (
-        <SegmentedControl
-          label="Map scope"
-          className="mt-3"
-          value={scope}
-          onChange={(value) => {
-            const next = value as 'featured' | 'all' | 'sources'
-            setScope(next)
-            setQuery('')
-            libraryScroll.current = 0
-            if (next === 'sources' && view === 'map') openLibrary()
-            if (view === 'map' && next !== 'sources') {
-              const item = (next === 'featured' ? catalogue.featured : catalogue.items)[0]
-              choose(item)
-              navigate({ hash: new URL(shareLink(source, item.id, 'map')).hash }, { replace: true })
-            }
-          }}
-          options={[
-            ...(catalogue.featured.length
-              ? [{ value: 'featured', label: `Selections ${catalogue.featured.length}` }]
-              : []),
-            { value: 'all', label: `All ${catalogue.items.length}` },
-            ...(catalogue.unplacedSources.length
-              ? [{ value: 'sources', label: `Source images ${catalogue.unplacedSources.length}` }]
-              : []),
-          ]}
-        />
-      )}
       <label htmlFor="shared-map-search" className="sr-only">
         Search maps
       </label>
       <SearchInput
         id="shared-map-search"
         icon
-        wrapperClassName="mt-3"
+        wrapperClassName={wrapperClassName}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value)
@@ -395,55 +414,50 @@ export default function DevView() {
           setQuery('')
           libraryScroll.current = 0
         }}
-        placeholder="Find a map or source…"
+        placeholder={scope === 'sources' ? 'Search source images…' : 'Search maps…'}
       />
-      <CopyButton
-        text={() => shareLink(source, view === 'map' ? selectedId : undefined, view)}
-        className="mt-3 text-xs underline underline-offset-4"
-        onResult={(result) => {
-          if (!result.copied && result.text) setManualShare(result.text)
-        }}
-      >
-        {view === 'map' ? 'Copy this map’s share link' : 'Copy library link'}
-      </CopyButton>
-      {manualShare && (
-        <label className="mt-2 block text-xs">
-          Copy this link manually
-          <input
-            readOnly
-            value={manualShare}
-            onFocus={(e) => e.target.select()}
-            className="mt-1 w-full rounded border p-2"
-          />
-        </label>
-      )}
     </>
+  )
+  const copyLink = (
+    <CopyButton
+      text={() => shareLink(source, view === 'map' ? selectedId : undefined, view)}
+      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1.5')}
+      copiedLabel={
+        <>
+          <Link2 />
+          Link copied
+        </>
+      }
+      onResult={(result) => setManualShare(!result.copied && result.text ? result.text : '')}
+    >
+      <Link2 />
+      Copy link
+    </CopyButton>
+  )
+  const manualLink = manualShare && (
+    <label className="block text-xs text-muted-foreground">
+      The link could not be copied for you. Copy it here:
+      <input
+        readOnly
+        value={manualShare}
+        onFocus={(e) => e.target.select()}
+        className="mt-1 w-full rounded-md border bg-background p-2 text-foreground"
+      />
+    </label>
   )
   const sidebar = (
     <MapSidebarShell
       title={catalogue?.title || 'Open a shared map'}
-      subtitle={
-        catalogue
-          ? `${formatNumber(catalogue.representationCount)} raster representations`
-          : 'Browse maps from a share link or data URL'
-      }
+      subtitle={catalogue ? resultCount(catalogue.items.length, catalogue.items.length, 'all') : undefined}
       icon={MapPinned}
       className={MAP_SIDEBAR_CLASS}
     >
-      <SidebarSection title="Map URL" icon={Link2}>
-        {sourceForm}
-      </SidebarSection>
       {catalogue && (
         <>
-          <SidebarSection title="Collection">
-            <p className="text-xs text-muted-foreground">{catalogue.description}</p>
-            {collectionControls}
-            {categoryControls}
-          </SidebarSection>
           {selected && (
             <SidebarSection title="Selected map">
-              <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{label}</p>
-              <h2 className="mt-1 text-sm font-semibold">{selected.title}</h2>
+              <h2 className="text-sm font-semibold leading-snug">{selected.title}</h2>
+              <p className="mt-1 text-xs font-medium text-warning-foreground">{label}</p>
               <OrganizationSummary value={selected.organization} facets={catalogue.facets} />
               {selected.dateLabel && <p className="mt-1 text-xs text-muted-foreground">{selected.dateLabel}</p>}
               <label className="mt-3 block text-xs" htmlFor="shared-opacity">
@@ -460,6 +474,7 @@ export default function DevView() {
               />
               <SegmentedControl
                 label="Reference basemap"
+                className="mt-2"
                 value={base}
                 onChange={(v) => setBase(v as 'street' | 'satellite')}
                 options={[
@@ -468,21 +483,23 @@ export default function DevView() {
                 ]}
               />
               <div className="mt-3 flex flex-wrap gap-2">
+                {(!!sourceImageChoices(selected).length || !!selected.sources.length) && (
+                  <Button variant="outline" size="sm" onClick={() => setPreview(selected)}>
+                    <FileImage />
+                    Source image
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => setDetails(true)}>
-                  Map notes & sources
+                  Notes & sources
                 </Button>
                 {!!selected.downloads.length && (
                   <Button variant="outline" size="sm" onClick={() => navigate(georeferenceLink(source, selected.id))}>
                     Adjust alignment
                   </Button>
                 )}
-                {(!!sourceImageChoices(selected).length || !!selected.sources.length) && (
-                  <Button variant="outline" size="sm" onClick={() => setPreview(selected)}>
-                    <FileImage />
-                    Original / source image
-                  </Button>
-                )}
+                {copyLink}
               </div>
+              {manualLink && <div className="mt-2">{manualLink}</div>}
               <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
                 {selected.alignmentReview?.summary || selected.caveat}
               </p>
@@ -493,6 +510,11 @@ export default function DevView() {
               )}
             </SidebarSection>
           )}
+          <SidebarSection title="All maps">
+            {scopeTabs('mb-3')}
+            {searchField()}
+            <LibraryFilters {...filterProps} />
+          </SidebarSection>
           <ListHeader count={filtered.length} noun={['map', 'maps']} />
           {!filtered.length && <p className="p-4 text-sm text-muted-foreground">No maps match that search.</p>}
           <VirtualResultList items={filtered} getKey={(i) => i.id} estimateSize={100} label="Map catalogue">
@@ -594,35 +616,42 @@ export default function DevView() {
       ) : catalogue ? (
         <MapLibrary
           title={catalogue.title}
-          description={catalogue.description}
           items={libraryItems}
           facets={catalogue.facets}
-          coverageSummary={coverageSummary}
-          sourceMode={scope === 'sources'}
-          onSourceGroup={filterBySource}
-          toolbar={
+          // Once one source's layers are listed, each card's link to them would lead back here.
+          onSourceGroup={filters.sourceGroup ? undefined : filterBySource}
+          actions={
             <>
-              <div className="grid gap-x-5 sm:grid-cols-[auto_minmax(12rem,1fr)_auto] sm:items-center">
-                {collectionControls}
-              </div>
-              {categoryControls}
-              <p className="mt-2 text-xs text-muted-foreground">
-                {formatNumber(libraryItems.length)}{' '}
-                {scope === 'sources'
-                  ? libraryItems.length === 1
-                    ? 'source record'
-                    : 'source records'
-                  : scope === 'featured'
-                    ? filtered.length === 1
-                      ? 'curated selection'
-                      : 'curated selections'
-                    : filtered.length === 1
-                      ? 'raster representation'
-                      : 'raster representations'}
-              </p>
+              {copyLink}
+              <ActionMenu
+                label="More"
+                triggerClassName="size-9"
+                items={[
+                  {
+                    id: 'about',
+                    label: 'About this collection',
+                    icon: <Info className="size-4" />,
+                    onSelect: () => setAboutOpen(true),
+                  },
+                  {
+                    id: 'url',
+                    label: 'Open another map URL…',
+                    icon: <Link2 className="size-4" />,
+                    onSelect: () => setUrlOpen(true),
+                  },
+                ]}
+              />
             </>
           }
-          sourceForm={sourceForm}
+          notice={manualLink}
+          tabs={scopeTabs('h-12 shrink-0 overflow-x-auto sm:h-10')}
+          search={searchField()}
+          filters={filterProps}
+          countLabel={countLabel}
+          onClear={() => {
+            setQuery('')
+            changeFilters({ ...EMPTY_FILTERS })
+          }}
           getInitialScroll={getLibraryScroll}
           resetKey={scope + ':' + query + ':' + JSON.stringify(filters)}
           onScroll={(top) => {
@@ -667,50 +696,57 @@ export default function DevView() {
         onClose={() => setSourcePreview(null)}
         onGeoreference={(item) => navigate(georeferenceLink(source, undefined, item.id))}
       />
-      <Dialog open={details} onOpenChange={setDetails}>
-        <DialogContent elevated className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{selected?.title || 'Map notes'}</DialogTitle>
-            <DialogDescription>
-              {selected?.description || 'Source documents, placement limits and downloads.'}
-            </DialogDescription>
-          </DialogHeader>
-          <p className="text-sm font-semibold">{label}</p>
+      <PanelDialog
+        open={details}
+        onOpenChange={setDetails}
+        size="md"
+        title={selected?.title || 'Map notes'}
+        subtitle={label}
+      >
+        <div className="space-y-3">
+          {selected?.description && <p className="text-sm leading-relaxed">{selected.description}</p>}
           <OrganizationSummary value={selected?.organization} facets={catalogue?.facets} detail />
-          <p className="text-sm leading-relaxed">{selected?.alignmentReview?.summary}</p>
-          <p className="text-sm leading-relaxed">{selected?.caveat}</p>
-          <h3 className="mt-2 font-semibold">Rectified GeoTIFFs</h3>
-          {selected?.downloads.map((d, i) => (
-            <ExternalLink key={d.url} href={d.url} className="flex break-all text-sm">
-              {d.label || `Download rectified panel ${i + 1}`}
-              {d.width && d.height ? ` · ${d.width.toLocaleString()} × ${d.height.toLocaleString()} px` : ''}
-              {d.bytes ? ` · ${formatBytes(d.bytes)}` : ''}
-            </ExternalLink>
-          ))}
-          <h3 className="mt-2 font-semibold">Source documents</h3>
-          {selected?.sources.map((s) => (
-            <ExternalLink key={s.url} href={s.url} className="flex text-sm">
-              {s.title}
-            </ExternalLink>
-          ))}
+          {selected?.alignmentReview?.summary && (
+            <p className="text-sm leading-relaxed">{selected.alignmentReview.summary}</p>
+          )}
+          {selected?.caveat && <p className="text-sm leading-relaxed">{selected.caveat}</p>}
+          {!!selected?.downloads.length && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold">Rectified GeoTIFFs</h3>
+              {selected.downloads.map((d, i) => (
+                <ExternalLink key={d.url} href={d.url} className="flex break-all text-sm">
+                  {d.label || `Download rectified panel ${i + 1}`}
+                  {d.width && d.height ? ` · ${d.width.toLocaleString()} × ${d.height.toLocaleString()} px` : ''}
+                  {d.bytes ? ` · ${formatBytes(d.bytes)}` : ''}
+                </ExternalLink>
+              ))}
+            </div>
+          )}
+          {!!selected?.sources.length && (
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold">Source documents</h3>
+              {selected.sources.map((s) => (
+                <ExternalLink key={s.url} href={s.url} className="flex text-sm">
+                  {s.title}
+                </ExternalLink>
+              ))}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Tiles preserve the recorded placement and available source detail. They do not establish geographic or
             survey accuracy.
           </p>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
-        <DialogContent elevated className="max-h-[92dvh] overflow-y-auto sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>{selected?.title} · reading sheet and legend</DialogTitle>
-            <DialogDescription>
-              Read the available page and margins. The source-image view includes any linked original scan and zoomable
-              detail.
-            </DialogDescription>
-          </DialogHeader>
+        </div>
+      </PanelDialog>
+      <PanelDialog
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        size="xl"
+        title={selected?.title || 'Source sheet'}
+        subtitle="Reading sheet and legend"
+        toolbar={
           <div className="flex flex-wrap items-center gap-2">
-            <label className="text-sm">
-              Page{' '}
+            {(selected?.fullSheets.length || 0) > 1 && (
               <StyledSelect
                 aria-label="Source page"
                 value={sheetPage}
@@ -718,7 +754,7 @@ export default function DevView() {
                   setSheetPage(Number(e.target.value))
                   setLegend(false)
                 }}
-                className="rounded border bg-background p-2"
+                className="h-9 max-w-full rounded-md border bg-background px-2 text-sm"
               >
                 {selected?.fullSheets.map((s, i) => (
                   <option key={s.image} value={i}>
@@ -726,32 +762,70 @@ export default function DevView() {
                   </option>
                 ))}
               </StyledSelect>
-            </label>
-            <Button size="sm" variant={legend ? 'outline' : 'default'} onClick={() => setLegend(false)}>
-              Full sheet
-            </Button>
+            )}
             {sheet?.legend && (
-              <Button size="sm" variant={legend ? 'default' : 'outline'} onClick={() => setLegend(true)}>
-                Legend / notes crop
-              </Button>
+              <SegmentedControl
+                label="Sheet view"
+                size="sm"
+                fullWidth={false}
+                value={legend ? 'legend' : 'sheet'}
+                onChange={(value) => setLegend(value === 'legend')}
+                options={[
+                  { value: 'sheet', label: 'Full sheet' },
+                  { value: 'legend', label: 'Legend / notes' },
+                ]}
+              />
             )}
           </div>
-          {sheet && (
-            <>
-              <img
-                src={legend && sheet.legend ? sheet.legend.image : sheet.image}
-                alt={`${selected?.title} — ${legend ? 'legend / notes' : 'complete source page'}`}
-                referrerPolicy="no-referrer"
-                className="max-h-[65dvh] w-full bg-stone-50 object-contain"
-              />
-              <ExternalLink href={legend && sheet.legend ? sheet.legend.image : sheet.image} className="text-sm">
-                Open image at full available resolution
-              </ExternalLink>
-              <p className="text-xs text-muted-foreground">{sheet.sourceNote}</p>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+        }
+      >
+        {sheet && (
+          <div className="space-y-2">
+            <img
+              src={legend && sheet.legend ? sheet.legend.image : sheet.image}
+              alt={`${selected?.title} — ${legend ? 'legend / notes' : 'complete source page'}`}
+              referrerPolicy="no-referrer"
+              className="max-h-[70dvh] w-full rounded-lg border bg-muted object-contain"
+            />
+            <ExternalLink href={legend && sheet.legend ? sheet.legend.image : sheet.image} className="text-sm">
+              Open image at full available resolution
+            </ExternalLink>
+            {sheet.sourceNote && <p className="text-xs text-muted-foreground">{sheet.sourceNote}</p>}
+          </div>
+        )}
+      </PanelDialog>
+      <PanelDialog open={urlOpen} onOpenChange={setUrlOpen} size="md" title="Open another map URL">
+        {sourceForm}
+      </PanelDialog>
+      <PanelDialog open={aboutOpen} onOpenChange={setAboutOpen} size="md" title={catalogue?.title || 'About'}>
+        {catalogue && (
+          <div className="space-y-3">
+            {catalogue.description && <p className="text-sm leading-relaxed">{catalogue.description}</p>}
+            <KeyValueRows
+              variant="divided"
+              size="sm"
+              rows={[
+                { label: 'Maps', value: formatNumber(catalogue.items.length) },
+                ...(catalogue.featured.length
+                  ? [{ label: 'Curated selections', value: formatNumber(catalogue.featured.length) }]
+                  : []),
+                ...(catalogue.coverage?.sourceDocuments
+                  ? [{ label: 'Source documents', value: formatNumber(catalogue.coverage.sourceDocuments) }]
+                  : []),
+                ...(catalogue.unplacedSources.length
+                  ? [
+                      {
+                        label: 'Source images without a placement',
+                        value: formatNumber(catalogue.unplacedSources.length),
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+            {catalogue.notes && <p className="text-xs leading-relaxed text-muted-foreground">{catalogue.notes}</p>}
+          </div>
+        )}
+      </PanelDialog>
     </>
   )
 }

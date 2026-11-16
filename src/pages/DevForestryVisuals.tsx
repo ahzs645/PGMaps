@@ -4771,6 +4771,11 @@ function DevForestryVisuals() {
     obliquePitch?: number
     /** The report prints 26's figure page: also capture its own location and regional maps (`planFigurePageMaps`). */
     figurePageMaps?: boolean
+    /**
+     * Which groups to capture, when not all (the draft draws one at a time, and a build captures only the groups it
+     * has not kept): the plan map's maps, each view's before picture, the overhead and oblique renders.
+     */
+    only?: { maps?: boolean; before?: boolean; renders?: boolean }
   }): Promise<{
     images: ReportImages
     notes: string[]
@@ -4818,6 +4823,7 @@ function DevForestryVisuals() {
       masks: scene.masks ?? [],
     })
     const sheetStyle = request.overviewSheet?.style ?? DEFAULT_OVERVIEW_SHEET_STYLE
+    const wants = (group: 'maps' | 'before' | 'renders') => !request.only || !!request.only[group]
 
     // The plan map: on imagery for the overview and location maps, on the vector map for the regional one, and on
     // the vector map with its hillshade for the 11 × 17 overview sheet (17:11, its own window of the canvas).
@@ -4829,7 +4835,9 @@ function DevForestryVisuals() {
     const sheetFrame = canvas
       ? captureFrame({ width: canvas.clientWidth, height: canvas.clientHeight }, overviewSheetAspect(sheetStyle))
       : null
-    if (!plan || !frame)
+    if (!wants('maps')) {
+      // Another group only: the plan map is not moved.
+    } else if (!plan || !frame)
       notes.push('The plan map is not open, so the report has no overview, location or regional map.')
     else if (frame.width < 240 || frame.height < 180)
       notes.push('The plan map pane is too small to capture the report’s maps; widen it and build the report again.')
@@ -4891,9 +4899,11 @@ function DevForestryVisuals() {
     // Before pictures: a lined-up field photo, a view saved before harvest, else a render from the view's framed pose.
     // Every view saved after harvest is rendered before harvest, a photographed one too: the with-timber pixel figure
     // compares the render with the view's own after picture, which a photograph's framing cannot.
-    const beforeRenders = await captureBeforeRenders(request.views)
+    const beforeRenders = wants('before')
+      ? await captureBeforeRenders(request.views)
+      : { renders: {}, absent: {}, notes: [] }
     notes.push(...beforeRenders.notes)
-    for (const view of request.views) {
+    for (const view of wants('before') ? request.views : []) {
       const image = viewImages[view.id]
       const photo = image?.viewpoint?.photo
       const render = beforeRenders.renders[view.id]
@@ -4924,11 +4934,11 @@ function DevForestryVisuals() {
     const eyeMap = eyeMapRef.current as unknown as import('maplibre-gl').Map | null
     const roadViewReady = !!eyeMap && driveRef.current.active && !!previewTerrain.source
     const blocks = scene.targets.filter((target) => target.role === 'block')
-    if (blocks.length && !roadViewReady)
+    if (blocks.length && !roadViewReady && wants('renders'))
       notes.push(
         'The road view is closed, so the report has no before-harvest renders (field photos only) and no overhead renders: open it and build the report again.',
       )
-    if (roadViewReady && eyeMap) {
+    if (roadViewReady && eyeMap && wants('renders')) {
       const phaseBefore = driveRef.current.harvestPhase
       try {
         // Overhead and oblique renders of the blocks after harvest, as the road view draws them (01 p7).
