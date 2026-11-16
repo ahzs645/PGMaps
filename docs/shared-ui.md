@@ -584,7 +584,9 @@ track grows to the longest cell in any column.
   right-click or Shift+F10 on a row opens its settings, and on a small screen the heading collapses
   it. An optional `qualifier` ("perspective scale", "whole road") prints under the label and joins
   it in the row's name (`metricName`), so keep labels short; a row's tooltip carries its name and,
-  while only its value shows, its note. `MetricSummaryLayout` puts it beside (`left`) or above
+  while only its value shows, its note. An optional `toolbar` puts controls that choose what the rows
+  read (the Viewpoint summary's planned-view and block switchers) under the heading, wrapping on a
+  narrow panel; without it nothing shows. `MetricSummaryLayout` puts it beside (`left`) or above
   (`top`) the views. Pass the summary through its `summary` slot and opt in with `resize`
   (`storageKey`, `label`, `controls`) while the summary is visible to add a saved-width separator
   on the left stack. It shares `ResizeSeparator` with `ResizableSplit`, supports dragging and

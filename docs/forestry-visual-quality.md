@@ -37,7 +37,7 @@ is typed survives switching.
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
 | 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (spot or length of road, draw, import, snap); folded *Which roads see the block* and *Viewpoints and rec sites*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view the stand (folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*); **Saved views**; folded *Where you stand* at a spot or pullout (surveyed eye elevation); folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Viewpoint significance* and *Key viewpoints*; folded *Field brief and crew checklist* |
+| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; see **Views of interest** below); *Look from the road*, and while in the road view the stand (folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*); **Saved views**; folded *Where you stand* at a spot or pullout (surveyed eye elevation); folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Viewpoint significance* and *Key viewpoints*; folded *Field brief and crew checklist* |
 | 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
 | 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **Package**: buttons that open *Save & export* on the block note, the FS1252 form, the analysis sheet or the scene; folded *VIA evidence package* (recording a run and the evidence checklist) |
@@ -78,6 +78,176 @@ simulation first if it needs to; and the header carries no icon buttons —
 *New site* is in step 1. Every file the page writes is written from one place,
 *Save & export* (below).
 
+### Views of interest
+
+Step 2 opens with **Views of interest** (`ViewsOfInterestPanel.tsx`): the
+places the blocks are looked at from, planned on the plan map before anyone
+opens the road view. The work runs blocks → views → capture → export, and a
+strip at the top of the section says where it stands (*Blocks*, *Views*,
+*Captured* n of m, *Export*). The road view is optional throughout: a view is
+planned on the plan, captured by the page and written by *Save & export*
+without the reviewer driving. *Stand here* on a row opens the road view there
+for a look, and nothing else needs it.
+
+**Adding views.** *Add on the map* (with a *For* block chooser when the scene
+has several) takes the plan's next click as a view standing there and facing
+the block (`viewAtPoint`); Esc cancels. Step 1's *Viewpoints and rec sites*
+adds inventory viewpoints for the block the finder is ranked for. *Add to
+views* on an open row adds, by default, one view per inventory arrow aimed at
+the block — within `ARROW_AIM_DEGREES` (30°) of the bearing to the block's
+centre, nearest that bearing first, at most `DEFAULT_ARROWS_PER_VIEWPOINT` (2)
+— and one view facing the block when no arrow aims at it
+(`viewsForCandidate`); the arrows it would add are highlighted on the plan
+while the row is open. Picking *Face the block* or one arrow on the row first
+adds just that view. Under the list, *Add the N that see the block to views*
+(after *Check which of them see the block*) or *Add the N with arrows at the
+block to views* adds every such row not listed yet, and a listed row reads
+"· in views". A view that repeats one already listed (within 1 m, the same
+block and facing) is skipped, and the list holds at most
+`MAX_VIEWS_OF_INTEREST` (12), the saved-view limit, so every planned view can
+be captured.
+
+**What a view is** (`viewsOfInterest.ts`, DOM-free): a place (a map click, or
+a VLI viewpoint or rec site by its candidate key), the block it assesses, a
+facing (the block's interior point, or a compass bearing: typed, or an
+inventory arrow's, kept with the arrow's id), a lens (`LENS_FOCAL_LENGTHS`: 50,
+35, 28 or 24 mm full-frame equivalent; 50 mm, the reference sheets' lens at
+39.6° across, by default), a framing, optionally a landform, and *Include in
+exports*. The list is `scene.viewsOfInterest`, so it travels with the scene
+file, but it is a plan, not an input: it is deleted in `sceneFingerprint` and
+absent from `AnalysisInput`, so adding, moving, editing or removing a view
+never stales the run (adopting a view's landform does, below, because it adds a
+landform target). A stored list is read leniently (`parseViewsOfInterest`): a
+malformed entry is dropped, never repaired into another view. A view whose
+block or landform has left the scene is kept and flagged (`orphanedViews`) for
+the reviewer to re-point; it cannot be stood at or captured until then.
+
+**On the plan** (`ViewsOfInterestLayers.tsx` over `viewsOfInterestGeometry.ts`)
+each view is a numbered point and a cone as wide as its lens along its facing,
+reaching a little past the block's centre (× 1.15, held between 400 m and 8 km;
+2 km when its block is gone). The open row's view is drawn heavier and a view
+left out of exports fainter. The inventory arrows the views face along are
+outlined, and those the finder's open row would add are fainter. Both have
+legend rows (`view-of-interest`, `view-arrow`), and the cones and arrows take no
+clicks. A point opens its row, and a view placed on the map can be dragged, but
+neither while the road view is open (a plan click moves the road view then) or
+while something is being drawn, picked or measured. The views are hidden while
+the VIA report captures its maps. The numbered points are HTML markers, so a
+canvas capture of the plan, such as the block note's plan map, shows the cones
+and arrows without the numbers.
+
+**Lens and framing.** A planned view's figure is framed with its own lens.
+*Cover the landform* (`landform`, the default) is the analysis sheet's framing
+as before (**Figure styles and analysis sheets**, *Framing*): the landform
+covered by frames of the lens side by side, a panorama when it is wider than
+one frame. *One frame along the facing* (`single`, `planSingleFrame`) is one
+3:2 frame of the lens centred on the view's facing, with the landform's foot
+about a third of the way up when the landform is known, else level; a wide lens
+stays one rectilinear frame and is never tiled. Both reach the sheet through
+`figurePlanFor` (`viewCapturePlan.ts`): a single frame when the view asks for
+one, else the scene's fixed figure frame when one is set, else the landform
+framed with the lens (a lined-up photo's, the view's, else 50 mm). The saved
+view's `figureAt` keeps the lens (`lensHfov`) and the framing, so a background
+render or a before picture is framed as the view was saved. The road view has
+the same lens for the reviewer's own saves: *View options → Lens* (*Road view
+default*, or 50/35/28/24 mm) holds that horizontal field across the eye map's
+width (`DriveCamera`'s `horizontalFovDegrees`; the vertical field follows the
+canvas's shape), and a view saved with a lens set frames its sheet with it. A
+lined-up field photo's lens wins while it is lined up, but never for a planned
+view's capture. The drive controller keys the pose on the vertical field as it
+does on the canvas size (`driveController.ts`): MapLibre keeps the zoom through
+a change of field, which moves an eye-level camera along its view.
+
+**Capture** (`useViewCapture.ts`; its decisions, DOM-free, in
+`viewCapturePlan.ts`). *Capture* on a row, *Capture N views* under the list, or
+Preview and Download in *Save & export* (below) turn planned views into saved
+views. A batch groups the views by place (`groupByPlace`: within 1 m, the same
+block and landform), so one stand and one run serve every view there. At each
+place it stands as the finder's *Stand here* does (a 30 m pullout through the
+point; an inventory viewpoint keeps its candidate's key, so standing there from
+the finder or a view is one place with one set of saved views), with the view's
+lens on the road view and its landform active. It waits for the run and the road
+view, turns to each view's facing and lens in turn, and saves through the page's
+`saveView`, the same path as *Save viewpoint*: the screenshot, then the framed
+class pass. Before a save, readiness (`captureWaitingFor`: the run for the
+place's scene key, the road view open on a full run, the look, the lens applied
+to the eye map, the pose within 1° of the facing, terrain and timber ready) must
+hold for 300 ms with the camera's bearing unchanged, and each save is awaited to
+the end of its class pass (or an engine's capture) before the camera moves
+again. The saved view carries `plannedViewId` and `plannedKey`
+(`viewCaptureKey`: the place to 1e-6°, block, facing to 0.1°, lens, framing and
+landform; never the name or *Include*, so renaming a view or leaving it out
+keeps its capture). A recapture removes the view's earlier saves wherever they
+were saved, here or shelved (`withoutPlannedView`), so it replaces the view
+rather than adding a second. A view reads *Captured* while a saved view carries
+its id and current key, *Changed since captured* once its place, block, facing,
+lens, framing or landform has changed, and *Not captured* otherwise
+(`viewCaptureState`).
+
+Each wait has its own budget, counted only while the capture waits on it
+(`CAPTURE_TIMEOUTS`): the run 5 minutes, the road view opening and its terrain
+and timber loading 2 minutes, the facing and the lens 20 s, the save 5 minutes.
+A run that fails or runs out of time, or a road view that does not open, fails
+every view at that place with the reason; terrain, timber, a facing or a lens
+that does not take fails that view alone. A save that runs out of time stops
+the batch, because its class pass may still be moving the camera, and the rest
+are reported as not captured. A save whose screenshot or class pass could not
+be taken counts as captured, with a warning. *Cancel* finishes the view being
+saved and stops. However a batch ends, it puts the reviewer back where they
+stood (`restore`, in `finally`): the viewpoint and active landform, the place
+stood at, the road view's lens, and the road view open at the same position and
+look when it was open; when it was closed, the run is made again for where they
+stood if they had one. A view with no landform of its own is captured against
+the landform active when the batch started, never the one the previous place's
+view made active. One capture runs at a time; the summary's view switcher and
+the panel's buttons stand aside meanwhile. A capture ends a lined-up field
+photo's comparison (its lens would hold the road view) and does not line the
+photo up again afterwards. The saved-view limit still holds per place: a place
+that already has twelve saved views fails the next save there.
+
+**The summary's switchers.** With views planned, the Viewpoint summary carries
+a ◀ name ▶ switcher under its heading (`summaryViewSwitch.ts`, through
+`MetricSummary`'s `toolbar`). It names the planned view the reviewer stands at
+— within 1 m of its place; of several there, the one whose facing matches the
+road view's look, then the one for the summary's block, then the first listed —
+with "2 of 5", or where they stand and "5 planned" when they stand at none. The
+arrows stand at the previous or next view, wrapping, as *Stand here* does, and
+are off while a capture runs. With two or more blocks a block select sets the
+block the rows read, which is the sidebar's selection: when a planned view at
+this place assesses that block it stands at that view, and otherwise a road
+view facing a block turns to the chosen one. At a planned view the rows'
+qualifier reads *planned view* and their note names it. A block the run does
+not hold (added or changed since) reads *Not in this run*, never another
+block's figures, and when the view's own landform is not the one the run
+assessed, the alteration rows say whose figures they are and warn.
+
+**The landform seen from a view** (`viewLandform.ts`, DOM-free, and
+`ViewLandformControl.tsx`). An open row's *Landform seen from here* reads the
+visible face of the view's block from the view's place alone, exactly as *Find
+a landform from the terrain* reads its visible face from a chosen point
+(`visibleFaceLandform` with its default frame centred on the block, the finder's
+terrain zoom 12 and search box widened to take in the view, the scene's eye
+height, basemap water, *stop at the first crest* and *split at draws* off), and
+draws it on the plan with the finder's candidates. Like every terrain reading
+it is a candidate: only *Adopt for this view* takes it, and a reading that
+finds little beyond the block (`blockOnly`) cannot be adopted. Adopting adds a
+landform target (`role: 'landscape'`) built as the finder's *Use* builds one
+(`landformTargetFromCandidate`, inheriting the scene landform's objective and
+VAC, named "Visible face round … from" the view), or reuses a landform already
+in the scene with the same outline, and records it as the view's `landformId`
+(`adoptViewLandform`). Unlike the finder's *Use* it never replaces the landform
+the run assesses; each view keeps its own. The two exceptions follow from the
+denominator rule: a scene with no landform takes the adopted one as its
+landform, as any first landform is taken, and a scene with exactly one landform
+and none named active names that one active, since two landforms with none
+chosen cannot share a denominator (`activeLandform`). The new target is one of
+the scene's targets, so adopting one stales the run as adding any landform
+does. *Clear* takes the landform off the view and leaves the target in the
+scene. Standing at a view that has a landform (*Stand here*, the summary's
+arrows, a capture) makes it the run's active landform, so the run there, the
+summary and the saved view's figure read it; a capture puts the reviewer's
+landform back afterwards, while a plain stand leaves the view's active.
+
 ### Save & export
 
 The workspace's toolbar has a **Save & export** button, laid out like the road
@@ -86,13 +256,16 @@ designer's dialog (`VisualsExportDialog.tsx`, state and builders in
 sidebar keeps the work — the paragraph, the crew checklist, the step 4 record —
 and its buttons only open the dialog on an output (*Export the block note…*,
 *Download the field brief…*, *Save views…*, *Export the package…*, step 5's
-*Package*).
+*Package*, the views of interest's *Export…*).
 
 | Group | Output | Formats | Options in the dialog |
 | --- | --- | --- | --- |
-| Assessment documents | Block note | Excel, PDF | Each view as its analysis-sheet figure; which saved views go in; the land status checks in or out |
+| Chosen once | Package | — | The recipe, who draws the figures, and the views that go in (below) |
+| Assessment documents | Block note | Excel, PDF | Each view as its analysis-sheet figure; the land status checks in or out |
 | | FS1252 form | PDF | Stations, each one's reviewer inputs, run diagnostics, office fields |
-| | Analysis sheet | PDF, PNG | Saved view, figure style, label style, camera block |
+| | Analysis sheet | PDF, PNG | Which of the package's views, figure style, label style, camera block, logo |
+| | VIA document | Markdown, JSON | The format, only while the package has no recipe |
+| | VIA report | Printable HTML, Markdown | The overview sheet's style when the recipe prints one; logo |
 | | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
 | | Worksheet | Markdown | — |
 | | VIA evidence package | PDF, printable HTML | — |
@@ -108,8 +281,50 @@ blocks and masks, the run's status and figures, the run settings and the
 review — each with *Change in step N*, which closes the dialog on that step.
 **Preview** builds the file itself and shows it (a PDF in the browser's viewer,
 an image, HTML in a sandboxed frame, text); *Download* saves that same file. An
-output that cannot be written yet says why in the list (no block, no saved
-view, the road view closed, a scene that cannot run).
+output that cannot be written yet says why in the list (no block, no view in
+the package, the road view closed, a scene that cannot run).
+
+**Package, chosen once.** First in the dialog's list, under *Chosen once*,
+**Package** (`ExportPackagePane` in `VisualsExportDialog.tsx`, resolved by
+`resolvePackage` in `visualsExports.ts`) holds the choices the outputs share,
+summarised on its entry in one line (recipe · renderer · n views, k to
+capture):
+
+- **Recipe**: a VIA report recipe, which names the VIA document's format, so
+  the report and the document agree; or *No recipe*, when the document's own
+  format choice (else the road view's figure style, else the first format)
+  chooses and the report follows it.
+- **Figures drawn by**: PGMaps, or an engine at final quality in the background
+  (see **Figures drawn by another engine, in the background**), for the
+  analysis sheet, the VIA document and the VIA report.
+- **Views**: each planned view of interest with its thumbnail and capture
+  state, and every saved view that is not a planned view's capture, each with a
+  checkbox. A view of interest's box writes its `include`, which is in the scene
+  (absent reads as included); a saved view's lasts while the page is open. A
+  saved view captured for a planned view that has since been removed becomes an
+  ordinary saved view.
+
+These were per-output choices before; each output's own options keep only what
+is its own. `resolvePackage` gives one set of views (`viewIds`) and its
+complement (`excludedViews`), and the block note, the analysis sheet, the VIA
+document and the VIA report (`USES_PACKAGE_VIEWS`) all read that set, engine
+renders included. A view of interest goes in through its current capture
+alone: an earlier capture, or one taken under another key, is left out, so no
+file is written from a stale capture. The field brief does not follow the
+package: it still lists every saved view, here and shelved.
+
+**Capture on export.** Preview and Download of an output in
+`USES_PACKAGE_VIEWS` first capture the included views of interest not captured
+with their current key (`viewsToCapture`, in the dialog's `prepare`, through
+the same capture as step 2), show its progress with *Cancel capture*, let the
+page settle once the capture has put the reviewer back, and write the file from
+the views as captured. A view whose capture failed under its current key is
+skipped by Preview, so a preview never loops on it, and tried again by
+Download. A file written without an included view says so (`uncapturedNote`),
+in the preview's note and in the download's *Saved* line, naming each view and
+why. A cancelled capture writes nothing, and closing the dialog cancels a
+capture it started. Such an output is available while any included view is
+still to capture, since the export captures it first.
 
 **The export makes what it reads.** The block note, FS1252, field brief,
 worksheet and Castor constraint read the run (`RUNS_ON_EXPORT`). When it is missing or stale, Preview
@@ -119,13 +334,18 @@ the render after it finishes and the page settles (`exportPreparation`, the
 dialog's `prepare`); a run that stops or fails is an error in the pane, never a
 file from the old run. The block note also waits for the land status checks to
 finish reading (up to 30 s; a layer still reading then prints *Not read*).
-Nothing renders a screenshot at export: views are captured at *Save viewpoint*.
+Nothing renders a screenshot at export: views are captured at *Save viewpoint*,
+or by a planned view's capture, which saves through the same path before the
+file is built.
 
 The block note's pane shows what the report will hold:
 
-- **Viewpoints in the report** — every saved view, here or at another
+- **Views of interest** — each planned view with its block, lens and state:
+  in the file, left out, to capture before the file is written, or not
+  captured and why.
+- **Viewpoints in the report** — every other saved view, here or at another
   viewpoint, marked in the report (as its screenshot or figure), left out, or
-  listed as missing; *Options* has a checkbox per view with a screenshot.
+  listed as missing; which go in is chosen under *Package*.
 - **Inventory viewpoints near the block** — the BC Visual Landscape Inventory
   viewpoints and rec sites round the note's block (`viewpointsNearBlock`), read
   when the dialog opens on the note without switching the plan's inventory
@@ -156,10 +376,11 @@ The 3D scene still needs the road view open (it writes where the eye stands
 now); its pane offers *Open the road view* rather than opening it unasked.
 
 Rules: the dialog never writes to the scene except the FS1252 office fields
-(`reportMetadata`, as before) and the field brief's block; its other choices
-(stations, figure style, views left out of the note, land checks in or out)
-last while the page is open, and the stations reset with the run as the
-sidebar's did. Closed, `useVisualsExport` returns before building anything:
+(`reportMetadata`, as before), the field brief's block and a view of
+interest's `include`; its other choices (the package's recipe and renderer,
+saved views left out of the package, stations, figure style, land checks in or
+out) last while the page is open, and the stations reset with the run as the
+sidebar's did. A capture it starts adds saved views, as *Save viewpoint* does. Closed, `useVisualsExport` returns before building anything:
 the page re-renders several times a second while the road view moves. Add a new
 file to `VISUALS_EXPORTS`, `exportUnavailable`, `exportContents` and the
 hook's `build` together, never as a download button in the sidebar.
@@ -690,7 +911,9 @@ A resize of the road view (*Fullscreen*, a pane drag, the window) places the
 camera again: MapLibre keeps the zoom and centre through a resize, and at eye
 level that moves the camera off its station — going fullscreen once stood it
 29 m behind, with the stems behind the station drawn in front of it. The
-controller keeps the canvas size in the pose it compares (`driveController.ts`).
+controller keeps the canvas size in the pose it compares (`driveController.ts`),
+and the vertical field of view too: a lens change (*View options → Lens*, a
+field photo) keeps the zoom the same way.
 
 **Steering from the plan.** While the road view is open the plan's viewer is
 two handles (`PlanViewerHandles`): drag the dot along the road to move the road
@@ -1645,11 +1868,15 @@ follows it. Nothing of the engine is bundled; the frame is found by URL.
 | `src/pages/dev-forestry/WildlifeTreePatchPanel.tsx` | Step 3's *Draw a wildlife tree patch* and the patches in the scene |
 | `src/pages/dev-forestry/viewpointInventory.ts`, `ViewpointFinderPanel.tsx` | VLI viewpoints and arrows, rec sites, screenings and tenure road names around a block |
 | `src/pages/dev-forestry/ridgeLayers.ts` | A candidate landform as the ridge layer seen from the road |
+| `src/pages/dev-forestry/viewsOfInterest.ts`, `viewsOfInterestGeometry.ts`, `ViewsOfInterestPanel.tsx`, `ViewsOfInterestLayers.tsx` | Step 2's views of interest: the model, its plan geometry, the panel and the plan's points, cones and arrows |
+| `src/pages/dev-forestry/useViewCapture.ts`, `viewCapturePlan.ts` | Capturing planned views as saved views without driving, and its decisions (waits, place, replacement, single-frame framing) |
+| `src/pages/dev-forestry/summaryViewSwitch.ts` | The Viewpoint summary's planned-view switcher |
+| `src/pages/dev-forestry/viewLandform.ts`, `ViewLandformControl.tsx` | The landform seen from a planned view, a candidate adopted for that view alone |
 | `src/components/ui/map-satellite-imagery.tsx` | Satellite imagery under the page's layers (shared with the road-design plan) |
 | `src/components/ui/map-sketch.tsx`, `map-measure.tsx`, `src/lib/geo/mapSketch.ts` | The plan's Measure tool and the drawing of roads and areas (shared with `/dev/interact` and the road-design plan) |
 
 `terrain.ts`, `visibility.ts`, `vqo.ts`, `via.ts`, `photoPose.ts`, `skylineFit.ts`, `landformFromTerrain.ts`, `ridgeLayers.ts`, `visualsNarrative.ts`, `fieldChecklist.ts`, `fieldBrief.ts`, `basemapContext.ts`, `shapeImport.ts`, `reverseViewshed.ts`,
-`roadSnap.ts`, and `forest.ts` are pure and carry unit tests; `analysis.ts` takes an `ElevationSource`, so a run can be driven
+`roadSnap.ts`, `forest.ts`, `viewsOfInterest.ts`, `viewsOfInterestGeometry.ts`, `viewCapturePlan.ts`, `summaryViewSwitch.ts` and `viewLandform.ts` are pure and carry unit tests; `analysis.ts` takes an `ElevationSource`, so a run can be driven
 against synthetic terrain or real tiles outside a browser. `demLoader.ts` takes
 an injectable decoder for the same reason — the browser path uses
 `createImageBitmap` and `OffscreenCanvas`, which Node has neither of.
@@ -1746,7 +1973,9 @@ drop one, because people at a site look around. **Check which of them see the
 block** sends them through the reverse run as one-point roads, bare earth at eye
 height. A visibility run resets the shared worker's reverse state, so the page
 keeps the viewpoint rows, with the block they were checked for, until the next
-check. **Assess from here** makes one the spot viewpoint.
+check. **Assess from here** makes one the spot viewpoint. **Add to views**
+plans a row as step 2's views of interest for the block, without standing there
+(see **Views of interest**).
 
 ## Ridge layers
 
@@ -1842,7 +2071,8 @@ provisional run as the results panel does, and only the **Numerical figures**
 row says why. Rows open as values, with their detail on the card's tooltip.
 Right-click a row (or Shift+F10) or use the gear for its settings: each row
 hidden, value, or value and detail. It is a readout; every control it
-describes stays in the sidebar.
+describes stays in the sidebar, but for the planned-view and block switchers
+under its heading (see **Views of interest**).
 
 Two groups of cards follow the station's rows; in the gear's settings each can
 be shown, and most start hidden so the stack stays short.
@@ -1877,7 +2107,8 @@ The bar over the map plays: play and pause, the route position with 10 m
 steps, speed, the harvest phase, **Save**, **Image** and **View options**, reset
 look, the keys behind an (i), and the way back to the map. *View options*
 (`RoadViewOptions.tsx`, the shared `ToolbarPopover`) holds how the view looks,
-in four groups: **Look** (where to look, a jump to a view of the block),
+in four groups: **Look** (where to look, a jump to a view of the block, the
+lens),
 **Show** (analysis points, the note screenshot look, EVQO polygons, the landform,
 distance haze), **Figure** (figure and label style) and **Drawing** (display
 quality, tree shading, detail when stopped). Its badge counts what is drawn over
@@ -2090,8 +2321,9 @@ terminating it per run. Re-profile against a production build
 the text step 5's *Planning note · Visuals* holds. Both carry the header (block, licence, permit, opening,
 area, EVQO classes under the block), the viewpoint, the landform with its percent
 alteration in perspective view against its Table 2 range, the Visuals paragraph
-— the reviewer's, or the draft flagged "not yet reviewed" — every saved view's
-screenshot with its caption, in the order saved and from every place stood at,
+— the reviewer's, or the draft flagged "not yet reviewed" — the screenshot of
+every view in the package (Save & export → *Package*) with its caption, in the
+order saved and from every place stood at,
 and a plan map framed on the block and viewpoint.
 
 - **Excel** follows the planner's own `*_Report.xlsx`: an *Other
@@ -2296,9 +2528,12 @@ sees (`landformAngularExtent`, `figureFraming.ts`), and plans the capture as the
 reference sheets crop it (`planFraming`, ported from the prototype's
 `framing.ts`): the landform mid-frame, about a fifth of the height sky above the
 skyline, at most about 12% ground below its base, small side margins, never
-stretched. The lens is a 50 mm full-frame equivalent (39.6° across), or a field
-photo's own lens when the view is lined up on one; a landform wider than one
-frame takes up to four frames of the lens side by side across its bearings (the
+stretched. The lens is a field photo's own when the view is lined up on one,
+else the lens the view was saved with (*View options → Lens*, or a planned
+view's own; see **Views of interest**), else a 50 mm full-frame equivalent
+(39.6° across). A planned view framed *One frame along the facing* takes one
+frame of its lens instead (`planSingleFrame`); otherwise a landform wider than
+one frame takes up to four frames of the lens side by side across its bearings (the
 consultants' renders are 60–141° panoramas), and a long, low landform makes a
 strip up to 4:1. `captureFramed` (`mapCapture.ts`) stands the eye map at the pose
 on each frame (`calculateCameraOptionsFromTo` to a target 40 m ahead, pitch
@@ -2971,12 +3206,13 @@ apply.
 
 ## Figures drawn by another engine, in the background
 
-The analysis sheet, the VIA document and the VIA report take a _Figures drawn
-by_ choice in Save & export: **PGMaps** (each saved view's figure as it was
-saved, ready at once) or **threejs-worldgen** / **Nanite Forest** at final
-quality. An engine's figures are rendered in the background
-(`BackgroundRenders.tsx`): the export queues one render per saved view and waits
-for them, and the page stays usable meanwhile. A tray at the bottom right shows
+The analysis sheet, the VIA document and the VIA report take the package's
+_Figures drawn by_ (Save & export → *Package*, chosen once for all three):
+**PGMaps** (each saved view's figure as it was saved, ready at once) or
+**threejs-worldgen** / **Nanite Forest** at final quality. An engine's figures
+are rendered in the background (`BackgroundRenders.tsx`): the export queues one
+render per view in the package and waits for them, and the page stays usable
+meanwhile. A tray at the bottom right shows
 the engine's live picture, the view being drawn, its phase, a progress bar and
 the time left for the whole queue, with *Cancel the rest*. The renders go on if
 the dialog closes; finished figures are kept for the session under the view,
