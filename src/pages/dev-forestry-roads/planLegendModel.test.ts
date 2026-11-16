@@ -235,7 +235,7 @@ describe('plan legend with the road coloured by grade class', () => {
 })
 
 describe('plan legend with the road coloured by cost', () => {
-  it('lists ranked segments in rank order, keeps the other roads in place and names the heading', () => {
+  it('lists ranked segments in rank order, the other roads under their own heading, and names the heading', () => {
     const alternative = createDemoProject().alignments[0]
     const result = build(
       sources({
@@ -252,13 +252,27 @@ describe('plan legend with the road coloured by cost', () => {
     const roads = result.find((section) => section.id === 'roads')!
     expect(roads.title).toBe('Cost per metre')
     expect(roads.description).toBe('Whole estimate · road average $410/m')
-    expect(roads.entries.map((entry) => entry.id)).toEqual([
-      `alternative-${alternative.id}`,
-      'active-#fde725',
-      'active-#3b528b',
-      'active-#9ca3af',
-    ])
-    expect(roads.entries.slice(1).map((entry) => entry.label)).toEqual(['Under', '2–4×', 'Unknown'])
+    expect(roads.entries.map((entry) => entry.id)).toEqual(['active-#fde725', 'active-#3b528b', 'active-#9ca3af'])
+    expect(roads.entries.map((entry) => entry.label)).toEqual(['Under', '2–4×', 'Unknown'])
+    const others = result.find((section) => section.id === 'other-roads')!
+    expect(others.title).toBe('Other roads')
+    expect(others.entries.map((entry) => entry.id)).toEqual([`alternative-${alternative.id}`])
+  })
+
+  it("draws ramp segments as the heading's ramp, with no entry of their own", () => {
+    const ramp = { colors: ['#fde725', '#440154'], ticks: [{ label: 'low' }, { label: 'high' }], ariaLabel: 'Cost' }
+    const result = build(
+      sources({
+        roads: fc(
+          line({ selected: true, color: '#aed744', legendRamp: true }),
+          line({ selected: true, color: '#3b528b', legendRamp: true }),
+        ),
+      }),
+      { roadsHeading: { title: 'Cost per metre', ramp } },
+    )
+    const roads = result.find((section) => section.id === 'roads')!
+    expect(roads.ramp).toBe(ramp)
+    expect(roads.entries).toEqual([])
   })
 
   it('keeps feature order and the plain heading without ranks', () => {
@@ -266,7 +280,7 @@ describe('plan legend with the road coloured by cost', () => {
       sources({ roads: fc(line({ selected: true, color: '#dc2626' }), line({ selected: true, color: '#d97706' })) }),
     )
     const roads = result.find((section) => section.id === 'roads')!
-    expect(roads).toMatchObject({ title: 'Roads' })
+    expect(roads).toMatchObject({ title: 'Active road' })
     expect(roads.description).toBeUndefined()
     expect(roads.entries.map((entry) => entry.color)).toEqual(['#dc2626', '#d97706'])
   })

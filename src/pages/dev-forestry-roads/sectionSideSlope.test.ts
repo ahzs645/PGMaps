@@ -8,6 +8,7 @@ import {
   sidehillShareAtLeast,
   sidehillSummary,
   sideSlopeChecks,
+  sideSlopeLabelPlacement,
 } from './sectionSideSlope'
 import type { SectionSample } from './types'
 
@@ -135,5 +136,55 @@ describe('road sidehill', () => {
     expect(sidehillClass(49.9)).toBe('steep')
     expect(sidehillClass(50)).toBe('past-appraisal')
     expect(sidehillClass(60)).toBe('full-bench')
+  })
+})
+
+describe('side slope label placement', () => {
+  const plot = { left: 40, top: 10, right: 440, bottom: 310 }
+  const label = { width: 60, height: 12, gap: 3 }
+  /** The turned label's corners, which must all lie inside the plot. */
+  const corners = (p: { x: number; y: number; angle: number }) => {
+    const a = (p.angle * Math.PI) / 180
+    return [-1, 1].flatMap((sx) =>
+      [-1, 1].map((sy) => {
+        const lx = (sx * label.width) / 2,
+          ly = (sy * label.height) / 2
+        return [p.x + lx * Math.cos(a) - ly * Math.sin(a), p.y + lx * Math.sin(a) + ly * Math.cos(a)]
+      }),
+    )
+  }
+  const inside = (p: { x: number; y: number; angle: number }) =>
+    corners(p).every(
+      ([x, y]) => x >= plot.left - 1e-9 && x <= plot.right + 1e-9 && y >= plot.top - 1e-9 && y <= plot.bottom + 1e-9,
+    )
+
+  it('keeps a gentle slope where it was, above the line toward its outer end, turned upright', () => {
+    // The right side, falling gently away from the centreline at x = 240.
+    const p = sideSlopeLabelPlacement({ x1: 240, y1: 150, x2: 430, y2: 190 }, label, plot)
+    expect(inside(p)).toBe(true)
+    expect(p.x).toBeGreaterThan(240 + 190 * 0.6)
+    expect(p.angle).toBeCloseTo((Math.atan2(40, 190) * 180) / Math.PI)
+    // The left side's line runs right to left and is still read left to right.
+    const left = sideSlopeLabelPlacement({ x1: 240, y1: 150, x2: 50, y2: 110 }, label, plot)
+    expect(Math.abs(left.angle)).toBeLessThan(90)
+    expect(inside(left)).toBe(true)
+  })
+
+  it('keeps a steep side slope inside the plot when its line runs into a corner', () => {
+    // The left side rising steeply to the plot's top-left corner: at 70 % the label's upper half
+    // was past the top edge and clipped away.
+    const steepLeft = sideSlopeLabelPlacement({ x1: 240, y1: 300, x2: 42, y2: 12 }, label, plot)
+    expect(inside(steepLeft)).toBe(true)
+    // The right side falling steeply to the bottom-right corner, its line running past the plot.
+    const steepRight = sideSlopeLabelPlacement({ x1: 240, y1: 20, x2: 445, y2: 330 }, label, plot)
+    expect(inside(steepRight)).toBe(true)
+    // A vertical drop.
+    expect(inside(sideSlopeLabelPlacement({ x1: 240, y1: 12, x2: 241, y2: 308 }, label, plot))).toBe(true)
+  })
+
+  it('pushes the label back inside when no place along the line fits', () => {
+    // A line wholly above the plot.
+    const p = sideSlopeLabelPlacement({ x1: 240, y1: -50, x2: 430, y2: -40 }, label, plot)
+    expect(inside(p)).toBe(true)
   })
 })

@@ -44,7 +44,13 @@ import { SightDistanceBand } from './SightDistanceBand'
 import { verticalCurveSummary } from './engine'
 import { sideValue, templateAt } from './templates'
 import { FULL_BENCH_SIDESLOPE_PERCENT } from './sectionFixes'
-import { SIDE_SLOPE_REACH_M, sectionSideSlopes, sideSlopeChecks, type SideSlopeCheck } from './sectionSideSlope'
+import {
+  SIDE_SLOPE_REACH_M,
+  sectionSideSlopes,
+  sideSlopeChecks,
+  sideSlopeLabelPlacement,
+  type SideSlopeCheck,
+} from './sectionSideSlope'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
 import {
   JUNCTION_LABEL_FONT_PX,
@@ -129,6 +135,8 @@ const BLAST_COLOR = '#be123c'
 /** The fitted side-slope lines: the foreground colour, so they read in both themes beside the ground. */
 const SIDE_SLOPE_COLOR = 'hsl(var(--foreground))'
 const SIDE_SLOPE_WARNING_COLOR = 'hsl(var(--warning))'
+/** The side-slope labels' font size, px. */
+const SIDE_SLOPE_LABEL_SIZE = 9.5
 const SIDE_SLOPE_CHECK_TEXT: Record<SideSlopeCheck, string> = {
   'fill-never-catches':
     'falls away at least as steeply as the template fill batter, so a fill on this side never catches',
@@ -574,6 +582,11 @@ export function useChartHeaderControls() {
   return useContext(ChartHeaderContext)?.controls ?? null
 }
 
+/** A chart slot shorter than this folds its readouts away until someone picks a view. */
+const CHART_FOLD_BELOW_PX = 260
+/** A folded slot unfolds from this height: the fold line plus more than the grip reserve folding gives back. */
+const CHART_UNFOLD_FROM_PX = CHART_FOLD_BELOW_PX + 24
+
 function ChartSlot({
   children,
   footer,
@@ -609,7 +622,13 @@ function ChartSlot({
   useEffect(() => {
     const element = ref.current
     if (!element) return
-    const resize = () => setCompact(element.clientHeight > 0 && element.clientHeight < 260)
+    // Folding the readouts away gives the slot back the panel's grip reserve (`data-axis-at-bottom`,
+    // panel-corner.css: up to 19 px), so a slot that folded at 258 px reads 274 px and would unfold again
+    // on the next frame, forever. It unfolds only once that height clears the fold line by more than the reserve.
+    const resize = () => {
+      const height = element.clientHeight
+      setCompact((was) => height > 0 && height < (was ? CHART_UNFOLD_FROM_PX : CHART_FOLD_BELOW_PX))
+    }
     resize()
     const observer = new ResizeObserver(resize)
     observer.observe(element)
@@ -2748,9 +2767,19 @@ export function CrossSectionChart({
                     y1 = f.y(line.from.z),
                     x2 = f.x(line.to.offset),
                     y2 = f.y(line.to.z)
-                  // The label sits above the outer end, inside the plot, rotated to the line as drawn.
-                  const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI
-                  const upright = s === 'left' ? angle + 180 : angle
+                  // The label follows the line as drawn, toward its outer end, and stays inside the plot:
+                  // a steep side slope runs its line into a corner, where the label was clipped away.
+                  const text = `${s === 'left' ? 'L' : 'R'} ${signedPercent(line.percent)}${checks.length ? ' ⚠' : ''}`
+                  const place = sideSlopeLabelPlacement(
+                    { x1, y1, x2, y2 },
+                    // About 0.62 em a character at this size, plus the halo each side.
+                    {
+                      width: text.length * SIDE_SLOPE_LABEL_SIZE * 0.62 + 4,
+                      height: SIDE_SLOPE_LABEL_SIZE * 1.3,
+                      gap: 3,
+                    },
+                    { left: f.left, top: f.top, right: f.left + f.plotWidth, bottom: f.top + f.plotHeight },
+                  )
                   return (
                     <g
                       key={s}
@@ -2770,10 +2799,10 @@ export function CrossSectionChart({
                         opacity={checks.length ? 0.9 : 0.55}
                       />
                       <text
-                        transform={`translate(${x1 + (x2 - x1) * 0.7},${y1 + (y2 - y1) * 0.7}) rotate(${upright})`}
-                        dy={-5}
+                        transform={`translate(${place.x},${place.y}) rotate(${place.angle})`}
                         textAnchor="middle"
-                        fontSize="9.5"
+                        dominantBaseline="central"
+                        fontSize={SIDE_SLOPE_LABEL_SIZE}
                         fontWeight={checks.length ? 600 : 500}
                         pointerEvents="auto"
                         fill={color}
@@ -2781,8 +2810,7 @@ export function CrossSectionChart({
                         strokeWidth={3}
                         paintOrder="stroke"
                       >
-                        {s === 'left' ? 'L' : 'R'} {signedPercent(line.percent)}
-                        {checks.length ? ' ⚠' : ''}
+                        {text}
                       </text>
                       <title>{title}</title>
                     </g>

@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 import type { CostAttribution, CostInterval } from './costAttribution'
 import {
   COST_INTENSITY_COLORS,
+  COST_RAMP_COLORS,
   costColourHeading,
   costColourLines,
-  costIntensityLabel,
+  costRampColour,
+  costRampPosition,
+  costRampTicks,
   hasCostSeries,
 } from './costColours'
 import { defaultStretchLength } from './CostWhereItFalls'
@@ -65,43 +68,66 @@ const roads = (): GeoJSON.FeatureCollection => ({
 })
 
 describe('cost colours on the plan', () => {
-  it('colours each interval by its class, cheapest pale and costliest deep, unknown grey and zero neutral', () => {
+  it('colours each costed interval on the ramp by its multiple of the average, unknown grey and zero neutral', () => {
     const lines = costColourLines(roads(), attribution, 'total')
     const active = lines.features.filter((feature) => feature.properties?.selected)
+    // 2.5, 7.5, 15, 30 and 45 $/m against an average of 10 $/m.
+    expect(active.slice(0, 5).map((feature) => feature.properties?.costRatio)).toEqual([0.25, 0.75, 1.5, 3, 4.5])
     expect(active.map((feature) => feature.properties?.color)).toEqual([
-      COST_INTENSITY_COLORS[0],
-      COST_INTENSITY_COLORS[1],
-      COST_INTENSITY_COLORS[2],
-      COST_INTENSITY_COLORS[3],
-      COST_INTENSITY_COLORS[4],
+      COST_RAMP_COLORS[0],
+      costRampColour(costRampPosition(0.75)),
+      costRampColour(costRampPosition(1.5)),
+      costRampColour(costRampPosition(3)),
+      COST_RAMP_COLORS[4],
       ...Array(5).fill(COST_INTENSITY_COLORS.none),
       COST_INTENSITY_COLORS.unknown,
     ])
-    expect(active.map((feature) => feature.properties?.legendOrder)).toEqual([0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6])
+    expect(active.map((feature) => feature.properties?.legendRamp ?? false)).toEqual([
+      ...Array(5).fill(true),
+      ...Array(6).fill(false),
+    ])
+    expect(active.map((feature) => feature.properties?.legendOrder)).toEqual([
+      ...Array(5).fill(undefined),
+      ...Array(5).fill(5),
+      6,
+    ])
     expect(COST_INTENSITY_COLORS.unknown).toBe(GRADE_CLASS_COLORS.unknown)
     // Other roads keep their own colour and get no class.
     expect(lines.features[0].properties).toEqual({ id: 'other', selected: false, color: '#0ea5e9' })
   })
 
-  it('never reuses the plan road amber, the over-grade red, or another class colour', () => {
-    const ramp = [0, 1, 2, 3, 4, 'none', 'unknown'] as const
-    const colours = ramp.map((cls) => COST_INTENSITY_COLORS[cls])
+  it('runs the ramp evenly in log scale from a quarter of the average to four times it', () => {
+    expect(costRampPosition(0)).toBe(0)
+    expect(costRampPosition(-3)).toBe(0)
+    expect(costRampPosition(0.25)).toBe(0)
+    expect(costRampPosition(0.5)).toBeCloseTo(0.25)
+    expect(costRampPosition(1)).toBeCloseTo(0.5)
+    expect(costRampPosition(2)).toBeCloseTo(0.75)
+    expect(costRampPosition(4)).toBe(1)
+    expect(costRampPosition(40)).toBe(1)
+    // The stops are where a CSS gradient of the same colours puts them.
+    COST_RAMP_COLORS.forEach((colour, i) => expect(costRampColour(i / 4)).toBe(colour))
+    expect(costRampColour(0.125)).toBe('#aed844')
+  })
+
+  it('never reuses the plan road amber, the over-grade red, or the colours off the ramp', () => {
+    const colours = [...COST_RAMP_COLORS, COST_INTENSITY_COLORS.none, COST_INTENSITY_COLORS.unknown]
     expect(new Set(colours).size).toBe(colours.length)
     for (const reserved of ['#d97706', '#dc2626', '#e11d48']) expect(colours).not.toContain(reserved)
   })
 
-  it('labels each class by its $/m range and multiple of the road average', () => {
-    expect(costIntensityLabel(0, 410)).toBe('Under $205/m (under 0.5× avg)')
-    expect(costIntensityLabel(2, 410)).toBe('$410–$820/m (1–2× avg)')
-    expect(costIntensityLabel(4, 410)).toBe('$1,640/m or more (4× avg or more)')
-    expect(costIntensityLabel(1, 3.456)).toBe('$1.73–$3.46/m (0.5–1× avg)')
-    expect(costIntensityLabel('unknown', 410)).toBe('Unknown: sections incomplete')
-    expect(costIntensityLabel('none', 410)).toBe('No cost placed')
-    // Without an average the bin's own wording stands.
-    expect(costIntensityLabel(3, null)).toBe('2–4× the road average')
+  it('ticks the ramp in $/m and as multiples of the average', () => {
+    expect(costRampTicks(410)).toEqual([
+      { label: '≤ $103/m', note: '¼× avg' },
+      { label: '$410/m', note: 'average' },
+      { label: '≥ $1,640/m', note: '4× avg' },
+    ])
+    expect(costRampTicks(3.456).map((tick) => tick.label)).toEqual(['≤ $0.864/m', '$3.46/m', '≥ $13.8/m'])
+    // Without an average the multiples stand alone.
+    expect(costRampTicks(null).map((tick) => tick.label)).toEqual(['≤ 0.25×', '1×', '≥ 4×'])
   })
 
-  it('lists the legend in bin order, not road order', () => {
+  it('draws the costed stretches as the ramp and lists only what is off it, in order', () => {
     const shuffled = roads()
     shuffled.features.reverse()
     const legend = buildPlanLegend({
@@ -127,15 +153,9 @@ describe('cost colours on the plan', () => {
     const roadSection = legend.find((section) => section.id === 'roads')!
     expect(roadSection.title).toBe('Cost per metre')
     expect(roadSection.description).toBe('Whole estimate · road average $10/m')
-    expect(roadSection.entries.map((entry) => entry.label)).toEqual([
-      'Under $5/m (under 0.5× avg)',
-      '$5–$10/m (0.5–1× avg)',
-      '$10–$20/m (1–2× avg)',
-      '$20–$40/m (2–4× avg)',
-      '$40/m or more (4× avg or more)',
-      'No cost placed',
-      'Unknown: sections incomplete',
-    ])
+    expect(roadSection.ramp?.colors).toEqual(COST_RAMP_COLORS)
+    expect(roadSection.ramp?.ticks.map((tick) => tick.label)).toEqual(['≤ $2.5/m', '$10/m', '≥ $40/m'])
+    expect(roadSection.entries.map((entry) => entry.label)).toEqual(['No cost placed', 'Unknown: sections incomplete'])
   })
 
   it('colours by one row, names it, and falls back to the whole estimate for a row that is gone', () => {

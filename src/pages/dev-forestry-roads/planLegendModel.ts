@@ -24,7 +24,16 @@ export interface PlanLegendSection {
   description?: string
   /** One control beside the title, such as going back from one cost row to the whole estimate. */
   action?: { label: string; onClick: () => void }
+  /** A continuous colour ramp drawn above the entries, such as the road coloured by cost. */
+  ramp?: PlanLegendRamp
   entries: PlanLegendEntry[]
+}
+export interface PlanLegendRamp {
+  /** Evenly spaced stops, drawn left to right. */
+  colors: readonly string[]
+  /** Evenly spaced under the ramp: its start, middle and end. */
+  ticks: ReadonlyArray<{ label: string; note?: string }>
+  ariaLabel: string
 }
 export interface PlanLegendSources {
   roads: GeoJSON.FeatureCollection
@@ -154,35 +163,51 @@ export function buildPlanLegend({
   curveLabels?: boolean
   cableCursor?: boolean
   cableSupports?: boolean
-  /** The roads section's heading, when the active road is coloured by something it should name. */
-  roadsHeading?: { title: string; description?: string }
+  /**
+   * The roads section's heading, when the active road is coloured by something it should name, and
+   * the ramp that its `legendRamp` segments are read off.
+   */
+  roadsHeading?: { title: string; description?: string; ramp?: PlanLegendRamp }
 }): PlanLegendSection[] {
   const sections: PlanLegendSection[] = []
   const section = (id: string, title: string, description?: string) => {
     const entries = new Map<string, PlanLegendEntry>()
     const order = new Map<string, number>()
+    let ramp: PlanLegendRamp | undefined
     return {
+      /** Show a ramp above the entries; the section is listed even with no entries. */
+      setRamp: (value: PlanLegendRamp) => {
+        ramp = value
+      },
       /** `rank` sorts the entries that carry one among themselves; the rest keep their places. */
       add: (entry: PlanLegendEntry, rank?: number) => {
         entries.set(entry.id, entry)
         if (rank !== undefined) order.set(entry.id, rank)
       },
       finish: () => {
-        if (!entries.size) return
+        if (!entries.size && !ramp) return
         const list = [...entries.values()]
         const ranked = list.flatMap((entry, i) => (order.has(entry.id) ? [i] : []))
         const sorted = ranked.map((i) => list[i]).sort((a, b) => order.get(a.id)! - order.get(b.id)!)
         ranked.forEach((slot, j) => (list[slot] = sorted[j]))
-        sections.push({ id, title, ...(description ? { description } : {}), entries: list })
+        sections.push({ id, title, ...(description ? { description } : {}), ...(ramp ? { ramp } : {}), entries: list })
       },
     }
   }
-  const roads = section('roads', roadsHeading?.title ?? 'Roads', roadsHeading?.description)
+  // The active road and how it is coloured, then the other roads under their own heading, so a
+  // road's name never reads as one of the active road's classes.
+  const roads = section('roads', roadsHeading?.title ?? 'Active road', roadsHeading?.description)
+  const otherRoads = section('other-roads', 'Other roads')
   const names = new Map(shortRoadNames(alignments.map((road) => road.name)).map((name, i) => [alignments[i].id, name]))
   for (const feature of sources.roads.features) {
     if (geometryShape(feature) !== 'dashed-line') continue
     const p = feature.properties ?? {}
     if (p.selected) {
+      // A segment read off the heading's ramp (the plan coloured by cost) is the ramp, not an entry.
+      if (p.legendRamp === true && roadsHeading?.ramp) {
+        roads.setRamp(roadsHeading.ramp)
+        continue
+      }
       const color = String(p.color)
       // A segment that names its own legend place (the plan coloured by cost) is listed by it.
       const rank = typeof p.legendOrder === 'number' && Number.isFinite(p.legendOrder) ? p.legendOrder : undefined
@@ -200,14 +225,14 @@ export function buildPlanLegend({
                 ? `Over ${maxGradePercent}% grade`
                 : color === '#9ca3af'
                   ? 'No terrain under it'
-                  : 'Active road, within grade',
+                  : 'Within grade',
         },
         rank,
       )
     } else {
       const alignment = alignments.find((road) => road.id === p.id)
       if (alignment)
-        roads.add({
+        otherRoads.add({
           id: `alternative-${alignment.id}`,
           color: String(p.color),
           shape: 'line',
@@ -216,6 +241,7 @@ export function buildPlanLegend({
     }
   }
   roads.finish()
+  otherRoads.finish()
   const context = section('context', 'Map context')
   const sheetEntry = (key: PlanSheetKey) => {
     const symbol = PLAN_SHEET_SYMBOLS[key]

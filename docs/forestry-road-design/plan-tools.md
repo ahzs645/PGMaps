@@ -141,10 +141,13 @@ it. Segments with no terrain under them stay grey, as without the option. The le
 classes the road shows. Other roads keep their own colours.
 
 **Cost per metre.** Each calculation interval takes its cost per metre against the road's own
-average $/m over its complete length (`costIntensityClasses`, `costColours.ts`): under ½, ½–1,
-1–2, 2–4 and 4 times the average or more, pale yellow to deep purple. An interval whose sections
-are incomplete is grey, and one where nothing is placed is light grey. The legend lists the classes
-in that order with their $/m ranges, under a heading that names the average. By default the whole
+average $/m over its complete length (`costIntensityClasses`, `costColours.ts`) and is coloured on
+a continuous ramp, pale yellow to deep purple, even in log scale from a quarter of the average or
+less to four times it or more, so the average is the ramp's middle (`costRampPosition`,
+`costRampColour`). An interval whose sections are incomplete is grey, and one where nothing is
+placed is light grey. The legend draws the same ramp with its ends and middle in $/m, under a
+heading that names the average, and lists the two greys below it; the other roads are listed under
+their own **Other roads** heading. By default the whole
 estimate is coloured; the cost dialog's **Colour road by this**, or picking a stretch in its
 **Where it falls**, colours one row instead, and the legend names it with a **Whole estimate**
 button to go back. The row is kept until the page reloads. The cost is spread only while this

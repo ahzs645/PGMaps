@@ -97,6 +97,22 @@ export function PlanLegend({
               }
               data-legend-section={section.id}
             >
+              {section.ramp && (
+                <MapGradientLegendItem
+                  className="py-1"
+                  aria-label={section.ramp.ariaLabel}
+                  data-testid={`road-legend-ramp-${section.id}`}
+                  colors={section.ramp.colors}
+                  // Three ticks: the ends left and right, the middle centred over its point of the ramp.
+                  labelClassName="grid grid-cols-3 gap-1 leading-tight [&>span:nth-child(2)]:text-center [&>span:last-child]:text-right"
+                  ticks={section.ramp.ticks.map((tick) => (
+                    <>
+                      <span className="block tabular-nums text-foreground">{tick.label}</span>
+                      {tick.note && <span className="block text-2xs">{tick.note}</span>}
+                    </>
+                  ))}
+                />
+              )}
               {section.entries.map((entry) => (
                 <LegendItem
                   key={entry.id}

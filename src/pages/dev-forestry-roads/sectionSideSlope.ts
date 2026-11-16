@@ -111,6 +111,68 @@ export function sectionSideSlopes(
   return { left, right, across }
 }
 
+/** Where a side slope's label is drawn on the section chart: its centre and turn, in screen pixels. */
+export interface SideSlopeLabelPlacement {
+  x: number
+  y: number
+  /** Degrees clockwise, kept upright (−90° to 90°). */
+  angle: number
+}
+
+/** Places along the drawn line a label tries, nearest the outer end first. */
+const LABEL_PLACES = [0.7, 0.6, 0.8, 0.5, 0.4, 0.9, 0.3, 0.2]
+
+/**
+ * A side slope's label on the section chart, read along its drawn line (`x1,y1` at the centreline
+ * end, `x2,y2` at the outer end) and kept inside the plot. It sits `gap` px above the line where it
+ * fits there, else below it, sliding toward the centreline; where no place along the line fits (a
+ * steep side slope runs its line into the plot's top or bottom corner), it is pushed back inside the
+ * plot. A label clipped by the plot's edge reads as a side slope with no value.
+ */
+export function sideSlopeLabelPlacement(
+  line: { x1: number; y1: number; x2: number; y2: number },
+  label: { width: number; height: number; gap: number },
+  plot: { left: number; top: number; right: number; bottom: number },
+): SideSlopeLabelPlacement {
+  const raw = Math.atan2(line.y2 - line.y1, line.x2 - line.x1)
+  // Upright: a line drawn right to left reads left to right.
+  const theta = raw > Math.PI / 2 ? raw - Math.PI : raw < -Math.PI / 2 ? raw + Math.PI : raw
+  const ux = Math.cos(theta),
+    uy = Math.sin(theta)
+  // The label's up direction, perpendicular to the line.
+  const nx = uy,
+    ny = -ux
+  const halfW = label.width / 2,
+    halfH = label.height / 2
+  // The box's half extent on screen once turned.
+  const extentX = Math.abs(ux) * halfW + Math.abs(nx) * halfH
+  const extentY = Math.abs(uy) * halfW + Math.abs(ny) * halfH
+  const fits = (x: number, y: number) =>
+    x - extentX >= plot.left && x + extentX <= plot.right && y - extentY >= plot.top && y + extentY <= plot.bottom
+  const at = (t: number, side: 1 | -1) => {
+    const d = side * (label.gap + halfH)
+    return {
+      x: line.x1 + (line.x2 - line.x1) * t + nx * d,
+      y: line.y1 + (line.y2 - line.y1) * t + ny * d,
+    }
+  }
+  const angle = (theta * 180) / Math.PI
+  for (const t of LABEL_PLACES)
+    for (const side of [1, -1] as const) {
+      const p = at(t, side)
+      if (fits(p.x, p.y)) return { ...p, angle }
+    }
+  // Nowhere along the line fits: the first place, moved just inside the plot.
+  const p = at(LABEL_PLACES[0], 1)
+  const clamp = (v: number, low: number, high: number) =>
+    low > high ? (low + high) / 2 : Math.min(high, Math.max(low, v))
+  return {
+    x: clamp(p.x, plot.left + extentX, plot.right - extentX),
+    y: clamp(p.y, plot.top + extentY, plot.bottom - extentY),
+    angle,
+  }
+}
+
 export type SideSlopeCheck =
   /** The ground falls away at least as steeply as the fill batter: a fill there never catches. */
   | 'fill-never-catches'
