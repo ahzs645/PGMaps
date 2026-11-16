@@ -447,7 +447,10 @@ export function VriVolumeWorkspace({
       }
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-2 text-xs">
+        <div
+          data-map-chrome=""
+          className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-background p-2 text-xs"
+        >
           <SegmentedControl
             label="VRI map layer"
             fullWidth={false}
@@ -479,7 +482,10 @@ export function VriVolumeWorkspace({
             onFeaturePick={toggle}
             overlayOpacity={0.65}
           />
-          <div className="absolute bottom-8 left-2 right-12 rounded border bg-background/95 p-2 text-3xs">
+          <div
+            data-map-chrome=""
+            className="absolute bottom-8 left-2 right-12 rounded border bg-background/95 p-2 text-3xs"
+          >
             <p className="font-semibold">
               {layer === 'volume'
                 ? 'VRI net volume · m³/ha · clipped stand pieces'

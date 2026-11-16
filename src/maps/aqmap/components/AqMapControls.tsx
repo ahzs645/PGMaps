@@ -351,6 +351,7 @@ export function FloatingLayerControl({
   return (
     <MapFloatingPanel
       position="top-right"
+      data-map-chrome=""
       className="w-56 rounded border border-border bg-background/95 p-3 text-xs shadow-md backdrop-blur"
     >
       <div className="font-semibold text-foreground">{translate('controls.layers', locale)}</div>
@@ -873,6 +874,7 @@ export function MapStatusBar({ latestDate, locale }: { latestDate: string | null
       </details>
       <div
         data-aqmap-scale-bar="true"
+        data-map-chrome=""
         className="flex h-8 shrink-0 flex-col justify-center rounded border border-border bg-background/95 px-2 text-xs leading-none text-foreground shadow-md"
       >
         <div className="h-1 border-x border-b border-foreground" style={{ width: scale.width }} />

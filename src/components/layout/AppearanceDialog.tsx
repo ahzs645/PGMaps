@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { ColorField } from '@/components/ui/color-field'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ColorVisionSelect } from '@/components/ui/color-vision-preview'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Slider } from '@/components/ui/slider'
 import { StyledSelect } from '@/components/ui/styled-select'
 import { useTheme } from 'next-themes'
@@ -33,9 +34,12 @@ const previewDefaults = Object.fromEntries(
   ).map((property) => [property, 'initial']),
 )
 
+const PREVIEW_SECTIONS = ['Overview', 'Terrain', 'Review'] as const
+type PreviewSection = (typeof PREVIEW_SECTIONS)[number]
+
 function ThemePreview({ theme, mode }: { theme: InterfaceTheme; mode: ThemeMode }) {
   const style = { ...previewDefaults, ...interfaceThemeVariables(theme) } as CSSProperties
-  const [selected, setSelected] = useState('Overview')
+  const [selected, setSelected] = useState<PreviewSection>('Overview')
   const [terrain, setTerrain] = useState(true)
   return (
     <div
@@ -54,20 +58,13 @@ function ThemePreview({ theme, mode }: { theme: InterfaceTheme; mode: ThemeMode 
           <p className="text-xs text-muted-foreground">Hillside access project</p>
         </div>
       </div>
-      <div className="flex flex-wrap gap-1 rounded-md bg-muted p-1" role="group" aria-label="Preview navigation">
-        {['Overview', 'Terrain', 'Review'].map((name) => (
-          <Button
-            key={name}
-            size="xs"
-            variant="ghost"
-            aria-pressed={selected === name}
-            className={selected === name ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}
-            onClick={() => setSelected(name)}
-          >
-            {name}
-          </Button>
-        ))}
-      </div>
+      {/* The real control, so the preview shows the toggles every page draws. */}
+      <SegmentedControl
+        label="Preview navigation"
+        value={selected}
+        options={PREVIEW_SECTIONS.map((name) => ({ value: name, label: name }))}
+        onChange={setSelected}
+      />
       <section
         className="grid gap-4 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-sm"
         aria-label="Sample project card"
@@ -194,24 +191,16 @@ export function AppearanceDialog({
                 ))}
               </StyledSelect>
             </label>
-            <div className="flex gap-1 rounded-md bg-muted p-1" role="group" aria-label="Preview colour mode">
-              {themeModes.map((item) => {
-                const Icon = item === 'light' ? Sun : Moon
-                return (
-                  <Button
-                    key={item}
-                    size="xs"
-                    variant={mode === item ? 'outline' : 'ghost'}
-                    className="flex-1 capitalize"
-                    aria-pressed={mode === item}
-                    onClick={() => setMode(item)}
-                  >
-                    <Icon aria-hidden="true" />
-                    {item === 'light' ? 'Light' : 'Dark'}
-                  </Button>
-                )
-              })}
-            </div>
+            <SegmentedControl
+              label="Preview colour mode"
+              value={mode}
+              options={themeModes.map((item) => ({
+                value: item,
+                label: item === 'light' ? 'Light' : 'Dark',
+                icon: item === 'light' ? Sun : Moon,
+              }))}
+              onChange={setMode}
+            />
             <fieldset className="space-y-1.5">
               <legend className="mb-1 text-sm font-semibold">Colours</legend>
               {themeRoles.map(([role, label]) => (

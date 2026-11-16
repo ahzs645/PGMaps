@@ -466,6 +466,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
         <div
           role="toolbar"
           aria-label="Imported data map toolbar"
+          data-map-chrome=""
           className="absolute left-2 top-2 z-20 flex flex-wrap gap-1 rounded-md border border-border bg-background/95 p-1 shadow-sm backdrop-blur"
         >
           <Button size="sm" variant="outline" onClick={() => setFit((n) => n + 1)}>

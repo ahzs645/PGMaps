@@ -257,6 +257,7 @@ export function ExplorerMap({
         <button
           type="button"
           aria-pressed={drawMode}
+          data-map-chrome=""
           onClick={() => {
             if (drawMode) {
               setDrawMode(false)
@@ -278,6 +279,7 @@ export function ExplorerMap({
         <button
           type="button"
           aria-pressed={reportMode}
+          data-map-chrome=""
           onClick={() => {
             setReportMode((current) => !current)
             setDrawMode(false)

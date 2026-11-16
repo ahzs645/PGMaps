@@ -264,7 +264,10 @@ export function CompletedVolumeExample({ basemap, viewSwitcher }: { basemap: Bas
       }
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-2 text-xs">
+        <div
+          data-map-chrome=""
+          className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-background p-2 text-xs"
+        >
           <SegmentedControl
             label="Completed volume map layer"
             size="sm"
@@ -309,7 +312,10 @@ export function CompletedVolumeExample({ basemap, viewSwitcher }: { basemap: Bas
             }}
             overlayOpacity={0.7}
           />
-          <div className="absolute bottom-8 left-2 right-12 rounded border bg-background/95 p-2 text-3xs">
+          <div
+            data-map-chrome=""
+            className="absolute bottom-8 left-2 right-12 rounded border bg-background/95 p-2 text-3xs"
+          >
             <p className="font-semibold">
               {layer === 'volume' ? 'Predicted merchantable volume · m³/ha' : 'Return-height p95 · m'}
             </p>

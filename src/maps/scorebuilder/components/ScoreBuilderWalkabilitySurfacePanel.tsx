@@ -60,6 +60,7 @@ export function ScoreBuilderWalkabilitySurfacePanel({
 
   return (
     <div
+      data-map-chrome=""
       className={cn(
         'absolute z-20 flex w-[min(20rem,calc(100vw-1.5rem))] flex-col rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur',
         // On mobile, sit below the density/correlate/undo action buttons; on

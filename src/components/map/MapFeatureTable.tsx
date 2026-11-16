@@ -201,6 +201,7 @@ export function MapTableButton({
       type="button"
       aria-label={label}
       title={label}
+      data-map-chrome=""
       className={cn(
         'flex h-9 min-w-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted md:px-2.5',
         className,
@@ -371,6 +372,7 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
         <div
           role="dialog"
           aria-label={title}
+          data-map-chrome=""
           className="absolute inset-x-0 bottom-0 z-50 flex h-[calc(100%-74px)] flex-col overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.3)] md:hidden"
         >
           <TableHeader title={title} onClose={onClose} />
@@ -504,6 +506,7 @@ function DesktopTablePanel({
     <div
       ref={panelRef}
       data-panel="data-table-panel"
+      data-map-chrome=""
       aria-label={`${title} pane`}
       /* No drop shadow: the pane is docked in the layout rather than floating over
          the map, so the 1px top border is the only separation it needs. */
@@ -638,12 +641,24 @@ function TableBody<TRow, TLayerId extends string>({
 }) {
   const showViewModeToggle = viewModeToggle && showOnlyInViewEnabled
   const layerPickerAnchorRef = useRef<HTMLButtonElement>(null)
+  /* The picker earns its chevron only when it offers a choice: another layer, or the
+     "only in view" option when no All/Visible toggle sits beside it. Otherwise the layer
+     name is just the pane's heading. */
+  const pickerShowsOnlyInView = showOnlyInViewEnabled && !showViewModeToggle
+  const canPickLayer = layers.length > 1 || pickerShowsOnlyInView
+  const headingClass = paneActions ? 'max-w-[18rem] text-base font-semibold' : 'max-w-[13rem] text-sm font-medium'
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0 border-b border-border px-3 py-2">
         <div className="flex items-center gap-2">
-          {activeLayer && (
+          {activeLayer && !canPickLayer && (
+            <h2 className={cn('flex items-center gap-2 px-2 py-1.5', headingClass)}>
+              <LayerSwatch color={activeLayer.color} shape={activeLayer.shape ?? 'fill'} />
+              <span className="truncate">{activeLayer.label}</span>
+            </h2>
+          )}
+          {activeLayer && canPickLayer && (
             <div className="relative" data-layer-picker-root="true">
               {/* Doubles as the pane heading, the way Felt's table titles its layer. */}
               <button
@@ -651,10 +666,7 @@ function TableBody<TRow, TLayerId extends string>({
                 type="button"
                 role="heading"
                 aria-level={2}
-                className={cn(
-                  'flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted',
-                  paneActions ? 'max-w-[18rem] text-base font-semibold' : 'max-w-[13rem] text-sm font-medium',
-                )}
+                className={cn('flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted', headingClass)}
                 aria-haspopup="listbox"
                 aria-expanded={layerPickerOpen}
                 onClick={() => onLayerPickerOpenChange(!layerPickerOpen)}
@@ -669,7 +681,7 @@ function TableBody<TRow, TLayerId extends string>({
                   layers={layers}
                   selectedLayer={selectedLayer}
                   showOnlyInView={showOnlyInView}
-                  showOnlyInViewEnabled={showOnlyInViewEnabled && !showViewModeToggle}
+                  showOnlyInViewEnabled={pickerShowsOnlyInView}
                   onClose={() => onLayerPickerOpenChange(false)}
                   onLayerChange={(layer) => {
                     onLayerChange(layer)
@@ -980,7 +992,7 @@ function TableGrid<TRow>({
                     className={cn(
                       'flex min-w-0 items-center gap-1.5 px-3 py-2 font-medium',
                       (sortable || renderColumnStats) && 'px-1.5 py-1',
-                      columnIndex === 0 && 'sticky z-[2] border-r border-border/70 bg-background',
+                      columnIndex === 0 && 'sticky z-[2] border-r border-border bg-background',
                       column.widthClassName,
                     )}
                   >
@@ -1385,7 +1397,7 @@ function TableRow<TRow>({
             className={cn(
               'flex min-w-0 items-center px-3 py-2',
               type === 'numeric' && 'justify-end tabular-nums',
-              columnIndex === 0 && cn('sticky z-[1] border-r border-border/70', pinnedBackground),
+              columnIndex === 0 && cn('sticky z-[1] border-r border-border', pinnedBackground),
               column.widthClassName,
             )}
           >

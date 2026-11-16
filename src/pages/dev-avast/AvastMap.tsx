@@ -269,7 +269,10 @@ export function AvastMap(props: AvastMapProps) {
         }
       />
       <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2">
-        <div className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-border bg-background/95 p-1 shadow-md backdrop-blur">
+        <div
+          data-map-chrome=""
+          className="pointer-events-auto flex items-center gap-1.5 rounded-lg border border-border bg-background/95 p-1 shadow-md backdrop-blur"
+        >
           <SegmentedControl
             label="Map colours"
             value={view}

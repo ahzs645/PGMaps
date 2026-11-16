@@ -333,8 +333,22 @@ canvas,
    sections paint `bg-background`, which is right for the built-in theme, where page and card
    are both white; under a theme with a page colour of its own the whole panel took that tint
    and no white was left in a map view (measured: 73-92% of the panel in the page colour, 0%
-   card). The page colour stays on the navigation, index pages and the band round the map. */
-[data-interface-theme] :is([data-map-sidebar-wrapper], .geo-map-layout-toggle) {
+   card). The page colour stays on the navigation, index pages and the band round the map.
+   The same holds for the other chrome on a map, which paints `bg-background` and read as
+   tinted bands beside the white sidebar and MapLibre's controls: a right-hand sidebar, the
+   legend, the timeline, the phone's sheets (a feature's details, the table), and anything
+   marked `data-map-chrome` (the table pane and its toggle, the status bar, the scale bar,
+   the loading pill, `MapOverlay` and a page's own floating toolbars). */
+[data-interface-theme]
+  :is(
+    [data-map-sidebar-wrapper],
+    [data-map-right-sidebar],
+    .geo-map-layout-toggle,
+    [data-map-legend-panel],
+    [data-map-timeline],
+    [data-map-feature-card-panel],
+    [data-map-chrome]
+  ) {
   --background: var(--card);
   --foreground: var(--card-foreground);
 }

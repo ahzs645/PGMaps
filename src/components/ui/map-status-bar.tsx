@@ -166,6 +166,7 @@ export function MapStatusBar() {
   return createPortal(
     <div
       data-testid="map-status-bar"
+      data-map-chrome=""
       className={cn(
         'pointer-events-auto flex max-w-[min(34rem,calc(100vw-1rem))] items-center gap-2 rounded-md border border-border bg-background/85 px-1.5 py-0.5',
         'font-mono text-2xs leading-4 tabular-nums text-muted-foreground shadow-sm backdrop-blur',

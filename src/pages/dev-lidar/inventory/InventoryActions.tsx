@@ -55,7 +55,7 @@ export function InventoryActions({
   children,
 }: Props) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-background p-2 text-xs">
+    <div data-map-chrome="" className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-background p-2 text-xs">
       <Button
         size="sm"
         variant={drawing ? 'default' : 'outline'}

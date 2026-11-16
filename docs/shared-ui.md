@@ -57,7 +57,11 @@ brand colour or built-in theme. Map symbols and reports have their own settings.
   map's side panel is a card as well: `MapSectionLayout`'s sidebar wrapper and its fold tab
   rebind `--background` the same way, because the shell and its sections paint
   `bg-background`, and under a page colour the whole panel took that tint (73–92% of it, with
-  no white left). The page colour stays on the navigation, index pages and the map surround.
+  no white left). The rest of a map's chrome rebinds it too, so it is white beside a white
+  sidebar: a right-hand sidebar, the legend, the timeline, the phone's sheets, and anything
+  marked `data-map-chrome` (the table pane and toggle, status bar, scale bar, loading pill,
+  `MapOverlay`). A page's own floating panel or toolbar on a map takes `data-map-chrome`.
+  The page colour stays on the navigation, index pages and the map surround.
   A bordered panel on a page (a Projects pane, a Home tile) is `bg-card`, never
   `bg-background`, or it disappears into a themed page. A
   selected card tinted with fixed palette classes for the built-in theme marks itself
