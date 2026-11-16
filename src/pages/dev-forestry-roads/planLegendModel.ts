@@ -20,6 +20,10 @@ export interface PlanLegendEntry {
 export interface PlanLegendSection {
   id: string
   title: string
+  /** A line under the title, such as what the road is coloured by. */
+  description?: string
+  /** One control beside the title, such as going back from one cost row to the whole estimate. */
+  action?: { label: string; onClick: () => void }
   entries: PlanLegendEntry[]
 }
 export interface PlanLegendSources {
@@ -133,6 +137,7 @@ export function buildPlanLegend({
   curveLabels = false,
   cableCursor = false,
   cableSupports = false,
+  roadsHeading,
 }: {
   sources: PlanLegendSources
   alignments: readonly Alignment[]
@@ -149,39 +154,56 @@ export function buildPlanLegend({
   curveLabels?: boolean
   cableCursor?: boolean
   cableSupports?: boolean
+  /** The roads section's heading, when the active road is coloured by something it should name. */
+  roadsHeading?: { title: string; description?: string }
 }): PlanLegendSection[] {
   const sections: PlanLegendSection[] = []
-  const section = (id: string, title: string) => {
+  const section = (id: string, title: string, description?: string) => {
     const entries = new Map<string, PlanLegendEntry>()
+    const order = new Map<string, number>()
     return {
-      add: (entry: PlanLegendEntry) => entries.set(entry.id, entry),
+      /** `rank` sorts the entries that carry one among themselves; the rest keep their places. */
+      add: (entry: PlanLegendEntry, rank?: number) => {
+        entries.set(entry.id, entry)
+        if (rank !== undefined) order.set(entry.id, rank)
+      },
       finish: () => {
-        if (entries.size) sections.push({ id, title, entries: [...entries.values()] })
+        if (!entries.size) return
+        const list = [...entries.values()]
+        const ranked = list.flatMap((entry, i) => (order.has(entry.id) ? [i] : []))
+        const sorted = ranked.map((i) => list[i]).sort((a, b) => order.get(a.id)! - order.get(b.id)!)
+        ranked.forEach((slot, j) => (list[slot] = sorted[j]))
+        sections.push({ id, title, ...(description ? { description } : {}), entries: list })
       },
     }
   }
-  const roads = section('roads', 'Roads')
+  const roads = section('roads', roadsHeading?.title ?? 'Roads', roadsHeading?.description)
   const names = new Map(shortRoadNames(alignments.map((road) => road.name)).map((name, i) => [alignments[i].id, name]))
   for (const feature of sources.roads.features) {
     if (geometryShape(feature) !== 'dashed-line') continue
     const p = feature.properties ?? {}
     if (p.selected) {
       const color = String(p.color)
-      roads.add({
-        id: `active-${color}`,
-        color,
-        shape: 'line',
-        // A segment that names its own class (the plan coloured by grade) keeps that label.
-        label: p.legendLabel
-          ? String(p.legendLabel)
-          : terrainOnly
-            ? 'Terrain transect'
-            : color === '#dc2626'
-              ? `Over ${maxGradePercent}% grade`
-              : color === '#9ca3af'
-                ? 'No terrain under it'
-                : 'Active road, within grade',
-      })
+      // A segment that names its own legend place (the plan coloured by cost) is listed by it.
+      const rank = typeof p.legendOrder === 'number' && Number.isFinite(p.legendOrder) ? p.legendOrder : undefined
+      roads.add(
+        {
+          id: `active-${color}`,
+          color,
+          shape: 'line',
+          // A segment that names its own class (the plan coloured by grade) keeps that label.
+          label: p.legendLabel
+            ? String(p.legendLabel)
+            : terrainOnly
+              ? 'Terrain transect'
+              : color === '#dc2626'
+                ? `Over ${maxGradePercent}% grade`
+                : color === '#9ca3af'
+                  ? 'No terrain under it'
+                  : 'Active road, within grade',
+        },
+        rank,
+      )
     } else {
       const alignment = alignments.find((road) => road.id === p.id)
       if (alignment)

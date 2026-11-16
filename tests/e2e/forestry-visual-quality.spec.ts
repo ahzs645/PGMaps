@@ -320,6 +320,16 @@ async function showRoadOptions(controls: Locator) {
   if (await show.isVisible()) await show.click()
 }
 
+/** The drawn timber is the road view bar's tree popover; this opens it and returns the popover. */
+async function openDrawnTimber(page: Page) {
+  const controls = page.getByRole('region', { name: 'Road view controls' })
+  await showRoadOptions(controls)
+  await controls.getByRole('button', { name: /^Drawn timber/ }).click()
+  const panel = page.getByRole('dialog', { name: 'Drawn timber' })
+  await expect(panel).toBeVisible()
+  return panel
+}
+
 /** How the road view looks is in its bar's View options panel; this opens it and returns the panel. */
 async function openViewOptions(page: Page) {
   const controls = page.getByRole('region', { name: 'Road view controls' })
@@ -887,7 +897,7 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('button', { name: 'Look from the road' }).click()
     await expectSelected((await openViewOptions(page)).getByLabel('Where to look'), '')
     await page.keyboard.press('Escape')
-    await showStep(page, 'visit')
+    await openDrawnTimber(page)
     await expect(page.getByRole('button', { name: 'Baked from 3D', exact: true })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -937,22 +947,23 @@ test.describe('forestry visual quality', () => {
     // The trees' light, their shadows and the moving resolution are display settings: none of them
     // regrows the stand or stops it drawing.
     const stemsBefore = (await readMapState(page))?.treeCount
+    await page.keyboard.press('Escape')
     const looks = await openViewOptions(page)
     await choose(looks.getByLabel('Tree light', { exact: true }), 'site')
     await choose(looks.getByLabel('Tree shadows', { exact: true }), 'off')
     await choose(looks.getByLabel('While moving', { exact: true }), 'reduced')
     await expectSelected(looks.getByLabel('Tree light', { exact: true }), 'site')
     await page.keyboard.press('Escape')
-    await showStep(page, 'visit')
     expect((await readMapState(page))?.forestError).toBeNull()
     // The stand may still be filling in its far patches: it only ever gains stems, never starts over.
     expect((await readMapState(page))?.treeCount).toBeGreaterThanOrEqual(stemsBefore ?? 0)
     expect((await readMapState(page))?.forestBakedCards).toBe(true)
 
-    const timber = page.getByRole('button', { name: 'Standing timber', exact: true })
-    await expect(timber).toHaveAttribute('aria-pressed', 'true')
-    await timber.click()
-    await expect(timber).toHaveAttribute('aria-pressed', 'false')
+    await openDrawnTimber(page)
+    const timber = page.getByLabel('Draw standing timber')
+    await expect(timber).toBeChecked()
+    await timber.uncheck()
+    await expect(timber).not.toBeChecked()
     await expect(page.getByLabel(/Stand height/)).toHaveCount(0)
     await expect.poll(async () => (await readMapState(page))?.treeLayer, { timeout: 30_000 }).toBe(false)
   })

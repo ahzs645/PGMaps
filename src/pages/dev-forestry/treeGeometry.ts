@@ -184,6 +184,16 @@ const DETAILED_BROADLEAF: Record<'aspen' | 'birch' | 'cottonwood' | 'shrub', Det
   shrub: { crownBase: 0.1, masses: 150, stem: [0.012, 0.005], limbs: 0, limbRadius: 0, stems: 5 },
 }
 
+/** The crown base, 0–1 of height, `detailedTreeMesh` draws each drawing with (and so its baked card has). */
+export function detailedCrownBase(drawing: TreeDrawingId): number {
+  if (drawing === 'shrub') return DETAILED_BROADLEAF.shrub.crownBase
+  const species = drawingSpecies(drawing)
+  if (species === 'aspen' || species === 'birch' || species === 'cottonwood')
+    return DETAILED_BROADLEAF[species].crownBase
+  const mature = DETAILED_SPECIES[species]
+  return (drawing === species ? mature : youngConifer(mature)).crownBase
+}
+
 /** Widest crown radius in mesh units: matches `roadsideTreeMesh`, so a per-stem crown width means the same. */
 const DETAILED_CROWN_RADIUS = 0.56
 

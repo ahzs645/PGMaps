@@ -51,6 +51,27 @@ describe('a stand from an imported tree list', () => {
     expect(stand.trees.every((tree) => tree.dbhCm > 0 && tree.crownWidthMeters > 0)).toBe(true)
   })
 
+  it('carries a crown base, where the list gives one, to the drawn stem as a share of height', () => {
+    const trees = importedTrees().map((tree, i) => ({
+      ...tree,
+      crownBaseMeters: i % 2 ? tree.heightMeters * 0.7 : null,
+    }))
+    const stand = buildStandFromImport({ geometry: BLOCK, trees, inventory: [], anchorLatitude: ANCHOR }).stand!
+    const withBase = stand.trees.filter((tree) => tree.crownBaseMeters !== undefined)
+    expect(withBase.length).toBeGreaterThan(0)
+    expect(withBase.length).toBeLessThan(stand.trees.length)
+    const drawn = prescribedCells(
+      stand,
+      applyPrescription(stand, { ...DEFAULT_PRESCRIPTION, target: { kind: 'stemShare', value: 100 } }),
+    ).replace!
+    const bases = drawn.filter((tree) => tree.crownBase !== undefined).map((tree) => tree.crownBase!)
+    expect(bases.length).toBe(withBase.length)
+    for (const base of bases) expect(base).toBeCloseTo(0.7, 6)
+    // A list without crown bases draws every stem as the species drawing has it.
+    const plain = prescribedCells(imported(), applyPrescription(imported(), DEFAULT_PRESCRIPTION)).replace!
+    expect(plain.some((tree) => tree.crownBase !== undefined)).toBe(false)
+  })
+
   it('takes missing species from the recorded stand and sizes missing diameters to VRI', () => {
     const recorded: InventoryStand = {
       geometry: BLOCK,

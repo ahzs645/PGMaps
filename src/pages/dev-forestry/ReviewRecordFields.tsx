@@ -35,20 +35,22 @@ function withEntry<T extends object>(
  */
 export function ViewpointRecordsSection({
   views,
+  plannedNames,
   review,
   onReviewChange,
 }: {
   /** The saved views' names, as the report names them. */
   views: readonly string[]
+  /** Names of planned views of interest, rated in their own rows rather than here. */
+  plannedNames?: ReadonlySet<string>
   review: ViaReview
   onReviewChange: (patch: Partial<ViaReview>) => void
 }) {
   const records = review.viewpointRecords ?? {}
   const recorded = views.filter((name) => records[name]?.significance).length
-  const change = (name: string, patch: Partial<ViewpointRecord>) =>
-    onReviewChange({
-      viewpointRecords: withEntry(review.viewpointRecords, name, tidy({ ...records[name], ...patch })),
-    })
+  // A planned view of interest is rated in its own row (`ViewsOfInterestPanel`); only views saved by hand are here.
+  const listed = plannedNames ? views.filter((name) => !plannedNames.has(name)) : views
+  const plannedCount = views.length - listed.length
   return (
     <ToolSection
       title="Viewpoint significance"
@@ -59,7 +61,13 @@ export function ViewpointRecordsSection({
       {!views.length && (
         <p className="text-2xs text-muted-foreground">Save a view from the road view&rsquo;s bar to rate it.</p>
       )}
-      {views.map((name) => {
+      {plannedCount > 0 && (
+        <p className="text-2xs text-muted-foreground">
+          {plannedCount === 1 ? 'One view of interest is' : `${plannedCount} views of interest are`} rated in its row
+          under Views of interest, step 2.
+        </p>
+      )}
+      {listed.map((name) => {
         const record = records[name] ?? {}
         return (
           <ToolDisclosure
@@ -68,53 +76,7 @@ export function ViewpointRecordsSection({
             summary={record.significance ?? 'Not rated'}
             toggleProps={{ 'data-forestry-disclosure': `viewpoint-record-${name}` }}
           >
-            <SelectField
-              label="Significance"
-              aria-label={`Significance of ${name}`}
-              className="w-full rounded-md border bg-background p-1"
-              value={record.significance ?? ''}
-              onChange={(event) =>
-                change(name, { significance: (event.target.value || undefined) as ViewpointSignificance | undefined })
-              }
-            >
-              <option value="">Not rated</option>
-              {VIEWPOINT_SIGNIFICANCE.map((level) => (
-                <option key={level} value={level}>
-                  {level}
-                </option>
-              ))}
-            </SelectField>
-            <FormField label="Why it was chosen">
-              <textarea
-                className={FORM_INPUT_CLASS}
-                rows={2}
-                maxLength={2000}
-                aria-label={`Why ${name} was chosen`}
-                placeholder="e.g. high boat traffic"
-                value={record.reason ?? ''}
-                onChange={(event) => change(name, { reason: event.target.value })}
-              />
-            </FormField>
-            <FormField label="Viewing experience">
-              <input
-                className={FORM_INPUT_CLASS}
-                maxLength={2000}
-                aria-label={`Viewing experience from ${name}`}
-                placeholder="e.g. sustained focal and side views from watercraft"
-                value={record.experience ?? ''}
-                onChange={(event) => change(name, { experience: event.target.value })}
-              />
-            </FormField>
-            <FormField label="View duration">
-              <input
-                className={FORM_INPUT_CLASS}
-                maxLength={200}
-                aria-label={`View duration from ${name}`}
-                placeholder="e.g. sustained, or under 10 seconds"
-                value={record.duration ?? ''}
-                onChange={(event) => change(name, { duration: event.target.value })}
-              />
-            </FormField>
+            <ViewpointRecordFields name={name} review={review} onReviewChange={onReviewChange} />
           </ToolDisclosure>
         )
       })}
@@ -257,4 +219,87 @@ export function SubLandformFields({
       })}
     </ToolDisclosure>
   )
+}
+
+/**
+ * One viewpoint's Table 3 fields: significance, why it was chosen, the viewing experience and how long the view
+ * lasts, held on the review record by the view's name. Shown in the views of interest's row for a planned view and
+ * in *Viewpoint significance* for a view saved by hand; never an input to the run.
+ */
+export function ViewpointRecordFields({
+  name,
+  review,
+  onReviewChange,
+}: {
+  name: string
+  review: ViaReview
+  onReviewChange: (patch: Partial<ViaReview>) => void
+}) {
+  const records = review.viewpointRecords ?? {}
+  const record = records[name] ?? {}
+  const change = (name: string, patch: Partial<ViewpointRecord>) =>
+    onReviewChange({
+      viewpointRecords: withEntry(review.viewpointRecords, name, tidy({ ...records[name], ...patch })),
+    })
+  return (
+    <div className="space-y-2">
+      <SelectField
+        label="Significance"
+        aria-label={`Significance of ${name}`}
+        className="w-full rounded-md border bg-background p-1"
+        value={record.significance ?? ''}
+        onChange={(event) =>
+          change(name, { significance: (event.target.value || undefined) as ViewpointSignificance | undefined })
+        }
+      >
+        <option value="">Not rated</option>
+        {VIEWPOINT_SIGNIFICANCE.map((level) => (
+          <option key={level} value={level}>
+            {level}
+          </option>
+        ))}
+      </SelectField>
+      <FormField label="Why it was chosen">
+        <textarea
+          className={FORM_INPUT_CLASS}
+          rows={2}
+          maxLength={2000}
+          aria-label={`Why ${name} was chosen`}
+          placeholder="e.g. high boat traffic"
+          value={record.reason ?? ''}
+          onChange={(event) => change(name, { reason: event.target.value })}
+        />
+      </FormField>
+      <FormField label="Viewing experience">
+        <input
+          className={FORM_INPUT_CLASS}
+          maxLength={2000}
+          aria-label={`Viewing experience from ${name}`}
+          placeholder="e.g. sustained focal and side views from watercraft"
+          value={record.experience ?? ''}
+          onChange={(event) => change(name, { experience: event.target.value })}
+        />
+      </FormField>
+      <FormField label="View duration">
+        <input
+          className={FORM_INPUT_CLASS}
+          maxLength={200}
+          aria-label={`View duration from ${name}`}
+          placeholder="e.g. sustained, or under 10 seconds"
+          value={record.duration ?? ''}
+          onChange={(event) => change(name, { duration: event.target.value })}
+        />
+      </FormField>
+    </div>
+  )
+}
+
+/** Moves a viewpoint's record to its new name when the view is renamed; unchanged when it had none. */
+export function renamedViewpointRecords(review: ViaReview, from: string, to: string): Partial<ViaReview> | null {
+  const record = review.viewpointRecords?.[from]
+  if (!record || from === to || review.viewpointRecords?.[to]) return null
+  const next = { ...review.viewpointRecords }
+  delete next[from]
+  next[to] = record
+  return { viewpointRecords: next }
 }

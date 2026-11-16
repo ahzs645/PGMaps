@@ -3,10 +3,11 @@ import { FileImage, MapPinned } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogShell } from '@/components/ui/dialog-shell'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ExternalLink } from '@/components/ui/text-button'
 import { formatBytes } from '@/lib/format'
+import { knownDate } from './libraryOrganization'
 import { OrganizationSummary } from './OrganizationSummary'
 import { OriginalImagePanel } from './SourceImageViewer'
 import { sourceImageChoices } from './sourceImages'
@@ -23,14 +24,15 @@ type Props = {
 }
 type Mode = 'original' | 'rectified' | 'compare'
 
-function ImageContent({
+function ImageDialog({
   item,
+  onClose,
   onMap,
   onSheet,
   onDetails,
   onGeoreference,
   facets,
-}: Omit<Props, 'item' | 'onClose'> & { item: RasterRecord }) {
+}: Omit<Props, 'item'> & { item: RasterRecord }) {
   const choices = useMemo(() => sourceImageChoices(item), [item])
   const [sourceId, setSourceId] = useState(
     () => choices.find((choice) => choice.role === 'original-scan')?.id || choices[0]?.id || '',
@@ -75,7 +77,7 @@ function ImageContent({
           Loading map preview…
         </span>
       )}
-      <div className="flex min-h-40 items-center justify-center rounded-lg border bg-stone-100 dark:bg-zinc-900">
+      <div className="flex min-h-40 items-center justify-center rounded-lg border bg-muted">
         {image.url || item.thumbnail ? (
           <img
             src={image.url || item.thumbnail}
@@ -109,29 +111,50 @@ function ImageContent({
       </p>
     </div>
   )
+  const hasLegend = item.fullSheets.some((sheet) => sheet.legend)
+  const canAdjust = !!item.downloads.length && !!onGeoreference
   return (
-    <>
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={item.confidence === 'experimental' ? 'warning' : 'neutral'}>
-          {item.alignmentReview?.label ||
-            (item.confidence === 'experimental' ? 'Experimental placement' : 'Provisional placement')}
-        </Badge>
-      </div>
-      <SegmentedControl<Mode>
-        label="Image representation"
-        size="sm"
-        className="flex-wrap"
-        value={mode}
-        options={[
-          { value: 'original', label: sourceLabel },
-          { value: 'rectified', label: 'Map overlay' },
-          { value: 'compare', label: 'Compare', disabled: !choices.length },
-        ]}
-        onChange={(next) => {
-          setMode(next)
-          if (next !== 'original') setLoadRectified(true)
-        }}
-      />
+    <DialogShell
+      onClose={onClose}
+      size="xl"
+      className="workspace-sm:max-w-6xl"
+      bodyClassName="space-y-4"
+      title={item.title}
+      subtitle={knownDate(item.dateLabel) || item.organization?.pageLabel}
+      toolbar={
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <SegmentedControl<Mode>
+            label="Image representation"
+            className="w-full sm:w-auto sm:min-w-96"
+            value={mode}
+            options={[
+              { value: 'original', label: sourceLabel },
+              { value: 'rectified', label: 'Map overlay' },
+              { value: 'compare', label: 'Compare', disabled: !choices.length },
+            ]}
+            onChange={(next) => {
+              setMode(next)
+              if (next !== 'original') setLoadRectified(true)
+            }}
+          />
+          <Badge tone={item.confidence === 'experimental' ? 'warning' : 'neutral'} size="sm">
+            {item.alignmentReview?.label ||
+              (item.confidence === 'experimental' ? 'Experimental placement' : 'Provisional placement')}
+          </Badge>
+        </div>
+      }
+      footer={
+        <div className="flex items-center gap-2">
+          <Button className="flex-1 sm:flex-none" onClick={() => onMap(item)}>
+            <MapPinned />
+            Open on map
+          </Button>
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={onDetails}>
+            Notes & sources
+          </Button>
+        </div>
+      }
+    >
       {mode === 'original' && <OriginalImagePanel item={item} choiceId={sourceId} onChoiceChange={setSourceId} />}
       {mode === 'rectified' && rectified}
       {mode === 'compare' && (
@@ -149,57 +172,34 @@ function ImageContent({
           </div>
         </>
       )}
-      <div className="flex flex-wrap gap-2 border-t pt-3">
-        <Button onClick={() => onMap(item)}>
-          <MapPinned />
-          Open on map
-        </Button>
-        {item.fullSheets.some((sheet) => sheet.legend) && (
-          <Button variant="outline" onClick={onSheet}>
-            <FileImage />
-            Legend / notes
-          </Button>
-        )}
-        <Button variant="outline" onClick={onDetails}>
-          Map notes & sources
-        </Button>
-        {!!item.downloads.length && onGeoreference && (
-          <Button variant="outline" onClick={() => onGeoreference(item)}>
-            Adjust alignment
-          </Button>
-        )}
-      </div>
       <p className="text-xs leading-relaxed text-muted-foreground">{item.alignmentReview?.summary || item.caveat}</p>
+      {(hasLegend || canAdjust) && (
+        <div className="flex flex-wrap gap-2">
+          {hasLegend && (
+            <Button variant="outline" size="sm" onClick={onSheet}>
+              <FileImage />
+              Legend / notes
+            </Button>
+          )}
+          {canAdjust && (
+            <Button variant="outline" size="sm" onClick={() => onGeoreference?.(item)}>
+              Adjust alignment
+            </Button>
+          )}
+        </div>
+      )}
       {item.organization && (
         <CollapsibleSection label="Category & source details" collapseOn="always" contentClassName="p-3">
           <OrganizationSummary value={item.organization} facets={facets} detail />
         </CollapsibleSection>
       )}
-    </>
+    </DialogShell>
   )
 }
 
-export function MapImagePreview({ item, onClose, ...props }: Props) {
+export function MapImagePreview({ item, ...props }: Props) {
+  if (!item) return null
   // Reopening another source or revision discards pending preview work and all old view state.
-  const identity = item
-    ? JSON.stringify([item.id, item.assets, item.downloads, item.imageVariants, item.fullSheets])
-    : ''
-  return (
-    <Dialog
-      open={!!item}
-      onOpenChange={(open) => {
-        if (!open) onClose()
-      }}
-    >
-      <DialogContent elevated className="max-h-[92dvh] overflow-y-auto sm:max-w-6xl">
-        <DialogHeader>
-          <DialogTitle>{item?.title || 'Map image'}</DialogTitle>
-          <DialogDescription>
-            {item?.dateLabel || item?.organization?.pageLabel || 'Original source and rectified map views.'}
-          </DialogDescription>
-        </DialogHeader>
-        {item && <ImageContent key={identity} item={item} {...props} />}
-      </DialogContent>
-    </Dialog>
-  )
+  const identity = JSON.stringify([item.id, item.assets, item.downloads, item.imageVariants, item.fullSheets])
+  return <ImageDialog key={identity} item={item} {...props} />
 }

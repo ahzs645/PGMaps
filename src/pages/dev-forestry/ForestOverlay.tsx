@@ -10,7 +10,7 @@ import {
   type Thinning,
   type TreeInstance,
 } from './forest'
-import { buildImpostorAtlas, drawingPalette } from './impostor'
+import { TREE_DRAWINGS, buildImpostorAtlas, drawingPalette } from './impostor'
 import {
   BAKED_VARIANTS,
   bakeClumpAtlas,
@@ -19,6 +19,7 @@ import {
   bakedTreeMesh,
 } from './impostorBake'
 import { FIXED_TREE_SUN, createTreeLayer, type TreeLook, type TreeStyle } from './treeLayer'
+import { detailedCrownBase } from './treeGeometry'
 import { SHADOW_REACH_METERS, createTreeShadowLayer } from './treeShadows'
 import { debrisMesh, felledTreeMesh, logMesh, placeDebris, snagMesh, stumpMesh } from './harvestedGround'
 import type { TreatedStemKind } from './stand/prescribedCells'
@@ -204,6 +205,12 @@ export function ForestOverlay(props: ForestOverlayProps) {
         atlas: clumpBand(i) ? clumpAtlas : atlas,
         clumps: style !== 'solid' && clumpBand(i),
         mesh: style === 'solid' ? coniferMesh() : undefined,
+        // Single-tree cards know the crown base they were made with: a drawn one its silhouette's, a
+        // baked one its mesh's. Clumps and the plain cone do not.
+        crownBaseOf:
+          style !== 'solid' && !clumpBand(i)
+            ? (drawing) => (baked ? detailedCrownBase(drawing) : TREE_DRAWINGS[drawing].crownBase)
+            : undefined,
         // A baked card is the tree from where the eye stands: one card, facing it. A drawn
         // silhouette is one face, so near stems stand as crossed planes instead.
         crossedCards: baked
@@ -248,6 +255,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
         style: 'solid',
         mesh: bakedTreeMesh(drawing, variant),
         palette: drawingPalette(drawing),
+        crownBaseOf: detailedCrownBase,
         range: [-2, -1, detailRadiusMeters - DETAIL_BLEND_METERS, detailRadiusMeters + 0.01],
         look,
       }),

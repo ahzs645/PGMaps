@@ -487,8 +487,13 @@ export function DriveCamera(props: Props) {
       )}
 
       {(statusText || props.status) && (
-        <div className="mt-1.5 space-y-1 border-t border-border/60 pt-1.5 text-2xs leading-4" role="status">
-          {statusText && <p>{statusText}</p>}
+        // `empty:hidden`: the page's status can be a fragment of conditions that all render nothing, which left an
+        // empty ruled strip under the bar.
+        <div
+          className="mt-1.5 space-y-1 border-t border-border/60 pt-1.5 text-2xs leading-4 empty:hidden"
+          role="status"
+        >
+          {statusText ? <p>{statusText}</p> : null}
           {props.status}
         </div>
       )}

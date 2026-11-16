@@ -25,7 +25,7 @@
 
 import { MercatorCoordinate } from 'maplibre-gl'
 
-import type { ForestMesh, TreeInstance, ViewingGap } from './forest'
+import type { ForestMesh, TreeDrawingId, TreeInstance, ViewingGap } from './forest'
 import { CONE_BASE_DIAMETER, SPECIES_CROWN_RATIO, crownColor, stemTurn, treeDrawing } from './forest'
 import { BILLBOARD_ASPECT, CLUMP_WIDTH_FACTOR, atlasCell, drawingCrownRatio, type ImpostorAtlas } from './impostor'
 import { coveragePreservingMips, type MipLevel } from './atlasMips'
@@ -119,6 +119,14 @@ in vec2 a_uv;
 uniform float u_palette;
 uniform vec3 u_foliage;
 uniform vec3 u_barkColour;
+/** Crown base: x the drawing's own, y this stem's (0–1 of height); y 0 keeps the drawing as made. */
+in vec2 a_crownBase;
+// Stretches the stem below the crown base and the crown above it so the live crown starts at this
+// stem's own height rather than the species drawing's (trial: TASS crown bases). Identity at y 0.
+float crownBaseHeight(float z, vec2 base) {
+  if (base.y <= 0.0 || base.x <= 0.0 || base.x >= 1.0 || base.y >= 1.0) return z;
+  return z < base.x ? z * base.y / base.x : base.y + (z - base.x) * (1.0 - base.y) / (1.0 - base.x);
+}
 
 uniform mat4 u_matrix;
 uniform vec3 u_eye;
@@ -159,7 +167,8 @@ void main() {
   vec2 across = spin * a_position.xy;
   vec2 normalAcross = spin * a_normal.xy;
   // Mercator y runs south, so north-facing geometry flips.
-  vec3 metres = vec3(across.x * a_scale.x, -across.y * a_scale.x, a_position.z * a_scale.y);
+  float up = crownBaseHeight(a_position.z, a_crownBase);
+  vec3 metres = vec3(across.x * a_scale.x, -across.y * a_scale.x, up * a_scale.y);
   v_distance = length(a_offset.xy - u_eye.xy) / u_meterScale;
   v_fade = fade(v_distance);
   bool shown = v_fade.x > 0.0 && v_fade.y < 1.0 && v_distance >= u_nearCut && !inGap(a_offset.xy, v_distance);
@@ -178,7 +187,7 @@ void main() {
   }
   v_uv = a_uv;
   v_bark = a_bark;
-  v_height = a_position.z;
+  v_height = up;
   // Non-uniform scaling skews a normal, so divide by the scale rather than
   // carrying the mesh normal through unchanged.
   v_normal = normalize(vec3(normalAcross.x / a_scale.x, -normalAcross.y / a_scale.x, a_normal.z / a_scale.y));
@@ -277,6 +286,9 @@ out float v_hillLight;
  * for that tree; on a stem stretched wider the same surface faces more upward, as the mesh's does.
  */
 flat out float v_stretch;
+/** Crown base: x the drawing's own, y this stem's (0–1 of height); y 0 keeps the drawing as made. */
+in vec2 a_crownBase;
+flat out vec2 v_crownBase;
 
 uniform mat4 u_matrix;
 uniform vec3 u_eye;
@@ -402,6 +414,7 @@ void main() {
   v_core = a_cell + vec2(0.5, 1.0 - 0.6) * u_cellSize;
   v_cell = a_cell;
   v_tint = a_tint;
+  v_crownBase = a_crownBase;
   v_card = vec2(a_corner.x + 0.5, below > 0.0 ? -below / a_scale.y : a_corner.y);
   v_across = vec3(across, 0.0);
   // The card's face, turned toward the camera whichever side it is seen from.
@@ -425,6 +438,7 @@ in vec3 v_facing;
 in vec3 v_view;
 in float v_top;
 in vec2 v_core;
+flat in vec2 v_crownBase;
 uniform sampler2D u_atlas;
 /** A baked atlas's second sheet: normal, foliage or bark, depth. */
 uniform sampler2D u_surface;
@@ -573,6 +587,12 @@ void main() {
   // back and forth. It is seen only where the drawn ground falls short of the ground the stem was
   // stood on, and there it should read as the trees it stands among, not as a dark block.
   float cardY = v_card.y < 0.0 ? 0.34 + 0.3 * abs(fract(-v_card.y * 1.6) * 2.0 - 1.0) : v_card.y;
+  // A stem with its own crown base reads the picture at the height it stands for (the inverse of the
+  // solid path's stretch): below the stem's crown base, the drawing's bole; above, its crown.
+  vec2 base = v_crownBase;
+  if (v_top < 0.5 && v_card.y >= 0.0 && base.y > 0.0 && base.x > 0.0 && base.x < 1.0 && base.y < 1.0) {
+    cardY = cardY < base.y ? cardY * base.x / base.y : base.x + (cardY - base.y) * (1.0 - base.x) / (1.0 - base.y);
+  }
   vec2 within = v_cell + vec2(v_card.x, 1.0 - cardY) * u_cellSize;
   clipCoverage();
   if (v_tile > 0.5) {
@@ -769,6 +789,13 @@ export type TreeLayerOptions = {
    * card is and each stem's colour is the card's tint of it. Absent, a stem takes `crownColor`.
    */
   palette?: { foliage: readonly [number, number, number]; bark: readonly [number, number, number] }
+  /**
+   * The crown base, 0–1 of height, this layer's drawing of each tree was made with: a drawn card's
+   * silhouette's, or a mesh's and its baked card's. With it, a stem carrying its own `crownBase`
+   * (trial: TASS) is stretched to start its crown there; without it, or for a stem without one, the
+   * drawing is used as made.
+   */
+  crownBaseOf?: (drawing: TreeDrawingId) => number
 }
 
 export type TreeLook = 'flat' | 'lit'
@@ -831,6 +858,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
     if (!uniforms.has(name)) uniforms.set(name, gl && program ? gl.getUniformLocation(program, name) : null)
     return uniforms.get(name) ?? null
   }
+  let crownBaseBuffer: WebGLBuffer | null = null
 
   let pending: TreeInstance[] | null = null
   let instanceCount = 0
@@ -948,6 +976,19 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       gl.bindBuffer(gl.ARRAY_BUFFER, tintBuffer)
       gl.bufferData(gl.ARRAY_BUFFER, tints, gl.DYNAMIC_DRAW)
     }
+    if (crownBaseBuffer) {
+      // Zeros draw every stem as made; only a stem with its own crown base, in a layer that knows
+      // its drawing's, is stretched.
+      const crownBases = new Float32Array(trees.length * 2)
+      if (options.crownBaseOf)
+        trees.forEach((tree, index) => {
+          if (tree.crownBase === undefined || !(tree.crownBase > 0 && tree.crownBase < 1)) return
+          crownBases[index * 2] = options.crownBaseOf!(treeDrawing(tree.species, tree.form))
+          crownBases[index * 2 + 1] = tree.crownBase
+        })
+      gl.bindBuffer(gl.ARRAY_BUFFER, crownBaseBuffer)
+      gl.bufferData(gl.ARRAY_BUFFER, crownBases, gl.DYNAMIC_DRAW)
+    }
     gl.bindBuffer(gl.ARRAY_BUFFER, null)
 
     instanceCount = trees.length
@@ -1021,6 +1062,12 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         return buffer
       }
 
+      // A shader compiler may drop an attribute it finds unused; enabling location −1 is a GL error.
+      const crownBaseAttribute = () => {
+        const location = attribute('a_crownBase')
+        return location >= 0 ? perInstance(location, 2) : null
+      }
+
       if (billboard) {
         // One distant camera-facing card, or fixed foreground planes through the stem.
         const plane = [-0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1, 0]
@@ -1037,6 +1084,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         if (turnLocation >= 0) turnBuffer = perInstance(turnLocation, 1)
         const groundLocation = attribute('a_ground')
         if (groundLocation >= 0) groundBuffer = perInstance(groundLocation, 4)
+        crownBaseBuffer = crownBaseAttribute()
 
         const indexBuffer = gl.createBuffer()
         instanceBuffers.push(indexBuffer!)
@@ -1061,6 +1109,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         // A mesh without foliage cards reads −1 everywhere: no vertex is textured.
         const vertexCount = mesh!.attributes.positions.value.length / 3
         staticBuffer(mesh!.attributes.uvs?.value ?? new Float32Array(vertexCount * 2).fill(-1), attribute('a_uv'), 2)
+        crownBaseBuffer = crownBaseAttribute()
 
         const indexBuffer = gl.createBuffer()
         instanceBuffers.push(indexBuffer!)

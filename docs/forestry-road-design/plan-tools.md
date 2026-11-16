@@ -1,4 +1,4 @@
-# Plan tools: pegging at grade, point query, measure, grade colours and follow station
+# Plan tools: pegging at grade, point query, measure, road colours and follow station
 
 The plan's toolbar, beside **Inspect** and **Edit points**, holds three tools of its own:
 
@@ -15,10 +15,12 @@ Satellite, the same choice as the visual-quality maps (`map-satellite-imagery.ts
 this browser. The imagery sits under the plan's layers and labels; over it the hillshade drops to
 half opacity so the imagery reads through, while slope, aspect and elevation stay as they were.
 
-**Map display settings** (the sliders button) adds two plan options: **Colour by grade** and
-**Follow station**. Both are remembered in this browser.
+**Map display settings** (the sliders button) adds two plan options: **Colour road by** (Plain,
+Grade class or Cost per metre) and **Follow station**. Both are remembered in this browser; a
+browser that had the old **Colour by grade** box ticked starts on Grade class.
 
-The calculations are `pegCursor.ts`, `pointQuery.ts`, `gradeClasses.ts` and `followStation.ts`.
+The calculations are `pegCursor.ts`, `pointQuery.ts`, `gradeClasses.ts`, `costColours.ts` and
+`followStation.ts`.
 They have no DOM, terrain fetches or network access, and carry the unit tests. The components
 (`PlanTools.tsx`, `PegTool.tsx`, `PointQueryTool.tsx`) only route events to them.
 
@@ -130,13 +132,24 @@ back to the first point, close on it or double-click), and their card reads the 
 as it goes. The plan's own click handler still places those points, so they are drawn where they
 are clicked, without snapping, as before.
 
-## Colour by grade
+## Colour road by
 
-The active road's segments take the class of their design grade, judged on the absolute grade
+**Grade class.** The active road's segments take the class of their design grade, judged on the absolute grade
 against the project's grade limit: up to half the limit, to three quarters, to the limit, and
 over it. A grade on a break belongs to the class below, so a road exactly at the limit is within
 it. Segments with no terrain under them stay grey, as without the option. The legend lists the
 classes the road shows. Other roads keep their own colours.
+
+**Cost per metre.** Each calculation interval takes its cost per metre against the road's own
+average $/m over its complete length (`costIntensityClasses`, `costColours.ts`): under ½, ½–1,
+1–2, 2–4 and 4 times the average or more, pale yellow to deep purple. An interval whose sections
+are incomplete is grey, and one where nothing is placed is light grey. The legend lists the classes
+in that order with their $/m ranges, under a heading that names the average. By default the whole
+estimate is coloured; the cost dialog's **Colour road by this**, or picking a stretch in its
+**Where it falls**, colours one row instead, and the legend names it with a **Whole estimate**
+button to go back. The row is kept until the page reloads. The cost is spread only while this
+option or the cost dialog is in use, and a dragged edit draws the road plain until it lands. See
+[Where the cost falls](sections-quantities-and-costs.md#where-the-cost-falls).
 
 ## Follow station
 
@@ -174,6 +187,7 @@ drag) never scrubs, and a radial spoke under the pointer still takes precedence.
 | Cursor label                           | 224 px wide, 12 px from its point      | `pegCursor.ts` `CURSOR_LABEL_MAX_WIDTH_PX`, `cursorLabelSide`        | Drawn left of the point instead          |
 | On grade                               | within 5 mm                            | `pointQuery.ts` `ON_GRADE_M`                                         | —                                        |
 | Grade class breaks                     | ½, ¾ and 1 × the grade limit           | `gradeClasses.ts` `GRADE_CLASS_BREAKS`                               | —                                        |
+| Cost per metre class breaks            | ½, 1, 2 and 4 × the road average $/m   | `costAttribution.ts` `COST_INTENSITY_BINS`                           | —                                        |
 | Follow margin                          | 15 % of the view, at least 40 px       | `followStation.ts` `FOLLOW_MARGIN_FRACTION`, `FOLLOW_MIN_MARGIN_PX`  | —                                        |
 | Follow throttle; hold after a user pan | 250 ms; 1.5 s                          | `followStation.ts` `FOLLOW_THROTTLE_MS`, `FOLLOW_HOLD_AFTER_USER_MS` | —                                        |
 

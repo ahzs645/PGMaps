@@ -70,6 +70,8 @@ export type StandTree = {
   dbhCm: number
   /** Recorded stems this drawn stem stands for, ≥ 1: VRI's stems per hectare over what the 4 m grid can draw. */
   expansion: number
+  /** Height to the live crown's base, metres, where an imported list gives one (trial: TASS). Display only. */
+  crownBaseMeters?: number
 }
 
 export type StandBuildInput = {
@@ -276,6 +278,7 @@ export type StandImportTree = {
   crownWidthMeters: number | null
   dbhCm: number | null
   species: TreeSpeciesId | null
+  crownBaseMeters?: number | null
 }
 
 /**
@@ -330,6 +333,9 @@ export function buildStandFromImport(input: {
         crownWidthMeters: imported.crownWidthMeters ?? imported.heightMeters * IMPORT_FALLBACK_CROWN_TO_HEIGHT,
         dbhCm: imported.dbhCm ?? 0,
         expansion: 1,
+        ...(imported.crownBaseMeters != null && imported.crownBaseMeters < imported.heightMeters
+          ? { crownBaseMeters: imported.crownBaseMeters }
+          : {}),
       },
       stand: surveyed,
       shape: Math.pow(Math.max(0.1, imported.heightMeters - 1.3), DBH_CURVE.b) * Math.exp(normal * DBH_CURVE.spread),

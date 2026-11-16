@@ -246,6 +246,11 @@ export type TreeInstance = {
   tint?: readonly [number, number, number]
   /** Display only: which way a felled stem or log lies, degrees clockwise from north. */
   headingDegrees?: number
+  /**
+   * Display only (trial: TASS): height to the live crown's base over the tree's height. The near
+   * layers draw the crown from there (`TreeLayerOptions.crownBaseOf`); absent, the species' own.
+   */
+  crownBase?: number
 }
 
 /**

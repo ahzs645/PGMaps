@@ -94,6 +94,8 @@ export type ImportedTree = {
   /** Diameter at breast height, cm, from the file; null where it gives none. */
   dbhCm: number | null
   species: TreeSpeciesId | null
+  /** Height to the base of the live crown, metres; absent or null where the source gives none (trial: TASS). */
+  crownBaseMeters?: number | null
 }
 
 /** Where a block's imported trees came from, as the prescription dialog shows it. */
@@ -842,6 +844,11 @@ export function droppedSummary(dropped: TreeListConversion['dropped']): string {
 
 /** The packed fields, in order, per tree. */
 export const IMPORTED_TREE_FIELDS = ['lng', 'lat', 'heightMeters', 'crownWidthMeters', 'dbhCm', 'species'] as const
+/**
+ * Appended to `IMPORTED_TREE_FIELDS` only when some tree carries a crown base (trial: TASS), so a
+ * list without one packs exactly as before and older files read unchanged.
+ */
+export const IMPORTED_TREE_CROWN_BASE_FIELD = 'crownBaseMeters'
 
 /** Imported trees for a scene file: one flat number array, `IMPORTED_TREE_FIELDS.length` numbers a tree. */
 export type PackedImportedTrees = {
@@ -863,6 +870,7 @@ const round = (value: number, places: number) => {
 export function packImportedTrees(trees: ReadonlyArray<ImportedTree>): PackedImportedTrees {
   const species: TreeSpeciesId[] = []
   const data: number[] = []
+  const withCrownBase = trees.some((tree) => tree.crownBaseMeters != null)
   let sequential = true
   for (const [index, tree] of trees.entries()) {
     if (tree.id !== String(index + 1)) sequential = false
@@ -879,9 +887,10 @@ export function packImportedTrees(trees: ReadonlyArray<ImportedTree>): PackedImp
       tree.dbhCm === null ? NONE : round(tree.dbhCm, 1),
       speciesIndex,
     )
+    if (withCrownBase) data.push(tree.crownBaseMeters == null ? NONE : round(tree.crownBaseMeters, 1))
   }
   return {
-    fields: [...IMPORTED_TREE_FIELDS],
+    fields: withCrownBase ? [...IMPORTED_TREE_FIELDS, IMPORTED_TREE_CROWN_BASE_FIELD] : [...IMPORTED_TREE_FIELDS],
     species,
     data,
     ...(sequential ? {} : { ids: trees.map((tree) => tree.id) }),
@@ -890,11 +899,18 @@ export function packImportedTrees(trees: ReadonlyArray<ImportedTree>): PackedImp
 
 /** Reads packed trees back. Throws when the fields or the data length do not match this codec. */
 export function unpackImportedTrees(packed: PackedImportedTrees): ImportedTree[] {
-  const width = IMPORTED_TREE_FIELDS.length
+  const withCrownBase =
+    Array.isArray(packed?.fields) &&
+    packed.fields.length === IMPORTED_TREE_FIELDS.length + 1 &&
+    packed.fields[IMPORTED_TREE_FIELDS.length] === IMPORTED_TREE_CROWN_BASE_FIELD
+  const known: readonly string[] = withCrownBase
+    ? [...IMPORTED_TREE_FIELDS, IMPORTED_TREE_CROWN_BASE_FIELD]
+    : IMPORTED_TREE_FIELDS
+  const width = known.length
   if (
     !Array.isArray(packed?.fields) ||
     packed.fields.length !== width ||
-    packed.fields.some((field, i) => field !== IMPORTED_TREE_FIELDS[i])
+    packed.fields.some((field, i) => field !== known[i])
   )
     throw new Error('Imported trees were saved with fields this version does not read.')
   if (!Array.isArray(packed.data) || packed.data.length % width !== 0)
@@ -914,6 +930,7 @@ export function unpackImportedTrees(packed: PackedImportedTrees): ImportedTree[]
       crownWidthMeters: nullable(packed.data[at + 3]),
       dbhCm: nullable(packed.data[at + 4]),
       species: speciesIndex === NONE ? null : (packed.species[speciesIndex] ?? null),
+      ...(withCrownBase ? { crownBaseMeters: nullable(packed.data[at + 6]) } : {}),
     })
   }
   return trees

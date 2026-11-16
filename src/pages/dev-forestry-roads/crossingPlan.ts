@@ -168,6 +168,7 @@ export function estimateCrossings(
   let replacedLegacyCost = 0
   const replaced = new Set<string>()
   for (const row of rows) {
+    row.inSubtotal = row.status === 'current'
     if (row.status === 'current') crossingSubtotal += row.knownSubtotal
     const associated =
       alignment.engineering?.culverts.filter(
@@ -196,6 +197,7 @@ export function estimateCrossings(
         replaced.has(linked)
       ) {
         if (row.status === 'current') crossingSubtotal -= row.knownSubtotal
+        row.inSubtotal = false
         row.missing.push('Replacement culvert link needs review')
         row.complete = false
       } else {
@@ -205,6 +207,7 @@ export function estimateCrossings(
     } else if (associated.length) {
       // Do not add two prices for the same installed structure. The user must choose the replacement.
       if (row.status === 'current') crossingSubtotal -= row.knownSubtotal
+      row.inSubtotal = false
       row.missing.push('Existing engineering culvert: explicitly select its allowance for replacement')
       row.complete = false
     }

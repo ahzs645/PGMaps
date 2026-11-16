@@ -26,14 +26,19 @@ function placePanel(panel: HTMLElement | null, anchorElement: HTMLElement | null
   const viewportHeight = view.innerHeight
   const preferredLeft = align === 'end' ? anchor.right - size.width : anchor.left
   const left = Math.min(Math.max(MARGIN, preferredLeft), viewportWidth - size.width - MARGIN)
+  // The site header is drawn over every page's floating panels (`--app-top-inset`, `index.css`): a panel opening
+  // upward stops under it and scrolls, rather than slipping its top under the header.
+  const topInset =
+    parseFloat(
+      view.getComputedStyle(anchorElement!.ownerDocument.documentElement).getPropertyValue('--app-top-inset'),
+    ) || 0
+  const top = topInset + MARGIN
   const roomBelow = viewportHeight - anchor.bottom - GAP - MARGIN
-  const roomAbove = anchor.top - GAP - MARGIN
+  const roomAbove = anchor.top - GAP - top
   const below = size.height <= roomBelow || roomBelow >= roomAbove
   Object.assign(panel.style, {
     left: `${Math.max(MARGIN, left)}px`,
-    top: below
-      ? `${anchor.bottom + GAP}px`
-      : `${Math.max(MARGIN, anchor.top - GAP - Math.min(size.height, roomAbove))}px`,
+    top: below ? `${anchor.bottom + GAP}px` : `${Math.max(top, anchor.top - GAP - Math.min(size.height, roomAbove))}px`,
     maxHeight: `${Math.max(120, below ? roomBelow : roomAbove)}px`,
     visibility: 'visible',
     transformOrigin: `${align === 'end' ? 'right' : 'left'} ${below ? 'top' : 'bottom'}`,

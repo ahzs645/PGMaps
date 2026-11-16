@@ -66,8 +66,11 @@ export type ViewCaptureApi = {
    */
   capture: (viewIds: readonly string[], options?: { before?: boolean }) => Promise<ViewCaptureReport>
   cancel: () => void
-  /** Stands at one planned view (run, then the road view facing it), as the finder's *Stand here* does. */
-  standAt: (viewId: string) => void
+  /**
+   * Stands at one planned view (run, then the road view facing it), as the finder's *Stand here* does. With
+   * `roadView: false` the assessment runs from it and the road view stays closed: step 1's *Assess from a view*.
+   */
+  standAt: (viewId: string, options?: { roadView?: boolean }) => void
 }
 
 /** A save's end: the saved view's id once its analysis sheet is drawn (or failed, with `warning`), else why not. */
@@ -82,7 +85,7 @@ export type ViewCaptureHost<Snapshot = unknown> = {
    * Stands at the view's place facing it, with its lens, its block and its landform active; the stand runs for the
    * returned scene key. An error when the view cannot be stood at (its block is gone).
    */
-  stand: (view: ViewOfInterest) => { key: string } | { error: string }
+  stand: (view: ViewOfInterest, options?: { roadView?: boolean }) => { key: string } | { error: string }
   /** Turns the road view to another view at the same place, with its lens. */
   face: (view: ViewOfInterest) => void
   /** Saves the road view as *Save viewpoint* does, for the view, replacing earlier saves of it. */
@@ -390,12 +393,12 @@ export function useViewCapture<Snapshot>(hostRef: {
   }, [])
 
   const standAt = useCallback(
-    (viewId: string) => {
+    (viewId: string, options?: { roadView?: boolean }) => {
       if (runningRef.current) return
       const host = hostRef.current
       const view = host?.views.find((entry) => entry.id === viewId)
       if (!host || !view) return
-      const stood = host.stand(view)
+      const stood = host.stand(view, options)
       if ('error' in stood)
         setState({ ...IDLE_VIEW_CAPTURE, failures: [{ viewId, reason: stood.error }], message: stood.error })
     },

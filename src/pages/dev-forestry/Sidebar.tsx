@@ -37,7 +37,6 @@ import { FileButton } from '@/components/ui/file-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ListHeader, ResultRow } from '@/components/ui/result-list'
 import { ExternalLink, TextButton } from '@/components/ui/text-button'
-import { ToggleRow } from '@/components/ui/toggle-row'
 import { formatMeasure, formatNumber, formatPercentValue } from '@/lib/format'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Notification } from '@/components/ui/notification'
@@ -485,7 +484,7 @@ export type ViaSidebarState = {
   landformName: string | null
 }
 
-type SidebarProps = {
+export type SidebarProps = {
   via: ViaSidebarState
   scene: ForestryScene
   onViewpointChange: (viewpoint: Viewpoint) => void
@@ -526,7 +525,7 @@ type SidebarProps = {
   onUseRoad: (roadId: string) => void
 
   /** What the 3D stand is drawing, or why it is not. */
-  forestStatus: import('./ForestOverlay').ForestStatus | null
+  forestStatus?: import('./ForestOverlay').ForestStatus | null
 
   selectedTargetId: string | null
   onSelectTarget: (targetId: string) => void
@@ -596,13 +595,22 @@ type SidebarProps = {
   runRevision?: ReactNode
   /** Step 5: the VIA evidence package and workspace, a folded section of its own. */
   evidence?: ReactNode
-  /** Step 1: inventory viewpoints and rec sites near the block. */
+  /** Step 2, under the views of interest: inventory viewpoints and rec sites near the block, which add to them. */
   viewpointFinder?: ReactNode
   /**
    * Step 2, first: the views of interest planned on the plan map and captured without driving
-   * (`ViewsOfInterestPanel`). Step 1's finder adds to it.
+   * (`ViewsOfInterestPanel`). The finder under it adds to it.
    */
   viewsOfInterest?: ReactNode
+  /**
+   * Step 1's *Assess from: A view*: which view of interest the assessment runs from, and adding one on the map
+   * (`AssessFromView`). Shown in place of the old spot placement; absent keeps it.
+   */
+  assessFromView?: ReactNode
+  /** What *Assess from* shows: a view while standing at one, else the viewpoint's mode. */
+  assessMode?: Viewpoint['mode']
+  /** Switching *Assess from*; absent switches the viewpoint's mode and clears it, as before. */
+  onAssessModeChange?: (mode: Viewpoint['mode']) => void
   /** Step 2, in the road view: the existing forest and regrowth records the timber is drawn from. */
   roadViewForest?: ReactNode
   /** Step 5: the block's planning-note summary and Visuals paragraph. */
@@ -623,11 +631,6 @@ export function Sidebar({
   onZoomToTarget,
   onOpenPrescription,
   prescriptionLines,
-  onRemoveTreeFreeArea,
-  viewpointClearing,
-  onViewpointClearingChange,
-  privateLandClearing,
-  onPrivateLandClearingChange,
   drawMode,
   onDrawModeChange,
   onSnapToRoad,
@@ -638,7 +641,6 @@ export function Sidebar({
   reverse,
   onRunReverse,
   onUseRoad,
-  forestStatus,
   selectedTargetId,
   onSelectTarget,
   drive,
@@ -676,9 +678,11 @@ export function Sidebar({
   evidence,
   viewpointFinder,
   viewsOfInterest,
+  assessFromView,
+  assessMode,
+  onAssessModeChange,
   roadViewForest,
   visualsParagraph,
-  roadClearing,
 }: SidebarProps) {
   // Which scale the threshold editor is showing. Purely a view concern — both
   // sets are always in the scene and both are always reported.
@@ -997,75 +1001,84 @@ export function Sidebar({
             <SegmentedControl
               size="sm"
               label="Assess from"
-              value={viewpoint.mode}
+              value={assessMode ?? viewpoint.mode}
               options={[
-                { value: 'spot', label: 'Spot', icon: MapPin },
+                { value: 'spot', label: assessFromView ? 'A view' : 'Spot', icon: MapPin },
                 { value: 'corridor', label: 'Length of road', icon: Route },
               ]}
               onChange={(mode) => {
-                if (mode !== viewpoint.mode) onViewpointChange({ ...viewpoint, mode, coordinates: [] })
+                if (mode === (assessMode ?? viewpoint.mode)) return
+                if (onAssessModeChange) onAssessModeChange(mode)
+                else onViewpointChange({ ...viewpoint, mode, coordinates: [] })
               }}
             />
-            <div className={cn('grid gap-1.5', viewpoint.mode === 'corridor' && 'grid-cols-2')}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={GRID_BUTTON}
-                onClick={() => onDrawModeChange(viewpoint.mode)}
-              >
-                <Crosshair className="h-3.5 w-3.5" />
-                {viewpoint.mode === 'spot' ? 'Place the viewpoint' : 'Draw the road'}
-              </Button>
-              {viewpoint.mode === 'corridor' && (
-                <FileButton
-                  label="Road file"
-                  accept=".zip,.geojson,.json"
-                  variant="outline"
-                  className={GRID_BUTTON}
-                  title="A road as GeoJSON or a zipped shapefile"
-                  onFiles={([file]) => onImportRoad(file)}
-                >
-                  <FileUp className="h-3.5 w-3.5" />
-                  Import road
-                </FileButton>
-              )}
-            </div>
-            {hasViewpoint && (
-              <div
-                className={cn(
-                  insetBox({ padding: 'none', tone: 'muted' }),
-                  'flex items-center gap-1.5 py-1 pl-2.5 pr-1 text-xs',
+            {/* A view of interest is the one way to put a viewpoint on the map: chosen or added here, planned in step 2. */}
+            {assessFromView && (assessMode ?? viewpoint.mode) === 'spot' ? (
+              assessFromView
+            ) : (
+              <>
+                <div className={cn('grid gap-1.5', viewpoint.mode === 'corridor' && 'grid-cols-2')}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={GRID_BUTTON}
+                    onClick={() => onDrawModeChange(viewpoint.mode)}
+                  >
+                    <Crosshair className="h-3.5 w-3.5" />
+                    {viewpoint.mode === 'spot' ? 'Place the viewpoint' : 'Draw the road'}
+                  </Button>
+                  {viewpoint.mode === 'corridor' && (
+                    <FileButton
+                      label="Road file"
+                      accept=".zip,.geojson,.json"
+                      variant="outline"
+                      className={GRID_BUTTON}
+                      title="A road as GeoJSON or a zipped shapefile"
+                      onFiles={([file]) => onImportRoad(file)}
+                    >
+                      <FileUp className="h-3.5 w-3.5" />
+                      Import road
+                    </FileButton>
+                  )}
+                </div>
+                {hasViewpoint && (
+                  <div
+                    className={cn(
+                      insetBox({ padding: 'none', tone: 'muted' }),
+                      'flex items-center gap-1.5 py-1 pl-2.5 pr-1 text-xs',
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                      {viewpoint.mode === 'spot'
+                        ? `${formatMeasure(viewpoint.coordinates[0][1], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}, ${formatMeasure(viewpoint.coordinates[0][0], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
+                        : `${viewpoint.coordinates.length} points · ${formatMeasure(corridorLength / 1000, 'km', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+                      onClick={onSnapToRoad}
+                      aria-label="Snap to the nearest road"
+                      title="Snap to the nearest road"
+                    >
+                      <Magnet className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+                      onClick={() => onViewpointChange({ ...viewpoint, coordinates: [] })}
+                      aria-label={viewpoint.mode === 'spot' ? 'Clear the viewpoint' : 'Clear the road'}
+                      title="Clear the viewpoint"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 )}
-              >
-                <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                  {viewpoint.mode === 'spot'
-                    ? `${formatMeasure(viewpoint.coordinates[0][1], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}, ${formatMeasure(viewpoint.coordinates[0][0], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
-                    : `${viewpoint.coordinates.length} points · ${formatMeasure(corridorLength / 1000, 'km', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
-                  onClick={onSnapToRoad}
-                  aria-label="Snap to the nearest road"
-                  title="Snap to the nearest road"
-                >
-                  <Magnet className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
-                  onClick={() => onViewpointChange({ ...viewpoint, coordinates: [] })}
-                  aria-label={viewpoint.mode === 'spot' ? 'Clear the viewpoint' : 'Clear the road'}
-                  title="Clear the viewpoint"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+              </>
             )}
             {snapMessage && <p className="text-3xs leading-4 text-muted-foreground">{snapMessage}</p>}
           </div>
@@ -1162,7 +1175,6 @@ export function Sidebar({
             </div>
           )}
         </ToolSection>
-        {viewpointFinder}
 
         <ToolSection
           title="Cutblocks"
@@ -1343,6 +1355,7 @@ export function Sidebar({
       <div {...stepPanelProps('visit')}>
         <StepIntro id="visit" status={via.statuses.visit} summary={summaries.visit} />
         {viewsOfInterest}
+        {viewpointFinder}
         {/* The map's bar plays, saves and exits, and its View options hold how the view
           looks (`RoadViewOptions.tsx`); what is drawn here is the stand and its records. */}
         {result && drive.active && (
@@ -1372,208 +1385,18 @@ export function Sidebar({
               </ToolSection>
             )}
 
-            {/* The block as the gap where the trees stop tells you whether
-              you can see it, which is what the objective is about. */}
-            <ToolSection
-              title="Drawn timber"
-              help={
-                <>
-                  Timber fills the view, and the proposed and existing openings take it off, so a cut reads as a gap. It
-                  is a drawing: stand height, cleared width and stem style change only the picture, never the
-                  percentages. A 28 m tree 15 m away fills the sky, so widen the cleared strip to open the foreground
-                  {roadClearing?.roadClass
-                    ? `; it started at ${roadClearing.widthMeters} m from the basemap's class for this road (${roadClearing.roadClass})`
-                    : ''}
-                  {roadClearing?.waterPolygons ? ', and mapped water is left open' : ''}.
-                </>
-              }
-            >
-              <div className="space-y-2">
-                <ToggleRow
-                  layout="tile"
-                  tone="primary"
-                  icon={Trees}
-                  label="Standing timber"
-                  active={drive.forest}
-                  onClick={() => onDriveChange({ forest: !drive.forest })}
-                />
-                {drive.forest && (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <NumberField
-                        label="Stand height"
-                        value={drive.treeHeightMeters}
-                        min={5}
-                        max={60}
-                        step={1}
-                        suffix="m"
-                        onChange={(value) => onDriveChange({ treeHeightMeters: value })}
-                      />
-                      <NumberField
-                        label="Cleared width"
-                        value={drive.roadClearWidthMeters}
-                        min={6}
-                        max={400}
-                        step={2}
-                        suffix="m"
-                        onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
-                      />
-                    </div>
-                    {/* Ground drawn without timber: a pullout, a cleared stretch of roadside, a field. */}
-                    <div className="space-y-1.5" data-testid="tree-free-areas">
-                      {viewpointClearing?.stood && onViewpointClearingChange && (
-                        <div className="flex items-end gap-2" data-testid="viewpoint-clearing">
-                          <div className="flex min-w-0 flex-1 items-center gap-1 pb-1.5">
-                            <CheckboxField
-                              className="min-w-0 flex-1"
-                              label={<span className="text-2xs font-medium">Viewpoint clearing</span>}
-                              checked={viewpointClearing.setting.enabled}
-                              onCheckedChange={(enabled) =>
-                                onViewpointClearingChange({ ...viewpointClearing.setting, enabled })
-                              }
-                            />
-                            <InfoTip label="About the viewpoint clearing">
-                              A lookout is kept open, so the stand is drawn back from where you stand: a fan of this
-                              radius within {VIEWPOINT_CLEARING.halfAngleDegrees}° either side of the block, and{' '}
-                              {VIEWPOINT_CLEARING.eyeRadiusMeters} m all round the eye. Display only, like any tree-free
-                              area: the figures never change.
-                              {viewpointClearing.area
-                                ? ` It clears ${formatMeasure(polygonAreaMeters(viewpointClearing.area.geometry) / 10_000, 'ha', { maximumFractionDigits: 2 })}.`
-                                : ''}
-                            </InfoTip>
-                          </div>
-                          {viewpointClearing.setting.enabled && (
-                            <div className="w-24 shrink-0">
-                              <NumberField
-                                label="Radius"
-                                value={viewpointClearing.setting.radiusMeters}
-                                min={VIEWPOINT_CLEARING.minRadiusMeters}
-                                max={VIEWPOINT_CLEARING.maxRadiusMeters}
-                                step={10}
-                                suffix="m"
-                                onChange={(radiusMeters) =>
-                                  onViewpointClearingChange({ ...viewpointClearing.setting, radiusMeters })
-                                }
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {privateLandClearing && onPrivateLandClearingChange && (
-                        <div className="flex min-w-0 items-center gap-1" data-testid="private-land-clearing">
-                          <CheckboxField
-                            className="min-w-0 flex-1"
-                            label={<span className="text-2xs font-medium">Clear private land</span>}
-                            checked={privateLandClearing.cleared}
-                            onCheckedChange={onPrivateLandClearingChange}
-                          />
-                          <InfoTip label="About clearing private land">
-                            Some VIAs leave forest cover on private land unmodelled and draw the lots de-vegetated
-                            &quot;for purposes of analysis&quot;, painted in the private-land colour. This draws the
-                            scene&apos;s private land (
-                            {formatMeasure(privateLandClearing.hectares, 'ha', { maximumFractionDigits: 1 })}) without
-                            its timber, in this road view and in an engine&apos;s. Display only: the run and its figures
-                            never change.
-                          </InfoTip>
-                        </div>
-                      )}
-                      <Button
-                        type="button"
-                        variant={drawMode === 'tree-free' ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-8 w-full text-xs touch:h-10"
-                        aria-pressed={drawMode === 'tree-free'}
-                        onClick={() => onDrawModeChange(drawMode === 'tree-free' ? 'none' : 'tree-free')}
-                        title="Trace an area on the plan map where the road view leaves the timber out"
-                      >
-                        <Trees className="h-3.5 w-3.5" />
-                        {drawMode === 'tree-free' ? 'Drawing on the plan…' : 'Draw a tree-free area'}
-                      </Button>
-                      {drawMode === 'tree-free' && setup}
-                      {(scene.treeFreeAreas ?? []).length > 0 && (
-                        <ul className="divide-y divide-border overflow-hidden rounded-md border border-border text-2xs">
-                          {(scene.treeFreeAreas ?? []).map((area) => (
-                            <li key={area.id} className="flex items-center gap-2 py-0.5 pl-2 pr-0.5">
-                              <span
-                                className="h-2.5 w-2.5 shrink-0 rounded-sm border border-dashed"
-                                style={{ borderColor: TREE_FREE_COLOR }}
-                              />
-                              <span className="min-w-0 flex-1 truncate">{area.name}</span>
-                              <span className="shrink-0 tabular-nums text-muted-foreground">
-                                {formatMeasure(polygonAreaMeters(area.geometry) / 10_000, 'ha', {
-                                  maximumFractionDigits: 2,
-                                })}
-                              </span>
-                              {onRemoveTreeFreeArea && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive touch:h-10 touch:w-10"
-                                  onClick={() => onRemoveTreeFreeArea(area.id)}
-                                  aria-label={`Remove ${area.name}`}
-                                  title="Put the timber back"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    <SegmentedControl
-                      size="sm"
-                      label="How a stem is drawn"
-                      value={drive.treeStyle}
-                      onChange={(treeStyle) => onDriveChange({ treeStyle })}
-                      options={[
-                        {
-                          value: 'baked',
-                          label: 'Baked from 3D',
-                          title:
-                            'Each card is its own 3D tree pictured from eight sides: it shows the side you stand on, and is the same tree when the view stops',
-                        },
-                        {
-                          value: 'hybrid',
-                          label: 'Stable silhouettes',
-                          title:
-                            'Three fixed silhouette planes per near tree; distant instances stand for canopy groups',
-                        },
-                        { value: 'billboard', label: 'Billboards', title: 'Two fixed planes per near tree; lighter' },
-                        {
-                          value: 'solid',
-                          label: 'Solid cones',
-                          title: 'Real cone geometry: honest from any angle, about fifteen times the triangles',
-                        },
-                      ]}
-                    />
-                    {(drive.lookAtTargetId || drive.lookBearing !== null) && (
-                      <ToggleRow
-                        layout="tile"
-                        tone="primary"
-                        label={drive.lookAtTargetId ? 'Viewing gap to the block' : 'Viewing gap along the arrow'}
-                        title="Leaves the drawn timber out of the line of sight, as a pullout or a gap in the roadside trees would"
-                        active={drive.viewingGap}
-                        onClick={() => onDriveChange({ viewingGap: !drive.viewingGap })}
-                      />
-                    )}
-                    {forestStatus?.error ? (
-                      <InlineAlert tone="error">{forestStatus.error}</InlineAlert>
-                    ) : (
-                      forestStatus !== null && (
-                        <p className="text-3xs leading-4 text-muted-foreground">
-                          {formatNumber(forestStatus.treeCount)} stems ·{' '}
-                          {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
-                            ? `species and height from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands, a regional mix elsewhere`
-                            : 'a regional mix; look up the BC inventory to draw what was recorded here'}
-                        </p>
-                      )
-                    )}
-                  </>
-                )}
-              </div>
-            </ToolSection>
+            {/* Drawn timber is the road view bar's tree popover (`DrawnTimberButton`); tracing a tree-free area on
+              the plan keeps its drawing controls here, where the other drawings' are. */}
+            {drawMode === 'tree-free' && (
+              <ToolSection title="Drawing a tree-free area">
+                <div className="space-y-2">
+                  <p className="text-2xs text-muted-foreground">
+                    Trace the ground the road view draws without timber on the plan map.
+                  </p>
+                  {setup}
+                </div>
+              </ToolSection>
+            )}
             {roadViewForest}
           </>
         )}
@@ -2094,6 +1917,240 @@ function StepIntro({ id, status, summary }: { id: ViaStepId; status: ViaStepStat
         </InfoTip>
       </h2>
       <p className="mt-0.5 truncate text-2xs text-muted-foreground">{summary}</p>
+    </div>
+  )
+}
+
+/**
+ * The road view's drawn timber: whether timber stands, its height and cleared width, tree-free ground, how a stem is
+ * drawn and the viewing gap. The road view bar's tree popover (`DrawnTimberButton`). A drawing: it never changes the
+ * figures.
+ */
+export function DrawnTimberPanel({
+  drive,
+  onDriveChange,
+  viewpointClearing,
+  onViewpointClearingChange,
+  privateLandClearing,
+  onPrivateLandClearingChange,
+  drawMode,
+  onDrawModeChange,
+  scene,
+  onRemoveTreeFreeArea,
+  forestStatus = null,
+  inventory,
+  roadClearing,
+}: Pick<
+  SidebarProps,
+  | 'drive'
+  | 'onDriveChange'
+  | 'viewpointClearing'
+  | 'onViewpointClearingChange'
+  | 'privateLandClearing'
+  | 'onPrivateLandClearingChange'
+  | 'drawMode'
+  | 'onDrawModeChange'
+  | 'scene'
+  | 'onRemoveTreeFreeArea'
+  | 'forestStatus'
+  | 'roadClearing'
+> & { inventory: Pick<InventoryState, 'stands'> }) {
+  return (
+    <div className="space-y-2">
+      {/* Headed like View options' groups, with the explanation behind its (i). */}
+      <h3 className="flex items-center gap-1 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Drawn timber
+        <InfoTip label="About the drawn timber">
+          Timber fills the view, and the proposed and existing openings take it off, so a cut reads as a gap. It is a
+          drawing: stand height, cleared width and stem style change only the picture, never the percentages. A 28 m
+          tree 15 m away fills the sky, so widen the cleared strip to open the foreground
+          {roadClearing?.roadClass
+            ? `; it started at ${roadClearing.widthMeters} m from the basemap's class for this road (${roadClearing.roadClass})`
+            : ''}
+          {roadClearing?.waterPolygons ? ', and mapped water is left open' : ''}.
+        </InfoTip>
+      </h3>
+      <div className="space-y-2">
+        <CheckboxField
+          className="text-xs"
+          label="Draw standing timber"
+          // Focus lands here on opening, not on the heading's (i), whose bubble would cover the panel.
+          data-autofocus
+          checked={drive.forest}
+          onCheckedChange={(forest) => onDriveChange({ forest })}
+        />
+        {drive.forest && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <NumberField
+                label="Stand height"
+                value={drive.treeHeightMeters}
+                min={5}
+                max={60}
+                step={1}
+                suffix="m"
+                onChange={(value) => onDriveChange({ treeHeightMeters: value })}
+              />
+              <NumberField
+                label="Cleared width"
+                value={drive.roadClearWidthMeters}
+                min={6}
+                max={400}
+                step={2}
+                suffix="m"
+                onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
+              />
+            </div>
+            {/* Ground drawn without timber: a pullout, a cleared stretch of roadside, a field. */}
+            <div className="space-y-1.5" data-testid="tree-free-areas">
+              {viewpointClearing?.stood && onViewpointClearingChange && (
+                <div className="flex items-end gap-2" data-testid="viewpoint-clearing">
+                  <div className="flex min-w-0 flex-1 items-center gap-1 pb-1.5">
+                    <CheckboxField
+                      className="min-w-0 flex-1"
+                      label={<span className="text-2xs font-medium">Viewpoint clearing</span>}
+                      checked={viewpointClearing.setting.enabled}
+                      onCheckedChange={(enabled) =>
+                        onViewpointClearingChange({ ...viewpointClearing.setting, enabled })
+                      }
+                    />
+                    <InfoTip label="About the viewpoint clearing">
+                      A lookout is kept open, so the stand is drawn back from where you stand: a fan of this radius
+                      within {VIEWPOINT_CLEARING.halfAngleDegrees}° either side of the block, and{' '}
+                      {VIEWPOINT_CLEARING.eyeRadiusMeters} m all round the eye. Display only, like any tree-free area:
+                      the figures never change.
+                      {viewpointClearing.area
+                        ? ` It clears ${formatMeasure(polygonAreaMeters(viewpointClearing.area.geometry) / 10_000, 'ha', { maximumFractionDigits: 2 })}.`
+                        : ''}
+                    </InfoTip>
+                  </div>
+                  {viewpointClearing.setting.enabled && (
+                    <div className="w-24 shrink-0">
+                      <NumberField
+                        label="Radius"
+                        value={viewpointClearing.setting.radiusMeters}
+                        min={VIEWPOINT_CLEARING.minRadiusMeters}
+                        max={VIEWPOINT_CLEARING.maxRadiusMeters}
+                        step={10}
+                        suffix="m"
+                        onChange={(radiusMeters) =>
+                          onViewpointClearingChange({ ...viewpointClearing.setting, radiusMeters })
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              {privateLandClearing && onPrivateLandClearingChange && (
+                <div className="flex min-w-0 items-center gap-1" data-testid="private-land-clearing">
+                  <CheckboxField
+                    className="min-w-0 flex-1"
+                    label={<span className="text-2xs font-medium">Clear private land</span>}
+                    checked={privateLandClearing.cleared}
+                    onCheckedChange={onPrivateLandClearingChange}
+                  />
+                  <InfoTip label="About clearing private land">
+                    Some VIAs leave forest cover on private land unmodelled and draw the lots de-vegetated &quot;for
+                    purposes of analysis&quot;, painted in the private-land colour. This draws the scene&apos;s private
+                    land ({formatMeasure(privateLandClearing.hectares, 'ha', { maximumFractionDigits: 1 })}) without its
+                    timber, in this road view and in an engine&apos;s. Display only: the run and its figures never
+                    change.
+                  </InfoTip>
+                </div>
+              )}
+              <Button
+                type="button"
+                variant={drawMode === 'tree-free' ? 'default' : 'outline'}
+                size="sm"
+                className="h-8 w-full text-xs touch:h-10"
+                aria-pressed={drawMode === 'tree-free'}
+                onClick={() => onDrawModeChange(drawMode === 'tree-free' ? 'none' : 'tree-free')}
+                title="Trace an area on the plan map where the road view leaves the timber out"
+              >
+                <Trees className="h-3.5 w-3.5" />
+                {drawMode === 'tree-free' ? 'Drawing on the plan…' : 'Draw a tree-free area'}
+              </Button>
+              {(scene.treeFreeAreas ?? []).length > 0 && (
+                <ul className="divide-y divide-border overflow-hidden rounded-md border border-border text-2xs">
+                  {(scene.treeFreeAreas ?? []).map((area) => (
+                    <li key={area.id} className="flex items-center gap-2 py-0.5 pl-2 pr-0.5">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-sm border border-dashed"
+                        style={{ borderColor: TREE_FREE_COLOR }}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{area.name}</span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        {formatMeasure(polygonAreaMeters(area.geometry) / 10_000, 'ha', {
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                      {onRemoveTreeFreeArea && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive touch:h-10 touch:w-10"
+                          onClick={() => onRemoveTreeFreeArea(area.id)}
+                          aria-label={`Remove ${area.name}`}
+                          title="Put the timber back"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <SegmentedControl
+              size="sm"
+              label="How a stem is drawn"
+              value={drive.treeStyle}
+              onChange={(treeStyle) => onDriveChange({ treeStyle })}
+              options={[
+                {
+                  value: 'baked',
+                  label: 'Baked from 3D',
+                  title:
+                    'Each card is its own 3D tree pictured from eight sides: it shows the side you stand on, and is the same tree when the view stops',
+                },
+                {
+                  value: 'hybrid',
+                  label: 'Stable silhouettes',
+                  title: 'Three fixed silhouette planes per near tree; distant instances stand for canopy groups',
+                },
+                { value: 'billboard', label: 'Billboards', title: 'Two fixed planes per near tree; lighter' },
+                {
+                  value: 'solid',
+                  label: 'Solid cones',
+                  title: 'Real cone geometry: honest from any angle, about fifteen times the triangles',
+                },
+              ]}
+            />
+            {(drive.lookAtTargetId || drive.lookBearing !== null) && (
+              <CheckboxField
+                className="text-xs"
+                label={drive.lookAtTargetId ? 'Viewing gap to the block' : 'Viewing gap along the arrow'}
+                title="Leaves the drawn timber out of the line of sight, as a pullout or a gap in the roadside trees would"
+                checked={drive.viewingGap}
+                onCheckedChange={(viewingGap) => onDriveChange({ viewingGap })}
+              />
+            )}
+            {forestStatus?.error ? (
+              <InlineAlert tone="error">{forestStatus.error}</InlineAlert>
+            ) : (
+              forestStatus && (
+                <p className="text-3xs leading-4 text-muted-foreground">
+                  {formatNumber(forestStatus.treeCount)} stems ·{' '}
+                  {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
+                    ? `species and height from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands, a regional mix elsewhere`
+                    : 'a regional mix; look up the BC inventory to draw what was recorded here'}
+                </p>
+              )
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

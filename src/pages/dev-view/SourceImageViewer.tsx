@@ -199,7 +199,7 @@ function ZoomableSource({ variant }: { variant: SourceImageChoice }) {
         role="region"
         aria-label={`Zoomable ${variant.label}`}
         tabIndex={0}
-        className="relative h-[min(52dvh,32rem)] min-h-56 touch-none overflow-hidden rounded-lg border bg-stone-100 outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-zinc-900"
+        className="relative h-[min(52dvh,32rem)] min-h-56 touch-none overflow-hidden rounded-lg border bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring"
         style={{ cursor: 'grab' }}
         onPointerDown={(event) => {
           if (event.pointerType === 'mouse' && event.button !== 0) return
@@ -276,9 +276,7 @@ function ZoomableSource({ variant }: { variant: SourceImageChoice }) {
           ))}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Drag to pan. Pinch, scroll or use the zoom controls to read more detail.
-      </p>
+      <p className="sr-only">Drag to pan. Pinch, scroll or use the zoom controls to read more detail.</p>
       {status.error && <InlineAlert tone="warning">{status.error}</InlineAlert>}
     </div>
   )
@@ -300,7 +298,7 @@ function FlatSource({ variant }: { variant: SourceImageChoice }) {
           alt={variant.label}
           referrerPolicy="no-referrer"
           onError={() => setFailed(true)}
-          className="max-h-[52dvh] w-full rounded-lg border bg-stone-100 object-contain dark:bg-zinc-900"
+          className="max-h-[52dvh] w-full rounded-lg border bg-muted object-contain"
         />
       ) : (
         <InlineAlert tone="info">

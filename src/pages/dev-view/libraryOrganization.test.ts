@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { parseCatalogue } from './catalogue'
-import { EMPTY_FILTERS, matchesLibraryItem, organizationOptions } from './libraryOrganization'
+import {
+  EMPTY_FILTERS,
+  activeFilters,
+  filterChoices,
+  knownDate,
+  libraryColumns,
+  matchesLibraryItem,
+  organizationOptions,
+  resultCount,
+} from './libraryOrganization'
 const base = 'https://example.test/catalog.json'
 function catalogue() {
   return parseCatalogue(
@@ -86,5 +95,48 @@ describe('Library organization filters', () => {
     expect(options.subjects.find((f) => f.id === 'survey')?.label).toBe('Survey plans')
     expect(options.sources.map((s) => s.id)).toEqual(['doc-a', 'doc-b'])
     expect(options.sources[0].label).not.toBe(options.sources[1].label)
+  })
+})
+
+describe('library presentation helpers', () => {
+  const options = {
+    subjects: [{ id: 'survey', label: 'Surveys & cadastral plans' }],
+    regions: [{ id: 'north', label: 'Northern BC' }],
+    eras: [],
+    sources: [{ id: 'doc-1', label: 'Old Survey Maps.pdf' }],
+  }
+  it('names each active filter by the label of its value', () => {
+    const values = { ...EMPTY_FILTERS, subject: 'survey', sourceGroup: 'doc-1', confidence: 'experimental' }
+    expect(activeFilters(values, options, false)).toEqual([
+      { key: 'subject', title: 'Subject', label: 'Surveys & cadastral plans' },
+      { key: 'sourceGroup', title: 'Source document', label: 'Old Survey Maps.pdf' },
+      { key: 'confidence', title: 'Placement', label: 'Experimental' },
+    ])
+  })
+  it('leaves placement out for source images and falls back to a readable id', () => {
+    const values = { ...EMPTY_FILTERS, era: 'before-1900', confidence: 'experimental' }
+    expect(activeFilters(values, options, true)).toEqual([{ key: 'era', title: 'Map date', label: 'before 1900' }])
+    expect(filterChoices('confidence', options, true)).toEqual([])
+  })
+  it('fits two cards across a phone and more as the page widens', () => {
+    expect(libraryColumns(0)).toBe(1)
+    expect(libraryColumns(288)).toBe(2)
+    expect(libraryColumns(358)).toBe(2)
+    expect(libraryColumns(599)).toBe(2)
+    expect(libraryColumns(720)).toBe(2)
+    expect(libraryColumns(976)).toBe(3)
+    expect(libraryColumns(1232)).toBe(4)
+    expect(libraryColumns(1872)).toBe(6)
+  })
+  it('keeps a real date and drops a placeholder', () => {
+    expect(knownDate('March 1908')).toBe('March 1908')
+    expect(knownDate('Date unknown')).toBe('')
+    expect(knownDate(undefined)).toBe('')
+  })
+  it('counts what the scope lists', () => {
+    expect(resultCount(902, 902, 'all')).toBe('902 maps')
+    expect(resultCount(126, 902, 'all')).toBe('126 of 902 maps')
+    expect(resultCount(1, 1, 'featured')).toBe('1 selection')
+    expect(resultCount(1250, 1250, 'sources')).toBe('1,250 source images')
   })
 })

@@ -233,3 +233,41 @@ describe('plan legend with the road coloured by grade class', () => {
     ])
   })
 })
+
+describe('plan legend with the road coloured by cost', () => {
+  it('lists ranked segments in rank order, keeps the other roads in place and names the heading', () => {
+    const alternative = createDemoProject().alignments[0]
+    const result = build(
+      sources({
+        roads: fc(
+          line({ selected: false, id: alternative.id, color: '#0ea5e9' }),
+          line({ selected: true, color: '#3b528b', legendLabel: '2–4×', legendOrder: 3 }),
+          line({ selected: true, color: '#9ca3af', legendLabel: 'Unknown', legendOrder: 6 }),
+          line({ selected: true, color: '#fde725', legendLabel: 'Under', legendOrder: 0 }),
+          line({ selected: true, color: '#3b528b', legendLabel: '2–4×', legendOrder: 3 }),
+        ),
+      }),
+      { roadsHeading: { title: 'Cost per metre', description: 'Whole estimate · road average $410/m' } },
+    )
+    const roads = result.find((section) => section.id === 'roads')!
+    expect(roads.title).toBe('Cost per metre')
+    expect(roads.description).toBe('Whole estimate · road average $410/m')
+    expect(roads.entries.map((entry) => entry.id)).toEqual([
+      `alternative-${alternative.id}`,
+      'active-#fde725',
+      'active-#3b528b',
+      'active-#9ca3af',
+    ])
+    expect(roads.entries.slice(1).map((entry) => entry.label)).toEqual(['Under', '2–4×', 'Unknown'])
+  })
+
+  it('keeps feature order and the plain heading without ranks', () => {
+    const result = build(
+      sources({ roads: fc(line({ selected: true, color: '#dc2626' }), line({ selected: true, color: '#d97706' })) }),
+    )
+    const roads = result.find((section) => section.id === 'roads')!
+    expect(roads).toMatchObject({ title: 'Roads' })
+    expect(roads.description).toBeUndefined()
+    expect(roads.entries.map((entry) => entry.color)).toEqual(['#dc2626', '#d97706'])
+  })
+})
