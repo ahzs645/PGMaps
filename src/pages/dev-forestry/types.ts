@@ -46,6 +46,12 @@ export type TargetPolygon = {
   /** Partial cut: share of volume removed, percent, and the mean height of the trees left. */
   volumeRemovedPercent?: number | null
   residualHeightMeters?: number | null
+  /**
+   * Retention and partial cuts only: which trees the block takes and leaves, tree by tree
+   * (`stand/prescription.ts`). Display only — it decides the drawn stand and the prescription's own
+   * figures, never the run; kept out of the fingerprint like the Table 5/6 figures.
+   */
+  prescription?: import('./stand/prescription').StandPrescription | null
   /** Optional planned date; used by the explicit scheduling runner, not ordinary VIA runs. */
   plannedHarvestYear?: number | null
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon

@@ -41,6 +41,7 @@ import {
 import { parseSurveyedEye } from './viewpointStand'
 import { parseFieldGreenUp } from './greenUp'
 import { parseFigureFrame, type FigureFrame } from './figureFraming'
+import { parsePrescription } from './stand/prescription'
 
 export const SCENE_STORAGE_KEY = 'pgmaps.forestry-visual-quality.v1'
 
@@ -534,6 +535,9 @@ export function parseScene(input: unknown): ForestryScene | null {
             ...parsePlanning(target.planning),
             ...(target.role === 'harvested' && parseFieldGreenUp(target.fieldGreenUp)
               ? { fieldGreenUp: parseFieldGreenUp(target.fieldGreenUp) }
+              : {}),
+            ...(target.role === 'block' && parsePrescription(target.prescription)
+              ? { prescription: parsePrescription(target.prescription) }
               : {}),
             ...(typeof target.displayColor === 'string' && /^#[0-9a-f]{6}$/i.test(target.displayColor)
               ? { displayColor: target.displayColor.toLowerCase() }

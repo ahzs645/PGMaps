@@ -56,7 +56,10 @@ describe('vegetationQueryUrl', () => {
     expect(fields).toContain('BCLCS_LEVEL_5')
     // Bedrock and talus inside a stand (`rockyPercent`), for the scene package's rock under a stand.
     expect(fields).toContain('NON_VEG_COVER_TYPE_2')
-    expect(fields.length).toBeLessThan(32)
+    // The stand's size, for a stand prescription's diameters (`stand/standTrees.ts`).
+    expect(fields).toContain('QUAD_DIAM_125')
+    expect(fields).toContain('BASAL_AREA')
+    expect(fields.length).toBeLessThan(34)
   })
 
   it('reads a burn the inventory records, and no other disturbance', () => {

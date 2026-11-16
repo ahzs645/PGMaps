@@ -16,6 +16,17 @@ export const ASSESSMENT_VIEWPOINT_COLOR = '#facc15'
 export const ROAD_COLOR = '#1d4ed8'
 /** Tree-free areas: ground the road view draws without timber. */
 export const TREE_FREE_COLOR = '#65a30d'
+/**
+ * A stand prescription's trees on the plan: kept, cut and protected. The same hues the road view's
+ * *Tree colours: by treatment* draws them in (`TREATMENT_TINTS`, `stand/prescribedCells.ts`).
+ */
+export const STAND_TREE_COLORS = {
+  kept: '#59b3ff',
+  removed: '#ff734d',
+  protected: '#ffd140',
+  /** The stand profile's strip outline. */
+  strip: '#7c3aed',
+} as const
 
 /**
  * Exposure along a road, by the share of the block in view from it (%), cold

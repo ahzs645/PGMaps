@@ -12,7 +12,8 @@ import {
 import { buildImpostorAtlas } from './impostor'
 import { createTreeLayer, type TreeLook, type TreeStyle } from './treeLayer'
 import { detailedTreeMesh } from './treeGeometry'
-import { debrisMesh, placeDebris } from './harvestedGround'
+import { debrisMesh, felledTreeMesh, logMesh, placeDebris, snagMesh, stumpMesh } from './harvestedGround'
+import type { TreatedStemKind } from './stand/prescribedCells'
 
 /** Slash and stumps are drawn this far out; past it a pile is under a pixel. */
 const DEBRIS_REACH_METERS = 600
@@ -58,6 +59,11 @@ export type ForestConfiguration = {
    */
   openings?: PolygonGeometry[]
   thinnings?: ReadonlyArray<Thinning>
+  /**
+   * What stand prescriptions leave of each tree they take (`stand/prescribedCells.ts`, `treatedStems`):
+   * stumps, felled trees and logs, drawn near the eye like slash. Display only.
+   */
+  treated?: Record<TreatedStemKind, TreeInstance[]> | null
   standHeightMeters: number
   inventory?: ReadonlyArray<InventoryStand>
   style?: TreeStyle
@@ -103,6 +109,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
     clearings,
     openings,
     thinnings,
+    treated,
     standHeightMeters,
     inventory,
     style = 'hybrid',
@@ -174,7 +181,33 @@ export function ForestOverlay(props: ForestOverlayProps) {
           })
         : null
     const debrisCache = new Map<string, TreeInstance[]>()
-    const layers = [...distantLayers, ...(debrisLayer ? [debrisLayer] : []), ...detailLayers]
+    // A prescription's stumps, felled trees and logs: placed once, they do not follow the eye's patches.
+    const treatedLayers = treated
+      ? (
+          [
+            ['stump', stumpMesh(), false],
+            ['felled', felledTreeMesh(), true],
+            ['log', logMesh(), true],
+            ['snag', snagMesh(), false],
+          ] as const
+        ).flatMap(([kind, mesh, headings]) => {
+          const stems = treated[kind].flatMap((stem) => {
+            const height = elevation.elevationAt(stem.lng, stem.lat)
+            return Number.isFinite(height) ? [{ ...stem, elevationMeters: height }] : []
+          })
+          if (stems.length === 0) return []
+          const layer = createTreeLayer(`${LAYER_ID}-treated-${kind}`, {
+            style: 'solid',
+            mesh,
+            headings,
+            range: [-2, -1, DEBRIS_REACH_METERS - 50, DEBRIS_REACH_METERS],
+            look,
+          })
+          layer.setTrees(stems)
+          return [layer]
+        })
+      : []
+    const layers = [...distantLayers, ...(debrisLayer ? [debrisLayer] : []), ...treatedLayers, ...detailLayers]
     let lastMatrix: ArrayLike<number> | null = null
     let movedAt = performance.now()
     let settleTimer: ReturnType<typeof setTimeout> | null = null
@@ -223,6 +256,10 @@ export function ForestOverlay(props: ForestOverlayProps) {
           if (debrisLayer) {
             debrisLayer.setEye(eye)
             debrisLayer.render(gl, args)
+          }
+          for (const layer of treatedLayers) {
+            layer.setEye(eye)
+            layer.render(gl, args)
           }
           if (still) {
             for (const layer of detailLayers) {
@@ -414,6 +451,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
     clearings,
     openings,
     thinnings,
+    treated,
     inventory,
     standHeightMeters,
     style,

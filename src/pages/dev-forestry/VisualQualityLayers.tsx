@@ -17,6 +17,7 @@ import {
   inventoryPointLegendKey,
   maskLegendKey,
   sampleLegendKey,
+  standTreeLegendKey,
   unitLegendKey,
   withoutHiddenFeatures,
   type PlanShow,
@@ -33,6 +34,7 @@ import {
   TREE_FREE_COLOR,
   SCREENED_COLOR,
   SENSITIVITY_UNIT_COLOR,
+  STAND_TREE_COLORS,
   TERRAIN_CANDIDATE_COLOR,
   VISIBLE_FACE_CANDIDATE_COLOR,
   UNKNOWN_COLOR,
@@ -95,6 +97,13 @@ export type SceneLayerData = {
   landformVantage: LandformVantagePoint | null
   /** Ground the road view draws without timber, outlined on the plan. */
   treeFreeCollection: Collection
+  /**
+   * Stand prescriptions' trees on the plan, `status` kept, removed or protected (`standTreeCollection`).
+   * A click protects or frees one, except while the road view is open, when a plan click moves it.
+   */
+  standTreeCollection: Collection
+  /** The stand profile's strip while the prescription dialog shows it (`profileStripPolygon`). */
+  standStripCollection: Collection
   forestGround: { floor: Collection; soil: Collection; water: Collection; cover: Collection }
   previewRoad: Collection
   /** The road's cut bank and fill slope, by `kind`. */
@@ -144,6 +153,32 @@ export type SceneLayerData = {
   onInspectSample: (targetId: string, sampleIndex: number, stationIndex: number) => void
   /** A click on the plan's road line, while the road view can seek along it. */
   onRoadClick?: (lngLat: [number, number]) => void
+  /** Protects or frees a prescribed tree (`StandPrescription.protectedKeys`). */
+  onToggleProtectedTree?: (targetId: string, key: number) => void
+}
+
+const STAND_TREE_STATUS: Record<string, string> = {
+  kept: 'Kept',
+  removed: 'Cut',
+  protected: 'Protected',
+}
+const SPECIES_NAMES: Record<string, string> = {
+  pine: 'Pine',
+  spruce: 'Spruce',
+  fir: 'Fir',
+  douglasFir: 'Douglas-fir',
+  aspen: 'Aspen',
+  birch: 'Birch',
+}
+
+/** A prescribed tree's record on hover (WinSVS's tree info): every value is a number or a fixed label. */
+function standTreeHoverHtml(properties: Record<string, unknown>): string | null {
+  const status = STAND_TREE_STATUS[String(properties.status)]
+  const species = SPECIES_NAMES[String(properties.species)]
+  if (!status || !species) return null
+  const dbh = Number(properties.dbhCm)
+  const height = Number(properties.heightMeters)
+  return `<strong>${species}</strong> · ${status}<br>${dbh.toFixed(0)} cm DBH · ${height.toFixed(1)} m tall<br><span style="opacity:.7">Click to ${status === 'Protected' ? 'free' : 'protect'} this tree</span>`
 }
 
 /** A shape being drawn on the plan, dark so it reads over the imagery and the scene's colours. */
@@ -217,6 +252,9 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     handleUseViewpoint,
     onInspectSample,
     onRoadClick,
+    onToggleProtectedTree,
+    standTreeCollection,
+    standStripCollection,
   } = data
   // While a shape is being drawn or measured, a click on the plan is a vertex: nothing under it is
   // selected, adopted or inspected.
@@ -229,6 +267,10 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
   // The plan's legend rows hide features by class; the road view draws every feature.
   const hidden = eye ? NOTHING_HIDDEN : planShow.hidden
   const shown = (key: Parameters<typeof hidden.has>[0]) => !hidden.has(key)
+  const planStandTrees = useMemo(
+    () => withoutHiddenFeatures(standTreeCollection, hidden, standTreeLegendKey),
+    [standTreeCollection, hidden],
+  )
   const planUnits = useMemo(
     () => withoutHiddenFeatures(inventoryCollection, hidden, unitLegendKey),
     [inventoryCollection, hidden],
@@ -671,6 +713,42 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             interactive={false}
           />
         </>
+      )}
+      {/* The stand profile's strip: the trees the dialog's side view is cut from. */}
+      {!eye && (
+        <MapLineLayer
+          data={standStripCollection}
+          visible={shown('stand:strip')}
+          color={STAND_TREE_COLORS.strip}
+          width={2}
+          dashArray={[3, 2]}
+          opacity={0.95}
+          interactive={false}
+        />
+      )}
+      {/* A stand prescription's trees: kept, cut, protected. A click protects or frees one. */}
+      {!eye && (
+        <MapCircleLayer
+          data={planStandTrees}
+          onFeatureClick={whenFree(
+            (_id, _event, properties) =>
+              !drive.active && onToggleProtectedTree?.(String(properties.targetId), Number(properties.key)),
+          )}
+          color={[
+            'match',
+            ['get', 'status'],
+            'removed',
+            STAND_TREE_COLORS.removed,
+            'protected',
+            STAND_TREE_COLORS.protected,
+            STAND_TREE_COLORS.kept,
+          ]}
+          radius={['interpolate', ['linear'], ['zoom'], 13, 0.8, 16, 2.5, 19, 7]}
+          opacity={['case', ['==', ['get', 'status'], 'removed'], 0.75, 0.95]}
+          strokeWidth={['case', ['==', ['get', 'status'], 'protected'], 1, 0]}
+          strokeColor="#1f2937"
+          hoverHtml={standTreeHoverHtml}
+        />
       )}
       {/* Distance haze: draped over the ground and the blocks, faded by real distance from the eye. */}
       {eye && (

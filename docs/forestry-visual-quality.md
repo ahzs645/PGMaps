@@ -98,6 +98,7 @@ and its buttons only open the dialog on an output (*Export the block note…*,
 | | VIA evidence package | PDF, printable HTML | — |
 | Save and reopen | Scene, Saved views, Assessment workspace, 3D scene | JSON | — |
 | For other tools | Castor constraint | `constraints.csv`, zone GeoJSON | — |
+| | Prescribed trees | CSV, GeoJSON points | — (every block with a stand prescription; see **Stand prescriptions**) |
 
 Each output's pane has two views. **What goes in** lists, from the same state the
 file is written from, the parts it carries: the landform (name, objective, VAC,
@@ -434,6 +435,8 @@ a partial cut keeps the volume it did not remove (as that share of stems — the
 view cannot tell volume from stem count) at the residual height entered, or
 half the stems until volume is recorded. Each stem's keep/drop draw is seeded
 from its own cell, so thinning one block leaves every other stem where it was.
+A block with a **stand prescription** (below) draws the trees its prescription
+keeps instead of the random draw.
 
 Table 6 is read from its nearest cell rather than interpolated, as a reviewer
 with the paper form does. `PERCENT_CLEARCUT` on an *existing* opening is not
@@ -1088,6 +1091,193 @@ Retention patches left inside a block are standing timber when the block
 carries them as holes (an inner ring), which is how a block with group
 retention imports; `harvestedGround.test.ts` pins it. Existing openings are
 drawn at their regrowth height (`regrowth.ts`, *Existing forest*), as before.
+
+### Stand prescriptions: which trees a block takes
+
+A retention or partial-cut block can carry a **stand prescription**
+(`TargetPolygon.prescription`, `src/pages/dev-forestry/stand/`): which of the
+block's trees are cut and which stay, tree by tree. Step 2's block row opens it
+(*Prescribe trees…*); the dialog has the prescription, a stand table and
+graphs. It is display only, like the drawn stand it shapes: it is kept out of
+`AnalysisInput` and `sceneFingerprint`, so no edit to it stales a run, and
+Table 5 and 6 keep reading the row's own retention, volume removed and residual
+height. *Use for Table 5/6* copies the prescription's figures into those
+fields on the reviewer's click — basal area standing in for volume — and never
+otherwise.
+
+**The trees are the drawn stems.** `buildStand` reads the block's stand from
+`placeTrees` with the road view's nearest band (4 m grid, seed 1, the scene's
+anchor latitude), clearings less the cut blocks, and its grid cell as each
+tree's identity (`stemCellKey`). The prescription therefore chooses among the
+stems the view shows before harvest, and after harvest the road view draws
+exactly the trees it kept, where they stood, at their own heights and crowns:
+`Thinning.prescribed` makes `placeTrees` skip the stems it names on that grid,
+and coarser bands keep each stem with the share of trees kept around it
+(a summed-area table), so groups still read as groups at a few hundred metres.
+Placement, species, heights and crowns are `placeTrees`' own, so the stand
+keeps its VRI crown closure (`screenCoverage.test.ts` unchanged).
+
+**Diameters are a drawing assumption.** Each stem's DBH follows a
+height–diameter curve (`DBH_CURVE`, dbh = a·(h − 1.3)^1.1 with ±12% seeded
+spread) scaled per stand so the drawn stems carry VRI's quadratic mean diameter
+(`QUAD_DIAM_125`, else from `BASAL_AREA` and live stems); without either the
+curve's own `a` gives about 30 cm at 25 m and the stand table says so. Where
+VRI records more stems than the 4 m grid can draw (about 587/ha), each drawn
+stem stands for several (`expansion`), and every per-hectare figure counts
+them.
+
+**Two patterns.**
+
+- *Dispersed*: mark trees from below or above (by diameter or height) or at
+  random ("proportional") until the stand left meets the target. After WinSVS's
+  thinning dialog (USDA Forest Service, public domain), re-implemented from its
+  manual and a written review, with its metric-SDI and target-counting defects
+  left out.
+- *Grouped*: keep everything that must stay, then keep clumps of trees, larger
+  diameters first, each clump sized to bring the kept clump-size distribution
+  toward the target (ICO classes: individuals, 2–4, 5–9, 10–15, 16+), until the
+  target is met. This is the method published for RxGaming (Bartl-Geller et al.
+  2025, *Journal of Forestry* 124:307–320), after Churchill et al. 2013's ICO
+  approach, written from the paper alone: RxGaming's code carries no licence and
+  was not read. Trees nearer than 6 m share a clump, and membership carries
+  through (`readClumps`). The default target distribution is a starting point,
+  not a BC reference condition: none is published for interior stands.
+
+**Targets**: the block's recorded share (retention's share kept, or a partial
+cut's volume not removed, read as basal area; 50% assumed and said so until one
+is recorded), basal area or stems per hectare left, either as a share of the
+stand, or Reineke's stand density index (metric: stems/ha × (QMD/25.4)^1.605).
+A target that cannot be met says what held the stand: protected trees, the
+diameter limit, or the species and diameter window the prescription may cut
+(RxGaming's case study shows the same with a diameter limit).
+
+**Limits and outcomes.** Trees can be protected one by one by clicking them
+on the plan map (not while the road view is open, when a plan click moves it),
+and a diameter limit keeps every larger tree. A *marking efficiency* under
+100% leaves that share of marked trees standing, as a crew does. What a cut
+tree leaves is the prescription's outcome: hauled (a stump), felled and left
+with its crown, or felled and limbed (a log), lying along a felling bearing
+with a spread (`treatedStems`, `stumpMesh`, `felledTreeMesh`, `logMesh`), drawn
+within 600 m of the eye like slash. The road view's *View options → Tree
+colours: by treatment* colours the trees marked to cut before harvest and the
+trees kept after it, protected trees in both (`TREATMENT_TINTS`); a colour
+only, so every tree covers the same pixels. The plan map draws every
+prescribed tree kept, cut or protected, with its record on hover.
+
+**Files.** *Save & export → Prescribed trees* writes every prescribed tree as
+CSV or GeoJSON points, the same tree before and after harvest: species,
+diameter, height, crown, expansion, why it was kept, what it was left as, its
+felling bearing and the size of its clump after harvest. Another renderer gets
+the kept trees through the scene package as before (they are the drawn
+stems); stumps and felled stems are PGMaps' own drawing.
+
+**Imported tree lists.** *Trees from: Imported tree list* replaces the drawn
+stems with measured ones (`treeListImport.ts`, `buildStandFromImport`): a CSV
+of LiDAR-detected trees (FUSION's CanopyMaxima or TreeSeg, lidR's
+`locate_trees`/`crown_metrics`, RxGaming's tree approximate objects), a stem
+map, GeoJSON points, or the LiDAR page's own crown segmentation (each crown's
+centroid is the stem, its area the crown). Columns are suggested from their
+names and every one can be changed; the coordinate system and the height and
+diameter units are asked and never guessed, preselected only where the file
+states them. At most `TREE_LIST_MAX_TREES` (25,000) trees are kept, saved in the
+scene packed (`packImportedTrees`). An imported tree keeps its measured height
+and crown (a list without crowns takes 0.16 × height), takes the recorded
+stand's species where the file gives none, and the height–diameter curve
+scaled to VRI where it gives no diameter. Each is one tree: tree approximate
+objects can hide co-dominant and understory stems, and the stand table says
+so. The road view then draws the list itself in place of the near band's grid
+stems in the block (`PrescribedCells.replace`); coarser bands thin their grid
+stems by the share kept, as for a drawn stand. Measured crowns set the drawn
+cover there, not VRI's closure: that is the point of measuring them.
+
+**Snags.** *Snags* leaves the largest trees taken, so many per hectare,
+topped at the snag height and standing dead (`snagMesh`) instead of felled or
+hauled; the tree file lists them as `snag`. Drawing only.
+
+**Snags over time.** *Shown at N years after harvest* draws the snags as they
+stand that many years on (`snagDecay.ts`). Each snag's fall year is drawn once
+from its species' published survival curve, the inverse of the share still
+standing at a seeded draw per tree, so the same snag falls in the same year
+every time and one standing at 10 years stood at 5. WinSVS instead re-applied
+its reductions to the already-reduced stand each cycle, compounding them. A
+fallen snag lies as a log where it fell, and a standing one loses height at
+the FVS Fire and Fuels Extension rates (2.28% × the species multiplier of its
+height a year until half is gone, then 1% ×; Rebain 2010, rev. 2022, Tables
+4.10.2–4.10.3, the BC variant taking the Inland Empire values, which are
+workshop values, not BC measurements). The dialog's stand table lists the
+snags standing at 0–50 years, as drawn and as the curves expect, with each
+curve's source; the tree file gives each snag's fall year.
+
+| Species | Share standing | Source | BC data |
+| --- | --- | --- | --- |
+| Lodgepole pine | 99% at 5 yr, 72% at 8, 20% at 17.5 | Lewis & Thompson 2008 (CFS MPB Working Paper 2008-30, SBSdk/SBSmc3; mean 28% down at 6–10 yr, 51% on dry sites); Lewis & Hrinkevich 2013 (over 80% down by 15–20 yr, a synthesis) | Yes |
+| Subalpine fir | 50% at 25 yr, 3% at 80 | Everett et al. 1999 (Washington Cascades burns, 23–41 cm); BC's Huggard 1997 (ESSF) measured slow early fall by decay class only | No year-by-year curve |
+| Spruce | 50% at 25 yr, 18% at 80 | Everett et al. 1999 | No |
+| Douglas-fir | 50% at 15 yr, 10% at 80 | Everett et al. 1999 | No |
+| Trembling aspen | half-life 15.1 yr | Angers et al. 2010 (boreal Quebec, stem counts); BC aspen cavity trees (Edworthy et al. 2012, Riske Creek) lasted a median 9 yr | No |
+| Paper birch | takes aspen's curve, and says so | no western data found | No |
+
+Past a curve's last point the share falls on at its last span's rate. What is
+left out, on purpose: no study of topped wildlife-tree stubs was found (pine
+fails at its base, so topping is not assumed to slow a fall); diameter, which
+Lewis & Thompson found had no effect on pine; and exposure in openings, where
+BC aspen cavity trees fell 1.3–1.45 times faster but no difference was
+detected for dead trees (Edworthy & Martin 2013). Mountain pine beetle snags
+on dry sites fall about twice as fast; the curve is the field mean.
+
+**The profile strip on the plan.** While the dialog's Graphs tab is open, the
+plan map outlines the strip its side view is cut from (`profileStripPolygon`,
+legend row *Stand profile strip*), following the bearing and width set there.
+
+**Other renderers.** The scene package carries the stems the prescription
+leaves in an optional `treated` array (`SCENE_TREATED_FIELDS`: position, kind
+stump/felled/log/snag, length, diameter, heading), within the tree radius and
+absent when no block has a prescription; the kept trees are in `trees` as
+before. The engines' adapters outside `src/` still ignore `treated`.
+
+**Seeds.** Every random choice is seeded from the prescription's `seed` and
+each tree's cell, so the same prescription marks the same trees every time;
+*Draw again* takes the next seed.
+
+| Limit | Value | Constant |
+| --- | --- | --- |
+| Grid a stand is read on | 4 m, seed 1 | `STAND_SPACING_METERS`, `STAND_SEED` |
+| Largest block read tree by tree | 400,000 grid cells of bounding box (about 640 ha) | `STAND_MAX_CELLS` |
+| Clump distance | 6 m (settable 1–20 m) | `ICO_CLUMP_DISTANCE_METERS` |
+| Largest clump built for the 16+ class | 25 trees | `LARGEST_CLUMP` |
+| Marking efficiency | 50–100% | `parsePrescription` |
+
+**Why TypeScript, not a Rust/WASM crate.** A 98 ha block (54,000 trees) reads
+in about 70 ms and either pattern runs in about 100 ms (Vitest, November
+2026): sorts, union–find over a grid hash and summed-area tables, none of it
+near the cost the cable layout's search has. The stand is cached per block, so
+editing a prescription re-runs only the prescription. Move it to a worker, or a
+crate, only when a measurement on a real block says to.
+
+### Screen height: how tall timber must be to hide a block
+
+Step 3's *Screen height* (`screenHeight.ts`, `ScreenHeightPanel.tsx`) answers
+the design question EnVision's seen-area depth grid answered: from the
+station (the road view's, else the assessment viewpoint), how tall a screen of
+standing timber would have to be to hide each part of a block's ground. Each
+block sample's sightline is walked over the road view's terrain with the run's
+curvature, refraction and 0.5 m allowance; terrain that already hides it is
+counted apart, missing elevation makes it unknown (never hidden or visible),
+and otherwise the smallest clearance between the sightline and the ground
+where a screen may stand is its required screen height. By default a screen
+stands only outside the block and beyond the run's 50 m eye clearing
+(`SCREEN_HEIGHT_NEAR_EYE_METERS`). The panel draws the share of the visible
+ground hidden against screen height (0–60 m), the heights that hide half,
+three quarters and 90%, and the share hidden at the block's stand height. It
+is a design aid for leave strips and screening retention, run on demand in
+slices (`runCooperatively`): never a run input and never a VIA figure, because
+the run's own figures already include the recorded timber.
+
+| Limit | Value | Constant |
+| --- | --- | --- |
+| Block samples | at most 2,500 (spacing widened past it) | `SCREEN_HEIGHT_MAX_SAMPLES` |
+| Screen heights read | 0–60 m in 1 m steps | `SCREEN_HEIGHT_MAX_METERS`, `SCREEN_HEIGHT_STEP_METERS` |
+| No screen near the eye | 50 m, the run's screening clearing | `SCREEN_HEIGHT_NEAR_EYE_METERS` |
 
 ### How dense the stand is drawn
 

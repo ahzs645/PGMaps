@@ -375,3 +375,161 @@ export function roadScar(
   }
   return strips
 }
+
+/**
+ * Meshes for what a stand prescription leaves of each tree it takes (`stand/prescribedCells.ts`,
+ * `treatedStems`): a stump, a felled tree with its crown, a limbed log. Drawn by the solid tree layer,
+ * the lying two with `headings` so each lies the way it was felled. Display only.
+ */
+type MeshBuilder = { positions: number[]; normals: number[]; bark: number[]; indices: number[] }
+
+function newBuilder(): MeshBuilder {
+  return { positions: [], normals: [], bark: [], indices: [] }
+}
+
+function finishMesh(builder: MeshBuilder): ForestMesh {
+  return {
+    attributes: {
+      positions: { size: 3, value: new Float32Array(builder.positions) },
+      normals: { size: 3, value: new Float32Array(builder.normals) },
+      bark: { size: 1, value: new Float32Array(builder.bark) },
+    },
+    indices: { size: 1, value: new Uint16Array(builder.indices) },
+  }
+}
+
+/** An elliptic cylinder from `a` to `b` (axis along x or z), radii `ry`/`rz` or `rx`/`ry`, both ends capped. */
+function cylinder(
+  builder: MeshBuilder,
+  axis: 'x' | 'z',
+  from: number,
+  to: number,
+  r1: number,
+  r2: number,
+  barkValue: number,
+  centre: [number, number] = [0, 0],
+  sides = 8,
+) {
+  const point = (t: number, angle: number): [number, number, number] => {
+    const c = Math.cos(angle)
+    const s = Math.sin(angle)
+    return axis === 'z' ? [c * r1 + centre[0], s * r2 + centre[1], t] : [t, c * r1 + centre[0], s * r2 + centre[1]]
+  }
+  const normal = (angle: number): [number, number, number] =>
+    axis === 'z' ? [Math.cos(angle), Math.sin(angle), 0] : [0, Math.cos(angle), Math.sin(angle)]
+  const push = (p: number[], n: number[]) => {
+    builder.positions.push(p[0], p[1], p[2])
+    builder.normals.push(n[0], n[1], n[2])
+    builder.bark.push(barkValue)
+    return builder.positions.length / 3 - 1
+  }
+  for (let i = 0; i < sides; i += 1) {
+    const a0 = (i / sides) * Math.PI * 2
+    const a1 = ((i + 1) / sides) * Math.PI * 2
+    const i0 = push(point(from, a0), normal(a0))
+    const i1 = push(point(from, a1), normal(a1))
+    const j0 = push(point(to, a0), normal(a0))
+    const j1 = push(point(to, a1), normal(a1))
+    builder.indices.push(i0, i1, j0, j0, i1, j1)
+  }
+  for (const [t, sign] of [
+    [from, -1],
+    [to, 1],
+  ] as const) {
+    const capNormal = axis === 'z' ? [0, 0, sign] : [sign, 0, 0]
+    const middle = push(axis === 'z' ? [centre[0], centre[1], t] : [t, centre[0], centre[1]], capNormal)
+    for (let i = 0; i < sides; i += 1)
+      builder.indices.push(
+        middle,
+        push(point(t, (i / sides) * Math.PI * 2), capNormal),
+        push(point(t, ((i + 1) / sides) * Math.PI * 2), capNormal),
+      )
+  }
+}
+
+/** A stump: a cylinder a unit across and a unit tall, drawn at its stump height and diameter. */
+export function stumpMesh(): ForestMesh {
+  const builder = newBuilder()
+  cylinder(builder, 'z', 0, 1, 0.5, 0.5, 1)
+  return finishMesh(builder)
+}
+
+/**
+ * Lying meshes are a unit long along +x from the stump, and a unit tall per metre of stem diameter:
+ * drawn with height = diameter and width scale = length, so their lateral size is a fixed share of
+ * the length (a stem about 1/70 of its length across, a crown about a quarter).
+ */
+const LYING_STEM_RADIUS = 0.007
+
+/** A limbed log, lying. */
+export function logMesh(): ForestMesh {
+  const builder = newBuilder()
+  cylinder(builder, 'x', 0, 1, LYING_STEM_RADIUS, 0.5, 1, [0, 0.5])
+  return finishMesh(builder)
+}
+
+/** A felled tree with its crown, lying: the stem, and a flattened crown over its upper part. */
+export function felledTreeMesh(): ForestMesh {
+  const builder = newBuilder()
+  cylinder(builder, 'x', 0, 1, LYING_STEM_RADIUS, 0.5, 1, [0, 0.5])
+  // The crown: an ellipsoid over the top 60% of the stem, about a quarter of the length across and
+  // five stem diameters high where it lies.
+  const rings = 6
+  const sides = 8
+  const centreX = 0.68
+  const rx = 0.32
+  const ry = 0.12
+  const rz = 2.5
+  const start = builder.positions.length / 3
+  for (let r = 0; r <= rings; r += 1) {
+    const phi = (r / rings) * Math.PI
+    for (let k = 0; k <= sides; k += 1) {
+      const theta = (k / sides) * Math.PI * 2
+      const nx = Math.cos(phi)
+      const ny = Math.sin(phi) * Math.cos(theta)
+      const nz = Math.sin(phi) * Math.sin(theta)
+      builder.positions.push(centreX + nx * rx, ny * ry, Math.max(0, 0.5 + nz * rz))
+      const length = Math.hypot(nx / rx, ny / ry, nz / rz) || 1
+      builder.normals.push(nx / rx / length, ny / ry / length, nz / rz / length)
+      builder.bark.push(0)
+    }
+  }
+  for (let r = 0; r < rings; r += 1)
+    for (let k = 0; k < sides; k += 1) {
+      const a = start + r * (sides + 1) + k
+      const b = a + sides + 1
+      builder.indices.push(a, b, a + 1, a + 1, b, b + 1)
+    }
+  return finishMesh(builder)
+}
+
+/**
+ * A snag: a wildlife tree topped and left standing dead. A unit across at the base and a unit tall,
+ * drawn at its snag height and diameter, tapering, with a few broken branch stubs. All wood.
+ */
+export function snagMesh(): ForestMesh {
+  const builder = newBuilder()
+  cylinder(builder, 'z', 0, 0.55, 0.5, 0.5, 1)
+  cylinder(builder, 'z', 0.55, 1, 0.36, 0.36, 1)
+  // Branch stubs: short and thin, pointing a few ways up the stem.
+  for (const [angle, z] of [
+    [0.4, 0.62],
+    [2.5, 0.74],
+    [4.4, 0.85],
+  ] as const) {
+    const sub = newBuilder()
+    cylinder(sub, 'x', 0, 1.6, 0.12, 0.012, 1, [0, z])
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    const offset = builder.positions.length / 3
+    for (let i = 0; i < sub.positions.length; i += 3) {
+      const [x, y, zz] = [sub.positions[i], sub.positions[i + 1], sub.positions[i + 2]]
+      builder.positions.push(x * cos - y * sin, x * sin + y * cos, zz)
+      const [nx, ny, nz] = [sub.normals[i], sub.normals[i + 1], sub.normals[i + 2]]
+      builder.normals.push(nx * cos - ny * sin, nx * sin + ny * cos, nz)
+    }
+    builder.bark.push(...sub.bark)
+    builder.indices.push(...sub.indices.map((index) => index + offset))
+  }
+  return finishMesh(builder)
+}

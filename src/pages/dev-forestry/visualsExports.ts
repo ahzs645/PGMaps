@@ -30,6 +30,7 @@ export type VisualsExport =
   | 'workspace'
   | 'scene-package'
   | 'castor-constraint'
+  | 'stand-trees'
 
 export type VisualsExportGroup = 'documents' | 'files' | 'exchange'
 
@@ -164,6 +165,17 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     formats: [
       { id: 'csv', label: 'constraints.csv', extension: '.csv' },
       { id: 'geojson', label: 'Zone GeoJSON', extension: '.geojson' },
+    ],
+  },
+  {
+    kind: 'stand-trees',
+    group: 'exchange',
+    label: 'Prescribed trees',
+    description:
+      'Every tree of the blocks with a stand prescription, the same tree before and after harvest: species, diameter, height, crown, and whether it stands or is cut. Display only.',
+    formats: [
+      { id: 'csv', label: 'CSV', extension: '.csv' },
+      { id: 'geojson', label: 'GeoJSON points', extension: '.geojson' },
     ],
   },
 ]
@@ -326,6 +338,8 @@ export type ExportContext = {
    * `READS_INVENTORY` print. Absent: the page offers no read, and those outputs print what the views were saved with.
    */
   visualInventory?: { status: 'idle' | 'loading' | 'ready' | 'error'; error: string | null }
+  /** Each prescribed block's trees in a line (`standFileSummary`); empty when no block has a prescription. */
+  prescribedStands: Row[]
   /** The land status checks (`landStatusChecks.ts`) as the block note would print them now. */
   landChecks: {
     include: boolean
@@ -468,6 +482,10 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
             : `Run the visibility assessment first. ${ctx.autoRun.blocker}`
           : null
       return ctx.castor.problem
+    case 'stand-trees':
+      return ctx.prescribedStands.length
+        ? null
+        : 'Give a retention or partial-cut block a stand prescription first (step 2, Prescribe trees…).'
   }
 }
 
@@ -961,6 +979,15 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           note: 'The eye and the look are where the road view stands now.',
         },
       ]
+    case 'stand-trees':
+      return [
+        {
+          title: 'Blocks',
+          step: 'design',
+          rows: ctx.prescribedStands,
+          note: 'Diameters are a drawing assumption sized to VRI where it recorded a stand size. The trees are the ones the road view draws; nothing here is a run figure.',
+        },
+      ]
     case 'castor-constraint': {
       const c = ctx.castor.constraint
       return [
@@ -1028,6 +1055,8 @@ export type ContextInput = {
   brief: { blockId: string | null; viewpoints: number }
   evidence: { loaded: boolean; gaps: string[]; counts: { views: number; runs: number; fields: number } }
   roadViewReady: boolean
+  /** Absent: no block has a stand prescription. */
+  prescribedStands?: Row[]
   officeFieldCount: number
   autoRun: ExportAutoRun
   landChecks: ExportContext['landChecks']
@@ -1197,6 +1226,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
     },
     evidence: { loaded: input.evidence.loaded, gaps: input.evidence.gaps, ...input.evidence.counts },
     roadViewReady: input.roadViewReady,
+    prescribedStands: input.prescribedStands ?? [],
     castor: {
       constraint: castorConstraint && {
         id: castorConstraint.id,

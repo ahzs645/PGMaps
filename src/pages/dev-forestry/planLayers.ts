@@ -22,6 +22,10 @@ export type PlanLegendKey =
   | `mask:${AssessmentMaskKind}`
   | 'road'
   | 'tree-free'
+  | 'stand:kept'
+  | 'stand:removed'
+  | 'stand:protected'
+  | 'stand:strip'
   | 'samples:visible'
   | 'samples:hidden'
   | 'samples:unknown'
@@ -111,4 +115,13 @@ export function inventoryPointLegendKey(properties: Record<string, unknown>): Pl
 
 export function evqoLegendKey(properties: Record<string, unknown>): PlanLegendKey {
   return `evqo:${String(properties.code)}` as PlanLegendKey
+}
+
+/** A stand prescription's tree on the plan, by what its prescription does with it (`standTreeCollection`). */
+export function standTreeLegendKey(properties: Record<string, unknown>): PlanLegendKey {
+  return properties.status === 'removed'
+    ? 'stand:removed'
+    : properties.status === 'protected'
+      ? 'stand:protected'
+      : 'stand:kept'
 }

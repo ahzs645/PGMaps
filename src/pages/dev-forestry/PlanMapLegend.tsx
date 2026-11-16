@@ -14,6 +14,7 @@ import {
   ROAD_COLOR,
   TREE_FREE_COLOR,
   SCREENED_COLOR,
+  STAND_TREE_COLORS,
   SENSITIVITY_UNIT_COLORS,
   TERRAIN_CANDIDATE_COLOR,
   VISIBLE_FACE_CANDIDATE_COLOR,
@@ -118,6 +119,10 @@ export type PlanMapLegendProps = {
   masks: ReadonlyArray<AssessmentMaskKind>
   /** Tree-free areas drawn for the road view's timber. */
   treeFreeAreas?: boolean
+  /** A stand prescription's trees drawn: kept, taken and protected (`stand/`). */
+  standTrees?: boolean
+  /** The stand profile's strip drawn while the prescription dialog shows it. */
+  standStrip?: boolean
   /** The established VQO classes drawn, when the Layers button has EVQO on. */
   evqo: ReadonlyArray<EvqoCode>
   /** Rows switched off; with `onToggle`, every row is a button that hides its layer. */
@@ -151,7 +156,8 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
     !bc &&
     !masks.length &&
     !evqo.length &&
-    !props.treeFreeAreas
+    !props.treeFreeAreas &&
+    !props.standTrees
   )
     return null
   const toggles = props.onToggle ? { hidden: props.hidden ?? new Set<PlanLegendKey>(), onToggle: props.onToggle } : null
@@ -169,7 +175,12 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
         contentClassName="max-h-72 overflow-y-auto overscroll-contain"
       >
         <div className="space-y-3">
-          {(blocks.count > 0 || landform || existingOpenings || masks.length > 0 || props.treeFreeAreas) && (
+          {(blocks.count > 0 ||
+            landform ||
+            existingOpenings ||
+            masks.length > 0 ||
+            props.treeFreeAreas ||
+            props.standTrees) && (
             <MapLegendSection title="Proposal" data-legend-section="proposal">
               {blocks.count > 0 && (
                 <Row
@@ -202,6 +213,16 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
                   swatch={<AreaSwatch color={TREE_FREE_COLOR} dashed />}
                   label="Tree-free area (road view)"
                 />
+              )}
+              {props.standTrees && (
+                <>
+                  <Row id="stand:kept" color={STAND_TREE_COLORS.kept} label="Tree kept (prescription)" />
+                  <Row id="stand:removed" color={STAND_TREE_COLORS.removed} label="Tree cut (prescription)" />
+                  <Row id="stand:protected" color={STAND_TREE_COLORS.protected} label="Tree protected" />
+                  {props.standStrip && (
+                    <Row id="stand:strip" color={STAND_TREE_COLORS.strip} shape="line" label="Stand profile strip" />
+                  )}
+                </>
               )}
               {masks.map((kind) => (
                 <Row
