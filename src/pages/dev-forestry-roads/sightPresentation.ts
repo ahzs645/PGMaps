@@ -3,6 +3,7 @@
  * station, the turnout pairs, and the distance seen against the distance needed along the road.
  * No DOM: the plan layers, the band and the tests read the same numbers.
  */
+import { labelStation } from './roadStationing'
 import type { RoadSightReview, SightBlocking, SightLookView, StationSightView } from './sightDistance'
 import type { TurnoutSightReview } from './turnoutSight'
 
@@ -18,10 +19,7 @@ export type SightFeatureRole =
 
 const m = (value: number, digits = 0) =>
   value.toLocaleString('en-CA', { maximumFractionDigits: digits, minimumFractionDigits: digits })
-const station = (chainage: number) => {
-  const rounded = Math.round(Math.max(0, chainage) * 10) / 10
-  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
-}
+const station = (chainage: number) => labelStation(chainage)
 
 /** One sentence on what blocks the line to the distance needed, and what clearing it would need. */
 export function blockingText(blocking: SightBlocking): string {

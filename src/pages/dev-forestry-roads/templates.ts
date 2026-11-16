@@ -15,6 +15,18 @@ import { validateAllocationPolicy } from './allocationPolicy'
 import { parseMaterialVolumeFactorProvenance } from './materialFactors'
 import { MAX_HORIZON_DEPTH_M } from './groundHorizons'
 import { blendRockCut, rockCutAt, validateRockCut } from './rockExcavation'
+import {
+  blendSectionStructures,
+  MAX_DITCH_DEPTH_M,
+  MAX_DITCH_WIDTH_M,
+  validateSectionStructures,
+} from './sectionStructures'
+import { batterSource } from './groundBatters'
+import {
+  applyParameterOverrides,
+  parameterOverrideKnots,
+  validateParameterOverride,
+} from './templateParameterOverrides'
 
 const EPS = 1e-7
 const clamp = (x: number) => Math.max(0, Math.min(1, x))
@@ -129,17 +141,33 @@ export function sideValue(template: RoadTemplate, side: Side, attribute: Attribu
  * The crossfall a section uses on one side at a station. On a curve the section rotates about the
  * centreline toward the superelevation `curve.superPercent` (at least the inside crown), the inside
  * falling and the outside rising, moving linearly from the template value over the runoff ratio.
+ *
+ * With a tangent runout (`curve.rotationRatio`, `curveDesignAt`) the outside lane turns first, at one
+ * rate from its crown through level to the superelevation, and the inside lane holds its crown until
+ * the outside lane is its mirror (reverse crown), then turns with it to the superelevation.
  */
 export function sectionCrossfall(
   template: RoadTemplate,
   side: Side,
-  curve: { inside: Side; superPercent: number; ratio: number } | null,
+  curve: { inside: Side; superPercent: number; ratio: number; rotationRatio?: number } | null,
 ): number {
   const crossfall = sideValue(template, side, 'CrossfallPercent')
   if (!curve || curve.superPercent <= 0) return crossfall
-  const e = Math.max(curve.superPercent, sideValue(template, curve.inside, 'CrossfallPercent'))
-  const target = side === curve.inside ? e : -e
-  return crossfall + (target - crossfall) * curve.ratio
+  const insideCrown = sideValue(template, curve.inside, 'CrossfallPercent')
+  const e = Math.max(curve.superPercent, insideCrown)
+  if (curve.rotationRatio === undefined) {
+    const target = side === curve.inside ? e : -e
+    return crossfall + (target - crossfall) * curve.ratio
+  }
+  const t = Math.max(0, Math.min(1, curve.rotationRatio))
+  const outsideCrown = sideValue(template, curve.inside === 'left' ? 'right' : 'left', 'CrossfallPercent')
+  const outside = outsideCrown + (-e - outsideCrown) * t
+  if (side !== curve.inside) return outside
+  // The inside lane starts turning where the outside lane reaches its mirror.
+  const span = outsideCrown + e
+  const reverseAt = span > 0 ? Math.max(0, Math.min(1, (outsideCrown + insideCrown) / span)) : 1
+  if (t <= reverseAt || reverseAt >= 1) return insideCrown
+  return insideCrown + (e - insideCrown) * ((t - reverseAt) / (1 - reverseAt))
 }
 
 /**
@@ -174,6 +202,21 @@ export function copyTemplateSide(template: RoadTemplate, from: Side, newId: () =
   // A side's own rock cut is copied across; an inherited one stays inherited on both sides.
   if (template[`${from}RockCut`]) next[`${to}RockCut`] = { ...template[`${from}RockCut`] }
   else delete next[`${to}RockCut`]
+  // Ditch inslope, benches and sub-cut follow the same rule as the side values.
+  if (template[`${from}DitchInslope`] !== undefined) next[`${to}DitchInslope`] = template[`${from}DitchInslope`]
+  else delete next[`${to}DitchInslope`]
+  if (template[`${from}Benches`]) next[`${to}Benches`] = structuredClone(template[`${from}Benches`])
+  else delete next[`${to}Benches`]
+  if (template[`${from}SubCut`]) next[`${to}SubCut`] = { ...template[`${from}SubCut`]! }
+  else delete next[`${to}SubCut`]
+  if (template.walls)
+    next.walls = template.walls.flatMap((wall) =>
+      wall.side === to ? [] : wall.side === from ? [wall, { ...wall, id: newId(), side: to }] : [wall],
+    )
+  if (template.barriers)
+    next.barriers = template.barriers.flatMap((barrier) =>
+      barrier.side === to ? [] : barrier.side === from ? [barrier, { ...barrier, id: newId(), side: to }] : [barrier],
+    )
   if (template.components)
     next.components = template.components.flatMap((component) =>
       component.side === to ? [] : [component, { ...component, id: newId(), side: to }],
@@ -270,6 +313,17 @@ export function templateFromStarter(base: RoadTemplate, starter: TemplateStarter
   if (starter !== 'current') {
     delete template.components
     delete template.layers
+    for (const key of [
+      'leftDitchInslope',
+      'rightDitchInslope',
+      'leftBenches',
+      'rightBenches',
+      'leftSubCut',
+      'rightSubCut',
+      'walls',
+      'barriers',
+    ] as const)
+      delete template[key]
     Object.assign(template, STARTER_DIMENSIONS[starter])
     for (const side of ['left', 'right'] as const)
       for (const attribute of attributes) delete template[`${side}${attribute}`]
@@ -297,17 +351,17 @@ export function ditchWidthRange(t: RoadTemplate, key: string): { min: number; ma
   const side = /^(left|right)Ditch(Bottom)?Width$/.exec(key)?.[1] as Side | undefined
   if (side)
     return key.endsWith('BottomWidth')
-      ? { min: 0, max: Math.min(10, sideValue(t, side, 'DitchWidth')) }
-      : { min: Math.min(10, sideValue(t, side, 'DitchBottomWidth')), max: 10 }
+      ? { min: 0, max: Math.min(MAX_DITCH_WIDTH_M, sideValue(t, side, 'DitchWidth')) }
+      : { min: Math.min(MAX_DITCH_WIDTH_M, sideValue(t, side, 'DitchBottomWidth')), max: MAX_DITCH_WIDTH_M }
   if (key === 'ditchBottomWidth') {
     const tops = sides.filter((s) => t[`${s}DitchBottomWidth`] === undefined).map((s) => sideValue(t, s, 'DitchWidth'))
-    return { min: 0, max: Math.min(10, ...tops) }
+    return { min: 0, max: Math.min(MAX_DITCH_WIDTH_M, ...tops) }
   }
   if (key === 'ditchWidth') {
     const bottoms = sides
       .filter((s) => t[`${s}DitchWidth`] === undefined)
       .map((s) => sideValue(t, s, 'DitchBottomWidth'))
-    return { min: Math.min(10, Math.max(0, ...bottoms)), max: 10 }
+    return { min: Math.min(MAX_DITCH_WIDTH_M, Math.max(0, ...bottoms)), max: MAX_DITCH_WIDTH_M }
   }
   return null
 }
@@ -333,10 +387,11 @@ export function validateTemplate(
   base('crossfallPercent', 'crown crossfall (%)', 0, 20)
   base('cutSlope', 'cut batter (H:V)', 0.1, 10)
   base('fillSlope', 'fill batter (H:V)', 0.1, 10)
-  base('ditchWidth', 'ditch width (m)', 0, 10)
-  base('ditchDepth', 'ditch depth (m)', 0, 5)
+  base('ditchWidth', 'ditch width (m)', 0, MAX_DITCH_WIDTH_M)
+  base('ditchDepth', 'ditch depth (m)', 0, MAX_DITCH_DEPTH_M)
   base('surfaceDepth', 'surfacing depth (m)', 0, 2)
   validateRockCut(t, owner, target)
+  validateSectionStructures(t, owner, target)
   for (const side of ['left', 'right'] as const) {
     const value = (attribute: Attribute, label: string, low: number, high: number) =>
       requireInRange(sideValue(t, side, attribute), low, high, owner, `${side} ${label}`, {
@@ -346,8 +401,8 @@ export function validateTemplate(
     value('CrossfallPercent', 'crossfall (%)', -20, 20)
     value('CutSlope', 'cut batter (H:V)', 0.1, 10)
     value('FillSlope', 'fill batter (H:V)', 0.1, 10)
-    value('DitchWidth', 'ditch width (m)', 0, 10)
-    value('DitchDepth', 'ditch depth (m)', 0, 5)
+    value('DitchWidth', 'ditch width (m)', 0, MAX_DITCH_WIDTH_M)
+    value('DitchDepth', 'ditch depth (m)', 0, MAX_DITCH_DEPTH_M)
     value('SurfaceDepth', 'surfacing depth (m)', 0, 2)
     const width = sideValue(t, side, 'DitchWidth'),
       bottom = sideValue(t, side, 'DitchBottomWidth')
@@ -383,6 +438,17 @@ export function validateEngineering(e: AlignmentEngineering): void {
   for (const list of [e.templates, e.assignments, e.materials, e.strata, e.culverts, e.sites]) {
     if (list.some((p) => !p.id) || new Set(list.map((p) => p.id)).size !== list.length)
       throw new Error('Engineering records require distinct, nonempty IDs within each list.')
+  }
+  for (const o of e.parameterOverrides ?? []) {
+    try {
+      validateParameterOverride(o)
+    } catch (cause) {
+      throw new EngineeringInputError(cause instanceof Error ? cause.message : String(cause), {
+        list: 'parameterOverrides',
+        id: o.id,
+        field: 'points',
+      })
+    }
   }
   const templateIds = new Set(e.templates.map((t) => t.id))
   const materialIds = new Set(e.materials.map((m) => m.id))
@@ -565,6 +631,7 @@ export function validateEngineering(e: AlignmentEngineering): void {
       requireInRange(s[key], low, high, owner, label, { ...target, field: key })
     field('chainage', 'station (m)', 0, 100000)
     field('accessDistanceM', 'access distance (m)', 0, 100000)
+    if (s.pastRoadEndM !== undefined) field('pastRoadEndM', "access past the road's end (m)", 0, 100000)
     field('unitRate', 'unit rate ($/m³)', 0, 100000)
     field('fixedCost', 'fixed cost ($)', 0, 1e9)
     if (s.capacityM3 !== null) field('capacityM3', 'capacity (m³)', 0, 1e12)
@@ -636,10 +703,39 @@ function neighbourTransition(alignment: Alignment, assignment: Assignment, side:
 }
 
 export function templateAt(alignment: Alignment, chainage: number): ResolvedTemplate {
+  const result = resolvedTemplateAt(alignment, chainage)
+  // Values entered at stations (RoadEng's parameter overrides) go over whichever template is in force.
+  const overrides = alignment.engineering?.parameterOverrides
+  if (overrides?.length)
+    applyParameterOverrides(
+      result.template,
+      chainage,
+      overrides,
+      (station) => resolvedTemplateAt(alignment, station).template,
+    )
+  return result
+}
+
+function resolvedTemplateAt(alignment: Alignment, chainage: number): ResolvedTemplate {
   const template = { ...alignment.template }
   const result: ResolvedTemplate = { template, leftName: 'Base section', rightName: 'Base section', assignmentIds: [] }
   const e = alignment.engineering
   if (!e) return result
+  // Batter sources resolve per side, so a range on one side leaves the other side's alone.
+  const sources = [
+    ['Cut', 'cut'],
+    ['Fill', 'fill'],
+  ] as const
+  if (e.assignments.length && sources.some(([, which]) => template[`${which}SlopeFrom`] !== undefined)) {
+    for (const [Kind, which] of sources) {
+      for (const side of ['left', 'right'] as const) {
+        const value = batterSource(alignment.template, side, which)
+        if (value === undefined) delete template[`${side}${Kind}SlopeFrom`]
+        else template[`${side}${Kind}SlopeFrom`] = value
+      }
+      delete template[`${which}SlopeFrom`]
+    }
+  }
   // A touching boundary belongs to the range that starts there, not the preceding one.
   for (const side of ['left', 'right'] as const) {
     const assignment = e.assignments
@@ -683,6 +779,13 @@ export function templateAt(alignment: Alignment, chainage: number): ResolvedTemp
       else delete template[`${side}RockCut`]
       if (!template[`${other}RockCut`]) delete template[`${other}RockCut`]
     }
+    // Where the batters come from is a choice, not a value: the nearer template's holds.
+    for (const [Kind, which] of sources) {
+      const value = batterSource(ratio >= 0.5 ? named.template : from, side, which)
+      if (value === undefined) delete template[`${side}${Kind}SlopeFrom`]
+      else template[`${side}${Kind}SlopeFrom`] = value
+    }
+    blendSectionStructures(template, from, named.template, side, ratio)
     if (from.components || named.template.components) {
       const others = (template.components ?? []).filter((c) => c.side !== side)
       template.components = [...others, ...blendedComponents(from, named.template, side, ratio)]
@@ -790,5 +893,7 @@ export function engineeringKnots(alignment: Alignment): number[] {
   ])
     knots.push(a.start - 1e-5, a.start, a.end - 1e-5, a.end, a.end + 1e-5)
   for (const a of [...e.culverts, ...e.sites]) knots.push(a.chainage)
+  for (const station of parameterOverrideKnots(e.parameterOverrides))
+    knots.push(station - 1e-5, station, station + 1e-5)
   return knots
 }

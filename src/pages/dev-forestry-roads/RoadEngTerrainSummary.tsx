@@ -10,6 +10,9 @@ import {
   ROADENG_FEATURE_CLASSES,
   type RoadEngOriginalTer,
 } from './roadEngTerrainOriginal'
+import { MAX_RETAINED_TIN_INDICES, MAX_RETAINED_TIN_VERTICES } from './terrainPreparation'
+import { terrainGridCellM, tinGroundFacts } from './tinGround'
+import { planTerrainCellM } from './terrainDisplay'
 import type { TerrainMetadata } from './types'
 
 const fmt = (n: number) => n.toLocaleString('en-CA')
@@ -61,6 +64,14 @@ export function RoadEngTerrainSummary({ terrain }: { terrain: TerrainMetadata })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the grid's identity, not the object
     [gridKey],
   )
+  // How much of the grid's box holds ground: a long road's TIN covers a small share of it.
+  const filledShare = useMemo(() => {
+    if (!raster?.values.length) return null
+    let filled = 0
+    for (const v of raster.values) if (v !== null) filled++
+    return filled / raster.values.length
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the grid's identity, not the object
+  }, [gridKey])
   if (!source) return null
 
   const choose = async (file: File) => {
@@ -85,7 +96,10 @@ export function RoadEngTerrainSummary({ terrain }: { terrain: TerrainMetadata })
     }
   }
 
-  const rows = original ? originalRows(original, source, held, gridAsRead) : keptRows(source)
+  const rows = [
+    ...groundRows(terrain, original?.triangles ?? 0, filledShare),
+    ...(original ? originalRows(original, source, held, gridAsRead) : keptRows(source)),
+  ]
   const summary = original
     ? `${original.triangles ? `TIN of ${fmt(original.triangles)} triangles` : 'No TIN'} · ${
         held === 'held' ? 'file in this browser' : held === 'missing' ? 'file not in this browser' : 'checking file'
@@ -107,7 +121,16 @@ export function RoadEngTerrainSummary({ terrain }: { terrain: TerrainMetadata })
             valueClassName="tabular-nums font-normal"
             rows={rows.map((row) => ({ key: row.label, label: row.label, value: row.value }))}
           />
-          <InfoTip label="About writing the terrain back to RoadEng">
+          <InfoTip label="About this RoadEng terrain">
+            Sections, the profile, quantities, drainage and the plan read RoadEng&apos;s TIN at its own triangles, so a
+            cross section follows each facet as RoadEng draws it. The plan draws the TIN with its pixels sized from the
+            ground the TIN covers, not its bounding box, and drainage routes flow on cells half the TIN&apos;s median
+            edge over the ground within the upslope buffer of the road (not the road&apos;s whole box), coarser only
+            where those cells would pass the drainage limit of 4,194,304 routed cells. Review and the reports state the
+            TIN&apos;s point spacing. The kept grid covers the TIN&apos;s whole bounding box, so along a long road its
+            cells are coarser than the TIN; it is what the export compares to know whether the terrain was changed, and
+            what it writes when it was.
+            <br />
             While the terrain grid is the one read from RoadEng and its file is in this browser, Save &amp; export →
             RoadEng project writes RoadEng&apos;s own Terrain1.ter back: its TIN, points and every feature as read, with
             only the features edited, removed or added here rewritten. Otherwise it writes the grid. The project file
@@ -159,6 +182,42 @@ function keptParts(source: RoadEngTerrainSource): string[] {
   if (source.te1) parts.push('symbol library')
   if (source.tlt) parts.push('display settings')
   return parts
+}
+
+const metres = (m: number) => `${m >= 10 ? m.toFixed(0) : m.toFixed(1)} m`
+const area = (m2: number) => (m2 >= 1e6 ? `${(m2 / 1e6).toFixed(2)} km²` : `${fmt(Math.round(m2 / 1e4))} ha`)
+
+/** What the analysis reads as ground, the TIN's spacing, how the plan draws it and the grid kept. */
+function groundRows(terrain: TerrainMetadata, fileTriangles: number, filledShare: number | null): Row[] {
+  const facts = tinGroundFacts(terrain)
+  const cell = Math.abs(terrain.raster?.pixelSize[0] ?? terrain.resolutionM)
+  const share = filledShare === null ? '' : `, ${Math.round(filledShare * 100)}% holding ground`
+  const grid: Row = { label: 'Plan grid', value: `${cell.toFixed(2)} m cells${share}` }
+  if (facts) {
+    // The plan, drainage and every section read the TIN; the grid over its box is kept for writing back.
+    const drawn = planTerrainCellM(terrain)
+    return [
+      { label: 'Ground', value: "RoadEng's TIN, read at its facets" },
+      { label: 'TIN spacing', value: `Median edge ${metres(facts.medianEdgeM)} over ${area(facts.areaM2)}` },
+      ...(drawn === null ? [] : [{ label: 'Plan drawing', value: `About ${metres(drawn)} pixels over its ground` }]),
+      { label: 'Drainage cell', value: `${metres(terrainGridCellM(terrain))} or coarser past 4,194,304 routed cells` },
+      { label: 'Kept grid', value: `${cell.toFixed(2)} m cells over its box${share}` },
+    ]
+  }
+  if (!fileTriangles) return []
+  const past = fileTriangles > MAX_RETAINED_TIN_INDICES / 3
+  return [
+    {
+      label: 'Ground',
+      value:
+        terrain.preparation && terrain.preparation.operation !== 'roadeng-tin'
+          ? `The grid: ${terrain.preparation.method}`
+          : past
+            ? `The grid: the TIN is past the ${(MAX_RETAINED_TIN_INDICES / 3).toLocaleString('en-CA')} triangles or ${MAX_RETAINED_TIN_VERTICES.toLocaleString('en-CA')} points a project keeps`
+            : 'The grid: this project was saved before its TIN was kept with it',
+    },
+    grid,
+  ]
 }
 
 function originalRows(

@@ -2,7 +2,8 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
-import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
+import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
+import { STRUCTURE_LIMITS } from './sectionStructures'
 import type { ContextFeature, GroundMaterial, RoadTemplate, SectionComponent, SectionLayer } from './types'
 import { ComponentLibrary } from './ComponentLibrary'
 
@@ -317,8 +318,8 @@ export function SectionAssemblyEditor({
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold">Surface course stack</p>
         <InfoTip label="About surface courses">
-          An explicit stack replaces the legacy surface-depth quantity. Courses lie above the designed subgrade;
-          material demand is kept per layer.
+          An explicit stack replaces the legacy surface-depth quantity. Courses lie above the designed subgrade, listed
+          from the subgrade up; material demand is kept per layer.
         </InfoTip>
       </div>
       <div className="flex flex-wrap gap-1">
@@ -378,6 +379,20 @@ export function SectionAssemblyEditor({
               min={0}
               max={2}
               onChange={(depthM) => updateLayer(l.id, { depthM })}
+            />
+            <OptionalNumberField
+              label={`Course ${i + 1} side slope (H:V)`}
+              value={l.sideSlope ?? null}
+              min={STRUCTURE_LIMITS.courseSideSlope[0]}
+              max={STRUCTURE_LIMITS.courseSideSlope[1]}
+              step={0.25}
+              placeholder="square"
+              hint="The course's edges run in from the course below at this slope, so the running surface is narrower than the formation. Blank: square-edged."
+              onChange={(v) => {
+                const next: SectionLayer = { ...l, sideSlope: v ?? undefined }
+                if (v === null) delete next.sideSlope
+                onChange({ ...template, layers: layers.map((c) => (c.id === l.id ? next : c)) })
+              }}
             />
           </div>
           {material(l.materialId, (materialId) => updateLayer(l.id, { materialId }), `Course ${i + 1} material`)}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_DITCH_WIDTH_M } from './sectionStructures'
 import { EngineeringInputError, freeStationRange, inputMessage } from './inputErrors'
 import { createEngineeringDesign, type AlignmentEngineering } from './engineeringTypes'
 import { ditchWidthRange, validateEngineering, validateTemplate } from './templates'
@@ -155,16 +156,17 @@ describe('the default range of an Add button', () => {
 })
 
 describe('ditch width fields', () => {
+  // The largest ditch is 30 m wide (`sectionStructures.ts`).
   it('limit each other so a bottom is never typed wider than its top', () => {
     // A 1 m ditch on both sides; the left has a 0.5 m flat bottom.
     const t: RoadTemplate = { ...template, leftDitchBottomWidth: 0.5 }
     expect(ditchWidthRange(t, 'leftDitchBottomWidth')).toEqual({ min: 0, max: 1 })
-    expect(ditchWidthRange(t, 'leftDitchWidth')).toEqual({ min: 0.5, max: 10 })
-    expect(ditchWidthRange(t, 'rightDitchWidth')).toEqual({ min: 0, max: 10 })
+    expect(ditchWidthRange(t, 'leftDitchWidth')).toEqual({ min: 0.5, max: MAX_DITCH_WIDTH_M })
+    expect(ditchWidthRange(t, 'rightDitchWidth')).toEqual({ min: 0, max: MAX_DITCH_WIDTH_M })
     // The base width is held by the side that inherits it and has the wider bottom.
-    expect(ditchWidthRange(t, 'ditchWidth')).toEqual({ min: 0.5, max: 10 })
+    expect(ditchWidthRange(t, 'ditchWidth')).toEqual({ min: 0.5, max: MAX_DITCH_WIDTH_M })
     // A side with its own top width no longer limits the base.
-    expect(ditchWidthRange({ ...t, leftDitchWidth: 2 }, 'ditchWidth')).toEqual({ min: 0, max: 10 })
+    expect(ditchWidthRange({ ...t, leftDitchWidth: 2 }, 'ditchWidth')).toEqual({ min: 0, max: MAX_DITCH_WIDTH_M })
     expect(ditchWidthRange({ ...t, leftDitchWidth: 2 }, 'leftDitchBottomWidth')).toEqual({ min: 0, max: 2 })
     // The base bottom is held by the narrowest top among the sides that inherit it.
     expect(ditchWidthRange({ ...template, rightDitchWidth: 0.4 }, 'ditchBottomWidth')).toEqual({ min: 0, max: 0.4 })

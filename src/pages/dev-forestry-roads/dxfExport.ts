@@ -12,6 +12,7 @@
  * Written from a functional specification (Lima VVA §8.2, gap G5; RFLTools §11); no code from
  * Lima VVA or RFLTools (GPL-3.0) was used.
  */
+import { labelStation, withStationing } from './roadStationing'
 import { centrelineSamples, horizontalGeometry } from './engine'
 import { sectionFeatureLines, sectionStations, stationOffsetCoordinate, type ToGrid } from './designExports'
 import { refuseInvalidResults } from './inputErrors'
@@ -59,6 +60,8 @@ export const DXF_LAYERS: Record<string, number> = {
   SECT_DESIGN: 1,
   SECT_GRID: 8,
   SECT_TEXT: 7,
+  /** Walls, barriers and sub-cuts, closed outlines (`sectionStructures.ts`). */
+  SECT_STRUCT: 4,
 }
 
 type XY = [number, number]
@@ -71,10 +74,7 @@ const num = (value: number, digits = 3) => {
 }
 /** R12 text is one line of the ANSI code page: other characters become "?". */
 const text = (value: string) => value.replace(/[\r\n]+/g, ' ').replace(/[^\x20-\x7e]/g, '?')
-const stationText = (chainage: number) => {
-  const metres = Math.round(chainage)
-  return `${Math.floor(metres / 1000)}+${String(metres % 1000).padStart(3, '0')}`
-}
+const stationText = (chainage: number) => labelStation(chainage, 0)
 
 /** Collects group-code pairs; `toString` joins them with CRLF, as R12 readers expect. */
 class DxfWriter {
@@ -150,7 +150,12 @@ const finite = (value: number | null | undefined): value is number => value != n
  * The DXF drawing. Refused while the road's results leave out an invalid input. Plan coordinates
  * are grid metres in `epsg`; the profile and sections are drawn in their own frames below the plan.
  */
-export function roadDxf({
+export function roadDxf(...args: Parameters<typeof roadDxfInChainage>): string {
+  // Stations are named by the road's own start station and equations (`roadStationing.ts`).
+  return withStationing(args[0].alignment.stationing, () => roadDxfInChainage(...args))
+}
+
+function roadDxfInChainage({
   name,
   alignment,
   analysis,
@@ -281,6 +286,13 @@ export function roadDxf({
         w.polyline('SECT_GROUND', run)
       for (const run of runs(s.section.map((p) => (finite(p.design) ? ([sx(p.offset), sy(p.design)] as XY) : null))))
         w.polyline('SECT_DESIGN', run)
+      // Each structure's outline, closed by repeating its first corner.
+      for (const structure of s.structures ?? [])
+        if (structure.outline.length > 2 && structure.outline.every(([x, z]) => finite(x) && finite(z)))
+          w.polyline(
+            'SECT_STRUCT',
+            [...structure.outline, structure.outline[0]].map(([x, z]) => [sx(x), sy(z)] as XY),
+          )
     })
   }
   const entities = w.toString()

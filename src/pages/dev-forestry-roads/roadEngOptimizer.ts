@@ -794,7 +794,7 @@ export function roadEngOptimizerFor(
     )
   }
   unmapped.push(
-    "RoadEng's optimizer method and cost settings (curve type, sampling, regularization, pits and haul, the last cost solution) and the horizontal optimizer stay in the design and are written back unchanged",
+    "RoadEng's optimizer method and cost settings (curve type, sampling, regularization) and the horizontal optimizer stay in the design and are written back unchanged; its last cost solution is written back unchanged too, and Compare with RoadEng… sets it beside the road's own costs",
   )
   const result: RoadEngOptimizerMapping = {
     ...(active.standards ? { verticalStandards: active.standards } : {}),

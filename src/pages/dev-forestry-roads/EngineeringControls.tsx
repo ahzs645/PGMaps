@@ -9,6 +9,7 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { crossingsWithoutStructure } from './costReadiness'
 import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
+import { CheckboxField } from '@/components/ui/form-field'
 import { createEngineeringDesign } from './engineeringTypes'
 import { createMaterialVolumeFactorProvenance, materialCompactionFactorPatch } from './materialFactors'
 import { downloadText } from '@/lib/download'
@@ -16,7 +17,10 @@ import { importRoadLibrary, serializeRoadLibrary } from './project'
 import { TemplateSandbox } from './TemplateSandbox'
 import { SectionAssemblyEditor } from './SectionAssemblyEditor'
 import { SitePreparationEditor } from './SitePreparationEditor'
+import { ParameterOverridesEditor } from './ParameterOverridesEditor'
 import { RockCutFields, rockCutSummary } from './RockCutFields'
+import { SectionStructuresEditor, structuresSummary } from './SectionStructuresEditor'
+import { MAX_DITCH_DEPTH_M, MAX_DITCH_WIDTH_M, STRUCTURE_TEMPLATE_KEYS } from './sectionStructures'
 import { GravelSourcesPanel } from './GravelSourcesPanel'
 import { MaterialAllocationControls } from './MaterialAllocationControls'
 import { surfacingSupplyCost } from './gravel'
@@ -31,12 +35,25 @@ import {
   copyTemplateSide,
   ditchWidthRange,
   keyedRockFillTemplate,
+  templateAt,
   templateFromStarter,
   templateTransitions,
   validateTemplate,
   type TemplateStarter,
 } from './templates'
 import { formatRoadStation } from './Charts'
+import { hasStationing, MAX_ROAD_STATION_M, resolveTypedStation, stationAtChainage } from './roadStationing'
+import { stationEntry, type StationEntry } from './stationEntry'
+import { roadEngNewCulvertDiameterM } from './roadEngCulverts'
+import {
+  RoadEngCulvertsPanel,
+  RoadEngDesignCulvertGradient,
+  roadEngCulvertFacts,
+  roadEngDesignCulvertFacts,
+} from './RoadEngCulvertsPanel'
+import { RoadEngPLinePanel } from './RoadEngPLinePanel'
+import { readRoadEngCulvertDefaults } from './roadEngDesignSettings'
+import { ROADENG_UNITS } from './roadEngImport'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type {
   AlignmentEngineering,
@@ -54,7 +71,27 @@ import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 
 const uid = () => crypto.randomUUID()
-type NumericField<T> = { key: keyof T; label: string; min?: number; max?: number; step?: number; hint?: string }
+type NumericField<T> = {
+  key: keyof T
+  label: string
+  min?: number
+  max?: number
+  step?: number
+  hint?: string
+  /** The number shown and typed, when it is not the stored value (a station name for a chainage). */
+  display?: { to: (stored: number) => number; from: (typed: number) => number }
+}
+/** A station or range end of {@link Fields}, shown and typed through the road's stationing. */
+function stationNumeric<T>(entry: StationEntry, key: keyof T, base: string, current: number): NumericField<T> {
+  return entry.named
+    ? {
+        key,
+        label: entry.label(base),
+        ...entry.limits!,
+        display: { to: entry.show, from: (typed) => entry.take(typed, current) },
+      }
+    : { key, label: entry.label(base) }
+}
 function Fields<T extends object>({
   value,
   fields,
@@ -73,13 +110,19 @@ function Fields<T extends object>({
         <NumberField
           key={String(field.key)}
           label={field.label}
-          value={typeof value[field.key] === 'number' ? (value[field.key] as number) : 0}
+          value={
+            typeof value[field.key] === 'number'
+              ? (field.display?.to(value[field.key] as number) ?? (value[field.key] as number))
+              : 0
+          }
           min={field.min}
           max={field.max}
           step={field.step}
           hint={field.hint}
           error={errorFor?.(String(field.key))}
-          onChange={(number) => onChange({ [field.key]: number } as Partial<T>)}
+          onChange={(number) =>
+            onChange({ [field.key]: field.display ? field.display.from(number) : number } as Partial<T>)
+          }
         />
       ))}
     </div>
@@ -230,9 +273,9 @@ const templateFields: NumericField<RoadTemplate>[] = [
   { key: 'surfaceDepth', label: 'Template surface depth (m)', max: 2 },
   { key: 'cutSlope', label: 'Template cut H:V', min: 0.1, max: 10 },
   { key: 'fillSlope', label: 'Template fill H:V', min: 0.1, max: 10 },
-  { key: 'ditchWidth', label: 'Template ditch width (m)', max: 10 },
-  { key: 'ditchDepth', label: 'Template ditch depth (m)', max: 5 },
-  { key: 'ditchBottomWidth', label: 'Ditch bottom width (m, 0 = V)', max: 10 },
+  { key: 'ditchWidth', label: 'Template ditch width (m)', max: MAX_DITCH_WIDTH_M },
+  { key: 'ditchDepth', label: 'Template ditch depth (m)', max: MAX_DITCH_DEPTH_M },
+  { key: 'ditchBottomWidth', label: 'Ditch bottom width (m, 0 = V)', max: MAX_DITCH_WIDTH_M },
 ]
 const sideFields: NumericField<RoadTemplate>[] = [
   { key: 'leftCrossfallPercent', label: 'Left crossfall (%)', min: -20, max: 20 },
@@ -241,12 +284,12 @@ const sideFields: NumericField<RoadTemplate>[] = [
   { key: 'rightCutSlope', label: 'Right cut H:V', min: 0.1, max: 10 },
   { key: 'leftFillSlope', label: 'Left fill H:V', min: 0.1, max: 10 },
   { key: 'rightFillSlope', label: 'Right fill H:V', min: 0.1, max: 10 },
-  { key: 'leftDitchWidth', label: 'Left ditch width (m)', max: 10 },
-  { key: 'rightDitchWidth', label: 'Right ditch width (m)', max: 10 },
-  { key: 'leftDitchDepth', label: 'Left ditch depth (m)', max: 5 },
-  { key: 'rightDitchDepth', label: 'Right ditch depth (m)', max: 5 },
-  { key: 'leftDitchBottomWidth', label: 'Left ditch bottom width (m, 0 = V)', max: 10 },
-  { key: 'rightDitchBottomWidth', label: 'Right ditch bottom width (m, 0 = V)', max: 10 },
+  { key: 'leftDitchWidth', label: 'Left ditch width (m)', max: MAX_DITCH_WIDTH_M },
+  { key: 'rightDitchWidth', label: 'Right ditch width (m)', max: MAX_DITCH_WIDTH_M },
+  { key: 'leftDitchDepth', label: 'Left ditch depth (m)', max: MAX_DITCH_DEPTH_M },
+  { key: 'rightDitchDepth', label: 'Right ditch depth (m)', max: MAX_DITCH_DEPTH_M },
+  { key: 'leftDitchBottomWidth', label: 'Left ditch bottom width (m, 0 = V)', max: MAX_DITCH_WIDTH_M },
+  { key: 'rightDitchBottomWidth', label: 'Right ditch bottom width (m, 0 = V)', max: MAX_DITCH_WIDTH_M },
   { key: 'leftSurfaceDepth', label: 'Left surface depth (m)', max: 2 },
   { key: 'rightSurfaceDepth', label: 'Right surface depth (m)', max: 2 },
 ]
@@ -323,6 +366,8 @@ export function EngineeringControls({
   const libraryInput = useRef<HTMLInputElement>(null)
   const { alignment, analysis, project } = w
   const design = alignment.engineering ?? createEngineeringDesign()
+  // Range and station fields take the road's station names (`stationEntry.ts`).
+  const stations = stationEntry(alignment.stationing, analysis.length)
   // Transitions to neighbouring ranges, for the ones that step at their midpoint.
   const transitions = templateTransitions(alignment)
   // An invalid edit keeps the last valid results; its message goes beside the entry that caused it.
@@ -462,15 +507,17 @@ export function EngineeringControls({
     sourceFeatureId?: string,
   ) => {
     const station = nearestStation(analysis.stations, chainage)
+    const kind = sourceFeatureId ? 'stream' : 'cross-drain'
     const culvert: Culvert = {
       id: uid(),
       name,
-      kind: sourceFeatureId ? 'stream' : 'cross-drain',
+      kind,
       ...(sourceFeatureId ? { sourceFeatureId } : {}),
       chainage,
       skewDegrees: 0,
       lengthM: Math.max(12, (station?.leftWidth ?? 3) + (station?.rightWidth ?? 3) + 4),
-      diameterM: 0.8,
+      // A road read from RoadEng starts a culvert from its design's default culvert of that kind.
+      diameterM: roadEngNewCulvertDiameterM(roadEngCulvertDefaults(alignment), kind, 0.8),
       inletInvertM: null,
       outletInvertM: null,
       minCoverM: 0.6,
@@ -742,6 +789,25 @@ export function EngineeringControls({
                   onChange={(value) => updateTemplate(value)}
                 />
                 <details className={insetBox()}>
+                  <summary className="cursor-pointer text-xs">
+                    Benches, walls, barriers and sub-cuts · {structuresSummary(candidate)}
+                  </summary>
+                  <div className="pt-2">
+                    <SectionStructuresEditor
+                      template={candidate}
+                      materials={design.materials}
+                      // A merge: a block the editor removed is passed as undefined to clear it.
+                      onChange={(value) =>
+                        updateTemplate(
+                          Object.fromEntries(
+                            STRUCTURE_TEMPLATE_KEYS.map((key) => [key, value[key]]),
+                          ) as Partial<RoadTemplate>,
+                        )
+                      }
+                    />
+                  </div>
+                </details>
+                <details className={insetBox()}>
                   <summary className="cursor-pointer text-xs">Rock cut · {rockCutSummary(candidate)}</summary>
                   <div className="pt-2">
                     <RockCutFields
@@ -958,8 +1024,8 @@ export function EngineeringControls({
                 <Fields<TemplateAssignment>
                   value={a}
                   fields={[
-                    { key: 'start', label: `Assignment ${index + 1} start (m)` },
-                    { key: 'end', label: `Assignment ${index + 1} end (m)` },
+                    stationNumeric<TemplateAssignment>(stations, 'start', `Assignment ${index + 1} start`, a.start),
+                    stationNumeric<TemplateAssignment>(stations, 'end', `Assignment ${index + 1} end`, a.end),
                     { key: 'transitionM', label: `Assignment ${index + 1} transition (m)`, max: 1000 },
                     { key: 'transitionInM', label: `Assignment ${index + 1} transition in (m)`, max: 1000 },
                     { key: 'transitionOutM', label: `Assignment ${index + 1} transition out (m)`, max: 1000 },
@@ -984,6 +1050,25 @@ export function EngineeringControls({
               </div>
             ))}
           </RoadSection>
+          <ParameterOverridesEditor
+            stations={stations}
+            overrides={design.parameterOverrides ?? []}
+            onChange={(list) =>
+              edit((e) => {
+                const next = { ...e }
+                if (list.length) next.parameterOverrides = list
+                else delete next.parameterOverrides
+                return next
+              })
+            }
+            lengthM={analysis.length}
+            readStation={readStation}
+            templateAt={(chainage) =>
+              templateAt({ ...alignment, engineering: { ...design, parameterOverrides: undefined } }, chainage).template
+            }
+            problem={problem}
+            newId={uid}
+          />
         </>
       )}
       {activeTab === 'materials' && (
@@ -1128,10 +1213,23 @@ export function EngineeringControls({
                   </div>
                 )}
                 {m.purpose !== 'stripping' && (
-                  <p className="text-2xs text-muted-foreground" data-testid="road-material-placement-rate">
-                    Placed as fill at ${project.settings.fillRate.toFixed(2)}/m³, the one fill placement rate for every
-                    material. Edit it in the cost breakdown.
-                  </p>
+                  <div data-testid="road-material-placement-rate">
+                    <OptionalNumberField
+                      label={`${m.name} fill placement ($/bank m³)`}
+                      value={m.fillRate ?? null}
+                      min={0}
+                      max={10000}
+                      placeholder="project fill rate"
+                      hint="What placing this material as fill costs, per bank m³ of it, as RoadEng's embankment cost per ground type. Fill made of it is priced at this rate ÷ its compaction factor per compacted m³. Blank places it at the project's fill rate, which is edited in the cost breakdown."
+                      description={
+                        m.fillRate === undefined
+                          ? `Placed at $${project.settings.fillRate.toFixed(2)}/compacted m³, the project's fill rate.`
+                          : `$${(m.fillRate / m.compactionFactor).toFixed(2)}/compacted m³ placed.`
+                      }
+                      error={inputMessage(problem, 'materials', m.id, 'fillRate')}
+                      onChange={(value) => patch('materials', m.id, { fillRate: value ?? undefined })}
+                    />
+                  </div>
                 )}
               </div>
             ))}
@@ -1139,6 +1237,7 @@ export function EngineeringControls({
           <StationValue workspace={w}>
             {(station) => (
               <SitePreparationEditor
+                stations={stations}
                 design={design}
                 length={analysis.length}
                 station={station}
@@ -1167,6 +1266,7 @@ export function EngineeringControls({
             >
               Add material horizon
             </Button>
+            <RoadEngPLinePanel key={w.alignment.id} workspace={w} />
             {design.strata.map((s, index) => (
               <div key={s.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
                 <div className="flex items-center justify-between">
@@ -1206,8 +1306,8 @@ export function EngineeringControls({
                 <Fields<StratumAssignment>
                   value={s}
                   fields={[
-                    { key: 'start', label: `Horizon ${index + 1} start (m)` },
-                    { key: 'end', label: `Horizon ${index + 1} end (m)` },
+                    stationNumeric<StratumAssignment>(stations, 'start', `Horizon ${index + 1} start`, s.start),
+                    stationNumeric<StratumAssignment>(stations, 'end', `Horizon ${index + 1} end`, s.end),
                     { key: 'topDepthM', label: `Horizon ${index + 1} top depth (m)`, max: MAX_HORIZON_DEPTH_M },
                     ...(s.bottomDepthM === null
                       ? []
@@ -1259,6 +1359,7 @@ export function EngineeringControls({
           <Button size="sm" variant="outline" disabled={design.culverts.length >= 100} onClick={() => newCulvert()}>
             Add culvert at station
           </Button>
+          <RoadEngCulvertsPanel workspace={w} />
           <div className="my-2 space-y-1">
             {crossingsWithoutStructure(analysis, design).map((c) => (
               <Button
@@ -1286,6 +1387,23 @@ export function EngineeringControls({
                 <Button size="sm" variant="ghost" onClick={() => w.setStation(c.chainage)}>
                   Select {formatRoadStation(c.chainage)} in all views
                 </Button>
+                {c.roadEng && (
+                  <p className="text-2xs text-muted-foreground" data-testid="culvert-roadeng-facts">
+                    {roadEngCulvertFacts(c, project.surveyBooks?.find((b) => b.id === c.roadEng?.bookId)?.name)}
+                  </p>
+                )}
+                {c.roadEngDesign && (
+                  <>
+                    <p className="text-2xs text-muted-foreground" data-testid="culvert-roadeng-design-facts">
+                      {roadEngDesignCulvertFacts(c)}
+                    </p>
+                    <RoadEngDesignCulvertGradient
+                      culvert={c}
+                      label={`Culvert ${index + 1} RoadEng gradient (%)`}
+                      onChange={(roadEngDesign) => patch('culverts', c.id, { roadEngDesign })}
+                    />
+                  </>
+                )}
                 <Field label="Culvert purpose">
                   <RoadSelect
                     ariaLabel="Culvert purpose"
@@ -1300,7 +1418,21 @@ export function EngineeringControls({
                 <Fields<Culvert>
                   value={c}
                   fields={[
-                    { key: 'chainage', label: `Culvert ${index + 1} station (m)` },
+                    // A road with a start station or equations places culverts by station name.
+                    hasStationing(alignment.stationing)
+                      ? {
+                          key: 'chainage',
+                          label: `Culvert ${index + 1} station`,
+                          min: -MAX_ROAD_STATION_M,
+                          max: MAX_ROAD_STATION_M,
+                          display: {
+                            to: (chainage) => stationAtChainage(chainage, alignment.stationing),
+                            from: (name) =>
+                              resolveTypedStation(name, alignment.stationing, analysis.length, { near: c.chainage })
+                                .chainage,
+                          },
+                        }
+                      : { key: 'chainage', label: `Culvert ${index + 1} station (m)` },
                     {
                       key: 'skewDegrees',
                       label: `Culvert ${index + 1} skew from square (°)`,
@@ -1507,7 +1639,7 @@ export function EngineeringControls({
             />
             <RoadSection
               title="Haul & cost assumptions"
-              help="Nearest mode retains the original chainage-order scenario. Economic mode solves a bounded mixed-integer material flow including capacities and fixed site openings. Quality/direction/sidecast rules use economic mode. Haul follows chainage plus site access."
+              help="Nearest mode retains the original chainage-order scenario. Economic mode solves the lowest-cost material flow including capacities and fixed site openings, as a network flow on long roads. Quality/direction/sidecast rules use economic mode. Haul follows chainage plus site access. The pit of last resort is RoadEng's: material no cut, site or sidecast can take or give goes to or comes from the road's start, and the plan uses it only where nothing else can. A road read from RoadEng starts with economic mode and the pit on, as RoadEng costs it."
             >
               <ReferenceSelect
                 label="Material allocation method"
@@ -1518,6 +1650,17 @@ export function EngineeringControls({
                 ]}
                 onChange={(allocation) =>
                   edit((e) => ({ ...e, haul: { ...e.haul, allocation: allocation as HaulSettings['allocation'] } }))
+                }
+              />
+              <CheckboxField
+                label="Pit of last resort at the road's start"
+                checked={!!design.haul.lastResort}
+                data-testid="road-haul-last-resort"
+                description={
+                  design.haul.lastResort ? 'Overflow free; underflow at each material’s excavation rate.' : undefined
+                }
+                onCheckedChange={(lastResort) =>
+                  edit((e) => ({ ...e, haul: { ...e.haul, lastResort: lastResort || undefined } }))
                 }
               />
               <ReferenceSelect
@@ -1614,10 +1757,17 @@ export function EngineeringControls({
                   >
                     {s.kind} · select {formatRoadStation(s.chainage)}
                   </button>
+                  {!!s.pastRoadEndM && (s.chainage <= 1e-6 || s.chainage >= analysis.length - 1e-3) && (
+                    <p className="text-2xs text-muted-foreground" data-testid="road-site-past-end">
+                      Access joins {s.pastRoadEndM.toFixed(1)} m{' '}
+                      {s.chainage <= 1e-6 ? "before the road's start" : "past the road's end"} along its line, where
+                      RoadEng's access station is; the access distance includes it.
+                    </p>
+                  )}
                   <Fields<HaulSite>
                     value={s}
                     fields={[
-                      { key: 'chainage', label: `Site ${index + 1} station (m)` },
+                      stationNumeric<HaulSite>(stations, 'chainage', `Site ${index + 1} station`, s.chainage),
                       { key: 'accessDistanceM', label: `Site ${index + 1} access distance (m)`, max: 100000 },
                       {
                         key: 'unitRate',
@@ -1696,6 +1846,7 @@ export function EngineeringControls({
             <MaterialAllocationControls
               design={design}
               length={analysis.length}
+              stations={stations}
               layerIds={[
                 ...new Set(
                   analysis.stations.flatMap((s) => [
@@ -1712,4 +1863,17 @@ export function EngineeringControls({
       )}
     </div>
   )
+}
+
+/** The default culverts of the RoadEng design a road was read from; none for another road. */
+function roadEngCulvertDefaults(alignment: Pick<RoadWorkspace['alignment'], 'roadEngSource'>) {
+  const source = alignment.roadEngSource
+  const unitM = source ? ROADENG_UNITS[source.unitCode] : undefined
+  if (!source || !unitM) return []
+  try {
+    const own = readRoadEngCulvertDefaults(source.dsn, unitM)
+    return own.length || !source.projectDsn ? own : readRoadEngCulvertDefaults(source.projectDsn, unitM)
+  } catch {
+    return []
+  }
 }

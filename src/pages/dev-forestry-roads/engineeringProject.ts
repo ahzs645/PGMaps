@@ -1,10 +1,13 @@
 /** Bounded validation for optional engineering inputs in v1 road projects. */
+import { parseRoadEngCulvertRecord } from './roadEngCulverts'
+import { parseRoadEngPlacedCulvertRecord } from './roadEngPlacedCulverts'
 import type { AlignmentEngineering, RoadTemplate } from './types'
 import { validateEngineering } from './templates'
 import { parseAllocationPolicy } from './allocationPolicy'
 import { parseSitePreparation } from './sectionAssembly'
 import { parseMaterialVolumeFactorProvenance } from './materialFactors'
 import { MAX_HORIZON_DEPTH_M } from './groundHorizons'
+import { parseParameterOverrides } from './templateParameterOverrides'
 
 const record = (v: unknown, label: string): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error(`${label} must be an object.`)
@@ -98,6 +101,7 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
         ? {}
         : { shallowCutRate: numeric(v.shallowCutRate, 'Shallow rock rate', 0, 10000) }),
       ...(v.overbreakRate === undefined ? {} : { overbreakRate: numeric(v.overbreakRate, 'Overbreak rate', 0, 10000) }),
+      ...(v.fillRate === undefined ? {} : { fillRate: numeric(v.fillRate, 'Material embankment rate', 0, 10000) }),
     }
   })
   const strata = items(r.strata, 'Material horizons', 200).map((raw) => {
@@ -135,6 +139,8 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       fixedCost: numeric(v.fixedCost, 'Culvert fixed cost', 0, 1e9),
       ...(v.kind === undefined ? {} : { kind: oneOf(v.kind, ['stream', 'cross-drain'] as const, 'Culvert kind') }),
       ...(v.sourceFeatureId === undefined ? {} : { sourceFeatureId: key(v.sourceFeatureId, 'Culvert source feature') }),
+      ...(v.roadEng === undefined ? {} : { roadEng: parseRoadEngCulvertRecord(v.roadEng) }),
+      ...(v.roadEngDesign === undefined ? {} : { roadEngDesign: parseRoadEngPlacedCulvertRecord(v.roadEngDesign) }),
     }
   })
   const sites = items(r.sites, 'Borrow and waste sites', 100).map((raw) => {
@@ -155,6 +161,9 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
           }),
       chainage: numeric(v.chainage, 'Haul site station'),
       accessDistanceM: numeric(v.accessDistanceM, 'Site access distance', 0, 100000),
+      ...(v.pastRoadEndM === undefined
+        ? {}
+        : { pastRoadEndM: numeric(v.pastRoadEndM, "Site access past the road's end", 0, 100000) }),
       capacityM3: v.capacityM3 === null ? null : numeric(v.capacityM3, 'Site capacity', 0, 1e12),
       unitRate: numeric(v.unitRate, 'Site unit rate', 0, 100000),
       fixedCost: numeric(v.fixedCost, 'Site fixed cost', 0, 1e9),
@@ -183,6 +192,15 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
     wasteRate: numeric(h.wasteRate, 'Waste rate'),
     mobilizationCost: numeric(h.mobilizationCost, 'Mobilization', 0, 1e9),
     contingencyPercent: numeric(h.contingencyPercent, 'Contingency percent', 0, 100),
+    ...(h.lastResort === undefined
+      ? {}
+      : typeof h.lastResort === 'boolean'
+        ? h.lastResort
+          ? { lastResort: true }
+          : {}
+        : (() => {
+            throw Error('The pit of last resort must be on or off.')
+          })()),
   }
   if (haul.overhaulDistanceM < haul.freeHaulDistanceM)
     throw Error('Overhaul limit must be at least the free-haul distance.')
@@ -246,6 +264,9 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
     haul: { ...haul, ...policy.haul },
     ...(r.sitePreparation === undefined ? {} : { sitePreparation: parseSitePreparation(r.sitePreparation) }),
     ...(surfacingSupply ? { surfacingSupply } : {}),
+    ...(r.parameterOverrides === undefined
+      ? {}
+      : { parameterOverrides: parseParameterOverrides(r.parameterOverrides) }),
   }
   validateEngineering(result)
   return result

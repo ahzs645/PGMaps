@@ -47,7 +47,9 @@
  *
  * Pure: no DOM or network access.
  */
+import { keptStationing, parseRoadStationing, scaleStationing, type RoadStationing } from './roadStationing'
 import { strFromU8, unzipSync } from 'fflate'
+import { ROADENG_UNITS, ROADENG_UNITS_READ } from './roadEngUnits'
 import {
   alignmentCrs,
   gridAlignmentRoad,
@@ -58,6 +60,9 @@ import {
 } from './landXmlImport'
 import { fitPolylineAlignment, MAX_FIT_SOURCE_POINTS } from './polylineFit'
 import type { Alignment, Coordinate, RoadTemplate } from './types'
+import { createEngineeringDesign, type Culvert } from './engineeringTypes'
+import { culvertsFromDesign } from './roadEngPlacedCulverts'
+import { parseRoadEngPLineSource, roadEngPLineChars, type RoadEngPLineSource } from './roadEngPLine'
 
 export const MAX_ROADENG_BYTES = 50_000_000
 /** Uncompressed size allowed for one part (`.dsn`, `.ds1`, `.ds2`, `.ds3`) inside the archive. */
@@ -100,7 +105,7 @@ export const ROADENG_SPIRAL_TYPE = 3
  */
 export const ROADENG_REPORT_PAIR_OFFSET = 0.1
 /** Metres per project unit for each `[design] units` code. */
-export const ROADENG_UNITS: Readonly<Record<string, number>> = { '10000': 1, '3048': 0.3048 }
+export { ROADENG_UNITS }
 
 /**
  * Whether the opening of a file is a RoadEng design: a ZIP whose first entry is one of a design's
@@ -115,17 +120,29 @@ export function isRoadEngDesign(head: Uint8Array): boolean {
 
 /**
  * A `108` record's curve design, in metres and metres a second. Field numbers are the record's;
- * meanings are from `roadeng-settings-report.md` (verified: 8, 12–16; inferred: 10, 17, 18; not
- * identified: 9 and 11, kept as numbers so they go back unchanged).
+ * meanings are from `roadeng-settings-report.md` (verified: 8, 12–16; 17 and 18 against Softree's
+ * bluff road, Location 18 and LongRoad samples; inferred: 10; 9 in part and 11 not identified,
+ * kept as numbers so they go back unchanged).
  */
 export interface RoadEngCurveFields {
   /** Field 8: design speed, m/s. */
   designSpeedMs?: number
-  /** Field 9: a flag word RoadEng writes (5585–5590 in RoadEng 11, 1393 in RoadEng 8); not identified. */
+  /**
+   * Field 9: a flag word RoadEng writes (5585–5590 in RoadEng 11, 1393 in RoadEng 8). Bit 1 (2) is
+   * superelevation typed by hand, Auto off (`ROADENG_MANUAL_SUPERELEVATION_BIT`), bit 8 (256) Auto by
+   * the superelevation table rather than the side friction method
+   * (`ROADENG_TABLE_SUPERELEVATION_BIT`) and bit 7 (128) Auto widening on the inside
+   * (`ROADENG_AUTO_WIDENING_INSIDE_BIT`), all read from Softree's samples; the rest is not
+   * identified and goes back as read.
+   */
   flags?: number
   /** Field 10: e max, rise over run. */
   emax?: number
-  /** Field 11: 0.10–0.17 in the samples, possibly the side-friction limit; not identified. */
+  /**
+   * Field 11: the curve's f max, the largest side friction (RoadEng's "Max Side Friction"), which
+   * the side friction method shares the lateral acceleration by (Softree's bluff road designs hold
+   * e = e max · V²/(g R) / (e max + field 11) to twelve digits); 0.10–0.17 in the samples.
+   */
   fLimit?: number
   /** Field 12: superelevation transition (runoff) at the BC, m; a spiral curve's entry spiral. */
   runoffIn?: number
@@ -137,7 +154,7 @@ export interface RoadEngCurveFields {
   e?: number
   /** Field 16: side friction demanded, v²/(gR) − e. */
   sideFriction?: number
-  /** Fields 17 and 18: widening on the inside and outside of the curve, m. */
+  /** Fields 17 and 18: widening on the inside (toward the curve's centre) and outside of the curve, m. */
   widening?: { insideM: number; outsideM: number }
 }
 
@@ -228,6 +245,19 @@ export interface RoadEngSource {
   epsg?: number
   /** The section the import fell back on where RoadEng's templates give no value (`roadEngTemplateFor`). */
   fallback?: RoadTemplate
+  /**
+   * The name the import gave an alignment its `.dsn` leaves unnamed (the design's file name): while
+   * the road keeps it, the design is written back unnamed, as RoadEng had it.
+   */
+  importedName?: string
+  /**
+   * Set when the `.ds1`'s placed culverts were read onto the road (`roadEngPlacedCulverts.ts`): a
+   * record no culvert holds then was deleted. Absent in a source kept before they were read, whose
+   * records all go back.
+   */
+  culvertsRead?: true
+  /** The P-line the design names (`[design] roadname`), with its `.tr1`/`.tr2` as read when given (`roadEngPLine.ts`). */
+  pLine?: RoadEngPLineSource
 }
 
 export interface RoadEngAlignment {
@@ -248,6 +278,8 @@ export interface RoadEngAlignment {
     template: unknown
     engineering: unknown
     curveDesign: unknown
+    /** The road's start station and equations (`Stationing`, `roadStationing.ts`), unchecked here. */
+    stationing?: unknown
     costs: unknown
     nativeChanged: boolean
   } | null
@@ -338,6 +370,7 @@ export function roadEngSourceChars(source: RoadEngSource): number {
     [...(source.ds2Ends ?? [])].reduce((sum, line) => sum + line.length + 2, 0) +
     (source.ds1?.length ?? 0) +
     (source.ds3?.length ?? 0) +
+    (source.pLine ? roadEngPLineChars(source.pLine) : 0) +
     [...source.ds2Kept, ...source.piRecords, ...source.vipRecords].reduce((sum, line) => sum + line.length + 2, 0)
   )
 }
@@ -375,7 +408,10 @@ export function parseRoadEngSource(value: unknown): RoadEngSource | null {
     (v.stationScale !== undefined &&
       (typeof v.stationScale !== 'number' || !(v.stationScale > 0) || !Number.isFinite(v.stationScale))) ||
     (v.epsg !== undefined && (typeof v.epsg !== 'number' || !Number.isInteger(v.epsg) || v.epsg <= 0)) ||
-    (v.fallback !== undefined && (!v.fallback || typeof v.fallback !== 'object' || Array.isArray(v.fallback)))
+    (v.fallback !== undefined && (!v.fallback || typeof v.fallback !== 'object' || Array.isArray(v.fallback))) ||
+    (v.culvertsRead !== undefined && v.culvertsRead !== true) ||
+    (v.importedName !== undefined && typeof v.importedName !== 'string') ||
+    (v.pLine !== undefined && !parseRoadEngPLineSource(v.pLine))
   )
     return null
   const source: RoadEngSource = {
@@ -398,6 +434,9 @@ export function parseRoadEngSource(value: unknown): RoadEngSource | null {
     ...(v.epsg !== undefined ? { epsg: v.epsg as number } : {}),
     // Checked for shape here; the project parser validates it as a section (`parseTemplate`).
     ...(v.fallback !== undefined ? { fallback: v.fallback as RoadTemplate } : {}),
+    ...(v.culvertsRead === true ? { culvertsRead: true as const } : {}),
+    ...(typeof v.importedName === 'string' ? { importedName: v.importedName } : {}),
+    ...(v.pLine !== undefined ? { pLine: parseRoadEngPLineSource(v.pLine)! } : {}),
   }
   return roadEngSourceChars(source) <= MAX_ROADENG_SOURCE_CHARS ? source : null
 }
@@ -449,7 +488,7 @@ export function parseRoadEngDesign(bytes: Uint8Array): RoadEngDesign {
   if (unitsText === undefined) throw Error('The RoadEng design does not state its units ([design] units).')
   const unitM = ROADENG_UNITS[unitsText]
   if (unitM === undefined)
-    throw Error(`The RoadEng design's units code ${unitsText} is not one this import reads (10000 metres, 3048 feet).`)
+    throw Error(`The RoadEng design's units code ${unitsText} is not one this import reads (${ROADENG_UNITS_READ}).`)
   const header = parts.get(numbers[0])!.ds2!.split(/\r?\n/, 1)[0].split(',')
   const version = first((ini) => ini.get('Software')?.get('Version2')) ?? (header[0] === '100' ? header[3] : undefined)
   const terrain = first((ini) => ini.get('design')?.get('surface')) ?? null
@@ -521,6 +560,7 @@ function readSource(
     dsn: part.dsn ?? '',
     ds1: part.ds1 ? bytesToBase64(part.ds1) : null,
     ds3: part.ds3 ? bytesToBase64(part.ds3) : null,
+    ...(part.ds1 ? { culvertsRead: true as const } : {}),
     ds2Kept,
     ds2KeptBefore: ds2KeptBefore < 0 ? ds2Kept.length : ds2KeptBefore,
     ds2Eol,
@@ -578,6 +618,7 @@ function readPgmaps(section: Map<string, string> | undefined, fingerprint: () =>
     engineering: json('Engineering'),
     curveDesign: json('CurveDesign'),
     costs: json('Costs'),
+    ...(section.has('Stationing') ? { stationing: json('Stationing') } : {}),
     nativeChanged: !!native && native !== fingerprint(),
   }
 }
@@ -1235,6 +1276,8 @@ export interface RoadEngRoad {
   /** Measured deviation of a plan fitted to the design's stations, m; null when built from its PIs. */
   fitDeviationM: number | null
   warnings: string[]
+  /** The culverts placed in the design (`.ds1`), on the road (`roadEngPlacedCulverts.ts`); what reading them says is in `warnings`. */
+  culverts: Culvert[]
 }
 
 /**
@@ -1317,20 +1360,71 @@ export function roadEngRoads(
           Math.round((p.station - source.startStation) * road.stationScale * 1000) / 1000,
           Math.round(p.elevation * 1000) / 1000,
         ])
+    // Culverts placed in the design, at the road chainage of their L-line stations.
+    const read = culvertsFromDesign(source.source?.ds1 ? base64ToBytes(source.source.ds1) : null, {
+      unitM: design.unitM,
+      frame: { startStation: source.startStation, endStation: source.endStation, stationScale: road.stationScale },
+      newId: options.newId,
+    })
+    // RoadEng's alignments carry no station equations: a road written here keeps its own in [PGMaps].
+    // A road starting at another station than 0 takes RoadEng's station names (GuardRail starts at 1+400).
+    let stationing: Alignment['stationing'] = keptStationing(
+      roadEngImpliedStationing(source.startStation, road.stationScale),
+    )
+    if (source.pgmaps?.stationing !== undefined)
+      try {
+        stationing = keptStationing(parseRoadStationing(source.pgmaps.stationing))
+      } catch {
+        source.warnings.push('The station equations this workspace wrote into the design could not be read.')
+      }
     return {
       alignment: {
         ...road.alignment,
         ...(fileGround && fileGround.length >= 2
           ? { fileGround: { source: `${options.fileName} station levels`, points: fileGround } }
           : {}),
+        ...(stationing ? { stationing } : {}),
+        ...(read.culverts.length ? { engineering: { ...createEngineeringDesign(), culverts: read.culverts } } : {}),
       },
       source,
       stationScale: road.stationScale,
       fitDeviationM,
-      warnings: [...source.warnings, ...(fitDeviationM === null ? spiralWarnings : []), ...road.warnings],
+      warnings: [
+        ...source.warnings,
+        ...(fitDeviationM === null ? spiralWarnings : []),
+        ...road.warnings,
+        ...read.notes,
+      ],
+      culverts: read.culverts,
     }
   })
   return { roads, design, epsg }
+}
+
+/**
+ * The stationing a RoadEng alignment's own stations give a road: its start station, at `stationScale`
+ * road chainage per file station metre. RoadEng's alignments carry no station equations.
+ */
+export function roadEngImpliedStationing(startStation: number, stationScale: number): RoadStationing {
+  return scaleStationing({ startStation, equations: [] }, stationScale)
+}
+
+/**
+ * Whether a road's stationing is what its RoadEng alignment's stations already give, within a
+ * millionth of the chainage scale (the written plan's length, not the read one's, sets it on export):
+ * the design then needs no `[PGMaps] Stationing`.
+ */
+export function isRoadEngImpliedStationing(
+  stationing: RoadStationing | null | undefined,
+  startStation: number,
+  stationScale: number,
+): boolean {
+  const s = stationing ?? { startStation: 0, equations: [] }
+  return (
+    !s.equations.length &&
+    Math.abs(s.startStation - startStation) <= 1e-9 * Math.max(1, Math.abs(startStation)) &&
+    Math.abs((s.chainageScale ?? 1) - stationScale) <= 1e-6
+  )
 }
 
 /**
@@ -1370,6 +1464,9 @@ export function roadEngImportSummary(road: RoadEngRoad, design: RoadEngDesign): 
         ? [`profile within ${mm(c.profileDifferenceM)} of their levels (limit ${mm(ROADENG_PROFILE_TOLERANCE_M)})`]
         : []),
     `road chainage ÷ design stations ${road.stationScale.toFixed(5)}`,
+    ...(road.culverts?.length
+      ? [`${road.culverts.length} placed culvert${road.culverts.length === 1 ? '' : 's'} read from its .ds1`]
+      : []),
   ]
   const notes = [
     ...(design.version ? [`Written by RoadEng ${design.version}.`] : []),

@@ -33,6 +33,15 @@ export type CurveReview = ReturnType<typeof horizontalCurveSummary>[number] & {
   outsideCrossfallPercent: CurveReviewRange | null
   insideWideningM: number | null
   outsideWideningM: number | null
+  /** The curve's design speed, its own or the road's; null without curve criteria. */
+  designSpeedKmh: number | null
+  /** Where its superelevation comes from: the formula, the lookup table, or a value stated for the curve. */
+  superelevationSource: 'formula' | 'table' | 'sideFriction' | 'minimumRadius' | 'stated' | null
+  runoffInM: number | null
+  runoffOutM: number | null
+  /** Side friction the curve demands at its speed, and the side friction table's limit (null without one). */
+  sideFrictionDemand: number | null
+  sideFrictionLimit: number | null
   warnings: string[]
 }
 
@@ -89,8 +98,9 @@ export function buildCurveReview(alignment: Alignment, analysis: RoadAnalysis): 
     const centrelineGradePercent = independentProfile ? range(circular.map((s) => s.gradePercent)) : null
     const completeSampleCount = samples.filter((s) => s.complete).length
     const warnings: string[] = []
+    const own = alignment.points.find((p) => p.id === curve.pointId)?.curve
     const criteria = alignment.curveDesign
-      ? evaluateCurveCriteria(alignment.curveDesign, curve.radius, curve.deflectionDegrees)
+      ? evaluateCurveCriteria(alignment.curveDesign, curve.radius, curve.deflectionDegrees, own)
       : null
     if (criteria) warnings.push(...criteria.warnings)
     else warnings.push('No speed/superelevation or vehicle-widening criteria entered for this road.')
@@ -110,10 +120,7 @@ export function buildCurveReview(alignment: Alignment, analysis: RoadAnalysis): 
         'Inside daylight reaches or crosses the curve centre. Swept sections may overlap; review the footprint and earthworks.',
       )
     if (circular.length && !daylight) warnings.push('Inside daylight is unresolved at one or more arc sections.')
-    if (
-      alignment.curveDesign &&
-      crossfalls.some((s) => s.banking && s.inside > alignment.curveDesign!.maxSuperelevationPercent + 1e-6)
-    )
+    if (criteria && crossfalls.some((s) => s.banking && s.inside > criteria.maxSuperelevationPercent + 1e-6))
       warnings.push(
         'Actual inside crossfall exceeds the entered maximum after retaining the template crown. Review crown and superelevation criteria.',
       )
@@ -157,6 +164,12 @@ export function buildCurveReview(alignment: Alignment, analysis: RoadAnalysis): 
       outsideCrossfallPercent,
       insideWideningM: criteria?.insideWideningM ?? null,
       outsideWideningM: criteria?.outsideWideningM ?? null,
+      designSpeedKmh: criteria?.designSpeedKmh ?? null,
+      superelevationSource: criteria?.superelevationSource ?? null,
+      runoffInM: criteria?.runoffInM ?? null,
+      runoffOutM: criteria?.runoffOutM ?? null,
+      sideFrictionDemand: criteria?.sideFrictionDemand ?? null,
+      sideFrictionLimit: criteria?.sideFrictionLimit ?? null,
       warnings: [...new Set(warnings)],
     }
   })
@@ -214,6 +227,12 @@ export function curveReviewCsv(alignment: Alignment, rows: CurveReview[], terrai
     'vertical_reference',
     'terrain_source_url',
     'terrain_sha256',
+    'design_speed_kmh',
+    'superelevation_from',
+    'runoff_in_m',
+    'runoff_out_m',
+    'side_friction_demand',
+    'side_friction_limit',
   ]
   return [
     header.map(csvValue).join(','),
@@ -261,6 +280,12 @@ export function curveReviewCsv(alignment: Alignment, rows: CurveReview[], terrai
         terrain?.verticalReference,
         terrain?.sourceUrl,
         terrain?.sha256,
+        r.designSpeedKmh,
+        r.superelevationSource,
+        r.runoffInM,
+        r.runoffOutM,
+        r.sideFrictionDemand,
+        r.sideFrictionLimit,
       ]
         .map(csvValue)
         .join(','),

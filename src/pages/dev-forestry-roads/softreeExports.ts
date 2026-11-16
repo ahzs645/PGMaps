@@ -49,7 +49,9 @@ import type { Alignment, ResolvedTemplate, RoadAnalysis, RoadSettings, RoadTempl
 /** Metres per file unit for a project: its RoadEng plane's unit (feet or metres), else metres. */
 export function softreeUnitM(terrain: Pick<TerrainMetadata, 'localPlane'>): number {
   const unitM = terrain.localPlane?.unitM
-  return unitM !== undefined && Math.abs(unitM - SOFTREE_FT_M) < 1e-9 ? SOFTREE_FT_M : 1
+  if (unitM === undefined) return 1
+  // A plane in US survey feet keeps its own foot.
+  return Math.abs(unitM - SOFTREE_FT_M) < 1e-9 ? SOFTREE_FT_M : Math.abs(unitM - 1200 / 3937) < 1e-12 ? unitM : 1
 }
 
 /** The haul files' units for a project. */

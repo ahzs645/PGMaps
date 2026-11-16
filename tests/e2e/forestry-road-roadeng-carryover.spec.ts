@@ -107,7 +107,11 @@ test('template transitions, minimum lengths and costs go out to RoadEng and come
   const dsn = strFromU8(unzipSync(new Uint8Array(Buffer.concat(chunks)))['Location1.dsn'], true)
   const optimizer = /^OptParmsNew=(.*)$/m.exec(dsn)![1].replace(/\r$/, '').split(',')
   expect([optimizer[3], optimizer[11], optimizer[28]]).toEqual(['50', '23', '30'])
-  expect(dsn).toMatch(/^Costs=\{"version":1,"haul":\{"contingencyPercent":12\}\}\r?$/m)
+  // A road made here keeps its nearest-site allocation and no pit of last resort, which a plain
+  // RoadEng read would set otherwise (`ROADENG_READ_HAUL`).
+  expect(dsn).toMatch(
+    /^Costs=\{"version":1,"haul":\{"contingencyPercent":12,"allocation":"nearest","lastResort":false\}\}\r?$/m,
+  )
   expect(dsn).toMatch(/"transitionInM":20,"transitionOutM":20/)
   expect(dsn).toMatch(/^Native=[0-9a-z]+-[0-9a-f]{8}\r?$/m)
   await page.keyboard.press('Escape')

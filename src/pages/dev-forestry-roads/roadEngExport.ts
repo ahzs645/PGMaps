@@ -11,7 +11,8 @@
  *   point that carries a curve (signed radius, negative turning left, X, Y, and the curve's design
  *   fields), a `109` per vertical PI inside the road (signed vertical-curve radius, positive a sag,
  *   station, elevation), then RoadEng's default ground type and `118,1`;
- * - `.ds1`: three empty index records, as RoadEng 11 leaves them.
+ * - `.ds1`: the road's culverts as RoadEng's placed culverts (`roadEngPlacedCulverts.ts`), in three
+ *   chunks as RoadEng 11 writes them (empty without culverts).
  *
  * **Stations** (`110`) are written as Softree's samples hold them (`roadeng-gaps-plan.md` §0): plan
  * points (Pt. Type 2) at the ends, at each curve's BC and EC (field 9 = 2; a spiral's TS, SC, CS and
@@ -28,16 +29,20 @@
  *
  * **Curves** (`108`): fields 8–18 come from the caller's per-curve values ({@link RoadEngCurveInput},
  * by road point id), else from the record the road was read from (matched by position within
- * {@link ROADENG_PI_MATCH_M}), else RoadEng's defaults; the side friction (16) is v²/(gR) − e.
- * Fields 6, 7, 9, 11 and 19 on, which are not identified, go back as read. A spiralled curve is
+ * {@link ROADENG_PI_MATCH_M}), else RoadEng's defaults; the side friction (16) is v²/(gR) − e and
+ * field 11 the curve's f max. Fields 6, 7 and 19 on, which are not identified, go back as read; of
+ * field 9's flag word only Use Minimum Radius (`useMinimumRadius`, only ever cleared), the Auto
+ * method bit (`superelevationByTable`) and the inside Auto widening bit are ever changed, all read
+ * from Softree's files. A spiralled curve is
  * written as curve type {@link ROADENG_SPIRAL_TYPE} with its spiral length as both transition
  * lengths (inferred; see `roadEngImport.ts`), so the transitions given for it are not written.
  *
  * **Kept parts.** A road read from a RoadEng design carries a {@link RoadEngSource}. Its `.dsn` is
  * then the original with only the keys this writer owns replaced or added ({@link mergeRoadEngIni}:
  * `[design] units` and `surface`, `[HAlignOptions] Option, 1`, `[PGMaps]`, and `[Software]` on the
- * first alignment when it has none), then the caller's `dsnOverrides`; its `.ds1` and `.ds3` are the
- * original bytes; its `.ds2` is the regenerated 108/109/110 records in place of the old ones, with
+ * first alignment when it has none), then the caller's `dsnOverrides`; its `.ds3` is the original
+ * bytes and its `.ds1` too, with only the culvert records the road changed rewritten; its `.ds2`
+ * is the regenerated 108/109/110 records in place of the old ones, with
  * every other record (the `100` header, `104` ground types, `118`, unknown types) as read, unless
  * `recordOverrides` replaces a type. Stations start at the design's own start station and lengths
  * are in its own units, so the kept template ranges and settings still apply. The software version
@@ -52,11 +57,13 @@
  *
  * Pure: no DOM or network access.
  */
+import { hasStationing } from './roadStationing'
 import { zipSync } from 'fflate'
 import { alignmentLength, designProfileAt, horizontalCurveFits, planFrame } from './engine'
 import type { XY } from './landXmlImport'
 import {
   base64ToBytes,
+  isRoadEngImpliedStationing,
   rebuildPlan,
   readRoadEngIni,
   roadEngNativeFingerprint,
@@ -70,7 +77,15 @@ import {
   type RoadEngPi,
   type RoadEngSource,
 } from './roadEngImport'
+import { roadEngUnitName } from './roadEngUnits'
+import {
+  ROADENG_AUTO_WIDENING_INSIDE_BIT,
+  ROADENG_MINIMUM_RADIUS_BIT,
+  ROADENG_TABLE_SUPERELEVATION_BIT,
+} from './roadEngDesignSettings'
 import { groundAlong } from './roadSummaryMetrics'
+import type { Culvert } from './engineeringTypes'
+import { emptyRoadEngIndex, writeDesignCulverts } from './roadEngPlacedCulverts'
 import type { Alignment, Coordinate, RoadAnalysis } from './types'
 
 /** Spacing of the first report interval written (bit 256) when the design states none, grid metres. */
@@ -79,6 +94,31 @@ export const ROADENG_EXPORT_STATION_M = 10
 export const ROADENG_EXPORT_MAJOR_STATION_M = 50
 /** Calculated stations one alignment may take; a finer interval is widened to stay within it. */
 export const ROADENG_EXPORT_MAX_STATIONS = 200_000
+/**
+ * A curve's radius within this share of its read record's is the record's, written as read with its
+ * side friction: rebuilding the plan in the grid moves a radius by up to about two parts in a million
+ * (LongRoad: 0.47 mm on 340 m), and a radius edited in the workspace moves it far more.
+ */
+export const ROADENG_RADIUS_ROUNDING = 1e-5
+/**
+ * A written PI or VIP this close to its read record (plan position; station and level), m, is the
+ * record's place, written with the record's own text. The rebuild through the map moves a PI by up
+ * to 0.07 mm, and an imported level is rounded to the millimetre.
+ */
+export const ROADENG_RECORD_UNMOVED_M = 0.001
+/**
+ * A curve radius this close to its read record's, m, is the record's, whatever its share
+ * ({@link ROADENG_RADIUS_ROUNDING}): Location 18's 35 m curves rebuild 0.47 mm off (13 parts in a
+ * million), and bluff_road's first, its PI 43 m from the road's start, 3.4 mm off.
+ */
+export const ROADENG_RADIUS_KEPT_M = 0.005
+/**
+ * A vertical curve whose length is within this share (or a millimetre) of the one its read record
+ * gives over the records' own grades, as the import made it, keeps the record's radius: an imported
+ * level's millimetre rounding moves the written grade change, and with it the radius, by 10⁻⁴ (Align
+ * stage 4) to 3 % (Hart Rd curves' near-level crests).
+ */
+export const ROADENG_VERTICAL_CURVE_KEPT = 1e-3
 /** A written PI takes the unidentified fields of the read `108` record within this distance, m. */
 export const ROADENG_PI_MATCH_M = 1
 /** A written VIP takes the unidentified fields of the read `109` record within this many metres of station. */
@@ -101,6 +141,25 @@ const DEFAULT_109_TAIL = ['0', '-1', '', '0', '0', '-1']
 export interface RoadEngCurveInput extends Omit<RoadEngCurveFields, 'widening'> {
   /** Inside and outside widening, m; one number for both. */
   widening?: number | { insideM: number; outsideM: number }
+  /**
+   * RoadEng's Use Minimum Radius for the curve (bit {@link ROADENG_MINIMUM_RADIUS_BIT} of field 9,
+   * read from Softree's files), which holds its e at e max and lets RoadEng solve the radius or
+   * speed again. Applied after `flags`; left out, the flag word is the record's or RoadEng's
+   * default. PGMaps only ever clears it: a new curve never takes the default word's (5590).
+   */
+  useMinimumRadius?: boolean
+  /**
+   * Which method RoadEng's Auto uses (bit {@link ROADENG_TABLE_SUPERELEVATION_BIT} of field 9, read
+   * from Softree's samples): true the superelevation table, false the side friction method. Applied
+   * after `flags`; left out, the record's or RoadEng's default.
+   */
+  superelevationByTable?: boolean
+  /**
+   * RoadEng's Auto widening on the curve's inside (bit {@link ROADENG_AUTO_WIDENING_INSIDE_BIT} of
+   * field 9, read from Softree's samples): on where the inside widening is the widening table's, so
+   * RoadEng reads it from its table; off keeps the written value. Applied after `flags`.
+   */
+  autoWideningInside?: boolean
 }
 
 /** A boundary to flag on the stations, at the road's chainage, m. */
@@ -153,7 +212,7 @@ export interface RoadEngExport {
 export interface RoadEngAlignmentParts {
   dsn: string
   ds2: string
-  /** `.ds1` bytes: the source's, else three empty index records. */
+  /** `.ds1` bytes: the source's with the road's culverts written into it, else RoadEng's empty chunks and the road's culverts. */
   ds1: Uint8Array
   /** `.ds3` bytes, the source's; null without one. */
   ds3: Uint8Array | null
@@ -348,6 +407,41 @@ interface Row {
 }
 
 /** The road as RoadEng PIs in a grid, and the plan they rebuild: what every written station follows. */
+/**
+ * Each curve's radius as written in the design's grid, m, by road point id: the radius RoadEng reads
+ * its lookup tables and side friction method at, so a curve's superelevation can be taken there
+ * before it is written. With the design's `108` records (`kept`), a curve the writer matches to a
+ * record whose radius it keeps (within {@link ROADENG_RADIUS_ROUNDING} or
+ * {@link ROADENG_RADIUS_KEPT_M}) takes that record's radius, the one RoadEng reads back.
+ */
+export function roadEngWrittenRadii(
+  alignment: Alignment,
+  toGrid: (coordinate: Coordinate) => XY,
+  kept?: { records: readonly (readonly string[])[]; unitM: number },
+): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const pi of writtenPlan(alignment, toGrid).pis) {
+    if (!(pi.radiusM > 0)) continue
+    out[pi.pointId] = pi.radiusM
+    if (!kept) continue
+    const unit = kept.unitM
+    let best: readonly string[] | null = null,
+      far = ROADENG_PI_MATCH_M
+    for (const f of kept.records) {
+      const d = Math.hypot(Number(f[4]) * unit - pi.xy[0], Number(f[5]) * unit - pi.xy[1])
+      if (d <= far) [best, far] = [f, d]
+    }
+    const read = best ? Math.abs(Number(best[3])) : NaN
+    const units = pi.radiusM / unit
+    if (
+      read > 0 &&
+      Math.abs(read - units) <= Math.max(ROADENG_RADIUS_ROUNDING * Math.max(1, units), ROADENG_RADIUS_KEPT_M / unit)
+    )
+      out[pi.pointId] = read * unit
+  }
+  return out
+}
+
 function writtenPlan(alignment: Alignment, toGrid: (coordinate: Coordinate) => XY) {
   const points = alignment.points
   const grid = points.map((p) => toGrid(p.coordinate))
@@ -396,7 +490,7 @@ export function roadEngWrittenFrame(
   toGrid: (coordinate: Coordinate) => XY,
 ): RoadEngWrittenFrame {
   const { plan } = writtenPlan(road.alignment, road.toGrid ?? toGrid)
-  const startStation = road.source?.startStation ?? 0
+  const startStation = writtenStartStation(road)
   const length = alignmentLength(road.alignment)
   return {
     startStation,
@@ -404,6 +498,16 @@ export function roadEngWrittenFrame(
     stationScale: plan.length > 0 ? length / plan.length : 1,
     planLength: plan.length,
   }
+}
+
+/**
+ * The L-line start station a road is written from: its RoadEng source's (ranges kept from the design
+ * are placed by it), else the road's own start station (`Alignment.stationing`), else 0. RoadEng's
+ * alignments have no station equations; the road's travel in `[PGMaps] Stationing`.
+ */
+function writtenStartStation(road: Pick<RoadEngExportRoad, 'alignment' | 'source'>): number {
+  if (road.source) return road.source.startStation
+  return hasStationing(road.alignment.stationing) ? road.alignment.stationing.startStation : 0
 }
 
 /** One road's `.dsn`, `.ds2`, `.ds1` and `.ds3`. */
@@ -496,9 +600,23 @@ export function roadEngAlignmentParts(
         ? matched[2]
         : String(ROADENG_SPIRAL_TYPE)
       : String(ROADENG_CIRCLE_TYPE)
-    f[3] = num(pi.turn === 'left' ? -radiusUnits : radiusUnits)
-    f[4] = num(pi.xy[0] / unit)
-    f[5] = num(pi.xy[1] / unit)
+    // A radius the plan rebuilds within rounding of the record's is the record's: it is the same curve.
+    const sameRadius =
+      matched &&
+      Math.abs(matchedRadius - radiusUnits) <=
+        Math.max(ROADENG_RADIUS_ROUNDING * Math.max(1, radiusUnits), ROADENG_RADIUS_KEPT_M / unit)
+    f[3] =
+      sameRadius && Math.sign(Number(matched[3])) === (pi.turn === 'left' ? -1 : 1)
+        ? matched[3]
+        : num(pi.turn === 'left' ? -radiusUnits : radiusUnits)
+    // A PI where its record has it keeps the record's text.
+    const samePlace =
+      matched &&
+      Math.hypot(Number(matched[4]) * unit - pi.xy[0], Number(matched[5]) * unit - pi.xy[1]) <= ROADENG_RECORD_UNMOVED_M
+    if (!samePlace) {
+      f[4] = num(pi.xy[0] / unit)
+      f[5] = num(pi.xy[1] / unit)
+    }
     const set = (i: number, value: number | undefined, scale = 1) => {
       if (value !== undefined && Number.isFinite(value)) f[i] = num(value / scale)
     }
@@ -511,6 +629,22 @@ export function roadEngAlignmentParts(
     set(13, given.runoffOut, unit)
     set(14, given.transitionFraction)
     set(15, given.e)
+    if (given.useMinimumRadius !== undefined && Number.isInteger(Number(f[9])))
+      f[9] = String(
+        given.useMinimumRadius ? Number(f[9]) | ROADENG_MINIMUM_RADIUS_BIT : Number(f[9]) & ~ROADENG_MINIMUM_RADIUS_BIT,
+      )
+    if (given.superelevationByTable !== undefined && Number.isInteger(Number(f[9])))
+      f[9] = String(
+        given.superelevationByTable
+          ? Number(f[9]) | ROADENG_TABLE_SUPERELEVATION_BIT
+          : Number(f[9]) & ~ROADENG_TABLE_SUPERELEVATION_BIT,
+      )
+    if (given.autoWideningInside !== undefined && Number.isInteger(Number(f[9])))
+      f[9] = String(
+        given.autoWideningInside
+          ? Number(f[9]) | ROADENG_AUTO_WIDENING_INSIDE_BIT
+          : Number(f[9]) & ~ROADENG_AUTO_WIDENING_INSIDE_BIT,
+      )
     if (given.widening !== undefined) {
       const w =
         typeof given.widening === 'number' ? { insideM: given.widening, outsideM: given.widening } : given.widening
@@ -525,11 +659,7 @@ export function roadEngAlignmentParts(
     const speed = field(8, speedDefault / unit) * unit
     const e = field(15, 0)
     const unchanged =
-      matched &&
-      Math.abs(matchedRadius - radiusUnits) < 1e-6 &&
-      given.designSpeedMs === undefined &&
-      given.e === undefined &&
-      given.sideFriction === undefined
+      sameRadius && given.designSpeedMs === undefined && given.e === undefined && given.sideFriction === undefined
     if (given.sideFriction !== undefined) set(16, given.sideFriction)
     else if (!unchanged) f[16] = num((speed * speed) / (GRAVITY * pi.radiusM) - e)
     rows108.push(f.join(','))
@@ -553,7 +683,7 @@ export function roadEngAlignmentParts(
     if (row) row.report |= bits
     else report.set(key(s), { station: s, type: 4, planMark: 0, profileMark: 0, report: bits, order: 1 })
   }
-  const startStation = source?.startStation ?? 0
+  const startStation = writtenStartStation(road)
   const startUnits = startStation / unit
   const intervals = reportIntervals(source?.dsn) ?? {
     first: ROADENG_EXPORT_STATION_M / unit,
@@ -681,31 +811,71 @@ export function roadEngAlignmentParts(
       ...vertical,
       { station: plan.length, elevation: level(plan.length)!, curveLength: 0 },
     ]
-    for (let k = 1; k < profile.length - 1; k++) {
-      const p = profile[k]
-      const into = (p.elevation - profile[k - 1].elevation) / (p.station - profile[k - 1].station)
-      const out = (profile[k + 1].elevation - p.elevation) / (profile[k + 1].station - p.station)
-      const change = out - into
-      const radius = p.curveLength > 0 && Math.abs(change) > 1e-12 ? p.curveLength / change : 0
+    // Each VIP's read record: the nearest within the match distance.
+    const matches = profile.map((p, k) => {
+      if (k === 0 || k === profile.length - 1) return null
       let matched: string[] | null = null,
         far = ROADENG_VIP_MATCH_M
       for (const f of vipRecords) {
         const d = Math.abs(Number(f[4]) * unit - (startStation + p.station))
         if (d <= far) [matched, far] = [f, d]
       }
+      return matched
+    })
+    // Where a point is, by its record when it has one: the grades the import took its curves from.
+    const recordAt = (k: number) => {
+      const f = matches[k]
+      return f
+        ? { station: Number(f[4]) * unit - startStation, elevation: Number(f[5]) * unit }
+        : { station: profile[k].station, elevation: profile[k].elevation }
+    }
+    for (let k = 1; k < profile.length - 1; k++) {
+      const p = profile[k]
+      const into = (p.elevation - profile[k - 1].elevation) / (p.station - profile[k - 1].station)
+      const out = (profile[k + 1].elevation - p.elevation) / (profile[k + 1].station - p.station)
+      const change = out - into
+      const radius = p.curveLength > 0 && Math.abs(change) > 1e-12 ? p.curveLength / change : 0
+      const matched = matches[k]
       const tail = matched ? matched.slice(6) : [...DEFAULT_109_TAIL]
       while (tail.length < 6) tail.push('')
       if (!matched) tail[2] = num(speedDefault / unit)
-      // A stated curve length (field 11) follows the curve.
-      if (Number(tail[5]) > 0) tail[5] = num(p.curveLength / unit)
+      // A VIP where its record has it, with the curve its record gives over the records' grades (as
+      // the import made it), is written with the record's text.
+      const same = (i: number, value: number) =>
+        !!matched && Math.abs(Number(matched[i]) * unit - value) <= ROADENG_RECORD_UNMOVED_M
+      const samePlace = same(4, startStation + p.station) && same(5, p.elevation)
+      let sameCurve = false
+      if (matched && samePlace) {
+        const [a, b, c] = [recordAt(k - 1), recordAt(k), recordAt(k + 1)]
+        const recordLength = Math.abs(
+          Number(matched[3]) *
+            unit *
+            ((c.elevation - b.elevation) / (c.station - b.station) -
+              (b.elevation - a.elevation) / (b.station - a.station)),
+        )
+        sameCurve =
+          Number(matched[3]) === 0
+            ? p.curveLength === 0
+            : Math.abs(recordLength - p.curveLength) <=
+              Math.max(ROADENG_RECORD_UNMOVED_M, ROADENG_VERTICAL_CURVE_KEPT * p.curveLength)
+      }
+      // A stated curve length (field 11) follows the curve; an unchanged curve keeps the record's,
+      // which the import does not use (it reads the length from the radius and the grades, and Road6
+      // - 16 in Softree's V10 tutorials states 412 ft where its radius gives 412.05 ft).
+      if (
+        !(samePlace && sameCurve) &&
+        Number(tail[5]) > 0 &&
+        Math.abs(Number(tail[5]) * unit - p.curveLength) > ROADENG_RECORD_UNMOVED_M
+      )
+        tail[5] = num(p.curveLength / unit)
       rows109.push(
         [
           '109',
           k,
           matched?.[2] ?? '4',
-          num(radius / unit),
-          num((startStation + p.station) / unit),
-          num(p.elevation / unit),
+          sameCurve ? matched![3] : num(radius / unit),
+          samePlace ? matched![4] : num((startStation + p.station) / unit),
+          samePlace ? matched![5] : num(p.elevation / unit),
           ...tail,
         ].join(','),
       )
@@ -742,13 +912,26 @@ export function roadEngAlignmentParts(
   const ds2 = [...before, ...rows110, ...rows108, ...rows109, ...after, ''].join(eol)
 
   // The .dsn: the source's with the writer's keys, or a new one.
+  // The road's culverts into the .ds1's placed culverts; [PGMaps] keeps them with the records written.
+  const placed = writtenCulverts(road, unit, writtenStartStation(road), ratio)
+  notes.push(...placed.notes.map((n) => `${alignment.name}: ${n}`))
   const name = writtenName(alignment, source)
   const pgmaps: Record<string, string | null> = {
     SurfacingM: num(surfacing),
     Template: latin1Json(alignment.template),
     // Template ranges, materials and horizons, and the curve rule, so the road comes back whole.
-    Engineering: alignment.engineering ? latin1Json(alignment.engineering) : null,
+    Engineering: alignment.engineering
+      ? latin1Json(placed.culverts ? { ...alignment.engineering, culverts: placed.culverts } : alignment.engineering)
+      : null,
     CurveDesign: alignment.curveDesign ? latin1Json(alignment.curveDesign) : null,
+    // The road's start station and equations: RoadEng has no field for an L-line equation. A road
+    // whose stations are its design's own (start station, no equations) needs none written.
+    Stationing:
+      source && isRoadEngImpliedStationing(alignment.stationing, source.startStation, ratio)
+        ? null
+        : hasStationing(alignment.stationing) || (source && Math.abs(source.startStation) > 1e-9)
+          ? latin1Json(alignment.stationing ?? { startStation: 0, equations: [] })
+          : null,
   }
   const terrain = options.terrainName?.replace(/[\r\n]+/g, ' ')
   let dsn: string
@@ -761,15 +944,17 @@ export function roadEngAlignmentParts(
     if (terrain && (first || designIni?.has('surface')) && designIni?.get('surface') !== terrain)
       design.surface = terrain
     const named = ini.get('HAlignOptions')?.get('Option, 1')
+    // An alignment RoadEng left unnamed stays unnamed while the road keeps the name its import gave it.
+    const unnamed = named === undefined && source.importedName !== undefined && alignment.name === source.importedName
     dsn = mergeRoadEngIni(source.dsn, {
       ...(first && !ini.has('Software') ? { Software: { Version: '11.000', Version2: VERSION } } : {}),
       ...(Object.keys(design).length ? { design } : {}),
-      ...(named !== name ? { HAlignOptions: { 'Option, 1': name } } : {}),
+      ...(named !== name && !unnamed ? { HAlignOptions: { 'Option, 1': name } } : {}),
       PGMaps: pgmaps,
     })
     if (source.unitCode !== unitCode)
       notes.push(
-        `${alignment.name} was read from a design in ${source.unitCode === '3048' ? 'feet' : 'metres'}; it is written in this design's ${unitCode === '3048' ? 'feet' : 'metres'}, and the settings kept from its own design are in its old units.`,
+        `${alignment.name} was read from a design in ${roadEngUnitName(ROADENG_UNITS[source.unitCode] ?? 1)}; it is written in this design's ${roadEngUnitName(unit)}, and the settings kept from its own design are in its old units.`,
       )
   } else
     dsn = [
@@ -800,10 +985,50 @@ export function roadEngAlignmentParts(
   return {
     dsn,
     ds2,
-    ds1: source?.ds1 ? base64ToBytes(source.ds1) : emptyIndex(),
+    ds1: placed.ds1,
     ds3: source?.ds3 ? base64ToBytes(source.ds3) : null,
     notes,
   }
+}
+
+/**
+ * The `.ds1` a road is written with (`roadEngPlacedCulverts.ts`): its source's with the road's
+ * culverts written into the placed culverts, else three empty chunks and the road's culverts. A new
+ * culvert starts from the design's default culvert of its kind when the design is in the same units.
+ */
+function writtenCulverts(
+  road: Pick<RoadEngExportRoad, 'alignment' | 'source'>,
+  unit: number,
+  startStation: number,
+  stationScale: number,
+): { ds1: Uint8Array; culverts: Culvert[] | null; notes: string[] } {
+  const { source } = road
+  const culverts = road.alignment.engineering?.culverts ?? []
+  const ds1 = source?.ds1 ? base64ToBytes(source.ds1) : null
+  if (!culverts.length && (!ds1 || !source?.culvertsRead))
+    return { ds1: ds1 ?? emptyRoadEngIndex(), culverts: null, notes: [] }
+  const sourceUnit = source ? ROADENG_UNITS[source.unitCode] : undefined
+  const defaults: Partial<Record<'cross-drain' | 'stream', string>> = {}
+  if (source && sourceUnit === unit) {
+    const section = readRoadEngIni(source.dsn).get('Culvert') ?? readRoadEngIni(source.projectDsn ?? '').get('Culvert')
+    const drain = section?.get('DefDrainCulvert'),
+      stream = section?.get('DefStreamCulvert')
+    if (drain) defaults['cross-drain'] = drain
+    if (stream) defaults.stream = stream
+  }
+  const written = writeDesignCulverts(
+    ds1 && source && sourceUnit
+      ? {
+          ds1,
+          unitM: sourceUnit,
+          frame: { startStation: source.startStation, endStation: source.endStation ?? Infinity },
+          read: !!source.culvertsRead,
+        }
+      : null,
+    culverts,
+    { unitM: unit, startStation, stationScale, defaults },
+  )
+  return { ds1: written.ds1, culverts: written.culverts, notes: written.notes }
 }
 
 /** Surfacing on the centreline, m: the course stack on the left side, or the legacy depth. */
@@ -811,16 +1036,6 @@ export function centreSurfacingM(alignment: Pick<Alignment, 'template'>): number
   const t = alignment.template
   if (t.layers?.length) return t.layers.filter((l) => l.side !== 'right').reduce((sum, l) => sum + l.depthM, 0)
   return t.leftSurfaceDepth ?? t.surfaceDepth ?? 0
-}
-
-/** Three empty index records, as RoadEng 11 writes `.ds1`. */
-function emptyIndex(): Uint8Array {
-  const bytes = new Uint8Array(72)
-  for (let k = 0; k < 3; k++) {
-    bytes[k * 24] = 0x0c
-    bytes[k * 24 + 2] = k + 1
-  }
-  return bytes
 }
 
 /**

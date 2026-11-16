@@ -5,6 +5,19 @@ import { featureSectionAnchor, type SectionReferenceSources } from './sectionRef
 import { acceptsFill } from './allocationPolicy'
 import { horizonTopDepth, resolveHorizons, rockIntervals } from './groundHorizons'
 import { rockCutAt } from './rockExcavation'
+import { batterSource } from './groundBatters'
+import {
+  barriersAt,
+  benchesAt,
+  courseStack,
+  DEFAULT_BENCH_COUNT,
+  ditchRuns,
+  ditchInslopeAt,
+  subCutAt,
+  wallsAt,
+  type SectionWall,
+  type StationStructure,
+} from './sectionStructures'
 
 type XY = { x: number; z: number; code?: string }
 type Region = {
@@ -31,8 +44,15 @@ export type AssembledSection = Pick<
   | 'clearingWidthM'
   | 'leftClearingM'
   | 'rightClearingM'
+  | 'structures'
 >
 const EPS = 1e-7
+/** The least a cut batter's step moves on after a horizon-boundary search, so a step never stands still. */
+const MIN_BATTER_ADVANCE_M = 1e-6
+/** Design-line breaks and the given offsets lying strictly inside (from, to), for sampling a region's corners. */
+const breaksWithin = (points: XY[], extra: number[], from: number, to: number) =>
+  [...points.map((p) => p.x), ...extra].filter((x) => x > from + EPS && x < to - EPS)
+
 const interpolate = (points: XY[], x: number) => {
   if (x < points[0].x - EPS || x > points[points.length - 1].x + EPS) return null
   for (let i = 1; i < points.length; i++)
@@ -78,7 +98,8 @@ export function assembledSection({
   assignmentStation?: number
 }): AssembledSection {
   const e = alignment.engineering,
-    step = Math.min(0.25, Math.max(0.05, halfWidth / 400))
+    step = Math.min(0.25, Math.max(0.05, halfWidth / 400)),
+    maxBatterSteps = 20 * Math.ceil(halfWidth / step) + 1000
   const components = t.components ?? []
   // One non-overlapping material column for this station: a later horizon replaces an earlier one.
   const horizons = resolveHorizons(
@@ -131,7 +152,10 @@ export function assembledSection({
       ? null
       : g - Math.max(0, ...regions.filter((r) => r.purpose === 'stripping' && regionAt(x, r)).map((r) => r.depth))
   }
+  // Where each batter comes from (`groundBatters.ts`): `template` keeps the stated slope, `material`
+  // is RoadEng's AUTO, and omitted is the material-where-it-has-one rule.
   const materialSlope = (x: number, level: number, cut: boolean, side: 'left' | 'right') => {
+    const from = batterSource(t, side, cut ? 'cut' : 'fill')
     if (cut) {
       const g = ground(x),
         depth = g === null ? -1 : g - level
@@ -140,9 +164,11 @@ export function assembledSection({
       )
       const material = e?.materials.find((m) => m.id === horizon?.materialId)
       // A rock material without a batter of its own takes the template's rock batter.
-      const slope = material?.cutSlope ?? (material?.rock ? rockCutAt(t, side)?.cutSlope : undefined)
+      const own = from === 'template' ? undefined : material?.cutSlope
+      const slope = own ?? (material?.rock ? rockCutAt(t, side)?.cutSlope : undefined)
       return slope ?? sideValue(t, side, 'CutSlope')
     }
+    if (from === 'template') return sideValue(t, side, 'FillSlope')
     const requirement = e?.fillRequirements?.find(
       (r) => r.layer === 'subgrade' && assignmentStation >= r.start && assignmentStation < r.end - EPS,
     )
@@ -152,11 +178,21 @@ export function assembledSection({
         .map((m) => m.fillSlope ?? sideValue(t, side, 'FillSlope'))
       return slopes.length ? Math.max(...slopes) : sideValue(t, side, 'FillSlope')
     }
-    return e?.materials.find((m) => m.id === requirement?.materialId)?.fillSlope ?? sideValue(t, side, 'FillSlope')
+    // AUTO fill with no fill material assigned takes the top horizon's (RoadEng's stratum layer 1).
+    const fillMaterial = requirement || from !== 'material' ? requirement?.materialId : horizons[0]?.materialId
+    return e?.materials.find((m) => m.id === fillMaterial)?.fillSlope ?? sideValue(t, side, 'FillSlope')
+  }
+  // Walls found while building each side, with what their bodies add to the cut and take from the fill.
+  type WallBackfillAt = { wall: SectionWall; heel: number; z0: number; height: number }
+  const sideStructures = {
+    left: { walls: [] as StationStructure[], cutM2: 0, fillM2: 0, backfills: [] as WallBackfillAt[] },
+    right: { walls: [] as StationStructure[], cutM2: 0, fillM2: 0, backfills: [] as WallBackfillAt[] },
   }
   const makeSide = (sign: number, width: number): Side => {
     const name = sign < 0 ? 'left' : 'right',
       crossfall = sectionCrossfall(t, name, curve)
+    const extra: (typeof sideStructures)['left'] = { walls: [], cutM2: 0, fillM2: 0, backfills: [] }
+    sideStructures[name] = extra
     for (const c of components) if (c.side === name) componentRanges.delete(c.id)
     const edgeZ = (z ?? NaN) - (width * crossfall) / 100
     const points: XY[] = [
@@ -179,11 +215,16 @@ export function assembledSection({
           )
     const ditchWidth = sideValue(t, name, 'DitchWidth')
     if (cutAtEdge && ditchWidth > 0 && depth > 0) {
-      const bottom = Math.min(ditchWidth, sideValue(t, name, 'DitchBottomWidth')),
-        run = (ditchWidth - bottom) / 2
-      if (run > EPS) points.push({ x: width + run, z: edgeZ - depth })
-      points.push({ x: width + ditchWidth / 2, z: edgeZ - depth, code: `${name}-ditch-bottom` })
-      if (bottom > EPS) points.push({ x: width + run + bottom, z: edgeZ - depth })
+      // The inslope and backslope keep their runs when a culvert dip deepens the ditch.
+      const { inRun, bottom } = ditchRuns(
+        ditchWidth,
+        sideValue(t, name, 'DitchDepth'),
+        sideValue(t, name, 'DitchBottomWidth'),
+        ditchInslopeAt(t, name),
+      )
+      if (inRun > EPS) points.push({ x: width + inRun, z: edgeZ - depth })
+      points.push({ x: width + inRun + bottom / 2, z: edgeZ - depth, code: `${name}-ditch-bottom` })
+      if (bottom > EPS) points.push({ x: width + inRun + bottom, z: edgeZ - depth })
       points.push({ x: width + ditchWidth, z: edgeZ })
     }
     for (const c of components.filter(
@@ -252,26 +293,123 @@ export function assembledSection({
         })
       }
     }
+    // Walls: a cut wall where the side is in cut, a fill wall where it is in fill (`sectionStructures.ts`).
+    for (const w of wallsAt(t, name)) {
+      const p = points[points.length - 1],
+        g = constructionGround(sign * p.x)
+      if (g === null || p.x > halfWidth || (w.kind === 'cut') !== g > p.z + EPS) continue
+      const face = w.faceSlope ?? 0,
+        thick = w.thicknessM,
+        z0 = p.z,
+        xf = p.x + (w.setbackM ?? 0),
+        // A vertical face still advances a millimetre, so the design line stays a function of offset.
+        run = (h: number) => Math.max(h * face, 1e-3)
+      if (xf > p.x + EPS) points.push({ x: xf, z: z0 })
+      const lineX = (h: number) => (w.kind === 'cut' ? xf + thick + run(h) : xf + run(h)),
+        lineZ = (h: number) => (w.kind === 'cut' ? z0 + h : z0 - h)
+      if (lineX(w.heightM) > halfWidth) return { sign, width, daylight: null, points, reached: true }
+      // How far the ground lies past the wall's line at height h: positive while the wall is still
+      // below a cut's ground or above a fill's.
+      const gap = (h: number) => {
+        const gh = constructionGround(sign * lineX(h))
+        return gh === null ? null : w.kind === 'cut' ? gh - lineZ(h) : lineZ(h) - gh
+      }
+      if (w.kind === 'cut') points.push({ x: xf + thick, z: z0, code: `${name}-wall-heel` })
+      let height = w.heightM
+      const top = gap(w.heightM)
+      if (top === null) return { sign, width, daylight: null, points, reached: false }
+      if (top <= 0) {
+        let lo = 0,
+          hi = w.heightM
+        for (let n = 0; n < 30; n++) {
+          const mid = (lo + hi) / 2,
+            d = gap(mid)
+          if (d === null) return { sign, width, daylight: null, points, reached: false }
+          if (d > 0) lo = mid
+          else hi = mid
+        }
+        height = (lo + hi) / 2
+      }
+      const embed = w.kind === 'fill' ? (w.embedM ?? 0) : 0
+      // A fill wall under a cover starts that far below the formation edge; the road's fill lies over it.
+      const cover = w.kind === 'fill' ? Math.min(height, w.coverHeightM ?? 0) : 0
+      const outline: [number, number][] =
+        w.kind === 'cut'
+          ? [
+              [xf, z0],
+              [xf + thick, z0],
+              [lineX(height), z0 + height],
+              [xf + run(height), z0 + height],
+            ]
+          : [
+              [xf + run(cover) - thick, z0 - cover],
+              [xf + run(cover), z0 - cover],
+              [xf + run(height + embed), z0 - height - embed],
+              [xf + run(height + embed) - thick, z0 - height - embed],
+            ]
+      extra.walls.push({
+        id: w.id,
+        name: w.name,
+        kind: w.kind === 'cut' ? 'cut-wall' : 'fill-wall',
+        side: name,
+        areaM2: thick * (height - cover + embed),
+        heightM: height - cover,
+        outline: outline.map(([x, z]) => [sign * x, z]),
+      })
+      // A fill wall's body replaces fill above the ground; its embedded base is dug below it.
+      if (w.kind === 'fill') {
+        extra.fillM2 += thick * (height - cover)
+        extra.cutM2 += thick * embed
+      }
+      if (w.kind === 'cut' && w.backfill) extra.backfills.push({ wall: w, heel: xf + thick, z0, height })
+      if (height < w.heightM - 1e-6) {
+        points.push({ x: lineX(height), z: lineZ(height), code: `${name}-daylight` })
+        return { sign, width, daylight: lineX(height), points, reached: false }
+      }
+      points.push({ x: lineX(height), z: lineZ(height), code: `${name}-wall-${w.kind === 'cut' ? 'top' : 'foot'}` })
+    }
     let a = points[points.length - 1],
       ga = constructionGround(sign * a.x)
     if (a.x > halfWidth || ga === null) return { sign, width, daylight: null, points, reached: a.x > halfWidth }
     if (Math.abs(ga - a.z) < EPS) return { sign, width, daylight: a.x, points, reached: false }
     const cut = ga > a.z
     const ledge = cut ? (rockCutAt(t, name)?.ledgeWidthM ?? 0) : 0
+    // Benches on this batter: a face of the bench height, a bench, repeated (`sectionStructures.ts`).
+    const bench = benchesAt(t, name, cut ? 'cut' : 'fill')
+    const benchLimit = bench ? (bench.count ?? DEFAULT_BENCH_COUNT) : 0
+    let benches = 0,
+      faceFrom = a.z,
+      steps = 0
     while (a.x < halfWidth - EPS) {
+      // A backstop that never binds on real ground: each step advances (below), and horizon
+      // boundaries and benches split a step only a few times. Past it the section stays incomplete.
+      if (++steps > maxBatterSteps) return { sign, width, daylight: null, points, reached: false }
       let x = Math.min(halfWidth, a.x + step)
       const firstSlope = (cut ? 1 : -1) / materialSlope(sign * a.x, a.z, cut, name)
       // Probe just beyond an exact horizon boundary so the next segment takes the next material.
-      const slope = (cut ? 1 : -1) / materialSlope(sign * (a.x + 1e-5), a.z + firstSlope * 1e-5, cut, name)
+      const benched = bench && benches < benchLimit ? bench : undefined
+      const slope =
+        benched?.faceSlope !== undefined
+          ? (cut ? 1 : -1) / benched.faceSlope
+          : (cut ? 1 : -1) / materialSlope(sign * (a.x + 1e-5), a.z + firstSlope * 1e-5, cut, name)
+      // The face ends at the bench height: stop the step there.
+      if (benched) {
+        const toBreak = a.x + (benched.heightM - Math.abs(a.z - faceFrom)) / Math.abs(slope)
+        if (toBreak < x) x = Math.max(a.x + 1e-9, toBreak)
+      }
       if (cut) {
         const g0 = ground(sign * a.x),
           g1 = ground(sign * x)
         if (g0 !== null && g1 !== null) {
           const d0 = g0 - a.z,
             d1 = g1 - (a.z + slope * (x - a.x))
-          const boundaries = horizons
-            .flatMap((h) => (h.bottomDepthM === null ? [h.topDepthM] : [h.topDepthM, h.bottomDepthM]))
-            .filter((depth) => Math.abs(d0 - depth) > 1e-6 && (d0 - depth) * (d1 - depth) < 0)
+          // One horizon's bottom is the next one's top: each depth is searched once.
+          const boundaries = [
+            ...new Set(
+              horizons.flatMap((h) => (h.bottomDepthM === null ? [h.topDepthM] : [h.topDepthM, h.bottomDepthM])),
+            ),
+          ].filter((depth) => Math.abs(d0 - depth) > 1e-6 && (d0 - depth) * (d1 - depth) < 0)
+          const stepEnd = x
           for (const depth of boundaries) {
             let lo = a.x,
               hi = x
@@ -285,6 +423,9 @@ export function assembledSection({
             }
             x = (lo + hi) / 2
           }
+          // Ground that steps across a boundary (a TIN edge read a hair apart) pins the crossing to
+          // the step's start: move on by a micrometre rather than stand still and grow without end.
+          if (x - a.x < MIN_BATTER_ADVANCE_M) x = Math.min(stepEnd, a.x + MIN_BATTER_ADVANCE_M)
         }
       }
       const level = a.z + slope * (x - a.x),
@@ -321,6 +462,52 @@ export function assembledSection({
       a = { x, z: level }
       ga = gb
       points.push(a)
+      if (benched && Math.abs(a.z - faceFrom) >= benched.heightM - 1e-7) {
+        // A bench of its width at its fall, ending at the ground where it meets it.
+        benches++
+        a.code = `${name}-bench-${benches}-start`
+        const fall = (benched.benchFallPercent ?? 0) / 100,
+          from = a.x,
+          z0 = a.z,
+          end = from + benched.widthM
+        const zAt = (u: number) => z0 - fall * (u - from)
+        let u = from,
+          lastGap = ga - z0
+        while (u < end - EPS) {
+          const next = Math.min(end, u + step)
+          if (next > halfWidth + EPS) return { sign, width, daylight: null, points, reached: true }
+          const gn = constructionGround(sign * next)
+          if (gn === null) return { sign, width, daylight: null, points, reached: false }
+          const gapNext = gn - zAt(next)
+          if (lastGap * gapNext <= 0) {
+            let lo = u,
+              hi = next,
+              dlo = lastGap
+            for (let n = 0; n < 25; n++) {
+              const mid = (lo + hi) / 2,
+                gm = constructionGround(sign * mid)
+              if (gm === null) return { sign, width, daylight: null, points, reached: false }
+              const d = gm - zAt(mid)
+              if (dlo * d <= 0) hi = mid
+              else {
+                lo = mid
+                dlo = d
+              }
+            }
+            const daylight = (lo + hi) / 2
+            points.push({ x: daylight, z: zAt(daylight), code: `${name}-daylight` })
+            return { sign, width, daylight, points, reached: false }
+          }
+          u = next
+          lastGap = gapNext
+          points.push({ x: u, z: zAt(u) })
+        }
+        a = points[points.length - 1]
+        if (benched.widthM > EPS) a.code = `${name}-bench-${benches}-end`
+        ga = constructionGround(sign * a.x)!
+        faceFrom = a.z
+        continue
+      }
       if (leaving === undefined) continue
       // A ledge of the template's horizontal width along the rock surface, then the soil batter.
       a.code = `${name}-rock-cut-top`
@@ -617,10 +804,217 @@ export function assembledSection({
       if (areaM2 > EPS)
         componentAreas.push({ id: c.id, name: c.name, ...(c.materialId ? { materialId: c.materialId } : {}), areaM2 })
     }
+  // Walls, sub-cuts and barriers (`sectionStructures.ts`).
+  const structures: StationStructure[] = [...sideStructures.left.walls, ...sideStructures.right.walls]
+  for (const name of ['left', 'right'] as const) {
+    cut += sideStructures[name].cutM2
+    fill -= sideStructures[name].fillM2
+  }
+  for (const [name, side] of [
+    ['left', left],
+    ['right', right],
+  ] as const) {
+    const sub = subCutAt(t, name)
+    if (!sub || z === null || !(sub.widthM > EPS)) continue
+    const top = (u: number) => {
+      const d = interpolate(side.points, u)
+      if (d === null) return null
+      if (sub.reference === 'subgrade') return d
+      const g = prepared(side.sign * u)
+      return g === null ? null : Math.min(d, g)
+    }
+    // A straight bottom (`sectionStructures.ts`): the depth below the reference at the centreline,
+    // at its own slope plus the road's crossfall where it follows it, reached down the inside slope.
+    const straight =
+      sub.bottomSlopePercent !== undefined || sub.followsCrossfall === false || sub.insideSlope !== undefined
+    const ref0 = straight ? top(0) : null,
+      edge = interpolate(side.points, side.width)
+    const crossfall =
+      ref0 !== null && edge !== null && side.width > EPS
+        ? (edge - (interpolate(side.points, 0) ?? edge)) / side.width
+        : 0
+    const fall = (sub.bottomSlopePercent ?? 0) / 100 + (sub.followsCrossfall === false ? 0 : crossfall)
+    const line = (u: number) => (ref0 ?? 0) - sub.depthM + fall * u
+    const insideRun = Math.min(sub.widthM, sub.depthM * (sub.insideSlope ?? 0))
+    const refAtWidth = straight ? top(sub.widthM) : null
+    // How deep the bottom lies under the reference at the width, where the outside slope starts.
+    const depthAtWidth = straight ? Math.max(0, (refAtWidth ?? line(sub.widthM)) - line(sub.widthM)) : sub.depthM
+    const outer = sub.widthM + depthAtWidth * (sub.outsideSlope ?? 0)
+    // The bottom lies the depth below the reference out to the width, then rises to it at the outside slope.
+    const bottom = (u: number, ref: number) => {
+      if (u > sub.widthM)
+        return ref - depthAtWidth * Math.max(0, 1 - (u - sub.widthM) / Math.max(outer - sub.widthM, EPS))
+      if (!straight) return ref - sub.depthM
+      if (u < insideRun && ref0 !== null) return ref0 + ((line(insideRun) - ref0) * u) / insideRun
+      return line(u)
+    }
+    const n = Math.max(8, Math.ceil(outer / step)),
+      tops: [number, number][] = [],
+      bottoms: [number, number][] = []
+    // A straight bottom also samples its corners and the design line's breaks.
+    const offsets = Array.from({ length: n + 1 }, (_, k) => (outer * k) / n)
+    if (straight) offsets.push(...breaksWithin(side.points, [insideRun, sub.widthM], 0, outer))
+    const us = straight ? [...new Set(offsets)].sort((a, b) => a - b) : offsets
+    let areaM2 = 0,
+      previous: number | null = null,
+      previousU = 0,
+      known = true
+    for (const u of us) {
+      const ref = top(u),
+        g = prepared(side.sign * u)
+      if (ref === null || g === null) {
+        known = false
+        break
+      }
+      const b = bottom(u, ref)
+      tops.push([side.sign * u, ref])
+      bottoms.push([side.sign * u, b])
+      // Ground removed: what lies above the bottom and below the reference.
+      const removed = Math.max(0, Math.min(g, ref) - b)
+      if (previous !== null) areaM2 += ((previous + removed) * (u - previousU)) / 2
+      previous = removed
+      previousU = u
+    }
+    if (!known) {
+      flags.push(`${sub.name}: missing ground or design inside the sub-cut`)
+      complete = false
+      continue
+    }
+    structures.push({
+      id: sub.id,
+      name: sub.name,
+      kind: 'sub-cut',
+      side: name,
+      areaM2,
+      heightM: sub.depthM,
+      outline: [...tops, ...bottoms.reverse()],
+    })
+    // Dug out and refilled: the excavation is cut, the backfill fill, and a material demand when it names one.
+    cut += areaM2
+    fill += areaM2
+    if (complete && areaM2 > EPS)
+      componentAreas.push({
+        id: sub.id,
+        name: sub.name,
+        ...(sub.materialId ? { materialId: sub.materialId } : {}),
+        areaM2,
+      })
+  }
+  // A cut wall's backfill: dug from its heel, level and then up its base slope to the cut surface,
+  // and refilled to that surface or to the top slope from the wall's top (`sectionStructures.ts`).
+  for (const [name, side] of [
+    ['left', left],
+    ['right', right],
+  ] as const) {
+    for (const { wall, heel, z0, height } of sideStructures[name].backfills) {
+      const b = wall.backfill!
+      const base = (u: number) =>
+        u <= heel + b.offsetM ? z0 : b.baseSlope > EPS ? z0 + (u - heel - b.offsetM) / b.baseSlope : Infinity
+      // The cut surface: the design line while it runs, the ground past its daylight.
+      const surface = (u: number) => {
+        const d = interpolate(side.points, u),
+          g = prepared(side.sign * u)
+        return g === null ? null : d === null ? g : Math.min(d, g)
+      }
+      const refillTop = (u: number, cutSurface: number) =>
+        b.toGround ? cutSurface : Math.min(cutSurface, z0 + height + ((b.topSlopePercent ?? 0) / 100) * (u - heel))
+      // Out to where the base meets the cut surface, at most the slope's reach over 30 m of height.
+      const reach = heel + b.offsetM + Math.max(b.baseSlope, 0) * 30
+      const n = Math.max(8, Math.ceil((reach - heel) / step))
+      const us = [
+        ...new Set([
+          ...Array.from({ length: n + 1 }, (_, k) => heel + ((reach - heel) * k) / n),
+          ...breaksWithin(side.points, [heel + b.offsetM], heel, reach),
+        ]),
+      ].sort((x, y) => x - y)
+      let dug = 0,
+        refilled = 0,
+        known = true,
+        last: [number, number, number] | null = null
+      const tops: [number, number][] = [],
+        bottoms: [number, number][] = []
+      for (const [k, u] of us.entries()) {
+        const top = surface(u)
+        if (top === null) {
+          known = false
+          break
+        }
+        const bottom = Math.min(base(u), top)
+        const d = top - bottom,
+          r = Math.max(0, refillTop(u, top) - bottom)
+        if (last) {
+          // Where the base crosses the cut surface inside this step, only the part before it counts.
+          const below = top - base(u)
+          const du = (u - last[2]) * (below < 0 && last[0] > 0 ? last[0] / (last[0] - below) : 1)
+          dug += ((last[0] + d) * du) / 2
+          refilled += ((last[1] + r) * du) / 2
+        }
+        last = [d, r, u]
+        tops.push([side.sign * u, top])
+        bottoms.push([side.sign * u, bottom])
+        if (k > 0 && d <= EPS) break
+      }
+      if (!known) {
+        flags.push(`${wall.name}: missing ground or design behind the wall's backfill`)
+        complete = false
+        continue
+      }
+      if (!(dug > EPS)) continue
+      structures.push({
+        id: `${wall.id}-backfill`,
+        name: `${wall.name} backfill`,
+        kind: 'wall-backfill',
+        side: name,
+        areaM2: dug,
+        heightM: height,
+        outline: [...tops, ...bottoms.reverse()],
+      })
+      cut += dug
+      fill += refilled
+    }
+  }
+  // Barriers stand on the running surface: the design line raised by the courses there.
+  for (const [name, side] of [
+    ['left', left],
+    ['right', right],
+  ] as const) {
+    const stack = courseStack(t.layers, name, side.width)
+    for (const b of barriersAt(t, name)) {
+      const inner = b.offsetM,
+        outerEdge = b.offsetM + b.widthM
+      const surface = (u: number) => {
+        const d = interpolate(side.points, u)
+        if (d === null) return null
+        // The courses that reach this offset add their thickness.
+        return d + stack.filter((c) => u <= c.topWidthM + EPS).reduce((sum, c) => sum + c.layer.depthM, 0)
+      }
+      const base = surface((inner + outerEdge) / 2)
+      if (base === null) continue
+      const narrow = b.kind === 'concrete' ? b.widthM * 0.35 : b.widthM
+      const inset = (b.widthM - narrow) / 2
+      structures.push({
+        id: b.id,
+        name: b.name,
+        kind: 'barrier',
+        side: name,
+        areaM2: 0,
+        heightM: b.heightM,
+        outline: (
+          [
+            [inner, base],
+            [outerEdge, base],
+            [outerEdge - inset, base + b.heightM],
+            [inner + inset, base + b.heightM],
+          ] as [number, number][]
+        ).map(([x, zz]) => [side.sign * x, zz]),
+      })
+    }
+  }
   return {
     section,
     cutAreaM2: complete ? Math.max(0, cut) : null,
     fillAreaM2: complete ? Math.max(0, fill) : null,
+    ...(structures.length ? { structures } : {}),
     leftDaylightM: left.daylight,
     rightDaylightM: right.daylight,
     complete,

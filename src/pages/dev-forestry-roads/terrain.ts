@@ -17,6 +17,7 @@ import type {
   TerrainSource,
 } from './types'
 import { parseTerrainPreparation, type TerrainPreparationRecord } from './terrainPreparation'
+import { analysisTin, tinGround, tinTerrainSource, type TinData, type TinGround } from './tinGround'
 
 export const DEFAULT_TEMPLATE: RoadTemplate = {
   leftWidth: 3,
@@ -473,11 +474,26 @@ function sourceGridTerrain(grid: SourceGrid): TerrainSource {
   }
 }
 
+/** Indexed TINs by the kept TIN object: an undo or reopen of the same terrain does not index it again. */
+const indexedTins = new WeakMap<TinData, TinGround>()
+/**
+ * The ground analysis reads on an embedded grid: RoadEng's own TIN at its facets where the terrain
+ * keeps one (`tinGround.ts`), else the grid read bilinearly.
+ */
+function embeddedGround(metadata: TerrainMetadata, raster: LocalRaster): TerrainSource {
+  const tin = analysisTin(metadata)
+  if (!tin) return rasterSource(raster)
+  let ground = indexedTins.get(tin)
+  if (!ground) indexedTins.set(tin, (ground = tinGround(tin)))
+  const projection = roadProjection(raster.epsg)
+  return tinTerrainSource(ground, (lonLat) => projection.forward(lonLat))
+}
+
 const loaded = new Map<string, { source: TerrainSource; bounds: Bounds }>()
 const terrainKey = (m: TerrainMetadata) => `${m.kind}:${m.sha256 ?? `${m.sourceUrl ?? ''}:${m.name}:${m.resolutionM}`}`
 export function terrainFromMetadata(metadata: TerrainMetadata): TerrainSource | null {
   if (metadata.kind === 'demo') return demoTerrain
-  if (metadata.raster) return rasterSource(validateRoadRaster(metadata.raster))
+  if (metadata.raster) return embeddedGround(metadata, validateRoadRaster(metadata.raster))
   if (metadata.kind === 'geotiff' && (metadata.epsg !== 3157 || metadata.resolutionM !== 1)) return null
   return loaded.get(terrainKey(metadata))?.source ?? null
 }
@@ -1216,7 +1232,7 @@ export async function preparedTerrain(
     raster,
     preparation: record,
   }
-  return { metadata, source: rasterSource(raster) }
+  return { metadata, source: embeddedGround(metadata, raster) }
 }
 
 export async function loadRegionalTerrain(

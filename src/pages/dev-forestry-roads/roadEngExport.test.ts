@@ -379,6 +379,54 @@ describe('RoadEng design export: writing back what was read', () => {
     expect(ds2[0]).toBe(original.kept[0])
   })
 
+  it("keeps a VIP's stated curve length that its radius and grades put a few centimetres off", () => {
+    // Road6 - 16 (Softree's V10 tutorials) states 412 ft at a VIP whose radius gives 412.05 ft; the
+    // import reads the radius, and the unedited curve goes back with the record's own text.
+    const parts = unzipSync(original.bytes)
+    const lines = strFromU8(parts['Location1.ds2'], true).split('\r\n')
+    const lengths = read.alignment.vertical.map((v) => v.curveLength).filter((l) => l > 0)
+    let k = 0
+    const stated = lines.map((line) => {
+      const f = line.split(',')
+      if (f[0] !== '109' || Number(f[3]) === 0) return line
+      f[11] = (lengths[k++] + 0.03).toFixed(3)
+      return f.join(',')
+    })
+    expect(k).toBeGreaterThan(0)
+    const bytes = zipSync({ ...parts, 'Location1.ds2': strToU8(stated.join('\r\n'), true) })
+    const [read2] = roadEngRoads(bytes, { ...options, epsg: grid.epsg }).roads
+    // This design holds no template: written over a bare subgrade, its levels go back as read.
+    const again = {
+      ...read2,
+      alignment: { ...read2.alignment, template: { ...read2.alignment.template, surfaceDepth: 0 } },
+    }
+    const kept = (text: string) => text.split('\r\n').filter((l) => l.startsWith('109,'))
+    const written = roadEngDesign(
+      [{ alignment: again.alignment, source: again.source.source!, curves: roadEngCurvesByPoint(again) }],
+      grid.toGrid,
+    ).parts['Location1.ds2']
+    // Field 11 as stated wherever the VIP goes back where it was read (its station and level).
+    const at = (l: string) => l.split(',').slice(4, 6).join()
+    const field11 = (l: string) => l.split(',')[11]
+    const before = kept(stated.join('\r\n'))
+    const unmoved = kept(written).filter((l) => before.some((b) => at(b) === at(l)))
+    expect(unmoved.length).toBeGreaterThan(0)
+    for (const l of unmoved) expect(field11(l)).toBe(field11(before.find((b) => at(b) === at(l))!))
+    // A curve made longer takes its new length there.
+    const longer = {
+      ...again.alignment,
+      vertical: again.alignment.vertical.map((v) => (v.curveLength > 0 ? { ...v, curveLength: v.curveLength + 5 } : v)),
+    }
+    const edited = kept(
+      roadEngDesign(
+        [{ alignment: longer, source: again.source.source!, curves: roadEngCurvesByPoint(again) }],
+        grid.toGrid,
+      ).parts['Location1.ds2'],
+    )
+    for (const l of edited.filter((x) => unmoved.some((u) => at(u) === at(x))))
+      expect(field11(l)).not.toBe(field11(before.find((b) => at(b) === at(l))!))
+  })
+
   it('keeps the design’s stationing and report intervals, so its ranges still apply', () => {
     const [back] = parseRoadEngDesign(write().bytes).alignments
     expect(back.startStation).toBeCloseTo(902.5, 6)

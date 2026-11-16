@@ -10,6 +10,7 @@ import { CURVE_DESIGN_HELP, CurveDesignControls } from '../CurveTools'
 import { RoadSettingsDialog } from '../RoadSettingsDialog'
 import { TemplateComponents } from '../TemplateComponents'
 import { RockCutFields, rockCutSummary } from '../RockCutFields'
+import { SectionStructuresEditor, StructureQuantities, structuresSummary } from '../SectionStructuresEditor'
 import { RoadSection } from '../SidebarParts'
 import { EntryProblem } from '../InputProblem'
 import { TEMPLATE_FIELDS } from '../roadFieldDefinitions'
@@ -19,6 +20,8 @@ import { keyedRockFillTemplate } from '../templates'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { WidthOverride } from '../types'
 import { appliedTapers, duplicateWideningAt, fullWidthRange, limitedTaper } from '../wideningEntry'
+import { stationEntry } from '../stationEntry'
+import { StationField } from '../StationFields'
 
 const id = () => crypto.randomUUID()
 
@@ -90,6 +93,18 @@ export function SectionTab(
         />
       </RoadSection>
       <RoadSection
+        title="Benches, walls, barriers and sub-cuts"
+        summary={structuresSummary(alignment.template)}
+        help="Benched cut and fill batters, cut and fill walls, barriers on the running surface and sub-cuts below the subgrade. Each is calculated in the section, its quantities and its drawings, and written back to a RoadEng design it came from."
+      >
+        <StructureQuantities quantities={p.workspace.analysis.structures} />
+        <SectionStructuresEditor
+          template={alignment.template}
+          materials={alignment.engineering?.materials}
+          onChange={(template) => updateAlignment((a) => ({ ...a, template }))}
+        />
+      </RoadSection>
+      <RoadSection
         title="Rock cut"
         summary={rockCutSummary(alignment.template)}
         help="Applies where a ground horizon's material is marked rock (Engineering → Ground). The rock batter serves rock materials without their own; the ledge is a bench where the cut batter climbs out of rock. The blasting level lies the given depth below the subgrade at the centreline, falls outward to the ditch's inner bottom edge and rises at the drainage fall to the rock face; rock above it is blasted and refilled in place. Rock cut no thicker than the shallow depth down to the blasting level is reported as shallow. Lima VVA's starting values; not a BC standard."
@@ -109,7 +124,11 @@ export function SectionTab(
       </RoadSection>
       <RoadSection
         title="Superelevation & widening"
-        summary={alignment.curveDesign ? `${alignment.curveDesign.designSpeedKmh} km/h` : 'Off'}
+        summary={
+          alignment.curveDesign
+            ? `${alignment.curveDesign.designSpeedKmh} km/h${alignment.curveDesign.superelevationMode === 'table' ? ' · table' : alignment.curveDesign.superelevationMode === 'sideFriction' ? ' · side friction' : ''}`
+            : 'Off'
+        }
         help={CURVE_DESIGN_HELP}
       >
         <CurveDesignControls workspace={p.workspace} />
@@ -121,6 +140,8 @@ export function SectionTab(
 
 function Widenings(p: SidebarProps) {
   const { alignment, analysis, updateAlignment } = p.workspace
+  // Start, End and a copy's start take the road's station names (`stationEntry.ts`).
+  const stations = stationEntry(alignment.stationing, analysis.length)
   const readStation = useStationReader(p.workspace)
   const [open, setOpen] = useState(false)
   // A taper the range could not carry: what it was held to, shown until that value changes.
@@ -261,8 +282,9 @@ function Widenings(p: SidebarProps) {
                   <div className={cn(insetBox(), 'space-y-1.5 border-dashed')} data-testid="road-widening-copy">
                     <div className="flex items-end gap-1.5">
                       <div className="min-w-0 flex-1">
-                        <NumberField
-                          label="Start of the copy (m)"
+                        <StationField
+                          entry={stations}
+                          label="Start of the copy"
                           value={copying.start}
                           max={100000}
                           onChange={(start) => setCopying({ id: v.id, start })}
@@ -317,12 +339,22 @@ function Widenings(p: SidebarProps) {
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {(['start', 'end', 'taper', 'extraWidth'] as const).map((key) => (
+              {(['start', 'end'] as const).map((key) => (
+                <StationField
+                  key={key}
+                  entry={stations}
+                  label={key === 'start' ? 'Start' : 'End'}
+                  value={v[key]}
+                  max={100000}
+                  onChange={(value) => tweak(v.id, { [key]: value })}
+                />
+              ))}
+              {(['taper', 'extraWidth'] as const).map((key) => (
                 <NumberField
                   key={key}
                   label={`${key === 'extraWidth' ? 'Extra width' : key[0].toUpperCase() + key.slice(1)} (m)`}
                   value={v[key]}
-                  max={key === 'extraWidth' ? 50 : key === 'taper' ? 1000 : 100000}
+                  max={key === 'extraWidth' ? 50 : 1000}
                   onChange={(value) => tweak(v.id, { [key]: value })}
                 />
               ))}

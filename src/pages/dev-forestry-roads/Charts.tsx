@@ -1,4 +1,5 @@
 import { RoadSelect } from './Controls'
+import { activeStationing, formatStationLabel, type RoadStationing } from './roadStationing'
 import { groundAlong } from './roadSummaryMetrics'
 import type { RoadSelectionRange } from './roadSelection'
 import {
@@ -66,6 +67,7 @@ import {
 import { JUNCTION_SNAP_M } from './junctionTurn'
 import type { ProfileJunction } from './profileJunctions'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
+import { courseStack, type StationStructure } from './sectionStructures'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
 import {
   gradeDiagram,
@@ -104,10 +106,12 @@ import type {
   CableAnalysis,
   RoadAnalysis,
   RoadStation,
+  RoadTemplate,
   SectionLayer,
   VerticalControl,
   VerticalPoint,
 } from './types'
+import { batterSource } from './groundBatters'
 
 export const ROAD_CHART_COLORS = {
   ground: '#a07845',
@@ -146,9 +150,17 @@ const format = (n: number | null | undefined, digits = 1) =>
 const fixed = (n: number | null | undefined, digits = 1) =>
   finite(n) ? n.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits }) : '—'
 
-export function formatRoadStation(value: number) {
-  const rounded = Math.round(Math.max(0, value) * 10) / 10
-  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
+/**
+ * The label of the station at a chainage: by the start station and equations of the road being
+ * exported (`withStationing`) or on screen (`roadStationing.ts`), else the chainage itself,
+ * `0+123.4`. `stationing` names a road's own.
+ */
+export function formatRoadStation(value: number, stationing?: RoadStationing | null) {
+  // Also handed to `map` and callbacks: only an object is a stationing.
+  return formatStationLabel(
+    value,
+    stationing && typeof stationing === 'object' ? stationing : stationing === null ? null : activeStationing(),
+  )
 }
 
 function SelectionBand({ range, frame }: { range?: RoadSelectionRange; frame: ReturnType<typeof chartFrame> }) {
@@ -2082,6 +2094,23 @@ export function ProfileChart({
   )
 }
 
+/** Walls, barriers and sub-cuts on the section (`sectionStructures.ts`). */
+const STRUCTURE_COLORS: Record<StationStructure['kind'], string> = {
+  'cut-wall': '#64748b',
+  'fill-wall': '#475569',
+  barrier: '#dc2626',
+  'sub-cut': '#7c3aed',
+  'wall-backfill': '#a16207',
+}
+const STRUCTURE_NAMES: Record<StationStructure['kind'], string> = {
+  'cut-wall': 'Cut wall',
+  'fill-wall': 'Fill wall',
+  barrier: 'Barrier',
+  'sub-cut': 'Sub-cut',
+  'wall-backfill': 'Wall backfill',
+}
+const formatMetres = (m: number) => `${Number(m.toFixed(2))} m`
+
 export function CrossSectionChart({
   station,
   onShift: shiftAlignment,
@@ -2201,6 +2230,8 @@ export function CrossSectionChart({
     ...points.flatMap((p) => [p.ground, p.design]),
     ...preparedPoints.map((p) => p.ground),
     ...points.flatMap((p) => (finite(p.design) ? [p.design + courseStackM] : [])),
+    // Walls, barriers and sub-cuts stay in the frame.
+    ...(terrainOnly ? [] : (station?.structures ?? []).flatMap((x) => x.outline.map(([, z]) => z))),
     ...pipeSections.flatMap((pipe) => pipe.points.flatMap((p) => [p.ground, p.design])),
     // The blasting level, and the top of rock where it is within 3 m below the lowest design point.
     ...rockPoints.map((p) => p.design),
@@ -2359,15 +2390,23 @@ export function CrossSectionChart({
           },
           template && {
             label: 'Tmpl cut H:V',
-            value: side(template.leftCutSlope ?? template.cutSlope, template.rightCutSlope ?? template.cutSlope, 2),
+            value: groundSide(
+              template,
+              'cut',
+              side(template.leftCutSlope ?? template.cutSlope, template.rightCutSlope ?? template.cutSlope, 2),
+            ),
             title:
-              'Template cut batter H:V, left / right. Entered materials and components can change actual section slopes.',
+              'Template cut batter H:V, left / right; "ground" takes each horizon\'s material batter (RoadEng\'s AUTO). Entered materials and components can change actual section slopes.',
           },
           template && {
             label: 'Tmpl fill H:V',
-            value: side(template.leftFillSlope ?? template.fillSlope, template.rightFillSlope ?? template.fillSlope, 2),
+            value: groundSide(
+              template,
+              'fill',
+              side(template.leftFillSlope ?? template.fillSlope, template.rightFillSlope ?? template.fillSlope, 2),
+            ),
             title:
-              'Template fill batter H:V, left / right. Entered materials and components can change actual section slopes.',
+              'Template fill batter H:V, left / right; "ground" takes the fill material\'s batter (RoadEng\'s AUTO). Entered materials and components can change actual section slopes.',
           },
           {
             label: 'Dayl L/R',
@@ -2434,6 +2473,10 @@ export function CrossSectionChart({
                       { label: 'Ground', color: ROAD_CHART_COLORS.ground },
                       { label: 'Template', color: ROAD_CHART_COLORS.design },
                       ...(courses.length ? [{ label: 'Surfacing', color: '#d6a84b' }] : []),
+                      ...[...new Set(station?.structures?.map((x) => x.kind) ?? [])].map((kind) => ({
+                        label: STRUCTURE_NAMES[kind],
+                        color: STRUCTURE_COLORS[kind],
+                      })),
                       ...(hasPreparation ? [{ label: 'Prepared ground', color: '#a16207' }] : []),
                       ...(hasRockTop ? [{ label: 'Top of rock', color: ROCK_COLOR }] : []),
                       ...(hasBlastLevel ? [{ label: 'Blasting level', color: BLAST_COLOR }] : []),
@@ -2786,15 +2829,21 @@ export function CrossSectionChart({
                     if (layer.side !== 'both' && layer.side !== side) return []
                     const below = courses.slice(0, layerIndex).filter((l) => l.side === side || l.side === 'both')
                     const lower = below.reduce((sum, l) => sum + l.depthM, 0)
-                    const a = side === 'left' ? -widthLeft : 0,
-                      b = side === 'left' ? 0 : widthRight
-                    const za = station && sectionSampleAt(station, a).design,
-                      zb = station && sectionSampleAt(station, b).design
-                    if (!finite(za) || !finite(zb)) return []
+                    // A course with a side slope narrows upward from the one below (`sectionStructures.ts`).
+                    const sign = side === 'left' ? -1 : 1
+                    const course = courseStack(courses, side, side === 'left' ? widthLeft : widthRight).find(
+                      (c) => c.layer === layer,
+                    )
+                    const bottomEdge = sign * (course?.bottomWidthM ?? (side === 'left' ? widthLeft : widthRight)),
+                      topEdge = sign * (course?.topWidthM ?? (side === 'left' ? widthLeft : widthRight))
+                    const z0 = station && sectionSampleAt(station, 0).design,
+                      zb = station && sectionSampleAt(station, bottomEdge).design,
+                      zt = station && sectionSampleAt(station, topEdge).design
+                    if (!finite(z0) || !finite(zb) || !finite(zt)) return []
                     return [
                       <polygon
                         key={`${layer.id}-${side}`}
-                        points={`${f.x(a)},${f.y(za + lower)} ${f.x(b)},${f.y(zb + lower)} ${f.x(b)},${f.y(zb + lower + layer.depthM)} ${f.x(a)},${f.y(za + lower + layer.depthM)}`}
+                        points={`${f.x(0)},${f.y(z0 + lower)} ${f.x(bottomEdge)},${f.y(zb + lower)} ${f.x(topEdge)},${f.y(zt + lower + layer.depthM)} ${f.x(0)},${f.y(z0 + lower + layer.depthM)}`}
                         // Coloured by its place in this side's stack, so a course matches across the crown.
                         fill={['#d6a84b', '#a3a36e', '#8296b3'][below.length % 3]}
                         data-testid="road-section-course"
@@ -2807,6 +2856,26 @@ export function CrossSectionChart({
                     ]
                   })
                 })}
+              {!terrainOnly &&
+                station?.structures?.map((structure) => (
+                  <polygon
+                    key={`${structure.side}-${structure.id}`}
+                    points={structure.outline.map(([x, z]) => `${f.x(x)},${f.y(z)}`).join(' ')}
+                    fill={STRUCTURE_COLORS[structure.kind]}
+                    fillOpacity={structure.kind === 'sub-cut' ? 0.25 : 0.6}
+                    stroke={STRUCTURE_COLORS[structure.kind]}
+                    strokeWidth={1.2}
+                    strokeDasharray={structure.kind === 'sub-cut' ? '4 2' : undefined}
+                    data-testid={`road-section-structure-${structure.kind}`}
+                  >
+                    <title>
+                      {structure.name}: {STRUCTURE_NAMES[structure.kind]}
+                      {structure.kind === 'barrier'
+                        ? `, ${formatMetres(structure.heightM)} high`
+                        : `, ${formatMetres(structure.heightM)} ${structure.kind === 'sub-cut' ? 'deep' : 'high'}, ${structure.areaM2.toFixed(2)} m²`}
+                    </title>
+                  </polygon>
+                ))}
               {pipeSections.map(({ culvert, points: pipe }) => (
                 <g
                   key={culvert.id}
@@ -4211,4 +4280,13 @@ export function CableChart({
       }}
     </ChartSlot>
   )
+}
+
+/** A left / right batter readout with each side whose batter comes from the ground material named so. */
+function groundSide(template: RoadTemplate, which: 'cut' | 'fill', text: string): string {
+  const parts = text.split(' / ')
+  if (parts.length !== 2) return text
+  return (['left', 'right'] as const)
+    .map((s, k) => (batterSource(template, s, which) === 'material' ? 'ground' : parts[k]))
+    .join(' / ')
 }

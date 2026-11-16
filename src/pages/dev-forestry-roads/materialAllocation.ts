@@ -11,6 +11,7 @@
 import { solve, type Constraint, type Model } from 'yalps'
 import { acceptsFill, haulDirectionAllowed, materialDemandKey, type requiredFillAt } from './allocationPolicy'
 import type { AlignmentEngineering, HaulMovement } from './engineeringTypes'
+import { solveNetworkMaterialAllocation } from './networkMaterialAllocation'
 import { solveSparseMaterialAllocation } from './sparseMaterialAllocation'
 
 export const MAX_ALLOCATION_VARIABLES = 20000
@@ -81,6 +82,8 @@ export interface EconomicAllocation {
   variables: number
   constraints: number
   reason?: string
+  /** `network`: solved as a minimum-cost flow (`networkMaterialAllocation.ts`); variables are its arcs, constraints its nodes. */
+  method?: 'network'
 }
 
 export function solveMaterialAllocation(
@@ -89,7 +92,10 @@ export function solveMaterialAllocation(
   unitHaulCost: (distanceM: number) => number,
   options: { deferExternal?: boolean } = {},
 ): EconomicAllocation {
+  // The network flow holds every rule and scales to long roads; a model it cannot hold (a capacity
+  // shared by flows of different swell factors, an internal-use plan) goes to the tableau solvers.
   return (
+    solveNetworkMaterialAllocation(e, parcels, unitHaulCost, options) ??
     solveSparseMaterialAllocation(e, parcels, unitHaulCost, options) ??
     solveDenseMaterialAllocation(e, parcels, unitHaulCost, options)
   )

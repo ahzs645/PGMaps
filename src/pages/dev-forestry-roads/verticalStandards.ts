@@ -4,6 +4,8 @@
  * range, minimum K for sag and crest curves, minimum curve and tangent lengths, and control
  * elevations and grades with tolerances. Pure; unset values are never checked.
  */
+import { labelStation } from './roadStationing'
+
 export interface GradeRange {
   id: string
   /** Null or omitted means the road start / end. */
@@ -75,12 +77,9 @@ export const EMPTY_VERTICAL_STANDARDS: VerticalStandards = {
 }
 
 const EPS = 1e-6
-const stn = (value: number) => {
-  const rounded = Math.round(Math.max(0, value) * 10) / 10
-  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
-}
+const stn = (value: number) => labelStation(value)
 const pct = (value: number) => `${value > 0 ? '' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`
-/** A station as `0+123.4`, the way every vertical check names it. */
+/** A station as `0+123.4` (under the road's stationing), the way every vertical check names it. */
 export const formatStation = stn
 
 /** Sag when the grade increases through the PVI (concave up), crest when it decreases. */

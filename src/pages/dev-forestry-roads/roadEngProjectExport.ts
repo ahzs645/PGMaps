@@ -47,6 +47,7 @@ import {
   mergeRoadEngIni,
   roadEngDesign,
   roadEngWrittenFrame,
+  roadEngWrittenRadii,
   ROADENG_PI_MATCH_M,
   type RoadEngCurveInput,
   type RoadEngDsnOverrides,
@@ -66,10 +67,16 @@ import { roadEngOptimizerOverrides } from './roadEngOptimizer'
 import { ROADENG_COLOR_ATTRIBUTE, ROADENG_FORMAT_ATTRIBUTE, roadEngNoteId, roadEngSystemSetId } from './roadEngProject'
 import {
   mergeRoadEngOverrides,
+  roadEngCurveChanges,
+  roadEngOutsideAutoNote,
   roadEngCurveFromTables,
   roadEngCurveInputs,
   roadEngSectionOverrides,
+  roadEngTypedSuperelevation,
 } from './roadEngSectionExport'
+import { roadEngDesignWriteBack } from './roadEngParameterOverrides'
+import { isPLineStratum, roadEngPLineDsnOverrides, roadEngPLineFiles } from './roadEngPLine'
+import { roadEngFillWriteBack } from './roadEngFillMaterials'
 import { readRoadEngSymbolFile, type RoadEngSymbolTables } from './roadEngSymbolTables'
 import {
   colorRefFromRgb,
@@ -107,8 +114,10 @@ export const ROADENG_EXPORT_CORRIDOR_M = 250
 /**
  * A road whose written frame is this close to the one it was read in (relative station scale, and
  * end station in metres) is written in the frame it was read in, so kept ranges compare exactly.
+ * A millimetre a kilometre: Location 18's thirteen curves, each radius held to its record within
+ * 10⁻⁵, rebuild its 1,066 m 0.16 mm short (1.5 × 10⁻⁷).
  */
-export const ROADENG_FRAME_SCALE_TOLERANCE = 1e-7
+export const ROADENG_FRAME_SCALE_TOLERANCE = 1e-6
 export const ROADENG_FRAME_END_TOLERANCE_M = 0.001
 /** A D-line or map note within this of where it was read, m in the file grid, has not moved. */
 export const ROADENG_UNMOVED_M = 0.001
@@ -164,7 +173,9 @@ function reportEventsFor(road: RoadEngExportRoad['alignment']): RoadEngReportEve
       events.push({ chainageM, kind })
   }
   for (const a of e.assignments ?? []) for (const at of [a.start, a.end]) add(at, 'template-range')
-  for (const s of e.strata ?? []) for (const at of [s.start, s.end]) add(at, 'ground-layer-range')
+  // Horizons from the P-line's survey are not range assignments, which are what RoadEng flags.
+  for (const s of e.strata ?? [])
+    if (!isPLineStratum(s)) for (const at of [s.start, s.end]) add(at, 'ground-layer-range')
   for (const site of e.sites ?? []) if (site.enabled !== false) add(site.chainage, 'pit')
   return events.sort((a, b) => a.chainageM - b.chainageM)
 }
@@ -223,6 +234,11 @@ export function roadEngDesignRoads(
       return z === undefined ? null : z + surfacing
     }
 
+    // The frame the road was read in: the override and fill writers compare what was read in it.
+    const readFrame =
+      source && !sameFrame && source.endStation !== undefined && source.stationScale !== undefined
+        ? { startStation: source.startStation, endStation: source.endStation, stationScale: source.stationScale }
+        : undefined
     // The texts the settings writers start from: the alignment's own and the first alignment's.
     const dsnText = source?.dsn
     const ds2Text = source ? roadEngSourceDs2Text(source) : undefined
@@ -247,6 +263,28 @@ export function roadEngDesignRoads(
         : null,
     )
     if (source) notes.push(...section.notWritten)
+    // AUTO slopes into the template table, parameter overrides into [design] (`roadEngParameterOverrides.ts`).
+    const design =
+      source && dsnText !== undefined && ds2Text !== undefined
+        ? roadEngDesignWriteBack(
+            alignment,
+            {
+              dsnText,
+              ds2Text,
+              ...(projectDsnText !== undefined ? { projectDsnText } : {}),
+              unitM,
+              ...frame,
+              fallback: source.fallback ?? alignment.template,
+              ...(readFrame ? { readFrame } : {}),
+            },
+            mergeRoadEngIni(projectDsnText ?? dsnText, section.templates),
+          )
+        : null
+    if (design) {
+      notes.push(...design.notWritten)
+      section.alignment = mergeRoadEngOverrides(section.alignment, design.alignment).overrides
+      section.templates = mergeRoadEngOverrides(section.templates, design.templates).overrides
+    }
     // Ground types, haul and pits.
     const haul = alignment.engineering
       ? roadEngHaulRecords(
@@ -271,11 +309,31 @@ export function roadEngDesignRoads(
         )
       : null
     if (haul) notes.push(...haul.notes.map((n) => `${name}: ${n}`))
+    // Subgrade fill material by range into the rows the template ranges left (`roadEngFillMaterials.ts`).
+    if (source && dsnText !== undefined && ds2Text !== undefined) {
+      const fill = roadEngFillWriteBack(
+        alignment,
+        {
+          dsnText,
+          ds2Text,
+          ...(projectDsnText !== undefined ? { projectDsnText } : {}),
+          unitM,
+          ...frame,
+          ...(readFrame ? { readFrame } : {}),
+        },
+        mergeRoadEngIni(dsnText, section.alignment),
+        haul?.codes ?? {},
+      )
+      notes.push(...fill.notWritten)
+      section.alignment = mergeRoadEngOverrides(section.alignment, fill.alignment).overrides
+    }
     // Costs RoadEng has no field for travel in the design's [PGMaps] section (`roadEngHaulRecords`).
     const own = mergeRoadEngOverrides(
       haul?.dsnOverrides ?? {},
       haul && Object.keys(haul.pgmaps).length ? { PGMaps: haul.pgmaps } : {},
       section.alignment,
+      // Between or Ahead for the P-line's survey, where it was changed here (`roadEngPLine.ts`).
+      roadEngPLineDsnOverrides(source?.pLine, dsnText),
     ).overrides
     // A later road's new templates go into the first alignment's .dsn; the first road's into its own.
     if (k === 0) Object.assign(own, mergeRoadEngOverrides(own, section.templates).overrides)
@@ -302,16 +360,66 @@ export function roadEngDesignRoads(
     // Per-curve 108 values: PGMaps' rule when it changed, else each curve's own record, and the
     // design's own tables for a curve moved or re-radiused off the record it was read with.
     let curves: Record<string, RoadEngCurveInput> | undefined
+    // Curves whose e PGMaps writes as its own value: RoadEng recalculates it unless the curve's
+    // superelevation Auto is unticked there, and the bit for that box is not known.
+    const typed: string[] = []
+    const typedNote = (order: string[]) => {
+      if (!typed.length) return
+      const names = typed.map((id) => `H${order.indexOf(id) + 1}`)
+      notes.push(
+        `${name}: not written: RoadEng's superelevation Auto off for ${names.length === 1 ? 'curve' : 'curves'} ${names.join(', ')}. Their superelevation is written as a value, which RoadEng recalculates unless the curve's superelevation Auto box is unticked there.`,
+      )
+    }
     if (source && dsnText !== undefined && ds2Text !== undefined) {
       const settings = parseRoadEngSettings(dsnText, ds2Text, unitM, {
         ...(source.projectDsn !== undefined ? { projectDsnText: source.projectDsn } : {}),
       })
+      // A curve whose record's radius the writer keeps is read at that radius, as RoadEng reads it.
+      const gridRadii = roadEngWrittenRadii(alignment, road.toGrid ?? toGrid, {
+        records: source.piRecords.map((line) => line.split(',')),
+        unitM,
+      })
       const given = roadEngCurveInputs(alignment, {
         original: settings,
+        gridRadiusM: gridRadii,
         ...(options.designSpeedKmh ? { designSpeedKmh: options.designSpeedKmh } : {}),
       })
-      if (!given.kept) curves = given.curves
-      else {
+      if (!given.kept) {
+        // Each curve writes only what differs from the record it was read with.
+        const records = source.piRecords.map((line) => line.split(','))
+        const grid = road.toGrid ?? toGrid
+        const changed: Record<string, RoadEngCurveInput> = {}
+        for (const [id, fields] of Object.entries(given.curves)) {
+          const point = alignment.points.find((p) => p.id === id)
+          if (!point) continue
+          const [x, y] = grid(point.coordinate)
+          const match = records.find(
+            (f) => Math.hypot(Number(f[4]) * unitM - x, Number(f[5]) * unitM - y) <= ROADENG_PI_MATCH_M,
+          )
+          if (!match) {
+            changed[id] = newCurveRecord(fields, given.from[id], given.insideWideningFromTable[id])
+            if (roadEngTypedSuperelevation(changed[id], given.from[id])) typed.push(id)
+            continue
+          }
+          const readRadius = Math.abs(Number(match[3])) * unitM
+          const writtenRadius = gridRadii[id]
+          const diff = roadEngCurveChanges(
+            fields,
+            match,
+            unitM,
+            given.from[id] ?? null,
+            (point.spiralM ?? 0) > 0,
+            given.insideWideningFromTable[id] ?? null,
+            writtenRadius !== undefined && Math.abs(writtenRadius - readRadius) > 1e-9 * Math.max(1, readRadius),
+          )
+          if (diff) changed[id] = diff
+          if (roadEngTypedSuperelevation(diff, given.from[id], match)) typed.push(id)
+          const outsideNote = roadEngOutsideAutoNote(diff, match, unitM, given.outsideWideningFromTable[id] ?? null)
+          if (outsideNote) notes.push(`${name}: not written: ${outsideNote}`)
+        }
+        if (Object.keys(changed).length) curves = changed
+        typedNote(Object.keys(given.curves))
+      } else {
         const records = source.piRecords.map((line) => line.split(','))
         const grid = road.toGrid ?? toGrid
         const speed = alignment.curveDesign?.designSpeedKmh ?? options.designSpeedKmh ?? 50
@@ -331,9 +439,19 @@ export function roadEngDesignRoads(
       }
     } else {
       const given = roadEngCurveInputs(alignment, {
+        gridRadiusM: roadEngWrittenRadii(alignment, road.toGrid ?? toGrid),
         ...(options.designSpeedKmh ? { designSpeedKmh: options.designSpeedKmh } : {}),
       })
-      if (Object.keys(given.curves).length) curves = given.curves
+      if (Object.keys(given.curves).length)
+        curves = Object.fromEntries(
+          Object.entries(given.curves).map(([id, fields]) => [
+            id,
+            newCurveRecord(fields, given.from[id], given.insideWideningFromTable[id]),
+          ]),
+        )
+      for (const [id, fields] of Object.entries(curves ?? {}))
+        if (roadEngTypedSuperelevation(fields, given.from[id])) typed.push(id)
+      typedNote(Object.keys(given.curves))
     }
 
     out.push({
@@ -354,6 +472,26 @@ export function roadEngDesignRoads(
       )
   }
   return { roads: out, notes: [...new Set(notes)] }
+}
+
+/**
+ * A curve with no record to keep: every design value, RoadEng's Auto method where its e is the
+ * table's or the side friction method's, Use Minimum Radius off (RoadEng's default word sets it), and
+ * the side friction left for the writer, which takes it at the radius it writes.
+ */
+function newCurveRecord(
+  fields: RoadEngCurveInput,
+  from: 'formula' | 'table' | 'sideFriction' | 'minimumRadius' | 'stated' | undefined,
+  insideWideningFromTable: boolean | undefined,
+): RoadEngCurveInput {
+  const { sideFriction: _atModelRadius, ...rest } = fields
+  void _atModelRadius
+  return {
+    ...rest,
+    useMinimumRadius: false,
+    ...(from === 'table' || from === 'sideFriction' ? { superelevationByTable: from === 'table' } : {}),
+    autoWideningInside: insideWideningFromTable === true,
+  }
 }
 
 // ---- Terrain parts ----------------------------------------------------------------------------------
@@ -743,9 +881,9 @@ export interface RoadEngOriginalPlan {
 /**
  * Whether RoadEng's own `Terrain1.ter` is written back, and which of its features change. It is,
  * unless one of these holds (each is the `why`, in this order): the terrain was read before the file
- * was kept; it is in feet; the project's grid is not the one read from it; the export grid is not
- * the terrain's CRS; a feature RoadEng's TIN is built on was edited or removed; the file is not in
- * this browser, or is not the one read. A tracked object whose fingerprint and settings match is
+ * was kept; the project's grid is not the one read from it; the export grid is not the terrain's
+ * CRS; a feature RoadEng's TIN is built on was edited or removed; it is in feet and a feature was
+ * edited or added; the file is not in this browser, or is not the one read. A tracked object whose fingerprint and settings match is
  * unchanged; one that differs is rewritten in its feature's place; a tracked id no object holds is
  * removed; every other drawn feature is added.
  */
@@ -779,7 +917,6 @@ export function roadEngOriginalPlan(input: {
     return grid(
       "This terrain was read before PG Maps kept RoadEng's own terrain file; open its .terx again to write it back as read.",
     )
-  if (original.unitM !== 1) return grid("RoadEng's terrain is in feet, and this export writes metres.")
   const terrain = input.terrain
   if (!terrain || roadEngTerrainGridFingerprint(terrain) !== original.grid)
     return grid(
@@ -822,6 +959,10 @@ export function roadEngOriginalPlan(input: {
     return grid(
       `${blocked === 1 ? '1 feature' : `${blocked} features`} RoadEng's TIN is built on ${blocked === 1 ? 'was' : 'were'} edited or removed here, so its TIN no longer holds.`,
     )
+  // A file in feet goes back as read, its features removed but none written: this export writes
+  // features in metres.
+  if (original.unitM !== 1 && input.objects.some((_, k) => !plan.unchanged.has(k)))
+    return grid("RoadEng's terrain is in feet, and features edited or added here are written in metres.")
   const ter = input.originalTer
   if (!ter)
     return grid(
@@ -1018,13 +1159,6 @@ export function roadEngProjectExport(input: {
     ...(input.designSpeedKmh ? { designSpeedKmh: input.designSpeedKmh } : {}),
     ...(input.gridFor ? { gridFor: input.gridFor } : {}),
   })
-  const terrainName = keptTerrainName(prepared.roads) ?? files.terrain
-  const design = noDesign
-    ? null
-    : roadEngDesign(prepared.roads, input.grid.toGrid, {
-        terrainName,
-        ...(input.designSpeedKmh ? { designSpeedKmh: input.designSpeedKmh } : {}),
-      })
   const level = (c: Coordinate) => {
     const z = input.elevationAt?.(c)
     return z !== undefined && Number.isFinite(z) ? z : undefined
@@ -1032,7 +1166,6 @@ export function roadEngProjectExport(input: {
   const source = input.terrainSource ?? null
   const terrainNotes: string[] = []
   const logging = roadEngLoggingSystemsFor(input.riggingSets ?? [], source)
-  const mapNotes = roadEngMapNotesFor(input.notes ?? [], source, input.grid.toGrid)
   const drawn = drawnFeatures(input, input.grid.toGrid, level, symbolTables(source), logging.idOfSet, terrainNotes)
   const plan = roadEngOriginalPlan({
     source,
@@ -1041,35 +1174,63 @@ export function roadEngProjectExport(input: {
     originalTer: input.originalTer ?? null,
     objects: drawn.objects,
   })
+  // Map notes sit in the file's unit: RoadEng's own file in feet keeps them in feet.
+  const fileUnitM = plan.base ? (plan.original?.unitM ?? 1) : 1
+  const mapNotes = roadEngMapNotesFor(input.notes ?? [], source, (c) => {
+    const [x, y] = input.grid.toGrid(c)
+    return [x / fileUnitM, y / fileUnitM]
+  })
   // Over RoadEng's own file, unchanged features stay as read and are not given again.
   const given = drawn.features.map((_, k) => k).filter((k) => !plan.base || !plan.unchanged.has(k))
   const features = given.map((k) => drawn.features[k])
-  const terrain = roadEngTerrainArchive({
-    raster: input.grid.raster,
-    corridor: input.wholeTerrain
-      ? null
-      : {
-          lines: input.roads.map((road) => road.alignment.points.map((p) => input.grid.toGrid(p.coordinate))),
-          halfWidthM: ROADENG_EXPORT_CORRIDOR_M,
-        },
-    features,
-    coordSys: input.grid.epsg === null ? null : { epsg: input.grid.epsg },
-    ...(source ? { source } : {}),
-    ...(logging.systems ? { loggingSystems: logging.systems } : {}),
-    ...(mapNotes ? { mapNotes } : {}),
-    ...(plan.base
-      ? {
-          original: {
-            ter: plan.base,
-            replaced: new Map([...plan.replaced].map(([index, k]) => [index, k === null ? null : given.indexOf(k)])),
-            keepGeometry: plan.keepGeometry,
-          },
-        }
-      : {}),
-  })
+  // A design with no ground and nothing drawn (RoadEng's own design with no terrain) goes without one.
+  const withTerrain =
+    noDesign ||
+    input.grid.raster !== null ||
+    plan.base !== null ||
+    drawn.features.length > 0 ||
+    !!mapNotes?.length ||
+    !!logging.systems?.length
+  const terrainName = withTerrain ? (keptTerrainName(prepared.roads) ?? files.terrain) : null
+  const design = noDesign
+    ? null
+    : roadEngDesign(prepared.roads, input.grid.toGrid, {
+        ...(terrainName ? { terrainName } : {}),
+        ...(input.designSpeedKmh ? { designSpeedKmh: input.designSpeedKmh } : {}),
+      })
+  const terrain: RoadEngTerrainArchive = !withTerrain
+    ? { bytes: new Uint8Array(), notes: [], ground: null, original: null }
+    : roadEngTerrainArchive({
+        raster: input.grid.raster,
+        corridor: input.wholeTerrain
+          ? null
+          : {
+              lines: input.roads.map((road) => road.alignment.points.map((p) => input.grid.toGrid(p.coordinate))),
+              halfWidthM: ROADENG_EXPORT_CORRIDOR_M,
+            },
+        features,
+        coordSys: input.grid.epsg === null ? null : { epsg: input.grid.epsg },
+        ...(source ? { source } : {}),
+        ...(logging.systems ? { loggingSystems: logging.systems } : {}),
+        ...(mapNotes ? { mapNotes } : {}),
+        ...(plan.base
+          ? {
+              original: {
+                ter: plan.base,
+                replaced: new Map(
+                  [...plan.replaced].map(([index, k]) => [index, k === null ? null : given.indexOf(k)]),
+                ),
+                keepGeometry: plan.keepGeometry,
+              },
+            }
+          : {}),
+      })
   const layouts = Object.fromEntries(
     (source?.layouts ?? []).map((l) => [`${l.name}.ilt`, Uint8Array.from(l.text, (ch) => ch.charCodeAt(0) & 0xff)]),
   )
+  // Each road's P-line goes back beside the design as read, under the name the design gives it.
+  const pLines: Record<string, Uint8Array> = {}
+  for (const road of prepared.roads) Object.assign(pLines, roadEngPLineFiles(road.source?.pLine))
   const notes = [
     ...prepared.notes,
     ...(design?.notes ?? []),
@@ -1099,9 +1260,10 @@ export function roadEngProjectExport(input: {
     bytes: roadEngProjectZip({
       name: files.stem,
       design: design?.bytes ?? null,
-      terrain: terrain.bytes,
-      ...(terrainName !== files.terrain ? { terrainName } : {}),
+      terrain: withTerrain ? terrain.bytes : null,
+      ...(terrainName && terrainName !== files.terrain ? { terrainName } : {}),
       ...(Object.keys(layouts).length ? { layouts } : {}),
+      ...(Object.keys(pLines).length ? { surveys: pLines } : {}),
     }),
     fileName: files.zip,
     notes: [...new Set(notes)],

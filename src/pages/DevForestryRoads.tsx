@@ -267,6 +267,7 @@ import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
 import { CompareAlternatives } from './dev-forestry-roads/CompareAlternatives'
 import { DRAINAGE_SETTINGS_KEY, DrainagePanel, readDrainageSettings } from './dev-forestry-roads/DrainagePanel'
 import { runDrainage, type DrainageRun, type DrainageSettings } from './dev-forestry-roads/drainageRun'
+import { terrainGridCellM } from './dev-forestry-roads/tinGround'
 import {
   createDrainageEvidence,
   drainageInputFingerprint,
@@ -284,6 +285,7 @@ import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from
 import { analyzeCable, createRoadStationSampler, distance, offsetCoordinate } from './dev-forestry-roads/engine'
 import { checkPlanEdit } from './dev-forestry-roads/planEditCheck'
 import { roadStationAt, typedStationNote } from './dev-forestry-roads/stationAt'
+import { hasStationing, resolveTypedStation, setScreenStationing } from './dev-forestry-roads/roadStationing'
 import { StationBox } from './dev-forestry-roads/StationBox'
 import { StationJumpMenu } from './dev-forestry-roads/StationJumpMenu'
 import { SectionPaneTools, useSectionTools } from './dev-forestry-roads/SectionPaneTools'
@@ -1080,6 +1082,11 @@ export default function DevForestryRoads({
       costPreview?.alignment ??
       templateAlignment ??
       alignment)
+  // Station labels on screen follow the road's start station and equations (`roadStationing.ts`);
+  // a terrain profile and a road being pegged are stationed by chainage.
+  const shownStationing = terrainProfile || draftAlignment ? undefined : displayedAlignment.stationing
+  setScreenStationing(shownStationing)
+  useEffect(() => () => setScreenStationing(undefined), [])
   const completeCostRecord = displayedAlignment === alignment ? alignment.fullCostRecord : undefined
   /** A terrain profile or a mapped road: ground only, so no design quantities or cost in the summary. */
   const groundOnly = !!terrainProfile || (displayedAlignment === alignment && isMappedRoad(alignment))
@@ -1260,7 +1267,11 @@ export default function DevForestryRoads({
   ].join(' · ')
   /** Selects exactly the station typed, held to the road, and returns it. */
   const selectTypedStation = (entered: number) => {
-    const bounded = Math.max(0, Math.min(displayedAnalysis.length, entered))
+    // A station name goes to its chainage: the occurrence nearest the selected station where an
+    // equation names it twice, the nearest place where an equation skips it.
+    const bounded = hasStationing(shownStationing)
+      ? resolveTypedStation(entered, shownStationing, displayedAnalysis.length, { near: station }).chainage
+      : Math.max(0, Math.min(displayedAnalysis.length, entered))
     setTypedStation({ station: bounded, entered, committed: false })
     selectStation(bounded)
     return bounded
@@ -1274,6 +1285,7 @@ export default function DevForestryRoads({
           displayedAnalysis.length,
           terrainProfile ? 'terrain profile' : 'road',
           { value: number, station: formatRoadStation },
+          shownStationing,
         )
       : null
   const selectCulvert = (id: string) => {
@@ -1880,7 +1892,8 @@ export default function DevForestryRoads({
         culverts: alignment.engineering?.culverts ?? [],
         toGrid: grid.toGrid,
         toLonLat: grid.toLonLat,
-        resolutionM: project.terrain.resolutionM,
+        // A RoadEng TIN is routed at its own spacing, not at the cell of the grid kept over its box.
+        resolutionM: terrainGridCellM(project.terrain),
         settings: drainageSettings,
         pourPoint: project.drainage?.pourPoint,
         watershedMinAreaHa: project.drainage?.watershedMinAreaHa,
@@ -2300,7 +2313,7 @@ export default function DevForestryRoads({
         kind === 'terrain'
           ? '.tif,.tiff,.las,.laz,.terx,.txt,.csv'
           : kind === 'project'
-            ? '.json,.dsnx,.terx,.zip,.ilt'
+            ? '.json,.dsnx,.terx,.zip,.ilt,.tr1,.tr2'
             : kind === 'landxml'
               ? '.xml,application/xml,text/xml'
               : kind === 'alignment'
@@ -2356,15 +2369,18 @@ export default function DevForestryRoads({
           verticalDatum: { files: withGround.map((t) => t.name) },
         })
       try {
-        return roadEngProject([...collected.designs, ...collected.terrains, ...collected.layouts], {
-          newId: uid,
-          color: (index) => colors[((target ? 0 : project.alignments.length) + index) % colors.length],
-          template: { ...alignment.template },
-          verticalReference: answers.verticalReference ?? '',
-          sha256Of: (file) => hashes.get(file.bytes),
-          noCrs: target ? 'plane' : (plane ?? 'ask'),
-          ...(answers.epsg !== undefined ? { epsg: answers.epsg } : {}),
-        })
+        return roadEngProject(
+          [...collected.designs, ...collected.terrains, ...collected.layouts, ...collected.surveys],
+          {
+            newId: uid,
+            color: (index) => colors[((target ? 0 : project.alignments.length) + index) % colors.length],
+            template: { ...alignment.template },
+            verticalReference: answers.verticalReference ?? '',
+            sha256Of: (file) => hashes.get(file.bytes),
+            noCrs: target ? 'plane' : (plane ?? 'ask'),
+            ...(answers.epsg !== undefined ? { epsg: answers.epsg } : {}),
+          },
+        )
       } catch (error) {
         const { AlignmentCrsQuestion } = await import('./dev-forestry-roads/landXmlImport')
         if (error instanceof AlignmentCrsQuestion)
@@ -3230,11 +3246,14 @@ export default function DevForestryRoads({
       { encodePng, SQL: needsSql ? await loadSqlJs() : undefined },
     )
   }
-  /** The location ASCII file's options: as set in Save & export, else the project's unit from station 0. */
+  /**
+   * The location ASCII file's options: as set in Save & export, else the project's unit from the
+   * road's start station (0 without one). RoadEng's L-stations run on through station equations.
+   */
   const locationAsciiOptions = (): LocationAsciiOptions =>
     locationAscii ?? {
       unitM: Math.abs((project.terrain.localPlane?.unitM ?? 1) - 0.3048) < 1e-9 ? 0.3048 : 1,
-      startStationM: 0,
+      startStationM: alignment.stationing?.startStation ?? 0,
       delimiter: ',',
       singleLine: false,
     }
@@ -6848,6 +6867,7 @@ export default function DevForestryRoads({
                             selected={w.station}
                             shown={station}
                             length={displayedAnalysis.length}
+                            stationing={shownStationing}
                             onType={selectTypedStation}
                             onCommit={() => setTypedStation((typed) => (typed ? { ...typed, committed: true } : typed))}
                             onStep={(direction) =>

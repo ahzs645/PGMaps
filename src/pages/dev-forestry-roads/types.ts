@@ -27,6 +27,59 @@ export interface RoadPoint {
   radiusM: number
   /** Clothoid transition length on each side of the circular curve; omitted or 0 is a simple curve. */
   spiralM?: number
+  /** This curve's own superelevation settings; each value left out is the road's (`CurveDesign`). */
+  curve?: CurveSettings
+}
+/**
+ * One curve's own design values, as RoadEng keeps them per curve: anything left out comes from the
+ * road's curve rule. Read by `resolveCurveCriteria` (`roadCriteria.ts`).
+ */
+export interface CurveSettings {
+  designSpeedKmh?: number
+  maxSuperelevationPercent?: number
+  /** A stated superelevation, %, in place of the rule's (RoadEng's Auto superelevation off). */
+  superelevationPercent?: number
+  /**
+   * RoadEng's Use Minimum Radius on this curve: its superelevation is its e max, whatever the rule
+   * gives (a stated `superelevationPercent` still comes first).
+   */
+  useMinimumRadius?: boolean
+  /** Runoff before the curve (at the BC) and after it (at the EC), m, in place of the rule's. */
+  runoffInM?: number
+  runoffOutM?: number
+  /** Share of each runoff outside the curve, 0–1, in place of the road's. */
+  transitionFraction?: number
+  /**
+   * The largest side friction this curve allows, in place of the road's (RoadEng's per-curve
+   * "Max Side Friction"): the f max the side friction method shares the curve's lateral
+   * acceleration with e max by.
+   */
+  maxSideFriction?: number
+  /**
+   * The radius the lookup tables and the side friction method are read at, per metre of this
+   * curve's radius: the radius the curve has in the RoadEng design it was read from (RoadEng
+   * measures it in the design's grid), so a road read from RoadEng takes RoadEng's own values.
+   * Absent: 1.
+   */
+  tableRadiusScale?: number
+  /**
+   * This curve's widening on its inside (toward the curve's centre) and outside, m, in place of what
+   * the road's rule gives on that side (RoadEng's Auto widening off for that side, a value typed in
+   * its curve panel). Each side left out takes the rule's.
+   */
+  insideWideningM?: number
+  outsideWideningM?: number
+}
+/**
+ * A lookup table by radius and design speed, as RoadEng keeps its superelevation and runoff tables:
+ * a value per radius row and speed column, read with linear interpolation between them; null is a
+ * blank cell, a combination the table does not allow.
+ */
+export interface CurveLookupTable {
+  /** Description lines kept with the table (RoadEng's `#` comments). */
+  description?: string[]
+  speedsKmh: number[]
+  rows: { radiusM: number; values: (number | null)[] }[]
 }
 export interface VerticalPoint {
   id: string
@@ -61,6 +114,11 @@ export interface SectionLayer {
   side: 'left' | 'right' | 'both'
   depthM: number
   materialId?: string
+  /**
+   * The course's edges run in from its bottom edge at this slope, H:V, so the course narrows upward
+   * (`sectionStructures.ts`). Omitted: square-edged, the formation's width.
+   */
+  sideSlope?: number
 }
 export interface RoadTemplate {
   leftWidth: number
@@ -90,7 +148,7 @@ export interface RoadTemplate {
   rightSurfaceDepth?: number
   /** Ordered additions between ditch/formation and the daylight batter. */
   components?: SectionComponent[]
-  /** Explicit surface course stack replaces legacy surfaceDepth when present. */
+  /** Explicit surface course stack, listed from the subgrade up; replaces legacy surfaceDepth when present. */
   layers?: SectionLayer[]
   /**
    * Rock cut in ground horizons whose material is marked rock (`rockExcavation.ts`). Omitted: rock
@@ -100,7 +158,40 @@ export interface RoadTemplate {
   rockCut?: RockCutTemplate
   leftRockCut?: RockCutTemplate
   rightRockCut?: RockCutTemplate
+  /**
+   * Ditch inslope from the formation edge to the bottom, H:V; the backslope takes the rest of the
+   * top width (`sectionStructures.ts`). Omitted: both slopes alike. Side values replace the base.
+   */
+  ditchInslope?: number
+  leftDitchInslope?: number
+  rightDitchInslope?: number
+  /** Benched cut and fill batters (`sectionStructures.ts`); side blocks replace the shared one. */
+  benches?: import('./sectionStructures').SideBenches
+  leftBenches?: import('./sectionStructures').SideBenches
+  rightBenches?: import('./sectionStructures').SideBenches
+  /** Cut and fill walls, each on one side (`sectionStructures.ts`). */
+  walls?: import('./sectionStructures').SectionWall[]
+  /** Guard rails, concrete barriers and railings on the running surface. */
+  barriers?: import('./sectionStructures').SectionBarrier[]
+  /** Excavation below the subgrade, refilled (`sectionStructures.ts`); side blocks replace the shared one. */
+  subCut?: import('./sectionStructures').SubCut
+  leftSubCut?: import('./sectionStructures').SubCut
+  rightSubCut?: import('./sectionStructures').SubCut
+  /**
+   * Where the cut and fill batters come from (`groundBatters.ts`): `material` takes the ground
+   * material's batter, bending where the cut crosses a horizon (RoadEng's AUTO slope); `template`
+   * keeps the stated batter whatever the material. Omitted: a material's batter applies where it has
+   * one, as before. Side values replace the base value on one side.
+   */
+  cutSlopeFrom?: BatterSource
+  fillSlopeFrom?: BatterSource
+  leftCutSlopeFrom?: BatterSource
+  rightCutSlopeFrom?: BatterSource
+  leftFillSlopeFrom?: BatterSource
+  rightFillSlopeFrom?: BatterSource
 }
+/** A batter taken from the ground materials (RoadEng's AUTO) or the template's stated slope. */
+export type BatterSource = 'material' | 'template'
 /**
  * How a template cuts rock. Every field is optional and an omitted one is off, so a template without
  * it builds and prices the section exactly as before.
@@ -135,9 +226,10 @@ export interface WidthOverride {
   exitTaperM?: number
 }
 /**
- * Design-speed curve rules: superelevation e = V²/(127 R) − f, held between the normal crown and
- * the maximum, rotated about the centreline, plus inside widening L²/(2R) for a vehicle of length L.
- * Both run in linearly over the runoff length before each curve and out after it.
+ * Design-speed curve rules: superelevation e = V²/(127 R) − f (or a lookup table), held between the
+ * normal crown and the maximum, rotated about the centreline, plus inside widening L²/(2R) for a
+ * vehicle of length L. Both run in linearly over the runoff length before each curve and out after
+ * it. A curve's own `RoadPoint.curve` settings take the place of the road's values.
  */
 export interface CurveDesign {
   /** User-entered criteria identity and source; never implies a certified road standard. */
@@ -154,6 +246,34 @@ export interface CurveDesign {
   /** Added to the table/formula width on its named side. */
   insideWideningM?: number
   outsideWideningM?: number
+  /**
+   * Where each curve's superelevation comes from: the formula above (absent, the default), the
+   * lookup table `superelevationTable` (RoadEng's), read at the curve's radius and design speed, or
+   * RoadEng's side friction method (`sideFriction`, AASHTO 2001's method 1), which shares the
+   * curve's lateral acceleration V²/(g R) between e and f in the ratio e max : f max, with
+   * g = 9.81 m/s² and f max the side friction table's at the curve's speed, else
+   * `sideFrictionFactor`.
+   */
+  superelevationMode?: 'formula' | 'table' | 'sideFriction'
+  /** Superelevation, %, by radius and speed (RoadEng's table 0). Used in table mode. */
+  superelevationTable?: CurveLookupTable
+  /** Runoff length, m, by radius and speed (RoadEng's table 2). In table mode it replaces `runoffLengthM`. */
+  runoffTable?: CurveLookupTable
+  /** Largest side friction by design speed (RoadEng's table 1); Review compares each curve's demand with it. */
+  sideFrictionTable?: { speedsKmh: number[]; values: (number | null)[] }
+  /**
+   * Share of each runoff outside the curve, before the BC and after the EC (RoadEng's transition
+   * fraction, 0.667 its common value). Absent: 1, the whole runoff on the tangent, full
+   * superelevation at the curve.
+   */
+  transitionFraction?: number
+  /**
+   * A tangent runout before each runoff: the outside lane turns from normal crown to level at the
+   * runoff's own rate before the runoff takes it to full superelevation, and the inside lane holds
+   * its crown until the outside lane matches it (RoadEng's automatic tangent runout). Absent: the
+   * section turns from normal crown to full superelevation over the runoff alone.
+   */
+  tangentRunout?: boolean
 }
 /**
  * One rigid unit of a design vehicle. The front pivot is the steer axle for the first unit and the
@@ -256,6 +376,12 @@ export interface Alignment {
    * across the road.
    */
   fileGround?: { source: string; points: [number, number][] }
+  /**
+   * The station at the road's start and its station equations (`roadStationing.ts`): they rename
+   * chainages for labels, typed stations, reports and exports, and never enter a calculation. Absent
+   * (or start 0 with no equations), stations are the chainage.
+   */
+  stationing?: import('./roadStationing').RoadStationing
   /**
    * What the RoadEng design this road was read from holds besides the road (its `.dsn`, kept `.ds2`
    * records, `.ds1`/`.ds3`, station frame), so a RoadEng file written from it keeps everything this
@@ -614,6 +740,8 @@ export interface RoadStation {
   layerAreas?: { id: string; name: string; materialId?: string; areaM2: number }[]
   componentAreas?: { id: string; name: string; materialId?: string; areaM2: number }[]
   componentPoints?: { code: string; offset: number; design: number }[]
+  /** Walls, barriers and sub-cuts in this section (`sectionStructures.ts`); absent where there are none. */
+  structures?: import('./sectionStructures').StationStructure[]
   /** Rock cut, shallow rock and overbreak of a complete section with rock horizons; absent otherwise. */
   rock?: StationRock
   /** Includes preparation margins beyond the constructed catches. */
@@ -656,6 +784,11 @@ export interface Crossing {
 }
 export interface RoadAnalysis {
   stations: RoadStation[]
+  /**
+   * The road's start station and equations when it has any (`Alignment.stationing`), so a writer
+   * given only the analysis names its stations (`roadStationing.ts`). Never read by a calculation.
+   */
+  stationing?: import('./roadStationing').RoadStationing
   centerline: Coordinate[]
   crossings: Crossing[]
   length: number
@@ -673,6 +806,8 @@ export interface RoadAnalysis {
   crossingEstimate?: CrossingEstimate
   /** Failed vertical standard / control checks, each also flagged on its nearest station. */
   verticalChecks?: VerticalCheck[]
+  /** Walls, barriers and sub-cuts along the road, by length and volume; absent where there are none. */
+  structures?: import('./sectionStructures').StructureQuantity[]
   /**
    * Covered cut and fill corrected for plan curvature (Pappus), beside the uncorrected totals above.
    * Reported only; `curvedLengthM` is the covered length on curves and spirals, and

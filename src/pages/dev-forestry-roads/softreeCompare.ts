@@ -45,14 +45,25 @@ import {
   type QuantityDifference,
   type SoftreeUnits,
 } from './softreeHaulCsv'
+import {
+  activeRoadEngSolution,
+  roadEngOptionLabel,
+  roadEngSolutionText,
+  solvedAtText,
+  type RoadEngCostSolution,
+  type RoadEngStoredCosts,
+  type RoadEngStoredResults,
+} from './roadEngStoredResults'
 import type { RoadAnalysis } from './types'
 
-export type SoftreeCompareKind = 'mass-haul' | 'optimal-haul' | 'optimal-areas'
+/** The three files, and the results a RoadEng design stores in itself (`roadEngStoredResults.ts`). */
+export type SoftreeCompareKind = 'mass-haul' | 'optimal-haul' | 'optimal-areas' | 'roadeng-design'
 
 export const SOFTREE_COMPARE_KIND_LABELS: Record<SoftreeCompareKind, string> = {
   'mass-haul': 'RoadEng Mass Haul export',
   'optimal-haul': 'RoadEng Optimal Haul export',
   'optimal-areas': 'Softree Optimal Areas file',
+  'roadeng-design': 'Results stored in the RoadEng design',
 }
 
 /** Units of every compared value. */
@@ -137,7 +148,7 @@ const norm = (cell: string) =>
 const SECTION_TITLES = new Set(Object.values(OPTIMAL_HAUL_SECTION_TITLES).map(norm))
 
 /** Which of the three files `text` is, by its content; null when it is none of them. */
-export function detectSoftreeCompareKind(text: string): SoftreeCompareKind | null {
+export function detectSoftreeCompareKind(text: string): Exclude<SoftreeCompareKind, 'roadeng-design'> | null {
   const firstCells = text
     .replace(/^\uFEFF/, '')
     .split(/\r?\n/)
@@ -588,6 +599,151 @@ export function compareSoftreeFile(text: string, road: RoadResults, options: Com
     differing: [...shaped.totals, ...rows].filter((r) => !r.agrees).length,
     tolerance: { relativePercent: rel, stationM: kind === 'optimal-areas' ? COMPARE_STATION_TOLERANCE_M : null },
     warnings,
+    notes,
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * Results stored in a RoadEng design
+ * --------------------------------------------------------------------------------------------- */
+
+/** A stored costing's ends agree with the road's within this, m. */
+export const STORED_RANGE_TOLERANCE_M = 0.5
+
+const COST_FIELDS: { key: keyof RoadEngStoredCosts; label: string }[] = [
+  { key: 'haul', label: 'Haul' },
+  { key: 'cut', label: 'Cut' },
+  { key: 'fill', label: 'Fill' },
+  { key: 'pitOpening', label: 'Pit opening' },
+  { key: 'attributes', label: 'Attributes' },
+]
+
+/**
+ * The road's own costs in RoadEng's cost-summary columns, and how they were made: from the Optimal
+ * Haul cost summary (`optimalHaulFromAnalysis`) when the material plan is solved, else from the
+ * analysis' costs with no haul.
+ */
+export function roadCostSummary(road: RoadResults): { costs: RoadEngStoredCosts; notes: string[] } {
+  const e = road.analysis.engineering
+  const none: RoadEngStoredCosts = { haul: null, cut: null, fill: null, pitOpening: null, attributes: null }
+  if (!e) return { costs: none, notes: ['The road has no earthwork costs.'] }
+  const unavailable = optimalHaulUnavailable(e.haul)
+  if (!unavailable && road.engineering) {
+    const total = optimalHaulFromAnalysis(road.analysis, road.engineering).costTotal
+    return {
+      costs: {
+        haul: total?.haul ?? null,
+        cut: total?.cut ?? null,
+        fill: total?.fill ?? null,
+        pitOpening: total?.pitOpening ?? null,
+        attributes: null,
+      },
+      notes: [
+        "The road's costs are its Optimal Haul cost summary: cut includes borrow bought from sites, as RoadEng's does.",
+      ],
+    }
+  }
+  return {
+    costs: {
+      haul: null,
+      cut: e.costs.cut + e.costs.stripping,
+      fill: e.costs.fill,
+      pitOpening: e.costs.sitePreparation,
+      attributes: null,
+    },
+    notes: [
+      e.haul.enabled
+        ? 'The road has no haul cost: its material plan was not calculated.'
+        : "Haul allocation is off, so the road has no haul cost to set beside RoadEng's; turn it on under Haul.",
+    ],
+  }
+}
+
+/** Where a stored road part's stations start and how they scale to chainage. */
+export interface StoredResultsSource {
+  /** The alignment's first station, m (`RoadEngSource.startStation`). */
+  startStation: number
+  stationScale?: number
+  /** The part's name in the design, `Location1`. */
+  part?: string
+}
+
+/**
+ * The results a RoadEng design stores (`readRoadEngStoredResults`) beside the road's own: the
+ * active vertical alignment's last costing (else its optimization) cost by cost, and the stations
+ * it covered. Other options' solutions are listed as the design's alone. Throws, saying why, when
+ * the design stores no solved solution for the active vertical alignment or the road has no results.
+ */
+export function compareRoadEngDesignResults(
+  stored: RoadEngStoredResults,
+  source: StoredResultsSource,
+  road: RoadResults,
+  options: { relativePercent?: number } = {},
+): SoftreeComparison {
+  if (!road.analysis.stations.length) throw Error('The road has no calculated results yet.')
+  const solution = activeRoadEngSolution(stored)
+  if (!solution)
+    throw Error(
+      stored.solutions.length
+        ? `The design stores no solved costing of its active vertical alignment${stored.activeOption ? ` "${stored.activeOption}"` : ''}, only of others: ${stored.solutions.map(roadEngOptionLabel).join(', ')}.`
+        : 'The design stores no cost solution: RoadEng had not costed it when it was saved.',
+    )
+  const rel = Math.min(
+    Math.max(options.relativePercent ?? DEFAULT_COMPARE_RELATIVE_PERCENT, 0),
+    MAX_COMPARE_RELATIVE_PERCENT,
+  )
+  const scale = source.stationScale ?? 1
+  const chainage = (s: number | null) => (s === null ? null : (s - source.startStation) * scale)
+  const ours = roadCostSummary(road)
+  const theirs = solution.costs
+  const totals: CompareRow[] = []
+  for (const { key, label } of COST_FIELDS) {
+    // Attributes have no counterpart here; a zero is no cost to compare.
+    if (key === 'attributes' && !theirs.attributes) continue
+    if (key === 'pitOpening' && !theirs.pitOpening && !ours.costs.pitOpening) continue
+    totals.push(row(`cost-${key}`, 'Cost', label, '$', theirs[key], ours.costs[key], null, rel))
+  }
+  const sum = (c: RoadEngStoredCosts) =>
+    c.haul === null || c.cut === null || c.fill === null
+      ? null
+      : c.haul + c.cut + c.fill + (c.pitOpening ?? 0) + (c.attributes ?? 0)
+  totals.push(row('cost-total', 'Cost', 'Total', '$', sum(theirs), sum(ours.costs), null, rel))
+  const length = road.analysis.length
+  const from = chainage(solution.fromStationM),
+    to = chainage(solution.toStationM)
+  const rangeRow = (id: string, field: string, t: number | null, o: number) => {
+    const r = row(id, 'Stations costed', field, 'm', t, o, t ?? o, rel)
+    // Stations agree within the costing's reach, not as a share of their size.
+    return { ...r, agrees: t !== null && Math.abs(o - t) <= STORED_RANGE_TOLERANCE_M }
+  }
+  const rows = [rangeRow('range-from', 'From station', from, 0), rangeRow('range-to', 'To station', to, length)]
+  const notes = [`${roadEngSolutionText(solution, stored)}${source.part ? `, in ${source.part}` : ''}.`]
+  notes.push(...ours.notes)
+  notes.push(
+    'Costs are in the currency entered in each, never converted. RoadEng greys a solution out once its design changes; edits made since, there or here, are not in its figures.',
+  )
+  if (rows.some((r) => !r.agrees))
+    notes.push(
+      `RoadEng costed stations ${one(from)}–${one(to)} m of this road's 0.0–${one(length)} m; the road's costs are for all of it.`,
+    )
+  if (road.analysis.completeLength < road.analysis.length - 1e-6)
+    notes.push(
+      `The road's quantities leave out ${(road.analysis.length - road.analysis.completeLength).toFixed(1)} m where the terrain has no ground; RoadEng's cover its whole range.`,
+    )
+  const others = stored.solutions.filter((s) => s !== solution)
+  const words = (s: RoadEngCostSolution) =>
+    `${s.kind === 'costing' ? 'Costing' : 'Optimization'} of ${roadEngOptionLabel(s)}${solvedAtText(s.solvedAt) ? `, ${solvedAtText(s.solvedAt)}` : ''}: total ${s.total.toFixed(2)}`
+  return {
+    kind: 'roadeng-design',
+    units: 'metric',
+    totals,
+    // Two rows, kept in station order.
+    rows,
+    onlyTheirs: others.map(words),
+    onlyOurs: [],
+    differing: [...totals, ...rows].filter((r) => !r.agrees).length,
+    tolerance: { relativePercent: rel, stationM: STORED_RANGE_TOLERANCE_M },
+    warnings: stored.warnings,
     notes,
   }
 }

@@ -9,13 +9,28 @@
  * Pure: projection is passed in, no DOM or network access.
  */
 import { carveCulvert, roadFrame, type CulvertChannel } from './designSurface'
-import { cellCentre, cloneSurfaceGrid, type SurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
+import {
+  cellCentre,
+  cellRowCol,
+  cloneSurfaceGrid,
+  D8_COL as D_COL,
+  D8_ROW as D_ROW,
+  gridCellIndex,
+  neighbourCells,
+  type GridTiles,
+  type SurfaceGrid,
+  type ToGrid,
+  type ToLonLat,
+} from './surfaceGrid'
 import type { Coordinate, Culvert, RoadAnalysis } from './types'
 import { parseDepressionPolicy, type DepressionPolicy } from './drainagePolicies'
 
-/** D8 neighbour order: E, SE, S, SW, W, NW, N, NE (rows run south). */
-const D_ROW = [0, 1, 1, 1, 0, -1, -1, -1]
-const D_COL = [1, 1, 0, -1, -1, -1, 0, 1]
+/**
+ * The grid a D8 direction array lies on: a dense grid needs only its width; a tiled grid (see
+ * `GridTiles`) its height and tiles as well. Every routine here takes either; on a tiled grid the
+ * stored cells are scanned in the full grid's row-major order, so results match a dense run.
+ */
+export type FlowGrid = Pick<SurfaceGrid, 'width' | 'cellM'> & { height?: number; tiles?: GridTiles }
 /** Flow terminates here: an edge/no-data outlet, or a retained interior sink. */
 export const OUTLET = -1
 /** The cell itself is missing. */
@@ -87,46 +102,48 @@ export interface FilledSurface {
  */
 export function fillDepressions(grid: SurfaceGrid, { epsilon = 1e-5 }: { epsilon?: number } = {}): FilledSurface {
   const { width: w, height: h } = grid
-  if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || grid.values.length !== w * h)
+  if (
+    !Number.isInteger(w) ||
+    !Number.isInteger(h) ||
+    w < 1 ||
+    h < 1 ||
+    (grid.tiles ? grid.values.length !== grid.tiles.rowBase[grid.tiles.down] : grid.values.length !== w * h)
+  )
     throw Error('The drainage surface must have positive integer dimensions and one elevation per cell.')
   if (!Number.isFinite(epsilon) || epsilon < 0) throw Error('The drainage epsilon must be finite and nonnegative.')
-  const n = w * h,
+  const n = grid.values.length,
     z = new Float64Array(grid.values),
     closed = new Uint8Array(n)
   const heap = new CellHeap(n),
     pit = new Int32Array(n)
   let pitHead = 0,
     pitTail = 0
-  for (let row = 0; row < h; row++)
-    for (let col = 0; col < w; col++) {
-      const i = row * w + col
-      if (!Number.isFinite(z[i])) {
-        z[i] = NaN
-        closed[i] = 1
-        continue
-      }
-      let seed = row === 0 || col === 0 || row === h - 1 || col === w - 1
-      for (let k = 0; !seed && k < 8; k++) if (!Number.isFinite(z[(row + D_ROW[k]) * w + col + D_COL[k]])) seed = true
-      if (seed) {
-        closed[i] = 1
-        heap.push(i, z[i])
-      }
+  const nb = new Int32Array(8)
+  for (let i = 0; i < n; i++) {
+    if (!Number.isFinite(z[i])) {
+      z[i] = NaN
+      closed[i] = 1
+      continue
     }
+    neighbourCells(grid, i, nb)
+    let seed = false
+    for (let k = 0; !seed && k < 8; k++) if (nb[k] < 0 || !Number.isFinite(z[nb[k]])) seed = true
+    if (seed) {
+      closed[i] = 1
+      heap.push(i, z[i])
+    }
+  }
   while (pitHead < pitTail || heap.size) {
     let c: number
     if (pitHead < pitTail) {
       c = pit[pitHead++]
       if (pitHead === pitTail) pitHead = pitTail = 0
     } else c = heap.pop()
-    const zc = z[c],
-      row = (c / w) | 0,
-      col = c - row * w
+    const zc = z[c]
+    neighbourCells(grid, c, nb)
     for (let k = 0; k < 8; k++) {
-      const r = row + D_ROW[k],
-        q = col + D_COL[k]
-      if (r < 0 || q < 0 || r >= h || q >= w) continue
-      const j = r * w + q
-      if (closed[j]) continue
+      const j = nb[k]
+      if (j < 0 || closed[j]) continue
       closed[j] = 1
       if (z[j] <= zc + epsilon) {
         z[j] = zc + epsilon
@@ -145,32 +162,31 @@ export function fillDepressions(grid: SurfaceGrid, { epsilon = 1e-5 }: { epsilon
  * beside missing data — and {@link MISSING} for missing cells.
  */
 export function flowDirections(filled: SurfaceGrid): Int8Array {
-  const { width: w, height: h, values: z } = filled
-  const dirs = new Int8Array(w * h)
-  for (let row = 0; row < h; row++)
-    for (let col = 0; col < w; col++) {
-      const i = row * w + col,
-        zi = z[i]
-      if (!Number.isFinite(zi)) {
-        dirs[i] = MISSING
-        continue
-      }
-      let best = 0,
-        dir = OUTLET
-      for (let k = 0; k < 8; k++) {
-        const r = row + D_ROW[k],
-          q = col + D_COL[k]
-        if (r < 0 || q < 0 || r >= h || q >= w) continue
-        const zj = z[r * w + q]
-        if (!Number.isFinite(zj)) continue
-        const drop = (zi - zj) * (k & 1 ? Math.SQRT1_2 : 1)
-        if (drop > best) {
-          best = drop
-          dir = k
-        }
-      }
-      dirs[i] = dir
+  const z = filled.values,
+    n = z.length
+  const dirs = new Int8Array(n),
+    nb = new Int32Array(8)
+  for (let i = 0; i < n; i++) {
+    const zi = z[i]
+    if (!Number.isFinite(zi)) {
+      dirs[i] = MISSING
+      continue
     }
+    neighbourCells(filled, i, nb)
+    let best = 0,
+      dir = OUTLET
+    for (let k = 0; k < 8; k++) {
+      if (nb[k] < 0) continue
+      const zj = z[nb[k]]
+      if (!Number.isFinite(zj)) continue
+      const drop = (zi - zj) * (k & 1 ? Math.SQRT1_2 : 1)
+      if (drop > best) {
+        best = drop
+        dir = k
+      }
+    }
+    dirs[i] = dir
+  }
   return dirs
 }
 
@@ -187,20 +203,20 @@ export interface ConditioningDiagnostics {
   interiorSinkCells: number
 }
 
+const openScratch = new Int32Array(8)
+/** On the grid's edge (or the edge of its held tiles) or next to a missing cell. */
 function isOpenCell(grid: SurfaceGrid, i: number): boolean {
-  const row = Math.floor(i / grid.width),
-    col = i % grid.width
-  if (row === 0 || col === 0 || row === grid.height - 1 || col === grid.width - 1) return true
-  for (let k = 0; k < 8; k++)
-    if (!Number.isFinite(grid.values[(row + D_ROW[k]) * grid.width + col + D_COL[k]])) return true
+  neighbourCells(grid, i, openScratch)
+  for (let k = 0; k < 8; k++) if (openScratch[k] < 0 || !Number.isFinite(grid.values[openScratch[k]])) return true
   return false
 }
 
 /** Route equal-height cells toward existing lower exits, without changing elevations or opening closed flats. */
 function routeDrainingFlats(grid: SurfaceGrid, dirs: Int8Array): void {
-  const { width: w, height: h, values: z } = grid
+  const z = grid.values
   const queue = new Int32Array(z.length),
-    reached = new Uint8Array(z.length)
+    reached = new Uint8Array(z.length),
+    nb = new Int32Array(8)
   let head = 0,
     tail = 0
   for (let i = 0; i < z.length; i++) {
@@ -209,14 +225,11 @@ function routeDrainingFlats(grid: SurfaceGrid, dirs: Int8Array): void {
     queue[tail++] = i
   }
   while (head < tail) {
-    const i = queue[head++],
-      row = Math.floor(i / w),
-      col = i % w
+    const i = queue[head++]
+    neighbourCells(grid, i, nb)
     for (let k = 0; k < 8; k++) {
-      const r = row + D_ROW[k],
-        c = col + D_COL[k]
-      if (r < 0 || c < 0 || r >= h || c >= w) continue
-      const j = r * w + c
+      const j = nb[k]
+      if (j < 0) continue
       if (reached[j] || dirs[j] !== OUTLET || z[j] !== z[i]) continue
       reached[j] = 1
       dirs[j] = (k + 4) % 8
@@ -242,7 +255,7 @@ export function conditionDrainageSurface(grid: SurfaceGrid, policyValue?: Depres
     const values = new Float64Array(grid.values),
       visited = new Uint8Array(values.length)
     const queue = new Int32Array(values.length),
-      w = grid.width
+      nb = new Int32Array(8)
     for (let start = 0; start < values.length; start++) {
       if (visited[start] || !(potential.depth[start] > 0)) continue
       let head = 0,
@@ -251,16 +264,12 @@ export function conditionDrainageSurface(grid: SurfaceGrid, policyValue?: Depres
       queue[0] = start
       visited[start] = 1
       while (head < tail) {
-        const i = queue[head++],
-          row = Math.floor(i / w),
-          col = i % w
+        const i = queue[head++]
         maxDepth = Math.max(maxDepth, potential.depth[i])
+        neighbourCells(grid, i, nb)
         for (let k = 0; k < 8; k++) {
-          const r = row + D_ROW[k],
-            c = col + D_COL[k]
-          if (r < 0 || c < 0 || r >= grid.height || c >= w) continue
-          const j = r * w + c
-          if (visited[j] || !(potential.depth[j] > 0)) continue
+          const j = nb[k]
+          if (j < 0 || visited[j] || !(potential.depth[j] > 0)) continue
           visited[j] = 1
           queue[tail++] = j
         }
@@ -295,16 +304,38 @@ export function conditionDrainageSurface(grid: SurfaceGrid, policyValue?: Depres
   return { surface, depth: potential.depth, directions, diagnostics }
 }
 
-/** Downstream cell of `i`, or −1 at an outlet or a missing cell. */
-export function downstream(dirs: Int8Array, width: number, i: number): number {
+/** Downstream cell of `i`, or −1 at an outlet or a missing cell. A number is a dense grid's width. */
+export function downstream(dirs: Int8Array, grid: number | Omit<FlowGrid, 'cellM'>, i: number): number {
   const k = dirs[i]
-  return k < 0 ? -1 : i + D_ROW[k] * width + D_COL[k]
+  if (k < 0) return -1
+  if (typeof grid === 'number') return i + D_ROW[k] * grid + D_COL[k]
+  if (!grid.tiles) return i + D_ROW[k] * grid.width + D_COL[k]
+  const [row, col] = cellRowCol(grid, i)
+  return gridCellIndex(grid as SurfaceGrid, row + D_ROW[k], col + D_COL[k])
+}
+
+/** The downstream cell of every cell (−1 at outlets and missing cells): one lookup per cell for the walks below. */
+export function downstreamCells(dirs: Int8Array, grid: Omit<FlowGrid, 'cellM'>): Int32Array {
+  const n = dirs.length,
+    next = new Int32Array(n)
+  if (grid.tiles) for (let i = 0; i < n; i++) next[i] = downstream(dirs, grid, i)
+  else {
+    const w = grid.width
+    for (let i = 0; i < n; i++) {
+      const k = dirs[i]
+      next[i] = k < 0 ? -1 : i + D_ROW[k] * w + D_COL[k]
+    }
+  }
+  return next
 }
 
 /** Contributing area in m² of every cell, itself included; 0 for missing cells. */
-export function flowAccumulation(dirs: Int8Array, grid: Pick<SurfaceGrid, 'width' | 'cellM'>): Float64Array {
+export function flowAccumulation(
+  dirs: Int8Array,
+  grid: FlowGrid,
+  next: Int32Array = downstreamCells(dirs, grid),
+): Float64Array {
   const n = dirs.length,
-    w = grid.width,
     area = grid.cellM * grid.cellM
   const acc = new Float64Array(n),
     inflow = new Uint8Array(n),
@@ -312,7 +343,7 @@ export function flowAccumulation(dirs: Int8Array, grid: Pick<SurfaceGrid, 'width
   for (let i = 0; i < n; i++) {
     if (dirs[i] === MISSING) continue
     acc[i] = area
-    const j = downstream(dirs, w, i)
+    const j = next[i]
     if (j >= 0) inflow[j]++
   }
   let head = 0,
@@ -320,7 +351,7 @@ export function flowAccumulation(dirs: Int8Array, grid: Pick<SurfaceGrid, 'width
   for (let i = 0; i < n; i++) if (dirs[i] !== MISSING && !inflow[i]) queue[tail++] = i
   while (head < tail) {
     const i = queue[head++],
-      j = downstream(dirs, w, i)
+      j = next[i]
     if (j < 0) continue
     acc[j] += acc[i]
     if (!--inflow[j]) queue[tail++] = j
@@ -344,16 +375,19 @@ export interface StreamProperties {
 }
 
 /** Longest upstream flow path to each cell, including the cell itself, m. */
-export function longestFlowPath(dirs: Int8Array, grid: Pick<SurfaceGrid, 'width' | 'cellM'>): Float64Array {
-  const n = dirs.length,
-    w = grid.width
+export function longestFlowPath(
+  dirs: Int8Array,
+  grid: FlowGrid,
+  next: Int32Array = downstreamCells(dirs, grid),
+): Float64Array {
+  const n = dirs.length
   const length = new Float64Array(n),
     inflow = new Uint8Array(n),
     queue = new Int32Array(n)
   for (let i = 0; i < n; i++) {
     if (dirs[i] === MISSING) continue
     length[i] = grid.cellM
-    const j = downstream(dirs, w, i)
+    const j = next[i]
     if (j >= 0) inflow[j]++
   }
   let head = 0,
@@ -361,7 +395,7 @@ export function longestFlowPath(dirs: Int8Array, grid: Pick<SurfaceGrid, 'width'
   for (let i = 0; i < n; i++) if (dirs[i] !== MISSING && !inflow[i]) queue[tail++] = i
   while (head < tail) {
     const i = queue[head++],
-      j = downstream(dirs, w, i)
+      j = next[i]
     if (j < 0) continue
     length[j] = Math.max(length[j], length[i] + (dirs[i] & 1 ? grid.cellM * Math.SQRT2 : grid.cellM))
     if (!--inflow[j]) queue[tail++] = j
@@ -384,13 +418,13 @@ function streamSegments(
   grid: SurfaceGrid,
   thresholdM2: number,
   minLengthM: number,
+  next: Int32Array,
 ): StreamSegment[] {
-  const n = acc.length,
-    w = grid.width
+  const n = acc.length
   const inflow = new Uint8Array(n)
   for (let i = 0; i < n; i++) {
     if (!(acc[i] >= thresholdM2)) continue
-    const j = downstream(dirs, w, i)
+    const j = next[i]
     if (j >= 0) inflow[j]++
   }
   const segments: StreamSegment[] = []
@@ -400,7 +434,7 @@ function streamSegments(
     let lengthM = 0,
       i = start
     for (;;) {
-      const j = downstream(dirs, w, i)
+      const j = next[i]
       if (j < 0) break
       lengthM += dirs[i] & 1 ? grid.cellM * Math.SQRT2 : grid.cellM
       cells.push(j)
@@ -430,12 +464,13 @@ export function extractStreams(
     thresholdM2,
     minLengthM = 5 * grid.cellM,
     idPrefix = 'stream',
-  }: { thresholdM2: number; minLengthM?: number; idPrefix?: string },
+    next = downstreamCells(dirs, grid),
+  }: { thresholdM2: number; minLengthM?: number; idPrefix?: string; next?: Int32Array },
 ): StreamCollection {
-  const flowPath = longestFlowPath(dirs, grid)
+  const flowPath = longestFlowPath(dirs, grid, next)
   return {
     type: 'FeatureCollection',
-    features: streamSegments(acc, dirs, grid, thresholdM2, minLengthM).map((segment, index) => {
+    features: streamSegments(acc, dirs, grid, thresholdM2, minLengthM, next).map((segment, index) => {
       const end = segment.cells[segment.cells.length - 1]
       // Measure the reach by its own flow: a strip that runs into a ditch is not as large as the ditch.
       const own = segment.endsAtConfluence ? segment.cells[segment.cells.length - 2] : end
@@ -625,10 +660,12 @@ function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: stri
     directions: dirs,
     diagnostics: conditioning,
   } = conditionDrainageSurface(grid, input.depressionPolicy, input.epsilon)
-  const accumulation = flowAccumulation(dirs, grid)
+  const next = downstreamCells(dirs, grid)
+  const accumulation = flowAccumulation(dirs, grid, next)
   const streams = extractStreams(accumulation, dirs, grid, input.toLonLat, {
     thresholdM2: input.streamThresholdM2,
     idPrefix,
+    next,
   })
   const minDepth = input.pondDepthM ?? 0.05,
     cellArea = grid.cellM ** 2
@@ -642,6 +679,7 @@ function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: stri
   ponding.areaM2 = ponding.cells * cellArea
   return {
     dirs,
+    next,
     drainage: { streams, ponding, accumulation, depth, directions: dirs, conditioning } satisfies SurfaceDrainage,
   }
 }
@@ -711,11 +749,16 @@ export function crossDrainSiteGroups(candidates: LowPointCandidate[]): Omit<Ditc
 
 export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
   const { existing, design, footprint, analysis, culverts, toGrid, toLonLat } = input
-  if (existing.width !== design.width || existing.height !== design.height || footprint.length !== design.values.length)
+  if (
+    existing.width !== design.width ||
+    existing.height !== design.height ||
+    existing.tiles !== design.tiles ||
+    existing.values.length !== design.values.length ||
+    footprint.length !== design.values.length
+  )
     throw Error('The existing and design surfaces must share one grid.')
   const warnings: string[] = []
-  const w = design.width,
-    n = design.values.length,
+  const n = design.values.length,
     cellArea = design.cellM ** 2
   const searchM = input.culvertSearchM ?? DEFAULT_CULVERT_SEARCH_M,
     divertM = input.divertThresholdM ?? 20,
@@ -757,7 +800,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
   const entries: number[] = []
   for (let i = 0; i < n; i++) {
     if (footprint[i] || !(accE[i] >= thresholdM2)) continue
-    const j = downstream(before.dirs, w, i)
+    const j = before.next[i]
     if (j >= 0 && footprint[j]) entries.push(j)
   }
   entries.sort((a, b) => accE[a] - accE[b])
@@ -766,7 +809,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
   const crossings: StreamCrossing[] = []
   for (const entry of new Set(entries)) {
     if (claimed[entry]) continue
-    for (let i = entry, outside = 0; i >= 0 && outside <= followCells; i = downstream(before.dirs, w, i)) {
+    for (let i = entry, outside = 0; i >= 0 && outside <= followCells; i = before.next[i]) {
       if (footprint[i]) {
         if (claimed[i] && i !== entry) break
         claimed[i] = 1
@@ -778,7 +821,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
     for (let steps = 0; steps < n; steps++) {
       if (channelOf[exit]) through ??= channels[channelOf[exit] - 1].id
       if (!footprint[exit]) break
-      const j = downstream(after.dirs, w, exit)
+      const j = after.next[exit]
       if (j < 0) break
       exit = j
     }
@@ -806,7 +849,8 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
     depthD = after.drainage.depth
   const ponded = new Uint8Array(n)
   for (let i = 0; i < n; i++) if (depthD[i] > minDepth && !(depthE[i] > minDepth)) ponded[i] = 1
-  const queue = new Int32Array(n)
+  const queue = new Int32Array(n),
+    nb = new Int32Array(8)
   const ponds: GeoJSON.Feature<GeoJSON.Point, PondProperties>[] = []
   const total: PondingSummary = { cells: 0, areaM2: 0, maxDepthM: 0, volumeM3: 0 }
   for (let seed = 0; seed < n; seed++) {
@@ -820,18 +864,15 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
     queue[tail++] = seed
     ponded[seed] = 2
     while (head < tail) {
-      const i = queue[head++],
-        row = (i / w) | 0,
-        col = i - row * w
+      const i = queue[head++]
       volume += depthD[i] * cellArea
       if (depthD[i] > depthD[deepest]) deepest = i
       if (footprint[i]) touchesRoad = true
       catchment = Math.max(catchment, accD[i])
+      neighbourCells(design, i, nb)
       for (let k = 0; k < 8; k++) {
-        const r = row + D_ROW[k],
-          q = col + D_COL[k]
-        if (r < 0 || q < 0 || r >= design.height || q >= w) continue
-        const j = r * w + q
+        const j = nb[k]
+        if (j < 0) continue
         if (footprint[j]) touchesRoad = true
         if (ponded[j] === 1) {
           ponded[j] = 2
@@ -868,7 +909,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
   const candidates: LowPointCandidate[] = []
   for (let i = 0; i < n; i++) {
     if (!footprint[i] || !(accD[i] >= minLowArea)) continue
-    const j = downstream(after.dirs, w, i)
+    const j = after.next[i]
     if (j >= 0 && footprint[j]) continue
     const interiorSink = j < 0 && !isOpenCell(design, i)
     if (interiorSink && !(depthD[i] > minDepth)) continue

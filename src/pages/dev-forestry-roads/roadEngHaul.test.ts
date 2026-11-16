@@ -197,7 +197,7 @@ describe('RoadEng ground types, haul and pits', () => {
     expect(mapped.notes.join(' ')).toContain('not converted')
   })
 
-  it('turns the pits on the road into sites, per compacted m³ for borrow', () => {
+  it('turns the pits into sites, per compacted m³ for borrow, one off the road at its end', () => {
     const { mapped } = engineeringFor(DSN, DS2)
     expect(mapped.sites).toEqual<HaulSite[]>([
       {
@@ -222,8 +222,26 @@ describe('RoadEng ground types, haul and pits', () => {
         unitRate: 0,
         fixedCost: 0,
       },
+      {
+        // Its access station is 2,000 m past the road's end: a site at the end, that far further away.
+        id: 'roadeng-pit-2',
+        name: 'Borrow pit at 5,000',
+        kind: 'borrow',
+        chainage: 3000,
+        accessDistanceM: 2000,
+        pastRoadEndM: 2000,
+        capacityM3: 3200,
+        unitRate: 12,
+        fixedCost: 0,
+        materialId: 'roadeng-OB',
+      },
     ])
-    expect(mapped.unmapped.find((u) => u.includes('5,000 m is off this road'))).toBeTruthy()
+    expect(
+      mapped.notes.find((n) =>
+        n.includes("Pits off the road: Borrow pit at 5,000 (access station 5,000 m, 2,000 m past the road's end)"),
+      ),
+    ).toBeTruthy()
+    expect(mapped.unmapped.some((u) => u.includes('off this road'))).toBe(false)
     expect(mapped.unmapped.find((u) => u.includes('other vertical options (Draft)'))).toBeTruthy()
   })
 
@@ -290,6 +308,7 @@ describe('RoadEng ground types, haul and pits', () => {
       },
       sites: [
         { ...engineering.sites[0], chainage: 1200.5, capacityM3: null, name: 'North pit' },
+        engineering.sites[2],
         {
           id: 'site-new',
           name: 'Spoil',
@@ -308,7 +327,7 @@ describe('RoadEng ground types, haul and pits', () => {
     )
     expect(records.notes).toEqual([])
     const written = applyRecords(DSN, DS2, records)
-    // The off-road pit is kept as read; the deleted waste pit is gone; the other option is untouched.
+    // The off-road pit goes back at its own station; the deleted waste pit is gone; the other option is untouched.
     expect(written.dsn).toContain('OptParms_Pit-1=5000,0,12,0,3200,1, ,OB,1,0,567.3,0')
     expect(written.dsn).toContain('OptParms_Pit-2=2500,120,0,900,4000,0,Spoil, ,0,0,305.25,0')
     expect(written.dsn).toContain('OptParms_Pit-0=500,0,99,0,10,1,Old,OB,0,0,1,0')
@@ -321,9 +340,10 @@ describe('RoadEng ground types, haul and pits', () => {
     expect(gravel).toMatchObject({ cutRate: 15, quality: 100 })
     expect(again.mapped.haul).toEqual(edited.haul)
     expect(again.mapped.fillRate).toBe(6)
-    const [north, spoil] = again.mapped.sites
+    const [north, offRoad, spoil] = again.mapped.sites
     expect(north).toEqual({ ...edited.sites[0], id: 'roadeng-pit-0' })
-    expect(spoil).toEqual({ ...edited.sites[1], id: 'roadeng-pit-2' })
+    expect(offRoad).toEqual({ ...edited.sites[1], id: 'roadeng-pit-1' })
+    expect(spoil).toEqual({ ...edited.sites[2], id: 'roadeng-pit-2' })
     // And written again, nothing moves.
     const second = roadEngHaulRecords(
       { engineering: again.engineering, fillRate: 6 },
@@ -404,17 +424,57 @@ describe('RoadEng ground types, haul and pits', () => {
     const notes = records.notes.join(' ')
     expect(notes).toContain('where its cost lines cross')
     expect(notes).toContain('not marked Bedrock')
-    expect(notes).toContain('2 switched-off sites are left out')
+    expect(notes).toContain('3 switched-off sites are left out')
     expect(notes).toContain('Waste disposal rates')
     expect(notes).toContain(
       "Waste disposal rates, mobilization and contingency, switched-off sites: RoadEng has no field for these, so they travel in the design's [PGMaps] section and come back when it is opened here.",
     )
-    // Both road pits gone; the off-road one renumbered first.
+    // Every pit gone, the one off the road too.
     expect(records.dsnOverrides['OptAlignCost-1']).toEqual({
-      'OptParms_Pit-0': '5000,0,12,0,3200,1, ,OB,1,0,567.3,0',
+      'OptParms_Pit-0': null,
       'OptParms_Pit-1': null,
       'OptParms_Pit-2': null,
     })
+  })
+
+  it("hauls to a pit off the road past the road's end, and writes it back at its own station", () => {
+    // Stations 1,000–3,000 m, chainage half a station: one pit before the start, one past the end.
+    const dsn = DSN.replace(
+      'OptParms_Pit-2=5000,0,12,0,3200,1, ,OB,1,0,567.3,0',
+      'OptParms_Pit-2=5000,250,12,0,3200,1,Far,OB,1,0,567.3,0\r\nOptParms_Pit-3=400,100,0,0,1000,0,Early, ,0,0,300,0',
+    )
+    const range = { startStation: 1000, endStation: 3000, stationScale: 0.5 }
+    const { engineering, mapped } = engineeringFor(dsn, DS2, range)
+    const far = mapped.sites.find((s) => s.name === 'Far')!
+    const early = mapped.sites.find((s) => s.name === 'Early')!
+    expect(far).toMatchObject({ chainage: 1000, accessDistanceM: 1250, pastRoadEndM: 1000 })
+    expect(early).toMatchObject({ chainage: 0, accessDistanceM: 400, pastRoadEndM: 300 })
+    // The haul runs the station gap plus RoadEng's access: from chainage 600, 400 m + 1,250 m.
+    validateEngineering(engineering)
+    expect(parseEngineering(JSON.parse(JSON.stringify(engineering)), asParsed)).toEqual(engineering)
+    const unedited = roadEngHaulRecords(
+      { engineering, fillRate: mapped.fillRate! },
+      { original: { dsnText: dsn, ds2Text: DS2 }, ...range },
+    )
+    expect(unedited.dsnOverrides).toEqual({})
+    // Moved onto the road, the stretch past the end is written as access distance.
+    const moved = roadEngHaulRecords(
+      {
+        engineering: { ...engineering, sites: engineering.sites.map((s) => (s === far ? { ...s, chainage: 800 } : s)) },
+        fillRate: mapped.fillRate!,
+      },
+      { original: { dsnText: dsn, ds2Text: DS2 }, ...range },
+    )
+    expect(moved.dsnOverrides['OptAlignCost-1']).toEqual({
+      'OptParms_Pit-2': '2600,1250,12,0,3200,1,Far,OB,1,0,567.3,0',
+    })
+    expect(moved.notes.join(' ')).toContain(
+      "Far: no longer at the road's end, so its access along the road's line past the end is written as access distance",
+    )
+    // A pit too far off the road for this workspace's haul stays in the file and is said.
+    const tooFar = engineeringFor(DSN.replace('OptParms_Pit-2=5000,', 'OptParms_Pit-2=250000,'), DS2).mapped
+    expect(tooFar.sites.map((s) => s.id)).toEqual(['roadeng-pit-0', 'roadeng-pit-1'])
+    expect(tooFar.unmapped.join(' ')).toContain('247,000 m off this road')
   })
 
   it('converts a foot design from yd³ and miles: 792 ft and 5,280 ft', () => {
@@ -485,16 +545,31 @@ describe.skipIf(!samples || !existsSync(samples))('Softree sample designs', () =
     expect(records.dsnOverrides).toEqual({})
   })
 
-  it('reads the cul-de-sac: its pit is off the road and stays in the file', () => {
+  it("reads the cul-de-sac: its pit off the road is a site at the road's end, written back unchanged", () => {
     const location = parts('Cul-de-sac-design/CulDeSacExample/CulDeSacExampleComplete.dsnx')
     const { dsn, ds2 } = location(1)
     const range = stations(ds2, 1)
     const { engineering, mapped } = engineeringFor(dsn, ds2, range)
     expect(mapped.read.costSection).toEqual({ section: 'OptAlignCost-1', name: 'opt 3' })
-    expect(mapped.sites).toEqual([])
-    expect(mapped.haul).toMatchObject({ enabled: false, freeHaulDistanceM: 150, overhaulDistanceM: 1000 })
+    // Access station 3,224.871 m on a road ending at 2,448.898 m: 775.97 m past its end.
+    const length = (range.endStation - range.startStation) * range.stationScale
+    expect(mapped.sites).toHaveLength(1)
+    expect(mapped.sites[0]).toMatchObject({
+      id: 'roadeng-pit-0',
+      kind: 'borrow',
+      materialId: 'roadeng-OB',
+      fixedCost: 0,
+    })
+    expect(mapped.sites[0].chainage).toBeCloseTo(length, 5)
+    expect(mapped.sites[0].pastRoadEndM).toBeCloseTo(3224.87074544 - 2448.89837736, 5)
+    expect(mapped.sites[0].accessDistanceM).toBe(mapped.sites[0].pastRoadEndM)
+    // OB swells 1 → 1.25: 3,200 bank m³ at 12 is 2,560 compacted m³ at 15.
+    expect(mapped.sites[0].capacityM3).toBeCloseTo(2560, 6)
+    expect(mapped.sites[0].unitRate).toBeCloseTo(15, 6)
+    expect(mapped.haul).toMatchObject({ enabled: true, freeHaulDistanceM: 150, overhaulDistanceM: 1000 })
     expect(mapped.unmapped.some((u) => u.includes('250 m and 1,500 m'))).toBe(true)
-    expect(mapped.unmapped.some((u) => u.includes('off this road'))).toBe(true)
+    expect(mapped.unmapped.some((u) => u.includes('off this road'))).toBe(false)
+    expect(mapped.notes.some((n) => n.includes("775.97 m past the road's end"))).toBe(true)
     expect(mapped.unmapped.some((u) => u.includes('V-align 1'))).toBe(true)
     const records = roadEngHaulRecords(
       { engineering, fillRate: mapped.fillRate! },
@@ -583,7 +658,7 @@ describe('costs RoadEng has no field for, in the [PGMaps] section', () => {
     validateEngineering(edited)
     const { records, native, back } = roundTrip(edited)
     expect(records.notes).toContain(
-      "Waste disposal rates, the default borrow rate, mobilization and contingency, economic allocation, haul directions and sidecast ranges, site notes, switched-off sites, reusable fractions and stripping materials, shallow-rock and overbreak rates, the gravel source: RoadEng has no field for these, so they travel in the design's [PGMaps] section and come back when it is opened here.",
+      "Waste disposal rates, the default borrow rate, mobilization and contingency, delivered-cost site selection, haul directions and sidecast ranges, site notes, switched-off sites, reusable fractions and stripping materials, shallow-rock and overbreak rates, the gravel source: RoadEng has no field for these, so they travel in the design's [PGMaps] section and come back when it is opened here.",
     )
     // RoadEng's own records give none of it.
     expect(native.haul).toMatchObject({ wasteRate: 0, borrowRate: 0, mobilizationCost: 0, contingencyPercent: 0 })
@@ -636,5 +711,67 @@ describe('costs RoadEng has no field for, in the [PGMaps] section', () => {
     })
     expect(refused.engineering).toBe(engineering)
     expect(refused.notes[0]).toMatch(/no longer fit the road/)
+  })
+})
+
+describe("RoadEng's embankment cost per ground type and its optimal haul", () => {
+  it("gives each material its ground type's embankment cost per bank m³, and writes an edit to that type alone", () => {
+    const { engineering, mapped } = engineeringFor(DSN, DS2)
+    expect(engineering.materials.map((m) => [m.id, m.fillRate])).toEqual([
+      ['roadeng-OB', 4],
+      ['roadeng-GR', 4],
+      ['roadeng-HP', 4],
+      ['roadeng-SR', 4],
+    ])
+    expect(mapped.fillRate).toBe(4)
+    // A foot design's embankment cost is per yd³.
+    const feet = engineeringFor(DSN.replace('units=10000', 'units=3048'), DS2, RANGE, 0.3048)
+    expect(feet.engineering.materials[0].fillRate).toBeCloseTo(4 / 0.764554857984, 6)
+    const edited = {
+      ...engineering,
+      materials: engineering.materials.map((m) => (m.id === 'roadeng-SR' ? { ...m, fillRate: 5.5 } : m)),
+    }
+    const records = roadEngHaulRecords({ engineering: edited }, { original: { dsnText: DSN, ds2Text: DS2 }, ...RANGE })
+    const lines = records.recordOverrides['104']
+    expect(lines.map((l) => l.split(',')[8])).toEqual(['4', '4', '4', '5.5'])
+    // Every other field of every type is as read.
+    expect(lines.slice(0, 3)).toEqual(GROUND.slice(0, 3))
+    expect(lines[3].split(',').filter((_, i) => i !== 8)).toEqual(GROUND[3].split(',').filter((_, i) => i !== 8))
+    // Different costs per type are read as they are, with no project-wide rate.
+    const mixed = engineeringFor(
+      DSN,
+      DS2.replace(
+        '104,SR,Solid Rock,100,400.000013884,1,0.8,48,4,',
+        '104,SR,Solid Rock,100,400.000013884,1,0.8,48,1.8,',
+      ),
+    )
+    expect(mixed.mapped.fillRate).toBeNull()
+    expect(mixed.engineering.materials.find((m) => m.id === 'roadeng-SR')!.fillRate).toBe(1.8)
+  })
+
+  it('reads a design with the economic plan and the pit of last resort, and carries a road taken off them', () => {
+    const { engineering, mapped } = engineeringFor(DSN, DS2)
+    expect(engineering.haul).toMatchObject({ allocation: 'economic', lastResort: true, enabled: true })
+    expect(mapped.notes.join(' ')).toMatch(/economic plan/)
+    const edited = {
+      ...engineering,
+      haul: { ...engineering.haul, allocation: 'nearest' as const, lastResort: undefined },
+    }
+    const records = roadEngHaulRecords({ engineering: edited }, { original: { dsnText: DSN, ds2Text: DS2 }, ...RANGE })
+    expect(parseRoadEngCostCarryover(records.pgmaps.Costs)?.haul).toEqual({ allocation: 'nearest', lastResort: false })
+    expect(records.notes.join(' ')).toMatch(/Nearest-site allocation, the pit of last resort switched off/)
+    const { dsn, ds2 } = applyRecords(DSN, DS2, records)
+    const back = applyRoadEngCostCarryover(engineeringFor(dsn, ds2).engineering, records.pgmaps.Costs, {
+      lengthM: 3000,
+      validate: validateEngineering,
+    })
+    expect(back.engineering.haul.allocation).toBe('nearest')
+    expect(back.engineering.haul.lastResort).toBeFalsy()
+    // A design that stores a solved costing has its haul on, with or without ReCost.
+    const costed = roadEngHaulFor(
+      { dsnText: DSN.replace('ReCost=1\r\n', '').replace(/OptParms_Pit-\d=[^\r]*\r\n/g, ''), ds2Text: DS2 },
+      { ...RANGE, costed: true },
+    )
+    expect(costed.haul.enabled).toBe(true)
   })
 })

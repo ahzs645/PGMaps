@@ -1458,6 +1458,7 @@ function writeTlt(
   layers: readonly RoadEngLayer[],
   sourceTlt: string | null,
   systems: readonly RoadEngLoggingSystem[] | null,
+  keepUnits = false,
 ): string {
   const layerLines = (from: number) =>
     layers.slice(from).map((l, k) => `Layer${from + k}=${l.pattern},${l.description},`)
@@ -1479,7 +1480,9 @@ function writeTlt(
       section: 'main',
       set: [
         ['CoordSys', coordSys],
-        ['units', '10000'],
+        ...(keepUnits && roadEngIniValue(sourceTlt, 'main', 'units') !== null
+          ? []
+          : [['units', '10000'] as [string, string]]),
       ],
     },
   ]
@@ -1588,7 +1591,9 @@ export function roadEngTerrainArchive(input: RoadEngTerrainInput): RoadEngTerrai
   const epsg = input.coordSys?.epsg ?? null
   let coordSys = roadEngCoordSys(epsg)
   const sourceCoord = sourceTlt !== null ? roadEngIniValue(sourceTlt, 'main', 'CoordSys') : null
-  if (epsg !== null && sourceCoord !== null && parseRoadEngCoordSys(sourceCoord).epsg === epsg)
+  // Over RoadEng's own file on the flat plane, the coordinates are the file's own, so its CoordSys,
+  // whatever this workspace makes of it, still describes them.
+  if (sourceCoord !== null && (epsg === null ? base !== null : parseRoadEngCoordSys(sourceCoord).epsg === epsg))
     coordSys = { value: sourceCoord, written: true }
   else if (epsg === null) notes.push('The terrain states no coordinate system: RoadEng will show it as not set.')
   else if (!coordSys.written)
@@ -1605,7 +1610,8 @@ export function roadEngTerrainArchive(input: RoadEngTerrainInput): RoadEngTerrai
           ...layers.slice(0, sourceLayerCount),
           ...layers.slice(sourceLayerCount).filter((l) => drawn.some((f) => roadEngLayerMatches(l.pattern, f.name))),
         ]
-  const tlt = writeTlt(coordSys.value, tltLayerList, sourceTlt, systems)
+  // RoadEng's own file keeps its unit (a terrain in feet stays in feet); the grid is written in metres.
+  const tlt = writeTlt(coordSys.value, tltLayerList, sourceTlt, systems, base !== null)
   const te1 = part(source?.te1)
   const keptParts = (['tlt', 'te1', 'codeTable', 'attributeChunks'] as const).filter((k) => source?.[k] !== undefined)
   if (keptParts.length)
@@ -1647,6 +1653,7 @@ export function roadEngProjectZip({
   terrain,
   terrainName,
   layouts,
+  surveys,
 }: {
   name: string
   /** The design, or null for a project that is its terrain alone. */
@@ -1656,6 +1663,8 @@ export function roadEngProjectZip({
   terrainName?: string
   /** Window layouts (`.ilt`) to put beside the design and terrain, by file name. */
   layouts?: Readonly<Record<string, Uint8Array>>
+  /** P-line traverses (`.tr1`, `.tr2`) a design names, by file name, as read (`roadEngPLine.ts`). */
+  surveys?: Readonly<Record<string, Uint8Array>>
 }): Uint8Array {
   const files = roadEngProjectFileNames(name)
   const terrainFile = terrainName ?? files.terrain
@@ -1671,6 +1680,7 @@ export function roadEngProjectZip({
       ...(design ? { [files.design]: [design, { level: 0 }] } : {}),
       ...(terrain ? { [terrainFile]: [terrain, { level: 0 }] } : {}),
       ...Object.fromEntries(Object.entries(layouts ?? {}).map(([n, bytes]) => [n, [bytes, { level: 6 }]])),
+      ...Object.fromEntries(Object.entries(surveys ?? {}).map(([n, bytes]) => [n, [bytes, { level: 6 }]])),
     },
     { mtime: ZIP_TIME },
   )

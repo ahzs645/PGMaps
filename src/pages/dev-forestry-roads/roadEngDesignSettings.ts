@@ -9,7 +9,8 @@
  *   (component count, code, name, left and right crossfall as rise over run, …, and a kind that is 0
  *   for a template and non-zero for a folder of library components); `T<t>-C<c>` a component (fragment
  *   count, class, `name!^!description` with `~` for commas, parameter count, …); `T<t>-C<c>-F<f>` its
- *   fragments, whose fourth field's lowest bit is set on a left-side fragment; `T<t>-C<c>-U<u>` its
+ *   fragments, whose fourth field's lowest bit is set on a left-side fragment, and their legs (read
+ *   in `roadEngConstruction.ts`, which places a roadway's subgrade edge from them); `T<t>-C<c>-U<u>` its
  *   parameters, `name~description|flags|value|feature|…|max offset|`, with flag bit 1 marking a slope
  *   kept as rise over run, flag 64 a calculated value and `feature` the reference feature (0-based)
  *   the value follows, −1 for none; `-U<u>-1` the formula of a calculated one. `LTable-<n>-*` is a
@@ -49,26 +50,83 @@
  * (`transitionOutM`) where the one after is the road's base section. The code is from Softree's
  * help and knowledge base ("TP Taper" in the template list); no sample design uses one.
  *
+ * Superelevation is read curve by curve (`roadEngCurveDesignFor`, `roadEngCurveSettings`,
+ * `withRoadEngCurveSettings`): the superelevation, runoff and side friction tables become the road's
+ * table mode (`CurveDesign.superelevationMode`), or its side friction mode where the curves' Auto
+ * uses RoadEng's side friction method, and each `108` record gives its curve its own design speed,
+ * e max, f max (field 11, in the side friction method), transitions, transition fraction and radius
+ * in the design's grid where the rule would give another, and its own e where RoadEng's Auto
+ * superelevation is off; a curve with RoadEng's Use Minimum Radius (bit 1 of field 9,
+ * {@link ROADENG_MINIMUM_RADIUS_BIT}) is held at its e max, and bit 8
+ * ({@link ROADENG_TABLE_SUPERELEVATION_BIT}) says which Auto method a curve uses, both read from
+ * Softree's files; the tangent runout's own setting was not found and is taken as RoadEng's automatic one,
+ * at the runoff's rate.
+ *
  * Lookup tables (`LTable-<n>`, or a `.tbl` file through `parseRoadEngTbl`) are read with
  * `roadEngTableValue`: superelevation interpolated, as Softree documents; widening stepped (the row
  * at or below the radius, the nearest deflection column), inferred from every curve of Softree's
- * 27.8 km sample. The widening table becomes PGMaps' `wideningTable` when the design's curves carry
- * widening (`roadEngWideningFor`), written as steps PGMaps' interpolation reproduces
- * (`roadEngWideningRows`), and each curve's stored widening is compared with PGMaps' figure.
+ * 27.8 km sample. The widening table becomes PGMaps' `wideningTable`, on each side its curves carry
+ * it (`roadEngWideningFor`), written as steps PGMaps' interpolation reproduces
+ * (`roadEngWideningRows`); a curve whose stored widening (`108` fields 17 and 18, inside and
+ * outside) the table does not give, or whose inside Auto widening is off
+ * ({@link ROADENG_AUTO_WIDENING_INSIDE_BIT}, bit 7 of field 9, read from Softree's samples), keeps
+ * its own on that side (`CurveSettings.insideWideningM`/`outsideWideningM`).
  *
  * Pure: no DOM or network access.
  */
 import { strFromU8, unzipSync } from 'fflate'
 import { createEngineeringDesign } from './engineeringTypes'
+import { ROADENG_UNITS, ROADENG_UNITS_READ } from './roadEngUnits'
 import type {
   AlignmentEngineering,
+  FillRequirement,
   GroundMaterial,
+  SitePreparationRange,
   StratumAssignment,
   TemplateAssignment,
   TemplateDefinition,
 } from './engineeringTypes'
-import { evaluateCurveCriteria } from './roadCriteria'
-import type { CurveDesign, RoadTemplate, RockCutTemplate, SectionComponent, SectionLayer } from './types'
+import { horizontalCurveFits } from './engine'
+import { pLineStrataPieces, ROADENG_PLINE_STRATUM_PREFIX, type PLineGround } from './roadEngPLine'
+import { evaluateCurveCriteria, MAX_CURVE_WIDENING_M, TABLE_SPEED_SNAP_KMH } from './roadCriteria'
+import {
+  readRoadEngFragments,
+  roadEngParameterValues,
+  roadEngRoadwayConstruction,
+  type RoadEngFragment,
+  type RoadEngRoadwayConstruction,
+} from './roadEngConstruction'
+import type { RoadEngAlignment, RoadEngCurveFields } from './roadEngImport'
+import {
+  MAX_PARAMETER_OVERRIDES,
+  OVERRIDE_FIELD_NAMES,
+  OVERRIDE_FIELDS,
+  overrideFieldValue,
+  type OverrideField,
+  type OverridePoint,
+  type TemplateParameterOverride,
+} from './templateParameterOverrides'
+import type {
+  Alignment,
+  BatterSource,
+  CurveDesign,
+  CurveLookupTable,
+  CurveSettings,
+  RoadTemplate,
+  RockCutTemplate,
+  SectionComponent,
+  SectionLayer,
+} from './types'
+import {
+  DEFAULT_BENCH_COUNT,
+  MAX_DITCH_DEPTH_M,
+  MAX_DITCH_WIDTH_M,
+  STRUCTURE_LIMITS,
+  type BenchedSlope,
+  type SectionBarrier,
+  type SectionWall,
+  type SubCut,
+} from './sectionStructures'
 
 /** A RoadEng station at or past this is "the end of the road" in `[LocationParms]`. */
 export const ROADENG_END_STATION = 99_999_999
@@ -111,6 +169,13 @@ export interface RoadEngParameter {
   /** The expression of a calculated value (`-U<n>-1`); null for an entered one. */
   formula: string | null
   calculated: boolean
+  /**
+   * A slope set to AUTO in RoadEng (flag 2 beside the slope flag): it takes the ground type's slope
+   * (`groundBatters.ts`). Read from Softree's LandXML tutorial design, whose Rural template (`RUR`,
+   * slopes on AUTO by its tutorial) is the only one with this flag on its closing slopes. Omitted
+   * is false.
+   */
+  auto?: boolean
 }
 
 export interface RoadEngComponent {
@@ -122,6 +187,8 @@ export interface RoadEngComponent {
   /** From its fragments: a component drawn on one side, or on both (`both`). */
   side: 'left' | 'right' | 'both'
   parameters: RoadEngParameter[]
+  /** Its fragments and legs (`roadEngConstruction.ts`); omitted where none were read. */
+  fragments?: RoadEngFragment[]
 }
 
 export interface RoadEngTemplate {
@@ -134,6 +201,8 @@ export interface RoadEngTemplate {
   /** A folder of library components in RoadEng's template editor, not a template a road uses. */
   folder: boolean
   components: RoadEngComponent[]
+  /** Metres per project unit, for the lengths its expressions give; omitted is metres. */
+  unitM?: number
 }
 
 export interface RoadEngGroundLayer {
@@ -150,6 +219,18 @@ export interface RoadEngStationRange {
   leftTemplate: string
   rightTemplate: string
   ground: RoadEngGroundLayer[]
+  /**
+   * The subgrade fill material (Fill Types Assignments): a ground type code, or `*1`/`*2` for the
+   * ground type of the range's first or second stratum layer (RoadEng's default is `*1`). Field 12 of
+   * the row (index 11), read from Softree's samples: Hart Rd holds SR over 346.214–445.132 m and `*2`
+   * either side, Align stage 8 RR over 1300–1500 ft, Location 18 CO on every range, the sample's own
+   * tutorials naming those materials and ranges. A range with Replaceable (quality based) ticked is
+   * this plain row: Softree's V11 RoadEng Resource tutorial ticks it for CO over the whole road
+   * (Location 13_2 → 13_3, which differ only in this field, `*1` → `CO`) and states CO and SI
+   * replaceable in Location 25_x, rows like every other sample's. So PGMaps reads every range as
+   * quality based; where RoadEng marks an unticked (exact) range is not shown by any sample.
+   */
+  fillMaterial: string
   raw: string[]
 }
 
@@ -163,13 +244,13 @@ export interface RoadEngCurveSettings {
   e: number
   /** Side friction the curve demands at its design speed, v²/(gR) − e. */
   sideFriction: number
-  /** Unidentified: 0.1 to 0.15 in Softree's samples, possibly the largest side friction allowed. */
+  /** The curve's f max, its largest side friction (0.1 to 0.17 in Softree's samples); the side friction method's. */
   field11: number
   transitionAtBcM: number
   transitionAtEcM: number
   /** Share of the transition before the BC (and after the EC). */
   transitionFraction: number
-  /** Inferred: inside and outside widening, m. */
+  /** Inside and outside widening, m (fields 17 and 18; checked against Softree's samples). */
   wideningInsideM: number
   wideningOutsideM: number
   /** The PI in the design's grid, project units as written. */
@@ -201,9 +282,9 @@ export interface RoadEngMaterial {
 
 export interface RoadEngCulvertDefault {
   kind: 'drain' | 'stream'
-  /** Inferred: thousandths of a project unit (mm in a metric design). */
+  /** Thousandths of a project unit (mm in a metric design), as placed culverts hold it (`roadEngPlacedCulverts.ts`). */
   diameterM: number | null
-  /** Inferred: degrees clockwise from the L-line, 90 square to it. */
+  /** Degrees clockwise from the L-line ahead, 90 square to it (`roadEngPlacedCulverts.ts`). */
   skewDegrees: number | null
   raw: string[]
 }
@@ -235,9 +316,53 @@ export interface RoadEngSettings {
   culvertDefaults: RoadEngCulvertDefault[]
   superelevationTables: RoadEngSuperelevationTable[]
   roadOptions: { designSpeedKmh: number | null; criteriaName: string | null; eMax: number | null } | null
-  /** Per-range template parameter overrides the design counts (`[design] ParmOverrides-*`). */
+  /** Per-range template parameter overrides the design counts (`[design] ParmOverrides-1`). */
   parameterOverrides: number
+  /** The overrides themselves (`[design] ParmOverrides-2…`), in file order. */
+  parameterOverrideEntries: RoadEngParameterOverrideEntry[]
+  /**
+   * Template layers given a fill material (RoadEng's Template Materials, which the Fill Types tab's
+   * Other Materials button opens): `[TemplatesSct] RoadSurfaceCodes-<n>=<code>|<description>,<ground
+   * type>`, n 0 the subgrade and 1–16 the layers above it. Read from Softree's V11 RoadEng Resource
+   * tutorial (chapter 25, step 9): Location 25_4 holds `Srf4|Layer 4 above subgrade,FR` after Srf4
+   * is given FR Fractured Rock with Replaceable unticked; an unassigned layer ends in a bare comma.
+   * Where a ticked Replaceable box is kept is not shown (no sample has one).
+   */
+  templateLayerMaterials?: { layer: number; code: string; description: string; material: string }[]
   warnings: string[]
+}
+
+/**
+ * One entry of RoadEng's Parameter Overrides (`[design] ParmOverrides-<n>`, n from 2):
+ * `station|code|parameter|value|description`. Read from Softree's samples (Hart Rd's turning lane,
+ * Location 18's two pullouts, Widening only's 43 entries over ten parameters): the station in
+ * project units, ±3.40282346639e+38 (±FLT_MAX) for the start and the end of the alignment; the
+ * value in the parameter's own units with `**` for the template's value; and the row's description,
+ * free text (`Alignment Start`, `turning lane`, `Taper Start`, `Pullout End`), which RoadEng's
+ * Duplicate button copies to the new row.
+ *
+ * The code is the side the parameter is overridden on ({@link ROADENG_OVERRIDE_LEFT} 4096,
+ * {@link ROADENG_OVERRIDE_RIGHT} 8192), not the parameter's place in the template: Hart Rd's 4096
+ * overrides `AcpWidth` of the left lane component (C0) and Location 18's 8192 `Width` of the right
+ * one (C1), which Softree's own articles on those designs name "ACP_WIDTH (left)" and
+ * "Width (Right)"; Widening only holds `OverlayThick` under both codes as two separate series, and
+ * its parameters at indices 0 to 15 of one component all carry 4096. No sample sets a lower bit.
+ *
+ * Entries at one station follow each other in key order (Duplicate makes them): the earlier one's
+ * value holds up to the station and the later one's after it.
+ */
+export interface RoadEngParameterOverrideEntry {
+  /** Its `ParmOverrides-<n>` number. */
+  key: number
+  /** Design station, metres; −Infinity and Infinity for RoadEng's alignment start and end (±FLT_MAX). */
+  station: number
+  code: number
+  parameter: string
+  /** The value as stored (project units for a length, rise over run for a slope); null for `**`. */
+  raw: number | null
+  /** The row's description as entered in RoadEng. */
+  description: string
+  text: string
 }
 
 export type RoadEngIni = Map<string, Map<string, string>>
@@ -332,10 +457,12 @@ function readTemplates(section: Map<string, string> | undefined, unitM: number, 
             featureIndex: Number.isFinite(feature) && feature >= 0 ? feature : null,
             formula,
             calculated: (flags & 64) !== 0 || formula !== null,
+            auto: kind === 'slope' && (flags & 2) !== 0,
           },
         })
       }
       const parameters = indexed.sort((a, b) => a.index - b.index).map((p) => p.parameter)
+      const fragments = readRoadEngFragments(section, prefix)
       components.push({
         index: c,
         className: (head[1] ?? '').trim(),
@@ -343,6 +470,7 @@ function readTemplates(section: Map<string, string> | undefined, unitM: number, 
         description: decodeText(description),
         side: sides.size === 1 ? [...sides][0] : 'both',
         parameters,
+        ...(fragments.length ? { fragments } : {}),
       })
     }
     templates.push({
@@ -353,6 +481,7 @@ function readTemplates(section: Map<string, string> | undefined, unitM: number, 
       crossfallRight: num(f[4]),
       folder: num(f[6]) !== 0,
       components,
+      ...(unitM !== 1 ? { unitM } : {}),
     })
   }
   return templates
@@ -401,6 +530,7 @@ function readRanges(
       leftTemplate: f[17] ?? '',
       rightTemplate: f[18] ?? '',
       ground,
+      fillMaterial: f[11] ?? '',
       raw: f,
     })
     from = toStation
@@ -457,6 +587,15 @@ function readCulverts(section: Map<string, string> | undefined, unitM: number): 
 }
 
 /**
+ * A design's default drain and stream culverts (`[Culvert] DefDrainCulvert`/`DefStreamCulvert`):
+ * the values RoadEng starts a new culvert from. `dsnText` is the alignment's `.dsn` (or the first
+ * alignment's, which holds them for the design), `unitM` metres per project unit.
+ */
+export function readRoadEngCulvertDefaults(dsnText: string, unitM: number): RoadEngCulvertDefault[] {
+  return readCulverts(readIni(dsnText).get('Culvert'), unitM)
+}
+
+/**
  * Reads one alignment's design settings: `dsnText` and `ds2Text` are its `LocationN.dsn` and
  * `LocationN.ds2`, `unitM` the design's metres per project unit (`[design] units` ÷ 10,000).
  * Templates are kept once per design, in the first alignment's `.dsn`; pass that file as
@@ -486,8 +625,38 @@ export function parseRoadEngSettings(
       }
     : null
   let parameterOverrides = 0
-  for (const [key, value] of ini.get('design') ?? [])
-    if (/^ParmOverrides/.test(key) && Number.isFinite(num(value))) parameterOverrides += num(value)
+  const parameterOverrideEntries: RoadEngParameterOverrideEntry[] = []
+  for (const [key, value] of ini.get('design') ?? []) {
+    const n = /^ParmOverrides-(\d+)$/.exec(key)
+    if (!n) continue
+    if (n[1] === '1') {
+      if (Number.isFinite(num(value))) parameterOverrides += num(value)
+      continue
+    }
+    const f = value.split('|')
+    const station = num(f[0]),
+      code = num(f[1])
+    const v = (f[3] ?? '').trim()
+    if (
+      !Number.isFinite(station) ||
+      !Number.isFinite(code) ||
+      !f[2]?.trim() ||
+      (v !== '**' && !Number.isFinite(num(v)))
+    ) {
+      warnings.push(`A parameter override could not be read and is left out: ${value.slice(0, 80)}`)
+      continue
+    }
+    parameterOverrideEntries.push({
+      key: Number(n[1]),
+      station: Math.abs(station) >= ROADENG_OVERRIDE_BEYOND ? Math.sign(station) * Infinity : station * unitM,
+      code,
+      parameter: f[2].trim(),
+      raw: v === '**' ? null : num(v),
+      description: (f[4] ?? '').trim(),
+      text: value,
+    })
+  }
+  parameterOverrideEntries.sort((a, b) => a.key - b.key)
 
   const curves: RoadEngCurveSettings[] = []
   const materials: RoadEngMaterial[] = []
@@ -568,11 +737,36 @@ export function parseRoadEngSettings(
     superelevationTables,
     roadOptions,
     parameterOverrides,
+    parameterOverrideEntries,
+    templateLayerMaterials: readTemplateLayerMaterials(templateSection),
     warnings,
   }
 }
 
-const UNITS: Record<string, number> = { '10000': 1, '3048': 0.3048 }
+/** `RoadSurfaceCodes-<n>` entries that name a fill material (`templateLayerMaterials`). */
+function readTemplateLayerMaterials(
+  section: Map<string, string> | undefined,
+): NonNullable<RoadEngSettings['templateLayerMaterials']> {
+  const out: NonNullable<RoadEngSettings['templateLayerMaterials']> = []
+  for (const [key, text] of section ?? []) {
+    const k = /^RoadSurfaceCodes-(\d+)$/.exec(key)
+    if (!k) continue
+    const comma = text.lastIndexOf(',')
+    const material = comma >= 0 ? text.slice(comma + 1).trim() : ''
+    if (!material) continue
+    const label = text.slice(0, comma)
+    const bar = label.indexOf('|')
+    out.push({
+      layer: Number(k[1]),
+      code: bar >= 0 ? label.slice(0, bar).trim() : '',
+      description: (bar >= 0 ? label.slice(bar + 1) : label).trim(),
+      material,
+    })
+  }
+  return out.sort((a, b) => a.layer - b.layer).slice(0, 32)
+}
+
+const UNITS = ROADENG_UNITS
 
 /** Every alignment's settings in a `.dsnx` archive, in part order. */
 export function readRoadEngSettings(bytes: Uint8Array): {
@@ -610,7 +804,7 @@ export function readRoadEngSettings(bytes: Uint8Array): {
   if (unitsText === undefined) throw Error('The RoadEng design does not state its units ([design] units).')
   const unitM = UNITS[unitsText]
   if (unitM === undefined)
-    throw Error(`The RoadEng design's units code ${unitsText} is not one this import reads (10000 metres, 3048 feet).`)
+    throw Error(`The RoadEng design's units code ${unitsText} is not one this import reads (${ROADENG_UNITS_READ}).`)
   return {
     unitM,
     parts: numbers.map((n) => ({
@@ -647,15 +841,40 @@ const LAYER_ORDER: [string, string][] = [
   ['BASETHICK', 'Base'],
   ['SUBBASETHICK', 'Sub-base'],
   ['SUBLAYER4THICK', 'Layer 4'],
+  // Resource I: surface 2 lies on surface 1.
+  ['SRF2THICK', 'Surface 2'],
+  ['SRF1THICK', 'Surface 1'],
 ]
 const WIDTH_PARTS = ['ACPWIDTH', 'SHOULDERWIDTH', 'SHOULDERPAVEWIDTH', 'SHOULDERGRAVWIDTH']
+/** One side's width parts where the roadway keeps a value per side (the guard-rail sample's Roadway). */
+const SIDE_WIDTH_PARTS = {
+  left: ['ACPWIDTHL', 'SHOULDERWIDTHL'],
+  right: ['ACPWIDTHR', 'SHOULDERWIDTHR'],
+}
+/**
+ * Each course's side-slope parameter (rise over run), by its thickness parameter: Rural I's
+ * `BaseFillSlope`, `SubbaseFillSlope`, `SubLayer4FillSlp`; Rural Paved's `CSTC_SLOPE`, `BASE_SLOPE`.
+ */
+const LAYER_SLOPES: Record<string, string[]> = {
+  CSTCTHICK: ['CSTCFILLSLOPE', 'CSTCSLOPE'],
+  BASETHICK: ['BASEFILLSLOPE', 'BASESLOPE'],
+  SUBBASETHICK: ['SUBBASEFILLSLOPE', 'SUBBASESLOPE'],
+  SUBLAYER4THICK: ['SUBLAYER4FILLSLP', 'SUBLAYER4SLOPE'],
+  SRF1THICK: ['SRF1FILLSLOPE'],
+  SRF2THICK: ['SRF2FILLSLOPE'],
+}
+/** A slope at or past this rise over run is vertical in RoadEng's library (`9999.99`). */
+const ROADENG_VERTICAL = 9000
 
 interface SideSection {
   width: number | null
-  layers: { key: string; name: string; depthM: number }[]
+  layers: { key: string; name: string; depthM: number; sideSlope?: number }[]
   crossfallPercent: number | null
   cutSlope: number | null
   fillSlope: number | null
+  /** Whether the slope each came from is AUTO in RoadEng (the ground type's slope applies). */
+  cutAuto: boolean
+  fillAuto: boolean
   /**
    * Slopes as rise over run; a null backslope is the side's cut slope. `backslopeHeight` is how far
    * above the ditch bottom the backslope runs before the closing cut slope (`DitchBackSlpHt`).
@@ -669,8 +888,14 @@ interface SideSection {
   } | null
   rockCut: RockCutTemplate | null
   roadwayKind: 'layered' | 'subgrade' | 'bridge' | null
-  /** Ordered slope and bench components (`component` mode only). */
+  /** Ordered slope components (`component` mode only). */
   components: SectionComponent[]
+  benches: { cut?: BenchedSlope; fill?: BenchedSlope }
+  walls: SectionWall[]
+  /** A fill wall's face, m from the centreline, where RoadEng places it there: its setback once the width is known. */
+  wallFaces: Map<string, number>
+  barriers: SectionBarrier[]
+  subCut: SubCut | null
 }
 
 /** Where a value in RoadEng's template table lives: a template header field or a parameter. */
@@ -707,8 +932,38 @@ export interface RoadEngSideSources {
   backslope?: { mode: RoadEngBackslopeMode; componentId?: string; heightM: number; depthM: number }
   /** Course thickness parameters by layer key (`acpthick`, `basethick`, …). */
   layers?: Record<string, RoadEngSource>
+  /** Course side slopes by the same keys; the road width includes their runs. */
+  layerSlopes?: Record<string, RoadEngSource>
   rockCutSlope?: RoadEngSource
   rockLedge?: RoadEngSource
+  /** Benched batters: face height, bench width, face slope and bench slope. */
+  benches?: Partial<
+    Record<
+      'cut' | 'fill',
+      { height?: RoadEngSource; width?: RoadEngSource; face?: RoadEngSource; fall?: RoadEngSource }
+    >
+  >
+  /** Walls by id: height, thickness, face batter, setback. */
+  walls?: Record<
+    string,
+    {
+      height?: RoadEngSource
+      thickness?: RoadEngSource
+      face?: RoadEngSource
+      setback?: RoadEngSource
+      cover?: RoadEngSource
+    }
+  >
+  /** Barriers by id: offset from the centreline, width, height. */
+  barriers?: Record<string, { offset?: RoadEngSource; width?: RoadEngSource; height?: RoadEngSource }>
+  subCut?: {
+    depth?: RoadEngSource
+    width?: RoadEngSource
+    outside?: RoadEngSource
+    bottom?: RoadEngSource
+    inside?: RoadEngSource
+    follows?: RoadEngSource
+  }
 }
 
 /**
@@ -766,6 +1021,7 @@ export function roadEngTemplateToPgmaps(
     right: blankSide(),
   }
   const used = new Set<RoadEngComponent>()
+  const roadwaySaid: Partial<Record<'left' | 'right', SidedNotes>> = {}
   for (const side of ['left', 'right'] as const) {
     const s = sides[side]
     const src = sources[side]
@@ -782,40 +1038,107 @@ export function roadEngTemplateToPgmaps(
       const roadwayFound = () => {
         if (superP && src.crossfall && Math.abs(superP.raw - fall) < 1e-9) src.crossfall.push(from(c, superP)!)
       }
-      // Roadway
-      if (s.roadwayKind === null && param(c, 'ACPWIDTH')) {
+      // Roadway. Its subgrade edge and depth come from the component's own construction where it
+      // reads as a closed sum (`roadEngConstruction.ts`); else from its width and course parameters.
+      const built =
+        s.roadwayKind === null && isClass(c, 'RDWY') ? roadEngRoadwayConstruction(c, side, t.unitM ?? 1) : null
+      if (s.roadwayKind === null && (param(c, 'ACPWIDTH') || built)) {
         s.roadwayKind = 'layered'
         used.add(c)
         roadwayFound()
-        s.width = r6(WIDTH_PARTS.reduce((sum, name) => sum + (value(c, name) ?? 0), 0))
-        src.width = WIDTH_PARTS.map((name) => from(c, param(c, name))).filter((v): v is RoadEngSource => !!v)
-        const follows = param(c, 'ACPWIDTH')!.featureIndex
-        if (follows !== null)
+        const parts = [...WIDTH_PARTS, ...SIDE_WIDTH_PARTS[side]]
+        const laneP = param(c, 'ACPWIDTH', SIDE_WIDTH_PARTS[side][0])
+        s.width = r6(parts.reduce((sum, name) => sum + (value(c, name) ?? 0), 0))
+        src.width = parts.map((name) => from(c, param(c, name))).filter((v): v is RoadEngSource => !!v)
+        if (built) {
+          const widthP = param(c, built.width.parameter)
+          if (widthP && !widthP.calculated) src.width = [from(c, widthP)!]
+          else if (!src.width.length) src.width = enteredSumOf(c, widthP).map((p) => from(c, p)!)
+        }
+        const follows = laneP?.featureIndex ?? null
+        if (laneP && follows !== null)
           once(
             notes,
-            `${label}: RoadEng runs the ${c.name} lane width along reference feature ${follows + 1}; its stated ${fmt(value(c, 'ACPWIDTH')!)} m is used as a fixed width.`,
+            `${label}: RoadEng runs the ${c.name} lane width along reference feature ${follows + 1}; its stated ${fmt(laneP.value)} m is used as a fixed width.`,
           )
         for (const [name, title] of LAYER_ORDER) {
           const p = param(c, name)
           if (p && !p.calculated) (src.layers ??= {})[name.toLowerCase()] = from(c, p)!
+          // A course's side slope: its edges run out and down from the course above (`sectionStructures.ts`).
+          const slopeP = param(c, ...(LAYER_SLOPES[name] ?? []))
+          if (slopeP && !slopeP.calculated) (src.layerSlopes ??= {})[name.toLowerCase()] = from(c, slopeP)!
+          const sideSlope =
+            slopeP && !slopeP.calculated && slopeP.raw !== 0 && Math.abs(slopeP.raw) < ROADENG_VERTICAL
+              ? r6(Math.min(STRUCTURE_LIMITS.courseSideSlope[1], 1 / Math.abs(slopeP.raw)))
+              : undefined
+          // Listed from the subgrade up, as PGMaps' course stack is: each course goes under the ones read.
           if (p && !p.calculated && p.value > 0)
-            s.layers.push({ key: name.toLowerCase(), name: title, depthM: r6(p.value) })
+            s.layers.unshift({
+              key: name.toLowerCase(),
+              name: title,
+              depthM: r6(p.value),
+              ...(sideSlope ? { sideSlope } : {}),
+            })
         }
-        const shoulder = WIDTH_PARTS.slice(1).reduce((sum, name) => sum + (value(c, name) ?? 0), 0)
+        const shoulder = WIDTH_PARTS.slice(1)
+          .concat(SIDE_WIDTH_PARTS[side].slice(1))
+          .reduce((sum, name) => sum + (value(c, name) ?? 0), 0)
         if (shoulder > 0)
           once(
             unmapped,
             `${label}: the ${fmt(shoulder)} m shoulder's own slope and thickness; it is taken as part of the road width at the road's crossfall.`,
           )
-        const flare = c.parameters.filter(
-          (p) => p.kind === 'slope' && /fill ?slo?pe?$|FILLSLP$|^(BASE|CSTC)_?SLOPE$/i.test(p.name) && !p.calculated,
-        )
-        if (flare.length && s.layers.length)
+        if (built) roadwaySaid[side] = roadwayFromConstruction(c, built, s)
+        else {
+          const flare = s.layers.reduce((sum, l) => sum + l.depthM * (l.sideSlope ?? 0), 0)
+          if (flare > 0) {
+            // RoadEng's lane width is the running surface; its courses spread out and down to the subgrade.
+            once(
+              notes,
+              `${label}: the courses' side slopes (${s.layers
+                .filter((l) => l.sideSlope)
+                .map((l) => `${l.name} ${fmt(l.sideSlope!)}:1`)
+                .join(
+                  ', ',
+                )}) spread the subgrade ${fmt(flare)} m past the running surface on the ${side}; the subgrade edge is the road's formation edge, where the ditch and batters start.`,
+            )
+            s.width = r6(s.width + flare)
+          }
+        }
+        // A sub-cut the roadway builds under its own subgrade becomes the side's sub-cut.
+        const cut = built?.subCut
+        if (cut && s.subCut === null) {
+          const L = STRUCTURE_LIMITS
+          if (
+            cut.depthM >= L.subCutDepthM[0] &&
+            cut.depthM <= L.subCutDepthM[1] &&
+            cut.widthM <= L.subCutWidthM[1] &&
+            cut.outsideSlope <= L.subCutOutsideSlope[1]
+          ) {
+            s.subCut = {
+              id: `roadeng-${safeId(t.code)}-subcut-roadway`,
+              name: `${c.name} ${cut.fragment}`,
+              reference: 'subgrade',
+              depthM: r6(cut.depthM),
+              widthM: r6(cut.widthM),
+              ...(cut.outsideSlope > 0 ? { outsideSlope: r6(cut.outsideSlope) } : {}),
+            }
+            const widthP = cut.widthParameter ? param(c, cut.widthParameter) : undefined
+            src.subCut = widthP && !widthP.calculated ? { width: from(c, widthP) } : {}
+            once(
+              notes,
+              `${label}: ${c.name} builds a sub-cut under its subgrade (${cut.fragment}): ${fmt(cut.depthM)} m deep, out to ${fmt(cut.widthM)} m from the centreline, its outside face ${cut.outsideSlope > 0 ? `${fmt(cut.outsideSlope)}:1` : 'vertical'}; it is dug and refilled under the road.`,
+            )
+          } else
+            once(
+              unmapped,
+              `${label}: ${c.name}'s sub-cut under its subgrade (${cut.fragment}, ${fmt(cut.depthM)} m deep, ${fmt(cut.widthM)} m wide) is past PGMaps' sub-cut limits.`,
+            )
+        }
+        for (const name of built?.deeperSurfaces ?? [])
           once(
             unmapped,
-            `${label}: the side slopes of the surfacing layers beyond the road edge (${flare
-              .map((p) => `${p.name} ${p.raw ? hv(p.raw) : '∞'}:1`)
-              .join(', ')}); PGMaps draws each course the road's width, square-edged.`,
+            `${label}: ${c.name}'s ${name} surface below its subgrade; it does not run out level and close back up as a sub-cut does.`,
           )
       } else if (s.roadwayKind === null && param(c, pick('SUBGRADEWIDTHL', 'SUBGRADEWIDTHR'))) {
         s.roadwayKind = 'subgrade'
@@ -842,6 +1165,7 @@ export function roadEngTemplateToPgmaps(
           above = toHv(value(c, 'FINALCUTSLP'))
         if (s.cutSlope === null && above !== null) {
           s.cutSlope = above
+          s.cutAuto = !!param(c, 'FINALCUTSLP')?.auto
           src.cutSlope = from(c, param(c, 'FINALCUTSLP'))
         }
         if (s.rockCut === null && rock !== null) {
@@ -864,25 +1188,47 @@ export function roadEngTemplateToPgmaps(
           inFill = (value(c, 'BAPPLYINFILL') ?? 1) !== 0
         const cut = toHv(value(c, 'FINALCUTSLP')),
           fill = toHv(value(c, 'FINALFILLSLP'))
-        const benches = param(c, 'BENCHHEIGHT') && param(c, 'BENCHBASEWIDTH') ? benchesOf(c) : null
-        if (benches && backslopeMode === 'component' && s.components.length === 0) {
-          for (const b of benches.components)
-            s.components.push({ ...b, id: `roadeng-${safeId(t.code)}-${side}-${b.id}`, side })
+        // Slope VI – Benches: faces BenchHeight high at BenchSlope, benches BenchBaseWidth wide.
+        // Slope VI makes up to MaxNumberBenches (the library's: at most 6), and never more than its
+        // construction draws: one `Cut Slope` or `Fill Slope` fragment per bench. Softree's Road6
+        // tutorial designs (V9 and V10, LOWV) hold an older version with five cut fragments and four
+        // fill fragments and no MaxNumberBenches. A count, not a length: its stored value, whatever
+        // the design's units.
+        const most = param(c, 'MAXNUMBERBENCHES')?.raw
+        const drawn = (kind: 'cut' | 'fill') =>
+          (c.fragments ?? []).filter(
+            (f) => f.side === side && new RegExp(`^${kind === 'cut' ? 'Cut' : 'Fill'} Slope`, 'i').test(f.name),
+          ).length
+        const countOf = (kind: 'cut' | 'fill') => {
+          let n = most !== undefined && Number.isFinite(most) ? Math.round(most) : DEFAULT_BENCH_COUNT
+          if (drawn(kind) > 0) n = Math.min(n, drawn(kind))
+          return Math.max(STRUCTURE_LIMITS.benchCount[0], Math.min(STRUCTURE_LIMITS.benchCount[1], n))
+        }
+        const benches = param(c, 'BENCHHEIGHT') && param(c, 'BENCHBASEWIDTH')
+        const sourcesOf = {
+          height: from(c, param(c, 'BENCHHEIGHT')),
+          width: from(c, param(c, 'BENCHBASEWIDTH')),
+          face: from(c, param(c, 'BENCHSLOPE')),
+          fall: from(c, param(c, 'BENCHBASESLOPE')),
+        }
+        for (const kind of ['cut', 'fill'] as const) {
+          const bench = benches ? benchOf(c, countOf(kind)) : null
+          if (!bench || !(kind === 'cut' ? inCut : inFill) || s.benches[kind]) continue
+          s.benches[kind] = bench
+          ;(src.benches ??= {})[kind] = sourcesOf
           once(
             notes,
-            `${label}: ${c.name} becomes ${benches.count} benches (${fmt(benches.heightM)} m slopes at ${fmt(benches.slopeHv)}:1, ${fmt(benches.widthM)} m benches) before the closing slopes; they hold where the section engine ends a component at the ground it meets.`,
+            `${label}: ${c.name} benches the ${kind} batter: ${fmt(bench.heightM)} m faces${bench.faceSlope ? ` at ${fmt(bench.faceSlope)}:1` : ''} and ${fmt(bench.widthM)} m benches, up to ${bench.count}, then the closing slope to ground.`,
           )
-        } else if (benches)
-          once(
-            unmapped,
-            `${label}: the benches of ${c.name} (${fmt(benches.heightM)} m slopes at ${fmt(benches.slopeHv)}:1 with ${fmt(benches.widthM)} m benches); PGMaps' components do not stop where they meet the ground, so only its closing slopes are used.`,
-          )
+        }
         if (inCut && s.cutSlope === null && cut !== null) {
           s.cutSlope = cut
+          s.cutAuto = !!param(c, 'FINALCUTSLP')?.auto
           src.cutSlope = from(c, param(c, 'FINALCUTSLP'))
         }
         if (inFill && s.fillSlope === null && fill !== null) {
           s.fillSlope = fill
+          s.fillAuto = !!param(c, 'FINALFILLSLP')?.auto
           src.fillSlope = from(c, param(c, 'FINALFILLSLP'))
         }
       } else if (finalSide) {
@@ -892,19 +1238,31 @@ export function roadEngTemplateToPgmaps(
           if (s.cutSlope === null && s.fillSlope === null) src.sharedSlope = true
           if (s.cutSlope === null) {
             s.cutSlope = both
+            s.cutAuto = !!finalSide.auto
             src.cutSlope = from(c, finalSide)
           }
           if (s.fillSlope === null) {
             s.fillSlope = both
+            s.fillAuto = !!finalSide.auto
             src.fillSlope = from(c, finalSide)
           }
         }
-        if (finalSide.flags & 2)
-          once(
-            notes,
-            `${label}: ${c.name}'s closing slope (${hv(finalSide.raw)}:1, cut and fill) is one RoadEng can set to AUTO, taking the ground type's slope; whether AUTO was chosen is not read, so the stated slope is used.`,
-          )
       }
+      // Structures: benches by height, walls, barriers and sub-cuts (`sectionStructures.ts`).
+      if (
+        structureFrom(
+          c,
+          side,
+          s,
+          src,
+          from,
+          label,
+          t.code,
+          (list, text) => once(list === 'notes' ? notes : unmapped, text),
+          t.unitM ?? 1,
+        )
+      )
+        used.add(c)
       // Ditch
       if (s.ditch === null && param(c, 'DITCHDEPTH', pick('DITCHDEPTHL', 'DITCHDEPTHR'))) {
         used.add(c)
@@ -932,6 +1290,14 @@ export function roadEngTemplateToPgmaps(
           continue
         }
         s.ditch = { depth, bottom, inslope, backslope: back ? Math.abs(back.value) : null, backslopeHeight: height }
+        const autoDitch = [param(c, 'DITCHINSLP', 'DITCHSLP', pick('DITCHSLPL', 'DITCHSLPR')), back].filter(
+          (p) => p?.auto,
+        )
+        if (autoDitch.length)
+          once(
+            unmapped,
+            `${label}: ${c.name}'s ${autoDitch.map((p) => p!.name).join(' and ')} on AUTO, which RoadEng takes from the ground type; the stated ${autoDitch.map((p) => `${hv(p!.raw)}:1`).join(' and ')} is used, because PGMaps' ditch slopes are the template's.`,
+          )
         if ((value(c, 'DITCHBERMWD') ?? 0) > 0)
           once(
             unmapped,
@@ -987,6 +1353,7 @@ export function roadEngTemplateToPgmaps(
         )
       } else {
         s.cutSlope = backHv
+        s.cutAuto = false
         src.cutSlope = src.ditch?.backslope
         src.backslope = { mode: 'batter', heightM: d.backslopeHeight, depthM: d.depth }
         delete src.sharedSlope
@@ -997,12 +1364,32 @@ export function roadEngTemplateToPgmaps(
       }
     }
   }
+  // The roadway's construction, said once where both sides are built alike.
+  const sameRoadway = roadwaySaid.left && roadwaySaid.right && roadwaySaid.left.key === roadwaySaid.right.key
+  for (const side of sameRoadway ? (['left'] as const) : (['left', 'right'] as const)) {
+    const said = roadwaySaid[side]
+    if (!said) continue
+    const where = sameRoadway ? 'on each side' : `on the ${side}`
+    for (const text of said.notes) once(notes, `${label}: ${text(where)}`)
+    for (const text of said.unmapped) once(unmapped, `${label}: ${text(where)}`)
+  }
   for (const c of t.components)
     if (!used.has(c))
       once(unmapped, `${label}: component ${c.name} (${c.className}, ${c.side}) is not one PGMaps' section can draw.`)
 
   const usedFallback: string[] = []
+  // Each batter's AUTO, from wherever `take` finds its slope (the road's current section's: stated).
+  const auto = { left: { cut: false, fill: false }, right: { cut: false, fill: false } }
+  const autoOf = (side: 'left' | 'right', what: 'width' | 'cutSlope' | 'fillSlope') => {
+    if (what === 'width') return
+    const kind = what === 'cutSlope' ? 'cut' : 'fill'
+    const flag = what === 'cutSlope' ? 'cutAuto' : 'fillAuto'
+    const own = sides[side],
+      other = sides[side === 'left' ? 'right' : 'left']
+    auto[side][kind] = own[what] !== null ? own[flag] : other[what] !== null ? other[flag] : false
+  }
   const take = (side: 'left' | 'right', what: 'width' | 'cutSlope' | 'fillSlope'): number => {
+    autoOf(side, what)
     const own = sides[side][what],
       other = sides[side === 'left' ? 'right' : 'left'][what]
     if (own !== null) return own
@@ -1035,22 +1422,34 @@ export function roadEngTemplateToPgmaps(
   }
   const ditchOf = (side: 'left' | 'right') => {
     const d = sides[side].ditch
-    if (!d || d.depth <= 0) return { width: 0, depth: 0, bottom: 0 }
+    if (!d || d.depth <= 0)
+      return { width: 0, depth: 0, bottom: 0 } as { width: number; depth: number; bottom: number; inslope?: number }
     const back = d.backslope ?? (per[side].cut > 0 ? 1 / per[side].cut : d.inslope)
     if (d.backslope === null)
       ditchSaid[side].notes.push(`ditch's backslope is RoadEng's cut slope (${fmt(per[side].cut)}:1).`)
     const width = r6(d.bottom + d.depth / d.inslope + d.depth / back)
-    if (Math.abs(d.inslope - back) > 1e-9)
-      ditchSaid[side].notes.push(
-        `ditch's ${hv(d.inslope)}:1 inslope and ${hv(back)}:1 backslope become one ${fmt((width - d.bottom) / 2 / d.depth)}:1 slope each side (PGMaps' ditch is symmetric), with the same top width (${fmt(width)} m) and cross-section area.`,
-      )
-    if (width > 10 || d.depth > 5) {
+    // A ditch whose inslope and backslope differ keeps both (`ditchInslope`).
+    const inslope = Math.abs(d.inslope - back) > 1e-9 ? r6(1 / d.inslope) : undefined
+    if (inslope !== undefined)
+      ditchSaid[side].notes.push(`ditch keeps its ${hv(d.inslope)}:1 inslope and ${hv(back)}:1 backslope.`)
+    if (width > MAX_DITCH_WIDTH_M || d.depth > MAX_DITCH_DEPTH_M) {
       ditchSaid[side].unmapped.push(
-        `ditch (${fmt(width)} m wide, ${fmt(d.depth)} m deep) is past PGMaps' 10 m by 5 m ditch; it is left out.`,
+        `ditch (${fmt(width)} m wide, ${fmt(d.depth)} m deep) is past PGMaps' ${MAX_DITCH_WIDTH_M} m by ${MAX_DITCH_DEPTH_M} m ditch; it is left out.`,
       )
       return { width: 0, depth: 0, bottom: 0 }
     }
-    return { width, depth: r6(d.depth), bottom: r6(Math.min(d.bottom, width)) }
+    if (inslope !== undefined && inslope > STRUCTURE_LIMITS.ditchInslope[1]) {
+      ditchSaid[side].unmapped.push(
+        `ditch's ${fmt(inslope)}:1 inslope is past PGMaps' ${STRUCTURE_LIMITS.ditchInslope[1]}:1; it is left out.`,
+      )
+      return { width: 0, depth: 0, bottom: 0 }
+    }
+    return {
+      width,
+      depth: r6(d.depth),
+      bottom: r6(Math.min(d.bottom, width)),
+      ...(inslope !== undefined ? { inslope } : {}),
+    }
   }
   const ditch = { left: ditchOf('left'), right: ditchOf('right') }
   for (const kind of ['notes', 'unmapped'] as const) {
@@ -1096,11 +1495,71 @@ export function roadEngTemplateToPgmaps(
   }
   if (fallL < 0) template.leftCrossfallPercent = fallL
   if (fallR !== template.crossfallPercent) template.rightCrossfallPercent = fallR
+  // RoadEng's AUTO slopes take the ground types' slopes; every other slope is the template's own.
+  for (const [kind, Kind] of [
+    ['cut', 'Cut'],
+    ['fill', 'Fill'],
+  ] as const) {
+    const source = (side: 'left' | 'right') => (auto[side][kind] ? 'material' : 'template') as BatterSource
+    if (source('left') === source('right')) template[`${kind}SlopeFrom`] = source('left')
+    else {
+      template[`left${Kind}SlopeFrom`] = source('left')
+      template[`right${Kind}SlopeFrom`] = source('right')
+    }
+  }
+  const autoSides = (['left', 'right'] as const).flatMap((side) =>
+    (['cut', 'fill'] as const).filter((kind) => auto[side][kind]).map((kind) => `${side} ${kind}`),
+  )
+  if (autoSides.length)
+    notes.push(
+      `${label}: the ${autoSides.join(', ')} slope${autoSides.length === 1 ? ' is' : 's are'} AUTO in RoadEng, so ${autoSides.length === 1 ? 'it takes' : 'they take'} the ground types' slopes: in cut each stratum layer's ground type, bending where the cut crosses a layer; in fill the range's fill material, else stratum layer 1's ground type. Where no ground type is given, the stated slope applies.`,
+    )
   if (per.right.cut !== per.left.cut) template.rightCutSlope = per.right.cut
   if (per.right.fill !== per.left.fill) template.rightFillSlope = per.right.fill
   if (ditch.right.width !== ditch.left.width) template.rightDitchWidth = ditch.right.width
   if (ditch.right.depth !== ditch.left.depth) template.rightDitchDepth = ditch.right.depth
   if (ditch.right.bottom !== ditch.left.bottom) template.rightDitchBottomWidth = ditch.right.bottom
+  if (ditch.left.inslope !== undefined) template.ditchInslope = ditch.left.inslope
+  if (ditch.right.inslope !== ditch.left.inslope) {
+    if (ditch.right.inslope === undefined) {
+      // The right ditch's slopes match: its own inslope is half what the bottom leaves.
+      if (ditch.right.depth > 0)
+        template.rightDitchInslope = r6((ditch.right.width - ditch.right.bottom) / 2 / ditch.right.depth)
+    } else template.rightDitchInslope = ditch.right.inslope
+  }
+  // Benches, walls, barriers and sub-cuts, side by side.
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+  const benchOn = (side: 'left' | 'right') =>
+    Object.keys(sides[side].benches).length ? sides[side].benches : undefined
+  if (same(benchOn('left'), benchOn('right'))) {
+    if (benchOn('left')) template.benches = benchOn('left')
+  } else {
+    if (benchOn('left')) template.leftBenches = benchOn('left')
+    if (benchOn('right')) template.rightBenches = benchOn('right')
+  }
+  // A fill wall whose face RoadEng places from the centreline stands that far past the formation edge.
+  for (const side of ['left', 'right'] as const)
+    for (const w of sides[side].walls) {
+      const face = sides[side].wallFaces.get(w.id)
+      if (face === undefined) continue
+      const setback = r6(face - template[`${side}Width`])
+      if (setback > 1e-6) w.setbackM = Math.min(STRUCTURE_LIMITS.wallSetbackM[1], setback)
+      else if (setback < -1e-6)
+        notes.push(
+          `${label}: ${w.name}'s face stands inside the ${side} formation edge in RoadEng; it is placed at the edge.`,
+        )
+    }
+  const walls = [...sides.left.walls, ...sides.right.walls]
+  if (walls.length) template.walls = walls.slice(0, 8)
+  const barriers = [...sides.left.barriers, ...sides.right.barriers]
+  if (barriers.length) template.barriers = barriers.slice(0, 8)
+  const subLeft = sides.left.subCut,
+    subRight = sides.right.subCut
+  if (subLeft && subRight && same(subLeft, subRight)) template.subCut = subLeft
+  else {
+    if (subLeft) template.leftSubCut = subLeft
+    if (subRight) template.rightSubCut = subRight
+  }
   const layers = sectionLayers(sides.left.layers, sides.right.layers)
   if (layers) template.layers = layers
   const components = [...sides.left.components, ...sides.right.components].slice(0, 40)
@@ -1129,6 +1588,96 @@ export function roadEngTemplateToPgmaps(
   return { template, subgradeDepthM, unmapped, notes, sources }
 }
 
+/** The entered lengths a calculated width adds up (`ROAD_WIDTHL = ACP_WIDTHL+SHOULDER_WIDTHL`); none for any other formula. */
+function enteredSumOf(c: RoadEngComponent, p: RoadEngParameter | undefined): RoadEngParameter[] {
+  if (!p?.formula || !/^\s*[A-Za-z_]\w*(\s*\+\s*[A-Za-z_]\w*)*\s*$/.test(p.formula)) return []
+  const parts = p.formula.split('+').map((name) => param(c, name.trim()))
+  return parts.every((x) => x && !x.calculated && x.kind === 'length') ? (parts as RoadEngParameter[]) : []
+}
+
+/** Notes worded for one side (`where`: "on the left", "on each side"), and a key to tell two sides apart. */
+interface SidedNotes {
+  key: string
+  notes: ((where: string) => string)[]
+  unmapped: ((where: string) => string)[]
+}
+
+/**
+ * One side of a roadway from its construction: the subgrade edge as the formation width, and the
+ * course thicknesses at the centreline as the gaps between its layer surfaces, so the courses add up
+ * to the subgrade's depth below RoadEng's profile. Courses RoadEng puts above its profile (Resource
+ * I's surfacing on a profile at the subgrade) are not drawn: PGMaps' profile is the subgrade too.
+ */
+function roadwayFromConstruction(c: RoadEngComponent, b: RoadEngRoadwayConstruction, s: SideSection): SidedNotes {
+  const out: SidedNotes = { key: '', notes: [], unmapped: [] }
+  s.width = r6(b.subgradeEdgeM)
+  const named = [...s.layers].reverse()
+  const depth = b.subgradeDepthM
+  const changed: string[] = []
+  if (depth <= 1e-9) {
+    if (named.length) {
+      const list = named.map((l) => `${fmt(l.depthM, 3)} m ${l.name.toLowerCase()}`).join(', ')
+      out.notes.push(
+        (where) =>
+          `${c.name} puts its ${list} above RoadEng's profile ${where}, which is the subgrade, as PGMaps' profile is; the courses are not drawn and the profile is not lowered.`,
+      )
+    }
+    s.layers = []
+  } else {
+    const surfaces = b.surfaceDepthsM.filter((d) => d >= -1e-9 && d <= depth + 1e-9)
+    if (!(surfaces[0] <= 1e-9)) surfaces.unshift(0)
+    const gaps = surfaces
+      .slice(1)
+      .map((d, i) => r6(d - surfaces[i]))
+      .filter((g) => g > 1e-9)
+    const sum = named.reduce((total, l) => total + l.depthM, 0)
+    if (gaps.length === named.length && gaps.length)
+      named.forEach((l, i) => {
+        if (Math.abs(l.depthM - gaps[i]) > 1e-6) {
+          const was = l.depthM
+          changed.push(`${l.key}:${gaps[i]}`)
+          out.notes.push(
+            (where) =>
+              `the ${l.name.toLowerCase()} is ${fmt(gaps[i], 3)} m thick at the centreline ${where}, between the surfaces ${c.name} builds; its ${fmt(was, 3)} m thickness includes the course set into it.`,
+          )
+        }
+        l.depthM = gaps[i]
+      })
+    else if (Math.abs(sum - depth) > 1e-6)
+      out.unmapped.push(
+        (where) =>
+          `${c.name} puts the subgrade ${fmt(depth, 3)} m below RoadEng's profile ${where}; PGMaps' courses add up to ${fmt(sum, 3)} m, which is used.`,
+      )
+    // What the construction adds past the courses' own runs (Rural I's S_THICK_ADJ1: the pavement
+    // and the shoulder's own fall) goes on a top course with no slope of its own, so the courses
+    // narrow back to RoadEng's running surface.
+    const top = named[0]
+    const residual = b.subgradeEdgeM - b.width.valueM - named.reduce((t, l) => t + l.depthM * (l.sideSlope ?? 0), 0)
+    if (top && top.sideSlope === undefined && top.depthM > 1e-9 && residual > 1e-6) {
+      const slope = r6(Math.min(STRUCTURE_LIMITS.courseSideSlope[1], residual / top.depthM))
+      top.sideSlope = slope
+      changed.push(`${top.key}~${slope}`)
+      out.notes.push(
+        (where) =>
+          `the ${top.name.toLowerCase()}'s edges slope ${fmt(slope)}:1 ${where}, taking the ${fmt(residual, 3)} m ${c.name} adds past the courses' own slopes, so the running surface is RoadEng's ${fmt(b.width.valueM, 3)} m.`,
+      )
+    }
+  }
+  const runs = b.runs.filter((r) => r.runM > 1e-9)
+  const sumText = `${b.width.parameter} ${fmt(b.width.valueM, 3)} m${runs.map((r) => ` + ${r.thickness} ÷ ${r.slope} ${fmt(r.runM, 3)} m`).join('')}`
+  out.notes.push(
+    (where) =>
+      `the subgrade edge, where the ditch and the batters start, is ${fmt(b.subgradeEdgeM, 3)} m from the centreline ${where}, as ${c.name} builds it: ${sumText}.`,
+  )
+  if (b.stored.length)
+    out.notes.push(
+      () =>
+        `${b.stored.join(', ')} in ${c.name} keep the value stored in the design; their expressions use values RoadEng has only while it builds a section.`,
+    )
+  out.key = JSON.stringify([c.name, b.subgradeEdgeM, depth, sumText, changed, b.stored, named.length])
+  return out
+}
+
 function blankSide(): SideSection {
   return {
     width: null,
@@ -1136,55 +1685,379 @@ function blankSide(): SideSection {
     crossfallPercent: null,
     cutSlope: null,
     fillSlope: null,
+    cutAuto: false,
+    fillAuto: false,
     ditch: null,
     rockCut: null,
     roadwayKind: null,
     components: [],
+    benches: {},
+    walls: [],
+    wallFaces: new Map(),
+    barriers: [],
+    subCut: null,
   }
 }
 
-/** RoadEng's Slope VI makes up to this many benches. */
-const ROADENG_MAX_BENCHES = 5
+/**
+ * A benched batter from Slope VI (`BenchHeight`, `BenchBaseWidth`, `BenchSlope`, `BenchBaseSlope`)
+ * or a bench by height (`MaxCutHeight`/`FillHeight`, `BenchWidth`, `CutSlope`/`FillSlope1`,
+ * `BenchSlope`). RoadEng's bench slope is positive downward, which is PGMaps' fall away from the
+ * road. Null where its values are past PGMaps' limits.
+ */
+function benchOf(c: RoadEngComponent, count: number): BenchedSlope | null {
+  const L = STRUCTURE_LIMITS
+  const heightM = value(c, 'BENCHHEIGHT', 'MAXCUTHEIGHT', 'FILLHEIGHT') ?? 0,
+    widthM = value(c, 'BENCHBASEWIDTH', 'BENCHWIDTH') ?? 0
+  const slopeVI = !!param(c, 'BENCHBASEWIDTH')
+  const face = toHv(slopeVI ? value(c, 'BENCHSLOPE') : value(c, 'CUTSLOPE', 'FILLSLOPE1'))
+  const benchSlope = slopeVI ? value(c, 'BENCHBASESLOPE') : value(c, 'BENCHSLOPE')
+  if (!(heightM >= L.benchHeightM[0] && heightM <= L.benchHeightM[1]) || !(widthM >= 0 && widthM <= L.benchWidthM[1]))
+    return null
+  const fall = r6(100 * (benchSlope ?? 0))
+  return {
+    heightM: r6(heightM),
+    widthM: r6(widthM),
+    ...(face !== null ? { faceSlope: face } : {}),
+    ...(fall && Math.abs(fall) <= L.benchFallPercent[1] ? { benchFallPercent: fall } : {}),
+    count,
+  }
+}
+
+const isClass = (c: RoadEngComponent, ...names: string[]) =>
+  names.some((n) => c.className.toUpperCase().replace(/\s+/g, '') === n)
 
 /**
- * Slope VI – Benches as PGMaps components: a slope `BenchHeight` high at `BenchSlope`, then a bench
- * `BenchBaseWidth` wide at `BenchBaseSlope`, repeated. Null where its values give no slope or bench
- * PGMaps' component limits take.
+ * RoadEng's walls, barriers, sub-cuts and benches by height as PGMaps' section structures, for one
+ * side; true when the component was one of them. Which parameter means what is read from Softree's
+ * native component library (`WebTemplateComponents.tpl`: each definition's parameters, expressions
+ * and fragments; none of the sample designs' roads uses one):
+ *
+ * - Wall I SG Fill Wall (`WallOffsetX`, `WallTopWidth`, `WallOutsideSlope`, `bHasFlatBase`,
+ *   `WallBaseCutDepth`) → a fill wall whose face stands `WallOffsetX + WallTopWidth` from the
+ *   centreline, `WallTopWidth` thick, embedded `WallBaseCutDepth` on a flat base, its top
+ *   `WallCoverHt` below the formation edge where `bWallIncludeSG` puts subgrade fill over it.
+ * - Wall II Gabion Fill Wall (`BlockWidth`, `BlockHeight`, `BlockOffset`, `WallOffsetX`) → a fill wall
+ *   one block thick whose face steps `BlockOffset` per block.
+ * - Wall III Gabion Cut Wall (`WallSetback`, `BlockWidth`, `BlockHeight`, and `WallSlope` in the
+ *   library or `BlockOverlapPct` in older versions) → a cut wall one block thick, its face stepping
+ *   `BlockHeight ÷ WallSlope` (or `BlockWidth × (1 − overlap)`) per block.
+ * - Wall IV Retaining Wall (`WallThick`, `WallHeight`) → a vertical cut wall, its backfill dug
+ *   `WallBFillOffset` (`WallHeight × WallFactor`) from its heel, up `WallBackSlope`, refilled to the
+ *   cut (`bBackFillToTopo`) or at `WallBackfillSlope` from its top.
+ * - Barrier I–III (`BarrierCL_Offset`/`POST_OFFSET`/`CL_OFFSET`, post and rail or base sizes).
+ * - SubCut I (`SCS`, into the merged surface) and SubCut II (`SC`, below subgrade): `SubCutDepth`,
+ *   `SubCutWidthL/R`, `SubCutSlopeOut` and `SubCutSlopeIn` (≥ 9000 vertical), the bottom at
+ *   `SubCutBotSlope` plus the crossfall where `bApplySuper` is on.
+ * - Bench by Cut Height / Bench by Fill Height: one bench where the cut or fill passes the height.
  */
-function benchesOf(
+function structureFrom(
   c: RoadEngComponent,
-): { components: SectionComponent[]; count: number; heightM: number; widthM: number; slopeHv: number } | null {
-  const heightM = value(c, 'BENCHHEIGHT') ?? 0,
-    widthM = value(c, 'BENCHBASEWIDTH') ?? 0
-  const slopeHv = toHv(value(c, 'BENCHSLOPE'))
-  if (!(heightM > 0) || !(widthM > 0) || slopeHv === null || heightM > 30 || heightM * slopeHv > 50 || widthM > 50)
-    return null
-  const baseRise = -(value(c, 'BENCHBASESLOPE') ?? 0) * widthM
-  const inCut = (value(c, 'BAPPLYINCUT') ?? 1) !== 0,
-    inFill = (value(c, 'BAPPLYINFILL') ?? 1) !== 0
-  if (!inCut && !inFill) return null
-  const condition = inCut && inFill ? 'always' : inCut ? 'cut' : 'fill'
-  // In fill the benches step down to the toe.
-  const sign = condition === 'fill' ? -1 : 1
-  const components: SectionComponent[] = []
-  for (let k = 1; k <= ROADENG_MAX_BENCHES; k++) {
-    const base = { name: `Bench ${k}`, side: 'left' as const, condition: condition as SectionComponent['condition'] }
-    components.push({
-      ...base,
-      id: `bench-${k}-slope`,
-      kind: 'slope',
-      widthM: r6(heightM * slopeHv),
-      riseM: sign * r6(heightM),
-    })
-    components.push({
-      ...base,
-      id: `bench-${k}`,
-      kind: 'bench',
-      widthM: r6(widthM),
-      riseM: r6(Math.max(-30, Math.min(30, baseRise))) || 0,
-    })
+  side: 'left' | 'right',
+  s: SideSection,
+  src: RoadEngSideSources,
+  from: (c: RoadEngComponent, p: RoadEngParameter | undefined) => RoadEngSource | undefined,
+  label: string,
+  code: string,
+  say: (list: 'notes' | 'unmapped', text: string) => void,
+  unitM = 1,
+): boolean {
+  const L = STRUCTURE_LIMITS
+  const id = `roadeng-${safeId(code)}-${side}-${c.index}`
+  const within = (v: number | undefined, [low, high]: readonly [number, number]) =>
+    v !== undefined && Number.isFinite(v) && v >= low && v <= high
+  const clampTo = (v: number, [low, high]: readonly [number, number]) => r6(Math.max(low, Math.min(high, v)))
+  // Benches by height.
+  if (param(c, 'MAXCUTHEIGHT') && param(c, 'BENCHWIDTH')) {
+    const bench = benchOf(c, 1)
+    if (bench && !s.benches.cut) {
+      s.benches.cut = bench
+      ;(src.benches ??= {}).cut = {
+        height: from(c, param(c, 'MAXCUTHEIGHT')),
+        width: from(c, param(c, 'BENCHWIDTH')),
+        face: from(c, param(c, 'CUTSLOPE')),
+        fall: from(c, param(c, 'BENCHSLOPE')),
+      }
+      say(
+        'notes',
+        `${label}: ${c.name} puts one ${fmt(bench.widthM)} m bench in a cut higher than ${fmt(bench.heightM)} m.`,
+      )
+      // Its cut slope is the slope above the bench too.
+      if (bench.faceSlope !== undefined && s.cutSlope === null) {
+        s.cutSlope = bench.faceSlope
+        src.cutSlope = from(c, param(c, 'CUTSLOPE'))
+      }
+    }
+    return true
   }
-  return { components, count: ROADENG_MAX_BENCHES, heightM, widthM, slopeHv }
+  if (param(c, 'FILLHEIGHT') && param(c, 'BENCHWIDTH') && param(c, 'FILLSLOPE1')) {
+    const bench = benchOf(c, 1)
+    if (bench && !s.benches.fill) {
+      s.benches.fill = bench
+      ;(src.benches ??= {}).fill = {
+        height: from(c, param(c, 'FILLHEIGHT')),
+        width: from(c, param(c, 'BENCHWIDTH')),
+        face: from(c, param(c, 'FILLSLOPE1')),
+        fall: from(c, param(c, 'BENCHSLOPE')),
+      }
+      const closing = toHv(value(c, 'FILLSLOPE2'))
+      if (closing !== null && s.fillSlope === null) {
+        s.fillSlope = closing
+        src.fillSlope = from(c, param(c, 'FILLSLOPE2'))
+      }
+      if ((value(c, 'MINFILLHEIGHT') ?? 0) > 0)
+        say(
+          'unmapped',
+          `${label}: ${c.name}'s ${fmt(value(c, 'MINFILLHEIGHT')!)} m least fill height; the bench applies in any fill past its height.`,
+        )
+    }
+    return true
+  }
+  // Walls.
+  if (param(c, 'WALLTOPWIDTH') && param(c, 'WALLOFFSETX')) {
+    const thick = value(c, 'WALLTOPWIDTH')!,
+      faceSlope = toHv(value(c, 'WALLOUTSIDESLOPE'))
+    const wall: SectionWall = {
+      id,
+      name: c.name,
+      side,
+      kind: 'fill',
+      heightM: L.wallHeightM[1],
+      thicknessM: clampTo(thick, L.wallThicknessM),
+      ...(faceSlope !== null && faceSlope <= L.wallFaceSlope[1] ? { faceSlope } : {}),
+      ...((value(c, 'BHASFLATBASE') ?? 1) !== 0 && within(value(c, 'WALLBASECUTDEPTH'), L.wallEmbedM)
+        ? { embedM: r6(value(c, 'WALLBASECUTDEPTH')!) }
+        : {}),
+      // Wall I's subgrade fill over the wall: `WallCoverHt` under `bWallIncludeSG`.
+      ...((value(c, 'BWALLINCLUDESG') ?? 0) !== 0 && within(value(c, 'WALLCOVERHT'), L.wallCoverHeightM)
+        ? { coverHeightM: r6(value(c, 'WALLCOVERHT')!) }
+        : {}),
+    }
+    const faceOffset = (value(c, 'WALLOFFSETX') ?? 0) + thick
+    s.walls.push(wall)
+    s.wallFaces.set(id, faceOffset)
+    ;(src.walls ??= {})[id] = {
+      thickness: from(c, param(c, 'WALLTOPWIDTH')),
+      face: from(c, param(c, 'WALLOUTSIDESLOPE')),
+      setback: from(c, param(c, 'WALLOFFSETX')),
+      ...(wall.coverHeightM !== undefined ? { cover: from(c, param(c, 'WALLCOVERHT')) } : {}),
+    }
+    say(
+      'notes',
+      `${label}: ${c.name} becomes a ${fmt(wall.thicknessM)} m fill wall on the ${side} whose face stands ${fmt(faceOffset)} m from the centreline, down to the ground${wall.coverHeightM ? `, its top ${fmt(wall.coverHeightM)} m below the formation edge under the road's fill` : ''}.`,
+    )
+    if (wall.coverHeightM && (value(c, 'WALLCOVERWIDTH') ?? 0) > 0)
+      say(
+        'unmapped',
+        `${label}: ${c.name}'s cover runs ${fmt(value(c, 'WALLCOVERWIDTH')!)} m out from the wall at its ${hv(value(c, 'WALLCOVERFILLSLOPE') ?? 1)}:1 fill slope; PGMaps keeps the fill face at the wall's face.`,
+      )
+    if ((value(c, 'BWALLBASEBACKFILL') ?? 0) !== 0)
+      say(
+        'unmapped',
+        `${label}: ${c.name}'s backfill at its toe (${(value(c, 'BACKFILLSLOPE') ?? 0) === 0 ? 'level' : `${fmt(100 * value(c, 'BACKFILLSLOPE')!, 1)} %`}) and its MSE layers; they are not drawn.`,
+      )
+    return true
+  }
+  // A roadway that draws blocks is a bridge (the library's Bridge IV, RDWY: `BlockHeight`,
+  // `BlockWidth` for the blocks under its deck; the V10 tutorials' BR5 template), never a wall.
+  if (
+    !isClass(c, 'RDWY') &&
+    (isClass(c, 'GABION') ||
+      (param(c, 'BLOCKWIDTH') &&
+        param(c, 'BLOCKHEIGHT') &&
+        (param(c, 'WALLSETBACK') || param(c, 'WALLOFFSETX') || param(c, 'BLOCKOFFSET'))))
+  ) {
+    const block = value(c, 'BLOCKWIDTH') ?? 0,
+      height = value(c, 'BLOCKHEIGHT') ?? 0
+    if (!(block > 0)) return true
+    const cutWall = !!param(c, 'WALLSETBACK')
+    // The library's Wall III steps each block back BlockHeight ÷ WallSlope (`STEP_WIDTH`); older
+    // versions step it by BlockWidth less BlockOverlapPct.
+    const wallSlope = cutWall ? value(c, 'WALLSLOPE') : undefined
+    const step =
+      wallSlope !== undefined
+        ? Math.abs(wallSlope) >= ROADENG_VERTICAL || wallSlope === 0
+          ? 0
+          : height / Math.abs(wallSlope)
+        : cutWall
+          ? block * (1 - (value(c, 'BLOCKOVERLAPPCT') ?? 0) / 100)
+          : (value(c, 'BLOCKOFFSET') ?? 0)
+    const faceSlope = height > 0 ? r6(step / height) : 0
+    const wall: SectionWall = {
+      id,
+      name: c.name,
+      side,
+      kind: cutWall ? 'cut' : 'fill',
+      heightM: L.wallHeightM[1],
+      thicknessM: clampTo(block, L.wallThicknessM),
+      ...(faceSlope > 0 && faceSlope <= L.wallFaceSlope[1] ? { faceSlope } : {}),
+      ...(cutWall && within(value(c, 'WALLSETBACK'), L.wallSetbackM) ? { setbackM: r6(value(c, 'WALLSETBACK')!) } : {}),
+    }
+    s.walls.push(wall)
+    if (!cutWall && param(c, 'WALLOFFSETX')) s.wallFaces.set(id, (value(c, 'WALLOFFSETX') ?? 0) + block)
+    ;(src.walls ??= {})[id] = {
+      thickness: from(c, param(c, 'BLOCKWIDTH')),
+      ...(cutWall ? { setback: from(c, param(c, 'WALLSETBACK')) } : {}),
+    }
+    say(
+      'notes',
+      `${label}: ${c.name} becomes a ${cutWall ? 'cut' : 'fill'} wall on the ${side}, ${fmt(block)} m thick, its face battered ${fmt(faceSlope)}:1 for the ${fmt(height)} m blocks; it runs to the ground and is drawn as one body.`,
+    )
+    return true
+  }
+  if (param(c, 'WALLTHICK') && param(c, 'WALLHEIGHT')) {
+    // Wall IV: the backfill dug behind it, level for WallBFillOffset (WallHeight × WallFactor), up at
+    // WallBackSlope, refilled to the cut (bBackFillToTopo) or at WallBackfillSlope from its top.
+    const values = roadEngParameterValues(c)
+    const offset = param(c, 'WALLBFILLOFFSET'),
+      offsetM = offset ? (values.get(offset.name.toUpperCase())?.expression ?? offset.raw) * unitM : null
+    const backRaw = value(c, 'WALLBACKSLOPE')
+    const baseSlope =
+      backRaw === undefined || !Number.isFinite(backRaw) || Math.abs(backRaw) >= ROADENG_VERTICAL || backRaw === 0
+        ? 0
+        : r6(1 / Math.abs(backRaw))
+    const toGround = (value(c, 'BBACKFILLTOTOPO') ?? 1) !== 0
+    const topRaw = value(c, 'WALLBACKFILLSLOPE')
+    const backfill =
+      offsetM !== null && within(offsetM, L.wallBackfillOffsetM) && within(baseSlope, L.wallBackfillBaseSlope)
+        ? {
+            offsetM: r6(offsetM),
+            baseSlope,
+            toGround,
+            ...(!toGround && topRaw !== undefined && within(100 * topRaw, L.wallBackfillTopSlopePercent)
+              ? { topSlopePercent: r6(100 * topRaw) }
+              : {}),
+          }
+        : undefined
+    const wall: SectionWall = {
+      id,
+      name: c.name,
+      side,
+      kind: 'cut',
+      heightM: clampTo(value(c, 'WALLHEIGHT')!, L.wallHeightM),
+      thicknessM: clampTo(value(c, 'WALLTHICK')!, L.wallThicknessM),
+      ...(backfill ? { backfill } : {}),
+    }
+    s.walls.push(wall)
+    ;(src.walls ??= {})[id] = { height: from(c, param(c, 'WALLHEIGHT')), thickness: from(c, param(c, 'WALLTHICK')) }
+    say(
+      'notes',
+      `${label}: ${c.name} becomes a ${fmt(wall.heightM)} m cut wall on the ${side}, ${fmt(wall.thicknessM)} m thick${
+        backfill
+          ? `; the ground behind it is dug ${fmt(backfill.offsetM)} m back from its heel, then up at ${backfill.baseSlope ? `${fmt(backfill.baseSlope)}:1` : 'a vertical face'}, and refilled ${backfill.toGround ? 'to the cut surface' : `to a ${fmt(backfill.topSlopePercent ?? 0, 1)} % slope from its top`}`
+          : '; the backfill wedge behind it is not drawn'
+      }.`,
+    )
+    return true
+  }
+  // Barriers.
+  const offsetP = param(c, 'BARRIERCLOFFSET', 'POSTOFFSET', 'CLOFFSET')
+  if (
+    isClass(c, 'GUARDRAIL', 'BARRIER', 'RAILING') ||
+    (offsetP && (param(c, 'POSTHEIGHT') || param(c, 'TOTALHEIGHT')))
+  ) {
+    if ((value(c, 'BINCLUDEBARRIER') ?? 1) === 0) return true
+    const kind: SectionBarrier['kind'] = param(c, 'TOTALHEIGHT')
+      ? 'concrete'
+      : param(c, 'BASEOFFSET') || isClass(c, 'RAILING')
+        ? 'railing'
+        : 'guard-rail'
+    // The offset is from the centreline, whatever its description says, unless the component draws
+    // its posts from the road edge's point code. Softree's guard-rail article (GuardRail.dsnx,
+    // "Overrides: Controlling a Guardrail") describes POST_OFFSET as "offset from edge of shoulder"
+    // in its parameter list but as "the distance from C/L to the inside of the guardrail" in its
+    // text, and its section at 36+50 (POST_OFFSET overridden from 17 at 36+15 to 16 at 36+99.5,
+    // 16.6 there) draws the posts 16.7 ft either side of the centreline, inside the 22 ft shoulder
+    // edge; that component draws from its attachment point (`-`). The Guard Rail in the V10
+    // tutorials' BR5 bridge template draws its posts from `RE-`.
+    const fromEdge = !!offsetP && (c.fragments ?? []).some((f) => f.side === side && /^RE-?$/i.test(f.attach))
+    if (fromEdge && s.width === null) {
+      say('unmapped', `${label}: ${c.name} on the ${side}: it stands from the road edge, and the section has none.`)
+      return true
+    }
+    const offset = (offsetP?.value ?? 0) + (fromEdge ? (s.width ?? 0) : 0)
+    const widthM =
+      kind === 'concrete'
+        ? (value(c, 'BASEWIDTH') ?? 0.6)
+        : kind === 'railing'
+          ? Math.max(value(c, 'BASEWIDTH') ?? 0, (value(c, 'POSTTHICKNESS') ?? 0.2) + (value(c, 'RAILTHICKNESS') ?? 0))
+          : (value(c, 'POSTTHICKNESS') ?? 0.2) + (value(c, 'RAILTHICKNESS') ?? 0)
+    const heightM =
+      kind === 'concrete'
+        ? (value(c, 'TOTALHEIGHT') ?? 0.8)
+        : (value(c, 'POSTHEIGHT') ?? 0.8) + (kind === 'railing' ? (value(c, 'BASEHEIGHT') ?? 0) : 0)
+    const barrier: SectionBarrier = {
+      id,
+      name: c.name,
+      side,
+      kind,
+      offsetM: clampTo(offset, L.barrierOffsetM),
+      widthM: clampTo(widthM, L.barrierWidthM),
+      heightM: clampTo(heightM, L.barrierHeightM),
+    }
+    s.barriers.push(barrier)
+    ;(src.barriers ??= {})[id] = {
+      ...(fromEdge ? {} : { offset: from(c, offsetP) }),
+      height: from(c, param(c, kind === 'concrete' ? 'TOTALHEIGHT' : 'POSTHEIGHT')),
+      ...(kind === 'concrete' ? { width: from(c, param(c, 'BASEWIDTH')) } : {}),
+    }
+    say(
+      'notes',
+      `${label}: ${c.name} stands ${fmt(barrier.offsetM)} m from the centreline on the ${side}${fromEdge ? `, ${fmt(offsetP?.value ?? 0)} m past the road edge` : ''}, ${fmt(barrier.heightM)} m high; it is drawn and measured by length, with no earthwork.`,
+    )
+    return true
+  }
+  // Sub-cuts.
+  if (param(c, 'SUBCUTDEPTH')) {
+    const depth = value(c, 'SUBCUTDEPTH') ?? 0
+    const widthP = param(c, side === 'left' ? 'SUBCUTWIDTHL' : 'SUBCUTWIDTHR')
+    const width = widthP?.value ?? 0
+    if (!(width > 0) || !within(depth, L.subCutDepthM)) return true
+    const out = value(c, 'SUBCUTSLOPEOUT')
+    const outsideSlope = out === undefined || Math.abs(out) >= ROADENG_VERTICAL || out === 0 ? 0 : r6(1 / Math.abs(out))
+    // SubCut I/II: the bottom at SubCutBotSlope plus the crossfall where bApplySuper is on, reached
+    // down SubCutSlopeIn (the library's 9999.99: vertical).
+    const inRaw = value(c, 'SUBCUTSLOPEIN')
+    const insideSlope =
+      inRaw === undefined || Math.abs(inRaw) >= ROADENG_VERTICAL || inRaw === 0 ? undefined : r6(1 / Math.abs(inRaw))
+    const botRaw = value(c, 'SUBCUTBOTSLOPE')
+    const bottomSlopePercent = botRaw !== undefined && botRaw !== 0 ? r6(100 * botRaw) : undefined
+    const followsCrossfall = param(c, 'BAPPLYSUPER') ? (value(c, 'BAPPLYSUPER') ?? 0) !== 0 : undefined
+    s.subCut = {
+      id: `roadeng-${safeId(code)}-subcut-${c.index}`,
+      name: c.name,
+      reference: isClass(c, 'SCS') ? 'merged' : 'subgrade',
+      depthM: r6(depth),
+      widthM: clampTo(width, L.subCutWidthM),
+      ...(outsideSlope > 0 ? { outsideSlope: Math.min(L.subCutOutsideSlope[1], outsideSlope) } : {}),
+      ...(bottomSlopePercent !== undefined && within(bottomSlopePercent, L.subCutBottomSlopePercent)
+        ? { bottomSlopePercent }
+        : {}),
+      ...(followsCrossfall === false ? { followsCrossfall } : {}),
+      ...(insideSlope !== undefined && within(insideSlope, L.subCutInsideSlope) ? { insideSlope } : {}),
+    }
+    src.subCut = {
+      depth: from(c, param(c, 'SUBCUTDEPTH')),
+      width: from(c, widthP),
+      outside: from(c, param(c, 'SUBCUTSLOPEOUT')),
+      bottom: from(c, param(c, 'SUBCUTBOTSLOPE')),
+      inside: from(c, param(c, 'SUBCUTSLOPEIN')),
+      follows: from(c, param(c, 'BAPPLYSUPER')),
+    }
+    say(
+      'notes',
+      `${label}: ${c.name} digs ${fmt(depth)} m below the ${s.subCut.reference === 'merged' ? 'lower of subgrade and ground' : 'subgrade'} out to ${fmt(width)} m on the ${side} and refills it.`,
+    )
+    if (s.subCut.bottomSlopePercent !== undefined || s.subCut.followsCrossfall === false || s.subCut.insideSlope)
+      say(
+        'notes',
+        `${label}: ${c.name}'s bottom is straight from ${fmt(depth)} m below the centreline at ${fmt(s.subCut.bottomSlopePercent ?? 0, 1)} %${s.subCut.followsCrossfall === false ? '' : " plus the road's crossfall"}${s.subCut.insideSlope ? `, reached down a ${fmt(s.subCut.insideSlope)}:1 inside slope` : ''}.`,
+      )
+    if ((value(c, 'SUBCUTMAXDAYLIGHT') ?? 0) > 0)
+      say('unmapped', `${label}: ${c.name}'s ${fmt(value(c, 'SUBCUTMAXDAYLIGHT')!)} m limit past its width.`)
+    return true
+  }
+  return false
 }
 const clampWidth = (w: number) => Math.max(0.1, Math.min(50, w))
 const sameRock = (a: RockCutTemplate, b: RockCutTemplate) =>
@@ -1193,12 +2066,14 @@ const sameRock = (a: RockCutTemplate, b: RockCutTemplate) =>
 function sectionLayers(left: SideSection['layers'], right: SideSection['layers']): SectionLayer[] | undefined {
   if (!left.length && !right.length) return undefined
   const same =
-    left.length === right.length && left.every((l, i) => l.key === right[i].key && l.depthM === right[i].depthM)
+    left.length === right.length &&
+    left.every((l, i) => l.key === right[i].key && l.depthM === right[i].depthM && l.sideSlope === right[i].sideSlope)
   const make = (l: SideSection['layers'][number], side: SectionLayer['side']): SectionLayer => ({
     id: side === 'both' ? `roadeng-${l.key}` : `roadeng-${l.key}-${side}`,
     name: l.name,
     side,
     depthM: Math.min(2, l.depthM),
+    ...(l.sideSlope ? { sideSlope: l.sideSlope } : {}),
   })
   const layers = same
     ? left.map((l) => make(l, 'both'))
@@ -1206,13 +2081,13 @@ function sectionLayers(left: SideSection['layers'], right: SideSection['layers']
   // A stack is at most 5 m a side; keep courses from the top down until it is full.
   const kept: SectionLayer[] = []
   const depth = { left: 0, right: 0 }
-  for (const l of layers) {
+  for (const l of [...layers].reverse()) {
     const sides = l.side === 'both' ? (['left', 'right'] as const) : ([l.side] as const)
     if (sides.some((s) => depth[s] + l.depthM > 5)) continue
     for (const s of sides) depth[s] += l.depthM
-    kept.push(l)
+    kept.unshift(l)
   }
-  return kept.slice(0, 20)
+  return kept.slice(-20)
 }
 
 export interface RoadEngRangeOptions {
@@ -1308,7 +2183,17 @@ export function roadEngTemplateFor(
   }
   const ranges = settings.stationRanges.length
     ? settings.stationRanges
-    : [{ fromStation: null, toStation: null, leftTemplate: '', rightTemplate: '', ground: [], raw: [] }]
+    : [
+        {
+          fromStation: null,
+          toStation: null,
+          leftTemplate: '',
+          rightTemplate: '',
+          ground: [],
+          fillMaterial: '',
+          raw: [],
+        } satisfies RoadEngStationRange,
+      ]
   if (!settings.stationRanges.length)
     unmapped.push('The alignment names no templates by station range ([LocationParms]).')
   const sideRanges = (['left', 'right'] as const).map((side) =>
@@ -1438,10 +2323,6 @@ export function roadEngTemplateFor(
       unmapped.push(...m.unmapped)
       notes.push(...m.notes)
     }
-  if (settings.parameterOverrides > 0)
-    unmapped.push(
-      `${settings.parameterOverrides} per-range template parameter overrides; the templates' own values are used.`,
-    )
   for (const c of settings.culvertDefaults)
     unmapped.push(
       `The default ${c.kind} culvert (${c.diameterM === null ? 'size not read' : `${fmt(c.diameterM * 1000, 0)} mm`}); it is a starting value for new culverts, not a culvert on the road.`,
@@ -1463,6 +2344,7 @@ const dedupe = (list: string[]) => [...new Set(list)]
 
 /** RoadEng's lookup tables by their `LTable` number. */
 export const ROADENG_SUPERELEVATION_TABLE = 0
+export const ROADENG_SIDE_FRICTION_TABLE = 1
 export const ROADENG_RUNOFF_TABLE = 2
 export const ROADENG_WIDENING_TABLE = 3
 /** Lines and columns read from a `.tbl` file. */
@@ -1656,16 +2538,96 @@ export interface RoadEngWideningMapping {
     tableM: number | null
     pgmapsInsideM: number | null
     pgmapsOutsideM: number | null
+    /** RoadEng's Auto widening on the inside ({@link ROADENG_AUTO_WIDENING_INSIDE_BIT}); null without a flag word. */
+    autoInside: boolean | null
+    /** RoadEng's Auto widening on the outside ({@link roadEngAutoWideningOutside}); null where the flag word does not say. */
+    autoOutside: boolean | null
+    /** The widening the curve keeps as its own (`CurveSettings`), by side; absent where the rule gives RoadEng's. */
+    own: Pick<CurveSettings, 'insideWideningM' | 'outsideWideningM'> | null
   }[]
   unmapped: string[]
   notes: string[]
 }
 
 /**
- * The design's curve widening as PGMaps' widening table. RoadEng applies its widening only where a
- * template has curve widening built in, and stores what each curve got (`108`); the table is taken
- * only when at least one curve carries widening, and each curve's stored widening is compared with
- * what PGMaps then calculates.
+ * RoadEng's `108` flag word (field 9) bit set on a curve whose inside widening RoadEng reads from its
+ * widening table (the inside Auto box of the curve panel). Read from Softree's samples: every curve
+ * with the bit (Location 18, RoadEng 11, 1521: seven curves whose inside widening is the table's
+ * step value at their radius and deflection; LongRoad 5585/5587/5590: five) holds the table's value,
+ * and every curve without it holds its own: the bluff road (113) 1 ft on five curves of a design
+ * with no widening table, the cul-de-sac design (1393) 0 on three curves the table gives 2–2.5 m.
+ * Softree's V10 and V11 tutorial packages and knowledge-base designs (1,700 curves in 150
+ * designs, `roadEngHuntSamples.test.ts` under `ROADENG_HUNT`) hold the same: a curve's inside is the
+ * table's value exactly where bit 7 is set: where the table gives widening, 287 curves with it set
+ * hold the table's value and 72 with it clear hold their own; the V10 forest-road designs, which
+ * have no table, hold 592 typed values with it clear.
+ */
+export const ROADENG_AUTO_WIDENING_INSIDE_BIT = 128
+/**
+ * The two `108` field 9 bits one of which is the outside Auto widening box: bit 12 (4096) set and
+ * bit 5 (32) clear on every curve whose outside widening is the table's (LongRoad and its four V10
+ * siblings, 5585/5587/5590), bit 12 clear and bit 5 set on every curve that keeps its own outside
+ * value against a table that gives one (Location 18 and the V11 designs, 1521; the cul-de-sac,
+ * 1393). No curve of Softree's 150 public designs has the two bits set together or clear together,
+ * so which one RoadEng reads is not shown; the third candidate, bit 1, is the panel's Use Minimum
+ * Radius (every curve with it holds e = e max, as the curve panel's help says). Read as Auto only
+ * where the two agree. Never written: an edited outside widening goes back in fields 17/18 with both
+ * bits as read, and the export says where RoadEng recalculates it (`roadEngOutsideAutoNote`).
+ */
+export const ROADENG_AUTO_WIDENING_OUTSIDE_BITS = { on: 4096, off: 32 } as const
+/** A curve's stored widening this close to the rule's is the rule's, m (rounding in the file). */
+const SAME_WIDENING_M = 0.0005
+
+/** RoadEng's outside Auto widening from a `108` flag word; null where it is unreadable or its two bits disagree. */
+export function roadEngAutoWideningOutside(flags: number | undefined): boolean | null {
+  if (flags === undefined || !Number.isInteger(flags) || flags < 0) return null
+  const on = (flags & ROADENG_AUTO_WIDENING_OUTSIDE_BITS.on) !== 0,
+    off = (flags & ROADENG_AUTO_WIDENING_OUTSIDE_BITS.off) !== 0
+  return on === off ? null : on
+}
+
+/** RoadEng's inside Auto widening from a `108` flag word; null without a readable one. */
+export function roadEngAutoWideningInside(flags: number | undefined): boolean | null {
+  return flags !== undefined && Number.isInteger(flags) && flags >= 0
+    ? (flags & ROADENG_AUTO_WIDENING_INSIDE_BIT) !== 0
+    : null
+}
+
+/**
+ * A curve's own widening from its `108` record against what the road's rule gives it: a side keeps
+ * its stored value where the rule gives another, and also where RoadEng's Auto widening on that
+ * side is off and the rule follows a table or vehicle (RoadEng then keeps the typed value whatever
+ * the curve's radius becomes). Null when the rule gives both stored values.
+ */
+export function roadEngCurveWidening(
+  stored: { insideM: number; outsideM: number },
+  rule: { insideM: number; outsideM: number },
+  options: { autoInside: boolean | null; autoOutside?: boolean | null; ruleVaries: boolean },
+): Pick<CurveSettings, 'insideWideningM' | 'outsideWideningM'> | null {
+  const own: Pick<CurveSettings, 'insideWideningM' | 'outsideWideningM'> = {}
+  const ok = (v: number) => Number.isFinite(v) && v >= 0 && v <= MAX_CURVE_WIDENING_M
+  const differs = (a: number, b: number) => !(Math.abs(a - b) <= SAME_WIDENING_M)
+  if (
+    ok(stored.insideM) &&
+    (differs(stored.insideM, rule.insideM) || (options.autoInside === false && options.ruleVaries))
+  )
+    own.insideWideningM = r6(stored.insideM)
+  if (
+    ok(stored.outsideM) &&
+    (differs(stored.outsideM, rule.outsideM) || (options.autoOutside === false && options.ruleVaries))
+  )
+    own.outsideWideningM = r6(stored.outsideM)
+  return Object.keys(own).length ? own : null
+}
+
+/**
+ * The design's curve widening as PGMaps' widening table and each curve's own widening. RoadEng
+ * applies its widening only where a template has curve widening built in, and stores what each
+ * curve got (`108` fields 17 and 18, inside and outside). The table is taken, on a side, only when
+ * a curve carries that side's table value (Location 18 widens the inside only, LongRoad both); a
+ * curve whose stored widening the table does not give (Auto off, a value typed in the curve panel,
+ * or a design without a widening table, like the bluff road) keeps its own on that side
+ * ({@link roadEngCurveWidening}), so PGMaps' figure is RoadEng's on every curve.
  */
 export function roadEngWideningFor(settings: RoadEngSettings): RoadEngWideningMapping {
   const unmapped: string[] = []
@@ -1684,73 +2646,113 @@ export function roadEngWideningFor(settings: RoadEngSettings): RoadEngWideningMa
         : null,
     pgmapsInsideM: null,
     pgmapsOutsideM: null,
+    autoInside: roadEngAutoWideningInside(Number(c.raw[9])),
+    autoOutside: roadEngAutoWideningOutside(Number(c.raw[9])),
+    own: null,
   }))
-  if (!table) {
-    if (widened.length)
-      unmapped.push(
-        `Curve widening on ${widened.length} curve${widened.length === 1 ? '' : 's'} (${widened.map((c) => `PI ${c.pi} ${fmt(c.wideningInsideM)}/${fmt(c.wideningOutsideM)} m`).join(', ')}, inside/outside) with no widening table to take it from; PGMaps' widening is a rule for the whole road and is left off.`,
-      )
-    return { wideningTable: null, comparison, unmapped, notes }
-  }
-  const name = table.description.find((d) => d.trim() && d.trim() !== '#')?.trim() ?? `table ${table.index}`
-  if (!widened.length) {
+  const name = table
+    ? (table.description.find((d) => d.trim() && d.trim() !== '#')?.trim() ?? `table ${table.index}`)
+    : ''
+  // A side takes the table where a curve carries that side's (non-zero) table value.
+  const matches = (stored: number, tableM: number | null) =>
+    tableM !== null && stored > 0 && Math.abs(stored - tableM) <= 0.005
+  // The inside also where a curve has RoadEng's inside Auto widening on (its stored value may be stale).
+  const insideFromTable =
+    comparison.some((c) => matches(c.roadEngInsideM, c.tableM)) ||
+    (widened.length > 0 && comparison.some((c) => c.autoInside === true))
+  const outsideFromTable = comparison.some((c) => matches(c.roadEngOutsideM, c.tableM))
+  let wideningTable: WideningRow[] | null = null
+  if (table && !widened.length)
     unmapped.push(
       `RoadEng's widening table (${name}): none of the design's curves carries widening, so its templates have no curve widening built in and the table is not applied.`,
     )
-    return { wideningTable: null, comparison, unmapped, notes }
+  else if (table && (insideFromTable || outsideFromTable)) {
+    const written = roadEngWideningRows(table, settings.unitM)
+    if (!written) unmapped.push(`RoadEng's widening table (${name}): it does not fit PGMaps' 400-entry widening table.`)
+    else {
+      wideningTable = written.rows.map((row) => ({
+        ...row,
+        insideM: insideFromTable ? row.insideM : 0,
+        outsideM: outsideFromTable ? row.outsideM : 0,
+      }))
+      const sides = insideFromTable && outsideFromTable ? 'both sides' : insideFromTable ? 'the inside' : 'the outside'
+      const stepped = written.rows.length !== table.rows.length * table.speeds.length
+      notes.push(
+        stepped
+          ? `Curve widening comes from RoadEng's widening table (${name}), on ${sides} of each curve as its curves carry it. RoadEng takes the row at or below a curve's radius and the column nearest its deflection; PGMaps interpolates, so each row and column is written twice, ${ROADENG_STEP_EPSILON} apart, to give the same steps.`
+          : `Curve widening comes from RoadEng's widening table (${name}), on ${sides} of each curve; it is too large to write as steps in 400 entries, so PGMaps interpolates between its rows and columns where RoadEng steps.`,
+      )
+      if (written.heldRadius)
+        notes.push(`The widening table's radii past 10,000 m are held at 10,000 m, PGMaps' largest.`)
+      if (written.blankCells) notes.push(`Blank cells in the widening table are taken as no widening.`)
+    }
   }
-  const written = roadEngWideningRows(table, settings.unitM)
-  if (!written) {
-    unmapped.push(`RoadEng's widening table (${name}): it does not fit PGMaps' 400-entry widening table.`)
-    return { wideningTable: null, comparison, unmapped, notes }
-  }
-  const stepped = written.rows.length !== table.rows.length * table.speeds.length
-  notes.push(
-    stepped
-      ? `Curve widening comes from RoadEng's widening table (${name}), on both sides of each curve as RoadEng stores it. RoadEng takes the row at or below a curve's radius and the column nearest its deflection; PGMaps interpolates, so each row and column is written twice, ${ROADENG_STEP_EPSILON} apart, to give the same steps.`
-      : `Curve widening comes from RoadEng's widening table (${name}), on both sides of each curve; it is too large to write as steps in 400 entries, so PGMaps interpolates between its rows and columns where RoadEng steps.`,
-  )
-  if (written.heldRadius) notes.push(`The widening table's radii past 10,000 m are held at 10,000 m, PGMaps' largest.`)
-  if (written.blankCells) notes.push(`Blank cells in the widening table are taken as no widening.`)
   const design: CurveDesign = {
     designSpeedKmh: 50,
     maxSuperelevationPercent: 0,
     sideFrictionFactor: 0,
     runoffLengthM: 0,
     wideningVehicleLengthM: null,
-    wideningTable: written.rows,
+    ...(wideningTable ? { wideningTable } : {}),
   }
   for (const c of comparison) {
-    if (c.deflectionDegrees === null) continue
-    const v = evaluateCurveCriteria(design, c.radiusM, c.deflectionDegrees)
-    c.pgmapsInsideM = r6(v.insideWideningM)
-    c.pgmapsOutsideM = r6(v.outsideWideningM)
+    const rule =
+      c.deflectionDegrees === null
+        ? { insideM: 0, outsideM: 0 }
+        : (() => {
+            const v = evaluateCurveCriteria(design, c.radiusM, c.deflectionDegrees)
+            return { insideM: v.insideWideningM, outsideM: v.outsideWideningM }
+          })()
+    c.own = roadEngCurveWidening({ insideM: c.roadEngInsideM, outsideM: c.roadEngOutsideM }, rule, {
+      autoInside: c.autoInside,
+      // The outside varies with the table only where the table is applied on the outside.
+      autoOutside: outsideFromTable ? c.autoOutside : null,
+      ruleVaries: !!wideningTable,
+    })
+    c.pgmapsInsideM = r6(c.own?.insideWideningM ?? rule.insideM)
+    c.pgmapsOutsideM = r6(c.own?.outsideWideningM ?? rule.outsideM)
   }
-  const differ = comparison.filter(
-    (c) =>
-      c.pgmapsInsideM !== null &&
-      (Math.abs(c.pgmapsInsideM - c.roadEngInsideM) > 0.005 || Math.abs(c.pgmapsOutsideM! - c.roadEngOutsideM) > 0.005),
-  )
-  if (differ.length)
-    unmapped.push(
-      `Curve widening that differs from the table on ${differ.length} curve${differ.length === 1 ? '' : 's'} (${differ
-        .slice(0, 10)
-        .map(
-          (c) =>
-            `PI ${c.pi}: ${fmt(c.roadEngInsideM)}/${fmt(c.roadEngOutsideM)} m in RoadEng, ${fmt(c.pgmapsInsideM!)}/${fmt(c.pgmapsOutsideM!)} m here`,
-        )
-        .join('; ')}${differ.length > 10 ? '; …' : ''}); PGMaps' widening is the table for every curve.`,
+  const own = comparison.filter((c) => c.own)
+  const typed = own.filter((c) => c.own!.insideWideningM !== undefined && c.autoInside !== true)
+  const autoKept = own.filter((c) => c.own!.insideWideningM !== undefined && c.autoInside === true)
+  const list = (items: typeof comparison) =>
+    items
+      .slice(0, 10)
+      .map(
+        (c) =>
+          `PI ${c.pi} ${fmt(c.own?.insideWideningM ?? c.pgmapsInsideM!, 4)}/${fmt(c.own?.outsideWideningM ?? c.pgmapsOutsideM!, 4)} m`,
+      )
+      .join(', ') + (items.length > 10 ? ', …' : '')
+  if (own.length)
+    notes.push(
+      `${plural(own.length, 'curve keeps its', 'curves keep their')} own widening, inside/outside (${list(own)})${typed.length ? `: ${plural(typed.length, 'curve has', 'curves have')} Auto widening off on the inside, a value typed in RoadEng's curve panel` : ''}${!table ? '; the design has no widening table' : ''}.`,
     )
-  else notes.push(`Every curve's widening matches what RoadEng stored for it.`)
-  return { wideningTable: written.rows, comparison, unmapped, notes }
+  if (autoKept.length)
+    notes.push(
+      `${plural(autoKept.length, 'curve has', 'curves have')} Auto widening on with a stored value the table does not give at its radius and deflection here (${list(autoKept)}); the stored value is kept.`,
+    )
+  if (comparison.length && !own.length && wideningTable)
+    notes.push(`Every curve's widening matches what RoadEng stored for it.`)
+  return { wideningTable, comparison, unmapped, notes }
 }
 
 // ---- Superelevation --------------------------------------------------------------------------------
 
 export interface RoadEngCurveDesignMapping {
   curveDesign: CurveDesign | null
-  /** Each curve's superelevation in RoadEng and as PGMaps calculates it with `curveDesign`, %. */
-  comparison: { pi: number; radiusM: number; designSpeedKmh: number; roadEngPercent: number; pgmapsPercent: number }[]
+  /**
+   * Each curve's superelevation in RoadEng and as PGMaps calculates it with `curveDesign` and the
+   * curve's own settings (`roadEngCurveSettings`), %, at RoadEng's radius; `from` says where PGMaps'
+   * value comes from.
+   */
+  comparison: {
+    pi: number
+    radiusM: number
+    designSpeedKmh: number
+    roadEngPercent: number
+    pgmapsPercent: number
+    from?: 'formula' | 'table' | 'sideFriction' | 'minimumRadius' | 'stated'
+  }[]
   /** Each curve's widening in RoadEng and in PGMaps (`roadEngWideningFor`). */
   widening: RoadEngWideningMapping['comparison']
   unmapped: string[]
@@ -1764,13 +2766,94 @@ const mode = (values: number[]) => {
 }
 
 /**
- * PGMaps' one curve rule for the road from RoadEng's per-curve superelevation. RoadEng keeps a
- * design speed, e and transition per curve (looked up in its table); PGMaps takes one speed,
- * e max, side friction and runoff, and calculates e = V²/(127 R) − f. The speed and runoff used
- * most, the largest e max, and the side friction that brings PGMaps' e closest to RoadEng's at
- * every curve are used; `comparison` gives both figures for each curve.
+ * RoadEng's `108` flag word (field 9) bit set on a curve with Use Minimum Radius ticked in its curve
+ * panel, which holds its superelevation at e max (Softree's help, "Horizontal Curves": with the box
+ * ticked the superelevation is the maximum and cannot be edited). Read from Softree's files: the V10
+ * RoadEng Civil tutorial ticks the box in chapter 14 and saves "Align stage 4" with it (1395, e
+ * 0.06 = e max where the table gives 0.059); chapter 18 unticks it before stage 7 (1393, the table's
+ * 0.059); all 124 curves with the bit among 1,690 in Softree's 116 sample and tutorial designs hold
+ * e = e max. Never set to keep a typed e: RoadEng would force e max and may solve the radius or
+ * speed again. Which bit is the superelevation's own Auto box is not known: no public sample has
+ * it unticked with a typed e.
  */
-export function roadEngCurveDesignFor(settings: RoadEngSettings): RoadEngCurveDesignMapping {
+export const ROADENG_MINIMUM_RADIUS_BIT = 2
+/**
+ * RoadEng's `108` flag word bit set where the curve's Auto superelevation comes from the
+ * superelevation table ("Use table"), clear where it comes from the side friction method ("Use side
+ * friction factor", e / e max = f / f max). Read from Softree's samples: the bluff road designs'
+ * curves are the only ones without it (113) and hold the side friction method's e to twelve digits
+ * (500 ft and 300 ft radius curves at 30 mph, e max 0.1, f max 0.16: 0.0462709009645 and
+ * 0.0771181682741), where their own table gives 0.051 and 0.06; every curve with it holds its
+ * table's value.
+ */
+export const ROADENG_TABLE_SUPERELEVATION_BIT = 256
+/** Differences below these are rounding: a curve takes its own value only past them. */
+const SAME_PERCENT = 1e-6
+/** A new `108` record's e is written to six decimals (`roadEngExport.ts`), within 5 × 10⁻⁵ %. */
+const WRITTEN_E_PERCENT = 1e-4
+const SAME_M = 1e-6
+const r9 = (v: number) => Math.round(v * 1e9) / 1e9
+
+/** km/h per unit of a RoadEng table's speed headings: km/h in a metric design, mph in a foot design. */
+export const roadEngSpeedUnitKmh = (unitM: number) => (unitM === 1 ? 1 : 1.609344)
+
+/**
+ * A RoadEng lookup table (radius in project units down, design speed across) as PGMaps' table in
+ * metres and km/h, its body multiplied by `scale` (100 for superelevation as a percentage, the unit
+ * for a runoff length).
+ */
+export function roadEngTableToPgmaps(
+  table: RoadEngSuperelevationTable,
+  unitM: number,
+  scale: number,
+): CurveLookupTable {
+  const speed = roadEngSpeedUnitKmh(unitM)
+  const columns = table.speeds.map((v, k) => ({ v, k })).filter((c) => Number.isFinite(c.v) && c.v > 0)
+  const rows = table.rows.filter((r) => Number.isFinite(r.radius) && r.radius > 0)
+  const seen = new Set<number>()
+  return {
+    ...(table.description.length ? { description: [...table.description] } : {}),
+    speedsKmh: columns.map((c) => r9(c.v * speed)),
+    rows: rows
+      .map((r) => ({
+        radiusM: r9(r.radius * unitM),
+        values: columns.map((c) => {
+          const v = r.e[c.k]
+          return v === null || v === undefined || !Number.isFinite(v) || v < 0 ? null : r9(v * scale)
+        }),
+      }))
+      .filter((r) => (seen.has(r.radiusM) ? false : (seen.add(r.radiusM), true))),
+  }
+}
+
+/** PGMaps' table back in RoadEng's units: the inverse of {@link roadEngTableToPgmaps}. */
+export function roadEngTableFromPgmaps(
+  table: CurveLookupTable,
+  index: number,
+  unitM: number,
+  scale: number,
+  description: string[] = table.description ?? [],
+): RoadEngSuperelevationTable {
+  const speed = roadEngSpeedUnitKmh(unitM)
+  const n = (v: number) => Number(v.toPrecision(12))
+  return {
+    index,
+    description,
+    speeds: table.speedsKmh.map((v) => n(v / speed)),
+    rows: table.rows.map((row) => ({
+      radius: n(row.radiusM / unitM),
+      e: row.values.map((v) => (v === null ? null : n(v / scale))),
+    })),
+  }
+}
+
+/**
+ * The old reading of a design's curves, kept so a project opened before table mode writes back as it
+ * did: one rule for the road whose side friction is fitted to RoadEng's per-curve superelevation.
+ * The speed and runoff used most, the largest e max, and the side friction that brings PGMaps' e
+ * closest to RoadEng's at every curve; `comparison` gives both figures for each curve.
+ */
+export function roadEngFittedCurveDesignFor(settings: RoadEngSettings): RoadEngCurveDesignMapping {
   const unmapped: string[] = []
   const notes: string[] = []
   const curves = settings.curves.filter((c) => c.radiusM > 0 && c.designSpeedKmh > 0 && Number.isFinite(c.e))
@@ -1853,6 +2936,313 @@ export function roadEngCurveDesignFor(settings: RoadEngSettings): RoadEngCurveDe
   return { curveDesign, comparison, unmapped, notes, widening: widening.comparison }
 }
 
+/**
+ * One curve's own settings from its `108` design, against the road's rule: the design speed, e max
+ * and transition fraction where they differ from the road's, the runoff at each end where the rule
+ * (its runoff table, or the road's one length) gives another, and the superelevation where the rule
+ * gives another (RoadEng's Auto superelevation off, or a value set by hand), and the widening on
+ * each side as {@link roadEngCurveWidening} keeps it. `tableRadiusScale` makes the tables read at
+ * RoadEng's own radius. Undefined when the rule already gives every value.
+ */
+export function roadEngCurveSettings(
+  design: CurveDesign,
+  curve: RoadEngCurveFields,
+  options: { gridRadiusM: number; modelRadiusM: number; deflectionDegrees?: number; spiralM?: number },
+): CurveSettings | undefined {
+  const settings: CurveSettings = {}
+  if (curve.designSpeedMs !== undefined) {
+    const speed = Math.round(curve.designSpeedMs * 3.6 * 1e6) / 1e6
+    if (Math.abs(speed - design.designSpeedKmh) > TABLE_SPEED_SNAP_KMH && speed >= 1 && speed <= 150)
+      settings.designSpeedKmh = speed
+  }
+  if (curve.emax !== undefined) {
+    const emax = r9(100 * curve.emax)
+    if (Math.abs(emax - design.maxSuperelevationPercent) > SAME_PERCENT && emax >= 0 && emax <= 20)
+      settings.maxSuperelevationPercent = emax
+  }
+  if (curve.transitionFraction !== undefined) {
+    const fraction = curve.transitionFraction
+    if (Math.abs(fraction - (design.transitionFraction ?? 1)) > 1e-9 && fraction >= 0 && fraction <= 1)
+      settings.transitionFraction = fraction
+  }
+  const scale = options.modelRadiusM > 0 ? options.gridRadiusM / options.modelRadiusM : 1
+  const roadEngMethod = design.superelevationMode === 'table' || design.superelevationMode === 'sideFriction'
+  if (roadEngMethod && Math.abs(scale - 1) > 1e-9 && scale > 0.5 && scale < 2) settings.tableRadiusScale = scale
+  // The side friction method's f max is field 11: the curve's own where the road's gives another.
+  if (design.superelevationMode === 'sideFriction' && curve.fLimit !== undefined && curve.fLimit >= 0) {
+    const ruleLimit = evaluateCurveCriteria(
+      design,
+      options.modelRadiusM,
+      options.deflectionDegrees ?? 0,
+      settings,
+    ).sideFrictionLimit
+    if (curve.fLimit <= 1 && !(ruleLimit !== null && Math.abs(curve.fLimit - ruleLimit) <= 1e-9))
+      settings.maxSideFriction = curve.fLimit
+  }
+  const resolved = evaluateCurveCriteria(design, options.modelRadiusM, options.deflectionDegrees ?? 0, settings)
+  if (curve.e !== undefined) {
+    const e = r9(100 * curve.e)
+    // Use Minimum Radius (`ROADENG_MINIMUM_RADIUS_BIT`) holds the curve at its e max. With RoadEng's
+    // method the table bit (`ROADENG_TABLE_SUPERELEVATION_BIT`) says which method the curve's Auto
+    // uses: by the other than the road's, the curve keeps its e. Otherwise the curve keeps its e
+    // where the rule gives another: typed with its superelevation Auto off (a bit not identified),
+    // or stored before RoadEng last calculated it.
+    const flags = curve.flags !== undefined && Number.isInteger(curve.flags) ? curve.flags : null
+    const minimumRadius =
+      flags !== null &&
+      (flags & ROADENG_MINIMUM_RADIUS_BIT) !== 0 &&
+      Math.abs(e - resolved.maxSuperelevationPercent) <= SAME_PERCENT
+    if (minimumRadius) settings.useMinimumRadius = true
+    else {
+      const sameMethod =
+        roadEngMethod && flags !== null
+          ? ((flags & ROADENG_TABLE_SUPERELEVATION_BIT) !== 0) === (design.superelevationMode === 'table')
+          : null
+      // A record written here holds e to six decimals: within that it is the method's own value.
+      const own =
+        sameMethod === false ||
+        Math.abs(e - resolved.appliedSuperelevationPercent) > (sameMethod ? WRITTEN_E_PERCENT : SAME_PERCENT)
+      if (own && e >= 0 && e <= 20) settings.superelevationPercent = e
+    }
+  }
+  // A spiral curve's transition is its spiral: PGMaps takes the longer of runoff and spiral.
+  const spiral = options.spiralM ?? 0
+  for (const [key, read, rule] of [
+    ['runoffInM', curve.runoffIn, resolved.runoffInM],
+    ['runoffOutM', curve.runoffOut, resolved.runoffOutM],
+  ] as const) {
+    if (read === undefined || !(read >= 0) || read > 1000) continue
+    if (spiral > 0 ? rule > spiral + SAME_M : Math.abs(read - rule) > SAME_M) settings[key] = spiral > 0 ? 0 : r9(read)
+  }
+  // Widening, side by side: the stored value where the rule gives another or Auto is off (`roadEngCurveWidening`).
+  if (curve.widening) {
+    const own = roadEngCurveWidening(
+      curve.widening,
+      { insideM: resolved.insideWideningM, outsideM: resolved.outsideWideningM },
+      {
+        autoInside: roadEngAutoWideningInside(curve.flags),
+        ruleVaries: !!design.wideningTable?.length || !!design.wideningVehicleLengthM,
+      },
+    )
+    if (own) Object.assign(settings, own)
+  }
+  return Object.keys(settings).length ? settings : undefined
+}
+
+/**
+ * The road's curve rule from a RoadEng design. With a superelevation table (RoadEng's table 0) the
+ * rule is table mode: that table, the runoff table (2) and the side friction table (1) in metres and
+ * km/h, read as RoadEng reads them (`curveTableValue`), the transition fraction most curves use and
+ * a tangent runout at the runoff's rate. The design speed and transition length most curves use and
+ * the largest e max are the road's; each curve's own values come from `roadEngCurveSettings`.
+ * Without a table it is the fitted formula ({@link roadEngFittedCurveDesignFor}) with the same
+ * transition fraction and tangent runout. `comparison` gives RoadEng's and PGMaps' e for each curve.
+ */
+export function roadEngCurveDesignFor(settings: RoadEngSettings): RoadEngCurveDesignMapping {
+  const fitted = roadEngFittedCurveDesignFor(settings)
+  if (!fitted.curveDesign) return fitted
+  const curves = settings.curves.filter((c) => c.radiusM > 0 && c.designSpeedKmh > 0 && Number.isFinite(c.e))
+  const fraction = mode(curves.map((c) => c.transitionFraction).filter((f) => Number.isFinite(f) && f >= 0 && f <= 1))
+  const unitM = settings.unitM
+  const find = (index: number) => settings.superelevationTables.find((t) => t.index === index && t.rows.length)
+  const superTable = find(ROADENG_SUPERELEVATION_TABLE)
+  const runoffTable = find(ROADENG_RUNOFF_TABLE)
+  const frictionTable = find(ROADENG_SIDE_FRICTION_TABLE)
+  // The speed most curves use, as read: rounded to 0.01 km/h a foot design's 40 mph curves would
+  // each carry their own 64.37376 km/h.
+  const speed = mode(curves.map((c) => Math.round(c.designSpeedKmh * 1e6) / 1e6))
+  const curveDesign: CurveDesign = {
+    ...fitted.curveDesign,
+    ...(speed !== undefined && speed >= 1 && speed <= 150 ? { designSpeedKmh: speed } : {}),
+    ...(fraction !== undefined ? { transitionFraction: fraction } : {}),
+    tangentRunout: true,
+  }
+  const unmapped = fitted.unmapped.filter(
+    (u) =>
+      !u.startsWith("Each curve's own design speed") &&
+      !u.startsWith("Each curve's own transition lengths") &&
+      !u.startsWith('Curves with different e max') &&
+      !u.startsWith("RoadEng's lookup table"),
+  )
+  const notes = fitted.notes.filter((n) => !n.startsWith('RoadEng takes each curve') && !n.startsWith('RoadEng puts'))
+  const table = superTable ? roadEngTableToPgmaps(superTable, unitM, 100) : null
+  // RoadEng's Auto method: the side friction method where every curve not on Use Minimum Radius
+  // uses it, with the f max (field 11) most of them use; else the table.
+  const flagsOf = (c: RoadEngCurveSettings) => Number(c.raw[9])
+  const autoCurves = curves.filter(
+    (c) => Number.isInteger(flagsOf(c)) && (flagsOf(c) & ROADENG_MINIMUM_RADIUS_BIT) === 0,
+  )
+  const sideFrictionMethod =
+    autoCurves.length > 0 && autoCurves.every((c) => (flagsOf(c) & ROADENG_TABLE_SUPERELEVATION_BIT) === 0)
+  const fMax = sideFrictionMethod
+    ? mode(autoCurves.map((c) => c.field11).filter((f) => Number.isFinite(f) && f >= 0 && f <= 1))
+    : undefined
+  if (sideFrictionMethod) {
+    curveDesign.superelevationMode = 'sideFriction'
+    if (fMax !== undefined) curveDesign.sideFrictionFactor = fMax
+    curveDesign.criteriaSource =
+      "Read from the RoadEng design: its side friction method (e / e max = f / f max), the design speed, transition length and f max most of its curves use, and its largest e max; each curve's own values where they differ."
+  }
+  if (table && table.rows.length && table.speedsKmh.length) {
+    if (!sideFrictionMethod) {
+      curveDesign.superelevationMode = 'table'
+      curveDesign.criteriaSource =
+        "Read from the RoadEng design: its superelevation and runoff tables, the design speed and transition length most of its curves use, and its largest e max; each curve's own values where they differ."
+    }
+    curveDesign.superelevationTable = table
+    const runoff = runoffTable ? roadEngTableToPgmaps(runoffTable, unitM, unitM) : null
+    if (runoff && runoff.rows.length && runoff.speedsKmh.length) curveDesign.runoffTable = runoff
+    // Table 1 is one row of largest side friction by speed; its first column is unused.
+    const frictionRow = frictionTable?.rows[0]
+    if (frictionTable && frictionRow) {
+      const columns = frictionTable.speeds.map((v, k) => ({ v, k })).filter((c) => Number.isFinite(c.v) && c.v > 0)
+      const values = columns.map((c) => {
+        const v = frictionRow.e[c.k]
+        return v === null || v === undefined || !(v >= 0) || v > 2 ? null : v
+      })
+      if (columns.length && values.some((v) => v !== null))
+        curveDesign.sideFrictionTable = {
+          speedsKmh: columns.map((c) => r9(c.v * roadEngSpeedUnitKmh(unitM))),
+          values,
+        }
+    }
+  }
+  const comparison = curves.map((c) => {
+    const own = roadEngCurveSettings(
+      curveDesign,
+      {
+        designSpeedMs: c.designSpeedKmh / 3.6,
+        flags: Number(c.raw[9]),
+        emax: c.eMax,
+        fLimit: c.field11,
+        e: c.e,
+        transitionFraction: c.transitionFraction,
+        runoffIn: c.transitionAtBcM,
+        runoffOut: c.transitionAtEcM,
+      },
+      { gridRadiusM: c.radiusM, modelRadiusM: c.radiusM, deflectionDegrees: c.deflectionDegrees ?? 0 },
+    )
+    const resolved = evaluateCurveCriteria(curveDesign, c.radiusM, c.deflectionDegrees ?? 0, own)
+    return {
+      pi: c.pi,
+      radiusM: c.radiusM,
+      designSpeedKmh: c.designSpeedKmh,
+      roadEngPercent: 100 * c.e,
+      pgmapsPercent: resolved.appliedSuperelevationPercent,
+      from: resolved.superelevationSource,
+      own,
+    }
+  })
+  const list = (items: typeof comparison) =>
+    items
+      .slice(0, 10)
+      .map((c) => `PI ${c.pi}`)
+      .join(', ') + (items.length > 10 ? ', …' : '')
+  const stated = comparison.filter((c) => c.from === 'stated')
+  const ownSpeed = comparison.filter((c) => c.own?.designSpeedKmh !== undefined)
+  const ownRunoff = comparison.filter((c) => c.own?.runoffInM !== undefined || c.own?.runoffOutM !== undefined)
+  const ownEmax = comparison.filter((c) => c.own?.maxSuperelevationPercent !== undefined)
+  if (curveDesign.superelevationMode === 'sideFriction')
+    notes.push(
+      `Superelevation comes from RoadEng's side friction method at each curve's radius and design speed: e / e max = f / f max with e + f = V²/(9.81 R), f max ${curveDesign.sideFrictionFactor}${comparison.some((c) => c.own?.maxSideFriction !== undefined) ? ' unless a curve has its own' : ''}; ${comparison.length - stated.length} of ${comparison.length} curves take the method's value.`,
+    )
+  else if (curveDesign.superelevationMode === 'table') {
+    const name = superTable!.description.find((d) => d.trim() && d.trim() !== '#')?.trim() ?? 'table 0'
+    notes.push(
+      `Superelevation comes from RoadEng's table (${name}) at each curve's radius and design speed, linear between its entries${curveDesign.runoffTable ? ', and each runoff from its runoff table' : ''}; ${comparison.length - stated.length} of ${comparison.length} curves take the table's value.`,
+    )
+  } else
+    notes.push(
+      `The design has no superelevation table: PGMaps calculates e = V²/(127 R) − ${curveDesign.sideFrictionFactor}, a side friction fitted to its curves; ${comparison.length - stated.length} of ${comparison.length} curves come within 0.0001 % of RoadEng's e.`,
+    )
+  if (stated.length)
+    notes.push(
+      `${plural(stated.length, 'curve keeps its', 'curves keep their')} own superelevation (${list(stated)}), where the rule gives another value: RoadEng keeps a typed e only with the curve's superelevation Auto unticked.`,
+    )
+  const minimumRadius = comparison.filter((c) => c.from === 'minimumRadius')
+  if (minimumRadius.length)
+    notes.push(
+      `${plural(minimumRadius.length, 'curve has', 'curves have')} RoadEng's Use Minimum Radius (${list(minimumRadius)}): e = e max.`,
+    )
+  const ownFriction = comparison.filter((c) => c.own?.maxSideFriction !== undefined)
+  if (ownFriction.length)
+    notes.push(`${plural(ownFriction.length, 'curve has its', 'curves have their')} own f max (${list(ownFriction)}).`)
+  if (ownSpeed.length)
+    notes.push(`${plural(ownSpeed.length, 'curve has its', 'curves have their')} own design speed (${list(ownSpeed)}).`)
+  if (ownEmax.length)
+    notes.push(`${plural(ownEmax.length, 'curve has its', 'curves have their')} own e max (${list(ownEmax)}).`)
+  if (ownRunoff.length)
+    notes.push(
+      `${plural(ownRunoff.length, 'curve has its', 'curves have their')} own transition lengths (${list(ownRunoff)}).`,
+    )
+  if (fraction !== undefined)
+    notes.push(
+      `Each runoff has ${fmt(100 * fraction, 1)} % outside the curve, after a tangent runout from normal crown at the same rate, as RoadEng applies it.`,
+    )
+  return {
+    curveDesign,
+    comparison: comparison.map(({ own: _own, ...c }) => {
+      void _own
+      return c
+    }),
+    unmapped,
+    notes,
+    widening: fitted.widening,
+  }
+}
+
+const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
+
+/**
+ * A road read from RoadEng with each curve's own settings (`RoadPoint.curve`) from its `108` record,
+ * against the road's rule: the inverse of what `roadEngCurveInputs` writes. Only a road built from
+ * its PIs (one road point per PI, between the two ends); a road fitted to its stations is returned
+ * unchanged, as are points whose curve the rule already reproduces.
+ */
+export function withRoadEngCurveSettings(
+  alignment: Alignment,
+  source: Pick<RoadEngAlignment, 'pis' | 'followsStations'>,
+): Alignment {
+  const design = alignment.curveDesign
+  const { points } = alignment
+  if (!design || source.followsStations.plan || points.length !== source.pis.length + 2) return alignment
+  let fits: ReturnType<typeof horizontalCurveFits>
+  try {
+    fits = horizontalCurveFits(alignment)
+  } catch {
+    return alignment
+  }
+  let changed = false
+  const next = points.map((point, k) => {
+    const pi = source.pis[k - 1]
+    const fit = fits.find((f) => f.pointId === point.id)
+    const { curve: _old, ...rest } = point
+    void _old
+    if (!pi?.curve || !fit || fit.status !== 'fitted' || !(point.radiusM > 0) || !(pi.radiusM > 0)) {
+      if (_old) changed = true
+      return rest
+    }
+    let own: CurveSettings | undefined
+    try {
+      own = roadEngCurveSettings(design, pi.curve, {
+        gridRadiusM: pi.radiusM,
+        modelRadiusM: point.radiusM,
+        deflectionDegrees: fit.deflectionDegrees,
+        spiralM: point.spiralM ?? 0,
+      })
+    } catch {
+      own = undefined
+    }
+    if (!own) {
+      if (_old) changed = true
+      return rest
+    }
+    changed = true
+    return { ...rest, curve: own }
+  })
+  return changed ? { ...alignment, points: next } : alignment
+}
+
 // ---- Materials -------------------------------------------------------------------------------------
 
 /** The colours ground types take on import, in their order; `roadEngHaul.ts` compares against them. */
@@ -1869,20 +3259,89 @@ export const ROADENG_MATERIAL_COLORS = [
 
 export interface RoadEngMaterialOptions {
   /**
-   * Give each material its ground type's cut and fill slopes (default true). PGMaps cuts and fills a
-   * material at its own batter wherever its horizon lies (`assembledSection.ts`), so with every range
-   * naming a top ground type (Softree's 27.8 km sample: OB at 0.25:1 cut) the template's batters
-   * never apply; RoadEng uses these slopes only for a template slope set to AUTO. False keeps the
-   * templates' batters and lists the ground types' slopes in the notes.
+   * Give each material its ground type's cut and fill slopes (default true). The templates read from
+   * RoadEng say which batters take them (`cutSlopeFrom`, `fillSlopeFrom`: `material` for a slope on
+   * AUTO, `template` for a stated one), as RoadEng uses a ground type's slopes only for an AUTO slope.
+   * False leaves the materials without batters and lists the ground types' slopes in the notes.
    */
   materialBatters?: boolean
+  /**
+   * The P-line the design names (`roadEngPLine.ts`): ground given as `**` takes its survey's layers
+   * (`ground`), or, when the named P-line was not given (`ground` null), is left unclassified.
+   * Absent: the design names none, and `**` is RoadEng's default ground type, OB.
+   */
+  pLine?: { name: string; ground: PLineGround | null }
 }
 
 export interface RoadEngMaterialMapping {
   materials: GroundMaterial[]
   strata: StratumAssignment[]
+  /** A range's subgrade fill material other than its first stratum layer's (`fillMaterial`). */
+  fillRequirements: FillRequirement[]
+  /** RoadEng's Site Prep stripping by range (`roadEngSitePreparation`). */
+  sitePreparation: SitePreparationRange[]
   unmapped: string[]
   notes: string[]
+}
+
+/** The Site Prep outside control RoadEng's tutorials use: the offset is measured from the slope stake at the base. */
+export const ROADENG_SITE_PREP_SLOPE_STAKE = 1
+
+/**
+ * RoadEng's Site Prep (Overburden Removal) on a station range, from `[LocationParms]` fields 2–10
+ * (indices 1–9): the depth from topo (project units), the left and right outside offsets past the
+ * slope stakes, their controls (1, slope stake – base), then four zeros in every sample. Read from
+ * Softree's samples against their tutorials: the V9/V10 RoadEng Resource tutorial sets 2 ft from
+ * topo, 3 ft outside on both sides from the slope stake – base, 0 inside, and Road6 - 8 onwards hold
+ * `2,3,3,1,1,0,0,0,0`; Align stage 8 the same; Hart Rd `10,2,2,1,1`; Location 18 `0.2,0.3,0.3,1,1`
+ * (0 on its first range). Which of the two offsets is the left is not shown by any sample (they are
+ * equal in all of them); the first is taken as the left. The tutorial: "The depth stripped will be
+ * the value assigned in the Site Prep dialogue or the top surface layer thickness, whichever is
+ * least", and "Stripped material is excluded from the mass haul – it is assumed to be unsuitable for
+ * fill". Null where the range strips nothing.
+ */
+export function roadEngSitePreparation(
+  range: Pick<RoadEngStationRange, 'raw'>,
+  unitM: number,
+): { depthM: number; leftOutsideM: number; rightOutsideM: number; controls: number[]; inside: number[] } | null {
+  const v = (k: number) => Number(range.raw[k])
+  const depth = v(1)
+  if (!(depth > 0) || !Number.isFinite(depth)) return null
+  const offset = (k: number) => (Number.isFinite(v(k)) && v(k) > 0 ? v(k) * unitM : 0)
+  return {
+    depthM: depth * unitM,
+    leftOutsideM: offset(2),
+    rightOutsideM: offset(3),
+    controls: [v(4), v(5)],
+    inside: [v(6), v(7), v(8), v(9)],
+  }
+}
+
+/** Room beside the road for stripped ground, bank m³ per m: PGMaps' largest, so it never binds. */
+export const ROADENG_STRIPPING_DISPOSAL_M3_PER_M = 10_000
+
+/** The stripping material made for a ground type's stripped top layer. */
+export const roadEngStrippingMaterialId = (code: string) => `roadeng-${safeId(code)}-stripping`
+
+/**
+ * The ground type a range's subgrade fill material names, as written (`**` unresolved): a code, the
+ * second stratum layer's type for `*2`, and null for `*1` (the first layer's type, RoadEng's
+ * default), a blank, `-`, or `*2` on a range with one layer.
+ */
+export function roadEngFillMaterialCode(range: Pick<RoadEngStationRange, 'fillMaterial' | 'ground'>): string | null {
+  const named = range.fillMaterial.trim()
+  if (named === '*2') return range.ground[1]?.code ?? null
+  return named && named !== '*1' && named !== '-' ? named : null
+}
+
+/** RoadEng's default ground type: OB, else the one described as the default, else the first. */
+export function roadEngDefaultGroundType(materials: readonly RoadEngMaterial[]): RoadEngMaterial | null {
+  return (
+    materials.find((m) => m.code === 'OB') ??
+    materials.find((m) => /\(default\)/i.test(m.description)) ??
+    materials[0] ??
+    null
+  )
 }
 
 /**
@@ -1947,13 +3406,23 @@ export function roadEngMaterialsFor(
   }
   if (materials.length && !batters)
     notes.push(
-      `RoadEng uses a ground type's cut and fill slopes only for a template slope set to AUTO, and the templates' stated slopes are used here; the materials carry no batter, because a material's batter replaces the template's wherever its horizon lies. The ground types' slopes: ${settings.materials.map((m) => `${m.code} cut ${m.cutSlopePercent > 0 ? fmt(100 / m.cutSlopePercent) : '–'}:1, fill ${m.fillSlopePercent > 0 ? fmt(100 / m.fillSlopePercent) : '–'}:1`).join('; ')}.`,
+      `The materials carry no batter, so every template slope is its stated one. The ground types' slopes: ${settings.materials.map((m) => `${m.code} cut ${m.cutSlopePercent > 0 ? fmt(100 / m.cutSlopePercent) : '–'}:1, fill ${m.fillSlopePercent > 0 ? fmt(100 / m.fillSlopePercent) : '–'}:1`).join('; ')}.`,
     )
   if (materials.length)
     notes.push(
-      `Ground types: ${batters ? "the cut and fill slopes RoadEng uses for an AUTO template slope become each material's batters, and " : ''}its excavation cost becomes the material's rate per bank m³${settings.unitM === 1 ? '' : ' (converted from per yd³)'}, in the currency entered in RoadEng, not converted. RoadEng has no reusable share, so each material is taken as fully reusable. No material is marked rock: mark rock materials yourself for the rock cut to apply.`,
+      `Ground types: ${batters ? "the cut and fill slopes RoadEng uses for an AUTO template slope become each material's batters, applied only where a template's slope is AUTO; " : ''}its excavation cost becomes the material's rate per bank m³${settings.unitM === 1 ? '' : ' (converted from per yd³)'}, in the currency entered in RoadEng, not converted. RoadEng has no reusable share, so each material is taken as fully reusable. No material is marked rock: mark rock materials yourself for the rock cut to apply.`,
     )
   const codes = new Map(settings.materials.map((m) => [m.code, `roadeng-${safeId(m.code)}`]))
+  // `**` is the design's default ground type: the layers of the P-line the design names (`pLine`),
+  // else, with no P-line, OB (Softree help, *Sub Horizons Assignments*).
+  const fallbackType = roadEngDefaultGroundType(settings.materials)
+  const defaultCode = (code: string) => (code === '**' && fallbackType ? fallbackType.code : code)
+  const usesDefault = settings.stationRanges.some((r) => r.ground.some((l) => l.code === '**'))
+  const pLine = options.pLine
+  if (usesDefault && !pLine && fallbackType && materials.some((m) => m.id === codes.get(fallbackType.code)))
+    notes.push(
+      `Ground given as the design's default ground type (**) is ${fallbackType.code} · ${fallbackType.description}, RoadEng's default where the design names no P-line.`,
+    )
   const strata: StratumAssignment[] = []
   const pieces = chainageRanges(
     settings.stationRanges,
@@ -1962,34 +3431,456 @@ export function roadEngMaterialsFor(
     (a, b) => JSON.stringify(a) === JSON.stringify(b),
   )
   const missing = new Set<string>()
-  for (const p of pieces)
-    for (const layer of p.value) {
-      const materialId = codes.get(layer.code)
-      if (!materialId || !materials.some((m) => m.id === materialId)) {
-        missing.add(layer.code)
-        continue
-      }
-      if (strata.length >= 200) continue
-      strata.push({
-        id: `roadeng-horizon-${strata.length + 1}`,
-        start: p.start,
-        end: p.end,
-        materialId,
-        topDepthM: Math.min(1000, layer.topDepthM),
-        bottomDepthM: layer.bottomDepthM === null ? null : Math.min(1000, layer.bottomDepthM),
-      })
+  let pLineStrata = 0,
+    pLineUnread = false
+  const add = (
+    layer: { code: string; topDepthM: number; bottomDepthM: number | null },
+    start: number,
+    end: number,
+    fromPLine: boolean,
+  ) => {
+    const materialId = codes.get(defaultCode(layer.code))
+    if (!materialId || !materials.some((m) => m.id === materialId)) {
+      missing.add(layer.code)
+      return
     }
+    if (strata.length >= 200) return
+    strata.push({
+      id: fromPLine ? `${ROADENG_PLINE_STRATUM_PREFIX}${++pLineStrata}` : `roadeng-horizon-${strata.length + 1}`,
+      start,
+      end,
+      materialId,
+      topDepthM: Math.min(1000, layer.topDepthM),
+      bottomDepthM: layer.bottomDepthM === null ? null : Math.min(1000, layer.bottomDepthM),
+    })
+  }
+  for (const p of pieces) {
+    if (!pLine || !p.value.some((l) => l.code === '**')) {
+      for (const layer of p.value) add(layer, p.start, p.end, false)
+      continue
+    }
+    if (!pLine.ground) {
+      // The named P-line was not given: `**` is never read as OB then.
+      pLineUnread = true
+      for (const layer of p.value) if (layer.code !== '**') add(layer, p.start, p.end, false)
+      continue
+    }
+    // A range given wholly as `**` takes the survey's layers; a `**` among named layers is the
+    // survey's surface layer at the range's depths.
+    for (const sub of pLineStrataPieces(pLine.ground, p, options)) {
+      const layers =
+        p.value.length === 1
+          ? sub.layers
+          : p.value.map((l) => (l.code === '**' ? { ...l, code: sub.layers[0].code } : l))
+      for (const layer of layers) add(layer, sub.start, sub.end, true)
+    }
+  }
+  if (pLine && usesDefault)
+    if (pLineUnread)
+      unmapped.push(
+        `Ground given as the design's default ground type (**), which RoadEng takes from the design's P-line ${pLine.name}; it was not opened with the design, so that ground is left unclassified. Open the design together with ${pLine.name}.`,
+      )
+    else if (pLine.ground)
+      notes.push(
+        `Ground given as the design's default ground type (**) takes the ground layers of its P-line ${pLine.name} (${pLine.ground.stations.length} surveyed stations), applied ${pLine.ground.apply === 'ahead' ? 'from each surveyed station up to the next (Ahead)' : 'to the cross sections nearest each surveyed station (Between)'}${pLineStrata ? `: ${pLineStrata} horizons` : ''}.`,
+      )
   for (const code of missing)
     unmapped.push(
       code === '**'
-        ? "Ground layers given as the design's default ground type (**); which type that is is not read, so that ground is left unclassified."
+        ? "Ground layers given as the design's default ground type (**), and the design holds no ground types to take it from; that ground is left unclassified."
         : `Ground layers of type ${code}, which the design's ground types do not hold; that ground is left unclassified.`,
     )
   if (strata.length)
     notes.push(
       'Ground layers by station range become horizons at the same depths below original ground, in road chainage.',
     )
-  return { materials, strata, unmapped: dedupe(unmapped), notes }
+  // A range's subgrade fill material: `*1` (RoadEng's default, stratum layer 1) is the AUTO fill rule
+  // itself; `*2` or a ground type code becomes a fill requirement for that material
+  // (`roadEngFillMaterialCode`; `roadEngFillMaterials.ts` writes it back).
+  const fillRequirements: FillRequirement[] = []
+  const fills = chainageRanges(
+    settings.stationRanges,
+    options,
+    (r) => {
+      const code = roadEngFillMaterialCode(r)
+      return code === null ? null : defaultCode(code)
+    },
+    (a, b) => a === b,
+  )
+  const noSecond = chainageRanges(
+    settings.stationRanges,
+    options,
+    (r) => r.fillMaterial.trim() === '*2' && !r.ground[1],
+    (a, b) => a === b,
+  ).filter((f) => f.value)
+  for (const f of noSecond)
+    unmapped.push(
+      `Fill material *2 (the second ground layer) from station ${fmt(f.from, 3)} to ${fmt(f.to, 3)} m, where the range has one ground layer; that fill takes no required material.`,
+    )
+  const read: string[] = []
+  for (const f of fills) {
+    if (f.value === null) continue
+    const materialId = codes.get(f.value)
+    if (!materialId || !materials.some((m) => m.id === materialId)) {
+      unmapped.push(
+        `Fill material ${f.value} from station ${fmt(f.from, 3)} to ${fmt(f.to, 3)} m, which the design's ground types do not hold.`,
+      )
+      continue
+    }
+    if (fillRequirements.length >= 100) continue
+    fillRequirements.push({
+      id: `roadeng-fill-${fillRequirements.length + 1}`,
+      start: f.start,
+      end: f.end,
+      layer: 'subgrade',
+      materialId,
+      // Softree's Optimal manual (Cost Parameters, Quality Factor): any material of the same or
+      // higher quality can be used where a fill type is specified.
+      replaceable: true,
+    })
+    read.push(`${f.value} ${fmt(f.from, 3)}–${fmt(f.to, 3)} m`)
+  }
+  if (fillRequirements.length)
+    notes.push(
+      `Subgrade fill material by range (RoadEng's Fill Types), each a fill requirement for that material or any of the same or higher quality, as RoadEng's costing allows: ${read.join(', ')}${settings.stationRanges.some((r) => r.fillMaterial.trim() === '*2') ? ' (*2 is the range’s second ground layer)' : ''}. Ranges on *1, the first ground layer's type, take the template's fill rule.`,
+    )
+  for (const layer of settings.templateLayerMaterials ?? [])
+    unmapped.push(
+      `Template layer ${layer.code || layer.layer}${layer.description ? ` (${layer.description})` : ''} is built of ${layer.material} in RoadEng's Template Materials: PGMaps costs and hauls only the subgrade by ground type, so that layer's material is not applied; it goes back to RoadEng as read.`,
+    )
+  // Site Prep: the top layer stripped under the footprint and past the slope stakes, to the Site Prep
+  // depth or the top layer's bottom, whichever is less; a stripping material, never reused as fill.
+  const sitePreparation: SitePreparationRange[] = []
+  const stripped: string[] = []
+  const preps = chainageRanges(
+    settings.stationRanges,
+    options,
+    (r) => {
+      const prep = roadEngSitePreparation(r, settings.unitM)
+      return prep && { ...prep, top: r.ground[0] ?? null }
+    },
+    (a, b) => JSON.stringify(a) === JSON.stringify(b),
+  )
+  for (const p of preps) {
+    if (!p.value) continue
+    const { depthM, leftOutsideM, rightOutsideM, controls, inside, top } = p.value
+    const where = `from station ${fmt(p.from, 3)} to ${fmt(p.to, 3)} m`
+    if (!top || (top.code === '**' && pLine)) {
+      unmapped.push(
+        `RoadEng's Site Prep ${where} strips ${fmt(depthM, 3)} m of the ${top ? "P-line's top layer" : 'top layer'}; ${top ? 'its material varies along the P-line, so the stripping is not applied' : 'the range has no ground layer to strip, so the stripping is not applied'}.`,
+      )
+      continue
+    }
+    const code = defaultCode(top.code)
+    const ground = materials.find((m) => m.id === codes.get(code))
+    if (!ground) continue
+    const id = roadEngStrippingMaterialId(code)
+    if (!materials.some((m) => m.id === id)) {
+      if (materials.length >= 32) {
+        unmapped.push(`Stripping of ${code}: past PGMaps' 32 materials.`)
+        continue
+      }
+      // Stripped ground is never a batter or fill: no slopes of its own.
+      const rest: GroundMaterial = { ...ground }
+      delete rest.cutSlope
+      delete rest.fillSlope
+      materials.push({
+        ...rest,
+        id,
+        name: `${ground.name} · stripped`.slice(0, 200),
+        purpose: 'stripping',
+        reusableFraction: 0,
+      })
+    }
+    const depth = Math.min(depthM, top.bottomDepthM ?? Infinity)
+    if (sitePreparation.length >= 100 || !(depth > 0)) continue
+    sitePreparation.push({
+      id: `roadeng-site-prep-${sitePreparation.length + 1}`,
+      start: p.start,
+      end: p.end,
+      depthM: r6(Math.min(10, depth)),
+      leftInsideM: 0,
+      rightInsideM: 0,
+      leftOutsideM: r6(Math.min(50, leftOutsideM)),
+      rightOutsideM: r6(Math.min(50, rightOutsideM)),
+      materialId: id,
+    })
+    stripped.push(
+      `${code} ${fmt(depth, 3)} m deep ${where}, ${fmt(leftOutsideM, 3)} m / ${fmt(rightOutsideM, 3)} m past the slope stakes`,
+    )
+    if (controls.some((c) => c !== ROADENG_SITE_PREP_SLOPE_STAKE))
+      unmapped.push(
+        `RoadEng's Site Prep ${where} measures an outside offset from a control other than the slope stake; PGMaps measures it from the slope stake.`,
+      )
+    if (inside.some((x) => x !== 0))
+      unmapped.push(`RoadEng's Site Prep ${where} has inside settings (${inside.join(', ')}) that are not applied.`)
+  }
+  if (stripped.length)
+    notes.push(
+      `RoadEng's Site Prep becomes stripping of the top ground layer, to its depth or the layer's bottom, whichever is less, under the road and past its slope stakes: ${stripped.join('; ')}. Stripped ground is costed at its ground type's excavation cost, never used as fill, and left beside the road with no haul, as RoadEng leaves it out of the mass haul.`,
+    )
+  return { materials, strata, fillRequirements, sitePreparation, unmapped: dedupe(unmapped), notes }
+}
+
+// ---- Parameter overrides ----------------------------------------------------------------------------
+
+/** A parameter override's code bit for the left side (`RoadEngParameterOverrideEntry`). */
+export const ROADENG_OVERRIDE_LEFT = 4096
+/** A parameter override's code bit for the right side. */
+export const ROADENG_OVERRIDE_RIGHT = 8192
+/** A station at or past this size is RoadEng's ±FLT_MAX: the alignment's start or end. */
+export const ROADENG_OVERRIDE_BEYOND = 1e38
+/**
+ * A step (two entries at one station) becomes two PGMaps stations this far apart, m: PGMaps'
+ * stations increase strictly.
+ */
+export const ROADENG_OVERRIDE_STEP_M = 0.001
+
+/** The sides an override's code names; empty when it names neither (then any side's parameter). */
+export function roadEngOverrideSides(code: number): ('left' | 'right')[] {
+  return [
+    ...(code & ROADENG_OVERRIDE_LEFT ? (['left'] as const) : []),
+    ...(code & ROADENG_OVERRIDE_RIGHT ? (['right'] as const) : []),
+  ]
+}
+
+/** The code RoadEng stores for an override on one side. */
+export const roadEngOverrideCode = (side: 'left' | 'right') =>
+  side === 'left' ? ROADENG_OVERRIDE_LEFT : ROADENG_OVERRIDE_RIGHT
+
+/**
+ * The template parameter an override names, in one template: the parameter of that name in a
+ * component on the side the code names (or on both sides); null where the template has none there.
+ */
+export function roadEngOverrideParameter(
+  t: RoadEngTemplate,
+  parameter: string,
+  code: number,
+): { component: RoadEngComponent; parameter: RoadEngParameter } | null {
+  const sides = roadEngOverrideSides(code)
+  const candidates = t.components.flatMap((c) =>
+    c.parameters.filter((p) => key(p.name) === key(parameter)).map((p) => ({ component: c, parameter: p })),
+  )
+  if (!sides.length) return candidates[0] ?? null
+  return (
+    candidates.find((x) => x.component.side !== 'both' && sides.includes(x.component.side)) ??
+    candidates.find((x) => x.component.side === 'both') ??
+    null
+  )
+}
+
+/** A copy of a template with one parameter set to `raw` (as RoadEng stores it). */
+export function roadEngTemplateWithParameter(
+  t: RoadEngTemplate,
+  component: number,
+  parameter: number,
+  raw: number,
+  unitM: number,
+): RoadEngTemplate {
+  return {
+    ...t,
+    components: t.components.map((c) =>
+      c.index !== component
+        ? c
+        : {
+            ...c,
+            parameters: c.parameters.map((p) =>
+              p.index !== parameter ? p : { ...p, raw, value: p.kind === 'length' ? raw * unitM : raw },
+            ),
+          },
+    ),
+  }
+}
+
+/** The template in force on one side at a design station (m), or null on a Taper or past the ranges. */
+export function roadEngTemplateCodeAt(
+  ranges: readonly RoadEngStationRange[],
+  station: number,
+  side: 'left' | 'right',
+): string | null {
+  const range =
+    ranges.find(
+      (r) =>
+        (r.fromStation === null || station >= r.fromStation - 1e-9) &&
+        (r.toStation === null || station < r.toStation - 1e-9),
+    ) ?? ranges.at(-1)
+  const code = range ? (side === 'left' ? range.leftTemplate : range.rightTemplate) : null
+  return code && code !== ROADENG_TAPER_CODE ? code : null
+}
+
+export interface RoadEngOverrideMapping {
+  overrides: TemplateParameterOverride[]
+  unmapped: string[]
+  notes: string[]
+}
+
+/**
+ * RoadEng's parameter overrides as PGMaps station values (`templateParameterOverrides.ts`). Each
+ * parameter's entries form one series; the template sections are mapped again with the parameter at
+ * each entered value, and every side value that moves (a width, a batter, a ditch depth and the top
+ * width it makes) becomes an override of that value, at the same stations, with `**` as a blank.
+ * RoadEng interpolates the parameter; PGMaps interpolates the side value, which is the same for
+ * lengths and differs between two entered slopes (the notes give the largest difference).
+ */
+export function roadEngParameterOverridesFor(
+  settings: RoadEngSettings,
+  options: RoadEngRangeOptions & RoadEngTemplateOptions & { fallback: RoadTemplate },
+): RoadEngOverrideMapping {
+  const unmapped: string[] = []
+  const notes: string[] = []
+  const overrides: TemplateParameterOverride[] = []
+  const entries = settings.parameterOverrideEntries
+  if (!entries.length) return { overrides, unmapped, notes }
+  const byCode = new Map<string, RoadEngTemplate>()
+  for (const t of settings.templates) if (!t.folder && t.code && !byCode.has(t.code)) byCode.set(t.code, t)
+  const mapped = new Map<string, RoadTemplate | null>()
+  const mapOf = (t: RoadEngTemplate, cacheKey: string) => {
+    if (!mapped.has(cacheKey)) mapped.set(cacheKey, roadEngTemplateToPgmaps(t, options.fallback, options).template)
+    return mapped.get(cacheKey)!
+  }
+  const scale = options.stationScale ?? 1
+  const length = (options.endStation - options.startStation) * scale
+  const series = new Map<string, RoadEngParameterOverrideEntry[]>()
+  for (const e of entries) {
+    const k = `${e.parameter}\u0000${e.code}`
+    series.set(k, [...(series.get(k) ?? []), e])
+  }
+  const sides = ['left', 'right'] as const
+  const valueOf = (t: RoadTemplate, side: 'left' | 'right', field: OverrideField) => overrideFieldValue(t, side, field)
+  let n = 0
+  for (const list of series.values()) {
+    n++
+    const { parameter, code } = list[0]
+    // In station order; entries at one station keep their key order (a step).
+    const points = [...list].sort((a, b) => (a.station === b.station ? 0 : a.station - b.station))
+    const named = roadEngOverrideSides(code)
+    const label = `The parameter override of ${parameter}${named.length === 1 ? `, ${named[0]} side` : ''} (${points.length} station${points.length === 1 ? '' : 's'})`
+    // The section each template in use makes with the parameter at a value.
+    const remap = (templateCode: string, raw: number): RoadTemplate | null => {
+      const t = byCode.get(templateCode)
+      const found = t && roadEngOverrideParameter(t, parameter, code)
+      if (!t || !found) return null
+      return mapOf(
+        roadEngTemplateWithParameter(t, found.component.index, found.parameter.index, raw, settings.unitM),
+        `${templateCode}\u0000${found.component.index}\u0000${found.parameter.index}\u0000${raw}`,
+      )
+    }
+    const baseOf = (templateCode: string) => {
+      const t = byCode.get(templateCode)
+      return t ? mapOf(t, templateCode) : null
+    }
+    // Which side values the parameter moves, in any template that holds it.
+    const fields = new Set<string>()
+    let other = false
+    const codes = new Set(settings.stationRanges.flatMap((r) => [r.leftTemplate, r.rightTemplate]))
+    const held = [...codes].filter((c) => byCode.has(c) && roadEngOverrideParameter(byCode.get(c)!, parameter, code))
+    for (const c of held) {
+      const base = baseOf(c)
+      if (!base) continue
+      for (const e of points) {
+        if (e.raw === null) continue
+        const next = remap(c, e.raw)
+        if (!next) continue
+        // Only the side the code names: RoadEng overrides the parameter there.
+        for (const side of sides)
+          if (!named.length || named.includes(side))
+            for (const field of OVERRIDE_FIELD_NAMES)
+              if (Math.abs(valueOf(next, side, field) - valueOf(base, side, field)) > 1e-9)
+                fields.add(`${side}:${field}`)
+        for (const part of ['layers', 'components', 'rockCut', 'leftRockCut', 'rightRockCut'] as const)
+          if (JSON.stringify(next[part]) !== JSON.stringify(base[part])) other = true
+      }
+    }
+    if (!held.length) {
+      unmapped.push(`${label}: no template in use holds a parameter of that name, so it changes nothing here.`)
+      continue
+    }
+    if (!fields.size) {
+      unmapped.push(
+        points.every((e) => e.raw === null)
+          ? `${label}: every station takes the template's own value.`
+          : `${label}: ${parameter} is not a value PGMaps' section reads; the template's own value is used.`,
+      )
+      continue
+    }
+    if (other)
+      unmapped.push(
+        `${label}: the part of ${parameter} that changes surfacing courses, components or the rock cut; only the side values it moves are carried.`,
+      )
+    let worstSlope = 0
+    for (const f of [...fields].sort()) {
+      const [side, field] = f.split(':') as ['left' | 'right', OverrideField]
+      const { min, max } = OVERRIDE_FIELDS[field]
+      const out: OverridePoint[] = []
+      let clamped = false
+      const valueAt = (e: RoadEngParameterOverrideEntry) => {
+        const templateCode = roadEngTemplateCodeAt(settings.stationRanges, e.station, side)
+        const next = e.raw === null || templateCode === null ? null : remap(templateCode, e.raw)
+        let value = next ? valueOf(next, side, field) : null
+        if (value !== null && (value < min || value > max)) {
+          clamped = true
+          value = Math.max(min, Math.min(max, value))
+        }
+        return value === null ? null : r6(value)
+      }
+      // Entries at one chainage (a step, or the alignment's start or end as ±FLT_MAX): the first
+      // one's value holds up to it and the last one's after it, so only the last counts at the
+      // road's start and only the first at its end.
+      const groups: { chainage: number; entries: RoadEngParameterOverrideEntry[] }[] = []
+      for (const e of points) {
+        const chainage = Math.max(0, Math.min(length, (e.station - options.startStation) * scale))
+        const last = groups.at(-1)
+        if (last && Math.abs(chainage - last.chainage) <= 1e-6) last.entries.push(e)
+        else groups.push({ chainage, entries: [e] })
+      }
+      groups.forEach((g, k) => {
+        const first = valueAt(g.entries[0]),
+          after = valueAt(g.entries[g.entries.length - 1])
+        const nextChainage = groups[k + 1]?.chainage ?? length
+        if (g.chainage <= 1e-6) out.push({ station: 0, value: after })
+        else if (g.chainage >= length - 1e-6) out.push({ station: r6(length), value: first })
+        else {
+          out.push({ station: r6(g.chainage), value: first })
+          if (after !== first && g.chainage + ROADENG_OVERRIDE_STEP_M < nextChainage - 1e-6)
+            out.push({ station: r6(g.chainage + ROADENG_OVERRIDE_STEP_M), value: after })
+        }
+      })
+      if (clamped)
+        unmapped.push(
+          `${label}: values past PGMaps' ${OVERRIDE_FIELDS[field].label} limits (${min}–${max}), held at the limit.`,
+        )
+      // A slope interpolated as H:V here and as a grade in RoadEng differs between two entered values.
+      if (field === 'CutSlope' || field === 'FillSlope')
+        for (let k = 1; k < out.length; k++) {
+          const a = out[k - 1].value,
+            b = out[k].value
+          if (a !== null && b !== null && a > 0 && b > 0)
+            worstSlope = Math.max(worstSlope, Math.abs((a + b) / 2 - 1 / ((1 / a + 1 / b) / 2)))
+        }
+      if (overrides.length >= MAX_PARAMETER_OVERRIDES) {
+        unmapped.push(`${label}: past PGMaps' ${MAX_PARAMETER_OVERRIDES} overrides.`)
+        continue
+      }
+      overrides.push({
+        id: `roadeng-override-${n}-${side}-${field}`,
+        name: `${parameter} (${side})`.slice(0, 200),
+        side,
+        field,
+        points: out,
+        roadEng: { parameter, code, entries: list.map((e) => e.text) },
+      })
+    }
+    const made = overrides.filter((o) => o.id.startsWith(`roadeng-override-${n}-`))
+    if (made.length)
+      notes.push(
+        `${label} becomes station values of the ${made.map((o) => `${o.side} ${OVERRIDE_FIELDS[o.field].label.replace(/ \(.*\)$/, '').toLowerCase()}`).join(', ')}, interpolated between its stations as in RoadEng; a ** station takes the template's own value.`,
+      )
+    if (worstSlope > 0.005)
+      notes.push(
+        `${label}: RoadEng interpolates a slope as a grade and PGMaps as H:V; midway between two entered slopes they differ by up to ${fmt(worstSlope, 2)}:1.`,
+      )
+  }
+  return { overrides, unmapped: dedupe(unmapped), notes }
 }
 
 // ---- Together ----------------------------------------------------------------------------------------
@@ -2014,17 +3905,36 @@ export function roadEngEngineeringFor(
   const section = roadEngTemplateFor(settings, options)
   const curves = roadEngCurveDesignFor(settings)
   const ground = roadEngMaterialsFor(settings, options)
+  const overrides = roadEngParameterOverridesFor(settings, options)
   const engineering = createEngineeringDesign()
   engineering.templates = section.templates
   engineering.assignments = section.assignments
   engineering.materials = ground.materials
   engineering.strata = ground.strata
+  if (ground.fillRequirements.length) engineering.fillRequirements = ground.fillRequirements
+  if (ground.sitePreparation.length) {
+    engineering.sitePreparation = ground.sitePreparation
+    // RoadEng leaves stripped ground out of the mass haul: it is disposed of where it is stripped,
+    // with no haul (V9/V10 RoadEng Resource tutorial, Stripping).
+    engineering.haul = {
+      ...engineering.haul,
+      sidecastRanges: ground.sitePreparation.map((p) => ({
+        id: `${p.id}-disposal`,
+        start: p.start,
+        end: p.end,
+        capacityBankM3PerM: ROADENG_STRIPPING_DISPOSAL_M3_PER_M,
+        unitRate: 0,
+        materialIds: [p.materialId],
+      })),
+    }
+  }
+  if (overrides.overrides.length) engineering.parameterOverrides = overrides.overrides
   return {
     template: section.template,
     curveDesign: curves.curveDesign,
     engineering,
     subgradeDepthM: section.subgradeDepthM,
-    unmapped: dedupe([...section.unmapped, ...curves.unmapped, ...ground.unmapped]),
-    notes: dedupe([...section.notes, ...curves.notes, ...ground.notes]),
+    unmapped: dedupe([...section.unmapped, ...curves.unmapped, ...ground.unmapped, ...overrides.unmapped]),
+    notes: dedupe([...section.notes, ...curves.notes, ...ground.notes, ...overrides.notes]),
   }
 }

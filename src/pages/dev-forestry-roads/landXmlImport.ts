@@ -12,7 +12,14 @@
  * inform; an alignment is never refused on them.
  *
  * Reads LandXML 1.0–1.2 (landxml.org schema): `Units`, `CoordinateSystem`, `Alignment`, `CoordGeom`,
- * `Line`, `Curve`, `Spiral`, `Profile`, `ProfAlign`, `PVI`, `ParaCurve`, `CircCurve`. The XML is read by
+ * `Line`, `Curve`, `Spiral`, `Profile`, `ProfAlign`, `PVI`, `ParaCurve`, `CircCurve`, and the
+ * alignment's `StaEquation`s: `staInternal` is where an equation stands on the internal stations
+ * (the file's `staStart` plus distance, which the element and profile stations are given in),
+ * `staAhead` the station named from there, `staIncrement="decreasing"` stations falling, `desc` its
+ * note. `staBack` is checked against the stations before it and reported when it differs. A road
+ * read with equations gets them as its stationing (`roadStationing.ts`); one without keeps no
+ * stationing, and its stations start at 0 as before. `Superelevation` and `DesignSpeed` become each
+ * curve's own superelevation and runoff (`landXmlSuperelevation.ts`). The XML is read by
  * a small tokenizer here, so minified files read as well as indented ones.
  *
  * Pure: no DOM or network access.
@@ -23,7 +30,22 @@
 import proj4 from 'proj4'
 import { projectedCrsDefinition } from '@/lib/geo/projectedCrs'
 import { alignmentLength, planFrame } from './engine'
+import {
+  applyLandXmlSuperelevation,
+  readLandXmlSuperelevation,
+  type LandXmlSuperelevation,
+} from './landXmlSuperelevation'
 import type { Alignment, Coordinate, RoadPoint, RoadTemplate, VerticalPoint } from './types'
+import {
+  checkRoadStationing,
+  formatStationValue,
+  keptStationing,
+  MAX_ROAD_STATION_EQUATIONS,
+  MAX_STATION_EQUATION_TEXT,
+  scaleStationing,
+  stationAtChainage,
+  type RoadStationEquation,
+} from './roadStationing'
 
 /** Station length against geometric length: 2π × 1 mm of radius error. */
 export const LANDXML_LENGTH_TOLERANCE_M = 0.007
@@ -155,6 +177,10 @@ export interface LandXmlAlignment {
   profile: { station: number; elevation: number; curveLength: number }[]
   /** The ground profile the file gives (`ProfSurf`), station and elevation in metres; empty without one. */
   ground: { station: number; elevation: number }[]
+  /** The alignment's `StaEquation`s, metres, `back` on the internal stations; empty without any. */
+  equations: RoadStationEquation[]
+  /** The alignment's `Superelevation` elements and its `DesignSpeed` (`landXmlSuperelevation.ts`). */
+  superelevation: { items: LandXmlSuperelevation[]; designSpeedKmh: number | null }
   checks: LandXmlCheck[]
   /** Sum of the elements' geometric lengths in grid units, m. */
   gridLengthM: number
@@ -314,7 +340,69 @@ function readAlignment(node: XmlNode, unitM: number): LandXmlAlignment {
   const lastStation = elements.length ? elements[elements.length - 1].station : null
   const stationedLengthM =
     lastStation !== null ? lastStation + elementLength(elements[elements.length - 1]) - startStation : null
-  return { name, startStation, elements, profile, ground, checks, gridLengthM, stationedLengthM, warnings }
+  const equations = readStationEquations(node, startStation, unitM, warnings)
+  const superelevation = readLandXmlSuperelevation(node, unitM, warnings)
+  return {
+    name,
+    startStation,
+    elements,
+    profile,
+    ground,
+    equations,
+    superelevation,
+    checks,
+    gridLengthM,
+    stationedLengthM,
+    warnings,
+  }
+}
+
+/**
+ * An alignment's `StaEquation`s in internal-station order. One that is not a number, or not after
+ * the one before, is left out and said so; a `staBack` that is not the station the equations before
+ * it name there is reported (the ahead station and the place are what the road keeps).
+ */
+function readStationEquations(node: XmlNode, startStation: number, unitM: number, warnings: string[]) {
+  const read: RoadStationEquation[] = []
+  const backs: (number | null)[] = []
+  for (const e of node.children.filter((c) => c.name === 'StaEquation')) {
+    const value = (key: string) => (e.attributes[key] === undefined ? NaN : Number(e.attributes[key]) * unitM)
+    const internal = value('staInternal'),
+      ahead = value('staAhead'),
+      back = value('staBack')
+    if (!Number.isFinite(internal) || !Number.isFinite(ahead)) {
+      warnings.push('A station equation without a staInternal and a staAhead number is left out.')
+      continue
+    }
+    const description = e.attributes.desc?.trim().slice(0, MAX_STATION_EQUATION_TEXT)
+    read.push({
+      back: internal,
+      ahead,
+      ...(e.attributes.staIncrement === 'decreasing' ? { decreasing: true as const } : {}),
+      ...(description ? { description } : {}),
+    })
+    backs.push(Number.isFinite(back) ? back : null)
+  }
+  const order = read.map((_, k) => k).sort((a, b) => read[a].back - read[b].back)
+  const equations: RoadStationEquation[] = []
+  for (const k of order) {
+    const e = read[k]
+    const last = equations[equations.length - 1]?.back ?? startStation
+    if (equations.length >= MAX_ROAD_STATION_EQUATIONS || e.back < last + 0.001) {
+      warnings.push(
+        `The station equation at internal station ${formatStationValue(e.back, 3)} is left out: ${equations.length >= MAX_ROAD_STATION_EQUATIONS ? `a road holds ${MAX_ROAD_STATION_EQUATIONS}` : 'it is not after the start station and the equation before it'}.`,
+      )
+      continue
+    }
+    const named = stationAtChainage(e.back - startStation, { startStation, equations })
+    const back = backs[k]
+    if (back !== null && Math.abs(back - named) > 0.0005 + 1e-9)
+      warnings.push(
+        `The station equation at internal station ${formatStationValue(e.back, 3)} gives back station ${formatStationValue(back, 3)}; the stations before it name that place ${formatStationValue(named, 3)}.`,
+      )
+    equations.push(e)
+  }
+  return equations
 }
 
 function readProfile(node: XmlNode, unitM: number, warnings: string[]) {
@@ -707,17 +795,56 @@ export function landXmlRoads(
         Math.round((g.station - source.startStation) * road.stationScale * 1000) / 1000,
         Math.round(g.elevation * 1000) / 1000,
       ])
+    // Station equations name the road's stations as the file does, each at its place on the road.
+    const stationing = source.equations.length
+      ? keptStationing(
+          scaleStationing({ startStation: source.startStation, equations: source.equations }, road.stationScale),
+        )
+      : undefined
+    if (stationing) checkRoadStationing(stationing)
+    // Each curve's superelevation as the file states it, on the road's chainage.
+    const superelevated = applyLandXmlSuperelevation(road.alignment, source.superelevation, {
+      startStation: source.startStation,
+      stationScale: road.stationScale,
+      curveStations: curveRunStations(source.elements),
+    })
     return {
       alignment: {
-        ...road.alignment,
+        ...superelevated.alignment,
         ...(fileGround.length >= 2 ? { fileGround: { source: 'LandXML ground profile', points: fileGround } } : {}),
+        ...(stationing ? { stationing } : {}),
       },
       source,
       stationScale: road.stationScale,
-      warnings: [...source.warnings, ...warnings, ...road.warnings],
+      warnings: [...source.warnings, ...warnings, ...road.warnings, ...superelevated.warnings, ...superelevated.notes],
     }
   })
   return { roads, epsg, epsgStated: file.epsg !== null }
+}
+
+/**
+ * Each run of curves and spirals between tangents (one road curve, as `landXmlIntersectionPoints`
+ * makes them) from its first element's station to its last one's end, on the file's stations; null
+ * when an element states no station.
+ */
+function curveRunStations(elements: readonly LandXmlElement[]): { start: number; end: number }[] | undefined {
+  const runs: { start: number; end: number }[] = []
+  for (let i = 0; i < elements.length; ) {
+    if (elements[i].kind === 'line') {
+      i++
+      continue
+    }
+    let j = i
+    while (j + 1 < elements.length && elements[j + 1].kind !== 'line') j++
+    const first = elements[i].station,
+      last = elements[j].station
+    if (first === null || last === null) return undefined
+    // Where the next element's stations start; at the last element, its stated length on.
+    const next = elements[j + 1]?.station ?? null
+    runs.push({ start: first, end: next ?? last + (elements[j].length ?? elementLength(elements[j])) })
+    i = j + 1
+  }
+  return runs
 }
 
 /** One paragraph per road for the import notice: the checks, the start station and the scale. */
@@ -731,7 +858,9 @@ export function landXmlImportSummary(road: LandXmlRoad): string {
   }
   const parts = [
     `${road.alignment.name}: ${road.source.elements.length} elements, ${road.alignment.points.length} points`,
-    `starts at station ${road.source.startStation.toFixed(3)} m (the road's own chainage starts at 0)`,
+    road.alignment.stationing
+      ? `starts at station ${road.source.startStation.toFixed(3)} m with ${road.source.equations.length} station equation${road.source.equations.length === 1 ? '' : 's'}, which name its stations`
+      : `starts at station ${road.source.startStation.toFixed(3)} m (the road's own chainage starts at 0)`,
     `${verdict('length', `lengths (${LANDXML_LENGTH_TOLERANCE_M * 1000} mm)`)}, ${verdict('joint', `joints (${LANDXML_JOINT_TOLERANCE_M * 1000} mm)`)}, ${verdict('kink', `directions (${LANDXML_KINK_TOLERANCE_DEG}°)`)}`,
     `road chainage ÷ file stations ${road.stationScale.toFixed(5)}`,
   ]

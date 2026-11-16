@@ -4,6 +4,7 @@ import {
   TERRAIN_ASPECT_FLAT_COLOR,
   TERRAIN_ASPECT_STOPS,
   terrainAspectFromGradient,
+  terrainDisplaySide,
 } from './terrainDisplay'
 import type { TerrainSource } from './types'
 
@@ -169,5 +170,29 @@ describe('same-source aspect preview', () => {
     expect(pixel(images.get(display.elevation)!, 16, 16)[3]).toBe(255)
     expect(pixel(images.get(display.aspect)!, 16, 16)[3]).toBe(0)
     expect(pixel(images.get(display.hillshade)!, 16, 16)[3]).toBe(0)
+  })
+})
+
+describe('a display over a sparsely covered box', () => {
+  it('sizes its pixels from the covered area, up to the cap', () => {
+    expect(terrainDisplaySide(192)).toBe(192)
+    expect(terrainDisplaySide(192, 1)).toBe(192)
+    // A quarter covered: twice the side, so the covered quarter holds a full display's pixels.
+    expect(terrainDisplaySide(192, 0.25)).toBe(384)
+    // LongRoad's TIN covers 3 % of its box: about 1,100 px rather than 192.
+    expect(terrainDisplaySide(192, 0.03)).toBe(1024)
+    expect(terrainDisplaySide(192, 0)).toBe(1024)
+    expect(terrainDisplaySide(64, 0.001)).toBe(512)
+  })
+
+  it('draws more pixels for a terrain that covers less of its box, and keeps every other display as it was', () => {
+    captureCanvas()
+    const flat: TerrainSource = { elevationAt: () => 100 }
+    expect(buildTerrainDisplay(flat, bounds, 64).resolutionM).toBeCloseTo(
+      buildTerrainDisplay(flat, bounds, 64, { coverShare: 1 }).resolutionM,
+      9,
+    )
+    const sparse = buildTerrainDisplay(flat, bounds, 64, { coverShare: 0.25 })
+    expect(sparse.resolutionM).toBeCloseTo(buildTerrainDisplay(flat, bounds, 128).resolutionM, 9)
   })
 })

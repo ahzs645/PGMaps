@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button'
 import { MapToolPanel } from '@/components/ui/map-tool-panel'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { formatRoadStation } from './Charts'
+import { hasStationing, resolveTypedStation, stationExtent } from './roadStationing'
+import { alignmentLength } from './engine'
 import { NumberField } from './Controls'
 import { CURSOR_LABEL_GAP_PX, cursorLabelSide } from './pegCursor'
 import { isPlanToolKey, usePlanToolOverlay } from './PlanTools'
@@ -74,17 +76,33 @@ export function PointQueryTool({
     if (found) select(found)
   }
   const goTo = (station: number, offset: number) => {
-    const found = queryStationOffset(alignment, station, offset, source, sectionAt)
+    // A station name of a road with stationing goes to its chainage first (`roadStationing.ts`).
+    const named = hasStationing(alignment.stationing)
+    const length = named ? alignmentLength(alignment) : 0
+    const typed = named
+      ? resolveTypedStation(station, alignment.stationing, length, {
+          near: result?.roadId === alignment.id ? result.chainage : undefined,
+        })
+      : null
+    const found = queryStationOffset(alignment, typed ? typed.chainage : station, offset, source, sectionAt)
     if (!found) {
       setNote(`Enter an offset of at most ${MAX_QUERY_OFFSET_M.toLocaleString('en-CA')} m either side of the road.`)
       return
     }
     setResult(found)
-    setNote(
-      Math.abs(found.chainage - station) > 0.0005
-        ? `Station ${station} is ${station < 0 ? 'before the road’s start' : 'past the road’s end'}; showing ${formatRoadStation(found.chainage)}.`
-        : '',
-    )
+    if (typed) {
+      const extent = stationExtent(alignment.stationing, length)
+      setNote(
+        typed.exact
+          ? ''
+          : `Station ${station} is ${station < extent.min ? 'before the road’s start' : station > extent.max ? 'past the road’s end' : 'skipped by a station equation'}; showing ${formatRoadStation(found.chainage, alignment.stationing)}.`,
+      )
+    } else
+      setNote(
+        Math.abs(found.chainage - station) > 0.0005
+          ? `Station ${station} is ${station < 0 ? 'before the road’s start' : 'past the road’s end'}; showing ${formatRoadStation(found.chainage)}.`
+          : '',
+      )
     select(found)
     map?.easeTo({ center: found.coordinate, duration: 300 })
   }

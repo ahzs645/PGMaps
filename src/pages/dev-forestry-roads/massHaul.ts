@@ -5,6 +5,7 @@
  */
 import { materialPlanMissing, type AlignmentEngineering, type HaulMovement } from './engineeringTypes'
 import type { RoadAnalysis, RoadStation } from './types'
+import { lastResortName } from './lastResortPits'
 
 const EPS = 1e-7
 
@@ -166,7 +167,10 @@ export function massHaulDiagram(
     } else
       pits.set(siteId, {
         siteId,
-        name: inputs?.sites.find((site) => site.id === siteId)?.name ?? (borrow ? 'Borrow site' : 'Waste site'),
+        name:
+          inputs?.sites.find((site) => site.id === siteId)?.name ??
+          lastResortName(siteId) ??
+          (borrow ? 'Borrow site' : 'Waste site'),
         kind: m.kind,
         chainage,
         volumeM3: m.transportedVolumeM3,

@@ -41,6 +41,7 @@ import { MappedRoadPanel } from '../MappedRoadPanel'
 import { SightDistancePanel } from '../SightDistancePanel'
 import { RoadGeometryFitPanel } from '../RoadGeometryFitPanel'
 import { ProfileGeometryPanel } from '../ProfileGeometryPanel'
+import { StationingPanel } from '../StationingPanel'
 import { awaitingFirstRoad } from '../investigationWorkspace'
 
 const id = () => crypto.randomUUID()
@@ -190,6 +191,7 @@ function DesignRoadSections(p: SidebarProps & { full: boolean }) {
       <SkidReachPanel {...p} />
       <RouteFinding {...p} full={full} />
       <HorizontalPoints {...p} />
+      <StationingPanel workspace={p.workspace} />
       <VerticalAlignment {...p} />
       <VerticalDesignControls workspace={p.workspace} />
       <SightDistancePanel workspace={p.workspace} />

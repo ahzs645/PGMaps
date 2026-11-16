@@ -154,6 +154,26 @@ function assess(
   return { rows, row, analysis, alignment }
 }
 
+describe('assessReadiness: curves superelevated within their limits', () => {
+  it('appears only with curve criteria, and flags a curve its table leaves blank or that needs more than e max', () => {
+    expect(assess().rows.some((r) => r.id === 'superelevation')).toBe(false)
+    const rule = {
+      designSpeedKmh: 30,
+      maxSuperelevationPercent: 8,
+      sideFrictionFactor: 0.15,
+      runoffLengthM: 20,
+      wideningVehicleLengthM: null,
+    }
+    const met = assess({ alignment: { ...road(), curveDesign: rule } }).row('superelevation')
+    expect(met).toMatchObject({ state: 'met', result: "Every curve's superelevation is within its limits" })
+    const fast = assess({ alignment: { ...road(), curveDesign: { ...rule, designSpeedKmh: 60 } } }).row(
+      'superelevation',
+    )
+    expect(fast).toMatchObject({ state: 'attention', severity: 'limit', action: { target: 'curves' } })
+    expect(fast.measured).toMatch(/needs .* % over 8 %/)
+  })
+})
+
 describe('assessReadiness: what the walkthrough found ticked or missing', () => {
   it('raises a radius below the minimum while the corners are still fitted', () => {
     const { row } = assess({ settings: { minRadius: 60 } })
@@ -522,6 +542,37 @@ describe('assessReadiness: limits and states', () => {
       state: 'attention',
       severity: 'limit',
       result: 'Terrain is too coarse for earthworks where 68% of its cells come from the regional DEM (about 22 m)',
+    })
+  })
+
+  it('states a RoadEng TIN by its point spacing, not the grid drawn from it', () => {
+    // Points 1.5 m apart on a 1 × 1 m TIN pair, drawn on a 7.69 m grid.
+    const tin = (edge: number) => ({
+      kind: 'geotiff' as const,
+      name: 'Survey (RoadEng TIN)',
+      resolutionM: 7.69,
+      verticalReference: 'CGVD2013',
+      preparation: {
+        operation: 'roadeng-tin' as const,
+        sources: [{ name: 'Survey.terx', sha256: '0'.repeat(64), epsg: 26910, verticalReference: 'CGVD2013' }],
+        method: "RoadEng's TIN, read at its facets",
+        parameters: { vertices: 4, triangles: 2, medianEdgeM: edge, areaM2: edge * edge, gridCellM: 7.69 },
+        tin: {
+          coordinates: [0, 0, edge, 0, edge, edge, 0, edge],
+          elevations: [1, 1, 1, 1],
+          triangles: [0, 1, 2, 0, 2, 3],
+        },
+      },
+    })
+    expect(assess({ terrain: tin(1.5) }).row('terrain-source')).toMatchObject({
+      state: 'met',
+      result: 'Terrain resolves the road: TIN, 1.5 m median point spacing',
+      measured: 'Survey (RoadEng TIN) · TIN, 1.5 m median point spacing · CGVD2013',
+    })
+    expect(assess({ terrain: tin(1.5) }).row('terrain-source').judgedOn).toMatch(/^Points 2 m apart or closer/)
+    expect(assess({ terrain: tin(7.85) }).row('terrain-source')).toMatchObject({
+      state: 'attention',
+      result: 'Terrain is too coarse for earthworks: TIN, 7.85 m median point spacing',
     })
   })
 

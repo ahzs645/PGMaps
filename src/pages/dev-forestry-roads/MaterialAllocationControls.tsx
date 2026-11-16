@@ -1,3 +1,4 @@
+import { InfoTip } from '@/components/ui/info-tip'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -7,6 +8,8 @@ import type { AlignmentEngineering, FillRequirement, HaulDirectionRange, Sidecas
 import { MAX_FILL_REQUIREMENTS, MAX_HAUL_DIRECTION_RANGES, MAX_SIDECAST_RANGES } from './allocationPolicy'
 import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, type InvalidInput } from './inputErrors'
+import { stationEntry, type StationEntry } from './stationEntry'
+import { StationField } from './StationFields'
 
 export function MaterialAllocationControls({
   design: e,
@@ -15,10 +18,13 @@ export function MaterialAllocationControls({
   requirementsOnly = false,
   layerIds = [],
   problem,
+  stations = stationEntry(undefined, length),
 }: {
   design: AlignmentEngineering
   onChange: (value: AlignmentEngineering) => void
   length: number
+  /** How the range fields show and take stations: the road's station names when it has them. */
+  stations?: StationEntry
   requirementsOnly?: boolean
   layerIds?: string[]
   /** The current invalid edit, if any; its message is shown at the range it names. */
@@ -111,7 +117,20 @@ export function MaterialAllocationControls({
         {(e.fillRequirements ?? []).map((r, index) => (
           <div key={r.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium">Requirement {index + 1}</span>
+              <span className="flex items-center gap-1 text-xs font-medium">
+                Requirement {index + 1}
+                {r.layer === 'subgrade' && /^roadeng-/.test(r.materialId ?? '') && (
+                  <span className="font-normal text-muted-foreground" data-testid="road-fill-requirement-roadeng">
+                    · RoadEng fill type {e.materials.find((m) => m.id === r.materialId)?.name.split(' · ')[0]}
+                    <InfoTip label="About the RoadEng fill type">
+                      RoadEng's subgrade fill material by range (Fill Types). Exporting the road as a RoadEng project
+                      writes this range and material back into the design's station ranges; substitution by quality and
+                      requirements on other layers are not written, as RoadEng's row holds only the subgrade fill's
+                      material.
+                    </InfoTip>
+                  </span>
+                )}
+              </span>
               <Button
                 size="sm"
                 variant="ghost"
@@ -122,14 +141,16 @@ export function MaterialAllocationControls({
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <NumberField
-                label={`Requirement ${index + 1} start (m)`}
+              <StationField
+                entry={stations}
+                label={`Requirement ${index + 1} start`}
                 value={r.start}
                 error={inputMessage(problem, 'fillRequirements', r.id, 'start')}
                 onChange={(start) => patchRequirement(r.id, { start })}
               />
-              <NumberField
-                label={`Requirement ${index + 1} end (m)`}
+              <StationField
+                entry={stations}
+                label={`Requirement ${index + 1} end`}
                 value={r.end}
                 error={inputMessage(problem, 'fillRequirements', r.id, 'end')}
                 onChange={(value) => patchRequirement(r.id, { end: value })}
@@ -219,14 +240,16 @@ export function MaterialAllocationControls({
             {(e.haul.directionRanges ?? []).map((r, index) => (
               <div key={r.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
                 <div className="grid grid-cols-2 gap-2">
-                  <NumberField
-                    label={`Direction ${index + 1} start (m)`}
+                  <StationField
+                    entry={stations}
+                    label={`Direction ${index + 1} start`}
                     value={r.start}
                     error={inputMessage(problem, 'directionRanges', r.id, 'start')}
                     onChange={(start) => patchDirection(r.id, { start })}
                   />
-                  <NumberField
-                    label={`Direction ${index + 1} end (m)`}
+                  <StationField
+                    entry={stations}
+                    label={`Direction ${index + 1} end`}
                     value={r.end}
                     error={inputMessage(problem, 'directionRanges', r.id, 'end')}
                     onChange={(value) => patchDirection(r.id, { end: value })}
@@ -294,14 +317,16 @@ export function MaterialAllocationControls({
             {(e.haul.sidecastRanges ?? []).map((r, index) => (
               <div key={r.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
                 <div className="grid grid-cols-2 gap-2">
-                  <NumberField
-                    label={`Sidecast ${index + 1} start (m)`}
+                  <StationField
+                    entry={stations}
+                    label={`Sidecast ${index + 1} start`}
                     value={r.start}
                     error={inputMessage(problem, 'sidecastRanges', r.id, 'start')}
                     onChange={(start) => patchSidecast(r.id, { start })}
                   />
-                  <NumberField
-                    label={`Sidecast ${index + 1} end (m)`}
+                  <StationField
+                    entry={stations}
+                    label={`Sidecast ${index + 1} end`}
                     value={r.end}
                     error={inputMessage(problem, 'sidecastRanges', r.id, 'end')}
                     onChange={(value) => patchSidecast(r.id, { end: value })}

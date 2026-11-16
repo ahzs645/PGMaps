@@ -25,6 +25,13 @@ known quality). An explicit minimum also applies to an exact match. Unknown qual
 a minimum. Stripping cannot be specified as fill or used as borrow. Overlapping requirements on
 the same layer are rejected. Stations at policy boundaries join the analytical event schedule.
 
+A road read from a RoadEng design brings RoadEng's subgrade fill material by range (Fill Types,
+`*2` or a ground type code) as exact subgrade requirements, each marked _RoadEng fill type_ with
+its ground type code. Editing them changes the design's ranges when the road is exported as a
+RoadEng project (`roadEngFillMaterials.ts`; see `exports-and-project-files.md`); substitution by
+quality and requirements on other layers stay here, as RoadEng's range row holds only the
+subgrade fill's material.
+
 Borrow sites can name their supplied material. An unnamed site remains usable for an unrestricted
 generic fill demand but cannot satisfy an exact/quality requirement. Waste sites can name one
 accepted material or accept all. Site capacity is shared by every compatible movement, including
@@ -55,8 +62,8 @@ potential balance, not evidence that material-quality or direction constraints a
 
 ## Economic solution
 
-`materialAllocation.ts` formulates a mixed-integer linear program and solves it with the pinned
-`yalps` dependency. For each supported interval/material it accounts for all excavated bank
+`materialAllocation.ts` formulates a mixed-integer linear program. It is solved as a network flow
+where the model is one (below, nearly always), else with the pinned `yalps` dependency. For each supported interval/material it accounts for all excavated bank
 volume through compatible cut-to-fill, permitted sidecast or disposal. Every demand must receive
 its compacted volume. Finite/unbounded site capacities, access distance, the entered haul curve,
 loading/handling rates, procurement/disposal rates and fixed site openings enter the same model.
@@ -71,7 +78,8 @@ claim of numerical equivalence with proprietary OptiHaul.
 An **infeasible** result adopts no material prescription and no movement cost. The summary names
 the unresolved demand/disposal and says the model is infeasible. Zero haul on that result does
 not mean that construction is free. Missing compatible capacity is not replaced by a fictitious
-pit at the default rate.
+pit at the default rate, except by RoadEng's pit of last resort when the haul's **Pit of last
+resort at the road's start** is on (below).
 
 A timeout, pivot limit, numerical cycle, model budget failure or failed conservation check gives a
 **not solved** result (`allocateOrReport` in `engineering.ts`, status `unsolved`): no partial
@@ -98,6 +106,39 @@ are zero because nothing was allocated, and no reader states them as results:
 The solver result is independently checked against every supply, demand and capacity equation,
 its opening binaries, and the reconstructed movement cost before it reaches the workspace.
 
+### Network flow (every road the network can hold)
+
+`networkMaterialAllocation.ts` solves the same model as a minimum-cost network flow
+(`minCostFlow.ts`, the primal network simplex with Cunningham's anti-cycling rule), and
+`solveMaterialAllocation` tries it first. It holds the same supplies, demands, sites, material and
+quality rules, construction directions, capacities, sidecast limits and prices, and minimizes the
+same cost, so its optimum is the tableau model's (`networkMaterialAllocation.test.ts` checks 40
+random roads with every rule against `solveDenseMaterialAllocation`):
+
+- **Units.** Cut flows in compacted m³ (bank × its material's factor), its unsuitable part too, so a
+  cut-to-fill movement needs no conversion inside the network; a unit going to waste is
+  1/factor bank m³, and its haul, disposal cost and use of a site's bank capacity are scaled by that.
+- **Pricing.** Every cut/fill pair is a possible movement, millions on a long road. The first
+  network holds each source's `NETWORK_ALLOCATION_NEAREST` nearest compatible fills either side;
+  after each solve every pair not in it is priced against the node potentials (the dual prices),
+  the `NETWORK_ALLOCATION_ADD_PER_SOURCE` most cost-lowering per source are added, and the solve
+  continues from the same tree. When no pair lowers the cost the plan is optimal for the full model:
+  the potentials prove it. Any haul quote works, stepped or not.
+- **Site openings** with a fixed cost are decided by branch and bound over the tableau model's own
+  relaxation (fixed cost spread over capacity), at most `MAX_NETWORK_ALLOCATION_BRANCHES` branches.
+- **Ties.** Where plans cost the same (zero rates), a tie-break far below a cent keeps material on
+  the road and moves it least, and is taken out of every reported cost.
+- **Checks.** Each source's bank cut and each fill's compacted volume conserved, no capacity
+  exceeded, and the movements' cost equal to the solved cost, as for the tableau models.
+
+Two models go to the tableau solvers instead, which say why when they are over their limits: a
+capacity shared by materials of different swell factors that can actually fill up (a waste site or
+sidecast stretch: one bank m³ is a different number of flow units for each material, which a
+network cannot hold; `networkAllocationApplies` names the site), and the internal-use pass for
+network pricing (`deferExternalSupply`). On LongRoad (27.7 km, 3,000 stations, 1,706 sources and
+2,568 fills, six pits) the plan takes about a second: 7 pricing rounds, 223,045 movements priced
+in, out of 4.4 million possible pairs.
+
 For a proven continuous linear haul tariff with zero loading, `sparseMaterialAllocation.ts`
 uses adjacent chain arcs instead of every source/demand pair. Reusable bank material has a fill
 chain priced at its compacted conversion; bank disposal has a separate waste chain. The chains
@@ -106,6 +147,70 @@ decisions, and run the whole road: an arc over road with unknown earthwork costs
 destination movements and checked against the same objective. This is an exact change of model
 representation for that tariff. Piecewise/discontinuous tariffs, loading charges and the external-
 deferral pass use the general dense formulation. No tariff is approximated to make it fit.
+
+## RoadEng's costing: optimal haul, pit of last resort and fill by material
+
+A road read from a RoadEng design is costed as RoadEng costs it (`roadEngHaul.ts`,
+`ROADENG_READ_HAUL`):
+
+- **Economic plan by default.** RoadEng's costing is an optimal haul: "before reporting the haul
+  cost, Softree Optimal solves an optimization problem to determine the lowest cost haul
+  specification that balances material" (Optimal manual, chapter 3). The economic plan is the same
+  calculation, and on the costed samples it comes nearer RoadEng's haul than nearest-site
+  allocation wherever material moves far: LongRoad's haul is 1.59 M against RoadEng's 0.78 M, where
+  nearest-site gave 3.98 M; the cul-de-sac 190 k against 216 k (nearest 203 k). On short roads that
+  barely move material the two are close (bluff road: both 2,952 against 3,063). Switching a road
+  to nearest-site allocation travels in `[PGMaps] Costs`.
+- **Pit of last resort** (`HaulSettings.lastResort`, `lastResortPits.ts`). RoadEng accounts for all
+  of every material: what no pit, cut or sidecast can take goes to an overflow pit and what none
+  can give comes from an underflow pit, both at the start of the alignment, used only when every
+  other way is exhausted, underflow priced from the ground type table (manual, chapter 3,
+  "Overflow and Underflow"). Here they are a waste site with no disposal cost and one borrow site
+  per earthwork material at its excavation rate per compacted m³, at chainage 0 and unlimited,
+  added for each calculation and never stored; the network plan gives them a priority penalty of
+  `LAST_RESORT_PRIORITY` times the largest per-m³ cost so it uses them only where nothing else
+  serves, and takes it out of every cost. The tableau solvers, when they run, price them at their
+  rates alone. Nearest-site allocation tries them after every other site. The haul's _Pit of last
+  resort at the road's start_ box switches it; a road not read from RoadEng starts with it off.
+  Without it the cul-de-sac (no waste pit), Hart Rd and Location 18 were infeasible.
+- **Fill by material** (`fillPlacement.ts`, `GroundMaterial.fillRate`). RoadEng's embankment cost is
+  per ground type, and RoadEng reports fill as the bank volume of the material placed (Softree,
+  "Expansion and compaction": fill volume times the fill expansion factor). Each material's fill
+  placement rate is per bank m³ of it; fill made of it is priced at the rate ÷ its compaction
+  factor per compacted m³, a cut-to-fill movement by the bank volume moved and a borrow by its
+  compacted volume. Fill no movement accounts for is priced by its interval's required material,
+  else at the project's fill rate, which also prices every road whose materials have no rate of
+  their own. The covered estimate lists one fill row per material.
+- **Stored results.** The five costs are haul, cut, fill, pit opening and attributes; RoadEng's cut
+  includes borrow and underflow excavation, so the comparison sets the road's cut plus borrow beside
+  it (`roadEngStoredResults.ts` says what each sample shows).
+
+The eleven costed designs (`roadEngCostedSamples.test.ts`, run with `ROADENG_SAMPLES` and
+`ROADENG_SAMPLE_PACK`), RoadEng's stored costs against this workspace's with the economic plan, the
+pit of last resort and fill by material, in the design's currency, on 15 November 2026 with every
+other change of that day:
+
+| Design                              | RoadEng cut / fill / haul | PGMaps cut + borrow / fill / haul | Notes                                                 |
+| ----------------------------------- | ------------------------- | --------------------------------- | ----------------------------------------------------- |
+| LongRoad                            | 7.55 M / 2.12 M / 0.78 M  | 7.22 M + 1.61 M / 1.99 M / 1.59 M | 44,843 m³ of SR borrow from pits 7 km off the road    |
+| Cul-de-sac                          | 1.35 M / 184 k / 216 k    | 1.27 M / 179 k / 190 k            | 61,540 bank m³ to overflow at the road's start        |
+| Align stage 4                       | 340 k / 100 k / 16.2 k    | 248 k + 14 k / 102 k / 12.9 k     | underflow GR and HP; nearest-site haul 17.3 k         |
+| Align stage 7                       | 476 k / 117 k / 18.9 k    | 386 k + 199 k / 102 k / 48.6 k    | CS fill read as exact: 12,707 m³ from underflow       |
+| Align stage 8 (and 8a)              | 416 k / 97.0 k / 13.7 k   | 386 k + 145 k / 83.4 k / 43.4 k   | CS and RR fill read as exact: 9,232 m³ from underflow |
+| Bluff road (×2)                     | 52.3 k / 1.8 k / 3.1 k    | 50.2 k / 1.7 k / 3.0 k            |                                                       |
+| Hart Rd (and optimal, optimal haul) | 384 k / 56.4 k / 34.6 k   | 423 k + 2 k / 48.4 k / 41.5 k     | GR and SR fill exact                                  |
+| Hart Rd curves                      | 336 k / 58.2 k / 15.0 k   | 391 k / 50.1 k / 32.0 k           |                                                       |
+| Location 18 (×3)                    | 140 k / 36.6 k / 6.6 k    | 136 k + 35 k / 47.2 k / 56.1 k    | CO fill read as exact: all from underflow             |
+
+Cut and fill volumes differ with the section, which other changes of the same day settle. Where
+haul and borrow run far over RoadEng's (stages 7 and 8, Location 18), the fill type is read as an
+exact material, so fill no cut of that type can give comes from underflow at the road's start;
+RoadEng lets any material of the same or higher quality fill it (Optimal manual, chapter 3, Quality
+Factor), which the fill-range import does not yet apply. On the fill, RoadEng's per-bank basis fits
+the cul-de-sac (its overburden shrinks: 179 k against 184 k, where a per-compacted rate gives 143 k);
+Hart Rd and LongRoad come nearer RoadEng with a per-compacted rate (58.0 k and 2.07 M), but their
+sections already differ by 10 to 17 % in cut, so they do not decide it; Softree's documentation of
+fill expansion is the basis taken.
 
 ## Construction direction and sidecast
 
@@ -204,6 +309,21 @@ calls `compareMassHaul`, `compareOptimalHaul` and `compareOptimalAreas`). The fi
 dialog: reading it never writes to the project, and **Download comparison CSV** saves the
 comparison, not a project export.
 
+- **Results stored in the design.** For a road read from a RoadEng design the dialog opens on
+  **Results stored in the design**, with nothing to export from RoadEng: the active vertical
+  alignment's last costing (else its last optimization), read from the design's `.dsn`
+  (`roadEngStoredResults.ts`, `compareRoadEngDesignResults`). Its haul, cut, fill and pit opening
+  costs are set beside the road's in the same columns, from the road's Optimal Haul cost summary
+  when haul allocation is solved (cut includes borrow bought from sites, as RoadEng's does) and from
+  its earthwork costs otherwise, with no haul; RoadEng's attribute costs, where not zero, have no
+  counterpart and never agree. Its first and last stations costed are set beside the road's ends and
+  agree within 0.5 m (`STORED_RANGE_TOLERANCE_M`); a costing that covers less of the road is said,
+  and so are stretches the road's quantities leave out for missing terrain. Other vertical
+  alignments' solutions are listed under _Only in the design_. Costs stay in each side's currency.
+  RoadEng greys a solution out once its design changes, and neither side knows of the other's edits,
+  so the notes give the date RoadEng solved it. **A RoadEng or Softree file** switches to the files
+  below.
+
 - **Which file.** Told by content, never by name: a `Cut Vol` header row is a Mass Haul export, an
   Optimal Haul section title (`Cost summary`, `Volume summary`…) an Optimal Haul export, and a
   `version` / `no. station` header ending at `data start:` an Areas file. Anything else is refused
@@ -219,7 +339,7 @@ comparison, not a project export.
   Haul: the cost total and each volume column over all materials; Areas: cut and fill volume by
   average end area between neighbouring stations both sides hold), with the difference and its
   percentage of the file's value. Then every item or station row, those that differ first and the
-  largest relative difference first; *Differences only* hides the rest. A row's station button
+  largest relative difference first; _Differences only_ hides the rest. A row's station button
   moves the workspace's station there, which the plan, profile and section follow. Last, what only
   the file has and what only the road has: mass-haul items no item of the same type overlaps,
   materials or pits on one side only, Areas stations with no record within 0.01 m.
@@ -232,7 +352,13 @@ comparison, not a project export.
 
 No RoadEng-written Mass Haul, Optimal Haul or Areas file is among Softree's sample projects, so the
 comparison is checked against the road's own exports with values changed by hand
-(`softreeCompare.test.ts`, `tests/e2e/forestry-road-softree-compare.spec.ts`).
+(`softreeCompare.test.ts`, `tests/e2e/forestry-road-softree-compare.spec.ts`). Three samples store a
+solved costing (LongRoad, the cul-de-sac's first alignment, Align stage 1; `roadEngStoredResults.test.ts`);
+the dialog's stored results are checked on a design the page writes with a costing added by hand
+(`tests/e2e/forestry-road-roadeng-stored-results.spec.ts`). The sample pack adds eight more costed
+designs (`roadEngCostedSamples.test.ts`, above), and a generated RoadEng project checks the economic
+plan, the pit of last resort and fill by material on the page
+(`tests/e2e/forestry-road-roadeng-optimal-haul.spec.ts`).
 
 ## Limits and verification
 
@@ -245,12 +371,17 @@ comparison is checked against the road's own exports with values changed by hand
 | 12 positive-price site openings                                                                               | `MAX_ALLOCATION_OPENINGS`                                                                     |
 | 2,048 branch iterations; 3-second integer-search timeout                                                      | `MAX_ALLOCATION_BRANCHES`, solver options                                                     |
 | Simplex pivots per phase: 4 per tableau row, at least 256 and at most 10,000                                  | `allocationPivotLimit`, `ALLOCATION_PIVOTS_PER_ROW`, `MAX_ALLOCATION_PIVOTS`                  |
+| Network plan: 200,000 nodes; 3,000,000 movement arcs; 60,000,000 pairs priced a round; 60 rounds              | `MAX_NETWORK_ALLOCATION_NODES`, `_ARCS`, `_PAIRS`, `_ROUNDS`, `networkMaterialAllocation.ts`  |
+| Network plan: 12 nearest fills each side to start; 48 pairs added per source a round                          | `NETWORK_ALLOCATION_NEAREST`, `NETWORK_ALLOCATION_ADD_PER_SOURCE`                             |
+| Network plan: 12 priced site openings, 256 branches                                                           | `MAX_NETWORK_ALLOCATION_OPENINGS`, `MAX_NETWORK_ALLOCATION_BRANCHES`                          |
+| Pit of last resort: priority penalty 100 × the largest per-m³ cost                                            | `LAST_RESORT_PRIORITY`                                                                        |
 | What-if balance line: 400 layers per loop plus one break at every vertex height; within the curve's own range | `BALANCE_LINE_LAYERS`, `balanceLevelRange`, `balanceLine.ts`                                  |
 | Mass Haul export: 400 layers per loop, as the balance line                                                    | `MASS_HAUL_LAYERS`, `massHaulItems`                                                           |
 | Softree CSV read: 100 MB / 2,000,000 rows; Areas file 500 code pairs a record                                 | `MAX_SOFTREE_CSV_BYTES`, `MAX_SOFTREE_CSV_ROWS`, `MAX_OPTIMAL_AREA_PAIRS`                     |
 | Optimal material descriptions: 50 characters                                                                  | `OPTIMAL_DESCRIPTION_CHARS`                                                                   |
 | Compare with RoadEng: 50 MB file; 400 rows drawn (the comparison CSV holds every row); agree within 0–50 %    | `MAX_COMPARE_FILE_BYTES`, `MAX_COMPARE_ROWS_SHOWN`, `MAX_COMPARE_RELATIVE_PERCENT`            |
 | Compare with RoadEng: rounding tolerance and Areas station match                                              | `COMPARE_ABSOLUTE_TOLERANCE`, `COMPARE_STATION_TOLERANCE_M` (0.01 m)                          |
+| Compare with RoadEng: a stored costing's first and last stations agree with the road's ends (0.5 m)           | `STORED_RANGE_TOLERANCE_M`                                                                    |
 
 The sparse formulation has the same 20,000-variable / 1,200-constraint / 3,000,000-cell ceilings,
 enforced by `MAX_SPARSE_ALLOCATION_*` in `sparseMaterialAllocation.ts`.
@@ -263,14 +394,14 @@ about 1,300 pivots and was allowed 268, which was reported as a numerical cycle.
 `qualitySubstitution.test.ts` holds that case, a three-interval quality case worked by hand
 ($1,228) and a road-sized case checked against a closed-form optimum.
 
-A stepped haul quote still needs the dense model, which has one variable per compatible
-cut-interval/fill-interval pair. With a free-haul distance above zero and any distance rate, a
-road of about 90 intervals whose cut can be placed as fill exceeds the tableau limit and reads
-**Material plan not solved**. A quote with the free-haul distance at 0 m and one distance rate is
-linear and uses the sparse model. See [known issues](known-issues.md).
+The tableau models' limits now bind only on what the network flow leaves to them (a shared
+capacity of mixed swell, the internal-use pass). There a stepped haul quote needs the dense model,
+which has one variable per compatible cut-interval/fill-interval pair, and a road of about 90
+intervals exceeds the tableau limit and reads **Material plan not solved**; the message says why the
+network could not take it. See [known issues](known-issues.md).
 
-Economic work grows with the number of source/demand interval pairs. A long road at a fine station
-interval may exceed the browser budget even when its ordinary quantities calculate. Increase
+Economic work grows with the number of source/demand interval pairs. A very long road at a fine
+station interval may still pass the network's limits. Increase
 station spacing only after a quantity convergence check, reduce redundant material definitions
 and candidate sites, or split a design at a defensible construction boundary. The app does not
 silently truncate its economic model or label the old heuristic an optimum.
@@ -283,6 +414,11 @@ parcel and local sidecast.
 direction-blocked deliveries and internal rock used in a surface course without double buying.
 `qualitySubstitution.test.ts` checks substitution by quality against a hand-worked optimum, a
 road-sized model and the not-solved result.
+`minCostFlow.test.ts` checks the network simplex against worked transport problems and 60 random
+networks solved as linear programs; `networkMaterialAllocation.test.ts` checks the network plan
+against the dense tableau on 40 random roads with every rule, a 3,000-station road past every
+tableau limit, the refusal of a mixed-swell shared capacity, the tie-break and the pit of last
+resort; `fillPlacement.test.ts` the fill priced by material.
 `sparseMaterialAllocation.test.ts` compares sparse results to independent dense solutions and
 exhaustive small assignment oracles, including mixed conversion factors and fixed site openings.
 The all-scenario source check uses an explicitly continuous entered haul quote; it does not change

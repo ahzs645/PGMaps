@@ -1,5 +1,6 @@
 import { MAX_DITCH_DIP_DEPTH } from './engine'
 import { sideValue } from './templates'
+import { ditchInslopeAt, ditchRuns } from './sectionStructures'
 import type { ResolvedTemplate, RoadStation, RoadTemplate, SectionSample } from './types'
 
 export interface SectionCodePoint extends SectionSample {
@@ -63,7 +64,14 @@ export function sectionCodePoints(
     points.push({ code: `${side}-formation-edge`, side, ...edge })
     const ditchWidth = sideValue(template, side, 'DitchWidth'),
       ditchDepth = sideValue(template, side, 'DitchDepth')
-    const bottomOffset = sign * (width + ditchWidth / 2)
+    // The bottom's middle: half the width for a ditch whose slopes match, after the inslope otherwise.
+    const runs = ditchRuns(
+      ditchWidth,
+      ditchDepth,
+      sideValue(template, side, 'DitchBottomWidth'),
+      ditchInslopeAt(template, side),
+    )
+    const bottomOffset = sign * (width + runs.inRun + runs.bottom / 2)
     const bottom = station.section.find((sample) => Math.abs(sample.offset - bottomOffset) < EPS)
     // Both the edge condition and an actual matching bottom sample are required.
     // The engine may still know design geometry where the sampled bottom ground is missing.

@@ -19,6 +19,9 @@
  *   (shift, rotation, one scale) fitted by least squares in the target's UTM zone, with each
  *   point's residual; the terrain is resampled into that zone.
  *
+ * A RoadEng TIN kept as the ground (`preparation` `roadeng-tin`, `tinGround.ts`) moves vertex by
+ * vertex with it, exactly either way; its levels are unchanged.
+ *
  * A project part this does not know how to move refuses the placement and is named.
  *
  * Pure: no DOM or network access.
@@ -176,7 +179,11 @@ export function preparePlacement(project: RoadProject, placement: Placement) {
   const held = UNMOVED.filter(([key]) => present(project[key])).map(([, label]) => label)
   if (held.length)
     throw Error(`Placing moves roads, layers, D-lines, notes and terrain. Remove ${held.join(', ')} first.`)
-  if (project.terrain.preparation || project.terrain.backgrounds?.length || project.terrain.referenceSurfaces?.length)
+  if (
+    (project.terrain.preparation && project.terrain.preparation.operation !== 'roadeng-tin') ||
+    project.terrain.backgrounds?.length ||
+    project.terrain.referenceSurfaces?.length
+  )
     throw Error(
       'Placing moves the terrain grid only. Remove its preparation, backgrounds and reference surfaces first.',
     )
@@ -362,8 +369,39 @@ function placeTerrain(
   similarity: ((file: XY) => XY) | null,
   notes: string[],
 ): TerrainMetadata {
-  const { localPlane: _dropped, ...rest } = terrain
+  const { localPlane: _dropped, preparation, ...kept } = terrain
   void _dropped
+  // RoadEng's TIN, kept as the ground: each vertex in the file's coordinates, then through the fit.
+  const tin = preparation?.operation === 'roadeng-tin' ? preparation.tin : undefined
+  const fileXY = (i: number): XY => [
+    tin!.coordinates[i * 2] + local.offsetM[0],
+    tin!.coordinates[i * 2 + 1] + local.offsetM[1],
+  ]
+  const placedTin = (scale: number, gridCellM: number) => {
+    if (!preparation || !tin) return {}
+    const coordinates = new Array<number>(tin.coordinates.length)
+    for (let i = 0; i < tin.elevations.length; i++) {
+      const [x, y] = similarity ? similarity(fileXY(i)) : fileXY(i)
+      coordinates[i * 2] = Math.round(x * 1000) / 1000
+      coordinates[i * 2 + 1] = Math.round(y * 1000) / 1000
+    }
+    const p = preparation.parameters
+    const mm = (v: number) => Math.round(v * 1000) / 1000
+    return {
+      preparation: {
+        ...preparation,
+        sources: preparation.sources.map((s) => ({ ...s, epsg })),
+        parameters: {
+          ...p,
+          ...(typeof p.medianEdgeM === 'number' ? { medianEdgeM: mm(p.medianEdgeM * scale) } : {}),
+          ...(typeof p.areaM2 === 'number' ? { areaM2: Math.round(p.areaM2 * scale * scale) } : {}),
+          gridCellM: mm(gridCellM),
+        },
+        tin: { ...tin, coordinates },
+      },
+    }
+  }
+  const rest = { ...kept, ...(preparation && !tin ? { preparation } : {}) }
   if (!terrain.raster) return { ...rest, epsg }
   const r = terrain.raster
   if (!similarity) {
@@ -373,7 +411,7 @@ function placeTerrain(
       epsg,
       origin: [r.origin[0] + local.offsetM[0], r.origin[1] + local.offsetM[1]],
     }
-    return { ...rest, epsg, raster }
+    return { ...rest, epsg, raster, ...placedTin(1, Math.abs(r.pixelSize[0])) }
   }
   const raster = resampleRaster(r, local, epsg, similarity)
   // A project opened without terrain holds an empty grid only to give the plane an extent.
@@ -381,7 +419,16 @@ function placeTerrain(
     notes.push(
       `The terrain was resampled to ${raster.pixelSize[0].toFixed(2)} m cells in EPSG:${epsg} (${raster.width} × ${raster.height}).`,
     )
-  return { ...rest, epsg, resolutionM: raster.pixelSize[0], raster }
+  // The fit's scale, from two mapped points: the TIN's edges and area grow with it.
+  const o = similarity([0, 0]),
+    e = similarity([1, 0])
+  return {
+    ...rest,
+    epsg,
+    resolutionM: raster.pixelSize[0],
+    raster,
+    ...placedTin(Math.hypot(e[0] - o[0], e[1] - o[1]), raster.pixelSize[0]),
+  }
 }
 
 /** Bilinear resampling of a plane raster into the target grid through the similarity. */

@@ -26,6 +26,8 @@ import { materialPlanMissing } from './engineeringTypes'
 import { curveDesignAt, surfaceLayersAt } from './engine'
 import { sectionCrossfall, templateAt } from './templates'
 import { solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
+import { fillPlacementCost } from './fillPlacement'
+import { lastResortSites } from './lastResortPits'
 import { materialDemandKey, requiredFillAt } from './allocationPolicy'
 import { resolveHorizons } from './groundHorizons'
 import { pappusVolume } from './curvedVolume'
@@ -140,8 +142,13 @@ function emptyHaul(enabled: boolean, complete: boolean): HaulSummary {
  * every class adds its loading rate. This is the piecewise haul-cost curve shown with the rates.
  */
 export function haulUnitCost(h: HaulSettings, distanceM: number) {
-  const charge = haulCharge(h, distanceM)
-  return charge.chargedKm * h[charge.rateKey] + h[charge.loadingRateKey]
+  // `haulCharge`'s classes, without building an object: the material plan prices millions of pairs.
+  if (distanceM <= h.freeHaulDistanceM + EPS)
+    return (Math.max(0, distanceM) / 1000) * h.freeHaulRate + h.freeHaulLoadingRate
+  const km = Math.max(0, distanceM - h.freeHaulDistanceM) / 1000
+  return distanceM <= h.overhaulDistanceM + EPS
+    ? km * h.overhaulRate + h.overhaulLoadingRate
+    : km * h.endHaulRate + h.endHaulLoadingRate
 }
 
 const HAUL_CLASS_RATES = {
@@ -242,7 +249,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
   const used: HaulSite[] = []
   for (const kind of ['borrow', 'waste'] as const) {
     const basis = kind === 'borrow' ? 'compacted' : 'bank'
-    for (const site of e.sites) {
+    for (const site of [...e.sites, ...lastResortSites(e)]) {
       if (site.kind !== kind) continue
       const volume = result.movements
         .filter(
@@ -283,7 +290,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
         amount: unallocated * h[rateKey],
       })
   }
-  for (const site of used)
+  for (const site of used.filter((s) => !s.lastResort))
     lines.push({
       id: `site-${site.id}`,
       group: 'sitePreparation',
@@ -391,7 +398,9 @@ function economicHaul(
   warnings.push(
     h.deferExternalSupply
       ? 'Internal-use material plan only: external supply/disposal parcels remain explicitly unresolved for connected network pricing; this is not a complete economic prescription.'
-      : `Economic material flow solved to optimality within ${solved.variables} variables and ${solved.constraints} constraints, including fixed site openings. It does not schedule equipment or validate site permissions.`,
+      : solved.method === 'network'
+        ? `Economic material flow solved to optimality as a network of ${solved.variables.toLocaleString('en-CA')} movements between ${solved.constraints.toLocaleString('en-CA')} sources, fills and sites, including fixed site openings. It does not schedule equipment or validate site permissions.`
+        : `Economic material flow solved to optimality within ${solved.variables} variables and ${solved.constraints} constraints, including fixed site openings. It does not schedule equipment or validate site permissions.`,
   )
   return { summary, movements, costs, warnings }
 }
@@ -465,6 +474,9 @@ function allocateHaul(
     let remaining = amount
     const candidates = availableSites.filter((s) => s.kind === kind)
     const compare = (a: (typeof candidates)[number], b: (typeof candidates)[number]) => {
+      // A pit of last resort serves only once every other site is used up.
+      if (!!a.lastResort !== !!b.lastResort) return a.lastResort ? 1 : -1
+      if (a.lastResort && b.lastResort && a.unitRate !== b.unitRate) return a.unitRate - b.unitRate
       const da = Math.abs(a.chainage - interval.chainage) + a.accessDistanceM
       const db = Math.abs(b.chainage - interval.chainage) + b.accessDistanceM
       if (h.siteSelection === 'delivered-cost') {
@@ -1066,8 +1078,12 @@ export function calculateEngineering(
   // decide whether a site is on the road, keeping its entered chainage for haul distances. A site
   // beyond the road end has no road to it; one beside unknown ground is still on the road.
   const roadEnd = analysis.stations.at(-1)?.chainage ?? 0
+  const planSites = [
+    ...e.sites.filter((site) => Math.round(site.chainage * 1e6) / 1e6 <= roadEnd + EPS),
+    ...lastResortSites(e),
+  ]
   const haul = allocateOrReport(
-    { ...e, sites: e.sites.filter((site) => Math.round(site.chainage * 1e6) / 1e6 <= roadEnd + EPS) },
+    { ...e, sites: planSites },
     intervals,
     coverageComplete,
     Math.max(0, analysis.length - analysis.completeLength),
@@ -1126,6 +1142,16 @@ export function calculateEngineering(
     0,
   )
   const materialLayerPlacementCost = materialLayerVolumeM3 * settings.fillRate
+  // Fill priced by the material it is made of where a material has its own embankment rate.
+  const fill = fillPlacementCost({
+    intervals,
+    fillVolumeM3: analysis.fillVolumeM3,
+    movements: haul.movements,
+    materials: e.materials,
+    sites: planSites,
+    fillRequirements: e.fillRequirements,
+    fillRate: settings.fillRate,
+  })
   if (materialLayerVolumeM3 > EPS)
     warnings.push(
       'Material-allocated surface courses price material and haul separately; their placement uses the entered fill-placement rate. Only remaining generic surfacing uses the delivered surfacing rate/supply scenario.',
@@ -1133,7 +1159,7 @@ export function calculateEngineering(
   const costs: EngineeringCosts = {
     cut: materialResults.filter((m) => m.purpose !== 'stripping').reduce((sum, m) => sum + m.excavationCost, 0),
     stripping: materialResults.filter((m) => m.purpose === 'stripping').reduce((sum, m) => sum + m.excavationCost, 0),
-    fill: analysis.fillVolumeM3 * settings.fillRate,
+    fill: fill.cost,
     surfacing:
       surfacingSupplyCost(
         Math.max(0, analysis.surfaceVolumeM3 - materialLayerVolumeM3),
@@ -1177,6 +1203,7 @@ export function calculateEngineering(
     warnings,
     ...(materialLayerVolumeM3 > EPS ? { materialLayerVolumeM3, materialLayerPlacementCost } : {}),
     ...(hasRock ? { rock } : {}),
+    ...(e.materials.some((m) => m.fillRate !== undefined) ? { fillPlacement: fill.lines } : {}),
   }
 }
 

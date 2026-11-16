@@ -14,6 +14,7 @@ export type EngineeringInputList =
   | 'sites'
   | 'sitePreparation'
   | 'fillRequirements'
+  | 'parameterOverrides'
   | 'directionRanges'
   | 'sidecastRanges'
   | 'haul'

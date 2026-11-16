@@ -14,6 +14,7 @@
  *
  * None of this certifies a road standard: the limits are the project's own inputs.
  */
+import { labelStation, withStationing } from './roadStationing'
 import { calculatedAlignment, hasCompleteCoverage } from './analysisResult'
 import { MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M } from './connectorCheckOptions'
 import { CONSTRAINT_LABELS, resolveConstraint } from './constraints'
@@ -30,6 +31,7 @@ import { gradeRule, gradeRuleText, gradeSpanOf, reviewGrades, type DesignStandar
 import type { DrainageEvidence } from './drainageEvidence'
 import { DITCH_DETAIL_CELL_M } from './hydrology'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
+import { evaluateCurveCriteria } from './roadCriteria'
 import { materialPlanMissing } from './engineeringTypes'
 import { invalidInputMessages, type EngineeringInputList } from './inputErrors'
 import { reviewRoadSight } from './sightDistance'
@@ -38,6 +40,7 @@ import { reviewTurnoutSight, TURNOUT_MAX_SPACING_M } from './turnoutSight'
 import type { SweptPathResult } from './sweptPath'
 import { reviewRoadHaul, type RoadHaulReview } from './haulReview'
 import { DEFAULT_TEMPLATE } from './terrain'
+import { terrainResolution } from './tinGround'
 import type {
   Alignment,
   ContextFeature,
@@ -154,7 +157,7 @@ export function vehicleFit(result: SweptPathResult): VehicleFit {
 export interface ReadinessInput {
   settings: RoadSettings
   standards?: DesignStandards
-  terrain: Pick<TerrainMetadata, 'kind' | 'name' | 'resolutionM' | 'verticalReference' | 'fill'>
+  terrain: Pick<TerrainMetadata, 'kind' | 'name' | 'resolutionM' | 'verticalReference' | 'fill' | 'preparation'>
   context: readonly ContextFeature[]
   alignment: Alignment
   analysis: RoadAnalysis
@@ -176,10 +179,7 @@ export interface ReadinessInput {
 const SLOPE_SHEET_JUDGED_ON = `The sheet's share of ground at ${SLOPE_SHEET_CHECK.steepPercent}% or steeper in a ±${SLOPE_SHEET_CHECK.stripHalfWidthM} m strip, per ${SLOPE_SHEET_CHECK.intervalM} m, within ${SLOPE_SHEET_CHECK.flagPoints} points of the terrain's. The sheet's JPEG classes are area estimates (about 9–12%); it is evidence beside the estimate, never an input to it`
 const CROSS_DRAIN_JUDGED_ON = 'A culvert at every modelled stream and cross-drain site; none undersized'
 const EPS = 1e-6
-const station = (chainage: number) => {
-  const rounded = Math.round(Math.max(0, chainage) * 10) / 10
-  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
-}
+const station = (chainage: number) => labelStation(chainage)
 const num = (value: number, digits = 0) =>
   value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 const trim = (value: number, digits = 1) => String(Math.round(value * 10 ** digits) / 10 ** digits)
@@ -240,6 +240,7 @@ const INPUT_TARGETS: Record<EngineeringInputList, ReadinessTarget> = {
   culverts: 'culverts',
   sites: 'haul',
   fillRequirements: 'haul',
+  parameterOverrides: 'templates',
   directionRanges: 'haul',
   sidecastRanges: 'haul',
   haul: 'haul',
@@ -347,6 +348,11 @@ function verticalLengthsRow(
 }
 
 export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
+  // Rows name stations by the road's own start station and equations, on screen and in print.
+  return withStationing(input.alignment.stationing, () => assessReadinessInChainage(input))
+}
+
+function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
   const { settings, standards, terrain, context, alignment, analysis, cost } = input
   const rows: ReadinessRow[] = []
   const add = (row: ReadinessRow) => rows.push(row)
@@ -392,8 +398,17 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   }
 
   // ---- Terrain -------------------------------------------------------------------------------
-  const sourceText = `${terrain.name} · ${trim(terrain.resolutionM, 2)} m cells · ${terrain.verticalReference || 'no vertical datum'}`
-  const siteLimit = `${MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M} m cells or finer, from a survey you have checked`
+  // A RoadEng TIN is as fine as its points: sections read its facets, and the grid is only drawn.
+  const resolution = terrainResolution(terrain)
+  const resolutionText =
+    resolution.kind === 'tin'
+      ? `TIN, ${trim(resolution.spacingM, 2)} m median point spacing`
+      : `${trim(terrain.resolutionM, 2)} m cells`
+  const sourceText = `${terrain.name} · ${resolutionText} · ${terrain.verticalReference || 'no vertical datum'}`
+  const siteLimit =
+    resolution.kind === 'tin'
+      ? `Points ${MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M} m apart or closer (median TIN edge), from a survey you have checked`
+      : `${MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M} m cells or finer, from a survey you have checked`
   if (terrain.kind !== 'demo' && !(Number.isFinite(terrain.resolutionM) && terrain.resolutionM > 0))
     add({
       id: 'terrain-source',
@@ -429,14 +444,14 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: siteLimit,
       action: { label: 'Terrain', target: 'terrain' },
     })
-  else if (terrain.kind === 'regional' || terrain.resolutionM > MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M + EPS)
+  else if (terrain.kind === 'regional' || resolution.spacingM > MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M + EPS)
     add({
       id: 'terrain-source',
       group: 'terrain',
       check: 'Terrain fit for site quantities',
       state: 'attention',
       severity: 'limit',
-      result: `Terrain is too coarse for earthworks: ${trim(terrain.resolutionM, 2)} m cells`,
+      result: `Terrain is too coarse for earthworks: ${resolutionText}`,
       measured: sourceText,
       judgedOn: siteLimit,
       action: { label: 'Terrain', target: 'terrain' },
@@ -447,7 +462,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       group: 'terrain',
       check: 'Terrain fit for site quantities',
       state: 'met',
-      result: `Terrain resolves the road: ${trim(terrain.resolutionM, 2)} m cells`,
+      result: `Terrain resolves the road: ${resolutionText}`,
       measured: sourceText,
       judgedOn: `${siteLimit}. Accuracy is the source's, not checked here`,
     })
@@ -767,6 +782,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       measured: tightest ? `Tightest ${trim(tightest.radius)} m at ${station(tightest.start)}` : undefined,
       judgedOn: `Minimum radius ${trim(settings.minRadius)} m`,
     })
+  const superelevation = fittedCurves ? superelevationRow(alignment, fittedCurves) : null
+  if (superelevation) add(superelevation)
 
   const vehicle = input.vehicle
   if (!vehicle)
@@ -1899,6 +1916,104 @@ const JUNCTION_CHECK = 'Junction turns loaded trucks toward the destination'
  * The loaded truck's turn where the road joins the loaded roads, toward the haul destination. Not
  * assessed without a destination, a junction, or a known way to the destination from it.
  */
+const SUPERELEVATION_CHECK = 'Curves superelevated within their limits'
+
+/**
+ * Each curve's superelevation at its own design speed (`evaluateCurveCriteria`): within its e max,
+ * found in the superelevation table (table mode: not outside it, not on a blank, unsafe, cell) and,
+ * with a side friction table, the friction the curve demands within that table's limit. Only on a
+ * road with curve criteria and at least one fitted curve; null otherwise, so other roads keep their rows.
+ */
+export function superelevationRow(
+  alignment: Alignment,
+  curves: ReturnType<typeof horizontalCurveSummary>,
+): ReadinessRow | null {
+  const design = alignment.curveDesign
+  if (!design || !curves.length) return null
+  const table = design.superelevationMode === 'table'
+  const judgedOn = [
+    table
+      ? 'Superelevation from the lookup table at each curve’s radius and design speed'
+      : design.superelevationMode === 'sideFriction'
+        ? `e / e max = f / f max with e + f = V²/(9.81 R)${design.sideFrictionTable ? '' : `, f max ${trim(design.sideFrictionFactor, 3)} unless a curve states its own`}`
+        : `e = V²/(127 R) − ${trim(design.sideFrictionFactor, 3)}`,
+    `e max ${trim(design.maxSuperelevationPercent, 2)} % unless a curve states its own`,
+    design.sideFrictionTable
+      ? `side friction within the side friction table${design.superelevationMode === 'sideFriction' ? ', its f max' : ''}`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const findings = curves.map((curve) => {
+    const own = alignment.points.find((p) => p.id === curve.pointId)?.curve
+    let c: ReturnType<typeof evaluateCurveCriteria> | null = null
+    try {
+      c = evaluateCurveCriteria(design, curve.radius, curve.deflectionDegrees, own)
+    } catch {
+      c = null
+    }
+    const problems: string[] = []
+    if (!c) problems.push('criteria could not be read')
+    else {
+      if (c.tableStatus === 'outside') problems.push('outside the superelevation table')
+      if (c.tableStatus === 'unsafe') problems.push('a blank (unsafe) table cell')
+      if (c.requiredSuperelevationPercent > c.maxSuperelevationPercent + 1e-6)
+        problems.push(
+          `needs ${trim(c.requiredSuperelevationPercent, 2)} % over ${trim(c.maxSuperelevationPercent, 2)} %`,
+        )
+      if (c.appliedSuperelevationPercent > c.maxSuperelevationPercent + 1e-6)
+        problems.push(
+          `stated ${trim(c.appliedSuperelevationPercent, 2)} % over ${trim(c.maxSuperelevationPercent, 2)} %`,
+        )
+      if (c.sideFrictionLimit !== null && c.sideFrictionDemand > c.sideFrictionLimit + 1e-6)
+        problems.push(`side friction ${trim(c.sideFrictionDemand, 3)} over ${trim(c.sideFrictionLimit, 3)}`)
+    }
+    return { curve, criteria: c, problems }
+  })
+  const failing = findings.filter((f) => f.problems.length)
+  const highest = findings.reduce<(typeof findings)[number] | null>(
+    (best, f) =>
+      f.criteria &&
+      (!best?.criteria || f.criteria.appliedSuperelevationPercent > best.criteria.appliedSuperelevationPercent)
+        ? f
+        : best,
+    null,
+  )
+  if (failing.length) {
+    const first = failing[0]
+    return {
+      id: 'superelevation',
+      group: 'alignment',
+      check: SUPERELEVATION_CHECK,
+      state: 'attention',
+      severity: 'limit',
+      result: `${failing.length} of ${plural(curves.length, 'curve')} ${failing.length === 1 ? 'is' : 'are'} outside the superelevation limits`,
+      measured: failing
+        .slice(0, 4)
+        .map((f) => `${station(f.curve.start)}: ${f.problems.join(', ')}`)
+        .concat(failing.length > 4 ? [`and ${failing.length - 4} more`] : [])
+        .join(' · '),
+      judgedOn,
+      action: {
+        label: `Go to ${station(first.curve.start)}`,
+        target: 'curves',
+        chainage: (first.curve.start + first.curve.end) / 2,
+      },
+    }
+  }
+  return {
+    id: 'superelevation',
+    group: 'alignment',
+    check: SUPERELEVATION_CHECK,
+    state: 'met',
+    result: `Every curve's superelevation is within its limits`,
+    measured: highest?.criteria
+      ? `Highest ${trim(highest.criteria.appliedSuperelevationPercent, 2)} % at ${station(highest.curve.start)}`
+      : undefined,
+    judgedOn,
+  }
+}
+
 /**
  * Stopping sight distance along the road (`sightDistance.ts`): every eye station, both ways, on the
  * surface the road leaves. A sightline that crosses missing elevation is unknown, never clear, so

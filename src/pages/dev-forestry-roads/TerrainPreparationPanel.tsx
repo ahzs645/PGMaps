@@ -209,10 +209,14 @@ export function TerrainPreparationPanel({
       loaded.metadata.verticalReference,
     )
     w.setSource(loaded.source)
+    // An edited RoadEng TIN is still that terrain: what it keeps for RoadEng and its plane stay with it.
+    const roadEng = record.operation === 'roadeng-tin'
     w.update((p) => ({
       ...p,
       terrain: {
         ...loaded.metadata,
+        ...(roadEng && p.terrain.roadEngSource ? { roadEngSource: p.terrain.roadEngSource } : {}),
+        ...(roadEng && p.terrain.localPlane ? { localPlane: p.terrain.localPlane } : {}),
         referenceSurfaces,
         ...(p.terrain.backgrounds ? { backgrounds: p.terrain.backgrounds } : {}),
       },
@@ -300,7 +304,9 @@ export function TerrainPreparationPanel({
       setLoads((n) => n + 1)
       setOpenBook(null)
       // Written back in its own format and unit, an unchanged file is the same file.
-      if (p.format !== 'laser-raw') setTraverseExport(p.format)
+      // A RoadEng traverse (.tr1) is not written here: its book goes out as a Softree ASCII traverse.
+      if (p.format === 'tr1') setTraverseExport('asc')
+      else if (p.format !== 'laser-raw') setTraverseExport(p.format)
       setTraverseExportUnit(p.unit)
       setPendingTraverse(null)
       setSurvey(reduceTraverse(input))
@@ -852,7 +858,7 @@ export function TerrainPreparationPanel({
           <input
             ref={traverseFile}
             type="file"
-            accept=".asc,.ipd,.pol,.txt,.raw,.csv,text/plain"
+            accept=".asc,.ipd,.pol,.txt,.raw,.csv,.tr1,text/plain"
             className="hidden"
             aria-label="Traverse file"
             onChange={(e) => {
@@ -867,7 +873,7 @@ export function TerrainPreparationPanel({
                 const format = detectTraverseFile(text)
                 if (!format)
                   throw Error(
-                    `${picked.name} is not a traverse this reads: a Softree ASCII or IPD traverse, a Polycorder Roads traverse, a unit survey (.pol) or a Laser Technology raw survey.`,
+                    `${picked.name} is not a traverse this reads: a Softree ASCII or IPD traverse, a Polycorder Roads traverse, a unit survey (.pol), a Laser Technology raw survey or a RoadEng traverse (.tr1).`,
                   )
                 setPendingTraverse({
                   name: picked.name,
@@ -895,6 +901,7 @@ export function TerrainPreparationPanel({
                     polycorder: 'Polycorder Roads traverse',
                     'unit-survey': 'unit survey',
                     'laser-raw': 'Laser Technology raw survey',
+                    tr1: 'RoadEng traverse',
                   }[pendingTraverse.format]
                 }
               </p>

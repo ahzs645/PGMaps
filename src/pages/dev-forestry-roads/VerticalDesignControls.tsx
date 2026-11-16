@@ -9,6 +9,8 @@ import { CollapsibleSection, InlineAlert, KeyValueRows } from '@/components/ui/m
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 import { NumberField, OptionalNumberField, RoadSelect } from './Controls'
+import { stationEntry } from './stationEntry'
+import { OptionalStationField, StationField } from './StationFields'
 import { formatRoadStation } from './Charts'
 import { RoadSection } from './SidebarParts'
 import { designProfileAt, nearestStation } from './engine'
@@ -31,6 +33,8 @@ const uid = () => crypto.randomUUID()
 /** Vertical standards, control points and the bulk curve tool, after the PVI list. */
 export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace }) {
   const { alignment, analysis, setStation, updateAlignment } = workspace
+  // Range ends and control stations take the road's station names (`stationEntry.ts`).
+  const stations = stationEntry(alignment.stationing, analysis.length)
   const standards = alignment.verticalStandards ?? EMPTY_VERTICAL_STANDARDS
   const controls = alignment.verticalControls ?? []
   const [k, setK] = useState(4)
@@ -215,10 +219,18 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           {standards.gradeRanges.map((range, index) => (
             <div
               key={range.id}
-              className="grid grid-cols-[repeat(4,minmax(0,1fr))_auto] items-end gap-1"
+              // Station names run to seven figures: on a named road From and To take a row of their own.
+              className={cn(
+                'grid items-end gap-1',
+                stations.named
+                  ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]'
+                  : 'grid-cols-[repeat(4,minmax(0,1fr))_auto]',
+              )}
               data-grade-range
             >
-              <OptionalNumberField
+              <OptionalStationField
+                entry={stations}
+                keepLabel
                 label={`Range ${index + 1} from`}
                 placeholder="start"
                 value={range.start}
@@ -229,7 +241,9 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
                   })
                 }
               />
-              <OptionalNumberField
+              <OptionalStationField
+                entry={stations}
+                keepLabel
                 label="to"
                 placeholder="end"
                 value={range.end}
@@ -240,6 +254,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
                   })
                 }
               />
+              {stations.named && <span aria-hidden />}
               <OptionalNumberField
                 label="min %"
                 value={range.minGradePercent}
@@ -324,7 +339,9 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             {(standards.curvatureRanges ?? []).map((r, index) => (
               <div key={r.id} className={insetBox()}>
                 <div className="grid grid-cols-2 gap-1">
-                  <OptionalNumberField
+                  <OptionalStationField
+                    entry={stations}
+                    keepLabel
                     label={`Curvature ${index + 1} from`}
                     placeholder="start"
                     value={r.start}
@@ -335,7 +352,9 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
                       })
                     }
                   />
-                  <OptionalNumberField
+                  <OptionalStationField
+                    entry={stations}
+                    keepLabel
                     label="to"
                     placeholder="end"
                     value={r.end}
@@ -581,7 +600,9 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-1">
-                <NumberField
+                <StationField
+                  entry={stations}
+                  keepLabel
                   label="Station"
                   value={c.chainage}
                   min={0}

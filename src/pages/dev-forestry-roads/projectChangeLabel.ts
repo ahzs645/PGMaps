@@ -25,6 +25,7 @@ const ALIGNMENT_FIELDS: Partial<Record<keyof Alignment, string>> = {
   fullCostRecord: 'complete-access record',
   networkEntryRoadId: 'network entry',
   routeSearch: 'route search record',
+  stationing: 'stationing',
 }
 
 const PROJECT_FIELDS: Partial<Record<keyof RoadProject, string>> = {

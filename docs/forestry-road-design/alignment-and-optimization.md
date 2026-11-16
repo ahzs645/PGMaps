@@ -42,27 +42,30 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 
 ### Horizontal geometry and curve design
 
-| Limit                                              | Value                                                                                       | Enforced in                                                                | When exceeded                                                   |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Horizontal points per alignment                    | 2,000                                                                                       | `engine.ts` `compile`                                                      | Error                                                           |
-| Alignment length; distance from first point        | 100 km each                                                                                 | `engine.ts` `compile`                                                      | Error                                                           |
-| Horizontal radius                                  | 0–10,000 m                                                                                  | `engine.ts` `MAX_HORIZONTAL_RADIUS_M`, `project.ts`                        | Error; the radius field holds it and says so                    |
-| Curve tangent (trim)                               | must be shorter than both legs                                                              | `engine.ts` `compile`                                                      | Sharp PI kept, warning, note under the radius field             |
-| Adjacent curves                                    | trims must not overlap on the shared leg                                                    | `engine.ts` `compile`                                                      | Both become sharp PIs, warning, note naming the neighbour       |
-| Spiral length each side                            | 0–2,000 m                                                                                   | `project.ts`, `CurveTools.tsx`                                             | Rejected                                                        |
-| Spiral against deflection                          | Ls / R must be less than Δ                                                                  | `engine.ts` `compile`                                                      | Simple curve used, warning                                      |
-| Bulk fit: tangent use                              | 98 % of each leg (`FIT`)                                                                    | `horizontalTools.ts`                                                       | Radius reduced; notice counts it                                |
-| Bulk fit: largest radius                           | 10,000 m                                                                                    | `horizontalTools.ts`                                                       | Capped                                                          |
-| Polyline to alignment: maximum deviation           | 0.1–500 m (`MIN_FIT_DEVIATION_M`, `MAX_FIT_DEVIATION_M`)                                    | `polylineFit.ts`, `CurveTools.tsx`                                         | Error, or the field rejects it                                  |
-| Polyline to alignment: source points               | 5,000 (`MAX_FIT_SOURCE_POINTS`)                                                             | `polylineFit.ts`                                                           | Error: thin the line first                                      |
-| Polyline to alignment: tangent use; merge          | 98 % of each leg; corners merged up to 120° of turn (`MAX_MERGED_TURN`)                     | `polylineFit.ts`                                                           | Curve reduced, or the corners stay separate                     |
-| Road from a found route: fit; smallest curve       | within 2, 4, 8 or 16 m (`ROUTE_FIT_DEVIATIONS_M`); 5 m (`SMALLEST_CURVE_M`)                 | `routeFit.ts`                                                              | Tighter fit tried; corner left sharp                            |
-| Road from a found route: no steeper than the route | over 20 m chords (`ROUTE_FIT_GRADE_WINDOW_M`), 1 percentage point (`ROUTE_FIT_GRADE_SLACK`) | `routeFit.ts`                                                              | Tighter fit tried; route kept as found                          |
-| Design speed                                       | 1–150 km/h                                                                                  | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
-| Maximum superelevation; side friction f            | 0–20 %; 0–1                                                                                 | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
-| Runoff; widening vehicle length                    | 0–1,000 m; 0–50 m                                                                           | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
-| Stations per analysis                              | 3,000 (`MAX_STATIONS`)                                                                      | `engine.ts` `analyzeRoad`                                                  | Spacing widened with a warning; error if events alone exceed it |
-| Road alternatives per project                      | 20                                                                                          | `VerticalDesignControls.tsx`, `DesignSidebar.tsx`, `sidebar/DesignTab.tsx` | Buttons disabled or error                                       |
+| Limit                                              | Value                                                                                                                           | Enforced in                                                                | When exceeded                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Horizontal points per alignment                    | 2,000                                                                                                                           | `engine.ts` `compile`                                                      | Error                                                           |
+| Alignment length; distance from first point        | 100 km each                                                                                                                     | `engine.ts` `compile`                                                      | Error                                                           |
+| Horizontal radius                                  | 0–10,000 m                                                                                                                      | `engine.ts` `MAX_HORIZONTAL_RADIUS_M`, `project.ts`                        | Error; the radius field holds it and says so                    |
+| Curve tangent (trim)                               | must be shorter than both legs                                                                                                  | `engine.ts` `compile`                                                      | Sharp PI kept, warning, note under the radius field             |
+| Adjacent curves                                    | trims must not overlap on the shared leg                                                                                        | `engine.ts` `compile`                                                      | Both become sharp PIs, warning, note naming the neighbour       |
+| Spiral length each side                            | 0–2,000 m                                                                                                                       | `project.ts`, `CurveTools.tsx`                                             | Rejected                                                        |
+| Spiral against deflection                          | Ls / R must be less than Δ                                                                                                      | `engine.ts` `compile`                                                      | Simple curve used, warning                                      |
+| Bulk fit: tangent use                              | 98 % of each leg (`FIT`)                                                                                                        | `horizontalTools.ts`                                                       | Radius reduced; notice counts it                                |
+| Bulk fit: largest radius                           | 10,000 m                                                                                                                        | `horizontalTools.ts`                                                       | Capped                                                          |
+| Polyline to alignment: maximum deviation           | 0.1–500 m (`MIN_FIT_DEVIATION_M`, `MAX_FIT_DEVIATION_M`)                                                                        | `polylineFit.ts`, `CurveTools.tsx`                                         | Error, or the field rejects it                                  |
+| Polyline to alignment: source points               | 5,000 (`MAX_FIT_SOURCE_POINTS`)                                                                                                 | `polylineFit.ts`                                                           | Error: thin the line first                                      |
+| Polyline to alignment: tangent use; merge          | 98 % of each leg; corners merged up to 120° of turn (`MAX_MERGED_TURN`)                                                         | `polylineFit.ts`                                                           | Curve reduced, or the corners stay separate                     |
+| Road from a found route: fit; smallest curve       | within 2, 4, 8 or 16 m (`ROUTE_FIT_DEVIATIONS_M`); 5 m (`SMALLEST_CURVE_M`)                                                     | `routeFit.ts`                                                              | Tighter fit tried; corner left sharp                            |
+| Road from a found route: no steeper than the route | over 20 m chords (`ROUTE_FIT_GRADE_WINDOW_M`), 1 percentage point (`ROUTE_FIT_GRADE_SLACK`)                                     | `routeFit.ts`                                                              | Tighter fit tried; route kept as found                          |
+| Design speed                                       | 1–150 km/h                                                                                                                      | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
+| Maximum superelevation; side friction f            | 0–20 %; 0–1                                                                                                                     | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
+| Runoff; widening vehicle length                    | 0–1,000 m; 0–50 m                                                                                                               | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
+| Superelevation and runoff tables                   | 2,000 radii × 100 speeds (`MAX_CURVE_TABLE_ROWS`, `MAX_CURVE_TABLE_COLUMNS`); e 0–50 %                                          | `roadCriteria.ts` `validateCurveLookupTable`                               | Rejected                                                        |
+| A curve's own values                               | speed 1–150 km/h, e max and e 0–20 %, runoff 0–1,000 m, share 0–1, f max 0–1; table radius within 2× (`MAX_TABLE_RADIUS_SCALE`) | `roadCriteria.ts` `validateCurveSettings`                                  | Rejected                                                        |
+| A curve's own widening                             | inside and outside 0–50 m each (`MAX_CURVE_WIDENING_M`)                                                                         | `roadCriteria.ts` `validateCurveSettings`                                  | Rejected                                                        |
+| Stations per analysis                              | 3,000 (`MAX_STATIONS`)                                                                                                          | `engine.ts` `analyzeRoad`                                                  | Spacing widened with a warning; error if events alone exceed it |
+| Road alternatives per project                      | 20                                                                                                                              | `VerticalDesignControls.tsx`, `DesignSidebar.tsx`, `sidebar/DesignTab.tsx` | Buttons disabled or error                                       |
 
 ### Vertical alignment and profile optimizer
 
@@ -186,7 +189,38 @@ known local formation/daylight folding; see [Final connector checks](final-conne
 for its sampling limits and the separate-leg overlap and vehicle checks it does not perform.
 
 **Curve design.** Superelevation is e = V²/(127R) − f, held between the normal crown and the
-maximum (`curveDesignAt` in `engine.ts`). f is one entered value, not a speed-dependent table.
+maximum (`curveDesignAt` in `engine.ts`), or, with **Superelevation from → Lookup table**, the
+value of a table by radius and design speed (`curveTableValue`, `roadCriteria.ts`), read as
+Softree describes RoadEng's: linear between the rows and columns around the curve; a radius above
+the last row takes the last row; a speed outside the columns or a radius below the first row is
+outside the table and gets no superelevation and no runoff (Softree's cul-de-sac sample stores e 0
+and transitions 0 there); a blank cell among the four is an unsafe combination, which takes the
+column's largest value (the top of the column) and is flagged. That last reading is ours: no
+sample has a curve on a blank cell. In table mode the runoff comes from the runoff table the same
+way, falling back to the road's **Runoff** where it is blank, and an optional side friction table
+(largest f by speed) makes Review flag a curve that demands more. With **Superelevation from → Side
+friction e/e max = f/f max**, RoadEng's side friction method (Softree's help, "Auto
+Super-elevation Options", the AASHTO 2001 method), e shares the curve's lateral acceleration
+V²/(g R), g = 9.81 m/s², with the side friction in the ratio e max : f max, so
+e = e max · V²/(g R) / (e max + f max), held at e max where the radius is below
+V²/(g (e max + f max)), which Review flags; f max is the side friction table's at the curve's
+speed, else **Side friction f max**, unless the curve states its own. Choosing the table with none
+loaded starts one from the formula (`curveTableFromFormula`, `superelevationTables.ts`), blank where
+the formula needs more than the maximum. Tables are pasted, opened or copied as RoadEng `.tbl` text:
+`#` comments, a line of speeds, then a radius and one value per speed, superelevation as rise over
+run.
+
+Each curve can carry its own **design speed**, **e max**, **superelevation** (a stated value,
+RoadEng's Auto off), **Use minimum radius: e max** (RoadEng's Use Minimum Radius: e max unless a superelevation is typed), **side friction f max** (in the side friction method), **runoff in** and **runoff out**, **share outside the curve** and **widening
+inside** and **outside** (`RoadPoint.curve`, `CurveSettings`); a blank value takes the road's. A
+curve's own widening on a side replaces the rule's there (table, vehicle length and added widths),
+0–50 m (`MAX_CURVE_WIDENING_M`, `roadCriteria.ts`), and the curve table's **Widening I / O** column
+stars it. Choose a curve in the table under
+Section → Superelevation & widening to set them; `*` marks a curve with its own values. A curve
+read from RoadEng also carries `tableRadiusScale`, its radius in the design's grid per metre of
+its radius here, so its tables and the side friction method are read where RoadEng reads them. With no curve values and in
+formula mode every figure is what it was before curves could carry their own. f is one entered
+value in formula mode.
 The workspace starts curve design at 40 km/h, 8 %, f 0.15 and 30 m runoff
 (`CURVE_DESIGN_START` in `CurveTools.tsx`). When the formula asks for more than the maximum,
 the displayed geometry remains capped, but the curve is flagged and cannot pass the final connector gate.
@@ -201,7 +235,15 @@ its extent. Extra inside/outside widths are added afterwards. The table supports
 values are rejected. The fitted deflection includes spiral heading change.
 
 **Runoff on simple curves** runs on the tangent before the PC and after the PT. Full
-superelevation is reached at the curve itself, not shared between tangent and curve.
+superelevation is reached at the curve itself, not shared between tangent and curve, unless the
+road (or the curve) sets **Runoff outside curve**: then that share of the runoff lies on the
+tangent and the rest inside the curve, RoadEng's transition fraction (0.667 its common value), so
+full superelevation is reached `(1 − share) × runoff` past the BC. With **Tangent runout** on, the
+outside lane first turns from its crown to level over `runoff × crown ÷ e` before the runoff, at the
+runoff's own rate, and the inside lane holds its crown until the outside lane mirrors it (reverse
+crown), then both turn to full superelevation (`sectionCrossfall`, `templates.ts`); widening runs
+in over the runoff only. Both are off for a road not read from RoadEng, so its sections are as they
+were. A spiral takes the whole runoff before the SC whatever the share.
 Without a table, widening L²/(2R) goes on the inside edge; independent added inside/outside widths are also available.
 
 **Spirals.** On a spiralled curve, superelevation and widening run in linearly over the longer

@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { createEngineeringDesign, type HaulSite } from './engineeringTypes'
+import { readRoadEngStoredResults } from './roadEngStoredResults'
 import {
   COMPARE_ABSOLUTE_TOLERANCE,
+  compareRoadEngDesignResults,
   compareSoftreeFile,
   comparisonCsv,
   detectSoftreeCompareKind,
   NOT_A_SOFTREE_FILE,
+  roadCostSummary,
   sortByDifference,
   uniqueAreaRecords,
   valuesAgree,
@@ -334,5 +337,83 @@ describe('comparison CSV', () => {
     expect(lines.filter((l) => l.startsWith('Row,')).length).toBe(c.rows.length)
     expect(lines.find((l) => l.startsWith('Row,'))).toMatch(/,-25\.00,.*,no$/)
     expect(csv.endsWith('\r\n')).toBe(true)
+  })
+})
+
+describe('results stored in a RoadEng design', () => {
+  /** A design whose active vertical alignment was costed over `from`–`to` (design stations) at these costs. */
+  const design = (costs: number[], from = 1000, to = 1300, status = 2) =>
+    [
+      '[design]',
+      'units=10000',
+      '[OptAlignCost-0]',
+      `OptParms_CostSolution_v3=${status},0,0,${from},${to},${costs.join(',')},0.5,1716396832,-1,1`,
+      'OptParmsNew=-,0,0,0,0,-10,10,0,0,0,300,22,0,0,32,0,0,0,0,0,0,0,0,0,1091,0,-9999,-9999,100,0,0,Initial,1,0,-9999,1',
+      'OptParmsRefAlign=Initial,Initial,Ground',
+      '[OptAlignCost-1]',
+      'OptParms_CostSolution_v3=2,0,0,1000,1300,1,2,3,0,0,0.5,1716396832,-1,1',
+      'OptParmsNew=-,0,0,0,0,-10,10,0,0,0,300,22,0,0,32,0,0,0,0,0,0,0,0,0,1091,0,-9999,-9999,100,0,0,Steeper,1,0,-9999,1',
+      '',
+    ].join('\r\n')
+  const source = { startStation: 1000, stationScale: 1, part: 'Location1' }
+  const own = roadCostSummary(r).costs
+
+  it("sets the design's last costing beside the road's own Optimal Haul costs, and agrees with the same figures", () => {
+    const stored = readRoadEngStoredResults(design([own.haul!, own.cut!, own.fill!, own.pitOpening!, 0]), 1)
+    const c = compareRoadEngDesignResults(stored, source, r)
+    expect(c.kind).toBe('roadeng-design')
+    expect(c.totals.map((t) => t.field)).toEqual(['Haul', 'Cut', 'Fill', 'Pit opening', 'Total'])
+    expect(c.differing).toBe(0)
+    expect(c.rows.map((x) => [x.field, x.theirs, x.station])).toEqual([
+      ['From station', 0, 0],
+      ['To station', 300, 300],
+    ])
+    expect(c.rows[1].ours).toBeCloseTo(300, 6)
+    expect(c.onlyTheirs).toEqual(['Costing of "Steeper", 2024-05-22 16:53 UTC: total 6.00'])
+    expect(c.notes[0]).toBe(
+      'RoadEng\'s last costing of vertical alignment "Initial" over stations 1,000.000–1,300.000 m, solved 2024-05-22 16:53 UTC, in Location1.',
+    )
+    expect(c.notes.join(' ')).toContain('Optimal Haul cost summary')
+    expect(comparisonCsv(c, 'Road Location1').split('\r\n')[0]).toBe(
+      'Compared,Results stored in the RoadEng design Road Location1',
+    )
+  })
+
+  it('shows a changed cost and a costing that stops short of the road', () => {
+    const stored = readRoadEngStoredResults(
+      design([own.haul! + 1000, own.cut!, own.fill!, own.pitOpening!, 250], 1000, 1200),
+      1,
+    )
+    const c = compareRoadEngDesignResults(stored, source, r)
+    const haul = c.totals.find((t) => t.field === 'Haul')!
+    expect(haul.agrees).toBe(false)
+    expect(haul.difference).toBeCloseTo(-1000, 6)
+    // RoadEng's attribute costs have no counterpart here: a value one side lacks never agrees.
+    expect(c.totals.find((t) => t.field === 'Attributes')).toMatchObject({ theirs: 250, ours: null, agrees: false })
+    expect(c.totals.find((t) => t.field === 'Total')!.agrees).toBe(false)
+    expect(c.rows[1]).toMatchObject({ field: 'To station', theirs: 200, agrees: false, station: 200 })
+    expect(c.notes.join(' ')).toContain("RoadEng costed stations 0.0–200.0 m of this road's 0.0–300.0 m")
+  })
+
+  it('has no haul to compare with haul allocation off, and says so', () => {
+    const off = results(false)
+    const ours = roadCostSummary(off)
+    expect(ours.costs.haul).toBeNull()
+    expect(ours.costs.cut).toBeCloseTo(off.analysis.engineering!.costs.cut, 6)
+    const stored = readRoadEngStoredResults(design([10, ours.costs.cut!, ours.costs.fill!, 0, 0]), 1)
+    const c = compareRoadEngDesignResults(stored, source, off)
+    expect(c.totals.find((t) => t.field === 'Haul')).toMatchObject({ ours: null, agrees: false })
+    expect(c.totals.find((t) => t.field === 'Cut')!.agrees).toBe(true)
+    expect(c.notes.join(' ')).toContain('Haul allocation is off')
+  })
+
+  it('refuses a design with no solved costing of its active vertical alignment, saying which it has', () => {
+    const unsolved = readRoadEngStoredResults(design([1, 2, 3, 0, 0], 1000, 1300, 0), 1)
+    expect(() => compareRoadEngDesignResults(unsolved, source, r)).toThrow(
+      'The design stores no solved costing of its active vertical alignment "Initial", only of others: "Steeper".',
+    )
+    expect(() => compareRoadEngDesignResults(readRoadEngStoredResults('[design]\r\n', 1), source, r)).toThrow(
+      'The design stores no cost solution',
+    )
   })
 })

@@ -1,4 +1,12 @@
 /** Versioned, bounded project and interchange formats; no network or DOM access. */
+import {
+  formatStationLabel,
+  hasStationing,
+  labelStation,
+  parseRoadStationing,
+  stationingSummary,
+  withStationing,
+} from './roadStationing'
 import { LOCAL_PLANE_EPSG } from '@/lib/geo/projectedCrs'
 import { parseStreamAssessment } from './streamClass'
 import { parseConstraintPolicy } from './constraints'
@@ -36,8 +44,9 @@ import { parseNetworkPlanning } from './roads/planning'
 import { parseTotalCostPlanning } from './fullCostPlanning'
 import { parseFullCostRecord } from './fullCostRecord'
 import { fullCostExportEvidence, fullCostReportSection } from './fullCostExports'
-import { validateCurveCriteria } from './roadCriteria'
+import { validateCurveCriteria, validateCurveSettings } from './roadCriteria'
 import { validateTemplate } from './templates'
+import { MAX_DITCH_DEPTH_M, MAX_DITCH_WIDTH_M, parseSectionStructures } from './sectionStructures'
 import { analyzeSweptPath, validateVehicleCheck } from './sweptPath'
 import { parseDesignVehicle, parseVehicleLibrary } from './vehicleLibrary'
 import { parseRoadReportSettings } from './reportSettings'
@@ -69,12 +78,15 @@ import type {
   RoadTemplate,
   TerrainMetadata,
   CurveDesign,
+  CurveLookupTable,
+  CurveSettings,
   VehicleCheck,
   VerticalControl,
   VerticalStandards,
   WidthOverride,
 } from './types'
 import { parseMapNotes } from './mapNotes'
+import { BATTER_SOURCE_KEYS, parseBatterSource } from './groundBatters'
 import { parseRoadEngSource } from './roadEngImport'
 import { parseRoadEngTerrainSource } from './roadEngTerrain'
 import { parseRoadEngDLineRecord } from './roadEngDLines'
@@ -89,6 +101,7 @@ import { projectReadiness, readinessReportHtml, vehicleFit, type VehicleFit } fr
 import { crossingRegisterReportHtml } from './crossingRegister'
 import { vehiclePreset } from './jobStandards'
 import { foundRoadSearchRows, parseFoundRoadSearchSettings } from './foundRoadSearch'
+import { terrainResolution } from './tinGround'
 
 const MAX_ALIGNMENTS = 20
 const MAX_POINTS = 2000
@@ -193,8 +206,8 @@ function parseTemplate(raw: unknown): RoadTemplate {
     crossfallPercent: number(r.crossfallPercent, 'Crossfall', 0, 20),
     cutSlope: number(r.cutSlope, 'Cut slope H:V', 0.1, 10),
     fillSlope: number(r.fillSlope, 'Fill slope H:V', 0.1, 10),
-    ditchWidth: number(r.ditchWidth, 'Ditch width', 0, 10),
-    ditchDepth: number(r.ditchDepth, 'Ditch depth', 0, 5),
+    ditchWidth: number(r.ditchWidth, 'Ditch width', 0, MAX_DITCH_WIDTH_M),
+    ditchDepth: number(r.ditchDepth, 'Ditch depth', 0, MAX_DITCH_DEPTH_M),
     surfaceDepth: number(r.surfaceDepth, 'Surface depth', 0, 2),
   }
   const optional = [
@@ -204,13 +217,13 @@ function parseTemplate(raw: unknown): RoadTemplate {
     ['rightCutSlope', 0.1, 10],
     ['leftFillSlope', 0.1, 10],
     ['rightFillSlope', 0.1, 10],
-    ['leftDitchWidth', 0, 10],
-    ['rightDitchWidth', 0, 10],
-    ['leftDitchDepth', 0, 5],
-    ['rightDitchDepth', 0, 5],
-    ['ditchBottomWidth', 0, 10],
-    ['leftDitchBottomWidth', 0, 10],
-    ['rightDitchBottomWidth', 0, 10],
+    ['leftDitchWidth', 0, MAX_DITCH_WIDTH_M],
+    ['rightDitchWidth', 0, MAX_DITCH_WIDTH_M],
+    ['leftDitchDepth', 0, MAX_DITCH_DEPTH_M],
+    ['rightDitchDepth', 0, MAX_DITCH_DEPTH_M],
+    ['ditchBottomWidth', 0, MAX_DITCH_WIDTH_M],
+    ['leftDitchBottomWidth', 0, MAX_DITCH_WIDTH_M],
+    ['rightDitchBottomWidth', 0, MAX_DITCH_WIDTH_M],
     ['leftSurfaceDepth', 0, 2],
     ['rightSurfaceDepth', 0, 2],
   ] as const
@@ -219,6 +232,10 @@ function parseTemplate(raw: unknown): RoadTemplate {
   if (r.layers !== undefined) result.layers = parseSectionLayers(r.layers)
   for (const key of ['rockCut', 'leftRockCut', 'rightRockCut'] as const)
     if (r[key] !== undefined) result[key] = parseRockCut(r[key], `Template ${key}`)
+  for (const key of BATTER_SOURCE_KEYS)
+    if (r[key] !== undefined) result[key] = parseBatterSource(r[key], `Template ${key}`)
+  // Ditch inslopes, benches, walls, barriers and sub-cuts (`sectionStructures.ts`).
+  Object.assign(result, parseSectionStructures(r))
   // The rules that relate one value to another (a ditch bottom no wider than its top) are the
   // engine's. A file is held to them too, so it never opens as a road that cannot be calculated.
   validateTemplate(result)
@@ -403,9 +420,87 @@ function parseCurveDesign(raw: unknown): CurveDesign {
             }
           }),
         }),
+    ...(r.superelevationMode === 'table' ||
+    r.superelevationMode === 'formula' ||
+    r.superelevationMode === 'sideFriction'
+      ? { superelevationMode: r.superelevationMode }
+      : {}),
+    ...(r.superelevationTable === undefined
+      ? {}
+      : { superelevationTable: parseCurveLookupTable(r.superelevationTable, 'Superelevation table') }),
+    ...(r.runoffTable === undefined ? {} : { runoffTable: parseCurveLookupTable(r.runoffTable, 'Runoff table') }),
+    ...(r.sideFrictionTable === undefined
+      ? {}
+      : (() => {
+          const t = object(r.sideFrictionTable, 'Side friction table')
+          return {
+            sideFrictionTable: {
+              speedsKmh: list(t.speedsKmh, 'Side friction speeds', 100, 1).map((v) =>
+                number(v, 'Side friction speed', 0.001, 300),
+              ),
+              values: list(t.values, 'Side friction values', 100, 1).map((v) =>
+                v === null ? null : number(v, 'Side friction', 0, 2),
+              ),
+            },
+          }
+        })()),
+    ...(r.transitionFraction === undefined
+      ? {}
+      : { transitionFraction: number(r.transitionFraction, 'Runoff share outside the curve', 0, 1) }),
+    ...(r.tangentRunout === true ? { tangentRunout: true } : {}),
   }
   validateCurveCriteria(result)
   return result
+}
+function parseCurveLookupTable(raw: unknown, label: string): CurveLookupTable {
+  const t = object(raw, label)
+  const speedsKmh = list(t.speedsKmh, `${label} speeds`, 100, 1).map((v) => number(v, `${label} speed`, 0.001, 300))
+  const table: CurveLookupTable = {
+    ...(t.description === undefined
+      ? {}
+      : {
+          description: list(t.description, `${label} description`, 100).map((d) => {
+            if (typeof d !== 'string' || d.length > 500)
+              throw Error(`${label} description lines hold up to 500 characters.`)
+            return d
+          }),
+        }),
+    speedsKmh,
+    rows: list(t.rows, `${label} rows`, 2000, 1).map((rawRow) => {
+      const row = object(rawRow, `${label} row`)
+      return {
+        radiusM: number(row.radiusM, `${label} radius`, 0.001, 100_000),
+        values: list(row.values, `${label} values`, 100, 1).map((v) =>
+          v === null ? null : number(v, `${label} value`, 0, 10_000),
+        ),
+      }
+    }),
+  }
+  return table
+}
+function parseCurveSettings(raw: unknown): CurveSettings | undefined {
+  const r = object(raw, 'Curve settings')
+  const keys = [
+    'designSpeedKmh',
+    'maxSuperelevationPercent',
+    'superelevationPercent',
+    'runoffInM',
+    'runoffOutM',
+    'transitionFraction',
+    'maxSideFriction',
+    'tableRadiusScale',
+    'insideWideningM',
+    'outsideWideningM',
+  ] as const
+  const settings: CurveSettings = {}
+  for (const key of keys)
+    if (r[key] !== undefined && r[key] !== null) settings[key] = number(r[key], `Curve ${key}`, 0, 10_000)
+  if (r.useMinimumRadius !== undefined && r.useMinimumRadius !== null) {
+    if (typeof r.useMinimumRadius !== 'boolean') throw Error("A curve's Use Minimum Radius is on or off.")
+    if (r.useMinimumRadius) settings.useMinimumRadius = true
+  }
+  validateCurveSettings(settings)
+  return Object.keys(settings).length ? settings : undefined
 }
 function parseMappedRoad(raw: unknown): MappedRoadOrigin {
   const r = object(raw, 'Mapped road origin')
@@ -438,6 +533,10 @@ function parseAlignment(raw: unknown): Alignment {
       ...(p.spiralM === undefined || p.spiralM === null || p.spiralM === 0
         ? {}
         : { spiralM: number(p.spiralM, 'Spiral length', 0, 2000) }),
+      ...(() => {
+        const curve = p.curve === undefined || p.curve === null ? undefined : parseCurveSettings(p.curve)
+        return curve ? { curve } : {}
+      })(),
     }
   })
   unique(points, 'Horizontal points')
@@ -482,6 +581,7 @@ function parseAlignment(raw: unknown): Alignment {
     ...(r.routeSearch === undefined ? {} : { routeSearch: parseRouteSearch(r.routeSearch) }),
     ...(r.searchSettings === undefined ? {} : { searchSettings: parseFoundRoadSearchSettings(r.searchSettings) }),
     ...(r.fileGround === undefined ? {} : { fileGround: parseFileGround(r.fileGround) }),
+    ...(r.stationing === undefined ? {} : { stationing: parseRoadStationing(r.stationing) }),
     ...(r.roadEngSource === undefined ? {} : { roadEngSource: parseKeptRoadEngSource(r.roadEngSource) }),
     ...(r.fullCostRecord === undefined ? {} : { fullCostRecord: parseFullCostRecord(r.fullCostRecord) }),
     ...(r.networkEntryRoadId === undefined
@@ -956,6 +1056,7 @@ export function importRoadLibrary(
       ...(material.rock ? [true] : []),
       ...(material.shallowCutRate !== undefined ? [`shallow:${material.shallowCutRate}`] : []),
       ...(material.overbreakRate !== undefined ? [`overbreak:${material.overbreakRate}`] : []),
+      ...(material.fillRate !== undefined ? [`embankment:${material.fillRate}`] : []),
     ])
   if (mode === 'replace') {
     // Only template assignment/horizon ranges are explicitly cleared by this import mode.
@@ -1378,8 +1479,11 @@ export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): 
   if (!analysis.stations.length)
     throw Error('The road analysis is unavailable. Resolve the model errors before exporting results.')
   refuseInvalidResults('Station CSV', analysis)
+  // A road with a start station or equations also names each station (`roadStationing.ts`).
+  const named = hasStationing(analysis.stationing)
   const header = [
     'station_m',
+    ...(named ? ['station'] : []),
     'longitude',
     'latitude',
     'ground_elevation_m',
@@ -1409,6 +1513,7 @@ export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): 
   const rows = analysis.stations.map((s, i) =>
     [
       s.chainage,
+      ...(named ? [formatStationLabel(s.chainage, analysis.stationing, 3)] : []),
       ...s.coordinate,
       s.groundElevation,
       s.designElevation,
@@ -1615,6 +1720,23 @@ function reportProfile(analysis: RoadAnalysis) {
   return `<svg viewBox="0 0 960 270" role="img" aria-label="${hasDesign ? 'Ground and design' : 'Ground'} longitudinal elevation profile"><rect width="960" height="270" fill="#f8fafc"/><path d="M55 30V220H930" fill="none" stroke="#94a3b8"/><path d="${path('groundElevation')}" fill="none" stroke="#64748b" stroke-width="2"/><path d="${path('designElevation')}" fill="none" stroke="#c2410c" stroke-width="3"/><g font-size="12" fill="#334155"><text x="6" y="45">${fmt(high)} m</text><text x="6" y="218">${fmt(low)} m</text><text x="55" y="242">0 m</text><text x="850" y="242">${fmt(analysis.length)} m</text><text x="60" y="20">Ground (grey)${hasDesign ? ' · design (orange)' : ''} · chainage in horizontal metres</text></g></svg>`
 }
 /** The cross-section chapter: one small plot per reporting station, two to a row when printed. */
+/** Walls, barriers and sub-cuts drawn on a printed section, as the section chart draws them. */
+function structureOutlines(station: RoadStation, x: (o: number) => number, y: (z: number) => number): string {
+  const colours: Record<string, string> = {
+    'cut-wall': '#64748b',
+    'fill-wall': '#475569',
+    barrier: '#dc2626',
+    'sub-cut': '#7c3aed',
+    'wall-backfill': '#a16207',
+  }
+  return (station.structures ?? [])
+    .filter((s) => s.outline.every(([o, z]) => Number.isFinite(o) && Number.isFinite(z)))
+    .map(
+      (s) =>
+        `<polygon points="${s.outline.map(([o, z]) => `${x(o).toFixed(1)},${y(z).toFixed(1)}`).join(' ')}" fill="${colours[s.kind]}" fill-opacity="${s.kind === 'sub-cut' ? 0.25 : 0.6}" stroke="${colours[s.kind]}"><title>${html(s.name)}</title></polygon>`,
+    )
+    .join('')
+}
 function reportSections(analysis: RoadAnalysis, intervalM = 20, limit = 240): string {
   const stations = sectionStations(analysis, intervalM).slice(0, limit)
   if (!stations.length) return ''
@@ -1645,14 +1767,11 @@ function reportSections(analysis: RoadAnalysis, intervalM = 20, limit = 240): st
         })
         .join(' ')
     }
-    return `<figure class="section"><svg viewBox="0 0 450 175" role="img" aria-label="Cross-section at ${fmt(station.chainage)} m, looking up-station"><rect width="450" height="175" fill="#f8fafc"/><path d="M${x(0)} 15V150" stroke="#e11d48" stroke-dasharray="3 3"/><path d="${line('ground')}" fill="none" stroke="#64748b" stroke-width="1.6"/><path d="${line('preparedGround')}" fill="none" stroke="#8b5cf6" stroke-dasharray="4 3" stroke-width="1.6"/><path d="${line('design')}" fill="none" stroke="#c2410c" stroke-width="2.2"/><path d="${line('rockTop')}" fill="none" stroke="#57534e" stroke-dasharray="2 3" stroke-width="1.4"/><path d="${line('blastLevel')}" fill="none" stroke="#be123c" stroke-dasharray="6 2 1 2" stroke-width="1.2"/><g font-size="11" fill="#334155"><text x="${x(0)}" y="12" text-anchor="middle">${html(stationLabel(station.chainage))}</text><text x="4" y="24">${fmt(high)}</text><text x="4" y="150">${fmt(low)}</text><text x="30" y="168">L −${fmt(half, 0)} m</text><text x="440" y="168" text-anchor="end">R +${fmt(half, 0)} m</text><text x="225" y="168" text-anchor="middle">cut ${fmt(station.cutAreaM2)} m² · fill ${fmt(station.fillAreaM2)} m²</text></g></svg></figure>`
+    return `<figure class="section"><svg viewBox="0 0 450 175" role="img" aria-label="Cross-section at ${fmt(station.chainage)} m, looking up-station"><rect width="450" height="175" fill="#f8fafc"/><path d="M${x(0)} 15V150" stroke="#e11d48" stroke-dasharray="3 3"/><path d="${line('ground')}" fill="none" stroke="#64748b" stroke-width="1.6"/><path d="${line('preparedGround')}" fill="none" stroke="#8b5cf6" stroke-dasharray="4 3" stroke-width="1.6"/><path d="${line('design')}" fill="none" stroke="#c2410c" stroke-width="2.2"/><path d="${line('rockTop')}" fill="none" stroke="#57534e" stroke-dasharray="2 3" stroke-width="1.4"/><path d="${line('blastLevel')}" fill="none" stroke="#be123c" stroke-dasharray="6 2 1 2" stroke-width="1.2"/>${structureOutlines(station, x, y)}<g font-size="11" fill="#334155"><text x="${x(0)}" y="12" text-anchor="middle">${html(stationLabel(station.chainage))}</text><text x="4" y="24">${fmt(high)}</text><text x="4" y="150">${fmt(low)}</text><text x="30" y="168">L −${fmt(half, 0)} m</text><text x="440" y="168" text-anchor="end">R +${fmt(half, 0)} m</text><text x="225" y="168" text-anchor="middle">cut ${fmt(station.cutAreaM2)} m² · fill ${fmt(station.fillAreaM2)} m²</text></g></svg></figure>`
   }
   return `<h2 class="chapter">Cross-sections · every ${fmt(intervalM, 0)} m</h2><p class="muted">Looking up-station: the road's left is on the left at negative offsets. Original ground grey, prepared ground dashed violet where entered, design orange.${stations.length === limit ? ` First ${limit} sections shown.` : ''}</p><div class="sections">${stations.map(plot).join('')}</div>`
 }
-const stationLabel = (chainage: number) => {
-  const rounded = Math.round(Math.max(0, chainage) * 10) / 10
-  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
-}
+const stationLabel = (chainage: number) => labelStation(chainage)
 /** Rock quantities, once a ground material is marked rock (`rockExcavation.ts`). */
 function reportRock(e: NonNullable<RoadAnalysis['engineering']>): string {
   if (!e.rock) return ''
@@ -1685,6 +1804,24 @@ const COST_ITEMS: readonly (readonly [keyof EngineeringCosts, string])[] = [
 ]
 /** Whole dollars: the cost table printed `$183,103.6` beside `$376,755.62`, and cents claim a precision these rates do not have. */
 const money = (value: number) => (Number.isFinite(value) ? `$${Math.round(value).toLocaleString('en-CA')}` : '—')
+/** Walls, barriers and sub-cuts along the road (`sectionStructures.ts`): length and volume each. */
+function reportStructures(analysis: RoadAnalysis): string {
+  if (!analysis.structures?.length) return ''
+  const kinds: Record<string, string> = {
+    'cut-wall': 'Cut wall',
+    'fill-wall': 'Fill wall',
+    barrier: 'Barrier',
+    'sub-cut': 'Sub-cut',
+    'wall-backfill': 'Wall backfill',
+  }
+  const rows = analysis.structures
+    .map(
+      (q) =>
+        `<tr><td>${html(q.name)}</td><td>${html(kinds[q.kind])}</td><td>${q.side}</td><td>${fmt(q.lengthM)}</td><td>${q.kind === 'barrier' ? '—' : fmt(q.volumeM3)}</td></tr>`,
+    )
+    .join('')
+  return `<h2>Walls, barriers and sub-cuts</h2><p>Wall volumes are the wall bodies; sub-cut volumes are the ground dug below the subgrade and refilled, already in the cut and fill. Lengths and volumes are by average end areas over complete sections. No structural or barrier-performance check is made.</p><table><thead><tr><th>Name</th><th>Kind</th><th>Side</th><th>Length m</th><th>Volume m³</th></tr></thead><tbody>${rows}</tbody></table>`
+}
 function reportEngineering(analysis: RoadAnalysis): string {
   const e = analysis.engineering
   if (!e) return ''
@@ -1735,7 +1872,7 @@ export function terrainProfileReportHtml(name: string, analysis: RoadAnalysis, m
     )
     .join('')
   const groundOnly = { ...analysis, stations: analysis.stations.map((s) => ({ ...s, designElevation: null })) }
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${html(name)} · Terrain profile</title><style>body{font:14px/1.5 Inter,Arial,sans-serif;max-width:1000px;margin:32px auto;padding:0 20px;color:#0b2b4a}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:6px;border-bottom:1px solid #ddd;text-align:right}svg{width:100%}h2{font-size:19px}thead{display:table-header-group}tr{break-inside:avoid}@media print{body{margin:0}}</style></head><body><p style="color:#307795">DDC Access · Resource road planning</p><h1>${html(name)}</h1><p>Ground-only stream / slope transect</p><p>Length ${fmt(analysis.length)} m · supported intervals ${fmt(covered)} m (${fmt(analysis.length ? (100 * covered) / analysis.length : 0)}%) · ground range ${known.length ? `${fmt(Math.min(...known.map((s) => s.groundElevation!)))}–${fmt(Math.max(...known.map((s) => s.groundElevation!)))} m` : 'unknown'} · sampled ascent ${fmt(ascent)} m · sampled descent ${fmt(descent)} m</p><p>${html(metadata.name)} · ${fmt(metadata.resolutionM, 2)} m source spacing · ${html(metadata.verticalReference)} · SHA-256 ${html(metadata.sha256 ?? 'not applicable')}</p>${reportProfile(groundOnly)}<p>No road formation, cut/fill or construction costs are assigned. Missing terrain remains a gap. Ground grades describe sampled intervals; source resolution and sampling determine which terrain features can be resolved.</p><h2>Profile stations</h2><table><thead><tr><th>Station m</th><th>Ground m</th><th>Ground grade %</th><th>Interval m</th></tr></thead><tbody>${rows}</tbody></table></body></html>`
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${html(name)} · Terrain profile</title><style>body{font:14px/1.5 Inter,Arial,sans-serif;max-width:1000px;margin:32px auto;padding:0 20px;color:#0b2b4a}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:6px;border-bottom:1px solid #ddd;text-align:right}svg{width:100%}h2{font-size:19px}thead{display:table-header-group}tr{break-inside:avoid}@media print{body{margin:0}}</style></head><body><p style="color:#307795">DDC Access · Resource road planning</p><h1>${html(name)}</h1><p>Ground-only stream / slope transect</p><p>Length ${fmt(analysis.length)} m · supported intervals ${fmt(covered)} m (${fmt(analysis.length ? (100 * covered) / analysis.length : 0)}%) · ground range ${known.length ? `${fmt(Math.min(...known.map((s) => s.groundElevation!)))}–${fmt(Math.max(...known.map((s) => s.groundElevation!)))} m` : 'unknown'} · sampled ascent ${fmt(ascent)} m · sampled descent ${fmt(descent)} m</p><p>${html(metadata.name)} · ${html(terrainSpacingText(metadata, ' source spacing'))} · ${html(metadata.verticalReference)} · SHA-256 ${html(metadata.sha256 ?? 'not applicable')}</p>${reportProfile(groundOnly)}<p>No road formation, cut/fill or construction costs are assigned. Missing terrain remains a gap. Ground grades describe sampled intervals; source resolution and sampling determine which terrain features can be resolved.</p><h2>Profile stations</h2><table><thead><tr><th>Station m</th><th>Ground m</th><th>Ground grade %</th><th>Interval m</th></tr></thead><tbody>${rows}</tbody></table></body></html>`
 }
 /**
  * The readiness review a road's report prints, on the same drainage and vehicle terms. The report
@@ -1777,7 +1914,12 @@ export function reportReview(
   const review = active ? projectReadiness(project, active, analysis, { drainageStale, vehicle }) : null
   return { savedDrainage, drainageFingerprint, review }
 }
-export function projectReportHtml(
+export function projectReportHtml(...args: Parameters<typeof projectReportHtmlInChainage>): string {
+  // Stations are named by the road's own start station and equations (`roadStationing.ts`).
+  return withStationing(args[1].stationing, () => projectReportHtmlInChainage(...args))
+}
+
+function projectReportHtmlInChainage(
   project: RoadProject,
   analysis: RoadAnalysis,
   options: {
@@ -1839,19 +1981,39 @@ export function projectReportHtml(
   const foundSearch = (active ? foundRoadSearchRows(active) : [])
     .map((row) => `<dt>${html(row.label)}</dt><dd>${html(row.value)}</dd>`)
     .join('')
+  // A road with a start station or equations prints station names beside the distance along it.
+  const named = hasStationing(analysis.stationing)
+  const nameCell = (chainage: number) => (named ? `<td>${html(stationLabel(chainage))}</td>` : '')
+  const nameHead = named ? '<th>Station</th><th>Chainage m</th>' : '<th>Station m</th>'
+  const stationingText = named ? `<p>${html(stationingSummary(analysis.stationing!, analysis.length))}</p>` : ''
   const rows = analysis.stations
     .map(
       (s) =>
-        `<tr><td>${fmt(s.chainage)}</td><td>${fmt(s.groundElevation, 2)}</td><td>${fmt(s.designElevation, 2)}</td><td>${fmt(s.gradePercent, 2)}</td><td>${fmt(s.cutAreaM2, 2)}</td><td>${fmt(s.fillAreaM2, 2)}</td><td>${fmt(s.massM3)}</td><td>${html(s.flags.join('; ') || (s.complete ? 'Complete' : 'Partial'))}</td></tr>`,
+        `<tr>${nameCell(s.chainage)}<td>${fmt(s.chainage)}</td><td>${fmt(s.groundElevation, 2)}</td><td>${fmt(s.designElevation, 2)}</td><td>${fmt(s.gradePercent, 2)}</td><td>${fmt(s.cutAreaM2, 2)}</td><td>${fmt(s.fillAreaM2, 2)}</td><td>${fmt(s.massM3)}</td><td>${html(s.flags.join('; ') || (s.complete ? 'Complete' : 'Partial'))}</td></tr>`,
     )
     .join('')
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;"><title>${html(project.name)} · Road planning report</title><style>body{font:14px/1.5 Inter,Arial,sans-serif;color:#0b2b4a;max-width:1100px;margin:36px auto;padding:0 24px}h1{font-size:28px;line-height:1.2}h2{font-size:19px;margin-top:28px;border-bottom:1px solid #d1d5db;padding-bottom:6px}.eyebrow{font-size:11px;letter-spacing:2px;color:#307795}.status{padding:12px 16px;background:#fff7ed;border-left:4px solid #d97706}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.metric{padding:12px;background:#f7f6f3}.metric strong{display:block;font-size:23px}.muted{color:#4b4f56}table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:right;padding:6px;border-bottom:1px solid #d9dcdf}th{background:#eaf0f6}td:last-child{text-align:left}tr{break-inside:avoid}svg{width:100%;max-height:310px}.sections{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.section{margin:0;break-inside:avoid}.section svg{max-height:none}dl{display:grid;grid-template-columns:170px 1fr;gap:5px}.issue{border:1px solid #d1d5db;padding:10px 14px}.invalid{padding:14px 16px;border:3px solid #b91c1c;background:#fef2f2;color:#7f1d1d;font-size:15px}dd{margin:0;overflow-wrap:anywhere}@media print{body{margin:0;max-width:none;font-size:10pt}.chapter{break-before:page}.metrics{grid-template-columns:repeat(4,1fr)}h2{break-after:avoid}thead{display:table-header-group}a{color:inherit}}</style></head><body><div class="eyebrow">DDC Access · Resource road planning</div><h1>${html(project.name)}</h1><p>${html(active?.name ?? 'Selected alignment')}</p>${invalidStamp}<dl class="issue"><dt>Revision</dt><dd>${html(stamp.revision || 'Not recorded')}</dd><dt>Date of issue</dt><dd>${html(stamp.date)}${stamp.dateDefaulted ? ' (day of printing)' : ''}</dd><dt>Prepared by</dt><dd>${html([stamp.preparedBy, stamp.organisation].filter(Boolean).join(', ') || 'Not recorded')}</dd>${stamp.note ? `<dt>Issue note</dt><dd>${html(stamp.note)}</dd>` : ''}<dt>Terrain source</dt><dd>${html(metadata.name)} · ${fmt(metadata.resolutionM, 2)} m · ${html(metadata.verticalReference)}</dd><dt>Status</dt><dd>${html(PLANNING_CAVEAT)}</dd></dl><p class="status"><strong>${hasCompleteCoverage(analysis) ? 'Preliminary model · complete sampled earthworks coverage' : 'Partial model · totals cover supported intervals only'}</strong><br>${fmt(analysis.coveragePercent)}% coverage (${fmt(analysis.completeLength)} of ${fmt(analysis.length)} m). ${metadata.kind === 'demo' ? 'Synthetic training terrain: all quantities and locations are illustrative.' : metadata.kind === 'regional' ? 'Coarse regional terrain: corridor screening only; resolution is inadequate for construction quantities.' : 'Source terrain supports preliminary geometry; accuracy is not independently surveyed.'}</p>${omittedNotice ? `<p class="status" data-omitted-sections>${html(omittedNotice)}</p>` : ''}<div class="metrics"><div class="metric">Length<strong>${fmt(analysis.length)} m</strong></div><div class="metric">Cut<strong>${fmt(analysis.cutVolumeM3)} m³</strong></div><div class="metric">Fill<strong>${fmt(analysis.fillVolumeM3)} m³</strong></div><div class="metric">Covered construction estimate<strong>$${fmt(analysis.estimatedCost, 0)}</strong></div></div><h2>Terrain and assumptions</h2><dl><dt>Source</dt><dd>${html(metadata.name)}</dd><dt>Native/display spacing</dt><dd>${fmt(metadata.resolutionM, 2)} m; source grid resolution, not vertical accuracy</dd><dt>Horizontal CRS</dt><dd>${metadata.epsg ? `EPSG:${metadata.epsg}` : 'Geographic alignment; source CRS unspecified'}</dd><dt>Vertical reference</dt><dd>${html(metadata.verticalReference)}</dd><dt>Source URL</dt><dd>${html(metadata.sourceUrl ?? 'Local or synthetic source')}</dd><dt>SHA-256</dt><dd>${html(metadata.sha256 ?? 'Not applicable')}</dd>${pointCloudRows}<dt>Sampling interval</dt><dd>${fmt(project.settings.stationInterval)} m requested; exact event stations and computation limits can alter spacing</dd><dt>Design standards</dt><dd>${standardsText} (project inputs, not a certified road standard)</dd><dt>Cost assumptions</dt><dd>Cut $${fmt(project.settings.cutRate)}/m³; fill $${fmt(project.settings.fillRate)}/m³; surfacing $${fmt(project.settings.surfacingRate)}/m³; clearing $${fmt(project.settings.clearingRate)}/m²; reusable cut factor ${fmt(project.settings.shrinkFactor, 2)}</dd>${costAssumptionRowsHtml(project)}${foundSearch}</dl>${projectBudgetReportHtml(project, analysis)}${review && show('review') ? readinessReportHtml(review.rows) : ''}${show('full-cost') ? fullCostReportSection(active, project) : ''}${review && show('crossing-register') ? crossingRegisterReportHtml(review.register) : ''}${show('streams') ? streamPlanningReportSection(project, analysis) : ''}${show('constraints') ? constraintPlanningReportSection(project, analysis) : ''}${show('crossing-estimates') ? crossingReportHtml(project, analysis) : ''}${show('drainage') ? drainageReport : ''}${show('aggregate') ? aggregate : ''}${show('profile') ? `<h2>Longitudinal profile</h2>${reportProfile(analysis)}` : ''}${show('engineering') ? reportEngineering(analysis) : ''}${show('sections') ? reportSections(analysis) : ''}<h2>Quantity basis and limitations</h2><p>Cut/fill areas are integrated from sampled cross-sections; interval volumes use average end areas. ${html(curvatureCorrectionText(analysis.curvatureCorrection, analysis.cutVolumeM3, analysis.fillVolumeM3))} No-data or unclosed daylight sections leave an interval incomplete: its quantities are unknown and excluded, and the mass balance carries the known earthwork across it. Mass balance applies entered material reuse and compaction factors, or the default reusable-cut factor for unclassified ground. Base engineering costs use the entered rates, structures, haul scenario, mobilization and contingency where supplied. Review whether zero base rates represent free work or omitted allowances. The separate complete-access comparison distinguishes unknown prices from explicitly entered zero quotes. Geotechnical treatments are not modeled. Ground is held separate from designed road elevation.</p><p>This is a preliminary planning record. It does not establish construction suitability, slope stability, drainage capacity, fish passage, permits or cable operating safety. D-lines screen assumed geometry, or with rope and load one static skyline span, without anchor, guyline or equipment analysis. Crossing intersections require review. Entered culverts provide geometry and cover checks, not a hydraulic or fish-passage design.</p>${
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;"><title>${html(project.name)} · Road planning report</title><style>body{font:14px/1.5 Inter,Arial,sans-serif;color:#0b2b4a;max-width:1100px;margin:36px auto;padding:0 24px}h1{font-size:28px;line-height:1.2}h2{font-size:19px;margin-top:28px;border-bottom:1px solid #d1d5db;padding-bottom:6px}.eyebrow{font-size:11px;letter-spacing:2px;color:#307795}.status{padding:12px 16px;background:#fff7ed;border-left:4px solid #d97706}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.metric{padding:12px;background:#f7f6f3}.metric strong{display:block;font-size:23px}.muted{color:#4b4f56}table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:right;padding:6px;border-bottom:1px solid #d9dcdf}th{background:#eaf0f6}td:last-child{text-align:left}tr{break-inside:avoid}svg{width:100%;max-height:310px}.sections{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.section{margin:0;break-inside:avoid}.section svg{max-height:none}dl{display:grid;grid-template-columns:170px 1fr;gap:5px}.issue{border:1px solid #d1d5db;padding:10px 14px}.invalid{padding:14px 16px;border:3px solid #b91c1c;background:#fef2f2;color:#7f1d1d;font-size:15px}dd{margin:0;overflow-wrap:anywhere}@media print{body{margin:0;max-width:none;font-size:10pt}.chapter{break-before:page}.metrics{grid-template-columns:repeat(4,1fr)}h2{break-after:avoid}thead{display:table-header-group}a{color:inherit}}</style></head><body><div class="eyebrow">DDC Access · Resource road planning</div><h1>${html(project.name)}</h1><p>${html(active?.name ?? 'Selected alignment')}</p>${invalidStamp}<dl class="issue"><dt>Revision</dt><dd>${html(stamp.revision || 'Not recorded')}</dd><dt>Date of issue</dt><dd>${html(stamp.date)}${stamp.dateDefaulted ? ' (day of printing)' : ''}</dd><dt>Prepared by</dt><dd>${html([stamp.preparedBy, stamp.organisation].filter(Boolean).join(', ') || 'Not recorded')}</dd>${stamp.note ? `<dt>Issue note</dt><dd>${html(stamp.note)}</dd>` : ''}<dt>Terrain source</dt><dd>${html(metadata.name)} · ${html(terrainSpacingText(metadata, ''))} · ${html(metadata.verticalReference)}</dd><dt>Status</dt><dd>${html(PLANNING_CAVEAT)}</dd></dl><p class="status"><strong>${hasCompleteCoverage(analysis) ? 'Preliminary model · complete sampled earthworks coverage' : 'Partial model · totals cover supported intervals only'}</strong><br>${fmt(analysis.coveragePercent)}% coverage (${fmt(analysis.completeLength)} of ${fmt(analysis.length)} m). ${metadata.kind === 'demo' ? 'Synthetic training terrain: all quantities and locations are illustrative.' : metadata.kind === 'regional' ? 'Coarse regional terrain: corridor screening only; resolution is inadequate for construction quantities.' : 'Source terrain supports preliminary geometry; accuracy is not independently surveyed.'}</p>${omittedNotice ? `<p class="status" data-omitted-sections>${html(omittedNotice)}</p>` : ''}<div class="metrics"><div class="metric">Length<strong>${fmt(analysis.length)} m</strong></div><div class="metric">Cut<strong>${fmt(analysis.cutVolumeM3)} m³</strong></div><div class="metric">Fill<strong>${fmt(analysis.fillVolumeM3)} m³</strong></div><div class="metric">Covered construction estimate<strong>$${fmt(analysis.estimatedCost, 0)}</strong></div></div><h2>Terrain and assumptions</h2><dl><dt>Source</dt><dd>${html(metadata.name)}</dd>${terrainResolutionRowHtml(metadata)}<dt>Horizontal CRS</dt><dd>${metadata.epsg ? `EPSG:${metadata.epsg}` : 'Geographic alignment; source CRS unspecified'}</dd><dt>Vertical reference</dt><dd>${html(metadata.verticalReference)}</dd><dt>Source URL</dt><dd>${html(metadata.sourceUrl ?? 'Local or synthetic source')}</dd><dt>SHA-256</dt><dd>${html(metadata.sha256 ?? 'Not applicable')}</dd>${pointCloudRows}<dt>Sampling interval</dt><dd>${fmt(project.settings.stationInterval)} m requested; exact event stations and computation limits can alter spacing</dd><dt>Design standards</dt><dd>${standardsText} (project inputs, not a certified road standard)</dd><dt>Cost assumptions</dt><dd>Cut $${fmt(project.settings.cutRate)}/m³; fill $${fmt(project.settings.fillRate)}/m³; surfacing $${fmt(project.settings.surfacingRate)}/m³; clearing $${fmt(project.settings.clearingRate)}/m²; reusable cut factor ${fmt(project.settings.shrinkFactor, 2)}</dd>${costAssumptionRowsHtml(project)}${foundSearch}</dl>${projectBudgetReportHtml(project, analysis)}${review && show('review') ? readinessReportHtml(review.rows) : ''}${show('full-cost') ? fullCostReportSection(active, project) : ''}${review && show('crossing-register') ? crossingRegisterReportHtml(review.register) : ''}${show('streams') ? streamPlanningReportSection(project, analysis) : ''}${show('constraints') ? constraintPlanningReportSection(project, analysis) : ''}${show('crossing-estimates') ? crossingReportHtml(project, analysis) : ''}${show('drainage') ? drainageReport : ''}${show('aggregate') ? aggregate : ''}${show('profile') ? `<h2>Longitudinal profile</h2>${reportProfile(analysis)}` : ''}${show('engineering') ? reportEngineering(analysis) : ''}${show('sections') ? reportSections(analysis) : ''}${show('sections') ? reportStructures(analysis) : ''}<h2>Quantity basis and limitations</h2><p>Cut/fill areas are integrated from sampled cross-sections; interval volumes use average end areas. ${html(curvatureCorrectionText(analysis.curvatureCorrection, analysis.cutVolumeM3, analysis.fillVolumeM3))} No-data or unclosed daylight sections leave an interval incomplete: its quantities are unknown and excluded, and the mass balance carries the known earthwork across it. Mass balance applies entered material reuse and compaction factors, or the default reusable-cut factor for unclassified ground. Base engineering costs use the entered rates, structures, haul scenario, mobilization and contingency where supplied. Review whether zero base rates represent free work or omitted allowances. The separate complete-access comparison distinguishes unknown prices from explicitly entered zero quotes. Geotechnical treatments are not modeled. Ground is held separate from designed road elevation.</p><p>This is a preliminary planning record. It does not establish construction suitability, slope stability, drainage capacity, fish passage, permits or cable operating safety. D-lines screen assumed geometry, or with rope and load one static skyline span, without anchor, guyline or equipment analysis. Crossing intersections require review. Entered culverts provide geometry and cover checks, not a hydraulic or fish-passage design.</p>${
     analysis.warnings.length && show('model-flags')
       ? `<h2>Model flags</h2><ul>${groupNamedWarnings(analysis.warnings)
           .map((w) => `<li>${html(w)}</li>`)
           .join('')}</ul>`
       : ''
-  }${show('crossing-review') ? `<h2>Crossing review</h2>${analysis.crossings.length ? `<table><thead><tr><th>Station m</th><th>Name</th><th>Kind</th></tr></thead><tbody>${analysis.crossings.map((c) => `<tr><td>${fmt(c.chainage)}</td><td>${html(c.name)}</td><td>${html(c.kind)}</td></tr>`).join('')}</tbody></table>` : '<p>No intersections with the supplied context were found. This does not establish the absence of streams or constraints.</p>'}` : ''}${show('station-schedule') ? `<h2>Station schedule</h2><table><thead><tr><th>Station m</th><th>Ground m</th><th>Design m</th><th>Grade %</th><th>Cut m²</th><th>Fill m²</th><th>Mass m³</th><th>Review flags</th></tr></thead><tbody>${rows}</tbody></table>` : ''}<p class="muted">Project schema: ${project.schema}. Export the project JSON for editable geometry and the CSV for numeric station values. Geographic export coordinates are WGS84 longitude/latitude; design elevations retain the recorded terrain vertical reference.</p></body></html>`
+  }${show('crossing-review') ? `<h2>Crossing review</h2>${analysis.crossings.length ? `<table><thead><tr>${nameHead}<th>Name</th><th>Kind</th></tr></thead><tbody>${analysis.crossings.map((c) => `<tr>${nameCell(c.chainage)}<td>${fmt(c.chainage)}</td><td>${html(c.name)}</td><td>${html(c.kind)}</td></tr>`).join('')}</tbody></table>` : '<p>No intersections with the supplied context were found. This does not establish the absence of streams or constraints.</p>'}` : ''}${show('station-schedule') ? `<h2>Station schedule</h2>${stationingText}<table><thead><tr>${nameHead}<th>Ground m</th><th>Design m</th><th>Grade %</th><th>Cut m²</th><th>Fill m²</th><th>Mass m³</th><th>Review flags</th></tr></thead><tbody>${rows}</tbody></table>` : ''}<p class="muted">Project schema: ${project.schema}. Export the project JSON for editable geometry and the CSV for numeric station values. Geographic export coordinates are WGS84 longitude/latitude; design elevations retain the recorded terrain vertical reference.</p></body></html>`
 }
 
 export { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE }
+
+/**
+ * The terrain's resolution as a report states it: a RoadEng TIN by its median point spacing (its
+ * facets are the ground; the grid is only drawn), else its grid cell.
+ */
+function terrainSpacingText(metadata: TerrainMetadata, gridSuffix: string): string {
+  const r = terrainResolution(metadata)
+  return r.kind === 'tin' ? `TIN, ${fmt(r.spacingM, 2)} m median point spacing` : `${fmt(r.spacingM, 2)} m${gridSuffix}`
+}
+function terrainResolutionRowHtml(metadata: TerrainMetadata): string {
+  const r = terrainResolution(metadata)
+  return r.kind === 'tin'
+    ? `<dt>Terrain resolution</dt><dd>RoadEng TIN of ${fmt(r.vertices, 0)} points, ${fmt(r.spacingM, 2)} m median point spacing: sections, the profile, quantities, drainage and the plan read its facets; a ${fmt(metadata.resolutionM, 2)} m grid over its box is kept to write it back. Resolution is not vertical accuracy</dd>`
+    : `<dt>Native/display spacing</dt><dd>${fmt(metadata.resolutionM, 2)} m; source grid resolution, not vertical accuracy</dd>`
+}

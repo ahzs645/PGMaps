@@ -80,7 +80,8 @@ import { isLocalPlane, localPlaneGrid } from './localPlane'
 import { roadPlanFitCoordinates } from './planFit'
 import { investigationAnalysis, investigationCoordinates, isAccessInvestigation } from './investigationWorkspace'
 import { MAPPED_ROAD_COLOR } from './mappedRoad'
-import { buildTerrainDisplay } from './terrainDisplay'
+import { buildTerrainDisplay, PLAN_TERRAIN_DISPLAY_SIDE } from './terrainDisplay'
+import { terrainCoverShare } from './tinGround'
 import { formatRoadStation } from './Charts'
 import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
@@ -502,9 +503,11 @@ function Layers(
   }, [map, isLoaded, analysis, props.alignment, props.selectedRange])
 
   const bounds = useMemo(() => terrainBounds(props.project.terrain), [props.project.terrain])
+  // A RoadEng TIN covers a few percent of its box along a long road: its pixels are sized from that.
+  const coverShare = useMemo(() => terrainCoverShare(props.project.terrain), [props.project.terrain])
   const display = useMemo(
-    () => (bounds ? buildTerrainDisplay(props.source, bounds, 192) : null),
-    [bounds, props.source],
+    () => (bounds ? buildTerrainDisplay(props.source, bounds, PLAN_TERRAIN_DISPLAY_SIDE, { coverShare }) : null),
+    [bounds, props.source, coverShare],
   )
   const chosen = props.selectedStation ?? nearestStation(analysis.stations, props.station)
   const activeCable = resolvedCables.find((c) => c.id === props.activeCableId)

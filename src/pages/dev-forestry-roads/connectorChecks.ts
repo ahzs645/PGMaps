@@ -1,4 +1,5 @@
 /** Final fitted-connector gates. Pure: terrain is supplied; no DOM, fetching or model mutation. */
+import { labelStation, withStationing } from './roadStationing'
 import GeoJSONReader from 'jsts/org/locationtech/jts/io/GeoJSONReader.js'
 import GeometryFactory from 'jsts/org/locationtech/jts/geom/GeometryFactory.js'
 import IsValidOp from 'jsts/org/locationtech/jts/operation/valid/IsValidOp.js'
@@ -146,9 +147,14 @@ function pieceHeadings(
   const start = Math.atan2(b[1] - a[1], b[0] - a[0]) - Math.atan2(y, x)
   return [start, start + ((k0 + k1) * piece.length) / 2]
 }
-const stationText = (s: number) => `${Math.floor(s / 1000)}+${(s % 1000).toFixed(1).padStart(5, '0')}`
+const stationText = (s: number) => labelStation(s)
 
-export function checkConnector({
+export function checkConnector(...args: Parameters<typeof checkConnectorInChainage>): ConnectorCheckResult {
+  // Stations are named by the road's own start station and equations (`roadStationing.ts`).
+  return withStationing(args[0].alignment.stationing, () => checkConnectorInChainage(...args))
+}
+
+function checkConnectorInChainage({
   alignment,
   terrain,
   settings,
@@ -508,7 +514,7 @@ export function checkConnector({
         // which can exceed e-max even while the speed/radius formula passes.
         if (alignment.curveDesign && curveDesign && curveDesign.superPercent > 0) {
           const actual = sectionCrossfall(templateAt(alignment, s).template, inside, curveDesign)
-          const maximum = alignment.curveDesign.maxSuperelevationPercent
+          const maximum = curveDesign.maxSuperPercent
           if (actual > maximum + EPS)
             add(
               'failure',

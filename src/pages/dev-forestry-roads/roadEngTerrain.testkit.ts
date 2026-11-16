@@ -45,7 +45,8 @@ export class Writer {
     for (let k = 0; k < width; k++) this.bytes.push(k < b.length ? b[k] : 0)
   }
   raw(b: Uint8Array | number[]) {
-    this.bytes.push(...b)
+    // A loop, not a spread: a large terrain's sections pass the spread's argument limit.
+    for (let k = 0; k < b.length; k++) this.bytes.push(b[k])
   }
 }
 

@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useEffect, useId, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
+import { hasStationing, stationAtChainage, stationExtent, type RoadStationing } from './roadStationing'
 
 const holdDelayMs = 350
 const repeatDelayMs = 100
@@ -20,6 +21,7 @@ export function StationBox({
   onType,
   onCommit,
   onStep,
+  stationing,
 }: {
   /** The workspace's selected station. Any change the box did not ask for ends the entry. */
   selected: number
@@ -32,7 +34,14 @@ export function StationBox({
   onCommit: () => void
   /** Arrow up (1) or down (−1): the next or previous calculated station. */
   onStep: (direction: 1 | -1) => void
+  /**
+   * The road's start station and equations: the box then shows and takes station names, and
+   * `onType` receives the name typed.
+   */
+  stationing?: RoadStationing
 }) {
+  const named = hasStationing(stationing)
+  const extent = named ? stationExtent(stationing, length) : { min: 0, max: length }
   const inputId = useId()
   const [entry, setEntry] = useState<{ requested: number; text: string } | null>(null)
   // A chart, the slider, playback or a table row selected another station: the entry is over.
@@ -89,12 +98,16 @@ export function StationBox({
           id={inputId}
           aria-label="Selected station metres"
           type="number"
-          min={0}
-          max={Math.ceil(length * 10) / 10}
+          min={Math.floor(extent.min * 10) / 10}
+          max={Math.ceil(extent.max * 10) / 10}
           step="any"
           className="min-w-0 w-[4.5rem] rounded-l-md bg-transparent px-2 font-mono text-xs focus:outline-none sm:w-20"
-          title="Shows the section at exactly the station you type. Arrow keys select the next or previous calculated station."
-          value={text ?? Number(shown.toFixed(1))}
+          title={
+            named
+              ? 'Shows the section at exactly the station you type, by the road’s station names. Arrow keys select the next or previous calculated station.'
+              : 'Shows the section at exactly the station you type. Arrow keys select the next or previous calculated station.'
+          }
+          value={text ?? Number((named ? stationAtChainage(shown, stationing) : shown).toFixed(1))}
           onChange={(e) => {
             const typed = e.target.value
             const value = Number(typed)

@@ -8,6 +8,7 @@
  * print; nothing is estimated here. Returns HTML for the report PDF renderer (`reportPdfBlob`), which
  * draws headings, paragraphs, lists, tables and SVG. No DOM or network access.
  */
+import { labelStation } from './roadStationing'
 import { fitLabel, LABEL_LINE_HEIGHT, textWidth } from '@/lib/mapSheet/textMetrics'
 import { chartStats } from './chartsSheet'
 import { gradeRuleText, type GradeRule } from './designStandards'
@@ -24,6 +25,7 @@ import {
 import { SLOPE_SHEET_CHECK, type SlopeSheetCheck } from './slopeSheetCheck'
 import { rangeTotals, type RangeLevel, type RoadEstimateRange } from './estimateRange'
 import type { RoadAnalysis, TerrainMetadata } from './types'
+import { terrainResolution } from './tinGround'
 
 export interface SummaryRoad {
   name: string
@@ -58,7 +60,7 @@ export interface SummaryInput {
   roads: readonly SummaryRoad[]
   settings: ReportPackageSettings | undefined
   rule?: GradeRule
-  terrain: Pick<TerrainMetadata, 'name' | 'resolutionM' | 'kind'>
+  terrain: Pick<TerrainMetadata, 'name' | 'resolutionM' | 'kind' | 'preparation'>
   /** Issue stamp, planning caveat and any "not current" line, printed under the title. */
   stamp: string[]
   /** What follows the summary in this file; `page` is null until the file is laid out. */
@@ -225,10 +227,7 @@ function rangeSection(roads: readonly RoadFigures[], estimate: EstimateSettings)
   )}</p><table><thead><tr>${head.map((h) => `<th>${escape(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}${total}</tbody></table><p>${escape(notes.join(' '))}</p><ul>${did.join('')}</ul>`
 }
 
-const chainageText = (chainage: number) => {
-  const m = Math.round(Math.max(0, chainage))
-  return `${Math.floor(m / 1000)}+${String(m % 1000).padStart(3, '0')}`
-}
+const chainageText = (chainage: number) => labelStation(chainage, 0)
 
 /** The slope sheet set beside each road's estimate, and with `range` the high case. */
 function slopeSheetSection(roads: readonly RoadFigures[], settings: ReportPackageSettings | undefined) {
@@ -476,7 +475,10 @@ export function summaryFindings(
   }
   // A terrain named after its download box reads better without the coordinates.
   const terrainName = input.terrain.name.replace(/\s*·\s*-?\d+(?:\.\d+)?(?:,-?\d+(?:\.\d+)?){3}/, '')
-  const terrain = `${terrainName} (${number(input.terrain.resolutionM, input.terrain.resolutionM < 10 ? 1 : 0)} m cells)`
+  // A RoadEng TIN is as fine as its points; the grid drawn from it is not the ground.
+  const resolution = terrainResolution(input.terrain)
+  const spacing = number(resolution.spacingM, resolution.spacingM < 10 ? 1 : 0)
+  const terrain = `${terrainName} (${resolution.kind === 'tin' ? `TIN, ${spacing} m median point spacing` : `${spacing} m cells`})`
   out.push(
     input.terrain.kind === 'regional'
       ? `Quantities come from ${terrain}. That is regional terrain: use these figures to compare and screen routes, not to price construction.`

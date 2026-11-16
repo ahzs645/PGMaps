@@ -85,7 +85,10 @@ unless marked.
   at the first gap" and "material is not moved across a terrain/daylight gap", and its haul figures
   were allocated run by run. Re-export it from the workspace (`roadReportHtml`, `project.ts`).
 - **Economic material flow cannot solve an ordinary road under a stepped haul quote**
-  (confirmed, 2026-11-09). `solveDenseMaterialAllocation` (`materialAllocation.ts`) builds one
+  (confirmed, 2026-11-09; **fixed** 2026-11-15: the plan is now a minimum-cost network flow,
+  `networkMaterialAllocation.ts`, which solves any haul quote exactly at LongRoad's 27.7 km and
+  3,000 stations in about a second; the tableau models below remain only for a capacity shared by
+  materials of different swell and for the internal-use pricing pass). `solveDenseMaterialAllocation` (`materialAllocation.ts`) builds one
   variable for every compatible cut-interval/fill-interval pair and solves it as a dense simplex
   tableau, which `MAX_ALLOCATION_TABLEAU_CELLS` caps at 3,000,000 cells. The sparse chain model
   (`solveSparseMaterialAllocation`) is exact only for a linear quote (`linearHaulSlope`): free-haul

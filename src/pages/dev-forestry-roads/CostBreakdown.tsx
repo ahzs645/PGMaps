@@ -25,6 +25,9 @@ import { invalidInputNotice } from './inputErrors'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { insetBox } from '@/components/ui/inset-box'
 
+/** Compacted volume of a fill placement row's note. */
+const COMPACTED_M3 = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 1 })
+
 const money = (value: number, digits = 0) =>
   `$${value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
 const quantity = (value: number | null, digits = 1) =>
@@ -361,14 +364,44 @@ export function CostBreakdown({
               )
             : []),
         ]),
-        {
-          id: 'fill',
-          item: 'Fill placement',
-          quantity: analysis.fillVolumeM3,
-          unit: analysis.curvatureCorrection?.applied ? 'm³ (curve-corrected)' : 'm³',
-          rate: setting('fillRate', 'Fill rate', '$/m³'),
-          amount: costs.fill,
-        },
+        // Fill priced by the material it is made of (`fillPlacement.ts`): one row per material with
+        // its own embankment rate, per bank m³ placed, and the rest at the project's fill rate.
+        ...(result.fillPlacement?.length
+          ? result.fillPlacement.map((line) => {
+              const material = alignment.engineering?.materials.find((x) => x.id === line.materialId)
+              return line.materialId === null
+                ? {
+                    id: 'fill',
+                    item: 'Fill placement',
+                    quantity: line.compactedM3,
+                    unit: 'm³',
+                    rate: setting('fillRate', 'Fill rate', '$/m³'),
+                    amount: line.amount,
+                  }
+                : {
+                    id: `fill-${line.materialId}`,
+                    item: `Fill placement · ${material?.name ?? line.materialId}`,
+                    quantity: line.bankM3,
+                    unit: 'bank m³ placed',
+                    rate: {
+                      value: line.rate,
+                      unit: '$/bank m³',
+                      label: `${material?.name ?? line.materialId} fill placement rate`,
+                    },
+                    amount: line.amount,
+                    note: `${COMPACTED_M3.format(line.compactedM3)} compacted m³. The material's own fill placement rate; edit it in Engineering → Ground.`,
+                  }
+            })
+          : [
+              {
+                id: 'fill',
+                item: 'Fill placement',
+                quantity: analysis.fillVolumeM3,
+                unit: analysis.curvatureCorrection?.applied ? 'm³ (curve-corrected)' : 'm³',
+                rate: setting('fillRate', 'Fill rate', '$/m³'),
+                amount: costs.fill,
+              },
+            ]),
         ...surfacingRows,
         {
           id: 'clearing',

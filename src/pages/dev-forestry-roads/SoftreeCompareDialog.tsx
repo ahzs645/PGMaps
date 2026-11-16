@@ -14,6 +14,7 @@ import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import {
   COMPARE_ABSOLUTE_TOLERANCE,
   COMPARE_DECIMALS,
+  compareRoadEngDesignResults,
   compareSoftreeFile,
   comparisonCsv,
   DEFAULT_COMPARE_RELATIVE_PERCENT,
@@ -23,6 +24,7 @@ import {
   type CompareRow,
   type SoftreeComparison,
 } from './softreeCompare'
+import { activeRoadEngSolution, storedResultsOfSource } from './roadEngStoredResults'
 import { softreeUnits } from './softreeExports'
 import type { SoftreeUnits } from './softreeHaulCsv'
 import type { Alignment, RoadAnalysis, TerrainMetadata } from './types'
@@ -55,10 +57,12 @@ const UNIT_OPTIONS = [
 ]
 
 /**
- * **Compare with RoadEng…**: reads a RoadEng Mass Haul or Optimal Haul export, or a Softree Optimal
- * Areas file, and sets it beside the same file made from the active road's results
- * (`softreeCompare.ts`). The file stays in this dialog: nothing is written to the project. A row's
- * station button moves the workspace's station there, which the plan and profile follow.
+ * **Compare with RoadEng…**: for a road read from a RoadEng design, the results the design stores
+ * (its last costing, `roadEngStoredResults.ts`) beside the road's own, with nothing to export; and
+ * for any road, a RoadEng Mass Haul or Optimal Haul export, or a Softree Optimal Areas file, beside
+ * the same file made from the active road's results (`softreeCompare.ts`). The file stays in this
+ * dialog: nothing is written to the project. A row's station button moves the workspace's station
+ * there, which the plan and profile follow.
  */
 export function SoftreeCompareDialog({
   alignment,
@@ -87,8 +91,30 @@ export function SoftreeCompareDialog({
   const [startStationM, setStartStationM] = useState(alignment.roadEngSource?.startStation ?? 0)
   const [show, setShow] = useState<'all' | 'differences'>('all')
   const [selected, setSelected] = useState<string | null>(null)
+  const source = alignment.roadEngSource
+  const stored = useMemo(() => storedResultsOfSource(source), [source])
+  const [mode, setMode] = useState<'design' | 'file'>(() =>
+    stored && activeRoadEngSolution(stored) ? 'design' : 'file',
+  )
 
   const outcome = useMemo((): { result: SoftreeComparison } | { error: string } | null => {
+    if (mode === 'design') {
+      if (!source) return null
+      if (!stored)
+        return { error: "The design's units are not ones this workspace reads, so its results are not read." }
+      try {
+        return {
+          result: compareRoadEngDesignResults(
+            stored,
+            { startStation: source.startStation, stationScale: scale, part: source.part },
+            { analysis, engineering },
+            { relativePercent },
+          ),
+        }
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : 'The stored results could not be compared.' }
+      }
+    }
     if (!file) return null
     try {
       return {
@@ -105,9 +131,9 @@ export function SoftreeCompareDialog({
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'The file could not be compared.' }
     }
-  }, [file, analysis, engineering, units, relativePercent, startStationM, scale])
+  }, [mode, stored, source, file, analysis, engineering, units, relativePercent, startStationM, scale])
   const result = outcome && 'result' in outcome ? outcome.result : null
-  const error = readError || (outcome && 'error' in outcome ? outcome.error : '')
+  const error = (mode === 'file' ? readError : '') || (outcome && 'error' in outcome ? outcome.error : '')
 
   const read = async (picked: File) => {
     setReadError('')
@@ -133,7 +159,14 @@ export function SoftreeCompareDialog({
   const rows = result ? (show === 'differences' ? result.rows.filter((r) => !r.agrees) : result.rows) : []
   const shown = rows.slice(0, MAX_COMPARE_ROWS_SHOWN)
   const download = () => {
-    if (!result || !file) return
+    if (!result) return
+    if (result.kind === 'roadeng-design') {
+      const name = `${alignment.name}${source?.part ? ` ${source.part}` : ''}`
+      const stem = name.replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'roadeng-design'
+      downloadText(comparisonCsv(result, name), `${stem}-stored-results-compared.csv`, 'text/csv;charset=utf-8')
+      return
+    }
+    if (!file) return
     const stem = file.name.replace(/\.[^.]+$/, '')
     downloadText(comparisonCsv(result, file.name), `${stem}-compared.csv`, 'text/csv;charset=utf-8')
   }
@@ -144,7 +177,7 @@ export function SoftreeCompareDialog({
         if (!open) onClose()
       }}
       title="Compare with RoadEng"
-      subtitle={`${alignment.name}: the road's own results beside a RoadEng or Softree file`}
+      subtitle={`${alignment.name}: the road's own results beside ${source ? "RoadEng's" : 'a RoadEng or Softree file'}`}
       size="xl"
       portalContainer={portalContainer}
       contentProps={{ 'data-testid': 'softree-compare-dialog' }}
@@ -161,42 +194,77 @@ export function SoftreeCompareDialog({
       }
     >
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <FileButton
-            label="RoadEng or Softree file to compare"
-            accept=".csv,.txt,text/csv,text/plain"
-            disabled={reading}
-            onFiles={(files) => files[0] && void read(files[0])}
-          >
-            <FileUp className="size-3.5" aria-hidden="true" />
-            {reading ? 'Reading…' : file ? 'Choose another file' : 'Choose a file'}
-          </FileButton>
-          {file && (
-            <span className="min-w-0 truncate text-xs text-muted-foreground" data-testid="softree-compare-file">
-              {file.name}
-              {result && ` · ${SOFTREE_COMPARE_KIND_LABELS[result.kind]}`}
-            </span>
-          )}
-          <InfoTip label="About comparing with RoadEng">
-            A RoadEng Mass Haul or Optimal Haul export, or a Softree Optimal Areas file, is told apart by what it holds.
-            The road&apos;s side is the same file made from its own results, written in the units chosen here and read
-            back, so both sides carry the same precision. The file stays in this dialog; nothing is written to the
-            project.
-          </InfoTip>
-        </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Field
-            label="Units in the file"
-            hint="Softree's files state no units. The project's own units are chosen first: feet and cubic yards for a design read from RoadEng in feet, else metres."
-          >
-            <RoadSelect
-              ariaLabel="Units in the file"
-              className={roadFieldClass}
-              value={units}
-              onValueChange={(v) => setUnits(v as SoftreeUnits)}
-              options={UNIT_OPTIONS}
+        {source && (
+          <div className="flex flex-wrap items-center gap-2">
+            <SegmentedControl
+              label="Compare with"
+              size="sm"
+              fullWidth={false}
+              value={mode}
+              onChange={(next) => {
+                setMode(next)
+                setSelected(null)
+              }}
+              options={[
+                { value: 'design', label: 'Results stored in the design' },
+                { value: 'file', label: 'A RoadEng or Softree file' },
+              ]}
             />
-          </Field>
+            <InfoTip label="About the results stored in the design">
+              A RoadEng design keeps the last costing of each vertical alignment: its haul, cut, fill and pit opening
+              costs, the stations it covered and when RoadEng solved it. They are set beside this road&apos;s own costs
+              in the same columns as RoadEng&apos;s Optimal Haul cost summary, with nothing to export from RoadEng. The
+              design&apos;s calculated stations were set against the road when it was opened; the import notice gives
+              that check.
+            </InfoTip>
+          </div>
+        )}
+        {mode === 'file' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <FileButton
+              label="RoadEng or Softree file to compare"
+              accept=".csv,.txt,text/csv,text/plain"
+              disabled={reading}
+              onFiles={(files) => files[0] && void read(files[0])}
+            >
+              <FileUp className="size-3.5" aria-hidden="true" />
+              {reading ? 'Reading…' : file ? 'Choose another file' : 'Choose a file'}
+            </FileButton>
+            {file && (
+              <span className="min-w-0 truncate text-xs text-muted-foreground" data-testid="softree-compare-file">
+                {file.name}
+                {result && ` · ${SOFTREE_COMPARE_KIND_LABELS[result.kind]}`}
+              </span>
+            )}
+            <InfoTip label="About comparing with RoadEng">
+              A RoadEng Mass Haul or Optimal Haul export, or a Softree Optimal Areas file, is told apart by what it
+              holds. The road&apos;s side is the same file made from its own results, written in the units chosen here
+              and read back, so both sides carry the same precision. The file stays in this dialog; nothing is written
+              to the project.
+            </InfoTip>
+          </div>
+        )}
+        {mode === 'design' && result && (
+          <p className="text-xs text-muted-foreground" data-testid="softree-compare-file">
+            {SOFTREE_COMPARE_KIND_LABELS[result.kind]}
+            {source?.part ? ` · ${source.part}` : ''}
+          </p>
+        )}
+        <div className={cn('grid grid-cols-1 gap-2', mode === 'file' && 'sm:grid-cols-3')}>
+          {mode === 'file' && (
+            <Field
+              label="Units in the file"
+              hint="Softree's files state no units. The project's own units are chosen first: feet and cubic yards for a design read from RoadEng in feet, else metres."
+            >
+              <RoadSelect
+                ariaLabel="Units in the file"
+                className={roadFieldClass}
+                value={units}
+                onValueChange={(v) => setUnits(v as SoftreeUnits)}
+                options={UNIT_OPTIONS}
+              />
+            </Field>
+          )}
           <NumberField
             label="Agree within (%)"
             value={relativePercent}
@@ -211,23 +279,25 @@ export function SoftreeCompareDialog({
               .map(([unit, v]) => `${v} ${unit}`)
               .join(', ')}. A value only one side has never agrees.`}
           />
-          <NumberField
-            label="File's first station (m)"
-            value={startStationM}
-            onChange={setStartStationM}
-            min={-1_000_000}
-            max={10_000_000}
-            step={1}
-            precision={3}
-            hint="The station the file's road starts at. A design read from RoadEng starts where its file did; the road here starts at 0, and so do the files Save & export writes."
-          />
+          {mode === 'file' && (
+            <NumberField
+              label="File's first station (m)"
+              value={startStationM}
+              onChange={setStartStationM}
+              min={-1_000_000}
+              max={10_000_000}
+              step={1}
+              precision={3}
+              hint="The station the file's road starts at. A design read from RoadEng starts where its file did; the road here starts at 0, and so do the files Save & export writes."
+            />
+          )}
         </div>
         {error && (
           <InlineAlert tone="error" title="Not compared">
             {error}
           </InlineAlert>
         )}
-        {!file && !error && (
+        {mode === 'file' && !file && !error && (
           <p className="text-xs text-muted-foreground">
             Choose a RoadEng Mass Haul export, a RoadEng Optimal Haul export or a Softree Optimal Areas file.
           </p>
@@ -246,7 +316,11 @@ export function SoftreeCompareDialog({
                   value: result.differing,
                   tone: result.differing ? 'warning' : 'success',
                 },
-                { key: 'theirs', label: 'Only in the file', value: result.onlyTheirs.length },
+                {
+                  key: 'theirs',
+                  label: result.kind === 'roadeng-design' ? 'Only in the design' : 'Only in the file',
+                  value: result.onlyTheirs.length,
+                },
                 { key: 'ours', label: 'Only in PGMaps', value: result.onlyOurs.length },
               ]}
             />
@@ -255,8 +329,10 @@ export function SoftreeCompareDialog({
               {Object.entries(COMPARE_ABSOLUTE_TOLERANCE)
                 .map(([unit, v]) => `${v} ${unit}`)
                 .join(', ')}
-              ){result.tolerance.stationM !== null && `; stations matched within ${result.tolerance.stationM} m`}. Read
-              in {result.units === 'imperial' ? 'feet and cubic yards' : 'metres and cubic metres'}; shown in metric.
+              ){result.tolerance.stationM !== null && `; stations matched within ${result.tolerance.stationM} m`}.
+              {result.kind === 'roadeng-design'
+                ? ' Read from the design in its own units; shown in metric.'
+                : ` Read in ${result.units === 'imperial' ? 'feet and cubic yards' : 'metres and cubic metres'}; shown in metric.`}
             </p>
             {result.notes.map((note) => (
               <p key={note} className="text-2xs text-muted-foreground">
@@ -276,12 +352,14 @@ export function SoftreeCompareDialog({
               <h3 id="softree-compare-totals" className="text-xs font-medium">
                 Totals
               </h3>
-              <CompareTable rows={result.totals} label="Totals" />
+              <CompareTable rows={result.totals} label="Totals" theirs={theirsLabel(result)} />
             </section>
             <section aria-labelledby="softree-compare-rows" className="space-y-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 id="softree-compare-rows" className="text-xs font-medium">
-                  {result.kind === 'optimal-areas' ? 'Stations' : 'Items'}, largest differences first
+                  {result.kind === 'roadeng-design'
+                    ? 'Stations costed'
+                    : `${result.kind === 'optimal-areas' ? 'Stations' : 'Items'}, largest differences first`}
                 </h3>
                 <SegmentedControl
                   label="Rows shown"
@@ -297,8 +375,9 @@ export function SoftreeCompareDialog({
               </div>
               {shown.length ? (
                 <CompareTable
+                  theirs={theirsLabel(result)}
                   rows={shown}
-                  label={result.kind === 'optimal-areas' ? 'Stations' : 'Items'}
+                  label={result.kind === 'optimal-areas' || result.kind === 'roadeng-design' ? 'Stations' : 'Items'}
                   selected={selected}
                   onStation={(r) => {
                     setSelected(r.id)
@@ -317,7 +396,11 @@ export function SoftreeCompareDialog({
               )}
             </section>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <OneSide title="Only in the file" items={result.onlyTheirs} testId="softree-compare-only-theirs" />
+              <OneSide
+                title={result.kind === 'roadeng-design' ? 'Only in the design' : 'Only in the file'}
+                items={result.onlyTheirs}
+                testId="softree-compare-only-theirs"
+              />
               <OneSide title="Only in PGMaps" items={result.onlyOurs} testId="softree-compare-only-ours" />
             </div>
           </>
@@ -327,14 +410,19 @@ export function SoftreeCompareDialog({
   )
 }
 
+/** What the other side is called in the table: the design, or the file. */
+const theirsLabel = (c: SoftreeComparison) => (c.kind === 'roadeng-design' ? 'RoadEng' : 'File')
+
 function CompareTable({
   rows,
   label,
+  theirs,
   selected,
   onStation,
 }: {
   rows: readonly CompareRow[]
   label: string
+  theirs: string
   selected?: string | null
   onStation?: (row: CompareRow) => void
 }) {
@@ -345,9 +433,9 @@ function CompareTable({
           <tr>
             <ColumnHeader label={label} className="text-left" />
             <ColumnHeader label="Value" className="text-left" />
-            <ColumnHeader label="File" />
+            <ColumnHeader label={theirs} />
             <ColumnHeader label="PGMaps" />
-            <ColumnHeader label="Difference" unit="PGMaps − file" />
+            <ColumnHeader label="Difference" unit={`PGMaps − ${theirs === 'File' ? 'file' : theirs}`} />
             <ColumnHeader label="Difference" unit="%" />
             <ColumnHeader label="Agrees" />
             {onStation && <ColumnHeader label="Station" unit="m" />}

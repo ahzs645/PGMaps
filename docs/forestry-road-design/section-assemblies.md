@@ -37,6 +37,17 @@ Unassigned strata inherit the side's template slope. An explicitly assigned subg
 material can likewise supply the fill batter. These are entered assumptions; no geology or
 stable slope is inferred from the DEM or material name.
 
+Each template chooses, per side, where its cut and fill batters come from (`groundBatters.ts`,
+**Cut batter from** / **Fill batter from** on the slope component). **Ground material** is
+RoadEng's AUTO slope: cut takes each horizon's material batter, bending at every horizon boundary
+it crosses, and fill takes the fill requirement's material, else the top horizon's at the station
+(RoadEng's stratum layer 1). **This slope** keeps the template's H:V in every material; a rock
+horizon still takes the rock batter. **Material where set**, the value a template has until it is
+chosen, is the rule above: a material's batter where it has one, the fill requirement's in fill.
+Every template read from RoadEng states one or the other, so its ground types' slopes reach only
+the slopes RoadEng has on AUTO. The section uses the faster plain batter where both sides state
+their slopes.
+
 For a quality-replaceable fill requirement, the batter uses the largest (flattest) entered H:V
 among all eligible non-stripping materials; a missing material slope inherits the template.
 The geometry therefore accommodates an allowed flatter-slope substitute rather than assuming
@@ -84,6 +95,66 @@ rate remains applicable where no material-specific supply/haul rule is assigned.
 `surfaceLayersAt` helper provides the same start/midpoint/end course areas to Simpson integration
 in engine, material-demand and complete-cost calculations.
 
+## Benches, walls, barriers, sub-cuts, ditch inslopes and course side slopes
+
+Section → **Benches, walls, barriers and sub-cuts** (and the same panel in a library template)
+edits parts of the section beyond lane, ditch and batter (`sectionStructures.ts`). Each is an
+optional template value; a template without them takes the same path through the engine and gives
+the same results as before. A template with any of them is built by the assembled section
+(`assembledSection.ts`), and its quantities are listed under the panel, in the report's **Walls,
+barriers and sub-cuts** table and on every drawn section.
+
+- **Ditch inslope.** Template components → a ditch → **Inslope (H:V)** gives the slope from the road
+  edge to the ditch bottom; the backslope takes the rest of the top width, and **Backslope (H:V)**
+  sets the top width from both. Blank keeps both slopes alike, as before. The ditch keeps its runs
+  when a culvert dip deepens it. A ditch may be 30 m wide and 10 m deep (`MAX_DITCH_WIDTH_M`,
+  `MAX_DITCH_DEPTH_M`).
+- **Benched batters.** Per side, for cut and for fill: the batter rises (or falls) the face height
+  at its face slope (blank: the side's batter), then a bench of its width runs out at its fall, up
+  to the bench count (blank: 5, RoadEng's Slope VI); after the last bench the side's batter closes
+  to ground. Ground met on a face or on a bench is the daylight there, so a low cut stops on its
+  first face. Points `left-bench-1-start`, `left-bench-1-end`, … mark each bench.
+- **Course side slopes.** A surface course's **side slope (H:V)** runs its edges in from the course
+  below, so courses narrow upward from the formation and the running surface is narrower than the
+  formation by their side runs; the course quantity is the trapezoid. Courses are listed from the
+  subgrade up. Template components → a lane prints the running surface and how far the courses
+  spread past it to the subgrade edge. A RoadEng roadway's lane width is that running surface, and
+  its subgrade edge comes from the component's own construction (see
+  [exports-and-project-files.md](exports-and-project-files.md), **Section components**).
+- **Walls.** A cut wall stands where a cut side leaves the ditch (or formation), after an optional
+  level setback: the excavation runs under its base, its thickness wide, and up its back at its
+  face batter; the side's batter (or benches) continue from its top. A cut lower than the wall
+  stops it at the ground. A fill wall holds a fill side: its face drops from the shoulder (after
+  the setback) to the ground; a fill deeper than the wall continues below its foot at the fill
+  batter. Its body, its thickness inside the face, comes out of the fill, and its embedded base
+  (thickness × depth below ground) is added to the cut. Each wall is built only in its condition.
+  The body is reported as a structure volume; no stability, bearing or reinforcement check is made.
+  **Top below formation (m)** puts a fill wall's top that far under the formation edge, the road's
+  fill over it (RoadEng Wall I's cover): its body is that much shorter and the cover is fill. A cut
+  wall's **backfill** digs the ground behind it from its heel, level for the offset and then up the
+  base slope until it meets the cut surface, and refills it to the cut (**Refilled to the cut**) or
+  to a top slope from the wall's top: the dig adds to the cut, the refill to the fill, and the wedge
+  is listed and drawn as a **Wall backfill**.
+- **Barriers.** A guard rail, concrete barrier or railing stands on the running surface (the design
+  line raised by the courses there), its inside face its offset from the centreline. It is drawn,
+  listed and measured by length; it moves no earth.
+- **Sub-cuts.** Per side, ground dug out below the subgrade (**Subgrade**, RoadEng's SUB CUT 2) or
+  below the lower of subgrade and ground (**Lower of subgrade and ground**, SUB CUT 1) from the
+  centreline to its width and up its outside slope, then refilled. The ground it removes is added
+  to the section's cut, and its backfill to the fill and, with a material, to that material's
+  demand, as an excavated key is. A missing ground or design sample inside it leaves the section
+  incomplete. By default the bottom lies the depth below the reference all the way out. An
+  **Inside slope**, a **Bottom slope (%)** or a bottom on its **Own slope** (not with the
+  crossfall) makes it RoadEng's straight bottom: from the depth below the reference at the
+  centreline, at its own slope plus the crossfall where it follows it, reached down the inside
+  slope.
+
+Along the road each structure's length and volume are average end areas over consecutive
+stations (`structureQuantities`): an interval counts in full where both stations have it and half
+where one does, and only complete sections add volume. LandXML cross-sections carry each outline
+as a closed `CrossSectSurf`, the DXF drawing on layer `SECT_STRUCT`, and the plot book and printed
+report draw them on every section.
+
 ## Reference features and surfaces
 
 An optional reference feature anchors a component endpoint at the intersection of a named
@@ -106,20 +177,25 @@ not executable formulas or scripts.
 
 ## Limits and checks
 
-| Bound                                                                                                                 | Enforcing code                                                        |
-| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 40 components; 20 surface courses per template                                                                        | `sectionAssembly.ts`, `parseSectionComponents` / `parseSectionLayers` |
-| Component width 0.01–50 m; rise −30–30 m; key depth 0–20 m and edge offset 0–50 m                                     | `parseSectionComponents`                                              |
-| Course depth 0–2 m; stack at most 5 m per side                                                                        | `parseSectionLayers`                                                  |
-| 100 preparation ranges; depth 0–20 m; inside offsets 0–100 m; outside offsets 0–50 m                                  | `parseSitePreparation`                                                |
-| A removal ("remove to") material must be one of the road's materials                                                  | `validatePreparation`                                                 |
-| No overlapping preparation station ranges or overlapping keys on one side                                             | `parseSitePreparation`, `parseSectionComponents`                      |
-| Material batters 0.1–10 H:V                                                                                           | `validatePreparation`                                                 |
-| 24 preparation footprint iterations; 0.00001 m convergence; whole preparation footprint must lie inside section reach | `assembledSection.ts`, preparation iteration loop / reach check       |
-| Batter sampling step 0.05–0.25 m, plus refined horizon/daylight intersections                                         | `assembledSection.ts`, `step` / side solve                            |
-| 2,000,000 reference segment checks per analysis                                                                       | `sectionReferences.ts`, `MAX_REFERENCE_SEGMENT_CHECKS`                |
-| Reference horizontal/vertical adjustment −100–100 m                                                                   | `parseSectionComponents`                                              |
-| Component library import 1 MB, at most 40 definitions                                                                 | `ComponentLibrary.tsx`, shared parser                                 |
+| Bound                                                                                                                                                                         | Enforcing code                                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 40 components; 20 surface courses per template                                                                                                                                | `sectionAssembly.ts`, `parseSectionComponents` / `parseSectionLayers`               |
+| Component width 0.01–50 m; rise −30–30 m; key depth 0–20 m and edge offset 0–50 m                                                                                             | `parseSectionComponents`                                                            |
+| Course depth 0–2 m; stack at most 5 m per side                                                                                                                                | `parseSectionLayers`                                                                |
+| 100 preparation ranges; depth 0–20 m; inside offsets 0–100 m; outside offsets 0–50 m                                                                                          | `parseSitePreparation`                                                              |
+| A removal ("remove to") material must be one of the road's materials                                                                                                          | `validatePreparation`                                                               |
+| No overlapping preparation station ranges or overlapping keys on one side                                                                                                     | `parseSitePreparation`, `parseSectionComponents`                                    |
+| Material batters 0.1–10 H:V                                                                                                                                                   | `validatePreparation`                                                               |
+| 24 preparation footprint iterations; 0.00001 m convergence; whole preparation footprint must lie inside section reach                                                         | `assembledSection.ts`, preparation iteration loop / reach check                     |
+| Batter sampling step 0.05–0.25 m, plus refined horizon/daylight intersections                                                                                                 | `assembledSection.ts`, `step` / side solve                                          |
+| Ditch top width 0–30 m, depth 0–10 m; inslope 0–20 H:V                                                                                                                        | `sectionStructures.ts` `MAX_DITCH_WIDTH_M`, `MAX_DITCH_DEPTH_M`, `STRUCTURE_LIMITS` |
+| Benches: face 0.1–30 m high, bench 0–30 m wide, face 0.05–10 H:V, fall −50–50 %, 1–20 benches (default 5)                                                                     | `sectionStructures.ts` `STRUCTURE_LIMITS`, `DEFAULT_BENCH_COUNT`                    |
+| Walls: 8 a template; height 0.1–30 m, thickness 0.05–10 m, face 0–2 H:V, setback 0–20 m, embedment 0–5 m, cover 0–10 m; backfill offset 0–30 m, base 0–10 H:V, top −100–100 % | `sectionStructures.ts` `MAX_SECTION_WALLS`, `STRUCTURE_LIMITS`                      |
+| Barriers: 8 a template; offset 0–60 m, width 0.02–5 m, height 0.1–5 m                                                                                                         | `sectionStructures.ts` `MAX_SECTION_BARRIERS`, `STRUCTURE_LIMITS`                   |
+| Sub-cut depth 0.01–10 m, width 0–60 m, outside and inside slope 0–10 H:V, bottom slope −50–50 %; course side slope 0–10 H:V                                                   | `sectionStructures.ts` `STRUCTURE_LIMITS`                                           |
+| 2,000,000 reference segment checks per analysis                                                                                                                               | `sectionReferences.ts`, `MAX_REFERENCE_SEGMENT_CHECKS`                              |
+| Reference horizontal/vertical adjustment −100–100 m                                                                                                                           | `parseSectionComponents`                                                            |
+| Component library import 1 MB, at most 40 definitions                                                                                                                         | `ComponentLibrary.tsx`, shared parser                                               |
 
 An unresolved preparation footprint or reference leaves quantities partial. Numerical integration
 still depends on terrain support and station spacing. Surface courses are separate volume demands;

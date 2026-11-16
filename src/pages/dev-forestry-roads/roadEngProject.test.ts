@@ -14,7 +14,15 @@ import { EXAMPLE_RIGGING } from './cableMechanics'
 import { ROADENG_FLAG_NOT_MODELLED, ROADENG_FLAG_POINT_SET } from './roadEngTerrain'
 import { buildTer, chunk, type SynthFeature } from './roadEngTerrain.testkit'
 import { encodeRoadEngDLineChunks, roadEngDLineFor } from './roadEngDLines'
-import { createDemoProject, DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, terrainFromMetadata } from './terrain'
+import {
+  createDemoProject,
+  DEFAULT_ROAD_SETTINGS,
+  DEFAULT_TEMPLATE,
+  rasterSource,
+  terrainFromMetadata,
+} from './terrain'
+import { terrainCoverShare, terrainGridCellM, terrainResolutionText } from './tinGround'
+import { planTerrainCellM } from './terrainDisplay'
 import type { Alignment, Coordinate, RoadProject } from './types'
 
 // A 400 m square of ground in UTM zone 10 rising 5 % to the east, drawn as RoadEng holds it: mass
@@ -165,7 +173,16 @@ describe('RoadEng project import', () => {
     expect(source.elevationAt(...lonLat(200, 200))).toBeCloseTo(ground(200), 1)
     const analysis = analyzeRoad(back.alignment, source, DEFAULT_ROAD_SETTINGS)
     expect(analysis.completeLength).toBeGreaterThan(0.99 * analysis.length)
-    expect(stated.notes.join(' ')).toMatch(/Its ground is RoadEng's TIN, 800 triangles, on \d+\.\d\d m cells\./)
+    expect(stated.notes.join(' ')).toMatch(
+      /Its ground is RoadEng's TIN, 800 triangles: sections, the profile, quantities, drainage and the plan read its facets \(median edge 20\.0 m\), and a \d+\.\d\d m grid over its box is kept to write it back\./,
+    )
+    // The TIN is kept as the ground analysis reads, in the grid's metres.
+    expect(project.terrain.preparation).toMatchObject({
+      operation: 'roadeng-tin',
+      sources: [{ name: 'Valley.terx', epsg: 26910, verticalReference: 'CGVD2013' }],
+      parameters: { vertices: 441, triangles: 800, medianEdgeM: 20, areaM2: 160_000 },
+    })
+    expect(project.terrain.preparation!.tin!.coordinates.slice(0, 4)).toEqual([E0, N0, E0 + 20, N0])
     expect(stated.notes).toContain(
       "The terrain's coordinate system is NAD83 / UTM zone 10N (EPSG 26910), from RoadEng code 1|51|10010.",
     )
@@ -186,6 +203,37 @@ describe('RoadEng project import', () => {
     expect(stated.notes).toContain(
       '2 contours, point sets and boundaries make up its terrain and are not drawn as layers.',
     )
+  })
+
+  it('reads the TIN at its facets where the grid made from it flattens them', () => {
+    // A 3 × 3 TIN on 60 m posts with a 10 m peak in the middle: the grid's cells are wider than
+    // the facets' short sides, so reading the grid bilinearly cuts the peak down.
+    const peak: [number, number, number][] = []
+    for (let j = 0; j <= 2; j++)
+      for (let i = 0; i <= 2; i++) peak.push([E0 + i * 60, N0 + j * 60, i === 1 && j === 1 ? 810 : 800])
+    const at = (i: number, j: number) => j * 3 + i
+    const faces: [number, number, number][] = []
+    for (let j = 0; j < 2; j++)
+      for (let i = 0; i < 2; i++)
+        faces.push([at(i, j), at(i, j + 1), at(i + 1, j)], [at(i + 1, j), at(i, j + 1), at(i + 1, j + 1)])
+    const peaked = zipSync({
+      'Terrain1.ter': buildTer({
+        features: [{ name: 'Posts', points: peak, flags: ROADENG_FLAG_POINT_SET | 1, kind: 3 }],
+        tin: { vertices: peak.map((_, k) => [0, k]), triangles: faces },
+      }),
+      'Terrain1.tlt': strToU8(['[main]', 'CoordSys=1|51|10010'].join('\r\n')),
+    })
+    const opened = roadEngProject([{ name: 'Peak.terx', bytes: peaked }], options)
+    const project = asProject({ ...opened, roads: [{ alignment: road } as never] })
+    const source = terrainFromMetadata(project.terrain)!
+    // 15 m east and 10 m north of the peak, on the facet falling to (120, 60) and (60, 120).
+    const facet = 810 - (10 * (15 + 10)) / 60
+    expect(source.elevationAt(...lonLat(75, 70))).toBeCloseTo(facet, 6)
+    expect(source.elevationAt(...lonLat(60, 60))).toBeCloseTo(810, 6)
+    const grid = rasterSource(project.terrain.raster!)
+    expect(Math.abs(grid.elevationAt(...lonLat(60, 60)) - 810)).toBeGreaterThan(1)
+    // Off the TIN there is no ground, from either.
+    expect(source.elevationAt(...lonLat(-5, 60))).toBeNaN()
   })
 
   it('lays a project whose terrain names no CRS on a flat plane, and places it there exactly later', () => {
@@ -218,6 +266,9 @@ describe('RoadEng project import', () => {
     expect(placed.project.terrain.raster!.origin).toEqual(direct.terrain.raster!.origin)
     expect(placed.project.terrain.raster!.values).toEqual(direct.terrain.raster!.values)
     expect(placed.project.terrain.localPlane).toBeUndefined()
+    // RoadEng's TIN moves with it, vertex for vertex, and is still the ground read.
+    expect(placed.project.terrain.preparation).toEqual(direct.terrain.preparation)
+    expect(terrainFromMetadata(placed.project.terrain)!.elevationAt(...lonLat(213, 187))).toBeCloseTo(ground(213), 6)
     expect(distance(placed.project.cables[0].start, direct.cables[0].start)).toBeLessThan(0.001)
     expect(() => parseProject(placed.project)).not.toThrow()
   })
@@ -242,6 +293,12 @@ describe('RoadEng project import', () => {
     )
     const source = terrainFromMetadata(placed.project.terrain)!
     expect(source.elevationAt(...lonLat(200, 200))).toBeCloseTo(ground(200), 1)
+    // The TIN went through the fit with the grid; its levels are as read.
+    const tin = placed.project.terrain.preparation!.tin!
+    expect(tin.elevations).toEqual(project.terrain.preparation!.tin!.elevations)
+    expect(Math.abs(tin.coordinates[0] - E0)).toBeLessThan(0.01)
+    expect(placed.project.terrain.preparation!.sources[0].epsg).toBe(32610)
+    expect(() => parseProject(placed.project)).not.toThrow()
     expect(placed.notes.join(' ')).toMatch(/Fitted 2 control points: scale 1\.0000\d, rotation -?0\.000°/)
   })
 
@@ -338,8 +395,58 @@ describe.skipIf(!samples || !existsSync(samples ?? ''))('Softree sample projects
     expect(p.epsg).toBe(26915)
     const project = asProject(p)
     const analysis = analyzeRoad(project.alignments[0], terrainFromMetadata(project.terrain)!, DEFAULT_ROAD_SETTINGS)
-    expect(analysis.completeLength / analysis.length).toBeGreaterThan(0.99)
+    // The courses' 4:1 side slopes put the subgrade 2 m past the 4.2 m lane, so a few more sections
+    // reach past the TIN's edge.
+    expect(analysis.completeLength / analysis.length).toBeGreaterThan(0.98)
     expect(p.notes.join(' ')).toMatch(/takes RoadEng's section; its profile is lowered 0\.50 m/)
+  })
+
+  it("reads LongRoad's ground from RoadEng's TIN, not the coarse grid its box forces", () => {
+    const project = asProject(roadEngProject(longRoad(), options))
+    const { preparation, raster } = project.terrain
+    expect(preparation).toMatchObject({
+      operation: 'roadeng-tin',
+      parameters: { vertices: 100_372, triangles: 198_340 },
+    })
+    // One grid over the TIN's 10.6 × 17.2 km box: 7.66 m cells where half the median edge is about 3.9 m.
+    expect(Math.abs(raster!.pixelSize[0])).toBeCloseTo(7.66, 2)
+    expect(Number(preparation!.parameters.medianEdgeM) / 2).toBeCloseTo(3.9, 0)
+    // So nothing is sized from that box: the TIN covers 3 % of it, Review states its 7.85 m point
+    // spacing, drainage routes on 3.9 m cells and the plan draws about 17 m pixels, not 91 m.
+    expect(terrainCoverShare(project.terrain)).toBeCloseTo(0.03, 2)
+    expect(terrainResolutionText(project.terrain)).toBe('TIN, 7.85 m median point spacing')
+    expect(terrainGridCellM(project.terrain)).toBeCloseTo(3.92, 2)
+    expect(planTerrainCellM(project.terrain)).toBeCloseTo(17.2, 0)
+    const source = terrainFromMetadata(project.terrain)!
+    const toLonLat = (x: number, y: number) =>
+      proj4('EPSG:4326', projectedCrsDefinition(26915)!).inverse([x, y]) as Coordinate
+    const tin = preparation!.tin!
+    // Each triangulated vertex reads its own level (547 of RoadEng's points are in no triangle).
+    for (let k = 0; k < tin.triangles.length; k += 29_989) {
+      const i = tin.triangles[k]
+      expect(source.elevationAt(...toLonLat(tin.coordinates[i * 2], tin.coordinates[i * 2 + 1]))).toBeCloseTo(
+        tin.elevations[i],
+        3,
+      )
+    }
+    const road = project.alignments[0]
+    const onTin = analyzeRoad(road, source, DEFAULT_ROAD_SETTINGS)
+    const onGrid = analyzeRoad(road, rasterSource(raster!), DEFAULT_ROAD_SETTINGS)
+    expect(onTin.completeLength / onTin.length).toBeGreaterThan(0.98)
+    // The grid flattens short facets; the TIN keeps them, a percent or two more earthwork.
+    expect(onTin.cutVolumeM3 / onGrid.cutVolumeM3).toBeGreaterThan(1.005)
+    expect(onTin.cutVolumeM3 / onGrid.cutVolumeM3).toBeLessThan(1.05)
+    expect(onTin.fillVolumeM3 / onGrid.fillVolumeM3).toBeGreaterThan(1.005)
+    expect(onTin.fillVolumeM3 / onGrid.fillVolumeM3).toBeLessThan(1.05)
+  })
+
+  it('keeps the cable terrain’s fine TIN as its ground too', () => {
+    const p = roadEngProject([sample('Terrain_cables/CableAnalysis.terx')], options)
+    expect(p.terrain.preparation).toMatchObject({
+      operation: 'roadeng-tin',
+      parameters: { vertices: 157_016, triangles: 313_861 },
+    })
+    expect(Number(p.terrain.preparation!.parameters.medianEdgeM)).toBeLessThan(1.5)
   })
 
   it('places LongRoad, opened without its CRS, exactly where its CRS puts it', () => {
@@ -357,6 +464,10 @@ describe.skipIf(!samples || !existsSync(samples ?? ''))('Softree sample projects
       expect(distance(p.coordinate, direct.alignments[0].points[k].coordinate)).toBeLessThan(0.005),
     )
     expect(placed.terrain.raster!.origin).toEqual(direct.terrain.raster!.origin)
+    // The TIN moves by the plane's offset to the millimetre it is kept to.
+    const a = placed.terrain.preparation!.tin!.coordinates,
+      b = direct.terrain.preparation!.tin!.coordinates
+    for (let i = 0; i < a.length; i += 10_007) expect(Math.abs(a[i] - b[i])).toBeLessThan(0.0011)
   })
 
   it('reads the cul-de-sac shoulder lines as its own alignment, not as new roads', () => {

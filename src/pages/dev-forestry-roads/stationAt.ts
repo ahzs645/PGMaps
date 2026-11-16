@@ -1,10 +1,18 @@
 /**
- * The road station a reader asked for by chainage. Calculation stations sit at the station spacing
+ * The road station a reader asked for by chainage (a typed station name goes through
+ * `resolveTypedStation`, `roadStationing.ts`, first). Calculation stations sit at the station spacing
  * and at design breakpoints; a typed station such as 85 or 716.1 usually lies between two of them.
  * No DOM.
  */
 import { isGradeBreachFlag } from './designStandards'
 import { nearestStation } from './engine'
+import {
+  chainagesAtStation,
+  hasStationing,
+  stationAtChainage,
+  stationExtent,
+  type RoadStationing,
+} from './roadStationing'
 import type { RoadAnalysis, RoadStation } from './types'
 
 /** A chainage this close to a calculated station is that station. */
@@ -73,9 +81,22 @@ export function typedStationNote(
   length: number,
   line: 'road' | 'terrain profile',
   format: { value: (value: number) => string; station: (chainage: number) => string },
+  /** The road's stationing: `entered` is then a station name and `shown` still a chainage. */
+  stationing?: RoadStationing | null,
 ): string | null {
   if (shown === null)
     return `No station is calculated on this ${line} yet, so station ${format.value(entered)} cannot be shown.`
+  if (hasStationing(stationing)) {
+    const extent = stationExtent(stationing, length)
+    if (entered < extent.min - STATION_MATCH_M)
+      return `Station ${format.value(entered)} is before the ${line}'s start; showing ${format.station(shown)}.`
+    if (entered > extent.max + STATION_MATCH_M)
+      return `Station ${format.value(entered)} is past the ${line}'s end; showing ${format.station(shown)}.`
+    if (!chainagesAtStation(entered, stationing, length).length)
+      return `A station equation skips station ${format.value(entered)}; showing ${format.station(shown)}.`
+    if (Math.abs(stationAtChainage(shown, stationing) - entered) <= STATION_MATCH_M) return null
+    return `No section could be evaluated at station ${format.value(entered)}; showing the nearest calculated station, ${format.station(shown)}.`
+  }
   if (entered < 0)
     return `Station ${format.value(entered)} is before the ${line}'s start; showing ${format.station(shown)}.`
   if (entered > length)

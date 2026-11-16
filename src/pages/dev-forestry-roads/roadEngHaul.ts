@@ -37,6 +37,14 @@
  *   material in cut (bank) volumes, so a pit's volume and excavation cost are taken per bank volume
  *   of its material, and a borrow site's capacity and rate are converted to PGMaps' compacted m³
  *   with the material's compacted/bank factor. A capacity of 10³⁰ or more is unbounded.
+ * - A pit whose access station is off the alignment (the cul-de-sac's at 3,224.87 m on a road that
+ *   ends at 2,448.90 m) is inferred to be reached along the road's line: Softree's help defines the
+ *   access station as the place on the alignment the pit is reached from and the access distance as
+ *   the dead haul from there, and says nothing of a station past the ends. Such a pit becomes a site
+ *   at the nearer end with the station gap added to its access distance (`HaulSite.pastRoadEndM`
+ *   records that part), so a haul to it is as long as the station difference plus RoadEng's access
+ *   distance, as for a pit on the road. While the site stays at that end it is written back at its
+ *   own station and access; moved, the gap is written as access distance.
  *
  * The mapping (`roadEngHaulFor`) puts the class distances where RoadEng's cost lines cross and
  * folds the hauling over the free-haul distance into the overhaul and endhaul loading rates, because
@@ -54,7 +62,8 @@
  */
 import { DEFAULT_HAUL_SETTINGS } from './engineeringTypes'
 import type { AlignmentEngineering, GroundMaterial, HaulSettings, HaulSite } from './engineeringTypes'
-import { ROADENG_MATERIAL_COLORS, type RoadEngRangeOptions } from './roadEngDesignSettings'
+import { ROADENG_UNITS } from './roadEngUnits'
+import { ROADENG_MATERIAL_COLORS, roadEngStrippingMaterialId, type RoadEngRangeOptions } from './roadEngDesignSettings'
 
 /** Ground type records read from one alignment. */
 export const MAX_ROADENG_GROUND_TYPES = 200
@@ -73,7 +82,7 @@ export const ROADENG_QUALITY_CLASSES = 4
 
 const M3_PER_YD3 = 0.764554857984
 const M_PER_MILE = 1609.344
-const UNITS: Record<string, number> = { '10000': 1, '3048': 0.3048 }
+const UNITS = ROADENG_UNITS
 const PIT_KEY = /^OptParms_Pit-(\d+)$/
 const COST_SECTION = /^OptAlignCost-(\d+)$/
 
@@ -374,6 +383,8 @@ export interface RoadEngHaulOptions extends RoadEngRangeOptions {
   materials?: GroundMaterial[]
   /** Haul settings to start from; PGMaps' defaults when omitted. */
   base?: HaulSettings
+  /** The design stores a solved costing of its active vertical alignment (`roadEngStoredResults.ts`). */
+  costed?: boolean
 }
 
 /**
@@ -468,12 +479,15 @@ export function roadEngHaulFromData(read: RoadEngHaulData, options: RoadEngHaulO
     if (types.every((t) => same(t.embankmentCost, first.embankmentCost))) {
       fillRate = Math.min(10000, Math.max(0, r9(first.embankmentCost / u.m3)))
       notes.push(
-        `RoadEng's embankment cost (${first.embankmentCost} per ${volume}, the same for every ground type) becomes the fill rate.`,
+        `RoadEng's embankment cost (${first.embankmentCost} per ${volume}, the same for every ground type) is each material's fill rate and the project's.`,
       )
     } else
-      unmapped.push(
-        `Each ground type's own embankment cost (${types.map((t) => `${t.code} ${t.embankmentCost}`).join(', ')} per ${volume}): this workspace has one fill rate.`,
+      notes.push(
+        `Each ground type's embankment cost (${types.map((t) => `${t.code} ${t.embankmentCost}`).join(', ')} per ${volume}) is its material's fill rate.`,
       )
+    notes.push(
+      `Fill is priced by the material it is made of, per ${u.metric ? 'bank m³' : 'bank m³ (from per yd³)'} of that material as RoadEng prices it; fill the material plan does not account for is priced at the project's fill rate.`,
+    )
   }
 
   // Quality and the Bedrock offer.
@@ -482,9 +496,16 @@ export function roadEngHaulFromData(read: RoadEngHaulData, options: RoadEngHaulO
     const q = Math.min(ROADENG_QUALITY_CLASSES - 1, Math.max(0, Math.round(t.qualityClass)))
     quality[roadEngMaterialId(t.code)] = r6((q / (ROADENG_QUALITY_CLASSES - 1)) * 100)
   }
-  const materials = (options.materials ?? []).map((m) =>
-    quality[m.id] === undefined ? m : { ...m, quality: quality[m.id] },
-  )
+  // Embankment cost per ground type → each material's own fill rate, per bank m³ placed
+  // (`fillPlacement.ts`): RoadEng prices fill by the material it is made of, in cut volumes.
+  const embankment: Record<string, number> = {}
+  for (const t of types)
+    embankment[roadEngMaterialId(t.code)] = Math.min(10000, Math.max(0, r9(t.embankmentCost / u.m3)))
+  const materials = (options.materials ?? []).map((m) => ({
+    ...m,
+    ...(quality[m.id] === undefined ? {} : { quality: quality[m.id] }),
+    ...(embankment[m.id] === undefined ? {} : { fillRate: embankment[m.id] }),
+  }))
   if (types.length)
     notes.push(
       "Quality: RoadEng's four quality classes become 0, 33, 67 and 100, in the same order; a fill that needs a quality takes that class or better, as in RoadEng.",
@@ -501,6 +522,7 @@ export function roadEngHaulFromData(read: RoadEngHaulData, options: RoadEngHaulO
 
   // Pits → sites.
   const sites: HaulSite[] = []
+  const offRoad: string[] = []
   const scale = options.stationScale ?? 1
   const length = (options.endStation - options.startStation) * scale
   const factorOf = (code: string | null) => {
@@ -516,11 +538,20 @@ export function roadEngHaulFromData(read: RoadEngHaulData, options: RoadEngHaulO
     const label =
       pit.identifier || `${pit.kind === 'borrow' ? 'Borrow' : 'Waste'} pit at ${fmt(pit.station * read.unitM)}`
     const chainage = r6((pit.station * read.unitM - options.startStation) * scale)
-    if (chainage < -1e-6 || chainage > length + 1e-6) {
+    // A pit whose access station is off the alignment: reached along the road's line past the
+    // nearer end, that stretch added to its access distance (`pastRoadEndM`).
+    const pastEnd = chainage < -1e-6 ? -chainage : chainage > length + 1e-6 ? chainage - length : 0
+    const accessM = r6(pit.accessDistance * read.unitM)
+    if (pastEnd > 0 && Math.max(0, accessM) + pastEnd > MAX_HAUL_DISTANCE_M) {
       unmapped.push(
-        `${label}: its access station ${fmt(pit.station * read.unitM)} m is off this road (${fmt(options.startStation)}–${fmt(options.endStation)} m); it stays in the design file.`,
+        `${label}: its access station ${fmt(pit.station * read.unitM)} m is ${fmt(pastEnd)} m off this road (${fmt(options.startStation)}–${fmt(options.endStation)} m), which with its access distance is past this workspace's ${MAX_HAUL_DISTANCE_M.toLocaleString('en-CA')} m; it stays in the design file.`,
       )
       continue
+    }
+    if (pastEnd > 0) {
+      offRoad.push(
+        `${label} (access station ${fmt(pit.station * read.unitM)} m, ${fmt(pastEnd)} m ${chainage < 0 ? "before the road's start" : "past the road's end"})`,
+      )
     }
     const factor = pit.kind === 'borrow' ? factorOf(pit.materialCode) : 1
     const materialId =
@@ -534,7 +565,8 @@ export function roadEngHaulFromData(read: RoadEngHaulData, options: RoadEngHaulO
       name: label.slice(0, 200),
       kind: pit.kind,
       chainage: Math.max(0, Math.min(length, chainage)),
-      accessDistanceM: Math.min(100000, Math.max(0, r6(pit.accessDistance * read.unitM))),
+      accessDistanceM: Math.min(MAX_HAUL_DISTANCE_M, Math.max(0, r6(Math.max(0, accessM) + pastEnd))),
+      ...(pastEnd > 0 ? { pastRoadEndM: r6(pastEnd) } : {}),
       capacityM3: bankM3 === null ? null : Math.min(1e12, r6(pit.kind === 'borrow' ? bankM3 * f : bankM3)),
       unitRate: pit.kind === 'borrow' ? Math.min(100000, Math.max(0, r9(pit.excavationCost / u.m3 / f))) : 0,
       fixedCost: Math.min(1e9, Math.max(0, pit.sitePreparationCost)),
@@ -550,14 +582,32 @@ export function roadEngHaulFromData(read: RoadEngHaulData, options: RoadEngHaulO
     )
     unmapped.push("Each pit's elevation and waste quality: this workspace's sites have neither.")
   }
+  if (offRoad.length)
+    notes.push(
+      `Pits off the road: ${offRoad.join('; ')}. Each is a site at the road's nearer end, and the stretch from that end to its access station along the road's line is added to its access distance, so every haul to it runs that far further; it goes back to RoadEng at its own access station.`,
+    )
   if (read.otherOptionsWithPits.length)
     unmapped.push(
       `Pits of RoadEng's other vertical options (${read.otherOptionsWithPits.join(', ')}); they stay in the design file.`,
     )
-  haul.enabled = read.reCost || sites.length > 0 || haul.enabled
+  haul.enabled = read.reCost || !!options.costed || sites.length > 0 || haul.enabled
+  // RoadEng always balances: material nothing else takes or gives goes to or comes from its pit of
+  // last resort at the alignment's start (`lastResortPits.ts`).
+  haul.lastResort = true
+  // RoadEng's costing is an optimal haul ("Softree Optimal solves an optimization problem to
+  // determine the lowest cost haul specification", Optimal manual ch. 3): the economic plan is the
+  // same calculation, and on Softree's costed designs it comes nearer RoadEng's haul than nearest-site
+  // allocation (`docs/forestry-road-design/material-allocation.md`).
+  haul.allocation = ROADENG_READ_HAUL.allocation
+  notes.push(
+    "Material is allocated by the economic plan, the lowest-cost haul that balances every material, as RoadEng's costing is.",
+  )
+  notes.push(
+    "Overflow and underflow: material no pit, cut or sidecast can take or give goes to or comes from RoadEng's pit of last resort at the road's start, underflow at the material's excavation cost.",
+  )
   if (haul.enabled && !options.base?.enabled)
     notes.push(
-      read.reCost
+      read.reCost || options.costed
         ? 'Haul is on: the design was costed in RoadEng.'
         : 'Haul is on: the design has borrow or waste pits.',
     )
@@ -606,6 +656,8 @@ export interface RoadEngHaulRecords {
    * a {@link RoadEngCostCarryover}); empty when every value is one RoadEng holds or the default.
    */
   pgmaps: Record<string, string>
+  /** Each material's ground type code as written, by material id (`roadEngFillMaterials.ts` reads it). */
+  codes: Record<string, string>
   notes: string[]
 }
 
@@ -628,6 +680,11 @@ export interface RoadEngCostCarryover {
   materials?: Record<string, Partial<Pick<GroundMaterial, CarriedMaterialKey>>>
   surfacingSupply?: AlignmentEngineering['surfacingSupply']
 }
+/**
+ * What a plain read of a RoadEng design sets that RoadEng has no field for: the economic material
+ * plan and the pit of last resort. A road whose settings differ carries them in `[PGMaps] Costs`.
+ */
+export const ROADENG_READ_HAUL = { allocation: 'economic', lastResort: true } as const satisfies Partial<HaulSettings>
 /** Haul settings RoadEng has no field for. */
 export const ROADENG_CARRIED_HAUL_KEYS = [
   'borrowRate',
@@ -639,6 +696,7 @@ export const ROADENG_CARRIED_HAUL_KEYS = [
   'directionRanges',
   'sidecastRanges',
   'deferExternalSupply',
+  'lastResort',
 ] as const
 type CarriedHaulKey = (typeof ROADENG_CARRIED_HAUL_KEYS)[number]
 /** Material values RoadEng's ground types have no field for. */
@@ -928,6 +986,8 @@ export function roadEngHaulRecords(
       else if (!t) unknownQuality++
     }
     if (writeFill || (!t && input.fillRate !== undefined)) put(f, 8, input.fillRate! * u.m3)
+    // A material's own embankment rate, where it was set or changed here.
+    if (m?.fillRate !== undefined && (!t || !same(m.fillRate * u.m3, t.embankmentCost))) put(f, 8, m.fillRate * u.m3)
     if (haulChanged || !t)
       CLASSES.forEach((c, k) => {
         put(f, 9 + 2 * k, desired[c].loading)
@@ -936,7 +996,10 @@ export function roadEngHaulRecords(
     return f.join(',')
   }
   for (const t of originals) lines.push(typeLine(materials.find((m) => m.id === roadEngMaterialId(t.code)) ?? null, t))
-  for (const m of materials) if (!codeById.has(m.id)) lines.push(typeLine(m, null))
+  // A ground type's stripped copy (RoadEng's Site Prep, `roadEngMaterialsFor`) is that ground type in RoadEng.
+  const sitePrepCopy = (m: GroundMaterial) =>
+    m.purpose === 'stripping' && originals.some((t) => roadEngStrippingMaterialId(t.code) === m.id)
+  for (const m of materials) if (!codeById.has(m.id) && !sitePrepCopy(m)) lines.push(typeLine(m, null))
   if (!lines.some((l) => l.split(',')[1] === 'OB')) lines.unshift(typeLine(null, null))
   if (unknownQuality)
     notes.push(
@@ -973,11 +1036,19 @@ export function roadEngHaulRecords(
     options.endStation !== undefined &&
     (p.station * unitM < start - 1e-6 || p.station * unitM > options.endStation + 1e-6)
   const factorOf = (id: string | undefined) => materials.find((m) => m.id === id)?.compactionFactor ?? 1
+  const lengthM = options.endStation === undefined ? null : (options.endStation - start) * scale
+  const movedOffEnd: string[] = []
   const pitLine = (s: HaulSite, p: RoadEngPit | null): string => {
     const f = p ? [...p.raw] : ['0', '0', '0', '0', '0', '0', ' ', ' ', '0', '0', '0', '0']
     while (f.length < 12) f.push('0')
-    put(f, 0, (start + s.chainage / scale) / unitM)
-    put(f, 1, s.accessDistanceM / unitM)
+    // A site read from a pit off the road stands at the road's end with the stretch beyond in its
+    // access; while it still stands there, the pit goes back at its own station and access.
+    const past = Math.min(Math.max(0, s.pastRoadEndM ?? 0), s.accessDistanceM)
+    const along =
+      past <= 0 ? 0 : s.chainage <= 1e-6 ? -past : lengthM === null || s.chainage >= lengthM - 1e-6 ? past : 0
+    if (past > 0 && along === 0) movedOffEnd.push(clean(s.name) || s.id)
+    put(f, 0, (start + (s.chainage + along) / scale) / unitM)
+    put(f, 1, (s.accessDistanceM - Math.abs(along)) / unitM)
     const factor = s.kind === 'borrow' ? factorOf(s.materialId) : 1
     if (s.kind === 'borrow') put(f, 2, s.unitRate * factor * u.m3)
     put(f, 3, s.fixedCost)
@@ -1031,6 +1102,10 @@ export function roadEngHaulRecords(
       pitSites.push(s)
     }
   }
+  if (movedOffEnd.length)
+    notes.push(
+      `${movedOffEnd.join(', ')}: no longer at the road's end, so ${movedOffEnd.length === 1 ? 'its' : 'their'} access along the road's line past the end is written as access distance, at the station ${movedOffEnd.length === 1 ? 'it stands' : 'they stand'} on.`,
+    )
   if (disabled)
     notes.push(
       `${disabled} switched-off site${disabled === 1 ? ' is' : 's are'} left out of RoadEng's pits, which have no off switch.`,
@@ -1050,20 +1125,28 @@ export function roadEngHaulRecords(
   // What RoadEng has no field for travels in the design's [PGMaps] section (`RoadEngCostCarryover`).
   const carry: RoadEngCostCarryover = { version: 1 }
   const carried: string[] = []
+  // The allocation and the pit of last resort compare with what a plain RoadEng read sets, so a road
+  // switched back to nearest-site allocation, or without the pit, says so.
+  const carriedValue = (k: CarriedHaulKey) =>
+    haul[k] ?? (k === 'allocation' ? 'nearest' : k === 'lastResort' ? false : undefined)
+  const readValue = (k: CarriedHaulKey) =>
+    k === 'allocation' || k === 'lastResort' ? ROADENG_READ_HAUL[k] : DEFAULT_HAUL_SETTINGS[k]
   const haulExtra = Object.fromEntries(
     ROADENG_CARRIED_HAUL_KEYS.filter(
       (k) =>
-        haul[k] !== undefined &&
-        !sameJson(haul[k], DEFAULT_HAUL_SETTINGS[k]) &&
+        carriedValue(k) !== undefined &&
+        !sameJson(carriedValue(k), readValue(k)) &&
         !(Array.isArray(haul[k]) && !(haul[k] as unknown[]).length),
-    ).map((k) => [k, haul[k]]),
+    ).map((k) => [k, carriedValue(k)]),
   )
   if (Object.keys(haulExtra).length) carry.haul = haulExtra
   if (haul.wasteRate > 0 || sites.some((s) => s.kind === 'waste' && s.unitRate > 0))
     carried.push('waste disposal rates')
   if (haul.borrowRate > 0) carried.push('the default borrow rate')
   if (haul.mobilizationCost > 0 || haul.contingencyPercent > 0) carried.push('mobilization and contingency')
-  if (haul.allocation === 'economic' || haul.siteSelection === 'delivered-cost') carried.push('economic allocation')
+  if ('allocation' in haulExtra) carried.push('nearest-site allocation')
+  if (haul.siteSelection === 'delivered-cost') carried.push('delivered-cost site selection')
+  if ('lastResort' in haulExtra) carried.push('the pit of last resort switched off')
   if (haul.directionRanges?.length || haul.sidecastRanges?.length) carried.push('haul directions and sidecast ranges')
   const pits: NonNullable<RoadEngCostCarryover['pits']> = {}
   pitSites.forEach((site, k) => {
@@ -1127,7 +1210,13 @@ export function roadEngHaulRecords(
   }
   if (materials.some((m) => m.shallowCutRate !== undefined || m.overbreakRate !== undefined))
     notes.push('Shallow-rock and overbreak rates: RoadEng has one excavation cost per ground type.')
-  return { recordOverrides: { '104': lines }, dsnOverrides, pgmaps, notes: dedupe(notes) }
+  return {
+    recordOverrides: { '104': lines },
+    dsnOverrides,
+    pgmaps,
+    codes: Object.fromEntries(codeById),
+    notes: dedupe(notes),
+  }
 }
 
 function dedupe(items: string[]) {

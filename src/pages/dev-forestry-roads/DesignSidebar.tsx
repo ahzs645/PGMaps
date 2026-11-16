@@ -18,6 +18,7 @@ import { corridorCandidate } from './corridorCandidate'
 import { resolvedGroundWindow } from './groundTrend'
 import { parseProject } from './project'
 import { terrainDisplayName } from './terrainName'
+import { terrainResolutionText } from './tinGround'
 import type { Alignment, RoadProject, TerrainSource } from './types'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
@@ -233,7 +234,7 @@ export function DesignSidebar(props: SidebarProps) {
             {review.result.searchStatus}
           </p>
           <p className="mt-1 text-xs text-muted-foreground" title={review.original.terrain.name}>
-            {terrainDisplayName(review.original.terrain.name)} · {value(review.original.terrain.resolutionM, 2)} m cells
+            {terrainDisplayName(review.original.terrain.name)} · {terrainResolutionText(review.original.terrain)}
           </p>
           {review.original.terrain.kind !== 'geotiff' && (
             <InlineAlert tone="warning" className="mt-2">

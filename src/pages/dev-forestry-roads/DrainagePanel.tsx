@@ -543,10 +543,13 @@ export function DrainagePanel({
               ))}
             </ul>
           )}
+          <p className="text-2xs text-muted-foreground" data-testid="road-drainage-cells">
+            {n(run.cells)} cells routed at {n(run.cellM, 2)} m within {n(run.settings.bufferM)} m of the road&apos;s
+            catch lines, of {n(run.domain.boxCells)} in the box around it; {n(run.changedCells)} changed by the road.
+          </p>
           <p className="text-2xs text-muted-foreground">
-            {n(run.cells)} cells at {n(run.cellM, 2)} m; {n(run.changedCells)} changed by the road. Planning estimate,
-            not a hydrotechnical design: surface runoff only, D8 routing, the Rational method with no time of
-            concentration, and pipes at full flow without inlet control. * slope assumed 2 %.
+            Planning estimate, not a hydrotechnical design: surface runoff only, D8 routing, the Rational method with no
+            time of concentration, and pipes at full flow without inlet control. * slope assumed 2 %.
           </p>
         </>
       )}

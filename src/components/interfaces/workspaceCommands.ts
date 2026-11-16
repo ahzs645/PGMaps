@@ -360,7 +360,7 @@ export const workspaceCommands = {
     label: 'Compare with RoadEng…',
     icon: FileDiff,
     description:
-      "Read a RoadEng Mass Haul or Optimal Haul export, or a Softree Optimal Areas file, and set it beside the active road's own results. Nothing is written to the project.",
+      "Set the costs a RoadEng design stores, or a RoadEng Mass Haul or Optimal Haul export or Softree Optimal Areas file, beside the active road's own results. Nothing is written to the project.",
   },
   profile: { label: 'Road profile', icon: ChartSpline },
   chooseInterface: { label: 'Switch interface', icon: LayoutTemplate, kind: 'pane', investigation: true },

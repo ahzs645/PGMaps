@@ -886,13 +886,17 @@ component types.
 
 **Design speed** (Section → Superelevation & widening → Design speed) turns on curve rules:
 
-- Superelevation e = V²/(127 R) − f, held between the normal crown and the entered maximum.
+- Superelevation e = V²/(127 R) − f, held between the normal crown and the entered maximum,
+  or (Superelevation from → Lookup table) a RoadEng-style table by radius and design speed,
+  or (Superelevation from → Side friction) RoadEng's side friction method,
+  e = e max · V²/(9.81 R) / (e max + f max).
   The section rotates about the centreline, so the inside falls by e and the outside rises
-  by e.
+  by e. Each curve can have its own speed, e max, e and runoff: choose it in the curve table.
 - Inside **widening** L²/(2R) for a vehicle of length L.
-- Both run in linearly over the runoff length before each curve and out after it. On a
-  spiralled curve they run in over the longer of the runoff and the spiral, ending at the SC
-  (see [Spirals](#spirals)).
+- Both run in linearly over the runoff length before each curve and out after it, unless a
+  share of the runoff is set inside the curve or a tangent runout is on (a road read from
+  RoadEng has both, as RoadEng applies them). On a spiralled curve they run in over the longer
+  of the runoff and the spiral, ending at the SC (see [Spirals](#spirals)).
 
 The widening counts in widths, sections, clearing and surfacing. These are entered planning
 rules, not a BC road-class standard.
@@ -1456,11 +1460,15 @@ fall below the minimum radius.
 Detail view → **Drainage** asks how the road changes where water goes. It compares flow
 on the ground as it is with flow on the ground the road leaves behind.
 
-1. **Sample** (`surfaceGrid.ts`): the active terrain is sampled at its native resolution or
-   an explicitly requested coarser working resolution (at least 1 m, grown to stay within
-   4.19 million cells). The actual cell size is recorded. The area covered is the
-   catch-line corridor plus an upslope buffer, 250 m by default, so catchments above the
-   road can be included. Drainage uses a local UTM ground-metre grid, including for
+1. **Sample** (`corridorGrid.ts`, `surfaceGrid.ts`): the active terrain is sampled at its native
+   resolution or an explicitly requested coarser working resolution (at least 1 m, grown to
+   stay within 4.19 million routed cells). The actual cell size is recorded. The area covered
+   is the catch-line corridor plus an upslope buffer, 250 m by default, so catchments above the
+   road can be included: the grid over the corridor's box is held only in its 32-cell tiles
+   within the buffer of the road, so a long or winding road keeps its cell where the whole box
+   would not fit. A tile sampled with no ground is dropped unless the road reaches it. Scans
+   over the held tiles run in the full grid's row-major order, so where the box holds no ground
+   outside them the results are a dense run's, cell for cell. Drainage uses a local UTM ground-metre grid, including for
    imported Web Mercator rasters; projected Web Mercator distances and areas would
    distort the buffer, contributing areas and flow estimates. Export CRS stays unchanged.
    Missing ground stays missing. Results warn about the finite catchment, missing ground

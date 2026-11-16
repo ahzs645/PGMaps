@@ -1,13 +1,23 @@
 /** Cell-exact D8 catchments. No DOM, network, or rendered-map elevations. */
 import { downstream, MISSING } from './hydrology'
-import { cellCentre, cellIndexAt, type SurfaceGrid, type ToLonLat } from './surfaceGrid'
+import {
+  absentCellKind,
+  cellCentre,
+  cellIndexAt,
+  cellRowCol,
+  gridCellIndex,
+  neighbourCells,
+  type SurfaceGrid,
+  type ToLonLat,
+} from './surfaceGrid'
 import type { Coordinate } from './types'
 import { parseSnapPolicy, type SnapPolicy } from './drainagePolicies'
 
 export const MAX_CATCHMENT_CELLS = 4_194_304
 export const MAX_CATCHMENT_BOUNDARY_EDGES = 200_000
 export const MAX_WATERSHEDS = 1_000
-export type DrainageGrid = Pick<SurfaceGrid, 'origin' | 'cellM' | 'width' | 'height'>
+/** With `tiles`, the cells the run held (see `GridTiles`); the budget then counts those, not the box. */
+export type DrainageGrid = Pick<SurfaceGrid, 'origin' | 'cellM' | 'width' | 'height' | 'tiles'>
 export interface CatchmentProperties {
   id: string
   role: 'catchment' | 'watershed'
@@ -32,6 +42,7 @@ export interface CatchmentResult {
   requestedCoordinate: Coordinate
   snappedCoordinate: Coordinate
   snappedDistanceM: number
+  /** Row-major number of the outlet in the full grid ({@link gridCellNumber}), tiled or not. */
   outletCell: number
   snapPolicy: SnapPolicy
   /** Elevation on the chosen unconditioned existing/design surface, when supplied. */
@@ -39,8 +50,14 @@ export interface CatchmentResult {
   feature: CatchmentFeature
 }
 
+/** Row-major number of a stored cell in the full `width` × `height` grid, the same on a tiled or dense grid. */
+export function gridCellNumber(grid: DrainageGrid, i: number): number {
+  const [row, col] = cellRowCol(grid, i)
+  return row * grid.width + col
+}
+
 function validateGrid(grid: DrainageGrid, dirs: Int8Array) {
-  const n = grid.width * grid.height
+  const n = grid.tiles ? grid.tiles.rowBase[grid.tiles.down] : grid.width * grid.height
   if (
     !Number.isInteger(grid.width) ||
     !Number.isInteger(grid.height) ||
@@ -104,8 +121,8 @@ export function snapPourPoint(
     distanceM = Infinity
   for (let row = row0; row <= row1; row++)
     for (let col = col0; col <= col1; col++) {
-      const i = row * grid.width + col
-      if (!supported(i)) continue
+      const i = gridCellIndex(grid, row, col)
+      if (i < 0 || !supported(i)) continue
       const d = Math.hypot(grid.origin[0] + col * grid.cellM - xy[0], grid.origin[1] - row * grid.cellM - xy[1])
       if (d > radiusM + 1e-9) continue
       const score = snapPolicy === 'lowest-elevation' ? -elevations![i] : accumulation[i]
@@ -125,23 +142,22 @@ export function upstreamMask(grid: DrainageGrid, dirs: Int8Array, outletCell: nu
   if (!Number.isInteger(outletCell) || outletCell < 0 || outletCell >= n || dirs[outletCell] === MISSING)
     throw Error('Choose a supported outlet cell inside the drainage grid.')
   const mask = new Uint8Array(n),
-    queue = new Int32Array(n)
+    queue = new Int32Array(n),
+    nb = new Int32Array(8)
   mask[outletCell] = 1
   queue[0] = outletCell
   let head = 0,
     tail = 1
   while (head < tail) {
-    const i = queue[head++],
-      row = Math.floor(i / grid.width),
-      col = i % grid.width
-    for (let r = Math.max(0, row - 1); r <= Math.min(grid.height - 1, row + 1); r++)
-      for (let c = Math.max(0, col - 1); c <= Math.min(grid.width - 1, col + 1); c++) {
-        const j = r * grid.width + c
-        if (!mask[j] && dirs[j] >= 0 && downstream(dirs, grid.width, j) === i) {
-          mask[j] = 1
-          queue[tail++] = j
-        }
+    const i = queue[head++]
+    neighbourCells(grid, i, nb)
+    for (let k = 0; k < 8; k++) {
+      const j = nb[k]
+      if (j >= 0 && !mask[j] && dirs[j] >= 0 && downstream(dirs, grid, j) === i) {
+        mask[j] = 1
+        queue[tail++] = j
       }
+    }
   }
   return mask
 }
@@ -197,16 +213,24 @@ export function catchmentPolygon(
     if (mask[i]) {
       if (dirs[i] === MISSING) throw Error('A catchment cannot include missing terrain.')
       count++
-      const r = Math.floor(i / grid.width),
-        c = i % grid.width
-      if (!r || !c || r === grid.height - 1 || c === grid.width - 1) touchesGridEdge = true
-      for (let rr = Math.max(0, r - 1); rr <= Math.min(grid.height - 1, r + 1); rr++)
-        for (let cc = Math.max(0, c - 1); cc <= Math.min(grid.width - 1, c + 1); cc++)
-          if (dirs[rr * grid.width + cc] === MISSING) touchesNoData = true
-      if (!r || !mask[i - grid.width]) edge(c, r, c + 1, r, 0)
-      if (c === grid.width - 1 || !mask[i + 1]) edge(c + 1, r, c + 1, r + 1, 1)
-      if (r === grid.height - 1 || !mask[i + grid.width]) edge(c + 1, r + 1, c, r + 1, 2)
-      if (!c || !mask[i - 1]) edge(c, r + 1, c, r, 3)
+      const [r, c] = cellRowCol(grid, i)
+      // Off the grid or the sampled tiles is its edge; a dropped tile without ground is no data.
+      for (let rr = r - 1; rr <= r + 1; rr++)
+        for (let cc = c - 1; cc <= c + 1; cc++) {
+          const j = gridCellIndex(grid, rr, cc)
+          if (j >= 0) {
+            if (dirs[j] === MISSING) touchesNoData = true
+          } else if (absentCellKind(grid, rr, cc) === 'edge') touchesGridEdge = true
+          else touchesNoData = true
+        }
+      const inMask = (rr: number, cc: number) => {
+        const j = gridCellIndex(grid, rr, cc)
+        return j >= 0 && mask[j] === 1
+      }
+      if (!inMask(r - 1, c)) edge(c, r, c + 1, r, 0)
+      if (!inMask(r, c + 1)) edge(c + 1, r, c + 1, r + 1, 1)
+      if (!inMask(r + 1, c)) edge(c + 1, r + 1, c, r + 1, 2)
+      if (!inMask(r, c - 1)) edge(c, r + 1, c, r, 3)
     }
   if (!count) throw Error('The catchment has no supported cells.')
   const rings: Vertex[][] = []
@@ -291,7 +315,7 @@ export function delineateCatchment(
     requestedCoordinate: [...point.coordinate],
     snappedCoordinate: feature.properties.outlet,
     snappedDistanceM: snapped.distanceM,
-    outletCell: snapped.cell,
+    outletCell: gridCellNumber(grid, snapped.cell),
     snapPolicy: snapped.snapPolicy,
     ...(snapped.selectedElevationM === undefined ? {} : { selectedElevationM: snapped.selectedElevationM }),
     feature,
@@ -320,7 +344,7 @@ export function delineateWatersheds(
       if (labels[i] === -2) throw Error('The supplied D8 grid contains a cycle.')
       labels[i] = -2
       path.push(i)
-      const j = downstream(dirs, grid.width, i)
+      const j = downstream(dirs, grid, i)
       if (j < 0) {
         outlet = i
         break
@@ -347,7 +371,7 @@ export function delineateWatersheds(
     const selected = cells.get(outlet)!
     for (const i of selected) mask[i] = 1
     const feature = catchmentPolygon(grid, dirs, mask, outlet, toLonLat, {
-      id: `watershed-${outlet}`,
+      id: `watershed-${gridCellNumber(grid, outlet)}`,
       role: 'watershed',
       surface,
       cells: selected,

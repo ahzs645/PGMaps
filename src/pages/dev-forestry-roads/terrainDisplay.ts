@@ -3,7 +3,8 @@
  * The image/contour grid is a preview; it never replaces the native source used
  * for stationing and quantities. All four PNGs retain transparent no-data.
  */
-import type { Coordinate, TerrainSource } from './types'
+import type { Coordinate, TerrainMetadata, TerrainSource } from './types'
+import { terrainCoverShare } from './tinGround'
 
 export interface TerrainDisplay {
   hillshade: string
@@ -150,10 +151,44 @@ function stitchSegments(segments: Coordinate[][]): Coordinate[][] {
   return lines
 }
 
+/** Longest side of a display drawn over a sparsely covered box, px (`coverShare`). */
+export const MAX_COVERED_DISPLAY_SIDE = 1024
+/** The smallest cover share a display grows for: below it the side stops at 8× the requested one. */
+const MIN_COVER_SHARE = 1 / 64
+
+/** The display's longest side, px, for a requested side and the share of its box the ground covers. */
+export function terrainDisplaySide(resolution: number, coverShare = 1): number {
+  const requested = clamp(Number.isFinite(resolution) ? resolution : 160, 32, 384)
+  const share = Number.isFinite(coverShare) ? clamp(coverShare, MIN_COVER_SHARE, 1) : 1
+  return Math.round(share < 1 ? Math.min(MAX_COVERED_DISPLAY_SIDE, requested / Math.sqrt(share)) : requested)
+}
+
+/** The side the plan asks of `buildTerrainDisplay`, px. */
+export const PLAN_TERRAIN_DISPLAY_SIDE = 192
+
+/**
+ * About how much ground one pixel of the plan's terrain drawing covers, m: the embedded grid's longest
+ * side over the display's ({@link terrainDisplaySide} with the terrain's cover share). Null without
+ * an embedded grid.
+ */
+export function planTerrainCellM(metadata: Pick<TerrainMetadata, 'preparation' | 'raster'>): number | null {
+  const r = metadata.raster
+  if (!r) return null
+  const longest = Math.max(r.width * Math.abs(r.pixelSize[0]), r.height * Math.abs(r.pixelSize[1]))
+  return longest / terrainDisplaySide(PLAN_TERRAIN_DISPLAY_SIDE, terrainCoverShare(metadata))
+}
+
+/**
+ * `coverShare` is the share of `bounds` the terrain's ground covers (`terrainCoverShare`): a RoadEng
+ * TIN along a long road covers a few percent of its box. The display then grows until the covered
+ * part holds about as many pixels as a fully covered `resolution`² display, up to
+ * {@link MAX_COVERED_DISPLAY_SIDE}: its pixels are sized from the covered area, not the box.
+ */
 export function buildTerrainDisplay(
   source: TerrainSource,
   bounds: [number, number, number, number],
   resolution = 160,
+  { coverShare = 1 }: { coverShare?: number } = {},
 ): TerrainDisplay {
   if (
     bounds.length !== 4 ||
@@ -166,7 +201,7 @@ export function buildTerrainDisplay(
     bounds[3] > 85
   )
     throw Error('Terrain display requires a finite, non-wrapping geographic extent.')
-  const maxSide = Math.round(clamp(Number.isFinite(resolution) ? resolution : 160, 32, 384))
+  const maxSide = terrainDisplaySide(resolution, coverShare)
   const midLat = (bounds[1] + bounds[3]) / 2
   const widthMeters = (((bounds[2] - bounds[0]) * Math.PI) / 180) * 6371008.8 * Math.cos((midLat * Math.PI) / 180)
   const heightMeters = (((bounds[3] - bounds[1]) * Math.PI) / 180) * 6371008.8

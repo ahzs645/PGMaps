@@ -11,13 +11,15 @@ export const MAX_DRAINAGE_RECORDS = 20
 export const MAX_DRAINAGE_EVIDENCE_VERTICES = 200_000
 export const MAX_DRAINAGE_COMPARISONS = 12
 /** Calculation identity is separate from input hashes; older ponding included routing epsilon. */
-export const DRAINAGE_ALGORITHM_VERSION = 'd8-policy-physical-spill-v2-cross-drain-sites'
+/** v3 routes only the tiles within the buffer of the road (`corridorGrid.ts`), not the box around it. */
+export const DRAINAGE_ALGORITHM_VERSION = 'd8-policy-physical-spill-v3-corridor-tiles'
 export interface DrainageCatchmentEvidence {
   surface: PourPoint['surface']
   snapPolicy: NonNullable<PourPoint['snapPolicy']>
   requestedCoordinate: [number, number]
   snappedCoordinate: [number, number]
   snappedDistanceM: number
+  /** Row-major number of the outlet in the full grid. */
   outletCell: number
   cells: number
   areaHa: number
@@ -49,7 +51,11 @@ export interface DrainageEvidence {
     sourceKind: TerrainMetadata['kind']
     immutable: boolean
   }
-  grid: { cellM: number; width: number; height: number; origin: [number, number] }
+  /**
+   * The full grid's frame; `routedCells` are the cells routed in it (the tiles held along the
+   * road). A record without it routed the whole `width` × `height` box.
+   */
+  grid: { cellM: number; width: number; height: number; origin: [number, number]; routedCells?: number }
   selectedCatchment?: DrainageCatchmentEvidence
   summary: {
     crossings: number
@@ -170,7 +176,12 @@ function fingerprint(value: unknown, prefix: string): string {
   return `${prefix}-${(a >>> 0).toString(16).padStart(8, '0')}${(b >>> 0).toString(16).padStart(8, '0')}`
 }
 
-function parseSelectedCatchment(value: unknown, gridCells: number, cellM: number): DrainageCatchmentEvidence {
+function parseSelectedCatchment(
+  value: unknown,
+  gridCells: number,
+  routedCells: number,
+  cellM: number,
+): DrainageCatchmentEvidence {
   const r = object(value, 'Selected catchment')
   const point = parsePourPoint({
     coordinate: r.requestedCoordinate,
@@ -179,7 +190,7 @@ function parseSelectedCatchment(value: unknown, gridCells: number, cellM: number
     snapPolicy: r.snapPolicy,
   })
   const outletCell = number(r.outletCell, 0, gridCells - 1, 'Selected outlet cell')
-  const cells = number(r.cells, 1, gridCells, 'Catchment cell count')
+  const cells = number(r.cells, 1, routedCells, 'Catchment cell count')
   const areaHa = number(r.areaHa, 0, 1e15, 'Catchment area')
   if (!Number.isInteger(outletCell) || !Number.isInteger(cells))
     throw Error('Catchment cell indices and counts must be integers.')
@@ -273,12 +284,17 @@ export function parseDrainageEvidence(value: unknown): DrainageEvidence {
   if (!/^drainage-v1-[0-9a-f]{16}$/.test(fingerprint)) throw Error('Drainage fingerprint is invalid.')
   if (r.roadFingerprint !== undefined && !/^drainage-road-v1-[0-9a-f]{16}$/.test(String(r.roadFingerprint)))
     throw Error('Drainage road fingerprint is invalid.')
-  const width = number(grid.width, 1, 4_194_304, 'Drainage grid width'),
-    height = number(grid.height, 1, 4_194_304, 'Drainage grid height')
+  const width = number(grid.width, 1, 1_000_000, 'Drainage grid width'),
+    height = number(grid.height, 1, 1_000_000, 'Drainage grid height')
+  const routedCells =
+    grid.routedCells === undefined
+      ? width * height
+      : number(grid.routedCells, 1, Math.min(4_194_304, width * height), 'Drainage routed cells')
   if (
     !Number.isInteger(width) ||
     !Number.isInteger(height) ||
-    width * height > 4_194_304 ||
+    !Number.isInteger(routedCells) ||
+    routedCells > 4_194_304 ||
     !Array.isArray(grid.origin) ||
     grid.origin.length !== 2
   )
@@ -287,7 +303,9 @@ export function parseDrainageEvidence(value: unknown): DrainageEvidence {
   const cellM = number(grid.cellM, 0.001, 100_000, 'Drainage grid cell')
   const pourPoint = r.pourPoint === undefined ? undefined : parsePourPoint(r.pourPoint)
   const selectedCatchment =
-    r.selectedCatchment === undefined ? undefined : parseSelectedCatchment(r.selectedCatchment, width * height, cellM)
+    r.selectedCatchment === undefined
+      ? undefined
+      : parseSelectedCatchment(r.selectedCatchment, width * height, routedCells, cellM)
   if (
     selectedCatchment &&
     (!pourPoint ||
@@ -344,6 +362,7 @@ export function parseDrainageEvidence(value: unknown): DrainageEvidence {
         number(grid.origin[1], -1e10, 1e10, 'Drainage grid Y'),
       ],
       cellM,
+      ...(grid.routedCells === undefined ? {} : { routedCells }),
     },
     ...(selectedCatchment === undefined ? {} : { selectedCatchment }),
     summary: {
@@ -484,7 +503,8 @@ export function createDrainageEvidence(
     watershedMinAreaHa: input.watershedMinAreaHa,
     terrain: {
       name: input.terrain.name,
-      resolutionM: input.terrain.resolutionM,
+      // The resolution the run sampled the source at: a RoadEng TIN's own, not its kept grid's.
+      resolutionM: run.resolution.sourceM,
       verticalReference: input.terrain.verticalReference,
       sha256: input.terrain.sha256,
       fingerprint: drainageTerrainFingerprint(input.terrain),
@@ -599,7 +619,7 @@ export function drainageReportHtml(
       ? `<table><thead><tr>${headings.map((h) => `<th>${escape(h)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`
       : '<p>None recorded.</p>'
   return `<section><h2>Drainage review evidence</h2><p><strong>${stale ? 'Historical / out of date — recompute before use.' : 'Inputs match this record.'}</strong></p>
-<p>Run ${escape(record.createdAt)}. Source: ${escape(record.terrain.name)}; ${escape(record.terrain.verticalReference)}; native ${fmt(record.terrain.resolutionM)} m, analysis ${fmt(record.grid.cellM)} m cells (${fmt(record.grid.width, 0)} × ${fmt(record.grid.height, 0)}). ${record.terrain.sha256 ? `Source SHA-256: ${escape(record.terrain.sha256)}.` : record.terrain.sourceKind === 'regional' ? 'Unchecksummed regional terrain requires recomputation after reopening.' : ''}</p>
+<p>Run ${escape(record.createdAt)}. Source: ${escape(record.terrain.name)}; ${escape(record.terrain.verticalReference)}; native ${fmt(record.terrain.resolutionM)} m, analysis ${fmt(record.grid.cellM)} m cells (${record.grid.routedCells === undefined ? `${fmt(record.grid.width, 0)} × ${fmt(record.grid.height, 0)}` : `${fmt(record.grid.routedCells, 0)} routed along the road in a ${fmt(record.grid.width, 0)} × ${fmt(record.grid.height, 0)} grid`}). ${record.terrain.sha256 ? `Source SHA-256: ${escape(record.terrain.sha256)}.` : record.terrain.sourceKind === 'regional' ? 'Unchecksummed regional terrain requires recomputation after reopening.' : ''}</p>
 <p>Calculation: ${escape(record.algorithmVersion ?? 'Legacy calculation; rerun for current results')}.</p>
 <p>Rainfall ${fmt(record.settings.rainfallMmPerHr)} mm/h; runoff C ${fmt(record.settings.runoffCoefficient)}; Manning n ${fmt(record.settings.manningN)}; stream threshold ${fmt(record.settings.streamThresholdHa)} ha; buffer ${fmt(record.settings.bufferM)} m.</p>
 <p>Depression policy: ${escape(record.settings.depressionPolicy?.mode ?? 'fill-all')}${record.settings.depressionPolicy?.mode === 'depth-limited' ? `; maximum whole-basin fill ${fmt(record.settings.depressionPolicy.maxDepthM)} m` : ''}. Requested working cell: ${record.settings.workingResolutionM === undefined ? 'source resolution (minimum 1 m)' : `${fmt(record.settings.workingResolutionM)} m`}. Potential ponding is measured to the spill level independently of the selected routing treatment.</p>

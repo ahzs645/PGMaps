@@ -17,6 +17,7 @@ import type {
   ContextFeature,
   Coordinate,
   Crossing,
+  CurveDesign,
   RoadAnalysis,
   RoadSettings,
   RoadStation,
@@ -42,9 +43,12 @@ import { pappusVolume, sectionAreaMoments, withReportedArea } from './curvedVolu
 import { assembledSection } from './assembledSection'
 import { resolveHorizons } from './groundHorizons'
 import { rockCutAt, rockSection } from './rockExcavation'
+import { batterSource } from './groundBatters'
 import { surfaceLayerAreas, validateSectionMaterials } from './sectionAssembly'
+import { hasSectionStructures, structureQuantities } from './sectionStructures'
 import type { SectionReferenceSources } from './sectionReferences'
-import { evaluateCurveCriteria, validateCurveCriteria } from './roadCriteria'
+import { evaluateCurveCriteria, validateCurveCriteria, validateCurveSettings } from './roadCriteria'
+import { hasStationing, withStationing } from './roadStationing'
 
 const R = 6371008.8
 const RAD = Math.PI / 180
@@ -118,6 +122,8 @@ type Piece = {
   sweep?: number
   /** A clothoid: heading ψ(t) = psi0 + kappa0·t + (kappa1 − kappa0)·t²/(2L), from `start`. */
   spiral?: { psi0: number; kappa0: number; kappa1: number; radius: number }
+  /** On an arc: the id of the road point whose curve it is. */
+  pointId?: string
 }
 type Path = {
   pieces: Piece[]
@@ -352,6 +358,7 @@ function compile(alignment: Alignment): Path {
         center,
         angle,
         sweep: arcSweep,
+        pointId: nodes[i].id,
       })
       length += arcLength
       boundaries.push(length)
@@ -373,6 +380,7 @@ function compile(alignment: Alignment): Path {
         center: c.center,
         angle: c.angle,
         sweep: c.sweep,
+        pointId: nodes[i].id,
       })
       length += size
       boundaries.push(length)
@@ -484,9 +492,44 @@ function compiledPath(alignment: Alignment): Path {
   return path
 }
 
+/** Each arc's criteria, resolved once per alignment state: the engine reads them at every station. */
+const arcCriteriaCache = new WeakMap<
+  Alignment,
+  { path: Path; design: CurveDesign; points: Alignment['points']; arcs: Map<number, CurveCriteria> }
+>()
+type CurveCriteria = ReturnType<typeof evaluateCurveCriteria>
+function arcCriteria(alignment: Alignment, path: Path, design: CurveDesign, index: number): CurveCriteria {
+  let cached = arcCriteriaCache.get(alignment)
+  if (!cached || cached.path !== path || cached.design !== design || cached.points !== alignment.points) {
+    cached = { path, design, points: alignment.points, arcs: new Map() }
+    arcCriteriaCache.set(alignment, cached)
+  }
+  const known = cached.arcs.get(index)
+  if (known) return known
+  const pieces = path.pieces
+  const piece = pieces[index]
+  const radius = piece.radius!
+  const entry = pieces[index - 1]?.spiral?.kappa0 === 0 ? pieces[index - 1] : null
+  const exit = pieces[index + 1]?.spiral?.kappa1 === 0 ? pieces[index + 1] : null
+  const deflectionDegrees =
+    (Math.abs(piece.sweep ?? 0) + ((entry?.length ?? 0) + (exit?.length ?? 0)) / (2 * radius)) / RAD
+  const own = piece.pointId ? alignment.points.find((p) => p.id === piece.pointId)?.curve : undefined
+  const criteria = evaluateCurveCriteria(design, radius, deflectionDegrees, own)
+  cached.arcs.set(index, criteria)
+  return criteria
+}
+
 /**
  * Superelevation and widening at a station from the alignment's design-speed rules, or null
- * outside every curve's runoff. `inside` is the side toward the curve centre.
+ * outside every curve's transitions. `inside` is the side toward the curve centre.
+ *
+ * Each side of a curve has its own runoff (the curve's own, the runoff table's, or the road's one
+ * length) and reaches full superelevation `(1 − fraction) × runoff` inside the curve, the fraction
+ * being the share of the runoff outside it (1, the whole runoff on the tangent, unless the road or
+ * the curve states one). `ratio` runs from 0 where the runoff starts to 1 at full superelevation and
+ * scales the widening. With the road's tangent runout on, `rotationRatio` runs from 0 at normal crown,
+ * a tangent runout of `runoff × crown / e` before the runoff, to 1 at full superelevation; the
+ * section (`sectionCrossfall`) turns its outside lane first.
  */
 export function curveDesignAt(
   alignment: Alignment,
@@ -495,9 +538,13 @@ export function curveDesignAt(
   inside: 'left' | 'right'
   superPercent: number
   requiredSuperPercent: number
+  /** The curve's own e max, else the road's. */
+  maxSuperPercent: number
   extraWidth: number
   outsideExtraWidth: number
   ratio: number
+  /** Progress from normal crown to full superelevation, with the tangent runout; only when the road has one. */
+  rotationRatio?: number
   radius: number
   warnings: string[]
 } | null {
@@ -509,18 +556,27 @@ export function curveDesignAt(
   } catch {
     return null
   }
-  // Each side of a curve runs in linearly toward the arc and is full from SC to CS. A spiralled
-  // side runs over max(runoff, spiral) ending at the SC (CS): no longer than the spiral, it follows
-  // the curvature exactly; any excess starts on the tangent before the TS (after the ST), so the
-  // ratio never falls back to 0 at a spiral end.
-  const runoff = Math.max(0, d.runoffLengthM)
+  // A spiralled side runs over max(runoff, spiral) ending at the SC (CS): no longer than the spiral,
+  // it follows the curvature exactly; any excess starts on the tangent before the TS (after the ST),
+  // so the ratio never falls back to 0 at a spiral end.
   const pieces = path.pieces
+  const runout = d.tangentRunout === true
+  let template: ReturnType<typeof templateAt>['template'] | null = null
   // A station on a spiral belongs to that spiral's curve, whatever a neighbour's runoff reaches.
   const onSpiral = pieces.findIndex(
     (piece) => piece.spiral && chainage >= piece.station - EPS && chainage <= piece.station + piece.length + EPS,
   )
   const arcIndices = pieces.flatMap((piece, i) => (piece.radius === null ? [] : [i]))
-  let best: { piece: Piece; distance: number; ratio: number } | null = null
+  const progress = (distance: number, length: number) =>
+    distance <= EPS ? 1 : length > 0 && distance < length - EPS ? clamp(1 - distance / length, 0, 1) : 0
+  let best: {
+    piece: Piece
+    criteria: CurveCriteria
+    distance: number
+    ratio: number
+    rotation: number
+    key: number
+  } | null = null
   for (let arc = 0; arc < arcIndices.length; arc++) {
     const i = arcIndices[arc]
     const piece = pieces[i]
@@ -528,57 +584,78 @@ export function curveDesignAt(
     const before = piece.station - chainage,
       after = chainage - (piece.station + piece.length)
     const distance = Math.max(0, before, after)
-    // The entry spiral starts at zero curvature and the exit spiral ends there.
-    const entry = pieces[i - 1]?.spiral?.kappa0 === 0 ? pieces[i - 1] : null,
-      exit = pieces[i + 1]?.spiral?.kappa1 === 0 ? pieces[i + 1] : null
-    const spiral = before > 0 ? entry : after > 0 ? exit : null
-    let transition = spiral ? Math.max(runoff, spiral.length) : runoff
-    const neighbourIndex = before > 0 ? arcIndices[arc - 1] : after > 0 ? arcIndices[arc + 1] : undefined
-    if (neighbourIndex !== undefined) {
-      const neighbour = pieces[neighbourIndex]
-      if ((piece.sweep ?? 0) * (neighbour.sweep ?? 0) < 0) {
-        const neighbourSpiral =
-          before > 0
-            ? pieces[neighbourIndex + 1]?.spiral?.kappa1 === 0
-              ? pieces[neighbourIndex + 1]
-              : null
-            : pieces[neighbourIndex - 1]?.spiral?.kappa0 === 0
-              ? pieces[neighbourIndex - 1]
-              : null
-        const ownLength = spiral?.length ?? 0
-        const gap =
-          before > 0
-            ? piece.station - ownLength - (neighbour.station + neighbour.length + (neighbourSpiral?.length ?? 0))
-            : neighbour.station - (neighbourSpiral?.length ?? 0) - (piece.station + piece.length + ownLength)
-        // Opposing runoff must meet at normal crown. Share the intervening tangent,
-        // preserving each spiral's full length even when their lengths differ.
-        transition = Math.min(transition, ownLength + Math.max(0, gap) / 2)
+    const criteria = arcCriteria(alignment, path, d, i)
+    const inside: 'left' | 'right' = (piece.sweep ?? 0) > 0 ? 'left' : 'right'
+    const e = criteria.appliedSuperelevationPercent
+    const side = (which: 'in' | 'out') => {
+      // The entry spiral starts at zero curvature and the exit spiral ends there.
+      const spiral =
+        which === 'in'
+          ? pieces[i - 1]?.spiral?.kappa0 === 0
+            ? pieces[i - 1]
+            : null
+          : pieces[i + 1]?.spiral?.kappa1 === 0
+            ? pieces[i + 1]
+            : null
+      const runoff = Math.max(0, which === 'in' ? criteria.runoffInM : criteria.runoffOutM)
+      const length = spiral ? Math.max(runoff, spiral.length) : runoff
+      // A spiral takes the whole runoff before the arc; a simple curve its share outside the curve.
+      const outsideShare = spiral ? 1 : clamp(criteria.transitionFraction, 0, 1)
+      const intoArc = (1 - outsideShare) * length
+      const fullAt = which === 'in' ? piece.station + intoArc : piece.station + piece.length - intoArc
+      const toFull = which === 'in' ? fullAt - chainage : chainage - fullAt
+      // Opposing transitions must meet at normal crown: each may use its spiral and half the tangent.
+      let cap = Infinity
+      const neighbourIndex = arcIndices[which === 'in' ? arc - 1 : arc + 1]
+      if (neighbourIndex !== undefined) {
+        const neighbour = pieces[neighbourIndex]
+        if ((piece.sweep ?? 0) * (neighbour.sweep ?? 0) < 0) {
+          const neighbourSpiral =
+            which === 'in'
+              ? pieces[neighbourIndex + 1]?.spiral?.kappa1 === 0
+                ? pieces[neighbourIndex + 1]
+                : null
+              : pieces[neighbourIndex - 1]?.spiral?.kappa0 === 0
+                ? pieces[neighbourIndex - 1]
+                : null
+          const ownLength = spiral?.length ?? 0
+          const gap =
+            which === 'in'
+              ? piece.station - ownLength - (neighbour.station + neighbour.length + (neighbourSpiral?.length ?? 0))
+              : neighbour.station - (neighbourSpiral?.length ?? 0) - (piece.station + piece.length + ownLength)
+          cap = intoArc + ownLength + Math.max(0, gap) / 2
+        }
       }
+      const ratio = progress(toFull, Math.min(length, cap))
+      if (!runout) return { ratio, rotation: ratio }
+      template ??= templateAt(alignment, chainage).template
+      const outsideCrown = sideValue(template, inside === 'left' ? 'right' : 'left', 'CrossfallPercent')
+      const target = Math.max(e, sideValue(template, inside, 'CrossfallPercent'))
+      const tangentRunoutM = target > 0 && outsideCrown > 0 ? (length * outsideCrown) / target : 0
+      return { ratio, rotation: progress(toFull, Math.min(length + tangentRunoutM, cap)) }
     }
-    const ratio =
-      distance <= EPS ? 1 : transition > 0 && distance < transition - EPS ? clamp(1 - distance / transition, 0, 1) : 0
-    if (!best || ratio > best.ratio || (ratio === best.ratio && distance < best.distance))
-      best = { piece, distance, ratio }
+    const entrySide = side('in'),
+      exitSide = side('out')
+    const ratio = Math.min(entrySide.ratio, exitSide.ratio)
+    const rotation = Math.min(entrySide.rotation, exitSide.rotation)
+    const key = Math.max(ratio, rotation)
+    if (!best || key > best.key || (key === best.key && distance < best.distance))
+      best = { piece, criteria, distance, ratio, rotation, key }
   }
-  if (!best || best.ratio <= 0) return null
-  const { ratio } = best
-  const radius = best.piece.radius!
-  const pieceIndex = path.pieces.indexOf(best.piece)
-  const entry = path.pieces[pieceIndex - 1]?.spiral?.kappa0 === 0 ? path.pieces[pieceIndex - 1] : null
-  const exit = path.pieces[pieceIndex + 1]?.spiral?.kappa1 === 0 ? path.pieces[pieceIndex + 1] : null
-  const deflectionDegrees =
-    (Math.abs(best.piece.sweep ?? 0) + ((entry?.length ?? 0) + (exit?.length ?? 0)) / (2 * radius)) / RAD
-  const criteria = evaluateCurveCriteria(d, radius, deflectionDegrees)
+  if (!best || best.key <= 0) return null
+  const { ratio, criteria } = best
   return {
     // Counter-clockwise sweep in the east/north frame turns left.
     inside: (best.piece.sweep ?? 0) > 0 ? 'left' : 'right',
     superPercent: criteria.appliedSuperelevationPercent,
     requiredSuperPercent: criteria.requiredSuperelevationPercent,
+    maxSuperPercent: criteria.maxSuperelevationPercent,
     extraWidth: criteria.insideWideningM * ratio,
     outsideExtraWidth: criteria.outsideWideningM * ratio,
     warnings: criteria.warnings,
     ratio,
-    radius,
+    ...(runout ? { rotationRatio: best.rotation } : {}),
+    radius: best.piece.radius!,
   }
 }
 /**
@@ -595,6 +672,8 @@ export function horizontalCurveSummary(alignment: Alignment) {
     const circularDeflectionDegrees = Math.abs(p.sweep ?? 0) / RAD
     return [
       {
+        /** The road point whose curve this is. */
+        pointId: p.pointId ?? '',
         start: p.station,
         end: p.station + p.length,
         length: p.length,
@@ -915,6 +994,7 @@ function validate(alignment: Alignment, settings: RoadSettings) {
   validateTemplate(alignment.template)
   validateSectionMaterials(alignment.template, alignment.engineering)
   if (alignment.curveDesign) validateCurveCriteria(alignment.curveDesign)
+  for (const point of alignment.points) if (point.curve) validateCurveSettings(point.curve)
   if (alignment.engineering) validateEngineering(alignment.engineering)
   validateComponentTransitions(alignment)
   if (
@@ -962,6 +1042,7 @@ type SectionResult = Pick<
   | 'leftClearingM'
   | 'rightClearingM'
   | 'rock'
+  | 'structures'
 >
 /** A dip never deepens a ditch past this, whatever the inlet invert. */
 export const MAX_DITCH_DIP_DEPTH = 4
@@ -1006,8 +1087,14 @@ function sectionAt(
     : []
   const enhanced = !!(
     t.components?.length ||
+    // Asymmetric ditches, benches, walls, barriers and sub-cuts are built by the assembled section.
+    hasSectionStructures(t) ||
     alignment.engineering?.sitePreparation?.some((p) => assignmentStation >= p.start && assignmentStation < p.end) ||
-    alignment.engineering?.materials.some((m) => m.cutSlope !== undefined || m.fillSlope !== undefined) ||
+    // A material's batter matters only on a side whose batters are not all the template's stated ones.
+    (alignment.engineering?.materials.some((m) => m.cutSlope !== undefined || m.fillSlope !== undefined) &&
+      (['left', 'right'] as const).some(
+        (side) => batterSource(t, side, 'cut') !== 'template' || batterSource(t, side, 'fill') !== 'template',
+      )) ||
     // A rock ledge or rock batter is cut where the batter search meets the top of rock.
     (rockPieces.length &&
       (['left', 'right'] as const).some((side) => {
@@ -1571,8 +1658,17 @@ export function createRoadStationSampler(
   }
 }
 
-/** Road quantities are formation cut/fill; added landing width is unsurfaced. */
-export function analyzeRoad(
+/**
+ * Road quantities are formation cut/fill; added landing width is unsurfaced. The stations its
+ * messages name follow the road's own stationing (`roadStationing.ts`), never the screen's.
+ */
+export function analyzeRoad(...args: Parameters<typeof analyzeRoadInChainage>): RoadAnalysis {
+  const stationing = args[0].stationing
+  const result = withStationing(stationing, () => analyzeRoadInChainage(...args))
+  return hasStationing(stationing) ? { ...result, stationing } : result
+}
+
+function analyzeRoadInChainage(
   alignment: Alignment,
   terrain: TerrainSource,
   settings: RoadSettings,
@@ -1814,6 +1910,7 @@ export function analyzeRoad(
     coveragePercent,
     warnings: [...new Set(warnings)],
     ...(verticalChecks.length ? { verticalChecks } : {}),
+    ...(stations.some((s) => s.structures?.length) ? { structures: structureQuantities(stations) } : {}),
     curvatureCorrection: {
       cutVolumeM3: curvedCutM3,
       fillVolumeM3: curvedFillM3,

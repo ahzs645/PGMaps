@@ -6,7 +6,7 @@
  */
 import { offsetCoordinate } from './engine'
 import type { Culvert, RoadAnalysis, RoadStation } from './types'
-import { cellIndexAt, cloneSurfaceGrid, type SurfaceGrid, type ToGrid } from './surfaceGrid'
+import { cellIndexAt, cloneSurfaceGrid, gridCellIndex, type SurfaceGrid, type ToGrid } from './surfaceGrid'
 
 const EPS = 1e-9
 /** Template parameters of the longitudinal lines burned as minima: ditch bottom and catch line. */
@@ -308,7 +308,9 @@ export function burnRoad(
     cell = grid.cellM,
     [ox, oy] = grid.origin
   const footprint = new Uint8Array(n),
-    rank = new Float64Array(n).fill(Infinity)
+    rank = new Float64Array(n).fill(Infinity),
+    // A tiled grid (see `GridTiles`) holds only some cells; a cell outside them has no index.
+    tiled = !!grid.tiles
 
   const triangle = (
     ax: number,
@@ -345,8 +347,9 @@ export function burnRoad(
             : wa > -tolerance || wb > -tolerance || wc > -tolerance
         )
           continue
-        const i = row * w + col,
-          u = (wa * au + wb * bu + wc * cu) / area
+        const i = tiled ? gridCellIndex(grid, row, col) : row * w + col
+        if (i < 0) continue
+        const u = (wa * au + wb * bu + wc * cu) / area
         if (u >= rank[i] - 1e-9) continue
         rank[i] = u
         values[i] = (wa * az + wb * bz + wc * cz) / area

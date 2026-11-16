@@ -7,6 +7,7 @@
  * flow line within `CROSSING_MATCH_DISTANCE_M` along the road are listed as one crossing, and
  * everything else is listed as unmatched rather than left for the reader to reconcile.
  */
+import { labelStation } from './roadStationing'
 import { crossingsWithoutStructure } from './costReadiness'
 import { CROSSING_STRUCTURES, LEGACY_CULVERT_ASSOCIATION_M } from './crossingPlan'
 import type { DrainageEvidence } from './drainageEvidence'
@@ -251,10 +252,7 @@ const escapeHtml = (value: unknown) =>
     /[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   )
-const stationText = (chainage: number) => {
-  const rounded = Math.round(Math.max(0, chainage) * 10) / 10
-  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
-}
+const stationText = (chainage: number) => labelStation(chainage)
 
 /** What a register row says about how its two sources agree. */
 export function crossingMatchText(row: CrossingRegisterRow, register: CrossingRegister): string {

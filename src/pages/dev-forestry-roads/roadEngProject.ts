@@ -5,12 +5,16 @@
  *
  * - **Where it goes.** RoadEng keeps the coordinate system on the terrain (`[main] CoordSys` in its
  *   `.tlt`), not the design, so the design is placed in its terrain's CRS. A project whose terrain
- *   names none, whose CRS this workspace does not convert, or that has no terrain, is laid on the
- *   local plane (`localPlane.ts`) and keeps where its coordinates came from, so **Place on map**
- *   can put it in its CRS later.
- * - **Ground.** The terrain's own TIN (RoadEng's triangles over its points) becomes the project's
- *   terrain grid through `rasterizeTin`, at a cell from the TIN's point spacing; triangles longer
- *   than RoadEng's own limit were never made, so none is dropped for length.
+ *   names none, whose CRS this workspace does not convert or would put its coordinates outside the
+ *   area it applies to ({@link crsMisfit}: RoadEng's default code on a terrain made in another
+ *   system), or that has no terrain, is laid on the local plane (`localPlane.ts`) and keeps where
+ *   its coordinates came from, so **Place on map** can put it in its CRS later.
+ * - **Ground.** The terrain's own TIN (RoadEng's triangles over its points) is kept as the ground
+ *   analysis reads (`preparation` `roadeng-tin`, `tinGround.ts`): sections, the profile and
+ *   quantities take its facets. The plan's grid is made from it through `rasterizeTin`, at a cell
+ *   from the TIN's point spacing coarsened only as far as the cell limit needs; triangles longer
+ *   than RoadEng's own limit were never made, so none is dropped for length. A TIN past what a
+ *   project keeps (`MAX_RETAINED_TIN_VERTICES`) is read through the grid alone.
  * - **What was drawn.** Each terrain feature is classed (`classifyRoadEngFeature`) and becomes the
  *   project object that holds that kind of thing: streams are streams, roads are existing roads,
  *   D-lines with cable settings are D-lines at their first and last spars with RoadEng's heights,
@@ -25,8 +29,8 @@
  * - **Cable and notes.** The terrain's logging systems become rigging sets (`roadeng-system-<n>`,
  *   with their equipment kept for writing back), and its map notes become map pins.
  * - **Design settings.** Each alignment's templates, ranges, curve rule and ground types
- *   (`roadEngDesignSettings.ts`, template batters kept: a ground type's slope applies only where
- *   RoadEng's template slope is AUTO, which is not read), haul costs, quality and pits
+ *   (`roadEngDesignSettings.ts`; a ground type's slopes apply where RoadEng's template slope is
+ *   AUTO, bending at stratum layers), parameter overrides, haul costs, quality and pits
  *   (`roadEngHaul.ts`) and optimizer standards, controls and vertical alignments
  *   (`roadEngOptimizer.ts`) are read, and where RoadEng flagged a range or pit on its stations
  *   (`stationEvents`) the two are compared and a disagreement is said.
@@ -37,19 +41,21 @@
  *   hashed and stored the bytes (`withRoadEngOriginal`, `roadEngTerrainOriginal.ts`): the grid's
  *   fingerprint, the file's features by class and the fingerprint of every object made from one.
  * - **Units.** Coordinates and levels in feet are converted to metres; the terrain takes the
- *   design's unit, and metres without a design.
+ *   design's unit, and without a design its own (`.tlt` `units`), else metres.
  *
  * Pure: no DOM or network access.
  */
 import { strFromU8, unzipSync } from 'fflate'
-import { projectedCrsDefinition } from '@/lib/geo/projectedCrs'
+import { csrsUtmZone, projectedCrsDefinition } from '@/lib/geo/projectedCrs'
 import { distance } from './engine'
+import { roadEngUnitName } from './roadEngUnits'
 import { alignmentCrs, gridToLonLat, type XY } from './landXmlImport'
 import { LOCAL_PLANE_EPSG, localPlaneOffset, localPlaneProjection, type LocalPlacement } from './localPlane'
 import {
   isRoadEngDesign,
   parseRoadEngDesign,
   roadEngImportSummary,
+  ROADENG_UNITS,
   roadEngRoads,
   stationEvents,
   type RoadEngRoad,
@@ -66,8 +72,36 @@ import {
   type RoadEngTerrainFeature,
 } from './roadEngTerrain'
 import { rasterizeTin } from './tinSurface'
-import { readRoadEngSettings, roadEngEngineeringFor } from './roadEngDesignSettings'
+import {
+  isNativeTraverse,
+  isNativeTraverseSettings,
+  parseNativeTraverse,
+  type NativeTraverse,
+} from './softreeNativeTraverse'
+import {
+  isPLineStratum,
+  MAX_PLINE_SOURCE_CHARS,
+  pLineGroundStations,
+  roadEngPLineChars,
+  roadEngPLineReference,
+  roadEngPStations,
+  type PLineGround,
+  type RoadEngPLineSource,
+} from './roadEngPLine'
+import { tinMedianEdge, tinStats } from './tinGround'
+import {
+  MAX_RETAINED_TIN_INDICES,
+  MAX_RETAINED_TIN_VERTICES,
+  type TerrainPreparationRecord,
+} from './terrainPreparation'
+import {
+  readRoadEngSettings,
+  roadEngDefaultGroundType,
+  roadEngEngineeringFor,
+  withRoadEngCurveSettings,
+} from './roadEngDesignSettings'
 import { applyRoadEngCostCarryover, roadEngHaulFor } from './roadEngHaul'
+import { activeRoadEngSolution, readRoadEngStoredResults, roadEngStoredResultsNote } from './roadEngStoredResults'
 import { applyRoadEngOptimizer, parseRoadEngOptimizer, roadEngOptimizerFor } from './roadEngOptimizer'
 import { readRoadEngLayout, roadEngDLineCable } from './roadEngDLines'
 import type { RoadEngLoggingSystem } from './roadEngLoggingSystems'
@@ -89,6 +123,8 @@ import { roadEngLoggingSystemToRiggingSet, roadEngSystemFromDecoded } from './ca
 import { applyRiggingSetToLine, MAX_RIGGING_SETS, type RiggingSet } from './dline/riggingSets'
 import { MAP_NOTE_COLORS, MAX_MAP_NOTES, type MapNote } from './mapNotes'
 import { validateEngineering, validateTemplate } from './templates'
+import { carryWrittenCulvertFields, withDesignCulverts } from './roadEngPlacedCulverts'
+import { createEngineeringDesign } from './engineeringTypes'
 import type { LocalRaster } from '../dev-forestry/types'
 import type { Alignment, CableLine, Coordinate, ContextFeature, RoadTemplate, TerrainMetadata } from './types'
 import { referenceShape, type ReferenceFeature } from './referenceFeatures'
@@ -134,20 +170,27 @@ export function collectRoadEngFiles(files: readonly RoadEngFile[]): {
   designs: RoadEngFile[]
   terrains: RoadEngFile[]
   layouts: RoadEngFile[]
+  /** P-line traverses (`.tr1`) and the settings files beside them (`.tr2`). */
+  surveys: RoadEngFile[]
 } {
   const designs: RoadEngFile[] = [],
     terrains: RoadEngFile[] = [],
-    layouts: RoadEngFile[] = []
+    layouts: RoadEngFile[] = [],
+    surveys: RoadEngFile[] = []
   const sort = (file: RoadEngFile, depth: number) => {
     const head = file.bytes.subarray(0, 4096)
     if (isRoadEngDesign(head)) designs.push(file)
     else if (isRoadEngTerrain(head)) terrains.push(file)
+    else if (isNativeTraverse(strFromU8(head, true))) surveys.push(file)
+    // A `.tr2` opens with RoadEng's control-bar sections too: told from a window layout by its [Traverse].
+    else if (isNativeTraverseSettings(strFromU8(file.bytes.subarray(0, 64_000), true))) surveys.push(file)
     else if (isRoadEngLayout(head)) layouts.push(file)
     else if (depth === 0 && head[0] === 0x50 && head[1] === 0x4b) {
       let entries: Record<string, Uint8Array>
       try {
         entries = unzipSync(file.bytes, {
-          filter: (entry) => /\.(dsnx|terx|ilt)$/i.test(entry.name) && entry.originalSize <= MAX_ROADENG_PROJECT_BYTES,
+          filter: (entry) =>
+            /\.(dsnx|terx|ilt|tr1|tr2)$/i.test(entry.name) && entry.originalSize <= MAX_ROADENG_PROJECT_BYTES,
         })
       } catch {
         throw Error(`${file.name} could not be unpacked: the archive is damaged.`)
@@ -156,12 +199,97 @@ export function collectRoadEngFiles(files: readonly RoadEngFile[]): {
       if (!inside.some(([name]) => /\.(dsnx|terx)$/i.test(name)))
         throw Error(`${file.name} holds no RoadEng design (.dsnx) or terrain (.terx).`)
       for (const [name, bytes] of inside) sort({ name: name.split('/').pop() ?? name, bytes }, 1)
-    } else throw Error(`${file.name} is not a RoadEng design, terrain or window layout.`)
+    } else throw Error(`${file.name} is not a RoadEng design, terrain, traverse or window layout.`)
   }
   for (const file of files) sort(file, 0)
   if (!designs.length && !terrains.length)
     throw Error('Choose a RoadEng design (.dsnx), its terrain (.terx) or a zipped RoadEng project.')
-  return { designs, terrains, layouts }
+  return { designs, terrains, layouts, surveys }
+}
+
+const latin1Head = (f: RoadEngFile) => strFromU8(f.bytes.subarray(0, 4096), true)
+const fileStem = (name: string) => name.replace(/\.[^.]*$/, '').toLowerCase()
+
+/**
+ * The P-line a design part names (`[design] roadname`), read from the traverses given with the
+ * design (`roadEngPLine.ts`): the named `.tr1` (or the only one given), its `.tr2` by the same stem,
+ * the design-to-P-line stations and each surveyed station's ground layers. A named P-line that was
+ * not given comes back with no ground, so its `**` ground stays unclassified. Null when the part
+ * names none.
+ */
+function designPLine(
+  text: { dsn: string; ds2: string } | undefined,
+  surveys: readonly RoadEngFile[],
+  designUnitM: number,
+  defaultCode: string,
+): {
+  source: RoadEngPLineSource
+  option: { name: string; ground: PLineGround | null }
+  notes: string[]
+  files: RoadEngFile[]
+} | null {
+  if (!text) return null
+  const ref = roadEngPLineReference(text.dsn)
+  if (!ref) return null
+  const notes: string[] = []
+  const traverses = surveys.filter((f) => isNativeTraverse(latin1Head(f)))
+  const named = ref.name.toLowerCase()
+  const tr1 = traverses.find((f) => f.name.toLowerCase() === named) ?? (traverses.length === 1 ? traverses[0] : null)
+  const missing = (why: string) => {
+    notes.push(why)
+    return {
+      source: { name: ref.name, tr1: null, tr2: null, stations: roadEngPStations(text.ds2, designUnitM, null).pairs },
+      option: { name: ref.name, ground: null },
+      notes,
+      files: [],
+    }
+  }
+  if (!tr1)
+    return missing(
+      `its P-line ${ref.name} was not given with the design, so ground RoadEng takes from it is left unclassified.`,
+    )
+  if (tr1.name.toLowerCase() !== named) notes.push(`the design names its P-line ${ref.name}; ${tr1.name} was used.`)
+  const tr1Text = strFromU8(tr1.bytes, true)
+  let traverse: NativeTraverse
+  try {
+    traverse = parseNativeTraverse(tr1Text)
+  } catch (error) {
+    return missing(
+      `its P-line ${tr1.name} could not be read (${error instanceof Error ? error.message : String(error)}), so ground RoadEng takes from it is left unclassified.`,
+    )
+  }
+  const unitM = traverse.unitM ?? designUnitM
+  const placed = roadEngPStations(text.ds2, designUnitM, { traverse, unitM })
+  const stations = pLineGroundStations(traverse, unitM, defaultCode)
+  const tr2File = surveys.find(
+    (f) => f !== tr1 && !isNativeTraverse(latin1Head(f)) && fileStem(f.name) === fileStem(tr1.name),
+  )
+  const source: RoadEngPLineSource = {
+    name: ref.name,
+    tr1: tr1Text,
+    tr2: tr2File ? { name: tr2File.name, text: strFromU8(tr2File.bytes, true) } : null,
+    stations: placed.pairs,
+  }
+  if (roadEngPLineChars(source) > MAX_PLINE_SOURCE_CHARS) {
+    source.tr1 = null
+    source.tr2 = null
+    notes.push(
+      `its P-line ${ref.name} is too large to keep in the project, so a RoadEng project written from here goes without it.`,
+    )
+  }
+  const given = stations.filter((s) => s.given).length
+  notes.push(
+    `its P-line ${ref.name} was read: ${stations.length} surveyed stations, ${given ? `${given} giving ground layers of their own` : `none giving ground layers of its own, so its ground is ${defaultCode} throughout`}${traverse.unitM === null ? ", in the design's unit" : ''}; ${placed.from === 'design' ? "its stations lie on the road where the design's calculated stations put them" : placed.from === 'projection' ? 'its stations are placed on the road by their coordinates' : 'its stations could not be placed on the road'}.`,
+  )
+  return {
+    source,
+    option: {
+      name: ref.name,
+      ground: placed.pairs.length ? { stations, pairs: placed.pairs, apply: ref.apply } : null,
+    },
+    notes,
+    files: [tr1, ...(tr2File ? [tr2File] : [])],
+  }
 }
 
 /** Each alignment's `.dsn` and `.ds2` as Latin-1 text, by part name (`Location1`). */
@@ -242,9 +370,56 @@ export function withRoadEngOriginal(
 
 const stem = (name: string) => name.replace(/\.(dsnx|terx|zip)$/i, '')
 
+/**
+ * Where a supported CRS applies, as west, south, east, north in degrees: a UTM zone's six degrees
+ * with a zone's grace either side, within its datum's hemisphere or continent; BC Albers over BC.
+ */
+function crsArea(epsg: number): [number, number, number, number] | null {
+  const zone = (n: number) => -183 + 6 * n
+  const utm = (n: number, south: number, north: number): [number, number, number, number] => [
+    zone(n) - 6,
+    south,
+    zone(n) + 6,
+    north,
+  ]
+  if (epsg === 3005) return [-145, 45, -109, 63]
+  const csrs = csrsUtmZone(epsg)
+  // NAD83 and NAD83(CSRS) are North America's datums (EPSG's area of use, 14.9° N to 86.5° N).
+  if (csrs !== null) return utm(csrs, 14, 87)
+  if (epsg >= 26901 && epsg <= 26923) return utm(epsg - 26900, 14, 87)
+  if (epsg >= 32601 && epsg <= 32660) return utm(epsg - 32600, 0, 84)
+  if (epsg >= 32701 && epsg <= 32760) return utm(epsg - 32700, -80, 0)
+  return null
+}
+
+/**
+ * The first of `points` (grid metres) that `epsg` puts outside where it applies, as "lat° N, lon° W"
+ * for the notice; null when every point is inside, or the CRS has no area here.
+ */
+export function crsMisfit(epsg: number, points: readonly XY[]): string | null {
+  const area = crsArea(epsg)
+  if (!area || !points.length) return null
+  const toLonLat = gridToLonLat(epsg)
+  for (const xy of points) {
+    const [lon, lat] = toLonLat(xy)
+    if (
+      Number.isFinite(lon) &&
+      Number.isFinite(lat) &&
+      lon >= area[0] &&
+      lat >= area[1] &&
+      lon <= area[2] &&
+      lat <= area[3]
+    )
+      continue
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return 'no position on the earth'
+    return `${Math.abs(lat).toFixed(2)}° ${lat < 0 ? 'S' : 'N'}, ${Math.abs(lon).toFixed(2)}° ${lon < 0 ? 'W' : 'E'}`
+  }
+  return null
+}
+
 /** Everything a RoadEng project brings into a new road project. */
 export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngProjectOptions): RoadEngProject {
-  const { designs, terrains, layouts } = collectRoadEngFiles(files)
+  const { designs, terrains, layouts, surveys } = collectRoadEngFiles(files)
   if (designs.length > 1) throw Error('Choose one RoadEng design at a time, with its terrain.')
   const designFile = designs[0] ?? null
   const design = designFile ? parseRoadEngDesign(designFile.bytes) : null
@@ -261,14 +436,34 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
       notes.push(`The design names its terrain ${design.terrain}; ${terrainFile.name} was used.`)
   } else if (design?.terrain) notes.push(`Its terrain, ${design.terrain}, was not given, so the project has no ground.`)
   const archive = terrainFile ? readRoadEngTerrainArchive(terrainFile.bytes) : null
-  const unitM = design?.unitM ?? 1
+  // A terrain states its own unit (`.tlt` `units=`, the design's codes): a terrain opened alone in
+  // feet is read in feet. With a design the design's unit is the project's; a terrain in another
+  // unit is said.
+  const terrainUnitCode = /^units=([\d.]+)\s*$/m.exec(archive?.source.tlt ?? '')?.[1]
+  const terrainUnitM = terrainUnitCode === undefined ? undefined : ROADENG_UNITS[terrainUnitCode]
+  const unitM = design?.unitM ?? terrainUnitM ?? 1
+  if (design && terrainUnitM !== undefined && Math.abs(terrainUnitM - design.unitM) > 1e-12)
+    notes.push(
+      `Its terrain states its units in ${roadEngUnitName(terrainUnitM)} and the design in ${roadEngUnitName(design.unitM)}; the terrain is read in the design's.`,
+    )
   const m = (v: number) => v * unitM
 
   // Where it goes.
   const coordSys = archive?.coordSys ?? null
   let epsg: number, toLonLat: (xy: XY) => Coordinate, localPlane: LocalPlacement | null
   const stated = coordSys?.epsg ?? null
-  if (stated !== null && projectedCrsDefinition(stated) && unitM === 1) {
+  // Every coordinate the files hold, in metres: the design's stations and the terrain's extent.
+  const extent: XY[] = []
+  for (const a of design?.alignments ?? []) for (const s of a.stations) extent.push(s.xy)
+  if (archive) {
+    const [x0, x1, y0, y1] = archive.terrain.bbox
+    extent.push([m(x0), m(y0)], [m(x1), m(y1)])
+  }
+  // A stated CRS is taken only where it puts the coordinates inside the area it is defined for:
+  // RoadEng writes its default code (1|51|10010, NAD83 / UTM zone 10N) on terrains made in other
+  // systems, which would put Softree's Washington tutorials on the equator.
+  const misfit = stated !== null && projectedCrsDefinition(stated) ? crsMisfit(stated, extent) : null
+  if (stated !== null && projectedCrsDefinition(stated) && unitM === 1 && misfit === null) {
     epsg = stated
     toLonLat = gridToLonLat(stated)
     localPlane = null
@@ -292,16 +487,14 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
       }
       alignmentCrs(null, undefined, { unitM, points, what: (terrainFile ?? designFile)!.name })
     }
-    if (stated !== null)
+    if (misfit)
       notes.push(
-        `Its terrain states EPSG:${stated}, which this workspace does not ${unitM === 1 ? 'convert' : 'read in feet'}.`,
+        `Its terrain states EPSG:${stated}${coordSys?.source === 'code' ? ` (RoadEng code ${coordSys.raw})` : ''}, which would put its coordinates at ${misfit}, outside where that system applies, so it is not taken as where the terrain is.`,
       )
-    const extent: XY[] = []
-    for (const a of design?.alignments ?? []) for (const s of a.stations) extent.push(s.xy)
-    if (archive) {
-      const [x0, x1, y0, y1] = archive.terrain.bbox
-      extent.push([m(x0), m(y0)], [m(x1), m(y1)])
-    }
+    else if (stated !== null)
+      notes.push(
+        `Its terrain states EPSG:${stated}, which this workspace does not ${projectedCrsDefinition(stated) ? 'read in feet' : 'convert'}.`,
+      )
     const offsetM = localPlaneOffset(extent)
     localPlane = { offsetM, unitM, source: (terrainFile ?? designFile)!.name.slice(0, 200) }
     epsg = LOCAL_PLANE_EPSG
@@ -328,21 +521,34 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
   const firstPart = design?.alignments[0]?.part
   const sectionNotes: string[] = []
   const fillRates: (number | null)[] = []
+  const usedSurveys = new Set<RoadEngFile>()
   const roads = placedRoads.map((road) => {
     const read = road.source
+    // The P-line the design names, read from the traverse given with it (`roadEngPLine.ts`).
+    const defaultType = roadEngDefaultGroundType(
+      settings?.parts.find((p) => p.part === read.part)?.settings.materials ?? [],
+    )
+    const pLine = designPLine(texts.get(read.part), surveys, unitM, defaultType?.code ?? 'OB')
+    if (pLine) {
+      sectionNotes.push(...pLine.notes.map((n) => `${road.alignment.name}: ${n}`))
+      for (const f of pLine.files) usedSurveys.add(f)
+    }
     // What the design holds besides the road, kept so a RoadEng file written from it loses nothing.
+    // Each curve's own superelevation settings come from its 108 record, against the road's rule.
     const keep = (alignment: Alignment): Alignment =>
       read.source
         ? {
-            ...alignment,
+            ...withRoadEngCurveSettings(alignment, read),
             roadEngSource: {
               ...read.source,
               stationScale: road.stationScale,
               epsg,
               fallback: options.template,
+              ...(read.name === null ? { importedName: alignment.name } : {}),
+              ...(pLine ? { pLine: pLine.source } : {}),
             },
           }
-        : alignment
+        : withRoadEngCurveSettings(alignment, read)
     // A design this workspace wrote carries its own section and surfacing back, unless RoadEng saved it
     // since: then RoadEng's settings are read, and only what it has no field for comes from [PGMaps].
     const own = read.pgmaps && !read.pgmaps.nativeChanged ? read.pgmaps : null
@@ -376,6 +582,14 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
           elevation: Math.round((v.elevation - own.surfacingM) * 1000) / 1000,
         })),
       }
+      // The design's placed culverts are the ones written with it; one only its .ds1 holds is added.
+      if (road.culverts.length) {
+        const e = restored.engineering ?? createEngineeringDesign()
+        restored.engineering = {
+          ...e,
+          culverts: withDesignCulverts(Array.isArray(e.culverts) ? e.culverts : [], road.culverts),
+        }
+      }
       // Standards, controls and vertical alternatives, minimum lengths included, are RoadEng's optimizer settings.
       const optimizer = ownText
         ? roadEngOptimizerFor(parseRoadEngOptimizer(ownText.dsn, unitM), {
@@ -390,14 +604,21 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
       return { ...road, alignment: keep(optimizer ? applyRoadEngOptimizer(restored, optimizer) : restored) }
     }
     const part = settings?.parts.find((p) => p.part === read.part)
-    if (!part) return { ...road, alignment: keep(road.alignment) }
+    if (!part)
+      return {
+        ...road,
+        alignment: keep(
+          road.culverts.length
+            ? { ...road.alignment, engineering: { ...createEngineeringDesign(), culverts: road.culverts } }
+            : road.alignment,
+        ),
+      }
     const frame = { startStation: read.startStation, endStation: read.endStation, stationScale: road.stationScale }
-    // RoadEng uses a ground type's slopes only where a template slope is AUTO, which is not read: the
-    // templates' stated batters are kept (`materialBatters`).
+    // Ground types carry their slopes; each template says whether its slopes are AUTO and take them.
     const mapped = roadEngEngineeringFor(part.settings, {
       ...frame,
       fallback: options.template,
-      materialBatters: false,
+      ...(pLine ? { pLine: pLine.option } : {}),
     })
     // Saved in RoadEng with no RoadEng template of its own: the section this workspace wrote stays.
     let written: RoadTemplate | null = null
@@ -422,17 +643,32 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
     if (mapped.notes.length) sectionNotes.push(...mapped.notes)
     const unmapped = [...mapped.unmapped]
     const text = texts.get(read.part)
-    let engineering = mapped.engineering
+    // Culverts placed in the design; after a save in RoadEng, each written here keeps what RoadEng has no field for.
+    let engineering = {
+      ...mapped.engineering,
+      culverts: [
+        ...mapped.engineering.culverts,
+        ...(read.pgmaps ? carryWrittenCulvertFields(road.culverts, read.pgmaps.engineering) : road.culverts),
+      ],
+    }
     if (text) {
+      const storedResults = readRoadEngStoredResults(text.dsn, unitM)
       const haul = roadEngHaulFor(
         {
           dsnText: text.dsn,
           ds2Text: text.ds2,
           ...(firstPart && read.part !== firstPart ? { projectDsnText: texts.get(firstPart)?.dsn ?? '' } : {}),
         },
-        { ...frame, unitM, materials: engineering.materials },
+        { ...frame, unitM, materials: engineering.materials, costed: activeRoadEngSolution(storedResults) !== null },
       )
-      engineering = { ...engineering, materials: haul.materials, haul: haul.haul, sites: haul.sites }
+      // The Site Prep's stripped-ground disposal (`roadEngEngineeringFor`) stays with RoadEng's haul.
+      const sidecastRanges = engineering.haul.sidecastRanges
+      engineering = {
+        ...engineering,
+        materials: haul.materials,
+        haul: sidecastRanges ? { ...haul.haul, sidecastRanges } : haul.haul,
+        sites: haul.sites,
+      }
       if (read.pgmaps) {
         const carried = applyRoadEngCostCarryover(engineering, read.pgmaps.costs, {
           lengthM: (read.endStation - read.startStation) * road.stationScale,
@@ -444,10 +680,19 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
       fillRates.push(haul.fillRate)
       sectionNotes.push(...haul.notes)
       unmapped.push(...haul.unmapped)
+      // RoadEng's own last costing, set beside the road's in Compare with RoadEng….
+      const stored = roadEngStoredResultsNote(name, storedResults)
+      if (stored) sectionNotes.push(stored)
     } else fillRates.push(null)
     let alignment: Alignment = {
       ...road.alignment,
-      ...(mapped.template ? { template: mapped.template } : written ? { template: written } : {}),
+      ...(mapped.template
+        ? { template: mapped.template }
+        : // A section kept from the open road or written here states its own slopes, as a RoadEng
+          // slope not on AUTO does, unless it says otherwise.
+          {
+            template: { cutSlopeFrom: 'template', fillSlopeFrom: 'template', ...(written ?? road.alignment.template) },
+          }),
       ...(mapped.curveDesign ? { curveDesign: mapped.curveDesign } : {}),
       engineering,
       vertical: road.alignment.vertical.map((v) => ({
@@ -473,6 +718,11 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
     if (unmapped.length) sectionNotes.push(`Not carried over: ${[...new Set(unmapped)].join('; ')}.`)
     return { ...road, alignment: keep(alignment) }
   })
+  const unusedSurveys = surveys.filter((f) => !usedSurveys.has(f) && isNativeTraverse(latin1Head(f)))
+  if (unusedSurveys.length)
+    sectionNotes.push(
+      `${unusedSurveys.map((f) => f.name).join(', ')} ${unusedSurveys.length === 1 ? 'is' : 'are'} not the P-line the design names, so ${unusedSurveys.length === 1 ? 'it was' : 'they were'} not used. Load a traverse into the survey field book under Terrain.`,
+    )
   // The fill rate is project-wide: taken only when every alignment's ground types give the same one.
   const fillRate =
     fillRates.length && fillRates.every((r) => r !== null && Math.abs(r - fillRates[0]!) < 1e-9) ? fillRates[0]! : null
@@ -503,12 +753,13 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
       coords[i * 2 + 1] = y
       z[i] = m(tin.z[i])
     }
-    // Half the TIN's median edge, so the grid keeps what its densest points say; rasterizeTin
-    // coarsens it only as far as the cell limit needs.
+    // Half the TIN's median edge (the one its facts state, `tinGround.ts`), so the grid keeps what
+    // its densest points say; rasterizeTin coarsens it only as far as the cell limit needs.
+    const edge = tinMedianEdge(coords, tin.triangles)
     const ground = rasterizeTin(
       { coords, z, triangles: tin.triangles, cloudPoints: tin.z.length, totalPoints: tin.z.length },
       {
-        cellM: Math.max(ROADENG_TERRAIN_MIN_CELL_M, medianEdge(coords, tin.triangles) / 2),
+        cellM: Math.max(ROADENG_TERRAIN_MIN_CELL_M, Number.isFinite(edge) ? edge / 2 : 0),
         maxEdgeM: Number.MAX_VALUE,
       },
     )
@@ -526,6 +777,16 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
       verticalReference,
       sha256,
     }
+    // The TIN itself is kept as the ground analysis reads (`tinGround.ts`): sections, the profile
+    // and quantities take its facets, and the grid is what the plan draws. A TIN past what a project
+    // keeps is read through the grid alone.
+    const preparation = roadEngTinPreparation(coords, z, tin.triangles, {
+      name: terrainFile!.name,
+      sha256,
+      epsg,
+      verticalReference,
+      gridCellM: ground.cellM,
+    })
     terrain = {
       kind: 'geotiff',
       name: raster.name,
@@ -534,10 +795,14 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
       epsg,
       sha256,
       raster,
+      ...(preparation ? { preparation } : {}),
       ...(localPlane ? { localPlane } : {}),
     }
+    const triangleCount = (tin.triangles.length / 3).toLocaleString('en-CA')
     notes.push(
-      `Its ground is RoadEng's TIN, ${(tin.triangles.length / 3).toLocaleString('en-CA')} triangles, on ${ground.cellM.toFixed(2)} m cells.`,
+      preparation
+        ? `Its ground is RoadEng's TIN, ${triangleCount} triangles: sections, the profile, quantities, drainage and the plan read its facets (median edge ${Number(preparation.parameters.medianEdgeM).toFixed(1)} m), and a ${ground.cellM.toFixed(2)} m grid over its box is kept to write it back.`
+        : `Its ground is RoadEng's TIN, ${triangleCount} triangles, on ${ground.cellM.toFixed(2)} m cells: it has more than the ${MAX_RETAINED_TIN_VERTICES.toLocaleString('en-CA')} points or ${(MAX_RETAINED_TIN_INDICES / 3).toLocaleString('en-CA')} triangles a project keeps, so sections read the grid.`,
     )
   } else {
     // No ground: a grid with no levels over what was read, so the plane has an extent.
@@ -710,7 +975,11 @@ export function roadEngProject(files: readonly RoadEngFile[], options: RoadEngPr
     notes.push(
       ...archive.warnings
         .slice(1)
-        .filter((w) => localPlane === null || !/names no coordinate system|states no coordinate system/.test(w)),
+        .filter(
+          (w) =>
+            localPlane === null ||
+            !/names no coordinate system|states no coordinate system|, from RoadEng code /.test(w),
+        ),
     )
 
   return {
@@ -804,7 +1073,7 @@ function eventDisagreements(alignment: Alignment, road: RoadEngRoad): string | n
     ),
     check(
       'ground-layer changes',
-      (e?.strata ?? []).flatMap((a) => [a.start, a.end]),
+      (e?.strata ?? []).filter((a) => !isPLineStratum(a)).flatMap((a) => [a.start, a.end]),
       events.groundLayerRanges,
     ),
     check(
@@ -1013,18 +1282,40 @@ function onRoad(line: readonly XY[], stations: readonly XY[]) {
   return on >= 0.9 * line.length
 }
 
-/** Median triangle edge of a TIN, m, from up to 20,000 triangles spread through it. */
-function medianEdge(coords: Float64Array, triangles: Uint32Array) {
-  const count = triangles.length / 3,
-    step = Math.max(1, Math.floor(count / 20_000))
-  const edges: number[] = []
-  for (let t = 0; t < count; t += step) {
-    const a = triangles[t * 3],
-      b = triangles[t * 3 + 1]
-    edges.push(Math.hypot(coords[a * 2] - coords[b * 2], coords[a * 2 + 1] - coords[b * 2 + 1]))
+/**
+ * RoadEng's TIN as the terrain's ground (`preparation` with operation `roadeng-tin`), in the grid's
+ * metres with coordinates and levels to the millimetre; null when it is past what a project keeps.
+ */
+function roadEngTinPreparation(
+  coords: Float64Array,
+  z: Float64Array,
+  triangles: Uint32Array,
+  source: { name: string; sha256: string; epsg: number; verticalReference: string; gridCellM: number },
+): TerrainPreparationRecord | null {
+  if (z.length > MAX_RETAINED_TIN_VERTICES || triangles.length > MAX_RETAINED_TIN_INDICES) return null
+  const mm = (v: number) => Math.round(v * 1000) / 1000
+  const kept = { coordinates: Array.from(coords, mm), elevations: Array.from(z, mm), triangles: Array.from(triangles) }
+  const stats = tinStats(kept)
+  return {
+    operation: 'roadeng-tin',
+    sources: [
+      {
+        name: source.name.slice(0, 200),
+        sha256: source.sha256,
+        epsg: source.epsg,
+        verticalReference: source.verticalReference,
+      },
+    ],
+    method: "RoadEng's TIN, read at its facets",
+    parameters: {
+      vertices: stats.vertices,
+      triangles: stats.triangles,
+      medianEdgeM: mm(stats.medianEdgeM),
+      areaM2: Math.round(stats.areaM2),
+      gridCellM: mm(source.gridCellM),
+    },
+    tin: kept,
   }
-  edges.sort((x, y) => x - y)
-  return edges[Math.floor(edges.length / 2)] ?? ROADENG_TERRAIN_MIN_CELL_M
 }
 
 const ring = (coords: Coordinate[]) =>

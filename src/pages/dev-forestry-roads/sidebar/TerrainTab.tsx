@@ -20,6 +20,8 @@ import { terrainDisplayName } from '../terrainName'
 import { TerrainCaveats } from '../TerrainCaveats'
 import { pointCloudImportSummary } from '../terrain'
 import { RoadEngTerrainSummary } from '../RoadEngTerrainSummary'
+import { tinGroundFacts } from '../tinGround'
+import { planTerrainCellM } from '../terrainDisplay'
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
 /** A cell size people read at a glance: whole metres when coarse, decimals only when they matter. */
@@ -34,6 +36,8 @@ const terrainSourceName = (name: string) =>
 
 export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoads: ReactNode }) {
   const { project } = p.workspace
+  // A RoadEng terrain whose TIN is the ground: its spacing is the TIN's, and the grid is only drawn.
+  const tinFacts = tinGroundFacts(project.terrain)
   const busy = !!p.workspace.busy
   // Terrain sources, terrain import and drawing are the registry's commands (`workspaceCommands.ts`).
   const run = (id: WorkspaceCommand) => p.onCommand?.(id)
@@ -82,9 +86,11 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
               className="mt-0.5"
             />
           </div>
-          <p className="mt-0.5 text-2xs leading-4 text-muted-foreground">
-            {terrainCellSize(project.terrain.resolutionM)} cells ·{' '}
-            {project.terrain.epsg ? `EPSG:${project.terrain.epsg}` : 'training coordinates'}
+          <p className="mt-0.5 text-2xs leading-4 text-muted-foreground" data-testid="road-terrain-spacing">
+            {tinFacts
+              ? `TIN, ${terrainCellSize(tinFacts.medianEdgeM)} median edge · plan drawn at ≈ ${terrainCellSize(planTerrainCellM(project.terrain) ?? project.terrain.resolutionM)}`
+              : `${terrainCellSize(project.terrain.resolutionM)} cells`}{' '}
+            · {project.terrain.epsg ? `EPSG:${project.terrain.epsg}` : 'training coordinates'}
             {project.scenario &&
               ` · ${count(project.context.filter((feature) => feature.kind === 'existing-road').length, 'road')} · ${count(project.context.filter((feature) => feature.kind === 'harvest').length, 'cutblock')}`}
           </p>

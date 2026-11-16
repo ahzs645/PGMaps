@@ -3,12 +3,20 @@ import { Columns3, Download, ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { downloadText } from '@/lib/download'
 import { FormField, NumberField } from '@/components/ui/form-field'
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { ActiveFilterChip, ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { formatRoadStation, useChartHeaderControls } from './Charts'
 import { nearestStation } from './engine'
+import {
+  activeStationing,
+  describeStationEquation,
+  equationChainage,
+  hasStationing,
+  resolveTypedStation,
+  stationAtChainage,
+} from './roadStationing'
 import { useScheduleToolbar } from './scheduleToolbar'
 import {
   availableStationColumns,
@@ -114,6 +122,26 @@ export const StationTable = memo(function StationTable({
   const available = useMemo(() => availableStationColumns(analysis, terrainOnly), [analysis, terrainOnly])
   const columns = useMemo(() => available.filter((c) => !hidden.includes(c.id)), [available, hidden])
   const narrowed = range.start > 0.001 || end < analysis.length - 0.001
+  // A road with a start station or equations takes station names in From and To, and marks each
+  // equation between the rows it falls between (`roadStationing.ts`).
+  const stationing = terrainOnly ? undefined : activeStationing()
+  const named = hasStationing(stationing)
+  const toChainage = (n: number) =>
+    named ? resolveTypedStation(n, stationing, analysis.length, { near: range.start }).chainage : n
+  const equationRows = useMemo(() => {
+    if (!named) return new Map<number, string[]>()
+    const at = new Map<number, string[]>()
+    for (const e of stationing.equations) {
+      const c = equationChainage(e, stationing)
+      const before = [...rows].reverse().find((r) => r.station.chainage < c - 1e-6)
+      if (!before || c > analysis.length + 1e-6) continue
+      at.set(before.station.index, [
+        ...(at.get(before.station.index) ?? []),
+        `Station equation: ${describeStationEquation(e, stationing)}${e.description ? ` · ${e.description}` : ''}`,
+      ])
+    }
+    return at
+  }, [named, stationing, rows, analysis.length])
   const clearRange = () => setRange({ start: 0, end: null })
   const field = 'w-full min-w-0 rounded-md border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
   // In a panel the two buttons join its header; only active filters take a row above the table.
@@ -156,27 +184,27 @@ export const StationTable = memo(function StationTable({
           <div className="grid grid-cols-2 gap-2">
             {/* These commit on blur or Enter: clamping each keystroke would rewrite a half-typed number. */}
             <NumberField
-              label="From (m)"
+              label={named ? 'From (station)' : 'From (m)'}
               aria-label="Station table range start"
               inputClassName={field}
               updateOn="commit"
               precision={1}
-              min={0}
-              max={end}
-              value={range.start}
-              onValueChange={(n) => setRange((r) => ({ ...r, start: Math.max(0, Math.min(end, n)) }))}
+              min={named ? undefined : 0}
+              max={named ? undefined : end}
+              value={named ? stationAtChainage(range.start, stationing) : range.start}
+              onValueChange={(n) => setRange((r) => ({ ...r, start: Math.max(0, Math.min(end, toChainage(n))) }))}
             />
             <NumberField
-              label="To (m)"
+              label={named ? 'To (station)' : 'To (m)'}
               aria-label="Station table range end"
               inputClassName={field}
               updateOn="commit"
               precision={1}
-              min={range.start}
-              max={analysis.length}
-              value={end}
+              min={named ? undefined : range.start}
+              max={named ? undefined : analysis.length}
+              value={named ? stationAtChainage(end, stationing) : end}
               onValueChange={(n) =>
-                setRange((r) => ({ ...r, end: Math.max(range.start, Math.min(analysis.length, n)) }))
+                setRange((r) => ({ ...r, end: Math.max(range.start, Math.min(analysis.length, toChainage(n))) }))
               }
             />
           </div>
@@ -210,7 +238,7 @@ export const StationTable = memo(function StationTable({
         disabled={!reported.length || !!analysis.invalidInput}
         onClick={() =>
           downloadText(
-            stationReportCsv(analysis, reported, terrainOnly),
+            stationReportCsv(analysis, reported, terrainOnly, stationing),
             `${
               (roadName ?? '')
                 .replace(/[^a-z0-9]+/gi, '-')
@@ -266,14 +294,22 @@ export const StationTable = memo(function StationTable({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <StationTableRow
-                key={row.station.index}
-                row={row}
-                columns={columns}
-                terrainOnly={terrainOnly}
-                selected={active?.index === row.station.index}
-                onStation={onStation}
-              />
+              <Fragment key={row.station.index}>
+                <StationTableRow
+                  row={row}
+                  columns={columns}
+                  terrainOnly={terrainOnly}
+                  selected={active?.index === row.station.index}
+                  onStation={onStation}
+                />
+                {equationRows.get(row.station.index)?.map((text) => (
+                  <tr key={text} data-testid="road-station-equation-row">
+                    <td colSpan={columns.length + 2} className="text-left font-medium text-info">
+                      {text}
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
           {!terrainOnly && (

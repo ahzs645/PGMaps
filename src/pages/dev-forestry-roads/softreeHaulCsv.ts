@@ -103,6 +103,7 @@ import {
 import { parseCsv } from './exportCatalog'
 import { refuseInvalidResults } from './inputErrors'
 import { massHaulDiagram } from './massHaul'
+import { lastResortName, lastResortSites } from './lastResortPits'
 import type { RoadAnalysis } from './types'
 
 /* ------------------------------------------------------------------------------------------------
@@ -147,7 +148,8 @@ const scaleOf = (units: SoftreeUnits = 'metric'): Scale =>
 /** The units of a RoadEng design from its metres per project unit (`[design] units` ÷ 10,000). */
 export function softreeUnitsForRoadEng(unitM: number): SoftreeUnits {
   if (Math.abs(unitM - 1) < 1e-9) return 'metric'
-  if (Math.abs(unitM - SOFTREE_FT_M) < 1e-9) return 'imperial'
+  // International or US survey feet (RoadEng's `3048.00609601`): haul files in feet, yd³ and miles.
+  if (Math.abs(unitM - SOFTREE_FT_M) < 1e-9 || Math.abs(unitM - 1200 / 3937) < 1e-12) return 'imperial'
   throw Error(`A RoadEng design of ${unitM} m per unit is neither metres nor feet.`)
 }
 
@@ -984,6 +986,9 @@ export function optimalHaulFromAnalysis(
     map.set(touch(code), (map.get(code) ?? 0) + value)
 
   // Pits: every enabled site, named uniquely.
+  // The pits of last resort, when on, are not pits: their volumes are RoadEng's Overflow and
+  // Underflow columns (`lastResortPits.ts`).
+  const planSites = [...design.sites, ...lastResortSites(design)]
   const sites = design.sites.filter((s) => s.enabled !== false)
   const pitNames = new Map<string, string>()
   for (const s of sites) {
@@ -993,7 +998,7 @@ export function optimalHaulFromAnalysis(
     pitNames.set(s.id, name)
   }
   const pitVolumes = new Map<string, Record<string, number | null>>(sites.map((s) => [s.id, {}]))
-  const siteById = new Map(design.sites.map((s) => [s.id, s]))
+  const siteById = new Map(planSites.map((s) => [s.id, s]))
 
   // Segments: one per calculated interval, `interval-i` ending at station i.
   const stations = analysis.stations
@@ -1096,7 +1101,8 @@ export function optimalHaulFromAnalysis(
       const site = siteById.get(m.sourceId)
       const to = segmentOf(m.targetId, m.toChainage),
         from = segmentOf('', m.fromChainage)
-      vol.borrow += v
+      if (site?.lastResort) vol.underflow += v
+      else vol.borrow += v
       vol.fill -= v
       mov.pitLoad += v
       mov.stationUnload -= v
@@ -1107,7 +1113,7 @@ export function optimalHaulFromAnalysis(
       segment(from, code).conveyors[conveyor].loadPit += v
       segment(to, code).conveyors[conveyor].unload -= v
       convey(code, conveyor, from, to, v)
-      pitDetail(m.sourceId, code).conveyors[conveyor] += v
+      if (!site?.lastResort) pitDetail(m.sourceId, code).conveyors[conveyor] += v
       const [f1, f2] = range(to)
       detailed.push({
         material: code,
@@ -1119,7 +1125,7 @@ export function optimalHaulFromAnalysis(
         distance: m.distanceM,
         type: TYPE_NAMES[m.category],
         direction,
-        comment: `Mvt from ${pitNames.get(m.sourceId) ?? m.sourceId}`,
+        comment: `Mvt from ${pitNames.get(m.sourceId) ?? lastResortName(m.sourceId) ?? m.sourceId}`,
       })
     } else {
       const from = segmentOf(m.sourceId, m.fromChainage)
@@ -1133,14 +1139,16 @@ export function optimalHaulFromAnalysis(
         continue
       }
       const to = segmentOf('', m.toChainage)
-      vol.waste -= v
+      const overflow = !!siteById.get(m.targetId)?.lastResort
+      if (overflow) vol.overflow -= v
+      else vol.waste -= v
       mov.pitUnload -= v
       const pit = pitVolumes.get(m.targetId)
       if (pit) pit[code] = (pit[code] ?? 0) - v
       segment(from, code).conveyors[conveyor].load += v
       segment(to, code).conveyors[conveyor].unloadPit -= v
       convey(code, conveyor, from, to, v)
-      pitDetail(m.targetId, code).conveyors[conveyor] -= v
+      if (!overflow) pitDetail(m.targetId, code).conveyors[conveyor] -= v
       const [c1, c2] = range(from)
       detailed.push({
         material: code,
@@ -1152,7 +1160,7 @@ export function optimalHaulFromAnalysis(
         distance: m.distanceM,
         type: TYPE_NAMES[m.category],
         direction,
-        comment: `Mvt to ${pitNames.get(m.targetId) ?? m.targetId}`,
+        comment: `Mvt to ${pitNames.get(m.targetId) ?? lastResortName(m.targetId) ?? m.targetId}`,
       })
     }
   }
@@ -1178,10 +1186,22 @@ export function optimalHaulFromAnalysis(
     leftOut.push(`${fmt(bankOnly, 2)} bank m³ of waste of an unknown material is written in bank m³, unconverted.`)
 
   for (const q of e.materials) addTo(cutCost, codeOf(q.materialId), q.excavationCost)
-  // Fill cost by the share of fill each material places.
+  // Fill cost by the material placed: each material's own embankment cost where the road prices fill
+  // so (`fillPlacement.ts`), else by the share of fill each material places.
+  const fillByMaterial = new Map<string, number>()
+  for (const line of e.fillPlacement ?? [])
+    if (line.materialId !== null) addTo(fillByMaterial, codeOf(line.materialId), line.amount)
+  const fillUnpriced = e.costs.fill - [...fillByMaterial.values()].reduce((s, v) => s + v, 0)
   const fillPlaced = new Map<string, number>()
   for (const row of volumes.values()) if (row.fill! < -EPS) fillPlaced.set(row.material, -row.fill!)
   const fillTotal = [...fillPlaced.values()].reduce((s, v) => s + v, 0)
+  const fillShare = (code: string) =>
+    e.fillPlacement
+      ? (fillByMaterial.get(code) ?? 0) +
+        (fillTotal > EPS ? (fillUnpriced * (fillPlaced.get(code) ?? 0)) / fillTotal : 0)
+      : fillTotal > EPS
+        ? (e.costs.fill * (fillPlaced.get(code) ?? 0)) / fillTotal
+        : null
   const codesInUse = order.filter(
     (c) => volumes.has(c) || haulCost.has(c) || cutCost.has(c) || design.materials.some((m) => codeOf(m.id) === c),
   )
@@ -1189,7 +1209,7 @@ export function optimalHaulFromAnalysis(
     material: code,
     haul: haulCost.get(code) ?? 0,
     cut: cutCost.get(code) ?? 0,
-    fill: fillTotal > EPS ? (e.costs.fill * (fillPlaced.get(code) ?? 0)) / fillTotal : null,
+    fill: fillShare(code),
     pitOpening: null,
   }))
   const costTotal: OptimalHaulCost = {

@@ -1,5 +1,6 @@
 import type { AlignmentEngineering, RoadTemplate, SectionComponent, SectionLayer, SitePreparationRange } from './types'
 import { EngineeringInputError, requireStationRange } from './inputErrors'
+import { courseAreaM2, courseStack, STRUCTURE_LIMITS } from './sectionStructures'
 
 const number = (v: unknown, min: number, max: number, name: string): number => {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max)
@@ -79,6 +80,9 @@ export function parseSectionLayers(input: unknown): SectionLayer[] {
       side: r.side as SectionLayer['side'],
       depthM: number(r.depthM, 0, 2, 'Layer depth'),
       ...(r.materialId !== undefined ? { materialId: text(r.materialId, 'Layer material', 100) } : {}),
+      ...(r.sideSlope !== undefined
+        ? { sideSlope: number(r.sideSlope, ...STRUCTURE_LIMITS.courseSideSlope, 'Course side slope') }
+        : {}),
     }
   })
   unique(rows, 'Layer')
@@ -180,15 +184,29 @@ export function validatePreparation(e: AlignmentEngineering) {
   for (const t of templates) validateSectionMaterials(t, e)
 }
 
-/** Course demands; explicit layers replace rather than add to the old surface depth. */
+/**
+ * Course demands; explicit layers replace rather than add to the old surface depth. A course with
+ * a side slope is a trapezoid narrowing upward from the course below it (`courseStack`).
+ */
 export function surfaceLayerAreas(t: RoadTemplate, leftWidth: number, rightWidth: number) {
   if (t.layers !== undefined) {
     const areas = new Map<string, { id: string; name: string; materialId?: string; areaM2: number }>()
+    const sloped = t.layers.some((l) => (l.sideSlope ?? 0) > 0)
+    const stacks = {
+      left: sloped ? courseStack(t.layers, 'left', leftWidth) : [],
+      right: sloped ? courseStack(t.layers, 'right', rightWidth) : [],
+    }
+    const sideArea = (layer: SectionLayer, side: 'left' | 'right') => {
+      const course = stacks[side].find((c) => c.layer === layer)
+      return course ? courseAreaM2(course) : 0
+    }
     for (const layer of t.layers) {
       const key = `${layer.id}:${layer.materialId ?? ''}`
-      const areaM2 =
-        layer.depthM *
-        (layer.side === 'left' ? leftWidth : layer.side === 'right' ? rightWidth : leftWidth + rightWidth)
+      const areaM2 = sloped
+        ? (layer.side !== 'right' ? sideArea(layer, 'left') : 0) +
+          (layer.side !== 'left' ? sideArea(layer, 'right') : 0)
+        : layer.depthM *
+          (layer.side === 'left' ? leftWidth : layer.side === 'right' ? rightWidth : leftWidth + rightWidth)
       const old = areas.get(key)
       if (old) old.areaM2 += areaM2
       else

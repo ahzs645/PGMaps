@@ -10,6 +10,7 @@
  * spacing, the grade axis, and the legend and statistics printed beside the title block. Free of DOM
  * access: it returns SVG markup for `plotBook.ts`.
  */
+import { labelStation, withStationing } from './roadStationing'
 import { unknownEarthworkSpans } from './massHaul'
 import { sheetProfileLabelsSvg } from './plotBookProfile'
 import type { ProfileGradeLimits } from './profileAnnotations'
@@ -18,10 +19,8 @@ import { textWidth } from '@/lib/mapSheet/textMetrics'
 import type { Alignment, RoadAnalysis, RoadStation } from './types'
 import { gradeSide, sustainedLimit, type GradeRule } from './designStandards'
 
-const formatRoadStation = (value: number) => {
-  const rounded = Math.round(Math.max(0, value) * 10) / 10
-  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
-}
+/** A station label under the road's stationing (`roadStationing.ts`). */
+const formatRoadStation = (value: number) => labelStation(value)
 const fmt = (n: number, d = 0) => n.toLocaleString('en-CA', { minimumFractionDigits: d, maximumFractionDigits: d })
 /** The smallest 1, 2, 2.5 or 5 × 10ⁿ step that gives no more than `target` + 1 intervals over `span`. */
 const niceStep = (span: number, target: number) => {
@@ -372,7 +371,12 @@ function profileIntervalsSvg({
   return `<g data-role="interval-profile">${boundaries}${labels}</g>`
 }
 
-export function chartsSheetBody({
+export function chartsSheetBody(...args: Parameters<typeof chartsSheetBodyInChainage>): string {
+  // Stations are named by the road's own start station and equations (`roadStationing.ts`).
+  return withStationing(args[0].alignment.stationing, () => chartsSheetBodyInChainage(...args))
+}
+
+function chartsSheetBodyInChainage({
   analysis,
   alignment,
   start,

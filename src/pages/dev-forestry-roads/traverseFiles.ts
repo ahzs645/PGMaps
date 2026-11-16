@@ -3,12 +3,13 @@
  * book, and writing the field book back out. A thin layer over `softreeTraverse.ts`, which holds
  * every format rule; this module only picks the reader or writer and says which.
  *
- * - **Formats.** Softree ASCII (`.ASC`) and IPD, Polycorder Roads, unit survey (`.pol`) and Laser
- *   Technology raw (`$PLTIT`, read only). The content decides the format
+ * - **Formats.** Softree ASCII (`.ASC`) and IPD, Polycorder Roads, unit survey (`.pol`), Laser
+ *   Technology raw (`$PLTIT`, read only) and RoadEng's own traverse (`.tr1`, read only,
+ *   `softreeNativeTraverse.ts`). The content decides the format
  *   ({@link detectTraverseFile}), never the file's name.
  * - **Units.** No format states its units (the raw format's unit letter aside), so the caller always
  *   passes `unitM`; a raw file whose own letter disagrees with it is read in the caller's unit and
- *   the notes say so.
+ *   the notes say so. A `.tr1` that states its unit (`116`) is read in it (`fileUnitM`).
  * - **Start.** A file that gives no absolute start throws `SoftreeTraverseStartQuestion`; the caller
  *   asks and reads again with `start`.
  * - **The panel's text.** The field book is edited as two CSV texts (legs, side shots);
@@ -48,11 +49,15 @@ import {
   type UnitSurveyDistance,
   type UnitSurveyVertical,
 } from './softreeTraverse'
+import { isNativeTraverse, nativeTraverseToFieldBook, parseNativeTraverse } from './softreeNativeTraverse'
 import { MAX_SURVEY_SOFTREE_CHARS, type SurveyBookSoftree, type TraverseInput } from './surveyInterchange'
 
-export type TraverseFileFormat = 'asc' | 'ipd' | 'polycorder' | 'unit-survey' | 'laser-raw'
-/** The formats a field book is written in (the raw format is a field instrument's own). */
-export type WritableTraverseFormat = Exclude<TraverseFileFormat, 'laser-raw'>
+export type TraverseFileFormat = 'asc' | 'ipd' | 'polycorder' | 'unit-survey' | 'laser-raw' | 'tr1'
+/**
+ * The formats a field book is written in (the raw format is a field instrument's own; a `.tr1` goes
+ * back as read with the RoadEng design that names it).
+ */
+export type WritableTraverseFormat = Exclude<TraverseFileFormat, 'laser-raw' | 'tr1'>
 
 export const TRAVERSE_FILE_FORMATS: Record<TraverseFileFormat, { label: string; extension: string }> = {
   asc: { label: 'Softree ASCII traverse', extension: '.asc' },
@@ -60,6 +65,7 @@ export const TRAVERSE_FILE_FORMATS: Record<TraverseFileFormat, { label: string; 
   polycorder: { label: 'Polycorder Roads traverse', extension: '.txt' },
   'unit-survey': { label: 'Unit survey', extension: '.pol' },
   'laser-raw': { label: 'Laser Technology raw survey', extension: '.raw' },
+  tr1: { label: 'RoadEng traverse', extension: '.tr1' },
 }
 /** Decimals a Polycorder file is written with (the help's examples use one; a field book holds millimetres). */
 export const POLYCORDER_EXPORT_DECIMALS = 3
@@ -69,6 +75,7 @@ export const MAX_TRAVERSE_FILE_BYTES = 50_000_000
 /** The format of a traverse file, from its content; null when it is none of them. */
 export function detectTraverseFile(text: string): TraverseFileFormat | null {
   if (isLaserRawSurvey(text)) return 'laser-raw'
+  if (isNativeTraverse(text)) return 'tr1'
   if (isSoftreeAscTraverse(text)) return parseSoftreeAscTraverse(text.slice(0, 16_000)).format
   if (isUnitSurvey(text)) return 'unit-survey'
   if (isPolycorderTraverse(text)) return 'polycorder'
@@ -93,13 +100,14 @@ export function readTraverseFile(
   text: string,
   format: TraverseFileFormat,
   options: TraverseFileReadOptions,
-): SoftreeTraverseImport & { format: TraverseFileFormat } {
+): SoftreeTraverseImport & { format: TraverseFileFormat; fileUnitM?: number } {
   if (text.length > MAX_TRAVERSE_FILE_BYTES)
     throw Error(`The traverse file is over ${MAX_TRAVERSE_FILE_BYTES / 1e6} MB.`)
   const { unitM, start } = options
   if (!(unitM > 0 && Number.isFinite(unitM))) throw Error('Choose the unit the traverse was measured in.')
   const read = { unitM, ...(start ? { start } : {}) }
   let result: SoftreeTraverseImport
+  if (format === 'tr1') return { ...nativeTraverseToFieldBook(parseNativeTraverse(text), { unitM }), format }
   if (format === 'asc' || format === 'ipd')
     result = softreeAscToTraverse(parseSoftreeAscTraverse(text, { format }), read)
   else if (format === 'polycorder') {
@@ -151,12 +159,13 @@ export interface TraverseFileWriteOptions {
  * the records afresh, and `notes` says so.
  */
 export function traverseFileDetails(
-  read: SoftreeTraverseImport & { format: TraverseFileFormat },
+  read: SoftreeTraverseImport & { format: TraverseFileFormat; fileUnitM?: number },
   unitM: number,
 ): { details: SurveyBookSoftree; notes: string[] } {
   const details: SurveyBookSoftree = {
-    sourceFormat: read.format,
-    unitM,
+    // A `.tr1`'s CREEK and ground-layer fields follow the ASCII format's conventions.
+    sourceFormat: read.format === 'tr1' ? 'asc' : read.format,
+    unitM: read.fileUnitM ?? unitM,
     extras: read.extras,
     points: read.points,
     ...(read.source ? { source: read.source } : {}),

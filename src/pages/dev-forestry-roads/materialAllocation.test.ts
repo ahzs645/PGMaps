@@ -81,10 +81,14 @@ describe('economic material flow', () => {
       p.demands = [{ layer: 'course', materialId: 'rock', volumeM3: 0.5 }]
       return p
     })
+    // The tableau model of this road is large; it must still finish, and agree with the network flow.
+    const tableau = solveDenseMaterialAllocation(e, parcels, (d) => d / 1000)
+    expect(tableau.status).toBe('optimal')
+    expect(tableau.variables).toBeGreaterThan(1500)
+    expect(tableau.movements.length).toBeGreaterThan(40)
     const result = solveMaterialAllocation(e, parcels, (d) => d / 1000)
-    expect(result.status).toBe('optimal')
-    expect(result.variables).toBeGreaterThan(1500)
-    expect(result.movements.length).toBeGreaterThan(40)
+    expect(result.method).toBe('network')
+    expect(result.objectiveCost).toBeCloseTo(tableau.objectiveCost!, 6)
   })
   it('beats chainage-order nearest allocation on an independently worked transport case', () => {
     const e = design()

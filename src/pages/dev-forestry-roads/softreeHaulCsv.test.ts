@@ -927,8 +927,14 @@ describe.skipIf(!samples || !existsSync(samples ?? ''))('Softree sample projects
     const areas = optimalAreasFromAnalysis(r, alignment.engineering, { toGrid: grid })
     const text = writeOptimalAreasCsv(areas)
     expect(writeOptimalAreasCsv(readOptimalAreasCsv(text).value)).toBe(text)
+    // The file keeps stations to 0.1 mm, so the stations 0.01 mm either side of a template step
+    // (LongRoad's rock cut to its bridge) are one station in it: those are not compared.
+    const inFile = (station: number) => Math.round(station * 1e4)
+    const shared = new Set(areas.records.map((r) => inFile(r.station)).filter((k, i, all) => all.indexOf(k) !== i))
     expect(
-      compareOptimalAreas(readOptimalAreasCsv(text).value, areas).rows.every((x) => Math.abs(x.difference ?? 0) < 1e-3),
+      compareOptimalAreas(readOptimalAreasCsv(text).value, areas)
+        .rows.filter((x) => !shared.has(inFile(x.station)))
+        .every((x) => Math.abs(x.difference ?? 0) < 1e-3),
     ).toBe(true)
     const items = massHaulItemsFromAnalysis(r, alignment.engineering?.haul)
     const mass = writeMassHaulCsv(items)

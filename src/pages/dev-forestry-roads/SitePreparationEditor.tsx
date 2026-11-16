@@ -5,6 +5,8 @@ import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, type InvalidInput } from './inputErrors'
 import type { AlignmentEngineering, SitePreparationRange } from './types'
+import { stationEntry, type StationEntry } from './stationEntry'
+import { StationField } from './StationFields'
 
 export function SitePreparationEditor({
   design,
@@ -12,10 +14,13 @@ export function SitePreparationEditor({
   station,
   problem,
   onChange,
+  stations = stationEntry(undefined, length),
 }: {
   design: AlignmentEngineering
   length: number
   station: number
+  /** How Start and End show and take stations: the road's station names when it has them. */
+  stations?: StationEntry
   /** The current invalid edit, if any; its message is shown at the range it names. */
   problem?: InvalidInput
   onChange: (design: AlignmentEngineering) => void
@@ -122,10 +127,20 @@ export function SitePreparationEditor({
             </p>
           )}
           <div className="grid grid-cols-2 gap-2">
+            {(['start', 'end'] as const).map((key) => (
+              <StationField
+                key={key}
+                entry={stations}
+                label={`Stripping ${i + 1} ${key === 'start' ? 'Start' : 'End'} station`}
+                value={r[key]}
+                min={0}
+                max={100000}
+                error={inputMessage(problem, 'sitePreparation', r.id, key)}
+                onChange={(value) => update(r.id, { [key]: value })}
+              />
+            ))}
             {(
               [
-                ['start', 'Start station', 100000],
-                ['end', 'End station', 100000],
                 ...(r.removeToMaterialId ? [] : [['depthM', 'Removal depth', 20] as const]),
                 ['leftInsideM', 'Left inside offset', 100],
                 ['rightInsideM', 'Right inside offset', 100],

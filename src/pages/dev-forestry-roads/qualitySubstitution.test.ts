@@ -151,13 +151,17 @@ describe('fill substitution by quality at the size of a real road', () => {
   }
   it('solves with every rate at zero, where the old pivot limit reported a cycle', () => {
     const parcels = roadParcels()
+    // The tableau model, which the network flow now spares this road, must still finish.
+    const tableau = solveSparseMaterialAllocation(rules(0), parcels, () => 0)!
+    expect(tableau.status).toBe('optimal')
+    expect(tableau.objectiveCost).toBe(0)
+    // The limit that failed: 500 million updates over this tableau allowed fewer pivots than rows.
+    const rows = tableau.constraints * 2 + 1
+    expect(Math.floor(500_000_000 / ((tableau.variables + 1) * rows))).toBeLessThan(rows / 2)
+    expect(allocationPivotLimit(rows)).toBeGreaterThanOrEqual(4 * rows)
     const result = solveMaterialAllocation(rules(0), parcels, () => 0)
     expect(result.status).toBe('optimal')
     expect(result.objectiveCost).toBe(0)
-    // The limit that failed: 500 million updates over this tableau allowed fewer pivots than rows.
-    const rows = result.constraints * 2 + 1
-    expect(Math.floor(500_000_000 / ((result.variables + 1) * rows))).toBeLessThan(rows / 2)
-    expect(allocationPivotLimit(rows)).toBeGreaterThanOrEqual(4 * rows)
     const fill = parcels.reduce((sum, p) => sum + p.fill, 0),
       bank = parcels.reduce((sum, p) => sum + p.cut.reduce((s, m) => s + m.bank, 0), 0)
     const placed = result.movements.filter((m) => m.kind === 'cut-to-fill'),
@@ -195,8 +199,9 @@ describe('a material plan that cannot be solved leaves the road standing', () =>
     shrinkFactor: 1,
   }
   it('keeps geometry and quantities and marks only the plan when the model is over its limit', () => {
-    // Alternating cut and fill every 2 m over 600 m with a stepped tariff needs the dense model,
-    // which is far larger than its tableau limit.
+    // Alternating cut and fill every 2 m over 600 m with a stepped tariff, and a waste site of limited
+    // capacity that takes two materials of different swell: the network flow cannot hold a capacity
+    // shared by different factors, and the dense model is far larger than its tableau limit.
     const road: Alignment = {
       id: 'road',
       name: 'Road',
@@ -223,6 +228,31 @@ describe('a material plan that cannot be solved leaves the road standing', () =>
       engineering: createEngineeringDesign(),
     }
     Object.assign(road.engineering!.haul, { enabled: true, allocation: 'economic', overhaulRate: 3, endHaulRate: 4 })
+    const swell = (id: string, compactionFactor: number) => ({
+      id,
+      name: id,
+      color: '#888888',
+      cutRate: 2,
+      reusableFraction: 1,
+      compactionFactor,
+    })
+    road.engineering!.materials = [swell('soil', 0.8), swell('rock', 1.3)]
+    road.engineering!.strata = [
+      { id: 'top', start: 0, end: 600, materialId: 'soil', topDepthM: 0, bottomDepthM: 0.3 },
+      { id: 'under', start: 0, end: 600, materialId: 'rock', topDepthM: 0.3, bottomDepthM: null },
+    ]
+    road.engineering!.sites = [
+      {
+        id: 'spoil',
+        name: 'Spoil',
+        kind: 'waste',
+        chainage: 300,
+        accessDistanceM: 0,
+        capacityM3: 1,
+        unitRate: 0,
+        fixedCost: 0,
+      },
+    ]
     const terrain = {
       elevationAt: (_: number, latitude: number) =>
         800 + Math.sin((((latitude - origin[1]) * Math.PI) / 180) * 6371008.8 * 0.5),

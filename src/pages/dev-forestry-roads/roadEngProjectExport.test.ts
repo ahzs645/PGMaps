@@ -1,17 +1,18 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import proj4 from 'proj4'
-import { strFromU8, unzipSync } from 'fflate'
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { projectedCrsDefinition } from '@/lib/geo/projectedCrs'
 import { analyzeRoad } from './engine'
 import type { XY } from './landXmlImport'
 import { localPlaneProjection } from './localPlane'
 import { roadEngDesign } from './roadEngExport'
-import { roadEngProject } from './roadEngProject'
+import { roadEngProject, withRoadEngOriginal } from './roadEngProject'
 import { roadEngExportGrid, roadEngProjectExport } from './roadEngProjectExport'
 import { parseProject } from './project'
 import { parseRoadEngTer, readRoadEngTerrainArchive } from './roadEngTerrain'
+import { sha256Hex } from './roadEngTerrainOriginal'
 import { createDemoProject, DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, exportGrid, terrainFromMetadata } from './terrain'
 import type { Alignment, Coordinate, RoadProject } from './types'
 
@@ -141,6 +142,38 @@ function keptDsn(original: string, written: string) {
 const keptRecords = (text: string) => text.split(/\r?\n/).filter((l) => l && !/^(108|109|110),/.test(l))
 
 describe('RoadEng project written back', () => {
+  it('writes an alignment RoadEng left unnamed back unnamed, until the road is renamed', () => {
+    const sloped = { elevationAt: (lon: number, lat: number) => 800 + 0.05 * (utm10.forward([lon, lat])[0] - 515_000) }
+    const parts = unzipSync(
+      roadEngDesign([{ alignment: road, analysis: analyzeRoad(road, sloped, DEFAULT_ROAD_SETTINGS) }], utmGrid.toGrid)
+        .bytes,
+    )
+    // RoadEng's own designs often hold no [HAlignOptions]: the import names the road after the file.
+    const dsn = strFromU8(parts['Location1.dsn'], true).replace(/\[HAlignOptions\]\r?\n[^[]*/, '')
+    expect(dsn).not.toMatch(/HAlignOptions/)
+    const bytes = zipSync({ ...parts, 'Location1.dsn': strToU8(dsn, true) })
+    const opened = roadEngProject([{ name: 'Creek Road.dsnx', bytes }], { ...options, epsg: 26910, noCrs: 'ask' })
+    const alignment = opened.roads[0].alignment
+    expect(alignment.name).toBe('Creek Road')
+    expect(alignment.roadEngSource?.importedName).toBe('Creek Road')
+    const written = (a: Alignment) =>
+      strFromU8(
+        projectParts(
+          roadEngProjectExport({
+            name: 'Creek Road',
+            roads: [{ alignment: a }],
+            grid: { epsg: 26910, toGrid: utmGrid.toGrid, raster: null },
+            context: [],
+            cables: [],
+            reference: [],
+          }).bytes,
+        )['D/Location1.dsn'],
+        true,
+      )
+    expect(written(alignment)).not.toMatch(/HAlignOptions/)
+    expect(written({ ...alignment, name: 'Willow Spur' })).toMatch(/\[HAlignOptions\]\r?\nOption, 1=Willow Spur/)
+  })
+
   it('writes a design it read back with its .dsn and kept records unchanged, and an edit where it belongs', () => {
     const sloped = { elevationAt: (lon: number, lat: number) => 800 + 0.05 * (utm10.forward([lon, lat])[0] - 515_000) }
     const design = roadEngDesign(
@@ -336,9 +369,10 @@ describe.skipIf(!samples || !existsSync(samples ?? ''))(
       const original = rawParts(files)
       const text = (b: Uint8Array) => strFromU8(b, true)
       const road = project.alignments[0]
-      // Read: the ground types keep the templates' batters, RoadEng's haul, pits and fill rate, and
-      // the optimizer's standards.
-      expect(road.engineering!.materials.every((m) => m.cutSlope === undefined && m.fillSlope === undefined)).toBe(true)
+      // Read: the ground types carry their slopes, which no template in use takes (none is on AUTO),
+      // RoadEng's haul, pits and fill rate, and the optimizer's standards.
+      expect(road.engineering!.materials.every((m) => m.cutSlope !== undefined && m.fillSlope !== undefined)).toBe(true)
+      expect(road.template).toMatchObject({ cutSlopeFrom: 'template', fillSlopeFrom: 'template' })
       expect(road.engineering!.sites).toHaveLength(6)
       expect(road.engineering!.haul).toMatchObject({ freeHaulDistanceM: 150, overhaulDistanceM: 1000 })
       expect(project.settings.fillRate).toBe(4)
@@ -410,6 +444,55 @@ describe.skipIf(!samples || !existsSync(samples ?? ''))(
       expect(back.roads[0].alignment.template.leftWidth).toBeCloseTo(road.template.leftWidth + 0.5, 6)
     })
 
+    it('writes LongRoad’s curves back as read, and a curve’s own superelevation into its record alone', () => {
+      const { files, project } = open(['LongRoad_1/LongRoad 1.dsnx', 'LongRoad_1/LongRoad 1.terx'])
+      const original = rawParts(files)
+      const text = (b: Uint8Array) => strFromU8(b, true)
+      const road = project.alignments[0]
+      expect(road.curveDesign).toMatchObject({
+        superelevationMode: 'table',
+        transitionFraction: 0.667,
+        tangentRunout: true,
+      })
+      const curves = (parts: Record<string, Uint8Array>) =>
+        text(parts['D/Location1.ds2'])
+          .split(/\r?\n/)
+          .filter((l) => l.startsWith('108,'))
+          .map((l) => l.split(',').slice(3))
+      // Radius, position and design values (speed, flags, e max, transitions, e, side friction, widening)
+      // come back as read.
+      const unedited = projectParts(write(project, true).bytes)
+      expect(curves(unedited)).toEqual(curves(original))
+      // PI 3 (R 340 m at 80 km/h) stated at 5 %: its e and side friction change, nothing else, and the
+      // notes say RoadEng recalculates it unless its superelevation Auto box is unticked there.
+      const editedOut = write(
+        {
+          ...project,
+          alignments: [
+            {
+              ...road,
+              points: road.points.map((p, k) =>
+                k === 3 ? { ...p, curve: { ...p.curve, superelevationPercent: 5 } } : p,
+              ),
+            },
+          ],
+        },
+        true,
+      )
+      const edited = projectParts(editedOut.bytes)
+      expect(editedOut.notes.join(' ')).toMatch(
+        /superelevation Auto off for curve H3\. Their superelevation is written as a value, which RoadEng recalculates unless the curve's superelevation Auto box is unticked there/,
+      )
+      const before = curves(original),
+        after = curves(edited)
+      after.forEach((fields, k) => {
+        const changed = fields.flatMap((v, i) => (v === before[k][i] ? [] : [i + 3]))
+        expect(changed).toEqual(k === 2 ? [15, 16] : [])
+      })
+      expect(after[2][15 - 3]).toBe('0.05')
+      expect(changedSections(text(original['D/Location1.dsn']), text(edited['D/Location1.dsn']))).toEqual([])
+    })
+
     it('writes a moved D-line with new spars and its logging system and analysis as read', () => {
       const path = 'Terrain_cables/CableAnalysis - 4.terx'
       if (!existsSync(join(samples!, path))) return
@@ -436,6 +519,117 @@ describe.skipIf(!samples || !existsSync(samples ?? ''))(
       const chunk = (d: typeof before, type: number) => d.chunks!.find((c) => c.type === type)?.payload
       for (const type of [6, 69]) expect(chunk(after, type)).toBe(chunk(before, type))
       expect(chunk(after, 12)).not.toBe(chunk(before, 12))
+    })
+  },
+)
+
+// The RoadEng sample pack (Softree's tutorial designs and terrains, read in place and never
+// committed): set ROADENG_SAMPLE_PACK to its samples folder.
+const pack = process.env.ROADENG_SAMPLE_PACK
+describe.skipIf(!pack || !existsSync(pack ?? ''))(
+  'RoadEng sample pack written back unedited',
+  { timeout: 120_000 },
+  () => {
+    const read = (p: string) => ({ name: p.split('/').pop()!, bytes: new Uint8Array(readFileSync(join(pack!, p))) })
+    /** Opened as the page opens it, RoadEng's own Terrain1.ter kept beside the project. */
+    async function openPack(paths: string[]) {
+      const files = paths.map(read)
+      const r = roadEngProject(files, { ...options, verticalReference: 'CGVD2013', importedAt: '2026-11-15T00:00:00Z' })
+      const terrain = r.originalTer
+        ? withRoadEngOriginal(r.terrain, { record: r.originalTer.record, sha256: await sha256Hex(r.originalTer.bytes) })
+        : r.terrain
+      const demo = createDemoProject()
+      const project = parseProject(
+        JSON.parse(
+          JSON.stringify({
+            ...demo,
+            name: r.name,
+            terrain,
+            alignments: r.roads.length ? r.roads.map((x) => x.alignment) : demo.alignments,
+            activeAlignmentId: r.roads[0]?.alignment.id ?? demo.activeAlignmentId,
+            context: r.context,
+            cables: r.cables,
+            reference: r.reference,
+            riggingSets: r.riggingSets,
+            notes: r.mapNotes,
+            referenceStyles: r.referenceStyles,
+            profiles: [],
+            settings: { ...DEFAULT_ROAD_SETTINGS, ...(r.fillRate !== null ? { fillRate: r.fillRate } : {}) },
+          }),
+        ),
+      )
+      return { files, r, project, ter: r.originalTer?.bytes ?? null }
+    }
+    function writePack(project: RoadProject, roadsRead: boolean, originalTer: Uint8Array | null) {
+      const source = terrainFromMetadata(project.terrain)
+      const grid = roadEngExportGrid(
+        project.terrain,
+        exportGrid(project.terrain, project.alignments[0].points[0].coordinate),
+      )
+      return roadEngProjectExport({
+        name: project.name,
+        roads: roadsRead ? project.alignments.map((alignment) => ({ alignment })) : [],
+        grid,
+        context: project.context,
+        cables: project.cables,
+        reference: project.reference ?? [],
+        ...(source ? { elevationAt: (c: Coordinate) => source.elevationAt(c[0], c[1]) } : {}),
+        fillRate: project.settings.fillRate,
+        riggingSets: project.riggingSets ?? [],
+        notes: project.notes ?? [],
+        referenceStyles: project.referenceStyles ?? [],
+        terrainSource: project.terrain.roadEngSource ?? null,
+        terrain: project.terrain,
+        originalTer,
+        wholeTerrain: !roadsRead,
+      })
+    }
+    const LOCATION = 'tutorial-v10/RoadEngCivil/Location'
+    const cases: string[][] = [
+      ['widening-only/Widening only/Widening only.dsnx', 'widening-only/Widening only/Topo.terx'],
+      ['guardrails/GuardRail.dsnx'],
+      ...['4', '7', '8', '8a'].map((s) => [`${LOCATION}/Align stage ${s}.dsnx`, `${LOCATION}/Topo.terx`]),
+      ...['bluff_road', 'bluff_road-2'].map((s) => [
+        `tutorial-v10/RoadEngCivil/Location2/${s}.dsnx`,
+        'tutorial-v10/RoadEngCivil/Location2/bluff_road.terx',
+      ]),
+      ...['Hart Rd', 'Hart Rd curves', 'Hart Rd optimal', 'Hart Rd optimal haul'].map((s) => [
+        `tutorial-v10/SoftreeOptimal/${s}.dsnx`,
+        'tutorial-v10/SoftreeOptimal/Hart Rd.terx',
+      ]),
+      ...['1', '2', '3'].map((s) => [
+        `tutorial-v11/RoadEngResource/Location/Location 18_${s}.dsnx`,
+        'tutorial-v11/RoadEngResource/Location/Terrain9_1.terx',
+      ]),
+      ['tutorial-v11/RoadEngResource/Location/image.terx'],
+      ['tutorial-v11/RoadEngResource/Location/Terrain 13_1 - Ground type notes.terx'],
+      ['tutorial-v10/RoadEngResource/Traverse/spur.terx'],
+    ]
+    it.each(cases)('writes %s back with every part as read', async (...paths: string[]) => {
+      const { files, r, project, ter } = await openPack(paths)
+      const out = writePack(project, r.roads.length > 0, ter)
+      const written = projectParts(out.bytes)
+      const text = (b: Uint8Array) => strFromU8(b, true)
+      for (const f of files)
+        if (/\.(dsnx|terx)$/i.test(f.name))
+          for (const [part, bytes] of Object.entries(unzipSync(f.bytes))) {
+            const name = `${/\.dsnx$/i.test(f.name) ? 'D' : 'T'}/${part}`
+            const back = written[name]
+            expect(back, name).toBeDefined()
+            // The .dsn is RoadEng's, then [PGMaps]; the .ds2 keeps every record it does not rebuild.
+            if (part.endsWith('.dsn')) keptDsn(text(bytes), text(back))
+            else if (part.endsWith('.ds2')) {
+              expect(keptRecords(text(back)), name).toEqual(keptRecords(text(bytes)))
+              // PIs and VIPs too, every curve's e and side friction among them (Align stage 4's Use Minimum
+              // Radius at 6 %, the bluff roads' side friction method); only the calculated stations (110) are rebuilt.
+              const records = (from: Uint8Array, type: string) =>
+                text(from)
+                  .split(/\r?\n/)
+                  .filter((l) => l.startsWith(`${type},`))
+              for (const type of ['108', '109'])
+                expect(records(back, type), `${name} ${type}`).toEqual(records(bytes, type))
+            } else expect(Buffer.from(back).equals(Buffer.from(bytes)), name).toBe(true)
+          }
     })
   },
 )

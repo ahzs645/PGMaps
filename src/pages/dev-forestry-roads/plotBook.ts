@@ -1,3 +1,4 @@
+import { labelStation, withStationing } from './roadStationing'
 import type { ExportBrand, BrandRecord } from '@/branding/model'
 import { brandLogoSvg } from '@/branding/presentation'
 /**
@@ -24,14 +25,13 @@ import {
   type RoadReportSettings,
 } from './reportSettings'
 import type { Alignment, MaterialQuantity, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
+import { terrainResolution } from './tinGround'
 import { issueStamp, PLANNING_CAVEAT, type IssueStamp, type ProjectIssue } from './projectIssue'
 import type { ProfileGradeLimits } from './profileAnnotations'
 import { SHEET_BANDS_HEIGHT, sheetBandsSvg, sheetProfileLabelsSvg } from './plotBookProfile'
 
-const formatRoadStation = (value: number) => {
-  const rounded = Math.round(Math.max(0, value) * 10) / 10
-  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
-}
+/** A station label under the road's stationing (`roadStationing.ts`). */
+const formatRoadStation = (value: number) => labelStation(value)
 /** The sheet border's inset from the paper edge and its line weight, in drawing units. */
 export const SHEET_FRAME = { x: 20, y: 16, stroke: 1.5 } as const
 /** The title block's size; it sits in the border's bottom-right corner. */
@@ -362,6 +362,14 @@ function planProfileSheet(
   return `${settings.subviews.plan ? planSvg + curves : ''}<clipPath id="profile-${clipId}"><rect x="0" y="${profile.top - 32}" width="${W}" height="${profile.height + 58}"/></clipPath>${settings.subviews.profile ? `<g clip-path="url(#profile-${clipId})">${profileOnly}</g>${bandsSvg}` : ''}${settings.subviews.mass ? massOnly : ''}${legend}<text x="60" y="1000" font-size="10">${html(scaleNote)} · profile vertical exaggeration ${physicalScale === null ? `${drawnExaggeration.toFixed(1)}× on this sheet` : `${chapter.verticalExaggeration}×`}${chapter.horizontalScale !== null || chapter.verticalExaggeration !== 1 ? ' · plots clipped to their frames' : ''}</text>`
 }
 
+/** Walls, barriers and sub-cuts on a section sheet, as the section chart colours them. */
+const STRUCTURE_FILL: Record<string, string> = {
+  'cut-wall': '#64748b',
+  'fill-wall': '#475569',
+  barrier: '#dc2626',
+  'sub-cut': '#7c3aed',
+  'wall-backfill': '#a16207',
+}
 function sectionSheet(
   stations: RoadStation[],
   settings: RoadReportSettings,
@@ -407,7 +415,17 @@ function sectionSheet(
           })
           .join(' ')
       }
-      return `<g><rect x="${ox + 4}" y="${oy + 4}" width="${cellW - 8}" height="${cellH - 8}" fill="none" stroke="#d1d5db"/><text x="${ox + cellW / 2}" y="${oy + 22}" font-size="13" font-weight="600" text-anchor="middle">${html(formatDrawingLabel(settings.stationLabel, { station: formatRoadStation(s.chainage), grade: s.gradePercent, ground: s.groundElevation, design: s.designElevation, radius: s.curveRadiusM, road: roadName, project: projectName }))}</text><clipPath id="section-${index}"><rect x="${ox + 8}" y="${oy + 28}" width="${cellW - 16}" height="${cellH - 54}"/></clipPath><g clip-path="url(#section-${index})"><line x1="${x(0)}" x2="${x(0)}" y1="${oy + 28}" y2="${oy + cellH - 26}" stroke="#e11d48" stroke-dasharray="4 3"/><path d="${pathOf('ground')}" fill="none" stroke="#6b7280" stroke-width="1.3"/><path d="${pathOf('design')}" fill="none" stroke="#0d9488" stroke-width="2"/>${s.section.some((p) => p.preparedGround !== undefined) ? `<path d="${pathOf('preparedGround')}" fill="none" stroke="#d97706" stroke-dasharray="4 3" stroke-width="1.3" data-role="prepared-ground"/>` : ''}</g><text x="${ox + 12}" y="${oy + cellH - 12}" font-size="10">L · cut ${fmt(s.cutAreaM2)} m² · fill ${fmt(s.fillAreaM2)} m² · CL ${fmt(s.designElevation, 2)}</text><text x="${ox + cellW - 12}" y="${oy + cellH - 12}" font-size="10" text-anchor="end">R</text></g>`
+      return `<g><rect x="${ox + 4}" y="${oy + 4}" width="${cellW - 8}" height="${cellH - 8}" fill="none" stroke="#d1d5db"/><text x="${ox + cellW / 2}" y="${oy + 22}" font-size="13" font-weight="600" text-anchor="middle">${html(formatDrawingLabel(settings.stationLabel, { station: formatRoadStation(s.chainage), grade: s.gradePercent, ground: s.groundElevation, design: s.designElevation, radius: s.curveRadiusM, road: roadName, project: projectName }))}</text><clipPath id="section-${index}"><rect x="${ox + 8}" y="${oy + 28}" width="${cellW - 16}" height="${cellH - 54}"/></clipPath><g clip-path="url(#section-${index})"><line x1="${x(0)}" x2="${x(0)}" y1="${oy + 28}" y2="${oy + cellH - 26}" stroke="#e11d48" stroke-dasharray="4 3"/><path d="${pathOf('ground')}" fill="none" stroke="#6b7280" stroke-width="1.3"/><path d="${pathOf('design')}" fill="none" stroke="#0d9488" stroke-width="2"/>${s.section.some((p) => p.preparedGround !== undefined) ? `<path d="${pathOf('preparedGround')}" fill="none" stroke="#d97706" stroke-dasharray="4 3" stroke-width="1.3" data-role="prepared-ground"/>` : ''}${(
+        s.structures ?? []
+      )
+        .filter((st) => st.outline.every(([o, z]) => Number.isFinite(o) && Number.isFinite(z)))
+        .map(
+          (st) =>
+            `<polygon points="${st.outline.map(([o, z]) => `${x(o).toFixed(1)},${y(z).toFixed(1)}`).join(' ')}" fill="${STRUCTURE_FILL[st.kind]}" fill-opacity="${st.kind === 'sub-cut' ? 0.25 : 0.6}" stroke="${STRUCTURE_FILL[st.kind]}" data-role="${st.kind}"/>`,
+        )
+        .join(
+          '',
+        )}</g><text x="${ox + 12}" y="${oy + cellH - 12}" font-size="10">L · cut ${fmt(s.cutAreaM2)} m² · fill ${fmt(s.fillAreaM2)} m² · CL ${fmt(s.designElevation, 2)}</text><text x="${ox + cellW - 12}" y="${oy + cellH - 12}" font-size="10" text-anchor="end">R</text></g>`
     })
     .join('')
 }
@@ -535,7 +553,12 @@ export function rangedMaterialQuantities(analysis: RoadAnalysis, startM: number,
   })
 }
 
-export function plotBookHtml({
+export function plotBookHtml(...args: Parameters<typeof plotBookHtmlInChainage>): string {
+  // Stations are named by the road's own start station and equations (`roadStationing.ts`).
+  return withStationing(args[0].alignment.stationing, () => plotBookHtmlInChainage(...args))
+}
+
+function plotBookHtmlInChainage({
   projectName,
   alignment,
   analysis,
@@ -623,7 +646,8 @@ export function plotBookHtml({
           projectName,
           alignment,
           gradeLimits,
-          terrain.resolutionM,
+          // A RoadEng TIN by its point spacing, not the grid kept over its box.
+          terrainResolution(terrain).spacingM,
         )
         if (body)
           add({

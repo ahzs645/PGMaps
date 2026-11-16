@@ -1,3 +1,4 @@
+import { labelStation } from './roadStationing'
 import { useEffect, useMemo, useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -8,10 +9,7 @@ import { NumberField } from './Controls'
 export const BALANCE_LINE_COLOR = '#c026d3'
 
 const n = (value: number) => Math.round(value).toLocaleString('en-CA')
-const station = (chainage: number) => {
-  const rounded = Math.round(Math.max(0, chainage) * 10) / 10
-  return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
-}
+const station = (chainage: number) => labelStation(chainage)
 
 /** The what-if result for a level, or null while the line is off. */
 export function useBalanceWhatIf(

@@ -10,6 +10,8 @@ import {
   readRoadEngSettings,
   ROADENG_STEP_EPSILON,
   roadEngCurveDesignFor,
+  roadEngCurveSettings,
+  roadEngFittedCurveDesignFor,
   roadEngEngineeringFor,
   roadEngMaterialsFor,
   roadEngTableValue,
@@ -262,20 +264,26 @@ describe('roadEngTemplateFor', () => {
   it('makes the template over most of the road the base section', () => {
     expect(mapped.baseCode).toBe('PGR')
     expect(mapped.template).toEqual({
-      leftWidth: 4.2,
-      rightWidth: 4.2,
+      // The 4.2 m lane plus the base's 0.15 m at its 4:1 side slope: the subgrade is 4.8 m.
+      leftWidth: 4.8,
+      rightWidth: 4.8,
       crossfallPercent: 4,
       cutSlope: 0.5,
       fillSlope: 1.499999,
-      // Bottom 1 m + 0.6 m at 4:1 + 0.6 m at 2:1: the same top width and area as RoadEng's ditch.
+      // Bottom 1 m + 0.6 m at 4:1 + 0.6 m at 2:1, the inslope kept.
       ditchWidth: 4.6,
       ditchDepth: 0.6,
       ditchBottomWidth: 1,
+      ditchInslope: 4,
       surfaceDepth: 0,
+      // From the subgrade up.
       layers: [
-        { id: 'roadeng-basethick', name: 'Base', side: 'both', depthM: 0.15 },
         { id: 'roadeng-subbasethick', name: 'Sub-base', side: 'both', depthM: 0.35 },
+        { id: 'roadeng-basethick', name: 'Base', side: 'both', depthM: 0.15, sideSlope: 4 },
       ],
+      // No slope is on AUTO: every batter is the template's stated one.
+      cutSlopeFrom: 'template',
+      fillSlopeFrom: 'template',
     })
     expect(mapped.subgradeDepthM).toEqual({ left: 0.5, right: 0.5 })
     validateTemplate(mapped.template!)
@@ -295,13 +303,17 @@ describe('roadEngTemplateFor', () => {
   })
   it('lists what it leaves behind and how it differs', () => {
     const text = mapped.unmapped.join('\n')
-    expect(text).toMatch(/side slopes of the surfacing layers.*BaseFillSlope 4:1/)
+    expect(text).not.toMatch(/side slopes/)
     expect(text).toMatch(/BRG \(Bridge\): Bridge I - Deck is a bridge deck/)
-    expect(text).toMatch(/BRG \(Bridge\): component Barrier I - Guard Rail \(Guard Rail, both\) is not one/)
+    expect(text).not.toMatch(/Guard Rail \(Guard Rail, both\) is not one/)
     expect(text).toMatch(/no value PGMaps reads for the left cut batter \(kept from the road's current section\)/)
     expect(text).toMatch(/default drain culvert \(500 mm\)/)
     const notes = mapped.notes.join('\n')
-    expect(notes).toMatch(/each ditch's 4:1 inslope and 2:1 backslope become one 3:1 slope/)
+    expect(notes).toMatch(/each ditch keeps its 4:1 inslope and 2:1 backslope/)
+    expect(notes).toMatch(/courses' side slopes \(Base 4:1\) spread the subgrade 0.6 m past the running surface/)
+    expect(notes).toMatch(
+      /BRG \(Bridge\): Barrier I - Guard Rail stands 0 m from the centreline on the left, 0.7 m high/,
+    )
     expect(notes).toMatch(/subgrade 0.5 m \(left\) and 0.5 m \(right\) below it/)
     expect(notes).toMatch(/0.6 m probe/)
     expect(notes).toMatch(/rock cut \(0.25:1 below the rock, a 2 m ledge, 1:1 above\)/)
@@ -336,10 +348,15 @@ describe('roadEngTemplateFor', () => {
     const off = ditchI.map((p): Param => (p[0] === 'bDitchInclude' ? [p[0], p[1], 0] : p))
     const t = roadEngTemplateFor(parseRoadEngSettings(dsn({ ditch: off }), ds2, 1), along).template!
     expect([t.ditchWidth, t.ditchDepth]).toEqual([0, 0])
+    // A 12.6 m ditch is drawn; one past 30 m by 10 m is not.
     const wide = ditchI.map((p): Param => (p[0] === 'DitchBotWd' ? [p[0], p[1], 9] : p))
-    const m = roadEngTemplateFor(parseRoadEngSettings(dsn({ ditch: wide }), ds2, 1), along)
+    expect(roadEngTemplateFor(parseRoadEngSettings(dsn({ ditch: wide }), ds2, 1), along).template!.ditchWidth).toBe(
+      12.6,
+    )
+    const wider = ditchI.map((p): Param => (p[0] === 'DitchBotWd' ? [p[0], p[1], 30] : p))
+    const m = roadEngTemplateFor(parseRoadEngSettings(dsn({ ditch: wider }), ds2, 1), along)
     expect(m.template!.ditchWidth).toBe(0)
-    expect(m.unmapped.join('\n')).toMatch(/each ditch \(12.6 m wide, 0.6 m deep\) is past PGMaps' 10 m by 5 m ditch/)
+    expect(m.unmapped.join('\n')).toMatch(/each ditch \(33.6 m wide, 0.6 m deep\) is past PGMaps' 30 m by 10 m ditch/)
   })
   it('says when a template has no roadway it can read', () => {
     const t = { ...parseRoadEngSettings(dsn(), ds2, 1).templates[1] }
@@ -351,8 +368,37 @@ describe('roadEngTemplateFor', () => {
 })
 
 describe('roadEngCurveDesignFor', () => {
-  it('fits PGMaps’ one rule to RoadEng’s curves and shows both', () => {
-    const { curveDesign, comparison, notes } = roadEngCurveDesignFor(parseRoadEngSettings(dsn(), ds2, 1))
+  it('takes RoadEng’s tables as the rule, and each curve’s own values where the table gives another', () => {
+    const { curveDesign, comparison, notes, unmapped } = roadEngCurveDesignFor(parseRoadEngSettings(dsn(), ds2, 1))
+    expect(curveDesign).toMatchObject({
+      designSpeedKmh: 60,
+      maxSuperelevationPercent: 6,
+      runoffLengthM: 40,
+      superelevationMode: 'table',
+      superelevationTable: { speedsKmh: [40, 60], rows: [{ radiusM: 200, values: [3, 5] }] },
+      transitionFraction: 0.667,
+      tangentRunout: true,
+    })
+    // Both curves store the formula's e where the table gives another (200 m at 60 km/h: 5 %; 100 m is
+    // below the table, so none). Which bit is RoadEng's superelevation Auto box is not known, so each
+    // keeps the e it stores, typed or not yet recalculated, as its own.
+    expect(comparison.every((c) => c.from === 'stated' && Math.abs(c.pgmapsPercent - c.roadEngPercent) < 1e-9)).toBe(
+      true,
+    )
+    expect(notes.join()).toMatch(/2 curves keep their own superelevation \(PI 1, PI 2\), where the rule gives another/)
+    expect(unmapped.join()).not.toMatch(/stored on/)
+    expect(notes.join()).toMatch(/66.7 % outside the curve, after a tangent runout/)
+    // With Use Minimum Radius (5587) a curve whose e is its e max is held there; one whose e is not keeps its own.
+    const atMax = ds2.replace(/,5585,0\.06,0\.1,([^,]+),([^,]+),0\.667,[^,]+,/, ',5587,0.06,0.1,$1,$2,0.667,0.06,')
+    const minimum = roadEngCurveDesignFor(parseRoadEngSettings(dsn(), atMax, 1))
+    expect(minimum.comparison.map((c) => [c.from, c.pgmapsPercent])).toEqual([
+      ['minimumRadius', 6],
+      ['stated', minimum.comparison[1].roadEngPercent],
+    ])
+    expect(minimum.notes.join()).toMatch(/1 curve has RoadEng's Use Minimum Radius \(PI 1\): e = e max/)
+  })
+  it('fits PGMaps’ one rule to RoadEng’s curves and shows both (projects opened before table mode)', () => {
+    const { curveDesign, comparison, notes } = roadEngFittedCurveDesignFor(parseRoadEngSettings(dsn(), ds2, 1))
     expect(curveDesign).toMatchObject({
       criteriaName: 'RoadEng: forest two lane',
       designSpeedKmh: 60,
@@ -399,7 +445,7 @@ describe('roadEngMaterialsFor', () => {
   it('keeps the templates’ batters when asked, listing the ground types’ slopes', () => {
     const m = roadEngMaterialsFor(s, { startStation: 0, endStation: 400, materialBatters: false })
     expect(m.materials.some((x) => x.cutSlope !== undefined || x.fillSlope !== undefined)).toBe(false)
-    expect(m.notes.join()).toMatch(/only for a template slope set to AUTO.*OB cut 0.25:1, fill 1:1; SR cut 0.25:1/)
+    expect(m.notes.join()).toMatch(/every template slope is its stated one.*OB cut 0.25:1, fill 1:1; SR cut 0.25:1/)
   })
   it('turns ground layers into horizons over their ranges', () => {
     expect(strata.map((h) => [h.start, h.end, h.materialId, h.topDepthM, h.bottomDepthM])).toEqual([
@@ -477,24 +523,23 @@ describe('Slope VI benches', () => {
   ]
   const text = dsn().replace('T1-C4=', `${component(1, 6, BENCHES, 'left', benches).join('\r\n')}\r\nT1-C4=`)
   const s = parseRoadEngSettings(text, ds2, 1)
-  it('takes only the closing slopes by default and lists the benches', () => {
+  it('becomes the side’s benched cut batter, closing at the template’s cut slope', () => {
     const m = roadEngTemplateFor(s, along)
     expect(m.template!.components).toBeUndefined()
+    // Applied in cut only, on the left: faces 3 m high at 0.5:1, 1.5 m benches, up to five.
+    expect(m.template!.leftBenches).toEqual({ cut: { heightM: 3, widthM: 1.5, faceSlope: 0.5, count: 5 } })
+    expect(m.template!.rightBenches).toBeUndefined()
     // Slope I, before it in the template, gives the closing slopes.
     expect(m.template!.cutSlope).toBe(0.5)
-    expect(m.unmapped.join('\n')).toMatch(
-      /the benches of Slope VI - Benches \(3 m slopes at 0.5:1 with 1.5 m benches\)/,
+    expect(m.notes.join('\n')).toMatch(
+      /Slope VI - Benches benches the cut batter: 3 m faces at 0.5:1 and 1.5 m benches, up to 5/,
     )
-  })
-  it('becomes slope and bench pairs in component mode', () => {
-    const m = roadEngTemplateFor(s, { ...along, ditchBackslope: 'component' })
-    const left = m.template!.components!.filter((c) => c.side === 'left')
-    expect(left).toHaveLength(10)
-    expect(left.slice(0, 2)).toEqual([
-      expect.objectContaining({ kind: 'slope', condition: 'cut', widthM: 1.5, riseM: 3 }),
-      expect.objectContaining({ kind: 'bench', condition: 'cut', widthM: 1.5, riseM: 0 }),
-    ])
     validateTemplate(m.template!)
+  })
+  it('is the same in component mode', () => {
+    const m = roadEngTemplateFor(s, { ...along, ditchBackslope: 'component' })
+    expect(m.template!.components).toBeUndefined()
+    expect(m.template!.leftBenches?.cut?.heightM).toBe(3)
   })
 })
 
@@ -612,9 +657,13 @@ describe('roadEngWideningFor', () => {
     expect(m.notes.join()).toMatch(/Every curve's widening matches/)
     expect(roadEngCurveDesignFor(s).curveDesign!.wideningTable).toEqual(m.wideningTable)
   })
-  it('says which curves RoadEng widened differently', () => {
+  it('keeps the widening a curve holds where the table gives another', () => {
     const m = roadEngWideningFor(parseRoadEngSettings(withTable, ds2W(0.5, 0.25), 1))
-    expect(m.unmapped.join()).toMatch(/PI 2: 0.25\/0.25 m in RoadEng, 1\/1 m here/)
+    // PI 2 has Auto widening on (5585) but stores 0.25 m where the table gives 1 m: it keeps 0.25 m.
+    expect(m.comparison[1]).toMatchObject({ tableM: 1, autoInside: true, pgmapsInsideM: 0.25, pgmapsOutsideM: 0.25 })
+    expect(m.comparison[1].own).toEqual({ insideWideningM: 0.25, outsideWideningM: 0.25 })
+    expect(m.unmapped).toEqual([])
+    expect(m.notes.join()).toMatch(/Auto widening on with a stored value the table does not give.*PI 2 0.25\/0.25 m/)
   })
   it('leaves the table off when no curve carries widening', () => {
     const m = roadEngWideningFor(parseRoadEngSettings(withTable, ds2W(0, 0), 1))
@@ -650,6 +699,45 @@ function expectValidProject(
   expect(read.alignments[0].curveDesign).toEqual(curveDesign ?? undefined)
 }
 
+/**
+ * Every curve of the designs reproduced to 1e-9 % from the curve rule read from its design and its own
+ * values (`roadEngCurveSettings`), with its transitions and transition fraction: the count of curves
+ * by where their e comes from.
+ */
+function countSampleCurves(designs: Uint8Array[]): Record<string, number> {
+  const counted: Record<string, number> = {}
+  for (const bytes of designs)
+    for (const { settings } of readRoadEngSettings(bytes).parts) {
+      const mapping = roadEngCurveDesignFor(settings)
+      if (!mapping.curveDesign) continue
+      for (const c of settings.curves) {
+        const own = roadEngCurveSettings(
+          mapping.curveDesign,
+          {
+            designSpeedMs: c.designSpeedKmh / 3.6,
+            flags: Number(c.raw[9]),
+            emax: c.eMax,
+            fLimit: c.field11,
+            e: c.e,
+            transitionFraction: c.transitionFraction,
+            runoffIn: c.transitionAtBcM,
+            runoffOut: c.transitionAtEcM,
+          },
+          { gridRadiusM: c.radiusM, modelRadiusM: c.radiusM },
+        )
+        const r = evaluateCurveCriteria(mapping.curveDesign, c.radiusM, c.deflectionDegrees ?? 0, own)
+        expect(Math.abs(r.appliedSuperelevationPercent - 100 * c.e)).toBeLessThan(1e-9)
+        if (r.superelevationSource === 'sideFriction')
+          expect(Math.abs(r.sideFrictionDemand - c.sideFriction)).toBeLessThan(1e-11)
+        expect(r.runoffInM).toBeCloseTo(c.transitionAtBcM, 9)
+        expect(r.runoffOutM).toBeCloseTo(c.transitionAtEcM, 9)
+        expect(r.transitionFraction).toBe(c.transitionFraction)
+        counted[r.superelevationSource] = (counted[r.superelevationSource] ?? 0) + 1
+      }
+    }
+  return counted
+}
+
 // Softree's published sample projects (support.softree.com), read from a local copy and never
 // committed: set ROADENG_SAMPLES to the folder holding the extracted archives.
 const samples = process.env.ROADENG_SAMPLES
@@ -673,9 +761,16 @@ describe.skipIf(!samples || !existsSync(samples))('Softree sample designs', () =
     }
     const result = roadEngEngineeringFor(settings, options)
     // Ditch I's 3:1 backslope runs 9.4 m above the road edge before Slope I's 4:1: the cut batter.
+    // Rural I's subgrade leg: ROAD_WIDTH 4.2 m + S_THICK_ADJ1 (0.001 m) ÷ 0.25 + 0.15 m of base ÷
+    // 0.25 + 0.35 m of sub-base ÷ 0.25: a 6.204 m subgrade.
     expect(result.template).toMatchObject({
-      leftWidth: 4.2,
-      rightWidth: 4.2,
+      leftWidth: 6.204,
+      rightWidth: 6.204,
+      ditchInslope: 4,
+      layers: [
+        expect.objectContaining({ id: 'roadeng-subbasethick', sideSlope: 4 }),
+        expect.objectContaining({ id: 'roadeng-basethick', sideSlope: 4 }),
+      ],
       crossfallPercent: 4,
       cutSlope: 3,
       fillSlope: 4,
@@ -762,7 +857,15 @@ describe.skipIf(!samples || !existsSync(samples))('Softree sample designs', () =
       fallback,
     })
     const main = roadEngEngineeringFor(parts[0].settings, at(0))
-    expect(main.template).toMatchObject({ leftWidth: 5.1, rightWidth: 5.1, crossfallPercent: 3, ditchDepth: 1 })
+    // 5.1 m lanes over 0.75 m of base at 3:1, and the 0.151 m S_THICK_ADJ1 (the pavement and the
+    // 1 mm the expression adds) at the base's 3:1.
+    expect(main.template).toMatchObject({
+      leftWidth: 7.803003,
+      rightWidth: 7.803003,
+      crossfallPercent: 3,
+      ditchDepth: 1,
+      ditchInslope: 4,
+    })
     expect(main.notes.join()).toMatch(/along reference feature 2/)
     expectValidProject(main.template!, main.engineering, main.curveDesign)
     const branchCurves = roadEngCurveDesignFor(parts[1].settings)
@@ -771,6 +874,20 @@ describe.skipIf(!samples || !existsSync(samples))('Softree sample designs', () =
     const branch = roadEngTemplateFor(parts[1].settings, at(1))
     expect(branch.template).toBeNull()
     expect(branch.unmapped.join()).toMatch(/Template BR on the left .* which the design does not hold/)
+  })
+  it('reproduces every sample curve’s superelevation and transitions from its tables and own values', () => {
+    const counted = countSampleCurves(
+      [
+        'LongRoad_1/LongRoad 1.dsnx',
+        'Cul-de-sac-design/CulDeSacExample/CulDeSacExampleComplete.dsnx',
+        'RoadEng-LandXML-Civil-3D/Align stage 1.dsnx',
+      ].map(sample),
+    )
+    // LongRoad: 49 curves from the table, 24 with RoadEng's Use Minimum Radius at e max (17 at 5587,
+    // where the table gives 6 % too, 7 at 5590, four where it gives less); the cul-de-sac's five
+    // curves fall outside its table (no superelevation, no runoff); the foot design's two curves read
+    // the table in mph.
+    expect(counted).toEqual({ table: 49 + 5 + 2, minimumRadius: 24 })
   })
   it('maps a foot design to metres', () => {
     const bytes = sample('RoadEng-LandXML-Civil-3D/Align stage 1.dsnx')
@@ -782,9 +899,51 @@ describe.skipIf(!samples || !existsSync(samples))('Softree sample designs', () =
       endStation: a.endStation,
       fallback,
     })
-    // 12 ft of pavement and a 6 ft shoulder a side.
-    expect(result.template!.leftWidth).toBeCloseTo(18 * 0.3048, 6)
+    // 12 ft of pavement and a 6 ft shoulder a side; Rural Paved's subgrade leg adds CSTC_THICK_ADJ
+    // (1 ft of CSTC less the 4 % shoulder's 0.24 ft fall) and 2 ft of base, each over 0.33 rise over run.
+    expect(result.template!.leftWidth).toBeCloseTo((18 + 0.76 / 0.33 + 2 / 0.33) * 0.3048, 6)
+    // The pavement is set into the CSTC: the subgrade is CSTC_THICK + BASE_THICK = 3 ft down, not 3.4.
+    expect(result.subgradeDepthM.left).toBeCloseTo(3 * 0.3048, 9)
+    expect(result.template!.layers!.map((l) => l.depthM)).toEqual([0.6096, 0.18288, 0.12192])
     expect(result.curveDesign!.designSpeedKmh).toBeCloseTo(64.37, 2)
     expectValidProject(result.template!, result.engineering, result.curveDesign)
+  })
+})
+
+// The sample pack (ROADENG_SAMPLE_PACK: Softree's tutorial designs, never committed).
+const pack = process.env.ROADENG_SAMPLE_PACK
+describe.skipIf(!pack || !existsSync(pack))('Softree sample pack: superelevation', () => {
+  const read = (path: string) => new Uint8Array(readFileSync(join(pack!, path)))
+  const civil = 'tutorial-v10/RoadEngCivil'
+  it('reproduces every curve’s stored e: the side friction method, Use Minimum Radius and the table', () => {
+    const counted = countSampleCurves(
+      [
+        ...['4', '7', '8', '8a'].map((s) => `${civil}/Location/Align stage ${s}.dsnx`),
+        `${civil}/Location2/bluff_road.dsnx`,
+        `${civil}/Location2/bluff_road-2.dsnx`,
+        ...['Hart Rd', 'Hart Rd curves', 'Hart Rd optimal', 'Hart Rd optimal haul'].map(
+          (s) => `tutorial-v10/SoftreeOptimal/${s}.dsnx`,
+        ),
+        ...['1', '2', '3'].map((s) => `tutorial-v11/RoadEngResource/Location/Location 18_${s}.dsnx`),
+        'widening-only/Widening only/Widening only.dsnx',
+        'guardrails/GuardRail.dsnx',
+      ].map(read),
+    )
+    // Stage 4's two curves are saved with Use Minimum Radius ticked (the V10 tutorial's chapter 14),
+    // so at e max, 6 %; stages 7, 8 and 8a, saved after it is unticked, take the table's 5.9 %; the
+    // bluff roads' ten curves the side friction method; Hart Rd's eight the table; Location 18's 39
+    // lie outside the table.
+    expect(counted).toEqual({ minimumRadius: 2, table: 6 + 8 + 39, sideFriction: 10 })
+  })
+  it('reads the bluff road’s side friction method and f max', () => {
+    const [{ settings }] = readRoadEngSettings(read(`${civil}/Location2/bluff_road.dsnx`)).parts
+    const { curveDesign, notes } = roadEngCurveDesignFor(settings)
+    expect(curveDesign).toMatchObject({ superelevationMode: 'sideFriction', sideFrictionFactor: 0.16 })
+    expect(notes.join(' ')).toMatch(/side friction method .* f max 0.16; 5 of 5 curves take the method's value/)
+    // 500 ft at 30 mph, e max 0.1: e = 0.1 × V²/(9.81 R) / 0.26.
+    const r = evaluateCurveCriteria(curveDesign!, 500 * 0.3048, 0)
+    expect(r.appliedSuperelevationPercent / 100).toBeCloseTo(0.0462709009645, 12)
+    expect(r.sideFrictionDemand).toBeCloseTo(0.0740334415432, 12)
+    expect(r.sideFrictionLimit).toBe(0.16)
   })
 })

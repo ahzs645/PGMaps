@@ -7,11 +7,15 @@
  * - Per curve, the `108` design the writer takes as `RoadEngExportRoad.curves`, by road point id
  *   (`roadEngCurveInputs`): design speed, e max, the transition at the BC and at the EC, the
  *   transition fraction, e, the side friction demanded (v²/(gR) − e, g = 9.81) and the inside and
- *   outside widening, from PGMaps' curve rule (`evaluateCurveCriteria`) at each curve's radius and
- *   deflection. PGMaps runs its whole runoff before the curve, so the fraction outside the curve
- *   is 1. While PGMaps still holds the curve rule it imported from the design, nothing is given and
- *   the writer keeps each curve's own record; `roadEngCurveFromTables` reads an edited curve from the
- *   design's own tables, as RoadEng's Auto settings do.
+ *   outside widening, from PGMaps' curve rule and the curve's own values (`evaluateCurveCriteria`)
+ *   at each curve's radius and deflection, the tables read at its radius in the written grid; the
+ *   caller writes only what differs from each record (`roadEngCurveChanges`), with RoadEng's Auto
+ *   superelevation bits (Auto off where PGMaps states or calculates e itself; the table or the side
+ *   friction method where RoadEng's Auto gives PGMaps' e; f max with the side friction method), and
+ *   its inside Auto widening bit when the widening is written (on where the
+ *   inside follows the road's widening table, off where the curve states its own). A project opened before table mode, still on the fitted rule it was opened
+ *   with, gives nothing and the writer keeps each curve's own record; `roadEngCurveFromTables` reads
+ *   an edited curve there from the design's own tables, as RoadEng's Auto settings do.
  * - `.dsn` key overrides (`roadEngSectionOverrides`), `{ section: { key: value | null } }`, null
  *   deleting a key, to apply to the design the road was read from (`mergeRoadEngIni` in `roadEngExport.ts`):
  *   - `[TemplatesSct]` (kept in the first alignment's `.dsn`): each PGMaps section value that differs
@@ -21,8 +25,9 @@
  *     changed component is evaluated again where it is plain arithmetic (`ROAD_WIDTH`, `SG_DEPTH`, …),
  *     and left for RoadEng otherwise. A library template with no RoadEng original is written as a
  *     copy of the road's base RoadEng template under a new code, with its own values. The lookup
- *     tables (superelevation, runoff, widening), `RoadOptions` and `CurveHorizontal` are rewritten
- *     only when PGMaps' curve rule differs from the imported one.
+ *     tables (superelevation, side friction, runoff, widening), `RoadOptions` and `CurveHorizontal`
+ *     are rewritten only when PGMaps' curve rule differs from the imported one: in table mode
+ *     PGMaps' own tables where they differ from the design's, in formula mode tables made from it.
  *   - `[LocationParms]` of the alignment: the station ranges, split at every original boundary and
  *     every PGMaps assignment end, each row keeping all its other fields (ground layers, the
  *     unidentified ones) from the original row it lies in, with the left and right template codes
@@ -45,9 +50,10 @@
  * Pure: no DOM or network access.
  */
 import { horizontalCurveFits } from './engine'
+import { evaluateRoadEngExpression } from './roadEngConstruction'
 import type { RoadEngDsnOverrides } from './roadEngExport'
 import type { RoadEngCurveFields } from './roadEngImport'
-import { evaluateCurveCriteria } from './roadCriteria'
+import { evaluateCurveCriteria, MAX_TABLE_RADIUS_SCALE } from './roadCriteria'
 import {
   parseRoadEngSettings,
   readRoadEngIni,
@@ -56,6 +62,14 @@ import {
   ROADENG_SUPERELEVATION_TABLE,
   ROADENG_WIDENING_TABLE,
   roadEngCurveDesignFor,
+  roadEngFittedCurveDesignFor,
+  roadEngTableFromPgmaps,
+  roadEngTableToPgmaps,
+  ROADENG_MINIMUM_RADIUS_BIT,
+  ROADENG_TABLE_SUPERELEVATION_BIT,
+  ROADENG_AUTO_WIDENING_INSIDE_BIT,
+  roadEngAutoWideningOutside,
+  ROADENG_SIDE_FRICTION_TABLE,
   roadEngTemplateFor,
   roadEngTemplateId,
   roadEngTableValue,
@@ -71,8 +85,18 @@ import {
   type RoadEngTemplateOptions,
 } from './roadEngDesignSettings'
 import { rockCutAt } from './rockExcavation'
+import { benchesAt, courseSideRunM, ditchInslopeAt, subCutAt } from './sectionStructures'
 import { sideValue } from './templates'
-import type { Alignment, CurveDesign, RoadTemplate, SectionComponent, SectionLayer, TemplateAssignment } from './types'
+import type {
+  Alignment,
+  CurveDesign,
+  CurveLookupTable,
+  CurveSettings,
+  RoadTemplate,
+  SectionComponent,
+  SectionLayer,
+  TemplateAssignment,
+} from './types'
 
 /** The last `[LocationParms]` row's end: the end of the road. */
 const ROADENG_ROAD_END = '999999999'
@@ -80,9 +104,9 @@ const ROADENG_ROAD_END = '999999999'
 export const ROADENG_GRAVITY = 9.81
 /** A template code this module makes is at most this long, as RoadEng's own are. */
 export const ROADENG_NEW_CODE_LENGTH = 8
-/** Formula text evaluated at most, characters. */
-const MAX_FORMULA_LENGTH = 500
 const EPS = 1e-9
+/** A vertical slope as RoadEng's own library writes it (rise over run). */
+const ROADENG_VERTICAL_SLOPE = 9999.99
 
 // ---- Numbers as RoadEng writes them ----------------------------------------------------------------
 
@@ -110,29 +134,143 @@ function canonical(value: unknown): string {
 const sameCurveRule = (a: CurveDesign | null | undefined, b: CurveDesign | null | undefined) =>
   canonical(a ?? null) === canonical(b ?? null)
 
-/** One curve's `108` design from PGMaps' rule at its radius and deflection. */
+/**
+ * One curve's `108` design from PGMaps' rule and the curve's own settings (`own`) at its radius and
+ * deflection: its design speed, e max, runoff at each end (at least the spiral), the share of the
+ * runoff outside the curve (1, the whole runoff before it, unless the road or curve states one), e,
+ * the side friction it demands and the widening; with the side friction method, also its f max.
+ */
 export function roadEngCurveFromRule(
   design: CurveDesign | null,
   radiusM: number,
   deflectionDegrees: number,
   spiralM = 0,
   defaultSpeedKmh = 50,
+  own?: CurveSettings | null,
 ): RoadEngCurveFields {
-  const v = (design?.designSpeedKmh ?? defaultSpeedKmh) / 3.6
-  const criteria = design && radiusM > 0 ? evaluateCurveCriteria(design, radiusM, deflectionDegrees) : null
+  const criteria = design && radiusM > 0 ? evaluateCurveCriteria(design, radiusM, deflectionDegrees, own) : null
+  const v = (criteria?.designSpeedKmh ?? design?.designSpeedKmh ?? defaultSpeedKmh) / 3.6
   const e = criteria ? criteria.appliedSuperelevationPercent / 100 : 0
-  const runoff = design && radiusM > 0 ? Math.max(design.runoffLengthM, spiralM) : 0
   return {
     designSpeedMs: v,
-    emax: design ? design.maxSuperelevationPercent / 100 : 0.06,
-    runoffIn: runoff,
-    runoffOut: runoff,
-    // PGMaps runs the whole runoff before the curve.
-    transitionFraction: 1,
+    emax: criteria ? criteria.maxSuperelevationPercent / 100 : design ? design.maxSuperelevationPercent / 100 : 0.06,
+    runoffIn: criteria ? Math.max(criteria.runoffInM, spiralM) : 0,
+    runoffOut: criteria ? Math.max(criteria.runoffOutM, spiralM) : 0,
+    transitionFraction: criteria?.transitionFraction ?? 1,
     e,
     sideFriction: radiusM > 0 ? (v * v) / (ROADENG_GRAVITY * radiusM) - e : 0,
+    ...(design?.superelevationMode === 'sideFriction' && typeof criteria?.sideFrictionLimit === 'number'
+      ? { fLimit: criteria.sideFrictionLimit }
+      : {}),
     widening: { insideM: criteria?.insideWideningM ?? 0, outsideM: criteria?.outsideWideningM ?? 0 },
   }
+}
+
+/** A written radius within this share of the road's is the same radius, only rounded in the writing. */
+const GRID_RADIUS_ROUNDING = 1e-6
+/** A `108` value differs from the record's past these, else the record's own stays. */
+const CURVE_SAME = { speedMs: 1e-6, ratio: 1e-9, lengthM: 1e-6 }
+
+/**
+ * The fields of a curve's `108` design (`given`, from {@link roadEngCurveInputs}) that differ from
+ * the record it was read with, in the record's units; null when none does, so the writer keeps the
+ * record as read. `from` sets the table bit of field 9 (`ROADENG_TABLE_SUPERELEVATION_BIT`, read
+ * from Softree's samples) where the curve's e is the table's or the side friction method's. Use
+ * Minimum Radius (`ROADENG_MINIMUM_RADIUS_BIT`) is never set and stays as read, cleared only where
+ * an edit takes the curve off it: an e other than its e max, another design speed, or another
+ * radius (`radiusChanged`). A typed e is written as a value only: which bit unticks the curve's
+ * superelevation Auto in RoadEng is not known ({@link roadEngTypedSuperelevation} names those
+ * curves). A spiral curve's transitions are its spirals, which the writer writes itself.
+ */
+export function roadEngCurveChanges(
+  given: RoadEngCurveFields,
+  record: readonly string[],
+  unitM: number,
+  from: 'formula' | 'table' | 'sideFriction' | 'minimumRadius' | 'stated' | null,
+  spiral = false,
+  insideWideningFromTable: boolean | null = null,
+  radiusChanged = false,
+): RoadEngCurveFields | null {
+  const n = (i: number) => (record[i] === undefined || record[i].trim() === '' ? NaN : Number(record[i]))
+  const differs = (value: number | undefined, read: number, tolerance: number) =>
+    value !== undefined && Number.isFinite(value) && !(Math.abs(value - read) <= tolerance)
+  const out: RoadEngCurveFields = {}
+  if (differs(given.designSpeedMs, n(8) * unitM, CURVE_SAME.speedMs)) out.designSpeedMs = given.designSpeedMs
+  if (differs(given.emax, n(10), CURVE_SAME.ratio)) out.emax = given.emax
+  if (differs(given.fLimit, n(11), CURVE_SAME.ratio)) out.fLimit = given.fLimit
+  if (!spiral) {
+    if (differs(given.runoffIn, n(12) * unitM, CURVE_SAME.lengthM)) out.runoffIn = given.runoffIn
+    if (differs(given.runoffOut, n(13) * unitM, CURVE_SAME.lengthM)) out.runoffOut = given.runoffOut
+    if (differs(given.transitionFraction, n(14), CURVE_SAME.ratio)) out.transitionFraction = given.transitionFraction
+  }
+  if (differs(given.e, n(15), CURVE_SAME.ratio)) out.e = given.e
+  if (
+    given.widening &&
+    (differs(given.widening.insideM, n(17) * unitM, CURVE_SAME.lengthM) ||
+      differs(given.widening.outsideM, n(18) * unitM, CURVE_SAME.lengthM))
+  )
+    out.widening = given.widening
+  let flags = n(9)
+  if (Number.isInteger(flags)) {
+    let next = flags
+    if (from === 'table') next |= ROADENG_TABLE_SUPERELEVATION_BIT
+    else if (from === 'sideFriction') next &= ~ROADENG_TABLE_SUPERELEVATION_BIT
+    // Use Minimum Radius stays as read until an edit takes the curve off its minimum radius.
+    const e = given.e ?? n(15),
+      emax = given.emax ?? n(10)
+    if (
+      (next & ROADENG_MINIMUM_RADIUS_BIT) !== 0 &&
+      (!(Math.abs(e - emax) <= CURVE_SAME.ratio) || out.designSpeedMs !== undefined || radiusChanged)
+    )
+      next &= ~ROADENG_MINIMUM_RADIUS_BIT
+    if (next !== flags) out.flags = next
+  }
+  // The inside Auto widening bit changes only with a written widening: where the value is the
+  // record's, RoadEng's own setting stays, whatever PGMaps' rule is.
+  flags = out.flags ?? flags
+  if (out.widening && insideWideningFromTable !== null && Number.isInteger(flags)) {
+    const auto = (flags & ROADENG_AUTO_WIDENING_INSIDE_BIT) !== 0
+    if (auto !== insideWideningFromTable) out.flags = flags ^ ROADENG_AUTO_WIDENING_INSIDE_BIT
+  }
+  // The outside Auto box's bit is not identified (bit 12 or a cleared bit 5): both stay as read, and
+  // the export says where RoadEng recalculates a written outside value (`roadEngOutsideAutoNote`).
+  return Object.keys(out).length ? out : null
+}
+
+/**
+ * The export's line for a curve whose outside widening is written while its record reads RoadEng's
+ * outside Widening Auto as on (`roadEngAutoWideningOutside`): RoadEng recalculates that side from
+ * its table, because the box's bit is not identified and is left as read. Null where no such
+ * outside value is written.
+ */
+export function roadEngOutsideAutoNote(
+  written: RoadEngCurveFields | null,
+  record: readonly string[],
+  unitM: number,
+  outsideWideningFromTable: boolean | null,
+): string | null {
+  if (!written?.widening || outsideWideningFromTable === true) return null
+  if (roadEngAutoWideningOutside(Number(record[9])) !== true) return null
+  const read = Number(record[18]) * unitM
+  if (Number.isFinite(read) && Math.abs(written.widening.outsideM - read) <= CURVE_SAME.lengthM) return null
+  return `PI ${record[1]}: its outside widening is written as ${Math.round(written.widening.outsideM * 1000) / 1000} m, but RoadEng recalculates it from its widening table unless the curve's outside Widening Auto box is unticked there.`
+}
+
+/**
+ * Whether a written curve's e is PGMaps' own (stated, PGMaps' formula, or Use Minimum Radius on a
+ * curve whose record does not carry it) rather than a value RoadEng's Auto calculates the same way:
+ * RoadEng recalculates such an e unless the curve's superelevation Auto is unticked there, and the
+ * bit for that box is not known, so the caller names these curves in its notes.
+ */
+export function roadEngTypedSuperelevation(
+  written: Pick<RoadEngCurveFields, 'e' | 'flags'> | null | undefined,
+  from: 'formula' | 'table' | 'sideFriction' | 'minimumRadius' | 'stated' | null | undefined,
+  record?: readonly string[] | null,
+): boolean {
+  if (written?.e === undefined || from === 'table' || from === 'sideFriction') return false
+  if (from !== 'minimumRadius') return true
+  const flags = Number(record?.[9] ?? written.flags ?? NaN)
+  return !(Number.isInteger(flags) && (flags & ROADENG_MINIMUM_RADIUS_BIT) !== 0)
 }
 
 /**
@@ -171,32 +309,86 @@ export function roadEngCurveFromTables(
 }
 
 /**
- * Each curve's `108` design for the design writer (`RoadEngExportRoad.curves`), by road point id.
- * While PGMaps' curve rule is still the one imported from `original` it is empty (`kept`): the
- * writer then keeps each curve's own record, which the rule was fitted to. Otherwise, or with no
- * original, every fitted curve gets PGMaps' superelevation, side friction, runoff (all before the
- * curve, so a transition fraction of 1) and widening at its radius and deflection in the road model.
+ * Each curve's `108` design for the design writer (`RoadEngExportRoad.curves`), by road point id:
+ * PGMaps' superelevation, side friction, runoff, transition fraction and widening at its radius and
+ * deflection in the road model, from the road's rule and the curve's own settings, and `from`, where
+ * each curve's e comes from. The caller writes only what differs from each curve's record
+ * ({@link roadEngCurveChanges}), so an unedited road read from RoadEng writes its records as read.
+ *
+ * A project opened before table mode holds the old fitted rule (`roadEngFittedCurveDesignFor`) and no
+ * curve settings; while that rule is unedited the result is empty (`kept`) and the writer keeps each
+ * curve's own record, as it did then.
  */
 export function roadEngCurveInputs(
   alignment: Pick<Alignment, 'points' | 'curveDesign'> & Partial<Alignment>,
-  options: { original?: RoadEngSettings | null; designSpeedKmh?: number } = {},
-): { curves: Record<string, RoadEngCurveFields>; kept: boolean } {
+  options: {
+    original?: RoadEngSettings | null
+    designSpeedKmh?: number
+    /** Each curve's radius in the design's grid (`roadEngWrittenRadii`): table mode reads the tables there, as RoadEng does. */
+    gridRadiusM?: Readonly<Record<string, number>>
+  } = {},
+): {
+  curves: Record<string, RoadEngCurveFields>
+  kept: boolean
+  from: Record<string, 'formula' | 'table' | 'sideFriction' | 'minimumRadius' | 'stated'>
+  /** Each curve's inside widening is the road's widening table's (RoadEng's Auto widening on the inside). */
+  insideWideningFromTable: Record<string, boolean>
+  /** The same on the outside: read for the export's note only, never written as a bit. */
+  outsideWideningFromTable: Record<string, boolean>
+} {
   const d = alignment.curveDesign ?? null
   const original = options.original ?? null
-  if (original && sameCurveRule(roadEngCurveDesignFor(original).curveDesign, d)) return { curves: {}, kept: true }
+  if (
+    original &&
+    !alignment.points.some((p) => p.curve) &&
+    sameCurveRule(roadEngFittedCurveDesignFor(original).curveDesign, d)
+  )
+    return { curves: {}, kept: true, from: {}, insideWideningFromTable: {}, outsideWideningFromTable: {} }
   const curves: Record<string, RoadEngCurveFields> = {}
+  const from: Record<string, 'formula' | 'table' | 'sideFriction' | 'minimumRadius' | 'stated'> = {}
+  const insideWideningFromTable: Record<string, boolean> = {}
+  const outsideWideningFromTable: Record<string, boolean> = {}
   for (const fit of horizontalCurveFits(alignment as Alignment)) {
     if (fit.status !== 'fitted' || !(fit.radiusM > 0)) continue
     const point = alignment.points[fit.point - 1]
+    // A curve read from RoadEng keeps the radius it had there; another is read at its written radius
+    // where the grid's scale moves it (not where writing only rounds it).
+    const grid = options.gridRadiusM?.[point.id]
+    const scale = grid && grid > 0 ? grid / fit.radiusM : null
+    const own =
+      (d?.superelevationMode === 'table' || d?.superelevationMode === 'sideFriction') &&
+      point.curve?.tableRadiusScale === undefined &&
+      scale !== null &&
+      Math.abs(scale - 1) > GRID_RADIUS_ROUNDING &&
+      scale > 1 / MAX_TABLE_RADIUS_SCALE &&
+      scale < MAX_TABLE_RADIUS_SCALE
+        ? { ...point.curve, tableRadiusScale: scale }
+        : point.curve
     curves[point.id] = roadEngCurveFromRule(
       d,
       fit.radiusM,
       fit.deflectionDegrees,
       point.spiralM ?? 0,
       options.designSpeedKmh,
+      own,
     )
+    if (d) {
+      const criteria = evaluateCurveCriteria(d, fit.radiusM, fit.deflectionDegrees, own)
+      from[point.id] = criteria.superelevationSource
+      // RoadEng reproduces only a table on its own: a vehicle length or added width it cannot.
+      insideWideningFromTable[point.id] =
+        criteria.wideningSource.inside === 'rule' &&
+        !!d.wideningTable?.length &&
+        !d.wideningVehicleLengthM &&
+        !d.insideWideningM
+      outsideWideningFromTable[point.id] =
+        criteria.wideningSource.outside === 'rule' &&
+        !!d.wideningTable?.some((row) => row.outsideM > 0) &&
+        !d.wideningVehicleLengthM &&
+        !d.outsideWideningM
+    }
   }
-  return { curves, kept: false }
+  return { curves, kept: false, from, insideWideningFromTable, outsideWideningFromTable }
 }
 
 // ---- Lookup tables ------------------------------------------------------------------------------------
@@ -335,80 +527,11 @@ export function superelevationTableFor(
 // ---- Formulas --------------------------------------------------------------------------------------
 
 /**
- * Evaluates a RoadEng parameter formula of plain arithmetic: numbers, parameter names, + − × ÷,
- * brackets and the comparisons > < >= <= == != (1 true, 0 false). Null for anything else (a
- * function, an unknown name), which RoadEng then evaluates itself.
+ * Evaluates a RoadEng parameter formula (`evaluateRoadEngExpression`, `roadEngConstruction.ts`) with
+ * values keyed by upper-case name. Null for one it cannot read, which RoadEng then evaluates itself.
  */
 export function evaluateRoadEngFormula(formula: string, values: ReadonlyMap<string, number>): number | null {
-  if (formula.length > MAX_FORMULA_LENGTH) return null
-  const tokens = formula.match(/\d+\.?\d*(?:e[+-]?\d+)?|\.\d+|[A-Za-z_][A-Za-z0-9_]*|>=|<=|==|!=|[-+*/()<>]|\S/gi) ?? []
-  let k = 0
-  const peek = () => tokens[k]
-  const fail = Symbol('fail')
-  const primary = (): number => {
-    const t = tokens[k++]
-    if (t === undefined) throw fail
-    if (t === '(') {
-      const v = comparison()
-      if (tokens[k++] !== ')') throw fail
-      return v
-    }
-    if (t === '-') return -primary()
-    if (t === '+') return primary()
-    if (/^[\d.]/.test(t)) return Number(t)
-    if (/^[A-Za-z_]/.test(t)) {
-      if (tokens[k] === '(') throw fail
-      const v = values.get(t.toUpperCase())
-      if (v === undefined) throw fail
-      return v
-    }
-    throw fail
-  }
-  const term = (): number => {
-    let v = primary()
-    while (peek() === '*' || peek() === '/') {
-      const op = tokens[k++]
-      const r = primary()
-      v = op === '*' ? v * r : v / r
-    }
-    return v
-  }
-  const sum = (): number => {
-    let v = term()
-    while (peek() === '+' || peek() === '-') {
-      const op = tokens[k++]
-      const r = term()
-      v = op === '+' ? v + r : v - r
-    }
-    return v
-  }
-  const comparison = (): number => {
-    const v = sum()
-    const op = peek()
-    if (!['>', '<', '>=', '<=', '==', '!='].includes(op ?? '')) return v
-    k++
-    const r = sum()
-    const truth =
-      op === '>'
-        ? v > r
-        : op === '<'
-          ? v < r
-          : op === '>='
-            ? v >= r
-            : op === '<='
-              ? v <= r
-              : op === '=='
-                ? v === r
-                : v !== r
-    return truth ? 1 : 0
-  }
-  try {
-    if (!tokens.length) return null
-    const v = comparison()
-    return k === tokens.length && Number.isFinite(v) ? v : null
-  } catch {
-    return null
-  }
+  return evaluateRoadEngExpression(formula, (name) => values.get(name.toUpperCase()))
 }
 
 // ---- Applying overrides -------------------------------------------------------------------------------
@@ -527,17 +650,25 @@ function templateEdits(
 
   for (const side of SIDES) {
     const src = sources[side]
-    const width = { m: mapped[`${side}Width`], w: wanted[`${side}Width`] }
+    // RoadEng's widths are the running surface: PGMaps' formation less the courses' side runs. The
+    // formation was read from the component's construction (`roadEngConstruction.ts`), whose runs
+    // need not match PGMaps' course stack, so the running surface moves by what the edit moved.
+    const width = {
+      m: mapped[`${side}Width`] - courseSideRunM(mapped.layers, side),
+      w: wanted[`${side}Width`] - courseSideRunM(wanted.layers, side),
+    }
     if (differs(width.m, width.w)) {
       if (!src.width?.length) missing(side, 'road width')
       else {
+        const stated = src.width.reduce((sum, s) => sum + (rawOf(s) ?? 0) * unitM, 0)
+        const running = stated + width.w - width.m
         const others = src.width.slice(1).reduce((sum, s) => sum + (rawOf(s) ?? 0) * unitM, 0)
-        if (width.w - others > EPS) setParam(src.width[0], lengthRaw(width.w - others), 'road width')
+        if (running - others > EPS) setParam(src.width[0], lengthRaw(running - others), 'road width')
         else {
           for (const s of src.width.slice(1)) setParam(s, 0, 'shoulder width')
-          setParam(src.width[0], lengthRaw(width.w), 'road width')
+          setParam(src.width[0], lengthRaw(Math.max(0, running)), 'road width')
         }
-        edits.said.push(`${label}: ${side} road width ${fmt(width.w)} m`)
+        edits.said.push(`${label}: ${side} road width ${fmt(running)} m`)
       }
     }
     const fall = {
@@ -590,10 +721,12 @@ function templateEdits(
         bottom: sideValue(wanted, side, 'DitchBottomWidth'),
       },
     }
+    const ownInslope = { m: ditchInslopeAt(mapped, side), w: ditchInslopeAt(wanted, side) }
     const ditchChanged =
       differs(ditch.m.width, ditch.w.width) ||
       differs(ditch.m.depth, ditch.w.depth) ||
-      differs(ditch.m.bottom, ditch.w.bottom)
+      differs(ditch.m.bottom, ditch.w.bottom) ||
+      differs(ownInslope.m, ownInslope.w)
     const mode = src.backslope?.mode
     const componentId = mode === 'component' ? src.backslope!.componentId : undefined
     const continuation = {
@@ -619,7 +752,22 @@ function templateEdits(
         else if (d.depth) setParam(d.depth, 0, 'ditch depth')
         edits.said.push(`${label}: no ${side} ditch`)
       } else {
-        const inslope = (ditch.w.width - ditch.w.bottom) / ditch.w.depth - back.w
+        // The inslope that keeps the top width beside the backslope RoadEng has for this ditch.
+        const keeps = (ditch.w.width - ditch.w.bottom) / ditch.w.depth - back.w
+        let inslope = keeps,
+          ownBackslope: number | null = null
+        if (ownInslope.w !== undefined) {
+          const implied = (ditch.w.width - ditch.w.bottom) / ditch.w.depth - ownInslope.w
+          // RoadEng's ditch has a backslope of its own only where it is neither the cut batter nor a component.
+          if (!mode && d.backslope) {
+            inslope = ownInslope.w
+            ownBackslope = implied
+          } else if (Math.abs(implied - back.w) < 1e-6) inslope = ownInslope.w
+          else
+            edits.notWritten.push(
+              `${label}: the ${side} ditch's ${fmt(ownInslope.w)}:1 inslope with a ${fmt(implied)}:1 backslope; RoadEng's backslope on this side is the ${fmt(back.w)}:1 ${mode === 'component' ? 'slope above the ditch' : 'cut batter'}, so the inslope is written ${fmt(keeps)}:1, keeping the ${fmt(ditch.w.width)} m top width.`,
+            )
+        }
         if (!(inslope > 0.01) || !d.depth || !d.inslope)
           edits.notWritten.push(
             `${label}: the ${side} ditch (${fmt(ditch.w.width)} m wide, ${fmt(ditch.w.depth)} m deep, ${fmt(ditch.w.bottom)} m bottom); with a ${fmt(back.w)}:1 backslope it leaves no inslope.`,
@@ -631,6 +779,8 @@ function templateEdits(
           setParam(d.inslope, slopeRaw(d.inslope, inslope), 'ditch inslope')
           if (mode && d.backslope && differs(back.m, back.w))
             setParam(d.backslope, slopeRaw(d.backslope, back.w), 'ditch backslope')
+          if (ownBackslope !== null && d.backslope && differs(ownBack ?? undefined, ownBackslope))
+            setParam(d.backslope, slopeRaw(d.backslope, ownBackslope), 'ditch backslope')
           edits.said.push(
             `${label}: ${side} ditch ${fmt(ditch.w.depth)} m deep, ${fmt(ditch.w.bottom)} m bottom, ${fmt(inslope)}:1 inslope`,
           )
@@ -655,8 +805,141 @@ function templateEdits(
       const m = layerDepth(mapped, key),
         w = layerDepth(wanted, key)
       if (!differs(m, w)) continue
-      setParam(s, lengthRaw(w), 'course')
-      edits.said.push(`${label}: ${side} ${key} ${fmt(w, 3)} m`)
+      // A course read between the surfaces its component builds (a pavement set into it) is thinner
+      // than its parameter: the parameter moves by what the edit moved.
+      const raw = (rawOf(s) ?? 0) + lengthRaw(w - m)
+      setParam(s, Math.max(0, raw), 'course')
+      edits.said.push(`${label}: ${side} ${key} ${fmt(raw * unitM, 3)} m`)
+    }
+    // Course side slopes; a square edge is RoadEng's vertical slope.
+    const layerSlope = (template: RoadTemplate, key: string) =>
+      (template.layers ?? []).find(
+        (l) =>
+          (l.id === `roadeng-${key}` && l.side === 'both') || (l.id === `roadeng-${key}-${side}` && l.side === side),
+      )?.sideSlope ?? 0
+    for (const [key, s] of Object.entries(src.layerSlopes ?? {})) {
+      const m = layerSlope(mapped, key),
+        w = layerSlope(wanted, key)
+      if (!differs(m, w)) continue
+      setParam(s, w > 0 ? slopeRaw(s, w) : ROADENG_VERTICAL_SLOPE, 'course side slope')
+      edits.said.push(`${label}: ${side} ${key} side slope ${w > 0 ? `${fmt(w)}:1` : 'square'}`)
+    }
+    // Benches, walls, barriers and sub-cuts: each value back into the parameter it came from.
+    const put = (
+      s: RoadEngSource | undefined,
+      m: number | undefined,
+      w: number | undefined,
+      raw: number,
+      what: string,
+    ) => {
+      if (!differs(m, w)) return
+      if (!s || w === undefined) missing(side, what)
+      else {
+        setParam(s, raw, what)
+        edits.said.push(`${label}: ${side} ${what} ${fmt(w)}`)
+      }
+    }
+    for (const kind of ['cut', 'fill'] as const) {
+      const bm = benchesAt(mapped, side, kind),
+        bw = benchesAt(wanted, side, kind),
+        bs = src.benches?.[kind]
+      if (!bs) {
+        if (canonical(bm) !== canonical(bw)) missing(side, `${kind} benches`)
+        continue
+      }
+      put(bs.height, bm?.heightM, bw?.heightM, lengthRaw(bw?.heightM ?? 0), `${kind} bench height`)
+      put(bs.width, bm?.widthM, bw?.widthM, lengthRaw(bw?.widthM ?? 0), `${kind} bench width`)
+      put(bs.face, bm?.faceSlope, bw?.faceSlope, slopeRaw(bs.face, bw?.faceSlope ?? 1), `${kind} bench face`)
+      put(
+        bs.fall,
+        bm?.benchFallPercent ?? 0,
+        bw?.benchFallPercent ?? 0,
+        (bw?.benchFallPercent ?? 0) / 100,
+        `${kind} bench fall`,
+      )
+    }
+    for (const w of (wanted.walls ?? []).filter((x) => x.side === side)) {
+      const m = mapped.walls?.find((x) => x.id === w.id),
+        ws = src.walls?.[w.id]
+      if (!ws) {
+        if (canonical(m) !== canonical(w)) edits.notWritten.push(`${label}: the ${side} ${w.kind} wall ${w.name}.`)
+        continue
+      }
+      put(ws.height, m?.heightM, w.heightM, lengthRaw(w.heightM), `${w.name} height`)
+      put(ws.thickness, m?.thicknessM, w.thicknessM, lengthRaw(w.thicknessM), `${w.name} thickness`)
+      if (ws.face)
+        put(
+          ws.face,
+          m?.faceSlope ?? 0,
+          w.faceSlope ?? 0,
+          slopeRaw(ws.face, w.faceSlope || 1e-6),
+          `${w.name} face batter`,
+        )
+      if (ws.setback && w.kind === 'cut')
+        put(ws.setback, m?.setbackM ?? 0, w.setbackM ?? 0, lengthRaw(w.setbackM ?? 0), `${w.name} setback`)
+      if (ws.cover)
+        put(ws.cover, m?.coverHeightM ?? 0, w.coverHeightM ?? 0, lengthRaw(w.coverHeightM ?? 0), `${w.name} cover`)
+      // Wall IV's backfill is read from parameters an expression ties together (`WallBFillOffset`).
+      if (canonical(m?.backfill) !== canonical(w.backfill))
+        edits.notWritten.push(`${label}: the ${side} ${w.name} backfill; it is RoadEng's to set.`)
+    }
+    for (const b of (wanted.barriers ?? []).filter((x) => x.side === side)) {
+      const m = mapped.barriers?.find((x) => x.id === b.id),
+        bs = src.barriers?.[b.id]
+      if (!bs) {
+        if (canonical(m) !== canonical(b)) edits.notWritten.push(`${label}: the ${side} barrier ${b.name}.`)
+        continue
+      }
+      put(bs.offset, m?.offsetM, b.offsetM, lengthRaw(b.offsetM), `${b.name} offset`)
+      put(bs.height, m?.heightM, b.heightM, lengthRaw(b.heightM), `${b.name} height`)
+      if (bs.width) put(bs.width, m?.widthM, b.widthM, lengthRaw(b.widthM), `${b.name} width`)
+    }
+    {
+      const m = subCutAt(mapped, side),
+        w = subCutAt(wanted, side),
+        ss = src.subCut
+      if (!ss) {
+        if (canonical(m) !== canonical(w)) missing(side, 'sub-cut')
+      } else {
+        put(ss.depth, m?.depthM, w?.depthM, lengthRaw(w?.depthM ?? 0), 'sub-cut depth')
+        put(ss.width, m?.widthM ?? 0, w?.widthM ?? 0, lengthRaw(w?.widthM ?? 0), 'sub-cut width')
+        if (ss.outside)
+          put(
+            ss.outside,
+            m?.outsideSlope ?? 0,
+            w?.outsideSlope ?? 0,
+            w?.outsideSlope ? slopeRaw(ss.outside, w.outsideSlope) : ROADENG_VERTICAL_SLOPE,
+            'sub-cut outside slope',
+          )
+        const changed = (key: 'bottomSlopePercent' | 'insideSlope' | 'followsCrossfall') =>
+          canonical(m?.[key]) !== canonical(w?.[key])
+        if (changed('bottomSlopePercent')) {
+          if (!ss.bottom) missing(side, 'sub-cut bottom slope')
+          else
+            put(
+              ss.bottom,
+              m?.bottomSlopePercent ?? 0,
+              w?.bottomSlopePercent ?? 0,
+              (w?.bottomSlopePercent ?? 0) / 100,
+              'sub-cut bottom slope',
+            )
+        }
+        if (changed('insideSlope')) {
+          if (!ss.inside) missing(side, 'sub-cut inside slope')
+          else
+            put(
+              ss.inside,
+              m?.insideSlope ?? 0,
+              w?.insideSlope ?? 0,
+              w?.insideSlope ? 1 / w.insideSlope : ROADENG_VERTICAL_SLOPE,
+              'sub-cut inside slope',
+            )
+        }
+        if (changed('followsCrossfall')) {
+          if (!ss.follows) missing(side, 'sub-cut crossfall')
+          else setParam(ss.follows, w?.followsCrossfall === false ? 0 : 1, 'sub-cut crossfall')
+        }
+      }
     }
     // Rock bench.
     const rock = { m: rockCutAt(mapped, side), w: rockCutAt(wanted, side) }
@@ -708,15 +991,19 @@ function editKeys(
     for (const [field, raw] of edits.header) f[field] = roadEngNumber(raw)
     keys[`T${at}`] = f.join(',')
   }
-  // Values by component, the edits applied, then each plain-arithmetic formula evaluated again.
+  // Values by component in RoadEng's expression units (an entered slope in percent; a calculated
+  // value as stored), the edits applied, then each formula evaluated again (`roadEngConstruction.ts`).
   const touched = new Set<number>()
   const values = new Map<number, Map<string, number>>()
-  for (const c of t.components) values.set(c.index, new Map(c.parameters.map((p) => [p.name.toUpperCase(), p.raw])))
+  const asExpression = (p: { flags: number; formula: string | null }, raw: number) =>
+    (p.flags & 1) !== 0 && !p.formula ? raw * 100 : raw
+  for (const c of t.components)
+    values.set(c.index, new Map(c.parameters.map((p) => [p.name.toUpperCase(), asExpression(p, p.raw)])))
   for (const [key, raw] of edits.params) {
     const [, c, u] = /^T\d+-C(\d+)-U(\d+)$/.exec(key)!.map(Number)
     const p = t.components.find((x) => x.index === c)?.parameters.find((x) => x.index === u)
     if (!p) continue
-    values.get(c)!.set(p.name.toUpperCase(), raw)
+    values.get(c)!.set(p.name.toUpperCase(), asExpression(p, raw))
     touched.add(c)
   }
   const write = (c: number, u: number, raw: number) => {
@@ -738,7 +1025,7 @@ function editKeys(
       let changed = false
       for (const p of component.parameters) {
         if (!p.formula || edits.params.has(`T${t.index}-C${c}-U${p.index}`)) continue
-        const v = evaluateRoadEngFormula(p.formula, vals)
+        const v = evaluateRoadEngExpression(p.formula, (name) => vals.get(name.toUpperCase()))
         if (v === null || Math.abs(v - (vals.get(p.name.toUpperCase()) ?? NaN)) < 1e-12) continue
         vals.set(p.name.toUpperCase(), v)
         write(c, p.index, v)
@@ -959,16 +1246,66 @@ export function roadEngSectionOverrides(
     result.written.push(`${alignment.name}: template ranges`)
   }
 
-  // Curve tables, when PGMaps' curve rule is no longer the imported one.
+  // Curve tables, when PGMaps' curve rule is no longer the imported one (or, for a project opened
+  // before table mode, the fitted rule it was opened with).
   const imported = roadEngCurveDesignFor(settings).curveDesign
   const d = alignment.curveDesign ?? null
-  if (d && templatesSection && !sameCurveRule(imported, d)) {
+  if (
+    d &&
+    templatesSection &&
+    !sameCurveRule(imported, d) &&
+    !sameCurveRule(roadEngFittedCurveDesignFor(settings).curveDesign, d)
+  ) {
     const speedUnitKmh = unitM * 3.6 === 3.6 ? 1 : 1.609344
     const tables = settings.superelevationTables
     const superTable = tables.find((t) => t.index === ROADENG_SUPERELEVATION_TABLE && t.rows.length)
+    // Table mode, and RoadEng's side friction method (whose curves RoadEng calculates without the
+    // tables): PGMaps' own tables, in the design's units, where they differ from the design's.
+    const tableMode =
+      (d.superelevationMode === 'table' && !!d.superelevationTable) || d.superelevationMode === 'sideFriction'
+    const writeTable = (table: CurveLookupTable | undefined, index: number, scale: number, label: string): void => {
+      if (!table) return
+      const old = tables.find((t) => t.index === index)
+      const written = roadEngTableFromPgmaps(table, index, unitM, scale, old?.description ?? table.description ?? [])
+      const read = old && old.rows.length ? roadEngTableToPgmaps(old, unitM, scale) : null
+      if (read && canonical({ ...read, description: [] }) === canonical({ ...table, description: [] })) return
+      Object.assign(templateEditsOut, replaceTable(templatesSection, written))
+      result.written.push(label)
+    }
+    if (tableMode) {
+      writeTable(d.superelevationTable, ROADENG_SUPERELEVATION_TABLE, 100, 'The superelevation table')
+      writeTable(d.runoffTable, ROADENG_RUNOFF_TABLE, unitM, 'The runoff table')
+      if (d.sideFrictionTable) {
+        const friction: CurveLookupTable = {
+          speedsKmh: d.sideFrictionTable.speedsKmh,
+          rows: [{ radiusM: unitM, values: d.sideFrictionTable.values }],
+        }
+        const old = tables.find((t) => t.index === ROADENG_SIDE_FRICTION_TABLE)
+        const readRow = old?.rows[0]
+        const same =
+          !!old &&
+          !!readRow &&
+          canonical(old.speeds.map((v, k) => [Math.round(v * speedUnitKmh * 1e9) / 1e9, readRow.e[k] ?? null])) ===
+            canonical(d.sideFrictionTable.speedsKmh.map((v, k) => [v, d.sideFrictionTable!.values[k]]))
+        if (!same) {
+          const written = roadEngTableFromPgmaps(
+            friction,
+            ROADENG_SIDE_FRICTION_TABLE,
+            unitM,
+            1,
+            old?.description ?? [],
+          )
+          written.rows[0].radius = Number(readRow?.radius ?? 0)
+          Object.assign(templateEditsOut, replaceTable(templatesSection, written))
+          result.written.push('The side friction table')
+        }
+      }
+    }
     if (
+      !tableMode &&
       superTable &&
       (imported === null ||
+        imported.superelevationMode === 'table' ||
         imported.designSpeedKmh !== d.designSpeedKmh ||
         imported.maxSuperelevationPercent !== d.maxSuperelevationPercent ||
         imported.sideFrictionFactor !== d.sideFrictionFactor)
@@ -982,7 +1319,12 @@ export function roadEngSectionOverrides(
       )
     }
     const runoffTable = tables.find((t) => t.index === ROADENG_RUNOFF_TABLE && t.rows.length)
-    if (runoffTable && superTable && (imported === null || imported.runoffLengthM !== d.runoffLengthM)) {
+    if (
+      !tableMode &&
+      runoffTable &&
+      superTable &&
+      (imported === null || imported.superelevationMode === 'table' || imported.runoffLengthM !== d.runoffLengthM)
+    ) {
       const e = superelevationTableFor(d, superTable, unitM, speedUnitKmh)
       const runoff: RoadEngSuperelevationTable = {
         ...runoffTable,

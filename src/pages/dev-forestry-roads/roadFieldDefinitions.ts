@@ -1,11 +1,12 @@
+import { MAX_DITCH_DEPTH_M, MAX_DITCH_WIDTH_M } from './sectionStructures'
 export const TEMPLATE_FIELDS = [
   ['leftWidth', 'Left half-width (m)', 0.1, 50],
   ['rightWidth', 'Right half-width (m)', 0.1, 50],
   ['crossfallPercent', 'Crown crossfall (%)', 0, 20],
   ['cutSlope', 'Cut batter (H:V)', 0.1, 10],
   ['fillSlope', 'Fill batter (H:V)', 0.1, 10],
-  ['ditchWidth', 'Ditch width (m)', 0, 10],
-  ['ditchDepth', 'Ditch depth (m)', 0, 5],
+  ['ditchWidth', 'Ditch width (m)', 0, MAX_DITCH_WIDTH_M],
+  ['ditchDepth', 'Ditch depth (m)', 0, MAX_DITCH_DEPTH_M],
   ['surfaceDepth', 'Surfacing depth (m)', 0, 2],
 ] as const
 

@@ -3,7 +3,16 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
-import { NumberField } from './Controls'
+import { Field, NumberField, OptionalNumberField, RoadSelect } from './Controls'
+import {
+  courseSideRunM,
+  ditchInslopeAt,
+  ditchRuns,
+  MAX_DITCH_DEPTH_M,
+  MAX_DITCH_WIDTH_M,
+  STRUCTURE_LIMITS,
+} from './sectionStructures'
+import { batterSource, withBatterSource } from './groundBatters'
 import { copyTemplateSide, ditchSideSlope, ditchTopWidthForSlope, ditchWidthRange, sideValue } from './templates'
 import { SectionAssemblyEditor } from './SectionAssemblyEditor'
 import { inputMessage, type InvalidInput } from './inputErrors'
@@ -39,9 +48,15 @@ const COMPONENTS: Record<Kind, { name: string; rule: string; fields: (side: Side
     name: 'Ditch · standard',
     rule: 'Conditional: built only where the hinge is below ground (cut). A bottom width makes it a U.',
     fields: (side) => [
-      { key: `${side}DitchWidth`, base: 'ditchWidth', label: 'Top width (m)', min: 0, max: 10 },
-      { key: `${side}DitchDepth`, base: 'ditchDepth', label: 'Depth (m)', min: 0, max: 5 },
-      { key: `${side}DitchBottomWidth`, base: 'ditchBottomWidth', label: 'Bottom width (m)', min: 0, max: 10 },
+      { key: `${side}DitchWidth`, base: 'ditchWidth', label: 'Top width (m)', min: 0, max: MAX_DITCH_WIDTH_M },
+      { key: `${side}DitchDepth`, base: 'ditchDepth', label: 'Depth (m)', min: 0, max: MAX_DITCH_DEPTH_M },
+      {
+        key: `${side}DitchBottomWidth`,
+        base: 'ditchBottomWidth',
+        label: 'Bottom width (m)',
+        min: 0,
+        max: MAX_DITCH_WIDTH_M,
+      },
     ],
   },
   slope: {
@@ -92,12 +107,19 @@ export function TemplateComponents({
   const component = COMPONENTS[selected.kind]
   const ditchDepth = sideValue(template, selected.side, 'DitchDepth'),
     ditchBottom = sideValue(template, selected.side, 'DitchBottomWidth')
+  const ditchTop = sideValue(template, selected.side, 'DitchWidth'),
+    ditchInslope = ditchInslopeAt(template, selected.side),
+    runs = ditchRuns(ditchTop, ditchDepth, ditchBottom, ditchInslope)
   const ditch = {
     depth: ditchDepth,
     bottom: ditchBottom,
-    slope: ditchSideSlope(sideValue(template, selected.side, 'DitchWidth'), ditchDepth, ditchBottom),
+    width: ditchTop,
+    slope: ditchSideSlope(ditchTop, ditchDepth, ditchBottom),
+    inslope: ditchInslope,
+    backslope: ditchDepth > 0 ? runs.backRun / ditchDepth : 0,
   }
   const fixed = (n: number, digits = 1) => n.toFixed(digits).replace(/\.0+$/, '')
+  const metres = (n: number) => String(Number(n.toFixed(2)))
   /** The values that identify a component at a glance, so the grid doubles as a summary. */
   const glance = (kind: Kind, side: Side) => {
     if (kind === 'lane')
@@ -107,7 +129,12 @@ export function TemplateComponents({
         depth = sideValue(template, side, 'DitchDepth')
       return width > 0 && depth > 0 ? `${fixed(width)} × ${fixed(depth)} m` : 'None'
     }
-    return `C ${fixed(sideValue(template, side, 'CutSlope'), 2)} · F ${fixed(sideValue(template, side, 'FillSlope'), 2)}`
+    // A batter taken from the ground materials (RoadEng's AUTO) shows as such, not as its fallback.
+    const ground = (which: 'cut' | 'fill') => batterSource(template, side, which) === 'material'
+    if (ground('cut') && ground('fill')) return 'Ground'
+    const slope = (which: 'cut' | 'fill') =>
+      ground(which) ? 'ground' : fixed(sideValue(template, side, which === 'cut' ? 'CutSlope' : 'FillSlope'), 2)
+    return `C ${slope('cut')} · F ${slope('fill')}`
   }
   const label = (kind: Kind, side: Side) => `${side === 'left' ? 'Left' : 'Right'} ${SHORT[kind].toLowerCase()}`
   return (
@@ -194,25 +221,116 @@ export function TemplateComponents({
             </div>
           ))}
         </div>
+        {selected.kind === 'lane' && courseSideRunM(template.layers, selected.side) > 0 && (
+          <p className="mt-1 text-2xs text-muted-foreground" data-testid="road-lane-running-surface">
+            Running surface {metres(template[`${selected.side}Width`] - courseSideRunM(template.layers, selected.side))}{' '}
+            m; the courses&apos; side slopes spread {metres(courseSideRunM(template.layers, selected.side))} m out to
+            the subgrade edge at {metres(template[`${selected.side}Width`])} m, where the ditch and the batters start.
+          </p>
+        )}
+        {selected.kind === 'slope' && (
+          <div className="mt-2 grid grid-cols-2 items-end gap-2" data-testid="road-batter-sources">
+            {(['cut', 'fill'] as const).map((which) => {
+              const name = `${which === 'cut' ? 'Cut' : 'Fill'} batter from`
+              return (
+                <Field
+                  key={which}
+                  label={name}
+                  hint={
+                    which === 'cut'
+                      ? 'Ground material: each horizon is cut at its material’s cut batter, the batter bending where it crosses a horizon (RoadEng’s AUTO slope); a horizon whose material has no batter takes the H:V above. This slope: the H:V above in every material. Material where set: a material’s batter where it has one, else the H:V above.'
+                      : 'Ground material: the station’s fill requirement material’s fill batter, else the top horizon’s (RoadEng’s AUTO slope, stratum layer 1). This slope: the H:V above. Material where set: the fill requirement material’s batter where it has one, else the H:V above.'
+                  }
+                >
+                  <RoadSelect
+                    ariaLabel={`${selected.side === 'left' ? 'Left' : 'Right'} ${name.toLowerCase()}`}
+                    value={batterSource(template, selected.side, which) ?? 'either'}
+                    options={[
+                      { value: 'material', label: 'Ground' },
+                      { value: 'template', label: 'This slope' },
+                      { value: 'either', label: 'Material where set' },
+                    ]}
+                    onValueChange={(v) =>
+                      onChange(
+                        withBatterSource(
+                          template,
+                          selected.side,
+                          which,
+                          v === 'material' || v === 'template' ? v : undefined,
+                        ),
+                      )
+                    }
+                  />
+                </Field>
+              )
+            })}
+          </div>
+        )}
         {selected.kind === 'ditch' && ditch.slope !== null && (
-          // The same ditch, entered as the manual does: a depth and a slope instead of a top width.
-          <div className="mt-2 grid grid-cols-3 items-end gap-2">
-            <NumberField
-              label="Side slopes (H:V)"
-              value={Number(ditch.slope.toFixed(4))}
-              min={0}
-              max={Number(((10 - ditch.bottom) / 2 / ditch.depth).toFixed(4))}
+          // The same ditch, entered as the manual does: a depth and slopes instead of a top width.
+          <div className="mt-2 grid grid-cols-3 items-end gap-2" data-testid="road-ditch-slopes">
+            {ditch.inslope === undefined && (
+              <NumberField
+                label="Side slopes (H:V)"
+                value={Number(ditch.slope.toFixed(4))}
+                min={0}
+                max={Number(((MAX_DITCH_WIDTH_M - ditch.bottom) / 2 / ditch.depth).toFixed(4))}
+                step={0.25}
+                hint="Sets the top width from the depth and bottom width: top = bottom + 2 × slope × depth. A 0.3 m deep V ditch at 4:1 is 2.4 m wide. Give an inslope for a ditch whose two slopes differ."
+                onChange={(slope) =>
+                  onChange({
+                    ...template,
+                    [`${selected.side}DitchWidth`]: Number(
+                      ditchTopWidthForSlope(slope, ditch.depth, ditch.bottom).toFixed(4),
+                    ),
+                  })
+                }
+              />
+            )}
+            <OptionalNumberField
+              label="Inslope (H:V)"
+              value={ditch.inslope ?? null}
+              min={STRUCTURE_LIMITS.ditchInslope[0]}
+              max={Math.min(
+                STRUCTURE_LIMITS.ditchInslope[1],
+                Number(((ditch.width - ditch.bottom) / ditch.depth).toFixed(4)),
+              )}
               step={0.25}
-              hint="Sets the top width from the depth and bottom width: top = bottom + 2 × slope × depth. A 0.3 m deep V ditch at 4:1 is 2.4 m wide. The inslope and the backslope are the same slope; a ditch whose backslope is the cut batter is not modelled."
-              onChange={(slope) =>
-                onChange({
-                  ...template,
-                  [`${selected.side}DitchWidth`]: Number(
-                    ditchTopWidthForSlope(slope, ditch.depth, ditch.bottom).toFixed(4),
-                  ),
-                })
-              }
+              placeholder="as backslope"
+              hint="From the road edge down to the ditch bottom. The backslope takes the rest of the top width. Blank: both slopes alike."
+              error={inputMessage(problem, 'template', undefined, `${selected.side}DitchInslope`)}
+              onChange={(v) => {
+                const next = { ...template }
+                if (v === null) {
+                  delete next[`${selected.side}DitchInslope`]
+                  // A shared inslope would still apply: clear it on this side by keeping the other side's.
+                  if (next.ditchInslope !== undefined) {
+                    const other = selected.side === 'left' ? 'right' : 'left'
+                    next[`${other}DitchInslope`] ??= next.ditchInslope
+                    delete next.ditchInslope
+                  }
+                } else next[`${selected.side}DitchInslope`] = v
+                onChange(next)
+              }}
             />
+            {ditch.inslope !== undefined && (
+              <NumberField
+                label="Backslope (H:V)"
+                value={Number(ditch.backslope.toFixed(4))}
+                min={0}
+                max={Number(((MAX_DITCH_WIDTH_M - ditch.bottom) / ditch.depth - ditch.inslope).toFixed(4))}
+                step={0.25}
+                hint="Sets the top width: top = bottom + (inslope + backslope) × depth."
+                onChange={(back) =>
+                  onChange({
+                    ...template,
+                    [`${selected.side}DitchWidth`]: Number(
+                      (ditch.bottom + (ditch.inslope! + back) * ditch.depth).toFixed(4),
+                    ),
+                  })
+                }
+              />
+            )}
           </div>
         )}
       </div>
@@ -250,7 +368,7 @@ function TemplateSketch({ template, selected }: { template: RoadTemplate; select
     const ditchWidth = sideValue(template, side, 'DitchWidth'),
       depth = sideValue(template, side, 'DitchDepth'),
       bottom = Math.min(ditchWidth, sideValue(template, side, 'DitchBottomWidth'))
-    const run = (ditchWidth - bottom) / 2
+    const run = ditchRuns(ditchWidth, depth, bottom, ditchInslopeAt(template, side)).inRun
     const ditch =
       ditchWidth > 0 && depth > 0
         ? [

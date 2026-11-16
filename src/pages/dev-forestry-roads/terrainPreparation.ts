@@ -132,8 +132,15 @@ export interface PointPreservation {
   corridor?: { points: Array<[number, number]>; halfWidthM: number }
   polygons?: Array<Array<[number, number]>>
 }
+/** A retained TIN holds at most this many vertices and triangle indices (three per triangle). */
+export const MAX_RETAINED_TIN_VERTICES = 250_000
+export const MAX_RETAINED_TIN_INDICES = 1_500_000
 export interface TerrainPreparationRecord {
-  operation: 'point-cloud' | 'mosaic' | 'graded-pad' | 'design-surface'
+  /**
+   * `roadeng-tin`: the ground is RoadEng's own TIN, kept in `tin`, and analysis reads its facets
+   * (`tinGround.ts`); the grid is made from it for drawing.
+   */
+  operation: 'point-cloud' | 'mosaic' | 'graded-pad' | 'design-surface' | 'roadeng-tin'
   sources: Array<{ name: string; sha256: string; epsg: number; verticalReference: string }>
   method: string
   parameters: Record<string, string | number | boolean>
@@ -145,7 +152,7 @@ export function parseTerrainPreparation(raw: unknown): TerrainPreparationRecord 
   if (!raw || typeof raw !== 'object') throw Error('Terrain preparation must be an object.')
   const r = raw as TerrainPreparationRecord
   if (
-    !['point-cloud', 'mosaic', 'graded-pad', 'design-surface'].includes(r.operation) ||
+    !['point-cloud', 'mosaic', 'graded-pad', 'design-surface', 'roadeng-tin'].includes(r.operation) ||
     typeof r.method !== 'string' ||
     r.method.length > 500 ||
     !Array.isArray(r.sources) ||
@@ -182,17 +189,41 @@ export function parseTerrainPreparation(raw: unknown): TerrainPreparationRecord 
       !Array.isArray(t.elevations) ||
       !Array.isArray(t.triangles) ||
       !n ||
-      n > 250_000 ||
+      n > MAX_RETAINED_TIN_VERTICES ||
       t.coordinates.length !== n * 2 ||
-      t.triangles.length > 1_500_000 ||
+      t.triangles.length > MAX_RETAINED_TIN_INDICES ||
       t.triangles.length % 3 ||
-      !t.coordinates.every(finite) ||
-      !t.elevations.every(finite) ||
-      !t.triangles.every((i) => Number.isInteger(i) && i >= 0 && i < n)
+      !allFinite(t.coordinates) ||
+      !allFinite(t.elevations) ||
+      !allIndices(t.triangles, n)
     )
       throw Error('Invalid retained terrain TIN (limit 250,000 vertices).')
   }
-  return structuredClone(r)
+  // A TIN's arrays are copied flat: a structured clone of a million numbers costs every edit tens of ms.
+  const { tin, ...rest } = r
+  return {
+    ...structuredClone(rest),
+    ...(tin
+      ? {
+          tin: {
+            coordinates: tin.coordinates.slice(),
+            elevations: tin.elevations.slice(),
+            triangles: tin.triangles.slice(),
+          },
+        }
+      : {}),
+  }
+}
+function allFinite(values: unknown[]) {
+  for (let i = 0; i < values.length; i++) if (!finite(values[i])) return false
+  return true
+}
+function allIndices(values: unknown[], n: number) {
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i]
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v >= n) return false
+  }
+  return true
 }
 
 function inRing(x: number, y: number, ring: Array<[number, number]>) {

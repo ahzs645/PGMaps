@@ -5,6 +5,7 @@
 import { csvRows } from '@pgmaps/geo-toolkit/export'
 import { nearestStation } from './engine'
 import { refuseInvalidResults } from './inputErrors'
+import { formatStationLabel, hasStationing, type RoadStationing } from './roadStationing'
 import type { RoadAnalysis, RoadStation } from './types'
 
 /**
@@ -444,16 +445,30 @@ export const totalsNote = (totals: StationTotals) =>
  * showing it, the road length each row leaves out, its flags, and a last `total` row. Values are
  * unrounded.
  */
-export function stationReportCsv(analysis: RoadAnalysis, rows: StationRow[], terrainOnly = false): string {
+export function stationReportCsv(
+  analysis: RoadAnalysis,
+  rows: StationRow[],
+  terrainOnly = false,
+  /** The road's start station and equations: a `station` column of names follows `station_m`. */
+  stationing?: RoadStationing | null,
+): string {
   refuseInvalidResults('Station table CSV', analysis)
   const columns = availableStationColumns(analysis, terrainOnly)
   const totals = tableTotals(rows)
+  const named = hasStationing(stationing)
   return (
     csvRows(
       [
-        ['station_m', ...columns.map((c) => c.csv), ...(terrainOnly ? [] : ['unknown_earthwork_m']), 'flags'],
+        [
+          'station_m',
+          ...(named ? ['station'] : []),
+          ...columns.map((c) => c.csv),
+          ...(terrainOnly ? [] : ['unknown_earthwork_m']),
+          'flags',
+        ],
         ...rows.map((row) => [
           row.station.chainage,
+          ...(named ? [formatStationLabel(row.station.chainage, stationing, 3)] : []),
           ...columns.map((c) => c.value(row)),
           ...(terrainOnly ? [] : [row.unknownM]),
           (terrainOnly ? row.station.flags : rowFlags(row)).join('; '),
@@ -463,6 +478,7 @@ export function stationReportCsv(analysis: RoadAnalysis, rows: StationRow[], ter
           : [
               [
                 'total',
+                ...(named ? [null] : []),
                 ...columns.map((c) => (c.sum ? totals[c.sum] : null)),
                 totals.unknownM,
                 rows.length ? 'Sum of the rows above' : '',

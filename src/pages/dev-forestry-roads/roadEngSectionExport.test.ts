@@ -11,8 +11,10 @@ import {
   readRoadEngSettings,
   roadEngCurveDesignFor,
   roadEngEngineeringFor,
+  roadEngFittedCurveDesignFor,
   roadEngTemplateFor,
   roadEngWideningRows,
+  withRoadEngCurveSettings,
   type RoadEngSuperelevationTable,
 } from './roadEngDesignSettings'
 import { roadEngCurvesByPoint, roadEngRoads } from './roadEngImport'
@@ -20,6 +22,7 @@ import { mergeRoadEngIni } from './roadEngExport'
 import {
   evaluateRoadEngFormula,
   mergeRoadEngOverrides,
+  roadEngCurveChanges,
   roadEngCurveFromRule,
   roadEngCurveFromTables,
   roadEngCurveInputs,
@@ -154,7 +157,7 @@ const ds2 = [
   '104,OB,Overburden (Default),100,400,1,1.25,12,4,0,8,0.6,4,2.6,2,0,0,0,0,',
   '104,SR,Solid Rock,100,400,1,0.8,48,4,0,8,0.6,4,2.6,2,3,0,0,0,',
   pi(1, 200, 100, 0, 0),
-  pi(2, -60, 200, 100, 0.5),
+  pi(2, -60, 200, 100, 1),
   '110,5,0,0,900,0,-1,0,0,,,256',
   '110,5,300,100,900,400,-1,0,0,,,256',
 ].join('\r\n')
@@ -220,7 +223,7 @@ describe('numbers, formulas and tables', () => {
     expect(roadEngNumber(1e-20)).toBe('0')
     expect(roadEngNumber(999999999)).toBe('999999999')
   })
-  it('evaluates plain-arithmetic formulas and leaves the rest to RoadEng', () => {
+  it('evaluates RoadEng formulas and leaves what it cannot read to RoadEng', () => {
     const values = new Map([
       ['ACPWIDTH', 4.2],
       ['SHOULDERGRAVWIDTH', 0.5],
@@ -230,7 +233,8 @@ describe('numbers, formulas and tables', () => {
     expect(evaluateRoadEngFormula('AcpWidth+ShoulderGravWidth', values)).toBeCloseTo(4.7, 12)
     expect(evaluateRoadEngFormula('_SUPER * (bShoulderPaveSuper > 0) + 2 - _SUPER', values)).toBeCloseTo(2.04, 12)
     expect(evaluateRoadEngFormula('-(AcpWidth - 1) / 2', values)).toBeCloseTo(-1.6, 12)
-    expect(evaluateRoadEngFormula('max(AcpWidth, 2)', values)).toBeNull()
+    expect(evaluateRoadEngFormula('max(AcpWidth, 2)', values)).toBeCloseTo(4.2, 12)
+    expect(evaluateRoadEngFormula('_FRAG_DY + 1', values)).toBeNull()
     expect(evaluateRoadEngFormula('Unknown + 1', values)).toBeNull()
     expect(evaluateRoadEngFormula('AcpWidth +', values)).toBeNull()
   })
@@ -334,11 +338,13 @@ describe('roadEngSectionOverrides', () => {
     t.rightWidth = 5.5
     t.crossfallPercent = 3
     t.fillSlope = 2
-    // The cut batter here is the ditch backslope; with the ditch's top width kept, the inslope moves.
+    // The cut batter here is the ditch backslope: a 6 m ditch 0.8 m deep with a 2.5:1 backslope has
+    // a 3.5:1 inslope.
     t.cutSlope = 2.5
     t.ditchDepth = 0.8
     t.ditchBottomWidth = 1.2
     t.ditchWidth = 6
+    t.ditchInslope = 3.5
     t.layers = t.layers!.map((l) => (l.id === 'roadeng-basethick' ? { ...l, depthM: 0.2 } : l))
     const rock = edited.engineering.templates.find((x) => x.id === 'roadeng-RCK')!.template
     rock.rockCut = { cutSlope: 0.5, ledgeWidthM: 3 }
@@ -527,8 +533,10 @@ describe('roadEngSectionOverrides', () => {
     const { road } = imported(o)
     expect(road.curveDesign!.wideningTable).toBeDefined()
     const edited = clone(road)
+    // Back to the formula: RoadEng's tables are written from it.
     edited.curveDesign = {
       ...edited.curveDesign!,
+      superelevationMode: 'formula',
       designSpeedKmh: 40,
       runoffLengthM: 30,
       wideningTable: roadEngWideningRows(
@@ -567,9 +575,24 @@ describe('roadEngSectionOverrides', () => {
     const { road } = imported(c)
     const edited = clone(road)
     edited.template.components = edited.template.components!.map((x) => ({ ...x, widthM: 8, riseM: 2 }))
+    // The ditch's backslope is the component's 4:1 too: its top width follows, the inslope kept.
+    const t = edited.template
+    t.ditchWidth = (t.ditchBottomWidth ?? 0) + t.ditchDepth * (t.ditchInslope! + 4)
     const { out, again } = roundTrip(edited, c)
     expect(out.notWritten).toEqual([])
-    expect(again.road.template).toEqual(edited.template)
+    // Equal slopes read back as a ditch without an inslope of its own: the same section.
+    const same: RoadTemplate = { ...edited.template }
+    delete same.ditchInslope
+    expect(again.road.template).toEqual(same)
+  })
+  it('says when a ditch backslope cannot differ from the slope RoadEng shares it with', () => {
+    const c = original(designDsn(), { templateOptions: { ditchBackslope: 'component' } })
+    const edited = clone(imported(c).road)
+    edited.template.components = edited.template.components!.map((x) => ({ ...x, widthM: 8, riseM: 2 }))
+    const { out } = roundTrip(edited, c)
+    expect(out.notWritten.join('\n')).toMatch(
+      /the left ditch's 4:1 inslope with a 3:1 backslope; RoadEng's backslope on this side is the 4:1 slope above the ditch, so the inslope is written 3:1/,
+    )
   })
 })
 
@@ -609,12 +632,69 @@ describe('curve fields for the design writer', () => {
       expect(f.widening!.outsideM).toBeCloseTo(0, 12)
     }
   })
-  it('leaves each curve to its own record while the curve rule is the imported one', () => {
+  it('leaves each curve to its own record while a project opened before table mode keeps its fitted rule', () => {
     const settings = parseRoadEngSettings(designDsn(), ds2, 1)
-    const imported = roadEngCurveDesignFor(settings).curveDesign!
-    expect(roadEngCurveInputs(road(imported), { original: settings })).toEqual({ curves: {}, kept: true })
-    const changed = roadEngCurveInputs(road({ ...imported, runoffLengthM: 10 }), { original: settings })
+    const fitted = roadEngFittedCurveDesignFor(settings).curveDesign!
+    expect(roadEngCurveInputs(road(fitted), { original: settings })).toEqual({
+      curves: {},
+      kept: true,
+      from: {},
+      insideWideningFromTable: {},
+      outsideWideningFromTable: {},
+    })
+    const changed = roadEngCurveInputs(road({ ...fitted, runoffLengthM: 10 }), { original: settings })
     expect(Object.keys(changed.curves)).toEqual(['b', 'c'])
+    // The table rule gives every curve, and the writer keeps only what differs from each record.
+    const table = roadEngCurveInputs(road(roadEngCurveDesignFor(settings).curveDesign!), { original: settings })
+    expect(table.kept).toBe(false)
+    expect(table.from).toEqual({ b: 'table', c: 'table' })
+  })
+  it('writes only the fields that differ from the record, and RoadEng’s flag bits only where an edit changes them', () => {
+    const record = '108,1,2,-200,0,0,0,-1,16.6666666667,5585,0.06,0.1,40,40,0.667,0.05,0.0916,0,0,0'.split(',')
+    const same = {
+      designSpeedMs: 60 / 3.6,
+      emax: 0.06,
+      runoffIn: 40,
+      runoffOut: 40,
+      transitionFraction: 0.667,
+      e: 0.05,
+    }
+    expect(roadEngCurveChanges(same, record, 1, 'table')).toBeNull()
+    // A typed e is written as a value: the bit for RoadEng's superelevation Auto box is not known.
+    expect(roadEngCurveChanges({ ...same, e: 0.06 }, record, 1, 'stated')).toEqual({ e: 0.06 })
+    expect(roadEngCurveChanges({ ...same, runoffIn: 50 }, record, 1, 'table')).toEqual({ runoffIn: 50 })
+    // A spiral's transitions are its spirals, which the writer writes itself.
+    expect(roadEngCurveChanges({ ...same, runoffIn: 50 }, record, 1, 'table', true)).toBeNull()
+    // Use Minimum Radius (bit 1, 5587 here) stays as read, and is never set: a curve at its e max
+    // keeps it, and an edit that takes it off its minimum radius (another e, speed or radius) clears it.
+    const minimum = [...record]
+    minimum[9] = '5587'
+    minimum[15] = '0.06'
+    const atMax = { ...same, e: 0.06 }
+    expect(roadEngCurveChanges(atMax, minimum, 1, 'minimumRadius')).toBeNull()
+    expect(roadEngCurveChanges(atMax, minimum, 1, 'stated')).toBeNull()
+    expect(roadEngCurveChanges({ ...same, e: 0.056 }, minimum, 1, 'table')).toEqual({ e: 0.056, flags: 5585 })
+    expect(roadEngCurveChanges({ ...atMax, designSpeedMs: 50 / 3.6 }, minimum, 1, 'minimumRadius')).toEqual({
+      designSpeedMs: 50 / 3.6,
+      flags: 5585,
+    })
+    expect(roadEngCurveChanges(atMax, minimum, 1, 'minimumRadius', false, null, true)).toEqual({ flags: 5585 })
+    expect(roadEngCurveChanges({ ...same, e: 0.06 }, record, 1, 'minimumRadius')).toEqual({ e: 0.06 })
+    // RoadEng's side friction method: Auto on with the table bit (256) clear, and the curve's f max.
+    expect(roadEngCurveChanges({ ...same, fLimit: 0.1 }, record, 1, 'sideFriction')).toEqual({ flags: 5329 })
+    expect(roadEngCurveChanges({ ...same, fLimit: 0.16 }, record, 1, 'sideFriction')).toEqual({
+      fLimit: 0.16,
+      flags: 5329,
+    })
+    const bluff = '108,1,2,-500,0,0,0,-1,44,113,0.1,0.16,20,20,1,0.0462709009645,0.0740334415432,1,0,0'.split(',')
+    expect(roadEngCurveChanges({ e: 0.0462709009645, fLimit: 0.16 }, bluff, 0.3048, 'sideFriction')).toBeNull()
+    expect(roadEngCurveChanges({ e: 0.051 }, bluff, 0.3048, 'table')).toEqual({ e: 0.051, flags: 369 })
+  })
+  it('takes each curve’s own design speed, e max, runoff and stated superelevation', () => {
+    const own = { designSpeedKmh: 40, maxSuperelevationPercent: 8, superelevationPercent: 7, runoffInM: 55 }
+    const f = roadEngCurveFromRule(rule, 200, 30, 0, 50, own)
+    expect(f.designSpeedMs).toBeCloseTo(40 / 3.6, 12)
+    expect(f).toMatchObject({ emax: 0.08, e: 0.07, runoffIn: 55, runoffOut: 40, transitionFraction: 1 })
   })
   it('reads an edited curve from the design’s own tables, as RoadEng’s Auto does', () => {
     const settings = parseRoadEngSettings(designDsn(), ds2, 1)
@@ -704,17 +784,42 @@ describe.skipIf(!samples || !existsSync(samples))('Softree sample designs', () =
     expect(again.road.curveDesign).toEqual(road.curveDesign)
     expectValid(again.road.template, again.road.engineering, again.road.curveDesign)
   })
-  it('keeps LongRoad’s own curve records while its curve rule is unchanged', () => {
+  it('reproduces every LongRoad curve’s own record while its curve rule is unchanged', () => {
     const s = load('LongRoad_1/LongRoad 1.dsnx')
     const o = originalOf(s, 0)
     const { road, settings } = imported(o)
-    const alignment = { ...s.roads[0].alignment, curveDesign: road.curveDesign }
-    expect(roadEngCurveInputs(alignment, { original: settings })).toEqual({ curves: {}, kept: true })
+    const alignment = withRoadEngCurveSettings(
+      { ...s.roads[0].alignment, curveDesign: road.curveDesign },
+      s.roads[0].source,
+    )
+    const given = roadEngCurveInputs(alignment, { original: settings })
+    expect(given.kept).toBe(false)
+    // Each curve's figures are its record's: nothing to write back.
+    const records = s.roads[0].source.source!.piRecords.map((line) => line.split(','))
+    alignment.points.slice(1, -1).forEach((point, k) => {
+      expect(roadEngCurveChanges(given.curves[point.id], records[k], 1, given.from[point.id])).toBeNull()
+    })
+    const own = alignment.points.filter((p) => p.curve)
+    // Eight curves at their own speed (70, 60, 50 and 90 km/h); 24 with RoadEng's Use Minimum
+    // Radius, each at e max (four of them where the table reads less).
+    expect(own.filter((p) => p.curve!.designSpeedKmh !== undefined)).toHaveLength(8)
+    expect(own.filter((p) => p.curve!.useMinimumRadius)).toHaveLength(24)
+    expect(own.filter((p) => p.curve!.superelevationPercent !== undefined)).toHaveLength(0)
+    expect(Object.values(given.from).filter((f) => f === 'minimumRadius')).toHaveLength(24)
+    // A project opened before table mode keeps its records while its fitted rule is unedited.
+    const fitted = { ...s.roads[0].alignment, curveDesign: roadEngFittedCurveDesignFor(settings).curveDesign! }
+    expect(roadEngCurveInputs(fitted, { original: settings })).toEqual({
+      curves: {},
+      kept: true,
+      from: {},
+      insideWideningFromTable: {},
+      outsideWideningFromTable: {},
+    })
     // With the rule edited, PGMaps' own figures go out; its widening is RoadEng's on every curve.
-    const own = roadEngCurveInputs({ ...alignment, curveDesign: { ...road.curveDesign!, criteriaName: 'x' } })
+    const ownRule = roadEngCurveInputs({ ...alignment, curveDesign: { ...road.curveDesign!, criteriaName: 'x' } })
     const read = roadEngCurvesByPoint(s.roads[0])
-    expect(Object.keys(own.curves)).toEqual(Object.keys(read))
-    for (const [id, f] of Object.entries(own.curves))
+    expect(Object.keys(ownRule.curves)).toEqual(Object.keys(read))
+    for (const [id, f] of Object.entries(ownRule.curves))
       expect(f.widening!.insideM).toBeCloseTo(read[id].widening!.insideM, 6)
     // RoadEng's own tables give back each curve's stored widening, and its e on all but four curves
     // (R 230 at 70 km/h and R 170 at 60 km/h carry e max, 0.06, where the table reads 0.056).
@@ -753,5 +858,118 @@ describe.skipIf(!samples || !existsSync(samples))('Softree sample designs', () =
     expect(out2.notWritten.join()).toMatch(/no RoadEng template it was read from/)
     const tSettings = roadEngTemplateFor(b.settings, { ...branch, fallback })
     expect(tSettings.template).toBeNull()
+  })
+})
+
+// RoadEng components PGMaps reads into section structures, generated from the parameter names and
+// descriptions in Softree's component library (no sample road uses them): Slope VI benches, a Wall IV
+// retaining wall, a guard rail, a SubCut II and the base course's fill slope.
+describe('section structures written back', () => {
+  const structures = [
+    ...component(1, 6, '11,SLPS,Slope VI - Benches!^!Up to 5 benches.,8,0,145', 'left', [
+      ['bApplyInCut', 0, 1],
+      ['bApplyInFill', 0, 0],
+      ['FinalCutSlp', 1, 1],
+      ['FinalFillSlp', 1, 0.5],
+      ['BenchSlope', 1, 2],
+      ['BenchHeight', 0, 3],
+      ['BenchBaseWidth', 0, 1.5],
+      ['BenchBaseSlope', 1, 0.02],
+    ]),
+    ...component(1, 7, '7,Retain,Wall IV - Retaining Wall!^!Retaining wall.,3,0,145', 'right', [
+      ['WallThick', 0, 0.3],
+      ['WallHeight', 576, 2],
+      ['WallFactor', 0, 0.7],
+    ]),
+    ...component(1, 8, '5,Guard Rail,Barrier I - Guard Rail!^!Guard rail.,5,0,146', 'left', [
+      ['bIncludeBarrier', 0, 1],
+      ['BarrierCL_Offset', 256, 5],
+      ['PostThickness', 0, 0.3],
+      ['PostHeight', 0, 1],
+      ['RailThickness', 0, 0.2],
+    ]),
+    ...component(1, 9, '4,SC,SubCut II - Under SG!^!Subcut below subgrade.,6,0,145', 'left', [
+      ['SubCutDepth', 0, 0.6],
+      ['SubCutWidthL', 0, 5],
+      ['SubCutWidthR', 0, 5],
+      ['SubCutBotSlope', 1, 0],
+      ['SubCutSlopeOut', 1, 1],
+      ['SubCutSlopeIn', 1, 9999.99],
+    ]),
+    'T1-C0-U8=BaseFillSlope~Fill slope for base layer.|1|0.25|-1|0|1000|',
+    'T1-C1-U8=BaseFillSlope~Fill slope for base layer.|1|0.25|-1|0|1000|',
+  ]
+  const o = original(designDsn().replace('T2=6,RCK', [...structures, 'T2=6,RCK'].join('\r\n')))
+  const { road } = imported(o)
+  it('reads them into the section', () => {
+    const t = road.template
+    // 4.2 m lane and 0.5 m shoulder over 0.15 m of base at 4:1.
+    expect(t.leftWidth).toBeCloseTo(5.3, 9)
+    expect(t.layers!.find((l) => l.id === 'roadeng-basethick')!.sideSlope).toBe(4)
+    expect(t.leftBenches).toEqual({
+      cut: { heightM: 3, widthM: 1.5, faceSlope: 0.5, benchFallPercent: 2, count: 5 },
+    })
+    expect(t.walls).toEqual([
+      expect.objectContaining({
+        side: 'right',
+        kind: 'cut',
+        heightM: 2,
+        thicknessM: 0.3,
+        name: 'Wall IV - Retaining Wall',
+      }),
+    ])
+    expect(t.barriers).toEqual([
+      expect.objectContaining({ side: 'left', kind: 'guard-rail', offsetM: 5, widthM: 0.5, heightM: 1 }),
+    ])
+    expect(t.leftSubCut).toMatchObject({ reference: 'subgrade', depthM: 0.6, widthM: 5, outsideSlope: 1 })
+    expect(t.rightSubCut).toBeUndefined()
+    expectValid(t, road.engineering, road.curveDesign)
+  })
+  it('writes nothing for them as read', () => {
+    const out = roadEngSectionOverrides(clone(road), o)
+    expect(out.templates).toEqual({})
+    expect(out.notWritten).toEqual([])
+  })
+  it('writes each edit into the parameter it came from', () => {
+    const edited = clone(road)
+    const t = edited.template
+    t.leftBenches = { cut: { heightM: 4, widthM: 2, faceSlope: 0.25, benchFallPercent: 5, count: 5 } }
+    t.walls = t.walls!.map((w) => ({ ...w, heightM: 3.5, thicknessM: 0.4 }))
+    t.barriers = t.barriers!.map((b) => ({ ...b, offsetM: 4.5, heightM: 1.1 }))
+    t.leftSubCut = { ...t.leftSubCut!, depthM: 0.9, widthM: 4, outsideSlope: 2 }
+    t.layers = t.layers!.map((l) => (l.id === 'roadeng-basethick' ? { ...l, sideSlope: 2 } : l))
+    const { out, again, written } = roundTrip(edited, o)
+    expect(out.notWritten).toEqual([])
+    expect(again.road.template).toEqual(edited.template)
+    expect(written).toMatch(/^T1-C6-U5=BenchHeight~[^|]*\|0\|4\|/m)
+    expect(written).toMatch(/^T1-C6-U4=BenchSlope~[^|]*\|1\|4\|/m)
+    expect(written).toMatch(/^T1-C7-U1=WallHeight~[^|]*\|576\|3.5\|/m)
+    expect(written).toMatch(/^T1-C8-U1=BarrierCL_Offset~[^|]*\|256\|4.5\|/m)
+    expect(written).toMatch(/^T1-C9-U0=SubCutDepth~[^|]*\|0\|0.9\|/m)
+    expect(written).toMatch(/^T1-C9-U4=SubCutSlopeOut~[^|]*\|1\|0.5\|/m)
+    // The base's side slope halves its run, so the lane keeps the 5.3 m formation: 4.2 + 0.3 m wider.
+    expect(written).toMatch(/^T1-C0-U8=BaseFillSlope~[^|]*\|1\|0.5\|/m)
+    expect(written).toMatch(/^T1-C0-U1=AcpWidth~[^|]*\|256\|4.5\|/m)
+    expectValid(again.road.template, again.road.engineering, again.road.curveDesign)
+  })
+  it('writes a sub-cut bottom slope and inside slope back, and says its crossfall has no home here', () => {
+    const edited = clone(road)
+    edited.template.leftSubCut = { ...edited.template.leftSubCut!, bottomSlopePercent: -3, insideSlope: 1 }
+    const { out, again, written } = roundTrip(edited, o)
+    expect(out.notWritten).toEqual([])
+    expect(written).toMatch(/^T1-C9-U3=SubCutBotSlope~[^|]*\|1\|-0.03\|/m)
+    expect(written).toMatch(/^T1-C9-U5=SubCutSlopeIn~[^|]*\|1\|1\|/m)
+    expect(again.road.template).toEqual(edited.template)
+    edited.template.leftSubCut = { ...edited.template.leftSubCut, followsCrossfall: false }
+    expect(roadEngSectionOverrides(edited, o).notWritten.join()).toMatch(/left sub-cut crossfall/)
+  })
+  it('says what has no RoadEng home', () => {
+    const edited = clone(road)
+    edited.template.walls = [
+      ...(edited.template.walls ?? []),
+      { id: 'new', name: 'New fill wall', side: 'left', kind: 'fill', heightM: 4, thicknessM: 0.5 },
+    ]
+    const { out } = roundTrip(edited, o)
+    expect(out.notWritten.join('\n')).toMatch(/the left fill wall New fill wall/)
   })
 })

@@ -1,3 +1,4 @@
+import type { FillPlacementLine } from './fillPlacement'
 import type { Coordinate, RoadTemplate } from './types'
 
 /** User-entered assumptions and measured horizons, never inferred from a DTM. */
@@ -60,6 +61,12 @@ export interface GroundMaterial {
   shallowCutRate?: number
   /** CAD per bank m³ blasted below the subgrade to the blasting level. Omitted: `cutRate`. */
   overbreakRate?: number
+  /**
+   * Embankment cost per bank m³ of this material placed as fill (RoadEng's per-ground-type
+   * embankment cost): fill this material makes is priced at it, divided by `compactionFactor` per
+   * compacted m³ (`fillPlacement.ts`). Omitted: the project's fill rate per compacted m³.
+   */
+  fillRate?: number
 }
 /** Material demand on subgrade or a named surface/component layer, by station range. */
 export interface FillRequirement {
@@ -138,6 +145,16 @@ export interface Culvert {
   /** CAD per installed barrel metre, plus the explicit fixed amount. */
   unitCost: number
   fixedCost: number
+  /**
+   * Set on a culvert read from a RoadEng (Softree) traverse: what the traverse held that this model
+   * has no field for, written back to it (`roadEngCulverts.ts`). Never read by a calculation.
+   */
+  roadEng?: import('./roadEngCulverts').RoadEngCulvertRecord
+  /**
+   * Set on a culvert placed in a RoadEng design (`.ds1`): its record as read, written back with only
+   * the fields this culvert changed (`roadEngPlacedCulverts.ts`). Never read by a calculation.
+   */
+  roadEngDesign?: import('./roadEngPlacedCulverts').RoadEngPlacedCulvertRecord
 }
 export interface HaulSettings {
   enabled: boolean
@@ -149,6 +166,13 @@ export interface HaulSettings {
   sidecastRanges?: SidecastRange[]
   /** Internal comparison pass only: expose unresolved external parcels for network pricing. */
   deferExternalSupply?: boolean
+  /**
+   * RoadEng's pit of last resort: material no site can take goes to an unlimited waste pit at the
+   * road's start (overflow), and fill no cut or site can give comes from a borrow pit there, one per
+   * material at its excavation rate (underflow), so the material plan always balances. The plan
+   * uses them only where nothing else can (`lastResortSites`, `lastResortPits.ts`). Omitted is off.
+   */
+  lastResort?: boolean
   freeHaulDistanceM: number
   overhaulDistanceM: number
   /** CAD/(transported m³·km) over the whole distance of a free-haul movement. Zero is free haul. */
@@ -175,6 +199,13 @@ export interface HaulSite {
   sourceNotes?: string
   chainage: number
   accessDistanceM: number
+  /**
+   * The part of `accessDistanceM` that runs along the road's line past its end, or before its start
+   * for a site at chainage 0: a RoadEng pit whose access station is off the alignment
+   * (`roadEngHaul.ts`). The haul reads `accessDistanceM` alone; this says where the access joins,
+   * so the pit is written back at its own station. Omitted is 0.
+   */
+  pastRoadEndM?: number
   /** Borrow capacity is compacted m³; waste capacity is bank m³. Null is unbounded. */
   capacityM3: number | null
   /** CAD per compacted borrow m³ or bank waste m³. Replaces the matching default rate. */
@@ -182,6 +213,11 @@ export interface HaulSite {
   fixedCost: number
   /** Known supplied/accepted material. Unset is unknown borrow, unrestricted waste. */
   materialId?: string
+  /**
+   * A pit of last resort the plan adds for the haul's `lastResort` setting (`lastResortPits.ts`);
+   * never stored in a project. The plan draws on it only where no other source or site can serve.
+   */
+  lastResort?: true
 }
 /** Entered single-source surfacing scenario; all rates use compacted m³. */
 export interface SurfacingSupply {
@@ -208,6 +244,11 @@ export interface AlignmentEngineering {
   surfacingSupply?: SurfacingSupply
   sitePreparation?: SitePreparationRange[]
   fillRequirements?: FillRequirement[]
+  /**
+   * Template values entered at stations and interpolated between them, over whichever template is
+   * in force (`templateParameterOverrides.ts`; RoadEng's per-range parameter overrides).
+   */
+  parameterOverrides?: import('./templateParameterOverrides').TemplateParameterOverride[]
 }
 
 export interface ResolvedTemplate {
@@ -405,6 +446,11 @@ export interface EngineeringAnalysis {
   materialLayerPlacementCost?: number
   /** Present when a ground material is marked rock: the road's rock quantities, bank m³ unless stated. */
   rock?: RockQuantities
+  /**
+   * Present when a material has its own embankment rate: the fill cost by the material it is made
+   * of (`fillPlacement.ts`); the lines add up to `costs.fill`.
+   */
+  fillPlacement?: FillPlacementLine[]
 }
 export interface RockQuantities {
   /** Rock cut above the subgrade, shallow included. */

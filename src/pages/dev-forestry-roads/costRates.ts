@@ -91,7 +91,15 @@ export function costRates(
   return {
     cut: materialRates('earthwork'),
     stripping: materialRates('stripping'),
-    fill: `${money(settings.fillRate)}/m³ placed`,
+    fill: quantities.fillPlacement?.length
+      ? quantities.fillPlacement
+          .map((line) =>
+            line.materialId === null
+              ? `${money(line.rate)}/m³ placed`
+              : `${e.materials.find((m) => m.id === line.materialId)?.name ?? line.materialId} ${money(line.rate)}/bank m³ placed`,
+          )
+          .join(', ')
+      : `${money(settings.fillRate)}/m³ placed`,
     surfacing: supply?.enabled
       ? `${money(deliveredSurfacingRate(supply))}/m³ delivered from ${supply.name || 'the entered source'}${
           supply.capacityM3 === null ? '' : `; ${money(settings.surfacingRate)}/m³ beyond its capacity`

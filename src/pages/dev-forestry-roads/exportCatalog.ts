@@ -313,7 +313,7 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     group: 'survey',
     label: 'LandXML alignment',
     extension: '.xml',
-    description: 'Horizontal and vertical alignment with cross-sections, for civil design software.',
+    description: 'Horizontal and vertical alignment with cross-sections and superelevation, for civil design software.',
   },
   {
     kind: 'roadeng',

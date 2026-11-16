@@ -507,7 +507,8 @@ const FORMAT_NAMES: Record<SoftreeSourceFormat, string> = {
 }
 
 type ShotMeasure = { h: number; dz: number }
-function sideShotMeasure(sd: number, slope: number, elevationDifference: boolean): ShotMeasure {
+/** A side shot's horizontal and vertical reach from its slope distance and slope (% or, flagged, an elevation difference). */
+export function sideShotMeasure(sd: number, slope: number, elevationDifference: boolean): ShotMeasure {
   if (elevationDifference) return { h: Math.sqrt(Math.max(0, sd * sd - slope * slope)), dz: slope }
   const s = slope / 100,
     h = sd / Math.sqrt(1 + s * s)
@@ -614,7 +615,8 @@ export function isSoftreeAscTraverse(text: string): boolean {
   )
 }
 
-function parseCreek(raw: string): SoftreeCreek | null {
+/** A CREEK field (`sizeYx sizeXx gradientx azimuthx flagx sdx`) as a culvert; null when blank. */
+export function parseCreek(raw: string): SoftreeCreek | null {
   if (!raw.trim()) return null
   const p = raw.split('x').map((s) => s.trim())
   const n = (k: number) => {
@@ -823,7 +825,7 @@ export interface SoftreeTraverseReadOptions {
 }
 
 /** Field-book station names: unique, from labels when asked and present, else the field station. */
-function nameStations(stations: number[], labels: string[], mode: 'station' | 'label'): string[] {
+export function nameStations(stations: number[], labels: string[], mode: 'station' | 'label'): string[] {
   const seen = new Map<string, number>()
   return stations.map((s, i) => {
     let id = mode === 'label' && labels[i]?.trim() ? labels[i].trim().slice(0, 100) : asciiFixed(s, 3)
@@ -1056,7 +1058,7 @@ export function softreeAscToTraverse(
 }
 
 /** Ground layers in their file positions, without the blank ones after the last given. */
-function groundLayers(layers: Array<{ type: string; depth: number | null }>) {
+export function groundLayers(layers: Array<{ type: string; depth: number | null }>) {
   const out = [...layers]
   while (out.length && !out[out.length - 1].type && out[out.length - 1].depth === null) out.pop()
   return out

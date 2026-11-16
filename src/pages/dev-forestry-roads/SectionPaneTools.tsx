@@ -18,6 +18,7 @@ import {
   type SectionRangePlan,
 } from './sectionRangeApply'
 import type { Alignment, RoadAnalysis, RoadStation } from './types'
+import { stationEntry } from './stationEntry'
 
 /** Batter misses listed by station before the rest are counted. */
 export const MAX_LISTED_BATTER_MISSES = 12
@@ -57,10 +58,20 @@ export function useSectionTools({
   if (pin && pin.alignmentId !== displayedAlignment.id) setPin(null)
   const [range, setRange] = useState<RangeState | null>(null)
   if (range && range.alignmentId !== alignment.id) setRange(null)
-  const picked: [number, number] | null =
-    range && range.from.trim() && range.to.trim() && Number.isFinite(Number(range.from) + Number(range.to))
-      ? [Math.min(Number(range.from), Number(range.to)), Math.max(Number(range.from), Number(range.to))]
-      : null
+  // From and To are typed and shown as the road's station names when it has them (`stationEntry.ts`).
+  const stations = stationEntry(alignment.stationing, analysis.length)
+  /** A From or To text as road chainage; NaN when blank or not a number. */
+  const typedChainage = (text: string, near?: number) => {
+    const n = Number(text.trim() || NaN)
+    return Number.isFinite(n) ? stations.take(n, near ?? null) : NaN
+  }
+  /** The text a From or To field shows for a chainage. */
+  const shownStation = (chainage: number) => String(round(stations.show(chainage)))
+  const pickedFrom = range ? typedChainage(range.from) : NaN,
+    pickedTo = range ? typedChainage(range.to) : NaN
+  const picked: [number, number] | null = Number.isFinite(pickedFrom + pickedTo)
+    ? [Math.min(pickedFrom, pickedTo), Math.max(pickedFrom, pickedTo)]
+    : null
   // Escape ends a profile pick first, then closes the panel.
   const picking = !!range?.open && range.picking
   useEffect(() => {
@@ -91,10 +102,13 @@ export function useSectionTools({
       ? {
           range: picked,
           onRange: ([from, to]: [number, number]) =>
-            setRange((r) => (r ? { ...r, from: String(round(from)), to: String(round(to)), confirm: null } : r)),
+            setRange((r) => (r ? { ...r, from: shownStation(from), to: shownStation(to), confirm: null } : r)),
         }
       : undefined,
     picked,
+    stationsNamed: stations.named,
+    typedChainage,
+    shownStation,
   }
 }
 
@@ -229,7 +243,7 @@ export function SectionViewControls({
                     alignmentId: alignment.id,
                     open: true,
                     picking: true,
-                    from: station ? String(round(station.chainage)) : '',
+                    from: station ? tools.shownStation(station.chainage) : '',
                     to: '',
                     transition: r?.transition ?? '',
                     error: '',
@@ -321,7 +335,7 @@ export function SectionPaneTools({
     const result = planSectionRange(
       alignment,
       station.chainage,
-      [Number(range.from.trim() || NaN), Number(range.to.trim() || NaN)],
+      [tools.typedChainage(range.from, station.chainage), tools.typedChainage(range.to, station.chainage)],
       analysis.length,
       { id: uid, stationLabel: formatRoadStation, transitionM: Number(range.transition.trim() || 0) },
     )
@@ -393,7 +407,7 @@ export function SectionPaneTools({
                       {source.kind === 'snapshot' ? ' (saved as a new template)' : ''} to
                     </span>
                     <input
-                      aria-label="Range from station metres"
+                      aria-label={tools.stationsNamed ? 'Range from station' : 'Range from station metres'}
                       type="number"
                       min={0}
                       step="any"
@@ -404,7 +418,7 @@ export function SectionPaneTools({
                     />
                     <span>–</span>
                     <input
-                      aria-label="Range to station metres"
+                      aria-label={tools.stationsNamed ? 'Range to station' : 'Range to station metres'}
                       type="number"
                       min={0}
                       step="any"
@@ -413,7 +427,7 @@ export function SectionPaneTools({
                       onChange={(e) => patch({ to: e.target.value, confirm: null, error: '' })}
                       onKeyDown={(e) => e.key === 'Enter' && apply()}
                     />
-                    <span>m, changing over</span>
+                    <span>{tools.stationsNamed ? ', changing over' : 'm, changing over'}</span>
                     <input
                       aria-label="Transition at each end metres"
                       type="number"
@@ -436,7 +450,7 @@ export function SectionPaneTools({
                       className={small}
                       disabled={!station}
                       onClick={() =>
-                        station && patch({ from: String(round(station.chainage)), confirm: null, error: '' })
+                        station && patch({ from: tools.shownStation(station.chainage), confirm: null, error: '' })
                       }
                     >
                       From here
@@ -447,7 +461,7 @@ export function SectionPaneTools({
                       className={small}
                       disabled={!station}
                       onClick={() =>
-                        station && patch({ to: String(round(station.chainage)), confirm: null, error: '' })
+                        station && patch({ to: tools.shownStation(station.chainage), confirm: null, error: '' })
                       }
                     >
                       To here

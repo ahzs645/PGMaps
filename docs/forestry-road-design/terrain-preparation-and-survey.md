@@ -143,8 +143,14 @@ side shots, with text protected against spreadsheet formula execution.
 
 **Load traverse file** reads a traverse in one of the text formats RoadEng's Survey/Map and
 Terrain modules read (`traverseFiles.ts` over `softreeTraverse.ts`): a Softree ASCII (`.ASC`) or
-IPD traverse, a Polycorder Roads traverse, a unit survey (`.pol`) or a Laser Technology raw survey
-(`$PLTIT`). The content decides the format, never the name. None of them states its units, so the
+IPD traverse, a Polycorder Roads traverse, a unit survey (`.pol`), a Laser Technology raw survey
+(`$PLTIT`) or RoadEng's own traverse (`.tr1`, `softreeNativeTraverse.ts`; the format is described
+under [Opening a RoadEng project](exports-and-project-files.md#opening-a-roadeng-project)). The
+content decides the format, never the name. A `.tr1` that states its unit (`116`) is read in it,
+and the notice says so; its legs come from the stations' own calculated coordinates, its
+intermediate foresights become located points, and its field notes (labels, ground layers,
+culverts, side-shot depths, slopes beyond the shots) are kept as a Softree ASCII traverse's, so the
+book is written back as one; a `.tr1` itself is not written here. None of them states its units, so the
 book asks for them for every file and has no default; the raw format's own unit letter is
 reported when it differs from the answer, never used in its place. A unit survey also asks what
 its vertical readings are (inclination, zenith angle, slope %, elevation difference or elevation)
@@ -175,18 +181,20 @@ Every traverse writer writes the notes its format has a field for (`softreeTrave
 export notice names the rest with their counts ("Not written, because a unit survey has no field
 for them: culverts at 1 station; …"):
 
-| Format            | Writes                                                                                                                                              | Has no field for                                                                                                                         |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Softree ASCII     | labels 1 and 2, three ground layers and two depths, culvert, HI/HT, backshot, two depths per side shot, slope beyond the shots, points as IFS shots | side-shot codes                                                                                                                          |
-| IPD               | the same, and side-shot codes                                                                                                                       | —                                                                                                                                        |
-| Polycorder Roads  | label, two soils (2 characters) and the top depth, culvert width, one depth per side shot, slope beyond the shots when under three shots              | between-station label, third layer, second depth, culvert gradient/azimuth/direction, box height, HI/HT, backshot, second side-shot depth, codes, points |
-| Unit survey       | labels as point codes, HI/HT on each foreshot, points as side shots named by their own name                                                         | between-station label, ground layers, culverts, backshot, side-shot depths, slopes beyond the shots                                     |
+| Format           | Writes                                                                                                                                              | Has no field for                                                                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Softree ASCII    | labels 1 and 2, three ground layers and two depths, culvert, HI/HT, backshot, two depths per side shot, slope beyond the shots, points as IFS shots | side-shot codes                                                                                                                                          |
+| IPD              | the same, and side-shot codes                                                                                                                       | —                                                                                                                                                        |
+| Polycorder Roads | label, two soils (2 characters) and the top depth, culvert width, one depth per side shot, slope beyond the shots when under three shots            | between-station label, third layer, second depth, culvert gradient/azimuth/direction, box height, HI/HT, backshot, second side-shot depth, codes, points |
+| Unit survey      | labels as point codes, HI/HT on each foreshot, points as side shots named by their own name                                                         | between-station label, ground layers, culverts, backshot, side-shot depths, slopes beyond the shots                                                      |
 
 Culvert sizes follow each format's convention (`softreeCulvert.ts`): Softree ASCII writes a pipe's
 diameter or a box's height and width in thousandths of a unit; IPD a pipe in millimetres (inches in
 a feet file) and a box in units; Polycorder's culvert width has no stated unit and is read as the
 ASCII size. A culvert moves between formats and units through metres; written back in its own
-format and unit it is written as read.
+format and unit it is written as read. A saved book's culverts go onto a road, and a road's back
+into the book, through Drainage → RoadEng culverts, as RoadEng's Culverts Re-Import reads them
+from its P-line ([RoadEng culverts from a traverse](drainage.md#roadeng-culverts-from-a-traverse)).
 
 The book also keeps the file as written (`SoftreeTraverseSource`: each record's line, the line
 ends, the version line), when it fits the book's limit. Written back in the format and unit it was
@@ -241,30 +249,31 @@ documented exchange specification; these open imports/exports do not imply binar
 
 ## Limits and checks
 
-| Limit                                                                                     | Enforcing implementation                                                    |
-| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| 12 ground/mosaic sources; 1 GB combined point-cloud files                                 | `MAX_TERRAIN_SOURCES`, `mosaicRasters`, `loadLas`                           |
-| 4,194,304 output cells, with no mosaic coarsening                                         | `MAX_PREPARED_CELLS`, `mosaicRasters`                                       |
-| Point thinning: existing 3,000,000 decoded points / 1,500,000 TIN points                  | `DEFAULT_MAX_POINTS`, `tinSurface.ts` `MAX_POINTS`                          |
-| Retained TIN: 250,000 vertices / 500,000 faces                                            | `gridSurface`, `parseTerrainPreparation`                                    |
-| TIN elevation editing: 100,000,000 triangle-cell checks                                   | `editTinElevation`                                                          |
-| Named analytical reference surfaces: twelve / 4,194,304 total cells                       | `parseTerrainReferenceSurfaces`                                             |
-| Preservation regions: 2,000 vertices / 100 polygons / 100,000,000 point-vertex operations | `preservedPointMask`                                                        |
-| Six backgrounds / 1,048,576 combined display pixels                                       | `MAX_BACKGROUND_PIXELS`, `parseTerrainBackgrounds`                          |
-| Resampled background: at most 524,288 display pixels; refused under 16,384 left           | `BACKGROUND_LAYER_PIXELS`, `MIN_BACKGROUND_PIXELS`, `loadTerrainBackground` |
-| Background file: 64 MB / 33,554,432 source pixels                                         | `loadTerrainBackground`, `MAX_BACKGROUND_SOURCE_PIXELS`                     |
-| Graded pad ≤500 m wide / 1,000 m long, batters 0.1–10 H:V                                 | `gradePad`                                                                  |
-| 20 saved field books / 2,000 legs / 10,000 side shots / 100 km per traverse               | `parseSurveyBooks`, `reduceTraverse`                                        |
-| Combined scale factor 0.999–1.001; UTM zones only                                         | `SCALE_FACTOR_LIMITS`, `combinedScaleFactor`, `scaleFactor.ts`              |
-| KML: 30 MB expanded / 500 features / 50,000 vertices / 100,000 XML elements               | `xmlTree`, `parseKml`, `readSpatialFile`                                    |
-| Traverse file: 50 MB / 20,000 records / 25 side shots a side / 100 station equations      | `MAX_TRAVERSE_FILE_BYTES`, `MAX_TRAVERSE_RECORDS`, `MAX_SIDE_SHOTS_PER_SIDE`, `MAX_STATION_EQUATIONS` |
-| Start station ±10,000 km; field notes: 20,000 stations or points / 2,000,000 characters a book, the file as written included | `MAX_SURVEY_START_STATION_M`, `MAX_SURVEY_SOFTREE_ITEMS`, `MAX_SURVEY_SOFTREE_CHARS` |
-| Field notes: 10,000 characters a label or kept line; three ground layers; 25 side shots a side | `MAX_SURVEY_SOFTREE_TEXT`, `parseSurveyBooks`, `MAX_SIDE_SHOTS_PER_SIDE`        |
-| Unit-survey side shot within 5° of square to its leg                                      | `SIDE_SHOT_SQUARE_DEG`                                                      |
-| Polycorder export: three side shots a side, three decimals                                | `POLYCORDER_SIDE_SHOTS`, `POLYCORDER_EXPORT_DECIMALS`                       |
-| Softree ASCII: 200 MB of text / 10,000,000 terrain points / 2,000,000 location points      | `MAX_SOFTREE_ASCII_BYTES`, `MAX_SOFTREE_TERRAIN_ASCII_POINTS`, `MAX_SOFTREE_LOCATION_POINTS` |
-| Terrain ASCII ground: cells from 1 m; 1,500,000 TIN points                               | `SOFTREE_TERRAIN_MIN_CELL_M`, `tinSurface.ts` `MAX_POINTS`                  |
-| Location ASCII road: fit within 0.1 m; profile from 0.01 m, at most 498 PVIs              | `SOFTREE_LOCATION_FIT_DEVIATION_M`, `SOFTREE_PROFILE_TOLERANCE_M`, `SOFTREE_MAX_PVIS` |
+| Limit                                                                                                                        | Enforcing implementation                                                                              |
+| ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 12 ground/mosaic sources; 1 GB combined point-cloud files                                                                    | `MAX_TERRAIN_SOURCES`, `mosaicRasters`, `loadLas`                                                     |
+| 4,194,304 output cells, with no mosaic coarsening                                                                            | `MAX_PREPARED_CELLS`, `mosaicRasters`                                                                 |
+| Point thinning: existing 3,000,000 decoded points / 1,500,000 TIN points                                                     | `DEFAULT_MAX_POINTS`, `tinSurface.ts` `MAX_POINTS`                                                    |
+| Retained TIN: 250,000 vertices / 500,000 faces                                                                               | `gridSurface`, `parseTerrainPreparation` (`MAX_RETAINED_TIN_VERTICES`, `MAX_RETAINED_TIN_INDICES`)    |
+| TIN elevation editing: 100,000,000 triangle-cell checks                                                                      | `editTinElevation`                                                                                    |
+| Named analytical reference surfaces: twelve / 4,194,304 total cells                                                          | `parseTerrainReferenceSurfaces`                                                                       |
+| Preservation regions: 2,000 vertices / 100 polygons / 100,000,000 point-vertex operations                                    | `preservedPointMask`                                                                                  |
+| Six backgrounds / 1,048,576 combined display pixels                                                                          | `MAX_BACKGROUND_PIXELS`, `parseTerrainBackgrounds`                                                    |
+| Resampled background: at most 524,288 display pixels; refused under 16,384 left                                              | `BACKGROUND_LAYER_PIXELS`, `MIN_BACKGROUND_PIXELS`, `loadTerrainBackground`                           |
+| Background file: 64 MB / 33,554,432 source pixels                                                                            | `loadTerrainBackground`, `MAX_BACKGROUND_SOURCE_PIXELS`                                               |
+| Graded pad ≤500 m wide / 1,000 m long, batters 0.1–10 H:V                                                                    | `gradePad`                                                                                            |
+| 20 saved field books / 2,000 legs / 10,000 side shots / 100 km per traverse                                                  | `parseSurveyBooks`, `reduceTraverse`                                                                  |
+| Combined scale factor 0.999–1.001; UTM zones only                                                                            | `SCALE_FACTOR_LIMITS`, `combinedScaleFactor`, `scaleFactor.ts`                                        |
+| KML: 30 MB expanded / 500 features / 50,000 vertices / 100,000 XML elements                                                  | `xmlTree`, `parseKml`, `readSpatialFile`                                                              |
+| Traverse file: 50 MB / 20,000 records / 25 side shots a side / 100 station equations                                         | `MAX_TRAVERSE_FILE_BYTES`, `MAX_TRAVERSE_RECORDS`, `MAX_SIDE_SHOTS_PER_SIDE`, `MAX_STATION_EQUATIONS` |
+| RoadEng traverse (`.tr1`): 20,000,000 characters                                                                             | `softreeNativeTraverse.ts` `MAX_NATIVE_TRAVERSE_CHARS`                                                |
+| Start station ±10,000 km; field notes: 20,000 stations or points / 2,000,000 characters a book, the file as written included | `MAX_SURVEY_START_STATION_M`, `MAX_SURVEY_SOFTREE_ITEMS`, `MAX_SURVEY_SOFTREE_CHARS`                  |
+| Field notes: 10,000 characters a label or kept line; three ground layers; 25 side shots a side                               | `MAX_SURVEY_SOFTREE_TEXT`, `parseSurveyBooks`, `MAX_SIDE_SHOTS_PER_SIDE`                              |
+| Unit-survey side shot within 5° of square to its leg                                                                         | `SIDE_SHOT_SQUARE_DEG`                                                                                |
+| Polycorder export: three side shots a side, three decimals                                                                   | `POLYCORDER_SIDE_SHOTS`, `POLYCORDER_EXPORT_DECIMALS`                                                 |
+| Softree ASCII: 200 MB of text / 10,000,000 terrain points / 2,000,000 location points                                        | `MAX_SOFTREE_ASCII_BYTES`, `MAX_SOFTREE_TERRAIN_ASCII_POINTS`, `MAX_SOFTREE_LOCATION_POINTS`          |
+| Terrain ASCII ground: cells from 1 m; 1,500,000 TIN points                                                                   | `SOFTREE_TERRAIN_MIN_CELL_M`, `tinSurface.ts` `MAX_POINTS`                                            |
+| Location ASCII road: fit within 0.1 m; profile from 0.01 m, at most 498 PVIs                                                 | `SOFTREE_LOCATION_FIT_DEVIATION_M`, `SOFTREE_PROFILE_TOLERANCE_M`, `SOFTREE_MAX_PVIS`                 |
 
 Analytical tests cover protected points and budget failure, mosaic overlap/no-data/CRS rules,
 pad planes and batters, retained-TIN validation, LandXML/ASCII coordinates and missing faces,

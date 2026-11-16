@@ -1,9 +1,12 @@
 /**
- * Engineering exchange outputs: LandXML 1.2 (alignment, profile, ground and cross-sections) and a
+ * Engineering exchange outputs: LandXML 1.2 (alignment, profile, ground, cross-sections and
+ * superelevation) and a
  * slope-stake point file. Both take a `toGrid` projection so coordinates come out in the terrain's
  * projected CRS. Pure: no DOM or network access.
  */
+import { equationChainage, hasStationing, stationAtChainage } from './roadStationing'
 import { horizontalGeometry } from './engine'
+import { landXmlSuperelevationXml } from './landXmlSuperelevation'
 import { refuseInvalidResults } from './inputErrors'
 import { combinedScaleFactor } from './scaleFactor'
 import { sectionCodePoints } from './sectionGeometry'
@@ -80,7 +83,7 @@ function clothoidChord(length: number, radius: number) {
  * length and radii multiplied by grid chord ÷ model chord, its centre placed from the projected
  * ends. Every element then closes on its own coordinates. Stations stay road chainage.
  */
-function gridElement(piece: ReturnType<typeof horizontalGeometry>[number], toGrid: ToGrid) {
+function gridElement(piece: ReturnType<typeof horizontalGeometry>[number], toGrid: ToGrid, stationOffset = 0) {
   // Measure from the coordinates as written (to the millimetre), so lengths agree with them.
   const written = (c: [number, number]) => c.map((v) => Number(num(v) ?? NaN)) as [number, number]
   const start = written(toGrid(piece.start)),
@@ -91,7 +94,7 @@ function gridElement(piece: ReturnType<typeof horizontalGeometry>[number], toGri
   const dx = end[0] - start[0],
     dy = end[1] - start[1],
     chord = Math.hypot(dx, dy)
-  const sta = num(piece.station)
+  const sta = num(stationOffset + piece.station)
   const staStart = sta === null ? '' : ` staStart="${sta}"`
   if (piece.kind === 'line') {
     return {
@@ -220,8 +223,13 @@ export function landXml({
   date?: Date
 }): string {
   refuseInvalidResults('LandXML alignment', analysis)
+  // A road with a start station or equations writes its stations from that start (`staStart`, the
+  // internal stations) and each equation as a `StaEquation`; without, stations are its chainage.
+  const stationing = hasStationing(alignment.stationing) ? alignment.stationing : undefined
+  const offset = stationing?.startStation ?? 0
+  const at = (chainage: number) => offset + chainage
   const elements = horizontalGeometry(alignment)
-    .map((piece) => gridElement(piece, toGrid))
+    .map((piece) => gridElement(piece, toGrid, offset))
     .filter((element) => element !== null)
   const gridLength = elements.reduce((sum, e) => sum + e.length, 0),
     modelLength = elements.reduce((sum, e) => sum + e.model, 0)
@@ -232,11 +240,11 @@ export function landXml({
   const profile = vertical
     .map((p, i) =>
       Number.isFinite(p.curveLength) && p.curveLength > 0 && i > 0 && i < vertical.length - 1
-        ? `<ParaCurve length="${num(p.curveLength)}">${num(p.chainage)} ${num(p.elevation)}</ParaCurve>`
-        : `<PVI>${num(p.chainage)} ${num(p.elevation)}</PVI>`,
+        ? `<ParaCurve length="${num(p.curveLength)}">${num(at(p.chainage))} ${num(p.elevation)}</ParaCurve>`
+        : `<PVI>${num(at(p.chainage))} ${num(p.elevation)}</PVI>`,
     )
     .join('')
-  const ground = pointRuns(analysis.stations.map((s) => [s.chainage, s.groundElevation]))
+  const ground = pointRuns(analysis.stations.map((s) => [at(s.chainage), s.groundElevation]))
     .map(
       (points, index) =>
         `<ProfSurf name="Ground · ${xml(terrain.name)}${index ? ` · part ${index + 1}` : ''}"><PntList2D>${points}</PntList2D></ProfSurf>`,
@@ -244,7 +252,7 @@ export function landXml({
     .join('')
   const sections = sectionStations(analysis, sectionIntervalM)
     .map((s) => {
-      const sta = num(s.chainage)
+      const sta = num(at(s.chainage))
       if (sta === null) return ''
       const surface = (label: string, key: 'design' | 'ground' | 'preparedGround') => {
         return pointRuns(s.section.map((p) => [p.offset, p[key]]))
@@ -254,14 +262,34 @@ export function landXml({
           )
           .join('')
       }
+      // Walls, barriers and sub-cuts as closed outlines (`sectionStructures.ts`).
+      const structures = (s.structures ?? [])
+        .filter((x) => x.outline.length > 2 && x.outline.every(([o, z]) => num(o) !== null && num(z) !== null))
+        .map(
+          (x) =>
+            `<CrossSectSurf name="${xml(`${x.name} (${x.kind}, ${x.side})`)}"><PntList2D>${[...x.outline, x.outline[0]]
+              .map(([o, z]) => `${num(o)} ${num(z)}`)
+              .join(' ')}</PntList2D></CrossSectSurf>`,
+        )
+        .join('')
       const surfaces =
         surface('Design', 'design') +
         surface('Ground', 'ground') +
-        (s.section.some((p) => p.preparedGround !== undefined) ? surface('Prepared ground', 'preparedGround') : '')
+        (s.section.some((p) => p.preparedGround !== undefined) ? surface('Prepared ground', 'preparedGround') : '') +
+        structures
       return surfaces ? `<CrossSect sta="${sta}">${surfaces}</CrossSect>` : ''
     })
     .filter(Boolean)
     .join('\n        ')
+  const equations = (stationing?.equations ?? [])
+    .filter((e) => equationChainage(e, stationing!) <= analysis.length + 1e-6)
+    .map((e) => {
+      const back = stationAtChainage(Math.max(0, equationChainage(e, stationing!) - 1e-6), stationing)
+      return `<StaEquation staInternal="${num(offset + equationChainage(e, stationing!))}" staBack="${num(back)}" staAhead="${num(e.ahead)}" staIncrement="${e.decreasing ? 'decreasing' : 'increasing'}"${e.description ? ` desc="${xml(e.description)}"` : ''}/>`
+    })
+    .join('\n      ')
+  // Each superelevated curve's transition stations and rate (`landXmlSuperelevation.ts`).
+  const superelevation = landXmlSuperelevationXml(alignment, offset).join('\n      ')
   const profileBody = [profile ? `<ProfAlign name="Design formation">${profile}</ProfAlign>` : '', ground]
     .filter(Boolean)
     .join('\n        ')
@@ -300,12 +328,17 @@ export function landXml({
   <CoordinateSystem epsgCode="${epsg}" name="EPSG:${epsg}" verticalDatum="${xml(terrain.verticalReference)}"/>
   <Project name="${xml(name)}" desc="Preliminary planning geometry; not a construction design"/>
   <Application name="PG Maps forest road design" manufacturer="PG Maps" version="1"/>
-  <!-- Element lengths, radii and centres are grid values in EPSG:${epsg}, consistent with the exported coordinates. Stations (staStart, PVI, ProfSurf and CrossSect sta) are chainage along the road model, measured on a sphere${ratio ? `; grid length ÷ chainage over the alignment is ${ratio}` : ''}.${scaleNote} -->
+  <!-- Element lengths, radii and centres are grid values in EPSG:${epsg}, consistent with the exported coordinates. Stations (staStart, PVI, ProfSurf and CrossSect sta) are chainage along the road model${stationing ? ` plus the start station ${num(offset)}` : ''}, measured on a sphere${ratio ? `; grid length ÷ chainage over the alignment is ${ratio}` : ''}.${scaleNote} -->
   <Alignments name="${xml(name)}">
-    <Alignment name="${xml(alignment.name)}" length="${num(gridLength)}" staStart="0">
+    <Alignment name="${xml(alignment.name)}" length="${num(gridLength)}" staStart="${stationing ? num(offset) : 0}">
       <CoordGeom>
         ${geometry}
       </CoordGeom>${
+        equations
+          ? `
+      ${equations}`
+          : ''
+      }${
         profileBody
           ? `
       <Profile name="${xml(alignment.name)}">
@@ -318,6 +351,11 @@ export function landXml({
       <CrossSects>
         ${sections}
       </CrossSects>`
+          : ''
+      }${
+        superelevation
+          ? `
+      ${superelevation}`
           : ''
       }
     </Alignment>

@@ -1,12 +1,14 @@
 /**
- * One drainage check: sample the terrain around the road, burn the road prism and culverts in,
- * and compare flow on the existing ground with flow on the design surface. Pure: the terrain is
- * an ElevationSource and the projection is passed in, so a run can be checked outside a browser.
+ * One drainage check: sample the terrain along the road (the tiles within the upslope buffer, see
+ * `corridorGrid.ts`), burn the road prism and culverts in, and compare flow on the existing ground
+ * with flow on the design surface. Pure: the terrain is an ElevationSource and the projection is
+ * passed in, so a run can be checked outside a browser.
  */
+import { sampleCorridorGrid } from './corridorGrid'
 import { burnRoad } from './designSurface'
 import { analyzeDrainage, DITCH_DETAIL_CELL_M, type DrainageAnalysis } from './hydrology'
 import { parseDepressionPolicy, type DepressionPolicy } from './drainagePolicies'
-import { corridorBounds, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
+import type { ToGrid, ToLonLat } from './surfaceGrid'
 import type { Culvert, RoadAnalysis, TerrainSource } from './types'
 import {
   delineateCatchment,
@@ -40,8 +42,14 @@ export const DEFAULT_DRAINAGE_SETTINGS: DrainageSettings = {
   bufferM: 250,
 }
 
+/** At most this many cells are routed (held in the corridor's tiles); the cell grows ×1.25 until they fit. */
+export const MAX_DRAINAGE_ROUTED_CELLS = 4_194_304
+/** A culvert apron reaches this far past the barrel end (`burnRoad`'s default `apronM`). */
+const CULVERT_APRON_M = 10
+
 export interface DrainageRun extends DrainageAnalysis {
   cellM: number
+  /** Cells routed: those inside the grid of the tiles held along the road. */
   cells: number
   changedCells: number
   settings: DrainageSettings
@@ -51,12 +59,27 @@ export interface DrainageRun extends DrainageAnalysis {
     requestedM?: number
     minimumM: number
     actualM: number
+    /** The budget on routed cells. */
     maxCells: number
     coarsenedForBudget: boolean
   }
+  /** What was sampled and routed, against the box around the road a dense grid would hold. */
+  domain: {
+    /** Cells of the box around the road and its buffer at this cell. */
+    boxCells: number
+    /** Cells of the tiles within the buffer of the road, sampled from the terrain. */
+    sampledCells: number
+    /** Cells of the tiles kept: with ground, or within the road's own reach. */
+    routedCells: number
+    /** Routed cells with ground. */
+    groundCells: number
+    /** Tile side, cells. */
+    tileCells: number
+  }
   /** Features for the plan, each with a `role` (see PlanView's `drainage` prop). */
   plan: GeoJSON.FeatureCollection
-  grid: DrainageGrid
+  /** The full grid's frame and the cells routed in it; the tiles themselves are not kept. */
+  grid: Omit<DrainageGrid, 'tiles'> & { routedCells: number }
   catchment?: CatchmentResult
   watersheds?: GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, CatchmentProperties>
 }
@@ -69,7 +92,7 @@ export function runDrainage({
   toLonLat,
   resolutionM,
   settings,
-  maxCells = 4_194_304,
+  maxCells = MAX_DRAINAGE_ROUTED_CELLS,
   pourPoint,
   watershedMinAreaHa,
 }: {
@@ -95,14 +118,20 @@ export function runDrainage({
       settings.workingResolutionM > 100_000)
   )
     throw Error('The working resolution must be greater than zero and at most 100,000 m.')
-  if (!Number.isInteger(maxCells) || maxCells < 1 || maxCells > 4_194_304)
-    throw Error('The drainage cell budget must be from 1 to 4,194,304 cells.')
+  if (!Number.isInteger(maxCells) || maxCells < 1 || maxCells > MAX_DRAINAGE_ROUTED_CELLS)
+    throw Error('The drainage cell budget must be from 1 to 4,194,304 routed cells.')
   const depressionPolicy = parseDepressionPolicy(settings.depressionPolicy)
   const minimumM = Math.max(1, resolutionM, settings.workingResolutionM ?? 0)
   if (!analysis.stations.some((s) => s.designElevation !== null))
     throw Error('The road has no design elevations on this terrain, so there is no design surface to route over.')
-  const bounds = corridorBounds(analysis, toGrid, settings.bufferM)
-  const existing = sampleSurfaceGrid(terrain, bounds, toLonLat, { cellM: minimumM, maxCells })
+  const corridor = sampleCorridorGrid(terrain, analysis, toGrid, toLonLat, {
+    bufferM: settings.bufferM,
+    cellM: minimumM,
+    maxCells,
+    // Culvert barrels run past the catch points by up to half their length, then an apron.
+    extraRoadReachM: Math.max(0, ...culverts.map((c) => c.lengthM / 2)) + CULVERT_APRON_M,
+  })
+  const existing = corridor.grid
   const burned = burnRoad(existing, analysis, toGrid, { culverts })
   const result = analyzeDrainage({
     existing,
@@ -124,7 +153,7 @@ export function runDrainage({
   )
   if (existing.cellM > minimumM)
     result.warnings.push(
-      `The working grid was coarsened from ${minimumM.toFixed(2)} m to ${existing.cellM.toFixed(2)} m to fit the ${maxCells.toLocaleString('en-CA')}-cell budget.`,
+      `The working grid was coarsened from ${minimumM.toFixed(2)} m to ${existing.cellM.toFixed(2)} m to fit the ${maxCells.toLocaleString('en-CA')}-cell budget of routed cells.`,
     )
   if (settings.workingResolutionM !== undefined && settings.workingResolutionM < Math.max(1, resolutionM))
     result.warnings.push(
@@ -143,8 +172,7 @@ export function runDrainage({
     result.warnings.push(
       'Retained closed flats can have multiple terminal cells. A selected sink catchment may cover only part of a closed flat depression; inspect nearby sinks and ponding before treating it as the whole basin.',
     )
-  let missingCells = 0
-  for (const value of existing.values) if (!Number.isFinite(value)) missingCells++
+  const missingCells = corridor.sampledCells - corridor.groundCells
   if (missingCells)
     result.warnings.push(
       `${missingCells.toLocaleString('en-CA')} sampled cells have no ground. Data gaps act as outlets and can cut off upstream catchments; load terrain covering the contributing area.`,
@@ -158,16 +186,17 @@ export function runDrainage({
       result.warnings.push(
         `${culvert.name}: the modeled design catchment (${culvert.designAreaHa.toFixed(2)} ha) is much smaller than the existing-ground catchment (${culvert.existingAreaHa.toFixed(2)} ha). Inspect diverted flow, the inlet location and terrain detail before relying on this pipe check.`,
       )
-  const grid: DrainageGrid = {
+  const grid = {
     origin: existing.origin,
     cellM: existing.cellM,
     width: existing.width,
     height: existing.height,
+    routedCells: corridor.heldCells,
   }
   const catchmentSurface = pourPoint?.surface === 'existing' ? result.existing : result.design
   const catchment = pourPoint
     ? delineateCatchment(
-        grid,
+        existing,
         catchmentSurface.directions,
         catchmentSurface.accumulation,
         pourPoint,
@@ -179,7 +208,7 @@ export function runDrainage({
   const watersheds =
     watershedMinAreaHa === undefined
       ? undefined
-      : delineateWatersheds(grid, catchmentSurface.directions, toLonLat, {
+      : delineateWatersheds(existing, catchmentSurface.directions, toLonLat, {
           minAreaHa: watershedMinAreaHa,
           surface: pourPoint?.surface ?? 'design',
         })
@@ -246,7 +275,7 @@ export function runDrainage({
   return {
     ...result,
     cellM: existing.cellM,
-    cells: existing.width * existing.height,
+    cells: corridor.heldCells,
     changedCells: burned.changedCells,
     settings: { ...settings, depressionPolicy },
     resolution: {
@@ -256,6 +285,13 @@ export function runDrainage({
       actualM: existing.cellM,
       maxCells,
       coarsenedForBudget: existing.cellM > minimumM,
+    },
+    domain: {
+      boxCells: corridor.boxCells,
+      sampledCells: corridor.sampledCells,
+      routedCells: corridor.heldCells,
+      groundCells: corridor.groundCells,
+      tileCells: existing.tiles.side,
     },
     grid,
     catchment,

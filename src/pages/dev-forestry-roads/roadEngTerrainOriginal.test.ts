@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { projectedCrsDefinition } from '@/lib/geo/projectedCrs'
 import { parseProject } from './project'
 import { encodeRoadEngDLineChunks, roadEngDLineFor } from './roadEngDLines'
-import { roadEngProject, withRoadEngOriginal } from './roadEngProject'
+import { crsMisfit, roadEngProject, withRoadEngOriginal } from './roadEngProject'
 import { roadEngExportGrid, roadEngProjectExport } from './roadEngProjectExport'
 import { parseRoadEngTer, ROADENG_FLAG_NOT_MODELLED, ROADENG_FLAG_POINT_SET } from './roadEngTerrain'
 import { buildTer, chunk, type SynthFeature } from './roadEngTerrain.testkit'
@@ -217,6 +217,53 @@ const move = (c: Coordinate, dx: number, dy: number): Coordinate => {
 }
 
 describe("RoadEng's own terrain file", () => {
+  it('reads a terrain in feet in the feet its .tlt states, and writes it back as read', async () => {
+    // No sample shows the unit of a D-line's cable settings in feet, so this terrain draws none.
+    const feetTer = buildTer({
+      features: features.map((f, k) => (k === DLINE ? { ...f, name: 'Old trail' } : f)),
+      tin: { vertices: tinVertices, triangles },
+      attributes: [
+        ...chunk(100, -1, strToU8('7000|1|0|4|General|General|0|0|Comment|Comment|0|0|0\n\0')),
+        ...chunk(52, -1, groupPayload(-1, '%$^**&@')),
+        ...chunk(58, -1, defaultsFormat),
+        ...chunk(52, -1, groupPayload(STREAM, 'Sml Stream - Willow Creek')),
+        ...chunk(51, 1, new Uint8Array(32).fill(3)),
+        ...chunk(52, -1, groupPayload(BLUFF, 'Rock Bluff')),
+        ...chunk(58, -1, format),
+      ],
+    })
+    new DataView(feetTer.buffer).setUint32(38 + 12, roadEngTerLayout(feetTer).chunks.length, true)
+    const inFeet = zipSync({
+      'Terrain1.ter': feetTer,
+      'Terrain1.tlt': strToU8(tlt.replace('units=10000', 'units=3048'), true),
+      'Terrain1.te1': te1,
+    })
+    const read = roadEngProject([{ name: 'Valley.terx', bytes: inFeet }], options)
+    // Its posts are 20 feet apart, and its code (NAD83 / UTM zone 10N) is not read in feet.
+    expect(read.localPlane?.unitM).toBe(0.3048)
+    expect(read.notes).toContain('Its terrain states EPSG:26910, which this workspace does not read in feet.')
+    const { project, ter: kept } = await open(inFeet)
+    const out = write(project, kept)
+    expect(out.carryOver.why).toBeNull()
+    expect(out.carryOver.ground).toBe('roadeng')
+    for (const name of ['Terrain1.ter', 'Terrain1.tlt', 'Terrain1.te1'])
+      expect(equal(out.files[name], unzipSync(inFeet)[name]), name).toBe(true)
+  })
+
+  it('does not take a coordinate system that puts the terrain outside where it applies', () => {
+    // RoadEng's default code, NAD83 / UTM zone 10N, on a terrain whose grid is a state plane's.
+    expect(crsMisfit(26910, [[669_255, 100_844]])).toBe('0.91° N, 121.48° W')
+    expect(crsMisfit(26910, [[E0, N0]])).toBeNull()
+    expect(crsMisfit(32612, [[590_572, 5_703_440]])).toBeNull()
+    expect(crsMisfit(3005, [[1_200_000, 1_000_000]])).toBeNull()
+    const equator = zipSync({
+      'Terrain1.ter': ter,
+      'Terrain1.tlt': strToU8(tlt, true),
+      'Terrain1.te1': te1,
+    })
+    expect(roadEngProject([{ name: 'Valley.terx', bytes: equator }], options).epsg).toBe(26910)
+  })
+
   it('records the file and the objects made from it, and reads the reference back', async () => {
     const { project } = await open(terx)
     const original = project.terrain.roadEngSource!.original!
@@ -546,6 +593,53 @@ describe.skipIf(!samples || !existsSync(samples ?? ''))(
       const changed = after.groups.get(index)!.filter((c, k) => !equal(c, before.groups.get(index)![k]))
       expect(changed.map((c) => new DataView(c.buffer, c.byteOffset).getUint32(8, true))).toEqual([63, 12])
       expect(parseRoadEngTer(out.ter).features[index].dLine!.spars[0].height).toBeCloseTo(21, 9)
+    })
+  },
+)
+
+// The RoadEng sample pack, read in place and never committed: set ROADENG_SAMPLE_PACK to its samples
+// folder. Three of its terrains are in feet; two state a coordinate system their coordinates are not in.
+const pack = process.env.ROADENG_SAMPLE_PACK
+describe.skipIf(!pack || !existsSync(pack ?? ''))(
+  "RoadEng sample pack's own terrain files",
+  { timeout: 120_000 },
+  () => {
+    for (const path of [
+      'widening-only/Widening only/Topo.terx',
+      'tutorial-v10/RoadEngCivil/Location/Topo.terx',
+      'tutorial-v10/RoadEngCivil/Location2/bluff_road.terx',
+      'tutorial-v10/SoftreeOptimal/Hart Rd.terx',
+      'tutorial-v10/RoadEngResource/Traverse/spur.terx',
+      'tutorial-v11/RoadEngResource/Location/Terrain9_1.terx',
+      'tutorial-v11/RoadEngResource/Location/image.terx',
+      'tutorial-v11/RoadEngResource/Location/Terrain 13_1 - Ground type notes.terx',
+    ])
+      it(`writes ${path} back byte for byte after an unedited open`, async () => {
+        const bytes = new Uint8Array(readFileSync(join(pack!, path)))
+        const { project, ter: kept } = await open(bytes, path.split('/').pop())
+        const out = write(project, kept)
+        expect(out.carryOver.ground).toBe('roadeng')
+        const parts = unzipSync(bytes)
+        for (const name of Object.keys(parts)) expect(equal(out.files[name], parts[name]), name).toBe(true)
+      })
+
+    it('reads spur.terx in the feet its .tlt states, and keeps it in feet only while nothing drawn changes', async () => {
+      const bytes = new Uint8Array(readFileSync(join(pack!, 'tutorial-v10/RoadEngResource/Traverse/spur.terx')))
+      const { project, ter: kept } = await open(bytes, 'spur.terx')
+      expect(project.terrain.roadEngSource!.original!.unitM).toBe(0.3048)
+      expect(project.terrain.localPlane?.unitM).toBe(0.3048)
+      // A stream drawn here is a feature to add, which this export writes only in metres.
+      // On the flat plane, which is centred on 0°, 0°.
+      const at: Coordinate = [0.0001, 0.0001]
+      const stream = {
+        id: 'drawn-stream',
+        name: 'Spur Creek',
+        kind: 'stream' as const,
+        geometry: { type: 'LineString' as const, coordinates: [at, [at[0] + 1e-4, at[1] + 1e-4] as Coordinate] },
+      }
+      const out = write({ ...project, context: [...project.context, stream] }, kept)
+      expect(out.carryOver.ground).toBe('grid')
+      expect(out.carryOver.why).toMatch(/in feet/)
     })
   },
 )

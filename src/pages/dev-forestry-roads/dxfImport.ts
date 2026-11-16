@@ -71,6 +71,7 @@ export const PGMAPS_DXF_FRAME_LAYERS: ReadonlySet<string> = new Set([
   'SECT_DESIGN',
   'SECT_GRID',
   'SECT_TEXT',
+  'SECT_STRUCT',
 ])
 
 export interface DxfLayer {
