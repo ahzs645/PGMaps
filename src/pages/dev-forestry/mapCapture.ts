@@ -355,6 +355,67 @@ export async function captureClassPass(
   }
 }
 
+/** A terrain tile the map draws: its tile and the zoom it is drawn at (`OverscaledTileID`'s fields). */
+export type DrawnTerrainTile = { z: number; x: number; y: number; overscaledZ: number }
+
+/**
+ * The DEM zoom the map draws the ground from at `lng, lat`: the drawn terrain tile there, less the terrain's
+ * `deltaZoom`, within the DEM source's zoom range, as MapLibre's terrain tile manager picks the DEM tile behind each
+ * terrain tile (`_getSourceZoom`). Null where no drawn tile covers the point. Pure, for the unit tests.
+ */
+export function demZoomAt(
+  tiles: readonly DrawnTerrainTile[],
+  lng: number,
+  lat: number,
+  terrain: { deltaZoom: number; minzoom: number; maxzoom: number },
+): number | null {
+  const x = (lng + 180) / 360
+  const sin = Math.sin((lat * Math.PI) / 180)
+  const y = 0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)
+  let best: DrawnTerrainTile | null = null
+  for (const tile of tiles) {
+    const n = 2 ** tile.z
+    if (Math.floor(x * n) === tile.x && Math.floor(y * n) === tile.y && (!best || tile.z > best.z)) best = tile
+  }
+  if (!best) return null
+  const z = Math.max(terrain.minzoom, Math.min(best.overscaledZ - terrain.deltaZoom, terrain.maxzoom))
+  return z <= best.overscaledZ ? z : null
+}
+
+/**
+ * The DEM zoom the map draws the ground from at each point, as it stands: MapLibre picks the terrain's detail by
+ * distance and pitch, so from eye level ground a few kilometres out is drawn from far coarser cells than the run's
+ * sightlines walk. Null for a point no drawn tile covers, and for every point when the map has no terrain.
+ */
+export function drawnDemZooms(
+  map: MapLibreMap,
+  points: ReadonlyArray<readonly [number, number]>,
+): Array<number | null> {
+  const manager = map.terrain?.tileManager
+  if (!manager || !points.length) return points.map(() => null)
+  const source = manager.getSource()
+  const tiles = manager.getRenderableTiles().flatMap((tile) =>
+    tile?.tileID
+      ? [
+          {
+            z: tile.tileID.canonical.z,
+            x: tile.tileID.canonical.x,
+            y: tile.tileID.canonical.y,
+            overscaledZ: tile.tileID.overscaledZ,
+          },
+        ]
+      : [],
+  )
+  const terrain = { deltaZoom: manager.deltaZoom, minzoom: source.minzoom ?? 0, maxzoom: source.maxzoom ?? 22 }
+  return points.map(([lng, lat]) => demZoomAt(tiles, lng, lat, terrain))
+}
+
+/** The middle value of the known zooms, rounded down; null when there is none. */
+const medianZoom = (zooms: ReadonlyArray<number | null>): number | null => {
+  const known = zooms.filter((z): z is number => z !== null).sort((a, b) => a - b)
+  return known.length ? known[Math.floor((known.length - 1) / 2)] : null
+}
+
 /** Widest a framed capture is drawn, pixels, all frames together. */
 export const FRAMED_WIDTH = 2400
 
@@ -364,11 +425,21 @@ export type FramedCapture = {
   classes: { data: Uint8ClampedArray; width: number; height: number } | null
   /** The zone pass (VQO polygons) of the same frames, when zone layers were given and it was taken. */
   zones: { data: Uint8ClampedArray; width: number; height: number } | null
+  /**
+   * One class pass of the same frames per entry of `landformPasses` (the class layers split at another landform the
+   * scene holds), in that order; an entry is null when its pass failed. Empty when none were asked for.
+   */
+  landforms: Array<{ data: Uint8ClampedArray; width: number; height: number } | null>
   /** Width of each frame in the joined images, pixels. */
   frameWidth: number
   /** The pixel ratio the frames were drawn at (`capturePixelRatio`), and the capture's wall time, ms. */
   pixelRatio: number
   millis: number
+  /**
+   * The DEM zoom the frames drew the ground from at the `probe` points (the middle of their readings across the
+   * frames that show them, `drawnDemZooms`); null without probe points, terrain or a drawn tile under any of them.
+   */
+  drawnDemZoom: number | null
 }
 
 /** Highest pixel ratio a framed capture draws the road view at. */
@@ -411,7 +482,8 @@ export function capturePixelRatio(input: {
  * camera's matrices stay valid), through at least `CAPTURE_MIN_VERTICAL_FOV_DEG` of field, and the
  * display and the class pass are read from the centred window of the canvas that frame takes in.
  * Frames are joined side by side. The camera and field of view are put back as they were, even on
- * failure.
+ * failure. `probe` points (the blocks' ground the run sees) are read for the DEM detail each frame draws there.
+ * `landformPasses` are further class passes at each frame's camera, one per other landform the sheet calculates.
  */
 export async function captureFramed(
   map: MapLibreMap,
@@ -419,6 +491,8 @@ export async function captureFramed(
   eye: { lng: number; lat: number; elevation: number },
   layers: readonly ClassPassLayer[] | null,
   zoneLayers: readonly ClassPassLayer[] | null = null,
+  probe: ReadonlyArray<readonly [number, number]> = [],
+  landformPasses: ReadonlyArray<readonly ClassPassLayer[]> = [],
 ): Promise<FramedCapture> {
   const centre = map.getCenter()
   const before = {
@@ -461,6 +535,12 @@ export async function captureFramed(
   let classes: FramedCapture['classes'] = layers
     ? { data: new Uint8ClampedArray(joined.width * height * 4), width: joined.width, height }
     : null
+  const landforms: FramedCapture['landforms'] = landformPasses.map(() => ({
+    data: new Uint8ClampedArray(joined.width * height * 4),
+    width: joined.width,
+    height,
+  }))
+  const drawnZooms: Array<number | null> = []
   try {
     if (ratio > ratioBefore) map.setPixelRatio(ratio)
     for (let i = 0; i < plan.frames.length; i++) {
@@ -485,6 +565,12 @@ export async function captureFramed(
       const region: CaptureRegion = { crop: window_.crop, width: frameWidth, height }
       const display = await readSettledFrame(map, () => drawCanvas(map, region, true).canvas, 'The framed view')
       joinedContext.drawImage(display, i * frameWidth, 0)
+      // Read at the frame's camera, before the class pass: the detail the ground at the probe points is drawn from.
+      try {
+        drawnZooms.push(...drawnDemZooms(map, probe))
+      } catch {
+        // A MapLibre without these terrain internals: the detail stays unknown.
+      }
       const join = (target: { data: Uint8ClampedArray }, pass: { data: Uint8ClampedArray }) => {
         for (let row = 0; row < height; row++)
           target.data.set(
@@ -506,15 +592,26 @@ export async function captureFramed(
           zones = null
         }
       }
+      for (let k = 0; k < landformPasses.length; k++) {
+        const target = landforms[k]
+        if (!target) continue
+        try {
+          join(target, await captureClassPass(map, landformPasses[k], region))
+        } catch {
+          landforms[k] = null
+        }
+      }
     }
     return {
       image: { dataUrl: joined.toDataURL('image/jpeg', 0.88), width: joined.width, height },
       classes,
       zones,
+      landforms,
       frameWidth,
       // As drawn: MapLibre may have clamped the ratio asked for to its largest canvas.
       pixelRatio: Math.round((source.width / Math.max(1, source.clientWidth)) * 100) / 100,
       millis: Math.round(performance.now() - started),
+      drawnDemZoom: medianZoom(drawnZooms),
     }
   } finally {
     if (ratio > ratioBefore) map.setPixelRatio(override as number)

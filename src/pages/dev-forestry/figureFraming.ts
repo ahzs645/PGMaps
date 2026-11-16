@@ -17,6 +17,7 @@ import {
   metersPerDegree,
   pointInPolygon,
   polygonBounds,
+  preparePolygons,
   type PolygonGeometry,
 } from './visibility'
 
@@ -96,6 +97,8 @@ export function landformAngularExtent(
   ].map(([lng, lat]) => Math.hypot((lng - eye.lng) * scale.lng, (lat - eye.lat) * scale.lat))
   const reach = Math.min(options.maxDistanceMeters ?? 30_000, Math.max(...corners) + bin)
   const [start, span] = bearingArc(eye, landform)
+  // Tested at every visible bin of every ray: prepared once (`preparePolygons`), not a ring walk per point.
+  const inLandform = preparePolygons([landform]).contains
   const rays = Math.max(2, Math.min(1440, Math.ceil(span / step) + 1))
   const rayStep = span / (rays - 1)
   const bins = Math.max(2, Math.min(2000, Math.ceil(reach / bin)))
@@ -115,7 +118,7 @@ export function landformAngularExtent(
       const tangent = (z - earthCurvatureDropMeters(d) - eye.elevation) / d
       const visible = tangent >= horizon - 1e-9
       if (tangent > horizon) horizon = tangent
-      if (!visible || !pointInPolygon(landform, lng, lat)) continue
+      if (!visible || !inLandform(lng, lat)) continue
       azimuths.push(az)
       elevations.push(Math.atan(tangent) / DEG)
     }
@@ -281,7 +284,18 @@ export function planFixedFraming(frame: FigureFrame, extent: AngularExtent | nul
     ? { sky: Math.max(0, (top - extent.elTopDeg) / vfov), ground: Math.max(0, (extent.elBottomDeg - bottom) / vfov) }
     : { sky: 0.3, ground: 0.3 }
   const focal = Math.round(focalForHfov(lens))
-  const label = `fixed frame: ${count} frame${count === 1 ? '' : 's'} of ${focal} mm (${lens.toFixed(1)}° each), ${frame.spanDeg.toFixed(0)}° from ${Math.round(wrap360(left))}° to ${Math.round(wrap360(left + frame.spanDeg))}°`
+  // A frame narrower than the landform in view (Marblehead VP1: a reference's 25° lens on a landform seen across
+  // about 70°) counts its pixel figure on the part it shows; say so beside the frame.
+  const offset = (deg: number) => ((((deg - frame.bearingDeg) % 360) + 540) % 360) - 180
+  const beyond =
+    extent &&
+    (offset(extent.azLeftDeg) < -frame.spanDeg / 2 - 1 ||
+      offset(extent.azLeftDeg) + (extent.azRightDeg - extent.azLeftDeg) > frame.spanDeg / 2 + 1)
+  const label =
+    `fixed frame: ${count} frame${count === 1 ? '' : 's'} of ${focal} mm (${lens.toFixed(1)}° each), ${frame.spanDeg.toFixed(0)}° from ${Math.round(wrap360(left))}° to ${Math.round(wrap360(left + frame.spanDeg))}°` +
+    (beyond
+      ? `; the landform is in view from ${Math.round(wrap360(extent.azLeftDeg))}° to ${Math.round(wrap360(extent.azRightDeg))}°, wider than the frame, so its pixel figure is of the part shown`
+      : '')
   return { frames, totalHfovDeg: frame.spanDeg, vfovDeg: vfov, shares, label }
 }
 
@@ -354,20 +368,44 @@ export function projectToFrames(
 }
 
 /**
- * A wide band of a framed capture for a report's panorama panels (26's Figure 2): at least `minAspect` wide for its
- * height, centred on the landform's rows (`crop`), never cutting into them (they take 15% more when taller than the
- * band). Null when the picture is already that wide or the band would be the whole picture.
+ * A wide band of a framed capture for a report's panorama panels (26's Figure 2, a strip from the skyline to the
+ * blocks): `minAspect` wide for its height, centred on the landform's rows (`crop`) and moved only as far as it must
+ * to keep `hold` (the rows the blocks' marks need, `markRows`). It is taller than `minAspect` allows only when `hold`
+ * is, and never cuts it; a landform taller than the band is cut rather than the panorama narrowed. Null when the
+ * picture is already that wide or the band would be the whole picture.
  */
 export function panoramaBand(
   crop: { y: number; height: number } | null | undefined,
   width: number,
   height: number,
   minAspect: number,
+  hold?: { y: number; height: number } | null,
 ): { y: number; height: number } | null {
   if (!crop || width <= 0 || height <= 0 || width / height >= minAspect) return null
-  const band = Math.round(Math.min(height, Math.max(width / minAspect, crop.height * 1.15)))
+  const band = Math.round(Math.min(height, Math.max(width / minAspect, hold ? hold.height : 0)))
   if (band >= height) return null
-  const centre = crop.y + crop.height / 2
-  const y = Math.round(Math.min(height - band, Math.max(0, centre - band / 2)))
-  return { y, height: band }
+  let y = crop.y + crop.height / 2 - band / 2
+  if (hold) y = Math.min(hold.y, Math.max(hold.y + hold.height - band, y))
+  return { y: Math.round(Math.min(height - band, Math.max(0, y))), height: band }
+}
+
+/**
+ * How much coarser the map may draw the ground at the blocks than the run's DEM before a figure says so: two zoom
+ * levels. MapLibre picks its terrain's detail by distance from the camera, so from eye level ground several
+ * kilometres out is drawn from cells many times the run's (Argenta Beach, Marblehead VP4: the blocks 10 km out were
+ * drawn from 98 m cells against the run's 12 m; a 572 m knoll 2.6 km out was drawn at 554 m, and the picture showed
+ * the block whole where the run's sightlines saw 37% of it, a pixel figure of 7.0% beside a sightline figure of 2.6%).
+ */
+export const TERRAIN_DETAIL_NOTE_RATIO = 4
+
+/**
+ * The sentence a figure prints when the map drew the ground at the blocks from DEM cells at least
+ * `TERRAIN_DETAIL_NOTE_RATIO` times the run's: the two figures then measure over different ground, and neither is
+ * adjusted to the other. Null when the detail is close enough, or either is unknown.
+ */
+export function terrainDetailNote(detail: { drawnCellMeters: number; runCellMeters: number } | null): string | null {
+  if (!detail) return null
+  const { drawnCellMeters: drawn, runCellMeters: run } = detail
+  if (!(drawn > 0) || !(run > 0) || drawn < run * TERRAIN_DETAIL_NOTE_RATIO * 0.999) return null
+  return `The map draws the ground at the blocks from ${Math.round(drawn)} m elevation cells and the sightline run from ${Math.round(run)} m cells, so rises and hollows smaller than that can hide ground in one figure and not the other.`
 }

@@ -4,6 +4,7 @@ import {
   estimateRender,
   formatRemaining,
   HISTORY_KEEP,
+  notQueuedMs,
   parseRenderHistory,
   PRIOR_RATES,
   queueRemainingMs,
@@ -28,17 +29,18 @@ describe('render estimates', () => {
     const cold = estimateRender('worldgen', work, [], true)
     const warm = estimateRender('worldgen', work, [], false)
     expect(cold.basis).toBe('library')
-    // The profiled runs took about 25 s a viewpoint, most of it the scene and the stand.
+    // The timed runs took 15-25 s a viewpoint, most of it the scene and the stand.
     expect(cold.totalMs).toBeGreaterThan(15_000)
     expect(cold.totalMs).toBeLessThan(45_000)
     expect(cold.phases.scene).toBeGreaterThan(cold.phases.render / 2)
     expect(cold.totalMs - warm.totalMs).toBe(cold.phases.start)
-    // The profiled request itself (one 2400 x 2769 frame, 24 samples) reads close to what was timed: 25-28 s.
+    // The profiled request itself (one 2400 x 2769 frame, 24 samples) reads close to what was timed after the
+    // engines' speed-ups: 15-25 s through PGMaps.
     const profiled: RenderWork = { frames: 1, width: 2400, height: 2769, samples: 24 }
     for (const engine of ['worldgen', 'nanite'] as const) {
       const total = estimateRender(engine, profiled, [], true).totalMs
-      expect(total).toBeGreaterThan(18_000)
-      expect(total).toBeLessThan(32_000)
+      expect(total).toBeGreaterThan(13_000)
+      expect(total).toBeLessThan(26_000)
     }
   })
 
@@ -100,6 +102,20 @@ describe('render estimates', () => {
   it('add a queue’s waiting renders to the running one', () => {
     const estimate = estimateRender('worldgen', work, [], false)
     expect(queueRemainingMs(10_000, [estimate, estimate])).toBe(10_000 + 2 * estimate.totalMs)
+  })
+
+  it('add the renders an export still owes, cold once, leaving out the ones already queued', () => {
+    const cold = estimateRender('nanite', work, [], true).totalMs
+    const warm = estimateRender('nanite', work, [], false).totalMs
+    const figure = { key: 'v1|nanite|s', engine: 'nanite' as const, work }
+    const before = { key: 'v1|nanite|s|before', engine: 'nanite' as const, work }
+    // A VIA report owes its figure and its before picture: the engine starts once, for the first.
+    expect(notQueuedMs([figure, before], new Set(), [], false)).toBe(cold + warm)
+    // With the engine already drawing, neither starts it.
+    expect(notQueuedMs([figure, before], new Set(), [], true)).toBe(2 * warm)
+    // A job already in the queue is counted there, not again.
+    expect(notQueuedMs([figure, before], new Set([figure.key]), [], true)).toBe(warm)
+    expect(notQueuedMs([], new Set(), [], false)).toBe(0)
   })
 
   it('word the time left as people say it', () => {

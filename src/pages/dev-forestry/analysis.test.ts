@@ -738,3 +738,35 @@ describe('what hides a sample', () => {
     expect(new Set(codes(RIDGE, [timber]))).toEqual(new Set([0]))
   })
 })
+
+describe('a surveyed eye under the terrain model', () => {
+  // Marblehead VP4: a lake-level eye (533.6 m) on a shore the regional model reads 537-545 m.
+  const SHORE: ElevationSource = { elevationAt: () => 540 }
+  const run = (eyeElevationMeters: number) =>
+    computeAnalysis(
+      SHORE,
+      {
+        viewpoint: { mode: 'spot', coordinates: [[-0.06, 0]], eyeElevationMeters },
+        targets: [
+          { id: 'land', name: 'land', role: 'landscape', geometry: LANDFORM, harvestYear: null, clearcutPercent: null },
+        ],
+        settings: { ...DEFAULT_ANALYSIS_SETTINGS, maxViewDistanceMeters: 40000, sampleBudget: 100 },
+        assessmentYear: 2026,
+        activeLandformId: 'land',
+      },
+      TERRAIN,
+    )
+  const buried = (warnings: string[]) => warnings.filter((w) => w.startsWith('The surveyed eye elevation'))
+
+  it('says the sightlines start inside the ground when the eye is below it', () => {
+    const result = run(533.6)
+    expect(result.perspectiveAlteration).toBeNull()
+    expect(buried(result.quality!.warnings)).toEqual([expect.stringContaining('up to 6.4 m below')])
+  })
+
+  it('says nothing when the eye stands above the ground', () => {
+    const result = run(541.6)
+    expect(result.perspectiveAlteration).not.toBeNull()
+    expect(buried(result.quality!.warnings)).toEqual([])
+  })
+})

@@ -4,7 +4,7 @@ import { findDocumentFormat, T1, T5, TABLE_1, TABLE_2, TABLE_3 } from '../viaDoc
 import { resolveViaDocument, type DocumentFacts, type DocumentViewpoint } from '../viaDocument/resolve'
 import { reportMarkdown } from './html'
 import type { ReportBlock } from './model'
-import { landformBounding, type ReportContext } from './parts'
+import { calculationFields, landformBounding, type ReportContext } from './parts'
 import {
   appendixEntries,
   CERTIFICATION_STATEMENTS,
@@ -386,7 +386,7 @@ const picture = (view: string, width = 2400, height = 900) => ({
 })
 const recipeContext = (id: string, over: Partial<ReportContext> = {}) => {
   const recipe = REPORT_RECIPES.find((entry) => entry.id === id)!
-  return context(recipe.format, { recipeParts: recipe.parts, ...over })
+  return context(recipe.format, { recipeParts: recipe.parts, recipeOptions: recipe.options, ...over })
 }
 
 describe('consultant summary and landscape (22, 23)', () => {
@@ -398,7 +398,7 @@ describe('consultant summary and landscape (22, 23)', () => {
       'These two blocks are located 0.8 km southeast of Grey Creek, 6.5 km north of Townsite and 2.5 km east of Long Inlet, on west-facing ground averaging a 38% slope.',
     )
     expect(text).toContain(
-      'shown on the viewpoint map (Appendix A1), and the renders from each viewpoint are Appendices A2 to A5.',
+      'shown on the viewpoint map (Appendix A1), and the renders from each viewpoint are Appendices A2 to A3.',
     )
     expect(out.toComplete).toEqual([])
     // Without place names the sentence is left out and listed, never guessed.
@@ -448,6 +448,25 @@ describe('consultant summary and landscape (22, 23)', () => {
     expect(read.toComplete).toContain('The landforms’ slope and stands (not read for this report)')
   })
 
+  it('name a sub-landform once when two viewpoints read it through outlines of their own', () => {
+    // Doc 22: Klein Lake 1 reads Landform 5a as traced, Klein Lake 2 as its own visible face.
+    const facts: DocumentFacts = {
+      ...FACTS,
+      viewpoints: [
+        ...FACTS.viewpoints,
+        vp({ name: 'Point 2', landform: 'Landform 5b (traced)', blocks: [] }),
+        vp({ name: 'Point 3', landform: 'Landform 5a (visible face)', blocks: [] }),
+      ],
+    }
+    const ctx = recipeContext('consultant-net-private', {
+      facts,
+      document: resolveViaDocument(findDocumentFormat('perspective-report-net-private')!, facts),
+    })
+    const text = words(build('landforms-and-viewpoints', ctx).blocks)
+    expect(text).toContain('with Landform 5 divided into Landform 5a and Landform 5b when viewed from')
+    expect(text).not.toContain('Landform 5a, Landform 5a')
+  })
+
   it('say where the viewpoints are, counting those at one place, and cite each key viewpoint’s sheet', () => {
     const named = (names: string[]): ReportContext => {
       const facts = { ...FACTS, viewpoints: names.map((name) => vp({ name })) }
@@ -485,10 +504,11 @@ describe('consultant appendix (22, 23)', () => {
     const out = build('appendix-sheets', { ...ctx, figures: [picture('Bay', 1224, 792)] })
     const pairs = out.blocks.filter((b): b is Extract<ReportBlock, { kind: 'figurePair' }> => b.kind === 'figurePair')
     // The plain simulation is the page's own after picture; a missing one prints a placeholder and is listed.
-    expect(pairs.map((pair) => [pair.title, pair.slots[0].label, !!pair.slots[0].figure])).toEqual([
-      ['Appendix A2', 'Perspective Viewpoint – Bay', true],
-      ['Appendix A4', 'Photo from viewpoint – Lake', true],
-      ['Appendix A5', 'Perspective Viewpoint – Lake', false],
+    // Each is an 11 x 17 page like the analysis sheets, its heading on the page.
+    expect(pairs.map((pair) => [pair.title, pair.slots[0].label, !!pair.slots[0].figure, pair.sheet])).toEqual([
+      ['Appendix A2: Perspective Viewpoint – Bay', 'Perspective Viewpoint – Bay', true, true],
+      ['Appendix A4: Photo from viewpoint – Lake', 'Photo from viewpoint – Lake', true, true],
+      ['Appendix A5: Perspective Viewpoint – Lake', 'Perspective Viewpoint – Lake', false, true],
     ])
     const headings = out.blocks.filter((b) => b.kind === 'heading').map((b) => (b as { text: string }).text)
     expect(headings).toEqual([
@@ -499,6 +519,19 @@ describe('consultant appendix (22, 23)', () => {
       'Perspective Viewpoint pages not captured: Lake',
       'Perspective Viewpoint Analysis sheets not saved: Lake',
     ])
+  })
+
+  it('print 23’s appendix as the analysis sheets alone, and say so in the method', () => {
+    const ctx = recipeContext('consultant-gross', { images: { after: { Bay: picture('Bay') } } })
+    expect(appendixEntries(ctx).map((entry) => `${entry.number} ${entry.title}`)).toEqual([
+      'A1 Viewpoint map',
+      'A2 Perspective Viewpoint Analysis – Bay – VSU 1083',
+      'A3 Perspective Viewpoint Analysis – Lake – Landform 5a (traced)',
+    ])
+    expect(build('appendix-sheets', ctx).blocks.some((b) => b.kind === 'figurePair')).toBe(false)
+    const method = words(build('assessment-method', ctx).blocks)
+    expect(method).toContain('Each viewpoint’s Perspective Viewpoint Analysis page shows the view')
+    expect(method).not.toContain('Each viewpoint’s Perspective Viewpoint page')
   })
 
   it('sign 23 with the preparer’s certification statement', () => {
@@ -530,5 +563,149 @@ describe('Table 1 from the inventory read', () => {
     ])
     // A unit no block lies in stays out.
     expect(units).not.toContain('VSU #3005')
+  })
+})
+
+describe('landforms seen beside a viewpoint’s own (23: Landform 1, 1a and 1b from the Golf Club)', () => {
+  const facts: DocumentFacts = {
+    ...FACTS,
+    viewpoints: [
+      FACTS.viewpoints[0],
+      {
+        ...FACTS.viewpoints[1],
+        otherLandforms: [
+          {
+            landform: 'Landform 5 (traced)',
+            objective: 'PR',
+            areas: { landform: 30000, proposed: 400, nonVeg: 300, privateLand: 0, rock: 0 },
+            blocks: ['A1', 'A2'],
+          },
+          {
+            landform: 'Landform 5b (traced)',
+            objective: 'R',
+            areas: { landform: 9000, proposed: 0, nonVeg: 180, privateLand: 0, rock: 0 },
+            blocks: [],
+          },
+        ],
+      },
+    ],
+  }
+  const ctx = recipeContext('consultant-gross', {
+    facts,
+    document: resolveViaDocument(findDocumentFormat('perspective-report-gross')!, facts),
+  })
+
+  it('give each a Table 2 row with its own blocks and objective, and count the landforms they belong to', () => {
+    const rows = tables(build('table-2-landforms', ctx).blocks)[0].rows
+    expect(rows.map((row) => [row[0], row[1], row[6]])).toEqual([
+      ['VSU 1083', 'A1, E5*', 'PR'],
+      ['Landform 5a (traced)', 'A1, A2', 'PR'],
+      ['Landform 5 (traced)', 'A1, A2', 'PR'],
+      ['Landform 5b (traced)', 'None in view', 'R'],
+    ])
+    // 5b's description reads its own pass: no private land in it.
+    expect(rows[3][7]).toBe('Sub-landform of Landform 5. Read from Lake at 0.7 km.')
+    expect(words(build('landforms-and-viewpoints', ctx).blocks)).toContain(
+      'As viewed from the selected viewpoints, the landscape is composed of 2 landforms (Table 2), with Landform 5 divided into Landform 5a and Landform 5b when viewed from Lake.',
+    )
+  })
+
+  it('give each a Table 4 row in the report’s assessment tables', () => {
+    const table = tables(build('assessment-tables', ctx).blocks).find((entry) => entry.title?.startsWith('Table 4'))!
+    expect(table.rows.filter((row) => row[0] === 'Lake').map((row) => row[1])).toEqual([
+      'Landform 5 (traced)',
+      'Landform 5a (traced)',
+      'Landform 5b (traced)',
+    ])
+  })
+})
+
+describe('each block cited on the landform it lies in (22: Klein Lake 2 reads 5a and 5b)', () => {
+  // Lake reads Landform 5a with A1 in it, and 5b beside it with A2; A3 lies in neither.
+  const lake = vp({
+    name: 'Lake',
+    landform: 'Landform 5a (traced)',
+    areas: { landform: 10000, proposed: 400, nonVeg: 0, privateLand: 0, rock: 0 },
+    landformBlocks: ['A1'],
+    otherLandforms: [
+      {
+        landform: 'Landform 5b (traced)',
+        objective: 'PR',
+        areas: { landform: 8000, proposed: 240, nonVeg: 0, privateLand: 0, rock: 0 },
+        blocks: ['A2'],
+      },
+    ],
+    blocks: [
+      { id: 'A1', status: 'visible', visiblePercent: 20, share: 0.4 },
+      { id: 'A2', status: 'visible', visiblePercent: 35, share: 0.5 },
+      { id: 'A3', status: 'visible', visiblePercent: 10, share: 0.1 },
+    ],
+  })
+  const facts: DocumentFacts = { ...FACTS, viewpoints: [FACTS.viewpoints[0], lake] }
+  const document = resolveViaDocument(findDocumentFormat('perspective-report-net-private')!, facts)
+  const ctx = recipeContext('consultant-net-private', { facts, document })
+  const section = (block: string) => document.discussion.find((entry) => entry.blocks.includes(block))!
+  const text = (block: string) =>
+    section(block)
+      .paragraphs.flatMap((p) => p.sentences)
+      .map((s) => s.text)
+      .join(' ')
+
+  it('write each block’s text on its own landform’s figure, and say so when none holds it', () => {
+    expect(section('A2').heading).toBe('Block A2 – Landform 5b (traced)')
+    expect(text('A2')).toContain('Block A2 is located in Landform 5 within Landform 5b (traced)')
+    expect(text('A2')).toContain('(3.00% alteration)')
+    expect(text('A2')).not.toContain('Landform 5a')
+    expect(section('A3').landform).toBeNull()
+    expect(text('A3')).toContain('Block A3 lies outside the landforms outlined from the Lake viewpoint')
+    expect(text('A3')).toContain('none of Landform 5a (traced) and Landform 5b (traced) takes in the block')
+    expect(text('A3')).not.toContain('% alteration')
+  })
+
+  it('list and rate each block on its landform in Tables 2, 4 and 5', () => {
+    const t2 = tables(build('table-2-landforms', ctx).blocks)[0].rows
+    expect(t2.filter((row) => row[0].startsWith('Landform')).map((row) => [row[0], row[1]])).toEqual([
+      ['Landform 5a (traced)', 'A1'],
+      ['Landform 5b (traced)', 'A2'],
+    ])
+    const [t4, t5] = tables(build('assessment-tables', ctx).blocks)
+    const lakeRows = t4.rows.filter((row) => row[0] === 'Lake')
+    expect(lakeRows.map((row) => [row[1], row[3]])).toEqual([
+      ['Landform 5a (traced)', 'A1'],
+      ['Landform 5b (traced)', 'A2'],
+    ])
+    const landform = t5.columns.indexOf(T5.landform)
+    const percent = t5.columns.indexOf(T5.percent)
+    const row = (block: string) => t5.rows.find((entry) => entry[0] === 'Lake' && entry[1] === `Block ${block}`)!
+    expect([row('A2')[landform], row('A2')[percent]]).toEqual(['Landform 5b (traced)', '3.00'])
+    expect([row('A3')[landform], row('A3')[percent]]).toEqual(['Outside the landforms outlined', ''])
+  })
+
+  it('quote in the conclusion the figure of the landform holding the blocks a viewpoint is key for', () => {
+    const conclusion = document.summary.map((s) => s.text).join(' ')
+    // Lake is key for A2 (on 5b, 3.00%) and A1 (on 5a, its own landform, 4.00%): each landform's figure, 5b named.
+    expect(conclusion).toMatch(/3\.00% \([^)]*\) on Landform 5b at Lake\b/)
+    expect(conclusion).not.toContain('on Landform 5a')
+  })
+
+  it('read every block on the view’s landform when the view recorded no list', () => {
+    const bare: DocumentViewpoint = { ...lake, landformBlocks: undefined, otherLandforms: undefined }
+    const old = resolveViaDocument(findDocumentFormat('perspective-report-net-private')!, {
+      ...FACTS,
+      viewpoints: [FACTS.viewpoints[0], bare],
+    })
+    const a3 = old.discussion.find((entry) => entry.blocks.includes('A3'))!
+    expect(a3.heading).toBe('Block A3 – Landform 5a (traced)')
+  })
+})
+
+describe("the viewpoint calculation names what the existing openings' green-up rests on", () => {
+  it('prints the basis beside the existing-openings figure only when the facts give one', () => {
+    const basis = 'supplied estimate for 7 of 19 openings, modelled for 12'
+    const lake = { ...FACTS.viewpoints[1], greenUp: basis }
+    const facts: DocumentFacts = { ...FACTS, viewpoints: [FACTS.viewpoints[0], lake] }
+    const ctx = context('perspective-report-net-private', {}, facts)
+    expect(words([calculationFields(ctx, lake)])).toContain(`"Green-up of existing openings","value":"${basis}"`)
+    expect(words([calculationFields(ctx, FACTS.viewpoints[0])])).not.toContain('Green-up of existing openings')
   })
 })

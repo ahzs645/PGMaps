@@ -23,9 +23,13 @@ import {
   FIGURE_REGIONAL_ROAD_MINZOOM,
   figureRegionalLook,
   FIGURE_REGIONAL_MAX_SCALE,
+  regionalForViewpoint,
   regionalTypeScale,
+  regionalPlaceLabels,
   regionalWithPlace,
   FIGURE_REGIONAL_FRAME_WIDTH,
+  FIGURE_REGIONAL_PLACE_LABELS,
+  FIGURE_REGIONAL_PLACE_SPACING_SHARE,
   FIGURE_REGIONAL_SCALE,
   FIGURE_WEDGE_MIN_ARC_STEPS,
   figureWedge,
@@ -384,6 +388,63 @@ describe('figure page maps (26 Figure 2)', () => {
     expect(regionalWithPlace(regional, [{ name: 'Far', lng: -122.8, lat: 52.5 }], 1)).toBe(regional)
   })
 
+  it('names the places in the regional frame the basemap did not draw: nearest first, spaced, at most four', () => {
+    const plans = planFigurePageMaps(wide, canvas)
+    const regional = plans.at(-1)!
+    const frame = regional.frame!
+    const [w, s, e, n] = regional.projectArea!
+    const centre = { lng: (w + e) / 2, lat: (s + n) / 2 }
+    // A place this many km east and north of the project's centre.
+    const at = (name: string, east: number, north: number) => ({
+      name,
+      lng: centre.lng + east / (111.32 * Math.cos((centre.lat * Math.PI) / 180)),
+      lat: centre.lat + north / 110.57,
+    })
+    const places = [
+      at('Hamlet', 0, 3),
+      // Within the spacing of Hamlet: left out so the names never crowd.
+      at('Crowded', 0.5, 3.3),
+      // The basemap drew it already.
+      at('Drawn', -6, 0),
+      at('Village', 6, -6),
+      at('South', -5, -11),
+      at('North', 4, 11),
+      // A fifth in the frame, past the limit.
+      at('Corner', -8, 10),
+      // Kaslo from Marblehead: 38 km off, outside the frame.
+      at('Kaslo', 0, -38),
+      // A name already given keeps its first place.
+      at('Hamlet', 9, 9),
+    ]
+    const named = regionalPlaceLabels(regional, places, ['Drawn'])
+    expect(named.map((place) => place.name)).toEqual(['Hamlet', 'Village', 'North', 'South'])
+    expect(named).toHaveLength(FIGURE_REGIONAL_PLACE_LABELS)
+    const project = maplibreProject(regional.camera, frame)
+    for (const place of named) {
+      const [x, y] = project(place.lng, place.lat)
+      expect(x).toBeGreaterThan(0)
+      expect(x).toBeLessThan(frame.width)
+      expect(y).toBeGreaterThan(0)
+      expect(y).toBeLessThan(frame.height)
+    }
+    for (let i = 0; i < named.length; i++)
+      for (let j = i + 1; j < named.length; j++) {
+        const [ax, ay] = project(named[i].lng, named[i].lat)
+        const [bx, by] = project(named[j].lng, named[j].lat)
+        expect(Math.hypot(ax - bx, ay - by)).toBeGreaterThanOrEqual(frame.width * FIGURE_REGIONAL_PLACE_SPACING_SHARE)
+      }
+    // Only the figure page's regional map names places itself.
+    expect(regionalPlaceLabels(plans[0], places)).toEqual([])
+    // The names are drawn on the map, each beside a dot, in the basemap's own village size.
+    const composed = composeReportMap({ ...regional, places: named }, wide, frame, null, null)
+    expect(composed.labels).toEqual(expect.arrayContaining(['Hamlet', 'Village', 'North', 'South']))
+    const text = composed.ops.filter((op) => op.op === 'text' && op.text === 'Village')
+    expect(text).toHaveLength(1)
+    expect(composed.ops.filter((op) => op.op === 'circle').length).toBeGreaterThanOrEqual(4)
+    // Without places the regional map names nothing of its own.
+    expect(composeReportMap(regional, wide, frame, null, null).labels).toEqual([])
+  })
+
   it('gives the basemap a road-map look for the regional capture: highways, place names and villages', () => {
     const changes = figureRegionalLook([
       { id: 'background', type: 'background' },
@@ -466,6 +527,22 @@ describe('figure page maps (26 Figure 2)', () => {
     expect(road.legendRows.map((row) => row.label)).toEqual(['Project area', 'Viewpoint'])
     expect(road.labels).toEqual([])
     expect(sheetSvg(road.ops, road.width, road.height)).toContain('<svg')
+  })
+
+  it('stars only its own viewpoint on each figure page’s regional map, as 26’s Figures 2 and 3 do', () => {
+    const two: ReportMapFeatures = {
+      ...wide,
+      viewpoints: [...wide.viewpoints, { name: 'VP2', lng: -122.79, lat: 54.01, bearingDeg: 270, fovDeg: 60 }],
+    }
+    const regional = planFigurePageMaps(two, canvas).at(-1)!
+    expect(regional.caption).toContain('its viewpoints')
+    const stars = (plan: typeof regional) =>
+      JSON.stringify(composeReportMap(plan, two, plan.frame!, null, null).ops).split('#3fe0f2').length - 1
+    const own = regionalForViewpoint(regional, two.viewpoints[1])
+    expect(own).toMatchObject({ key: 'VP2', viewpoint: two.viewpoints[1], camera: regional.camera })
+    expect(own.caption).toContain('its viewpoint in')
+    expect(stars(own)).toBeGreaterThan(0)
+    expect(stars(regional)).toBe(2 * stars(own))
   })
 })
 

@@ -4,7 +4,7 @@ import { findDocumentFormat } from '../viaDocument/formats'
 import { resolveViaDocument, type DocumentFacts } from '../viaDocument/resolve'
 import { imageLabel, reportHtml, reportMarkdown } from './html'
 import { designElementsMatrix, partialCutMatrix, table2Bar } from './matrices'
-import type { ReportBlock } from './model'
+import { flatBlocks, type ReportBlock } from './model'
 import {
   blockVisibilitySentences,
   rangeStanding,
@@ -177,7 +177,7 @@ describe('report parts', () => {
     // The form itself still prints, its judgements and the viewpoint's lines blank, never filled from another view.
     expect(all(out.blocks)).toContain('3.4.2 Numerical assessment')
     expect(all(out.blocks)).toContain('"label":"Viewpoint description","value":null')
-    expect(out.blocks.some((b) => b.kind === 'signature')).toBe(true)
+    expect(flatBlocks(out.blocks).some((b) => b.kind === 'signature')).toBe(true)
     expect(out.toComplete?.[0]).toBe('Step 4 at the assessment station')
   })
 
@@ -316,6 +316,35 @@ describe('fixes from the second reading', () => {
     expect(reportHtml(assembleReport(consultant, context(consultant.format, { figures: [sheet] })), null)).toMatch(
       /<div class="sheet-page"><h4>Appendix A\d+: Perspective Viewpoint Analysis – Lakeshore[^<]*<\/h4><figure class="sheet"( id="f\d+")?>/,
     )
+  })
+
+  it('prints a short paragraph closing a landscape table’s section on the table’s page, never a long one (22, Table 2)', () => {
+    const recipe = REPORT_RECIPES.find((entry) => entry.id === 'consultant-net-private')!
+    const columns = ['Landform', 'Blocks', 'VSU', 'VSC', 'VAC', 'EVC', 'VQO', 'Description']
+    const table: ReportBlock = { kind: 'table', title: 'Table 2', columns, rows: [columns], source: 'run' }
+    const said = (text: string): ReportBlock => ({
+      kind: 'paragraph',
+      sentences: [{ id: 'split', text, source: 'scene', missing: [], template: text }],
+    })
+    const html = (closing: ReportBlock) =>
+      reportHtml(
+        {
+          ...assembleReport(recipe, context(recipe.format)),
+          blocks: [
+            { kind: 'heading', level: 1, text: 'Visual Impact Assessment' },
+            { kind: 'heading', level: 2, text: 'Landforms' },
+            table,
+            closing,
+            { kind: 'heading', level: 2, text: 'Viewpoints' },
+          ],
+        },
+        null,
+      )
+    expect(html(said('Landform 1b is assessed as a sub-landform of Landform 1.'))).toMatch(
+      /<div class="wide-page"><h3 id="s\d+">Landforms<\/h3><div class="wide">.*<\/div><p>Landform 1b is assessed as a sub-landform of Landform 1\.<\/p><\/div>/s,
+    )
+    // A discussion stays on portrait pages.
+    expect(html(said('x'.repeat(2000)))).toMatch(/<\/div><\/div>\n<p>x{2000}<\/p>/)
   })
 })
 

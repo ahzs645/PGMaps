@@ -27,6 +27,7 @@ import {
   layoutCallouts,
   maskRings,
   presetPercent,
+  calcColumns,
   calcValues,
   classPaletteEntries,
   countsAlteration,
@@ -37,12 +38,16 @@ import {
   roleOverlays,
   skylineRow,
   tonedImage,
+  traceLandform,
   visibleLineParts,
   type ClassRaster,
   type FigureClass,
+  type FigureCounts,
   type FigureInput,
   fittedLines,
+  landformNumber,
 } from './composeFigure'
+import { ALTERATION_RULES, sceneSheetRule } from './alteration'
 import { presetById, VIA_STYLE_PRESETS } from './presets'
 
 const W = 100,
@@ -277,6 +282,28 @@ describe('figure composition', () => {
     }))
     expect(classed).toMatchObject({ totalPct: '0.5', class: 'Retention', deductedPx: 1153 })
     expect(calcValues(counts, '1', presetRule(photo)).class).toBeUndefined()
+  })
+
+  it('prints the rule it is handed, naming what leaves the landform, and its own wording otherwise', () => {
+    const counts = countClasses(raster())
+    const magenta = input('analysis-sheet-magenta')
+    const own = texts(analysisSheet(magenta).ops)
+    expect(own).toContain(`Area of Landform 1 = ${counts.landform}`)
+    expect(own.some((t) => t.startsWith('(NonVEG + Proposed Blocks) / VSU = '))).toBe(true)
+    expect(own.some((t) => t.startsWith('Less ') || t.startsWith('Net Landform'))).toBe(false)
+    // A scene that takes private land out: the sheet nets private land and rock, and its lines say so.
+    const rule = sceneSheetRule(presetRule(magenta.preset), { privateLandOutOfDenominator: true })
+    const net = countsAlteration(rule, counts)!
+    const netted = texts(analysisSheet({ ...magenta, rule }).ops)
+    expect(netted).toContain(`Less Rock and Private Land = ${counts.privateLand + counts.rock}`)
+    expect(netted).toContain(`Net Landform 1 = ${net.denominator}`)
+    expect(netted).toContain(`(NonVEG + Proposed Blocks) / Net VSU = ${net.printed}%*`)
+    expect(netted.some((t) => t.startsWith(`Pixel measure, this image: ${net.percent.toFixed(2)}%`))).toBe(true)
+    // A report's format rule on another style: that rule's figure, in the style's own words when they match.
+    const photo = input('analysed-photo-rock-outline')
+    const report = texts(composeFigure({ ...photo, rule: ALTERATION_RULES.netOfRockAndPrivateCm2 }).ops)
+    expect(report).toEqual(texts(composeFigure(photo).ops))
+    expect(report).toContain(`Rock and Private Land= ${counts.privateLand + counts.rock} px`)
   })
 
   it('lays callouts out above the skyline without overlap', () => {
@@ -853,5 +880,155 @@ describe('a partial cut in the class pass (handbook 3.4.4)', () => {
             expect(d(colour, blend)).toBeGreaterThan(60)
           }
     expect(d(CLASS_PALETTE.partialIn, CLASS_PALETTE.partialOut)).toBeGreaterThan(60)
+  })
+})
+
+describe('a calculation per landform (23 A6: Landform 1 (Full), 1a and 1b from one viewpoint)', () => {
+  const counts = (landform: number, nonVeg: number, proposed: number): FigureCounts => ({
+    landform,
+    privateLand: 0,
+    nonVeg,
+    proposed,
+    rock: 0,
+    grossPercent: (100 * (nonVeg + proposed)) / landform,
+    netOfPrivatePercent: (100 * (nonVeg + proposed)) / landform,
+    netOfRockPercent: (100 * (nonVeg + proposed)) / landform,
+  })
+  const others = [
+    { name: 'Landform 1b (traced)', counts: counts(1000, 31, 0) },
+    { name: 'Landform 1c (traced)', counts: counts(400, 0, 0) },
+    { name: 'Landform 1 (traced)', counts: counts(1000, 12, 7) },
+  ]
+  const subLandform = (landforms = others): FigureInput => ({
+    ...input('analysis-sheet-purple'),
+    titles: { area: 'Landform 1a (traced)', viewpoint: 'Viewpoint 5', n: '1a' },
+    landforms,
+  })
+
+  it('puts a column for each landform with alteration in order, the whole landform as Full, and names the rest', () => {
+    const own = countClasses(raster())
+    const { columns, unaltered } = calcColumns(subLandform(), own)
+    expect(columns.map((column) => [column.n, column.primary])).toEqual([
+      ['1 (Full)', false],
+      ['1a', true],
+      ['1b', false],
+    ])
+    expect(columns[1].counts).toBe(own)
+    expect(unaltered).toEqual(['Landform 1c'])
+    expect(landformNumber('Sub-landform 5b')).toBe('5b')
+    expect(landformNumber('VSU 1284')).toBe('VSU 1284')
+    expect(landformNumber('Landform 12a (consultant, traced)')).toBe('12a')
+  })
+
+  it('prints each column from its own counts through the style’s rule', () => {
+    const printed = texts(analysisSheet(subLandform()).ops)
+    expect(printed.filter((text) => text === 'Percent Alteration Calculation')).toHaveLength(3)
+    const all = printed.join(' ')
+    // Landform 1: (12 + 7) / 1000; 1a: the class pass's own (30 + 100) / 1800; 1b: 31 / 1000.
+    expect(all).toContain('1.90%')
+    expect(all).toContain('7.22%')
+    expect(all).toContain('3.10%')
+    expect(all).toContain('Landform 1 (Full)')
+    expect(all).toContain('Also seen, no alteration in it: Landform 1c')
+    expect(all).toContain('Sightline measure (PGMaps run, the assessment figure, Landform 1a)')
+  })
+
+  it('keeps one calculation when no other landform shows alteration, and the sheet unchanged with none', () => {
+    const quiet = texts(analysisSheet(subLandform([others[1]])).ops)
+    expect(quiet.join(' ')).toContain('Area of Landform 1a = 1800')
+    expect(quiet.filter((text) => text === 'Percent Alteration Calculation')).toHaveLength(1)
+    expect(quiet.join(' ')).toContain('Also seen, no alteration in it: Landform 1c')
+    const plain = analysisSheet(input('analysis-sheet-orange'))
+    const empty = analysisSheet({ ...input('analysis-sheet-orange'), landforms: [] })
+    expect(JSON.stringify(empty.ops)).toBe(JSON.stringify(plain.ops))
+  })
+  describe('outlines of the other landforms, each from its own class pass', () => {
+    /** The other pass: the same view split at a sub-landform, the landform's right half (x 50-80). */
+    const subPass = (): ClassRaster => {
+      const own = raster()
+      const codes = own.codes.map((code, k) => {
+        const x = k % W
+        if (!inLandform(code) || x >= 50) return code
+        return code === FIGURE_CLASS.proposedIn ? FIGURE_CLASS.proposedOut : FIGURE_CLASS.terrain
+      })
+      return { ...own, codes }
+    }
+    const traced = traceLandform(subPass())
+    const withOutline = (presetId: string, labelAt = traced.labelAt): FigureInput => ({
+      ...input(presetId),
+      titles: { area: 'Landform 1 (traced)', viewpoint: 'Viewpoint 5', n: '1' },
+      landforms: [{ name: 'Landform 1b (traced)', counts: countClasses(subPass()), outline: traced.outline, labelAt }],
+    })
+    const strokes = (ops: DrawOp[], color: string) =>
+      ops.filter((op) => op.op === 'path' && op.stroke?.color === color).map((op) => (op.op === 'path' ? op : null)!)
+
+    it('keeps the trace, not the pass: the visible outline, and a name place deep inside it', () => {
+      expect(traced.outline).toHaveLength(1)
+      // The landform's right half, 30 × 30 px, as rings round pixel centres.
+      expect(ringArea(traced.outline[0])).toBeGreaterThan(800)
+      expect(ringArea(traced.outline[0])).toBeLessThan(900)
+      const [x, y] = traced.labelAt!
+      expect(x).toBeGreaterThan(55)
+      expect(x).toBeLessThan(75)
+      expect(y).toBeGreaterThan(30)
+      expect(y).toBeLessThan(50)
+      // Searched in the rows the sheet keeps; none visible gives none.
+      expect(traceLandform(subPass(), { y: 26, height: 4 }).labelAt![1]).toBeLessThan(30)
+      expect(traceLandform({ ...raster(), codes: raster().codes.map(() => FIGURE_CLASS.terrain) })).toEqual({
+        outline: [],
+        labelAt: null,
+      })
+    })
+
+    it('draws each in the style’s other-landform symbol, dashed in 23’s style, under the landform’s line', () => {
+      const sheet = analysisSheet(withOutline('analysis-sheet-purple'))
+      expect(sheet.drawn).toContain('otherLandform')
+      const purple = strokes(sheet.ops, '#c500ff')
+      const dashed = purple.filter((op) => op.stroke?.dash?.length)
+      const solid = purple.filter((op) => !op.stroke?.dash?.length)
+      expect(dashed.length).toBeGreaterThan(0)
+      expect(solid.length).toBeGreaterThan(0)
+      expect(sheet.ops.indexOf(dashed[0])).toBeLessThan(sheet.ops.indexOf(solid[0]))
+      // Named on its ground in the landform label style; no legend row (23 lists only the landform).
+      const printed = texts(sheet.ops)
+      expect(printed).toContain('Landform 1b')
+      expect(printed).not.toContain('Sub-landform')
+      const name = sheet.ops.find((op) => op.op === 'text' && op.text === 'Landform 1b')
+      expect(name).toMatchObject({ color: '#8400a8', halo: { color: '#ffffff' } })
+      // 22's style outlines every landform alike, solid.
+      const orange = analysisSheet(withOutline('analysis-sheet-orange'))
+      expect(strokes(orange.ops, '#e69800').every((op) => !op.stroke?.dash?.length)).toBe(true)
+      expect(strokes(orange.ops, '#e69800').length).toBeGreaterThan(
+        strokes(analysisSheet(input('analysis-sheet-orange')).ops, '#e69800').length,
+      )
+    })
+
+    it('prints no name it cannot place or that repeats the landform’s own, and draws nothing without a trace', () => {
+      // A name with no place, or at the landform's own number, is left out; the outline still draws.
+      const unnamed = analysisSheet(withOutline('analysis-sheet-purple', null))
+      expect(texts(unnamed.ops)).not.toContain('Landform 1b')
+      expect(unnamed.drawn).toContain('otherLandform')
+      const same = analysisSheet({
+        ...withOutline('analysis-sheet-purple'),
+        landforms: [{ name: 'Landform 1 (whole)', counts: countClasses(subPass()), ...traced }],
+      })
+      expect(texts(same.ops).filter((text) => text === 'Landform 1')).toHaveLength(1)
+      // The whole landform beside its sub-landforms is outlined, not named (23 A6 names 1a, 1b and 1c only).
+      const whole = analysisSheet({
+        ...withOutline('analysis-sheet-purple'),
+        titles: { area: 'Landform 1a (traced)', viewpoint: 'Viewpoint 5', n: '1a' },
+        landforms: [{ name: 'Landform 1 (traced)', counts: countClasses(subPass()), ...traced }],
+      })
+      expect(texts(whole.ops)).not.toContain('Landform 1')
+      expect(whole.drawn).toContain('otherLandform')
+      // Views saved before the trace, and styles with no such symbol, draw exactly as before.
+      const before = withOutline('analysis-sheet-purple')
+      const untraced = { ...before, landforms: before.landforms!.map(({ name, counts }) => ({ name, counts })) }
+      expect(analysisSheet(untraced).drawn).not.toContain('otherLandform')
+      const photo = input('analysed-photo-rock-outline')
+      expect(JSON.stringify(composeFigure({ ...photo, landforms: withOutline(photo.preset.id).landforms }).ops)).toBe(
+        JSON.stringify(composeFigure({ ...photo, landforms: untraced.landforms }).ops),
+      )
+    })
   })
 })

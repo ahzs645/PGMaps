@@ -36,6 +36,7 @@ import {
   type RenderWork,
 } from './renderEstimate'
 import type { ScenePackage } from './scenePackage'
+import { ACCEPTS_PACKED_ARRAYS, ACCEPTS_SCENE_KEYS, engineAccepts, packScene } from './scenePosting'
 
 export type RenderJob = {
   /** Unique per view, engine and scene: a finished render is kept under it. */
@@ -43,6 +44,12 @@ export type RenderJob = {
   viewId: string
   viewName: string
   engine: RenderEngineId
+  /**
+   * `before`: the view drawn again in its framing with the proposal's blocks not harvested, a VIA report's before
+   * picture by the same engine as its after (the scene package and stand are built before harvest; the engines draw
+   * what the package holds). Absent: the view's figure, in the harvest phase it was saved in.
+   */
+  phase?: 'before'
   work: RenderWork
 }
 
@@ -125,6 +132,12 @@ function useCaptureBridge(
     const promise = new Promise<void>((resolve) => (resolveHello = resolve))
     helloRef.current = { promise, resolve: resolveHello }
     let readyWaiter: (() => void) | null = null
+    // What this engine page takes (its hello), and the key of the package it was last sent: a page that says hello
+    // again has loaded again and holds nothing.
+    let accepts: unknown = null
+    let heldKey: string | null = null
+    // Sends the capture's package whole, for an engine that answers a key with "scene needed".
+    let sendWhole: ((key: unknown) => void) | null = null
     let progress: ((p: { done: number; total: number }) => void) | null = null
     const replies = new Map<string, (data: unknown) => void>()
     let failure: ((message: string) => void) | null = null
@@ -149,7 +162,11 @@ function useCaptureBridge(
         return
       }
       const data = readEngineMessage(event.data)
-      if (data?.type === 'pgmaps-engine-hello') resolveHello()
+      if (data?.type === 'pgmaps-engine-hello') {
+        accepts = data.accepts
+        heldKey = null
+        resolveHello()
+      } else if (data?.type === 'pgmaps-engine-scene-needed') sendWhole?.(data.key)
       else if (data?.type === 'pgmaps-engine-ready') readyWaiter?.()
       else if (data?.type === 'pgmaps-engine-error') failure?.(data.message ?? 'The engine stopped.')
     }
@@ -202,9 +219,32 @@ function useCaptureBridge(
               },
             )
         }
-        renderLog('scene', { stems: scene.trees?.count ?? null, water: scene.water?.length ?? 0 })
         post(engineEnvironment(environmentRef.current, scene.origin, new Date()))
-        post({ type: 'pgmaps-scene', scene })
+        // The package's numbers go as buffers handed over, not copied, and a page that still draws this very
+        // package is sent its key alone (`scenePosting.ts`); an engine that takes neither gets the plain package.
+        const packed = engineAccepts(accepts, ACCEPTS_PACKED_ARRAYS) ? packScene(scene) : null
+        const keyOnly = packed !== null && engineAccepts(accepts, ACCEPTS_SCENE_KEYS) && heldKey === packed.key
+        renderLog('scene', {
+          stems: scene.trees?.count ?? null,
+          water: scene.water?.length ?? 0,
+          sent: keyOnly ? 'key' : packed ? 'packed' : 'plain',
+        })
+        if (!packed) post({ type: 'pgmaps-scene', scene })
+        else {
+          const whole = () => {
+            sendWhole = null
+            post({ type: 'pgmaps-scene', scene: packed.scene, key: packed.key }, packed.transfer)
+          }
+          heldKey = packed.key
+          if (keyOnly) {
+            sendWhole = (key) => {
+              if (key !== packed.key) return
+              renderLog('scene', { sent: 'packed', asked: true })
+              whole()
+            }
+            post({ type: 'pgmaps-scene', key: packed.key })
+          } else whole()
+        }
         // A still camera at the package's eye: the engine's live picture in the tray. The capture sets its own.
         const eye = { lng: scene.origin.lng, lat: scene.origin.lat, elevationMeters: scene.camera.position[2] }
         post(
@@ -229,6 +269,7 @@ function useCaptureBridge(
       abandon = null
       replies.clear()
       readyWaiter = null
+      sendWhole = null
       handleRef.current = null
       helloRef.current = null
     }

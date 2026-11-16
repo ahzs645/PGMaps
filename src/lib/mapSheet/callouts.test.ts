@@ -385,3 +385,45 @@ describe('callouts in one ordered row', () => {
     expect(box).toEqual({ x: 260, y: 130, w: 80, h: 20 })
   })
 })
+
+describe('names printed on their areas', () => {
+  const area = { x: 0, y: 0, w: 400, h: 200 }
+  const style = { size: 10, color: '#8400a8', halo: { color: '#ffffff', width: 1.9 } }
+  const name = (title: string, anchor: Point): FigureLabel => ({ title, anchor, inside: style })
+
+  it('centres a name on its anchor with no leader, in its own style', () => {
+    const { ops, boxes, dropped } = labelOps([name('Landform 1b', [200, 100])], { style: 'box', area, maxWidth: 120 })
+    expect(dropped).toBe(0)
+    expect(ops.every((op) => op.op === 'text')).toBe(true)
+    expect(ops[0]).toMatchObject({ text: 'Landform 1b', color: '#8400a8', align: 'center', x: 200 })
+    const [box] = boxes
+    expect(box.x + box.w / 2).toBeCloseTo(200)
+    expect(box.y + box.h / 2).toBeCloseTo(100)
+  })
+
+  it('moves a little to clear what is taken, and is left out when nothing near is clear', () => {
+    const taken = { x: 170, y: 96, w: 60, h: 8 }
+    const moved = labelOps([name('Landform 1c', [200, 100])], { style: 'halo', area, maxWidth: 120, avoid: [taken] })
+    expect(moved.dropped).toBe(0)
+    const [box] = moved.boxes
+    expect(box.y + box.h <= taken.y || box.y >= taken.y + taken.h).toBe(true)
+    // Covered all round: no name rather than one far from its area or over another label.
+    const covered = labelOps([name('Landform 1c', [200, 100])], {
+      style: 'halo',
+      area,
+      maxWidth: 120,
+      avoid: [{ x: 100, y: 50, w: 200, h: 100 }],
+    })
+    expect(covered).toMatchObject({ ops: [], dropped: 1 })
+    // Two names on one spot: the second steps aside from the first.
+    const two = labelOps([name('Landform 1a', [200, 100]), name('Landform 1b', [200, 100])], {
+      style: 'halo',
+      area,
+      maxWidth: 120,
+    })
+    expect(two.dropped).toBe(0)
+    expect(two.boxes[0].y + two.boxes[0].h <= two.boxes[1].y || two.boxes[1].y + two.boxes[1].h <= two.boxes[0].y).toBe(
+      true,
+    )
+  })
+})

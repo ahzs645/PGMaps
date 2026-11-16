@@ -73,6 +73,26 @@ export function placesAround(labels: readonly PlaceLabel[], centre: [number, num
   })
 }
 
+/** A lake, peak or island this close to the blocks (km) names their general location ("Paska Lake"). */
+export const LOCAL_PLACE_KM = 5
+
+/**
+ * The blocks' general location as a form's header field reads it, from the named places round them: the nearest
+ * lake, peak or island within `LOCAL_PLACE_KM`, then the nearest settlement with the blocks' distance and direction
+ * from it ("Paska Lake, 11.9 km north of Logan Lake"); either alone when only one is named; null when neither is.
+ */
+export function settingLocation(setting: Pick<ReportSetting, 'places'>): string | null {
+  const nearest = (places: readonly SettingPlace[]) =>
+    [...places].sort((a, b) => a.distanceKm - b.distanceKm)[0] ?? null
+  const feature = nearest(
+    setting.places.filter((place) => place.kind !== 'settlement' && place.distanceKm <= LOCAL_PLACE_KM),
+  )
+  const town = nearest(setting.places.filter((place) => place.kind === 'settlement'))
+  const from = town ? `${town.distanceKm.toFixed(1)} km ${town.direction} of ${town.name}` : null
+  if (feature && from) return `${feature.name}, ${from}`
+  return feature?.name ?? from
+}
+
 /** The blocks' centre: the area-weighted mean of their outlines' vertex means. */
 export function blocksCentre(blocks: readonly PolygonGeometry[]): [number, number] | null {
   let lng = 0,

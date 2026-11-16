@@ -193,6 +193,51 @@ export function formatAlteration(value: number, rule: Pick<AlterationRule, 'deci
 const area = (areas: AlterationAreas, part: AlterationPart) =>
   part === 'proposed' ? areas.proposed : part === 'nonVeg' ? areas.nonVeg : (areas.otherPlanned ?? 0)
 
+const DEDUCTION_WORDS: Record<AlterationDeduction, string> = { rock: 'rock', privateLand: 'private land' }
+const UNIT_WORDS: Record<AlterationUnit, string> = { px: 'pixels', cm2: 'cm²', ha: 'hectares' }
+const titleCase = (words: string) =>
+  words.replace(/\b(rock|private|land)\b/g, (word) => word[0].toUpperCase() + word.slice(1))
+
+/**
+ * `rule` with `deduct` leaving the landform in place of its own deductions: the same parts, unit, decimals, rounding
+ * and total, named, based and written for what it now nets out. `rule` itself when the deductions are the same.
+ */
+export function ruleNetOf(rule: AlterationRule, deduct: readonly AlterationDeduction[]): AlterationRule {
+  const ordered = (['rock', 'privateLand'] as const).filter((d) => deduct.includes(d))
+  if (ordered.length === rule.deduct.length && ordered.every((d) => rule.deduct.includes(d))) return rule
+  const words = ordered.map((d) => DEDUCTION_WORDS[d]).join(' and ')
+  const basis = ordered.length ? `landform net of ${words}` : 'gross landform'
+  return {
+    ...rule,
+    id: `${rule.id}+${ordered.length ? `net-${ordered.join('-')}` : 'gross'}`,
+    name: `${basis[0].toUpperCase()}${basis.slice(1)}, ${UNIT_WORDS[rule.unit]}`,
+    deduct: ordered,
+    formula: ordered.length
+      ? `(NonVEG + Proposed Blocks) / (Landform - ${titleCase(words)})`
+      : '(NonVEG + Proposed Blocks) / Landform',
+    basis,
+    spec: `${rule.spec}; denominator taken as the ${basis}`,
+  }
+}
+
+/** What a scene's analysis settings take out of the perspective landform, as `AnalysisSettings` holds them. */
+export interface SceneDenominator {
+  perspectiveDenominator?: 'non-vegetated-out' | 'non-treed-out'
+  privateLandOutOfDenominator?: boolean
+}
+
+/**
+ * The rule a figure's calculation takes outside a report (Save & export's analysis sheet): the style's own, unless the
+ * scene takes private land out of its denominators (`privateLandOutOfDenominator`, off by default). The run's figure
+ * is then a net one, so the sheet nets the same ground out of the style's arithmetic: private land, and rock (the
+ * class pass's non-vegetated class) under either perspective denominator, which both leave non-vegetated ground out.
+ * A report's figures take its format's rule instead, so they print what its tables print.
+ */
+export function sceneSheetRule(styleRule: AlterationRule, scene: SceneDenominator | null | undefined): AlterationRule {
+  if (!scene?.privateLandOutOfDenominator) return styleRule
+  return ruleNetOf(styleRule, [...new Set<AlterationDeduction>([...styleRule.deduct, 'privateLand', 'rock'])])
+}
+
 /** The rule's denominator for `areas`: the landform less what the rule deducts. */
 export function alterationDenominator(rule: AlterationRule, areas: AlterationAreas): number {
   let denominator = areas.landform

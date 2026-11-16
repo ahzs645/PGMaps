@@ -740,3 +740,87 @@ describe('conclusion standing', () => {
     )
   })
 })
+
+describe('several landforms from one viewpoint (23: Sechelt Golf Club, Landform 1, 1a and 1b)', () => {
+  // 23 A6's printed pixel areas; the sub-landform 1a is the assessed landform, Landform 1 (Full) and 1b are read beside it.
+  const golfClub = () =>
+    resolveViaDocument(formatForSource('23')!, {
+      project: 'Blocks AN03, AN3A, AN15',
+      viewpoints: [
+        vp({
+          name: 'Sechelt Golf Club',
+          landform: 'Landform 1a (traced)',
+          areas: { landform: 25807, privateLand: 0, proposed: 240, nonVeg: 478 },
+          otherLandforms: [
+            {
+              landform: 'Landform 1b (traced)',
+              objective: 'PR',
+              areas: { landform: 109838, privateLand: 0, proposed: 0, nonVeg: 1018 },
+              blocks: [],
+            },
+            {
+              landform: 'Landform 1 (traced)',
+              objective: 'PR',
+              areas: { landform: 141912, privateLand: 0, proposed: 240, nonVeg: 1496 },
+              blocks: ['AN03', 'AN3A', 'AN15'],
+            },
+            {
+              landform: 'Landform 1c (traced)',
+              objective: 'PR',
+              areas: { landform: 6267, privateLand: 0, proposed: 0, nonVeg: 0 },
+              blocks: [],
+            },
+            // Another landform merely in view, with no alteration: not assessed from here.
+            {
+              landform: 'Landform 4 (traced)',
+              objective: 'PR',
+              areas: { landform: 5000, privateLand: 0, proposed: 0, nonVeg: 0 },
+              blocks: [],
+            },
+          ],
+          blocks: [
+            { id: 'AN03', status: 'visible', visiblePercent: 60 },
+            { id: 'AN3A', status: 'visible', visiblePercent: 30 },
+            { id: 'AN15', status: 'possible glimpses', visiblePercent: 2 },
+          ],
+          distanceKm: 6.3,
+        }),
+      ],
+    })
+
+  it('Table 4 gives each landform its row, in order, each figure from its own areas', () => {
+    const rows = golfClub().viewpoints[0].rows['initial-assessment']
+    expect(rows.map((row) => [row[T4.landform], row[T4.percent], row[T4.blocks]])).toEqual([
+      ['Landform 1 (traced)', '1.22', 'AN03, AN3A, AN15'],
+      ['Landform 1a (traced)', '2.78', 'AN03, AN3A, AN15'],
+      ['Landform 1b (traced)', '0.93', 'Existing openings only'],
+      ['Landform 1c (traced)', '0.00', 'None'],
+    ])
+    // A sub-landform seen without alteration reads N/A; the reviewer's terms stay the assessed landform's.
+    expect(rows[3][T4.met]).toBe('N/A')
+    expect(rows[0][T4.met]).toBe('')
+  })
+
+  it('Table 5 closes the key viewpoint with the sub-landform holding the blocks, then the whole landform', () => {
+    const rows = golfClub().viewpoints[0].rows['detailed-assessment']
+    expect(rows.slice(-2).map((row) => [row[T5.block], row[T5.percent]])).toEqual([
+      ['Landform 1a', '2.78 (Small to Medium)'],
+      ['Overall Landform 1', '1.22 (Small)'],
+    ])
+    expect(rows.some((row) => row[T5.block] === 'Overall landform')).toBe(false)
+  })
+
+  it('keeps one row per table for a viewpoint reading one landform', () => {
+    const doc = resolveViaDocument(formatForSource('23')!, {
+      project: 'Blocks AN03',
+      viewpoints: [
+        vp({
+          areas: { landform: 25807, privateLand: 0, proposed: 240, nonVeg: 478 },
+          blocks: [{ id: 'AN03', status: 'visible', visiblePercent: 60 }],
+        }),
+      ],
+    })
+    expect(doc.viewpoints[0].rows['initial-assessment']).toHaveLength(1)
+    expect(doc.viewpoints[0].rows['detailed-assessment'].at(-1)?.[T5.block]).toBe('Overall landform')
+  })
+})

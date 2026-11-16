@@ -200,6 +200,35 @@ describe('labels', () => {
     expect(greenUpBasisLine(greenUpBasis([modelled]))).toBe('Green-up modelled')
   })
 
+  it('names a supplied recovery estimate apart from the green-up age and from a field check', () => {
+    const field = greenUpReading(opening({ fieldGreenUp: checked }), 2026, 20)
+    const modelled = greenUpReading(opening(), 2026, 20)
+    const estimate = greenUpReading(opening({ recoveryPercent: 100 }), 2026, 20)
+    expect(estimate.used).toBe('modelled')
+    expect(greenUpBasis([estimate]).label).toBe('supplied estimate')
+    expect(greenUpBasis([estimate, estimate]).label).toBe('supplied estimate (2 openings)')
+    expect(greenUpBasis([estimate, modelled, modelled])).toEqual({
+      total: 3,
+      fieldCount: 0,
+      estimateCount: 1,
+      label: 'supplied estimate for 1 of 3 openings, modelled for 2',
+    })
+    expect(greenUpBasis([field, estimate, estimate, modelled]).label).toBe(
+      'field-confirmed for 1 of 4 openings (12 Nov 2026 by J. Smith), supplied estimate for 2, modelled for 1',
+    )
+    expect(greenUpBasis([field, estimate]).label).toBe(
+      'field-confirmed for 1 of 2 openings (12 Nov 2026 by J. Smith), supplied estimate for 1',
+    )
+    // A field check overrides the estimate: that opening counts as field-confirmed only.
+    const both = greenUpReading(opening({ recoveryPercent: 0, fieldGreenUp: checked }), 2026, 20)
+    expect(greenUpBasis([both, modelled]).label).toBe(
+      'field-confirmed for 1 of 2 openings (12 Nov 2026 by J. Smith), modelled for 1',
+    )
+    expect(greenUpBasisLine(greenUpBasis([estimate, modelled]))).toBe(
+      'Green-up supplied estimate for 1 of 2 openings, modelled for 1',
+    )
+  })
+
   it('reads a run from its own input snapshot, leaving out openings that miss the landform', () => {
     const input = buildSceneInput(
       scene([

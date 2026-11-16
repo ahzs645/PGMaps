@@ -13,7 +13,7 @@
 import clipping, { type MultiPolygon } from 'polygon-clipping'
 import { classColor, zoneColor, type FigureClass } from '@/lib/forestry/viaFigure/composeFigure'
 import { VQO_ZONE_ROLES } from '@/lib/forestry/viaFigure/presets'
-import type { PolygonGeometry } from './visibility'
+import { polygonAreaMeters, type PolygonGeometry } from './visibility'
 
 export type ClassPassInput = {
   /** The landform being assessed; null makes every class an outside one. */
@@ -118,6 +118,43 @@ export function classPassLayers(input: ClassPassInput): { layers: ClassPassLayer
     failed:
       kept.failed || keptPartial.failed || [rock, privateLand, existing, blocks, partial].some((split) => split.failed),
   }
+}
+
+/**
+ * Most other landforms one saved view takes a class pass of (sub-landforms, or the whole landform beside an active
+ * sub-landform): each is one more class pass per frame, at the frame's own camera.
+ */
+export const MAX_LANDFORM_PASSES = 6
+
+/**
+ * Less overlap than this between a block and a landform is where two outlines meet, not ground in it, square metres
+ * (about one 10 m cell). Klein Lake 2's 5b, drawn beside 5a, took 14 m² of EGG13's 14.6 ha.
+ */
+export const MIN_BLOCK_GROUND_IN_LANDFORM_M2 = 100
+
+/**
+ * The blocks (by id) with ground in `landform`, for the row a landform's reading prints and the landform a block is
+ * cited on: which blocks it holds is read off the plan, never a figure. An overlap under
+ * `MIN_BLOCK_GROUND_IN_LANDFORM_M2` is an edge, not ground. A block whose clipping fails is kept.
+ */
+export function blocksInLandform(
+  blocks: ReadonlyArray<{ id: string; geometry: PolygonGeometry }>,
+  landform: PolygonGeometry,
+): string[] {
+  const land = asMulti(landform) as Geom
+  return blocks
+    .filter((block) => {
+      try {
+        const overlap = clipping.intersection(asMulti(block.geometry) as Geom, land)
+        return (
+          overlap.length > 0 &&
+          polygonAreaMeters({ type: 'MultiPolygon', coordinates: overlap }) >= MIN_BLOCK_GROUND_IN_LANDFORM_M2
+        )
+      } catch {
+        return true
+      }
+    })
+    .map((block) => block.id)
 }
 
 /** Whether the pass paints a partial cut, so its decode needs the partial-cut colours (`classPaletteEntries`). */

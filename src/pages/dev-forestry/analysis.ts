@@ -630,6 +630,22 @@ export function computeAnalysis(
       'Some terrain/surface sightlines are unknown. Unknown is not screened or visible; no complete worst-case result can be asserted.',
     )
   if (terrain.missingTileCount) warnings.push(`${terrain.missingTileCount} DEM tiles did not load.`)
+  // A surveyed eye under the terrain model's ground starts every sightline inside that ground, so the run sees
+  // nothing (Marblehead VP4: a lake-level eye on a shore the 12 m model reads 3-12 m higher), while the road view's
+  // camera, inside the terrain mesh, looks through it.
+  const buriedEye =
+    surveyedEye === undefined
+      ? 0
+      : Math.max(
+          0,
+          ...stationPoints.map(
+            (s) => ('terrainGroundElevationMeters' in s ? s.terrainGroundElevationMeters : -Infinity) - surveyedEye,
+          ),
+        )
+  if (buriedEye > 0)
+    warnings.push(
+      `The surveyed eye elevation (${surveyedEye!.toFixed(1)} m) is up to ${buriedEye.toFixed(1)} m below the terrain model's ground at the viewpoint, so its sightlines start inside that ground and what they hide is the model, not the view. Check the elevation, or stand the eye on the model's ground.`,
+    )
   if (underResolvedTargetIds.length) {
     // Points the landform needs for the smallest under-resolved proposal to
     // cover the minimum number of cells: its area over the landform's.

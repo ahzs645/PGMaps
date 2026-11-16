@@ -300,6 +300,14 @@ export type ExportContext = {
      * rather than failing. Absent: false.
      */
     settling?: boolean
+    /**
+     * The VIA report's before pictures the engine still owes, beyond `missing`: each view drawn again before harvest
+     * by the same engine, so a before/after pair never compares two renderers. Only the report waits for them, and a
+     * failed one is not counted (the pair then falls back to PGMaps for both pictures). Absent: 0.
+     */
+    missingBefore?: number
+    /** `left` with those before pictures added: the report's wait. */
+    leftWithBefore?: string | null
   }
   /** Analysis sheet: the view and the look chosen. */
   figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean; paintBlocks: boolean }
@@ -345,6 +353,12 @@ export const RUNS_ON_EXPORT: ReadonlySet<VisualsExport> = new Set([
 /** The outputs drawn from the saved views' figures: another engine can draw those again at final quality. */
 export const DRAWS_FIGURES: ReadonlySet<VisualsExport> = new Set(['analysis-sheet', 'via-document', 'via-report'])
 
+/** How many renders `kind` still waits for from the chosen engine: the figures, and for the VIA report its before pictures. */
+export function rendererMissing(kind: VisualsExport, r: ExportContext['renderer']): number {
+  if (!DRAWS_FIGURES.has(kind) || r.id === 'pgmaps') return 0
+  return r.missing + (kind === 'via-report' ? (r.missingBefore ?? 0) : 0)
+}
+
 /**
  * The outputs that print the visual inventory's units (VSU, VSC, VAC, EVC, VQO): the export reads the scene's
  * inventory first when it has not been read, so a view saved before any read still prints its unit.
@@ -376,12 +390,19 @@ export function exportPreparation(
         ? `The visual landscape inventory could not be read (${vi.error ?? 'no reason given'}): the file says it was not read. Downloading reads it again first.`
         : null
   const r = ctx.renderer
-  const render = DRAWS_FIGURES.has(kind) && r.id !== 'pgmaps' && !r.unavailable && r.missing > 0
+  const render = rendererMissing(kind, r) > 0 && !r.unavailable
+  // The VIA report also waits for the views' before pictures by the same engine.
+  const before = kind === 'via-report' ? (r.missingBefore ?? 0) : 0
+  const left = before ? (r.leftWithBefore ?? r.left) : r.left
+  const owed = [
+    ...(r.missing ? [`${r.missing} saved view${r.missing === 1 ? '' : 's'}`] : []),
+    ...(before ? [`${before} before picture${before === 1 ? '' : 's'}`] : []),
+  ].join(' and ')
   const renderNote = !render
     ? null
     : r.running
-      ? `${r.label} is drawing the saved views at final quality in the background: ${r.views - r.missing} of ${r.views} done${r.left ? `, ${r.left} left` : ''}. The file is written when they finish; the page stays usable.`
-      : `${r.label} draws ${r.missing} saved view${r.missing === 1 ? '' : 's'} at final quality first, in the background${r.left ? `: ${r.left}` : ''}${r.left ? (r.measured ? ' (from your renders)' : ' (first estimate)') : ''}. Then the file is written.`
+      ? `${r.label} is drawing the saved views at final quality in the background: ${r.views - r.missing} of ${r.views} done${before ? `, ${before} before picture${before === 1 ? '' : 's'} to draw` : ''}${left ? `, ${left} left` : ''}. The file is written when they finish; the page stays usable.`
+      : `${r.label} draws ${owed} at final quality first, in the background${left ? `: ${left}` : ''}${left ? (r.measured ? ' (from your renders)' : ' (first estimate)') : ''}. Then the file is written.`
   const note = renderNote
     ? renderNote
     : ctx.autoRun.status === 'running' && RUNS_ON_EXPORT.has(kind)
@@ -474,12 +495,16 @@ const hectares = (ha: number) =>
   `${ha.toLocaleString('en-CA', { maximumFractionDigits: ha < 10 ? 1 : 0, minimumFractionDigits: ha < 10 ? 1 : 0 })} ha`
 const percent = (value: number | null) => (value === null ? 'withheld' : `${value.toFixed(2)}%`)
 /** Who draws the figures, and whether they are ready. */
-const rendererRow = (ctx: ExportContext) =>
-  ctx.renderer.id === 'pgmaps'
-    ? 'PGMaps, as each view was saved'
-    : ctx.renderer.missing
-      ? `${ctx.renderer.label} at final quality: ${ctx.renderer.missing} of ${ctx.renderer.views} still to render`
-      : `${ctx.renderer.label} at final quality, rendered`
+const rendererRow = (ctx: ExportContext, kind: VisualsExport = 'analysis-sheet') => {
+  const r = ctx.renderer
+  if (r.id === 'pgmaps') return 'PGMaps, as each view was saved'
+  const before = kind === 'via-report' ? (r.missingBefore ?? 0) : 0
+  // The report's before pictures come from the same engine as its simulations.
+  const pairs = kind === 'via-report' ? ', before pictures by the same engine' : ''
+  return r.missing || before
+    ? `${r.label} at final quality${pairs}: ${r.missing} of ${r.views} still to render${before ? `, and ${before} before picture${before === 1 ? '' : 's'}` : ''}`
+    : `${r.label} at final quality${pairs}, rendered`
+}
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -801,7 +826,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
             { label: 'Structure of', value: `${report.recipe} (reference document ${report.sources})` },
             { label: 'Logo', value: ctx.logo },
             { label: 'Figures', value: plural(report.figures, 'saved view') },
-            { label: 'Drawn by', value: rendererRow(ctx) },
+            { label: 'Drawn by', value: rendererRow(ctx, 'via-report') },
           ],
         },
         { title: 'Parts, in order', items: report.parts.map((part) => ({ title: part })) },

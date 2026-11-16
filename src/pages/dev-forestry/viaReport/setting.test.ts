@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import { collectPlacesFromMap, placesFromFeatures, type BasemapQueryMap } from '../basemapContext'
-import { compassWord, groundAspect, placesAround, reportSetting, speciesName, standCharacter } from './setting'
+import {
+  compassWord,
+  groundAspect,
+  placesAround,
+  reportSetting,
+  settingLocation,
+  speciesName,
+  standCharacter,
+} from './setting'
+import type { SettingPlace } from './setting'
 
 // A square of ground near 50° N, about 1.4 km a side; names are placeholders.
 const square = (west: number, south: number, size = 0.02): GeoJSON.Polygon => ({
@@ -134,6 +143,34 @@ describe('report setting', () => {
   })
 })
 
+describe('general location', () => {
+  const place = (name: string, kind: SettingPlace['kind'], distanceKm: number, direction = 'north'): SettingPlace => ({
+    name,
+    kind,
+    distanceKm,
+    direction,
+  })
+
+  it('names the nearest lake, peak or island close by, then the blocks’ distance and direction from a settlement', () => {
+    expect(
+      settingLocation({
+        places: [
+          place('Townsite', 'settlement', 11.94),
+          place('Hamlet', 'settlement', 14),
+          place('Long Lake', 'water', 0.8, 'east'),
+          place('Round Peak', 'peak', 0.5),
+        ],
+      }),
+    ).toBe('Round Peak, 11.9 km north of Townsite')
+    // A feature farther than the local reach places the region, not the blocks: the settlement alone.
+    expect(
+      settingLocation({ places: [place('Far Lake', 'water', 9), place('Townsite', 'settlement', 3.2, 'west')] }),
+    ).toBe('3.2 km west of Townsite')
+    expect(settingLocation({ places: [place('Long Lake', 'water', 1)] })).toBe('Long Lake')
+    expect(settingLocation({ places: [] })).toBeNull()
+  })
+})
+
 describe('basemap place labels', () => {
   const point = (name: string, cls: string, at: [number, number], extra = {}): GeoJSON.Feature => ({
     type: 'Feature',
@@ -176,6 +213,46 @@ describe('basemap place labels', () => {
       'water_name',
     )
     expect(water).toEqual([{ name: 'Long Inlet', kind: 'water', lngLat: [-123.01, 50.01] }])
+  })
+
+  it('reads the Protomaps schema CARTO’s positron serves: places by kind, lake labels and peaks among the pois', () => {
+    const at = (name: string, props: Record<string, unknown>, coordinates: [number, number] = [-120.6, 50.5]) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates },
+      properties: { name, ...props },
+    })
+    expect(
+      placesFromFeatures(
+        [
+          at('Hamlet', { kind: 'locality', kind_detail: 'hamlet' }),
+          at('Locality', { kind: 'locality', kind_detail: 'locality' }),
+          at('Province', { kind: 'region', kind_detail: 'province' }),
+          at('Isle', { kind: 'island' }),
+        ],
+        'places',
+      ).map((p) => `${p.name}:${p.kind}`),
+    ).toEqual(['Hamlet:settlement', 'Locality:settlement', 'Isle:island'])
+    expect(
+      placesFromFeatures(
+        [at('Long Lake', { kind: 'water' }), at('Summit', { kind: 'peak' }), at('Rec Site', { kind: 'park' })],
+        'pois',
+      ).map((p) => `${p.name}:${p.kind}`),
+    ).toEqual(['Long Lake:water', 'Summit:peak'])
+    // In the water layer only the lake labels: a named river line is left out.
+    const river: GeoJSON.Feature = {
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: [
+          [-120.6, 50.5],
+          [-120.61, 50.51],
+        ],
+      },
+      properties: { name: 'Clear Creek', kind: 'river' },
+    }
+    expect(placesFromFeatures([at('Long Lake', { kind: 'water', kind_detail: 'lake' }), river], 'water')).toEqual([
+      { name: 'Long Lake', kind: 'water', lngLat: [-120.6, 50.5] },
+    ])
   })
 
   it('collects from every vector source that carries the place or water layers', () => {

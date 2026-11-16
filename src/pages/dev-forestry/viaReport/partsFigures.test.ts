@@ -13,6 +13,7 @@ import {
   figureWording,
   firstFigureNumber,
   DEFAULT_FIGURE_WORDING,
+  photoDate,
   SIMULATION_DISCLAIMER,
 } from './partsFigures'
 
@@ -143,6 +144,33 @@ describe('figure parts', () => {
       expect(FIGURES_CSS).toContain('.vf-page{page:via-figure')
     })
 
+    it('prints each page’s own figure-page maps: its location map and the regional map starring its viewpoint', () => {
+      const names = ['Lakeshore', 'Ridge road']
+      const images: ReportImages = {
+        ...allImages(names),
+        figurePageMaps: {
+          location: { Lakeshore: picture('wedge Lakeshore'), 'Ridge road': picture('wedge Ridge road') },
+          regional: picture('regional, both stars'),
+          regionalFor: { Lakeshore: picture('regional Lakeshore'), 'Ridge road': picture('regional Ridge road') },
+        },
+      }
+      const pages = part('ea-figure-pages').build(context('referral-panoramas', names, { images })).blocks
+      expect(pages.map((page) => page.kind === 'figurePage' && page.side.map((s) => s.figure?.view))).toEqual([
+        ['wedge Lakeshore', 'regional Lakeshore'],
+        ['wedge Ridge road', 'regional Ridge road'],
+      ])
+      // Without a page's own, the one regional map.
+      const shared = part('ea-figure-pages').build(
+        context('referral-panoramas', names, {
+          images: { ...images, figurePageMaps: { ...images.figurePageMaps!, regionalFor: undefined } },
+        }),
+      ).blocks
+      expect(shared.map((page) => page.kind === 'figurePage' && page.side[1].figure?.view)).toEqual([
+        'regional, both stars',
+        'regional, both stars',
+      ])
+    })
+
     it('prints a box saying what goes where for each missing picture, and lists it', () => {
       const ctx = context('referral-panoramas', ['Lakeshore'], { office: {}, figures: [] })
       const out = part('ea-figure-pages').build(ctx)
@@ -183,17 +211,38 @@ describe('figure parts', () => {
       const out = part('photo-simulation-pairs').build(
         context('form-2001-analysis-sheets', names, { images: allImages(names) }),
       )
-      expect(out.toComplete).toEqual([])
+      // A photograph that carried no date has it to complete; a render has none to give.
+      expect(out.toComplete).toEqual(['Lakeshore: the date the photograph was taken'])
       expect(out.blocks.map((b) => (b.kind === 'figurePair' ? b.slots.map((s) => s.label) : []))).toEqual([
         ['Photograph 1: Lakeshore', 'Simulation 1: Lakeshore'],
         ['Before-harvest render 2: Ridge road', 'Simulation 2: Ridge road'],
       ])
+      // Dated, as the references date theirs (01: "Photograph 1: VP1 – Mile High Resort (May 27, 2020)").
+      const images = allImages(names)
+      const dated = part('photo-simulation-pairs').build(
+        context('form-2001-analysis-sheets', names, {
+          images: {
+            ...images,
+            before: { ...images.before, Lakeshore: { ...images.before!.Lakeshore, takenOn: '2020-05-27' } },
+          },
+        }),
+      )
+      expect(dated.toComplete).toEqual([])
+      expect(dated.blocks[0]).toMatchObject({ slots: [{ label: 'Photograph 1: Lakeshore (May 27, 2020)' }, {}] })
       // One viewpoint: no number.
       const one = part('photo-simulation-pairs').build(
         context('form-2001-analysis-sheets', ['Lakeshore'], { images: allImages(['Lakeshore']) }),
       ).blocks[0] as Extract<ReportBlock, { kind: 'figurePair' }>
       expect(one.slots[0].label).toBe('Photograph: Lakeshore')
       expect(extraBlockHtml(one)).toContain('<figcaption>Photograph: Lakeshore</figcaption>')
+    })
+
+    it('read a photograph’s date from its ISO day only, never a malformed one', () => {
+      expect(photoDate('2020-06-25')).toBe('June 25, 2020')
+      expect(photoDate('2020-06-25T18:04:00Z')).toBe('June 25, 2020')
+      expect(photoDate('2020-02-30')).toBeNull()
+      expect(photoDate('June 2020')).toBeNull()
+      expect(photoDate(null)).toBeNull()
     })
 
     it('put the labels in the picture’s corner for the formats that do, under the view’s name', () => {
@@ -312,11 +361,16 @@ describe('block marks on the plain simulation', () => {
     images: { ...allImages(names), after: { 'Hwy 31': marked('Hwy 31') } },
   })
 
-  it('26: rings only the block that is glimpsed, over the picture, never an outline', () => {
+  it('26: an arrow and name to the block in view and a ring round the glimpsed one, never an outline', () => {
+    // 26's Figure 2 names its visible disturbance; Figure 3 rings the one hidden. The memo counts X1 in view, so the
+    // figure must mark it.
     const html = part('ea-figure-pages').build(ctx).blocks.map(extraBlockHtml).join('')
     expect(html).toContain('<svg class="vf-marks" viewBox="0 0 300 200"')
+    expect(html).toContain('>Block X1<')
     expect(html).toContain('Block X2 (glimpses only)')
-    expect(html).not.toContain('>Block X1<')
+    expect(html.match(/<circle /g)?.length).toBe(2) // X2's ring: a white halo under the red dashes
+    expect(html).toMatch(/<path d="M[^"]+ Z" fill="#fff"/) // X1's arrowhead
+    expect(html).not.toContain('<polygon')
   })
 
   it('05/06 pairs: an arrow and label to every block', () => {
@@ -403,6 +457,34 @@ describe('panorama figure pages (26)', () => {
     // The slot round it takes the band's shape too, so the box is as wide as the column allows.
     expect(html).toContain('<div class="vf-slot vf-sized" style="--ar:2.4000"><div class="vf-bar">After project')
     expect(html).toContain('viewBox="0 1100 2400 1000"')
+  })
+
+  it('keeps a tall landform’s pictures 2.4:1, the before in the after’s band so no marked block is cut (26, VP1)', () => {
+    const vp1 = (view: string, marks: ReportFigure['marks']): ReportFigure => ({
+      ...picture(view),
+      width: 2400,
+      height: 2867,
+      landformRows: { y: 513, height: 1593 },
+      ...(marks ? { marks } : {}),
+    })
+    const marks = [
+      { x: 0.965, y: 0.583, label: 'Block 2', status: 'visible' },
+      { x: 0.408, y: 0.598, label: 'Block 20', status: 'not visible' },
+      { x: 0.434, y: 0.482, label: 'Block 22', status: 'not visible' },
+    ]
+    const ctx = context('referral-panoramas', names, {
+      images: {
+        ...allImages(names),
+        before: { 'Hwy 31': { ...vp1('before', undefined), source: 'render' } },
+        after: { 'Hwy 31': vp1('after', marks) },
+      },
+      recipeOptions: { figurePanorama: 2.4 },
+    })
+    const html = part('ea-figure-pages').build(ctx).blocks.map(extraBlockHtml).join('')
+    // Both pictures 2.4:1 (rows 810-1810 of 2867), not the landform's 1.3:1.
+    expect(html.match(/class="vf-pic vf-fit vf-pano" style="--ar:2\.4000"/g)).toHaveLength(2)
+    expect(html.match(/object-position:50% 43\.39%/g)).toHaveLength(2)
+    expect(html).toContain('viewBox="0 810 2400 1000"')
   })
 
   it('shows the whole picture without the option', () => {

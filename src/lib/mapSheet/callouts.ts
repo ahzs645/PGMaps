@@ -448,6 +448,12 @@ export type FigureLabel = {
   secondary?: boolean
   /** Which labels give way first when a row has no room for them all: lowest first (e.g. the share seen). */
   priority?: number
+  /**
+   * An area's name printed on the area itself in this text style (a landform's "Landform 1b"), in any label style:
+   * centred on the anchor with no leader, nudged a little to clear the other labels and `LabelOptions.avoid`, and
+   * dropped when no nearby place is clear.
+   */
+  inside?: SheetTextStyle
 }
 
 export type LabelOptions = {
@@ -471,6 +477,8 @@ export type LabelOptions = {
    * everything is dark.
    */
   luminanceAt?: LuminanceSampler | null
+  /** Boxes already taken on the page (another call's labels): the names printed on areas (`inside`) keep clear of them. */
+  avoid?: readonly Box[]
 }
 
 const DARK = '#1a1a1a'
@@ -553,7 +561,26 @@ export function labelOps(
   const placed: Box[] = []
   const key: Array<{ n: number; text: string }> = []
   let dropped = 0
-  const sorted = [...labels].sort((a, b) => Number(!!a.secondary) - Number(!!b.secondary) || a.anchor[0] - b.anchor[0])
+  // Names printed on their areas go first, clear of `avoid` and of each other.
+  const taken: Box[] = [...(options.avoid ?? [])]
+  for (const label of labels) {
+    if (!label.inside) continue
+    const box = insidePlacement(label, label.inside, options, taken)
+    if (!box) {
+      dropped++
+      continue
+    }
+    taken.push(box.box)
+    placed.push(box.box)
+    let y = box.box.y
+    for (const line of box.lines) {
+      ops.push(...textOps(box.box.x + box.box.w / 2, y + box.style.size * 0.92, line, box.style, 'center'))
+      y += lineHeight(box.style)
+    }
+  }
+  const sorted = labels
+    .filter((label) => !label.inside)
+    .sort((a, b) => Number(!!a.secondary) - Number(!!b.secondary) || a.anchor[0] - b.anchor[0])
   if (options.style === 'numbered') {
     // Small numbered circles on the features; the names go in the key.
     sorted.forEach((label, i) => {
@@ -669,6 +696,43 @@ export function labelOps(
       }
   }
   return { ops, key, boxes: placed, dropped }
+}
+
+/** How far an area's name may move off its anchor to clear other labels, in its own line heights. */
+export const INSIDE_LABEL_NUDGE = 1.2
+
+/**
+ * Where an area's name goes (`FigureLabel.inside`): centred on its anchor, else nudged up, down, left or right by
+ * `INSIDE_LABEL_NUDGE` line heights, the first place inside `area` that clears `taken` by 2 pt. Fitted to
+ * `maxWidth` on one line (shrunk, then cut with "..."); null when no place is clear.
+ */
+function insidePlacement(
+  label: FigureLabel,
+  style: SheetTextStyle,
+  options: LabelOptions,
+  taken: readonly Box[],
+): { box: Box; lines: string[]; style: SheetTextStyle } | null {
+  const fitted = fitCalloutLines(label.title, style, options.maxWidth, 1)
+  const w = Math.max(...fitted.lines.map((line) => textWidth(line, fitted.style.size, fitted.style.style ?? 'normal')))
+  const h = fitted.lines.length * lineHeight(fitted.style)
+  const step = lineHeight(fitted.style) * INSIDE_LABEL_NUDGE
+  const [ax, ay] = label.anchor
+  const offsets: Point[] = [
+    [0, 0],
+    [0, -step],
+    [0, step],
+    [-w / 2 - step, 0],
+    [w / 2 + step, 0],
+  ]
+  const { area } = options
+  for (const [dx, dy] of offsets) {
+    const box = { x: ax + dx - w / 2, y: ay + dy - h / 2, w, h }
+    if (box.x < area.x || box.y < area.y || box.x + w > area.x + area.w || box.y + h > area.y + area.h) continue
+    if (taken.some((other) => boxesMeet({ x: other.x - 2, y: other.y - 2, w: other.w + 4, h: other.h + 4 }, box)))
+      continue
+    return { box, lines: fitted.lines, style: fitted.style }
+  }
+  return null
 }
 
 /** A boxless label's lines (title, then the status) and its printed size. */

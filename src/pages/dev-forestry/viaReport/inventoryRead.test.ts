@@ -7,7 +7,8 @@ import type { SavedFigure } from '../FigureSheetPanel'
 import { withReadInventory } from '../inventoryBadge'
 import type { ForestryScene } from '../scene'
 import type { TargetPolygon } from '../types'
-import { buildReportContext, inventoryUnitRows, type ReportView } from './context'
+import type { AssessmentMask } from '../types'
+import { buildReportContext, inventoryUnitRows, netOfReservesHa, reportBlockFacts, type ReportView } from './context'
 import { findReportPart } from './registry'
 import { REPORT_RECIPES } from './recipes'
 
@@ -173,6 +174,30 @@ describe('the visual inventory read reaches the VIA report', () => {
     const ctx = contextWith([])
     expect(ctx.inventoryRead).toBe(true)
     expect(ctx.inventoryUnits).toEqual([])
+  })
+
+  it('nets a block of the reserves mapped inside it, in area and in each unit, leaving other blocks as they are', () => {
+    // A quarter of Block 1 is a wildlife tree patch; Block 2 holds none.
+    const reserve: AssessmentMask = {
+      id: 'r1',
+      name: 'Block 1 Wildlife tree retention',
+      kind: 'retained',
+      geometry: square(-116.94, 50.11, 0.005),
+    } as AssessmentMask
+    const gross = reportBlockFacts(blocks[0]).areaHa
+    const facts = reportBlockFacts(blocks[0], [reserve])
+    expect(facts.islands).toBe(1)
+    expect(facts.reservesHa! / gross).toBeCloseTo(0.25, 2)
+    expect(netOfReservesHa(blocks[0], [reserve]) / gross).toBeCloseTo(0.75, 2)
+    expect(reportBlockFacts(blocks[1], [reserve]).reservesHa).toBe(0)
+    // A clearcut keeping mapped reserves prints as the VIAs print it; one without stays a clearcut.
+    expect(facts.system).toBe('Clearcut with reserves')
+    expect(reportBlockFacts(blocks[1], [reserve]).system).toBe('Clearcut')
+    const rows = inventoryUnitRows(units, blocks, [], [reserve])
+    const unit382 = rows.find((row) => row.vsu === '382')!
+    expect((unit382.netBlocks?.['Block 1'] ?? 0) / unit382.blocks!['Block 1']).toBeCloseTo(0.75, 2)
+    expect(rows.every((row) => row.netBlocks?.['Block 2'] === undefined)).toBe(true)
+    expect(inventoryUnitRows(units, blocks).every((row) => !row.netBlocks)).toBe(true)
   })
 
   it('keeps a unit a viewpoint chose that holds no block', () => {

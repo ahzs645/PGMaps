@@ -26,12 +26,22 @@ export function greenUpOpenings(scene: ForestryScene): TargetPolygon[] {
   return scene.targets.filter((t) => t.role === 'harvested' && !t.siteDisturbance)
 }
 
-/** "2 field-confirmed · 5 modelled", for the fold's summary. */
+/** "2 field-confirmed · 1 supplied estimate · 4 modelled", for the fold's summary. */
 export function greenUpSummary(scene: ForestryScene): string {
   const year = scene.assessmentYear ?? new Date().getFullYear()
-  const openings = greenUpOpenings(scene)
-  const field = openings.filter((t) => greenUpReading(t, year, scene.settings.greenUpAgeYears).used === 'field').length
-  return field ? `${field} field-confirmed · ${openings.length - field} modelled` : 'Modelled · no field checks'
+  const readings = greenUpOpenings(scene).map((t) => greenUpReading(t, year, scene.settings.greenUpAgeYears))
+  const field = readings.filter((reading) => reading.used === 'field').length
+  const estimate = readings.filter(
+    (reading) => reading.used === 'modelled' && reading.modelled.basis === 'estimate',
+  ).length
+  if (!field && !estimate) return 'Modelled · no field checks'
+  return [
+    field ? `${field} field-confirmed` : null,
+    estimate ? `${estimate} supplied estimate${estimate === 1 ? '' : 's'}` : null,
+    `${readings.length - field - estimate} modelled`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 const share = (value: number | null) => (value === null ? 'not counted' : `${formatPct(value, 0)} greened up`)

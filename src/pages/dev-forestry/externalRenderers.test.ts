@@ -8,6 +8,8 @@ import {
   readEngineMessage,
   roadRendererInfo,
   roadRendererUnavailable,
+  DEFAULT_ENGINE_BROWSER_OPTIONS,
+  parseEngineBrowserOptions,
   roadRendererUrl,
   siteTimeZone,
   separateSiteUrl,
@@ -24,6 +26,26 @@ describe('other road-view renderers', () => {
     expect(roadRendererUrl('nanite', { DEV: false, VITE_FORESTRY_NANITE_URL: ' https://example.org/nanite ' })).toBe(
       'https://example.org/nanite',
     )
+  })
+
+  it('puts this browser’s choice to keep grown trees on Nanite Forest’s address only', () => {
+    const keep = { keepGrownTrees: true }
+    expect(roadRendererUrl('nanite', { DEV: true }, keep)).toBe(
+      'http://127.0.0.1:8461/examples/pgmaps-scene.html?embed&treecache=1',
+    )
+    expect(roadRendererUrl('nanite', { DEV: true })).toBe('http://127.0.0.1:8461/examples/pgmaps-scene.html?embed')
+    expect(roadRendererUrl('worldgen', { DEV: true }, keep)).toBe('http://127.0.0.1:8460/pgmaps-scene.html?embed')
+    expect(roadRendererUrl('pgmaps', { DEV: true }, keep)).toBeNull()
+    // No query yet, a fragment, and an address that already says: each stays a valid address, said once.
+    const at = (url: string) => roadRendererUrl('nanite', { VITE_FORESTRY_NANITE_URL: url }, keep)
+    expect(at('https://example.org/nanite')).toBe('https://example.org/nanite?treecache=1')
+    expect(at('/engines/nanite/?embed#view')).toBe('/engines/nanite/?embed&treecache=1#view')
+    expect(at('https://example.org/nanite?embed&treecache=0')).toBe('https://example.org/nanite?embed&treecache=0')
+    // What storage holds is read strictly: only a stored true keeps them.
+    expect(parseEngineBrowserOptions({ keepGrownTrees: true })).toEqual(keep)
+    for (const stored of [null, 'yes', {}, { keepGrownTrees: 'true' }, { keepGrownTrees: 1 }])
+      expect(parseEngineBrowserOptions(stored)).toEqual(DEFAULT_ENGINE_BROWSER_OPTIONS)
+    expect(DEFAULT_ENGINE_BROWSER_OPTIONS.keepGrownTrees).toBe(false)
   })
 
   it('says why an engine cannot be chosen', () => {

@@ -68,10 +68,39 @@ function blockHtml(block: ReportBlock): string {
       return `<table class="signature">${block.lines.map((line) => `<tr><th>${e(line)}</th><td>${BLANK}</td></tr>`).join('')}</table>`
     case 'pageBreak':
       return '<div class="page-break"></div>'
+    case 'form':
+      return formHtml(block)
     default:
       // Block kinds the figure layouts add (`htmlFigures.ts`).
       return extraBlockHtml(block)
   }
+}
+
+/** A section's first table or scale without its own title when the section's title bar already prints it. */
+function untitled(block: ReportBlock, sectionTitle: string): ReportBlock {
+  return (block.kind === 'matrix' || block.kind === 'scale') &&
+    sectionTitle.toLowerCase().includes(block.title.toLowerCase())
+    ? { ...block, title: '' }
+    : block
+}
+
+/**
+ * A form's sections as one ruled table, a section or two side by side per row; each row's title bars and contents stay
+ * together on a page.
+ */
+function formHtml(block: Extract<ReportBlock, { kind: 'form' }>): string {
+  const rows = block.rows
+    .filter((row) => row.length)
+    .map((row) => {
+      const span = row.length === 1 ? ' colspan="2"' : ''
+      return `<tbody><tr>${row.map((cell) => `<th${span}>${e(cell.title)}</th>`).join('')}</tr><tr>${row
+        .map(
+          (cell) => `<td${span}>${cell.blocks.map((b, i) => blockHtml(i ? b : untitled(b, cell.title))).join('')}</td>`,
+        )
+        .join('')}</tr></tbody>`
+    })
+    .join('')
+  return `<table class="form-grid"><colgroup><col><col></colgroup>${rows}</table>`
 }
 
 const CSS = `body{font:13px/1.45 system-ui,sans-serif;color:#1a2530;max-width:960px;margin:28px auto;padding:0 24px}
@@ -95,7 +124,15 @@ table.signature th{width:32%}table.signature td{height:28px}
 .complete{border:1px solid #b7791f;background:#fffaf0;padding:4px 12px;margin-top:14px;font-size:10px;line-height:1.25}.complete h2{font-size:14px;margin:4px 0}.complete ul{margin:4px 0;padding-left:16px}.complete li{margin:0 0 3px}
 footer{margin-top:24px;font-size:11px;color:#64748b;border-top:1px solid #cbd5e1;padding-top:6px}
 .page-break{break-after:page}button{margin:8px 0}
-.vf-landscape + .page-break,.vf-page + .page-break,.sheet-page + .page-break,figure.sheet + .page-break{display:none}
+table.form-grid{table-layout:fixed;border:1px solid #1a2530;margin:4px 0;font-size:10.5px;line-height:1.3}table.form-grid col{width:50%}
+table.form-grid tbody{break-inside:avoid}table.form-grid > tbody > tr > th{background:#d9dee4;border:1px solid #1a2530;padding:2px 6px;font-weight:600}
+table.form-grid > tbody > tr > td{border:1px solid #1a2530;padding:2px 6px 3px}
+table.form-grid td table{margin:2px 0}table.form-grid td th,table.form-grid td td{padding:1px 4px}table.form-grid td table.fields th{width:46%}
+table.form-grid td h4{font-size:10.5px;margin:3px 0 1px}table.form-grid td p{margin:2px 0}table.form-grid .note{font-size:9px;margin:0 0 2px}
+table.form-grid h4:empty,table.form-grid .unmarked{display:none}
+table.form-grid .scale-block{margin:0 0 2px}table.form-grid svg.scale{max-width:470px}
+table.form-grid table.matrix{font-size:10px}table.form-grid table.matrix th,table.form-grid table.matrix td{padding:1px 4px}table.form-grid table.matrix.compact{width:100%}table.form-grid table.matrix.compact tbody th{width:72%}table.form-grid table.signature td{height:18px}
+.vf-landscape + .page-break,.vf-sheet + .page-break,.vf-page + .page-break,.sheet-page + .page-break,figure.sheet + .page-break{display:none}
 @media print{body{margin:0;max-width:none}button{display:none}}`
 
 /** Tables and matrices wider than this many columns print on a landscape page. */
@@ -146,6 +183,26 @@ function sheetFieldsHtml(block: Extract<ReportBlock, { kind: 'fields' }>): strin
     )}</tr><tr>${block.rows.map((row) => `<td>${row.value === null ? BLANK : e(row.value)}</td>`).join('')}</tr></table>`
 }
 
+/** The most text that follows a landscape table onto its page, in characters: a paragraph or two, not a discussion. */
+const CLOSING_TEXT_CHARS = 1500
+/**
+ * How many paragraphs from `from` close a landscape table's section and print on its page: text only, up to the next
+ * heading (or the end), and no more than `CLOSING_TEXT_CHARS` of it; none when anything else comes first.
+ */
+function closingText(blocks: readonly ReportBlock[], from: number): number {
+  let n = 0,
+    chars = 0
+  for (; from + n < blocks.length; n++) {
+    const block = blocks[from + n]
+    if (block.kind === 'heading') break
+    if (block.kind !== 'paragraph' && block.kind !== 'text') return 0
+    chars +=
+      block.kind === 'text' ? block.text.length : block.sentences.reduce((sum, s) => sum + (s.text ?? '').length, 0)
+    if (chars > CLOSING_TEXT_CHARS) return 0
+  }
+  return n
+}
+
 /** Pages of their own at the end of a report (analysis sheets, figure pages, photo pairs, map sheets). */
 const OWN_PAGE =
   /^<(div class="(sheet-page|page-break)|section class="vf-(pair|page)|figure class="(sheet|vf-(map|grid)))/
@@ -173,7 +230,11 @@ export function imageLabel(block: ReportBlock): string | null {
     case 'figurePage':
       return `${block.number}: ${block.title}`
     case 'figurePair': {
-      const panels = block.slots.map((slot) => slot.label).join(' / ')
+      // A label the title already carries is not repeated (22's Perspective Viewpoint sheets).
+      const panels = block.slots
+        .map((slot) => slot.label)
+        .filter((label) => !block.title?.includes(label))
+        .join(' / ')
       return block.title ? `${block.title}${panels ? `: ${panels}` : ''}` : panels || null
     }
     case 'mapFigure':
@@ -242,6 +303,13 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
         group.push(sheetFieldsHtml(calc))
         i++
       }
+      if (!nextSheet) {
+        // Short text closing the table's section (22's sub-landform sentences under Table 2) prints under the table:
+        // on a portrait page of its own it pushed the next section's table notes onto a page more.
+        const closing = closingText(bodyBlocks, i + 1)
+        group.push(...bodyBlocks.slice(i + 1, i + 1 + closing).map(html))
+        i += closing
+      }
       parts.push(`<div class="${nextSheet ? 'sheet-page' : 'wide-page'}">${group.join('')}</div>`)
     } else if (block.kind === 'figure' && block.figure && isSheet(block.figure) && next?.kind === 'fields') {
       parts.push(`<div class="sheet-page">${html(block)}${sheetFieldsHtml(next)}</div>`)
@@ -289,7 +357,7 @@ ${parts.slice(at).join('\n')}
 export function reportMarkdown(report: AssembledReport): string {
   const lines: string[] = []
   const cell = (value: string) => value.replace(/\|/g, '\\|').replace(/\n/g, ' ') || ' '
-  for (const block of report.blocks) {
+  const put = (block: ReportBlock): void => {
     switch (block.kind) {
       case 'heading':
         lines.push(`${'#'.repeat(block.level)} ${block.text}`, '')
@@ -338,12 +406,19 @@ export function reportMarkdown(report: AssembledReport): string {
       case 'pageBreak':
         lines.push('---', '')
         break
+      case 'form':
+        for (const cell of block.rows.flat()) {
+          lines.push(`**${cell.title}**`, '')
+          cell.blocks.forEach(put)
+        }
+        break
       default: {
         const extra = extraBlockMarkdown(block)
         if (extra) lines.push(extra, '')
       }
     }
   }
+  report.blocks.forEach(put)
   if (report.toComplete.length)
     lines.push(
       '## To complete before signing',

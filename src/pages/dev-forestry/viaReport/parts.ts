@@ -10,7 +10,7 @@
  * network access.
  */
 import type { AlterationBreakdown } from '../types'
-import type { ReportSetting } from './setting'
+import { settingLocation, type ReportSetting } from './setting'
 import type { DocumentFacts, DocumentViewpoint, ResolvedDocument, ResolvedViewpoint } from '../viaDocument/resolve'
 import { andList, blockId, blockList, landformParentFromName, otherPlannedName } from '../viaDocument/resolve'
 import { atAssessmentStation } from '../viaDocument/facts'
@@ -99,6 +99,11 @@ export interface ReportBlockFacts {
    * when not counted; 0 says the block keeps none.
    */
   islands?: number
+  /**
+   * Hectares of the block under `retained` masks (wildlife tree patches / retention: reserves), clipped to it. Absent
+   * when not counted; 0 says none is mapped.
+   */
+  reservesHa?: number
   /** The block's planned harvest year (step 3's assessment years), when recorded. */
   plannedHarvestYear?: number | null
 }
@@ -128,6 +133,8 @@ export interface InventoryUnitRow {
   date?: string | null
   /** BC Albers hectares of each block (by `ReportBlockFacts.name`) inside the unit; absent when none falls in it. */
   blocks?: Readonly<Record<string, number>>
+  /** As `blocks`, less mapped reserves, for the blocks that hold one; a block absent here has none. */
+  netBlocks?: Readonly<Record<string, number>>
 }
 
 export interface ReportContext {
@@ -171,6 +178,11 @@ export interface ReportContext {
     inventoryByBlock?: boolean
     /** Photograph / simulation pairs are numbered figures with a caption sentence (21's Figure 2). */
     numberedPairs?: boolean
+    /**
+     * The consultant appendix prints each viewpoint's plain simulation as a Perspective Viewpoint sheet before its
+     * analysis sheet (22, the default); false prints the analysis sheets alone (23).
+     */
+    plainViewSheets?: boolean
   }
   /**
    * Maps and extra pictures the page captured for the report (`useVisualsExport`); all optional, a part without the
@@ -199,12 +211,26 @@ export interface ReportImages {
   locationMaps?: Readonly<Record<string, ReportFigure>>
   /**
    * 26's Figure 2 maps, drawn for the figure page only (`planFigurePageMaps`): per viewpoint a location map fitted to
-   * the view's teal wedge, and a readable regional road map. The figure page prints these before `locationMaps` and
-   * `regionalMap`, which every other part keeps.
+   * the view's teal wedge, and a readable regional road map; with several viewpoints, the regional map again for each
+   * starring only its own (`regionalFor`, by name), as 26's Figures 2 and 3 do. The figure page prints these before
+   * `locationMaps` and `regionalMap`, which every other part keeps.
    */
-  figurePageMaps?: { location: Readonly<Record<string, ReportFigure>>; regional: ReportFigure | null } | null
+  figurePageMaps?: {
+    location: Readonly<Record<string, ReportFigure>>
+    regional: ReportFigure | null
+    regionalFor?: Readonly<Record<string, ReportFigure>>
+  } | null
   /** Per viewpoint: the scene before the proposal, a lined-up field photo or a before-harvest render. */
-  before?: Readonly<Record<string, ReportFigure & { source: 'photo' | 'render' }>>
+  before?: Readonly<
+    Record<
+      string,
+      ReportFigure & {
+        source: 'photo' | 'render'
+        /** A field photograph's date (ISO, the camera's clock), when the photograph carried one. */
+        takenOn?: string | null
+      }
+    >
+  >
   /** Overhead and oblique renders of the blocks (01 p7 model confirmation). */
   overhead?: readonly ReportFigure[]
   /**
@@ -232,6 +258,15 @@ export interface ReportPart {
 export const blank = (value: string | null | undefined) => (value && value.trim() ? value.trim() : null)
 export const officeRow = (ctx: ReportContext, key: keyof OfficeFields, label: string): FieldRow =>
   field(label, blank(ctx.office[key]), 'scene')
+/**
+ * The general location: the office field as given, else the named places the page read round the blocks
+ * (`settingLocation`: "Paska Lake, 11.9 km north of Logan Lake"); blank, and to complete, when neither is there.
+ */
+export const generalLocationRow = (ctx: ReportContext, label = 'General location'): FieldRow => {
+  const given = blank(ctx.office.generalLocation)
+  if (given) return field(label, given, 'scene')
+  return field(label, ctx.setting ? settingLocation(ctx.setting) : null, 'run')
+}
 export const missingFields = (rows: FieldRow[]) => rows.filter((row) => row.value === null).map((row) => row.label)
 
 /**
@@ -293,6 +328,18 @@ export const blockFacts = (ctx: ReportContext, id: string) =>
 
 /** Each landform name the viewpoints read, in order of first reading. */
 export const landformNames = (ctx: ReportContext) => [...new Set(ctx.facts.viewpoints.map((vp) => vp.landform))]
+/**
+ * Each landform the viewpoints read, with the other landforms they see beside their own (`otherLandforms`, each
+ * counted on its own class pass), in order of first reading: Table 2's rows and the landform count.
+ */
+export const seenLandformNames = (ctx: ReportContext) => [
+  ...new Set(
+    ctx.facts.viewpoints.flatMap((vp) => [vp.landform, ...(vp.otherLandforms ?? []).map((entry) => entry.landform)]),
+  ),
+]
+/** Whether a viewpoint reads `name`, as its own landform or as another it sees beside it. */
+export const readsLandform = (vp: DocumentFacts['viewpoints'][number], name: string) =>
+  vp.landform === name || !!vp.otherLandforms?.some((entry) => entry.landform === name)
 export const landformNote = (ctx: ReportContext, name: string) =>
   ctx.landforms?.find((note) => note.name === name) ?? null
 /**
@@ -499,21 +546,44 @@ const cover: ReportPart = {
         'scene',
       ),
       officeRow(ctx, 'district', 'Natural resource district'),
-      officeRow(ctx, 'generalLocation', 'General location'),
+      generalLocationRow(ctx),
       field('Date', ctx.date.toISOString().slice(0, 10), 'run'),
     ]
     return { blocks: [fields(rows)], toComplete: missingFields(rows) }
   },
 }
 
+/**
+ * A block's net area, hectares, for `grossHa` of it (the whole block, or its part in one inventory unit): less its
+ * mapped reserves (`ofReserves`, the part's own net when the caller split it, else the block's reserve share), then
+ * less recorded dispersed retention. Never below 0.
+ */
+export function blockNetHa(block: ReportBlockFacts, grossHa = block.areaHa, ofReserves?: number): number {
+  const reserveShare = block.areaHa > 0 ? (block.reservesHa ?? 0) / block.areaHa : 0
+  const net = ofReserves ?? grossHa * (1 - reserveShare)
+  const dispersed = block.retentionPercent === null ? 0 : (grossHa * block.retentionPercent) / 100
+  return Math.max(0, net - dispersed)
+}
+
+/** What a block (or its part) keeps standing, as the Retention column prints it: mapped reserves, dispersed share. */
+function retentionCell(block: ReportBlockFacts, reservesHa: number): string {
+  return [
+    reservesHa >= 0.05 ? `${ha(reservesHa)} ha reserves` : '',
+    block.retentionPercent === null ? '' : `${block.retentionPercent}%`,
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
+
+/** The project table's note on net area. */
+const NET_AREA_NOTE =
+  'net area is gross less mapped reserves (wildlife tree patches / retention) and recorded dispersed retention'
+
 const projectInformation: ReportPart = {
   id: 'project-information',
   title: 'Project information',
   sources: ['01', '05', '06'],
   build: (ctx) => {
-    const net = (block: ReportBlockFacts, areaHa: number) =>
-      block.retentionPercent === null ? ha(areaHa) : ha(areaHa * (1 - block.retentionPercent / 100))
-    const retention = (block: ReportBlockFacts) => (block.retentionPercent === null ? '' : `${block.retentionPercent}%`)
     const units = ctx.inventoryUnits
     // With the inventory read, each block is split by the units it falls in, with the unit and its objective (06's
     // cover table); a block in no unit says so.
@@ -523,9 +593,32 @@ const projectInformation: ReportPart = {
         return inUnits.length
           ? inUnits.map((unit) => {
               const area = unit.blocks![block.name]
-              return [block.name, ha(area), unit.vsu, unit.vqo ?? '', retention(block), net(block, area), block.system]
+              const ofReserves = unit.netBlocks?.[block.name]
+              const reserves =
+                ofReserves === undefined
+                  ? area - blockNetHa({ ...block, retentionPercent: null }, area)
+                  : area - ofReserves
+              return [
+                block.name,
+                ha(area),
+                unit.vsu,
+                unit.vqo ?? '',
+                retentionCell(block, reserves),
+                ha(blockNetHa(block, area, ofReserves)),
+                block.system,
+              ]
             })
-          : [[block.name, ha(block.areaHa), 'None', '', retention(block), net(block, block.areaHa), block.system]]
+          : [
+              [
+                block.name,
+                ha(block.areaHa),
+                'None',
+                '',
+                retentionCell(block, block.reservesHa ?? 0),
+                ha(blockNetHa(block)),
+                block.system,
+              ],
+            ]
       })
       return {
         blocks: [
@@ -542,7 +635,7 @@ const projectInformation: ReportPart = {
               'Harvest system',
             ],
             rows,
-            note: 'Each block’s area in each visual landscape inventory unit it falls in, read live from DataBC; net area is gross less recorded retention; areas are planar BC Albers.',
+            note: `Each block’s area in each visual landscape inventory unit it falls in, read live from DataBC; ${NET_AREA_NOTE}; areas are planar BC Albers.`,
             source: 'run',
           },
         ],
@@ -557,11 +650,11 @@ const projectInformation: ReportPart = {
           rows: ctx.blocks.map((block) => [
             block.name,
             ha(block.areaHa),
-            retention(block),
-            net(block, block.areaHa),
+            retentionCell(block, block.reservesHa ?? 0),
+            ha(blockNetHa(block)),
             block.system,
           ]),
-          note: 'Net area is gross less recorded retention; areas are planar BC Albers.',
+          note: `${NET_AREA_NOTE[0].toUpperCase()}${NET_AREA_NOTE.slice(1)}; areas are planar BC Albers.`,
           source: 'scene',
         },
       ],
@@ -680,22 +773,30 @@ export function inventoryDateField(ctx: ReportContext, label = 'Date of inventor
   return field(label, dates.length ? `${dates.sort().join(', ')} (inventory record last updated)` : null, 'run')
 }
 
-/** 05's per-block rows: each block's hectares in each unit it falls in, split by area. */
+/**
+ * 05's per-block rows: each block's hectares in each unit it falls in, split by area. 05 prints them net of reserves
+ * ("Block Area ha (No WTRAs/Reserves)"), so a block holding mapped reserves prints its net hectares, and the note says so.
+ */
 function inventoryByBlock(ctx: ReportContext, units: readonly InventoryUnitRow[]): ReportBlock[] {
   const rows: string[][] = []
   const outside: string[] = []
+  const netted: string[] = []
   for (const block of ctx.blocks) {
     const inUnits = units.filter((unit) => (unit.blocks?.[block.name] ?? 0) >= 0.05)
     if (!inUnits.length) outside.push(block.name)
-    for (const unit of inUnits)
+    if (inUnits.some((unit) => unit.netBlocks?.[block.name] !== undefined)) netted.push(block.name)
+    for (const unit of inUnits) {
+      // A part of the block that is all reserve leaves nothing to harvest in that unit.
+      if ((unit.netBlocks?.[block.name] ?? 1) < 0.05) continue
       rows.push([
-        `Block ${blockId(block.name)}: ${ha(unit.blocks![block.name])} ha`,
+        `Block ${blockId(block.name)}: ${ha(unit.netBlocks?.[block.name] ?? unit.blocks![block.name])} ha`,
         unit.vsu,
         unit.vsc ?? '',
         unit.vac ?? '',
         unit.evc ?? '',
         unit.vqo ?? '',
       ])
+    }
   }
   if (!rows.length) return []
   return [
@@ -705,8 +806,10 @@ function inventoryByBlock(ctx: ReportContext, units: readonly InventoryUnitRow[]
       columns: ['Block', 'VLI', 'VSC', 'VAC', 'EVC', 'EVQO'],
       rows,
       note: `A block in more than one unit is split by its area in each (BC Albers hectares).${
-        outside.length ? ` No unit lies under ${andList(outside)}.` : ''
-      }`,
+        netted.length
+          ? ` Areas of ${blockList(netted)} are net of mapped reserves (wildlife tree patches / retention).`
+          : ''
+      }${outside.length ? ` No unit lies under ${andList(outside)}.` : ''}`,
       source: 'run',
     },
   ]
@@ -1052,6 +1155,8 @@ export function calculationFields(ctx: ReportContext, vp: DocumentFacts['viewpoi
     field('Net landform', result ? `${result.denominator} px` : null, 'run'),
     field('Proposed blocks', a ? `${a.proposed} px` : null, 'run'),
     field('Existing openings not greened up', a ? `${a.nonVeg} px` : null, 'run'),
+    // What decided which openings count: the green-up age, a supplied estimate or a field check, as the run names it.
+    ...(vp.greenUp ? [field('Green-up of existing openings', vp.greenUp, 'run' as const)] : []),
     field(
       `Alteration, ${rule.formula}`,
       out?.printed
@@ -1074,6 +1179,8 @@ export function calculationFields(ctx: ReportContext, vp: DocumentFacts['viewpoi
       vp.sightlinePercent === null ? null : `${vp.sightlinePercent.toFixed(2)}%`,
       'run',
     ),
+    // Why the two figures can part, when the picture drew the blocks' ground far coarser than the run walked it.
+    ...(vp.terrainNote ? [field('Terrain detail', vp.terrainNote, 'run' as const)] : []),
   ])
 }
 
@@ -1306,7 +1413,7 @@ const numericalData: ReportPart = {
         )
     }
     // The poster's clearcut guide beside its partial-cut table, read at the highest viewpoint's alteration.
-    if (ctx.blocks.some((block) => block.system === 'Clearcut')) {
+    if (ctx.blocks.some((block) => block.system.startsWith('Clearcut'))) {
       const readings = ctx.document.viewpoints
         .map((vp) => (vp.printed ? Number(vp.printed.percent) : NaN))
         .filter((value) => Number.isFinite(value))
@@ -1485,7 +1592,7 @@ function appendixSite(ctx: ReportContext, vp: FactsViewpoint | null) {
   const site = [
     officeRow(ctx, 'district', 'Natural resource district'),
     officeRow(ctx, 'licensee', 'Licensee'),
-    officeRow(ctx, 'generalLocation', 'General location'),
+    generalLocationRow(ctx),
     officeRow(ctx, 'licence', 'Licence'),
     officeRow(ctx, 'cuttingPermit', 'Cutting permit'),
     field(
@@ -1553,14 +1660,64 @@ function appendixViewpoint(vp: FactsViewpoint | null) {
   }
 }
 
-/** 3.4.4 for a viewpoint that sees a partial cut: the scene's prescription on the partial-cut table. */
+/** 3.4.4 for a viewpoint that sees a partial cut: the scene's prescription on the partial-cut table (the form titles it). */
 function appendixPartialCut(ctx: ReportContext, vp: FactsViewpoint | null): ReportBlock[] {
   const cut = ctx.blocks.find(
     (b) => b.partialCut && (!vp || vp.blocks.some((seen) => blockId(seen.id) === blockId(b.name))),
   )
-  return cut
-    ? [heading('3.4.4 Partial cuts', 3), partialCutMatrix(cut.partialCut, ctx.recipeOptions?.partialCutGuide)]
-    : []
+  return cut ? [partialCutMatrix(cut.partialCut, ctx.recipeOptions?.partialCutGuide)] : []
+}
+
+/** What one viewpoint's Appendix 1 holds, section by section, before it is laid out. */
+interface AppendixFormSections {
+  site: FieldRow[]
+  objective: FieldRow[]
+  viewpoint: FieldRow[]
+  photography: FieldRow[]
+  photographyTitle: string
+  ocular: ReportBlock
+  numerical: ReportBlock[]
+  partialCut: ReportBlock[]
+  design: ReportBlock
+  roads: ReportBlock
+  retention: ReportBlock
+  adjusted: ReportBlock[]
+  rating: ReportBlock[]
+}
+
+/**
+ * One viewpoint's Appendix 1 laid out as the handbook prints it, one form to a page: the office and field sections
+ * side by side (3.1.1 beside 3.1.3, 3.2.1 beside 3.2.2), the scales and Table 3 across the page, Tables 4 and 5 side by
+ * side, and the rating beside the sign-off.
+ */
+function appendixForm(sections: AppendixFormSections): ReportBlock {
+  const s = sections
+  return {
+    kind: 'form',
+    rows: [
+      [
+        { title: '3.1.1 Site information', blocks: [fields(s.site)] },
+        { title: '3.1.3 FSP and objective information', blocks: [fields(s.objective)] },
+      ],
+      [
+        { title: '3.2.1 Viewpoint', blocks: [fields(s.viewpoint)] },
+        { title: s.photographyTitle, blocks: [fields(s.photography)] },
+      ],
+      [{ title: '3.4.1 Ocular assessment: class by eye', blocks: [s.ocular] }],
+      [{ title: '3.4.2 Numerical assessment', blocks: s.numerical }],
+      ...(s.partialCut.length ? [[{ title: '3.4.4 Partial cuts', blocks: s.partialCut }]] : []),
+      [{ title: '3.4.3 Adjustment, Table 3: visual design elements', blocks: [s.design] }],
+      [
+        { title: '3.4.3 Table 4: roads, landings and sidecast', blocks: [s.roads] },
+        { title: '3.4.3 Table 5: tree retention', blocks: [s.retention] },
+      ],
+      [{ title: '3.4.3 Adjusted percent alteration, X (1 + 0.14 Y)', blocks: s.adjusted }],
+      [
+        { title: '3.5 Rating and rationale', blocks: s.rating },
+        { title: 'Sign-off', blocks: [{ kind: 'signature', lines: ['Evaluated by', 'Signature', 'Date'] }] },
+      ],
+    ],
+  }
 }
 
 /**
@@ -1590,29 +1747,31 @@ function appendixRunForm(ctx: ReportContext, vp: FactsViewpoint, tableSevenFollo
   const blocks: ReportBlock[] = [
     { kind: 'pageBreak' },
     heading(`Appendix 1: Visual impact assessment summary form, ${vp.name}`),
-    fields(site, '3.1.1 Site information'),
-    fields(objective, '3.1.3 FSP and objective information'),
-    fields(viewpoint, '3.2.1 Viewpoint'),
-    fields(photography, '3.2.2 Photography (simulation camera)'),
-    heading('3.4.1 Ocular assessment', 3),
-    pmmArrow('Class by eye', null, 'reviewer'),
-    heading('3.4.2 Numerical assessment', 3),
-    fields(numerical),
-    text(
-      `X is measured on the simulation from ${vp.name}, as ${ctx.document.format.rule.formula}; access roads outside the openings (b) are not a class of its picture and are added by the reviewer.`,
-      'run',
-    ),
-    table2Bar('Initial percent alteration (X)', result?.printedValue ?? null, 'run'),
-    ...appendixPartialCut(ctx, vp),
-    heading('3.4.3 Adjustment', 3),
-    designElementsMatrix(null, 'reviewer'),
-    roadsMatrix(null),
-    retentionMatrix(null, 'reviewer'),
-    table2Bar('Adjusted percent alteration, X (1 + 0.14 Y)', null, 'reviewer'),
-    heading('3.5 Rating and rationale', 3),
-    ...(tableSevenFollows ? [] : [extentMatrix(null)]),
-    fields([field('3.5.2 Rationale', null, 'reviewer')]),
-    { kind: 'signature', lines: ['Evaluated by', 'Signature', 'Date'] },
+    appendixForm({
+      site,
+      objective,
+      viewpoint,
+      photography,
+      photographyTitle: '3.2.2 Photography (simulation camera)',
+      ocular: pmmArrow('Class by eye', null, 'reviewer'),
+      numerical: [
+        fields(numerical),
+        text(
+          `X is measured on the simulation from ${vp.name}, as ${ctx.document.format.rule.formula}; access roads outside the openings (b) are not a class of its picture and are added by the reviewer.`,
+          'run',
+        ),
+        table2Bar('Initial percent alteration (X)', result?.printedValue ?? null, 'run'),
+      ],
+      partialCut: appendixPartialCut(ctx, vp),
+      design: designElementsMatrix(null, 'reviewer'),
+      roads: roadsMatrix(null),
+      retention: retentionMatrix(null, 'reviewer'),
+      adjusted: [table2Bar('Adjusted percent alteration, X (1 + 0.14 Y)', null, 'reviewer')],
+      rating: [
+        ...(tableSevenFollows ? [] : [extentMatrix(null)]),
+        fields([field('3.5.2 Rationale', null, 'reviewer')]),
+      ],
+    }),
   ]
   const runMissing = missingFields([...viewpoint.filter((row) => row.source === 'run'), ...photography, numerical[0]])
   const toComplete = [
@@ -1635,38 +1794,42 @@ function appendixJudgedForm(ctx: ReportContext, vp: FactsViewpoint, a: ViaAssess
   const blocks: ReportBlock[] = [
     { kind: 'pageBreak' },
     heading(`Appendix 1: Visual impact assessment summary form, ${vp.name}`),
-    fields(site, '3.1.1 Site information'),
-    fields(objective, '3.1.3 FSP and objective information'),
-    fields(viewpoint, '3.2.1 Viewpoint'),
-    fields(photography, '3.2.2 Photography (simulation camera)'),
-    heading('3.4.1 Ocular assessment', 3),
-    pmmArrow('Class by eye', a.ocular ? CLASS_CODES_BY_ID[a.ocular.classId] : null, 'reviewer'),
-    heading('3.4.2 Numerical assessment', 3),
-    ...(a1
-      ? [
-          fields([
-            field('a) % of landform altered by proposed openings', `${a1.a.toFixed(1)}%`, 'run'),
-            field('b) % of landform in access roads (outside openings)', `${a1.b.toFixed(1)}%`, 'run'),
-            field('c) % non-VEG contribution of existing openings', `${a1.c.toFixed(1)}%`, 'run'),
-          ]),
-        ]
-      : []),
-    ...paragraph(out?.sentences.filter((s) => s.id === 'x') ?? []),
-    table2Bar('Initial percent alteration (X)', x, 'run'),
-    ...appendixPartialCut(ctx, vp),
-    heading('3.4.3 Adjustment', 3),
-    designElementsMatrix(
-      Object.fromEntries(Object.entries(a.design).map(([id, entry]) => [id, entry.rating])),
-      'reviewer',
-    ),
-    roadsMatrix(a.roads),
-    retentionMatrix(level, ctx.review?.retention ? 'reviewer' : 'scene'),
-    ...paragraph(out?.sentences.filter((s) => s.id === 'y') ?? []),
-    table2Bar('Adjusted percent alteration, X (1 + 0.14 Y)', a1?.adjusted ?? null, 'reviewer'),
-    heading('3.5 Rating and rationale', 3),
-    ...(tableSevenFollows ? [] : [extentMatrix(a.rating?.id ?? null)]),
-    ...(ctx.review?.rationale ? [text(ctx.review.rationale, 'reviewer')] : []),
-    { kind: 'signature', lines: ['Evaluated by', 'Signature', 'Date'] },
+    appendixForm({
+      site,
+      objective,
+      viewpoint,
+      photography,
+      photographyTitle: '3.2.2 Photography (simulation camera)',
+      ocular: pmmArrow('Class by eye', a.ocular ? CLASS_CODES_BY_ID[a.ocular.classId] : null, 'reviewer'),
+      numerical: [
+        ...(a1
+          ? [
+              fields([
+                field('a) % of landform altered by proposed openings', `${a1.a.toFixed(1)}%`, 'run'),
+                field('b) % of landform in access roads (outside openings)', `${a1.b.toFixed(1)}%`, 'run'),
+                field('c) % non-VEG contribution of existing openings', `${a1.c.toFixed(1)}%`, 'run'),
+              ]),
+            ]
+          : []),
+        ...paragraph(out?.sentences.filter((s) => s.id === 'x') ?? []),
+        table2Bar('Initial percent alteration (X)', x, 'run'),
+      ],
+      partialCut: appendixPartialCut(ctx, vp),
+      design: designElementsMatrix(
+        Object.fromEntries(Object.entries(a.design).map(([id, entry]) => [id, entry.rating])),
+        'reviewer',
+      ),
+      roads: roadsMatrix(a.roads),
+      retention: retentionMatrix(level, ctx.review?.retention ? 'reviewer' : 'scene'),
+      adjusted: [
+        ...paragraph(out?.sentences.filter((s) => s.id === 'y') ?? []),
+        table2Bar('Adjusted percent alteration, X (1 + 0.14 Y)', a1?.adjusted ?? null, 'reviewer'),
+      ],
+      rating: [
+        ...(tableSevenFollows ? [] : [extentMatrix(a.rating?.id ?? null)]),
+        ...(ctx.review?.rationale ? [text(ctx.review.rationale, 'reviewer')] : []),
+      ],
+    }),
   ]
   return { blocks, toComplete: [...missingFields([...site, ...objective]), ...a.missing] }
 }
@@ -1699,28 +1862,31 @@ const appendix1: ReportPart = {
             'No viewpoint stands at the run’s assessment station with a step 4 record, and none sees the proposal, so the form is not filled: it is printed for the reviewer to complete at the key viewpoint.',
             'run',
           ),
-          fields(site, '3.1.1 Site information'),
-          fields(objective, '3.1.3 FSP and objective information'),
-          fields(viewpoint, '3.2.1 Viewpoint'),
-          fields(photography, '3.2.2 Photography'),
-          heading('3.4.1 Ocular assessment', 3),
-          pmmArrow('Class by eye', null, 'reviewer'),
-          heading('3.4.2 Numerical assessment', 3),
-          fields([
-            field('a) % of landform altered by proposed openings', null, 'run'),
-            field('b) % of landform in access roads (outside openings)', null, 'run'),
-            field('c) % non-VEG contribution of existing openings', null, 'run'),
-          ]),
-          table2Bar('Initial percent alteration (X)', null, 'run'),
-          heading('3.4.3 Adjustment', 3),
-          designElementsMatrix(null, 'reviewer'),
-          roadsMatrix(null),
-          retentionMatrix(null, 'reviewer'),
-          table2Bar('Adjusted percent alteration, X (1 + 0.14 Y)', null, 'reviewer'),
-          heading('3.5 Rating and rationale', 3),
-          ...(tableSevenFollows ? [] : [extentMatrix(null)]),
-          fields([field('3.5.2 Rationale', null, 'reviewer')]),
-          { kind: 'signature', lines: ['Evaluated by', 'Signature', 'Date'] },
+          appendixForm({
+            site,
+            objective,
+            viewpoint,
+            photography,
+            photographyTitle: '3.2.2 Photography',
+            ocular: pmmArrow('Class by eye', null, 'reviewer'),
+            numerical: [
+              fields([
+                field('a) % of landform altered by proposed openings', null, 'run'),
+                field('b) % of landform in access roads (outside openings)', null, 'run'),
+                field('c) % non-VEG contribution of existing openings', null, 'run'),
+              ]),
+              table2Bar('Initial percent alteration (X)', null, 'run'),
+            ],
+            partialCut: [],
+            design: designElementsMatrix(null, 'reviewer'),
+            roads: roadsMatrix(null),
+            retention: retentionMatrix(null, 'reviewer'),
+            adjusted: [table2Bar('Adjusted percent alteration, X (1 + 0.14 Y)', null, 'reviewer')],
+            rating: [
+              ...(tableSevenFollows ? [] : [extentMatrix(null)]),
+              fields([field('3.5.2 Rationale', null, 'reviewer')]),
+            ],
+          }),
         ],
         toComplete: ['Step 4 at the assessment station', ...missingFields([...site, ...objective])],
       }
@@ -1728,8 +1894,8 @@ const appendix1: ReportPart = {
     const blocks: ReportBlock[] = []
     const toComplete: string[] = []
     if (!judged) {
+      // The note runs on after the part before it: each form keeps a page of its own, as the handbook prints it.
       blocks.push(
-        { kind: 'pageBreak' },
         heading('Appendix 1: Visual impact assessment summary forms'),
         text(
           `Step 4 has not been recorded at the assessment station, so the forms’ judgements are not filled: each of the ${forms.length === 1 ? 'one form' : `${NUMBER_WORDS[forms.length] ?? forms.length} forms`}, one per viewpoint that sees the proposal, carries only what the run measured from its viewpoint, for the reviewer to complete.`,
@@ -1739,7 +1905,6 @@ const appendix1: ReportPart = {
       toComplete.push('Step 4 at the assessment station')
     } else if (forms.length > 1)
       blocks.push(
-        { kind: 'pageBreak' },
         heading('Appendix 1: Visual impact assessment summary forms'),
         text(
           `The judgements on the form for ${judged.name} are the reviewer’s step 4 record at the assessment station; the other forms carry only what the run measured from their viewpoints, their judgements blank for the reviewer.`,
@@ -1749,8 +1914,8 @@ const appendix1: ReportPart = {
     for (const vp of forms) {
       const form =
         vp === judged ? appendixJudgedForm(ctx, vp, a!, tableSevenFollows) : appendixRunForm(ctx, vp, tableSevenFollows)
-      // The intro heading opens the first form's page; the forms after it each start a page of their own.
-      blocks.push(...(blocks.length && vp === forms[0] ? form.blocks.slice(1) : form.blocks))
+      // Each form starts a page of its own, which it fills (`appendixForm`).
+      blocks.push(...form.blocks)
       toComplete.push(...form.toComplete)
     }
     return { blocks, toComplete: [...new Set(toComplete)] }

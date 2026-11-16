@@ -16,6 +16,7 @@ import { VIA_STEPS, type ViaStepId } from './via'
 import {
   exportContents,
   exportPreparation,
+  rendererMissing,
   exportUnavailable,
   findVisualsExport,
   VISUALS_EXPORT_GROUP_LABELS,
@@ -240,8 +241,11 @@ export function VisualsExportDialog({
   onAction?: (action: ExportAction) => void
   /** Starts the visibility run in the analysis worker, for an output that reads it. */
   onRun?: () => void
-  /** Queues the background renders the chosen engine still owes the figures (`useBackgroundRenders`). */
-  onRender?: () => void
+  /**
+   * Queues the background renders the chosen engine still owes an output (`useBackgroundRenders`): the figures, and
+   * for the VIA report each view's before picture by the same engine.
+   */
+  onRender?: (kind: VisualsExport) => void
   /** Reads the scene's visual inventory, or reads it again after a failure, for the outputs that print it. */
   onReadInventory?: () => void
   portalContainer?: HTMLElement | null
@@ -351,7 +355,7 @@ export function VisualsExportDialog({
     // Another engine's renders run in the background, in order; the file waits for the last of its views.
     if (needs.render) {
       waited = true
-      latestRender.current?.()
+      latestRender.current?.(kind)
       const asked = Date.now()
       await waitFor(() => {
         const r = latestContext.current.renderer
@@ -361,8 +365,9 @@ export function VisualsExportDialog({
           throw new Error(`${r.label} cannot draw the figures: ${r.unavailable}`)
         // A view still missing with nothing queued (its render was kept under a scene the page has since moved on
         // from) is asked for again: the wait used to sit on it for good.
-        if (r.missing > 0 && !r.running) latestRender.current?.()
-        return r.missing === 0
+        const missing = rendererMissing(kind, r)
+        if (missing > 0 && !r.running) latestRender.current?.(kind)
+        return missing === 0
       }, signal)
     }
     if (waited) await waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal)

@@ -133,6 +133,23 @@ export interface DocumentViewpoint {
   /** The class pass's areas, pixels; null when the view has no class pass. */
   areas: AlterationAreas | null
   /**
+   * The other landforms the view sees, each with the areas of its own class pass of the same frames (a sub-landform,
+   * or the whole landform beside an assessed sub-landform; 23 A6 calculates Landform 1, 1a and 1b from one viewpoint).
+   * `blocks` names the blocks with ground in it. Tables 4 and 5 give each a row of its own. Absent: one landform.
+   */
+  otherLandforms?: ReadonlyArray<{
+    landform: string
+    objective: ClassCode | null
+    areas: AlterationAreas
+    blocks: readonly string[]
+  }>
+  /**
+   * The blocks with ground in the view's own landform, by the names `blocks` uses: what each block is cited on (its
+   * text, Tables 2, 4 and 5). A block in neither it nor an `otherLandforms` entry lies in no landform assessed from
+   * here. Absent (views saved before it was recorded): every block in view is read on the view's landform.
+   */
+  landformBlocks?: readonly string[]
+  /**
    * The same areas with the drawn timber in front (an engine's screened pass, or PGMaps' before/after measure,
    * `timberScreen.ts`), or why they were not measured. A second pixel figure printed beside `areas`' and the
    * sightline figure, never instead of either. Absent: not looked for (hand-built facts).
@@ -140,6 +157,16 @@ export interface DocumentViewpoint {
   withTimber?: { areas: AlterationAreas; source: 'engine' | 'pgmaps' } | { absent: string }
   /** The run's sightline figure at the station, percent: the assessment's figure. */
   sightlinePercent: number | null
+  /**
+   * Why the pixel figure and the sightline figure can part, when the picture drew the blocks' ground from much
+   * coarser elevation cells than the run walked (`terrainDetailNote`): printed beside the two, neither adjusted.
+   */
+  terrainNote?: string
+  /**
+   * What the existing openings' green-up rests on (`runGreenUpBasis`: "modelled", "supplied estimate for 7 of 19
+   * openings, modelled for 12", "field-confirmed …"), printed beside the existing-openings figure. Absent: not given.
+   */
+  greenUp?: string
   distanceKm: number | null
   hfovDeg?: number | null
   lensMm?: number | null
@@ -272,6 +299,30 @@ export function otherPlannedName(name: string): { id: string; plannedUnder: stri
   if (!parts.some((part) => OTHER_PLANNED_WORDS.test(part))) return null
   const rest = parts.filter((part) => !OTHER_PLANNED_WORDS.test(part))
   return { id: match[1].trim() || name, plannedUnder: rest.join(', ') || null }
+}
+
+/**
+ * The blocks with ground in a landform as one viewpoint read it: its own landform's (`landformBlocks`) or another's it
+ * sees (`otherLandforms`). Null when the view recorded no list for it: every block it sees is read on it, as before.
+ */
+export function blocksOnLandform(vp: DocumentViewpoint, landform: string): readonly string[] | null {
+  if (landform === vp.landform) return vp.landformBlocks ?? null
+  return vp.otherLandforms?.find((entry) => entry.landform === landform)?.blocks ?? null
+}
+
+/**
+ * The landform a block is cited on at a viewpoint: the view's own when it holds the block (or recorded no list),
+ * else another landform the view reads that holds it, a sub-landform before the whole; null when none does.
+ */
+export function landformOfBlock(
+  vp: DocumentViewpoint,
+  id: string,
+  parentOf: (landform: string) => string | null = () => null,
+): { landform: string; other: NonNullable<DocumentViewpoint['otherLandforms']>[number] | null } | null {
+  if (!vp.landformBlocks || vp.landformBlocks.includes(id)) return { landform: vp.landform, other: null }
+  const holding = (vp.otherLandforms ?? []).filter((entry) => entry.blocks.includes(id))
+  const other = holding.find((entry) => parentOf(entry.landform)) ?? holding[0]
+  return other ? { landform: other.landform, other } : null
 }
 
 /** A block marked other planned by its flag or, failing that, its name; its id is then its own name. */
@@ -494,6 +545,18 @@ interface PerspectiveOut {
   extraToComplete: Array<{ viewpoint: string | null; id: string; missing: string[]; about?: string }>
 }
 
+/** The landform a block is cited on at a viewpoint, with its figure and the blocks with ground in it (null: all). */
+interface CitedLandform {
+  landform: string
+  objective: ClassCode | null
+  result: Alteration | null
+  areas: AlterationAreas | null
+  blocks: readonly string[] | null
+}
+
+/** Table 5's landform cell for a block no landform read from its viewpoint holds. */
+const OUTSIDE_LANDFORMS = 'Outside the landforms outlined'
+
 function perspectiveDiscussion({
   format,
   viewpoints,
@@ -527,32 +590,91 @@ function perspectiveDiscussion({
     const value = (100 * areas.proposed * block.share) / result.denominator
     return { value, printed: formatAlteration(value, format.rule) }
   }
-  // Where a block outside its key viewpoint's landform is measured instead: the viewpoint that sees most of it among
-  // those whose landform shows the alteration.
-  const measuredAt = (ids: readonly string[], except: number) => {
-    let found: { index: number; share: number } | null = null
-    viewpoints.forEach((vp, index) => {
-      if (index === except || zeroAt(index) || !results[index]) return
-      const share = vp.blocks.filter((b) => ids.includes(b.id) && seen(b)).reduce((s, b) => s + b.visiblePercent, 0)
-      if (share > 0 && (!found || share > found.share)) found = { index, share }
-    })
-    return found as { index: number; share: number } | null
-  }
-  const outside = (i: number, ids: readonly string[], about: string, first: string | null = null): Sentence[] => {
+  // The landform a block is cited on at a viewpoint (`landformOfBlock`), with its figure and the blocks with ground in
+  // it (null: the view recorded no list, so every block in view). Null when no landform read from there holds it.
+  const citedOn = (i: number, id: string): CitedLandform | null => {
     const vp = viewpoints[i]
+    const home = landformOfBlock(vp, id, parentOf)
+    if (!home) return null
+    if (!home.other)
+      return {
+        landform: vp.landform,
+        objective: vp.objective,
+        result: results[i],
+        areas: vp.areas,
+        blocks: vp.landformBlocks ?? null,
+      }
+    return {
+      landform: home.other.landform,
+      objective: home.other.objective ?? vp.objective,
+      result: alteration(format.rule, home.other.areas),
+      areas: home.other.areas,
+      blocks: home.other.blocks,
+    }
+  }
+  const zeroOn = (on: CitedLandform) => on.result !== null && on.result.printedValue === 0
+  const sizeTermOn = (on: CitedLandform) =>
+    on.result ? lower(scaleTerm(format.percentScale, on.result.printedValue)) : undefined
+  // The blocks in view with ground in the landform a block is cited on.
+  const seenOn = (i: number, on: CitedLandform) => seenAt(i).filter((b) => !on.blocks || on.blocks.includes(b.id))
+  // A block's own figure on the landform it is cited on: that landform's proposed part, split by the block's share of
+  // the visible apparent size of the blocks in view with ground in it. Null when the run gives no share.
+  const blockPercentOn = (i: number, block: BlockAtStation, on: CitedLandform) => {
+    const { result, areas } = on
+    if (block.share === undefined || !result || !areas || result.denominator <= 0) return null
+    const total = on.blocks ? seenOn(i, on).reduce((sum, b) => sum + (b.share ?? 0), 0) : 1
+    if (!(total > 0)) return null
+    const value = (100 * areas.proposed * block.share) / total / result.denominator
+    return { value, printed: formatAlteration(value, format.rule) }
+  }
+  // Where a block outside its key viewpoint's landform is measured instead: the viewpoint that sees most of it among
+  // those whose landform holding it shows the alteration.
+  const measuredAt = (ids: readonly string[], except: number) => {
+    let found: { index: number; share: number; on: CitedLandform } | null = null
+    viewpoints.forEach((vp, index) => {
+      if (index === except) return
+      const on = ids.length ? citedOn(index, ids[0]) : null
+      if (!on || !on.result || zeroOn(on)) return
+      const share = vp.blocks
+        .filter((b) => ids.includes(b.id) && seen(b) && (!on.blocks || on.blocks.includes(b.id)))
+        .reduce((s, b) => s + b.visiblePercent, 0)
+      if (share > 0 && (!found || share > found.share)) found = { index, share, on }
+    })
+    return found as { index: number; share: number; on: CitedLandform } | null
+  }
+  // `on`: the landform it is cited on, whose figure is 0; null when no landform read from here holds it.
+  const outside = (
+    i: number,
+    ids: readonly string[],
+    about: string,
+    first: string | null = null,
+    on: CitedLandform | null | undefined = undefined,
+  ): Sentence[] => {
+    const vp = viewpoints[i]
+    const landform = on ? on.landform : vp.landform
     const out = [
-      first
-        ? fill(PERSPECTIVE_REPORT.scaleOutsideSame, { first, landform: vp.landform }, about)
-        : fill(
-            PERSPECTIVE_REPORT.scaleOutside,
+      on === null
+        ? fill(
+            PERSPECTIVE_REPORT.scaleOutsideAll,
             {
-              landform: vp.landform,
+              landforms: andList([vp.landform, ...(vp.otherLandforms ?? []).map((entry) => entry.landform)]),
               subject: ids.length === 1 ? 'block' : 'blocks',
-              percent: results[i]?.printed,
               itThem: plural(ids.length).itThem,
             },
             about,
-          ),
+          )
+        : first
+          ? fill(PERSPECTIVE_REPORT.scaleOutsideSame, { first, landform }, about)
+          : fill(
+              PERSPECTIVE_REPORT.scaleOutside,
+              {
+                landform,
+                subject: ids.length === 1 ? 'block' : 'blocks',
+                percent: (on ? on.result : results[i])?.printed,
+                itThem: plural(ids.length).itThem,
+              },
+              about,
+            ),
     ]
     const other = measuredAt(ids, i)
     if (other)
@@ -561,9 +683,9 @@ function perspectiveDiscussion({
           PERSPECTIVE_REPORT.scaleMeasuredAt,
           {
             viewpoint: viewpoints[other.index].name,
-            landform: viewpoints[other.index].landform,
-            percent: results[other.index]?.printed,
-            sizeTerm: sizeTermAt(other.index),
+            landform: other.on.landform,
+            percent: other.on.result?.printed,
+            sizeTerm: sizeTermOn(other.on),
           },
           about,
         ),
@@ -579,18 +701,19 @@ function perspectiveDiscussion({
 
   const blockRow = (i: number, block: BlockAtStation) => {
     const vp = viewpoints[i]
-    const result = results[i]
     const r = vp.review
     const isSeen = seen(block)
+    // Cited on the landform it lies in; one no landform read from here holds has no figure of its own.
+    const on = citedOn(i, block.id)
     const ownShare = !isSeen
       ? block.status === 'not visible'
         ? '0.00'
         : ''
-      : seenAt(i).length === 1 && !zeroAt(i)
-        ? (result?.printed ?? '')
-        : zeroAt(i)
-          ? ''
-          : (blockPercentAt(i, block)?.printed ?? '')
+      : !on || zeroOn(on)
+        ? ''
+        : seenOn(i, on).length === 1
+          ? (on.result?.printed ?? '')
+          : (blockPercentOn(i, block, on)?.printed ?? '')
     // The block's own distance; with one block in view the nearest block's is its own. Otherwise the nearest block
     // in view only bounds it, so no rating is read from it.
     const own = ownDistanceAt(i, block)
@@ -603,7 +726,7 @@ function perspectiveDiscussion({
     return {
       [T5.viewpoint]: vp.name,
       [T5.block]: `Block ${block.id}`,
-      [T5.landform]: vp.landform,
+      [T5.landform]: on ? on.landform : OUTSIDE_LANDFORMS,
       [T5.impact]: isSeen ? (r?.impact ?? '') : block.status === 'not visible' ? 'Not visible' : '',
       [T5.percent]: ownShare,
       [T5.forceLines]: isSeen ? (r?.forceLines ?? '') : 'N/A',
@@ -791,7 +914,10 @@ function perspectiveDiscussion({
     const vp = viewpoints[i]
     const about = `Block ${block.id}`
     const r = vp.review
-    const common = { block: block.id, landform: vp.landform, viewpoint: vp.name, parent: parentOf(vp.landform) }
+    // The landform it lies in, as the view read it: the view's own, another it reads, or none.
+    const on = citedOn(i, block.id)
+    const landform = on?.landform ?? vp.landform
+    const common = { block: block.id, landform, viewpoint: vp.name, parent: parentOf(landform) }
     const others = viewpoints
       .map((other, index) => ({ index, block: other.blocks.find((b) => b.id === block.id && seen(b)) }))
       .filter((entry) => entry.index !== i && entry.block)
@@ -817,32 +943,33 @@ function perspectiveDiscussion({
               about,
             )
           : fill(PERSPECTIVE_REPORT.keyOnly, { viewpoint: vp.name, share: Math.round(block.visiblePercent) }, about)
-    const inView = seenAt(i).filter((b) => b.id !== block.id)
-    const scale = zeroAt(i)
-      ? outside(i, [block.id], about, firstHere)
-      : firstHere
-        ? [fill(PERSPECTIVE_REPORT.scaleSame, { first: firstHere }, about)]
-        : inView.length
-          ? [
-              fill(
-                PERSPECTIVE_REPORT.scaleShared,
-                {
-                  sizeTerm: sizeTermAt(i),
-                  percent: results[i]?.printed,
-                  others: andList(
-                    [
-                      blockList(inView.filter((b) => !isOtherPlanned(b)).map((b) => b.id)),
-                      inView.some(isOtherPlanned)
-                        ? `the other planned ${blockList(inView.filter(isOtherPlanned).map((b) => b.id)).replace(/^B/, 'b')}`
-                        : '',
-                    ].filter(Boolean),
-                  ),
-                  where: inView.length === 1 ? 'where it lies on the landform' : 'where they lie on the landform',
-                },
-                about,
-              ),
-            ]
-          : [fill(PERSPECTIVE_REPORT.scale, { sizeTerm: sizeTermAt(i), percent: results[i]?.printed }, about)]
+    const inView = on ? seenOn(i, on).filter((b) => b.id !== block.id) : []
+    const scale =
+      !on || zeroOn(on)
+        ? outside(i, [block.id], about, firstHere, on)
+        : firstHere
+          ? [fill(PERSPECTIVE_REPORT.scaleSame, { first: firstHere }, about)]
+          : inView.length
+            ? [
+                fill(
+                  PERSPECTIVE_REPORT.scaleShared,
+                  {
+                    sizeTerm: sizeTermOn(on),
+                    percent: on.result?.printed,
+                    others: andList(
+                      [
+                        blockList(inView.filter((b) => !isOtherPlanned(b)).map((b) => b.id)),
+                        inView.some(isOtherPlanned)
+                          ? `the other planned ${blockList(inView.filter(isOtherPlanned).map((b) => b.id)).replace(/^B/, 'b')}`
+                          : '',
+                      ].filter(Boolean),
+                    ),
+                    where: inView.length === 1 ? 'where it lies on the landform' : 'where they lie on the landform',
+                  },
+                  about,
+                ),
+              ]
+            : [fill(PERSPECTIVE_REPORT.scale, { sizeTerm: sizeTermOn(on), percent: on.result?.printed }, about)]
     // The block's own distance when the run gives it (or it is the only block in view); else only what is known, the
     // nearest block in view, which bounds it and gives no rating.
     const ownKm = ownDistanceAt(i, block)
@@ -871,11 +998,15 @@ function perspectiveDiscussion({
     const terms = unseenTerms(block.status)
     const body = [
       fill(
-        block.status === 'possible glimpses'
-          ? PERSPECTIVE_REPORT.glimpses
-          : parentOf(vp.landform)
-            ? PERSPECTIVE_REPORT.locationSub
-            : PERSPECTIVE_REPORT.location,
+        !on
+          ? block.status === 'possible glimpses'
+            ? PERSPECTIVE_REPORT.glimpsesOutside
+            : PERSPECTIVE_REPORT.locationOutside
+          : block.status === 'possible glimpses'
+            ? PERSPECTIVE_REPORT.glimpses
+            : parentOf(landform)
+              ? PERSPECTIVE_REPORT.locationSub
+              : PERSPECTIVE_REPORT.location,
         common,
         about,
       ),
@@ -894,16 +1025,22 @@ function perspectiveDiscussion({
       fill(PERSPECTIVE_REPORT.design, { viewpoint: vp.name, design: lower(r?.design) }, about),
     ]
     const closing = [
-      fill(
-        PERSPECTIVE_REPORT.closing,
-        { vqo: vp.objective, extent: lower(r?.extent), blockList: about, landform: vp.landform },
-        about,
-      ),
+      on
+        ? fill(
+            PERSPECTIVE_REPORT.closing,
+            { vqo: on.objective, extent: lower(r?.extent), blockList: about, landform },
+            about,
+          )
+        : fill(
+            PERSPECTIVE_REPORT.closingOutside,
+            { vqo: vp.objective, extent: lower(r?.extent), blockList: about },
+            about,
+          ),
     ]
     sections.push({
-      heading: `${about} – ${vp.landform}`,
+      heading: on ? `${about} – ${landform}` : about,
       viewpoint: vp.name,
-      landform: vp.landform,
+      landform: on ? landform : null,
       blocks: [block.id],
       paragraphs: [{ sentences: body }, { sentences: closing }],
     })
@@ -913,12 +1050,14 @@ function perspectiveDiscussion({
 
   viewpoints.forEach((vp, i) => {
     if (choice.group?.index === i) groupSection(i, choice.group.blocks)
-    let firstHere: string | null = null
+    // "Read on the same figure as Block …" only for blocks cited on the same landform.
+    const firstOn = new Map<string | null, string>()
     for (const block of vp.blocks) {
       if (isOtherPlanned(block) || !seen(block) || choice.byBlock.get(block.id) !== i) continue
       if (choice.group?.blocks.includes(block.id)) continue
-      blockSection(i, block, firstHere)
-      firstHere ??= block.id
+      const key = citedOn(i, block.id)?.landform ?? null
+      blockSection(i, block, firstOn.get(key) ?? null)
+      if (!firstOn.has(key)) firstOn.set(key, block.id)
     }
   })
 
@@ -959,7 +1098,7 @@ function perspectiveDiscussion({
     const r = vp.review
     const allHidden = vp.blocks.length > 0 && vp.blocks.every((b) => b.status === 'not visible')
     const sizeTerm = result ? scaleTerm(format.percentScale, result.printedValue) : ''
-    rows[i].push({
+    const own = {
       [T5.viewpoint]: vp.name,
       [T5.block]: 'Overall landform',
       [T5.landform]: vp.objective ?? '',
@@ -973,14 +1112,98 @@ function perspectiveDiscussion({
       [T5.position]: r?.position ?? (allHidden ? 'N/A' : ''),
       [T5.design]: r?.design ?? '',
       [T5.met]: r?.extent ?? '',
-    })
+    }
+    // Other landforms holding proposed ground in the view take a row each (23 Table 5: Sub-landform 1a, then
+    // Overall Landform 1), sub-landforms first. The reviewer's ratings are the assessed landform's only.
+    const others = (vp.otherLandforms ?? []).filter((entry) => entry.areas.proposed > 0)
+    if (!others.length) {
+      rows[i].push(own)
+      return
+    }
+    const entries = [
+      { landform: vp.landform, row: own },
+      ...others.map((entry) => {
+        const figure = alteration(format.rule, entry.areas)
+        return {
+          landform: entry.landform,
+          row: {
+            [T5.viewpoint]: vp.name,
+            [T5.landform]: entry.objective ?? '',
+            [T5.percent]: figure ? `${figure.printed} (${scaleTerm(format.percentScale, figure.printedValue)})` : '',
+            [T5.distance]: own[T5.distance],
+          } as Record<string, string>,
+        }
+      }),
+    ].sort(
+      (a, b) =>
+        Number(!parentOf(a.landform)) - Number(!parentOf(b.landform)) ||
+        landformOrder(a.landform).localeCompare(landformOrder(b.landform), undefined, { numeric: true }),
+    )
+    for (const entry of entries)
+      rows[i].push({
+        ...entry.row,
+        [T5.block]: `${parentOf(entry.landform) ? '' : 'Overall '}${plainLandform(entry.landform)}`,
+      })
   })
   return { sections, byViewpoint, rows, extraToComplete }
 }
 
+/** A landform's name without the outline's source in brackets ("Landform 1a (traced)" is Landform 1a). */
+const plainLandform = (name: string) => name.replace(/\s*\([^)]*\)\s*$/, '').trim() || name
+/** What orders a viewpoint's landforms: the number its name gives it ("Landform 1b" is 1b), else its name. */
+const landformOrder = (name: string) => name.match(/\bLandform\s+(\d+[a-z]?)\b/i)?.[1] ?? plainLandform(name)
+
+/**
+ * Table 4's rows for one viewpoint: its landform's (`initialRow`), then, ordered by number with it, each other
+ * landform the view sees with alteration in it, and each sub-landform seen without any (23 Table 4: 1c, N/A). Another
+ * landform that is merely in view is not assessed from it. The reviewer's terms are the assessed landform's only.
+ */
+function initialRows(
+  format: ViaDocumentFormat,
+  vp: DocumentViewpoint,
+  result: Alteration | null,
+  parentOf: (landform: string) => string | null,
+) {
+  const own = initialRow(format, vp, result)
+  const others = (vp.otherLandforms ?? []).filter(
+    (entry) => entry.areas.nonVeg + entry.areas.proposed > 0 || parentOf(entry.landform),
+  )
+  if (!others.length) return [own]
+  const seenHere = vp.blocks.filter(seen)
+  return [
+    { landform: vp.landform, row: own },
+    ...others.map((entry) => {
+      const figure = alteration(format.rule, entry.areas)
+      const altered = entry.areas.nonVeg + entry.areas.proposed > 0
+      const blocks = seenHere.filter((block) => entry.blocks.includes(block.id))
+      return {
+        landform: entry.landform,
+        row: {
+          [T4.viewpoint]: vp.name,
+          [T4.landform]: entry.landform,
+          [T4.vqo]: entry.objective ?? '',
+          [T4.blocks]: blocks.length
+            ? blocks.map((b) => `${b.id}${isOtherPlanned(b) ? '*' : ''}`).join(', ')
+            : altered
+              ? 'Existing openings only'
+              : 'None',
+          [T4.visibility]: altered ? '' : 'N/A',
+          [T4.percent]: figure?.printed ?? '',
+          [T4.size]: figure ? scaleTerm(format.percentScale, figure.printedValue) : '',
+          [T4.design]: altered ? '' : 'N/A',
+          [T4.met]: altered ? '' : 'N/A',
+        } as Record<string, string>,
+      }
+    }),
+  ]
+    .sort((a, b) => landformOrder(a.landform).localeCompare(landformOrder(b.landform), undefined, { numeric: true }))
+    .map((entry) => entry.row)
+}
+
 /** Table 4's row for one viewpoint: every block seen, other planned ones marked *. */
 function initialRow(format: ViaDocumentFormat, vp: DocumentViewpoint, result: Alteration | null) {
-  const visibleBlocks = vp.blocks.filter(seen)
+  // The blocks seen with ground in its landform; every block seen when the view recorded no list.
+  const visibleBlocks = vp.blocks.filter((b) => seen(b) && (!vp.landformBlocks || vp.landformBlocks.includes(b.id)))
   const allHidden = vp.blocks.length > 0 && vp.blocks.every((b) => b.status === 'not visible')
   const visibility = vp.review?.visibility
   return {
@@ -991,7 +1214,9 @@ function initialRow(format: ViaDocumentFormat, vp: DocumentViewpoint, result: Al
       ? visibleBlocks.map((b) => `${b.id}${isOtherPlanned(b) ? '*' : ''}`).join(', ')
       : allHidden
         ? 'None visible'
-        : '',
+        : vp.landformBlocks
+          ? 'None'
+          : '',
     [T4.visibility]: visibility ?? (allHidden ? 'Not easily distinguishable' : ''),
     [T4.percent]: result?.printed ?? '',
     [T4.size]: result ? scaleTerm(format.percentScale, result.printedValue) : '',
@@ -1123,7 +1348,11 @@ function otherPlannedOf(viewpoints: readonly DocumentViewpoint[], perspective: b
   }
 }
 
-/** The run's figure at each key viewpoint whose landform holds the blocks, then where they stand on the range. */
+/**
+ * The run's figure at each key viewpoint on the landform holding the blocks it is key for (`landformOfBlock`: a block
+ * on a sub-landform the view also reads is quoted on that one, never on the view's own), then where they stand on the
+ * range. A viewpoint whose blocks lie on two landforms gives a figure for each.
+ */
 function keyFigures(
   format: ViaDocumentFormat,
   facts: readonly DocumentViewpoint[],
@@ -1131,37 +1360,60 @@ function keyFigures(
   choice: KeyViewpointChoice,
   objective: ClassCode | null,
 ): Sentence[] {
-  const indices = [...new Set(choice.byBlock.values())].sort((a, b) => a - b)
-  const measured = indices.filter((i) => (viewpoints[i].alteration?.printedValue ?? 0) > 0)
-  if (!measured.length) return []
-  const value = (i: number) => viewpoints[i].alteration!.printedValue
-  const figure = (i: number) =>
-    `${viewpoints[i].alteration!.printed}% (${lower(scaleTerm(format.percentScale, value(i)))}) at ${facts[i].name}`
+  const indices = [...new Set(choice.byBlock.values())].filter((i) => i >= 0).sort((a, b) => a - b)
+  /** `on`: a landform other than the view's own, named short of its source note ("Landform 5b"). */
+  type KeyFigure = { index: number; place: string; on: string | null; result: Alteration; objective: ClassCode | null }
+  const entries: KeyFigure[] = []
+  for (const i of indices) {
+    const vp = facts[i]
+    const ids = [...choice.byBlock].filter(([, at]) => at === i).map(([id]) => id)
+    const read = new Set<string>()
+    for (const id of ids.length ? ids : [null]) {
+      const other = id === null ? null : (landformOfBlock(vp, id)?.other ?? null)
+      const landform = other ? other.landform : vp.landform
+      if (read.has(landform)) continue
+      read.add(landform)
+      const result = other ? alteration(format.rule, other.areas) : viewpoints[i].alteration
+      if (!result || !(result.printedValue > 0)) continue
+      entries.push({
+        index: i,
+        place: vp.name,
+        on: other ? other.landform.replace(/\s*\([^)]*\)\s*$/, '') : null,
+        result,
+        objective: other?.objective ?? vp.objective ?? null,
+      })
+    }
+  }
+  if (!entries.length) return []
+  const value = (entry: KeyFigure) => entry.result.printedValue
+  const figure = (entry: KeyFigure) =>
+    `${entry.result.printed}% (${lower(scaleTerm(format.percentScale, value(entry)))})${entry.on ? ` on ${entry.on}` : ''} at ${entry.place}`
+  const nameOf = (entry: KeyFigure) => (entry.on ? `${entry.place} on ${entry.on}` : entry.place)
   const out = [
     sentenceFrom(PERSPECTIVE_REPORT.conclusionFigures, {
       keyPhrase: indices.length === 1 ? 'the key viewpoint' : 'the key viewpoints',
-      figures: andList(measured.map(figure)),
+      figures: andList(entries.map(figure)),
     }),
   ]
-  // Each figure is read against its own viewpoint's objective (one report can hold R and PR landforms).
+  // Each figure is read against its own landform's objective (one report can hold R and PR landforms).
   const rangeOf = (code: ClassCode) =>
     PERCENT_SCALES.handbookTable2.printed
       .split(';')
       .map((part) => part.trim())
       .find((part) => part.startsWith(`${code} `))
-  const judged = measured.filter((i) => facts[i].objective ?? objective)
+  const judged = entries.filter((entry) => entry.objective ?? objective)
   if (!judged.length) return out
-  const objectiveAt = (i: number) => (facts[i].objective ?? objective)!
-  const over = judged.filter((i) => {
-    const code = readPercent(PERCENT_SCALES.handbookTable2, value(i))?.code
-    return !code || CLASS_ORDER.indexOf(code) > CLASS_ORDER.indexOf(objectiveAt(i))
+  const objectiveAt = (entry: KeyFigure) => (entry.objective ?? objective)!
+  const over = judged.filter((entry) => {
+    const code = readPercent(PERCENT_SCALES.handbookTable2, value(entry))?.code
+    return !code || CLASS_ORDER.indexOf(code) > CLASS_ORDER.indexOf(objectiveAt(entry))
   })
   const objectives = [...new Set(judged.map(objectiveAt))]
   const rangePhrase = (code: ClassCode) => `the ${CLASS_NAMES[code]} range (${rangeOf(code)})`
   // A figure under its objective's range is within what the objective allows, never "within PR 1.6-7%" at 1.56%.
-  const below = judged.filter((i) => {
-    const code = readPercent(PERCENT_SCALES.handbookTable2, value(i))?.code
-    return !!code && CLASS_ORDER.indexOf(code) < CLASS_ORDER.indexOf(objectiveAt(i))
+  const below = judged.filter((entry) => {
+    const code = readPercent(PERCENT_SCALES.handbookTable2, value(entry))?.code
+    return !!code && CLASS_ORDER.indexOf(code) < CLASS_ORDER.indexOf(objectiveAt(entry))
   })
   const allowed = (code: ClassCode) => `within what ${CLASS_NAMES[code]} allows`
   if (!over.length)
@@ -1175,8 +1427,8 @@ function keyFigures(
               ? `${judged.length === 1 ? 'The figure is' : 'Each figure is'} below ${rangePhrase(objectives[0])}, ${allowed(objectives[0])}.`
               : `Each figure is ${allowed(objectives[0])} (${rangeOf(objectives[0])}); ${
                   below.length === 1
-                    ? `the figure at ${facts[below[0]].name} is`
-                    : `the figures at ${andList(below.map((i) => facts[i].name))} are`
+                    ? `the figure at ${nameOf(below[0])} is`
+                    : `the figures at ${andList(below.map(nameOf))} are`
                 } below its range.`
           : `Each figure is within what its landform’s objective allows: ${andList(objectives.map(rangePhrase))}.`,
         {},
@@ -1185,7 +1437,7 @@ function keyFigures(
     )
   else {
     const byObjective = [...new Set(over.map(objectiveAt))].map((code) => {
-      const names = over.filter((i) => objectiveAt(i) === code).map((i) => facts[i].name)
+      const names = over.filter((entry) => objectiveAt(entry) === code).map(nameOf)
       return names.length === 1
         ? `the figure at ${names[0]} is over ${rangePhrase(code)}`
         : `the figures at ${andList(names)} are over ${rangePhrase(code)}`
@@ -1214,13 +1466,14 @@ export function resolveViaDocument(formatOrId: ViaDocumentFormat | string, facts
         facts.keyViewpoints ?? null,
       )
     : null
+  const parentOf = (landform: string) => facts.landformParents?.[landform] ?? landformParentFromName(landform)
   const written = choice
     ? perspectiveDiscussion({
         format,
         viewpoints: facts.viewpoints,
         results: figures,
         choice,
-        parentOf: (landform) => facts.landformParents?.[landform] ?? landformParentFromName(landform),
+        parentOf,
       })
     : null
   const viewpoints: ResolvedViewpoint[] = facts.viewpoints.map((vp, index) => {
@@ -1237,7 +1490,10 @@ export function resolveViaDocument(formatOrId: ViaDocumentFormat | string, facts
     switch (format.wording) {
       case 'perspective-report':
         sentences = written!.byViewpoint[index]
-        rows = { 'initial-assessment': [initialRow(format, vp, result)], 'detailed-assessment': written!.rows[index] }
+        rows = {
+          'initial-assessment': initialRows(format, vp, result, parentOf),
+          'detailed-assessment': written!.rows[index],
+        }
         break
       case 'form-2001':
         ;({ sentences, rows } = form2001(format, vp, result))

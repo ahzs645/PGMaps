@@ -9,6 +9,7 @@ import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
 
+import { collectPlacesFromMap, type BasemapQueryMap } from './basemapContext'
 import { loadElevationGrid } from './demLoader'
 import { captureAtCamera, rasterizeSheet } from './mapCapture'
 import { composeEndMap, endMapBasemapFromMap, endMapContours, type EndMapBasemap } from './reportEndMap'
@@ -18,7 +19,10 @@ import {
   figureRegionalLook,
   placeLayerIds,
   regionalTypeScale,
+  regionalPlaceLabels,
+  regionalForViewpoint,
   regionalWithPlace,
+  FIGURE_REGIONAL_PLACE_READ_ZOOM,
   type BasemapLayerInfo,
   type LabelledPlace,
   type BasemapOverride,
@@ -63,7 +67,7 @@ export async function captureReportMap(
   frame: MapFrame,
   /** The portrait end map's title block: the printed logo (`printedLogoRaster`) and the project line. */
   endMap: { logo: RasterImage | null; project: string | null } = { logo: null, project: null },
-): Promise<ReportFigure & { notes?: string[] }> {
+): Promise<ReportFigure & { notes?: string[]; byViewpoint?: Record<string, ReportFigure> }> {
   if (plan.endMap) return captureEndMap(map, plan, features, frame, endMap)
   const sheet = plan.kind === 'sheet'
   const maxSide = sheet ? OVERVIEW_SHEET_PIXELS.width : REPORT_MAP_MAX_SIDE
@@ -77,38 +81,81 @@ export async function captureReportMap(
     : null
   let shot: Awaited<ReturnType<typeof captureAtCamera>>
   try {
-    let places: LabelledPlace[] = []
+    let drawn: LabelledPlace[] = []
+    let known: LabelledPlace[] = []
     const placeLayers = regional ? placeLayerIds(layers).filter((id) => map.getLayer(id)) : []
-    shot = await captureAtCamera(map, plan.camera, frame, maxSide, (atCamera) => {
-      if (placeLayers.length) places = drawnPlaces(atCamera, placeLayers)
-    })
-    const fitted = regional ? regionalWithPlace(plan, places, features.viewpoints.length) : plan
+    const readPlaces = (atCamera: MapLibreMap) => {
+      if (placeLayers.length) drawn = drawnPlaces(atCamera, placeLayers)
+      known = [...known, ...settlementsInTiles(atCamera)]
+    }
+    // The settlements the regional camera's own tiles leave out (hamlets come only from zoom 12), read at a closer
+    // camera over the same centre, taken small: only its tiles are wanted.
+    if (regional && plan.camera.zoom < FIGURE_REGIONAL_PLACE_READ_ZOOM)
+      await captureAtCamera(
+        map,
+        { center: plan.camera.center, zoom: FIGURE_REGIONAL_PLACE_READ_ZOOM },
+        frame,
+        64,
+        (atCamera) => (known = settlementsInTiles(atCamera)),
+      ).catch(() => null)
+    shot = await captureAtCamera(map, plan.camera, frame, maxSide, regional ? readPlaces : undefined)
+    const fitted = regional ? regionalWithPlace(plan, [...drawn, ...known], features.viewpoints.length) : plan
     if (fitted !== plan) {
       plan = fitted
-      shot = await captureAtCamera(map, plan.camera, frame, maxSide)
+      shot = await captureAtCamera(map, plan.camera, frame, maxSide, readPlaces)
     }
+    if (regional)
+      plan = {
+        ...plan,
+        places: regionalPlaceLabels(
+          plan,
+          [...drawn, ...known],
+          drawn.map((place) => place.name),
+        ),
+      }
   } finally {
     restore?.()
   }
-  const composed = composeReportMap(
-    plan,
-    features,
-    frame,
-    { url: shot.dataUrl, width: shot.width, height: shot.height, format: 'JPEG' },
-    mapAttribution(map),
-  )
-  const image = await rasterizeSheet(
-    sheetSvg(composed.ops, composed.width, composed.height),
-    composed.width,
-    composed.height,
-    (sheet ? OVERVIEW_SHEET_PIXELS.width : shot.width) / Math.max(1, frame.width),
-  )
-  return {
-    view: plan.key,
-    caption: plan.caption,
-    ...image,
-    // The legend, scale bar and north arrow are drawn on the picture; the rows say what it shows.
-    map: { inPicture: true, northUp: true, scale: composed.scale, legend: composed.legendRows },
+  const attribution = mapAttribution(map)
+  const figureOf = async (drawn: ReportMapPlan): Promise<ReportFigure> => {
+    const composed = composeReportMap(
+      drawn,
+      features,
+      frame,
+      { url: shot.dataUrl, width: shot.width, height: shot.height, format: 'JPEG' },
+      attribution,
+    )
+    const image = await rasterizeSheet(
+      sheetSvg(composed.ops, composed.width, composed.height),
+      composed.width,
+      composed.height,
+      (sheet ? OVERVIEW_SHEET_PIXELS.width : shot.width) / Math.max(1, frame.width),
+    )
+    return {
+      view: drawn.key,
+      caption: drawn.caption,
+      ...image,
+      // The legend, scale bar and north arrow are drawn on the picture; the rows say what it shows.
+      map: { inPicture: true, northUp: true, scale: composed.scale, legend: composed.legendRows },
+    }
+  }
+  const figure = await figureOf(plan)
+  // 26's figure pages each star their own viewpoint: with several, the same capture is drawn once per viewpoint.
+  if (!regional || features.viewpoints.length < 2) return figure
+  const byViewpoint: Record<string, ReportFigure> = {}
+  for (const viewpoint of features.viewpoints)
+    byViewpoint[viewpoint.name] = await figureOf(regionalForViewpoint(plan, viewpoint))
+  return { ...figure, byViewpoint }
+}
+
+/** The settlements the map's loaded vector tiles name (`collectPlacesFromMap`), drawn or not. */
+function settlementsInTiles(map: MapLibreMap): LabelledPlace[] {
+  try {
+    return collectPlacesFromMap(map as unknown as BasemapQueryMap)
+      .filter((place) => place.kind === 'settlement')
+      .map((place) => ({ name: place.name, lng: place.lngLat[0], lat: place.lngLat[1] }))
+  } catch {
+    return []
   }
 }
 

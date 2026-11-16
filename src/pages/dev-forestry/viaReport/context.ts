@@ -5,6 +5,7 @@
  */
 import type { TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 import type { SavedFigure } from '../FigureSheetPanel'
+import { assessmentAlterationClipper } from '../assessmentMaskGeometry'
 import { unitValues, type BadgeUnit } from '../inventoryBadge'
 import type { ForestryScene } from '../scene'
 import { findSceneLandform } from '../sceneInput'
@@ -52,18 +53,38 @@ export function islandsIn(block: TargetPolygon, masks: readonly AssessmentMask[]
     .length
 }
 
+/**
+ * The block's hectares less the `retained` masks over it (wildlife tree patches / retention: the RESULTS reserves), as
+ * clipped geometry in BC Albers hectares, the net area the 2001 forms print ("Block Area ha (No WTRAs/Reserves)").
+ */
+export function netOfReservesHa(block: TargetPolygon, masks: readonly AssessmentMask[]): number {
+  const gross = polygonAreaMeters(block.geometry) / 10_000
+  const reserves = masks.filter((mask) => mask.kind === 'retained')
+  if (!reserves.length) return gross
+  const net = assessmentAlterationClipper(reserves)(block.geometry)
+  return net ? Math.min(gross, polygonAreaMeters(net) / 10_000) : 0
+}
+
+/** Reserve area below which a block reads as a plain clearcut: slivers where a mask only touches its edge. */
+const MIN_RESERVE_HA = 0.05
+
 export function reportBlockFacts(block: TargetPolygon, masks: readonly AssessmentMask[] = []): ReportBlockFacts {
+  const areaHa = polygonAreaMeters(block.geometry) / 10_000
   const cut =
     block.harvestSystem === 'partial' && block.volumeRemovedPercent != null && block.residualHeightMeters != null
       ? { removedPercent: block.volumeRemovedPercent, residualHeightM: block.residualHeightMeters }
       : null
+  const reservesHa = areaHa - netOfReservesHa(block, masks)
+  const system = SYSTEM[block.harvestSystem ?? 'clearcut'] ?? 'Clearcut'
   return {
     name: block.name,
-    areaHa: polygonAreaMeters(block.geometry) / 10_000,
-    system: SYSTEM[block.harvestSystem ?? 'clearcut'] ?? 'Clearcut',
+    areaHa,
+    // A clearcut with mapped reserves (wildlife tree patches, retention) is printed as the VIAs print it.
+    system: system === 'Clearcut' && reservesHa >= MIN_RESERVE_HA ? 'Clearcut with reserves' : system,
     retentionPercent: block.harvestSystem === 'retention' ? (block.retentionPercent ?? null) : null,
     partialCut: cut,
     islands: islandsIn(block, masks),
+    reservesHa,
     plannedHarvestYear: block.plannedHarvestYear ?? null,
   }
 }
@@ -73,11 +94,12 @@ function gridInside(geometry: PolygonGeometry, count = 400): Array<[number, numb
   const [w, s, e, n] = polygonBounds(geometry)
   const side = Math.max(2, Math.ceil(Math.sqrt(count * 2)))
   const out: Array<[number, number]> = []
+  const inside = preparePolygons([geometry]).contains
   for (let j = 0; j < side; j++)
     for (let i = 0; i < side; i++) {
       const lng = w + ((i + 0.5) / side) * (e - w)
       const lat = s + ((j + 0.5) / side) * (n - s)
-      if (pointInPolygon(geometry, lng, lat)) out.push([lng, lat])
+      if (inside(lng, lat)) out.push([lng, lat])
     }
   return out
 }
@@ -85,36 +107,58 @@ function gridInside(geometry: PolygonGeometry, count = 400): Array<[number, numb
 /**
  * The inventory units the report prints, one row each: every unit holding part of a block, with each block's
  * hectares in it (its BC Albers area times the share of grid samples inside the unit), largest first, then any unit a
- * viewpoint's figure chose that holds no block. Read from the live inventory only; no DOM or network access.
+ * viewpoint's figure chose that holds no block. With `masks`, a block holding a `retained` mask (a reserve) is also
+ * split net of its reserves (`netBlocks`), on the grid samples outside them. Read from the live inventory only; no DOM
+ * or network access.
  */
 export function inventoryUnitRows(
   units: readonly BadgeUnit[],
   blocks: readonly TargetPolygon[],
   chosen: ReadonlyArray<string | undefined> = [],
+  masks: readonly AssessmentMask[] = [],
 ): InventoryUnitRow[] {
   const held = new Map<BadgeUnit, Record<string, number>>()
+  const heldNet = new Map<BadgeUnit, Record<string, number>>()
   const prepared = preparePolygons(units.map((unit) => unit.geometry))
+  const reserves = masks.filter((mask) => mask.kind === 'retained')
+  const inReserve = reserves.length ? preparePolygons(reserves.map((mask) => mask.geometry)).contains : null
   for (const block of blocks) {
     const points = gridInside(block.geometry)
     if (!points.length) continue
     const areaHa = polygonAreaMeters(block.geometry) / 10_000
     const counts = new Map<BadgeUnit, number>()
+    const netCounts = new Map<BadgeUnit, number>()
+    let netPoints = 0
     for (const [lng, lat] of points) {
       const unit = units[prepared.indexAt(lng, lat)]
       if (unit) counts.set(unit, (counts.get(unit) ?? 0) + 1)
+      if (inReserve?.(lng, lat)) continue
+      netPoints++
+      if (unit) netCounts.set(unit, (netCounts.get(unit) ?? 0) + 1)
     }
     for (const [unit, count] of counts) {
       const row = held.get(unit) ?? {}
       row[block.name] = (row[block.name] ?? 0) + (areaHa * count) / points.length
       held.set(unit, row)
     }
+    // Only a block with a reserve inside it has a net split; the rest print their area as is.
+    if (netPoints === points.length) continue
+    const netHa = netOfReservesHa(block, reserves)
+    for (const unit of counts.keys()) {
+      const row = heldNet.get(unit) ?? {}
+      row[block.name] = (row[block.name] ?? 0) + (netPoints ? (netHa * (netCounts.get(unit) ?? 0)) / netPoints : 0)
+      heldNet.set(unit, row)
+    }
   }
+  const rounded = (row: Record<string, number>) =>
+    Object.fromEntries(Object.entries(row).map(([name, value]) => [name, Math.round(value * 100) / 100]))
   const total = (row: Record<string, number>) => Object.values(row).reduce((sum, ha) => sum + ha, 0)
   const rows: InventoryUnitRow[] = [...held]
     .sort((a, b) => total(b[1]) - total(a[1]))
     .map(([unit, ha]) => ({
       ...unitValues(unit),
-      blocks: Object.fromEntries(Object.entries(ha).map(([name, value]) => [name, Math.round(value * 100) / 100])),
+      blocks: rounded(ha),
+      ...(heldNet.has(unit) ? { netBlocks: rounded(heldNet.get(unit)!) } : {}),
     }))
   for (const vsu of chosen) {
     if (!vsu || rows.some((row) => row.vsu === vsu)) continue
@@ -161,6 +205,8 @@ export function buildReportContext(input: {
   inventoryUnits?: readonly BadgeUnit[]
   /** Where the blocks are and what the land is like (`reportSetting`, `setting.ts`), when the page read it. */
   reportSetting?: ReportSetting | null
+  /** What the run's existing openings' green-up rests on (`runGreenUpBasis(result).label`), when there is a run. */
+  greenUp?: string | null
   date: Date
 }): ReportContext {
   const { scene } = input
@@ -179,6 +225,7 @@ export function buildReportContext(input: {
     review: scene.viaReview ?? null,
     assessment: input.assessment,
     breakdown: input.breakdown,
+    greenUp: input.greenUp ?? null,
   })
   const setting = (label: string) =>
     input.views.flatMap((view) => view.settings ?? []).find((row) => row.label === label)?.value ?? null
@@ -219,6 +266,7 @@ export function buildReportContext(input: {
             input.inventoryUnits,
             blocks,
             facts.viewpoints.map((vp) => vp.inventory?.vsu),
+            scene.masks ?? [],
           ),
         }
       : {}),

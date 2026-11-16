@@ -14,6 +14,7 @@ import type { NoteImage, ViewpointPage } from './blockNote'
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import { briefViewpoints, buildFieldBrief, fieldBriefFileName, fieldBriefPdf } from './fieldBrief'
 import { withReadInventory } from './inventoryBadge'
+import { terrainDetailNote } from './figureFraming'
 import {
   AnalysisSheetOptions,
   analysisSheetFile,
@@ -51,9 +52,11 @@ import {
   roadRendererUrl,
   type RoadRendererId,
 } from './externalRenderers'
-import { estimateRender, formatRemaining, type RenderEngineId, type RenderHistory } from './renderEstimate'
+import { formatRemaining, notQueuedMs, type RenderEngineId, type RenderHistory } from './renderEstimate'
+import { pairPictures, simulationPicture, type BeforePicture } from './reportPairs'
 import { DEFAULT_OVERVIEW_SHEET_STYLE, OVERVIEW_SHEET_STYLES, type OverviewSheetStyle } from './reportMaps'
 import { documentFacts } from './viaDocument/facts'
+import { runGreenUpBasis } from './greenUp'
 import { VIA_DOCUMENT_FORMATS, findDocumentFormat } from './viaDocument/formats'
 import { documentMarkdown } from './viaDocument/markdown'
 import { resolveViaDocument } from './viaDocument/resolve'
@@ -204,7 +207,8 @@ export function useVisualsExport(input: {
     history: RenderHistory
     leftMs: number | null
     enqueue: (jobs: RenderJob[]) => void
-    jobFor: (viewId: string, engine: RenderEngineId) => RenderJob | null
+    /** `before`: the view's before picture for the VIA report, by the same engine (null when it needs none). */
+    jobFor: (viewId: string, engine: RenderEngineId, phase?: 'before') => RenderJob | null
     /** The road view is open with its terrain: an engine draws from it. */
     ready: boolean
   }
@@ -316,6 +320,18 @@ export function useVisualsExport(input: {
         })
       : []
   const missingJobs = engineJobs.filter((job) => !renders?.figures[job.key])
+  // The VIA report's before pictures by the same engine, so a pair never compares two renderers. A failed one is not
+  // asked again or waited for: that pair falls back to PGMaps for both pictures, and says so.
+  const beforeJobs =
+    engineId && renders
+      ? [...otherViews, ...savedViews].flatMap((view) => {
+          const job = images[view.id]?.figure ? renders.jobFor(view.id, engineId, 'before') : null
+          return job ? [job] : []
+        })
+      : []
+  const beforeFailed = (job: RenderJob) =>
+    !!renders?.jobs.some((entry) => entry.job.key === job.key && entry.status === 'error')
+  const missingBeforeJobs = beforeJobs.filter((job) => !renders?.figures[job.key] && !beforeFailed(job))
   // A view saved before the inventory was read takes its unit from the scene's read, by the rules its sheet uses.
   const readUnits = input.visualInventory?.units ?? null
   const withInventory = (image: (typeof images)[string]) =>
@@ -332,14 +348,14 @@ export function useVisualsExport(input: {
   const engineFailed = engineState.find(
     (entry) => entry.status === 'error' && missingJobs.some((job) => job.key === entry.job.key),
   )
-  const notStartedMs = missingJobs
-    .filter((job) => !engineState.some((entry) => entry.job.key === job.key && entry.status !== 'error'))
-    .reduce(
-      (sum, job, index) =>
-        sum + estimateRender(job.engine, job.work, renders?.history ?? [], index === 0 && !engineRunning).totalMs,
-      0,
-    )
-  const engineLeftMs = engineRunning ? (renders?.leftMs ?? 0) + notStartedMs : missingJobs.length ? notStartedMs : null
+  const queuedKeys = new Set(engineState.filter((entry) => entry.status !== 'error').map((entry) => entry.job.key))
+  const leftFor = (owed: readonly RenderJob[]) => {
+    const notStarted = notQueuedMs(owed, queuedKeys, renders?.history ?? [], engineRunning)
+    return engineRunning ? (renders?.leftMs ?? 0) + notStarted : owed.length ? notStarted : null
+  }
+  const engineLeftMs = leftFor(missingJobs)
+  // The VIA report's wait: its figures and its before pictures.
+  const reportLeftMs = leftFor([...missingJobs, ...missingBeforeJobs])
   const engineBlocked = engineId
     ? roadRendererUnavailable(engineId, {
         url: roadRendererUrl(engineId, import.meta.env),
@@ -347,7 +363,8 @@ export function useVisualsExport(input: {
       })
     : null
   // The road view's terrain reloads after a run (a report runs one when stale): the renders wait for it.
-  const engineSettling = !!engineId && !engineBlocked && !!renders && !renders.ready && missingJobs.length > 0
+  const engineSettling =
+    !!engineId && !engineBlocked && !!renders && !renders.ready && missingJobs.length + missingBeforeJobs.length > 0
   const engineUnavailable = engineId
     ? (engineBlocked ??
       (!renders
@@ -362,7 +379,8 @@ export function useVisualsExport(input: {
     name: view.name,
     image: figureImages[view.id],
   }))
-  const resolved = resolveFigureChoice(figureChoice, figureViews, roadView)
+  // The sheet's calculation follows the scene's denominators when the scene takes private land out of them.
+  const resolved = { ...resolveFigureChoice(figureChoice, figureViews, roadView), sceneDenominator: scene.settings }
 
   // PGMaps' with-timber pixel figure: the view's before-harvest render against its after picture (`timberScreen.ts`).
   const timberKey = (id: string) => `${input.sceneKey}|${id}|${images[id]?.savedAt ?? ''}`
@@ -418,6 +436,7 @@ export function useVisualsExport(input: {
         assessment,
         breakdown: result?.perspectiveAlteration ?? null,
         ...(result ? { screeningModelled: !!result.settings.screeningEnabled } : {}),
+        greenUp: result ? runGreenUpBasis(result).label : null,
       })
     : null
   const viaDocument = facts ? resolveViaDocument(documentFormat, facts) : null
@@ -450,6 +469,7 @@ export function useVisualsExport(input: {
       ...(images ? { images } : {}),
       ...(readUnits ? { inventoryUnits: readUnits } : {}),
       reportSetting: input.reportSetting?.() ?? null,
+      greenUp: result ? runGreenUpBasis(result).label : null,
       date: new Date(),
     })
   // Placeholder figures stand in for the counts only; the file draws each view's figure.
@@ -542,6 +562,8 @@ export function useVisualsExport(input: {
       failed: engineFailed ? `${engineFailed.job.viewName}: ${engineFailed.error}` : null,
       unavailable: engineUnavailable,
       settling: engineSettling,
+      missingBefore: missingBeforeJobs.length,
+      leftWithBefore: reportLeftMs === null ? null : formatRemaining(reportLeftMs),
     },
     logo: chosenLogo
       ? chosenLogo.source === 'uploaded'
@@ -609,6 +631,7 @@ export function useVisualsExport(input: {
     // A render finishing changes the figures the file is drawn from.
     figureRenderer,
     engineJobs.map((job) => (renders?.figures[job.key] ? 1 : 0)).join(''),
+    beforeJobs.map((job) => (renders?.figures[job.key] ? 1 : beforeFailed(job) ? 'x' : 0)).join(''),
     reportRecipe.id,
     overviewSheetStyle,
     chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo',
@@ -687,83 +710,88 @@ export function useVisualsExport(input: {
         const tabloid = reportRecipe.parts.includes('calculations') || reportRecipe.parts.includes('appendix-sheets')
         const figures: ReportFigure[] = await Promise.all(
           reportViewIds.map(async (view, index) => {
+            // The report's own arithmetic, whatever the style: its figures print what its tables print.
             const image = await figureNoteImage(view.image!, style, {
               ...(timber[view.id] ? { timber: timber[view.id] } : {}),
               tabloid,
+              rule: recipeFormat(reportRecipe).rule,
             })
+            // Why the picture's pixel figure and the run's can part: the map drew far ground coarser.
+            const terrainNote = terrainDetailNote(view.image?.figure?.terrainDetail ?? null)
             return {
               view: names[index] ?? view.name,
               caption: `${names[index] ?? view.name}: ${image.caption}${
                 view.image?.figure?.illustration ? ` Drawn by ${view.image.figure.illustration.renderer}.` : ''
-              }`,
+              }${terrainNote ? ` ${terrainNote}` : ''}`,
               dataUrl: image.dataUrl,
               width: image.width,
               height: image.height,
             }
           }),
         )
-        // Each view's plain simulation (its framed capture, else its screenshot) for the "after" pictures.
-        const after: Record<string, ReportFigure> = Object.fromEntries(
-          figureViews
-            .filter((view) => view.image?.figure)
-            .map((view, index) => {
-              const picture = view.image!.figure!.frameImage ?? view.image!
-              const name = names[index] ?? view.name
-              return [
-                name,
-                {
-                  view: name,
-                  caption: `${name}: simulation`,
-                  dataUrl: picture.dataUrl,
-                  width: picture.width,
-                  height: picture.height,
-                  // Where each block lies in the picture: the callouts' anchors, which are in this picture's pixels.
-                  marks: [
-                    ...view.image!.figure!.callouts.filter((c) => !c.secondary),
-                    ...(view.image!.figure!.hidden ?? []),
-                  ]
-                    .filter((c) => c.anchor[0] >= 0 && c.anchor[1] >= 0)
-                    .map((c) => ({
-                      x: c.anchor[0] / picture.width,
-                      y: c.anchor[1] / picture.height,
-                      label: c.title,
-                      status: c.status,
-                    }))
-                    .filter((m) => m.x <= 1 && m.y <= 1),
-                },
-              ]
-            }),
-        )
-        const images = { ...(captured?.images ?? {}), after }
+        // Each view's plain simulation (its framed capture, else its screenshot) for the "after" pictures, and its
+        // before picture from the same renderer (`reportPairs.ts`): an engine's figures pair with that engine's
+        // render before harvest, else both pictures are PGMaps', never PGMaps' before beside an engine's after.
+        const after: Record<string, ReportFigure> = {}
+        const pairedBefore: Record<string, BeforePicture> = {}
         // Where the landform lies in each render (the figure's crop rows), so a recipe that prints panoramas (26)
-        // shows a wide band round it (`panoramaBand`, drawn by the report). Before renders share the view's frame;
-        // a field photograph has its own framing and takes none.
-        {
-          // The after pictures are keyed by the report's names, the before pictures by the views' own.
-          const viewsByName = new Map(
-            figureViews.flatMap((view, index) => [
-              [view.name, view],
-              [names[index] ?? view.name, view],
-            ]),
-          )
-          const rowsFor = (name: string, picture: { width: number; height: number }) => {
-            const figure = viewsByName.get(name)?.image?.figure
-            const frame = figure?.frameImage
-            const rows = figure?.landformRows ?? figure?.crop
-            if (!frame || !rows || frame.width !== picture.width || frame.height !== picture.height) return null
-            return rows
-          }
-          for (const [name, picture] of Object.entries(after)) {
-            const rows = rowsFor(name, picture)
-            if (rows) after[name] = { ...picture, landformRows: rows }
-          }
-          const before = { ...(images.before ?? {}) }
-          for (const [name, picture] of Object.entries(before)) {
-            const rows = picture.source === 'render' ? rowsFor(name, picture) : null
-            if (rows) before[name] = { ...picture, landformRows: rows }
-          }
-          images.before = before
+        // shows a wide band round it (`panoramaBand`, drawn by the report). A render takes the rows of the figure it
+        // was framed with; a field photograph has its own framing and takes none.
+        const rowsOf = (
+          figure: SavedFigure | undefined,
+          picture: { width: number; height: number },
+        ): { y: number; height: number } | null => {
+          const frame = figure?.frameImage
+          const rows = figure?.landformRows ?? figure?.crop
+          if (!frame || !rows || frame.width !== picture.width || frame.height !== picture.height) return null
+          return rows
         }
+        const withRows = <T extends ReportFigure>(picture: T, figure: SavedFigure | undefined): T => {
+          const rows = rowsOf(figure, picture)
+          return rows ? { ...picture, landformRows: rows } : picture
+        }
+        figureViews
+          .filter((view) => view.image?.figure)
+          .forEach((view, index) => {
+            const name = names[index] ?? view.name
+            const drawn = view.image!.figure!
+            const own = input.images[view.id]
+            const ownFigure = own?.figure
+            const renderer = engineId ? (drawn.illustration?.renderer ?? null) : null
+            // The engine's render before harvest: a before job's figure, or the view itself when saved before harvest.
+            const beforeJob = engineId && renders ? renders.jobFor(view.id, engineId, 'before') : null
+            const beforeFigure = !renderer
+              ? null
+              : beforeJob
+                ? (renders?.figures[beforeJob.key] ?? null)
+                : own?.viewpoint?.harvestPhase === 'before'
+                  ? drawn
+                  : null
+            const failed = beforeJob
+              ? renders?.jobs.find((entry) => entry.job.key === beforeJob.key && entry.status === 'error')
+              : undefined
+            const pair = pairPictures({
+              name,
+              after: simulationPicture(name, drawn, view.image!),
+              afterRenderer: renderer,
+              ownAfter: ownFigure && own ? simulationPicture(name, ownFigure, own) : null,
+              before: captured?.images.before?.[name] ?? null,
+              engineBefore: beforeFigure?.frameImage ?? null,
+              engineBeforeMissing: failed
+                ? `its render failed: ${failed.error ?? 'no reason given'}`
+                : beforeJob
+                  ? 'its render was not finished'
+                  : 'the view has no pose to frame it on',
+            })
+            const afterFigure = pair.after.renderer === 'PGMaps' && renderer ? ownFigure : drawn
+            after[name] = withRows(pair.after, afterFigure)
+            if (pair.before)
+              pairedBefore[name] =
+                pair.before.source === 'render'
+                  ? withRows(pair.before, pair.before.renderer === 'PGMaps' ? ownFigure : (beforeFigure ?? drawn))
+                  : pair.before
+          })
+        const images = { ...(captured?.images ?? {}), after, before: pairedBefore }
         const context = reportContext(
           figures,
           images,
@@ -779,6 +807,8 @@ export function useVisualsExport(input: {
             __viaReportBefore: images.before,
             __viaReportFacts: context.facts,
             __viaReportUnits: context.inventoryUnits ?? null,
+            // Where the blocks are and what the land is like (`reportSetting`), as the page read it for this report.
+            __viaReportSetting: context.setting ?? null,
           })
         const report = assembleReport(reportRecipe, context)
         const fileName = `forestry-via-report-${reportRecipe.id}`
@@ -1052,8 +1082,10 @@ export function useVisualsExport(input: {
       onAction={onAction}
       onRun={analysis.run}
       {...(input.visualInventory ? { onReadInventory: input.visualInventory.read } : {})}
-      onRender={() => {
-        if (missingJobs.length) renders?.enqueue(missingJobs)
+      onRender={(kind) => {
+        // Only the VIA report prints before pictures: the other outputs never wait for them.
+        const owed = kind === 'via-report' ? [...missingJobs, ...missingBeforeJobs] : missingJobs
+        if (owed.length) renders?.enqueue(owed)
       }}
       portalContainer={input.portalContainer}
     />

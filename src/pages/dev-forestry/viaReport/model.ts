@@ -33,6 +33,13 @@ export interface ReportFigure {
   marks?: ReadonlyArray<{ x: number; y: number; label: string; status: string }>
   /** The landform's rows in the picture, pixels, when a framed render knows them: what a panorama slot centres on. */
   landformRows?: { y: number; height: number }
+  /**
+   * Who drew a rendered picture ("PGMaps", "threejs-worldgen"), when known. A before/after pair is always drawn by one
+   * renderer (`reportPairs.ts`), and its before picture's note names it.
+   */
+  renderer?: string
+  /** A line printed under the picture in a pair: why it was drawn as it was (a fallback to PGMaps). */
+  note?: string
 }
 
 /** What a map picture carries beside the picture itself. Nothing is drawn for what is absent. */
@@ -59,8 +66,9 @@ export interface FigureSlot {
   /** A line under the picture: where it came from ("Field photograph, lined up with the view"). */
   note?: string
   /**
-   * Which of the picture's block `marks` to draw: `unseen`, a marker where a block lies but is only glimpsed or not
-   * seen (26); `all`, an arrow and label to every block (05/06's labelled simulations). None when absent.
+   * Which of the picture's block `marks` to draw: `unseen`, only a ring where a block lies but is only glimpsed or not
+   * seen; `all`, every block, a seen one led to by an arrow and its name and the rest ringed (26's figure pages,
+   * 05/06's labelled simulations). None when absent.
    */
   markBlocks?: 'unseen' | 'all'
   /**
@@ -68,6 +76,11 @@ export interface FigureSlot {
    * (`panoramaBand`), as 26's Figure 2 prints them. The picture itself is unchanged; without rows it shows whole.
    */
   panorama?: number
+  /**
+   * The block marks (shares of the picture's height) the panorama's band keeps whole: the marks drawn on the after
+   * picture, given to the before picture too so the pair shows the same band.
+   */
+  panoramaHold?: ReadonlyArray<{ y: number }>
 }
 
 export type ReportBlock =
@@ -149,6 +162,11 @@ export type ReportBlock =
     }
   | { kind: 'figure'; figure: ReportFigure | null; caption: string; placeholder?: string }
   | { kind: 'signature'; lines: string[] }
+  /**
+   * A ruled form of numbered sections, as the 2022 handbook's Appendix 1 prints one viewpoint on one page: each row one
+   * section across the page or two side by side, each under a shaded title bar, holding ordinary blocks drawn compact.
+   */
+  | { kind: 'form'; rows: FormCell[][] }
   | { kind: 'pageBreak' }
   /**
    * A figure page on its own landscape page (26): a title box and a box of project facts over the maps in a narrow
@@ -180,6 +198,8 @@ export type ReportBlock =
       caption?: string
       /** Printed on a landscape page of its own, each picture across its width (02's simulation pages). */
       landscape?: boolean
+      /** Printed on an 11 × 17 landscape page of its own, as the analysis sheets are (22's Perspective Viewpoint). */
+      sheet?: boolean
     }
   /** A map across the page, its legend, scale and north arrow (`ReportFigure.map`), and its caption. */
   | {
@@ -198,6 +218,24 @@ export type ReportBlock =
       /** Printed on a landscape page of its own (02's oblique simulations). */
       landscape?: boolean
     }
+
+/** One section of a `form`: its title bar ("3.2.1 Viewpoint") and what it holds. */
+export interface FormCell {
+  title: string
+  blocks: ReportBlock[]
+}
+
+/**
+ * The blocks in reading order with each form opened up: a form cell reads as its title (a level 3 heading) and its
+ * blocks. For anything that reads a report's content rather than its layout (tests, comparisons, word counts).
+ */
+export function flatBlocks(blocks: readonly ReportBlock[]): ReportBlock[] {
+  return blocks.flatMap((block) =>
+    block.kind === 'form'
+      ? block.rows.flat().flatMap((cell) => [heading(cell.title, 3), ...flatBlocks(cell.blocks)])
+      : [block],
+  )
+}
 
 export interface ReportItemToComplete {
   part: string

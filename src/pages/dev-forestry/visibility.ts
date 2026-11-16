@@ -364,10 +364,13 @@ export function polygonInteriorPoint(geometry: PolygonGeometry): GeoPoint | null
             xs.push(ring[i][0] + ((y - ring[i][1]) * (ring[j][0] - ring[i][0])) / (ring[j][1] - ring[i][1]))
         }
       xs.sort((a, b) => a - b)
-      for (let j = 1; j < xs.length; j++) {
+      // The scanline passes through no vertex, so the gaps between its sorted crossings alternate outside and
+      // inside (holes included): the odd ones are inside, with no point-in-polygon test (that test made large
+      // inventory polygons cost about a second a report).
+      for (let j = 1; j < xs.length; j += 2) {
         const x = (xs[j] + xs[j - 1]) / 2,
           span = xs[j] - xs[j - 1]
-        if (span > width && pointInPolygon(geometry, x, y)) {
+        if (span > width) {
           width = span
           best = { lng: x, lat: y }
         }

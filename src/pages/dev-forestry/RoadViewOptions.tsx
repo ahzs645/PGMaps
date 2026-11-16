@@ -23,6 +23,7 @@ import {
   type EngineEnvironmentChoice,
   type RoadRendererId,
 } from './externalRenderers'
+import { setEngineBrowserOptions, useEngineBrowserOptions } from './engineBrowserOptions'
 import type { DriveState } from './Sidebar'
 import type { TargetPolygon } from './types'
 import { compassPoint, EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
@@ -89,6 +90,7 @@ export function RoadViewOptions({
   jump?: ReactNode
 }) {
   const arrowAt = (bearing: number) => lookArrows.find((entry) => Math.abs(entry.bearing - bearing) < 0.5)
+  const engineOptions = useEngineBrowserOptions()
   const setEnvironment = (change: Partial<EngineEnvironmentChoice>) =>
     onDriveChange({ engineEnvironment: { ...drive.engineEnvironment, ...change } })
   return (
@@ -305,6 +307,29 @@ export function RoadViewOptions({
             })}
           </StyledSelect>
         </Row>
+        {roadRendererUrl('nanite', import.meta.env) && (
+          <Row
+            label="Nanite trees"
+            info={
+              <InfoTip label="About keeping grown trees">
+                Nanite Forest grows each tree type when its page starts, which takes about a second. Kept in this
+                browser, the next start skips that. They take about 120 MB for one scene&apos;s tree types and at most
+                about 300 MB; set back to Not kept, the engine deletes them the next time it starts. The choice is this
+                browser&apos;s, not the scene&apos;s, and changes no picture or figure.
+              </InfoTip>
+            }
+          >
+            <StyledSelect
+              aria-label="Nanite Forest grown trees"
+              className={SELECT_CLASS}
+              value={engineOptions.keepGrownTrees ? 'kept' : 'off'}
+              onChange={(event) => setEngineBrowserOptions({ keepGrownTrees: event.target.value === 'kept' })}
+            >
+              <option value="off">Not kept</option>
+              <option value="kept">Kept in this browser</option>
+            </StyledSelect>
+          </Row>
+        )}
         {drive.renderer !== 'pgmaps' && (
           <>
             <Row

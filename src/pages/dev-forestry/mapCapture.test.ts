@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { capturePixelRatio, MAX_CAPTURE_PIXEL_RATIO } from './mapCapture'
+import { capturePixelRatio, demZoomAt, MAX_CAPTURE_PIXEL_RATIO } from './mapCapture'
 
 describe('the framed capture’s pixel ratio', () => {
   it('draws each frame’s window at the frame’s own width, within the cap', () => {
@@ -11,5 +11,24 @@ describe('the framed capture’s pixel ratio', () => {
     )
     // Never below the map's own ratio.
     expect(capturePixelRatio({ frameWidth: 600, clientWidth: 1100, cropWidth: 1, current: 2 })).toBe(2)
+  })
+})
+
+describe('the DEM detail the map draws a point from', () => {
+  // Argenta Beach, 2.6 km out on the line to block 3: inside z11 terrain tile (358, 692).
+  const point = [-116.93, 50.19] as const
+  const terrain = { deltaZoom: 1, minzoom: 0, maxzoom: 14 }
+  it('is the covering terrain tile less deltaZoom, within the source range', () => {
+    const tiles = [
+      { z: 9, x: 89, y: 173, overscaledZ: 9 },
+      { z: 11, x: 358, y: 692, overscaledZ: 11 },
+    ]
+    expect(demZoomAt(tiles, point[0], point[1], terrain)).toBe(10)
+    // An overscaled tile past the source's range reads the source's last zoom.
+    expect(demZoomAt([{ z: 11, x: 358, y: 692, overscaledZ: 17 }], point[0], point[1], terrain)).toBe(14)
+  })
+  it('is null where no drawn tile covers the point', () => {
+    expect(demZoomAt([{ z: 11, x: 359, y: 692, overscaledZ: 11 }], point[0], point[1], terrain)).toBeNull()
+    expect(demZoomAt([], point[0], point[1], terrain)).toBeNull()
   })
 })

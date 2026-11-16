@@ -264,7 +264,7 @@ export function scaleSvg(block: ScaleBlock): string {
 
 export function scaleHtml(block: ScaleBlock): string {
   return `<div class="scale-block"><h4>${e(block.title)}</h4>${scaleSvg(block)}${
-    block.mark === null ? '<p class="note">Nothing marked yet.</p>' : ''
+    block.mark === null ? '<p class="note unmarked">Nothing marked yet.</p>' : ''
   }${block.note ? `<p class="note">${e(block.note)}</p>` : ''}</div>`
 }
 
@@ -352,7 +352,7 @@ function classGridHtml(block: MatrixBlock): string {
 
 export function matrixHtml(block: MatrixBlock): string {
   const drawn = block.style === 'class-grid' ? classGridHtml(block) : formHtml(block)
-  return `<h4>${e(block.title)}</h4>${drawn}${block.marks.length || block.point ? '' : '<p class="note">Nothing marked yet.</p>'}${
+  return `<h4>${e(block.title)}</h4>${drawn}${block.marks.length || block.point ? '' : '<p class="note unmarked">Nothing marked yet.</p>'}${
     block.note ? `<p class="note">${e(block.note)}</p>` : ''
   }`
 }

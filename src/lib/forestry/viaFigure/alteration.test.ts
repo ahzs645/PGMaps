@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { ALTERATION_RULES, alteration, checkPrintedAlteration, formatAlteration } from './alteration'
+import {
+  ALTERATION_RULES,
+  alteration,
+  checkPrintedAlteration,
+  formatAlteration,
+  ruleNetOf,
+  sceneSheetRule,
+} from './alteration'
 
 const R = ALTERATION_RULES
 
@@ -83,5 +90,32 @@ describe('alteration rules reproduce the reference documents', () => {
   it('truncates without float error tipping the last digit', () => {
     expect(formatAlteration(0.29, { decimals: 2, rounding: 'truncate' })).toBe('0.29')
     expect(formatAlteration(1.005, { decimals: 2, rounding: 'round' })).toBe('1.00')
+  })
+})
+
+describe('a rule netted for the scene', () => {
+  it('keeps the style’s arithmetic and names what leaves the landform', () => {
+    const net = ruleNetOf(R.grossPixels, ['privateLand', 'rock'])
+    expect(net).toMatchObject({
+      deduct: ['rock', 'privateLand'],
+      unit: 'px',
+      decimals: 2,
+      basis: 'landform net of rock and private land',
+      formula: '(NonVEG + Proposed Blocks) / (Landform - Rock and Private Land)',
+    })
+    expect(
+      alteration(net, { landform: 369494, privateLand: 20000, rock: 9017, proposed: 45755, nonVeg: 0 })?.printed,
+    ).toBe('13.44')
+    expect(ruleNetOf(R.netOfRockAndPrivateCm2, ['privateLand', 'rock'])).toBe(R.netOfRockAndPrivateCm2)
+    expect(ruleNetOf(R.netOfRockCm2, []).basis).toBe('gross landform')
+  })
+
+  it('follows the scene only when it takes private land out of its denominators', () => {
+    expect(sceneSheetRule(R.grossPixels, null)).toBe(R.grossPixels)
+    expect(sceneSheetRule(R.grossPixels, { perspectiveDenominator: 'non-vegetated-out' })).toBe(R.grossPixels)
+    expect(sceneSheetRule(R.grossPixels, { privateLandOutOfDenominator: true }).deduct).toEqual(['rock', 'privateLand'])
+    expect(sceneSheetRule(R.netOfRockAndPrivateCm2, { privateLandOutOfDenominator: true })).toBe(
+      R.netOfRockAndPrivateCm2,
+    )
   })
 })

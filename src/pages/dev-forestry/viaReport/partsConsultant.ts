@@ -11,6 +11,7 @@ import { T1, TABLE_1, TABLE_2, TABLE_3, type DocumentTable } from '../viaDocumen
 import {
   andList,
   blockList,
+  blocksOnLandform,
   isOtherPlanned,
   normalizeBlock,
   type BlockAtStation,
@@ -26,11 +27,12 @@ import {
   CERTIFICATION_STATEMENTS,
   figureFor,
   inventoryAdoption,
-  landformNames,
   landformNote,
   landformParent,
   paragraph,
   proposedBlocks,
+  readsLandform,
+  seenLandformNames,
   type ReportContext,
   type ReportPart,
 } from './parts'
@@ -63,10 +65,18 @@ const vsuOf = (vp: DocumentViewpoint) => vp.inventory?.vsu ?? vsuFromName(vp.lan
 const vqoCell = (code: string | null | undefined) =>
   code ? (code in CLASS_NAMES ? `${code} - ${CLASS_NAMES[code as ClassCode]}` : code) : ''
 
-/** The blocks seen from these viewpoints, once each, other planned ones marked *. */
-function seenBlocks(vps: readonly DocumentViewpoint[]): { names: string[]; other: boolean } {
+/**
+ * The blocks seen from these viewpoints, once each, other planned ones marked *. Given a landform, each viewpoint adds
+ * only the blocks with ground in it as that view recorded them (`blocksOnLandform`: its own landform's or another's it
+ * sees); a view that recorded no list adds every block it sees.
+ */
+function seenBlocks(vps: readonly DocumentViewpoint[], landform?: string): { names: string[]; other: boolean } {
   const out = new Map<string, BlockAtStation>()
-  for (const vp of vps) for (const block of vp.blocks) if (seen(block) && !out.has(block.id)) out.set(block.id, block)
+  for (const vp of vps) {
+    const holds = landform ? blocksOnLandform(vp, landform) : null
+    for (const block of vp.blocks)
+      if (seen(block) && !out.has(block.id) && (!holds || holds.includes(block.id))) out.set(block.id, block)
+  }
   const blocks = [...out.values()]
   return { names: blocks.map(marked), other: blocks.some(isOtherPlanned) }
 }
@@ -119,7 +129,9 @@ const assessmentMethod: ReportPart = {
     if (plain.length)
       blocks.push(
         text(
-          `The renders from each viewpoint are in ${cite(plain)}. Each viewpoint’s Perspective Viewpoint page shows the view as the model simulates it after harvest, with nothing drawn over it; the Perspective Viewpoint Analysis page after it shows the same view with the landform’s boundary, the blocks and the calculated percent alteration.`,
+          plain.some((entry) => entry.kind === 'plain')
+            ? `The renders from each viewpoint are in ${cite(plain)}. Each viewpoint’s Perspective Viewpoint page shows the view as the model simulates it after harvest, with nothing drawn over it; the Perspective Viewpoint Analysis page after it shows the same view with the landform’s boundary, the blocks and the calculated percent alteration.`
+            : `The renders from each viewpoint are in ${cite(plain)}. Each viewpoint’s Perspective Viewpoint Analysis page shows the view as the model simulates it after harvest, with the landform’s boundary, the blocks and the calculated percent alteration.`,
           'run',
         ),
       )
@@ -203,7 +215,7 @@ const table1: ReportPart = {
  * A landform's description from the run where the reviewer has given none: the viewpoints that read it, how far,
  * and how much of it is private land in the picture. The terrain words are the reviewer's.
  */
-function runDescription(vps: readonly DocumentViewpoint[]): string {
+function runDescription(vps: readonly DocumentViewpoint[], landform?: string): string {
   const distances = vps.map((vp) => vp.distanceKm).filter((d): d is number => d !== null)
   const near = distances.length ? Math.min(...distances) : null
   const far = distances.length ? Math.max(...distances) : null
@@ -215,9 +227,14 @@ function runDescription(vps: readonly DocumentViewpoint[]): string {
         : ` at ${near.toFixed(1)}-${far!.toFixed(1)} km`
   const privateShare = Math.max(
     0,
-    ...vps.map((vp) =>
-      vp.areas && vp.areas.landform > 0 ? (100 * (vp.areas.privateLand ?? 0)) / vp.areas.landform : 0,
-    ),
+    ...vps.map((vp) => {
+      // A landform the view sees beside its own is measured on its own pass.
+      const areas =
+        landform && vp.landform !== landform
+          ? (vp.otherLandforms?.find((entry) => entry.landform === landform)?.areas ?? null)
+          : vp.areas
+      return areas && areas.landform > 0 ? (100 * (areas.privateLand ?? 0)) / areas.landform : 0
+    }),
   )
   const names = andList(vps.map((vp) => vp.name))
   return `Read from ${names}${span}.${
@@ -231,16 +248,21 @@ const table2: ReportPart = {
   title: 'Table 2: Landform summary',
   sources: ['22', '23'],
   build: (ctx) => {
-    const names = landformNames(ctx)
+    const names = seenLandformNames(ctx)
     if (!names.length && ctx.landform) names.push(ctx.landform.name)
     let other = false
     let described = true
     const rows = names.map((name) => {
-      const vps = viewpointsOf(ctx).filter((vp) => vp.landform === name)
+      // The unit and objective come from the viewpoints that assess it; the blocks from every one that reads it.
+      const reading = viewpointsOf(ctx).filter((vp) => readsLandform(vp, name))
+      const vps = reading.filter((vp) => vp.landform === name)
+      const objective =
+        vps.find((vp) => vp.objective)?.objective ??
+        reading.flatMap((vp) => vp.otherLandforms ?? []).find((e) => e.landform === name && e.objective)?.objective
       const note = landformNote(ctx, name)
       const unit = vps.find((vp) => vp.inventory)?.inventory ?? (name === ctx.landform?.name ? ctx.inventory : null)
       const vsu = vps.map(vsuOf).find(Boolean) ?? unit?.vsu ?? ''
-      const seenHere = seenBlocks(vps)
+      const seenHere = seenBlocks(reading, name)
       other ||= seenHere.other
       const evc = unit?.evc ?? ''
       const description = blank(note?.description)
@@ -254,9 +276,8 @@ const table2: ReportPart = {
         unit?.vsc ?? '',
         unit?.vac ?? (name === ctx.landform?.name ? (ctx.landform.vac ?? '') : ''),
         note?.evc ? `${evc ? `${evc} (VSU) / ` : ''}${note.evc} (LF)` : evc,
-        vps.find((vp) => vp.objective)?.objective ??
-          (name === ctx.landform?.name ? (ctx.landform.objective ?? '') : ''),
-        `${sub}${description ?? (vps.length ? runDescription(vps) : '')}`,
+        objective ?? (name === ctx.landform?.name ? (ctx.landform.objective ?? '') : ''),
+        `${sub}${description ?? (reading.length ? runDescription(reading, name) : '')}`,
       ]
     })
     // The split sentence, per sub-landform (recorded, or read from its name): where it is divided is the reviewer's
@@ -266,7 +287,7 @@ const table2: ReportPart = {
       const note = landformNote(ctx, name)
       const readFrom = andList(
         viewpointsOf(ctx)
-          .filter((vp) => vp.landform === name)
+          .filter((vp) => readsLandform(vp, name))
           .map((vp) => vp.name),
       )
       return fillSentence(
@@ -388,7 +409,8 @@ export function appendixEntries(ctx: ReportContext): AppendixEntry[] {
   for (const vp of ctx.facts.viewpoints) {
     if (ctx.images?.before?.[vp.name]?.source === 'photo')
       out.push({ number: next(), title: `Photo from viewpoint – ${vp.name}`, kind: 'photo', viewpoint: vp.name })
-    out.push({ number: next(), title: `Perspective Viewpoint – ${vp.name}`, kind: 'plain', viewpoint: vp.name })
+    if (ctx.recipeOptions?.plainViewSheets !== false)
+      out.push({ number: next(), title: `Perspective Viewpoint – ${vp.name}`, kind: 'plain', viewpoint: vp.name })
     out.push({
       number: next(),
       title: `Perspective Viewpoint Analysis – ${vp.name} – ${vp.landform}`,
@@ -452,9 +474,11 @@ const appendixSheets: ReportPart = {
         const figure =
           entry.kind === 'photo' ? (ctx.images?.before?.[vp.name] ?? null) : (ctx.images?.after?.[vp.name] ?? null)
         if (entry.kind === 'plain' && !figure) missingPlain.push(vp.name)
+        // An 11 x 17 page of its own, as the analysis sheet after it is, its heading on the page (22 prints both as
+        // sheets).
         blocks.push({
           kind: 'figurePair',
-          title: `Appendix ${entry.number}`,
+          title: `Appendix ${entry.number}: ${entry.title}`,
           slots: [
             {
               label: entry.title,
@@ -467,7 +491,7 @@ const appendixSheets: ReportPart = {
             },
           ],
           placement: 'caption',
-          landscape: true,
+          sheet: true,
         })
         continue
       }
@@ -647,7 +671,7 @@ const landformsAndViewpoints: ReportPart = {
           : 'The landforms’ slope and stands (not read for this report)',
       )
     // How many landforms the viewpoints read, and which are divided into sub-landforms, from which viewpoints.
-    const names = landformNames(ctx)
+    const names = seenLandformNames(ctx)
     const subs = names.filter((name) => landformParent(ctx, name))
     const parents = [...new Set(subs.map((name) => landformParent(ctx, name)!))]
     const top = new Set([
@@ -665,10 +689,11 @@ const landformsAndViewpoints: ReportPart = {
                       const own = subs.filter((name) => landformParent(ctx, name) === parent)
                       const from = andList(
                         viewpointsOf(ctx)
-                          .filter((vp) => own.includes(vp.landform))
+                          .filter((vp) => own.some((name) => readsLandform(vp, name)))
                           .map((vp) => plainName(vp.name)),
                       )
-                      return `${plainName(parent)} divided into ${andList(own.map(plainName))}${from ? ` when viewed from ${from}` : ''}`
+                      // Two viewpoints may read the same sub-landform through outlines of their own: name it once.
+                      return `${plainName(parent)} divided into ${andList([...new Set(own.map(plainName))])}${from ? ` when viewed from ${from}` : ''}`
                     }),
                   )}`
                 : ''

@@ -8,19 +8,22 @@ import {
   cropRasterRows,
   figureLabelStyle,
   paintsBlocks,
+  presetRule,
   rgbaLuminance,
   tabloidFigure,
   type ClassRaster,
   type ComposedFigure,
+  type FigureCounts,
   type FigureInput,
   type Overlay,
   type PartialCutNote,
 } from '@/lib/forestry/viaFigure/composeFigure'
+import { sceneSheetRule, type AlterationRule, type SceneDenominator } from '@/lib/forestry/viaFigure/alteration'
 import { findPreset, VIA_STYLE_PRESETS, type ViaStylePreset } from '@/lib/forestry/viaFigure/presets'
 import { TIMBER_ABSENT, timberScreenedClasses, type TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 import type { CameraInfo } from '@/lib/forestry/viaFigure/cameraInfo'
 import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
-import type { DrawOp, RasterImage } from '@/lib/mapSheet/drawOps'
+import type { DrawOp, Point, RasterImage } from '@/lib/mapSheet/drawOps'
 import { encodeSheetImages } from '@/lib/mapSheet/png'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import { svgDataUrl } from '@/lib/mapSheet/symbolSvg'
@@ -89,6 +92,12 @@ export type SavedFigure = {
   /** What the camera information block prints. */
   camera?: CameraInfo
   /**
+   * The DEM cell the map drew the seen blocks' ground from and the run's, when the map's was at least
+   * `TERRAIN_DETAIL_NOTE_RATIO` times coarser: the view line and the report's caption say so (`terrainDetailNote`).
+   * Absent otherwise, and for another engine's picture.
+   */
+  terrainDetail?: { drawnCellMeters: number; runCellMeters: number }
+  /**
    * Another engine drew the picture, and its class pass gave the outlines and the pixel figure (`engineCapture.ts`);
    * absent when PGMaps' own map did.
    */
@@ -103,6 +112,30 @@ export type SavedFigure = {
    * (`partialCutEntries`). Their pixels are counted apart from Proposed (`FigureCounts.partialCut`). Absent: none.
    */
   partialCuts?: Array<PartialCutNote & { id: string }>
+  /**
+   * The other landforms the scene holds that the view sees (sub-landforms, or the whole landform beside the active
+   * sub-landform), each counted on a class pass of the same frames split at it (`MAX_LANDFORM_PASSES`): the sheet's
+   * further calculation columns and the report's further rows. `objective` is the landform's own (a VQO code),
+   * `blocks` the block ids with ground in it. Absent: the scene holds one landform, the view was saved against
+   * another landform than the open scene's, or another engine drew the picture. `outline` is its visible outline traced
+   * from that pass (`traceLandform`) and `labelAt` where its name goes, image pixels of the uncropped frame: the sheet
+   * outlines every landform it calculates (23 A6), and keeps the trace rather than the pass, a few hundred points
+   * against a code per pixel. Absent on views saved before it: no outline is drawn.
+   */
+  landforms?: Array<{
+    id: string
+    name: string
+    objective: string | null
+    counts: FigureCounts
+    blocks: string[]
+    outline?: Point[][]
+    labelAt?: Point | null
+  }>
+  /**
+   * The block ids with ground in the figure's own landform (`blocksInLandform`), as `landforms` lists them for the
+   * others: what the report cites each block on. Absent (views saved before it): every block is read on the landform.
+   */
+  landformBlocks?: string[]
 }
 
 /**
@@ -115,6 +148,13 @@ export type FigureOptions = {
   paintBlocks?: boolean | null
   /** The logo for the title block (`printedLogoRaster`), or none. */
   logo?: RasterImage | null
+  /** The arithmetic the calculation prints (a report's format rule), in place of the style's own `calc.rule`. */
+  rule?: AlterationRule | null
+  /**
+   * The scene's denominators (`AnalysisSettings`): without `rule`, a figure nets out what the scene's run nets out
+   * when the scene takes private land out (`sceneSheetRule`), and otherwise prints the style's own rule.
+   */
+  sceneDenominator?: SceneDenominator | null
   /**
    * PGMaps' with-timber measure of the view (`timberMeasureFor`); absent, the sheet says no before-harvest render was
    * taken. Ignored for an engine's figure, whose screened pass measures the same thing.
@@ -219,6 +259,9 @@ export async function figureInput(
     ...(options.cameraInfo != null ? { cameraInfo: options.cameraInfo } : {}),
     ...(options.paintBlocks != null ? { paintBlocks: options.paintBlocks } : {}),
     ...(options.logo ? { logo: options.logo } : {}),
+    ...(options.rule || options.sceneDenominator
+      ? { rule: options.rule ?? sceneSheetRule(presetRule(preset), options.sceneDenominator) }
+      : {}),
     ...(decoded?.kind === 'rgba' && !drawDecoded ? { luminance: rgbaLuminance(decoded) } : {}),
     zones: figure?.zones ? (crop ? cropRasterRows(figure.zones, crop) : figure.zones) : null,
     camera: figure?.camera ?? null,
@@ -244,6 +287,21 @@ export async function figureInput(
     sightlinePercent: figure?.sightlinePercent ?? null,
     sightlineClass: figure?.sightlineClass ?? null,
     ...(figure?.partialCuts?.length ? { partialCuts: figure.partialCuts } : {}),
+    ...(figure?.landforms?.length
+      ? {
+          landforms: figure.landforms.map(({ name, counts, outline, labelAt }) => ({
+            name,
+            counts,
+            // Moved into the crop's rows; the sheet clips what falls outside them, and a name off them is not printed.
+            ...(outline
+              ? { outline: crop ? outline.map((ring) => ring.map(([x, y]) => [x, y - crop.y] as Point)) : outline }
+              : {}),
+            ...(labelAt && (!crop || (labelAt[1] >= crop.y && labelAt[1] < crop.y + crop.height))
+              ? { labelAt: crop ? ([labelAt[0], labelAt[1] - crop.y] as Point) : labelAt }
+              : {}),
+          })),
+        }
+      : {}),
     illustration: figure?.illustration
       ? [illustrationLine(figure.illustration), missingLine(figure.illustration)].filter(
           (line): line is string => line !== null,
@@ -372,6 +430,8 @@ export type ResolvedFigure = {
   labelStyle: LabelStyleId
   cameraInfo: boolean
   paintBlocks: boolean
+  /** The scene's denominators, which the sheet's calculation follows (`FigureOptions.sceneDenominator`). */
+  sceneDenominator?: SceneDenominator | null
 }
 
 export function resolveFigureChoice(
@@ -392,13 +452,20 @@ export function resolveFigureChoice(
 }
 
 const composeResolved = async (
-  { view, preset, labelStyle, cameraInfo, paintBlocks }: ResolvedFigure,
+  { view, preset, labelStyle, cameraInfo, paintBlocks, sceneDenominator }: ResolvedFigure,
   logo: RasterImage | null = null,
   timber: TimberMeasure | null = null,
 ) => {
   if (!view?.image) throw new Error('Save a viewpoint in the road view first.')
   return composeFigure(
-    await figureInput(view.image, view.image.figure, preset, { labelStyle, cameraInfo, paintBlocks, logo, timber }),
+    await figureInput(view.image, view.image.figure, preset, {
+      labelStyle,
+      cameraInfo,
+      paintBlocks,
+      logo,
+      timber,
+      sceneDenominator,
+    }),
   )
 }
 

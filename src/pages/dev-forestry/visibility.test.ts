@@ -9,6 +9,8 @@ import {
   haversineMeters,
   lineLengthMeters,
   pointInPolygon,
+  polygonInteriorPoint,
+  type PolygonGeometry,
   polygonAreaMeters,
   polygonBounds,
   polygonGridSamples,
@@ -310,5 +312,64 @@ describe('terrainNormal and apparentSolidAngle', () => {
     // A vertical face seen from directly above its foot contributes nothing.
     const edgeOn = apparentSolidAngle(observer, ground(0.01, 0, 0), 10000, [0, 1, 0])
     expect(edgeOn).toBeCloseTo(0, 12)
+  })
+})
+
+describe('polygonInteriorPoint', () => {
+  // The scanline version before the parity rule: each candidate span tested with pointInPolygon.
+  function tested(geometry: PolygonGeometry) {
+    let best: { lng: number; lat: number } | null = null,
+      width = 0
+    const components = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates
+    for (const rings of components) {
+      const ys = [...new Set(rings.flatMap((ring) => ring.map((p) => p[1])))].sort((a, b) => a - b)
+      for (let k = 1; k < ys.length; k++) {
+        const y = (ys[k] + ys[k - 1]) / 2,
+          xs: number[] = []
+        for (const ring of rings)
+          for (let i = 0, j = ring.length - 1; i < ring.length; j = i++)
+            if (ring[i][1] > y !== ring[j][1] > y)
+              xs.push(ring[i][0] + ((y - ring[i][1]) * (ring[j][0] - ring[i][0])) / (ring[j][1] - ring[i][1]))
+        xs.sort((a, b) => a - b)
+        for (let j = 1; j < xs.length; j++) {
+          const x = (xs[j] + xs[j - 1]) / 2,
+            span = xs[j] - xs[j - 1]
+          if (span > width && pointInPolygon(geometry, x, y)) {
+            width = span
+            best = { lng: x, lat: y }
+          }
+        }
+      }
+    }
+    return best
+  }
+  // A star-shaped ring round (cx, cy), radius varying with angle (seeded), closed.
+  function star(cx: number, cy: number, r: number, n: number, seed: number, clockwise = false) {
+    let s = seed
+    const rand = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646
+    const ring = Array.from({ length: n }, (_, i) => {
+      const a = ((clockwise ? -1 : 1) * 2 * Math.PI * i) / n
+      const radius = r * (0.4 + 0.6 * rand())
+      return [cx + radius * Math.cos(a), cy + radius * Math.sin(a)]
+    })
+    return [...ring, ring[0]]
+  }
+
+  it('finds the same point as testing each span, holes and parts included', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const outer = star(-120, 50, 0.05, 40 + seed, seed)
+      const hole = star(-120, 50, 0.012, 12, seed + 100, true)
+      const second = star(-119.8, 50.1, 0.03, 25, seed + 200)
+      const geometries: PolygonGeometry[] = [
+        { type: 'Polygon', coordinates: [outer] },
+        { type: 'Polygon', coordinates: [outer, hole] },
+        { type: 'MultiPolygon', coordinates: [[outer, hole], [second]] },
+      ]
+      for (const geometry of geometries) {
+        const point = polygonInteriorPoint(geometry)
+        expect(point).toEqual(tested(geometry))
+        expect(point && pointInPolygon(geometry, point.lng, point.lat)).toBe(true)
+      }
+    }
   })
 })

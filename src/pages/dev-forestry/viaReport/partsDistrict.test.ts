@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { terrainDetailNote } from '../figureFraming'
 import { findDocumentFormat } from '../viaDocument/formats'
 import { resolveViaDocument, type DocumentFacts, type DocumentViewpoint } from '../viaDocument/resolve'
 import { PERCENT_SCALES } from '../viaDocument/scales'
@@ -96,6 +97,16 @@ const fieldRows = (blocks: ReportBlock[]) => blocks.flatMap((b) => (b.kind === '
 const choices = (blocks: ReportBlock[]) => blocks.filter((b) => b.kind === 'choices')
 
 describe('the district summary table (02)', () => {
+  it('says beside the two figures why they part when the picture drew the blocks from far coarser cells', () => {
+    const note = terrainDetailNote({ drawnCellMeters: 97.7, runCellMeters: 12.2 })!
+    const far = { ...lakeshore, terrainNote: note }
+    const [, , one] = tables(build('district-summary-form', context('district-summary', [far])).blocks)
+    expect(one.kind === 'table' && one.note).toContain(`Lakeshore 3.10%. ${note}`)
+    // Several viewpoints: the note names its own.
+    const [, , two] = tables(build('district-summary-form', context('district-summary', [far, ridge])).blocks)
+    expect(two.kind === 'table' && two.note).toContain(`Lakeshore: ${note}`)
+    expect(two.kind === 'table' && two.note).not.toContain('Ridge Road: The map')
+  })
   it('prints rows 1-12 in the form’s order, filled from the district format', () => {
     const out = build('district-summary-form', context('district-summary'))
     const [inventory, lake, figures] = tables(out.blocks)
@@ -118,6 +129,8 @@ describe('the district summary table (02)', () => {
     expect(figures.kind === 'table' && figures.note).toContain(
       'The run’s sightline figures, the assessment’s: Lakeshore 3.10%',
     )
+    // No terrain note unless the picture drew the blocks far coarser than the run walked them.
+    expect(figures.kind === 'table' && figures.note).not.toContain('elevation cells')
     const rows = fieldRows(out.blocks)
     expect(rows.map((row) => row.label.split(' ')[0])).toEqual([
       'Licensee',
@@ -413,6 +426,58 @@ describe('the 2001 form parts (01, 03, 05)', () => {
     expect(kept).toContain('Block A keeps 20% of its area, about 2.0 ha, standing as retention.')
     expect(kept).toContain('In all, about 11.0 ha of the 40.0 ha proposed stays standing (28%).')
   })
+
+  it('states mapped reserves in clearcut blocks rather than saying no retention is recorded, and the islands agree', () => {
+    const reserved = context('form-2001-analysed-photos', [lakeshore], {
+      blocks: [
+        {
+          name: 'X1',
+          areaHa: 12,
+          system: 'Clearcut',
+          retentionPercent: null,
+          partialCut: null,
+          islands: 1,
+          reservesHa: 3.1,
+        },
+        {
+          name: 'X2',
+          areaHa: 30,
+          system: 'Clearcut',
+          retentionPercent: null,
+          partialCut: null,
+          islands: 2,
+          reservesHa: 9,
+        },
+        {
+          name: 'X3',
+          areaHa: 5,
+          system: 'Clearcut',
+          retentionPercent: null,
+          partialCut: null,
+          islands: 0,
+          reservesHa: 0,
+        },
+      ],
+    })
+    const prose = all(build('design-techniques-2001', reserved).blocks)
+    expect(prose).toContain(
+      'Mapped wildlife tree patches and reserves keep about 12.1 ha standing within Blocks X1 and X2 (3.1 ha in Block X1, 9.0 ha in Block X2); they are left out of the proposed alteration.',
+    )
+    expect(prose).toContain('The scene records no retention in Block X3;')
+    expect(prose).not.toContain('no retention in Blocks X1')
+    const islands = choices(build('design-questions-2001', reserved).blocks)[3]
+    expect(islands).toMatchObject({ chosen: 'Yes', source: 'scene' })
+    // Leave and net areas count the reserves; the operation area says what it includes.
+    expect(tables(build('block-areas-2001', reserved).blocks)[0]).toMatchObject({
+      rows: [
+        ['X1', '12.0', '3.1', '8.9'],
+        ['X2', '30.0', '9.0', '21.0'],
+        ['X3', '5.0', '', ''],
+        ['Total', '47.0', '', ''],
+      ],
+    })
+    expect(operationArea(reserved.blocks)).toContain('includes about 12.1 ha of mapped reserves)')
+  })
 })
 
 describe('the district and 2001 parts in a report', () => {
@@ -574,6 +639,25 @@ describe('the 2001 form templates from the reference comparison', () => {
     expect(
       tables(build('inventory', context('form-2001-analysed-photos', [lakeshore], { inventoryUnits: units })).blocks),
     ).toHaveLength(1)
+  })
+
+  it('print a block holding mapped reserves net of them, as 05 does, and say so', () => {
+    const ctx = context('form-2001-analysed-photos', [lakeshore], {
+      blocks: [
+        { name: 'X1', areaHa: 12.4, system: 'Clearcut', retentionPercent: null, partialCut: null, reservesHa: 4.4 },
+      ],
+      inventoryUnits: [{ ...units[1], blocks: { X1: 12.4 }, netBlocks: { X1: 8 } }],
+      recipeOptions: { inventoryByBlock: true },
+    })
+    const byBlock = tables(build('inventory', ctx).blocks).find(
+      (t) => t.kind === 'table' && t.title?.includes('by block'),
+    )
+    expect(byBlock).toMatchObject({ rows: [['Block X1: 8.0 ha', '382', '2', 'M', 'PR', 'PR']] })
+    expect(byBlock?.kind === 'table' && byBlock.note).toContain(
+      'Areas of Block X1 are net of mapped reserves (wildlife tree patches / retention).',
+    )
+    const project = tables(build('project-information', ctx).blocks)[0]
+    expect(project).toMatchObject({ rows: [['X1', '12.4', '382', 'PR', '4.4 ha reserves', '8.0', 'Clearcut']] })
   })
 
   it('fill the district summary’s row 1 from the units read, with their date', () => {

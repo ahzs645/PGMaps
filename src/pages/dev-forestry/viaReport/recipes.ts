@@ -216,6 +216,8 @@ export const REPORT_RECIPES: readonly ReportRecipe[] = [
     title: 'Visual Impact Assessment',
     sources: ['23'],
     format: 'perspective-report-gross',
+    // 23's appendix is the analysis sheets alone (A2 to A8), with no plain Perspective Viewpoint page before each.
+    options: { plainViewSheets: false },
     parts: withOverviewMap(CONSULTANT_RECIPE_PARTS['consultant-gross']),
     purpose: 'As the net-of-private report, on the gross landform with private land left standing.',
   },

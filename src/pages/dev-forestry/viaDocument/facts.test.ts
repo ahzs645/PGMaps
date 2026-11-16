@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { FIGURE_CLASS } from '@/lib/forestry/viaFigure/composeFigure'
+import { countClasses, FIGURE_CLASS } from '@/lib/forestry/viaFigure/composeFigure'
 
 import type { SavedFigure } from '../FigureSheetPanel'
 import { documentFacts, lensMmForHfov, offAxisDegrees, viewpointPlace } from './facts'
@@ -88,6 +88,45 @@ describe('document facts from saved views', () => {
       breakdown: null,
     })
     expect(panorama.viewpoints[0].lensMm).toBe(59)
+  })
+
+  it('carries why the pixel and sightline figures part only when the picture drew the blocks far coarser', () => {
+    const at = (terrainDetail?: SavedFigure['terrainDetail']) =>
+      documentFacts({
+        project: 'X',
+        objective: 'PR',
+        views: [{ name: 'p', figure: { ...figure(1), ...(terrainDetail ? { terrainDetail } : {}) } }],
+        assessmentStation: null,
+        review: null,
+        assessment: null,
+        breakdown: null,
+      }).viewpoints[0].terrainNote
+    expect(at({ drawnCellMeters: 97.7, runCellMeters: 12.2 })).toMatch(
+      /^The map draws the ground at the blocks from 98 m/,
+    )
+    expect(at({ drawnCellMeters: 24.4, runCellMeters: 12.2 })).toBeUndefined()
+    expect(at()).toBeUndefined()
+  })
+
+  it("names what the existing openings' green-up rests on for every view, and nothing when not given", () => {
+    const facts = (greenUp?: string | null) =>
+      documentFacts({
+        project: 'X',
+        objective: 'PR',
+        views: [
+          { name: 'a', figure: figure(1) },
+          { name: 'b', figure: figure(2) },
+        ],
+        assessmentStation: null,
+        review: null,
+        assessment: null,
+        breakdown: null,
+        ...(greenUp !== undefined ? { greenUp } : {}),
+      }).viewpoints.map((vp) => vp.greenUp)
+    const basis = 'supplied estimate for 2 of 5 openings, modelled for 3'
+    expect(facts(basis)).toEqual([basis, basis])
+    expect(facts(null)).toEqual([undefined, undefined])
+    expect(facts()).toEqual([undefined, undefined])
   })
 
   it("gives the reviewer's judgements to the assessment station's view only", () => {
@@ -358,5 +397,62 @@ describe('a partial cut in the document facts', () => {
     expect(a.printed?.percent).toBe('5.00')
     expect(a.printed?.percent).toBe(b.printed?.percent)
     expect(plain.areas).not.toHaveProperty('partialCut')
+  })
+})
+
+describe('other landforms a saved view counts', () => {
+  it('carries each one’s own areas, objective and blocks by the names the sheet prints', () => {
+    const counts = countClasses({ width: 10, height: 10, codes: figure(3).classes.codes })
+    const facts = documentFacts({
+      project: 'Block X1',
+      objective: 'PR',
+      views: [
+        {
+          name: 'a',
+          figure: {
+            ...figure(3),
+            landforms: [{ id: 'lf-1', name: 'Landform 1 (traced)', objective: 'R', counts, blocks: ['block-x1'] }],
+          },
+        },
+      ],
+      assessmentStation: null,
+      review: null,
+      assessment: null,
+      breakdown: null,
+    })
+    expect(facts.viewpoints[0].otherLandforms).toEqual([
+      {
+        landform: 'Landform 1 (traced)',
+        objective: 'R',
+        areas: { landform: 80, proposed: 4, nonVeg: 0, privateLand: 16, rock: 0 },
+        blocks: ['X1'],
+      },
+    ])
+  })
+
+  it('carries the blocks in the view’s own landform by the names the blocks take, absent on older views', () => {
+    const base = figure(3)
+    const viewOf = (over: Partial<typeof base>) =>
+      documentFacts({
+        project: 'Block X1',
+        objective: 'PR',
+        views: [{ name: 'a', figure: { ...base, ...over } }],
+        assessmentStation: null,
+        review: null,
+        assessment: null,
+        breakdown: null,
+      }).viewpoints[0]
+    const planned = {
+      blockId: 'block-p2',
+      title: 'Block P2 (S33, other planned)',
+      anchor: [0, 0] as [number, number],
+      status: 'not visible' as const,
+      visiblePercent: 0,
+    }
+    const read = viewOf({ landformBlocks: ['block-x1', 'block-p2'], hidden: [...(base.hidden ?? []), planned] })
+    expect(read.landformBlocks).toEqual(['X1', 'P2'])
+    // The same name the view's blocks take, so a landform's list matches them.
+    expect(read.blocks.map((b) => b.id)).toEqual(expect.arrayContaining(['X1', 'P2']))
+    expect('landformBlocks' in viewOf({})).toBe(false)
   })
 })

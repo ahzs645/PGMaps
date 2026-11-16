@@ -23,6 +23,7 @@ import {
 } from './externalRenderers'
 import { captureTransfer, type EngineCaptureRequest } from './engineCapture'
 import type { ScenePackage } from './scenePackage'
+import { ACCEPTS_PACKED_ARRAYS, engineAccepts, packScene } from './scenePosting'
 
 type Props = {
   renderer: Exclude<RoadRendererId, 'pgmaps'>
@@ -102,6 +103,17 @@ export function ExternalRoadRenderer({
     // A transfer list hands buffers over rather than copying them (a final capture's stand is tens of megabytes).
     const post = (data: unknown, transfer: Transferable[] = []) =>
       frameRef.current?.contentWindow?.postMessage(data, { targetOrigin: origin, transfer })
+    // What the engine page takes (its hello): one that takes packed arrays is handed the package's numbers as
+    // buffers, not copied number by number on this page's main thread (`scenePosting.ts`).
+    let accepts: unknown = null
+    const postScene = (scene: ScenePackage) => {
+      if (!engineAccepts(accepts, ACCEPTS_PACKED_ARRAYS)) {
+        post({ type: 'pgmaps-scene', scene })
+        return
+      }
+      const packed = packScene(scene)
+      post({ type: 'pgmaps-scene', scene: packed.scene, key: packed.key }, packed.transfer)
+    }
     const sendCamera = () => {
       const map = mapRef.current
       if (!map || !current || !listening) return
@@ -160,7 +172,7 @@ export function ExternalRoadRenderer({
       current = scene
       setPhase('building')
       sendEnvironment()
-      post({ type: 'pgmaps-scene', scene })
+      postScene(scene)
       sendCamera()
     }
     bridgeRef.current = { sendScene, sendEnvironment }
@@ -202,7 +214,7 @@ export function ExternalRoadRenderer({
         current = scene
         setPhase('building')
         sendEnvironment()
-        post({ type: 'pgmaps-scene', scene })
+        postScene(scene)
         sendCamera()
       })
     if (captureRef) captureRef.current = { renderer, label: info.label, capture }
@@ -219,6 +231,7 @@ export function ExternalRoadRenderer({
       const data = readEngineMessage(event.data)
       if (!data) return
       if (data.type === 'pgmaps-engine-hello') {
+        accepts = data.accepts
         listening = true
         sendScene()
       } else if (data.type === 'pgmaps-engine-ready') {

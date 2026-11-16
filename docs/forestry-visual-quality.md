@@ -479,10 +479,13 @@ cutblocks and the results report existing + proposed = cumulative.
   modelled", "Green-up field-confirmed 12 Nov 2026 by J. Smith", or "field-confirmed
   for 1 of 3 openings (…), modelled for 2": the Results tiles, step 4's line c,
   the Viewpoint summary's verdict note, the FS1252 appendix (which also lists
-  each checked opening's field and modelled shares) and the Markdown worksheet.
-  Those labels are read from the run's own input snapshot (`runGreenUpBasis`),
+  each checked opening's field and modelled shares), the Markdown worksheet and
+  each viewpoint's calculation in the VIA report ("Green-up of existing
+  openings"). Those labels are read from the run's own input snapshot (`runGreenUpBasis`),
   so they always describe the figure beside them; openings that reach no
-  landform sample are left out of the count.
+  landform sample are left out of the count. A supplied recovery estimate is
+  not a field check and not the green-up age, so the label names it apart:
+  "supplied estimate for 7 of 19 openings, modelled for 12" (`greenUpBasis`).
 - **A field check is a run input.** A complete check (share, date, observer)
   goes into `AnalysisInput` and the scene fingerprint, so completing or changing
   one stales the run — unlike `viaReview`. Its note does not, and neither does
@@ -2080,6 +2083,22 @@ field), the calculation strip as *Pixel figure, with drawn timber*, and 26's
 memo, whose visibility line adds it. Painting the blocks reads it as an engine's
 screened pass: no tree in front is painted over.
 
+**Against a consultant's pixel figure.** A Visual Nature Studio sheet counts
+pixels of a forest render, PGMaps' class pass the bare ground, and three things
+part them that no setting here closes (measured on the reference library,
+15 November 2026). The landform's top follows the canopy on its skyline, not the
+ground: at Gun Lake's West Gun Boat Launch the same traced landform covers about
+174 square degrees on the sheet and 130 in the pass, and the camera fitted to
+that sheet stands its skyline 34.5 m above the bare ground. The block is the net
+block: the form prints G106B at 77.4 ha net of wildlife tree patches against
+158.1 ha in FTEN, and until the reserves are entered as `retained` masks (step 3
+*Net block footprints*) both figures count the gross footprint, about twice the
+cleared ground. And timber in front and scattered single-tree retention screen
+the cut: at Nile Point (doc 22) the reference counts 1.70% of Landform 1b where
+the ground pass counts 11.9%, the with-timber figure 2.3% and a run with
+screening on 0%. Neither the sightline nor the pixel figure is adjusted toward
+the sheet; each line says what it measured.
+
 **Framing.** The figure is not the reviewer's road-view screenshot (that stays the
 block note's). At *Save viewpoint* the page reads, from the drive's exact pose
 over the DEM, the bearings and elevation angles of the landform ground the eye
@@ -2115,7 +2134,19 @@ an upscaled crop (a 515 px canvas had been blown up 2.33×, a pixel 12.6 m at
 its class pass; the size changes the drawing buffer only, never the camera or
 the tiles loaded. Callouts and lines are placed by a
 pinhole from the same eye (`projectToFrames`), which needs no map once the camera
-is restored. The sheet prints the lens, field and bearings. A very large landform seen
+is restored. The sheet prints the lens, field and bearings. Even at 75° the far
+ground is drawn coarse: at Argenta Beach (Marblehead VP4) everything past about
+1.5 km on the line to block 3, 10 km out, was drawn from the z10 DEM (98 m cells)
+while the run walks z13 (12 m). A 572 m knoll 2.6 km out was drawn at 554 m, so
+the picture showed block 3 whole where the run's sightlines saw 37% of it: a 7.0%
+pixel figure beside a 2.6% sightline figure. The run's own sightlines on the z10
+DEM give 6.5%, and earth curvature moves neither figure. So `captureFramed` also
+reads, at each frame's camera, the DEM zoom the map draws the seen blocks' ground
+from (`drawnDemZooms`: the drawn terrain tile there less its `deltaZoom`, as
+MapLibre picks the DEM tile behind it), and when that cell is at least
+`TERRAIN_DETAIL_NOTE_RATIO` (4) times the run's the view line, the report's figure
+caption and its calculation note say so in one sentence (`terrainDetailNote`).
+Neither figure is adjusted to the other. A very large landform seen
 as a thin, distant band (Tabor Mountain's 4,489 ha sample landform, 3–11 km out,
 takes two frames across 79°) would still leave the strip mostly sky, so after the
 capture the landform's rows in the class pass are kept with the view
@@ -2250,12 +2281,41 @@ calculation's net-of-rock figure is labelled as the preset's own.
 designer aids. They are drawn when a style defines them, cut in exports to where
 the class pass shows the landform (a nearer part of the same landform can still
 hide them unseen), and never adopted into the scene or fed into a number.
-Per-sub-landform figures, FWA creek barriers and the far-ridge rule
+FWA creek barriers and the far-ridge rule
 (`depthLayers`) are not ported: they need the prototype's own renderer
 (per-pixel ground position and distance), which MapLibre does not give. Callouts
 are drawn on the exported sheet only, not live on the road view. Lines of force are drawn without their arrowheads, live
 and in exports: a draped arrow needs an arrowhead icon in `icons.ts` and an
 end-only `LineMarker`.
+
+**A calculation per landform.** 23's sheets calculate every landform a viewpoint
+assesses side by side (A6, Sechelt Golf Club: Landform 1 (Full) 1.22%, Sub-landform
+1a 2.78%, 1b 0.93%). A saved view does the same for the scene's other
+`landscape` targets, the ones the reviewer adopted, never a divider or candidate:
+`captureFramed` takes one more class pass per frame for each (`landformPasses`,
+the same layers split at that landform by `classPassLayers`, at most
+`MAX_LANDFORM_PASSES`), decoded and tallied as the landform's own, and the view
+keeps each one it sees as `SavedFigure.landforms` (counts, objective, the blocks
+with ground in it, `blocksInLandform`). The analysis sheet then prints a column
+per landform with alteration in it (`calcColumns`, ordered by number, the whole
+landform beside its sub-landforms as "1 (Full)"), each through the figure's rule,
+and names a landform seen with none once ("Also seen, no alteration in it"); the
+sightline figure stays the active landform's and says so. The sheet also outlines
+every landform it calculates, as A6 and A7 outline Landform 1 and Sub-landforms 1a,
+1b and 1c: each reading keeps its pass traced (`traceLandform`: the visible outline
+in frame pixels and a name place deep inside it, a few hundred points rather than
+the pass's code per pixel), drawn in the style's `otherLandform` symbol under the
+landform's own line (dashed in the magenta and purple styles, as 23 p19 dashes its
+sub-landforms; solid in the orange, as 22 p66 outlines 7a, 7b and 8 alike; not
+drawn in styles without one, and no legend row) and named in the landform label
+style through `labelOps` (an `inside` label). A name with no clear place nearby,
+or the whole landform's beside its own sub-landforms, is left out. The report gives each a
+Table 2 row and counts it, gives Table 4 a row per landform with alteration and per
+sub-landform seen without (N/A, as 23 prints 1c), and closes Table 5's key
+viewpoint with each landform holding proposed ground, sub-landforms first, then
+"Overall Landform 1". The reviewer's terms stay the active landform's. A scene
+with one landform, a view saved against another landform than the open scene's,
+and an engine's figure (one class pass) print exactly as before.
 
 **Toolkit follow-up.** An opt-in `pattern` prop on the toolkit's `MapFillLayer`
 (`ahzs645/geo-toolkit`, `map/layers/fill.tsx`), fed by `keepSymbolImages`, would
@@ -2536,8 +2596,13 @@ location and regional maps beside *Before project* and *After project*),
 photo / simulation pairs, and overhead renders; a missing picture prints a
 placeholder and is listed to complete. The plain simulation carries where each
 block lies in it (`ReportFigure.marks`, the callouts' anchors): 26's figure page
-rings a block that is only glimpsed or not seen, and a photo / simulation pair
-points an arrow and label at every block, never an outline. 06's viewpoint
+and a photo / simulation pair point an arrow and label at every block seen and
+ring one that is only glimpsed or not seen, never an outline, so the figure marks
+each block the memo's text counts in view. The names sit in one
+row inside the shown picture (a panorama's band), in the blocks' left-to-right
+order with a leader to each mark (`viaReport/blockMarks.ts`, over `rowPlacement`):
+wrapped onto two lines, then shrunk, then cut, and only then does the least-seen
+block's name give way. 06's viewpoint
 pages and 21's comparison carry each viewpoint's location map as an inset. 26's
 memo says which viewpoints were simulated (the run found a line of sight) and
 which have none, and how much of the blocks' ground standing timber hides from
@@ -2557,7 +2622,9 @@ apex and a small north arrow at the top right: no legend, scale bar, VQO
 hatching or viewpoint name. Its regional map is the plan's vector map at
 `FIGURE_REGIONAL_SCALE` (1:400,000 printed `FIGURE_PAGE_MAP_WIDTH_IN` wide;
 farther out only when the project would not fit), with the project's ground
-outlined and the viewpoints starred. Positron draws roads near-white on
+outlined and the viewpoint starred: with several viewpoints the one capture is
+drawn again for each page starring only its own (`regionalForViewpoint`,
+`figurePageMaps.regionalFor`), as 26's Figures 2 and 3 each star theirs. Positron draws roads near-white on
 near-white, so while that map alone is captured the basemap takes a road-map
 look (`figureRegionalLook`, colours in `VIA_FIGURE_MAP.regional`): motorway to
 secondary highways orange from zoom 8, place and water names dark on a white
@@ -2611,6 +2678,16 @@ sheets' `styles.ts`, listed in the symbol catalogue's *VIA overview end map*
 group. The report prints it full-size on an 11 × 17 portrait page with no
 margins (`figure.sheet.portrait` in `viaReport/html.ts`).
 
+**Appendix 1 on one page.** Each viewpoint's Appendix 1 is one `form` block
+(`appendixForm` in `parts.ts`, drawn by `html.ts`): ruled sections under shaded
+title bars, the office and field sections side by side as the handbook prints
+them (3.1.1 beside 3.1.3, 3.2.1 beside 3.2.2, Tables 4 and 5, the rating beside
+the sign-off), the scales and Table 3 across the page, so each form fills one
+legal page. A table or scale whose title the section bar already prints is not
+titled again. The note on what the forms hold runs on after the sign-off. Code
+that reads a report's content rather than its layout opens forms with
+`flatBlocks` (`model.ts`).
+
 **Scales, matrices and forms.** The P-MM scale and the Appendix 1 bar draw as
 the forms print them: an axis with ticks, class labels above, a red arrow at the
 reading (`htmlScales.ts`), the P-MM arrow across the page's full width. 01's
@@ -2637,8 +2714,12 @@ than 7.0 percent alteration …"; the others are the reviewer's), then who
 completed it and the signature with the certification statement. 05's recipe
 uses it in place of the plain summary and the separate certification. A recipe
 with `options.figurePanorama` (26) shows its before and after renders as a band
-at least that many times as wide as tall round the landform's rows
-(`ReportFigure.landformRows`, `panoramaBand`), drawn by the report itself (the
+that many times as wide as tall round the landform's rows
+(`ReportFigure.landformRows`, `panoramaBand`), moved only as far as it must to
+keep every block the after picture marks whole with room for its label
+(`markRows`; the before picture takes the after's band). A landform taller than
+the band is cut rather than the panorama narrowed; only marks spread over more
+rows than the aspect allows make it taller. It is drawn by the report itself (the
 picture covers a box of the band's shape), so the view's framing, the pictures
 and every figure stay unchanged; a field photograph keeps its own framing. The 2001 forms (`partsDistrict.ts`) carry their own header, block areas
 (gross, leave, net), the criteria rating per viewpoint, the five-question
@@ -2685,7 +2766,8 @@ What the consultant reports (22, 23) fill since the same comparison:
 - **The appendix.** The viewpoint map is A1; each viewpoint then has its lined-up field photograph when there is one,
   a *Perspective Viewpoint* page (the plain simulation, `ReportImages.after`) and its *Perspective Viewpoint
   Analysis* sheet, numbered in Table 3's order (`appendixEntries`, `appendix-sheets`, listed by `appendix-list`).
-  The text cites those numbers.
+  The text cites those numbers. The photograph and plain pages print on 11 × 17 pages like the sheets, each with its
+  heading on the page, as 22 prints them; 23 prints the analysis sheets alone (`plainViewSheets: false`).
 - **Sign-off.** Both reports print the certification statements the 2001 forms carry, naming no association.
 
 **The logo.** Printed sheets and reports carry the user's own PNG or JPEG,
@@ -2719,6 +2801,21 @@ and cropped as it was saved, in its before render as in its engine render,
 never on the open scene's frame. The engine draws from the road view's terrain,
 so the road view must be open with its terrain loaded; the dialog says so
 otherwise.
+
+**A before/after pair is drawn by one renderer.** When an engine draws the VIA
+report's figures, each view's before picture is that engine's render too: a
+second background job per view (`RenderJob.phase: 'before'`) draws the same
+saved view, framed as its figure, with the scene package and the frame's stand
+built before harvest (`forestFor`, which builds either phase without moving the
+road view; the engines draw what the package holds and need no change). Only
+the report waits for these (`rendererMissing`); the sheet and the document
+print no before picture. `reportPairs.ts` chooses the pair: the engine's before
+beside the engine's after; a lined-up field photograph beside either; and when
+the engine has no before picture (its render failed, or the view has no pose),
+PGMaps' before beside PGMaps' own after, with a note under the simulation saying
+why. A report never pairs PGMaps' before with an engine's after. Each view's
+engine render, the figure as the before, is drawn in the harvest phase the view
+was saved in, not the road view's current one.
 
 **The engine page** runs in that small frame rather than hidden, because a
 browser stops drawing a frame it cannot see, and on a site of its own
@@ -2790,6 +2887,47 @@ error), which is how a view drawn twice is told from one drawn slowly. The
 basemap's water is read until the plan's tiles have loaded even when the road
 view opens first (`BasemapContextProbe`): opened straight after an import, the
 road view and every package sent to an engine kept an empty water list.
+
+**After the engines' own speed-ups** (the same day, the same request, in the
+engines' PGMaps examples only): a package that arrives again keeps the scene
+already built (worldgen ready in 0.3 s for 2.2 s; Nanite Forest 1.1-1.7 s for
+5.5-6.6 s, most of the rest the browser unpacking the 28 MB package) and, with
+the same stand, its placed final stand. worldgen adds its samples up on the GPU
+and reads back once (19 ms a sample for 65-80 ms), and its first capture takes
+2.5-2.7 s for 3.9-4.0 s. Nanite Forest's first capture takes 5.6-6.2 s for
+8.7-10.2 s: class rasters 0.3 s for 1.7 s (1-2 ms when the layers repeat), an
+impostor bake that makes its mipmaps once, a worker pool and a browser cache of
+grown trees (`&treecache=0` turns it off), a cheaper shore texture and snags.
+The class, zone and depth rasters were byte-identical before and after;
+Nanite Forest's screened pass already moved by 9-39 of 6.6 M pixels between two
+runs of the same request, before any change. Through PGMaps on a busy machine
+one view then read 15-18 s for worldgen and 16-24 s for Nanite Forest (it was
+27-28 s), which is what `PRIOR_RATES` now holds.
+
+**How a package crosses to the engine** (`scenePosting.ts`): posted as it is, a
+capture's package cost about a second of copying, number by number, on this
+page's main thread and again in the engine's. An engine now lists what it
+takes in its hello (`accepts`). To one that lists `packed-arrays`, `packScene`
+sends each long numeric array as a `Float64Array` (the same doubles, NaN for
+null) and hands its buffer over; the engine turns them back into the arrays it
+reads, so it builds the scene the plain package builds (class, zone, screened
+and depth rasters byte-identical on worldgen and on a fresh Nanite Forest
+page). Packing takes 50-70 ms; scene to ready fell from 5.8 s to 4.9 s on
+Nanite Forest and from 6.2 s to 5.4 s on worldgen. The same pass gives the
+package a content key (everything but `createdAt`). To an engine that lists
+`scene-keys`, a page that still holds that package is sent the key alone and
+is ready in about 0.1 s; one that does not hold it answers
+`pgmaps-engine-scene-needed` and gets the package whole. An engine that lists
+neither gets the plain package, as before. With both, one view through PGMaps
+read 12-17 s for worldgen and 13-15 s for Nanite Forest. Nanite Forest's
+browser cache of grown trees is now off unless its URL carries `&treecache=1`
+(it held about 120 MB a scene in every browser profile for about a second of
+a cold page), and a page opened without it deletes what was stored. View
+options → *Nanite trees* is that switch for a person: *Kept in this browser*
+puts `treecache=1` on the engine's address for the road view and for
+background renders (`roadRendererUrl`'s third argument), and the choice lives
+in the browser's storage (`engineBrowserOptions.ts`), never in a scene: it is
+about this computer's disk, not the assessment.
 
 ## Evidence for the defaults (November 2026 accuracy study)
 

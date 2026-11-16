@@ -128,10 +128,14 @@ export function clearingWidthForRoadClass(roadClass: string | null): number {
 }
 
 /**
- * The OpenMapTiles layers that name places: settlements and islands (`place`), lakes, bays and inlets (`water_name`)
- * and summits (`mountain_peak`). A VIA report places its blocks by them ("6.5 km north of the town").
+ * The vector layers that name places, in both schemas the plan's basemap has used. OpenMapTiles: settlements and
+ * islands (`place`), lakes, bays and inlets (`water_name`) and summits (`mountain_peak`). The Protomaps schema CARTO's
+ * positron now serves: settlements (`places`, `kind` locality with a `kind_detail` of hamlet, village, town or city),
+ * lake labels as points (`water`, and `pois` with `kind` water at smaller zooms) and summits (`pois`, `kind` peak).
+ * A VIA report places its blocks by them ("6.5 km north of the town").
  */
-export const PLACE_SOURCE_LAYERS = ['place', 'water_name', 'mountain_peak'] as const
+export const PLACE_SOURCE_LAYERS = ['place', 'water_name', 'mountain_peak', 'places', 'pois', 'water'] as const
+export type PlaceSourceLayer = (typeof PLACE_SOURCE_LAYERS)[number]
 
 export type PlaceKind = 'settlement' | 'water' | 'peak' | 'island' | 'other'
 
@@ -139,8 +143,29 @@ export type PlaceKind = 'settlement' | 'water' | 'peak' | 'island' | 'other'
 export type PlaceLabel = { name: string; kind: PlaceKind; lngLat: [number, number] }
 
 /** Place classes too large to place a block by (a province, a country). */
-const REGION_CLASSES = new Set(['continent', 'country', 'state', 'province', 'county', 'region'])
-const SETTLEMENT_CLASSES = new Set(['city', 'town', 'village', 'hamlet', 'suburb', 'neighbourhood', 'quarter'])
+const REGION_CLASSES = new Set([
+  'continent',
+  'country',
+  'state',
+  'province',
+  'county',
+  'region',
+  'macroregion',
+  'macrohood',
+])
+const SETTLEMENT_CLASSES = new Set([
+  'city',
+  'town',
+  'village',
+  'hamlet',
+  'suburb',
+  'neighbourhood',
+  'quarter',
+  'locality',
+  'isolated_dwelling',
+])
+/** Protomaps `pois` kinds that name a summit. */
+const PEAK_KINDS = new Set(['peak', 'volcano'])
 
 function labelPoint(geometry: GeoJSON.Geometry): [number, number] | null {
   if (geometry.type === 'Point') return [geometry.coordinates[0], geometry.coordinates[1]]
@@ -160,13 +185,41 @@ function labelPoint(geometry: GeoJSON.Geometry): [number, number] | null {
   return null
 }
 
+/** What a feature of `sourceLayer` names, or null when it names nothing a report places blocks by. */
+function placeKind(sourceLayer: PlaceSourceLayer, props: Record<string, unknown>, geometry: GeoJSON.Geometry) {
+  const cls = String(props.class ?? '').toLowerCase()
+  const kind = String(props.kind ?? '').toLowerCase()
+  const detail = String(props.kind_detail ?? '').toLowerCase()
+  switch (sourceLayer) {
+    case 'water_name':
+      return 'water'
+    case 'mountain_peak':
+      return 'peak'
+    case 'place':
+      if (REGION_CLASSES.has(cls)) return null
+      return SETTLEMENT_CLASSES.has(cls) ? 'settlement' : cls === 'island' || cls === 'islet' ? 'island' : 'other'
+    case 'places':
+      if (REGION_CLASSES.has(kind) || REGION_CLASSES.has(detail)) return null
+      return SETTLEMENT_CLASSES.has(kind) || SETTLEMENT_CLASSES.has(detail)
+        ? 'settlement'
+        : kind === 'island' || detail === 'island' || detail === 'islet'
+          ? 'island'
+          : 'other'
+    case 'pois':
+      return kind === 'water' ? 'water' : PEAK_KINDS.has(kind) ? 'peak' : null
+    case 'water':
+      // Only the lake labels (points): the layer's polygons are the water itself and its lines are rivers.
+      return geometry.type === 'Point' ? 'water' : null
+  }
+}
+
 /**
  * Named places from one source layer's features, once each by name and kind (tiles repeat a label at their edges).
  * The English name is preferred where the tiles carry one.
  */
 export function placesFromFeatures(
   features: ReadonlyArray<GeoJSON.Feature | null | undefined>,
-  sourceLayer: (typeof PLACE_SOURCE_LAYERS)[number],
+  sourceLayer: PlaceSourceLayer,
 ): PlaceLabel[] {
   const out = new Map<string, PlaceLabel>()
   for (const feature of features) {
@@ -174,18 +227,8 @@ export function placesFromFeatures(
     const props = feature.properties ?? {}
     const name = String(props['name:en'] ?? props.name_en ?? props.name ?? '').trim()
     if (!name) continue
-    const cls = String(props.class ?? '').toLowerCase()
-    if (sourceLayer === 'place' && REGION_CLASSES.has(cls)) continue
-    const kind: PlaceKind =
-      sourceLayer === 'water_name'
-        ? 'water'
-        : sourceLayer === 'mountain_peak'
-          ? 'peak'
-          : SETTLEMENT_CLASSES.has(cls)
-            ? 'settlement'
-            : cls === 'island' || cls === 'islet'
-              ? 'island'
-              : 'other'
+    const kind = placeKind(sourceLayer, props, feature.geometry)
+    if (!kind) continue
     const at = labelPoint(feature.geometry)
     if (!at) continue
     const key = `${kind}|${name}`
@@ -202,9 +245,7 @@ export function collectPlacesFromMap(map: BasemapQueryMap): PlaceLabel[] {
       layers
         .filter((layer) => layer.source && layer['source-layer'])
         .filter((layer) =>
-          [...PLACE_SOURCE_LAYERS, WATER_SOURCE_LAYER].includes(
-            layer['source-layer'] as (typeof PLACE_SOURCE_LAYERS)[number],
-          ),
+          [...PLACE_SOURCE_LAYERS, WATER_SOURCE_LAYER].includes(layer['source-layer'] as PlaceSourceLayer),
         )
         .map((layer) => layer.source!),
     ),

@@ -60,10 +60,15 @@ export const WARM_RENDERS: Record<RenderEngineId, number> = { worldgen: 4, nanit
  *   the stand with its impostor atlas, rasterising the class layers and its passes (9 s);
  * - a render of one megapixel: worldgen 65 ms a sample at 6.6 megapixels, Nanite Forest 41 ms.
  * The earlier priors (800-1,100 ms a megapixel-render) read a first render as about 3 min when it took 25 s.
+ *
+ * Later the same day both engines were made faster (worldgen adds its samples up on the GPU, 19 ms a sample; both
+ * keep a scene that arrives again; Nanite Forest's class rasters, impostor bake and tree growth are cheaper), and
+ * the priors follow the runs after it: scene 7-11 s through PGMaps on a busy machine (engine build 3.7 s and
+ * 4.4-6.4 s); a frame's fixed cost 2-3 s for worldgen and 3.5-5 s for Nanite Forest with a new stand.
  */
 export const PRIOR_RATES: Record<RenderEngineId, Rates> = {
-  worldgen: { startMs: 1_000, sceneMs: 14_000, renderMsPerMegapixel: 10, frameMs: 3_000, composeMs: 1_500 },
-  nanite: { startMs: 1_000, sceneMs: 15_000, renderMsPerMegapixel: 6.5, frameMs: 9_000, composeMs: 1_500 },
+  worldgen: { startMs: 1_000, sceneMs: 9_000, renderMsPerMegapixel: 3, frameMs: 3_000, composeMs: 1_500 },
+  nanite: { startMs: 1_000, sceneMs: 9_000, renderMsPerMegapixel: 6.5, frameMs: 5_000, composeMs: 1_500 },
 }
 
 /** Renders kept per engine, newest last. */
@@ -179,6 +184,25 @@ export function remainingMs(estimate: RenderEstimate, progress: RenderProgress):
 /** Remaining time for a queue: the running render's, then each waiting one's whole estimate. */
 export function queueRemainingMs(running: number | null, waiting: readonly RenderEstimate[]): number {
   return (running ?? 0) + waiting.reduce((sum, estimate) => sum + estimate.totalMs, 0)
+}
+
+/**
+ * What the renders an export still owes would add after the queue, before it has asked for them: each job not already
+ * waiting or running (`queued`, by key), the first of them cold when the engine is not running anything. A VIA report
+ * passes its figures and its before pictures together, the other outputs their figures alone.
+ */
+export function notQueuedMs(
+  jobs: ReadonlyArray<{ key: string; engine: RenderEngineId; work: RenderWork }>,
+  queued: ReadonlySet<string>,
+  history: RenderHistory,
+  engineRunning: boolean,
+): number {
+  return jobs
+    .filter((job) => !queued.has(job.key))
+    .reduce(
+      (sum, job, index) => sum + estimateRender(job.engine, job.work, history, index === 0 && !engineRunning).totalMs,
+      0,
+    )
 }
 
 /** A remaining time as people say it: "about 40 s", "about 2 min", "under 10 s". */

@@ -54,8 +54,8 @@ export type ViewpointPage = {
   bearingDegrees: number | null
   /** The road view as saved. */
   simulation: NoteImage
-  /** The lined-up field photograph from the same eye, where one was showing. */
-  photo: NoteImage | null
+  /** The lined-up field photograph from the same eye, where one was showing, with its date when it carried one. */
+  photo: (NoteImage & { takenOn?: string | null }) | null
   /** What produced the simulation: eye height, lens, timber, shading and so on. */
   settings: Array<{ label: string; value: string }>
 }

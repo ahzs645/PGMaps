@@ -27,6 +27,7 @@ export type { LeaderStyle }
 /** What a symbol stands for in a VIA figure. Each preset maps the roles it draws to symbols. */
 export type ViaRole =
   | 'landform'
+  | 'otherLandform'
   | 'subLandform'
   | 'vsuLine'
   | 'proposedBlock'
@@ -109,6 +110,13 @@ export interface CalcBlockStyle {
    * `{totalPct}`, the parts' percents, `{netPx}` and `{class}` all come from it, never from the wording of a line.
    */
   rule?: AlterationRule
+  /**
+   * The source's words for its own rule's denominator (`{denominatorName}`: "VSU", "(LF - PL)") and for what that rule
+   * takes out (`{deductedName}`: "Rock and Private Land"). A figure handed another rule (`FigureInput.rule`) prints
+   * the landform less what that rule takes out instead.
+   */
+  denominator?: string
+  deducted?: string
   footnote?: TextStyle & { text: string }
 }
 
@@ -295,16 +303,20 @@ const A_BADGE: ViaStylePreset['vsuBadge'] = {
 
 const A_CALC = (denominator: string, rule: AlterationRule): CalcBlockStyle => ({
   rule,
+  denominator,
   title: { text: 'Percent Alteration Calculation', size: 9.84, style: 'bold', color: BLACK },
   line: { size: 9.84, color: BLACK },
   emphasis: { size: 9.84, style: 'bold', color: BLACK },
   align: 'left',
   lines: [
     'Area of Landform {n} = {landformPx}',
+    // Printed only when the figure's rule takes ground out of the landform (the sources' own rules take none).
+    'Less {deductedName} = {deductedPx}',
+    'Net Landform {n} = {netLandformPx}',
     'Area of NonVEG Blocks = {nonVegPx} ({nonVegPct}%)',
     'Area of Proposed Blocks = {proposedPx} ({proposedPct}%)',
     '**Total % Alteration:',
-    `**(NonVEG + Proposed Blocks) / ${denominator} = {totalPct}%*`,
+    '**(NonVEG + Proposed Blocks) / {denominatorName} = {totalPct}%*',
   ],
   footnote: { text: '*Units of area measured in pixels', size: 6.96, color: BLACK },
 })
@@ -318,6 +330,16 @@ const A_LEGEND = (order: LegendStyle['order'], footnote?: LegendStyle['footnote'
   rowPitch: 20.6,
   order,
   ...(footnote ? { footnote } : {}),
+})
+
+/** Where the other landforms' outlines come from, for every style that draws them. */
+const OTHER_LANDFORM_SOURCE =
+  "The scene's other landscape targets the view sees (sub-landforms, or the whole landform beside an active sub-landform), each traced from its own class pass of the same frames"
+/** Another landform's outline, dashed as 23 p19 dashes its sub-landforms: the landform's colour and width. */
+const OTHER_LANDFORM_DASHED = (color: string, where: string): Entry => ({
+  symbol: outlineArea('Sub-landform', color, 0.96, { dash: [9.8, 4.1] }),
+  spec: `${color} 0.96 pt, dashes 9.8 on / 4.1 off (23 p19 drawings 0-25). ${where}. No legend row: 23 lists only the landform`,
+  data: { source: OTHER_LANDFORM_SOURCE },
 })
 
 const PROPOSED_BLOCK_A: Entry = {
@@ -343,6 +365,10 @@ export const ANALYSIS_SHEET_MAGENTA: ViaStylePreset = {
       spec: '#c500ff 0.96 pt, solid, round caps and joins (03 p1 drawing 1, 74 segments). Reads magenta on the render; it is the same violet as 23. 0.107 % of the 900 pt image width',
       data: { source: 'Landform (role "landscape"), visible part' },
     },
+    otherLandform: OTHER_LANDFORM_DASHED(
+      '#c500ff',
+      '03 p1 shows one landform; drawn as 23 p19 draws its sub-landforms',
+    ),
     vsuLine: {
       symbol: outlineArea('VSU', '#e60000', 0.96, { dash: [6, 4.1], cap: 'butt', join: 'miter' }),
       spec: '#e60000 0.96 pt dashed 6.0 on / 4.1 off, butt caps (03 p1 legend, drawings 13–22)',
@@ -387,6 +413,11 @@ export const ANALYSIS_SHEET_ORANGE: ViaStylePreset = {
       symbol: outlineArea('Landform', '#e69800', 0.96),
       spec: '#e69800 0.96 pt, solid, round caps/joins (22 p27 drawing 0, p40 drawing 1). 0.088 % of the 1086 pt strip width',
       data: { source: 'Landform (role "landscape"), visible part' },
+    },
+    otherLandform: {
+      symbol: outlineArea('Landform', '#e69800', 0.96),
+      spec: 'The same #e69800 0.96 pt solid line as the landform: 22 p66 (Appendix A 44, Ruby Lake 4) outlines Landforms 7a, 7b and 8 alike, each labelled with its number',
+      data: { source: OTHER_LANDFORM_SOURCE },
     },
     proposedBlock: PROPOSED_BLOCK_A,
     existingNonVeg: NONVEG_A,
@@ -461,6 +492,10 @@ export const ANALYSIS_SHEET_PURPLE: ViaStylePreset = {
       spec: '#c500ff 0.96 pt solid (23 legend drawing 16; on the image it is burned into the render)',
       data: { source: 'Landform (role "landscape"), visible part' },
     },
+    otherLandform: OTHER_LANDFORM_DASHED(
+      '#c500ff',
+      '23 p19 (A6) outlines Landform 1 solid and draws Sub-landforms 1a, 1b and 1c dashed inside it, each labelled "Landform 1a" in the landform label style; 23 p20 (A7) draws them solid',
+    ),
     subLandform: {
       symbol: line('Sub-landform', '#c500ff', 0.96, { dash: [9.8, 4.1] }),
       spec: '#c500ff 0.96 pt, dashes ≈ 9.8 on / 4.1 off as separate strokes (23 p19 drawings 0–25)',
@@ -510,12 +545,13 @@ export const ANALYSIS_SHEET_PURPLE: ViaStylePreset = {
 /** Calculations block under the three panels (07 p3 text: Arial 12, colour #0d0d0d, centred). */
 const B_CALC = (rule: AlterationRule, deducted: string): CalcBlockStyle => ({
   rule,
+  deducted,
   title: { text: 'Calculations', size: 12, style: 'bold', color: '#0d0d0d', underline: { width: 0.8 } },
   line: { size: 12, color: '#0d0d0d' },
   align: 'center',
   lines: [
     'VLU= {landformPx} px',
-    `${deducted}= {deductedPx} px`,
+    '{deductedName}= {deductedPx} px',
     'Net VLU= {netPx} px',
     'Proposed Development= {proposedPx} px',
     'Existing Non-Veg State= {nonVegPx} px',
@@ -1280,6 +1316,7 @@ export const findPreset = (id: string | null | undefined): ViaStylePreset | null
 /** What each role is called wherever PGMaps lists it, independent of any preset's legend wording. */
 export const ROLE_NAMES: Record<ViaRole, string> = {
   landform: 'Landform',
+  otherLandform: 'Other landform or sub-landform calculated',
   subLandform: 'Sub-landform divider',
   vsuLine: 'Visual sensitivity unit boundary',
   proposedBlock: 'Proposed block',

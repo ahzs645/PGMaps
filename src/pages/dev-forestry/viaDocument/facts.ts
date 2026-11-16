@@ -9,6 +9,7 @@ import { countClasses, type FigureCounts } from '@/lib/forestry/viaFigure/compos
 import { TIMBER_ABSENT, type TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 
 import type { SavedFigure } from '../FigureSheetPanel'
+import { terrainDetailNote } from '../figureFraming'
 import type { AlterationBreakdown } from '../types'
 import type { DesignElementId, ViaAssessment, ViaReview, ViewpointRecord, Visibleness } from '../via'
 import {
@@ -167,6 +168,8 @@ export function documentFacts(input: {
   otherPlanned?: readonly string[]
   /** Whether the run counted standing timber as screening (`settings.screeningEnabled`). */
   screeningModelled?: boolean
+  /** What the run's existing openings' green-up rests on (`runGreenUpBasis(result).label`), when there is a run. */
+  greenUp?: string | null
 }): DocumentFacts {
   const otherPlanned = new Set(input.otherPlanned ?? [])
   const placeOf = (view: FactsView) => view.figure.place || viewpointPlace(view.figure.viewpoint) || view.name
@@ -178,10 +181,20 @@ export function documentFacts(input: {
     const partialCuts = new Set((figure.partialCuts ?? []).map((cut) => cut.id))
     const atAssessment = input.assessmentStation !== null && figure.stationIndex === input.assessmentStation
     const objective = input.objective ?? ((figure.rating?.vqo as ClassCode | undefined) || null)
+    // Why the picture's pixel figure and the run's sightline figure can part (the map drew the blocks coarser).
+    const terrainNote = terrainDetailNote(figure.terrainDetail ?? null)
     // Table 3 is given per view; the step 4 judgements only at the assessment station.
     const review: ViewpointReview = {
       ...tableThree(input.review?.viewpointRecords?.[view.name]),
       ...(atAssessment ? reviewAt(input.review, input.assessment) : {}),
+    }
+    // A block id as `blocks` names it: the name the sheet prints, an other planned block's without its note.
+    const blockName = (id: string) => {
+      const title =
+        [...figure.callouts, ...(figure.hidden ?? [])]
+          .find((callout) => callout.blockId === id)
+          ?.title.replace(/^Block\s+/, '') || id
+      return otherPlannedName(title)?.id ?? title
     }
     return {
       // Several views on one road share its name: the sheet's "place, km along" line tells them apart.
@@ -193,8 +206,27 @@ export function documentFacts(input: {
       objective,
       inventory: figure.rating ?? null,
       areas: areasOf(counts),
+      // The scene's other landforms the view sees, each from its own class pass; blocks by the names the sheet prints.
+      ...(figure.landforms?.length
+        ? {
+            // In name order ("Landform 1" before "Landform 1b"), whatever order the scene holds them in.
+            otherLandforms: [...figure.landforms]
+              .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+              .map((entry) => ({
+                landform: entry.name,
+                objective: (entry.objective as ClassCode | null) ?? null,
+                areas: areasOf(entry.counts),
+                blocks: entry.blocks.map(blockName),
+              })),
+          }
+        : {}),
+      // The blocks with ground in the view's own landform; absent on views saved before it was recorded.
+      ...(figure.landformBlocks ? { landformBlocks: figure.landformBlocks.map(blockName) } : {}),
       withTimber: withTimberOf(view),
       sightlinePercent: figure.sightlinePercent,
+      ...(terrainNote ? { terrainNote } : {}),
+      // The scene's green-up readings decide which openings the class pass paints, so every view names the same basis.
+      ...(input.greenUp ? { greenUp: input.greenUp } : {}),
       distanceKm: figure.distanceKm,
       hfovDeg: figure.hfovDeg,
       // A panorama's lens is one frame's, never the whole span's (three 59 mm frames are not a 15 mm lens).

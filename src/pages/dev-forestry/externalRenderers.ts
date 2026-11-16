@@ -7,15 +7,19 @@
  * the camera, the analysis, every figure, saved views and exported images are PGMaps' own. The engine draws only.
  *
  * Message protocol (`pgmaps-engine` v1), parent → engine:
- * - `{ type: 'pgmaps-scene', scene }`: a whole scene package; replaces whatever the engine drew.
+ * - `{ type: 'pgmaps-scene', scene, key? }`: a whole scene package; replaces whatever the engine drew. To an engine
+ *   whose hello lists `packed-arrays`, the package's long numeric arrays are `Float64Array`s (NaN for null) and
+ *   their buffers are handed over (`scenePosting.ts`); `key` is the package's content key. To one that lists
+ *   `scene-keys`, `{ type: 'pgmaps-scene', key }` alone means the package it still draws under that key, and it
+ *   answers `{ type: 'pgmaps-engine-scene-needed', key }` when it does not: the package is then sent whole.
  * - `{ type: 'pgmaps-camera', position, bearingDegrees, pitchDegrees, verticalFovDegrees }`: the eye in the
  *   current package's local metres (x east, y north, z up, absolute height), as the package's own `camera`.
  * - `{ type: 'pgmaps-environment', dateTime, utc, timeZone, latitude, longitude, sun, sunPosition, ground,
  *   weather, cloudCover, visibilityKm }`: the light
  *   and weather to draw, from View options (`engineEnvironment`), the time read on the site's clock. Kept across new
  *   packages; changing it never rebuilds the stand.
- * Engine → parent: `{ type: 'pgmaps-engine-hello', engine }` once it listens (the parent then sends the scene and
- * the camera), `{ type: 'pgmaps-engine-ready', engine }` once drawing a scene, `{ type: 'pgmaps-engine-stats', … }`
+ * Engine → parent: `{ type: 'pgmaps-engine-hello', engine, accepts? }` once it listens (the parent then sends the
+ * scene and the camera; `accepts` lists what it takes beyond the plain protocol), `{ type: 'pgmaps-engine-ready', engine }` once drawing a scene, `{ type: 'pgmaps-engine-stats', … }`
  * now and then (with `sun`: the elevation and azimuth asked for and those the light was drawn from), `{ type: 'pgmaps-engine-error', message }` on a failure.
  *
  * The adapters live outside the app (`docs/forestry-visual-tools-trial/engines/`). DOM-free and network-free.
@@ -80,12 +84,51 @@ export function roadRendererInfo(id: RoadRendererId): RoadRendererInfo {
  * Where an engine's page is, from the build's environment: its variable when set, its dev server in
  * development, otherwise nowhere (the option is then unavailable and says why).
  */
-export function roadRendererUrl(id: RoadRendererId, env: { DEV?: boolean; [key: string]: unknown }): string | null {
+export function roadRendererUrl(
+  id: RoadRendererId,
+  env: { DEV?: boolean; [key: string]: unknown },
+  browser: EngineBrowserOptions = DEFAULT_ENGINE_BROWSER_OPTIONS,
+): string | null {
   const info = roadRendererInfo(id)
   if (!info.urlVariable) return null
   const configured = env[info.urlVariable]
-  if (typeof configured === 'string' && configured.trim()) return configured.trim()
-  return env.DEV && info.devUrl ? info.devUrl : null
+  const url =
+    typeof configured === 'string' && configured.trim()
+      ? configured.trim()
+      : env.DEV && info.devUrl
+        ? info.devUrl
+        : null
+  return url === null ? null : withBrowserOptions(id, url, browser)
+}
+
+/**
+ * What a person chose for the engines in this browser (View options), kept in the browser and never in a scene:
+ * it is about this computer, not the assessment.
+ */
+export interface EngineBrowserOptions {
+  /**
+   * Nanite Forest keeps the tree types it grows in this browser's storage, so its page starts about a second
+   * sooner the next time. About 120 MB for one scene's types and at most about 300 MB; off, the engine deletes
+   * what it kept the next time its page starts.
+   */
+  keepGrownTrees: boolean
+}
+
+export const DEFAULT_ENGINE_BROWSER_OPTIONS: EngineBrowserOptions = { keepGrownTrees: false }
+
+/** Stored engine choices read back: anything missing or of the wrong type is the default. */
+export function parseEngineBrowserOptions(raw: unknown): EngineBrowserOptions {
+  const value = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  return { keepGrownTrees: value.keepGrownTrees === true }
+}
+
+/** The engine's address with this browser's choices on it (Nanite Forest's `treecache=1`). */
+function withBrowserOptions(id: RoadRendererId, url: string, browser: EngineBrowserOptions): string {
+  if (id !== 'nanite' || !browser.keepGrownTrees || /[?&]treecache=/.test(url)) return url
+  const hashAt = url.indexOf('#')
+  const address = hashAt < 0 ? url : url.slice(0, hashAt)
+  const hash = hashAt < 0 ? '' : url.slice(hashAt)
+  return `${address}${address.includes('?') ? '&' : '?'}treecache=1${hash}`
 }
 
 /**
@@ -406,7 +449,8 @@ export function engineEnvironment(
 }
 
 export type EngineMessage =
-  | { type: 'pgmaps-engine-hello'; engine?: string }
+  | { type: 'pgmaps-engine-hello'; engine?: string; accepts?: unknown }
+  | { type: 'pgmaps-engine-scene-needed'; engine?: string; key?: unknown }
   | { type: 'pgmaps-engine-ready'; engine?: string }
   | { type: 'pgmaps-engine-stats'; engine?: string; [key: string]: unknown }
   | { type: 'pgmaps-engine-error'; message?: string }
@@ -416,6 +460,7 @@ export function readEngineMessage(data: unknown): EngineMessage | null {
   if (!data || typeof data !== 'object') return null
   const type = (data as { type?: unknown }).type
   return type === 'pgmaps-engine-hello' ||
+    type === 'pgmaps-engine-scene-needed' ||
     type === 'pgmaps-engine-ready' ||
     type === 'pgmaps-engine-stats' ||
     type === 'pgmaps-engine-error'

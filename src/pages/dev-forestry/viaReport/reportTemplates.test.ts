@@ -10,8 +10,8 @@ import type { ViaAssessment } from '../via'
 import { findDocumentFormat } from '../viaDocument/formats'
 import { resolveViaDocument, type DocumentFacts, type DocumentViewpoint } from '../viaDocument/resolve'
 import { toCompleteLine } from '../viaDocument/wording'
-import { reportMarkdown } from './html'
-import type { ReportBlock } from './model'
+import { reportHtml, reportMarkdown } from './html'
+import { flatBlocks, type ReportBlock } from './model'
 import {
   hiddenCause,
   inViewpointOrder,
@@ -64,8 +64,13 @@ function context(formatId: string, viewpoints: DocumentViewpoint[], over: Partia
 
 const recipe = (id: string) => REPORT_RECIPES.find((entry) => entry.id === id)!
 const all = (blocks: readonly ReportBlock[]) => JSON.stringify(blocks)
+/** A field's value in a titled group: a fields block's own title, or the form section (a heading in `flatBlocks`). */
 const fieldValue = (blocks: readonly ReportBlock[], title: string, label: string) => {
-  const group = blocks.find((b) => b.kind === 'fields' && b.title === title)
+  const flat = flatBlocks(blocks)
+  const under = flat.findIndex((b) => b.kind === 'heading' && b.text === title)
+  const group =
+    flat.find((b) => b.kind === 'fields' && b.title === title) ??
+    (under >= 0 ? flat.slice(under + 1).find((b) => b.kind === 'fields') : undefined)
   return group?.kind === 'fields' ? group.rows.find((row) => row.label === label)?.value : undefined
 }
 
@@ -129,7 +134,8 @@ describe('Appendix 1, one form per viewpoint that sees the proposal (06)', () =>
     expect(text).toContain('summary form, Beach (VP4)')
     // A viewpoint that sees none of the proposal takes no form.
     expect(text).not.toContain('summary form, Ridge (VP5)')
-    const beach = out.blocks.slice(out.blocks.findIndex((b) => b.kind === 'heading' && b.text.endsWith('Beach (VP4)')))
+    const flat = flatBlocks(out.blocks)
+    const beach = flat.slice(flat.findIndex((b) => b.kind === 'heading' && b.text.endsWith('Beach (VP4)')))
     expect(fieldValue(beach, '3.2.1 Viewpoint', 'Viewing direction')).toBe('West (250°–290°)')
     expect(fieldValue(beach, '3.2.1 Viewpoint', 'Elevation')).toBe('640 m')
     expect(fieldValue(beach, '3.2.2 Photography (simulation camera)', 'Lens focal length')).toMatch(/^50 mm/)
@@ -162,9 +168,46 @@ describe('Appendix 1, one form per viewpoint that sees the proposal (06)', () =>
       initialPercent: 4,
     } as unknown as ViaAssessment
     const out = findReportPart('appendix-1')!.build(context('appendix-1-net-private-rock', vps, { assessment }))
-    const marks = out.blocks.filter((b) => b.kind === 'scale' && b.title === 'Class by eye')
+    const marks = flatBlocks(out.blocks).filter((b) => b.kind === 'scale' && b.title === 'Class by eye')
     expect(marks.map((b) => b.kind === 'scale' && b.mark !== null)).toEqual([true, false])
     expect(all(out.blocks)).toContain('The judgements on the form for Dam (VP2) are the reviewer’s step 4 record')
+  })
+
+  it('lays each form out on a page of its own, the handbook’s sections side by side', () => {
+    const out = findReportPart('appendix-1')!.build(context('appendix-1-net-private-rock', vps))
+    const forms = out.blocks.filter((b) => b.kind === 'form')
+    expect(forms).toHaveLength(2)
+    // Every form opens a page, its heading then the form; the note before them runs on after the part before.
+    for (const form of forms) {
+      const at = out.blocks.indexOf(form)
+      expect(out.blocks[at - 2]).toEqual({ kind: 'pageBreak' })
+      expect(out.blocks[at - 1]).toMatchObject({ kind: 'heading' })
+    }
+    expect(out.blocks[0]).toMatchObject({ kind: 'heading', text: 'Appendix 1: Visual impact assessment summary forms' })
+    const rows = forms[0].kind === 'form' ? forms[0].rows.map((row) => row.map((cell) => cell.title)) : []
+    expect(rows.slice(0, 2)).toEqual([
+      ['3.1.1 Site information', '3.1.3 FSP and objective information'],
+      ['3.2.1 Viewpoint', '3.2.2 Photography (simulation camera)'],
+    ])
+    const html = reportHtml(
+      {
+        ...assembleReport(recipe('appendix-1-report'), context('appendix-1-net-private-rock', vps)),
+        blocks: [forms[0]],
+      },
+      null,
+    )
+    expect(html).toContain('<table class="form-grid">')
+    // A table the section's title bar already names is not titled twice; one it does not name keeps its title.
+    expect(html).toContain('<th>3.4.3 Table 4: roads, landings and sidecast</th>')
+    expect(html).not.toContain('<h4>Table 4: roads, landings and sidecast</h4>')
+    expect(html).toContain('<h4>Initial percent alteration (X)</h4>')
+    // The Markdown keeps every section in order.
+    const md = reportMarkdown({
+      ...assembleReport(recipe('appendix-1-report'), context('appendix-1-net-private-rock', vps)),
+      blocks: [forms[0]],
+    })
+    expect(md.indexOf('**3.2.1 Viewpoint**')).toBeGreaterThan(md.indexOf('**3.1.3 FSP and objective information**'))
+    expect(md).toContain('- Viewing direction: West (250°–290°)')
   })
 })
 

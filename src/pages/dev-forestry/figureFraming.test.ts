@@ -9,6 +9,7 @@ import {
   planFixedFraming,
   panoramaBand,
   savedFigureFraming,
+  terrainDetailNote,
 } from './figureFraming'
 import { metersPerDegree } from './visibility'
 
@@ -157,6 +158,23 @@ describe('a fixed frame, as a reference panorama was taken', () => {
     expect(plan.shares.ground).toBeGreaterThan(0.25)
   })
 
+  it('says when the landform in view runs past the frame, across north too', () => {
+    const extent = (azLeftDeg: number, azRightDeg: number) => ({
+      azLeftDeg,
+      azRightDeg,
+      elTopDeg: 3,
+      elBottomDeg: -1,
+      visibleBins: 10,
+    })
+    // Marblehead VP1: an 80 mm frame facing north on a landform seen from 300° to 355°.
+    expect(planFixedFraming({ bearingDeg: 0, spanDeg: 25.4 }, extent(300, 355)).label).toMatch(
+      /from 347° to 13°; the landform is in view from 300° to 355°, wider than the frame/,
+    )
+    expect(planFixedFraming({ bearingDeg: 0, spanDeg: 25.4 }, extent(350, 370)).label).not.toMatch(/wider/)
+    expect(planFixedFraming({ bearingDeg: 18, spanDeg: 60 }, extent(0, 40)).label).not.toMatch(/wider/)
+    expect(planFixedFraming({ bearingDeg: 18, spanDeg: 60 }, extent(0, 60)).label).toMatch(/in view from 0° to 60°/)
+  })
+
   it('reads only a sensible frame', () => {
     expect(parseFigureFrame({ bearingDeg: -10, spanDeg: 60, pitchDeg: 2 })).toEqual({
       bearingDeg: 350,
@@ -175,11 +193,26 @@ describe('panoramaBand', () => {
     expect(panoramaBand({ y: 1500, height: 200 }, 2400, 2769, 2.4)).toEqual({ y: 1100, height: 1000 })
     // Near the bottom: clamped to the picture.
     expect(panoramaBand({ y: 2600, height: 150 }, 2400, 2769, 2.4)).toEqual({ y: 1769, height: 1000 })
-    // A landform taller than the band keeps all its rows, with 15% to spare.
-    expect(panoramaBand({ y: 200, height: 1200 }, 2400, 2769, 2.4)).toEqual({ y: 110, height: 1380 })
+    // A landform taller than the band is cut, not the panorama narrowed: the band stays on its middle.
+    expect(panoramaBand({ y: 200, height: 1200 }, 2400, 2769, 2.4)).toEqual({ y: 300, height: 1000 })
     // Already wide, or no rows: no crop.
     expect(panoramaBand({ y: 100, height: 100 }, 2400, 800, 2.4)).toBeNull()
     expect(panoramaBand(null, 2400, 2769, 2.4)).toBeNull()
+  })
+
+  it('keeps the blocks’ rows, moving off the landform’s middle only as far as they need (26, VP1)', () => {
+    // Hwy 31's render: 2400 x 2867, the landform 513-2106 (taller than a 2.4:1 band), its blocks' marks 1122-1794.
+    const landform = { y: 513, height: 1593 }
+    const band = panoramaBand(landform, 2400, 2867, 2.4, { y: 1122, height: 672 })!
+    expect(band.height).toBe(1000)
+    expect(band.y).toBeLessThanOrEqual(1122)
+    expect(band.y + band.height).toBeGreaterThanOrEqual(1794)
+    // Centred on the landform (1309.5) the band would end at 1810: inside, so it stays there.
+    expect(band).toEqual({ y: 810, height: 1000 })
+    // Blocks lower down move it down, just far enough.
+    expect(panoramaBand(landform, 2400, 2867, 2.4, { y: 1700, height: 500 })).toEqual({ y: 1200, height: 1000 })
+    // Blocks spread over more rows than the aspect allows: the band takes them all and is narrower than 2.4:1.
+    expect(panoramaBand(landform, 2400, 2867, 2.4, { y: 600, height: 1400 })).toEqual({ y: 600, height: 1400 })
   })
 })
 
@@ -195,5 +228,20 @@ describe('a saved view drawn again', () => {
     })
     // Saved before these were kept: the open scene's.
     expect(savedFigureFraming({}, open)).toEqual(open)
+  })
+})
+
+describe('the terrain detail note', () => {
+  it('says the picture drew the ground coarser than the run only when it did, by two zoom levels or more', () => {
+    // Argenta Beach: the blocks drawn from z10 cells (98 m), the run on z13 (12 m).
+    expect(terrainDetailNote({ drawnCellMeters: 97.7, runCellMeters: 12.2 })).toBe(
+      'The map draws the ground at the blocks from 98 m elevation cells and the sightline run from 12 m cells, so rises and hollows smaller than that can hide ground in one figure and not the other.',
+    )
+    expect(terrainDetailNote({ drawnCellMeters: 48.8, runCellMeters: 12.2 })).not.toBeNull()
+    // One zoom level apart, or the same: no note.
+    expect(terrainDetailNote({ drawnCellMeters: 24.4, runCellMeters: 12.2 })).toBeNull()
+    expect(terrainDetailNote({ drawnCellMeters: 12.2, runCellMeters: 12.2 })).toBeNull()
+    expect(terrainDetailNote(null)).toBeNull()
+    expect(terrainDetailNote({ drawnCellMeters: NaN, runCellMeters: 12.2 })).toBeNull()
   })
 })

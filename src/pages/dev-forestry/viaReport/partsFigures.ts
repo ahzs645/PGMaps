@@ -7,6 +7,7 @@
  * factories), never a reference document's own titles. Figures are numbered in the order the recipe lists these
  * parts. Registered in `registry.ts`. No DOM or network access.
  */
+import { UNSEEN_STATUS } from './blockMarks'
 import { field, text, type FieldRow, type FigureSlot, type ReportBlock, type ReportFigure } from './model'
 import { blank, figureFor, type PartOutput, type ReportContext, type ReportPart } from './parts'
 
@@ -164,8 +165,15 @@ function beforeSlot(ctx: ReportContext, name: string, labels: { photo: string; r
     label: before ? labels[before.source] : labels.photo,
     figure: before,
     placeholder: `${name}: a field photograph lined up with the view, or a render before harvest`,
-    ...(before ? { note: BEFORE_NOTE[before.source] } : {}),
+    ...(before ? { note: beforeNote(before) } : {}),
   }
+}
+
+/** Where a before picture came from; a render by another engine names it, as its simulation is drawn by it too. */
+function beforeNote(before: ReportFigure & { source: 'photo' | 'render' }): string {
+  if (before.source === 'render' && before.renderer && before.renderer !== 'PGMaps')
+    return `Rendered before harvest by ${before.renderer} from the terrain model and drawn timber, as the simulation is; not a photograph`
+  return BEFORE_NOTE[before.source]
 }
 
 function afterSlot(ctx: ReportContext, name: string, label: string, markBlocks?: FigureSlot['markBlocks']): FigureSlot {
@@ -176,14 +184,26 @@ function afterSlot(ctx: ReportContext, name: string, label: string, markBlocks?:
     figure: plain ?? figureFor(ctx, name),
     placeholder: `${name}: the simulation; save the viewpoint in the road view`,
     ...(plain && markBlocks ? { markBlocks } : {}),
+    // Why the simulation was drawn as it was: PGMaps for both pictures when the engine had no before picture.
+    ...(plain?.note ? { note: plain.note } : {}),
   }
 }
 
-/** A figure page's slot as a panorama when the recipe asks for one (26). */
-const panoramic = (ctx: ReportContext, slot: FigureSlot): FigureSlot =>
-  ctx.recipeOptions?.figurePanorama && slot.figure?.landformRows
-    ? { ...slot, panorama: ctx.recipeOptions.figurePanorama }
-    : slot
+/** The block marks a slot's picture draws (`htmlFigures.ts`): every one, or with `unseen` only those not plainly seen. */
+const drawnMarks = (slot: FigureSlot): ReadonlyArray<{ y: number }> =>
+  slot.markBlocks && slot.figure?.marks
+    ? slot.figure.marks.filter((m) => slot.markBlocks === 'all' || UNSEEN_STATUS[m.status])
+    : []
+
+/**
+ * A figure page's slot as a panorama when the recipe asks for one (26), its band keeping the marks `marked` draws (the
+ * after slot), so the before and after pictures show the same band and no marked block is cut.
+ */
+const panoramic = (ctx: ReportContext, slot: FigureSlot, marked: FigureSlot): FigureSlot => {
+  if (!ctx.recipeOptions?.figurePanorama || !slot.figure?.landformRows) return slot
+  const hold = drawnMarks(marked)
+  return { ...slot, panorama: ctx.recipeOptions.figurePanorama, ...(hold.length ? { panoramaHold: hold } : {}) }
+}
 
 const NO_VIEWPOINT = 'No saved viewpoint yet: save one in the road view.'
 
@@ -196,6 +216,14 @@ function projectNumber(ctx: ReportContext): string | null {
 
 const longDate = (date: Date) =>
   date.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })
+
+/** A photograph's ISO date ("2020-05-27", or a timestamp starting with one) as the references print it, or null. */
+export function photoDate(iso: string | null | undefined): string | null {
+  const day = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso?.trim() ?? '')
+  if (!day) return null
+  const date = new Date(Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3])))
+  return Number.isNaN(date.getTime()) || date.getUTCDate() !== Number(day[3]) ? null : longDate(date)
+}
 
 // ------------------------------------------------------------------ parts
 
@@ -225,8 +253,12 @@ export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording)
       if (!regional) toComplete.push('Regional map')
       const blocks = names.map((name, i): ReportBlock => {
         const location = ctx.images?.figurePageMaps?.location[name] ?? ctx.images?.locationMaps?.[name] ?? null
+        // The regional map starring this page's own viewpoint when the report has several.
+        const ownRegional = ctx.images?.figurePageMaps?.regionalFor?.[name] ?? regional
         const before = beforeSlot(ctx, name, { photo: w.page.before, render: w.page.before })
-        const after = afterSlot(ctx, name, w.page.after, 'unseen')
+        // Every block the picture holds is marked, as 26 does: a seen one led to by its name (Figure 2's "Visible
+        // Disturbance"), one not plainly seen ringed (Figure 3). The memo's text counts the same blocks in view.
+        const after = afterSlot(ctx, name, w.page.after, 'all')
         if (!location) toComplete.push(`${name}: location map and viewpoint`)
         if (!before.figure) toComplete.push(`${name}: picture before the project (field photograph or render)`)
         if (!after.figure) toComplete.push(`${name}: simulation (save the viewpoint)`)
@@ -243,11 +275,11 @@ export function figurePagesPart(id = 'ea-figure-pages', wording?: FigureWording)
             },
             {
               label: w.page.regionalMap,
-              figure: regional,
+              figure: ownRegional,
               placeholder: 'Regional map placing the project in its region',
             },
           ],
-          main: [panoramic(ctx, before), panoramic(ctx, after)],
+          main: [panoramic(ctx, before, after), panoramic(ctx, after, after)],
         }
       })
       return { blocks, toComplete }
@@ -276,10 +308,17 @@ export function photoSimulationPairsPart(id = 'photo-simulation-pairs', wording?
       const first = firstFigureNumber(ctx, id)
       const numbered = !!ctx.recipeOptions?.numberedPairs
       const blocks = names.map((name, i): ReportBlock => {
-        const caption = (label: string) =>
-          w.pair.placement === 'caption' ? `${label}${many ? ` ${i + 1}` : ''}: ${name}` : label
+        const caption = (label: string, date: string | null = null) =>
+          w.pair.placement === 'caption'
+            ? `${label}${many ? ` ${i + 1}` : ''}: ${name}${date ? ` (${date})` : ''}`
+            : label
         const before = beforeSlot(ctx, name, w.pair.before)
         const after = afterSlot(ctx, name, w.pair.after, 'all')
+        // A field photograph is dated as the references date theirs (01: "Photograph 1: … (May 27, 2020)"), from the
+        // date it carried; one without a date has it to complete, never a date assumed.
+        const photo = ctx.images?.before?.[name]
+        const takenOn = photo?.source === 'photo' ? photoDate(photo.takenOn) : null
+        if (photo?.source === 'photo' && !takenOn) toComplete.push(`${name}: the date the photograph was taken`)
         if (!before.figure) toComplete.push(`${name}: field photograph or render before harvest`)
         if (!after.figure) toComplete.push(`${name}: simulation (save the viewpoint)`)
         const sentence = w.pair.figure ?? DEFAULT_FIGURE_WORDING.pair.figure!
@@ -296,7 +335,7 @@ export function photoSimulationPairsPart(id = 'photo-simulation-pairs', wording?
             : {}),
           placement: w.pair.placement,
           slots: [
-            { ...before, label: caption(before.label) },
+            { ...before, label: caption(before.label, takenOn) },
             { ...after, label: caption(after.label) },
           ],
         }

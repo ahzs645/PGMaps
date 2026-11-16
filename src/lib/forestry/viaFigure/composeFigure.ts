@@ -27,7 +27,13 @@ import type { LuminanceSampler } from '@/lib/mapSheet/contrastRuns'
 import { rectRing, type DrawOp, type Point, type RasterImage, type StrokeStyle } from '@/lib/mapSheet/drawOps'
 import { areaSymbolOps, lineSymbolOps, swatchOps, type SheetSymbol } from '@/lib/mapSheet/symbols'
 import { fitText, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
-import { ALTERATION_RULES, alteration, type Alteration, type AlterationRule } from './alteration'
+import {
+  ALTERATION_RULES,
+  alteration,
+  type Alteration,
+  type AlterationDeduction,
+  type AlterationRule,
+} from './alteration'
 import { cameraInfoLines, type CameraInfo } from './cameraInfo'
 import {
   legendEntries,
@@ -223,7 +229,21 @@ export interface FigureCounts {
   netOfRockPercent: number | null
 }
 
+/**
+ * Counts by raster: a class raster is never changed once built, and the export dialog asks for the same pictures'
+ * counts on every render (about 2 s a report build before this).
+ */
+const countsByRaster = new WeakMap<ClassRaster, FigureCounts>()
+
 export function countClasses(raster: ClassRaster): FigureCounts {
+  const kept = countsByRaster.get(raster)
+  if (kept) return kept
+  const counts = tallyClasses(raster)
+  countsByRaster.set(raster, counts)
+  return counts
+}
+
+function tallyClasses(raster: ClassRaster): FigureCounts {
   let landform = 0,
     privateLand = 0,
     nonVeg = 0,
@@ -385,7 +405,11 @@ export function roleOverlays(preset: ViaStylePreset, raster: ClassRaster): Overl
     if (!classes || !preset.symbols[role]) return []
     const set = new Set(classes)
     // The landform is one big area: specks along its edge are noise, not ground.
-    const parts = maskRings(raster, (code) => set.has(code), role === 'landform' ? 40 : MIN_RING_AREA_PX)
+    const parts = maskRings(
+      raster,
+      (code) => set.has(code),
+      role === 'landform' ? LANDFORM_MIN_RING_AREA_PX : MIN_RING_AREA_PX,
+    )
     return parts.length ? [{ role, parts }] : []
   })
 }
@@ -488,6 +512,89 @@ export function landformCentroid(raster: ClassRaster): Point | null {
         n++
       }
   return n ? [sx / n, sy / n] : null
+}
+
+/** Specks smaller than this, px², are dropped from a landform's traced outline: noise along its edge, not ground. */
+export const LANDFORM_MIN_RING_AREA_PX = 40
+
+/**
+ * Where a landform's name goes on its class pass: the landform pixel deepest inside its visible ground (a chamfer
+ * distance to the nearest pixel outside it, horizontal steps counted at half weight because a name is wider than tall),
+ * the nearest to the centroid among equals. Only `rows` are searched when given (the rows a sheet keeps, so the
+ * name is not placed where the crop cuts it away), falling back to every row when the landform has none there. Null
+ * when no landform pixel is visible.
+ */
+export function landformLabelPoint(raster: ClassRaster, rows?: { y: number; height: number } | null): Point | null {
+  const { width, height, codes } = raster
+  const inside = (k: number) => IN_LANDFORM.has(codes[k])
+  const y0 = rows ? Math.max(0, rows.y) : 0,
+    y1 = rows ? Math.min(height, rows.y + rows.height) : height
+  let any = false
+  for (let k = y0 * width; k < y1 * width && !any; k++) any = inside(k)
+  if (!any) return rows ? landformLabelPoint(raster) : null
+  // Two-pass chamfer distance, in half-pixel units: 1 a column, 2 a row, 2 a diagonal (rounded), inside the band.
+  const h = y1 - y0
+  const BIG = 0xffff
+  const d = new Uint16Array(width * h)
+  for (let y = 0; y < h; y++) for (let x = 0; x < width; x++) d[y * width + x] = inside((y + y0) * width + x) ? BIG : 0
+  const at = (x: number, y: number) => (x < 0 || y < 0 || x >= width || y >= h ? 0 : d[y * width + x])
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < width; x++) {
+      const k = y * width + x
+      if (!d[k]) continue
+      d[k] = Math.min(d[k], at(x - 1, y) + 1, at(x, y - 1) + 2, at(x - 1, y - 1) + 2, at(x + 1, y - 1) + 2)
+    }
+  for (let y = h - 1; y >= 0; y--)
+    for (let x = width - 1; x >= 0; x--) {
+      const k = y * width + x
+      if (!d[k]) continue
+      d[k] = Math.min(d[k], at(x + 1, y) + 1, at(x, y + 1) + 2, at(x + 1, y + 1) + 2, at(x - 1, y + 1) + 2)
+    }
+  let sx = 0,
+    sy = 0,
+    n = 0
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < width; x++)
+      if (d[y * width + x]) {
+        sx += x
+        sy += y
+        n++
+      }
+  const cx = sx / n,
+    cy = sy / n
+  let best = -1,
+    bestDistance = Infinity,
+    bx = 0,
+    by = 0
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < width; x++) {
+      const v = d[y * width + x]
+      if (v < best || !v) continue
+      const toCentroid = (x - cx) ** 2 + (y - cy) ** 2
+      if (v > best || toCentroid < bestDistance) {
+        best = v
+        bestDistance = toCentroid
+        bx = x
+        by = y
+      }
+    }
+  return [bx + 0.5, by + y0 + 0.5]
+}
+
+/**
+ * Another landform's outline as a sheet draws it (`LandformColumn.outline`), traced from its own class pass as the
+ * landform's is (`maskRings` over the landform classes, specks under `LANDFORM_MIN_RING_AREA_PX` dropped), with the
+ * place for its name (`landformLabelPoint`). Kept with a saved view instead of the pass itself: a few hundred points
+ * against a code per pixel.
+ */
+export function traceLandform(
+  raster: ClassRaster,
+  rows?: { y: number; height: number } | null,
+): { outline: Point[][]; labelAt: Point | null } {
+  return {
+    outline: maskRings(raster, inLandform, LANDFORM_MIN_RING_AREA_PX),
+    labelAt: landformLabelPoint(raster, rows),
+  }
 }
 
 /** Row of the skyline in column `x`: the first pixel down from the top that is not sky. */
@@ -1039,11 +1146,24 @@ export interface FigureInput {
    */
   classify?: ((percent: number) => ClassReading | null) | null
   /**
+   * The arithmetic the calculation and PGMaps' pixel figures print, when it is not the style's own (`calc.rule`): a
+   * report's format rule, so the sheet prints what the report's tables print, or the scene's net denominator
+   * (`sceneSheetRule`). Its unit, decimals and rounding are the sheet's; the lines name what it takes out.
+   */
+  rule?: AlterationRule | null
+  /**
    * The scene's partial-cut blocks, with the Table 6 figure the run adds to X for each (`partialCutEntries`, via.ts).
    * Their pixels are `FigureCounts.partialCut`, never proposed alteration; the sheet states both. Absent or empty: no
    * partial cut, and the sheet prints exactly as before.
    */
   partialCuts?: readonly PartialCutNote[] | null
+  /**
+   * The other landforms the view sees (sub-landforms, or the whole landform beside an active sub-landform), each
+   * counted on a class pass of the same frames split at it. The analysis sheet prints a calculation column for each
+   * that shows alteration, beside the one `classes` is split at, and names the rest once. Absent or empty: one
+   * column, exactly as before.
+   */
+  landforms?: readonly LandformColumn[] | null
   /** The page's sightline alteration at this station, percent: the assessment's figure. */
   sightlinePercent: number | null
   /** Its Table 2 class name, if any. */
@@ -1069,6 +1189,20 @@ export interface FigureInput {
   /** The user's logo (or their brand's) for the title block's logo slot; absent leaves the slot empty. */
   logo?: RasterImage | null
   generatedAt: Date
+}
+
+/** Another landform the view sees, counted on its own class pass of the same frames (`SavedFigure.landforms`). */
+export interface LandformColumn {
+  /** Its name as the scene gives it ("Landform 1b (consultant, traced)"). */
+  name: string
+  counts: FigureCounts
+  /**
+   * Its visible outline in image pixels, traced from its own class pass (`traceLandform`), drawn in the style's
+   * `otherLandform` symbol; absent draws nothing.
+   */
+  outline?: readonly Point[][] | null
+  /** Where its name goes on the picture, image pixels (`landformLabelPoint`); absent or null prints no name. */
+  labelAt?: Point | null
 }
 
 /** A partial-cut block as the sheet states it: handbook 3.4.4's Table 6 reading, not cleared ground. */
@@ -1124,6 +1258,38 @@ export function countsAlteration(rule: AlterationRule, counts: FigureCounts | nu
 /** The rule a preset's calculation prints: its own, else (no calculation box) the gross landform. */
 export const presetRule = (preset: ViaStylePreset): AlterationRule => preset.calc?.rule ?? ALTERATION_RULES.grossPixels
 
+/** The rule a figure prints: the one it was handed (`FigureInput.rule`), else its style's. */
+export const figureRule = (input: Pick<FigureInput, 'preset' | 'rule'>): AlterationRule =>
+  input.rule ?? presetRule(input.preset)
+
+const DEDUCTED_WORDS: Record<AlterationDeduction, string> = { rock: 'Rock', privateLand: 'Private Land' }
+const sameDeductions = (a: AlterationRule, b: AlterationRule) =>
+  a.deduct.length === b.deduct.length && a.deduct.every((d) => b.deduct.includes(d))
+
+/**
+ * The calculation's values under the figure's rule, with the words for what it takes out: `{deductedName}` and
+ * `{netLandformPx}` only when it takes something out (so a gross sheet leaves those lines out), and
+ * `{denominatorName}`, the style's own words while the rule is the style's, else "Net" and the style's word for the
+ * landform when the rule deducts (the lines above it say what), the plain word when it deducts nothing.
+ */
+function calcLineValues(input: FigureInput, counts: FigureCounts | null, n: string | undefined) {
+  const rule = figureRule(input)
+  const own = presetRule(input.preset)
+  const calc = input.preset.calc
+  const same = sameDeductions(rule, own)
+  const ordered = (['rock', 'privateLand'] as const).filter((d) => rule.deduct.includes(d))
+  const words = ordered.map((d) => DEDUCTED_WORDS[d]).join(' and ')
+  const gross = own.deduct.length ? 'Landform' : (calc?.denominator ?? 'Landform')
+  const values = calcValues(counts, n, rule, input.classify)
+  return {
+    ...values,
+    ...(ordered.length && counts
+      ? { deductedName: same && calc?.deducted ? calc.deducted : words, netLandformPx: values.netPx }
+      : {}),
+    denominatorName: same && calc?.denominator ? calc.denominator : ordered.length ? `Net ${gross}` : gross,
+  }
+}
+
 /** A class reading for a printed percent: Table 2 by default, supplied by the page (`FigureInput.classify`). */
 export type ClassReading = { code: string; name: string }
 
@@ -1172,6 +1338,11 @@ export function presetPercent(preset: ViaStylePreset, counts: FigureCounts | nul
   return countsAlteration(presetRule(preset), counts)?.percent ?? null
 }
 
+/** The alteration a figure prints, unrounded: its rule (`figureRule`) over the class pass. */
+export function figurePercent(input: Pick<FigureInput, 'preset' | 'rule'>, counts: FigureCounts | null): number | null {
+  return countsAlteration(figureRule(input), counts)?.percent ?? null
+}
+
 /** The image, its outlines, labels and callouts in `frame`. Shared by every sheet form. */
 function figurePanel(input: FigureInput, frame: Frame, calloutArea?: Box) {
   const { preset } = input
@@ -1180,8 +1351,11 @@ function figurePanel(input: FigureInput, frame: Frame, calloutArea?: Box) {
   // Private land painted into the picture takes no symbol over it; its legend row still stands.
   const paintedPrivate = paintsPrivateLand(input)
   const roles = input.classes ? roleOverlays(preset, input.classes) : []
+  const others = otherLandformOverlays(input)
   const overlays = [
     ...(input.zones ? zoneOverlays(preset, input.zones) : []),
+    // Under the landform's own line, so a shared edge reads as the landform's, and under the blocks.
+    ...others,
     ...roles.filter((overlay) => !(paintedPrivate && overlay.role === 'privateLand')),
     ...(input.lines ?? []),
   ]
@@ -1190,14 +1364,20 @@ function figurePanel(input: FigureInput, frame: Frame, calloutArea?: Box) {
   ops.push(...drawnOps)
   const centroid = input.classes ? landformCentroid(input.classes) : null
   const label = preset.labels?.landform
-  if (centroid && label) {
+  // The page boxes the landform's own name and rating take, which the other landforms' names keep clear of.
+  const primaryBoxes: Box[] = []
+  const primaryName = label ? fillTemplate(label.template, { n: input.titles.n ?? '1' }) : null
+  if (centroid && label && primaryName) {
     const [x, y] = toPage(frame)(centroid)
-    ops.push(...textOps(x, y, fillTemplate(label.template, { n: input.titles.n ?? '1' }), label, 'center'))
+    ops.push(...textOps(x, y, primaryName, label, 'center'))
+    primaryBoxes.push(textBox(x, y, primaryName, label))
     const rating = preset.labels?.rating
     if (rating && input.rating)
       rating.lines.forEach((line, i) => {
         const text = fillTemplate(line, input.rating ?? {})
-        if (!/\{\w+\}/.test(text)) ops.push(...textOps(x, y + (i + 1) * lineHeight(rating), text, rating, 'center'))
+        if (/\{\w+\}/.test(text)) return
+        ops.push(...textOps(x, y + (i + 1) * lineHeight(rating), text, rating, 'center'))
+        primaryBoxes.push(textBox(x, y + (i + 1) * lineHeight(rating), text, rating))
       })
   }
   // Labels read the brightness of the picture as printed: the painted frame, when it was painted.
@@ -1209,11 +1389,70 @@ function figurePanel(input: FigureInput, frame: Frame, calloutArea?: Box) {
         frame,
         calloutArea ?? { x: frame.x + 4, y: frame.y + 4, w: frame.w - 8, h: frame.h - 8 },
       )
-    : { ops: [], key: [] }
+    : { ops: [], key: [], boxes: [] }
+  // The other landforms' names, on their own ground, clear of the landform's name and the callouts; under them.
+  if (label && others.length)
+    ops.push(...otherLandformNameOps(input, frame, label, primaryName, [...primaryBoxes, ...placedLabels.boxes]))
   ops.push(...placedLabels.ops)
   if ((input.cameraInfo ?? preset.cameraInfo ?? false) && input.camera) ops.push(...cameraInfoOps(input.camera, frame))
   ops.push(rectStroke(frame, { color: '#bfbfbf', width: 0.4 }))
   return { ops, drawn, key: placedLabels.key }
+}
+
+/** The page box one centred line of text takes, its baseline at `y`. */
+const textBox = (x: number, y: number, text: string, style: SheetTextStyle): Box => {
+  const w = textWidth(text, style.size, style.style ?? 'normal')
+  return { x: x - w / 2, y: y - style.size * 0.92, w, h: lineHeight(style) }
+}
+
+/**
+ * The other landforms' outlines (`FigureInput.landforms`, each traced from its own class pass) in the style's
+ * `otherLandform` symbol, as 23 A6 draws its sub-landforms beside Landform 1. None when the style has no such symbol
+ * or no landform carries an outline: a sheet of one landform draws exactly as before.
+ */
+export function otherLandformOverlays(input: Pick<FigureInput, 'preset' | 'landforms'>): Overlay[] {
+  if (!input.preset.symbols.otherLandform) return []
+  const parts = (input.landforms ?? []).flatMap((entry) => (entry.outline ?? []).map((ring) => [...ring]))
+  return parts.length ? [{ role: 'otherLandform', parts }] : []
+}
+
+/**
+ * Each other landform's name ("Landform 1b", the style's landform label) on its own ground at `labelAt`, through
+ * `labelOps` as an `inside` label: nudged clear of `avoid` (the landform's own name, the callouts) and of each
+ * other, and left out when it finds no clear place nearby, reads the same as the landform's own name, or names the
+ * whole landform beside its own sub-landforms.
+ */
+function otherLandformNameOps(
+  input: FigureInput,
+  frame: Frame,
+  style: TextStyle & { template: string },
+  primaryName: string | null,
+  avoid: readonly Box[],
+): DrawOp[] {
+  const P = toPage(frame)
+  const text: SheetTextStyle = {
+    size: style.size,
+    color: style.color,
+    ...(style.style ? { style: style.style } : {}),
+    ...(style.halo ? { halo: style.halo } : {}),
+  }
+  // The whole landform beside its own sub-landforms is outlined but not named: its middle is a sub-landform's
+  // ground, and 23 A6 names only 1a, 1b and 1c inside Landform 1.
+  const numbers = [input.titles.n ?? '1', ...(input.landforms ?? []).map((entry) => landformNumber(entry.name))]
+  const labels = (input.landforms ?? []).flatMap((entry) => {
+    if (!entry.outline?.length || !entry.labelAt) return []
+    const n = landformNumber(entry.name)
+    if (/^\d+$/.test(n) && numbers.some((other) => new RegExp(`^${n}[a-z]$`).test(other))) return []
+    const title = fillTemplate(style.template, { n })
+    return title === primaryName ? [] : [{ title, anchor: P(entry.labelAt), inside: text }]
+  })
+  if (!labels.length) return []
+  return labelOps(labels, {
+    style: 'halo',
+    area: { x: frame.x + 2, y: frame.y + 2, w: frame.w - 4, h: frame.h - 4 },
+    maxWidth: Math.max(60, frame.w * MAX_LABEL_WIDTH_SHARE),
+    avoid,
+  }).ops
 }
 
 /** The camera information block, white text with a dark halo, at the image's bottom left. */
@@ -1347,13 +1586,63 @@ function labelKeyOps(key: ReadonlyArray<{ n: number; text: string }>, box: Box, 
   return ops
 }
 
+/** The number a landform's name gives it on the sheet ("Landform 8b (traced)" is 8b), else its name. */
+export const landformNumber = (name: string) =>
+  name.match(/\bLandform\s+(\d+[a-z]?)\b/i)?.[1] ?? (name.replace(/\s*\([^)]*\)\s*$/, '').trim() || name)
+
+/** One calculation column of the sheet: a landform, its number on the sheet and its counts. */
+export interface CalcColumn {
+  n: string
+  name: string
+  counts: FigureCounts | null
+  /** The landform the class pass (`classes`) is split at: its outlines are drawn and its sightline figure printed. */
+  primary: boolean
+}
+
+/**
+ * The sheet's calculation columns, as 23's sheets set them (A6: Landform 1 (Full), Sub-landform 1a, 1b): the landform
+ * the class pass is split at, then each other landform the view sees with alteration in it (`FigureInput.landforms`),
+ * ordered by number, the whole landform before its sub-landforms. A landform seen with no alteration takes no column
+ * and is named in `unaltered`. One column when the view reads one landform.
+ */
+export function calcColumns(
+  input: Pick<FigureInput, 'landforms' | 'titles'>,
+  counts: FigureCounts | null,
+): { columns: CalcColumn[]; unaltered: string[] } {
+  const primary: CalcColumn = { n: input.titles.n ?? '1', name: input.titles.area, counts, primary: true }
+  const others = input.landforms ?? []
+  const altered = others.filter((entry) => entry.counts.nonVeg + entry.counts.proposed > 0)
+  const unaltered = others
+    .filter((entry) => !altered.includes(entry))
+    .map((entry) => entry.name.replace(/\s*\([^)]*\)\s*$/, '').trim() || entry.name)
+  if (!altered.length) return { columns: [primary], unaltered }
+  const columns = [
+    primary,
+    ...altered.map((entry) => ({
+      n: landformNumber(entry.name),
+      name: entry.name,
+      counts: entry.counts,
+      primary: false,
+    })),
+  ].sort((a, b) => a.n.localeCompare(b.n, undefined, { numeric: true }))
+  // The whole landform beside its own sub-landforms is "1 (Full)", as 23 prints it.
+  return {
+    columns: columns.map((column) =>
+      /^\d+$/.test(column.n) && columns.some((other) => new RegExp(`^${column.n}[a-z]$`).test(other.n))
+        ? { ...column, n: `${column.n} (Full)` }
+        : column,
+    ),
+    unaltered,
+  }
+}
+
 /** The calculation lines, bold where a line starts with `**`, then PGMaps' own figures beside them. */
 function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: number, align: 'left' | 'center') {
   const calc = input.preset.calc
   const ops: DrawOp[] = []
   if (!calc) return { ops, bottom: y }
   const values = {
-    ...calcValues(counts, input.titles.n, presetRule(input.preset), input.classify),
+    ...calcLineValues(input, counts, input.titles.n),
     ...(input.distanceKm != null ? { distanceKm: input.distanceKm.toFixed(1) } : {}),
     ...(input.hfovDeg != null ? { hfov: Math.round(input.hfovDeg) } : {}),
   }
@@ -1377,16 +1666,82 @@ function calcOps(input: FigureInput, counts: FigureCounts | null, x: number, y: 
 }
 
 /**
+ * The calculation as columns side by side, one per landform (`calcColumns`), each with the style's own title and
+ * lines filled from that landform's counts under the style's rule. Wrapped to the column and scaled down together,
+ * never below 60%, so every column prints at one size.
+ */
+function calcColumnsOps(
+  input: FigureInput,
+  columns: readonly CalcColumn[],
+  box: { x: number; top: number; bottom: number; width: number },
+): DrawOp[] {
+  const calc = input.preset.calc
+  if (!calc) return []
+  const GAP = 8
+  const width = (box.width - GAP * (columns.length - 1)) / columns.length
+  const extra = {
+    ...(input.distanceKm != null ? { distanceKm: input.distanceKm.toFixed(1) } : {}),
+    ...(input.hfovDeg != null ? { hfov: Math.round(input.hfovDeg) } : {}),
+  }
+  type Row = { text: string; style: TextStyle; title?: boolean; boldStart?: boolean }
+  const filled = columns.map((column) => {
+    const values = { ...calcLineValues(input, column.counts, column.n), ...extra }
+    const rows: Row[] = calc.title.text ? [{ text: calc.title.text, style: calc.title, title: true }] : []
+    let previousBold = false
+    for (const template of calc.lines) {
+      const bold = template.startsWith('**')
+      const text = fillTemplate(bold ? template.slice(2) : template, values)
+      if (/\{\w+\}/.test(text)) continue
+      rows.push({ text, style: bold ? (calc.emphasis ?? calc.line) : calc.line, boldStart: bold && !previousBold })
+      previousBold = bold
+    }
+    return rows
+  })
+  const layout = (scale: number) =>
+    filled.map((rows) =>
+      rows.map((row) => {
+        const style = { ...row.style, size: row.style.size * scale }
+        return { ...row, style, wrapped: wrapText(row.text, style.size, width, style.style ?? 'normal') }
+      }),
+    )
+  const advance = (row: ReturnType<typeof layout>[number][number], scale: number) =>
+    (row.boldStart ? 4 * scale : 0) + row.wrapped.length * lineHeight(row.style) * (row.title ? 1.6 : 1)
+  const height = (laid: ReturnType<typeof layout>, scale: number) =>
+    Math.max(...laid.map((rows) => rows.reduce((sum, row) => sum + advance(row, scale), 0)))
+  let scale = 1
+  let laid = layout(scale)
+  while (height(laid, scale) > box.bottom - box.top && scale > 0.6 + 1e-9) {
+    scale = Math.max(0.6, scale - 0.05)
+    laid = layout(scale)
+  }
+  const ops: DrawOp[] = []
+  laid.forEach((rows, i) => {
+    const x = box.x + i * (width + GAP)
+    let y = box.top
+    for (const row of rows) {
+      if (row.boldStart) y += 4 * scale
+      const step = lineHeight(row.style) * (row.title ? 1.6 : 1)
+      for (const line of row.wrapped) {
+        ops.push(...textOps(x, y, line, row.style, 'left'))
+        y += row.title ? lineHeight(row.style) : step
+      }
+      if (row.title) y += lineHeight(row.style) * 0.6
+    }
+  })
+  return ops
+}
+
+/**
  * PGMaps' own renderer's second pixel figure: the proposed blocks seen past the drawn timber, or why it was not
  * measured. Existing openings keep the ground pass's count, and the line says so when there are any.
  */
-export function timberLine(input: Pick<FigureInput, 'timber' | 'preset' | 'classes'>): string | null {
+export function timberLine(input: Pick<FigureInput, 'timber' | 'preset' | 'classes' | 'rule'>): string | null {
   const timber = input.timber
   if (!timber) return null
   if ('absent' in timber) return `Pixel measure, with drawn timber: not measured (${timber.absent})`
   const counts = countClasses(timber.classes)
   const openings = counts.nonVeg > 0 ? ' (existing openings as on the ground)' : ''
-  return `Pixel measure, with drawn timber: ${fixed(presetPercent(input.preset, counts))}%${openings}`
+  return `Pixel measure, with drawn timber: ${fixed(figurePercent(input, counts))}%${openings}`
 }
 
 const trimmed = (value: number) => String(Math.round(value * 10) / 10)
@@ -1437,8 +1792,14 @@ const figureLineCount = (input: FigureInput) => 2 + (input.screenedClasses ? 1 :
  * timber, as the reference VIAs outline the ground), so the pixel measure says so when trees were drawn in the
  * picture; an engine's capture adds a second figure with its trees in front.
  */
-function measureLines(input: FigureInput, counts: FigureCounts | null): string[] {
-  const pixel = presetPercent(input.preset, counts)
+function measureLines(
+  input: FigureInput,
+  counts: FigureCounts | null,
+  /** With several calculation columns: the landform the sightline and pixel figures are for, and those seen unaltered. */
+  landforms?: { primary: string | null; unaltered: readonly string[] },
+): string[] {
+  const of = landforms?.primary ? `, ${landforms.primary.replace(/\s*\([^)]*\)\s*$/, '').trim()}` : ''
+  const pixel = figurePercent(input, counts)
   const ground = input.screenedClasses
     ? ', the ground under the trees'
     : !input.camera
@@ -1446,14 +1807,15 @@ function measureLines(input: FigureInput, counts: FigureCounts | null): string[]
       : input.camera.maxTreeHeightM !== null
         ? ', the ground under the trees'
         : ', bare earth'
-  const screened = input.screenedClasses ? presetPercent(input.preset, countClasses(input.screenedClasses)) : null
+  const screened = input.screenedClasses ? figurePercent(input, countClasses(input.screenedClasses)) : null
   return [
-    `Sightline measure (PGMaps run, the assessment figure): ${fixed(input.sightlinePercent)}%${input.sightlineClass ? ` (${input.sightlineClass})` : ''}`,
-    `Pixel measure, this image${ground}: ${fixed(pixel)}%`,
+    `Sightline measure (PGMaps run, the assessment figure${of}): ${fixed(input.sightlinePercent)}%${input.sightlineClass ? ` (${input.sightlineClass})` : ''}`,
+    `Pixel measure, this image${of}${ground}: ${fixed(pixel)}%`,
     ...(input.screenedClasses ? [`Pixel measure with the drawn trees in front: ${fixed(screened)}%`] : []),
     ...(timberLine(input) ? [timberLine(input)!] : []),
     ...partialCutLines(input, counts),
     ...(input.illustration ?? []),
+    ...(landforms?.unaltered.length ? [`Also seen, no alteration in it: ${landforms.unaltered.join(', ')}`] : []),
     `View: ${input.lens}`,
   ]
 }
@@ -1589,17 +1951,32 @@ export function analysisSheet(input: FigureInput): ComposedFigure {
   // Calculation, with PGMaps' own two figures beside it.
   const calcCell = cell('calc')
   const counts = input.classes ? countClasses(input.classes) : null
-  const calc = calcOps(input, counts, calcCell.x + 10.8, calcCell.y + 15.5, 'left')
-  ops.push(...calc.ops)
-  // PGMaps' own two figures in the cell's right half, wrapped to it.
-  const measureX = calcCell.x + calcCell.w * 0.5
-  const measureWidth = calcCell.x + calcCell.w - measureX - 8
-  const measureTop = calcCell.y + 37
   // The cell's foot, above the footnote when there is one.
   const measureBottom = calcCell.y + calcCell.h - (preset.calc?.footnote ? 12 : 4)
+  // A column per landform the view reads with alteration in it (23 A6); one landform keeps the one calculation.
+  const { columns, unaltered } = calcColumns(input, counts)
+  const multi = columns.length > 1
+  if (multi)
+    ops.push(
+      ...calcColumnsOps(input, columns, {
+        x: calcCell.x + 10.8,
+        top: calcCell.y + 15.5,
+        bottom: measureBottom,
+        width: calcCell.w * 0.7 - 18.8,
+      }),
+    )
+  else ops.push(...calcOps(input, counts, calcCell.x + 10.8, calcCell.y + 15.5, 'left').ops)
+  // PGMaps' own two figures in the cell's right half (beside the columns, its last 30%), wrapped to it.
+  const measureX = calcCell.x + calcCell.w * (multi ? 0.7 : 0.5)
+  const measureWidth = calcCell.x + calcCell.w - measureX - 8
+  const measureTop = calcCell.y + (multi ? 15.5 : 37)
   ops.push(
     ...fittedLines(
-      measureLines(input, counts).map((text, i) => ({
+      measureLines(
+        input,
+        counts,
+        multi || unaltered.length ? { primary: multi ? input.titles.area : null, unaltered } : undefined,
+      ).map((text, i) => ({
         text,
         style: i < figureLineCount(input) ? OWN : { ...OWN, size: 7.92 },
       })),

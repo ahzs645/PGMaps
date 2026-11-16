@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CLASS_PALETTE } from '@/lib/forestry/viaFigure/composeFigure'
-import { classPassLayers, paintsPartialCut, splitAtLandform } from './figureClassPass'
+import { blocksInLandform, classPassLayers, paintsPartialCut, splitAtLandform } from './figureClassPass'
 import { polygonAreaMeters } from './visibility'
 
 const square = (x0: number, y0: number, size: number): GeoJSON.Polygon => ({
@@ -101,5 +101,34 @@ describe('a partial cut in the class pass', () => {
     expect(inside.color).toBe(`#${CLASS_PALETTE.partialIn.map((v) => v.toString(16).padStart(2, '0')).join('')}`)
     const area = polygonAreaMeters(inside.data.features[0].geometry as GeoJSON.MultiPolygon)
     expect(area / polygonAreaMeters(cut)).toBeCloseTo(1 - 1 / 16, 2)
+  })
+})
+
+describe('a landform’s blocks', () => {
+  it('names the blocks with ground in the landform, from the plan', () => {
+    const blocks = [
+      { id: 'in', geometry: square(-121.998, 54.002, 0.002) },
+      { id: 'across', geometry: square(-121.995, 54.002, 0.01) },
+      { id: 'out', geometry: square(-121.95, 54.05, 0.002) },
+    ]
+    expect(blocksInLandform(blocks, LANDFORM)).toEqual(['in', 'across'])
+    // Another landform's pass is the same layers split at it: its blocks are inside there.
+    const other = square(-121.952, 54.048, 0.006)
+    expect(blocksInLandform(blocks, other)).toEqual(['out'])
+    const pass = classPassLayers({
+      landform: other,
+      blocks: blocks.map((b) => b.geometry),
+      existing: [],
+      privateLand: [],
+      rock: [],
+    })
+    expect(pass.layers.map((layer) => layer.id)).toEqual(['landform', 'proposedOut', 'proposedIn'])
+  })
+
+  it('takes no block whose outline only meets the landform’s edge', () => {
+    // 0.33 m by 111 m of overlap (about 36 m²): where two outlines meet, not ground in the landform.
+    const edge = { id: 'edge', geometry: square(-122.001 + 0.000005, 54.002, 0.001) }
+    const real = { id: 'real', geometry: square(-122.0005, 54.004, 0.001) }
+    expect(blocksInLandform([edge, real], LANDFORM)).toEqual(['real'])
   })
 })

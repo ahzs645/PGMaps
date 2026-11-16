@@ -190,35 +190,51 @@ export type GreenUpBasis = {
   /** Openings the line counts: harvested, not site disturbance, already harvested, reaching the landform. */
   total: number
   fieldCount: number
-  /** "modelled", "field-confirmed 12 Nov 2026 by J. Smith", "field-confirmed for 2 of 5 openings, modelled for 3". */
+  /** Openings whose share is a supplied recovery estimate (no field check in use): never called modelled by age. */
+  estimateCount: number
+  /**
+   * "modelled", "field-confirmed 12 Nov 2026 by J. Smith", "field-confirmed for 2 of 5 openings, modelled for 3",
+   * "supplied estimate for 2 of 5 openings, modelled for 3".
+   */
   label: string
 }
 
-/** One label for line c from the openings' readings. */
+/**
+ * One label for line c from the openings' readings. A supplied recovery estimate is named apart from the green-up
+ * age, so a figure resting on someone's estimate never reads as the default model or as a field check.
+ */
 export function greenUpBasis(readings: ReadonlyArray<GreenUpReading>): GreenUpBasis {
   const total = readings.length
   const field = readings.filter((reading) => reading.used === 'field')
   const fieldCount = field.length
-  if (!total) return { total, fieldCount, label: 'no existing openings counted' }
-  if (!fieldCount) return { total, fieldCount, label: 'modelled' }
+  const estimateCount = readings.filter(
+    (reading) => reading.used === 'modelled' && reading.modelled.basis === 'estimate',
+  ).length
+  const modelledCount = total - fieldCount - estimateCount
+  const basis = (label: string) => ({ total, fieldCount, estimateCount, label })
+  if (!total) return basis('no existing openings counted')
+  if (!fieldCount && !estimateCount) return basis('modelled')
   const labels = new Set(field.map((reading) => reading.label))
   // "12 Nov 2026 by J. Smith" when every check is the same visit.
   const visit = labels.size === 1 ? field[0].label.replace(/^field-confirmed /, '') : null
   if (fieldCount === total) {
-    if (total === 1) return { total, fieldCount, label: field[0].label }
-    return {
-      total,
-      fieldCount,
-      label: visit
-        ? `field-confirmed ${visit} (${total} openings)`
-        : `field-confirmed (${total} openings, several checks)`,
-    }
+    if (total === 1) return basis(field[0].label)
+    return basis(
+      visit ? `field-confirmed ${visit} (${total} openings)` : `field-confirmed (${total} openings, several checks)`,
+    )
   }
-  return {
-    total,
-    fieldCount,
-    label: `field-confirmed for ${fieldCount} of ${total} openings${visit ? ` (${visit})` : ''}, modelled for ${total - fieldCount}`,
-  }
+  if (estimateCount === total) return basis(total === 1 ? 'supplied estimate' : `supplied estimate (${total} openings)`)
+  // The first part counts out of all openings ("for 2 of 5 openings"); the rest follow it ("modelled for 3").
+  const parts = [
+    { count: fieldCount, name: 'field-confirmed', after: visit ? ` (${visit})` : '' },
+    { count: estimateCount, name: 'supplied estimate', after: '' },
+    { count: modelledCount, name: 'modelled', after: '' },
+  ].filter((part) => part.count > 0)
+  return basis(
+    parts
+      .map((part, index) => `${part.name} for ${part.count}${index === 0 ? ` of ${total} openings` : ''}${part.after}`)
+      .join(', '),
+  )
 }
 
 /**

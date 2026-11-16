@@ -7,6 +7,7 @@ import {
   exportContents,
   exportPreparation,
   READS_INVENTORY,
+  rendererMissing,
   exportUnavailable,
   VISUALS_EXPORTS,
   type ContextInput,
@@ -151,6 +152,34 @@ describe('visual-quality exports', () => {
     )
     expect(exportUnavailable('via-report', blocked)).toBe(
       'threejs-worldgen cannot draw the figures: Needs WebGPU, which this browser does not offer.',
+    )
+  })
+
+  it('makes only the VIA report wait for the before pictures by the same engine', () => {
+    const renderer = {
+      id: 'nanite' as const,
+      label: 'Nanite Forest',
+      missing: 0,
+      views: 2,
+      running: false,
+      left: null,
+      measured: true,
+      failed: null,
+      unavailable: null,
+      missingBefore: 2,
+      leftWithBefore: 'about 2 min',
+    }
+    const ctx = buildExportContext(input(createEmptyScene(), { renderer }))
+    expect(rendererMissing('via-report', ctx.renderer)).toBe(2)
+    expect(rendererMissing('analysis-sheet', ctx.renderer)).toBe(0)
+    expect(rendererMissing('via-report', { ...ctx.renderer, id: 'pgmaps' })).toBe(0)
+    // The sheet and the document print no before picture: nothing to wait for.
+    expect(exportPreparation('analysis-sheet', ctx).render).toBe(false)
+    expect(exportPreparation('via-document', ctx).render).toBe(false)
+    const report = exportPreparation('via-report', ctx)
+    expect(report.render).toBe(true)
+    expect(report.note).toBe(
+      'Nanite Forest draws 2 before pictures at final quality first, in the background: about 2 min (from your renders). Then the file is written.',
     )
   })
 

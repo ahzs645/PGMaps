@@ -23,6 +23,7 @@ import {
   ha,
   missingFields,
   objectiveOf,
+  generalLocationRow,
   officeRow,
   paragraph,
   PRIVATE_LAND_NETTED,
@@ -95,6 +96,16 @@ function systemsLine(blocks: readonly ReportBlockFacts[]): string | null {
 /** A block's recorded leave (retention) area, hectares, or null when the scene records none. */
 const leaveHa = (block: ReportBlockFacts) =>
   block.retentionPercent === null ? null : (block.areaHa * block.retentionPercent) / 100
+
+/** Mapped reserves (wildlife tree patches / retention) inside a block, hectares, when there is a printable area. */
+const reservesOf = (block: ReportBlockFacts) => ((block.reservesHa ?? 0) >= 0.05 ? block.reservesHa! : 0)
+
+/** All a block keeps standing, hectares: its mapped reserves and its dispersed retention; null when neither is recorded. */
+const keptHa = (block: ReportBlockFacts) => {
+  const leave = leaveHa(block)
+  const reserves = reservesOf(block)
+  return leave === null && !reserves ? null : Math.min(block.areaHa, reserves + (leave ?? 0))
+}
 
 const blocksField = (ctx: ReportContext) =>
   field('Blocks', blank(ctx.office.blockIds) ?? ctx.blocks.map((block) => block.name).join(', '), 'scene')
@@ -185,12 +196,18 @@ function inventoryRows(ctx: ReportContext): string[][] {
 export function operationArea(blocks: readonly ReportBlockFacts[]): string | null {
   if (!blocks.length) return null
   const total = blocks.reduce((sum, block) => sum + block.areaHa, 0)
-  const retained = blocks.reduce((sum, block) => sum + (leaveHa(block) ?? 0), 0)
+  const retained = blocks.reduce((sum, block) => sum + (keptHa(block) ?? 0), 0)
   const sizes =
     blocks.length === 1
       ? `Block ${blocks[0].name}`
       : blocks.map((block) => `${block.name} ${ha(block.areaHa)} ha`).join(', ')
-  return `${ha(total)} ha (${sizes}${retained > 0 ? `; includes about ${ha(retained)} ha of recorded retention` : ''})`
+  const what = [
+    blocks.some((block) => reservesOf(block) > 0) ? 'mapped reserves' : '',
+    blocks.some((block) => (leaveHa(block) ?? 0) > 0) ? 'recorded retention' : '',
+  ]
+    .filter(Boolean)
+    .join(' and ')
+  return `${ha(total)} ha (${sizes}${retained > 0 ? `; includes about ${ha(retained)} ha of ${what}` : ''})`
 }
 
 /** The proposed year of harvest from each block's planned harvest year; null until every block has one. */
@@ -342,7 +359,10 @@ const districtSummaryForm: ReportPart = {
         ],
         note: `Rows 5-7 measure each view’s class pass as ${ctx.document.format.rule.formula} (${ctx.document.format.rule.basis}); row 8 reads the total on the form’s strict bounds.${
           sightline.length ? ` The run’s sightline figures, the assessment’s: ${sightline.join(', ')}.` : ''
-        }`,
+        }${ctx.facts.viewpoints
+          .filter((vp) => vp.terrainNote)
+          .map((vp) => ` ${ctx.facts.viewpoints.length > 1 ? `${vp.name}: ` : ''}${vp.terrainNote}`)
+          .join('')}`,
         source: 'run',
       },
       fields(reviewer),
@@ -372,7 +392,7 @@ const formHeader2001: ReportPart = {
       officeRow(ctx, 'licence', 'Licensee no.'),
       officeRow(ctx, 'cuttingPermit', 'Cutting permit'),
       blocksField(ctx),
-      officeRow(ctx, 'generalLocation', 'General location'),
+      generalLocationRow(ctx),
       field('Proposed silvicultural system', systemsLine(ctx.blocks), 'scene'),
       ...(summaryForm
         ? [
@@ -395,7 +415,7 @@ const blockAreas2001: ReportPart = {
   sources: ['01', '03', '05'],
   build: (ctx) => {
     const rows = ctx.blocks.map((block) => {
-      const leave = leaveHa(block)
+      const leave = keptHa(block)
       return [
         block.name,
         ha(block.areaHa),
@@ -403,9 +423,9 @@ const blockAreas2001: ReportPart = {
         leave === null ? '' : ha(block.areaHa - leave),
       ]
     })
-    const unknown = ctx.blocks.filter((block) => leaveHa(block) === null).map((block) => block.name)
+    const unknown = ctx.blocks.filter((block) => keptHa(block) === null).map((block) => block.name)
     const gross = ctx.blocks.reduce((sum, block) => sum + block.areaHa, 0)
-    const leave = ctx.blocks.reduce((sum, block) => sum + (leaveHa(block) ?? 0), 0)
+    const leave = ctx.blocks.reduce((sum, block) => sum + (keptHa(block) ?? 0), 0)
     if (ctx.blocks.length > 1)
       rows.push(['Total', ha(gross), unknown.length ? '' : ha(leave), unknown.length ? '' : ha(gross - leave)])
     return {
@@ -414,7 +434,7 @@ const blockAreas2001: ReportPart = {
           kind: 'table',
           columns: ['Block', 'Gross (ha)', 'Leave (ha)', 'Net (ha)'],
           rows,
-          note: 'Gross is the block’s planar BC Albers area; leave is its recorded retention.',
+          note: 'Gross is the block’s planar BC Albers area; leave is its mapped reserves (wildlife tree patches / retention) and recorded dispersed retention.',
           source: 'scene',
         },
       ],
@@ -987,7 +1007,26 @@ export function designTechniqueSentences(ctx: ReportContext): Sentence[] {
           'scene',
         ),
       )
-    const none = blocks.filter((block) => block.retentionPercent === null && !block.partialCut)
+    // Mapped reserves (`retained` masks: wildlife tree patches / retention) inside the blocks, whatever their system.
+    const reserved = blocks.filter((block) => reservesOf(block) > 0)
+    if (reserved.length)
+      out.push(
+        fillSentence(
+          'design-reserves',
+          reserved.length > 1
+            ? 'Mapped wildlife tree patches and reserves keep about {area} ha standing within {blocks} ({each}); they are left out of the proposed alteration.'
+            : 'Mapped wildlife tree patches and reserves keep about {area} ha standing within {blocks}; they are left out of the proposed alteration.',
+          {
+            area: ha(reserved.reduce((sum, block) => sum + reservesOf(block), 0)),
+            blocks: blockList(reserved.map((block) => block.name)),
+            each: reserved.map((block) => `${ha(reservesOf(block))} ha in Block ${blockId(block.name)}`).join(', '),
+          },
+          'scene',
+        ),
+      )
+    const none = blocks.filter(
+      (block) => block.retentionPercent === null && !block.partialCut && reservesOf(block) === 0,
+    )
     if (none.length)
       out.push(
         fillSentence(
@@ -1103,7 +1142,8 @@ const designQuestions2001: ReportPart = {
       const value = ctx.assessment?.design[id]?.rating ?? null
       return value === -1 ? true : value === 1 ? false : null
     }
-    const islands = ctx.blocks.some((block) => (block.islands ?? 0) > 0) ? true : null
+    // Yes when the scene maps a retention patch (a wildlife tree patch or reserve) in a block, whatever its system.
+    const islands = ctx.blocks.some((block) => (block.islands ?? 0) > 0 || reservesOf(block) > 0) ? true : null
     const questions: Array<{ short: string; label: string; chosen: boolean | null; source: 'reviewer' | 'scene' }> = [
       {
         short: 'major lines of force',

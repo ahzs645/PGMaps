@@ -298,6 +298,18 @@ export const PERSPECTIVE_REPORT = {
     'run',
     'Block {block} is located on {landform}; from the {viewpoint} viewpoint at most glimpses of it may be seen.',
   ),
+  locationOutside: t(
+    'location',
+    'Block discussion: a block seen from the viewpoint that lies in none of the landforms outlined from it',
+    'run',
+    'Block {block} lies outside the landforms outlined from the {viewpoint} viewpoint and is visible from it.',
+  ),
+  glimpsesOutside: t(
+    'glimpses',
+    'Block discussion: a block glimpsed from the viewpoint that lies in none of the landforms outlined from it',
+    'run',
+    'Block {block} lies outside the landforms outlined from the {viewpoint} viewpoint; from there at most glimpses of it may be seen.',
+  ),
   notVisible: t(
     'not-visible',
     'Block discussion: a block no significant viewpoint sees',
@@ -357,6 +369,12 @@ export const PERSPECTIVE_REPORT = {
     'Block discussion: a second block outside the same landform, not repeated',
     'run',
     'As with Block {first}, {landform} as outlined from this viewpoint does not take in this block.',
+  ),
+  scaleOutsideAll: t(
+    'scale-outside',
+    'Block discussion: no landform read from the key viewpoint holds the block',
+    'run',
+    'As outlined from this viewpoint, none of {landforms} takes in the {subject}, so no figure here measures {itThem}.',
   ),
   scaleMeasuredAt: t(
     'scale-measured-at',
@@ -418,6 +436,12 @@ export const PERSPECTIVE_REPORT = {
     'Block discussion: closing line',
     'reviewer',
     'The VQO of {vqo} is {extent} for {blockList} within {landform}.',
+  ),
+  closingOutside: t(
+    'closing',
+    'Block discussion: closing line for a block no landform outlined from the viewpoint holds',
+    'reviewer',
+    'The VQO of {vqo} is {extent} for {blockList}.',
   ),
   conclusion: t(
     'conclusion',

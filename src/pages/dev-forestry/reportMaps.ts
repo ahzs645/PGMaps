@@ -114,6 +114,11 @@ export interface ReportMapPlan {
   /** Regional maps: the overview's ground, marked as the project area. */
   projectArea?: LngLatBounds
   /**
+   * The figure page's regional map: named places inside its frame that the basemap did not draw there, which the map
+   * names itself (`regionalPlaceLabels`). Set at capture, where the names are read.
+   */
+  places?: readonly LabelledPlace[]
+  /**
    * The 11 × 17 sheet: the round scale it states, true at the frame's centre latitude, the paper it is drawn for, and
    * its style (the landscape topographic sheet when absent).
    */
@@ -652,6 +657,15 @@ const regionalCaption = (camera: MapCamera, frame: MapFrame, viewpoints: number,
     viewpoints === 1 ? '' : 's'
   } ${place ? `with ${place}, the nearest named place,` : ''} in the region’s roads and towns.`.replace('  ', ' ')
 
+/**
+ * The figure page's regional map as one viewpoint's page prints it: the same camera and capture, starring only that
+ * viewpoint, as 26's Figures 2 and 3 each star their own. A report with several viewpoints draws one per page
+ * (`captureReportMap`), so a page's star is never another page's viewpoint.
+ */
+export function regionalForViewpoint(plan: ReportMapPlan, viewpoint: ReportViewpoint): ReportMapPlan {
+  return { ...plan, key: viewpoint.name, viewpoint, caption: plan.caption.replace('its viewpoints', 'its viewpoint') }
+}
+
 /** A place the basemap names on the regional map (a town, village or hamlet), read at capture. */
 export interface LabelledPlace {
   name: string
@@ -685,17 +699,7 @@ export function regionalWithPlace(
   const frame = plan.frame
   const [w, s, e, n] = plan.projectArea
   const centre = { lng: (w + e) / 2, lat: (s + n) / 2 }
-  const projection = frameProjectionFor(plan.camera, frame)
-  const inFrame = (place: LabelledPlace) => {
-    const [x, y] = projection.project(place.lng, place.lat)
-    const margin = FIGURE_REGIONAL_PADDING_SHARE / 2
-    return (
-      x >= frame.width * margin &&
-      x <= frame.width * (1 - margin) &&
-      y >= frame.height * margin &&
-      y <= frame.height * (1 - margin)
-    )
-  }
+  const inFrame = placeInFrame(plan.camera, frame)
   const named = places.filter((place) => place.name && Number.isFinite(place.lng) && Number.isFinite(place.lat))
   if (!named.length || named.some(inFrame)) return plan
   const nearest = named.reduce((best, place) =>
@@ -713,6 +717,74 @@ export function regionalWithPlace(
   const camera: MapCamera = { center: fitted.center, zoom: Math.min(fitted.zoom, closest) }
   if (printedScale(camera, frame, FIGURE_PAGE_MAP_WIDTH_IN) > FIGURE_REGIONAL_MAX_SCALE * 1.0001) return plan
   return { ...plan, camera, caption: regionalCaption(camera, frame, viewpointCount, nearest.name) }
+}
+
+/** Whether a place lies inside `frame` at `camera`, clear of half the regional padding at every edge. */
+function placeInFrame(camera: MapCamera, frame: MapFrame) {
+  const projection = frameProjectionFor(camera, frame)
+  const margin = FIGURE_REGIONAL_PADDING_SHARE / 2
+  return (place: LabelledPlace) => {
+    const [x, y] = projection.project(place.lng, place.lat)
+    return (
+      x >= frame.width * margin &&
+      x <= frame.width * (1 - margin) &&
+      y >= frame.height * margin &&
+      y <= frame.height * (1 - margin)
+    )
+  }
+}
+
+/**
+ * The zoom whose tiles the regional map reads the places it names itself from: CARTO's vector tiles carry localities
+ * and hamlets (their `min_zoom` 13) only from zoom 12, and the regional camera stands near zoom 10, whose nearest
+ * name to Marblehead was Kaslo, 38 km away, while Meadow Creek and Howser lie inside the frame.
+ */
+export const FIGURE_REGIONAL_PLACE_READ_ZOOM = 12
+/** The most places the regional map names itself: enough to place the project, few enough to read. */
+export const FIGURE_REGIONAL_PLACE_LABELS = 4
+/** Places the regional map names itself lie at least this share of the frame's width apart, so names never crowd. */
+export const FIGURE_REGIONAL_PLACE_SPACING_SHARE = 0.18
+
+/**
+ * The named places the figure page's regional map names itself: those inside its frame (clear of half the padding)
+ * that the basemap did not draw (`drawn`, by name), nearest the project first, each at least
+ * `FIGURE_REGIONAL_PLACE_SPACING_SHARE` of the frame's width from every one kept, at most
+ * `FIGURE_REGIONAL_PLACE_LABELS`. Empty for any other map. Places come once each by name, the first given kept.
+ */
+export function regionalPlaceLabels(
+  plan: ReportMapPlan,
+  places: readonly LabelledPlace[],
+  drawn: readonly string[] = [],
+): LabelledPlace[] {
+  if (plan.kind !== 'regional' || plan.style !== 'figure-page' || !plan.projectArea || !plan.frame) return []
+  const frame = plan.frame
+  const [w, s, e, n] = plan.projectArea
+  const centre = { lng: (w + e) / 2, lat: (s + n) / 2 }
+  const inFrame = placeInFrame(plan.camera, frame)
+  const projection = frameProjectionFor(plan.camera, frame)
+  const skip = new Set(drawn)
+  const candidates = new Map<string, LabelledPlace>()
+  for (const place of places)
+    if (
+      place.name &&
+      !skip.has(place.name) &&
+      !candidates.has(place.name) &&
+      Number.isFinite(place.lng) &&
+      Number.isFinite(place.lat) &&
+      inFrame(place)
+    )
+      candidates.set(place.name, place)
+  const spacing = frame.width * FIGURE_REGIONAL_PLACE_SPACING_SHARE
+  const kept: Array<{ place: LabelledPlace; at: Point }> = []
+  for (const place of [...candidates.values()].sort(
+    (a, b) => haversineMeters(centre, a) - haversineMeters(centre, b),
+  )) {
+    if (kept.length >= FIGURE_REGIONAL_PLACE_LABELS) break
+    const at = projection.project(place.lng, place.lat)
+    if (kept.some((other) => Math.hypot(other.at[0] - at[0], other.at[1] - at[1]) < spacing)) continue
+    kept.push({ place, at })
+  }
+  return kept.map((entry) => entry.place)
 }
 
 /** A basemap layer as `getStyle().layers` lists it: what `figureRegionalLook` reads. */
@@ -1673,6 +1745,8 @@ function composeFigurePageMap(
   const labels: string[] = []
   const star = VIA_FIGURE_MAP.viewpoint
   const starSize = 10 * k
+  /** The regional map's project outline as drawn, which its place names keep clear of. */
+  let projectBox: Box | null = null
 
   if (plan.kind === 'location') {
     const road = features.road?.map(project) ?? []
@@ -1740,17 +1814,80 @@ function composeFigurePageMap(
     )
     ops.push(...areaSymbolOps([grown], FIGURE_PAGE_PROJECT_AREA, k))
     row(FIGURE_PAGE_PROJECT_AREA)
+    const xs = grown.map((point) => point[0]),
+      ys = grown.map((point) => point[1])
+    const left = Math.min(...xs),
+      top = Math.min(...ys)
+    projectBox = { x: left, y: top, w: Math.max(...xs) - left, h: Math.max(...ys) - top }
   }
 
   const viewpoints = plan.viewpoint ? [plan.viewpoint] : features.viewpoints
   let starred = 0
+  const starBoxes: Box[] = []
   for (const vp of viewpoints) {
     const [x, y] = project([vp.lng, vp.lat])
     if (x < 0 || x > frame.width || y < 0 || y > frame.height) continue
     ops.push(...starOps(x, y, starSize, k, { fill: star.fill, edge: star.edge, edgeWidth: 0.6 }))
+    starBoxes.push({ x: x - starSize / 2, y: y - starSize / 2, w: starSize, h: starSize })
     starred += 1
   }
   if (starred) rows.push({ label: 'Viewpoint', color: star.fill, kind: 'point' })
+
+  // The regional map's own place names (`regionalPlaceLabels`): a dot and the name beside it, in the basemap's own
+  // village size and colours; a name that would cross the project's outline, a star, another name or the north arrow
+  // tries the dot's other side, above, then below, and is left out when none is clear.
+  if (plan.kind === 'regional' && plan.places?.length) {
+    const look = VIA_FIGURE_MAP.regional
+    const size = (look.smallPlaceSize / FIGURE_REGIONAL_TYPE_BASE_PX) * frame.width
+    const halo = (look.labelHaloWidth / FIGURE_REGIONAL_TYPE_BASE_PX) * frame.width
+    const dot = 1.1 * k
+    const taken: Box[] = [
+      ...(projectBox ? [projectBox] : []),
+      ...starBoxes,
+      // The north arrow at the top right, and the sources' line along the bottom.
+      { x: frame.width - 16 * k, y: 0, w: 16 * k, h: 24 * k },
+      { x: 0, y: frame.height - 6 * k, w: frame.width, h: 6 * k },
+    ]
+    for (const place of plan.places) {
+      const [x, y] = project([place.lng, place.lat])
+      const text = fitText(place.name, size, frame.width * 0.45, 'bold')
+      const width = textWidth(text, size, 'bold')
+      const dotBox: Box = { x: x - dot, y: y - dot, w: 2 * dot, h: 2 * dot }
+      if (taken.some((other) => boxesMeet(other, dotBox))) continue
+      const gap = dot + 1.2 * k
+      const options: Array<{ x: number; y: number; align: 'left' | 'right' | 'center' }> = [
+        { x: x + gap, y: y + size * 0.35, align: 'left' },
+        { x: x - gap, y: y + size * 0.35, align: 'right' },
+        { x, y: y - gap, align: 'center' },
+        { x, y: y + gap + size * 0.8, align: 'center' },
+      ]
+      for (const option of options) {
+        const left =
+          option.align === 'left' ? option.x : option.align === 'right' ? option.x - width : option.x - width / 2
+        const rect: Box = { x: left - halo, y: option.y - size * 0.85, w: width + 2 * halo, h: size * 1.15 }
+        if (rect.x < 2 || rect.y < 2 || rect.x + rect.w > frame.width - 2 || rect.y + rect.h > frame.height - 2)
+          continue
+        if (taken.some((other) => boxesMeet(other, rect))) continue
+        taken.push(rect, dotBox)
+        labels.push(text)
+        ops.push(
+          { op: 'circle', x, y, r: dot, fill: look.label, stroke: { color: look.labelHalo, width: 0.5 * k } },
+          {
+            op: 'text',
+            x: option.x,
+            y: option.y,
+            text,
+            size,
+            style: 'bold',
+            color: look.label,
+            align: option.align,
+            halo: { color: look.labelHalo, width: halo },
+          },
+        )
+        break
+      }
+    }
+  }
 
   if (attribution)
     ops.push({
