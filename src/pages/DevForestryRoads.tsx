@@ -5506,6 +5506,10 @@ export default function DevForestryRoads({
         minimized={minimized}
         onToggleMinimized={toggleMinimized}
         onGroupChange={selectGroup}
+        onReorderTabs={(labels) => {
+          if (ribbonPreferences.reorderTabs(labels) === false)
+            w.setNotice('Ribbon tabs reordered for this session. Browser storage is unavailable.')
+        }}
         editorsAvailable={!investigation}
         editorHost={editorHost}
         editorMount={inlineWorkflow ? attachEditor : undefined}

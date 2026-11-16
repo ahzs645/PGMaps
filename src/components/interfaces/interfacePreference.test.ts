@@ -4,8 +4,8 @@ import { initialInterfaceId } from './interfacePreference'
 const layouts = [{ id: 'ribbon' }, { id: 'guided' }, { id: 'workbench' }]
 
 describe('initialInterfaceId', () => {
-  it('opens the workbench when nothing was chosen', () => {
-    expect(initialInterfaceId(layouts, '', null)).toBe('workbench')
+  it('opens the Ribbon when nothing was chosen', () => {
+    expect(initialInterfaceId(layouts, '', null)).toBe('ribbon')
   })
 
   it('reopens the interface this browser last used', () => {
@@ -17,7 +17,7 @@ describe('initialInterfaceId', () => {
   })
 
   it('ignores interfaces the served layouts no longer list', () => {
-    expect(initialInterfaceId(layouts, '?interface=retired', 'gone')).toBe('workbench')
+    expect(initialInterfaceId(layouts, '?interface=retired', 'gone')).toBe('ribbon')
     expect(initialInterfaceId([{ id: 'custom' }], '', 'gone')).toBe('custom')
   })
 })

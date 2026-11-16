@@ -369,6 +369,8 @@ function Layers(
     refusedEdit?: boolean
     /** What the active road is coloured by. */
     roadColour?: RoadColourMode
+    /** The strip under the map that takes the legend when it is placed below. */
+    legendSlot: HTMLElement | null
   },
 ) {
   const { map, isLoaded } = useMap()
@@ -2428,6 +2430,8 @@ function Layers(
         toolOpen={!!planToolActive}
         expanded={props.display.legendOpen}
         onExpandedChange={props.display.setLegendOpen}
+        placement={props.display.legendPlacement}
+        belowSlot={props.legendSlot}
       />
     </>
   )
@@ -2763,12 +2767,18 @@ export function PlanView(input: PlanProps) {
     const bar = toolbar.current
     const view = planView.current
     if (!bar || !view || typeof ResizeObserver === 'undefined') return
-    const sync = () => view.style.setProperty('--road-plan-toolbar-height', `${bar.offsetHeight}px`)
+    const sync = () => {
+      view.style.setProperty('--road-plan-toolbar-height', `${bar.offsetHeight}px`)
+      view.style.setProperty('--road-plan-toolbar-width', `${bar.offsetWidth}px`)
+    }
     sync()
     const observer = new ResizeObserver(sync)
     observer.observe(bar)
     return () => observer.disconnect()
   }, [])
+  // The strip under the map that the legend moves into when it is placed below (`PlanLegend`).
+  const [legendSlot, setLegendSlot] = useState<HTMLDivElement | null>(null)
+  const { legendPlacement, setLegendPlacement, toolbarLayout, setToolbarLayout } = props.display
   const settingsPanel = useRef<HTMLDivElement>(null)
   const closeSettings = useCallback(() => setSettingsOpen(false), [setSettingsOpen])
   useEffect(() => {
@@ -2792,476 +2802,520 @@ export function PlanView(input: PlanProps) {
     ? investigationCoordinates(props.project)[0]
     : props.alignment.points[0]?.coordinate) ?? [-122.82, 53.89]
   return (
-    <div
-      ref={planView}
-      className={`road-plan-view isolate relative h-full min-h-0 overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
-      data-testid="road-plan-view"
-      data-drawing={drawing}
-    >
-      <Map
-        center={center}
-        zoom={14}
-        // Markers are placed in pixels, so scaling the canvas during a pane drag leaves them behind.
-        deferResize={false}
-        controls={
-          <>
-            <div className="road-plan-fit absolute right-2 top-2 z-30 flex gap-1">
-              <Button
-                size="icon"
-                variant="outline"
-                className="size-8 bg-background shadow-sm"
-                aria-label={investigation ? 'Fit mapped study records' : 'Fit road alignments'}
-                title={investigation ? 'Fit all mapped blocks and road records' : 'Fit all road alignments'}
-                onClick={() => fit('roads')}
-              >
-                <LocateFixed className="size-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                className="size-8 bg-background shadow-sm"
-                aria-label="Fit terrain coverage"
-                title="Fit the loaded DEM coverage"
-                disabled={!hasTerrainBounds}
-                onClick={() => fit('terrain')}
-              >
-                <Mountain className="size-4" />
-              </Button>
-            </div>
-            <MapControls position="top-right" showZoom showCompass={false} className="road-map-controls">
-              <MapLayersControl
-                label="Basemap"
-                basemaps={IMAGERY_BASEMAPS}
-                basemap={basemap}
-                onBasemapChange={setBasemap}
-              />
-            </MapControls>
-          </>
-        }
-        showLoadingOverlay={false}
+    // The map takes what the legend strip under it leaves; with the legend on the map the strip is empty.
+    <div className="road-plan-frame flex h-full min-h-0 flex-col">
+      <div
+        ref={planView}
+        className={`road-plan-view isolate relative min-h-0 flex-1 overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
+        data-testid="road-plan-view"
+        data-drawing={drawing}
       >
-        <MapTableBridge table={table} />
-        {/* Mounted first, so it stays under every road layer, and always mounted, so it never moves. */}
-        <MapFillLayer
-          sourceKey="road-local-plane"
-          data={PLANE_BACKGROUND}
-          fillColor={dark ? '#111827' : '#f5f5f2'}
-          fillOpacity={1}
-          lineOpacity={0}
-          interactive={false}
-          visible={!!plane}
-        />
-        <MapLineLayer
-          sourceKey="road-local-plane-grid"
-          data={planeGrid}
-          color={dark ? '#334155' : '#d4d4cf'}
-          width={1}
-          interactive={false}
-          visible={!!plane}
-        />
-        <SatelliteImagery visible={basemap === 'satellite' && !plane} />
-        <RegionalDemLayer visible={props.display.terrainLayer !== 'none' && !plane} imagery={basemap === 'satellite'} />
-        <HrdemReliefLayer visible={props.display.showHrdem && props.display.terrainLayer !== 'none' && !plane} />
-        {props.detailArea && (
-          <MapLineLayer
-            interactive={false}
-            sourceKey="road-detail-area"
-            data={{
-              type: 'FeatureCollection',
-              features: props.detailArea.map((quad, i) => ({
-                type: 'Feature',
-                properties: { id: i },
-                geometry: { type: 'LineString', coordinates: [...quad, quad[0]] },
-              })),
-            }}
-            color="#0d9488"
-            width={2}
-            dashArray={[3, 2]}
-          />
-        )}
-        {showSentinel && !plane && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
-        <Layers
-          {...props}
-          onContextSelect={selectContext}
-          alignment={previewAlignment ?? props.alignment}
-          savedAlignment={handleAlignment}
-          analyses={previewAnalyses}
-          // The cost was spread over the saved road's stations: a dragged preview draws plain until it lands.
-          costColours={previewAlignment ? undefined : props.costColours}
-          onPointDragStart={(id) => props.onSelectPoint(id)}
-          onBendPreview={(afterId, coordinate) =>
-            setBend(coordinate ? { original: props.alignment, afterId, coordinate } : null)
-          }
-          onMovePoint={(id, coordinate) => setDrag({ original: props.alignment, id, coordinate })}
-          onPointDragEnd={(id, coordinate) => {
-            setDrag(null)
-            props.onMovePoint(id, coordinate)
-          }}
-          fitRequest={fitRequest}
-          terrainLayer={terrainLayer}
-          imagery={basemap === 'satellite'}
-          showContours={showContours}
-          showLabels={showLabels}
-          showEarthwork={showEarthwork}
-          sheetSymbols={sheetSymbols}
-          hiddenContextKinds={hiddenContextKinds}
-          visibleContext={visibleContext}
-          visibleBufferData={bufferData.data}
-          bufferSymbols={bufferData.symbols}
-          visibleReference={visibleReference}
-          referenceStyles={props.project.referenceStyles}
-          referenceSymbols={referenceSymbols}
-          noteTool={noteTool}
-          planToolActive={!!tools.tool}
-          roadColour={tools.roadColour}
-          refusedEdit={!!previewRefusal}
-        />
-        {previewRefusal && dragAt && (
-          <>
-            <MapMarker
-              longitude={previewRefusal.at[0]}
-              latitude={previewRefusal.at[1]}
-              className="pointer-events-none z-20"
-            >
-              <MarkerContent>
-                <span aria-hidden="true" className="block size-5 rounded-full border-2 border-danger bg-danger/20" />
-              </MarkerContent>
-            </MapMarker>
-            <MapMarker
-              longitude={dragAt[0]}
-              latitude={dragAt[1]}
-              anchor="bottom"
-              offset={[0, -18]}
-              className="pointer-events-none z-30"
-            >
-              <MarkerContent>
-                <span
-                  role="status"
-                  data-plan-edit-refusal={previewRefusal.kind}
-                  className="whitespace-nowrap rounded-sm border border-danger-border bg-background px-1.5 py-0.5 text-2xs font-medium text-danger shadow-sm"
+        <Map
+          center={center}
+          zoom={14}
+          // Markers are placed in pixels, so scaling the canvas during a pane drag leaves them behind.
+          deferResize={false}
+          controls={
+            <>
+              <div className="road-plan-fit absolute right-2 top-2 z-30 flex gap-1">
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-8 bg-background shadow-sm"
+                  aria-label={investigation ? 'Fit mapped study records' : 'Fit road alignments'}
+                  title={investigation ? 'Fit all mapped blocks and road records' : 'Fit all road alignments'}
+                  onClick={() => fit('roads')}
                 >
-                  Not allowed · {previewRefusal.label}
+                  <LocateFixed className="size-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-8 bg-background shadow-sm"
+                  aria-label="Fit terrain coverage"
+                  title="Fit the loaded DEM coverage"
+                  disabled={!hasTerrainBounds}
+                  onClick={() => fit('terrain')}
+                >
+                  <Mountain className="size-4" />
+                </Button>
+              </div>
+              <MapControls position="top-right" showZoom showCompass={false} className="road-map-controls">
+                <MapLayersControl
+                  label="Basemap"
+                  basemaps={IMAGERY_BASEMAPS}
+                  basemap={basemap}
+                  onBasemapChange={setBasemap}
+                />
+              </MapControls>
+            </>
+          }
+          showLoadingOverlay={false}
+        >
+          <MapTableBridge table={table} />
+          {/* Mounted first, so it stays under every road layer, and always mounted, so it never moves. */}
+          <MapFillLayer
+            sourceKey="road-local-plane"
+            data={PLANE_BACKGROUND}
+            fillColor={dark ? '#111827' : '#f5f5f2'}
+            fillOpacity={1}
+            lineOpacity={0}
+            interactive={false}
+            visible={!!plane}
+          />
+          <MapLineLayer
+            sourceKey="road-local-plane-grid"
+            data={planeGrid}
+            color={dark ? '#334155' : '#d4d4cf'}
+            width={1}
+            interactive={false}
+            visible={!!plane}
+          />
+          <SatelliteImagery visible={basemap === 'satellite' && !plane} />
+          <RegionalDemLayer
+            visible={props.display.terrainLayer !== 'none' && !plane}
+            imagery={basemap === 'satellite'}
+          />
+          <HrdemReliefLayer visible={props.display.showHrdem && props.display.terrainLayer !== 'none' && !plane} />
+          {props.detailArea && (
+            <MapLineLayer
+              interactive={false}
+              sourceKey="road-detail-area"
+              data={{
+                type: 'FeatureCollection',
+                features: props.detailArea.map((quad, i) => ({
+                  type: 'Feature',
+                  properties: { id: i },
+                  geometry: { type: 'LineString', coordinates: [...quad, quad[0]] },
+                })),
+              }}
+              color="#0d9488"
+              width={2}
+              dashArray={[3, 2]}
+            />
+          )}
+          {showSentinel && !plane && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
+          <Layers
+            {...props}
+            legendSlot={legendSlot}
+            onContextSelect={selectContext}
+            alignment={previewAlignment ?? props.alignment}
+            savedAlignment={handleAlignment}
+            analyses={previewAnalyses}
+            // The cost was spread over the saved road's stations: a dragged preview draws plain until it lands.
+            costColours={previewAlignment ? undefined : props.costColours}
+            onPointDragStart={(id) => props.onSelectPoint(id)}
+            onBendPreview={(afterId, coordinate) =>
+              setBend(coordinate ? { original: props.alignment, afterId, coordinate } : null)
+            }
+            onMovePoint={(id, coordinate) => setDrag({ original: props.alignment, id, coordinate })}
+            onPointDragEnd={(id, coordinate) => {
+              setDrag(null)
+              props.onMovePoint(id, coordinate)
+            }}
+            fitRequest={fitRequest}
+            terrainLayer={terrainLayer}
+            imagery={basemap === 'satellite'}
+            showContours={showContours}
+            showLabels={showLabels}
+            showEarthwork={showEarthwork}
+            sheetSymbols={sheetSymbols}
+            hiddenContextKinds={hiddenContextKinds}
+            visibleContext={visibleContext}
+            visibleBufferData={bufferData.data}
+            bufferSymbols={bufferData.symbols}
+            visibleReference={visibleReference}
+            referenceStyles={props.project.referenceStyles}
+            referenceSymbols={referenceSymbols}
+            noteTool={noteTool}
+            planToolActive={!!tools.tool}
+            roadColour={tools.roadColour}
+            refusedEdit={!!previewRefusal}
+          />
+          {previewRefusal && dragAt && (
+            <>
+              <MapMarker
+                longitude={previewRefusal.at[0]}
+                latitude={previewRefusal.at[1]}
+                className="pointer-events-none z-20"
+              >
+                <MarkerContent>
+                  <span aria-hidden="true" className="block size-5 rounded-full border-2 border-danger bg-danger/20" />
+                </MarkerContent>
+              </MapMarker>
+              <MapMarker
+                longitude={dragAt[0]}
+                latitude={dragAt[1]}
+                anchor="bottom"
+                offset={[0, -18]}
+                className="pointer-events-none z-30"
+              >
+                <MarkerContent>
+                  <span
+                    role="status"
+                    data-plan-edit-refusal={previewRefusal.kind}
+                    className="whitespace-nowrap rounded-sm border border-danger-border bg-background px-1.5 py-0.5 text-2xs font-medium text-danger shadow-sm"
+                  >
+                    Not allowed · {previewRefusal.label}
+                  </span>
+                </MarkerContent>
+              </MapMarker>
+            </>
+          )}
+          {tools.mapLayer}
+          <ReferenceLabels features={visibleReference} />
+          <NotesLayer
+            notes={notes}
+            visible={notesVisible}
+            tool={noteTool}
+            color={noteColor}
+            arrow={noteArrow}
+            selectedId={selectedNoteId}
+            onSelect={setSelectedNoteId}
+            onChange={props.onNotesChange}
+            onToolDone={() => setNoteTool(null)}
+          />
+          {cardRoad && roadCard && (
+            <ExistingRoadCard
+              road={cardRoad}
+              at={roadCard.at}
+              onClose={() => setRoadCard(null)}
+              onLoadAsRoad={
+                props.onLoadMappedRoad && cardRoad.geometry.type === 'LineString'
+                  ? () => {
+                      setRoadCard(null)
+                      props.onLoadMappedRoad?.(cardRoad.id)
+                    }
+                  : undefined
+              }
+              onAccessHistory={
+                props.onHistorySelect
+                  ? () => {
+                      setRoadCard(null)
+                      props.onHistorySelect?.({ kind: 'road', id: cardRoad.id })
+                    }
+                  : undefined
+              }
+              onReview={
+                props.onContextSelect
+                  ? () => {
+                      setRoadCard(null)
+                      props.onContextSelect?.(cardRoad)
+                    }
+                  : undefined
+              }
+            />
+          )}
+          {cutblock && cutblockCard && (
+            <CutblockCard
+              feature={cutblock}
+              at={cutblockCard.at}
+              year={props.project.harvestHistoryYear ?? new Date().getFullYear()}
+              onClose={() => setCutblockCard(null)}
+              onAccessHistory={
+                props.onHistorySelect
+                  ? () => {
+                      setCutblockCard(null)
+                      props.onHistorySelect?.({ kind: 'block', id: cutblock.id })
+                    }
+                  : undefined
+              }
+              onOpenHistory={
+                props.onContextSelect
+                  ? () => {
+                      setCutblockCard(null)
+                      props.onContextSelect?.(cutblock)
+                    }
+                  : undefined
+              }
+            />
+          )}
+          <MapScaleBar
+            position="bottom-left"
+            className="road-map-scale left-2 bottom-[calc(var(--map-bottom-left-controls-height,0px)+0.5rem)]"
+          />
+          {table.layout.bottomPane && (
+            <div
+              className="absolute inset-x-0 bottom-0 z-30 max-h-[70%] overflow-hidden border-t bg-background"
+              style={{ height: table.layout.bottomPaneHeight }}
+              data-testid="road-history-table"
+            >
+              {table.layout.bottomPane}
+            </div>
+          )}
+        </Map>
+        <div
+          ref={toolbar}
+          className="road-plan-toolbar absolute left-2 top-2 z-30"
+          data-layout={toolbarLayout}
+          data-map-export-ignore
+        >
+          <div className="road-plan-display">
+            <TerrainLayerSelect value={terrainLayer} onChange={setTerrainLayer} />
+            <Button
+              ref={settingsButton}
+              size="icon"
+              variant="outline"
+              className="size-8 bg-background/95 shadow-sm"
+              aria-label="Map display settings"
+              aria-expanded={settingsOpen}
+              aria-haspopup="dialog"
+              onClick={() => setSettingsOpen((open) => !open)}
+            >
+              <Settings2 className="size-4" />
+            </Button>
+            <AnchoredPopover
+              anchorRef={settingsButton}
+              panelRef={settingsPanel}
+              open={settingsOpen}
+              onClose={closeSettings}
+              role="dialog"
+              ariaLabel="Map display settings"
+              // Above an expanded plan pane (z-overlay), like the Terrain display list next to it.
+              className="z-workspace-popover w-60 max-w-[calc(100vw-3rem)] rounded-lg p-3"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-xs font-semibold">Map settings</h3>
+                <Button
+                  size="icon-2xs"
+                  variant="ghost"
+                  aria-label="Close map settings"
+                  onClick={() => setSettingsOpen(false)}
+                >
+                  <X className="size-3" />
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mb-2 w-full"
+                onClick={() => {
+                  fit('active')
+                  setSettingsOpen(false)
+                }}
+              >
+                Fit selected road
+              </Button>
+              {(
+                [
+                  ['Contours', showContours, setShowContours],
+                  ['Labels', showLabels, setShowLabels],
+                  ['Sentinel-2 imagery', showSentinel, setShowSentinel],
+                  ['High-resolution DEM relief', props.display.showHrdem, props.display.setShowHrdem],
+                  ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
+                  ...(reference.length && props.onReferenceVisibility
+                    ? [
+                        [
+                          'Reference layers',
+                          visibleReference.length > 0,
+                          (visible: boolean) =>
+                            props.onReferenceVisibility?.(
+                              referenceLayers(reference).map((layer) => layer.key),
+                              visible,
+                            ),
+                        ] as const,
+                      ]
+                    : []),
+                  ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
+                  ...tools.settingsRows,
+                ] as const
+              ).map(([label, checked, set]) => (
+                <label key={label} className="flex items-center justify-between py-2 text-xs">
+                  {label}
+                  <input type="checkbox" checked={checked} onChange={(event) => set(event.target.checked)} />
+                </label>
+              ))}
+              {tools.setRoadColour && (
+                <label className="grid gap-1 py-2 text-xs">
+                  Colour road by
+                  <StyledSelect
+                    value={tools.roadColour}
+                    onValueChange={(value) => tools.setRoadColour?.(value as RoadColourMode)}
+                    aria-label="Colour road by"
+                  >
+                    {ROAD_COLOUR_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </StyledSelect>
+                  {tools.roadColour === 'cost' && (
+                    <span className="text-2xs text-muted-foreground">
+                      Against the road&apos;s average $/m. Covered estimate → a row&apos;s colour button picks one cost.
+                    </span>
+                  )}
+                </label>
+              )}
+              <label className="mt-2 grid gap-1 border-t pt-2 text-xs">
+                Legend and map symbols
+                <StyledSelect
+                  value={symbolStyle}
+                  onChange={(event) => chooseSymbolStyle(event.target.value)}
+                  aria-label="Legend and map symbols"
+                >
+                  <option value="road-plan">Standard road plan</option>
+                  <option value="block-sheet">Block sheet forestry</option>
+                </StyledSelect>
+                <span className="text-2xs text-muted-foreground">
+                  The map and legend use the same symbols. Choice saved in this browser.
                 </span>
-              </MarkerContent>
-            </MapMarker>
-          </>
-        )}
-        {tools.mapLayer}
-        <ReferenceLabels features={visibleReference} />
-        <NotesLayer
-          notes={notes}
-          visible={notesVisible}
-          tool={noteTool}
-          color={noteColor}
-          arrow={noteArrow}
-          selectedId={selectedNoteId}
-          onSelect={setSelectedNoteId}
-          onChange={props.onNotesChange}
-          onToolDone={() => setNoteTool(null)}
-        />
-        {cardRoad && roadCard && (
-          <ExistingRoadCard
-            road={cardRoad}
-            at={roadCard.at}
-            onClose={() => setRoadCard(null)}
-            onLoadAsRoad={
-              props.onLoadMappedRoad && cardRoad.geometry.type === 'LineString'
-                ? () => {
-                    setRoadCard(null)
-                    props.onLoadMappedRoad?.(cardRoad.id)
-                  }
-                : undefined
-            }
-            onAccessHistory={
-              props.onHistorySelect
-                ? () => {
-                    setRoadCard(null)
-                    props.onHistorySelect?.({ kind: 'road', id: cardRoad.id })
-                  }
-                : undefined
-            }
-            onReview={
-              props.onContextSelect
-                ? () => {
-                    setRoadCard(null)
-                    props.onContextSelect?.(cardRoad)
-                  }
-                : undefined
-            }
-          />
-        )}
-        {cutblock && cutblockCard && (
-          <CutblockCard
-            feature={cutblock}
-            at={cutblockCard.at}
-            year={props.project.harvestHistoryYear ?? new Date().getFullYear()}
-            onClose={() => setCutblockCard(null)}
-            onAccessHistory={
-              props.onHistorySelect
-                ? () => {
-                    setCutblockCard(null)
-                    props.onHistorySelect?.({ kind: 'block', id: cutblock.id })
-                  }
-                : undefined
-            }
-            onOpenHistory={
-              props.onContextSelect
-                ? () => {
-                    setCutblockCard(null)
-                    props.onContextSelect?.(cutblock)
-                  }
-                : undefined
-            }
-          />
-        )}
-        <MapScaleBar
-          position="bottom-left"
-          className="road-map-scale left-2 bottom-[calc(var(--map-bottom-left-controls-height,0px)+0.5rem)]"
-        />
-        {table.layout.bottomPane && (
-          <div
-            className="absolute inset-x-0 bottom-0 z-30 max-h-[70%] overflow-hidden border-t bg-background"
-            style={{ height: table.layout.bottomPaneHeight }}
-            data-testid="road-history-table"
-          >
-            {table.layout.bottomPane}
+              </label>
+              <fieldset className="mt-2 grid gap-2 border-t pt-2" data-testid="road-plan-layout">
+                <legend className="text-xs font-medium">Layout</legend>
+                <label className="grid gap-1 text-xs">
+                  Legend
+                  <StyledSelect
+                    value={legendPlacement}
+                    onValueChange={(value) => setLegendPlacement(value === 'below' ? 'below' : 'map')}
+                    aria-label="Legend placement"
+                  >
+                    <option value="map">On the map, folded</option>
+                    <option value="below">Below the map</option>
+                  </StyledSelect>
+                </label>
+                <label className="grid gap-1 text-xs">
+                  Toolbar
+                  <StyledSelect
+                    value={toolbarLayout}
+                    onValueChange={(value) => setToolbarLayout(value === 'top' || value === 'side' ? value : 'wrap')}
+                    aria-label="Toolbar layout"
+                  >
+                    <option value="wrap">Wrap to fit</option>
+                    <option value="top">All along the top</option>
+                    <option value="side">All down the side</option>
+                  </StyledSelect>
+                </label>
+                <span className="text-2xs text-muted-foreground">Saved in this browser.</span>
+              </fieldset>
+              {contextKinds.length > 0 && (
+                <fieldset className="mt-2 border-t pt-2" data-testid="road-context-visibility">
+                  <legend className="text-xs font-medium">Context</legend>
+                  {contextKinds.map((kind) => (
+                    <label key={kind} className="flex items-center justify-between gap-2 py-2 text-xs">
+                      {CONTEXT_LABELS[kind]}
+                      <input
+                        type="checkbox"
+                        aria-label={`Show ${CONTEXT_LABELS[kind].toLowerCase()} context`}
+                        checked={!hiddenContextKinds.includes(kind)}
+                        onChange={(event) =>
+                          setHiddenContextKinds((previous) =>
+                            event.target.checked ? previous.filter((value) => value !== kind) : [...previous, kind],
+                          )
+                        }
+                      />
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+              {/* The history table opens from here rather than a toolbar button of its own. */}
+              {tableSources.length > 0 && !table.activeSource && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 w-full"
+                  onClick={() => {
+                    table.open()
+                    closeSettings()
+                  }}
+                >
+                  <Table2 className="size-3.5" />
+                  Cutblock & road history table
+                </Button>
+              )}
+            </AnchoredPopover>
+            {!investigation && props.layersButton}
+          </div>
+          <div className="road-plan-actions">
+            {!investigation && (
+              <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
+            )}
+            {tools.toolbar}
+            <Button
+              size="icon"
+              variant="outline"
+              className={`size-8 shrink-0 shadow-sm ${notesOpen ? 'bg-accent text-accent-foreground' : 'bg-background/95'}`}
+              aria-label="Map notes"
+              aria-pressed={notesOpen}
+              title={`Map notes${notes.length ? ` · ${notes.length}` : ''}`}
+              onClick={() => setNotesOpen(!notesOpen)}
+            >
+              <StickyNote className="size-4" />
+            </Button>
+          </div>
+        </div>
+        {notesOpen && (
+          <div className="road-plan-below-toolbar absolute left-2 z-30 max-w-[calc(100%-4rem)]">
+            <NotesToolbar
+              tool={noteTool}
+              onTool={pickNoteTool}
+              color={noteColor}
+              onColor={setNoteColor}
+              arrow={noteArrow}
+              onArrow={setNoteArrow}
+              visible={notesVisible}
+              onVisible={setNotesVisible}
+              count={notes.length}
+              disabled={!props.onNotesChange}
+              onClose={() => setNotesOpen(false)}
+            />
           </div>
         )}
-      </Map>
-      <div ref={toolbar} className="road-plan-toolbar absolute left-2 top-2 z-30" data-map-export-ignore>
-        <div className="road-plan-display">
-          <TerrainLayerSelect value={terrainLayer} onChange={setTerrainLayer} />
-          <Button
-            ref={settingsButton}
-            size="icon"
-            variant="outline"
-            className="size-8 bg-background/95 shadow-sm"
-            aria-label="Map display settings"
-            aria-expanded={settingsOpen}
-            aria-haspopup="dialog"
-            onClick={() => setSettingsOpen((open) => !open)}
+        {showSentinel && (
+          <div className="absolute right-12 top-12 z-30 max-h-[calc(100%-6rem)] max-w-[calc(100%-4rem)] overflow-hidden">
+            <Sentinel2Panel
+              state={sentinel}
+              paused={sentinelView.paused}
+              moving={sentinelView.moving}
+              onClose={() => setShowSentinel(false)}
+            />
+          </div>
+        )}
+        {tools.panelSlot}
+        {props.toolPanel && (
+          <div
+            className="absolute bottom-9 left-2 z-30 max-h-[calc(100%-5.5rem)] w-80 max-w-[calc(100%-1rem)] overflow-y-auto overscroll-none"
+            data-map-export-ignore
           >
-            <Settings2 className="size-4" />
-          </Button>
-          <AnchoredPopover
-            anchorRef={settingsButton}
-            panelRef={settingsPanel}
-            open={settingsOpen}
-            onClose={closeSettings}
-            role="dialog"
-            ariaLabel="Map display settings"
-            // Above an expanded plan pane (z-overlay), like the Terrain display list next to it.
-            className="z-workspace-popover w-60 max-w-[calc(100vw-3rem)] rounded-lg p-3"
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-xs font-semibold">Map settings</h3>
+            {props.toolPanel}
+          </div>
+        )}
+        {props.mode === 'edit' &&
+          !notesOpen &&
+          (editHelpVisible ? (
+            <div
+              className="road-plan-below-toolbar absolute left-2 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow"
+              data-testid="road-edit-help"
+            >
+              <span className="min-w-0 flex-1">Drag a number to move that point. Drag a + to bend the road.</span>
               <Button
                 size="icon-2xs"
                 variant="ghost"
-                aria-label="Close map settings"
-                onClick={() => setSettingsOpen(false)}
+                className="shrink-0"
+                aria-label="Hide editing hint"
+                title="Hide editing hint"
+                onClick={() => showEditHelp(false)}
               >
                 <X className="size-3" />
               </Button>
             </div>
+          ) : (
             <Button
-              size="sm"
+              size="icon-xs"
               variant="outline"
-              className="mb-2 w-full"
-              onClick={() => {
-                fit('active')
-                setSettingsOpen(false)
-              }}
+              className="road-plan-below-toolbar absolute left-2 z-20 bg-background/95 shadow-sm"
+              aria-label="Show editing hint"
+              title="Show editing hint"
+              onClick={() => showEditHelp(true)}
             >
-              Fit selected road
+              <CircleHelp className="size-4" />
             </Button>
-            {(
-              [
-                ['Contours', showContours, setShowContours],
-                ['Labels', showLabels, setShowLabels],
-                ['Sentinel-2 imagery', showSentinel, setShowSentinel],
-                ['High-resolution DEM relief', props.display.showHrdem, props.display.setShowHrdem],
-                ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
-                ...(reference.length && props.onReferenceVisibility
-                  ? [
-                      [
-                        'Reference layers',
-                        visibleReference.length > 0,
-                        (visible: boolean) =>
-                          props.onReferenceVisibility?.(
-                            referenceLayers(reference).map((layer) => layer.key),
-                            visible,
-                          ),
-                      ] as const,
-                    ]
-                  : []),
-                ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
-                ...tools.settingsRows,
-              ] as const
-            ).map(([label, checked, set]) => (
-              <label key={label} className="flex items-center justify-between py-2 text-xs">
-                {label}
-                <input type="checkbox" checked={checked} onChange={(event) => set(event.target.checked)} />
-              </label>
-            ))}
-            {tools.setRoadColour && (
-              <label className="grid gap-1 py-2 text-xs">
-                Colour road by
-                <StyledSelect
-                  value={tools.roadColour}
-                  onValueChange={(value) => tools.setRoadColour?.(value as RoadColourMode)}
-                  aria-label="Colour road by"
-                >
-                  {ROAD_COLOUR_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </StyledSelect>
-                {tools.roadColour === 'cost' && (
-                  <span className="text-2xs text-muted-foreground">
-                    Against the road&apos;s average $/m. Covered estimate → a row&apos;s colour button picks one cost.
-                  </span>
-                )}
-              </label>
-            )}
-            <label className="mt-2 grid gap-1 border-t pt-2 text-xs">
-              Legend and map symbols
-              <StyledSelect
-                value={symbolStyle}
-                onChange={(event) => chooseSymbolStyle(event.target.value)}
-                aria-label="Legend and map symbols"
-              >
-                <option value="road-plan">Standard road plan</option>
-                <option value="block-sheet">Block sheet forestry</option>
-              </StyledSelect>
-              <span className="text-2xs text-muted-foreground">
-                The map and legend use the same symbols. Choice saved in this browser.
-              </span>
-            </label>
-            {contextKinds.length > 0 && (
-              <fieldset className="mt-2 border-t pt-2" data-testid="road-context-visibility">
-                <legend className="text-xs font-medium">Context</legend>
-                {contextKinds.map((kind) => (
-                  <label key={kind} className="flex items-center justify-between gap-2 py-2 text-xs">
-                    {CONTEXT_LABELS[kind]}
-                    <input
-                      type="checkbox"
-                      aria-label={`Show ${CONTEXT_LABELS[kind].toLowerCase()} context`}
-                      checked={!hiddenContextKinds.includes(kind)}
-                      onChange={(event) =>
-                        setHiddenContextKinds((previous) =>
-                          event.target.checked ? previous.filter((value) => value !== kind) : [...previous, kind],
-                        )
-                      }
-                    />
-                  </label>
-                ))}
-              </fieldset>
-            )}
-            {/* The history table opens from here rather than a toolbar button of its own. */}
-            {tableSources.length > 0 && !table.activeSource && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2 w-full"
-                onClick={() => {
-                  table.open()
-                  closeSettings()
-                }}
-              >
-                <Table2 className="size-3.5" />
-                Cutblock & road history table
-              </Button>
-            )}
-          </AnchoredPopover>
-          {!investigation && props.layersButton}
-        </div>
-        <div className="road-plan-actions">
-          {!investigation && (
-            <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
-          )}
-          {tools.toolbar}
-          <Button
-            size="icon"
-            variant="outline"
-            className={`size-8 shrink-0 shadow-sm ${notesOpen ? 'bg-accent text-accent-foreground' : 'bg-background/95'}`}
-            aria-label="Map notes"
-            aria-pressed={notesOpen}
-            title={`Map notes${notes.length ? ` · ${notes.length}` : ''}`}
-            onClick={() => setNotesOpen(!notesOpen)}
-          >
-            <StickyNote className="size-4" />
-          </Button>
-        </div>
+          ))}
       </div>
-      {notesOpen && (
-        <div className="road-plan-below-toolbar absolute left-2 z-30 max-w-[calc(100%-4rem)]">
-          <NotesToolbar
-            tool={noteTool}
-            onTool={pickNoteTool}
-            color={noteColor}
-            onColor={setNoteColor}
-            arrow={noteArrow}
-            onArrow={setNoteArrow}
-            visible={notesVisible}
-            onVisible={setNotesVisible}
-            count={notes.length}
-            disabled={!props.onNotesChange}
-            onClose={() => setNotesOpen(false)}
-          />
-        </div>
-      )}
-      {showSentinel && (
-        <div className="absolute right-12 top-12 z-30 max-h-[calc(100%-6rem)] max-w-[calc(100%-4rem)] overflow-hidden">
-          <Sentinel2Panel
-            state={sentinel}
-            paused={sentinelView.paused}
-            moving={sentinelView.moving}
-            onClose={() => setShowSentinel(false)}
-          />
-        </div>
-      )}
-      {tools.panelSlot}
-      {props.toolPanel && (
-        <div
-          className="absolute bottom-9 left-2 z-30 max-h-[calc(100%-5.5rem)] w-80 max-w-[calc(100%-1rem)] overflow-y-auto overscroll-none"
-          data-map-export-ignore
-        >
-          {props.toolPanel}
-        </div>
-      )}
-      {props.mode === 'edit' &&
-        !notesOpen &&
-        (editHelpVisible ? (
-          <div
-            className="road-plan-below-toolbar absolute left-2 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow"
-            data-testid="road-edit-help"
-          >
-            <span className="min-w-0 flex-1">Drag a number to move that point. Drag a + to bend the road.</span>
-            <Button
-              size="icon-2xs"
-              variant="ghost"
-              className="shrink-0"
-              aria-label="Hide editing hint"
-              title="Hide editing hint"
-              onClick={() => showEditHelp(false)}
-            >
-              <X className="size-3" />
-            </Button>
-          </div>
-        ) : (
-          <Button
-            size="icon-xs"
-            variant="outline"
-            className="road-plan-below-toolbar absolute left-2 z-20 bg-background/95 shadow-sm"
-            aria-label="Show editing hint"
-            title="Show editing hint"
-            onClick={() => showEditHelp(true)}
-          >
-            <CircleHelp className="size-4" />
-          </Button>
-        ))}
+      <div
+        ref={setLegendSlot}
+        className="road-plan-legend-slot flex max-h-[45%] min-h-0 shrink-0 flex-col pb-2 empty:hidden"
+        data-testid="road-plan-legend-slot"
+      />
     </div>
   )
 }

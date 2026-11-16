@@ -117,6 +117,68 @@
   top: calc(var(--road-plan-toolbar-height, 2rem) + 1rem);
 }
 
+/* Map settings → Layout → Toolbar. "Along the top" keeps every control in one row and scrolls it
+   sideways when the plan is too narrow; "Down the side" keeps them in one column and scrolls it
+   down. Neither wraps, so nothing lands half in a row and half in a column. */
+.road-plan-toolbar[data-layout='top'],
+.road-plan-toolbar[data-layout='top'] :is(.road-plan-display, .road-plan-actions) {
+  flex-wrap: nowrap;
+}
+
+.road-plan-toolbar[data-layout='top'] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Room for the focus ring and shadows inside the scroller. */
+  padding: 2px;
+  margin: -2px;
+}
+
+.road-plan-toolbar[data-layout='side'],
+.road-plan-toolbar[data-layout='side'] :is(.road-plan-display, .road-plan-actions),
+.road-plan-toolbar[data-layout='side'] .road-plan-actions > [role='group'] {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.road-plan-toolbar[data-layout='side'] {
+  max-width: none;
+  /* Clear of the scale bar and the status bar in the bottom-left corner. */
+  max-height: calc(100% - var(--map-bottom-left-controls-height, 2rem) - 3.5rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 2px;
+  margin: -2px;
+}
+
+/* The terrain list is the column's one wide control; down the side it is an icon's width wider. */
+.road-plan-toolbar[data-layout='side'] .road-plan-display > :first-child {
+  width: 6.5rem;
+}
+
+.road-plan-toolbar[data-layout='side'] .road-map-mode {
+  flex-direction: column;
+}
+
+.road-plan-toolbar[data-layout='side'] .road-map-mode button + button {
+  border-inline-start: 0;
+  border-block-start: 1px solid hsl(var(--input));
+}
+
+.road-plan-toolbar[data-layout='side'] .road-map-mode button:first-child {
+  border-radius: var(--road-toolbar-radius) var(--road-toolbar-radius) 0 0;
+}
+
+.road-plan-toolbar[data-layout='side'] .road-map-mode button:last-child {
+  border-radius: 0 0 var(--road-toolbar-radius) var(--road-toolbar-radius);
+}
+
+/* Down the side, notes and hints open beside the column rather than under it. */
+.road-plan-toolbar[data-layout='side'] ~ .road-plan-below-toolbar {
+  top: 0.5rem;
+  left: calc(var(--road-plan-toolbar-width, 2rem) + 1rem);
+}
+
 /* A narrow plan stacks the fit buttons above the zoom stack, one button wide. */
 @container road-plan (width < 30rem) {
   .road-plan-toolbar {

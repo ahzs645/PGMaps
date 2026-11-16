@@ -5,7 +5,7 @@
     "description": "Find project files, terrain tools and road commands in a familiar tabbed ribbon.",
     "icon": "ribbon",
     "preview": "ribbon.webp",
-    "preset": "split",
+    "preset": "linked",
     "sidebar": "collapsed",
     "summary": { "visible": true, "placement": "left" },
     "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },

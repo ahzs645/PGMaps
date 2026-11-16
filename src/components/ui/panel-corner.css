@@ -150,13 +150,16 @@
   }
 }
 
-/* Keep the grip below the map and flush with the inside of the panel border. Its box must fit the
-   full corner radius, or the browser scales the curve down when a larger theme radius is selected. */
+/* The plan's bottom matches the card's sides (`p-3`), so the grip, flush with the inside of the panel border,
+   overlaps the map's corner by a few pixels; nothing the plan draws sits there (the folded legend stands 8px
+   in). A legend placed below the map keeps its text clear of the grip itself (`road-plan-legend-slot`). The
+   grip's box must fit the full corner radius, or the browser scales the curve down when a larger theme radius
+   is selected. */
 .road-workspace[data-interface] [data-pane='plan'] > section:has(> .lp-panel-grip):not([data-fullscreen]) {
   --plan-grip-radius: calc(var(--lp-grip-corner) - 1px);
   --plan-grip-height: max(19px, var(--plan-grip-radius));
   --plan-grip-width: max(22px, var(--plan-grip-radius));
-  padding-block-end: calc(var(--plan-grip-height) + 2px);
+  padding-block-end: 0.75rem;
 }
 .road-workspace [data-pane='plan'] > section > .lp-panel-grip {
   right: 0;

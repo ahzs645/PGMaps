@@ -1114,3 +1114,26 @@
     opacity: 0.45;
   }
 }
+
+/* A ribbon tab dragged along the row (`RibbonTabs`): a bar marks where it lands. */
+.lp-tab-navigation [role='tab'][draggable='true'] {
+  position: relative;
+}
+.lp-tab-navigation [role='tab'][data-dragging] {
+  opacity: 0.5;
+}
+.lp-tab-navigation [role='tab'][data-drop]::before {
+  content: '';
+  position: absolute;
+  inset-block: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: hsl(var(--primary));
+  pointer-events: none;
+}
+.lp-tab-navigation [role='tab'][data-drop='before']::before {
+  inset-inline-start: -3px;
+}
+.lp-tab-navigation [role='tab'][data-drop='after']::before {
+  inset-inline-end: -3px;
+}

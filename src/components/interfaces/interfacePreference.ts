@@ -3,12 +3,13 @@
  * URL search string and the stored choice, so the rule is unit-testable.
  *
  * The designer never stops at a chooser. It opens, in order of precedence, the interface named
- * by `?interface=` (a shared link), the one this browser last used, Guided mode
- * (the view the designer had before interfaces were configurable), or the first served layout.
+ * by `?interface=` (a shared link), the one this browser last used, the Ribbon (which opens on
+ * the linked plan, profile and cross-section panels), or the first served layout.
  */
 const INTERFACE_STORAGE_KEY = 'pgmaps-road-interface'
 const INTERFACE_PARAM = 'interface'
-const DEFAULT_INTERFACE = 'workbench'
+const DEFAULT_INTERFACE = 'ribbon'
+/** The built-in layout used when the served catalog cannot be read (`workspaceLayouts.ts`). */
 export const DEFAULT_INTERFACE_NAME = 'Guided mode'
 
 /** Keep the launching workspace in help links, including layouts without a Ribbon. */

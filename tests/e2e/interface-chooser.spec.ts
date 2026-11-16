@@ -6,8 +6,9 @@ for (const width of [390, 1108, 1440]) {
     await page.route('https://basemaps.cartocdn.com/**', (route) =>
       route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
     )
-    await page.goto('/dev/forestry/road-design?example=training')
-    // The designer opens straight into the workbench: no chooser stands in front of it.
+    // A link names the workbench, so the switch below starts from another interface than the Ribbon.
+    await page.goto('/dev/forestry/road-design?interface=workbench&example=training')
+    // The designer opens straight into the named interface: no chooser stands in front of it.
     await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'workbench')
     await expect(page.getByRole('heading', { name: 'Choose your workspace' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Switch workspace interface' }).click()
@@ -125,7 +126,7 @@ test('a runtime-defined layout reuses the edited project, file contents and undo
       ],
     })
   })
-  await page.goto('/dev/forestry/road-design?example=training')
+  await page.goto('/dev/forestry/road-design?interface=workbench&example=training')
   await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'workbench')
   const projectName = page.getByTestId('road-project-name')
   const originalName = await projectName.innerText()
@@ -160,6 +161,17 @@ test('a runtime-defined layout reuses the edited project, file contents and undo
   expect(await readExport()).toEqual(before)
   await commands.getByRole('group', { name: 'Revision' }).getByRole('button', { name: 'Undo', exact: true }).click()
   await expect(projectName).toHaveText(originalName)
+})
+
+test('a fresh browser opens the Ribbon on the linked panels', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?example=training')
+  await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'ribbon')
+  await expect(page.getByRole('region', { name: 'Command ribbon' })).toBeVisible()
+  await expect(page.getByTestId('road-connected-layout')).toHaveAttribute('data-layout', 'linked')
 })
 
 test('an invalid layout configuration opens the built-in workbench and says so', async ({ page }) => {

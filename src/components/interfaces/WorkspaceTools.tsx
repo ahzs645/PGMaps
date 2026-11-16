@@ -36,6 +36,7 @@ export function WorkspaceTools({
   states,
   groupName,
   onGroupChange,
+  onReorderTabs,
   editorMount,
   editorHost,
   editorsAvailable,
@@ -46,6 +47,8 @@ export function WorkspaceTools({
 }: {
   groupName?: string
   onGroupChange: (label: string, folded?: boolean) => void
+  /** Given, a compact ribbon's tabs can be dragged into a new order (`RibbonTabs`). */
+  onReorderTabs?: (labels: string[]) => void
   folded: boolean
   onToggleFold: () => void
   minimized: boolean
@@ -335,7 +338,12 @@ export function WorkspaceTools({
         {leading}
         {productLogo}
         {compact ? (
-          <RibbonTabs names={groups.map((tab) => tab.label)} active={group.label} onChoose={onGroupChange}>
+          <RibbonTabs
+            names={groups.map((tab) => tab.label)}
+            active={group.label}
+            onChoose={onGroupChange}
+            onReorder={onReorderTabs}
+          >
             {tabs}
           </RibbonTabs>
         ) : (

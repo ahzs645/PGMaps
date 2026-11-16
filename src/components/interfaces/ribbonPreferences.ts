@@ -26,6 +26,8 @@ function identifyGroups(toolbar: WorkspaceToolbar): WorkspaceToolbar {
   }
 }
 const storageKey = (layoutId: string) => `pgmaps-road-ribbon-order:${layoutId}`
+/** The tabs' order lives under its own key, so arrangements saved before tabs could move still read. */
+const tabOrderKey = (layoutId: string) => `pgmaps-road-ribbon-tabs:${layoutId}`
 type Preferences = { tab: string; order?: string[]; sections: { label: string; items: string[]; more: string[] }[] }[]
 
 const names = (value: unknown, label: string) => list(value, label).map((name) => text(name, label, 400))
@@ -60,6 +62,61 @@ function readPreferences(id: string) {
   } catch {
     return []
   }
+}
+
+function readTabOrder(id: string): string[] {
+  try {
+    const raw = localStorage.getItem(tabOrderKey(id))
+    return raw ? names(JSON.parse(raw), 'Ribbon tab order').slice(0, 100) : []
+  } catch {
+    return []
+  }
+}
+
+/** Move one entry of a list to another place, as a drag across the tab row does. */
+export function moveTo<T>(list: readonly T[], from: number, to: number): T[] {
+  if (from < 0 || from >= list.length || to < 0 || to >= list.length || from === to) return [...list]
+  const result = [...list]
+  const [moved] = result.splice(from, 1)
+  result.splice(to, 0, moved)
+  return result
+}
+
+/**
+ * The tabs in a saved order. Names the served layout no longer has are dropped; tabs it gained keep
+ * their served place relative to the tab before them, so a new tab does not land at the end.
+ */
+export function orderTabs(toolbar: WorkspaceToolbar, order: readonly string[]): WorkspaceToolbar {
+  if (!order.length) return toolbar
+  const byLabel = new Map(toolbar.groups.map((tab) => [tab.label, tab]))
+  const groups = order.flatMap((label) => {
+    const tab = byLabel.get(label)
+    byLabel.delete(label)
+    return tab ? [tab] : []
+  })
+  toolbar.groups.forEach((tab, index) => {
+    if (!byLabel.has(tab.label)) return
+    const before = toolbar.groups[index - 1]
+    const at = before ? groups.indexOf(before) + 1 : 0
+    groups.splice(at, 0, tab)
+  })
+  return sameOrder(
+    groups.map((tab) => tab.label),
+    toolbar.groups.map((tab) => tab.label),
+  )
+    ? toolbar
+    : { ...toolbar, groups }
+}
+
+/** The tab order to store: nothing when it is the served one, so a later served change still applies. */
+export function tabOrderFor(base: WorkspaceToolbar, draft: WorkspaceToolbar): string[] {
+  const order = draft.groups.map((tab) => tab.label)
+  return sameOrder(
+    order,
+    base.groups.map((tab) => tab.label),
+  )
+    ? []
+    : order
 }
 
 function sameOrder(a: readonly string[] = [], b: readonly string[] = []) {
@@ -117,35 +174,57 @@ function applyPreferences(toolbar: WorkspaceToolbar, prefs: Preferences): Worksp
   }
 }
 
+const read = (id: string) => ({ id, prefs: readPreferences(id), tabs: readTabOrder(id) })
+
 export function useRibbonPreferences(layout: WorkspaceLayout) {
-  const [entry, setEntry] = useState(() => ({ id: layout.id, prefs: readPreferences(layout.id) }))
-  if (entry.id !== layout.id) setEntry({ id: layout.id, prefs: readPreferences(layout.id) })
+  const [entry, setEntry] = useState(() => read(layout.id))
+  if (entry.id !== layout.id) setEntry(read(layout.id))
   useEffect(() => {
     const receive = (event: StorageEvent) => {
-      if (event.key === storageKey(layout.id) || event.key === null) {
-        setEntry({ id: layout.id, prefs: readPreferences(layout.id) })
+      if (event.key === storageKey(layout.id) || event.key === tabOrderKey(layout.id) || event.key === null) {
+        setEntry(read(layout.id))
       }
     }
     window.addEventListener('storage', receive)
     return () => window.removeEventListener('storage', receive)
   }, [layout.id])
   const defaults = useMemo(() => layout.toolbar && identifyGroups(layout.toolbar), [layout.toolbar])
-  const toolbar = useMemo(
-    () => defaults && applyPreferences(defaults, entry.id === layout.id ? entry.prefs : []),
-    [defaults, layout.id, entry],
-  )
+  const toolbar = useMemo(() => {
+    if (!defaults) return defaults
+    const current = entry.id === layout.id ? entry : { prefs: [], tabs: [] }
+    return orderTabs(applyPreferences(defaults, current.prefs), current.tabs)
+  }, [defaults, layout.id, entry])
+
+  function store(key: string, value: unknown[]) {
+    if (value.length) localStorage.setItem(key, JSON.stringify(value))
+    else localStorage.removeItem(key)
+  }
 
   function save(draft: WorkspaceToolbar) {
     if (!defaults) return
     const prefs = preferencesFor(defaults, draft)
-    setEntry({ id: layout.id, prefs })
+    const tabs = tabOrderFor(defaults, draft)
+    setEntry({ id: layout.id, prefs, tabs })
     try {
-      if (prefs.length) localStorage.setItem(storageKey(layout.id), JSON.stringify(prefs))
-      else localStorage.removeItem(storageKey(layout.id))
+      store(storageKey(layout.id), prefs)
+      store(tabOrderKey(layout.id), tabs)
       return true
     } catch {
       return false
     }
   }
-  return { defaults, toolbar, save }
+
+  /** Reorder the tabs alone, as a drag across the tab row does; each group's own arrangement stays. */
+  function reorderTabs(order: readonly string[]) {
+    if (!defaults) return
+    const tabs = tabOrderFor(defaults, orderTabs(defaults, order))
+    setEntry((previous) => ({ ...previous, id: layout.id, tabs }))
+    try {
+      store(tabOrderKey(layout.id), tabs)
+      return true
+    } catch {
+      return false
+    }
+  }
+  return { defaults, toolbar, save, reorderTabs }
 }

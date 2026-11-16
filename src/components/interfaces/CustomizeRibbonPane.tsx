@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, Pin, PinOff, Settings2, type LucideIcon } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Pin, PinOff, Settings2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AppSelect, compactSelectTriggerClass, workspaceSelectContentClass } from '@/components/ui/select'
 import { RibbonTaskPane, restorePaneFocus } from './RibbonTaskPane'
@@ -86,6 +86,11 @@ export function CustomizeRibbonPane({
   function updateSection(next: RibbonSection) {
     updateGroups(groups.map((group) => (group === section ? next : group)))
   }
+  /** Move the chosen tab along the row; tabs with no groups to arrange keep their place in the count. */
+  const tabIndex = draft.groups.findIndex((candidate) => candidate.label === tab.label)
+  function reorderTab(direction: number) {
+    setDraft((old) => ({ ...old, groups: move(old.groups, tabIndex, direction) }))
+  }
   function reorderGroup(direction: number) {
     setSelectedGroup(groupKey(section))
     updateGroups(move(groups, groupIndex, direction))
@@ -156,7 +161,7 @@ export function CustomizeRibbonPane({
   return (
     <RibbonTaskPane
       title="Customize ribbon"
-      subtitle="Arrange groups and choose which tools appear on this device."
+      subtitle="Order the tabs, arrange groups and choose which tools appear on this device. Tabs also drag along the ribbon."
       onClose={onClose}
       returnFocusRef={opener}
       footer={
@@ -186,6 +191,18 @@ export function CustomizeRibbonPane({
               setSelectedGroup(undefined)
             }}
             options={tabs.map((entry) => ({ value: entry.label, label: entry.label }))}
+          />
+          <Action
+            label={`Move ${tab.label} tab left`}
+            icon={ArrowLeft}
+            disabled={tabIndex <= 0}
+            onClick={() => reorderTab(-1)}
+          />
+          <Action
+            label={`Move ${tab.label} tab right`}
+            icon={ArrowRight}
+            disabled={tabIndex < 0 || tabIndex === draft.groups.length - 1}
+            onClick={() => reorderTab(1)}
           />
         </div>
         <div className="lp-arrange-body">

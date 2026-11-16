@@ -6,9 +6,15 @@
 }
 .lp-arrange-tab {
   display: grid;
+  /* The tab list, then its move-left and move-right buttons on the same line. */
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
+}
+.lp-arrange-tab > span {
+  grid-column: 1 / -1;
 }
 .lp-arrange-body {
   display: grid;
