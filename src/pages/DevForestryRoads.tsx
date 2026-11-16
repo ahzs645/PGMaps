@@ -129,6 +129,7 @@ import {
   Waypoints,
   Maximize,
   Minimize,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { measureHint, measureReadout } from '@/components/ui/map-measure'
@@ -6404,23 +6405,6 @@ export default function DevForestryRoads({
                           </div>
                         </div>
                       )}
-                      {!investigation && selectedRange && !terrainProfile && (
-                        <div
-                          role="status"
-                          data-testid="road-feature-selection"
-                          className="flex items-center justify-between gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs"
-                        >
-                          <span>
-                            {selectedRange.label} · {formatRoadStation(selectedRange.start)}
-                            {selectedRange.end !== selectedRange.start
-                              ? `–${formatRoadStation(selectedRange.end)}`
-                              : ''}
-                          </span>
-                          <Button variant="ghost" size="sm" onClick={() => w.setFeatureSelection(null)}>
-                            Clear selection
-                          </Button>
-                        </div>
-                      )}
                       <RoadPaneLayout
                         layout={layout}
                         focusedPane={focusMode ? focusedPane : undefined}
@@ -7247,6 +7231,42 @@ export default function DevForestryRoads({
                                 : undefined
                             }
                           />
+                          {/* A selected feature reads beside the station it spans, in the plan's selection colour,
+                              rather than as a full-width row above the panes. */}
+                          {selectedRange && !terrainProfile && (
+                            <div
+                              role="status"
+                              data-testid="road-feature-selection"
+                              className="flex min-w-0 max-w-[24rem] shrink items-center gap-1 rounded-full border border-rose-500/50 bg-rose-500/10 py-0.5 pl-2 pr-0.5 text-xs"
+                            >
+                              <span className="size-2 shrink-0 rounded-full bg-rose-500" aria-hidden="true" />
+                              <button
+                                type="button"
+                                className="min-w-0 truncate rounded-sm text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                title={`Go to the start of ${selectedRange.label}`}
+                                onClick={() => selectStation(selectedRange.start)}
+                              >
+                                <span className="font-medium">{selectedRange.label}</span>
+                                <span className="tabular-nums text-muted-foreground">
+                                  {' · '}
+                                  {formatRoadStation(selectedRange.start)}
+                                  {selectedRange.end !== selectedRange.start
+                                    ? `–${formatRoadStation(selectedRange.end)}`
+                                    : ''}
+                                </span>
+                              </button>
+                              <Button
+                                size="icon-2xs"
+                                variant="ghost"
+                                className="shrink-0 rounded-full"
+                                aria-label="Clear selection"
+                                title="Clear selection"
+                                onClick={() => w.setFeatureSelection(null)}
+                              >
+                                <X className="size-3" />
+                              </Button>
+                            </div>
+                          )}
                           <input
                             aria-label="Linked road station"
                             type="range"

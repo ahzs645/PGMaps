@@ -12,7 +12,7 @@ import type {
   MapMouseEvent,
   MapTouchEvent,
 } from 'maplibre-gl'
-import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, StickyNote, Table2, Waves, X } from 'lucide-react'
+import { CircleHelp, LocateFixed, MessageSquarePlus, Mountain, Plus, Settings2, Table2, Waves, X } from 'lucide-react'
 import { Map, MapControls, MapLayersControl, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { IMAGERY_BASEMAPS, SatelliteImagery, useStoredImageryBasemap } from '@/components/ui/map-satellite-imagery'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
@@ -3260,7 +3260,7 @@ export function PlanView(input: PlanProps) {
               title={`Map notes${notes.length ? ` · ${notes.length}` : ''}`}
               onClick={() => setNotesOpen(!notesOpen)}
             >
-              <StickyNote className="size-4" />
+              <MessageSquarePlus className="size-4" />
             </Button>
           </div>
         </div>
