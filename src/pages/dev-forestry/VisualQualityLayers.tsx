@@ -2,6 +2,7 @@ import { useMemo, type ComponentProps } from 'react'
 import { MapMarker, MapScaleBar, MarkerContent } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { ViewshedOverlay, VIEWSHED_COLORS } from '@/features/terrain-viewshed'
+import { ROAD_VIEW_GUIDE_SOURCE } from './mapCapture'
 import { BasemapContextProbe, type BasemapContext } from './BasemapContextProbe'
 import { FigureStyleLayers, type FigureStyleData } from './FigureStyleLayers'
 import { ForestOverlay, type ForestStatus } from './ForestOverlay'
@@ -579,6 +580,9 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         />
       )}
       <MapFillLayer
+        // In the road view the arrows are a guide for looking, never part of a saved picture: every capture hides
+        // the layers on this source (`mapCapture.ts`).
+        {...(eye ? { sourceKey: ROAD_VIEW_GUIDE_SOURCE, interactive: false } : {})}
         data={eye ? standingArrows : viewpointLayers.arrows}
         visible={eye ? standingArrows.features.length > 0 : showInventory && shown('arrow')}
         fillColor={INVENTORY_COLORS.viewpoint}

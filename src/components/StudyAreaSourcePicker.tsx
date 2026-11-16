@@ -274,10 +274,7 @@ export function StudyAreaSourcePickerDialog<TSource extends string, TLevel exten
           />
         </div>
 
-        <div
-          data-testid="study-area-picker-scroll"
-          className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3"
-        >
+        <div data-testid="study-area-picker-scroll" className="min-h-0 flex-1 overflow-y-auto p-3">
           <StudyAreaPickerRows {...rowProps} pickerQuery={pickerQuery} />
         </div>
 
@@ -333,10 +330,7 @@ export function StudyAreaSourcePickerPanel<TSource extends string, TLevel extend
         />
       </div>
 
-      <div
-        data-testid="study-area-picker-scroll"
-        className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable] p-3"
-      >
+      <div data-testid="study-area-picker-scroll" className="min-h-0 flex-1 overflow-y-auto p-3">
         <StudyAreaPickerRows {...rowProps} pickerQuery={pickerQuery} />
       </div>
 

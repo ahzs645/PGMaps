@@ -2302,7 +2302,11 @@ export function reportPdf(
   report: AssembledReport,
   logo: ReportLogo | null,
   jspdf: PdfModule,
-  options: { compress?: boolean } = {},
+  options: {
+    compress?: boolean
+    /** Filled with the page each top-level block first draws on (the draft's part list jumps by it). */
+    anchors?: Map<ReportBlock | 'complete', number>
+  } = {},
 ): ArrayBuffer {
   const paper = report.layout.paper
   const pdf = new jspdf.jsPDF({
@@ -2436,6 +2440,7 @@ export function reportPdf(
     const page = doc.anchors.get(s.block)
     if (page) pdf.outline.add(null, fold(s.text), { pageNumber: page })
   }
+  if (options.anchors) for (const [target, page] of doc.anchors) options.anchors.set(target, page)
   return pdf.output('arraybuffer')
 }
 

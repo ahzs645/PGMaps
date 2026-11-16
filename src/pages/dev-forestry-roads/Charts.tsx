@@ -685,11 +685,10 @@ function ChartSlot({
         ) : (
           <div className="flex shrink-0 items-center justify-end gap-1 pb-1">{switcher}</div>
         ))}
-      {/* The plot keeps 160 px (half a short slot) however many bands are open; with bands open it reserves the
-          scrollbar gutter the bands' scroller does, so a station sits at the same x in both. */}
-      <div
-        className={`relative flex min-h-[min(160px,50%)] flex-1 flex-col ${bandsShown ? 'overflow-hidden [scrollbar-gutter:stable]' : ''}`}
-      >
+      {/* The plot keeps 160 px (half a short slot) however many bands are open. Neither it nor the bands' scroller
+          reserves a scrollbar strip (the app's scrollbar is drawn over the content), so a station sits at the same x
+          in both. */}
+      <div className={`relative flex min-h-[min(160px,50%)] flex-1 flex-col ${bandsShown ? 'overflow-hidden' : ''}`}>
         <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={230}>
           {(height) => (
             <SizedChart height={height}>
@@ -712,7 +711,7 @@ function ChartSlot({
       </div>
       {/* Both band sets share one capped scroller, so a short panel keeps its plot; the bands scroll instead. */}
       {bandsShown && (
-        <div className="max-h-[45%] min-h-0 shrink overflow-y-auto overscroll-none [scrollbar-gutter:stable]">
+        <div className="max-h-[45%] min-h-0 shrink overflow-y-auto overscroll-none">
           {bands && bandsOpen && <div className="border-t">{bands.content}</div>}
           {valueBands && valueBandsOpen && <div className="border-t">{valueBands.content}</div>}
         </div>

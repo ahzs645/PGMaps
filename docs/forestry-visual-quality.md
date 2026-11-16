@@ -36,7 +36,7 @@ is typed survives switching.
 
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
-| 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (*Assess from*: a view of interest, or a length of road drawn, imported or snapped); folded *Which roads see the block*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
+| 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site; each button's tooltip describes the scenario and lists what its scene holds, counted by `scenarioSummary.ts`); **Road or viewpoint** (*Assess from*: a view of interest, or a length of road drawn, imported or snapped); folded *Which roads see the block*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
 | 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving, each with its Table 3 record; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); **Saved views**; folded *Where you stand* at a spot or pullout (surveyed eye elevation); folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Viewpoint significance* and *Key viewpoints*; folded *Field brief and crew checklist* |
 | 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
 | 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
@@ -344,7 +344,8 @@ and its buttons only open the dialog on an output (*Export the block note…*,
 | | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
 | | Worksheet | Markdown | — |
 | | VIA evidence package | PDF, printable HTML | — |
-| Save and reopen | Scene, Saved views, Assessment workspace, 3D scene | JSON | — |
+| Save and reopen | Project | `.pgvq.json` | — (everything in progress in one file; below) |
+| | Scene, Saved views, Assessment workspace, 3D scene | JSON | — |
 | For other tools | Castor constraint | `constraints.csv`, zone GeoJSON | — |
 | | Prescribed trees | CSV, GeoJSON points | — (every block with a stand prescription; see **Stand prescriptions**) |
 
@@ -469,6 +470,32 @@ The block note's pane shows what the report will hold:
   prints them (`landCheckReportRows`): their own *Land status* sheet and PDF
   page with the caveat that they are a DataBC screen, never a legal
   determination or a mask. On by default; *Options* leaves them out.
+
+**Project: everything in one file** (`projectFile.ts`, DOM-free). *Project*
+writes the work in progress as one `.pgvq.json` file, and step 1's *Open a
+project…*, under *Start from*, opens it and carries on. It holds the scene
+(blocks, landforms, the road or viewpoint, views of interest, settings, the
+review with its hand edits), every saved view here and at other viewpoints
+(the shelved ones, under the scene fingerprint they were saved in) with its
+screenshot, its analysed figure (class pass, callouts, framing, `figureAt`) and
+its before-harvest render, another engine's finished figures, the assessment
+workspace, and the package's renderer and recipe (held on the export opener
+for this). It does not hold terrain, the inventories or the run: they are read
+and made again, the run by the first output that needs it. Pictures stay the
+data URLs they are; a figure's rasters are gzipped one by one
+(`CompressionStream`) and written as base64, since a class pass is tens of
+megabytes raw and a few kilobytes packed. A file is read through the scene's
+own reader and checked piece by piece: a view whose numbers do not read, a
+picture that is not a PNG or JPEG data URL, or a figure whose class pass is not
+the size it states is left out and named in the line the page shows after
+opening, never repaired, and a view whose figure fails keeps its screenshot and
+says its analysis sheet was not read. A file from a newer PGMaps is refused.
+Views keep their ids, so each finds its picture; *Saved views* renumbers them,
+needs a road and keeps no pictures, which is why it could not serve. The other
+three files stay for their own uses: *Scene* for the scene alone, *Saved views*
+for *Open saved preview*, *Assessment workspace* as the browser store's backup.
+Opening a project replaces what is on the map and the saved views without
+asking, as the *Start from* samples do.
 
 **Castor constraint** (`castorConstraint.ts`, DOM-free) writes the landform's
 objective as the cover constraint a timber supply model carries, for
@@ -2349,6 +2376,15 @@ as screened.
 
 ## Inventory viewpoints and their arrows
 
+Standing at an inventory viewpoint, the road view draws that viewpoint's
+arrows on the ground as a guide for looking, the faced one heavier. They are no
+part of the view: every picture read from the road view's map (*Save
+viewpoint*'s screenshot, the framed capture of a figure, a before-harvest
+render, the report's renders) hides the layers on the guide source
+(`ROAD_VIEW_GUIDE_SOURCE`, `mapCapture.ts`) for the frames it takes and puts
+them back. Before, a view captured at a viewpoint printed its magenta arrows
+across the foreground.
+
 Step 2's **Add from viewpoints and rec sites** reads five DataBC WFS layers within 12 km
 of the block (`viewpointInventory.ts`): VLI viewing points
 (`REC_VIEWPOINT_POINT_SVW`), their landscape arrows
@@ -3665,6 +3701,37 @@ each value by where it came from (the run, the review, the scene, a public
 table) and shows blanks in yellow. The downloaded file has neither: both are
 `reportHtml`'s `draft` argument only, and `userRecipes.test.ts` pins that the
 file's HTML is unchanged.
+
+**Pages or Edit.** The draft has two layouts (`ReportDraftView`'s *Layout*).
+*Pages*, the one it opens on while the format is PDF, is the file's own writer
+run on the draft: `reportPdf` on the draft's report, each stand-in drawn to a
+PNG first (`reportDraftPages.ts`, since the PDF writer embeds no SVG), shown in
+the browser's PDF viewer. Its page breaks, landscape pages and 11 × 17 sheets
+are therefore the file's, which the flowing HTML never showed: the HTML's
+`@page` rules apply only when a browser prints it. Clicking a part jumps to the
+page it starts on (`reportPdf`'s `anchors`). *Edit* is the flowing page, with
+the tints, the stand-ins to click and the values to change.
+
+**Changing a value by hand** (`viaReport/edits.ts`, DOM-free). In *Edit*, a
+click on a printed value (a field, a sentence or paragraph, a table cell, a list
+item, a boxed question's answer) types over it, Enter or leaving it keeps it and
+Esc leaves it; a click on a tick box ticks it, or clears it when it was ticked.
+The edit is the reviewer's record, held in `viaReview.reportEdits` by the
+value's key: its part's id, the heading it sits under and its label, never the
+recipe, so two recipes that share a part share its edits and nothing moves when
+another part is added. `assembleReportParts` applies the edits after each part
+has filled its blocks (`editPartBlocks`), so the draft, the PDF, the HTML and
+the Markdown all print them, as the reviewer's (`source: 'reviewer'`), and a
+blank field filled by hand leaves the part's to-complete list. The report's
+last line counts the values changed by hand. *Your edits* lists each with what
+the report gave and *Put back*; an edit whose place the report no longer prints
+(a view removed, a part taken out of the recipe) is listed as not printed now,
+kept and never applied elsewhere. A tick is only ever one of the question's own
+options. Scales, matrices, figures and signature lines are not edited here:
+their readings come from step 4, and a signature is signed by hand. Like the
+rest of `viaReview`, edits stay out of `sceneFingerprint` and never stale the
+run. A part with no edit returns the very block objects it built
+(`edits.test.ts`), so an unedited report is byte for byte what it was.
 
 **Pictures are kept by group.** The report's captures are cached per group
 (`pictureCache`, keyed as the old single capture was: the scene, the views and

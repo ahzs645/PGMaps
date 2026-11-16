@@ -12,6 +12,7 @@ import { toCompleteLine } from '../viaDocument/wording'
 import { inViewpointOrder, proposedBlocks, type ReportContext } from './parts'
 import { CONSULTANT_RECIPE_PARTS } from './partsConsultant'
 import { findReportPart } from './registry'
+import { editKeysOf, editPartBlocks, orphanEdits, type EditKeys, type EditTarget, type ReportEdits } from './edits'
 
 /** The consultant reports carry their viewpoint map as an 11 x 17 appendix sheet, before the analysis sheets. */
 const withOverviewMap = (parts: readonly string[]) => {
@@ -254,6 +255,16 @@ const LISTED_BY_PARTS: Readonly<Record<string, readonly string[]>> = {
   rationale: ['appendix-1'],
 }
 
+/** What a report's values can be changed to by hand, and what was (`edits.ts`). */
+export interface AssembledEdits {
+  /** Every value a reviewer can edit, in reading order; an edited one carries its edit. */
+  targets: EditTarget[]
+  /** Each drawn value's key, for the draft's page. */
+  keys: EditKeys
+  /** Edits kept for this recipe's parts whose place no part printed. */
+  orphans: string[]
+}
+
 /** One part as it printed in an assembled report: what it drew and what it left for the reviewer. */
 export interface AssembledPart {
   id: string
@@ -277,12 +288,15 @@ export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): Assemb
 export function assembleReportParts(
   recipe: ReportRecipe,
   ctx: ReportContext,
-): { report: AssembledReport; parts: AssembledPart[] } {
+  edits: ReportEdits = {},
+): { report: AssembledReport; parts: AssembledPart[]; edits: AssembledEdits } {
   // Viewpoints print in the order of the numbers their names carry, whatever order the views were saved in.
   ctx = inViewpointOrder(ctx)
   const blocks: ReportBlock[] = []
   const toComplete: ReportItemToComplete[] = []
   const parts: AssembledPart[] = []
+  const targets: EditTarget[] = []
+  const keyMaps: Array<Map<object, Map<string, string>>> = []
   for (const id of recipe.parts) {
     const part = findReportPart(id)
     if (!part) throw new Error(`Unknown report part: ${id}`)
@@ -291,17 +305,23 @@ export function assembleReportParts(
       recipeParts: recipe.parts,
       recipeOptions: { ...recipe.options, ...ctx.recipeOptions },
     })
+    // The reviewer's hand edits of this part's values (`edits.ts`); a blank filled by hand is no longer to complete.
+    const edited = editPartBlocks(part, out.blocks, edits)
+    const left = (out.toComplete ?? []).filter((what) => !edited.filled.includes(what))
+    targets.push(...edited.targets)
+    keyMaps.push(edited.keys)
     parts.push({
       id: part.id,
       title: part.title,
       sources: part.sources,
-      first: out.blocks[0] ?? null,
-      blocks: out.blocks.length,
-      toComplete: out.toComplete?.length ?? 0,
+      first: edited.blocks[0] ?? null,
+      blocks: edited.blocks.length,
+      toComplete: left.length,
     })
-    blocks.push(...out.blocks)
-    for (const what of out.toComplete ?? []) toComplete.push({ part: part.title, what })
+    blocks.push(...edited.blocks)
+    for (const what of left) toComplete.push({ part: part.title, what })
   }
+  const applied = targets.filter((target) => target.edited !== undefined).length
   // The document's own unfilled sentences, once each, named by viewpoint and block; one a part of this recipe already
   // lists in its own words (the class by eye) is not listed twice.
   const listed = (id: string) => (LISTED_BY_PARTS[id] ?? []).some((part) => recipe.parts.includes(part))
@@ -326,9 +346,15 @@ export function assembleReportParts(
     blocks: [heading(recipe.title, 1), ...blocks],
     toComplete,
     layout: { paper: 'letter', cover: false, contents: false, ...recipe.layout },
-    footer: `${structure} · generated ${ctx.date.toISOString().slice(0, 10)} · terrain model and drawn timber, not a field-verified simulation`,
+    footer: `${structure} · generated ${ctx.date.toISOString().slice(0, 10)} · terrain model and drawn timber, not a field-verified simulation${
+      applied ? ` · ${applied} value${applied === 1 ? '' : 's'} changed by hand by the reviewer` : ''
+    }`,
   }
-  return { report, parts }
+  return {
+    report,
+    parts,
+    edits: { targets, keys: editKeysOf(keyMaps), orphans: orphanEdits(edits, recipe.parts, targets) },
+  }
 }
 
 /**

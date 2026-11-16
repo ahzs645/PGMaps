@@ -525,6 +525,84 @@ a,
   background: hsl(var(--background));
 }
 
+/* The application's one scrollbar (`src/lib/overlayScrollbars/install.ts`, docs/shared-ui.md, **Scrollbars**).
+   Once it is installed every native scrollbar is hidden, so no scroller reserves a strip and content keeps one width
+   whether or not it scrolls; a thumb is drawn over the edge of the scroller in use. Colours are the theme's
+   foreground at low strength, so every theme and both modes carry it. Change the look here, once. */
+@property --overlay-scrollbar {
+  syntax: '*';
+  inherits: false;
+}
+html[data-overlay-scrollbars],
+html[data-overlay-scrollbars] *:not([data-native-scrollbar], [data-native-scrollbar] *) {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+html[data-overlay-scrollbars]::-webkit-scrollbar,
+html[data-overlay-scrollbars] *:not([data-native-scrollbar], [data-native-scrollbar] *)::-webkit-scrollbar {
+  display: none !important;
+}
+/* Scrollers that show no bar on purpose (a tab strip, a ribbon band, a popup): no overlay thumb either. A new one
+   sets `--overlay-scrollbar: none` itself, or carries Tailwind's `[scrollbar-width:none]`, which this reads. */
+.aqmap-popup-scroll,
+.lp-strip-frame .lp-grouped-tools,
+.editorial-chapters,
+[class*='[scrollbar-width:none]'],
+[data-overlay-scrollbar='off'] {
+  --overlay-scrollbar: none;
+}
+.overlay-scrollbar {
+  position: fixed;
+  z-index: 2147483000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease-out;
+}
+.overlay-scrollbar[data-active] {
+  opacity: 1;
+  pointer-events: auto;
+}
+.overlay-scrollbar-thumb {
+  position: absolute;
+  border-radius: 9999px;
+  background: hsl(var(--foreground) / 0.32);
+  transition: background-color 120ms ease-out;
+  touch-action: none;
+}
+.overlay-scrollbar[data-axis='y'] .overlay-scrollbar-thumb {
+  top: 0;
+  right: 2px;
+  width: 6px;
+}
+.overlay-scrollbar[data-axis='x'] .overlay-scrollbar-thumb {
+  left: 0;
+  bottom: 2px;
+  height: 6px;
+}
+.overlay-scrollbar:hover .overlay-scrollbar-thumb,
+.overlay-scrollbar-thumb[data-dragging] {
+  background: hsl(var(--foreground) / 0.5);
+}
+.overlay-scrollbar[data-axis='y']:hover .overlay-scrollbar-thumb,
+.overlay-scrollbar[data-axis='y'] .overlay-scrollbar-thumb[data-dragging] {
+  width: 8px;
+}
+.overlay-scrollbar[data-axis='x']:hover .overlay-scrollbar-thumb,
+.overlay-scrollbar[data-axis='x'] .overlay-scrollbar-thumb[data-dragging] {
+  height: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .overlay-scrollbar,
+  .overlay-scrollbar-thumb {
+    transition: none;
+  }
+}
+@media print {
+  .overlay-scrollbar {
+    display: none;
+  }
+}
+
 .aqmap-popup-scroll {
   scrollbar-width: none;
   -ms-overflow-style: none;

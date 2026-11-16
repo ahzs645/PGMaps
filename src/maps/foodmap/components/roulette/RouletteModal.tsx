@@ -143,8 +143,8 @@ export function RouletteModal({ restaurants, onClose, onSelectOnMap }: RouletteM
 
         {/* The wheel stays first; every option sits behind the Filters button.
             Outside the scroller so a long panel can always be closed to get back
-            to the wheel. The matching gutter lines it up with the content below. */}
-        <div className="flex shrink-0 items-center justify-between gap-2 overflow-hidden px-3 pb-2 pt-3 [scrollbar-gutter:stable] sm:px-4 sm:pt-4">
+            to the wheel. Neither reserves a scrollbar strip, so it lines up with the content below. */}
+        <div className="flex shrink-0 items-center justify-between gap-2 overflow-hidden px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
           <FilterToggleButton
             open={filtersOpen}
             onToggle={() => setFiltersOpen((open) => !open)}
@@ -179,7 +179,7 @@ export function RouletteModal({ restaurants, onClose, onSelectOnMap }: RouletteM
         </div>
 
         {/* Content */}
-        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-1 sm:p-4 sm:pt-1">
+        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-1 sm:p-4 sm:pt-1">
           {filtersOpen && (
             <div id={filtersPanelId} className="space-y-3 rounded-xl border border-border bg-muted/50 p-3">
               <section aria-label="Dining categories" className="space-y-2">

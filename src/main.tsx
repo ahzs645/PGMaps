@@ -8,6 +8,7 @@ import './index.css'
 import { dataHostOrigins } from '@/lib/dataHosts'
 import { DATA_HOSTS } from '@/lib/dataUrl'
 import { initializeInterfaceTheme } from '@/lib/interfaceTheme'
+import { installOverlayScrollbars } from './lib/overlayScrollbars/install'
 
 initializeInterfaceTheme()
 
@@ -35,6 +36,10 @@ if ('serviceWorker' in navigator) {
     }
   })
 }
+
+// One scrollbar for every scroller in the app, drawn over the content (`src/lib/overlayScrollbars/install.ts`).
+const removeOverlayScrollbars = installOverlayScrollbars()
+if (import.meta.hot) import.meta.hot.dispose(removeOverlayScrollbars)
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -33,6 +33,7 @@ export type VisualsExport =
   | 'field-brief'
   | 'worksheet'
   | 'evidence'
+  | 'project'
   | 'scene'
   | 'views'
   | 'workspace'
@@ -132,6 +133,14 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     description:
       'The recorded assessments, viewpoints and field records with the evidence checklist, separate from the FS1252.',
     formats: [PDF, { id: 'html', label: 'Printable HTML', extension: '.html' }],
+  },
+  {
+    kind: 'project',
+    group: 'files',
+    label: 'Project',
+    description:
+      'Everything in progress in one file, to open again with Open a project in step 1: the scene and review, every saved view with its picture, analysis figure and before render, the workspace and the package’s choices.',
+    formats: [{ id: 'json', label: 'Project file', extension: '.pgvq.json' }],
   },
   {
     kind: 'scene',
@@ -722,6 +731,7 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
       return ctx.evidence.loaded ? null : 'The stored workspace is still loading.'
     case 'views':
       return null
+    case 'project':
     case 'scene':
       return null
     case 'scene-package':
@@ -1323,6 +1333,38 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           empty: 'Expected evidence categories present. Check content and adequacy.',
         },
       ]
+    case 'project': {
+      const pictured = ctx.views.filter((view) => view.hasScreenshot).length
+      return [
+        viewpointSection(ctx),
+        landformSection(ctx),
+        blocksSection(ctx),
+        viewsSection(ctx, 'Saved views, here and at other viewpoints'),
+        {
+          title: 'With each view',
+          rows: [
+            { label: 'Pictures', value: `${pictured} of ${ctx.views.length}` },
+            {
+              label: 'Also kept',
+              value: 'Analysis figures, before-harvest renders, another engine’s finished figures',
+            },
+          ],
+        },
+        settingsSection(ctx),
+        reviewSection(ctx),
+        {
+          title: 'Workspace and package',
+          rows: [
+            { label: 'Recorded assessments', value: String(ctx.evidence.runs) },
+            { label: 'Figures drawn by', value: ctx.renderer.label },
+          ],
+        },
+        {
+          title: 'Not in the file',
+          note: 'Terrain, the inventories and the run: they are read and made again when the project is opened. Open it with Open a project, under Start from in step 1.',
+        },
+      ]
+    }
     case 'scene':
       return [
         viewpointSection(ctx),

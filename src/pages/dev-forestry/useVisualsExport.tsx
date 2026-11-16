@@ -64,12 +64,14 @@ import { resolveViaDocument } from './viaDocument/resolve'
 import { EVQO_CODE_FOR_CLASS } from './visualsNarrative'
 import { buildReportContext, type ReportView } from './viaReport/context'
 import { reportHtml, reportMarkdown } from './viaReport/html'
-import type { ReportFigure } from './viaReport/model'
+import type { AssembledReport, ReportBlock, ReportFigure } from './viaReport/model'
+import { withRasterStandIns } from './reportDraftPages'
 import type { ReportImages } from './viaReport/parts'
 import type { ReportSetting } from './viaReport/setting'
 import {
   assembleReport,
   assembleReportParts,
+  type AssembledPart,
   recipeFormat,
   REPORT_RECIPES,
   withViewsLeftOut,
@@ -77,7 +79,8 @@ import {
 import { DRAW_HOW, standInGroups, standInUrl, withStandIns } from './viaReport/draftPictures'
 import { recipeMakeup } from './viaReport/recipeMakeup'
 import { OwnRecipeTools } from './RecipeEditor'
-import type { DraftPicture, ReportDraftResult } from './ReportDraftView'
+import type { DraftPicture, ReportDraftPages, ReportDraftResult } from './ReportDraftView'
+import { withReportEdit } from './viaReport/edits'
 import { useOwnRecipes } from './userRecipeStore'
 import { timed } from './exportTiming'
 import { ExportPackagePane, VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
@@ -167,6 +170,8 @@ export function useExportOpener() {
   // Who draws the figures of the sheet, the document and the report: PGMaps as saved, or another engine. Held here,
   // made before the panels, so the views panel can say it while the dialog is closed.
   const [figureRenderer, setFigureRenderer] = useState<RoadRendererId>('pgmaps')
+  // The package's recipe, held here beside the renderer so a project file can keep and restore both.
+  const [packageRecipeId, setPackageRecipeId] = useState<string | null>(null)
   const openExport = useCallback((kind: VisualsExport = 'block-note') => {
     setInitialOutput(kind)
     setInitialPackage(false)
@@ -176,7 +181,18 @@ export function useExportOpener() {
     setInitialPackage(true)
     setOpen(true)
   }, [])
-  return { open, setOpen, initialOutput, initialPackage, openExport, openPackage, figureRenderer, setFigureRenderer }
+  return {
+    open,
+    setOpen,
+    initialOutput,
+    initialPackage,
+    openExport,
+    openPackage,
+    figureRenderer,
+    setFigureRenderer,
+    packageRecipeId,
+    setPackageRecipeId,
+  }
 }
 export type ExportOpener = ReturnType<typeof useExportOpener>
 
@@ -241,6 +257,8 @@ export function useVisualsExport(input: {
   /** The worked figures as Markdown, or null when the run is not current. */
   worksheet: () => BuiltFile | null
   scenePackage: { ready: boolean; build: () => BuiltFile }
+  /** Everything in progress as one file (`projectFile.ts`), written by the page, which holds the views' pictures. */
+  project: { build: () => Promise<BuiltFile> }
   evidence: EvidenceExports
   /**
    * The background renders (`useBackgroundRenders`): the saved views drawn again by another engine at final quality,
@@ -336,7 +354,7 @@ export function useVisualsExport(input: {
   const { figureRenderer, setFigureRenderer } = input.opener
   // The package's recipe (the VIA report's structure, and the VIA document's format it names); until chosen, none:
   // the report follows the document's format.
-  const [packageRecipeId, setPackageRecipeId] = useState<string | null>(null)
+  const { packageRecipeId, setPackageRecipeId } = input.opener
   // The 11 × 17 overview sheet's style; until chosen, the recipe's (`overviewSheetStyle`), else landscape topographic.
   const [overviewSheetChoice, setOverviewSheetChoice] = useState<OverviewSheetStyle | null>(null)
   // The logo printed sheets and reports carry (the user's own, else the brand's), kept in IndexedDB.
@@ -355,6 +373,8 @@ export function useVisualsExport(input: {
   const noteBlock = scene.targets.find((target) => target.id === blockNoteParts?.blockId && target.role === 'block')
   const inventoryState = input.viewpointInventory
   const askedFor = useRef<string | null>(null)
+  // The draft as last laid out, so its pages are written from the same report without composing it again.
+  const lastDraft = useRef<{ report: AssembledReport; parts: readonly AssembledPart[] } | null>(null)
   const { onLoadInventory } = input
   useEffect(() => {
     if (!open || !noteBlock || askedFor.current === noteBlock.id) return
@@ -596,12 +616,13 @@ export function useVisualsExport(input: {
     })
   // Placeholder figures stand in for the counts only; the file draws each view's figure.
   const draftReport = reportViews.length
-    ? assembleReport(
+    ? assembleReportParts(
         reportRecipe,
         reportContext(
           reportViews.map((view) => ({ view: view.name, caption: view.name, dataUrl: '', width: 1, height: 1 })),
         ),
-      )
+        scene.viaReview?.reportEdits,
+      ).report
     : null
   const chosenLogo = printedLogo(branding)
   const briefBlock = blocks.find((entry) => entry.id === input.briefBlockId) ?? blocks[0] ?? null
@@ -1153,7 +1174,7 @@ export function useVisualsExport(input: {
         __viaReportSetting: context.setting ?? null,
       })
     // Every view of the package the report does not print is named at its end, with why.
-    const assembled = assembleReportParts(reportRecipe, context)
+    const assembled = assembleReportParts(reportRecipe, context, scene.viaReview?.reportEdits)
     const report = withViewsLeftOut(assembled.report, viewsLeftOut('via-report', exportContext))
     // Which groups the recipe prints at all, drawn or not: the same report with every group stood in.
     const printed = () => {
@@ -1167,7 +1188,7 @@ export function useVisualsExport(input: {
       )
       return standInGroups(reportHtml(dry, null, { parts: [] }))
     }
-    return { report, parts: assembled.parts, captured, named, printed }
+    return { report, parts: assembled.parts, edits: assembled.edits, captured, named, printed }
   }
   /** The lined-up photographs among the before pictures: drawn without a capture, never stood in. */
   const photoBefores = (before: NonNullable<ReportImages['before']>) =>
@@ -1179,8 +1200,10 @@ export function useVisualsExport(input: {
       throw new Error(
         'No view in the package has a class pass to draw the report from: capture a view of interest or save one in the road view.',
       )
-    const { report, parts, captured, named, printed } = await composeReport('draft')
-    const html = reportHtml(report, reportLogo(), { parts })
+    const { report, parts, edits, captured, named, printed } = await composeReport('draft')
+    lastDraft.current = { report, parts }
+    const editedKeys = new Set(edits.targets.filter((target) => target.edited !== undefined).map((t) => t.key))
+    const html = reportHtml(report, reportLogo(), { parts, editKeys: edits.keys, edited: editedKeys })
     const shown = new Set(standInGroups(html))
     const engineLabel = engineId ? roadRendererInfo(engineId).label : ''
     const label = (id: string) =>
@@ -1240,8 +1263,67 @@ export function useVisualsExport(input: {
       makeup: recipeMakeup(reportRecipe),
       toComplete: report.toComplete.length,
       notes,
+      editTargets: Object.fromEntries(
+        edits.targets.map((target) => [
+          target.key,
+          {
+            label: `${target.part}: ${target.label}`,
+            kind: target.kind,
+            original: target.original,
+            ...(target.edited !== undefined ? { edited: target.edited } : {}),
+            ...(target.options ? { options: target.options } : {}),
+          },
+        ]),
+      ),
+      orphanEdits: edits.orphans.map((key) => ({ key, value: scene.viaReview?.reportEdits?.[key] ?? '' })),
     }
   }
+  /** The report as a PDF, with the logo as the file takes it. `anchors`: the page each block starts on. */
+  const reportPdfBytes = async (report: AssembledReport, anchors?: Map<ReportBlock | 'complete', number>) => {
+    // The PDF takes the logo as a PNG or JPEG: a brand's SVG logo rasterised, as the analysis sheet takes it.
+    // The writer is loaded with the file, never with the page.
+    const [jspdf, { printedLogoRaster }, { reportPdf }] = await Promise.all([
+      import('jspdf'),
+      import('@/branding/raster'),
+      import('./viaReport/pdf'),
+    ])
+    const raster = chosenLogo ? await printedLogoRaster(branding) : null
+    const logo = chosenLogo && raster?.kind === 'url' ? { name: chosenLogo.name, dataUrl: raster.url } : reportLogo()
+    return reportPdf(report, logo, jspdf, anchors ? { anchors } : {})
+  }
+  /**
+   * The draft on the pages the PDF prints (`ReportDraftView`'s *Pages*): the file's own writer run on the draft's
+   * report, its stand-ins drawn as pictures, so every page break, landscape page and 11 × 17 sheet is the file's.
+   * Nothing is captured.
+   */
+  const buildDraftPages = async (): Promise<ReportDraftPages> => {
+    const draft = lastDraft.current ?? (await composeReport('draft'))
+    const { report, cloneOf } = await withRasterStandIns(draft.report)
+    const anchors = new Map<ReportBlock | 'complete', number>()
+    const bytes = await reportPdfBytes(report, anchors)
+    let page = 1
+    return {
+      blob: new Blob([bytes], { type: 'application/pdf' }),
+      // A part starts where the first of its blocks to draw anything drew (a page break draws nothing); one that
+      // printed nothing reads as the part before it.
+      partPages: draft.parts.map((part) => {
+        const from = part.first ? draft.report.blocks.indexOf(part.first) : -1
+        const own = from < 0 ? [] : draft.report.blocks.slice(from, from + part.blocks)
+        const at = own.map((block) => anchors.get(cloneOf.get(block) as ReportBlock)).find((found) => !!found)
+        if (at) page = at
+        return page
+      }),
+      pages: Math.max(page, ...anchors.values()),
+    }
+  }
+  /** Changes one value of the report by hand, or (null) puts back what its part printed (`viaReport/edits.ts`). */
+  const editReportValue = (key: string, value: string | null, original?: string | null) =>
+    setScene((current) => {
+      const review = { ...current.viaReview }
+      delete review.reportEdits
+      const reportEdits = withReportEdit(current.viaReview?.reportEdits, key, value, original)
+      return { ...current, viaReview: { ...review, ...(reportEdits ? { reportEdits } : {}) } }
+    })
   /** Draws one picture group of the draft now (`DraftPictureId`): captured from the page, or queued with the engine. */
   const drawDraftPicture = async (id: string) => {
     if (id === 'engine') {
@@ -1288,22 +1370,11 @@ export function useVisualsExport(input: {
         const { report } = await composeReport('file')
         const fileName = `forestry-via-report-${reportRecipe.id}`
         if (format === 'md') return textFile(reportMarkdown(report), `${fileName}.md`, 'text/markdown')
-        if (format === 'pdf') {
-          // The PDF takes the logo as a PNG or JPEG: a brand's SVG logo rasterised, as the analysis sheet takes it.
-          // The writer is loaded with the file, never with the page.
-          const [jspdf, { printedLogoRaster }, { reportPdf }] = await Promise.all([
-            import('jspdf'),
-            import('@/branding/raster'),
-            import('./viaReport/pdf'),
-          ])
-          const raster = chosenLogo ? await printedLogoRaster(branding) : null
-          const logo =
-            chosenLogo && raster?.kind === 'url' ? { name: chosenLogo.name, dataUrl: raster.url } : reportLogo()
+        if (format === 'pdf')
           return {
-            blob: new Blob([reportPdf(report, logo, jspdf)], { type: 'application/pdf' }),
+            blob: new Blob([await reportPdfBytes(report)], { type: 'application/pdf' }),
             fileName: `${fileName}.pdf`,
           }
-        }
         return textFile(
           brandedHtml(reportHtml(report, reportLogo()), exportBrand(branding)),
           `${fileName}.html`,
@@ -1361,6 +1432,8 @@ export function useVisualsExport(input: {
         return format === 'html'
           ? textFile(evidence.html(), 'forestry-via-evidence.html', 'text/html')
           : { blob: await evidence.pdf(), fileName: 'forestry-via-evidence.pdf' }
+      case 'project':
+        return input.project.build()
       case 'scene':
         return textFile(serializeScene(scene), 'forestry-visual-quality-scene.json', 'application/json')
       case 'views':
@@ -1656,7 +1729,9 @@ export function useVisualsExport(input: {
       onRun={analysis.run}
       {...(input.visualInventory ? { onReadInventory: input.visualInventory.read } : {})}
       packagePane={packagePane}
-      drafts={{ 'via-report': { build: buildDraft, draw: drawDraftPicture } }}
+      drafts={{
+        'via-report': { build: buildDraft, draw: drawDraftPicture, pages: buildDraftPages, edit: editReportValue },
+      }}
       {...(input.viewCapture ? { onCapture: captureViews, onCancelCapture: input.viewCapture.cancel } : {})}
       onRender={(kind) => {
         // Only the VIA report prints before pictures: the other outputs never wait for them.

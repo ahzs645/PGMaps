@@ -76,7 +76,7 @@ export function ProjectExplorerSidebar({
         />
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]" data-explorer-sidebar-scroll>
+      <div className="min-h-0 flex-1 overflow-y-auto" data-explorer-sidebar-scroll>
         {config.features.map((feature, index) => {
           const key = `${feature.type}-${index}`
           switch (feature.type) {

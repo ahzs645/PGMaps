@@ -14,7 +14,8 @@ import type { ReportImages } from './parts'
 /** A picture group the draft can draw on its own. `before:<saved view id>` is one view's before picture. */
 export type DraftPictureId = 'maps' | 'renders' | 'engine' | `before:${string}`
 
-const STAND_IN_PREFIX = 'data:image/svg+xml;charset=utf-8,'
+/** How a stand-in's `src` starts: an SVG data URL, which a PDF cannot embed (`reportDraftPages.ts` rasterises it). */
+export const STAND_IN_PREFIX = 'data:image/svg+xml;charset=utf-8,'
 /** Stand-in widths, pixels: the pictures' sizes, so the draft lays out as the file does. */
 const STAND_IN_WIDTH = 1200
 

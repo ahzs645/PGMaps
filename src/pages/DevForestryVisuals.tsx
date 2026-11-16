@@ -4635,6 +4635,74 @@ function DevForestryVisuals() {
     analysisRunning: analysis.state.status === 'running' || analysis.reverseState.status === 'running',
     onOpenExport: exportOpener.openExport,
   })
+  /** Everything in progress as one file (`projectFile.ts`), for Save & export's Project. */
+  const buildProjectFile = async () => {
+    const { serializeProject, PROJECT_FILE_EXTENSION } = await import('./dev-forestry/projectFile')
+    const text = await serializeProject({
+      scene,
+      views: savedViews,
+      shelved: shelvedViews.filter((entry) => entry.key !== key && entry.views.length),
+      images: viewImages,
+      capturedBefore,
+      engineFigures,
+      workspace: tools.evidence.loaded ? tools.evidence.workspaceJson() : null,
+      pkg: { renderer: exportOpener.figureRenderer, recipeId: exportOpener.packageRecipeId },
+    })
+    const name =
+      scene.targets
+        .find((target) => target.role === 'block')
+        ?.name.replace(/[^\w-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40) || 'visual-quality'
+    return {
+      blob: new Blob([text], { type: 'application/json' }),
+      fileName: `${name}-project${PROJECT_FILE_EXTENSION}`,
+    }
+  }
+  /** Opens a project file: the scene, the saved views with their pictures, the workspace and the package's choices. */
+  const openProjectFile = async (file: File) => {
+    setImportMessage('Reading the project…')
+    try {
+      const { parseProject, projectOpenedLine, MAX_PROJECT_FILE_BYTES } = await import('./dev-forestry/projectFile')
+      if (file.size > MAX_PROJECT_FILE_BYTES)
+        throw new Error(`Use a project file smaller than ${Math.round(MAX_PROJECT_FILE_BYTES / 1024 / 1024)} MB.`)
+      const { state, summary } = await parseProject(await file.text())
+      cancelPreview()
+      analysis.reset()
+      runSnapshotRef.current = null
+      setTerrainCandidates([])
+      setReplacedLandform(null)
+      setPendingPreview(null)
+      setPreviewMessage(null)
+      setCameraEye(null)
+      setDrive(DEFAULT_DRIVE)
+      setDrawMode('none')
+      setDraftCoordinates([])
+      setStanding(null)
+      setScene(state.scene)
+      setSaved({ key: sceneFingerprint(state.scene), views: state.views })
+      setShelvedViews(state.shelved)
+      setViewImages(state.images as typeof viewImages)
+      setCapturedBefore(state.capturedBefore as typeof capturedBefore)
+      setEngineFigures(state.engineFigures as typeof engineFigures)
+      setSelectedTargetId(state.scene.targets.find((target) => target.role === 'block')?.id ?? null)
+      if (state.pkg.renderer === 'pgmaps' || state.pkg.renderer === 'worldgen' || state.pkg.renderer === 'nanite')
+        exportOpener.setFigureRenderer(state.pkg.renderer)
+      exportOpener.setPackageRecipeId(state.pkg.recipeId)
+      let workspaceNote = ''
+      if (state.workspace) {
+        try {
+          tools.restoreWorkspace(state.workspace)
+        } catch (error) {
+          workspaceNote = ` The assessment workspace was not read: ${error instanceof Error ? error.message : 'it is not a workspace'}.`
+        }
+      }
+      setImportMessage(projectOpenedLine(file.name, summary) + workspaceNote)
+      window.setTimeout(() => fitBounds(sceneBounds(state.scene)), 50)
+    } catch (error) {
+      setImportMessage(error instanceof Error ? error.message : 'The project could not be opened.')
+    }
+  }
   // Saved views drawn again by another engine at final quality, in the background (`BackgroundRenders.tsx`).
   const captureViewFigureRef = useRef(captureViewFigure)
   captureViewFigureRef.current = captureViewFigure
@@ -5203,6 +5271,7 @@ function DevForestryVisuals() {
     onOpenRoadView: () => openPreview(),
     worksheet: worksheetFile,
     scenePackage: { ready: drive.active && !!previewTerrain.source && !!driveEye, build: scenePackageFile },
+    project: { build: buildProjectFile },
     evidence: tools.evidence,
     renders: {
       figures: engineFigures,
@@ -5997,6 +6066,7 @@ function DevForestryVisuals() {
       onActivateLandform={(id) => setScene((current) => ({ ...current, activeLandformId: id }))}
       roadViewOpening={!!pendingPreview || drive.active}
       onClearScene={handleClearScene}
+      onOpenProject={(file) => void openProjectFile(file)}
       onOpenExport={exportOpener.openExport}
       onAddRoadDisturbance={handleAddRoadDisturbance}
     />
@@ -6055,8 +6125,8 @@ function DevForestryVisuals() {
           )}
           {/* Every file the page writes, with what goes into each: one place, as in the road designer. */}
           <Button
-            size="sm"
-            className="text-xs"
+            // 32 px, the layout select's and the panels button's height beside it.
+            size="field"
             data-command="export"
             title="Save & export"
             onClick={() => exportOpener.openExport()}

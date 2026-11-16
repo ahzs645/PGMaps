@@ -87,8 +87,8 @@ right edge starts or ends there instead of centring over the row title in the ma
 
 On screen, both band sets (**Grade, curve, template & material bands** and **Value bands**) share
 one scrolling area capped at 45 % of the chart, and the plot keeps at least 160 px (half a short
-chart): with both open the bands scroll rather than squeezing the profile. While bands are open
-the plot reserves the same scrollbar gutter as that area, so a station sits at the same x in the
+chart): with both open the bands scroll rather than squeezing the profile. Neither the plot nor
+that area reserves a scrollbar strip (the app's scrollbar is drawn over the content), so a station sits at the same x in the
 plot and in every band.
 
 ## Curve-point labels never overlap each other

@@ -8,6 +8,7 @@ import { escapeHtml as e } from '@/branding/presentation'
 import { extraBlockHtml, extraBlockMarkdown, FIGURES_CSS } from './htmlFigures'
 import { matrixHtml, SCALES_CSS, scaleHtml, scaleOrMatrixMarkdown } from './htmlScales'
 
+import { ANSWER_SUB, cellSub, itemSub, type EditKeys } from './edits'
 import type { AssembledReport, ReportBlock } from './model'
 
 export interface ReportLogo {
@@ -25,30 +26,41 @@ const BLANK = '<span class="blank"></span>'
 export interface ReportDraft {
   /** The recipe's parts in order, each with its first block as an object in `report.blocks` (null: printed nothing). */
   parts: ReadonlyArray<{ title: string; sources: readonly string[]; first: ReportBlock | null }>
+  /** Each value's edit key (`edits.ts`), marked on the page as `data-edit` so the draft can change it in place. */
+  editKeys?: EditKeys
+  /** The keys the reviewer has edited, marked `data-edited`. */
+  edited?: ReadonlySet<string>
 }
 
 /** The draft's tint attribute, or nothing in a file. */
-const src = (draft: boolean, source: string) => (draft ? ` data-src="${source}"` : '')
+const src = (draft: unknown, source: string) => (draft ? ` data-src="${source}"` : '')
+/** The draft's edit mark on a value (`data-edit`, and `data-edited` once the reviewer changed it), or nothing. */
+const ed = (draft: ReportDraft | false, holder: object, sub?: string) => {
+  const key = draft ? draft.editKeys?.of(holder, sub) : undefined
+  return key ? ` data-edit="${e(key)}"${draft && draft.edited?.has(key) ? ' data-edited' : ''}` : ''
+}
 
-function blockHtml(block: ReportBlock, draft = false): string {
+function blockHtml(block: ReportBlock, draft: ReportDraft | false = false): string {
   switch (block.kind) {
     case 'heading':
       return `<h${block.level + 1}>${e(block.text)}</h${block.level + 1}>`
     case 'paragraph':
       return draft
-        ? `<p>${block.sentences.map((s) => `<span${src(true, s.source)}>${e(s.text ?? '')}</span>`).join(' ')}</p>`
+        ? `<p${ed(draft, block)}>${block.sentences.map((s) => `<span${src(true, s.source)}>${e(s.text ?? '')}</span>`).join(' ')}</p>`
         : `<p>${block.sentences.map((s) => e(s.text ?? '')).join(' ')}</p>`
     case 'text':
-      return block.text.trim() ? `<p class="src-${block.source}"${src(draft, block.source)}>${e(block.text)}</p>` : ''
+      return block.text.trim()
+        ? `<p class="src-${block.source}"${src(draft, block.source)}${ed(draft, block)}>${e(block.text)}</p>`
+        : ''
     case 'list': {
       const tag = block.ordered ? 'ol' : 'ul'
-      return `<${tag}${src(draft, block.source)}>${block.items.map((item) => `<li>${e(item)}</li>`).join('')}</${tag}>`
+      return `<${tag}${src(draft, block.source)}>${block.items.map((item, i) => `<li${ed(draft, block, itemSub(i))}>${e(item)}</li>`).join('')}</${tag}>`
     }
     case 'fields':
       return `${block.title ? `<h4>${e(block.title)}</h4>` : ''}<table class="fields">${block.rows
         .map(
           (row) =>
-            `<tr${src(draft, row.source)}><th>${e(row.label)}</th><td>${row.value === null ? BLANK : e(row.value)}</td></tr>`,
+            `<tr${src(draft, row.source)}><th>${e(row.label)}</th><td${ed(draft, row)}>${row.value === null ? BLANK : e(row.value)}</td></tr>`,
         )
         .join('')}</table>`
     case 'table':
@@ -57,7 +69,10 @@ function blockHtml(block: ReportBlock, draft = false): string {
         .join('')}</tr></thead><tbody>${
         block.rows.length
           ? block.rows
-              .map((row) => `<tr>${row.map((cell) => `<td>${cell ? e(cell) : BLANK}</td>`).join('')}</tr>`)
+              .map(
+                (row, r) =>
+                  `<tr>${row.map((cell, c) => `<td${ed(draft, block, cellSub(r, c))}>${cell ? e(cell) : BLANK}</td>`).join('')}</tr>`,
+              )
               .join('')
           : `<tr><td colspan="${block.columns.length}" class="empty">None</td></tr>`
       }</tbody></table>${block.note ? `<p class="note">${e(block.note)}</p>` : ''}`
@@ -67,11 +82,16 @@ function blockHtml(block: ReportBlock, draft = false): string {
       return scaleHtml(block)
     case 'choices': {
       const boxes = block.options
-        .map((option) => `<span class="box">${option === block.chosen ? '☒' : '☐'} ${e(option)}</span>`)
+        .map(
+          (option) =>
+            `<span class="box"${ed(draft, block)}${draft ? ` data-option="${e(option)}"` : ''}>${option === block.chosen ? '☒' : '☐'} ${e(option)}</span>`,
+        )
         .join(' ')
       if (block.boxed)
         return `<table class="answer-box"><tr><td>${e(block.label)}${
-          block.answer === undefined ? '' : `<b class="answer">${block.answer ? e(block.answer) : BLANK}</b>`
+          block.answer === undefined
+            ? ''
+            : `<b class="answer"${ed(draft, block, ANSWER_SUB)}>${block.answer ? e(block.answer) : BLANK}</b>`
         }</td><td class="ticks">${boxes}</td></tr></table>`
       return `<p class="choices"><span class="label">${e(block.label)}</span> ${boxes}${
         block.answer ? ` <b class="answer">${e(block.answer)}</b>` : ''
@@ -105,7 +125,7 @@ function untitled(block: ReportBlock, sectionTitle: string): ReportBlock {
  * A form's sections as one ruled table, a section or two side by side per row; each row's title bars and contents stay
  * together on a page.
  */
-function formHtml(block: Extract<ReportBlock, { kind: 'form' }>, draft = false): string {
+function formHtml(block: Extract<ReportBlock, { kind: 'form' }>, draft: ReportDraft | false = false): string {
   const rows = block.rows
     .filter((row) => row.length)
     .map((row) => {
@@ -268,6 +288,8 @@ const DRAFT_CSS = `.draft-part{margin:20px 0 6px;padding:3px 8px;border-left:3px
 .draft-part span:last-child{font-weight:400;color:#64748b}.draft-part.flash{background:#99f6e4}
 [data-src="run"]{background:rgba(59,130,246,.12)}[data-src="reviewer"]{background:rgba(245,158,11,.18)}[data-src="scene"]{background:rgba(16,185,129,.14)}[data-src="table"]{background:rgba(139,92,246,.12)}
 .blank{background:#fde68a;min-height:1em}
+[data-edit]{cursor:text}[data-edit]:hover{outline:1px dashed #0d9488;outline-offset:1px}[data-edit][data-option]{cursor:pointer}
+[data-edited]{box-shadow:inset 3px 0 0 #b45309}[data-edit][contenteditable]{outline:2px solid #0d9488;outline-offset:1px;background:#fff}
 img[src*="data-draw"]{cursor:pointer}img[src*="data-draw"]:hover{outline:3px solid #0d9488;outline-offset:-3px}`
 
 export function reportHtml(report: AssembledReport, logo: ReportLogo | null, draft?: ReportDraft): string {
@@ -313,7 +335,7 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null, dra
       sections.push({ id, text: block.text })
       return `<h3 id="${id}">${e(block.text)}</h3>`
     }
-    const drawn = blockHtml(block, !!draft)
+    const drawn = blockHtml(block, draft ?? false)
     if (isWide(block)) return `<div class="wide">${drawn}</div>`
     // A map sheet prints full-size, so the scale it states is true on paper; an analysis sheet keeps its margins.
     if (block.kind === 'figure' && block.figure && isPortraitSheet(block.figure))
@@ -359,7 +381,7 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null, dra
     ? `<div class="logo"><img src="${logo.dataUrl}" alt="${e(logo.name)}"></div>`
     : '<div class="logo empty">Logo (your own)</div>'
   const head = report.layout.cover
-    ? `<section class="cover">${logoBox}<h1>${e(title)}</h1><p class="sub">${e(report.subtitle)}</p>${coverBlocks.map((block) => mark(block) + blockHtml(block, !!draft)).join('')}</section>`
+    ? `<section class="cover">${logoBox}<h1>${e(title)}</h1><p class="sub">${e(report.subtitle)}</p>${coverBlocks.map((block) => mark(block) + blockHtml(block, draft ?? false)).join('')}</section>`
     : `<header class="title"><div><h1>${e(title)}</h1><p>${e(report.subtitle)}</p></div>${logoBox}</header>`
   const contents =
     report.layout.contents && sections.length

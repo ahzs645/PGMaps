@@ -14,7 +14,8 @@ test('keeps the study-area picker stable while choosing and switching levels', a
   await page.getByRole('button', { name: 'Add' }).click()
 
   const scrollRegion = page.getByTestId('study-area-picker-scroll')
-  await expect(scrollRegion).toHaveCSS('scrollbar-gutter', 'stable')
+  // No strip is reserved for a scrollbar: the app's own is drawn over the content (`overlayScrollbars/install.ts`).
+  await expect(scrollRegion).toHaveCSS('scrollbar-width', 'none')
 
   await page.getByPlaceholder('Search sources, categories, levels').fill('Named watersheds')
   const clientWidthBeforeExpansion = await scrollRegion.evaluate((element) => element.clientWidth)

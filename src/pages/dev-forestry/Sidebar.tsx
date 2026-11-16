@@ -38,7 +38,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ListHeader, ResultRow } from '@/components/ui/result-list'
 import { ExternalLink, TextButton } from '@/components/ui/text-button'
 import { formatMeasure, formatNumber, formatPercentValue } from '@/lib/format'
-import { InfoTip } from '@/components/ui/info-tip'
+import { HoverTip, InfoTip } from '@/components/ui/info-tip'
 import { Notification } from '@/components/ui/notification'
 import { BC_DESIGN_HANDBOOK } from './LandformDesignPanel'
 import { insetBox } from '@/components/ui/inset-box'
@@ -57,6 +57,7 @@ import type { AnalysisSettings, HarvestSystem, TargetPolygon, TargetRole, Viewpo
 import type { TreeLook, TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
 import { findSceneLandform } from './sceneInput'
+import { START_SCENARIOS, startScenarioContents, type StartScenarioId } from './scenarioSummary'
 import { lineLengthMeters } from './visibility'
 import { SENSITIVITY_UNIT_COLORS, TREE_FREE_COLOR } from './planMapStyle'
 import { VIEWPOINT_CLEARING, type TreeFreeArea, type ViewpointClearingSetting } from './treeFreeAreas'
@@ -553,6 +554,8 @@ export type SidebarProps = {
   /** A road-view preview is being prepared or is open; the sidebar shows step 2, where it is. */
   roadViewOpening?: boolean
   onClearScene: () => void
+  /** Opens a project file saved from Save & export: it replaces what is on the map and the saved views. */
+  onOpenProject: (file: File) => void
   /** Opens Save & export, on one output or the first. */
   onOpenExport: (kind?: VisualsExport) => void
   /** Adds the on-screen roads inside the landform as FS1252 line (b) disturbance. */
@@ -659,6 +662,7 @@ export function Sidebar({
   onActivateLandform,
   roadViewOpening = false,
   onClearScene,
+  onOpenProject,
   onOpenExport,
   onAddRoadDisturbance,
   setup,
@@ -721,6 +725,12 @@ export function Sidebar({
     setActiveStep(id)
     // Back to the top of the step, tabs in view.
     window.requestAnimationFrame(() => tabsRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+  }
+  const startFrom: Record<StartScenarioId, () => void> = {
+    tabor: onLoadSample,
+    purden: onLoadHighwaySample,
+    roadside: onLoadDriveSample,
+    new: onClearScene,
   }
   const stepPanelProps = (id: ViaStepId) => ({
     role: 'tabpanel' as const,
@@ -963,33 +973,39 @@ export function Sidebar({
           help="A worked sample, the roadside demo (opened straight into the road view), or a clean site. Each replaces what is on the map."
         >
           <div className="grid grid-cols-2 gap-1.5">
-            <Button type="button" variant="outline" size="sm" className={GRID_BUTTON} onClick={onLoadSample}>
-              Tabor Mountain sample
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={GRID_BUTTON}
-              onClick={onLoadHighwaySample}
-              title="A hypothetical block on Purden Lake's north face, across the water from Hwy 16, under BC's Retention and Partial Retention EVQO. The road, landform, viewpoints and arrows are real records."
-            >
-              Hwy 16 · Purden Lake
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={GRID_BUTTON}
-              onClick={onLoadDriveSample}
-              title="A hypothetical opening beside a 1.2 km route, opened straight into the road view. It has no landform: its block stands on the valley floor."
-            >
-              Roadside demo drive
-            </Button>
-            <Button type="button" variant="outline" size="sm" className={GRID_BUTTON} onClick={onClearScene}>
-              New site
-            </Button>
+            {START_SCENARIOS.map((scenario) => (
+              <HoverTip
+                key={scenario.id}
+                content={
+                  <>
+                    <span className="block">{scenario.description}</span>
+                    <span className="mt-1.5 block font-medium">Contains: {startScenarioContents()[scenario.id]}</span>
+                  </>
+                }
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={GRID_BUTTON}
+                  onClick={startFrom[scenario.id]}
+                >
+                  {scenario.label}
+                </Button>
+              </HoverTip>
+            ))}
           </div>
+          <FileButton
+            label="Project file"
+            accept=".json"
+            variant="outline"
+            className={cn(GRID_BUTTON, 'mt-1.5 w-full')}
+            title="A project saved as Project in Save & export: the scene, the saved views with their pictures, the review and the workspace"
+            onFiles={([file]) => onOpenProject(file)}
+          >
+            <FileUp className="h-3.5 w-3.5" />
+            Open a project…
+          </FileButton>
         </ToolSection>
 
         <ToolSection

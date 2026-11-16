@@ -225,9 +225,9 @@ export function DesignSidebar(p: SidebarProps) {
             />
           </div>
         )}
-        {/* A stable gutter: opening a section must not bring in a scrollbar that narrows and shifts everything. */}
+        {/* Opening a section never narrows the content: the app's scrollbar is drawn over it and reserves nothing. */}
         <div
-          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-none [scrollbar-gutter:stable]"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-none"
           ref={scrollArea}
           data-testid="road-sidebar-content"
           data-map-sidebar-scroll="true"

@@ -14,7 +14,7 @@ import { useInterfaceThemeApplied } from '@/lib/interfaceTheme'
 import { cn } from '@/lib/utils'
 
 import { timed } from './exportTiming'
-import { ReportDraftView, type ReportDraftResult } from './ReportDraftView'
+import { ReportDraftView, type ReportDraftPages, type ReportDraftResult } from './ReportDraftView'
 import type { ViewCaptureReport } from './useViewCapture'
 import { VIA_STEPS, type ViaStepId } from './via'
 import {
@@ -49,6 +49,10 @@ export type BuiltFile = { blob: Blob; fileName: string }
 export type OutputDraft = {
   build: () => Promise<ReportDraftResult>
   draw: (id: string) => Promise<void>
+  /** The draft on the pages its PDF prints, written from the draft as last built. */
+  pages?: () => Promise<ReportDraftPages>
+  /** Changes one printed value by hand; null puts back what the output filled. */
+  edit?: (key: string, value: string | null, original?: string | null) => void
 }
 
 const GROUPS = Object.keys(VISUALS_EXPORT_GROUP_LABELS) as VisualsExportGroup[]
@@ -1017,6 +1021,14 @@ export function VisualsExportDialog({
                     drawing={drawing}
                     onDraw={(id) => void drawPicture(id)}
                     drawError={drawError}
+                    startOnPages={request.format === 'pdf'}
+                    {...(draftOf?.pages ? { pages: () => latestDrafts.current![item.kind]!.pages!() } : {})}
+                    {...(draftOf?.edit
+                      ? {
+                          onEdit: (key, value, original) =>
+                            latestDrafts.current?.[item.kind]?.edit?.(key, value, original),
+                        }
+                      : {})}
                   />
                 ) : shownDraft?.error ? (
                   <InlineAlert tone="error">{shownDraft.error}</InlineAlert>

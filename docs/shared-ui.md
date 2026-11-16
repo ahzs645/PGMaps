@@ -156,6 +156,8 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
 | Notes, warnings, errors, loading text             | `InlineAlert` (`tone`, `title`, `loading`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Floating notifications                            | `Notification` (`notification.tsx`) joins the one stack `Shell`'s `NotificationProvider` places: bottom-right, full width on phones. `tone` (`error` is an alert, the rest polite), `title`, `message`, `icon`, `progress`, `action` (beside the text), `actions` (below), `onDismiss`. Render it while your state lasts (a job, an error); `useNotifications().push` for one-off events. Never position a notice yourself.                                                                                                                                                                                 |
 | Explanations a reader needs once                  | `InfoTip` (`info-tip.tsx`, app-level): an (i) button whose bubble opens on hover or focus, pins on click or tap, closes on Escape, and renders in a portal so a scroll port cannot clip it. `showLabel` prints the label beside the icon. Field helpers can take a `hint` that puts one beside the label, outside the `<label>`, so it never becomes the input's name. Keep warnings inline in `InlineAlert`.                                                                                                                                                                                               |
+| What a button does, on its own hover              | `HoverTip` (`info-tip.tsx`): `InfoTip`'s bubble on a control of its own, shown when the pointer rests on the child or the keyboard reaches it, closed on leave, press, Escape or blur. It replaces a native `title`; it cannot be pinned and takes no pointer events, so keep links out of it. |
+| A scrollbar, anywhere                             | Nothing to add: every scroller gets the application's overlay scrollbar (**Scrollbars**, below). Never `scrollbar-gutter: stable`, a `::-webkit-scrollbar` rule or a scroll-area component of a page's own. |
 | Label/value details                               | `KeyValueRows` (`variant="stack" \| "divided" \| "grid"`, `size`), falsy rows skipped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Selected item card                                | `SelectedItemCard` (hover follows `tone`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Search field                                      | `SearchInput` (`icon`, `onClear`, forwards `ref`); 16px on phones so iOS does not zoom. It marks itself as the target of the map search shortcut; pass `data-map-search-input="false"` on secondary search fields in the same sidebar.                                                                                                                                                                                                                                                                                                                                                                      |
@@ -1071,3 +1073,42 @@ canvas, point hover and local XY zoom). `ChartViewport` measures a host-defined
 height slot. `XYPlot` also supports controlled zoom and supplied plot insets for
 custom renderers. Axis units, tooltip content, calendars and calculations belong
 to the host. See the toolkit API guide and independent consumer's `/charts` page.
+
+## Scrollbars
+
+The application has one scrollbar, installed once in `src/main.tsx`
+(`installOverlayScrollbars`, `src/lib/overlayScrollbars/install.ts`). It hides
+every native scrollbar and draws a thumb over the edge of the scroller in use,
+so no scroller reserves a strip for a bar and content keeps one width whether or
+not it scrolls. It covers sidebars, dialogs, lists, tables, menus, text areas
+and the page itself, in the application's code and the toolkit's alike, on both
+axes: a new `overflow-y-auto` or `overflow-x-auto` anywhere gets it with nothing
+to mount, import or opt into. A scroller stays the browser's own (wheel, keys,
+touch, `scrollTo`, sticky children, virtual lists); only the bar is drawn here.
+
+| To change | Where |
+| --- | --- |
+| How it looks (thickness, colour, radius, fade) | `.overlay-scrollbar` in `src/index.css`. Its colours are the theme's foreground at low strength, so every theme and both modes follow. The track's thickness is also `TRACK_PX` in `install.ts`: change both |
+| How it behaves (when it shows, how long it lingers, paging, dragging) | `src/lib/overlayScrollbars/install.ts` |
+| Thumb size and position arithmetic | `geometry.ts` beside it (DOM-free, unit tested) |
+
+Behaviour: the thumb shows while the pointer is in a scroller (the nearest one
+under it, as the system's own does) or the reader scrolls it by wheel or
+keyboard, lingers `LINGER_MS` after a scroll, drags, and a press on the track
+pages toward it. A list that scrolls itself somewhere else raises no bar. A
+press on a bar never counts as a press outside a dialog or a menu. A touch-only
+device keeps its own overlay scrollbars (`(any-pointer: fine)` decides), and
+nothing is drawn in print.
+
+Two ways out, both in CSS or markup:
+
+- A scroller that shows **no bar on purpose** (a tab strip, the ribbon's band, a
+  map popup) sets `--overlay-scrollbar: none`, or carries Tailwind's
+  `[scrollbar-width:none]`, which the stylesheet reads as the same. The property
+  does not inherit, so scrollers inside it keep their bars.
+- An element that must keep the **browser's own** scrollbar carries
+  `data-native-scrollbar` (it and everything in it). None does today.
+
+An `<iframe>` is its own document (the PDF preview, another engine's page) and
+keeps whatever scrollbars it has. `tests/e2e` asserts `scrollbar-width: none` on
+a scroller rather than a reserved gutter.

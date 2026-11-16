@@ -21,9 +21,33 @@ const captureSize = (source: { width: number; height: number }, maxSide: number)
   return { width: Math.round(source.width * scale), height: Math.round(source.height * scale) }
 }
 
+/**
+ * The `sourceKey` of the road view's guides: what is drawn there to help the reviewer look (the inventory arrows of
+ * the viewpoint stood at), and is no part of the view. A layer on it is hidden for every picture read here.
+ */
+export const ROAD_VIEW_GUIDE_SOURCE = 'road-view-guides'
+
+/** Hides the road view's guide layers for a picture; the function returned puts them back. */
+function hideGuides(map: MapLibreMap): () => void {
+  const source = `fill-shared-${ROAD_VIEW_GUIDE_SOURCE}`
+  const ids = map.getLayersOrder?.() ?? (map.getStyle().layers ?? []).map((layer) => layer.id)
+  const hidden = ids.filter(
+    (id) => map.getLayer(id)?.source === source && map.getLayoutProperty(id, 'visibility') !== 'none',
+  )
+  for (const id of hidden) map.setLayoutProperty(id, 'visibility', 'none')
+  return () => {
+    for (const id of hidden) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'visible')
+    if (hidden.length) map.triggerRepaint()
+  }
+}
+
 export function captureMapImage(map: MapLibreMap, maxSide = MAX_SIDE): Promise<CapturedImage> {
   return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error('The map did not draw a frame to capture.')), 10_000)
+    const showGuides = hideGuides(map)
+    const timer = window.setTimeout(() => {
+      showGuides()
+      reject(new Error('The map did not draw a frame to capture.'))
+    }, 10_000)
     map.once('render', () => {
       window.clearTimeout(timer)
       try {
@@ -36,6 +60,8 @@ export function captureMapImage(map: MapLibreMap, maxSide = MAX_SIDE): Promise<C
         resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.85), width: canvas.width, height: canvas.height })
       } catch (error) {
         reject(error instanceof Error ? error : new Error(String(error)))
+      } finally {
+        showGuides()
       }
     })
     map.triggerRepaint()
@@ -139,6 +165,7 @@ export async function captureAtCamera(
       MAX_CANVAS_SIDE / largest,
     ),
   )
+  const showGuides = hideGuides(map)
   try {
     if (ratio > ratioBefore) map.setPixelRatio(ratio)
     const wanted = {
@@ -194,6 +221,7 @@ export async function captureAtCamera(
       pixelRatio: Math.round((source.width / Math.max(1, source.clientWidth)) * 100) / 100,
     }
   } finally {
+    showGuides()
     if (ratio > ratioBefore) map.setPixelRatio(override as number)
     map.jumpTo(before)
     map.triggerRepaint()
@@ -567,6 +595,7 @@ export async function captureFramed(
     height,
   }))
   const drawnZooms: Array<number | null> = []
+  const showGuides = hideGuides(map)
   try {
     if (ratio > ratioBefore) map.setPixelRatio(ratio)
     for (let i = 0; i < plan.frames.length; i++) {
@@ -640,6 +669,7 @@ export async function captureFramed(
       drawnDemZoom: medianZoom(drawnZooms),
     }
   } finally {
+    showGuides()
     if (ratio > ratioBefore) map.setPixelRatio(override as number)
     map.setVerticalFieldOfView(fov)
     map.jumpTo(before)

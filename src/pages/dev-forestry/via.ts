@@ -26,6 +26,7 @@ import type { FormReview } from './pdf/fs1252'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon } from './types'
 import { designDistanceScore, visibleProposalCentre } from './vqe'
 import { haversineMeters } from './visibility'
+import { parseReportEdits } from './viaReport/edits'
 import { assessmentMaskSampler } from './assessmentMasks'
 import { parseFieldChecklist, parseLayoutStage, type FieldChecklist, type LayoutStage } from './fieldChecklist'
 import {
@@ -658,6 +659,11 @@ export type ViaReview = {
   /** Table 3 per saved view, by the view's name (step 2's Saved views). */
   viewpointRecords?: Record<string, ViewpointRecord>
   /**
+   * Values of the VIA report the reviewer changed by hand in its draft (`viaReport/edits.ts`), by the value's key:
+   * its part and its place in the part. Printed as the reviewer's, in place of what the part filled.
+   */
+  reportEdits?: Record<string, string>
+  /**
    * The key viewpoints the reviewer chose for the VIA report, overriding the run's (`chooseKeyViewpoints`): per block,
    * by block name, and for the blocks as a group.
    */
@@ -910,6 +916,7 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
   const fieldChecklist = parseFieldChecklist(value.fieldChecklist)
   const viewpointRecords = namedRecords(value.viewpointRecords, parseViewpointRecord)
   const keyViewpoints = parseKeyViewpoints(value.keyViewpoints)
+  const reportEdits = parseReportEdits(value.reportEdits)
   const landformRecords = namedRecords(value.landformRecords, (entry) =>
     strip<LandformRecord>({ parent: text(entry.parent, 200), divider: text(entry.divider) }),
   )
@@ -938,6 +945,7 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
     ...(fieldChecklist ? { fieldChecklist } : {}),
     ...(viewpointRecords ? { viewpointRecords } : {}),
     ...(keyViewpoints ? { keyViewpoints } : {}),
+    ...(reportEdits ? { reportEdits } : {}),
     ...(landformRecords ? { landformRecords } : {}),
   }
 }

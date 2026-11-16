@@ -1,8 +1,9 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 
 import { drawGroupOf } from './viaReport/draftPictures'
@@ -38,6 +39,30 @@ export type ReportDraftResult = {
   makeup: MakeupRow[]
   toComplete: number
   notes: string[]
+  /** Every value of the report that can be changed by hand, by its key on the page (`data-edit`). */
+  editTargets: Readonly<Record<string, DraftEditTarget>>
+  /** Edits kept for this recipe's parts whose place the report no longer prints. */
+  orphanEdits: ReadonlyArray<{ key: string; value: string }>
+}
+
+/** One editable value of the draft (`viaReport/edits.ts`'s `EditTarget`, as the draft lists it). */
+export type DraftEditTarget = {
+  label: string
+  kind: string
+  /** What the part printed; null for a blank. */
+  original: string | null
+  /** The reviewer's edit, when there is one. */
+  edited?: string
+  /** A tick-box question's options. */
+  options?: readonly string[]
+}
+
+/** The draft on the PDF's own pages: the file's writer run on the draft, stand-ins in place of pictures not drawn. */
+export type ReportDraftPages = {
+  blob: Blob
+  /** The page each part starts on, by the part's place in the recipe. */
+  partPages: number[]
+  pages: number
 }
 
 const STATE_LABEL: Record<DraftPicture['state'], string> = {
@@ -71,6 +96,9 @@ export function ReportDraftView({
   drawing,
   onDraw,
   drawError,
+  pages,
+  onEdit,
+  startOnPages = false,
 }: {
   draft: ReportDraftResult
   /** The output's own options (overview sheet, logo), shown beside the draft so a change shows at once. */
@@ -79,7 +107,50 @@ export function ReportDraftView({
   drawing: string | null
   onDraw: (id: string) => void
   drawError: string | null
+  /** Writes the draft on the PDF's pages; absent, the draft has only its flowing layout. */
+  pages?: () => Promise<ReportDraftPages>
+  /** Changes one value by hand (null puts back what the part printed); absent, the draft cannot be edited. */
+  onEdit?: (key: string, value: string | null, original?: string | null) => void
+  /** Open on the pages (the PDF format is chosen) rather than the flowing layout. */
+  startOnPages?: boolean
 }) {
+  const [layout, setLayout] = useState<'pages' | 'flow'>(startOnPages && pages ? 'pages' : 'flow')
+  const [paged, setPaged] = useState<
+    | { draft: ReportDraftResult; url: string; partPages: number[]; pages: number }
+    | { draft: ReportDraftResult; error: string }
+    | null
+  >(null)
+  const [page, setPage] = useState(1)
+  const latestPages = useRef(pages)
+  const latestEdit = useRef(onEdit)
+  const latestTargets = useRef(draft.editTargets)
+  useEffect(() => {
+    latestPages.current = pages
+    latestEdit.current = onEdit
+    latestTargets.current = draft.editTargets
+  })
+  // The pages are written again whenever the draft is laid out again; the last ones stay up meanwhile.
+  useEffect(() => {
+    if (layout !== 'pages' || !latestPages.current) return
+    let stopped = false
+    latestPages
+      .current()
+      .then((built) => {
+        if (stopped) return
+        setPaged({ draft, url: URL.createObjectURL(built.blob), partPages: built.partPages, pages: built.pages })
+      })
+      .catch((error: unknown) => {
+        if (!stopped)
+          setPaged({ draft, error: error instanceof Error ? error.message : 'The pages could not be written.' })
+      })
+    return () => {
+      stopped = true
+    }
+  }, [layout, draft])
+  const pagedUrl = paged && 'url' in paged ? paged.url : null
+  useEffect(() => () => void (pagedUrl && URL.revokeObjectURL(pagedUrl)), [pagedUrl])
+  const edited = Object.entries(draft.editTargets).filter(([, target]) => target.edited !== undefined)
+
   const frame = useRef<HTMLIFrameElement>(null)
   // The page keeps its place when the draft is laid out again (a picture drawn, an option changed).
   const scrolled = useRef(0)
@@ -102,11 +173,60 @@ export function ReportDraftView({
       if (group) {
         event.preventDefault()
         latestDraw.current(group)
+        return
       }
+      const value = target?.closest?.('[data-edit]') as HTMLElement | null
+      if (value && latestEdit.current) startEdit(value)
     })
   }
 
+  /** Changes a value in place: a tick box toggles; anything else is typed over, kept on Enter or on leaving it. */
+  const startEdit = (element: HTMLElement) => {
+    const key = element.getAttribute('data-edit') ?? ''
+    const target = latestTargets.current[key]
+    const save = latestEdit.current
+    if (!target || !save || element.isContentEditable) return
+    const shown = target.edited ?? target.original ?? ''
+    const option = element.getAttribute('data-option')
+    if (option !== null) {
+      save(key, option === shown ? '' : option, target.original)
+      return
+    }
+    const before = element.innerHTML
+    // A blank's ruled line is not text to type after.
+    if (!shown) element.textContent = ''
+    else if (target.kind === 'paragraph') element.textContent = shown
+    element.setAttribute('contenteditable', 'plaintext-only')
+    if (!element.isContentEditable) element.setAttribute('contenteditable', 'true')
+    element.focus()
+    let cancelled = false
+    const done = () => {
+      element.removeEventListener('blur', done)
+      element.removeEventListener('keydown', onKey)
+      element.removeAttribute('contenteditable')
+      const typed = (element.innerText ?? '').replace(/\s+/g, ' ').trim()
+      if (cancelled || typed === shown) element.innerHTML = before
+      else save(key, typed, target.original)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        cancelled = true
+        element.blur()
+      } else if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault()
+        element.blur()
+      }
+      event.stopPropagation()
+    }
+    element.addEventListener('blur', done)
+    element.addEventListener('keydown', onKey)
+  }
+
   const showPart = (index: number) => {
+    if (layout === 'pages') {
+      if (paged && 'url' in paged) setPage(paged.partPages[index] ?? 1)
+      return
+    }
     const doc = frame.current?.contentDocument
     const mark = doc?.getElementById(`part-${index}`)
     if (!mark) return
@@ -121,6 +241,68 @@ export function ReportDraftView({
         aria-label="What the report is made of"
         className="grid min-w-0 content-start gap-4 sm:min-h-0 sm:overflow-y-auto sm:pr-1"
       >
+        {pages && (
+          <section className="space-y-1.5" aria-label="Layout">
+            <Heading>Layout</Heading>
+            <SegmentedControl
+              size="sm"
+              fullWidth={false}
+              label="Draft layout"
+              value={layout}
+              onChange={setLayout}
+              options={[
+                { value: 'pages' as const, label: 'Pages' },
+                { value: 'flow' as const, label: onEdit ? 'Edit' : 'Flowing' },
+              ]}
+            />
+            <p className="text-2xs text-muted-foreground">
+              {layout === 'pages'
+                ? `The pages the PDF prints${paged && 'url' in paged ? ` (${paged.pages})` : ''}: its own page breaks, landscape pages and 11 × 17 sheets, with stand-ins where a picture is not drawn yet.`
+                : onEdit
+                  ? 'One flowing page. Click a value to change it by hand: Enter keeps it, Esc leaves it. Click a stand-in to draw it.'
+                  : 'One flowing page. Click a stand-in to draw it.'}
+            </p>
+          </section>
+        )}
+        {onEdit && (edited.length > 0 || draft.orphanEdits.length > 0) && (
+          <section className="space-y-1.5" aria-label="Your edits">
+            <Heading>Your edits · {edited.length}</Heading>
+            <ul className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}>
+              {edited.map(([key, target]) => (
+                <li key={key} className="space-y-1 px-2.5 py-2 text-xs">
+                  <p className="font-medium text-foreground">{target.label}</p>
+                  <p className="break-words text-2xs text-muted-foreground">
+                    {target.edited ? `“${target.edited}”` : 'Left blank'} · the report gave{' '}
+                    {target.original ? `“${target.original}”` : 'a blank'}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label={`Put back ${target.label}`}
+                    onClick={() => onEdit(key, null)}
+                  >
+                    Put back
+                  </Button>
+                </li>
+              ))}
+              {draft.orphanEdits.map((orphan) => (
+                <li key={orphan.key} className="space-y-1 px-2.5 py-2 text-xs">
+                  <p className="font-medium text-foreground">Not printed now</p>
+                  <p className="break-words text-2xs text-muted-foreground">
+                    “{orphan.value}” was typed for {orphan.key.split('|').filter(Boolean).join(' › ')}, which this
+                    report no longer prints. It is kept, and not used.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => onEdit(orphan.key, null)}>
+                    Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <p className="text-2xs text-muted-foreground">
+              An edit prints as yours in every format, and the report’s last line counts them.
+            </p>
+          </section>
+        )}
         {options && (
           <section className="space-y-1.5" aria-label="Options">
             <Heading>Options</Heading>
@@ -231,8 +413,22 @@ export function ReportDraftView({
         </section>
       </aside>
       {/* Scripts stay off in the frame; same-origin lets the dialog find the parts and listen for stand-in clicks. */}
+      {layout === 'pages' &&
+        (paged && 'url' in paged ? (
+          <iframe
+            key={`${paged.url}#${page}`}
+            title="VIA report draft pages"
+            src={page > 1 ? `${paged.url}#page=${page}` : paged.url}
+            className="h-[70dvh] w-full min-w-0 rounded-md border sm:h-full sm:min-h-96"
+          />
+        ) : paged && 'error' in paged && paged.draft === draft ? (
+          <InlineAlert tone="error">{paged.error}</InlineAlert>
+        ) : (
+          <InlineAlert loading>Writing the draft’s pages…</InlineAlert>
+        ))}
       <iframe
         ref={frame}
+        hidden={layout === 'pages'}
         title="VIA report draft"
         sandbox="allow-same-origin"
         srcDoc={draft.html}

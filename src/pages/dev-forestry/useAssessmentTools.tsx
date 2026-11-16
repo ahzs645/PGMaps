@@ -835,7 +835,18 @@ export function useAssessmentTools({
     html: () => buildEvidenceHtml(parseTools(documentRef.current)),
     workspaceJson: () => serializeTools({ ...documentRef.current, currentScene: scene }),
   }
+  /** Replaces the stored workspace with a project file's (`projectFile.ts`); the page sets the scene itself. */
+  const restoreWorkspace = (text: string) => {
+    const parsed = parseTools(JSON.parse(text))
+    runner.cancel()
+    change(parsed)
+    setCurve(parsed.growthCurve.map((p) => `${p.age},${p.height}`).join('\n'))
+    setOpenedRun(null)
+    setSelectedViews([])
+    setSelectedLandforms([])
+  }
   return {
+    restoreWorkspace,
     field,
     design,
     report,

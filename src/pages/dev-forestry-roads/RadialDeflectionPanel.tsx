@@ -184,10 +184,7 @@ export function RadialDeflectionPanel({
   )
   if (mode === 'reach')
     return (
-      <section
-        className="h-full min-h-0 overflow-y-auto overscroll-none p-1 [scrollbar-gutter:stable]"
-        data-testid="radial-deflection-panel"
-      >
+      <section className="h-full min-h-0 overflow-y-auto overscroll-none p-1" data-testid="radial-deflection-panel">
         {header}
         <MaxReachPanel
           source={source}
@@ -200,10 +197,7 @@ export function RadialDeflectionPanel({
       </section>
     )
   return (
-    <section
-      className="h-full min-h-0 overflow-y-auto overscroll-none p-1 [scrollbar-gutter:stable]"
-      data-testid="radial-deflection-panel"
-    >
+    <section className="h-full min-h-0 overflow-y-auto overscroll-none p-1" data-testid="radial-deflection-panel">
       {header}
       <CollapsibleSection
         label="Settings"
