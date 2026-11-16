@@ -67,7 +67,18 @@ import { reportHtml, reportMarkdown } from './viaReport/html'
 import type { ReportFigure } from './viaReport/model'
 import type { ReportImages } from './viaReport/parts'
 import type { ReportSetting } from './viaReport/setting'
-import { assembleReport, findReportRecipe, recipeFormat, REPORT_RECIPES, withViewsLeftOut } from './viaReport/recipes'
+import {
+  assembleReport,
+  assembleReportParts,
+  recipeFormat,
+  REPORT_RECIPES,
+  withViewsLeftOut,
+} from './viaReport/recipes'
+import { DRAW_HOW, standInGroups, standInUrl, withStandIns } from './viaReport/draftPictures'
+import { recipeMakeup } from './viaReport/recipeMakeup'
+import { OwnRecipeTools } from './RecipeEditor'
+import type { DraftPicture, ReportDraftResult } from './ReportDraftView'
+import { useOwnRecipes } from './userRecipeStore'
 import { ExportPackagePane, VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
 import type { ViewCaptureApi, ViewCaptureReport } from './useViewCapture'
 import { viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
@@ -252,6 +263,8 @@ export function useVisualsExport(input: {
     obliquePitch?: number
     /** The report prints 26's figure page, which takes location and regional maps of its own. */
     figurePageMaps?: boolean
+    /** Only these groups (the draft draws one at a time; a file captures only those it has not kept). */
+    only?: { maps?: boolean; before?: boolean; renders?: boolean }
   }) => Promise<{ images: ReportImages; notes: string[]; beforeRenders?: BeforeRenders }>
   /**
    * Before-harvest renders of saved views from their own framed poses, for the with-timber pixel figure
@@ -341,11 +354,26 @@ export function useVisualsExport(input: {
     onLoadInventory(noteBlock, { show: false })
   }, [open, noteBlock, inventoryState.status, inventoryState.blockId, onLoadInventory])
 
-  // The report's captured maps and pictures, kept for the scene and views they were taken from.
-  const reportCaptures = useRef<{
-    key: string
-    value: { images: ReportImages; notes: string[]; beforeRenders?: BeforeRenders }
-  } | null>(null)
+  // The report's captured pictures by group ('maps', 'renders', 'before:<view id>'), each kept under the key of the
+  // scene and views it was taken from: the draft draws one group at a time, and a file captures only what is not kept.
+  const pictureCache = useRef(
+    new Map<
+      string,
+      {
+        key: string
+        value: {
+          images: ReportImages
+          notes: string[]
+          render?: BeforeRenders['renders'][string] | null
+          absent?: string | null
+        }
+      }
+    >(),
+  )
+  // Bumped when the draft draws a group, so the draft and the previews read it.
+  const [pictureTick, setPictureTick] = useState(0)
+  // Your own recipes, kept in this browser.
+  const ownRecipes = useOwnRecipes()
   // The with-timber measures made this session, by scene, view and save: a before render moves the road view for a
   // few seconds, so a view is rendered once. Only measured ones are kept; an absent one is looked for again.
   const timberMeasures = useRef(new Map<string, TimberMeasure>())
@@ -373,9 +401,11 @@ export function useVisualsExport(input: {
       })
       .map((view) => view.id),
   )
+  // The built-in recipes, then your own (`userRecipeStore.ts`).
+  const allRecipes = [...REPORT_RECIPES, ...ownRecipes.recipes]
   const pkg = resolvePackage({
     choice: { recipeId: packageRecipeId, documentFormatId, excludedViews },
-    recipes: REPORT_RECIPES,
+    recipes: allRecipes,
     formats: VIA_DOCUMENT_FORMATS,
     roadViewStyleId: roadView.styleId,
     planned: plannedViews,
@@ -527,7 +557,7 @@ export function useVisualsExport(input: {
   const viaDocument = facts ? resolveViaDocument(documentFormat, facts) : null
 
   // The report: its recipe, its views and a context assembled without figures for the dialog; the file adds them.
-  const reportRecipe = findReportRecipe(pkg.recipeId) ?? REPORT_RECIPES[0]
+  const reportRecipe = allRecipes.find((recipe) => recipe.id === pkg.recipeId) ?? REPORT_RECIPES[0]
   const overviewSheetStyle: OverviewSheetStyle =
     overviewSheetChoice ?? reportRecipe.overviewSheetStyle ?? DEFAULT_OVERVIEW_SHEET_STYLE
   const reportViews: ReportView[] = figureViews.flatMap((view) =>
@@ -738,12 +768,445 @@ export function useVisualsExport(input: {
     engineJobs.map((job) => (renders?.figures[job.key] ? 1 : 0)).join(''),
     beforeJobs.map((job) => (renders?.figures[job.key] ? 1 : beforeFailed(job) ? 'x' : 0)).join(''),
     reportRecipe.id,
+    // An own recipe's edits change the report under the same id.
+    reportRecipe.own ? JSON.stringify(reportRecipe) : '',
     overviewSheetStyle,
+    // A picture group drawn in the draft changes what the files are written from.
+    pictureTick,
     chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo',
   ].join('|')
 
   // The export context under another name: the report's build names its own `context`.
   const exportContext = context
+
+  // ------------------------------------------------------------------ the VIA report, its pictures and its draft
+
+  /** The printed logo as the report's title block takes it. */
+  const reportLogo = () =>
+    chosenLogo
+      ? {
+          name: chosenLogo.name,
+          dataUrl:
+            chosenLogo.source === 'uploaded'
+              ? chosenLogo.logo.dataUrl
+              : logoDataUrl(chosenLogo.brand.profile.logos.primary),
+        }
+      : null
+  /** The views the report draws (those with a class pass), named as the report names its viewpoints. */
+  const reportPictureViews = () => {
+    const names = reportContext([]).facts.viewpoints.map((vp) => vp.name)
+    const withFigure = figureViews.filter((view) => view.image?.figure)
+    return {
+      names,
+      withFigure,
+      named: withFigure.map((view, index) => ({ id: view.id, name: names[index] ?? view.name })),
+    }
+  }
+  type NamedView = { id: string; name: string }
+  // Each group's key: a group is kept while its key holds, so Preview, Download and the draft reuse what was drawn.
+  const pictureKeys = (named: readonly NamedView[]) => ({
+    maps: [
+      input.sceneKey,
+      named.map((view) => `${view.id}:${figureImages[view.id]?.savedAt ?? ''}`).join(','),
+      inventoryState.status,
+      overviewSheetStyle,
+      overviewSheetStyle === 'end-map-portrait'
+        ? `${chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo'}|${draftReport?.subtitle ?? ''}`
+        : '',
+      reportRecipe.parts.includes('ea-figure-pages') ? 'figure-page-maps' : '',
+    ].join('|'),
+    renders: [
+      input.sceneKey,
+      named[0] ? `${named[0].id}:${figureImages[named[0].id]?.savedAt ?? ''}` : '',
+      reportRecipe.obliquePitch ?? '',
+    ].join('|'),
+    before: (id: string) => [input.sceneKey, id, figureImages[id]?.savedAt ?? ''].join('|'),
+  })
+  const keptGroup = (id: string, key: string) => {
+    const entry = pictureCache.current.get(id)
+    return entry && entry.key === key ? entry.value : null
+  }
+  /** Captures one group from the page's maps (this moves them for a few seconds, and puts them back). */
+  const captureGroup = async (id: 'maps' | 'renders', named: readonly NamedView[]) => {
+    if (!input.captureReportImages) return
+    const keys = pictureKeys(named)
+    if (id === 'maps') {
+      // The portrait end map's title block takes the printed logo and the report's project line.
+      const endMapLogo =
+        overviewSheetStyle === 'end-map-portrait'
+          ? await (await import('@/branding/raster')).printedLogoRaster(branding)
+          : null
+      const out = await input.captureReportImages({
+        views: named,
+        overviewSheet: { style: overviewSheetStyle, logo: endMapLogo, project: draftReport?.subtitle ?? null },
+        ...(reportRecipe.parts.includes('ea-figure-pages') ? { figurePageMaps: true } : {}),
+        only: { maps: true },
+      })
+      const { overviewMap, overviewSheet, regionalMap, locationMaps, figurePageMaps } = out.images
+      pictureCache.current.set('maps', {
+        key: keys.maps,
+        value: {
+          images: { overviewMap, overviewSheet, regionalMap, locationMaps, figurePageMaps },
+          notes: out.notes,
+        },
+      })
+    } else {
+      const out = await input.captureReportImages({
+        views: named,
+        ...(reportRecipe.obliquePitch !== undefined ? { obliquePitch: reportRecipe.obliquePitch } : {}),
+        only: { renders: true },
+      })
+      pictureCache.current.set('renders', {
+        key: keys.renders,
+        value: { images: { overhead: out.images.overhead ?? [] }, notes: out.notes },
+      })
+    }
+  }
+  /** Captures the before pictures of `ids` (a lined-up photo, else a before-harvest render where each stands). */
+  const captureBefores = async (ids: readonly string[], named: readonly NamedView[]) => {
+    if (!input.captureReportImages) return
+    const keys = pictureKeys(named)
+    const views = named.filter((view) => ids.includes(view.id))
+    if (!views.length) return
+    const out = await input.captureReportImages({ views, only: { before: true } })
+    for (const view of views) {
+      const before = out.images.before?.[view.name]
+      pictureCache.current.set(`before:${view.id}`, {
+        key: keys.before(view.id),
+        value: {
+          images: before ? { before: { [view.name]: before } } : {},
+          notes: out.notes.filter((note) => note.includes(view.name) || !views.some((v) => note.includes(v.name))),
+          render: out.beforeRenders?.renders[view.id] ?? null,
+          absent: out.beforeRenders?.absent[view.id] ?? null,
+        },
+      })
+    }
+  }
+  /** Every group kept for the current views, merged as one capture; `drawn` names the groups kept. */
+  const keptPictures = (named: readonly NamedView[]) => {
+    const keys = pictureKeys(named)
+    const maps = keptGroup('maps', keys.maps)
+    const overhead = keptGroup('renders', keys.renders)
+    const before: Record<string, NonNullable<ReportImages['before']>[string]> = {}
+    const beforeRenders: BeforeRenders = { renders: {}, absent: {}, notes: [] }
+    const notesBy: Record<string, string[]> = {}
+    const drawn = new Set<string>()
+    if (maps) {
+      drawn.add('maps')
+      notesBy.maps = maps.notes
+    }
+    if (overhead) {
+      drawn.add('renders')
+      notesBy.renders = overhead.notes
+    }
+    for (const view of named) {
+      const id = `before:${view.id}`
+      const kept = keptGroup(id, keys.before(view.id))
+      if (!kept) continue
+      drawn.add(id)
+      notesBy[id] = kept.notes
+      Object.assign(before, kept.images.before ?? {})
+      if (kept.render) beforeRenders.renders[view.id] = kept.render
+      if (kept.absent) beforeRenders.absent[view.id] = kept.absent
+    }
+    beforeRenders.notes = [...new Set(Object.values(notesBy).flat())]
+    const images: ReportImages = {
+      ...(maps?.images ?? {}),
+      before,
+      overhead: overhead?.images.overhead ?? [],
+    }
+    return { images, beforeRenders, notes: beforeRenders.notes, notesBy, drawn }
+  }
+  /** Captures every group the file needs and has not kept: the maps, the views' before pictures, the renders. */
+  const ensurePictures = async (named: readonly NamedView[]) => {
+    if (!input.captureReportImages) return
+    const keys = pictureKeys(named)
+    const missing = (id: string, key: string) => pictureCache.current.get(id)?.key !== key
+    if (missing('maps', keys.maps)) await captureGroup('maps', named)
+    const befores = named.filter((view) => missing(`before:${view.id}`, keys.before(view.id))).map((view) => view.id)
+    if (befores.length) await captureBefores(befores, named)
+    if (missing('renders', keys.renders)) await captureGroup('renders', named)
+  }
+
+  /**
+   * The report, assembled with its pictures. `file`: every picture is drawn first (only the groups not kept are
+   * captured, moving the page's maps a few seconds each). `draft`: nothing is captured; what is not drawn yet is a
+   * stand-in at its own size (`draftPictures.ts`), so the draft lays out as the file does.
+   */
+  const composeReport = async (mode: 'file' | 'draft') => {
+    const { names, withFigure, named } = reportPictureViews()
+    if (mode === 'file') await ensurePictures(named)
+    const captured = keptPictures(named)
+    if (mode === 'file') {
+      // What could not be captured prints as a placeholder in the report; the reason goes to the console.
+      if (captured.notes.length) console.warn(`VIA report pictures:\n${captured.notes.join('\n')}`)
+      // Development only: the VIA reference-library harness reads the captures whatever the recipe prints.
+      if (import.meta.env.DEV) (window as unknown as { __viaReportCaptures?: unknown }).__viaReportCaptures = captured
+    }
+    // An engine's render still owed for a view: the draft stands in for it, the file waits for it (`prepare`).
+    const engineOwed = (id: string) => mode === 'draft' && missingJobs.some((job) => job.viewId === id)
+    const engineBeforeOwed = (id: string) => mode === 'draft' && missingBeforeJobs.some((job) => job.viewId === id)
+    const engineLabel = engineId ? roadRendererInfo(engineId).label : ''
+    // The with-timber pixel figure of each PGMaps view, from the before renders taken (or kept from earlier).
+    const timber = await measureTimber(withFigure, captured.beforeRenders)
+    // Each view's analysed figure in the report's own style, named as the report names its viewpoint. A report
+    // with calculation pages composes them on an 11 × 17 page (`tabloidFigure`), which it prints on its own page.
+    const style = reportRecipe.figureStyle ?? recipeFormat(reportRecipe).style ?? DEFAULT_FIGURE_STYLE
+    const tabloid = reportRecipe.parts.includes('calculations') || reportRecipe.parts.includes('appendix-sheets')
+    const figures: ReportFigure[] = await Promise.all(
+      withFigure.map(async (view, index) => {
+        const name = names[index] ?? view.name
+        // The report's own arithmetic, whatever the style: its figures print what its tables print.
+        const image = await figureNoteImage(view.image!, style, {
+          ...(timber[view.id] ? { timber: timber[view.id] } : {}),
+          tabloid,
+          rule: recipeFormat(reportRecipe).rule,
+        })
+        // Why the picture's pixel figure and the run's can part: the map drew far ground coarser.
+        const terrainNote = terrainDetailNote(view.image?.figure?.terrainDetail ?? null)
+        const figure: ReportFigure = {
+          view: name,
+          caption: `${name}: ${image.caption}${
+            view.image?.figure?.illustration ? ` Drawn by ${view.image.figure.illustration.renderer}.` : ''
+          }${terrainNote ? ` ${terrainNote}` : ''}`,
+          dataUrl: image.dataUrl,
+          width: image.width,
+          height: image.height,
+        }
+        // The engine's figure is not drawn yet: a stand-in the size of PGMaps' own, which it replaces.
+        return engineOwed(view.id)
+          ? {
+              ...figure,
+              dataUrl: standInUrl(
+                'engine',
+                `${name}: analysis figure by ${engineLabel}`,
+                DRAW_HOW.engine,
+                figure.width,
+                figure.height,
+              ),
+            }
+          : figure
+      }),
+    )
+    // Each view's plain simulation (its framed capture, else its screenshot) for the "after" pictures, and its
+    // before picture from the same renderer (`reportPairs.ts`): an engine's figures pair with that engine's
+    // render before harvest, else both pictures are PGMaps', never PGMaps' before beside an engine's after.
+    const after: Record<string, ReportFigure> = {}
+    const pairedBefore: Record<string, BeforePicture> = {}
+    // Where the landform lies in each render (the figure's crop rows), so a recipe that prints panoramas (26)
+    // shows a wide band round it (`panoramaBand`, drawn by the report). A render takes the rows of the figure it
+    // was framed with; a field photograph has its own framing and takes none.
+    const rowsOf = (
+      figure: SavedFigure | undefined,
+      picture: { width: number; height: number },
+    ): { y: number; height: number } | null => {
+      const frame = figure?.frameImage
+      const rows = figure?.landformRows ?? figure?.crop
+      if (!frame || !rows || frame.width !== picture.width || frame.height !== picture.height) return null
+      return rows
+    }
+    const withRows = <T extends ReportFigure>(picture: T, figure: SavedFigure | undefined): T => {
+      const rows = rowsOf(figure, picture)
+      return rows ? { ...picture, landformRows: rows } : picture
+    }
+    withFigure.forEach((view, index) => {
+      const name = names[index] ?? view.name
+      const drawn = view.image!.figure!
+      const own = input.images[view.id]
+      const ownFigure = own?.figure
+      const renderer = engineId ? (drawn.illustration?.renderer ?? null) : null
+      const photo = captured.images.before?.[name]?.source === 'photo' ? captured.images.before[name] : null
+      // The draft, with the engine's pictures of this view still owed: stand-ins the size of the simulation, so
+      // a pair never shows PGMaps' picture where the engine's will go.
+      if (engineOwed(view.id) || (engineBeforeOwed(view.id) && !photo)) {
+        const simulation = simulationPicture(name, drawn, view.image!)
+        const standing = (title: string) => ({
+          ...simulation,
+          dataUrl: standInUrl('engine', title, DRAW_HOW.engine, simulation.width, simulation.height),
+        })
+        after[name] = withRows(
+          engineOwed(view.id)
+            ? standing(`${name}: simulation by ${engineLabel}`)
+            : { ...simulation, ...(renderer ? { renderer } : {}) },
+          drawn,
+        )
+        pairedBefore[name] = photo ?? { ...standing(`${name}: before harvest, by ${engineLabel}`), source: 'render' }
+        return
+      }
+      // The engine's render before harvest: a before job's figure, or the view itself when saved before harvest.
+      const beforeJob = engineId && renders ? renders.jobFor(view.id, engineId, 'before') : null
+      const beforeFigure = !renderer
+        ? null
+        : beforeJob
+          ? (renders?.figures[beforeJob.key] ?? null)
+          : own?.viewpoint?.harvestPhase === 'before'
+            ? drawn
+            : null
+      const failed = beforeJob
+        ? renders?.jobs.find((entry) => entry.job.key === beforeJob.key && entry.status === 'error')
+        : undefined
+      const pair = pairPictures({
+        name,
+        after: simulationPicture(name, drawn, view.image!),
+        afterRenderer: renderer,
+        ownAfter: ownFigure && own ? simulationPicture(name, ownFigure, own) : null,
+        before: captured.images.before?.[name] ?? null,
+        engineBefore: beforeFigure?.frameImage ?? null,
+        engineBeforeMissing: failed
+          ? `its render failed: ${failed.error ?? 'no reason given'}`
+          : beforeJob
+            ? 'its render was not finished'
+            : 'the view has no pose to frame it on',
+      })
+      const afterFigure = pair.after.renderer === 'PGMaps' && renderer ? ownFigure : drawn
+      after[name] = withRows(
+        engineId && engineElsewhere.has(view.id)
+          ? {
+              ...pair.after,
+              note: `Drawn by PGMaps, as the picture before it: ${roadRendererInfo(engineId).label} draws only where the road view stands, and this view was saved at another place.`,
+            }
+          : pair.after,
+        afterFigure,
+      )
+      if (pair.before)
+        pairedBefore[name] =
+          pair.before.source === 'render'
+            ? withRows(pair.before, pair.before.renderer === 'PGMaps' ? ownFigure : (beforeFigure ?? drawn))
+            : pair.before
+    })
+    const drawnImages: ReportImages = { ...captured.images, after, before: pairedBefore }
+    // The draft stands in for every picture not drawn yet, each at its own size and tagged with its group.
+    const standIns = (images: ReportImages) =>
+      withStandIns({
+        images,
+        views: named.map((view) => ({
+          id: view.id,
+          name: view.name,
+          aspect: after[view.name] ? after[view.name].width / after[view.name].height : 4 / 3,
+        })),
+        blocks: blocks.map((block) => block.name),
+        sheetStyle: overviewSheetStyle,
+        figurePageMaps: reportRecipe.parts.includes('ea-figure-pages'),
+        beforeBy: engineId ? 'engine' : 'pgmaps',
+      })
+    const images = mode === 'draft' ? standIns(drawnImages) : drawnImages
+    const views = reportViews.map((view) => {
+      const id = figureViews.find((entry) => entry.name === view.name)?.id
+      return id && timber[id] ? { ...view, timber: timber[id] } : view
+    })
+    const context = reportContext(figures, images, views)
+    // Development only: the pictures and facts the report was built from, for the reference comparison.
+    if (import.meta.env.DEV && mode === 'file')
+      Object.assign(window as unknown as Record<string, unknown>, {
+        __viaReportAfter: after,
+        __viaReportBefore: images.before,
+        __viaReportFacts: context.facts,
+        __viaReportUnits: context.inventoryUnits ?? null,
+        // Where the blocks are and what the land is like (`reportSetting`), as the page read it for this report.
+        __viaReportSetting: context.setting ?? null,
+      })
+    // Every view of the package the report does not print is named at its end, with why.
+    const assembled = assembleReportParts(reportRecipe, context)
+    const report = withViewsLeftOut(assembled.report, viewsLeftOut('via-report', exportContext))
+    // Which groups the recipe prints at all, drawn or not: the same report with every group stood in.
+    const printed = () => {
+      const dry = assembleReport(
+        reportRecipe,
+        reportContext(
+          figures,
+          standIns({ after: drawnImages.after, before: photoBefores(captured.images.before ?? {}) }),
+          views,
+        ),
+      )
+      return standInGroups(reportHtml(dry, null, { parts: [] }))
+    }
+    return { report, parts: assembled.parts, captured, named, printed }
+  }
+  /** The lined-up photographs among the before pictures: drawn without a capture, never stood in. */
+  const photoBefores = (before: NonNullable<ReportImages['before']>) =>
+    Object.fromEntries(Object.entries(before).filter(([, picture]) => picture.source === 'photo'))
+
+  /** The report's draft (`ReportDraftView`): laid out now, pictures not drawn yet stood in, each part marked. */
+  const buildDraft = async (): Promise<ReportDraftResult> => {
+    if (!reportViews.length)
+      throw new Error(
+        'No view in the package has a class pass to draw the report from: capture a view of interest or save one in the road view.',
+      )
+    const { report, parts, captured, named, printed } = await composeReport('draft')
+    const html = reportHtml(report, reportLogo(), { parts })
+    const shown = new Set(standInGroups(html))
+    const engineLabel = engineId ? roadRendererInfo(engineId).label : ''
+    const label = (id: string) =>
+      id === 'maps'
+        ? 'Maps from the plan: overview, 11 × 17 sheet, regional and location maps'
+        : id === 'renders'
+          ? 'Overhead and oblique renders of the blocks'
+          : id === 'engine'
+            ? `${engineLabel}: figures, simulations and before pictures`
+            : `${named.find((view) => `before:${view.id}` === id)?.name ?? 'A view'}: before harvest`
+    const pictures: DraftPicture[] = printed().map((id) => {
+      if (id === 'engine') {
+        const owed = missingJobs.length + missingBeforeJobs.length
+        return {
+          id,
+          label: label(id),
+          state: !shown.has(id) ? 'drawn' : engineRunning ? 'working' : 'stand-in',
+          note: engineUnavailable
+            ? `Cannot draw: ${engineUnavailable}`
+            : engineRunning
+              ? `Rendering in the background${reportLeftMs !== null ? `, ${formatRemaining(reportLeftMs)} left` : ''}.`
+              : owed
+                ? `${owed} render${owed === 1 ? '' : 's'} to draw.`
+                : null,
+          action: shown.has(id) && !engineRunning && !engineUnavailable ? 'Queue renders' : null,
+        }
+      }
+      const kept = captured.drawn.has(id)
+      const notes = captured.notesBy[id] ?? []
+      return {
+        id,
+        label: label(id),
+        state: !shown.has(id) ? 'drawn' : kept ? 'not-drawn' : 'stand-in',
+        note: kept && notes.length ? notes.join(' ') : kept && shown.has(id) ? 'Drawn, but nothing came back.' : null,
+        action: !input.captureReportImages ? null : kept ? 'Draw again' : 'Draw',
+      }
+    })
+    const notes = [
+      exportContext.run !== 'current'
+        ? exportContext.run === 'stale'
+          ? 'The run is out of date: the draft reads the last run. Preview and Download run the assessment again first.'
+          : 'Not run yet: the draft shows no figures from the run. Preview and Download run the assessment first.'
+        : null,
+      ...viewsLeftOut('via-report', exportContext).map((view) => `${view.name} is left out: ${view.reason}.`),
+    ].filter((note): note is string => !!note)
+    return {
+      html,
+      parts: parts.map((part, index) => ({
+        index,
+        id: part.id,
+        title: part.title,
+        sources: part.sources,
+        printed: part.blocks > 0,
+        toComplete: part.toComplete,
+      })),
+      pictures,
+      makeup: recipeMakeup(reportRecipe),
+      toComplete: report.toComplete.length,
+      notes,
+    }
+  }
+  /** Draws one picture group of the draft now (`DraftPictureId`): captured from the page, or queued with the engine. */
+  const drawDraftPicture = async (id: string) => {
+    if (id === 'engine') {
+      const owed = [...missingJobs, ...missingBeforeJobs]
+      if (owed.length) renders?.enqueue(owed)
+      return
+    }
+    const { named } = reportPictureViews()
+    if (id.startsWith('before:')) await captureBefores([id.slice('before:'.length)], named)
+    else if (id === 'maps' || id === 'renders') await captureGroup(id, named)
+    setPictureTick((tick) => tick + 1)
+  }
   const build = async (kind: VisualsExport, format: string): Promise<BuiltFile> => {
     switch (kind) {
       case 'block-note':
@@ -775,174 +1238,14 @@ export function useVisualsExport(input: {
       }
       case 'via-report': {
         if (!reportViews.length) throw new Error('No view in the package has a class pass to draw the report from.')
-        const names = reportContext([]).facts.viewpoints.map((vp) => vp.name)
-        // The maps and before pictures are captured now, once per scene and set of views: Preview and Download
-        // build the same file, and the captures move the page's maps for a few seconds each.
-        const reportViewIds = figureViews.filter((view) => view.image?.figure)
-        const captureKey = [
-          input.sceneKey,
-          reportViewIds.map((view) => `${view.id}:${figureImages[view.id]?.savedAt ?? ''}`).join(','),
-          inventoryState.status,
-          overviewSheetStyle,
-          overviewSheetStyle === 'end-map-portrait'
-            ? `${chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo'}|${draftReport?.subtitle ?? ''}`
-            : '',
-          reportRecipe.obliquePitch ?? '',
-          reportRecipe.parts.includes('ea-figure-pages') ? 'figure-page-maps' : '',
-        ].join('|')
-        let captured = reportCaptures.current?.key === captureKey ? reportCaptures.current.value : null
-        if (!captured && input.captureReportImages) {
-          // The portrait end map's title block takes the printed logo and the report's project line.
-          const endMapLogo =
-            overviewSheetStyle === 'end-map-portrait'
-              ? await (await import('@/branding/raster')).printedLogoRaster(branding)
-              : null
-          captured = await input.captureReportImages({
-            views: reportViewIds.map((view, index) => ({ id: view.id, name: names[index] ?? view.name })),
-            overviewSheet: { style: overviewSheetStyle, logo: endMapLogo, project: draftReport?.subtitle ?? null },
-            ...(reportRecipe.obliquePitch !== undefined ? { obliquePitch: reportRecipe.obliquePitch } : {}),
-            ...(reportRecipe.parts.includes('ea-figure-pages') ? { figurePageMaps: true } : {}),
-          })
-          reportCaptures.current = { key: captureKey, value: captured }
-          // What could not be captured prints as a placeholder in the report; the reason goes to the console.
-          if (captured.notes.length) console.warn(`VIA report pictures:\n${captured.notes.join('\n')}`)
-          // Development only: the VIA reference-library harness reads the captures whatever the recipe prints.
-          if (import.meta.env.DEV)
-            (window as unknown as { __viaReportCaptures?: unknown }).__viaReportCaptures = captured
-        }
-        // The with-timber pixel figure of each PGMaps view, from the before renders just taken (or kept from earlier).
-        const timber = await measureTimber(reportViewIds, captured?.beforeRenders ?? null)
-        // Each view's analysed figure in the report's own style, named as the report names its viewpoint. A report
-        // with calculation pages composes them on an 11 × 17 page (`tabloidFigure`), which it prints on its own page.
-        const style = reportRecipe.figureStyle ?? recipeFormat(reportRecipe).style ?? DEFAULT_FIGURE_STYLE
-        const tabloid = reportRecipe.parts.includes('calculations') || reportRecipe.parts.includes('appendix-sheets')
-        const figures: ReportFigure[] = await Promise.all(
-          reportViewIds.map(async (view, index) => {
-            // The report's own arithmetic, whatever the style: its figures print what its tables print.
-            const image = await figureNoteImage(view.image!, style, {
-              ...(timber[view.id] ? { timber: timber[view.id] } : {}),
-              tabloid,
-              rule: recipeFormat(reportRecipe).rule,
-            })
-            // Why the picture's pixel figure and the run's can part: the map drew far ground coarser.
-            const terrainNote = terrainDetailNote(view.image?.figure?.terrainDetail ?? null)
-            return {
-              view: names[index] ?? view.name,
-              caption: `${names[index] ?? view.name}: ${image.caption}${
-                view.image?.figure?.illustration ? ` Drawn by ${view.image.figure.illustration.renderer}.` : ''
-              }${terrainNote ? ` ${terrainNote}` : ''}`,
-              dataUrl: image.dataUrl,
-              width: image.width,
-              height: image.height,
-            }
-          }),
-        )
-        // Each view's plain simulation (its framed capture, else its screenshot) for the "after" pictures, and its
-        // before picture from the same renderer (`reportPairs.ts`): an engine's figures pair with that engine's
-        // render before harvest, else both pictures are PGMaps', never PGMaps' before beside an engine's after.
-        const after: Record<string, ReportFigure> = {}
-        const pairedBefore: Record<string, BeforePicture> = {}
-        // Where the landform lies in each render (the figure's crop rows), so a recipe that prints panoramas (26)
-        // shows a wide band round it (`panoramaBand`, drawn by the report). A render takes the rows of the figure it
-        // was framed with; a field photograph has its own framing and takes none.
-        const rowsOf = (
-          figure: SavedFigure | undefined,
-          picture: { width: number; height: number },
-        ): { y: number; height: number } | null => {
-          const frame = figure?.frameImage
-          const rows = figure?.landformRows ?? figure?.crop
-          if (!frame || !rows || frame.width !== picture.width || frame.height !== picture.height) return null
-          return rows
-        }
-        const withRows = <T extends ReportFigure>(picture: T, figure: SavedFigure | undefined): T => {
-          const rows = rowsOf(figure, picture)
-          return rows ? { ...picture, landformRows: rows } : picture
-        }
-        figureViews
-          .filter((view) => view.image?.figure)
-          .forEach((view, index) => {
-            const name = names[index] ?? view.name
-            const drawn = view.image!.figure!
-            const own = input.images[view.id]
-            const ownFigure = own?.figure
-            const renderer = engineId ? (drawn.illustration?.renderer ?? null) : null
-            // The engine's render before harvest: a before job's figure, or the view itself when saved before harvest.
-            const beforeJob = engineId && renders ? renders.jobFor(view.id, engineId, 'before') : null
-            const beforeFigure = !renderer
-              ? null
-              : beforeJob
-                ? (renders?.figures[beforeJob.key] ?? null)
-                : own?.viewpoint?.harvestPhase === 'before'
-                  ? drawn
-                  : null
-            const failed = beforeJob
-              ? renders?.jobs.find((entry) => entry.job.key === beforeJob.key && entry.status === 'error')
-              : undefined
-            const pair = pairPictures({
-              name,
-              after: simulationPicture(name, drawn, view.image!),
-              afterRenderer: renderer,
-              ownAfter: ownFigure && own ? simulationPicture(name, ownFigure, own) : null,
-              before: captured?.images.before?.[name] ?? null,
-              engineBefore: beforeFigure?.frameImage ?? null,
-              engineBeforeMissing: failed
-                ? `its render failed: ${failed.error ?? 'no reason given'}`
-                : beforeJob
-                  ? 'its render was not finished'
-                  : 'the view has no pose to frame it on',
-            })
-            const afterFigure = pair.after.renderer === 'PGMaps' && renderer ? ownFigure : drawn
-            after[name] = withRows(
-              engineId && engineElsewhere.has(view.id)
-                ? {
-                    ...pair.after,
-                    note: `Drawn by PGMaps, as the picture before it: ${roadRendererInfo(engineId).label} draws only where the road view stands, and this view was saved at another place.`,
-                  }
-                : pair.after,
-              afterFigure,
-            )
-            if (pair.before)
-              pairedBefore[name] =
-                pair.before.source === 'render'
-                  ? withRows(pair.before, pair.before.renderer === 'PGMaps' ? ownFigure : (beforeFigure ?? drawn))
-                  : pair.before
-          })
-        const images = { ...(captured?.images ?? {}), after, before: pairedBefore }
-        const context = reportContext(
-          figures,
-          images,
-          reportViews.map((view) => {
-            const id = figureViews.find((entry) => entry.name === view.name)?.id
-            return id && timber[id] ? { ...view, timber: timber[id] } : view
-          }),
-        )
-        // Development only: the pictures and facts the report was built from, for the reference comparison.
-        if (import.meta.env.DEV)
-          Object.assign(window as unknown as Record<string, unknown>, {
-            __viaReportAfter: after,
-            __viaReportBefore: images.before,
-            __viaReportFacts: context.facts,
-            __viaReportUnits: context.inventoryUnits ?? null,
-            // Where the blocks are and what the land is like (`reportSetting`), as the page read it for this report.
-            __viaReportSetting: context.setting ?? null,
-          })
-        // Every view of the package the report does not print is named at its end, with why.
-        const report = withViewsLeftOut(
-          assembleReport(reportRecipe, context),
-          viewsLeftOut('via-report', exportContext),
-        )
+        const { report } = await composeReport('file')
         const fileName = `forestry-via-report-${reportRecipe.id}`
         if (format === 'md') return textFile(reportMarkdown(report), `${fileName}.md`, 'text/markdown')
-        const logo = chosenLogo
-          ? {
-              name: chosenLogo.name,
-              dataUrl:
-                chosenLogo.source === 'uploaded'
-                  ? chosenLogo.logo.dataUrl
-                  : logoDataUrl(chosenLogo.brand.profile.logos.primary),
-            }
-          : null
-        return textFile(brandedHtml(reportHtml(report, logo), exportBrand(branding)), `${fileName}.html`, 'text/html')
+        return textFile(
+          brandedHtml(reportHtml(report, reportLogo()), exportBrand(branding)),
+          `${fileName}.html`,
+          'text/html',
+        )
       }
       case 'via-document': {
         if (!viaDocument || !facts)
@@ -1185,12 +1488,21 @@ export function useVisualsExport(input: {
             value: recipe.id,
             label: `${recipe.name} (${recipe.sources.join(', ')})`,
           })),
+          ...ownRecipes.recipes.map((recipe) => ({ value: recipe.id, label: `Yours: ${recipe.name}` })),
         ],
         onChange: (id) => setPackageRecipeId(id || null),
         note: pkg.recipeChosen
           ? `The VIA report takes its structure and the VIA document its format (${documentFormat.name}) from it.`
           : `The VIA document is ${documentFormat.name}; the report follows it, as ${reportRecipe.name}.`,
       }}
+      recipeTools={
+        <OwnRecipeTools
+          current={reportRecipe}
+          recipes={allRecipes}
+          own={ownRecipes}
+          onChoose={(id) => setPackageRecipeId(id)}
+        />
+      }
       renderer={{
         value: figureRenderer,
         options: ROAD_RENDERERS.map((entry) => ({
@@ -1280,6 +1592,7 @@ export function useVisualsExport(input: {
       onRun={analysis.run}
       {...(input.visualInventory ? { onReadInventory: input.visualInventory.read } : {})}
       packagePane={packagePane}
+      drafts={{ 'via-report': { build: buildDraft, draw: drawDraftPicture } }}
       {...(input.viewCapture ? { onCapture: captureViews, onCancelCapture: input.viewCapture.cancel } : {})}
       onRender={(kind) => {
         // Only the VIA report prints before pictures: the other outputs never wait for them.

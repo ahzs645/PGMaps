@@ -574,3 +574,128 @@ test('plans views of interest, captures them without driving and writes them thr
     expect(viewpoints).toEqual([arrowOneName, arrowTwoName])
   })
 })
+
+test('drafts the VIA report without capturing, draws its pictures one group at a time, and makes the recipe yours', async ({
+  page,
+}) => {
+  // One view captured with its class pass, then the report's maps drawn on their own: well past the default on
+  // SwiftShader under load.
+  test.setTimeout(25 * 60_000)
+  await page.goto(PAGE_PATH)
+  await expect(page.getByRole('heading', { name: 'Visual quality' })).toBeVisible()
+  const viewName = 'Viewpoint 1, toward Block A — west face'
+
+  await test.step('A view of interest is captured', async () => {
+    await unfold(page, 'visit', 'views-of-interest')
+    const panel = page.locator('[data-via-panel="visit"]')
+    await panel.getByRole('button', { name: 'Add on the map' }).click()
+    await clickPlanAt(page, MAP_VIEW)
+    await expect(viewsList(page).locator('li[data-view-of-interest]')).toHaveCount(1)
+    await panel.getByRole('button', { name: 'Capture 1 view' }).click()
+    await expect(captureState(viewRow(page, viewName))).toHaveAttribute('data-capture-state', 'captured', {
+      timeout: 8 * 60_000,
+    })
+  })
+
+  const dialog = await openVisualsExportPackage(page)
+  const pane = dialog.getByRole('region', { name: 'Package' })
+
+  await test.step('Make a copy turns the recipe into your own, edited in place', async () => {
+    await choose(pane.getByLabel('Package recipe'), 'form-2001-sheets')
+    await pane.getByRole('button', { name: 'Make a copy', exact: true }).click()
+    await expect(pane.getByLabel('Package recipe')).toHaveText(
+      'Yours: 2001 VIA summary form with analysis sheets (your copy)',
+    )
+    const editor = pane.getByLabel('Edit your recipe')
+    await expect(editor).toBeVisible()
+    const parts = editor.getByRole('region', { name: 'Parts' }).getByRole('listitem')
+    const before = await parts.count()
+    await editor.getByRole('button', { name: 'Remove Notes', exact: false }).first().click()
+    await expect(parts).toHaveCount(before - 1)
+    // A shared part is added by id, never copied: the overview map, at the end.
+    await choose(editor.getByLabel('Part to add'), 'overview-map')
+    await editor.getByRole('button', { name: 'Add at the end' }).click()
+    await choose(editor.getByLabel('Part to add'), 'overhead-renders')
+    await editor.getByRole('button', { name: 'Add at the end' }).click()
+    await expect(parts).toHaveCount(before + 1)
+    await expect(parts.last()).toContainText('Overhead and oblique renders')
+  })
+
+  await test.step('The draft lays the report out at once, with stand-ins where pictures go', async () => {
+    await pane.getByRole('button', { name: 'See the report’s draft' }).click()
+    await expect(
+      dialog.getByRole('group', { name: 'VIA report view' }).getByRole('button', { name: 'Draft' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    const made = dialog.getByRole('complementary', { name: 'What the report is made of' })
+    await expect(made).toBeVisible({ timeout: 60_000 })
+    await expect(made.getByRole('region', { name: 'Made of' })).toContainText(
+      'Your own, copied from 2001 VIA summary form',
+    )
+    const frame = dialog.frameLocator('iframe[title="VIA report draft"]')
+    // Every part that printed is marked in the page, and the last added part is the overview map.
+    await expect(frame.locator('.draft-part').last()).toContainText('Overhead and oblique renders')
+    const overviewMark = frame.locator('.draft-part').filter({ hasText: 'Overview map' })
+    await expect(frame.locator('[data-src="run"], [data-src="scene"]').first()).toBeVisible()
+    // The maps are stand-ins until drawn.
+    const maps = made
+      .getByRole('region', { name: 'Pictures' })
+      .getByRole('listitem')
+      .filter({ hasText: 'Maps from the plan' })
+    await expect(maps).toContainText('Stand-in')
+    await expect(frame.locator('img[src*="data-draw%3D%22maps%22"]').first()).toBeVisible()
+    // A part in the list scrolls the page to its mark.
+    await made
+      .getByRole('region', { name: 'Parts' })
+      .getByRole('button', { name: /Overview map/ })
+      .click()
+    await expect(overviewMark).toBeInViewport()
+  })
+
+  await test.step('Clicking a stand-in draws its group alone, and the draft keeps it', async () => {
+    const frame = dialog.frameLocator('iframe[title="VIA report draft"]')
+    await frame.locator('img[src*="data-draw%3D%22maps%22"]').first().click()
+    const made = dialog.getByRole('complementary', { name: 'What the report is made of' })
+    const maps = made
+      .getByRole('region', { name: 'Pictures' })
+      .getByRole('listitem')
+      .filter({ hasText: 'Maps from the plan' })
+    await expect(maps).toContainText('Drawn', { timeout: 3 * 60_000 })
+    await expect(frame.locator('img[src*="data-draw%3D%22maps%22"]')).toHaveCount(0)
+    // The renders are still stand-ins: drawing one group draws nothing else.
+    await expect(frame.locator('img[src*="data-draw%3D%22renders%22"]').first()).toBeVisible()
+  })
+
+  await test.step('Your recipe goes out as a file and comes back as a second recipe', async () => {
+    // Back on the package, the editor is folded again; the recipe chosen is still yours.
+    await openVisualsExportPackage(page)
+    await expect(pane.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
+    const downloading = page.waitForEvent('download')
+    await pane.getByRole('button', { name: 'Share as a file' }).click()
+    const download = await downloading
+    expect(download.suggestedFilename()).toBe('2001-via-summary-form-with-analysis-sheets-your-copy.via-recipe.json')
+    const file = JSON.parse(await readFile((await download.path())!, 'utf8'))
+    expect(file.kind).toBe('pgmaps-via-recipe')
+    expect(file.recipe.parts.slice(-2)).toEqual(['overview-map', 'overhead-renders'])
+    await pane.getByLabel('Import a recipe file').setInputFiles((await download.path())!)
+    await expect(
+      pane.getByText('Imported 2001 VIA summary form with analysis sheets (your copy) (imported).'),
+    ).toBeVisible()
+    await expect(pane.getByLabel('Package recipe')).toHaveText(
+      'Yours: 2001 VIA summary form with analysis sheets (your copy) (imported)',
+    )
+  })
+
+  await test.step('The file is written from the same pictures, with no stand-in, mark or tint', async () => {
+    await openVisualsExport(page, 'VIA report')
+    const downloading = page.waitForEvent('download', { timeout: 10 * 60_000 })
+    await dialog.getByRole('button', { name: 'Download VIA report', exact: true }).click()
+    const download = await downloading
+    const html = await readFile((await download.path())!, 'utf8')
+    expect(html).toContain('PGMaps report from your own recipe')
+    expect(html).not.toContain('data-draw')
+    expect(html).not.toContain('draft-part')
+    expect(html).not.toContain('data-src=')
+    // The overview map drawn in the draft is in the file.
+    expect(html).toMatch(/<img src="data:image\/(png|jpeg)/)
+  })
+})

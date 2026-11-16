@@ -294,12 +294,12 @@ and its buttons only open the dialog on an output (*Export the block note…*,
 
 | Group | Output | Formats | Options in the dialog |
 | --- | --- | --- | --- |
-| Chosen once | Package | — | The recipe, who draws the figures, and the views that go in (below) |
+| Chosen once | Package | — | The recipe (a built-in one or your own, made, edited, shared and imported here), who draws the figures, and the views that go in (below) |
 | Assessment documents | Block note | Excel, PDF | Each view as its analysis-sheet figure; the land status checks in or out |
 | | FS1252 form | PDF | Stations, each one's reviewer inputs, run diagnostics, office fields |
 | | Analysis sheet | PDF, PNG | Which of the package's views, figure style, label style, camera block, logo |
 | | VIA document | Markdown, JSON | The format, only while the package has no recipe |
-| | VIA report | Printable HTML, Markdown | The overview sheet's style when the recipe prints one; logo |
+| | VIA report | Printable HTML, Markdown | The overview sheet's style when the recipe prints one; logo. A *Draft* view lays it out with stand-ins and draws its pictures one group at a time (**VIA reports**) |
 | | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
 | | Worksheet | Markdown | — |
 | | VIA evidence package | PDF, printable HTML | — |
@@ -3298,6 +3298,56 @@ logo (`printedLogo`, `printedLogoRaster`). The analysis sheet's title block, the
 report's title block and the road designer's block sheets all read it, and a
 report is written through `brandedHtml` so a selected brand's colours and fonts
 apply.
+
+### The report's draft, its parts and your own recipes
+
+**Draft.** The VIA report's entry has a third view beside *What goes in* and
+*Preview*: **Draft** (`ReportDraftView.tsx`, built by `useVisualsExport`'s
+`buildDraft`). It lays the report out at once, from the same `composeReport`
+the file is written from, and captures nothing. A picture not drawn yet is a
+**stand-in** (`viaReport/draftPictures.ts`): an SVG at the picture's own size,
+so the draft breaks pages where the file will, saying what goes there and how
+it is drawn. Each stand-in carries its picture group in `data-draw`: `maps`
+(the plan map's overview, 11 × 17 sheet, regional and location maps),
+`before:<saved view id>` (one view's before picture), `renders` (overhead and
+oblique renders) or `engine` (another engine's figures, simulations and before
+pictures). Clicking a stand-in in the page, or **Draw** in the draft's
+*Pictures* list, draws that group alone. The page's maps move for a few
+seconds and are put back, as when a file is written. `engine` only queues the
+background renders. Beside the page, *Made of* lists the recipe's makeup
+(`viaReport/recipeMakeup.ts`): its document format with that format's
+arithmetic, scales and wording, plus its figure style, paper, options, oblique
+pitch and overview sheet. *Parts* lists every part in order with the references
+it comes from, the number of items it leaves to complete, and whether it
+printed anything; clicking one scrolls the page to its mark. The draft tints
+each value by where it came from (the run, the review, the scene, a public
+table) and shows blanks in yellow. The downloaded file has neither: both are
+`reportHtml`'s `draft` argument only, and `userRecipes.test.ts` pins that the
+file's HTML is unchanged.
+
+**Pictures are kept by group.** The report's captures are cached per group
+(`pictureCache`, keyed as the old single capture was: the scene, the views and
+their saves, the inventory read, the overview sheet's style, the recipe's
+oblique pitch and figure-page maps). The draft, Preview and Download share the
+cache, so a file captures only the groups still missing
+(`captureReportImages`'s `only`). The order is unchanged: maps, then before
+pictures, then renders.
+
+**Your own recipes** (`viaReport/userRecipes.ts`, kept by
+`userRecipeStore.ts`). The package's *Make a copy* copies the recipe in use as
+yours. *Edit* changes its name, report title, document format, figure style,
+paper, cover, contents, options, oblique pitch, overview sheet, and its parts
+and their order, each added from the shared catalogue (`REPORT_PARTS`). An own
+recipe is data only: it names parts by id and never copies one, so every report
+keeps one version of each section. It lives in this browser's `localStorage`
+for every assessment, like the printed logo, and never in a scene or a project
+file. *Share as a file* writes a `pgmaps-via-recipe` JSON file, and *Import…*
+reads one under a fresh id, never over an existing recipe. Every read, from the
+browser or a file, is checked by `readOwnRecipe`. A part, format, figure style
+or option this PGMaps lacks is refused with each problem named, never repaired.
+A stored recipe that no longer reads is listed with why and a *Delete*. Its
+sources follow its parts (`partSources`), and its report's footer says it was
+built from your own recipe rather than "in the structure of" a reference.
 
 ## Figures drawn by another engine, in the background
 

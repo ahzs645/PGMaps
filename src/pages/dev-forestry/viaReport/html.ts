@@ -18,24 +18,41 @@ export interface ReportLogo {
 
 const BLANK = '<span class="blank"></span>'
 
-function blockHtml(block: ReportBlock): string {
+/**
+ * The draft's marks (`reportHtml`'s `draft`): where each part starts, so the draft can name it and scroll to it. A
+ * draft also tints every value by where it came from (`data-src`) and shows blanks; the downloaded file has neither.
+ */
+export interface ReportDraft {
+  /** The recipe's parts in order, each with its first block as an object in `report.blocks` (null: printed nothing). */
+  parts: ReadonlyArray<{ title: string; sources: readonly string[]; first: ReportBlock | null }>
+}
+
+/** The draft's tint attribute, or nothing in a file. */
+const src = (draft: boolean, source: string) => (draft ? ` data-src="${source}"` : '')
+
+function blockHtml(block: ReportBlock, draft = false): string {
   switch (block.kind) {
     case 'heading':
       return `<h${block.level + 1}>${e(block.text)}</h${block.level + 1}>`
     case 'paragraph':
-      return `<p>${block.sentences.map((s) => e(s.text ?? '')).join(' ')}</p>`
+      return draft
+        ? `<p>${block.sentences.map((s) => `<span${src(true, s.source)}>${e(s.text ?? '')}</span>`).join(' ')}</p>`
+        : `<p>${block.sentences.map((s) => e(s.text ?? '')).join(' ')}</p>`
     case 'text':
-      return block.text.trim() ? `<p class="src-${block.source}">${e(block.text)}</p>` : ''
+      return block.text.trim() ? `<p class="src-${block.source}"${src(draft, block.source)}>${e(block.text)}</p>` : ''
     case 'list': {
       const tag = block.ordered ? 'ol' : 'ul'
-      return `<${tag}>${block.items.map((item) => `<li>${e(item)}</li>`).join('')}</${tag}>`
+      return `<${tag}${src(draft, block.source)}>${block.items.map((item) => `<li>${e(item)}</li>`).join('')}</${tag}>`
     }
     case 'fields':
       return `${block.title ? `<h4>${e(block.title)}</h4>` : ''}<table class="fields">${block.rows
-        .map((row) => `<tr><th>${e(row.label)}</th><td>${row.value === null ? BLANK : e(row.value)}</td></tr>`)
+        .map(
+          (row) =>
+            `<tr${src(draft, row.source)}><th>${e(row.label)}</th><td>${row.value === null ? BLANK : e(row.value)}</td></tr>`,
+        )
         .join('')}</table>`
     case 'table':
-      return `${block.title ? `<h4>${e(block.title)}</h4>` : ''}<table class="grid"><thead><tr>${block.columns
+      return `${block.title ? `<h4>${e(block.title)}</h4>` : ''}<table class="grid"${src(draft, block.source)}><thead><tr>${block.columns
         .map((c) => `<th>${e(c)}</th>`)
         .join('')}</tr></thead><tbody>${
         block.rows.length
@@ -69,7 +86,7 @@ function blockHtml(block: ReportBlock): string {
     case 'pageBreak':
       return '<div class="page-break"></div>'
     case 'form':
-      return formHtml(block)
+      return formHtml(block, draft)
     default:
       // Block kinds the figure layouts add (`htmlFigures.ts`).
       return extraBlockHtml(block)
@@ -88,14 +105,15 @@ function untitled(block: ReportBlock, sectionTitle: string): ReportBlock {
  * A form's sections as one ruled table, a section or two side by side per row; each row's title bars and contents stay
  * together on a page.
  */
-function formHtml(block: Extract<ReportBlock, { kind: 'form' }>): string {
+function formHtml(block: Extract<ReportBlock, { kind: 'form' }>, draft = false): string {
   const rows = block.rows
     .filter((row) => row.length)
     .map((row) => {
       const span = row.length === 1 ? ' colspan="2"' : ''
       return `<tbody><tr>${row.map((cell) => `<th${span}>${e(cell.title)}</th>`).join('')}</tr><tr>${row
         .map(
-          (cell) => `<td${span}>${cell.blocks.map((b, i) => blockHtml(i ? b : untitled(b, cell.title))).join('')}</td>`,
+          (cell) =>
+            `<td${span}>${cell.blocks.map((b, i) => blockHtml(i ? b : untitled(b, cell.title), draft)).join('')}</td>`,
         )
         .join('')}</tr></tbody>`
     })
@@ -245,7 +263,26 @@ export function imageLabel(block: ReportBlock): string | null {
   }
 }
 
-export function reportHtml(report: AssembledReport, logo: ReportLogo | null): string {
+/** What the draft adds to the page: each part's mark, the tints, the blanks and the stand-ins made clickable. */
+const DRAFT_CSS = `.draft-part{margin:20px 0 6px;padding:3px 8px;border-left:3px solid #0d9488;background:#f0fdfa;font:600 11px/1.4 system-ui,sans-serif;color:#0f766e;display:flex;justify-content:space-between;gap:12px;scroll-margin-top:8px}
+.draft-part span:last-child{font-weight:400;color:#64748b}.draft-part.flash{background:#99f6e4}
+[data-src="run"]{background:rgba(59,130,246,.12)}[data-src="reviewer"]{background:rgba(245,158,11,.18)}[data-src="scene"]{background:rgba(16,185,129,.14)}[data-src="table"]{background:rgba(139,92,246,.12)}
+.blank{background:#fde68a;min-height:1em}
+img[src*="data-draw"]{cursor:pointer}img[src*="data-draw"]:hover{outline:3px solid #0d9488;outline-offset:-3px}`
+
+export function reportHtml(report: AssembledReport, logo: ReportLogo | null, draft?: ReportDraft): string {
+  // Where each part starts, for the draft's marks; a part that printed nothing has none.
+  const partAt = new Map<ReportBlock, { index: number; title: string; sources: readonly string[] }>()
+  draft?.parts.forEach((part, index) => {
+    if (part.first && !partAt.has(part.first))
+      partAt.set(part.first, { index, title: part.title, sources: part.sources })
+  })
+  const mark = (block: ReportBlock) => {
+    const part = partAt.get(block)
+    return part
+      ? `<div class="draft-part" id="part-${part.index}" data-part="${part.index}"><span>${e(part.title)}</span><span>${e(part.sources.join(', '))}</span></div>`
+      : ''
+  }
   const [first, ...rest] = report.blocks
   const title = first?.kind === 'heading' ? first.text : report.title
   const blocks = first?.kind === 'heading' ? rest : report.blocks
@@ -257,7 +294,8 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
   const sections: Array<{ id: string; text: string }> = []
   // The figure pages, for the contents' Images list; each anchored on its own outer element.
   const images: Array<{ id: string; text: string }> = []
-  const html = (block: ReportBlock): string => {
+  const html = (block: ReportBlock): string => mark(block) + labelled(block)
+  const labelled = (block: ReportBlock): string => {
     const drawn = blockBody(block)
     const label = imageLabel(block)
     if (!label) return drawn
@@ -275,7 +313,7 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
       sections.push({ id, text: block.text })
       return `<h3 id="${id}">${e(block.text)}</h3>`
     }
-    const drawn = blockHtml(block)
+    const drawn = blockHtml(block, !!draft)
     if (isWide(block)) return `<div class="wide">${drawn}</div>`
     // A map sheet prints full-size, so the scale it states is true on paper; an analysis sheet keeps its margins.
     if (block.kind === 'figure' && block.figure && isPortraitSheet(block.figure))
@@ -321,7 +359,7 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
     ? `<div class="logo"><img src="${logo.dataUrl}" alt="${e(logo.name)}"></div>`
     : '<div class="logo empty">Logo (your own)</div>'
   const head = report.layout.cover
-    ? `<section class="cover">${logoBox}<h1>${e(title)}</h1><p class="sub">${e(report.subtitle)}</p>${coverBlocks.map(blockHtml).join('')}</section>`
+    ? `<section class="cover">${logoBox}<h1>${e(title)}</h1><p class="sub">${e(report.subtitle)}</p>${coverBlocks.map((block) => mark(block) + blockHtml(block, !!draft)).join('')}</section>`
     : `<header class="title"><div><h1>${e(title)}</h1><p>${e(report.subtitle)}</p></div>${logoBox}</header>`
   const contents =
     report.layout.contents && sections.length
@@ -342,9 +380,9 @@ export function reportHtml(report: AssembledReport, logo: ReportLogo | null): st
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; script-src 'unsafe-inline'"><title>${e(title)} - ${e(report.subtitle)}</title><style>${CSS}
 ${SCALES_CSS}
 ${FIGURES_CSS}
-${pageCss(report)}</style></head><body>
+${pageCss(report)}${draft ? `\n${DRAFT_CSS}` : ''}</style></head><body>
 ${head}
-<button onclick="window.print()">Print / save as PDF</button>
+${draft ? '' : '<button onclick="window.print()">Print / save as PDF</button>'}
 ${contents}
 ${parts.slice(0, at).join('\n')}
 ${complete}
