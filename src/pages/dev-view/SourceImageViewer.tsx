@@ -1,3 +1,4 @@
+import { useElementSize } from '@/hooks/useElementSize'
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { Maximize, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -25,7 +26,7 @@ function ZoomableSource({ variant }: { variant: SourceImageChoice }) {
   const pyramid = variant.pyramid!
   const container = useRef<HTMLDivElement>(null)
   const pointers = useRef(new Map<number, [number, number]>())
-  const [viewport, setViewport] = useState({ width: 640, height: 400 })
+  const viewport = useElementSize(container, { initial: VIEWER_START, accept: hasArea })
   const [view, setView] = useState<ImageView>({ x: pyramid.width / 2, y: pyramid.height / 2, scale: 0 })
   const [frame, setFrame] = useState<TileFrame>()
   const tileReader = useRef<ImageTileReader | null>(null)
@@ -51,18 +52,6 @@ function ZoomableSource({ variant }: { variant: SourceImageChoice }) {
       reader.dispose()
     }
   }, [pyramid, variant.image.sha256])
-  useEffect(() => {
-    const element = container.current
-    if (!element) return
-    const measure = () => {
-      const { width, height } = element.getBoundingClientRect()
-      if (width > 0 && height > 0) setViewport({ width, height })
-    }
-    measure()
-    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
-    observer?.observe(element)
-    return () => observer?.disconnect()
-  }, [])
   useEffect(() => {
     const reader = tileReader.current
     if (!reader) return
@@ -322,6 +311,9 @@ function FlatSource({ variant }: { variant: SourceImageChoice }) {
   )
 }
 
+/** The viewport before it is measured; a measurement with no area keeps the last one. */
+const VIEWER_START = { width: 640, height: 400 }
+const hasArea = (size: { width: number; height: number }) => size.width > 0 && size.height > 0
 export function SourceImageViewer({ variant }: { variant: SourceImageChoice }) {
   const identity = JSON.stringify([variant.id, variant.image, variant.preview, variant.thumbnail, variant.pyramid])
   return (

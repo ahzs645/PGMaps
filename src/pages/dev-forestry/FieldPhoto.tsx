@@ -1,3 +1,4 @@
+import { useElementSize } from '@/hooks/useElementSize'
 import {
   ArrowDown,
   ArrowLeft,
@@ -233,15 +234,10 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
   const frame = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   // A view cut from a panorama takes the map's shape, so it covers the map.
+  const frameSize = useElementSize(frame)
   useEffect(() => {
-    const element = frame.current
-    if (!element) return
-    const observer = new ResizeObserver(() => {
-      if (element.clientHeight > 0) setViewAspect(element.clientWidth / element.clientHeight)
-    })
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [setViewAspect])
+    if (frameSize.height > 0) setViewAspect(frameSize.width / frameSize.height)
+  }, [frameSize, setViewAspect])
   useEffect(() => {
     const target = canvas.current
     if (!target || !panoFrame) return

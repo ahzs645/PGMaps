@@ -1,3 +1,4 @@
+import { useElementSize } from '@/hooks/useElementSize'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Maximize, Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,9 @@ function zoomView(previous: View, factor: number, nativeWidth: number): View {
     height = (previous.height * width) / previous.width
   return { x: previous.x + (previous.width - width) / 2, y: previous.y + (previous.height - height) / 2, width, height }
 }
+
+/** The pane's size before it is measured. */
+const SOURCE_PANE_START = { width: 550, height: 500 }
 export function SourceImagePane({
   source,
   readOnly = false,
@@ -36,7 +40,6 @@ export function SourceImagePane({
     width: source?.descriptor.width || 100,
     height: source?.descriptor.height || 100,
   }))
-  const [size, setSize] = useState({ width: 550, height: 500 })
   const [detail, setDetail] = useState<{
     source: LoadedSource
     url: string
@@ -48,13 +51,7 @@ export function SourceImagePane({
   const pinch = useRef<{ distance: number; view: View } | null>(null)
   const reset = () =>
     source && setView({ x: -0.5, y: -0.5, width: source.descriptor.width, height: source.descriptor.height })
-  useEffect(() => {
-    if (!svg.current) return
-    const element = svg.current
-    const observer = new ResizeObserver(() => setSize({ width: element.clientWidth, height: element.clientHeight }))
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
+  const size = useElementSize(svg, { box: 'content', initial: SOURCE_PANE_START })
   useEffect(() => {
     const element = svg.current
     if (!element || !source) return

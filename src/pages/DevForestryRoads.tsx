@@ -93,6 +93,7 @@ import {
   ROAD_TOUR_ACTIONS,
   createRoadTourExecutor,
   createRoadTourSnapshotMemo,
+  roadAnchorPlacement,
 } from './dev-forestry-roads/tours/roadTour'
 import { synchronizeCrossingRecords } from './dev-forestry-roads/crossingPlan'
 import { TEMPLATE_FIELDS } from './dev-forestry-roads/roadFieldDefinitions'
@@ -187,6 +188,7 @@ import { cn } from '@/lib/utils'
 import {
   CableChart,
   ChartHeader,
+  type ChartHeaderHandle,
   CrossSectionChart,
   formatRoadStation,
   MassHaulChart,
@@ -476,6 +478,8 @@ const DRAW_MODE_ICONS: Partial<Record<DrawMode, LucideIcon>> = {
   avoid: Shapes,
 }
 
+/** How many frames a lesson's anchor move waits for its anchor to be drawn. */
+const ANCHOR_SETTLE_FRAMES = 20
 export default function DevForestryRoads({
   initialInterface,
   layouts,
@@ -531,6 +535,8 @@ export default function DevForestryRoads({
   const [openedFromFile, setOpenedFromFile] = useState(false)
   // The project file a lesson's Watch saved, which its next step reopens without a download.
   const lessonSavedCopy = useRef<string | null>(null)
+  // The detail pane's chart header, so a lesson can unfold the readouts a short pane folds away.
+  const detailChart = useRef<ChartHeaderHandle | null>(null)
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const investigation = isAccessInvestigation(project)
   const blockSheet = useBlockSheet(project, source)
@@ -4897,6 +4903,58 @@ export default function DevForestryRoads({
     roadTourActions.observe(ROAD_TOUR_ACTIONS.command, { command: id })
   }
   // Watch runs the same operations, and reports nothing: the stream carries only what the person did.
+  // As Find the best route does: open the editor, then the section by its own toggle.
+  function revealWorkflowSection(editor: string, section: string, scroll: boolean) {
+    showControls(editor as SidebarTab)
+    requestAnimationFrame(() => {
+      const target = ref.current?.querySelector<HTMLElement>(`[data-workflow-section="${CSS.escape(section)}"]`)
+      if (!target) return
+      if (scroll) {
+        revealEditorSection(target)
+        // The section's own heading, which the step points at, wholly in the sidebar's scroll port.
+        requestAnimationFrame(() => target.scrollIntoView({ block: 'nearest' }))
+      }
+      // Opened where it is, so the control the step points at stays on screen.
+      else if (target.matches('button[aria-expanded="false"]')) target.click()
+    })
+  }
+  // A lesson's anchor, wherever this interface keeps it (`roadAnchorPlacement`): the moves are the
+  // controls' own, skipped when the anchor is already drawn, and the anchor is then brought into its
+  // scroll port, so a step never pauses on a control that is only scrolled away.
+  function showTourAnchor(anchor: string, panes: boolean) {
+    const selector = `[data-tutorial-id="${CSS.escape(anchor)}"], [data-tutorial-aliases~="${CSS.escape(anchor)}"]`
+    const drawn = () =>
+      [...document.querySelectorAll<HTMLElement>(selector)].find((element) => element.getClientRects().length > 0)
+    // A drawn anchor needs no moves, except a readout's unfold: a chart can draw its readout for a frame
+    // before its measured height folds it away, so that one is always asked for.
+    const placement = roadAnchorPlacement(anchor, active.toolbar)
+    const moves = drawn() ? placement.filter((move) => move.kind === 'details') : placement
+    for (const move of moves) {
+      if (move.kind === 'group') {
+        if (move.group !== groupName) selectGroup(move.group)
+      } else if (move.kind === 'controls') {
+        if (focusMode) setControlsOpen(true)
+        else setCollapsed(false)
+      } else if (move.kind === 'editor') showControls(move.editor as SidebarTab)
+      else if (move.kind === 'section') revealWorkflowSection(move.editor, move.section, false)
+      else if (move.kind === 'details') detailChart.current?.showDetails()
+      // "Take me back" shows the pane with its view; before a step a pane is only brought forward
+      // (a Guided map tab), never reopened after the person closed it: the step's context offers that.
+      else if (panes) commands[move.command as WorkspaceCommand]()
+      else if (!hiddenPanels.includes(move.pane)) showPane(move.pane)
+    }
+    // A pane opened by a move mounts its chart header a frame or two later, so the readout's unfold is
+    // asked again until the anchor is drawn; then it is brought into its scroll port.
+    const unfold = moves.some((move) => move.kind === 'details')
+    let frames = 0
+    const settle = () => {
+      const element = drawn()
+      if (element) return element.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      if (unfold) detailChart.current?.showDetails()
+      if (++frames < ANCHOR_SETTLE_FRAMES) requestAnimationFrame(settle)
+    }
+    requestAnimationFrame(settle)
+  }
   const executeTourAction = createRoadTourExecutor({
     isCommand: (id) => Object.prototype.hasOwnProperty.call(commands, id),
     runCommand: (id) => commands[id as WorkspaceCommand](),
@@ -4912,21 +4970,7 @@ export default function DevForestryRoads({
       if (!TEMPLATE_FIELDS.some(([key]) => key === field)) throw new Error(`The template has no field "${field}".`)
       updateAlignment((a) => ({ ...a, template: { ...a.template, [field]: value } }))
     },
-    // As Find the best route does: open the editor, then the section by its own toggle.
-    revealSection: (editor, section, scroll) => {
-      showControls(editor as SidebarTab)
-      requestAnimationFrame(() => {
-        const target = ref.current?.querySelector<HTMLElement>(`[data-workflow-section="${CSS.escape(section)}"]`)
-        if (!target) return
-        if (scroll) {
-          revealEditorSection(target)
-          // The section's own heading, which the step points at, wholly in the sidebar's scroll port.
-          requestAnimationFrame(() => target.scrollIntoView({ block: 'nearest' }))
-        }
-        // Opened where it is, so the control the step points at stays on screen.
-        else if (target.matches('button[aria-expanded="false"]')) target.click()
-      })
-    },
+    revealSection: revealWorkflowSection,
     sketch: (stroke, metresPerPixel) => finishSketchRef.current(stroke, metresPerPixel),
     setImportDatum: setVerticalReference,
     // The file chooser's path, with the lesson's own sample in place of the chosen file.
@@ -4983,6 +5027,7 @@ export default function DevForestryRoads({
         ...a,
         crossingRecords: synchronizeCrossingRecords(a, w.analysis.crossings, project.context),
       })),
+    showAnchor: showTourAnchor,
   })
   const endTour = () => {
     setTourLaunch(null)
@@ -6649,7 +6694,7 @@ export default function DevForestryRoads({
                           </ChartHeader>
                         }
                         detail={
-                          <ChartHeader storageKey="pgmaps-road-chart-view:detail">
+                          <ChartHeader storageKey="pgmaps-road-chart-view:detail" handleRef={detailChart}>
                             {(chartSlot) => (
                               <FullscreenPanel
                                 detachable

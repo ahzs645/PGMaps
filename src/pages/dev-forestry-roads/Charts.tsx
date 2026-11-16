@@ -1,3 +1,5 @@
+import { useElementSize } from '@/hooks/useElementSize'
+import { useSizeFold, type FoldThresholds } from '@/hooks/useSizeFold'
 import { RoadSelect } from './Controls'
 import { activeStationing, formatStationLabel, type RoadStationing } from './roadStationing'
 import { groundAlong } from './roadSummaryMetrics'
@@ -7,10 +9,12 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent,
+  type MutableRefObject,
   type PointerEvent,
   type ReactNode,
 } from 'react'
@@ -538,11 +542,20 @@ const ChartHeaderContext = createContext<ChartHeaderValue | null>(null)
  * chosen view for the panel, so it holds when the panel shows a different chart. Render `slot`
  * among the panel's header actions. `storageKey` remembers the choice in this browser.
  */
+/** What a page may ask of a chart header from outside it (a lesson putting a readout on screen). */
+export interface ChartHeaderHandle {
+  /** Show the legend and readouts below the chart, as its "Details below chart" toggle does. */
+  showDetails: () => void
+}
+
 export function ChartHeader({
   storageKey,
+  handleRef,
   children,
 }: {
   storageKey?: string
+  /** Filled with the header's `ChartHeaderHandle` while it is mounted. */
+  handleRef?: MutableRefObject<ChartHeaderHandle | null>
   children: (slot: ReactNode) => ReactNode
 }) {
   const [controls, setControls] = useState<HTMLElement | null>(null)
@@ -562,6 +575,17 @@ export function ChartHeader({
       // Private windows can refuse storage; the choice still holds for this session.
     }
   }
+  const setViewRef = useRef(setView)
+  useLayoutEffect(() => {
+    setViewRef.current = setView
+  })
+  useEffect(() => {
+    if (!handleRef) return
+    handleRef.current = { showDetails: () => setViewRef.current('both') }
+    return () => {
+      handleRef.current = null
+    }
+  }, [handleRef])
   return (
     <ChartHeaderContext.Provider value={{ controls, target, view, setView }}>
       {children(
@@ -582,10 +606,11 @@ export function useChartHeaderControls() {
   return useContext(ChartHeaderContext)?.controls ?? null
 }
 
-/** A chart slot shorter than this folds its readouts away until someone picks a view. */
-const CHART_FOLD_BELOW_PX = 260
-/** A folded slot unfolds from this height: the fold line plus more than the grip reserve folding gives back. */
-const CHART_UNFOLD_FROM_PX = CHART_FOLD_BELOW_PX + 24
+/**
+ * A chart slot shorter than 260 px folds its readouts away until someone picks a view, and unfolds
+ * from 284 px: more than the grip reserve folding gives back.
+ */
+const CHART_FOLD: FoldThresholds = { foldBelow: 260, unfoldFrom: 284 }
 
 function ChartSlot({
   children,
@@ -614,26 +639,13 @@ function ChartSlot({
   }
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [compact, setCompact] = useState(false)
+  // Folding the readouts away gives the slot back the panel's grip reserve (`data-axis-at-bottom`,
+  // panel-corner.css: up to 19 px), so the fold needs a gap wider than that (`useSizeFold`).
+  const compact = useSizeFold(useElementSize(ref).height, CHART_FOLD)
   const header = useContext(ChartHeaderContext)
   const [localView, setLocalView] = useState<ChartView | null>(null)
   const [bandsOpen, setBandsOpen] = useState(false)
   const [valueBandsOpen, setValueBandsOpen] = useStoredFlag(valueBands?.storageKey ?? 'pgmaps-chart-value-bands')
-  useEffect(() => {
-    const element = ref.current
-    if (!element) return
-    // Folding the readouts away gives the slot back the panel's grip reserve (`data-axis-at-bottom`,
-    // panel-corner.css: up to 19 px), so a slot that folded at 258 px reads 274 px and would unfold again
-    // on the next frame, forever. It unfolds only once that height clears the fold line by more than the reserve.
-    const resize = () => {
-      const height = element.clientHeight
-      setCompact((was) => height > 0 && height < (was ? CHART_UNFOLD_FROM_PX : CHART_FOLD_BELOW_PX))
-    }
-    resize()
-    const observer = new ResizeObserver(resize)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
   // Until someone picks, a short chart folds its readouts away and a tall one shows both.
   const chosen = header ? header.view : localView
   const view: ChartView = !footer ? 'chart' : (chosen ?? (compact ? 'chart' : 'both'))

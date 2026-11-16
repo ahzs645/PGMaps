@@ -107,6 +107,7 @@ reports nothing, so a demonstration is never counted as the learner's action.
 | `road.dialog.close` | | closes Save & export or the interface chooser |
 | `road.project.reopen` | | Open's path for the file this lesson saved, kept in the training session (`restore` with `training`), once |
 | `road.crossings.record` | | Record detected crossings |
+| `road.anchor.show` | `{ anchor, panes? }` | puts an anchor on screen in the interface in use (`roadAnchorPlacement`); the player adds it before each step with `panes: false`, and a fixture may use it; a lesson's steps never name it |
 
 The person's own operations are reported to the action stream by `runCommand`, the Station box's
 commit and the detail view picker (which reports the view's registry command). Every other step
@@ -119,7 +120,7 @@ field the Ribbon also draws as a quick field carries its anchor only in its edit
 | --- | --- |
 | `road.plan`, `road.profile`, `road.section.readout`, `road.detail.view`, `road.station` | the panes, the section readout, the detail view picker, the Station box |
 | `road.command.<id>` | every registry command's button (`CommandButton`; not the quick-access copies) |
-| `road.workflow.<editor>` | the sidebar's workflow tabs |
+| `road.workflow.<editor>` | the sidebar's workflow tabs; in a toolbar that hosts the editors (the Ribbon), the editor button on that editor's tab |
 | `road.road`, `road.header.basis`, `road.design.roadName` | the road switcher, the planning-basis badge, Design's Road name |
 | `road.sketch.done` | the sketch panel's Done sketching |
 | `road.terrain.importOptions`, `road.terrain.datum`, `road.terrain.source` | Terrain's Import options toggle, datum field and source box |
@@ -147,6 +148,27 @@ The shared pieces take an opt-in prop for this: `RoadSection toggleTutorialId`, 
 pane's view and the workflow editor while each is on screen. A step whose `context` names one is
 restored by its registry command; Practice offers **Return to this step's view**, Watch restores
 it itself. An anchor missing when its step opens offers **Take me back** (`roadTourReturnAction`).
+
+## One lesson, every interface
+
+Each interface keeps the same controls in different places: the Ribbon draws the road switcher on
+its Road tab and the editors under their tabs, Guided map keeps commands in folded groups and the
+editors in a closed sidebar, the Dashboard starts with the sidebar collapsed. A lesson never says
+which. `withAnchorPlacement` gives every anchored step a first `prepare` action,
+`road.anchor.show`, which Tourkit runs before it looks for the anchor, in every mode, and which is
+also **Take me back**. The page skips it when the anchor is already drawn; otherwise it makes the
+moves `roadAnchorPlacement` reads from the open interface's toolbar (select the tab or group that
+holds the control, show the sidebar, open the editor and its folded section, unfold a short chart's
+readouts), each the control's own operation, and then brings the anchor into its scroll port.
+Before a step (`panes: false`) it brings a pane forward (Guided map's Plan, Profile and Detail
+tabs) but never reopens one the person closed: the step's `context` offers that, and **Take me
+back** reopens it by its command. The training fixture's setup
+unfolds the section readout too, since a detail pane too short for chart and readout folds the
+readout away (`useSizeFold`, `docs/shared-ui.md`, **Measured sizes**).
+A step whose task is to open something points at the control that opens it (a workflow tab), so
+the move only puts that control in reach and the step stays the learner's to do. A new anchor
+outside an editor, a pane or a toolbar goes in `roadAnchorPlacement` with it, or it is found only
+where it is always on screen.
 
 ## Dialogs
 

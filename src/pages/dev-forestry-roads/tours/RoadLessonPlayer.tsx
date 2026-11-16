@@ -11,6 +11,7 @@ import {
   ROAD_TOUR_NAMESPACE,
   roadTourContextActions,
   roadTourReturnAction,
+  withAnchorPlacement,
   roadTourStepExpectsDialog,
   type RoadTourSnapshot,
 } from './roadTour'
@@ -45,7 +46,7 @@ export default function RoadLessonPlayer({ launch, snapshot, execute, actions, o
     let current = true
     lesson
       .load()
-      .then((raw) => current && setManifest(parseTutorialManifest(raw)))
+      .then((raw) => current && setManifest(withAnchorPlacement(parseTutorialManifest(raw))))
       .catch((cause: unknown) => current && setError(message(cause)))
     return () => {
       current = false

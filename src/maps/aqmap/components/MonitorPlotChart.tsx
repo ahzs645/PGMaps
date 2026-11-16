@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useElementSize } from '@/hooks/useElementSize'
+import { useId, useMemo, useRef } from 'react'
 import { Area, AreaChart, CartesianGrid, ReferenceArea, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AqPlotPoint } from '../lib/plotData'
 import { getAqhiPlusColor } from '../lib/aqhiScale'
@@ -100,7 +101,7 @@ export function MonitorPlotChart({
   height?: number
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [chartWidth, setChartWidth] = useState(0)
+  const chartWidth = Math.floor(useElementSize(containerRef).width)
   const data = useMemo<ChartPoint[]>(() => {
     const parsedPoints = points
       .map((point) => {
@@ -133,20 +134,6 @@ export function MonitorPlotChart({
   const xMin = data[0].time
   const xMax = data[data.length - 1].time
   const latestPoint = data[data.length - 1]
-
-  useEffect(() => {
-    const element = containerRef.current
-    if (!element) return
-
-    const updateWidth = () => {
-      setChartWidth(Math.max(0, Math.floor(element.getBoundingClientRect().width)))
-    }
-    updateWidth()
-
-    const observer = new ResizeObserver(updateWidth)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
 
   return (
     <div

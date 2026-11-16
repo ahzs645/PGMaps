@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { handleHorizontalWheelScroll } from '@/components/ui/horizontal-scroll'
+import { useHorizontalWheel } from '@/components/ui/horizontal-scroll'
+import { useScrollEdges } from '@/hooks/useScrollEdges'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useMatch } from 'react-router-dom'
 import { projectCatalogDestination } from '@/lib/projectCollections'
@@ -105,7 +106,6 @@ export function Navbar() {
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const primaryNavRef = useRef<HTMLElement>(null)
   // The desktop nav scrolls sideways between md and xl; these fades say so.
-  const [navOverflow, setNavOverflow] = useState({ left: false, right: false })
   const locationParams = new URLSearchParams(location.search)
   const isProjectPage =
     location.pathname.startsWith('/projects/') || (location.pathname === '/projects' && locationParams.has('project'))
@@ -193,23 +193,8 @@ export function Navbar() {
     }
   }, [closeMobileMenu, mobileMenuOpen])
 
-  useEffect(() => {
-    const nav = primaryNavRef.current
-    if (!nav) return
-    const sync = () => {
-      const left = nav.scrollLeft > 2
-      const right = nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 2
-      setNavOverflow((current) => (current.left === left && current.right === right ? current : { left, right }))
-    }
-    sync()
-    nav.addEventListener('scroll', sync, { passive: true })
-    const observer = new ResizeObserver(sync)
-    observer.observe(nav)
-    return () => {
-      nav.removeEventListener('scroll', sync)
-      observer.disconnect()
-    }
-  }, [])
+  const navOverflow = useScrollEdges(primaryNavRef)
+  useHorizontalWheel(primaryNavRef)
 
   useEffect(() => {
     const handleToolbarVisibility = (event: Event) => {
@@ -400,13 +385,13 @@ export function Navbar() {
           </button>
 
           <div className="relative hidden min-w-0 flex-1 md:block">
-            {navOverflow.left && (
+            {navOverflow.previous && (
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent"
               />
             )}
-            {navOverflow.right && (
+            {navOverflow.next && (
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-12 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent pr-0.5"
@@ -416,7 +401,6 @@ export function Navbar() {
             )}
             <nav
               ref={primaryNavRef}
-              onWheel={handleHorizontalWheelScroll}
               className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               aria-label="Primary navigation"
             >

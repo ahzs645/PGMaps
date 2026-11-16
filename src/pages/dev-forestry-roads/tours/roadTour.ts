@@ -49,6 +49,12 @@ export const ROAD_TOUR_ACTIONS = {
   reopenSavedCopy: 'road.project.reopen',
   /** Record the active road's detected stream crossings, as Record detected crossings does. */
   recordCrossings: 'road.crossings.record',
+  /**
+   * Put an anchor on screen in the interface in use (`roadAnchorPlacement`): `{ anchor, panes? }`. The
+   * player runs it before each anchored step (`panes: false`, leaving a closed pane to the step's
+   * context) and for "Take me back"; a lesson never names it.
+   */
+  showAnchor: 'road.anchor.show',
 } as const
 export const ROAD_TOUR_ACTION_IDS: readonly string[] = Object.values(ROAD_TOUR_ACTIONS)
 
@@ -236,37 +242,156 @@ const command = (id: string): TutorialSemanticAction => ({
   args: { command: id },
   match: 'subset',
 })
-const reveal = (editor: string, section: string): TutorialSemanticAction => ({
-  id: ROAD_TOUR_ACTIONS.revealSection,
-  args: { editor, section },
+/** The toolbar parts the placement reads (`LayoutToolbar`, `workspaceLayoutSchema.ts`), by structure. */
+export interface RoadTourToolbar {
+  groups: readonly {
+    label: string
+    editor?: string
+    commands?: readonly string[]
+    sections?: readonly { items: readonly string[] }[]
+  }[]
+  /** Commands and widgets beside the tabs, on screen whichever tab is selected. */
+  tabTools?: readonly string[]
+  quickAccess?: readonly string[]
+}
+
+/** One move that puts an anchor on screen; the page carries each out as the matching control does. */
+export type RoadAnchorMove =
+  /** Select a toolbar group (a Ribbon tab, a Guided map group), leaving its editor folded as it starts. */
+  | { kind: 'group'; group: string }
+  /** Show the sidebar with its workflow tabs, without changing the tab. */
+  | { kind: 'controls' }
+  /** Open a workflow editor where this interface puts it (the Ribbon unfolds it). */
+  | { kind: 'editor'; editor: string }
+  /** Open an editor's folded section where it is, without scrolling the editor. */
+  | { kind: 'section'; editor: string; section: string }
+  /**
+   * Show a pane. `command` shows it with the right detail view, as "Take me back" does; before a
+   * step (`panes: false`) the page only brings the pane forward, and leaves one the person closed.
+   */
+  | { kind: 'pane'; pane: RoadPaneId; command: string }
+  /** Unfold the detail pane's chart details (its readouts), as the chart's "Details below chart" toggle does. */
+  | { kind: 'details' }
+
+/** Anchors inside a workflow editor, and the folded section that holds them, if any. Most specific first. */
+const EDITOR_ANCHORS: readonly (readonly [RegExp, string, string?])[] = [
+  [/^road\.terrain\.datum$/, 'terrain', 'Import options'],
+  [/^road\.terrain\./, 'terrain'],
+  [/^road\.vertical\.level\.\d+$/, 'design', 'Vertical alignment'],
+  [/^road\.design\./, 'design'],
+  [/^road\.template\./, 'template'],
+  [/^road\.crossings\.(record|structure)$/, 'engineering', 'Stream crossing estimates'],
+  [/^road\.(engineering|crossings)\./, 'engineering'],
+  [/^road\.review\.action\.standards$/, 'review'],
+  [/^road\.review\./, 'review'],
+]
+/** Anchors in a chart's folded details: a short chart folds them away (`useSizeFold`, `Charts.tsx`). */
+const DETAIL_ANCHORS: ReadonlySet<string> = new Set([ROAD_TOUR_ANCHORS.sectionReadout])
+/** Anchors in a pane, with the pane and the command that shows it (with its detail view). */
+const PANE_ANCHORS: Readonly<Record<string, readonly [RoadPaneId, string]>> = {
+  [ROAD_TOUR_ANCHORS.plan]: ['plan', 'plan'],
+  [ROAD_TOUR_ANCHORS.profile]: ['profile', 'profile'],
+  [ROAD_TOUR_ANCHORS.sectionReadout]: ['detail', 'crossSection'],
+  [ROAD_TOUR_ANCHORS.detailView]: ['detail', 'crossSection'],
+  [ROAD_TOUR_ANCHORS.costTable]: ['detail', 'quantities'],
+  [ROAD_TOUR_ANCHORS.compareBaseline]: ['detail', 'compare'],
+  [ROAD_TOUR_ANCHORS.compareTable]: ['detail', 'compare'],
+}
+/** Anchors drawn by a toolbar widget rather than a command button, with the widget's layout ID. */
+const WIDGET_ANCHORS: Readonly<Record<string, string>> = {
+  [ROAD_TOUR_ANCHORS.road]: 'roadSelector',
+  [ROAD_TOUR_ANCHORS.compareOpen]: 'roadSelector',
+}
+
+const groupHolding = (toolbar: RoadTourToolbar, item: string) => {
+  if (toolbar.tabTools?.includes(item) || toolbar.quickAccess?.includes(item)) return null
+  return (
+    toolbar.groups.find(
+      (group) => group.commands?.includes(item) || group.sections?.some((section) => section.items.includes(item)),
+    ) ?? null
+  )
+}
+
+/**
+ * What puts an anchor on screen in the interface the person is using, so one lesson runs in every
+ * interface: a lesson names the control (`road.road`, `road.design.roadName`, a workflow tab) and this
+ * says where that interface keeps it. The page skips the moves when the anchor is already shown.
+ * Empty for an anchor that is always on screen or that a dialog draws.
+ *
+ * Panes come back as `pane` moves: the page decides, by `showAnchor`'s `panes`, whether a pane the
+ * person closed is reopened before a step (never) or only brought forward (`RoadAnchorMove`).
+ */
+export function roadAnchorPlacement(anchorId: string, toolbar: RoadTourToolbar | undefined): RoadAnchorMove[] {
+  const groupMove = (item: string): RoadAnchorMove[] => {
+    const group = toolbar && groupHolding(toolbar, item)
+    return group ? [{ kind: 'group', group: group.label }] : []
+  }
+  const tab = /^road\.workflow\.([a-z]+)$/.exec(anchorId)?.[1]
+  if (tab) {
+    // A toolbar that hosts the editors draws the tab's editor launcher on that editor's own group.
+    const host = toolbar?.groups.find((group) => group.editor === tab)
+    if (host) return [{ kind: 'group', group: host.label }]
+    return toolbar?.groups.some((group) => group.editor) ? [] : [{ kind: 'controls' }]
+  }
+  const editor = EDITOR_ANCHORS.find(([pattern]) => pattern.test(anchorId))
+  if (editor) {
+    const [, id, section] = editor
+    return section
+      ? [
+          { kind: 'editor', editor: id },
+          { kind: 'section', editor: id, section },
+        ]
+      : [{ kind: 'editor', editor: id }]
+  }
+  if (WIDGET_ANCHORS[anchorId]) return groupMove(WIDGET_ANCHORS[anchorId])
+  const details: RoadAnchorMove[] = DETAIL_ANCHORS.has(anchorId) ? [{ kind: 'details' }] : []
+  const pane = PANE_ANCHORS[anchorId]
+  if (pane) return [{ kind: 'pane', pane: pane[0], command: pane[1] }, ...details]
+  if (anchorId.startsWith('road.compare.row.')) return [{ kind: 'pane', pane: 'detail', command: 'compare' }]
+  const commandId = /^road\.command\.(.+)$/.exec(anchorId)?.[1]
+  if (commandId) return groupMove(commandId)
+  return []
+}
+
+/** Anchors `roadAnchorPlacement` can bring back in some interface: the ones "Take me back" is offered for. */
+const PLACEABLE = (anchorId: string) =>
+  /^road\.(workflow|command)\./.test(anchorId) ||
+  EDITOR_ANCHORS.some(([pattern]) => pattern.test(anchorId)) ||
+  !!WIDGET_ANCHORS[anchorId] ||
+  !!PANE_ANCHORS[anchorId] ||
+  anchorId.startsWith('road.compare.row.')
+
+const showAnchor = (anchor: string, panes = true): TutorialSemanticAction => ({
+  id: ROAD_TOUR_ACTIONS.showAnchor,
+  args: panes ? { anchor } : { anchor, panes: false },
   match: 'subset',
 })
 
-/** What puts each anchor back on screen, for the player's "Take me back". */
-const ANCHOR_RETURNS: Record<string, TutorialSemanticAction> = {
-  [ROAD_TOUR_ANCHORS.plan]: command('plan'),
-  [ROAD_TOUR_ANCHORS.profile]: command('profile'),
-  [ROAD_TOUR_ANCHORS.sectionReadout]: command('crossSection'),
-  [ROAD_TOUR_ANCHORS.detailView]: command('crossSection'),
-  [ROAD_TOUR_ANCHORS.roadName]: command('alignment'),
-  [ROAD_TOUR_ANCHORS.sketchDone]: command('sketch'),
-  [ROAD_TOUR_ANCHORS.importOptions]: command('terrain'),
-  [ROAD_TOUR_ANCHORS.importDatum]: reveal('terrain', 'Import options'),
-  [ROAD_TOUR_ANCHORS.terrainSource]: command('terrain'),
-  [ROAD_TOUR_ANCHORS.verticalAlignment]: command('alignment'),
-  [ROAD_TOUR_ANCHORS.leftWidth]: command('section'),
-  [ROAD_TOUR_ANCHORS.compareOpen]: command('alignment'),
-  [ROAD_TOUR_ANCHORS.compareBaseline]: command('compare'),
-  [ROAD_TOUR_ANCHORS.compareTable]: command('compare'),
-}
+/** What puts a step's anchor back on screen, for the player's "Take me back". */
 export function roadTourReturnAction(anchorId: string | undefined): TutorialSemanticAction | null {
-  if (!anchorId) return null
-  if (ANCHOR_RETURNS[anchorId]) return ANCHOR_RETURNS[anchorId]
-  const tab = /^road\.workflow\.([a-z]+)$/.exec(anchorId)?.[1]
-  if (tab && ROAD_EDITOR_COMMANDS[tab]) return command(ROAD_EDITOR_COMMANDS[tab])
-  if (/^road\.vertical\.level\.\d+$/.test(anchorId)) return reveal('design', 'Vertical alignment')
-  if (anchorId.startsWith('road.compare.row.')) return command('compare')
-  return null
+  return anchorId && PLACEABLE(anchorId) ? showAnchor(anchorId) : null
+}
+
+/**
+ * The lesson as the player runs it: every anchored step first puts its anchor on screen in the
+ * person's interface (`road.anchor.show`, a no-op where it is already shown), in every mode and
+ * before the player looks for it. Lessons stay written once, for no interface in particular.
+ */
+export function withAnchorPlacement<M extends { chapters?: readonly { steps: readonly TutorialStep[] }[] }>(
+  manifest: M,
+): M {
+  if (!manifest.chapters) return manifest
+  return {
+    ...manifest,
+    chapters: manifest.chapters.map((chapter) => ({
+      ...chapter,
+      steps: chapter.steps.map((step) =>
+        step.anchor && PLACEABLE(step.anchor.id)
+          ? { ...step, prepare: [showAnchor(step.anchor.id, false), ...(step.prepare ?? [])] }
+          : step,
+      ),
+    })),
+  }
 }
 
 /**
@@ -312,6 +437,7 @@ export interface RoadTourPage {
   closeDialog: () => void
   reopenSavedCopy: () => Promise<void>
   recordCrossings: () => void
+  showAnchor: (anchor: string, panes: boolean) => void
 }
 
 /** The outputs a lesson's Watch may prepare (no download): text files the next step can read back. */
@@ -392,6 +518,8 @@ export function createRoadTourExecutor(page: RoadTourPage) {
         return page.reopenSavedCopy()
       case ROAD_TOUR_ACTIONS.recordCrossings:
         return page.recordCrossings()
+      case ROAD_TOUR_ACTIONS.showAnchor:
+        return page.showAnchor(text(args.anchor, 'An anchor'), args.panes !== false)
     }
     throw new Error(`The road designer has no lesson action "${action.id}".`)
   }

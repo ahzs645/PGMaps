@@ -1,3 +1,4 @@
+import { useElementSize } from '@/hooks/useElementSize'
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { FileImage, Layers, MapPinned } from 'lucide-react'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
@@ -120,6 +121,7 @@ function LibraryCard({ item, subject, compact, shortSource, onPreview, onMap, on
   )
 }
 
+const hasWidth = (size: { width: number }) => size.width > 0
 export function MapLibrary({
   title,
   actions,
@@ -167,17 +169,10 @@ export function MapLibrary({
 }) {
   const scroll = useRef<HTMLDivElement>(null)
   const grid = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(() => (typeof window === 'undefined' ? 1200 : window.innerWidth - 32))
   const [filtersOpen, setFiltersOpen] = useState(false)
-  useLayoutEffect(() => {
-    const element = grid.current
-    if (!element) return
-    const measure = () => setWidth((previous) => (element.clientWidth > 0 ? element.clientWidth : previous))
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
+  // An empty grid has no height, so only a width of 0 (hidden) keeps the last one.
+  const [start] = useState(() => ({ width: typeof window === 'undefined' ? 1200 : window.innerWidth - 32, height: 0 }))
+  const { width } = useElementSize(grid, { initial: start, accept: hasWidth })
   const columns = libraryColumns(width)
   const gap = width < 600 ? 12 : 16
   const cardWidth = (width - gap * (columns - 1)) / columns

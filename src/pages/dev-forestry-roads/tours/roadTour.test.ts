@@ -8,9 +8,13 @@ import {
   createRoadTourExecutor,
   createRoadTourSnapshotMemo,
   roadTourContextActions,
+  roadAnchorPlacement,
   roadTourReturnAction,
+  withAnchorPlacement,
   type RoadTourPage,
+  type RoadTourToolbar,
 } from './roadTour'
+import layouts from '../../../../public/workspace-layouts.json'
 import { TRAINING_SNAPSHOT_INPUT, trainingSnapshot } from './trainingSnapshot.testSupport'
 
 const act = (id: string, args?: TutorialSemanticAction['args']): TutorialSemanticAction =>
@@ -67,6 +71,7 @@ describe('Watch and recovery actions', () => {
     closeDialog: vi.fn(),
     reopenSavedCopy: vi.fn(async () => {}),
     recordCrossings: vi.fn(),
+    showAnchor: vi.fn(),
   })
 
   it('runs each action through the page operation its control uses', async () => {
@@ -96,6 +101,7 @@ describe('Watch and recovery actions', () => {
     execute(act(ROAD_TOUR_ACTIONS.closeDialog))
     await execute(act(ROAD_TOUR_ACTIONS.reopenSavedCopy))
     execute(act(ROAD_TOUR_ACTIONS.recordCrossings))
+    execute(act(ROAD_TOUR_ACTIONS.showAnchor, { anchor: 'road.road' }))
     expect(p.runCommand).toHaveBeenCalledWith('gradeDiagram')
     expect(p.selectStation).toHaveBeenCalledWith(200)
     expect(p.selectRoad).toHaveBeenCalledWith('demo-contour')
@@ -118,6 +124,7 @@ describe('Watch and recovery actions', () => {
     expect(p.closeDialog).toHaveBeenCalled()
     expect(p.reopenSavedCopy).toHaveBeenCalled()
     expect(p.recordCrossings).toHaveBeenCalled()
+    expect(p.showAnchor).toHaveBeenCalledWith('road.road', true)
   })
 
   it('names every action it routes', () => {
@@ -139,14 +146,14 @@ describe('Watch and recovery actions', () => {
     expect(() => execute(act(ROAD_TOUR_ACTIONS.sketch, { stroke: [[0, 0]], metresPerPixel: 1 }))).toThrow('two or more')
   })
 
-  it('brings each anchor back with the command or reveal that shows it', () => {
-    expect(roadTourReturnAction('road.section.readout')?.args).toEqual({ command: 'crossSection' })
-    expect(roadTourReturnAction('road.workflow.engineering')?.args).toEqual({ command: 'engineering' })
-    expect(roadTourReturnAction('road.vertical.level.1')).toEqual(
-      act(ROAD_TOUR_ACTIONS.revealSection, { editor: 'design', section: 'Vertical alignment' }),
-    )
-    expect(roadTourReturnAction('road.compare.row.demo-contour')?.args).toEqual({ command: 'compare' })
+  it('brings back an anchor it knows where to find, and offers nothing for one always on screen', () => {
+    expect(roadTourReturnAction('road.road')).toEqual(act(ROAD_TOUR_ACTIONS.showAnchor, { anchor: 'road.road' }))
+    expect(roadTourReturnAction('road.vertical.level.1')?.args).toEqual({ anchor: 'road.vertical.level.1' })
+    expect(roadTourReturnAction('road.compare.row.demo-contour')?.args).toEqual({
+      anchor: 'road.compare.row.demo-contour',
+    })
     expect(roadTourReturnAction('road.station')).toBeNull()
+    expect(roadTourReturnAction('road.files.save')).toBeNull()
     expect(roadTourReturnAction(undefined)).toBeNull()
   })
 
@@ -163,5 +170,81 @@ describe('Watch and recovery actions', () => {
   it('opens each workflow editor by a registry command whose editor it is', () => {
     for (const [editor, command] of Object.entries(ROAD_EDITOR_COMMANDS))
       expect((workspaceCommands as Record<string, { editor?: string }>)[command]?.editor, editor).toBe(editor)
+  })
+})
+
+describe('anchor placement in each interface', () => {
+  const toolbar = (id: string) =>
+    (layouts as { id: string; toolbar?: RoadTourToolbar }[]).find((layout) => layout.id === id)?.toolbar
+
+  it('finds the road switcher on the Ribbon tab that holds it, and leaves the header switcher alone', () => {
+    expect(roadAnchorPlacement('road.road', toolbar('ribbon'))).toEqual([{ kind: 'group', group: 'Road' }])
+    expect(roadAnchorPlacement('road.road', toolbar('workbench'))).toEqual([])
+    expect(roadAnchorPlacement('road.road', toolbar('guided'))).toEqual([])
+  })
+
+  it('points a workflow tab at the Ribbon tab that hosts its editor, and at the sidebar elsewhere', () => {
+    expect(roadAnchorPlacement('road.workflow.engineering', toolbar('ribbon'))).toEqual([
+      { kind: 'group', group: 'Engineering' },
+    ])
+    expect(roadAnchorPlacement('road.workflow.engineering', toolbar('guided'))).toEqual([{ kind: 'controls' }])
+    expect(roadAnchorPlacement('road.workflow.engineering', toolbar('dashboard'))).toEqual([{ kind: 'controls' }])
+  })
+
+  it('opens the editor, and the folded section, that holds an editor control', () => {
+    expect(roadAnchorPlacement('road.design.roadName', toolbar('ribbon'))).toEqual([
+      { kind: 'editor', editor: 'design' },
+    ])
+    expect(roadAnchorPlacement('road.vertical.level.2', undefined)).toEqual([
+      { kind: 'editor', editor: 'design' },
+      { kind: 'section', editor: 'design', section: 'Vertical alignment' },
+    ])
+    expect(roadAnchorPlacement('road.crossings.record', undefined)).toEqual([
+      { kind: 'editor', editor: 'engineering' },
+      { kind: 'section', editor: 'engineering', section: 'Stream crossing estimates' },
+    ])
+  })
+
+  it('selects the group holding a command, shows a pane by its command, and leaves dialogs to their step', () => {
+    expect(roadAnchorPlacement('road.command.sketch', toolbar('ribbon'))).toEqual([{ kind: 'group', group: 'Road' }])
+    expect(roadAnchorPlacement('road.command.sketch', toolbar('guided'))).toEqual([
+      { kind: 'group', group: 'Alignment' },
+    ])
+    expect(roadAnchorPlacement('road.section.readout', toolbar('ribbon'))).toEqual([
+      { kind: 'pane', pane: 'detail', command: 'crossSection' },
+      { kind: 'details' },
+    ])
+    expect(roadAnchorPlacement('road.compare.row.demo-contour', undefined)).toEqual([
+      { kind: 'pane', pane: 'detail', command: 'compare' },
+    ])
+    expect(roadAnchorPlacement('road.files.save', toolbar('ribbon'))).toEqual([])
+    expect(roadAnchorPlacement('road.station', toolbar('ribbon'))).toEqual([])
+  })
+
+  it("puts every anchored step's anchor on screen first, before any prepare of its own", () => {
+    const manifest = {
+      chapters: [
+        {
+          steps: [
+            { id: 'a', anchor: { id: 'road.road' } },
+            { id: 'b', anchor: { id: 'road.files.save' } },
+            { id: 'c' },
+            {
+              id: 'd',
+              anchor: { id: 'road.design.roadName' },
+              prepare: [act(ROAD_TOUR_ACTIONS.command, { command: 'profile' })],
+            },
+          ],
+        },
+      ],
+    } as unknown as Parameters<typeof withAnchorPlacement>[0]
+    const steps = withAnchorPlacement(manifest).chapters![0].steps
+    expect(steps[0].prepare).toEqual([act(ROAD_TOUR_ACTIONS.showAnchor, { anchor: 'road.road', panes: false })])
+    expect(steps[1].prepare).toBeUndefined()
+    expect(steps[2].prepare).toBeUndefined()
+    expect(steps[3].prepare?.map((action) => action.id)).toEqual([
+      ROAD_TOUR_ACTIONS.showAnchor,
+      ROAD_TOUR_ACTIONS.command,
+    ])
   })
 })

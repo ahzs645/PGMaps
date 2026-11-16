@@ -219,7 +219,7 @@
     "sql.js": "1.15.1",
     "svg2pdf.js": "2.8.1",
     "tailwind-merge": "^2.2.0",
-    "tourkit": "github:ahzs645/tourkit#3899dd58df0a0ff108db8f4ded18a036ec8896ce",
+    "tourkit": "github:ahzs645/tourkit#59e92de5207ba8d81c97179d72fb093e3d706d01",
     "whitebox-wasm": "0.6.1",
     "yalps": "0.6.4",
     "zstddec": "0.1.0"

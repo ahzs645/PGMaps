@@ -1,7 +1,7 @@
 import type { TutorialSemanticAction } from 'tourkit/core'
 import type { TourLaunch } from '@/lib/tours/tourLaunch'
 import { tourLaunchSearch } from '@/lib/tours/tourLaunch'
-import { ROAD_TOUR_ACTIONS, type RoadTourSnapshot } from './roadTour'
+import { ROAD_TOUR_ACTIONS, ROAD_TOUR_ANCHORS, type RoadTourSnapshot } from './roadTour'
 
 /**
  * Where a lesson starts, by the name its manifest gives in `launch.fixture`. Tourkit never reads that
@@ -29,9 +29,14 @@ const TRAINING: RoadLessonFixture = {
   label: 'the Hillside access training project',
   matches: (snapshot) => snapshot.project.training,
   params: { example: 'training' },
-  // Station 0+000 with the cross-section in the detail pane: the screen the training lessons are
-  // written from, in every interface (the Ribbon's default layout hides the detail pane).
-  setup: [{ id: ROAD_TOUR_ACTIONS.station, args: { chainage: 0 }, match: 'subset' }, command('crossSection')],
+  // Station 0+000 with the cross-section and its readout in the detail pane: the screen the training
+  // lessons are written from, in every interface (the Ribbon's default layout hides the detail pane,
+  // and a pane too short for both folds the readout away).
+  setup: [
+    { id: ROAD_TOUR_ACTIONS.station, args: { chainage: 0 }, match: 'subset' },
+    command('crossSection'),
+    { id: ROAD_TOUR_ACTIONS.showAnchor, args: { anchor: ROAD_TOUR_ANCHORS.sectionReadout }, match: 'subset' },
+  ],
 }
 
 export const ROAD_LESSON_FIXTURES: Record<string, RoadLessonFixture> = {

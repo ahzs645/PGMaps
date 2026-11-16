@@ -1,6 +1,6 @@
-import type { ElementType } from 'react'
+import { useRef, type ElementType } from 'react'
 import { cn } from '@/lib/utils'
-import { handleHorizontalWheelScroll } from '@/components/ui/horizontal-scroll'
+import { useHorizontalWheel } from '@/components/ui/horizontal-scroll'
 
 export interface SectionTab<Id extends string = string> {
   id: Id
@@ -20,10 +20,12 @@ export function SectionTabsBar<Id extends string>({
   activeTab: Id
   onTabChange: (id: Id) => void
 }) {
+  const strip = useRef<HTMLDivElement>(null)
+  useHorizontalWheel(strip)
   return (
     <div
+      ref={strip}
       className="hidden min-w-0 shrink-0 overflow-x-auto border-b border-border bg-background/95 px-2 py-1 backdrop-blur [scrollbar-width:none] md:block md:px-4 md:py-2 [&::-webkit-scrollbar]:hidden"
-      onWheel={handleHorizontalWheelScroll}
     >
       <div className="flex w-max rounded-md border border-border bg-muted/40 p-0.5 md:rounded-lg md:p-1">
         {tabs.map(({ id, label, shortLabel, icon: Icon }) => (

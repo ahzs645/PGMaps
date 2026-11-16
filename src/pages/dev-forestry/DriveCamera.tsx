@@ -1,3 +1,5 @@
+import { useElementSize } from '@/hooks/useElementSize'
+import { useSizeFold, type FoldThresholds } from '@/hooks/useSizeFold'
 import { StyledSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import type { ElevationSource } from './terrain'
@@ -80,8 +82,11 @@ type Props = {
    */
   standAt?: { lng: number; lat: number } | null
 }
-/** Below this map width the controls open folded to the player row, as on a phone. */
-const NARROW_VIEW_PX = 640
+/**
+ * Below 640 px of map width the controls open folded to the player row, as on a phone; they unfold
+ * from 656 px, so a pane dragged across the line does not flicker between the two.
+ */
+const NARROW_VIEW: FoldThresholds = { foldBelow: 640, unfoldFrom: 656 }
 /** Look-around owns pointer gestures only while driving; the ordinary map is fully restored on exit. */
 /** How long the camera's frame loop keeps running after its last change, ms, before it sleeps. */
 const DRIVE_AWAKE_MS = 1000
@@ -118,18 +123,11 @@ export function DriveCamera(props: Props) {
   // otherwise cover most of the road view it is there to show.
   // A road view in a narrow pane beside the plan folds the same way: it is judged by its own map's
   // width, so a pane dragged narrow folds too. Show or Hide options then holds until the view closes.
-  const [narrowView, setNarrowView] = useState(
-    () => typeof window !== 'undefined' && !window.matchMedia('(min-width: 768px)').matches,
-  )
+  // Before the map is measured, a phone starts folded.
+  const [phone] = useState(() => typeof window !== 'undefined' && !window.matchMedia('(min-width: 768px)').matches)
+  const narrowView = useSizeFold(useElementSize(map?.getContainer()).width, NARROW_VIEW, phone)
   const [optionsChoice, setOptionsChoice] = useState<boolean | null>(null)
   const optionsExpanded = optionsChoice ?? !narrowView
-  useEffect(() => {
-    if (!map) return
-    const container = map.getContainer()
-    const observer = new ResizeObserver(() => setNarrowView(container.clientWidth < NARROW_VIEW_PX))
-    observer.observe(container)
-    return () => observer.disconnect()
-  }, [map])
   // The animation frame reads the latest look and props without the effect
   // below being torn down and rebuilt, which would restart playback per render.
   const viewRef = useRef(view)

@@ -101,7 +101,11 @@ describe('the training fixture', () => {
     const fixture = ROAD_LESSON_FIXTURES['hillside-training']
     expect(fixture.matches(trainingSnapshot)).toBe(true)
     expect(fixture.matches({ ...trainingSnapshot, project: { training: false } })).toBe(false)
-    expect(fixture.setup.map((action) => action.args)).toEqual([{ chainage: 0 }, { command: 'crossSection' }])
+    expect(fixture.setup.map((action) => action.args)).toEqual([
+      { chainage: 0 },
+      { command: 'crossSection' },
+      { anchor: 'road.section.readout' },
+    ])
   })
 })
 

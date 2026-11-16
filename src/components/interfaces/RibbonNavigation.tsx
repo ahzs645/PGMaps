@@ -1,40 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useScrollEdges } from '@/hooks/useScrollEdges'
+import { useHorizontalWheel } from '@/components/ui/horizontal-scroll'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { ActionMenu } from '@/components/ui/action-menu'
-
-/** Measure the real strip, including changes in the availability and width of configured tools. */
-function useScrollEdges(container: RefObject<HTMLElement>, selector: string) {
-  const [edges, setEdges] = useState({ previous: false, next: false })
-  useLayoutEffect(() => {
-    const viewport = container.current?.querySelector<HTMLElement>(selector)
-    if (!viewport) return
-    const measure = () => {
-      const offset = Math.abs(viewport.scrollLeft)
-      const overflows = viewport.scrollWidth > (container.current?.clientWidth ?? viewport.clientWidth) + 1
-      const previous = overflows && offset > 1
-      const next = overflows && viewport.scrollWidth - viewport.clientWidth - offset > 1
-      setEdges((old) => (old.previous === previous && old.next === next ? old : { previous, next }))
-    }
-    const resize = new ResizeObserver(measure)
-    const observeWidths = () => {
-      resize.disconnect()
-      if (container.current) resize.observe(container.current)
-      resize.observe(viewport)
-      for (const child of viewport.children) resize.observe(child)
-      measure()
-    }
-    observeWidths()
-    const changes = new MutationObserver(observeWidths)
-    changes.observe(viewport, { childList: true })
-    viewport.addEventListener('scroll', measure, { passive: true })
-    return () => {
-      resize.disconnect()
-      changes.disconnect()
-      viewport.removeEventListener('scroll', measure)
-    }
-  }, [container, selector])
-  return edges
-}
 
 export function RibbonTabs({
   names,
@@ -78,19 +46,7 @@ export function RibbonStrip({ children }: { children: ReactNode }) {
   const frame = useRef<HTMLDivElement>(null)
   const { previous, next } = useScrollEdges(frame, '.lp-tools')
   // The strip shows no scrollbar (it would change the band's height), so a vertical wheel scrolls it sideways.
-  useEffect(() => {
-    const viewport = frame.current?.querySelector<HTMLElement>('.lp-tools')
-    if (!viewport) return
-    const wheel = (event: WheelEvent) => {
-      if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
-      if (viewport.scrollWidth <= viewport.clientWidth + 1) return
-      if ((event.target as Element | null)?.closest('input, textarea, select, [role="combobox"]')) return
-      viewport.scrollLeft += event.deltaY
-      event.preventDefault()
-    }
-    viewport.addEventListener('wheel', wheel, { passive: false })
-    return () => viewport.removeEventListener('wheel', wheel)
-  }, [])
+  useHorizontalWheel(frame, '.lp-tools')
   function step(direction: number) {
     const viewport = frame.current?.querySelector<HTMLElement>('.lp-tools')
     if (!viewport) return

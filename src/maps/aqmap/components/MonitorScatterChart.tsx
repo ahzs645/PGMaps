@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useElementSize } from '@/hooks/useElementSize'
+import { useMemo, useRef } from 'react'
 import { CartesianGrid, ReferenceLine, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AbPoint, PaFemPoint } from '../lib/comparisonData'
 import { translate, type AqmapLocale } from '../lib/i18n'
@@ -89,17 +90,7 @@ export function MonitorScatterChart({
   loading?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [chartWidth, setChartWidth] = useState(0)
-
-  useEffect(() => {
-    const element = containerRef.current
-    if (!element) return
-    const updateWidth = () => setChartWidth(Math.max(0, Math.floor(element.getBoundingClientRect().width)))
-    updateWidth()
-    const observer = new ResizeObserver(updateWidth)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [])
+  const chartWidth = Math.floor(useElementSize(containerRef).width)
 
   const xLabel = mode === 'xy' ? translate('plot.ab.x', locale) : translate('plot.fem.x', locale)
   const yLabel = mode === 'xy' ? translate('plot.ab.y', locale) : translate('plot.fem.y', locale)

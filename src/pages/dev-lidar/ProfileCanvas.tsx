@@ -1,9 +1,13 @@
+import { useElementSize } from '@/hooks/useElementSize'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { IsolatedPoint, TreeCrop } from './treeIsolation'
 import { TREE_COLOURS } from './treeIsolation'
 import { prepareTreeProfileRange } from './treeProfiles'
 import { inPolygon, pointKey, type InspectionState, type ProfileSettings } from './treeInspection'
 export type ProfileInteraction = 'pick' | 'pan' | 'polygon' | 'seed'
+
+/** The profile's size before its frame is measured. */
+const PROFILE_START = { width: 420, height: 360 }
 export function ProfileCanvas({
   crop,
   settings,
@@ -35,8 +39,13 @@ export function ProfileCanvas({
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     frame = useRef<HTMLDivElement>(null)
-  const [size, setSize] = useState({ width: 420, height: 360 }),
-    [polygon, setPolygon] = useState<[number, number][]>([])
+  const [polygon, setPolygon] = useState<[number, number][]>([])
+  const measured = useElementSize(frame, { box: 'content', initial: PROFILE_START })
+  // The plot keeps 180 px each way, however small its frame.
+  const size = useMemo(
+    () => ({ width: Math.max(180, measured.width), height: Math.max(180, measured.height) }),
+    [measured],
+  )
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
   const prepared = useMemo(
     () => prepareTreeProfileRange(crop, { minHeight: settings.minHeight, maxHeight: settings.maxHeight }),
@@ -81,14 +90,6 @@ export function ProfileCanvas({
     (px - size.width / 2) / scale - settings.panX,
     (size.height - 35 - py) / scale - settings.panY,
   ]
-  useEffect(() => {
-    if (!frame.current) return
-    const observer = new ResizeObserver(([entry]) =>
-      setSize({ width: Math.max(180, entry.contentRect.width), height: Math.max(180, entry.contentRect.height) }),
-    )
-    observer.observe(frame.current)
-    return () => observer.disconnect()
-  }, [])
   const polygonKey = JSON.stringify([
     crop.id,
     interaction,

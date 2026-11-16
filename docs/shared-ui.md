@@ -1118,3 +1118,40 @@ Two ways out, both in CSS or markup:
 An `<iframe>` is its own document (the PDF preview, another engine's page) and
 keeps whatever scrollbars it has. `tests/e2e` asserts `scrollbar-width: none` on
 a scroller rather than a reserved gutter.
+
+## Measured sizes
+
+A component that keeps an element's size in React state, to draw at it or
+change its layout by it, measures through one of these hooks rather than its own
+`ResizeObserver`. An observer that only writes a CSS variable or places an
+overlay (the plan's toolbar height, the status bar's fit) needs no state and
+stays as it is; so, for now, do `MapCard` and `MapFeatureTable`, whose measured
+element remounts or is found from the panel, which a ref read on mount does not
+follow.
+
+| Need | Use |
+| --- | --- |
+| Draw at an element's width or height (a chart, a canvas, an image viewer, a grid's columns) | `useElementSize(ref)` (`src/hooks/useElementSize.ts`). Measured before the first paint, no re-render for an unchanged size, and a hidden element (0 × 0) keeps its last size. `box: 'content'` measures inside the padding; `initial` is the size before the first measurement; `accept` narrows which measurements count (a viewer that needs an area keeps the last one with both sides); `immediate` re-renders inside the resize, for a drawing that must never show a stretched frame. Pass the element itself for one the page does not render, such as a map's container |
+| Fold, wrap or hide something below a size | `useSizeFold(size, { foldBelow, unfoldFrom })` (`src/hooks/useSizeFold.ts`) on top of `useElementSize` |
+| Edge arrows or fades on a sideways strip | `useScrollEdges(ref, selector?)` (`src/hooks/useScrollEdges.ts`). It follows scrolling, the strip's size and each child's, in reading order (`previous`, `next`) |
+| A vertical wheel scrolling a sideways strip | `useHorizontalWheel(ref, selector?)` (`src/components/ui/horizontal-scroll.ts`), a non-passive listener: React's `onWheel` is passive, so a `preventDefault` there is ignored and the page scrolls with the strip. It leaves trackpad swipes, Ctrl + wheel and fields in the strip to the browser, and gives the wheel back to the page at either end |
+
+**A switch must not undo itself.** A layout that changes at a measured size
+almost always changes that size: a chart that folds its readouts away gives the
+panel back its grip reserve (`data-axis-at-bottom`, `panel-corner.css`) and
+reads 16 px taller, which unfolds it, which shrinks it again, every frame, with
+nothing reported. So a fold takes `useSizeFold` with `unfoldFrom` above
+`foldBelow` by more than anything the fold gives back or takes (the road
+designer's charts fold below 260 px and unfold from 284 px; the road view's
+controls fold below 640 px of map and unfold from 656 px). A switch that cannot
+change the measured box (a map container's width, an overlay's) still takes a
+small gap, so a pane dragged across the line does not flicker. A CSS container
+query that changes its own container's size has the same loop; keep such rules
+to what sits inside the container.
+
+`useElementSize` and `useSizeFold` live in the toolkit (`@pgmaps/geo-toolkit/ui`,
+its API.md, **Measured sizes and folds**); `src/hooks/useElementSize.ts` and
+`useSizeFold.ts` re-export them, so PG Maps and the toolkit share one
+implementation. The toolkit's own `MapTimeline` densities, `DashboardToolbar`,
+`SizedChart` and `ChartViewport` (`immediate`, re-rendering inside the resize)
+measure through them too.

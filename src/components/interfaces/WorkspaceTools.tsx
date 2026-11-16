@@ -7,6 +7,7 @@ import { RibbonFinder, type RibbonResult, type ToolResult } from './RibbonFinder
 import { editorSections, revealEditorSection } from './ribbonEditorSections'
 import { RibbonGroupSettings, focusRibbonItem, settingsTitleFor } from './RibbonGroupSettings'
 import { RibbonTaskPane } from './RibbonTaskPane'
+import { roadWorkflowAnchor } from '@/pages/dev-forestry-roads/tours/roadTour'
 import { RibbonStrip, RibbonTabs } from './RibbonNavigation'
 import {
   isRibbonCommand as isCommand,
@@ -346,6 +347,8 @@ export function WorkspaceTools({
             ref={editorLauncher}
             className="lp-fold-editors"
             type="button"
+            // The tab's editor opens here, so a lesson's workflow tab (`road.workflow.<editor>`) is this button.
+            data-tutorial-id={roadWorkflowAnchor(group.editor)}
             aria-label={editorButtonLabel}
             aria-expanded={!folded}
             title={paneEditor ? `${editorButtonLabel} · ${group.label}` : editorButtonLabel}
