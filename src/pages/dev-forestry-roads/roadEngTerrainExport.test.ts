@@ -241,7 +241,7 @@ describe('RoadEng terrain export', () => {
       }
     }
     expect(hull).toBe([...edgeUse.values()].filter((u) => u === 1).length)
-  })
+  }, 30_000) // Walks every triangle edge of the written file: about 6 s on a CI runner, over the 5 s default.
 
   it('reads every drawn feature back as its kind, named for its code, at its own levels', () => {
     const drawn = back.terrain.features.filter((f) => !f.inTin)
