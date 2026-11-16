@@ -109,6 +109,9 @@ jobs:
           PGMAPS_SKIP_VENDOR_DATA_SYNC: '1'
           VITE_BC_DB_CHUNK_BASE_URL: https://data.map.ahmad.sh/census/bc-db-chunks
           VITE_NECHAKO_GATEWAY_URL: https://pgmaps-nechako-portal.ahzs645.workers.dev/api/nechako-portal
+          # The road view's other renderers, each the engine's own Pages build (externalRenderers.ts).
+          VITE_FORESTRY_WORLDGEN_URL: https://projects.ahmadjalil.com/threejs-worldgen/demo/pgmaps-scene.html?embed
+          VITE_FORESTRY_NANITE_URL: https://projects.ahmadjalil.com/threejs-nanites/examples/pgmaps-scene.html?embed
 
       # EPT divides the 551 MB original into small browser-streamable tiles.
       # Keep generated binaries out of Git and restore them after the app build.
