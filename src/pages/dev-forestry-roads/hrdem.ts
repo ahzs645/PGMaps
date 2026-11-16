@@ -8,18 +8,26 @@ import { createReadQueue } from './sentinel/readQueue'
 export const HRDEM_COLLECTION = 'hrdem-mosaic-1m'
 export const HRDEM_SEARCH_URL = 'https://datacube.services.geo.ca/stac/api/search'
 export const HRDEM_CREDIT = 'NRCan · CanElevation HRDEM 1 m · Open Government Licence – Canada'
+export const HRDEM_RELIEF_NAME = 'NRCan 1 m relief'
+export const HRDEM_RELIEF_DESCRIPTION =
+  "NRCan's shaded relief from its 1–2 m bare-earth model, where it is published. Display only."
 export const HRDEM_RELIEF_CREDIT = 'NRCan · CanElevation HRDEM relief (1–2 m source) · Open Government Licence – Canada'
 export const HRDEM_MAX_ITEMS = 4
 export const HRDEM_TIMEOUT_MS = 90_000
 export const HRDEM_MAX_RANGE_BYTES = 32 * 1024 * 1024
 export const HRDEM_MAX_DOWNLOAD_CELLS = 32_000_000
 export const HRDEM_MAX_DOWNLOAD_BOXES = 64
-export const HRDEM_RELIEF_MIN_ZOOM = 12
+/**
+ * NRCan renders the mosaic at any scale, so the relief starts where the regional contours do. Each
+ * view asks for the same few tiles at any zoom; one 512 px tile at z9 spans about 90 km here and
+ * took NRCan about 3 s, against about 5 s at z12 (November 2026).
+ */
+export const HRDEM_RELIEF_MIN_ZOOM = 9
 export const HRDEM_RELIEF_MAX_ZOOM = 16
 
 /** Tile requests are view-local; beyond z16 MapLibre reuses the same source pixels. */
 export const HRDEM_RELIEF_TILES = [
-  'https://datacube.services.geo.ca/ows/elevation?service=WMS&version=1.3.0&request=GetMap&layers=dtm-hillshade&styles=&format=image/png&transparent=true&crs=EPSG:3857&width=512&height=512&bbox={bbox-epsg-3857}',
+  'https://datacube.services.geo.ca/wrapper/ogc/elevation-hrdem-mosaic?service=WMS&version=1.3.0&request=GetMap&layers=dtm-hillshade&styles=&format=image/png&transparent=true&crs=EPSG:3857&width=512&height=512&bbox={bbox-epsg-3857}',
 ]
 
 export type DetailArea = { id: string; name: string; coordinates: Coordinate[] }

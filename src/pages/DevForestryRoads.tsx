@@ -234,6 +234,8 @@ import { DetailAreaDialog, type DetailSource, type DetailWindow } from './dev-fo
 import { LIDAR_BC_VERTICAL_REFERENCE } from './dev-forestry-roads/lidarBcDem'
 import { readLocalDemWindow } from './dev-forestry-roads/localDemWindow'
 import {
+  HRDEM_RELIEF_DESCRIPTION,
+  HRDEM_RELIEF_NAME,
   loadHrdemArea,
   downloadHrdemBoxes,
   demBoxesGeoJson,
@@ -7355,6 +7357,21 @@ export default function DevForestryRoads({
             pegAt(at, name)
           }}
           onRoadEndAt={moveRoadEnd}
+          baseLayers={[
+            {
+              key: 'hrdem-relief',
+              name: HRDEM_RELIEF_NAME,
+              description: HRDEM_RELIEF_DESCRIPTION,
+              visible: planDisplay.showHrdem,
+              unavailable:
+                project.terrain.epsg === LOCAL_PLANE_EPSG
+                  ? 'A project on the flat plane has no place on the map yet.'
+                  : planDisplay.terrainLayer === 'none'
+                    ? 'Terrain display is set to Basemap.'
+                    : undefined,
+              onVisibleChange: planDisplay.setShowHrdem,
+            },
+          ]}
         />
       )}
       {summaryAvailable && summaryTarget !== null && (

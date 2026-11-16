@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Layers3,
   LocateFixed,
+  Mountain,
   Pencil,
   Route,
   Trash2,
@@ -183,6 +184,18 @@ function Branch({
   )
 }
 
+/** A background the plan draws for context, shown and hidden from the Layers list. */
+export type BaseMapLayer = {
+  key: string
+  name: string
+  /** What it is, as the row's tooltip. */
+  description: string
+  visible: boolean
+  /** Why it cannot be shown now, when it cannot. */
+  unavailable?: string
+  onVisibleChange: (visible: boolean) => void
+}
+
 export function ReferencePanel({
   open,
   onClose,
@@ -203,6 +216,7 @@ export function ReferencePanel({
   onFitBuffer,
   onPegAt,
   onRoadEndAt,
+  baseLayers = [],
 }: {
   open: boolean
   onClose: () => void
@@ -224,6 +238,8 @@ export function ReferencePanel({
   onFitBuffer: (setting: CutblockBuffer) => void
   onPegAt?: (at: Coordinate, name: string) => void
   onRoadEndAt?: (at: Coordinate, name: string, end: 'start' | 'end') => void
+  /** The plan's own backgrounds, listed after the project's layers. */
+  baseLayers?: readonly BaseMapLayer[]
 }) {
   const { reference, context, cutblockBuffers, referenceStyles, alignments, designPlaceholderId, activeAlignmentId } =
     w.project
@@ -656,7 +672,7 @@ export function ReferencePanel({
           disabled={disabled}
           dropProps={{ 'data-testid': 'road-layer-drop' }}
         />
-        {(layers.length > 0 || roads.length > 0) && (
+        {(layers.length > 0 || roads.length > 0 || baseLayers.length > 0) && (
           <>
             {layers.length > 0 && (
               <Button variant="outline" size="sm" onClick={() => onLocate(layers.flatMap((layer) => layer.features))}>
@@ -699,6 +715,46 @@ export function ReferencePanel({
               )}
               {[...tree.folders.values()].map(renderFolder)}
               {tree.layers.map(renderLayer)}
+              {baseLayers.length > 0 && (
+                <li>
+                  <Branch
+                    name="Base map"
+                    icon={<Mountain className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                    open={disclosures.baseMap ?? true}
+                    toggle={() => toggle('baseMap', disclosures.baseMap ?? true)}
+                  >
+                    <ul>
+                      {baseLayers.map((layer) => (
+                        <li key={layer.key} data-base-layer={layer.key}>
+                          <Branch
+                            name={layer.name}
+                            title={layer.unavailable ?? layer.description}
+                            icon={null}
+                            muted={!layer.visible || !!layer.unavailable}
+                            open={false}
+                            toggle={() => {}}
+                            actions={
+                              <Button
+                                size="icon-xs"
+                                variant="ghost"
+                                className={rowActionClass}
+                                aria-label={`${layer.visible ? 'Hide' : 'Show'} ${layer.name}`}
+                                title={layer.unavailable ?? (layer.visible ? 'Hide layer' : 'Show layer')}
+                                disabled={!!layer.unavailable}
+                                onClick={() => layer.onVisibleChange(!layer.visible)}
+                              >
+                                {layer.visible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
+                              </Button>
+                            }
+                          >
+                            {null}
+                          </Branch>
+                        </li>
+                      ))}
+                    </ul>
+                  </Branch>
+                </li>
+              )}
             </ul>
           </>
         )}

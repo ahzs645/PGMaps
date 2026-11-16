@@ -39,12 +39,21 @@ not establish coverage: valid native cells do. Missing cells remain null, and a 
 window is an error. There is no automatic substitute for missing 1 m ground. A user may separately
 choose the regional screening source, which keeps its own resolution and datum label.
 
-The plan's **High-resolution DEM relief** uses NRCan's WMS `dtm-hillshade`: the best available
-HRDEM display source can be 1–2 m, rendered at map scale. It is display only, never analytical
-ground. It loads visible 512 px tiles from z12 through z16 and reuses z16 above that. Regional
-Terrarium relief sits underneath, capped at z12. The selected project terrain is drawn above
-these context layers, and Sentinel stays above the rasters and below engineering layers.
-Selecting **Basemap** disables both relief backgrounds.
+The plan's **NRCan 1 m relief** uses NRCan's WMS `dtm-hillshade` at
+`datacube.services.geo.ca/wrapper/ogc/elevation-hrdem-mosaic`: the best available HRDEM display
+source can be 1–2 m, rendered at map scale. The older `/ows/elevation` address answers with a
+redirect that carries no CORS header, so a browser loads no tile from it. It is display only,
+never analytical ground. It loads visible 512 px tiles from z9 through z16 and reuses z16 above
+that; each view asks for the same few tiles at any zoom. NRCan draws flat ground mid-grey and
+publishes BC in project-sized patches, so the plan raises its contrast and floor until flat ground
+reads at about the basemap's tone, and fades it to half strength toward z9, where NRCan's own
+rendering is strongest. It is switched in the map's **Basemap** control and in Layers → **Base
+map**, the same setting in both. Regional Terrarium relief sits underneath, capped at z12, with
+the regional contours (`RegionalContourLayer`, from the same Terrarium tiles) over both. Both
+relief layers sit under the basemap's water and roads, or over imagery and under the labels when
+Satellite is chosen. The selected project terrain is drawn above these context layers, and
+Sentinel stays above the rasters and below engineering layers. Selecting **Basemap** in the
+terrain display list disables both relief backgrounds.
 
 **Show nearby active FSR records (1 km)** is off by default. On load/download it queries each
 box's buffered local area, merges overlapping query windows and deduplicates source road IDs.

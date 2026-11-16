@@ -8,6 +8,12 @@ import { terrainCoverShare } from './tinGround'
 
 export interface TerrainDisplay {
   hillshade: string
+  /**
+   * The plan's rendition of the same light: flat ground near white and only slopes shaded, as the
+   * regional relief around it is drawn, so loaded terrain reads as finer relief rather than a grey
+   * box. Exports and sheets keep `hillshade`.
+   */
+  relief: string
   slope: string
   elevation: string
   /** Downslope bearing clockwise from geographic north; flat terrain is neutral grey. */
@@ -57,6 +63,23 @@ export function terrainAspectFromGradient(eastGradient: number, northGradient: n
     state: 'aspect',
     degrees: ((Math.atan2(-eastGradient, -northGradient) * 180) / Math.PI + 360) % 360,
   }
+}
+
+/** Flat ground's tone in the plan's relief, and how far a slope facing away from the sun darkens it. */
+export const RELIEF_FLAT_SHADE = 248
+const RELIEF_SHADOW_DEPTH = 160
+/**
+ * Relief tone for a hillshade light (0–1; flat ground under the 45° sun is √½): flat ground
+ * stays {@link RELIEF_FLAT_SHADE}, slopes facing away darken toward it less the shadow depth, and
+ * slopes facing the sun lighten to white.
+ */
+export function reliefShade(light: number): number {
+  const lit = light / Math.SQRT1_2
+  return Math.round(
+    lit <= 1
+      ? RELIEF_FLAT_SHADE - (1 - lit) * RELIEF_SHADOW_DEPTH
+      : RELIEF_FLAT_SHADE + ((Math.min(lit, Math.SQRT2) - 1) / (Math.SQRT2 - 1)) * (255 - RELIEF_FLAT_SHADE),
+  )
 }
 
 const MAX_CONTOUR_SEGMENTS = 60_000
@@ -229,6 +252,7 @@ export function buildTerrainDisplay(
       }
     }
   const hillshade = new Uint8ClampedArray(width * height * 4)
+  const relief = new Uint8ClampedArray(width * height * 4)
   const slope = new Uint8ClampedArray(width * height * 4)
   const elevation = new Uint8ClampedArray(width * height * 4)
   const aspect = new Uint8ClampedArray(width * height * 4)
@@ -269,6 +293,8 @@ export function buildTerrainDisplay(
       const light = clamp((-zx * -0.5 - zy * 0.5 + Math.SQRT1_2) / normal, 0, 1)
       const shade = Math.round(55 + light * 200)
       write(hillshade, index, [shade, shade, shade])
+      const tone = reliefShade(light)
+      write(relief, index, [tone, tone, tone])
       write(slope, index, slopeColor((Math.atan(Math.hypot(zx, zy)) * 180) / Math.PI))
       const direction = terrainAspectFromGradient(zx, zy)
       if (direction.state === 'aspect') write(aspect, index, aspectColor(direction.degrees))
@@ -362,6 +388,7 @@ export function buildTerrainDisplay(
   }
   return {
     hillshade: encodePng(hillshade, width, height),
+    relief: encodePng(relief, width, height),
     slope: encodePng(slope, width, height),
     elevation: encodePng(elevation, width, height),
     aspect: encodePng(aspect, width, height),

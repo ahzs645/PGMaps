@@ -92,7 +92,9 @@ import { Sentinel2Panel } from './sentinel/Sentinel2Panel'
 import { useSentinel2 } from './sentinel/useSentinel2'
 import { useSentinelViewport } from './sentinel/useSentinelViewport'
 import { RegionalDemLayer } from './RegionalDemLayer'
+import { RegionalContourLayer } from './RegionalContourLayer'
 import { HrdemReliefLayer } from './HrdemReliefLayer'
+import { HRDEM_RELIEF_NAME } from './hrdem'
 import { ProvincialStreamLayers } from './ProvincialStreamLayers'
 import { SightlinePlanLayers } from './SightlinePlanLayers'
 import { AccessHistoryLayers } from './AccessHistoryLayers'
@@ -303,11 +305,11 @@ function placeOn(alignment: Alignment, chainage: number) {
 const TERRAIN_OPACITY = 0.82
 const IMAGERY_HILLSHADE_OPACITY = 0.5
 /**
- * Dark theme: the hillshade image (greys 55–255) is dimmed through `raster-brightness-max`, so the
- * relief keeps its lighting and the image itself, which exports and sheets reuse, stays light.
+ * Dark theme: the plan's relief image (flat ground near white) is dimmed through
+ * `raster-brightness-max`, so the relief keeps its lighting and the image itself stays light.
  * Slope, aspect and elevation are read by colour against the legend, so they are left as drawn.
  */
-const DARK_HILLSHADE_BRIGHTNESS_MAX = 0.34
+const DARK_HILLSHADE_BRIGHTNESS_MAX = 0.2
 const CONTOUR_PAINT = {
   light: { color: '#57534e', opacity: 0.45 },
   dark: { color: '#d6d3d1', opacity: 0.32 },
@@ -1181,7 +1183,8 @@ function Layers(
     if (!map.getSource(CUTBLOCK_BUFFER_SOURCE))
       map.addSource(CUTBLOCK_BUFFER_SOURCE, { type: 'geojson', data: latestBuffers.current })
     if (display && props.terrainLayer !== 'none') {
-      const url = display[props.terrainLayer]
+      // Over the map the hillshade is drawn as the relief around it is; over imagery it stays the grey hillshade.
+      const url = props.terrainLayer === 'hillshade' && !props.imagery ? display.relief : display[props.terrainLayer]
       const existing = map.getSource('road-terrain') as ImageSource | undefined
       const coordinates = display.coordinates as [Coordinate, Coordinate, Coordinate, Coordinate]
       if (existing) existing.updateImage({ url, coordinates })
@@ -2846,6 +2849,16 @@ export function PlanView(input: PlanProps) {
                   basemaps={IMAGERY_BASEMAPS}
                   basemap={basemap}
                   onBasemapChange={setBasemap}
+                  overlays={[
+                    {
+                      id: 'hrdem-relief',
+                      label: HRDEM_RELIEF_NAME,
+                      description: 'Where NRCan publishes it',
+                      checked: props.display.showHrdem,
+                      onCheckedChange: props.display.setShowHrdem,
+                      disabled: props.display.terrainLayer === 'none' || !!plane,
+                    },
+                  ]}
                 />
               </MapControls>
             </>
@@ -2876,7 +2889,16 @@ export function PlanView(input: PlanProps) {
             visible={props.display.terrainLayer !== 'none' && !plane}
             imagery={basemap === 'satellite'}
           />
-          <HrdemReliefLayer visible={props.display.showHrdem && props.display.terrainLayer !== 'none' && !plane} />
+          <HrdemReliefLayer
+            visible={props.display.showHrdem && props.display.terrainLayer !== 'none' && !plane}
+            dark={dark}
+            imagery={basemap === 'satellite'}
+          />
+          <RegionalContourLayer
+            visible={showContours && props.display.terrainLayer !== 'none' && !plane}
+            dark={dark}
+            imagery={basemap === 'satellite'}
+          />
           {props.detailArea && (
             <MapLineLayer
               interactive={false}
@@ -3101,7 +3123,6 @@ export function PlanView(input: PlanProps) {
                   ['Contours', showContours, setShowContours],
                   ['Labels', showLabels, setShowLabels],
                   ['Sentinel-2 imagery', showSentinel, setShowSentinel],
-                  ['High-resolution DEM relief', props.display.showHrdem, props.display.setShowHrdem],
                   ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
                   ...(reference.length && props.onReferenceVisibility
                     ? [

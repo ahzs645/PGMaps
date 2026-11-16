@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildTerrainDisplay,
+  RELIEF_FLAT_SHADE,
+  reliefShade,
   TERRAIN_ASPECT_FLAT_COLOR,
   TERRAIN_ASPECT_STOPS,
   terrainAspectFromGradient,
@@ -103,7 +105,7 @@ describe('same-source aspect preview', () => {
     expect(pixel(aspect, 0, 0)).toEqual(expected)
     expect(pixel(aspect, aspect.width - 1, aspect.height - 1)).toEqual(expected)
     expect(calls).toBe(aspect.width * aspect.height)
-    expect(images.size).toBe(4)
+    expect(images.size).toBe(5)
     expect(display.coordinates).toEqual([
       [-0.001, 0.001],
       [0.001, 0.001],
@@ -139,6 +141,7 @@ describe('same-source aspect preview', () => {
       elevation = images.get(display.elevation)!
     expect(pixel(aspect, 16, 16)[3]).toBe(0)
     expect(pixel(images.get(display.hillshade)!, 16, 16)[3]).toBe(0)
+    expect(pixel(images.get(display.relief)!, 16, 16)[3]).toBe(0)
     for (const [column, row] of [
       [15, 16],
       [17, 16],
@@ -194,5 +197,21 @@ describe('a display over a sparsely covered box', () => {
     )
     const sparse = buildTerrainDisplay(flat, bounds, 64, { coverShare: 0.25 })
     expect(sparse.resolutionM).toBeCloseTo(buildTerrainDisplay(flat, bounds, 128).resolutionM, 9)
+  })
+
+  it("draws the plan's relief with flat ground light and only slopes shaded", () => {
+    expect(reliefShade(Math.SQRT1_2)).toBe(RELIEF_FLAT_SHADE)
+    expect(reliefShade(1)).toBe(255)
+    expect(reliefShade(0)).toBeLessThan(100)
+    const images = captureCanvas()
+    const display = buildTerrainDisplay({ elevationAt: () => 400 }, bounds, 32)
+    expect(pixel(images.get(display.relief)!, 16, 16)).toEqual([
+      RELIEF_FLAT_SHADE,
+      RELIEF_FLAT_SHADE,
+      RELIEF_FLAT_SHADE,
+      255,
+    ])
+    // Exports and sheets keep the grey hillshade.
+    expect(pixel(images.get(display.hillshade)!, 16, 16)[0]).toBeLessThan(RELIEF_FLAT_SHADE)
   })
 })

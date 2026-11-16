@@ -15,7 +15,7 @@ test('import prepares separate boxes without downloading; chosen 1 m terrain and
     r.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
   await page.route('https://s3.amazonaws.com/elevation-tiles-prod/**', (r) => r.abort())
-  await page.route('https://datacube.services.geo.ca/ows/**', (r) => r.abort())
+  await page.route('https://datacube.services.geo.ca/wrapper/ogc/**', (r) => r.abort())
   const point: [number, number] = [-122.72, 53.89]
   const window = detailWindow([point], 500)
   const tiff = Buffer.from(
