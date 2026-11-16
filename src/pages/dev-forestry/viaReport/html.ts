@@ -154,17 +154,17 @@ table.form-grid table.matrix{font-size:10px}table.form-grid table.matrix th,tabl
 @media print{body{margin:0;max-width:none}button{display:none}}`
 
 /** Tables and matrices wider than this many columns print on a landscape page. */
-const WIDE_COLUMNS = 7
+export const WIDE_COLUMNS = 7
 /** A table too wide for portrait goes on a landscape page; the alteration guide's grid fits portrait, as 01 prints it. */
-const isWide = (block: ReportBlock) =>
+export const isWide = (block: ReportBlock) =>
   (block.kind === 'table' || block.kind === 'matrix') &&
   block.columns.length > WIDE_COLUMNS &&
   !(block.kind === 'matrix' && block.style === 'class-grid')
 /** A figure this wide for its height is an 11 × 17 analysis sheet (1224 × 792 pt), printed on a page of its own. */
-const isSheet = (figure: { width: number; height: number }) =>
+export const isSheet = (figure: { width: number; height: number }) =>
   Math.abs(figure.width / figure.height - 1224 / 792) < 0.05
 /** A map this tall for its width is the portrait 11 × 17 end map (792 × 1224 pt), printed full-size on its own page. */
-const isPortraitSheet = (figure: { width: number; height: number; map?: unknown }) =>
+export const isPortraitSheet = (figure: { width: number; height: number; map?: unknown }) =>
   !!figure.map && Math.abs(figure.width / figure.height - 792 / 1224) < 0.02
 
 /** Print rules for the report's paper: running header, page numbers, and the landscape and 11 × 17 pages. */
@@ -207,7 +207,7 @@ const CLOSING_TEXT_CHARS = 1500
  * How many paragraphs from `from` close a landscape table's section and print on its page: text only, up to the next
  * heading (or the end), and no more than `CLOSING_TEXT_CHARS` of it; none when anything else comes first.
  */
-function closingText(blocks: readonly ReportBlock[], from: number): number {
+export function closingText(blocks: readonly ReportBlock[], from: number): number {
   let n = 0,
     chars = 0
   for (; from + n < blocks.length; n++) {

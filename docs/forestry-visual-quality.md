@@ -299,7 +299,7 @@ and its buttons only open the dialog on an output (*Export the block note…*,
 | | FS1252 form | PDF | Stations, each one's reviewer inputs, run diagnostics, office fields |
 | | Analysis sheet | PDF, PNG | Which of the package's views, figure style, label style, camera block, logo |
 | | VIA document | Markdown, JSON | The format, only while the package has no recipe |
-| | VIA report | Printable HTML, Markdown | The overview sheet's style when the recipe prints one; logo. A *Draft* view lays it out with stand-ins and draws its pictures one group at a time (**VIA reports**) |
+| | VIA report | PDF, Printable HTML, Markdown | The overview sheet's style when the recipe prints one; logo. A *Draft* view lays it out with stand-ins and draws its pictures one group at a time (**VIA reports**) |
 | | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
 | | Worksheet | Markdown | — |
 | | VIA evidence package | PDF, printable HTML | — |
@@ -2949,7 +2949,8 @@ measured on a photo-montage, and the reviewer's design judgements.
 ## VIA reports
 
 Save & export → **VIA report** writes a whole report, not only its figures, in
-the structure of a reference VIA (printable HTML, or Markdown for review). A
+the structure of a reference VIA (a PDF by default, printable HTML, or Markdown
+for review). A
 report is a **recipe**: an ordered list of shared **parts**
 (`src/pages/dev-forestry/viaReport/recipes.ts`, `parts.ts`) and the VIA document
 format whose arithmetic, scale and wording the parts read. The reports share
@@ -3091,8 +3092,29 @@ the 11 × 17 test (`isSheet`) and printed at the legal page's text width, a
 two-frame panorama a thin band; a
 
 heading moves onto the page it introduces rather than staying at the foot of the
-one before. The 2001 forms list their viewpoints in columns. Print the HTML from
-the browser (*Print / save as PDF*): the page sizes are the report's own.
+one before. The 2001 forms list their viewpoints in columns.
+
+**The PDF** (`viaReport/pdf.ts`, `reportPdf`, the report's default format) is
+drawn from the same `AssembledReport` as the HTML, with jsPDF passed in and no
+DOM, by the same page rules: the recipe's paper, the cover and a contents page
+that gives each section's and picture's page (linked, and bookmarked), the
+running header and "Page n of N" (no number on the cover or on a full-size map
+sheet), landscape pages for tables wider than seven columns, each analysis
+sheet on an 11 × 17 landscape page with its calculation strip, a map at the
+sheet's shape full-size on 11 × 17, the portrait end map on 11 × 17 portrait,
+figure pages on letter landscape, and the to-complete list where the HTML puts
+it. Tables break between rows and repeat their header row; a block the HTML
+keeps whole (fields, matrices, scales, figures) moves to the next page whole,
+and a heading moves with what it introduces. Scales and matrices are vectors
+drawn from the block's own data (`scaleGeometry`), never a rasterised SVG.
+Every string goes through `pdfText` (superscript footnote digits fold to plain
+digits); tick boxes and ticks are drawn. A picture is embedded once however
+often it prints (a jsPDF alias), PNGs deflated, JPEGs as they are; one that is
+not a PNG or JPEG, or does not decode, prints a box saying so. The logo is the
+printed logo as a PNG or JPEG (a brand's SVG rasterised, as the analysis sheet
+takes it). The printable HTML is still offered for the browser's own print
+(*Print / save as PDF*, with the page sizes in its CSS) and is unchanged; the
+draft is HTML only.
 
 **Maps, before pictures and overhead renders.** When a report is built, the page
 captures what its figure parts need (`reportMaps.ts` plans them, DOM-free;

@@ -687,9 +687,12 @@ test('drafts the VIA report without capturing, draws its pictures one group at a
 
   await test.step('The file is written from the same pictures, with no stand-in, mark or tint', async () => {
     await openVisualsExport(page, 'VIA report')
+    // PDF is the report's default format; the printable HTML is the one these marks would show in.
+    await dialog.getByRole('button', { name: 'Printable HTML', exact: true }).click()
     const downloading = page.waitForEvent('download', { timeout: 10 * 60_000 })
     await dialog.getByRole('button', { name: 'Download VIA report', exact: true }).click()
     const download = await downloading
+    expect(download.suggestedFilename()).toMatch(/\.html$/)
     const html = await readFile((await download.path())!, 'utf8')
     expect(html).toContain('PGMaps report from your own recipe')
     expect(html).not.toContain('data-draw')

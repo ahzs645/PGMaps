@@ -64,6 +64,7 @@ import { resolveViaDocument } from './viaDocument/resolve'
 import { EVQO_CODE_FOR_CLASS } from './visualsNarrative'
 import { buildReportContext, type ReportView } from './viaReport/context'
 import { reportHtml, reportMarkdown } from './viaReport/html'
+import { reportPdf } from './viaReport/pdf'
 import type { ReportFigure } from './viaReport/model'
 import type { ReportImages } from './viaReport/parts'
 import type { ReportSetting } from './viaReport/setting'
@@ -1241,6 +1242,17 @@ export function useVisualsExport(input: {
         const { report } = await composeReport('file')
         const fileName = `forestry-via-report-${reportRecipe.id}`
         if (format === 'md') return textFile(reportMarkdown(report), `${fileName}.md`, 'text/markdown')
+        if (format === 'pdf') {
+          // The PDF takes the logo as a PNG or JPEG: a brand's SVG logo rasterised, as the analysis sheet takes it.
+          const [jspdf, { printedLogoRaster }] = await Promise.all([import('jspdf'), import('@/branding/raster')])
+          const raster = chosenLogo ? await printedLogoRaster(branding) : null
+          const logo =
+            chosenLogo && raster?.kind === 'url' ? { name: chosenLogo.name, dataUrl: raster.url } : reportLogo()
+          return {
+            blob: new Blob([reportPdf(report, logo, jspdf)], { type: 'application/pdf' }),
+            fileName: `${fileName}.pdf`,
+          }
+        }
         return textFile(
           brandedHtml(reportHtml(report, reportLogo()), exportBrand(branding)),
           `${fileName}.html`,
