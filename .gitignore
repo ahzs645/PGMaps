@@ -169,3 +169,6 @@ scripts/lidar/__pycache__/
 
 # Intermediate LiDAR grids kept for snapshot regeneration (scripts/lidar/run.py --work)
 .lidar-work/
+
+# Road view engines built from their submodules (scripts/build-engines.mjs)
+public/engines/

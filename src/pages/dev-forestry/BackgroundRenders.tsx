@@ -13,13 +13,14 @@ import { Loader2, X } from 'lucide-react'
 import { TextButton } from '@/components/ui/text-button'
 
 import type { EngineCaptureHandle } from './ExternalRoadRenderer'
+import type { EngineChannel } from './engineChannel'
+import { EngineSurface } from './EngineSurface'
 import { captureTransfer, readCaptureProgress } from './engineCapture'
 import {
   engineCamera,
   engineEnvironment,
   readEngineMessage,
   roadRendererInfo,
-  separateSiteUrl,
   type EngineEnvironmentChoice,
 } from './externalRenderers'
 import {
@@ -109,11 +110,16 @@ function saveHistory(history: RenderHistory) {
   }
 }
 
-/** The engine page's bridge for captures only: scene, environment, a still camera, the capture and its progress. */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve = () => {}
+  const promise = new Promise<void>((done) => (resolve = done))
+  return { promise, resolve }
+}
+
+/** The engine's bridge for captures only: scene, environment, a still camera, the capture and its progress. */
 function useCaptureBridge(
-  frame: React.RefObject<HTMLIFrameElement | null>,
+  channel: EngineChannel | null,
   engine: RenderEngineId | null,
-  url: string | null,
   environment: EngineEnvironmentChoice,
 ) {
   const helloRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null)
@@ -124,13 +130,16 @@ function useCaptureBridge(
   useEffect(() => {
     environmentRef.current = environment
   })
+  // The hello a cold job waits for exists as soon as an engine is wanted: its worker or frame connects a render
+  // later, and the job must not miss the hello by asking before then.
   useEffect(() => {
-    if (!engine || !url) return
+    if (engine) helloRef.current ??= deferred()
+  }, [engine, channel])
+  useEffect(() => {
+    if (!engine || !channel) return
     const info = roadRendererInfo(engine)
-    const origin = new URL(url, window.location.href).origin
-    let resolveHello = () => {}
-    const promise = new Promise<void>((resolve) => (resolveHello = resolve))
-    helloRef.current = { promise, resolve: resolveHello }
+    const hello = (helloRef.current ??= deferred())
+    const resolveHello = hello.resolve
     let readyWaiter: (() => void) | null = null
     // What this engine page takes (its hello), and the key of the package it was last sent: a page that says hello
     // again has loaded again and holds nothing.
@@ -145,23 +154,21 @@ function useCaptureBridge(
     let abandon: (() => void) | null = null
     // A handle taken before the bridge was torn down must not post into a bridge nothing listens to any more.
     let closed = false
-    const post = (data: unknown, transfer: Transferable[] = []) =>
-      frame.current?.contentWindow?.postMessage(data, { targetOrigin: origin, transfer })
-    const onMessage = (event: MessageEvent) => {
-      if (event.source !== frame.current?.contentWindow || event.origin !== origin) return
-      const raw = event.data as { type?: unknown; id?: unknown } | null
+    const post = channel.post
+    const onMessage = (message: unknown) => {
+      const raw = message as { type?: unknown; id?: unknown } | null
       if (raw?.type === 'pgmaps-engine-capture' && typeof raw.id === 'string') {
         const reply = replies.get(raw.id)
         replies.delete(raw.id)
         reply?.(raw)
         return
       }
-      const step = readCaptureProgress(event.data)
+      const step = readCaptureProgress(message)
       if (step) {
         if (replies.has(step.id)) progress?.(step)
         return
       }
-      const data = readEngineMessage(event.data)
+      const data = readEngineMessage(message)
       if (data?.type === 'pgmaps-engine-hello') {
         accepts = data.accepts
         heldKey = null
@@ -170,7 +177,7 @@ function useCaptureBridge(
       else if (data?.type === 'pgmaps-engine-ready') readyWaiter?.()
       else if (data?.type === 'pgmaps-engine-error') failure?.(data.message ?? 'The engine stopped.')
     }
-    window.addEventListener('message', onMessage)
+    const unlisten = channel.listen(onMessage)
     const capture: EngineCaptureHandle['capture'] = (scene: ScenePackage, makeRequest) =>
       new Promise((resolve, reject) => {
         if (closed) {
@@ -264,7 +271,7 @@ function useCaptureBridge(
     }
     return () => {
       closed = true
-      window.removeEventListener('message', onMessage)
+      unlisten()
       abandon?.()
       abandon = null
       replies.clear()
@@ -273,7 +280,7 @@ function useCaptureBridge(
       handleRef.current = null
       helloRef.current = null
     }
-  }, [engine, url, frame])
+  }, [engine, channel])
   return { helloRef, handleRef }
 }
 
@@ -301,11 +308,10 @@ export function useBackgroundRenders(input: {
     return () => window.clearTimeout(timer)
   }, [queued])
   const engine = queued ?? (jobs.length ? lingering : null)
-  // On a site of its own, so its long scripts run in another process and never freeze the page.
-  const configured = engine ? input.urlFor(engine) : null
-  const url = configured ? separateSiteUrl(configured, window.location.href).url : null
-  const frame = useRef<HTMLIFrameElement>(null)
-  const { helloRef, handleRef } = useCaptureBridge(frame, engine, url, input.environment)
+  // A worker on its own thread, or a page on a site of its own (`EngineSurface`): its long scripts never freeze the page.
+  const url = engine ? input.urlFor(engine) : null
+  const [channel, setChannel] = useState<EngineChannel | null>(null)
+  const { helloRef, handleRef } = useCaptureBridge(channel, engine, input.environment)
   const runRef = useRef(input.run)
   useEffect(() => {
     runRef.current = input.run
@@ -520,13 +526,13 @@ export function useBackgroundRenders(input: {
             </button>
           )}
         </div>
-        {url && (
-          <iframe
-            ref={frame}
-            src={url}
+        {url && engine && (
+          <EngineSurface
+            key={`${engine} ${url}`}
+            url={url}
             title={`Background renders by ${label}`}
-            allow="webgpu"
-            className="pointer-events-none aspect-video w-full rounded-md border-0 bg-muted"
+            onConnect={setChannel}
+            className="aspect-video w-full rounded-md bg-muted"
           />
         )}
         {running && (

@@ -16,3 +16,6 @@
 [submodule "vendor/brandkit"]
 	path = vendor/brandkit
 	url = https://github.com/ahzs645/brandkit.git
+[submodule "vendor/threejs-nanites"]
+	path = vendor/threejs-nanites
+	url = https://github.com/ahzs645/threejs-nanites.git

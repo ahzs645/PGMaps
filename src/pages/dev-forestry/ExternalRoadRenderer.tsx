@@ -1,7 +1,8 @@
 /**
- * Another engine drawing the road view (`externalRenderers.ts`): its own page in a frame over PGMaps' road view,
- * fed the scene package and the drive camera. The frame takes no pointer input, so dragging to look round, driving
- * and every control still go to PGMaps' map underneath, and the engine follows it.
+ * Another engine drawing the road view (`externalRenderers.ts`): a worker drawing into a canvas over PGMaps' road
+ * view, or its own page in a frame there (`EngineSurface`), fed the scene package and the drive camera. Neither takes
+ * pointer input, so dragging to look round, driving and every control still go to PGMaps' map underneath, and the
+ * engine follows it.
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject, type RefObject } from 'react'
@@ -18,9 +19,10 @@ import {
   needsNewPackage,
   readEngineMessage,
   roadRendererInfo,
-  separateSiteUrl,
   type RoadRendererId,
 } from './externalRenderers'
+import type { EngineChannel } from './engineChannel'
+import { EngineSurface } from './EngineSurface'
 import { captureTransfer, type EngineCaptureRequest } from './engineCapture'
 import type { ScenePackage } from './scenePackage'
 import { ACCEPTS_PACKED_ARRAYS, engineAccepts, packScene } from './scenePosting'
@@ -79,14 +81,10 @@ export function ExternalRoadRenderer({
   captureRef,
 }: Props) {
   const info = roadRendererInfo(renderer)
-  const frameRef = useRef<HTMLIFrameElement>(null)
+  const [channel, setChannel] = useState<EngineChannel | null>(null)
   const [phase, setPhase] = useState<Phase>('starting')
   const [message, setMessage] = useState<string | null>(null)
   const [stats, setStats] = useState<Record<string, unknown> | null>(null)
-  // On a site of its own, so the engine's long scripts (building a stand, a final capture) run in another process and
-  // never freeze PGMaps' page (`separateSiteUrl`): measured at 51-53 s a time on one shared main thread.
-  const frameUrl = separateSiteUrl(url, window.location.href).url
-  const origin = new URL(frameUrl).origin
   // The latest scene builder, for the bridge, which lives outside render.
   const buildRef = useRef(buildScene)
   const environmentRef = useRef(environment)
@@ -98,11 +96,11 @@ export function ExternalRoadRenderer({
   const bridgeRef = useRef<{ sendScene: () => void; sendEnvironment: () => void } | null>(null)
 
   useEffect(() => {
+    if (!channel) return
     let listening = false
     let current: ScenePackage | null = null
     // A transfer list hands buffers over rather than copying them (a final capture's stand is tens of megabytes).
-    const post = (data: unknown, transfer: Transferable[] = []) =>
-      frameRef.current?.contentWindow?.postMessage(data, { targetOrigin: origin, transfer })
+    const post = channel.post
     // What the engine page takes (its hello): one that takes packed arrays is handed the package's numbers as
     // buffers, not copied number by number on this page's main thread (`scenePosting.ts`).
     let accepts: unknown = null
@@ -219,16 +217,15 @@ export function ExternalRoadRenderer({
       })
     if (captureRef) captureRef.current = { renderer, label: info.label, capture }
 
-    const onMessage = (event: MessageEvent) => {
-      if (event.source !== frameRef.current?.contentWindow || event.origin !== origin) return
-      const raw = event.data as { type?: unknown; id?: unknown } | null
+    const onMessage = (message: unknown) => {
+      const raw = message as { type?: unknown; id?: unknown } | null
       if (raw?.type === 'pgmaps-engine-capture' && typeof raw.id === 'string') {
         const reply = replies.get(raw.id)
         replies.delete(raw.id)
         reply?.(raw)
         return
       }
-      const data = readEngineMessage(event.data)
+      const data = readEngineMessage(message)
       if (!data) return
       if (data.type === 'pgmaps-engine-hello') {
         accepts = data.accepts
@@ -246,7 +243,7 @@ export function ExternalRoadRenderer({
         setMessage(data.message ?? 'The engine stopped.')
       }
     }
-    window.addEventListener('message', onMessage)
+    const unlisten = channel.listen(onMessage)
 
     // The camera, once a frame at most; a new package once the eye has left the old one's stand.
     const map = mapRef.current
@@ -263,11 +260,12 @@ export function ExternalRoadRenderer({
     map?.on('move', onMove)
     map?.on('resize', onMove)
 
-    // An engine page that never answers (its server not running, a wrong address) says so rather than spinning.
+    // An engine that never answers (its server not running, a wrong address, a worker never built) says so rather
+    // than spinning.
     const timer = window.setTimeout(() => {
       if (listening) return
       setPhase('error')
-      setMessage(`no answer from ${origin}. Is its page running?`)
+      setMessage(`no answer from ${new URL(url, window.location.href).origin}. Is it running?`)
     }, 20000)
 
     return () => {
@@ -276,13 +274,13 @@ export function ExternalRoadRenderer({
       if (captureRef?.current?.capture === capture) captureRef.current = null
       replies.clear()
       readyWaiter = null
-      window.removeEventListener('message', onMessage)
+      unlisten()
       map?.off('move', onMove)
       map?.off('resize', onMove)
       if (frame) cancelAnimationFrame(frame)
       window.clearTimeout(timer)
     }
-  }, [origin, mapRef, poseRef, captureRef, renderer, info.label])
+  }, [channel, url, mapRef, poseRef, captureRef, renderer, info.label])
 
   // A new scene when the stand changes.
   useEffect(() => {
@@ -295,15 +293,14 @@ export function ExternalRoadRenderer({
 
   return (
     <>
-      <iframe
-        ref={frameRef}
-        src={frameUrl}
+      <EngineSurface
+        url={url}
         title={`Road view drawn by ${info.label}`}
-        allow="webgpu"
+        onConnect={setChannel}
         data-testid="road-view-engine"
         data-engine={renderer}
         data-engine-phase={phase}
-        className="pointer-events-none absolute inset-0 h-full w-full border-0"
+        className="absolute inset-0 h-full w-full"
       />
       <MapOverlay
         position="top-center"

@@ -109,11 +109,11 @@ jobs:
           PGMAPS_SKIP_VENDOR_DATA_SYNC: '1'
           VITE_BC_DB_CHUNK_BASE_URL: https://data.map.ahmad.sh/census/bc-db-chunks
           VITE_NECHAKO_GATEWAY_URL: https://pgmaps-nechako-portal.ahzs645.workers.dev/api/nechako-portal
-          # The road view's other renderers, pinned to a released build of each engine's PGMaps scene page
-          # (pgmaps-scene-v<version> releases, served by the engine's Pages at /pgmaps/<version>/; externalRenderers.ts).
-          # Bump the version here to take a new engine release.
+          # threejs-worldgen draws the road view as its own page in a frame, pinned to a released build of its PGMaps
+          # scene page (pgmaps-scene-v<version>, served by its Pages at /pgmaps/<version>/; externalRenderers.ts).
+          # Bump the version here to take a new release. Nanite Forest runs as a worker instead, built by the
+          # prebuild from vendor/threejs-nanites at the pinned submodule commit (scripts/build-engines.mjs).
           VITE_FORESTRY_WORLDGEN_URL: https://projects.ahmadjalil.com/threejs-worldgen/pgmaps/1.0.0/pgmaps-scene.html?embed
-          VITE_FORESTRY_NANITE_URL: https://projects.ahmadjalil.com/threejs-nanites/pgmaps/1.0.0/pgmaps-scene.html?embed
 
       # EPT divides the 551 MB original into small browser-streamable tiles.
       # Keep generated binaries out of Git and restore them after the app build.

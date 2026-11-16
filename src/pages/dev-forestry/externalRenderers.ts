@@ -1,10 +1,14 @@
 /**
  * Other forest renderers drawing the road view, chosen in View options.
  *
- * The road view can hand its picture to another engine (threejs-worldgen, Nanite Forest) without the engine
- * becoming part of PGMaps: the engine runs as its own page in a frame over the road view, fed the scene package
- * (`scenePackage.ts`) and the drive camera by `postMessage`. PGMaps' own map stays underneath and keeps driving:
- * the camera, the analysis, every figure, saved views and exported images are PGMaps' own. The engine draws only.
+ * The road view can hand its picture to another engine (threejs-worldgen, Nanite Forest), fed the scene package
+ * (`scenePackage.ts`) and the drive camera by `postMessage`. An engine runs one of two ways (`roadRendererKind`):
+ * - a **worker** PGMaps starts itself (`workerPath`; Nanite Forest), drawing into an OffscreenCanvas laid over the
+ *   road view (`engineChannel.ts`). Its script is built from the engine's submodule into `public/engines/<id>/` by
+ *   `npm run engines:build`, so it is same-origin and on its own thread: a stand it builds never blocks the page.
+ * - its own **page** in a frame (`urlVariable`; threejs-worldgen), found by URL and never bundled.
+ * PGMaps' own map stays underneath and keeps driving: the camera, the analysis, every figure, saved views and
+ * exported images are PGMaps' own. The engine draws only.
  *
  * Message protocol (`pgmaps-engine` v1), parent → engine:
  * - `{ type: 'pgmaps-scene', scene, key? }`: a whole scene package; replaces whatever the engine drew. To an engine
@@ -18,6 +22,9 @@
  *   weather, cloudCover, visibilityKm }`: the light
  *   and weather to draw, from View options (`engineEnvironment`), the time read on the site's clock. Kept across new
  *   packages; changing it never rebuilds the stand.
+ * A worker is first sent `{ type: 'pgmaps-worker-init', canvas, viewport }` (the OffscreenCanvas, handed over) and
+ * then `{ type: 'pgmaps-worker-viewport', viewport }` when its box changes size; it answers
+ * `{ type: 'pgmaps-engine-viewport', left, top, width, height }` with where its drawing sits in that box.
  * Engine → parent: `{ type: 'pgmaps-engine-hello', engine, accepts? }` once it listens (the parent then sends the
  * scene and the camera; `accepts` lists what it takes beyond the plain protocol), `{ type: 'pgmaps-engine-ready', engine }` once drawing a scene, `{ type: 'pgmaps-engine-stats', … }`
  * now and then (with `sun`: the elevation and azimuth asked for and those the light was drawn from), `{ type: 'pgmaps-engine-error', message }` on a failure.
@@ -40,6 +47,12 @@ export type RoadRendererInfo = {
   /** Licence of the engine itself, as its LICENSE file states. */
   licence: string
   needsWebGpu: boolean
+  /**
+   * Runs as a worker PGMaps starts: its script under the site's base, built from its submodule by
+   * `npm run engines:build` (`scripts/build-engines.mjs`). Its `urlVariable`, when set, names a page to run in a
+   * frame instead (a release, or its dev server): the fallback, and the old path to compare against.
+   */
+  workerPath?: string
   /** Environment variable naming the engine page's URL. */
   urlVariable?: string
   /** The engine's own dev server, used when the variable is unset in development. */
@@ -71,8 +84,8 @@ export const ROAD_RENDERERS: readonly RoadRendererInfo[] = [
       'GPU-driven cluster levels of detail (three.js, WebGPU), drawing PGMaps’ own tree models. One uniform scale per stem: heights are kept, crown widths become each species’ median.',
     licence: 'MIT',
     needsWebGpu: true,
+    workerPath: 'engines/nanite/pgmaps-engine.js',
     urlVariable: 'VITE_FORESTRY_NANITE_URL',
-    devUrl: 'http://127.0.0.1:8461/examples/pgmaps-scene.html?embed',
   },
 ]
 
@@ -80,16 +93,26 @@ export function roadRendererInfo(id: RoadRendererId): RoadRendererInfo {
   return ROAD_RENDERERS.find((entry) => entry.id === id) ?? ROAD_RENDERERS[0]
 }
 
+/** How the engine at `url` runs: a script is a worker PGMaps starts, anything else a page in a frame. */
+export function engineKindOf(url: string): 'worker' | 'frame' {
+  return /\.m?js$/i.test(new URL(url, 'http://pgmaps.invalid/').pathname) ? 'worker' : 'frame'
+}
+
 /**
- * Where an engine's page is, from the build's environment: its variable when set, its dev server in
- * development, otherwise nowhere (the option is then unavailable and says why).
+ * Where an engine is, from the build's environment: a worker's script under the site's base (`BASE_URL`); a page's
+ * variable when set, its dev server in development, otherwise nowhere (the option is then unavailable and says why).
  */
 export function roadRendererUrl(
   id: RoadRendererId,
-  env: { DEV?: boolean; [key: string]: unknown },
+  env: { DEV?: boolean; BASE_URL?: unknown; [key: string]: unknown },
   browser: EngineBrowserOptions = DEFAULT_ENGINE_BROWSER_OPTIONS,
 ): string | null {
   const info = roadRendererInfo(id)
+  const named = info.urlVariable ? env[info.urlVariable] : undefined
+  if (info.workerPath && !(typeof named === 'string' && named.trim())) {
+    const base = typeof env.BASE_URL === 'string' && env.BASE_URL ? env.BASE_URL.replace(/\/?$/, '/') : '/'
+    return withBrowserOptions(id, `${base}${info.workerPath}?embed`, browser)
+  }
   if (!info.urlVariable) return null
   const configured = env[info.urlVariable]
   const url =

@@ -2078,23 +2078,43 @@ never shipped.
 
 View options → **Renderer** picks what draws the road view: *PGMaps* (its own
 map, the default), *threejs-worldgen* or *Nanite Forest*
-(`externalRenderers.ts`, `ExternalRoadRenderer.tsx`). An engine runs as its own
-page in a frame laid over the road view's map, which stays mounted underneath
-and keeps driving: the frame takes no pointer input, so dragging to look round,
-the drive bar and every control still act on PGMaps' map, and the engine
-follows it. Nothing of the engine is bundled; the frame is found by URL.
+(`externalRenderers.ts`, `ExternalRoadRenderer.tsx`). The engine draws over the
+road view's map, which stays mounted underneath and keeps driving: the engine
+takes no pointer input, so dragging to look round, the drive bar and every
+control still act on PGMaps' map, and the engine follows it. An engine runs one
+of two ways (`EngineSurface.tsx`, `engineChannel.ts`):
+
+- **As a worker PGMaps starts** (Nanite Forest). PGMaps lays a canvas over the
+  map, hands it to the worker as an OffscreenCanvas
+  (`pgmaps-worker-init`), sends its size as it changes
+  (`pgmaps-worker-viewport`), and places it where the engine says its
+  letterboxed drawing sits (`pgmaps-engine-viewport`). The worker has its own
+  thread, so a stand it builds never blocks the page, and it is same-origin, so
+  it needs no second site. Its script is built from the `vendor/threejs-nanites`
+  submodule into the git-ignored `public/engines/nanite/` by
+  `npm run engines:build` (`scripts/build-engines.mjs`, run by `predev` and
+  `prebuild` too; it rebuilds only when the submodule's commit moves). The
+  engine's own scene code runs unchanged in its page and its worker through
+  a host (`examples/pgmaps/host.ts` in the engine).
+- **As its own page in a frame** (threejs-worldgen, and Nanite when
+  `VITE_FORESTRY_NANITE_URL` names a page: a release, or its dev server, to
+  compare against). Nothing of the engine is bundled; the frame is found by
+  URL.
 
 - **The bridge** is `postMessage` (`pgmaps-engine` v1, described at the top of
-  `externalRenderers.ts`): the engine says hello, the page sends a scene package
+  `externalRenderers.ts`), the same to a worker as to a frame: the engine says
+  hello, the page sends a scene package
   and then the camera on every map move (once a frame at most), in the
   package's local metres. A new package goes when the stand changes (harvest
   phase, forest records, openings, terrain) or once the eye is a third of the
   tree radius (200 m) from the package's origin. Display switches never send one.
-- **Where an engine is**: `VITE_FORESTRY_WORLDGEN_URL` /
-  `VITE_FORESTRY_NANITE_URL`; in development, without them, the engines' own dev
-  servers (`127.0.0.1:8460`, `:8461`). Unset in a build, the option is disabled
-  and says which variable names it. Nanite also needs WebGPU; worldgen falls
-  back to WebGL2.
+- **Where an engine is**: Nanite's worker at `engines/nanite/pgmaps-engine.js`
+  under the site's base; a page at `VITE_FORESTRY_WORLDGEN_URL` (or
+  `VITE_FORESTRY_NANITE_URL`), in development without it worldgen's own dev
+  server (`127.0.0.1:8460`). A page engine unset in a build is disabled and
+  says which variable names it; a worker that was never built says to run
+  `npm run engines:build`. Nanite also needs WebGPU (in a worker as well);
+  worldgen falls back to WebGL2.
 - **Display only, but for the analysis sheet.** Saved views, *Image* and every
   figure but one come from PGMaps' map, never the engine's frame. Engines draw a
   tree differently, and a drawn shape moved screening by 10–12 points in the
@@ -3836,7 +3856,9 @@ the engine runs in its own process and the page was blocked 6-10 s in all,
 never more than 0.8 s at once, through a whole render. An engine deployed on
 the same site as PGMaps would share its thread again; the function reports that
 case. Once the queue is empty the engine page is unloaded, which frees its GPU
-memory.
+memory. Nanite Forest runs in the tray as a worker instead (**Choosing the
+renderer**): its own thread, so the site question does not arise, its canvas in
+the same visible box, and the worker ended when the queue empties.
 
 **A job never waits on a bridge nobody listens to.** The engine page's message
 bridge is an effect; when it re-subscribes (a hot reload in development re-runs
