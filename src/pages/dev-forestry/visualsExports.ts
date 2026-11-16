@@ -105,6 +105,7 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     description:
       'A whole report in a reference VIA’s structure, assembled from shared parts: cover, inventory, criteria, method, the scales and matrices with their readings marked, tables, calculations, the form or Appendix 1, discussion, sign-off and figures, with your logo.',
     formats: [
+      PDF,
       { id: 'html', label: 'Printable HTML', extension: '.html' },
       { id: 'md', label: 'Markdown', extension: '.md' },
     ],

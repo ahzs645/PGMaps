@@ -63,7 +63,7 @@ const NORTH_ARROW =
  * The rows a panorama slot shows (`panoramaBand`): a band round its landform that keeps the marks of `panoramaHold`, the
  * same for the before and after pictures. Null when the slot shows its picture whole.
  */
-function bandOf(slot: FigureSlot): { y: number; height: number } | null {
+export function bandOf(slot: FigureSlot): { y: number; height: number } | null {
   const figure = slot.figure
   if (!slot.panorama || !figure) return null
   const hold = markRows(slot.panoramaHold ?? [], figure.width, figure.height)

@@ -51,6 +51,8 @@ describe('sheet renderers', () => {
     expect(pdfText('1 − 2 · 3 – 4 ≥ 95 m³')).toBe('1 - 2 - 3  -  4 >= 95 m3')
     expect(pdfText('54°4\'0"N')).toBe('54°4\'0"N')
     expect(pdfText('MBF 424 kN ÷ 3.00 ≈ 141 kN')).toBe('MBF 424 kN / 3.00 ~ 141 kN')
+    // Footnote markers in the VIA reports (VSC¹, Level of impact¹¹).
+    expect(pdfText('VSC¹, impact¹¹ / visibility¹², 4 m²')).toBe('VSC1, impact11 / visibility12, 4 m2')
   })
 
   it('names the characters it cannot fold, and only those', () => {
