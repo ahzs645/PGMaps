@@ -19,3 +19,6 @@
 [submodule "vendor/threejs-nanites"]
 	path = vendor/threejs-nanites
 	url = https://github.com/ahzs645/threejs-nanites.git
+[submodule "vendor/threejs-worldgen"]
+	path = vendor/threejs-worldgen
+	url = https://github.com/ahzs645/threejs-worldgen.git

@@ -113,8 +113,15 @@ export default defineConfig({
     // Vite scans every HTML file for imports to pre-bundle. The visual tools
     // trial bench is a separate project with its own packages (EZ-Tree,
     // maplibre-gl-three, Giro3D); scanned from here they fail to resolve and
-    // stop the dev server.
-    entries: ['**/*.html', '!docs/forestry-visual-tools-trial/**', '!vendor/brandkit/**'],
+    // stop the dev server. So do the road view's engines' demo pages
+    // (vendor/threejs-*), which PGMaps only ever runs as built workers.
+    entries: [
+      '**/*.html',
+      '!docs/forestry-visual-tools-trial/**',
+      '!vendor/brandkit/**',
+      '!vendor/threejs-nanites/**',
+      '!vendor/threejs-worldgen/**',
+    ],
   },
   build: {
     rollupOptions: {

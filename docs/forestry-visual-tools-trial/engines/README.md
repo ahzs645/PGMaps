@@ -39,7 +39,10 @@ trial doc §13). Each folder's `0002-*.diff` holds the fixes and the road view's
 each engine's dev server where the road view looks for it in development —
 worldgen on `127.0.0.1:8460` (`npm run dev`), Nanite with
 `npx vite --port 8461 --host 127.0.0.1` — or set `VITE_FORESTRY_WORLDGEN_URL`
-and `VITE_FORESTRY_NANITE_URL` to their pages with `?embed`.
+and `VITE_FORESTRY_NANITE_URL` to their pages with `?embed`. (Since 16 November
+both engines are submodules PGMaps builds and runs as workers; the dev servers
+are only used when those variables name them. See
+`docs/forestry-visual-quality.md`, **Choosing the renderer**.)
 
 **Later on 13 November** each folder gained a `0003-*.diff`, cumulative from the
 pinned commit after `git am` (it **replaces** `0002`: apply one or the other).

@@ -2,11 +2,13 @@
  * Other forest renderers drawing the road view, chosen in View options.
  *
  * The road view can hand its picture to another engine (threejs-worldgen, Nanite Forest), fed the scene package
- * (`scenePackage.ts`) and the drive camera by `postMessage`. An engine runs one of two ways (`roadRendererKind`):
- * - a **worker** PGMaps starts itself (`workerPath`; Nanite Forest), drawing into an OffscreenCanvas laid over the
- *   road view (`engineChannel.ts`). Its script is built from the engine's submodule into `public/engines/<id>/` by
- *   `npm run engines:build`, so it is same-origin and on its own thread: a stand it builds never blocks the page.
- * - its own **page** in a frame (`urlVariable`; threejs-worldgen), found by URL and never bundled.
+ * (`scenePackage.ts`) and the drive camera by `postMessage`. An engine runs one of two ways (`engineKindOf`):
+ * - a **worker** PGMaps starts itself (`workerPath`), drawing into an OffscreenCanvas laid over the road view
+ *   (`engineChannel.ts`). Its script is built from the engine's submodule (`vendor/threejs-<name>`) into
+ *   `public/engines/<id>/` by `npm run engines:build`, so it is same-origin and on its own thread: a stand it
+ *   builds never blocks the page. This is how both engines run.
+ * - its own **page** in a frame, found by URL and never bundled, when the engine's `urlVariable` names one (a
+ *   release, or its dev server): the fallback, and the old path to compare against.
  * PGMaps' own map stays underneath and keeps driving: the camera, the analysis, every figure, saved views and
  * exported images are PGMaps' own. The engine draws only.
  *
@@ -49,14 +51,11 @@ export type RoadRendererInfo = {
   needsWebGpu: boolean
   /**
    * Runs as a worker PGMaps starts: its script under the site's base, built from its submodule by
-   * `npm run engines:build` (`scripts/build-engines.mjs`). Its `urlVariable`, when set, names a page to run in a
-   * frame instead (a release, or its dev server): the fallback, and the old path to compare against.
+   * `npm run engines:build` (`scripts/build-engines.mjs`). Absent only for PGMaps' own drawing.
    */
   workerPath?: string
-  /** Environment variable naming the engine page's URL. */
+  /** Environment variable that, when set, names a page to run in a frame instead of the worker. */
   urlVariable?: string
-  /** The engine's own dev server, used when the variable is unset in development. */
-  devUrl?: string
 }
 
 export const ROAD_RENDERERS: readonly RoadRendererInfo[] = [
@@ -74,8 +73,8 @@ export const ROAD_RENDERERS: readonly RoadRendererInfo[] = [
       'three.js trees grown from worldgen’s presets, placed at PGMaps’ stems with their own heights and crown widths. WebGPU, or WebGL2 where WebGPU is missing.',
     licence: 'Apache-2.0',
     needsWebGpu: false,
+    workerPath: 'engines/worldgen/pgmaps-engine.js',
     urlVariable: 'VITE_FORESTRY_WORLDGEN_URL',
-    devUrl: 'http://127.0.0.1:8460/pgmaps-scene.html?embed',
   },
   {
     id: 'nanite',
@@ -99,29 +98,20 @@ export function engineKindOf(url: string): 'worker' | 'frame' {
 }
 
 /**
- * Where an engine is, from the build's environment: a worker's script under the site's base (`BASE_URL`); a page's
- * variable when set, its dev server in development, otherwise nowhere (the option is then unavailable and says why).
+ * Where an engine is, from the build's environment: the page its variable names when set, else its worker's script
+ * under the site's base (`BASE_URL`). Null for PGMaps' own drawing.
  */
 export function roadRendererUrl(
   id: RoadRendererId,
-  env: { DEV?: boolean; BASE_URL?: unknown; [key: string]: unknown },
+  env: { BASE_URL?: unknown; [key: string]: unknown },
   browser: EngineBrowserOptions = DEFAULT_ENGINE_BROWSER_OPTIONS,
 ): string | null {
   const info = roadRendererInfo(id)
+  if (!info.workerPath) return null
   const named = info.urlVariable ? env[info.urlVariable] : undefined
-  if (info.workerPath && !(typeof named === 'string' && named.trim())) {
-    const base = typeof env.BASE_URL === 'string' && env.BASE_URL ? env.BASE_URL.replace(/\/?$/, '/') : '/'
-    return withBrowserOptions(id, `${base}${info.workerPath}?embed`, browser)
-  }
-  if (!info.urlVariable) return null
-  const configured = env[info.urlVariable]
-  const url =
-    typeof configured === 'string' && configured.trim()
-      ? configured.trim()
-      : env.DEV && info.devUrl
-        ? info.devUrl
-        : null
-  return url === null ? null : withBrowserOptions(id, url, browser)
+  if (typeof named === 'string' && named.trim()) return withBrowserOptions(id, named.trim(), browser)
+  const base = typeof env.BASE_URL === 'string' && env.BASE_URL ? env.BASE_URL.replace(/\/?$/, '/') : '/'
+  return withBrowserOptions(id, `${base}${info.workerPath}?embed`, browser)
 }
 
 /**
@@ -182,7 +172,7 @@ export function roadRendererUnavailable(
 ): string | null {
   if (id === 'pgmaps') return null
   const info = roadRendererInfo(id)
-  if (!context.url) return `Not set up on this site: ${info.urlVariable} names its page.`
+  if (!context.url) return 'Not set up on this site.'
   if (info.needsWebGpu && !context.webGpu) return 'Needs WebGPU, which this browser does not offer.'
   return null
 }

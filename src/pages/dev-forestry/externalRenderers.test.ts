@@ -20,34 +20,36 @@ import { metersPerDegree } from './visibility'
 const origin = { lng: -121.9567, lat: 53.8956, elevationMeters: 780.94 }
 
 describe('other road-view renderers', () => {
-  it('finds a page engine from its variable, its dev server in development, and nowhere otherwise', () => {
-    expect(roadRendererUrl('pgmaps', { DEV: true })).toBeNull()
-    expect(roadRendererUrl('worldgen', { DEV: true })).toBe('http://127.0.0.1:8460/pgmaps-scene.html?embed')
-    expect(roadRendererUrl('worldgen', { DEV: false })).toBeNull()
-    expect(roadRendererUrl('worldgen', { DEV: false, VITE_FORESTRY_WORLDGEN_URL: ' https://example.org/wg ' })).toBe(
-      'https://example.org/wg',
-    )
-    expect(engineKindOf('http://127.0.0.1:8460/pgmaps-scene.html?embed')).toBe('frame')
+  it('runs both engines as workers from the site’s own engines folder, under its base', () => {
+    expect(roadRendererUrl('pgmaps', {})).toBeNull()
+    for (const id of ['worldgen', 'nanite'] as const) {
+      const worker = `/engines/${id}/pgmaps-engine.js?embed`
+      expect(roadRendererUrl(id, {})).toBe(worker)
+      expect(roadRendererUrl(id, { BASE_URL: '/' })).toBe(worker)
+      expect(roadRendererUrl(id, { BASE_URL: '/PGMaps/' })).toBe(`/PGMaps${worker}`)
+      expect(roadRendererUrl(id, { BASE_URL: '/PGMaps' })).toBe(`/PGMaps${worker}`)
+      expect(engineKindOf(worker)).toBe('worker')
+    }
+    expect(engineKindOf('/engines/nanite/pgmaps-engine.js?embed&treecache=1')).toBe('worker')
   })
 
-  it('runs Nanite Forest as a worker from the site’s own engines folder, under its base', () => {
-    expect(engineKindOf('/engines/nanite/pgmaps-engine.js?embed&treecache=1')).toBe('worker')
-    expect(roadRendererUrl('nanite', { DEV: false })).toBe('/engines/nanite/pgmaps-engine.js?embed')
-    expect(roadRendererUrl('nanite', { DEV: true, BASE_URL: '/' })).toBe('/engines/nanite/pgmaps-engine.js?embed')
-    expect(roadRendererUrl('nanite', { BASE_URL: '/PGMaps/' })).toBe('/PGMaps/engines/nanite/pgmaps-engine.js?embed')
-    expect(roadRendererUrl('nanite', { BASE_URL: '/PGMaps' })).toBe('/PGMaps/engines/nanite/pgmaps-engine.js?embed')
-    // Its variable, when set, names a page to run in a frame instead (a release, or its dev server).
-    const page = roadRendererUrl('nanite', { VITE_FORESTRY_NANITE_URL: ' https://example.org/nanite/x.html?embed ' })
-    expect(page).toBe('https://example.org/nanite/x.html?embed')
+  it('runs an engine’s page in a frame instead when its variable names one', () => {
+    const page = roadRendererUrl('worldgen', { VITE_FORESTRY_WORLDGEN_URL: ' https://example.org/wg/x.html?embed ' })
+    expect(page).toBe('https://example.org/wg/x.html?embed')
     expect(engineKindOf(page!)).toBe('frame')
+    expect(
+      roadRendererUrl('nanite', { VITE_FORESTRY_NANITE_URL: 'http://127.0.0.1:8461/examples/pgmaps-scene.html?embed' }),
+    ).toBe('http://127.0.0.1:8461/examples/pgmaps-scene.html?embed')
+    expect(engineKindOf('http://127.0.0.1:8460/pgmaps-scene.html?embed')).toBe('frame')
+    // A blank variable is no variable.
     expect(roadRendererUrl('nanite', { VITE_FORESTRY_NANITE_URL: '  ' })).toBe('/engines/nanite/pgmaps-engine.js?embed')
   })
 
   it('puts this browser’s choice to keep grown trees on Nanite Forest’s address only', () => {
     const keep = { keepGrownTrees: true }
-    expect(roadRendererUrl('nanite', { DEV: true }, keep)).toBe('/engines/nanite/pgmaps-engine.js?embed&treecache=1')
-    expect(roadRendererUrl('worldgen', { DEV: true }, keep)).toBe('http://127.0.0.1:8460/pgmaps-scene.html?embed')
-    expect(roadRendererUrl('pgmaps', { DEV: true }, keep)).toBeNull()
+    expect(roadRendererUrl('nanite', {}, keep)).toBe('/engines/nanite/pgmaps-engine.js?embed&treecache=1')
+    expect(roadRendererUrl('worldgen', {}, keep)).toBe('/engines/worldgen/pgmaps-engine.js?embed')
+    expect(roadRendererUrl('pgmaps', {}, keep)).toBeNull()
     // What storage holds is read strictly: only a stored true keeps them.
     expect(parseEngineBrowserOptions({ keepGrownTrees: true })).toEqual(keep)
     for (const stored of [null, 'yes', {}, { keepGrownTrees: 'true' }, { keepGrownTrees: 1 }])
@@ -57,7 +59,7 @@ describe('other road-view renderers', () => {
 
   it('says why an engine cannot be chosen', () => {
     expect(roadRendererUnavailable('pgmaps', { url: null, webGpu: false })).toBeNull()
-    expect(roadRendererUnavailable('worldgen', { url: null, webGpu: true })).toMatch(/VITE_FORESTRY_WORLDGEN_URL/)
+    expect(roadRendererUnavailable('worldgen', { url: null, webGpu: true })).toMatch(/Not set up/)
     // worldgen falls back to WebGL2; Nanite cannot.
     expect(roadRendererUnavailable('worldgen', { url: 'x', webGpu: false })).toBeNull()
     expect(roadRendererUnavailable('nanite', { url: 'x', webGpu: false })).toMatch(/WebGPU/)

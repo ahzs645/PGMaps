@@ -28,6 +28,14 @@ const ENGINES = [
     output: 'dist-pgmaps-worker',
     entry: 'pgmaps-engine.js',
   },
+  {
+    id: 'worldgen',
+    label: 'threejs-worldgen',
+    submodule: 'vendor/threejs-worldgen',
+    script: 'build:pgmaps-worker',
+    output: 'dist-pgmaps-worker',
+    entry: 'pgmaps-engine.js',
+  },
 ]
 
 const git = (cwd, ...rest) => execFileSync('git', rest, { cwd, encoding: 'utf8' }).trim()
