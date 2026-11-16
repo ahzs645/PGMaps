@@ -448,7 +448,7 @@ export type ViewpointCandidate = {
 
 /**
  * A candidate's one line: what it is, how far and which side of the block, and
- * its arrows — "VLI viewpoint · 2.1 km southwest of the block · 2 arrows, one at it".
+ * its arrows — "VLI viewpoint · 2.1 km southwest of the block · 3 arrows, 2 at it".
  */
 export function viewpointCandidateSummary(candidate: ViewpointCandidate): string {
   const kind = candidate.kind === 'rec-site' ? 'Rec site' : 'VLI viewpoint'
@@ -456,9 +456,10 @@ export function viewpointCandidateSummary(candidate: ViewpointCandidate): string
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   })
+  const aimed = candidate.arrows.filter((entry) => entry.aims).length
   const arrows =
     candidate.arrows.length > 1
-      ? ` · ${candidate.arrows.length} arrows${candidate.arrows.some((entry) => entry.aims) ? ', one at it' : ''}`
+      ? ` · ${candidate.arrows.length} arrows${aimed ? `, ${aimed === candidate.arrows.length ? (aimed === 2 ? 'both' : 'all') : aimed === 1 ? 'one' : aimed} at it` : ''}`
       : candidate.arrow
         ? candidate.arrow.aims
           ? ' · arrow points at it'

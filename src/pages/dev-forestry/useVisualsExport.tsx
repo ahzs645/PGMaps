@@ -59,7 +59,7 @@ import { DEFAULT_OVERVIEW_SHEET_STYLE, OVERVIEW_SHEET_STYLES, type OverviewSheet
 import { documentFacts } from './viaDocument/facts'
 import { runGreenUpBasis } from './greenUp'
 import { VIA_DOCUMENT_FORMATS, findDocumentFormat } from './viaDocument/formats'
-import { documentMarkdown } from './viaDocument/markdown'
+import { documentMarkdown, viewsLeftOutMarkdown } from './viaDocument/markdown'
 import { resolveViaDocument } from './viaDocument/resolve'
 import { EVQO_CODE_FOR_CLASS } from './visualsNarrative'
 import { buildReportContext, type ReportView } from './viaReport/context'
@@ -67,7 +67,7 @@ import { reportHtml, reportMarkdown } from './viaReport/html'
 import type { ReportFigure } from './viaReport/model'
 import type { ReportImages } from './viaReport/parts'
 import type { ReportSetting } from './viaReport/setting'
-import { assembleReport, findReportRecipe, recipeFormat, REPORT_RECIPES } from './viaReport/recipes'
+import { assembleReport, findReportRecipe, recipeFormat, REPORT_RECIPES, withViewsLeftOut } from './viaReport/recipes'
 import { ExportPackagePane, VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
 import type { ViewCaptureApi, ViewCaptureReport } from './useViewCapture'
 import { viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
@@ -79,7 +79,12 @@ import {
 } from './castorConstraint'
 import {
   buildExportContext,
+  documentFigureLine,
+  excludedForBlock,
   resolvePackage,
+  savedIdentity,
+  unprintedViews,
+  viewsLeftOut,
   type ContextView,
   type ExportAction,
   type ExportAutoRun,
@@ -89,8 +94,17 @@ import {
 export type ViewImage = NoteImage & {
   savedAt: number
   figure?: SavedFigure
+  /** Why its analysis sheet (class pass) could not be drawn when it was saved, when it could not. */
+  figureError?: string
   viewpoint?: Omit<ViewpointPage, 'simulation'>
+  /** Where and how it was framed (`FigureAt`): only whether it kept the drive's pose is read here. */
+  figureAt?: { pose?: object | null }
 }
+
+/** A before-harvest render a capture took where the view stands (`capture(ids, { before: true })`), by saved view. */
+export type CapturedBefore = Readonly<
+  Record<string, { plannedKey: string | null; render: { dataUrl: string; width: number; height: number } }>
+>
 
 const textFile = (text: string, fileName: string, type: string): BuiltFile => ({
   blob: new Blob([text], { type }),
@@ -260,6 +274,11 @@ export function useVisualsExport(input: {
    * Download for the included views not yet captured, and show its progress with a Cancel.
    */
   viewCapture?: Pick<ViewCaptureApi, 'state' | 'capture' | 'cancel'>
+  /**
+   * The before-harvest renders captures took where each view stands, by saved view id, with the planned view's key they
+   * were taken under: a view away from where the reviewer stands takes its before picture from here.
+   */
+  capturedBefore?: CapturedBefore
   portalContainer?: HTMLElement | null
 }) {
   const {
@@ -305,6 +324,8 @@ export function useVisualsExport(input: {
   const [includeLandChecks, setIncludeLandChecks] = useState(true)
   // Views of interest whose capture failed, under the key they failed with: a preview skips them, a download retries.
   const [captureFailures, setCaptureFailures] = useState<Readonly<Record<string, { key: string; reason: string }>>>({})
+  // Views of interest whose before-harvest render could not be taken, under the key they were captured with.
+  const [beforeFailures, setBeforeFailures] = useState<Readonly<Record<string, { key: string; reason: string }>>>({})
 
   // The inventory near the note's block is read when the dialog opens on it, once per block, without
   // switching the plan's inventory layer on. Nothing to press; the section says when it is reading.
@@ -337,6 +358,21 @@ export function useVisualsExport(input: {
   // in (the saved views not left out, and the current capture of each view of interest included).
   const plannedViews = input.viewsOfInterest ?? []
   const allViews = [...otherViews, ...savedViews]
+  // The planned views' captures that a before picture would pair with and that have none a capture took: those away
+  // from where the reviewer stands (or here with the road view closed) are captured again with their before render.
+  const capturedBefore = input.capturedBefore ?? {}
+  const here = new Set(savedViews.map((view) => view.id))
+  const beforeOwed = new Set(
+    allViews
+      .filter((view) => {
+        const image = images[view.id]
+        if (!view.plannedViewId || !image?.figure || !image.figureAt?.pose) return false
+        if (image.viewpoint?.harvestPhase === 'before' || image.viewpoint?.photo) return false
+        if (capturedBefore[view.id] && capturedBefore[view.id].plannedKey === (view.plannedKey ?? null)) return false
+        return !(here.has(view.id) && input.scenePackage.ready)
+      })
+      .map((view) => view.id),
+  )
   const pkg = resolvePackage({
     choice: { recipeId: packageRecipeId, documentFormatId, excludedViews },
     recipes: REPORT_RECIPES,
@@ -346,8 +382,13 @@ export function useVisualsExport(input: {
     blocks: scene.targets.filter((target) => target.role === 'block'),
     savedViews: allViews,
     failures: captureFailures,
+    beforeOwed,
+    beforeFailures,
+    hasFigure: (id) => !!images[id]?.figure,
   })
   const packageViews = allViews.filter((view) => pkg.viewIds.has(view.id))
+  // The package's views the sheet, the document and the report cannot draw, each named in the file with why.
+  const unprinted = unprintedViews(packageViews, images)
 
   // With another engine chosen, each saved view's figure is that engine's render when it is done.
   const renders = input.renders
@@ -380,9 +421,14 @@ export function useVisualsExport(input: {
     Object.entries(images).map(([id, image]) => {
       const job = engineId && renders ? engineJobs.find((entry) => entry.viewId === id) : undefined
       const drawn = job ? renders?.figures[job.key] : undefined
-      return [id, withInventory(drawn ? { ...image, figure: drawn } : image)]
+      return [id, withInventory(drawn ? { ...image, figure: savedIdentity(drawn, image.figure) } : image)]
     }),
   )
+  // Views saved at another place: an engine draws from the road view where the reviewer stands, so they have no job
+  // (`renderJobFor`) and keep PGMaps' figures, which the files say.
+  const engineElsewhere = engineId
+    ? new Set(packageViews.filter((view) => images[view.id]?.figure && !here.has(view.id)).map((view) => view.id))
+    : new Set<string>()
   const engineState = engineId && renders ? renders.jobs.filter((entry) => entry.job.engine === engineId) : []
   const engineRunning = engineState.some((entry) => entry.status === 'running' || entry.status === 'waiting')
   const engineFailed = engineState.find(
@@ -519,10 +565,12 @@ export function useVisualsExport(input: {
     : null
   const chosenLogo = printedLogo(branding)
   const briefBlock = blocks.find((entry) => entry.id === input.briefBlockId) ?? blocks[0] ?? null
+  // The brief takes the package's views as the other documents do, less views of interest planned for another block.
+  const briefLeftOut = excludedForBlock(pkg, briefBlock?.id ?? null)
   const briefViews = [
     ...savedViews.map((view) => ({ ...view, onThisRoad: true })),
     ...otherViews.map((view) => ({ ...view, onThisRoad: false })),
-  ]
+  ].filter((view) => !briefLeftOut.has(view.id))
   const briefPoints = briefViewpoints({
     viewpoint: scene.viewpoint,
     block: briefBlock,
@@ -565,6 +613,7 @@ export function useVisualsExport(input: {
     fs1252,
     blockNote: blockNoteParts
       ? {
+          blockId: blockNoteParts.blockId,
           header: blockNoteParts.header,
           landform: blockNoteParts.landform,
           measures: blockNoteParts.measures.items.length,
@@ -600,6 +649,7 @@ export function useVisualsExport(input: {
       settling: engineSettling,
       missingBefore: missingBeforeJobs.length,
       leftWithBefore: reportLeftMs === null ? null : formatRemaining(reportLeftMs),
+      elsewhere: engineElsewhere.size,
     },
     logo: chosenLogo
       ? chosenLogo.source === 'uploaded'
@@ -613,15 +663,19 @@ export function useVisualsExport(input: {
           formula: `${documentFormat.rule.formula} (${documentFormat.rule.basis}, ${documentFormat.rule.decimals} dp)`,
           scale: documentFormat.percentScale.name,
           images: documentFormat.recipes.map((recipe) => recipe.label),
-          viewpoints: viaDocument.viewpoints.map((vp) => ({
+          viewpoints: viaDocument.viewpoints.map((vp, index) => ({
             name: vp.name,
-            figure: vp.printed ? `${vp.printed.percent}% · ${vp.printed.term}` : 'No class pass',
+            figure: documentFigureLine(vp.printed, facts?.viewpoints[index]?.areas ?? null),
           })),
           toComplete: viaDocument.toComplete.length,
           gaps: [...documentFormat.gaps],
         }
       : null,
-    brief: { blockId: briefBlock?.id ?? null, viewpoints: briefPoints.length },
+    brief: {
+      blockId: briefBlock?.id ?? null,
+      viewpoints: briefPoints.length,
+      screenshots: briefViews.filter((view) => images[view.id]).length,
+    },
     evidence,
     roadViewReady: input.scenePackage.ready,
     prescribedStands: standFileSummary(input.prescribedStands),
@@ -636,6 +690,7 @@ export function useVisualsExport(input: {
       ? { visualInventory: { status: input.visualInventory.status, error: input.visualInventory.error } }
       : {}),
     planned: pkg.planned,
+    unprinted,
     ...(input.viewCapture
       ? {
           capture: {
@@ -661,7 +716,8 @@ export function useVisualsExport(input: {
     },
   })
   const noteChoices: BlockNoteChoices = {
-    excludedViews: pkg.excludedViews,
+    // The package's choice, less views of interest planned for another block: they go in that block's note.
+    excludedViews: excludedForBlock(pkg, blockNoteParts?.blockId ?? null),
     landStatus: includeLandChecks
       ? { rows: landRows.map(({ label, value, note }) => ({ label, value, note })), caveat: LAND_CHECK_CAVEAT }
       : null,
@@ -686,6 +742,8 @@ export function useVisualsExport(input: {
     chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo',
   ].join('|')
 
+  // The export context under another name: the report's build names its own `context`.
+  const exportContext = context
   const build = async (kind: VisualsExport, format: string): Promise<BuiltFile> => {
     switch (kind) {
       case 'block-note':
@@ -834,7 +892,15 @@ export function useVisualsExport(input: {
                   : 'the view has no pose to frame it on',
             })
             const afterFigure = pair.after.renderer === 'PGMaps' && renderer ? ownFigure : drawn
-            after[name] = withRows(pair.after, afterFigure)
+            after[name] = withRows(
+              engineId && engineElsewhere.has(view.id)
+                ? {
+                    ...pair.after,
+                    note: `Drawn by PGMaps, as the picture before it: ${roadRendererInfo(engineId).label} draws only where the road view stands, and this view was saved at another place.`,
+                  }
+                : pair.after,
+              afterFigure,
+            )
             if (pair.before)
               pairedBefore[name] =
                 pair.before.source === 'render'
@@ -860,7 +926,11 @@ export function useVisualsExport(input: {
             // Where the blocks are and what the land is like (`reportSetting`), as the page read it for this report.
             __viaReportSetting: context.setting ?? null,
           })
-        const report = assembleReport(reportRecipe, context)
+        // Every view of the package the report does not print is named at its end, with why.
+        const report = withViewsLeftOut(
+          assembleReport(reportRecipe, context),
+          viewsLeftOut('via-report', exportContext),
+        )
         const fileName = `forestry-via-report-${reportRecipe.id}`
         if (format === 'md') return textFile(reportMarkdown(report), `${fileName}.md`, 'text/markdown')
         const logo = chosenLogo
@@ -878,9 +948,19 @@ export function useVisualsExport(input: {
         if (!viaDocument || !facts)
           throw new Error('No view in the package has a class pass to fill the document from.')
         const name = `forestry-via-${documentFormat.id}`
+        // Every view of the package the document does not hold is named in it, with why.
+        const leftOut = viewsLeftOut('via-document', exportContext)
         return format === 'json'
-          ? textFile(JSON.stringify({ facts, document: viaDocument }, null, 2), `${name}.json`, 'application/json')
-          : textFile(documentMarkdown(viaDocument, facts, new Date()), `${name}.md`, 'text/markdown')
+          ? textFile(
+              JSON.stringify({ facts, document: viaDocument, viewsLeftOut: leftOut }, null, 2),
+              `${name}.json`,
+              'application/json',
+            )
+          : textFile(
+              documentMarkdown(viaDocument, facts, new Date()) + viewsLeftOutMarkdown(leftOut),
+              `${name}.md`,
+              'text/markdown',
+            )
       }
       case 'field-brief': {
         if (!briefBlock) throw new Error('Add a cutblock to brief the crew on it.')
@@ -1143,18 +1223,39 @@ export function useVisualsExport(input: {
     />
   )
 
-  /** Captures views of interest for an output, remembering each failure under the key it failed with. */
-  const captureViews = async (ids: readonly string[]): Promise<ViewCaptureReport> => {
+  /**
+   * Captures views of interest for an output (`before`: with each one's before-harvest render), remembering each
+   * failure under the key it failed with: a view not captured, and apart from it a before render not taken.
+   */
+  const captureViews = async (
+    ids: readonly string[],
+    options: { before?: boolean } = {},
+  ): Promise<ViewCaptureReport> => {
     if (!input.viewCapture) throw new Error('Views of interest cannot be captured here.')
     const keys = Object.fromEntries(
       plannedViews.filter((view) => ids.includes(view.id)).map((view) => [view.id, viewCaptureKey(view)]),
     )
-    const report = await input.viewCapture.capture(ids)
+    const report = await input.viewCapture.capture(ids, options.before ? { before: true } : {})
+    // Each view captured for its before render is marked tried under its key: when the render was kept, the view no
+    // longer owes one and the mark is never read; when it was not, a preview does not capture it again in a loop.
+    if (options.before)
+      setBeforeFailures((current) => {
+        const next = { ...current }
+        for (const id of report.captured)
+          if (keys[id]) next[id] = { key: keys[id], reason: 'no before-harvest render was kept from its capture' }
+        for (const failure of report.failures)
+          if (failure.warning === 'before' && keys[failure.viewId])
+            next[failure.viewId] = { key: keys[failure.viewId], reason: failure.reason }
+        return next
+      })
     setCaptureFailures((current) => {
       const next = { ...current }
       for (const id of report.captured) delete next[id]
+      // A view saved without its sheet still needs capturing (`no-figure`): its reason is kept so a preview does not
+      // capture it again in a loop. One saved without its before render is a capture all the same.
       for (const failure of report.failures)
-        if (keys[failure.viewId]) next[failure.viewId] = { key: keys[failure.viewId], reason: failure.reason }
+        if (failure.warning !== 'before' && keys[failure.viewId])
+          next[failure.viewId] = { key: keys[failure.viewId], reason: failure.reason }
       // A cancelled capture leaves the rest untried: a preview does not start it again, a download does.
       if (report.cancelled)
         for (const id of ids)

@@ -181,4 +181,82 @@ describe('capturing planned views', () => {
     expect(report).toMatchObject({ captured: ['a'], cancelled: true })
     expect(log).toEqual(['stand a', 'save a facing block-1 at 50 mm', 'restore where I stood'])
   })
+
+  it('counts a save without its analysis sheet apart, and says so', async () => {
+    const views = [view('a'), view('b', { facing: { kind: 'bearing', degrees: 10 } })]
+    const { host } = fakePage(views)
+    const save = host.save
+    host.save = async (v) => {
+      const outcome = await save(v)
+      return v.id === 'a' && 'viewId' in outcome
+        ? { ...outcome, warning: 'Saved, but its analysis sheet could not be drawn: The framed view did not draw.' }
+        : outcome
+    }
+    const states: ViewCaptureState[] = []
+    const report = await runViewCapture(() => host, ['a', 'b'], {
+      cancelled: () => false,
+      onState: (state) => states.push(state),
+      clock: fastClock(),
+    })
+    expect(report.captured).toEqual(['a', 'b'])
+    expect(report.failures).toEqual([
+      {
+        viewId: 'a',
+        reason: 'Saved, but its analysis sheet could not be drawn: The framed view did not draw.',
+        warning: 'sheet',
+      },
+    ])
+    expect(states.at(-1)?.message).toBe('Captured 1 of 2 views; 1 saved without its analysis sheet.')
+  })
+
+  it("takes each place's before-harvest renders after its saves, while still standing there", async () => {
+    const views = [view('a'), view('b', { facing: { kind: 'bearing', degrees: 10 } }), view('c', { lng: -122.7 })]
+    const { host, log } = fakePage(views)
+    const asked: string[][] = []
+    host.before = async (saved) => {
+      asked.push(saved.map((entry) => entry.id))
+      log.push(`before ${saved.map((entry) => entry.id).join(' ')}`)
+      return saved[0].id === 'saved-c'
+        ? { taken: [], notes: ['View c: the before render could not be framed (no terrain under the view yet).'] }
+        : { taken: saved.map((entry) => entry.id), notes: [] }
+    }
+    const report = await runViewCapture(() => host, ['a', 'b', 'c'], {
+      cancelled: () => false,
+      onState: () => {},
+      clock: fastClock(),
+      before: true,
+    })
+    expect(asked).toEqual([['saved-a', 'saved-b'], ['saved-c']])
+    expect(log).toEqual([
+      'stand a',
+      'save a facing block-1 at 50 mm',
+      'face b',
+      'save b facing 10 at 50 mm',
+      'before saved-a saved-b',
+      'stand c',
+      'save c facing block-1 at 50 mm',
+      'before saved-c',
+      'restore where I stood',
+    ])
+    expect(report.captured).toEqual(['a', 'b', 'c'])
+    expect(report.failures).toEqual([
+      {
+        viewId: 'c',
+        reason:
+          'Saved, but its before-harvest render could not be taken: the before render could not be framed (no terrain under the view yet).',
+        warning: 'before',
+      },
+    ])
+  })
+
+  it('takes no before render unless asked', async () => {
+    const { host } = fakePage([view('a')])
+    let called = false
+    host.before = async () => {
+      called = true
+      return { taken: [], notes: [] }
+    }
+    await runViewCapture(() => host, ['a'], { cancelled: () => false, onState: () => {}, clock: fastClock() })
+    expect(called).toBe(false)
+  })
 })

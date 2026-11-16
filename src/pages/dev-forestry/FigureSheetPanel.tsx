@@ -456,7 +456,10 @@ const composeResolved = async (
   logo: RasterImage | null = null,
   timber: TimberMeasure | null = null,
 ) => {
-  if (!view?.image) throw new Error('Save a viewpoint in the road view first.')
+  if (!view?.image)
+    throw new Error(
+      'No view in the package has a screenshot to draw the sheet from: capture a view of interest in step 2, or save one in the road view.',
+    )
   return composeFigure(
     await figureInput(view.image, view.image.figure, preset, {
       labelStyle,

@@ -3,6 +3,8 @@ import { bearingDegrees } from './visibility'
 import { blockCentre, lensHfovDeg, viewAtPoint, type ViewOfInterest } from './viewsOfInterest'
 import {
   chosenArrowCollection,
+  groupMarks,
+  nextMarkAt,
   VIEW_CONE_DEFAULT_METERS,
   VIEW_CONE_MAX_METERS,
   VIEW_CONE_MIN_METERS,
@@ -125,5 +127,31 @@ describe('chosenArrowCollection', () => {
 
   it('is empty when nothing is chosen', () => {
     expect(chosenArrowCollection(arrows, [west], [], null).features).toEqual([])
+  })
+})
+
+describe('groupMarks', () => {
+  const mark = (id: string, number: number, lng: number, open = false) => ({
+    id,
+    number,
+    name: id,
+    lng,
+    lat: 53.905,
+    bearing: 90,
+    open,
+    included: true,
+  })
+  it('shows views standing at one place as one marker naming them all', () => {
+    const markers = groupMarks([mark('a', 1, -122.64), mark('b', 2, -122.62), mark('c', 3, -122.62)])
+    expect(markers.map((marker) => marker.label)).toEqual(['1', '2·3'])
+    expect(markers[1].marks.map((entry) => entry.id)).toEqual(['b', 'c'])
+  })
+  it('opens the next view at a shared marker on each click', () => {
+    const [shared] = groupMarks([mark('b', 2, -122.62), mark('c', 3, -122.62)])
+    expect(nextMarkAt(shared)).toBe('b')
+    const [openB] = groupMarks([mark('b', 2, -122.62, true), mark('c', 3, -122.62)])
+    expect(nextMarkAt(openB)).toBe('c')
+    const [openC] = groupMarks([mark('b', 2, -122.62), mark('c', 3, -122.62, true)])
+    expect(nextMarkAt(openC)).toBe('b')
   })
 })

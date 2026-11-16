@@ -68,7 +68,7 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     group: 'documents',
     label: 'Block note',
     description:
-      "The planning note's Visuals row: the block, the paragraph, the visual measures, the landform's alteration, every saved view and a plan map.",
+      "The planning note's Visuals row: the block, the paragraph, the visual measures, the landform's alteration, the package's views of this block and a plan map.",
     formats: [{ id: 'xlsx', label: 'Excel', extension: '.xlsx' }, PDF],
   },
   {
@@ -233,8 +233,9 @@ export type ExportPlannedView = {
   /** Its `viewCaptureKey`: a capture or a failure under another key is out of date. */
   key: string
   name: string
-  /** The block it assesses, by name. */
+  /** The block it assesses, by name, and by id: the block note and the field brief of another block leave it out. */
   block: string
+  blockId: string
   /** `lensLabel`: "50 mm · 39.6° across". */
   lens: string
   state: ViewCaptureState
@@ -243,7 +244,18 @@ export type ExportPlannedView = {
   savedViewId: string | null
   /** Why its last capture under the current key failed, or null. Preview skips it; Download tries again. */
   failed: string | null
+  /**
+   * Captured, but without the before-harvest render an output pairs with it (the VIA report's before pictures, the
+   * analysis sheet's with-timber figure): the export captures it again with its before render (`beforeToCapture`).
+   * Absent: false.
+   */
+  beforeOwed?: boolean
+  /** Why its before render could not be taken under the current key, or null/absent. Preview skips it; Download retries. */
+  beforeFailed?: string | null
 }
+
+/** A view of the package an output cannot draw, and why (worded to follow "not in the file: "). */
+export type UnprintedView = { id: string; name: string; reason: string }
 
 /** The page's capture of views of interest (`useViewCapture`), as the dialog shows its progress. */
 export type ExportCapture = {
@@ -293,6 +305,12 @@ export type ExportContext = {
   views: ExportView[]
   /** The views of interest planned on the plan map, captured as saved views on Preview or Download. */
   planned: ExportPlannedView[]
+  /**
+   * The package's views the outputs that draw figures (`DRAWS_FIGURES`) cannot draw, and why: saved without a
+   * screenshot, or without the class pass its analysis sheet is drawn from. Each is named in the file and in What goes
+   * in, never dropped silently.
+   */
+  unprinted: UnprintedView[]
   capture: ExportCapture
   /** The package's recipe by name, or null when none is chosen (the VIA document's format then chooses the report). */
   recipe: string | null
@@ -308,6 +326,8 @@ export type ExportContext = {
   fs1252Stations: Array<{ label: string; assessment: boolean; inputs: boolean }>
   /** Block note: the text the paragraph panel holds, or null before a block. */
   blockNote: {
+    /** The note's block: views of interest planned for another block are left out of it. */
+    blockId: string
     header: Row[]
     landform: Row[]
     measures: number
@@ -366,10 +386,16 @@ export type ExportContext = {
     missingBefore?: number
     /** `left` with those before pictures added: the report's wait. */
     leftWithBefore?: string | null
+    /**
+     * Views saved at another place than where the reviewer stands: an engine draws from the road view's terrain and
+     * the run there, so these keep PGMaps' figures (and before pictures), and the files say so. Absent: 0.
+     */
+    elsewhere?: number
   }
   /** Analysis sheet: the view and the look chosen. */
   figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean; paintBlocks: boolean }
-  brief: { block: string | null; viewpoints: number; screenshots: number }
+  /** The field brief's block, by name and id (views of interest planned for another block are left out), and its counts. */
+  brief: { block: string | null; blockId?: string | null; viewpoints: number; screenshots: number }
   evidence: { loaded: boolean; gaps: string[]; views: number; runs: number; fields: number }
   /** The road view is open with its terrain loaded, so the 3D scene can be written. */
   roadViewReady: boolean
@@ -422,32 +448,110 @@ export const USES_PACKAGE_VIEWS: ReadonlySet<VisualsExport> = new Set([
   'analysis-sheet',
   'via-document',
   'via-report',
+  'field-brief',
 ])
 
 /**
- * The views of interest `kind` captures before its file: those included and not captured with their current key.
+ * The outputs written for one block: a view of interest planned for another block is left out of them (and never
+ * captured for them), listed in What goes in as for another block. A saved view not captured for a planned view is
+ * not a block's own and keeps going in.
+ */
+export const FOR_ONE_BLOCK: ReadonlySet<VisualsExport> = new Set(['block-note', 'field-brief'])
+
+/**
+ * The outputs that pair a view with its before-harvest render: the VIA report's before pictures and the analysis
+ * sheet's with-timber figure. A capture for them also takes each view's before render where it stands.
+ */
+export const NEEDS_BEFORE: ReadonlySet<VisualsExport> = new Set(['via-report', 'analysis-sheet'])
+
+/** A view of interest with a current capture the files can take: drawn (`captured`), or saved without its sheet. */
+const hasCurrentCapture = (view: ExportPlannedView) => view.state === 'captured' || view.state === 'no-figure'
+
+type PlannedContext = Pick<ExportContext, 'planned'> &
+  Partial<Pick<ExportContext, 'blockNote' | 'brief' | 'figure' | 'unprinted'>>
+
+/** The block `kind` is written for, by id, when it is written for one (`FOR_ONE_BLOCK`); else null. */
+function outputBlockId(kind: VisualsExport, ctx: PlannedContext): string | null {
+  if (kind === 'block-note') return ctx.blockNote?.blockId ?? null
+  if (kind === 'field-brief') return ctx.brief?.blockId ?? null
+  return null
+}
+
+/** The view of interest is planned for another block than the one `kind` is written for. */
+export function forAnotherBlock(kind: VisualsExport, ctx: PlannedContext, view: ExportPlannedView): boolean {
+  const blockId = FOR_ONE_BLOCK.has(kind) ? outputBlockId(kind, ctx) : null
+  return !!blockId && view.blockId !== blockId
+}
+
+/** The views of interest `kind` takes: those included, less those planned for another block than its own. */
+export function plannedForOutput(kind: VisualsExport, ctx: PlannedContext): ExportPlannedView[] {
+  if (!USES_PACKAGE_VIEWS.has(kind)) return []
+  return ctx.planned.filter((view) => view.include && !forAnotherBlock(kind, ctx, view))
+}
+
+/**
+ * The views of interest `kind` captures before its file: those it takes and not captured with their current key.
  * One whose capture failed under that key is tried again only on `retry` (a download), so a preview never loops on it.
  */
-export function viewsToCapture(
-  kind: VisualsExport,
-  ctx: Pick<ExportContext, 'planned'>,
-  options: { retry?: boolean } = {},
-): string[] {
-  if (!USES_PACKAGE_VIEWS.has(kind)) return []
-  return ctx.planned
-    .filter((view) => view.include && view.state !== 'captured' && (options.retry || !view.failed))
+export function viewsToCapture(kind: VisualsExport, ctx: PlannedContext, options: { retry?: boolean } = {}): string[] {
+  return plannedForOutput(kind, ctx)
+    .filter((view) => view.state !== 'captured' && (options.retry || !view.failed))
     .map((view) => view.id)
 }
 
-/** The included views of interest `kind` will be written without, worded for the pane, or null when none. */
-export function uncapturedNote(kind: VisualsExport, ctx: Pick<ExportContext, 'planned'>): string | null {
-  if (!USES_PACKAGE_VIEWS.has(kind)) return null
-  const missing = ctx.planned.filter((view) => view.include && view.state !== 'captured')
-  if (!missing.length) return null
-  const list = missing
-    .map((view) => `${view.name} (${view.failed?.replace(/[.\s]*$/, '') || 'not captured'})`)
-    .join('; ')
-  return `${missing.length === 1 ? 'A view of interest is' : `${missing.length} views of interest are`} not in the file because ${missing.length === 1 ? 'it was' : 'they were'} not captured: ${list}.`
+/**
+ * The captured views of interest `kind` captures again for their before-harvest render (`beforeOwed`): every one the
+ * VIA report prints, the analysis sheet's own view only. One whose before render failed under its current key is
+ * tried again only on `retry`.
+ */
+export function beforeToCapture(kind: VisualsExport, ctx: PlannedContext, options: { retry?: boolean } = {}): string[] {
+  if (!NEEDS_BEFORE.has(kind)) return []
+  const unprinted = new Set((ctx.unprinted ?? []).map((view) => view.id))
+  return plannedForOutput(kind, ctx)
+    .filter(
+      (view) =>
+        view.state === 'captured' &&
+        view.beforeOwed &&
+        !!view.savedViewId &&
+        !unprinted.has(view.savedViewId) &&
+        (kind !== 'analysis-sheet' || view.savedViewId === ctx.figure?.viewId) &&
+        (options.retry || !view.beforeFailed),
+    )
+    .map((view) => view.id)
+}
+
+/** The package's views that `kind` cannot draw, and why (`ExportContext.unprinted`); none for an output not drawn. */
+export function unprintedFor(kind: VisualsExport, ctx: PlannedContext): UnprintedView[] {
+  if (!DRAWS_FIGURES.has(kind)) return []
+  const unprinted = ctx.unprinted ?? []
+  // The analysis sheet draws one view: it names only that one.
+  return kind === 'analysis-sheet' ? unprinted.filter((view) => view.id === ctx.figure?.viewId) : unprinted
+}
+
+/**
+ * The included views `kind` will be written without, worded for the pane and the file's notice, or null when none:
+ * views of interest not captured, and views the output cannot draw (`unprintedFor`).
+ */
+export function uncapturedNote(kind: VisualsExport, ctx: PlannedContext): string | null {
+  // A capture saved without its sheet is named once, as not drawn (`unprintedFor`), where the output draws figures.
+  const missing = plannedForOutput(kind, ctx).filter((view) => !hasCurrentCapture(view))
+  const undrawn = unprintedFor(kind, ctx)
+  const parts: string[] = []
+  if (missing.length) {
+    const list = missing
+      .map((view) => `${view.name} (${view.failed?.replace(/[.\s]*$/, '') || 'not captured'})`)
+      .join('; ')
+    parts.push(
+      `${missing.length === 1 ? 'A view of interest is' : `${missing.length} views of interest are`} not in the file because ${missing.length === 1 ? 'it was' : 'they were'} not captured: ${list}.`,
+    )
+  }
+  if (undrawn.length)
+    parts.push(
+      `${undrawn.length === 1 ? 'A view is' : `${undrawn.length} views are`} not drawn in the file: ${undrawn
+        .map((view) => `${view.name} (${view.reason.replace(/[.\s]*$/, '')})`)
+        .join('; ')}.`,
+    )
+  return parts.length ? parts.join(' ') : null
 }
 
 /** How many renders `kind` still waits for from the chosen engine: the figures, and for the VIA report its before pictures. */
@@ -472,24 +576,49 @@ export const READS_INVENTORY: ReadonlySet<VisualsExport> = new Set(['analysis-sh
 export function exportPreparation(
   kind: VisualsExport,
   ctx: Pick<ExportContext, 'run' | 'autoRun' | 'landChecks' | 'renderer' | 'visualInventory'> &
-    Partial<Pick<ExportContext, 'planned' | 'capture'>>,
+    Partial<Pick<ExportContext, 'planned' | 'capture' | 'blockNote' | 'brief' | 'figure' | 'unprinted'>>,
   options: { retry?: boolean } = {},
 ): {
   run: boolean
   landChecks: boolean
   render: boolean
   inventory: boolean
-  /** The views of interest captured first (`viewsToCapture`). */
+  /**
+   * The views of interest captured first: those not captured (`viewsToCapture`), and those captured again for their
+   * before-harvest render (`beforeToCapture`).
+   */
   capture: string[]
+  /** The capture also takes each view's before-harvest render (`NEEDS_BEFORE`). */
+  captureBefore: boolean
   note: string | null
+  /** `note` only names the views the file goes without, which a preview prints above itself too. */
+  noteIsSkipped: boolean
 } {
-  const planned = { planned: ctx.planned ?? [] }
-  const capture = viewsToCapture(kind, planned, options)
+  const planned: PlannedContext = {
+    planned: ctx.planned ?? [],
+    ...(ctx.blockNote !== undefined ? { blockNote: ctx.blockNote } : {}),
+    ...(ctx.brief ? { brief: ctx.brief } : {}),
+    ...(ctx.figure ? { figure: ctx.figure } : {}),
+    ...(ctx.unprinted ? { unprinted: ctx.unprinted } : {}),
+  }
+  const fresh = viewsToCapture(kind, planned, options)
+  const again = beforeToCapture(kind, planned, options).filter((id) => !fresh.includes(id))
+  const capture = [...fresh, ...again]
   const capturing = USES_PACKAGE_VIEWS.has(kind) && ctx.capture?.status === 'running'
   const captureNote = capturing
     ? `${ctx.capture?.message ?? 'Capturing the views of interest.'} The file is written when the views are saved.`
     : capture.length
-      ? `${capture.length === 1 ? 'A view of interest is' : `${capture.length} views of interest are`} captured first: the page stands at each, runs there and saves the view as Save viewpoint does. Then the file is written from the views as captured.`
+      ? [
+          fresh.length
+            ? `${fresh.length === 1 ? 'A view of interest is' : `${fresh.length} views of interest are`} captured first: the page stands at each, runs there and saves the view as Save viewpoint does${NEEDS_BEFORE.has(kind) ? ', with its before-harvest render' : ''}.`
+            : '',
+          again.length
+            ? `${again.length === 1 ? 'A captured view of interest is' : `${again.length} captured views of interest are`} captured again for ${again.length === 1 ? 'its' : 'their'} before-harvest render, which is taken where the view stands.`
+            : '',
+          'Then the file is written from the views as captured.',
+        ]
+          .filter(Boolean)
+          .join(' ')
       : null
   const skipped = uncapturedNote(kind, planned)
   const run = RUNS_ON_EXPORT.has(kind) && ctx.run !== 'current' && !ctx.autoRun.blocker
@@ -522,7 +651,7 @@ export function exportPreparation(
     ? captureNote
     : renderNote
       ? renderNote
-      : ctx.autoRun.status === 'running' && RUNS_ON_EXPORT.has(kind)
+      : ctx.autoRun.status === 'running' && waitsForRun(kind)
         ? `Running the visibility assessment${ctx.autoRun.progress ? ` · ${ctx.autoRun.progress}` : ''}. The file is written when it finishes.`
         : run
           ? ctx.run === 'stale'
@@ -530,12 +659,21 @@ export function exportPreparation(
             : 'Not run yet: the export runs the assessment first, in the background, then writes the file.'
           : landChecks
             ? 'Land status checks are still reading: the file waits for them.'
-            : (inventoryNote ?? (skipped ? `${skipped} Download tries them again.` : null))
-  return { run, landChecks, render, inventory, capture, note }
+            : (inventoryNote ?? (skipped ? `${skipped} Download tries again.` : null))
+  const noteIsSkipped = !!skipped && note === `${skipped} Download tries again.`
+  return { run, landChecks, render, inventory, capture, captureBefore: NEEDS_BEFORE.has(kind), note, noteIsSkipped }
 }
 
+/**
+ * Whether `kind` waits for a run in progress before its file: the outputs written from the run, and those drawn from
+ * the views, whose figures and facts read the run at their station (a capture's way back runs again where the
+ * reviewer stood).
+ */
+export const waitsForRun = (kind: VisualsExport) => RUNS_ON_EXPORT.has(kind) || USES_PACKAGE_VIEWS.has(kind)
+
 /** Included views of interest that a download captures before the file. */
-const capturesFirst = (ctx: ExportContext) => ctx.planned.some((view) => view.include && view.state !== 'captured')
+const capturesFirst = (ctx: ExportContext, kind: VisualsExport = 'via-report') =>
+  plannedForOutput(kind, ctx).some((view) => view.state !== 'captured')
 
 /** Why an output that draws views has none: every view left out, or none planned or saved. */
 function noPackageViews(ctx: ExportContext, why: string): string {
@@ -637,9 +775,12 @@ const rendererRow = (ctx: ExportContext, kind: VisualsExport = 'analysis-sheet')
   const before = kind === 'via-report' ? (r.missingBefore ?? 0) : 0
   // The report's before pictures come from the same engine as its simulations.
   const pairs = kind === 'via-report' ? ', before pictures by the same engine' : ''
+  const elsewhere = r.elsewhere
+    ? `; ${plural(r.elsewhere, 'view')} saved at another place ${r.elsewhere === 1 ? 'keeps its' : 'keep their'} PGMaps figure${kind === 'via-report' ? ' and before picture' : ''}, since ${r.label} draws only where the road view stands`
+    : ''
   return r.missing || before
-    ? `${r.label} at final quality${pairs}: ${r.missing} of ${r.views} still to render${before ? `, and ${before} before picture${before === 1 ? '' : 's'}` : ''}`
-    : `${r.label} at final quality${pairs}, rendered`
+    ? `${r.label} at final quality${pairs}: ${r.missing} of ${r.views} still to render${before ? `, and ${before} before picture${before === 1 ? '' : 's'}` : ''}${elsewhere}`
+    : `${r.label} at final quality${pairs}, rendered${elsewhere}`
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -730,9 +871,24 @@ function viewsSection(ctx: ExportContext, title: string, options: { screenshotsO
 }
 
 /** How a view of interest stands for a file that is about to be written. */
-function plannedStatus(view: ExportPlannedView): string {
+function plannedStatus(view: ExportPlannedView, kind: VisualsExport, ctx: ExportContext): string {
   if (!view.include) return 'Left out'
-  if (view.state === 'captured') return 'Captured: in the file'
+  if (forAnotherBlock(kind, ctx, view)) return 'For another block: left out of this file'
+  const undrawn = view.savedViewId ? unprintedFor(kind, ctx).find((entry) => entry.id === view.savedViewId) : null
+  if (hasCurrentCapture(view) && undrawn)
+    return `Captured, but not drawn in the file: ${undrawn.reason.replace(/[.\s]*$/, '')}${
+      view.failed ? '' : '. Captured again before the file is written'
+    }`
+  if (view.state === 'no-figure')
+    return view.failed
+      ? `Captured without its analysis sheet (${view.failed.replace(/[.\s]*$/, '')}): in the file as its screenshot. Download tries again`
+      : 'Captured without its analysis sheet: captured again before the file is written'
+  if (view.state === 'captured')
+    return view.beforeOwed && NEEDS_BEFORE.has(kind)
+      ? view.beforeFailed
+        ? `Captured: in the file, without its before-harvest render (${view.beforeFailed.replace(/[.\s]*$/, '')})`
+        : 'Captured: in the file; captured again first for its before-harvest render'
+      : 'Captured: in the file'
   if (view.failed)
     return `Not captured: ${view.failed.replace(/[.\s]*$/, '')}. The file is written without it; Download tries again.`
   return view.state === 'outdated'
@@ -740,24 +896,42 @@ function plannedStatus(view: ExportPlannedView): string {
     : 'To capture: captured before the file is written'
 }
 
-/** The views of interest planned on the plan map, as the package's outputs take them; null when none are planned. */
-function plannedViewsSection(ctx: ExportContext): ExportSection | null {
+/** The views of interest planned on the plan map, as `kind` takes them; null when none are planned. */
+function plannedViewsSection(ctx: ExportContext, kind: VisualsExport): ExportSection | null {
   if (!ctx.planned.length) return null
-  const included = ctx.planned.filter((view) => view.include)
-  const toCapture = included.filter((view) => view.state !== 'captured').length
+  const taken = plannedForOutput(kind, ctx)
+  // What a preview captures (a failed view waits for a download), and what the file then goes without.
+  const toCapture = viewsToCapture(kind, ctx).length
+  const undrawn = new Set(unprintedFor(kind, ctx).map((view) => view.id))
+  const without = taken.filter(
+    (view) => (view.state !== 'captured' && view.failed) || (!!view.savedViewId && undrawn.has(view.savedViewId)),
+  ).length
+  const elsewhere = ctx.planned.filter((view) => view.include && forAnotherBlock(kind, ctx, view)).length
   return {
     title: 'Views of interest',
     step: 'visit',
     action: packageAction,
     items: ctx.planned.map((view) => ({
       title: view.name,
-      subtitle: [view.block, view.lens, plannedStatus(view)].join(' · '),
+      subtitle: [view.block, view.lens, plannedStatus(view, kind, ctx)].join(' · '),
     })),
-    note: `${plural(included.length, 'view')} of interest in the file${
+    note: `${plural(taken.length - without, 'view')} of interest in the file${
       toCapture
         ? `, ${toCapture} to capture first: Preview and Download stand at each, run there and save it as Save viewpoint does`
         : ''
-    }. Choose which under Package.`,
+    }.${without ? ` ${plural(without, 'view')} of interest ${without === 1 ? 'is' : 'are'} not in it, as listed; Download tries again.` : ''}${elsewhere ? ` ${plural(elsewhere, 'view')} planned for another block ${elsewhere === 1 ? 'is' : 'are'} left out: ${elsewhere === 1 ? 'it goes' : 'they go'} in that block’s file.` : ''} Choose which under Package.`,
+  }
+}
+
+/** The package's views an output cannot draw, each with why; null when it draws them all. */
+function unprintedSection(ctx: ExportContext, kind: VisualsExport): ExportSection | null {
+  const undrawn = unprintedFor(kind, ctx)
+  if (!undrawn.length) return null
+  return {
+    title: 'Views not drawn',
+    step: 'visit',
+    items: undrawn.map((view) => ({ title: view.name, subtitle: `Not in the file: ${view.reason}` })),
+    note: 'The file names each of them and why. Capture the view again, or leave it out under Package.',
   }
 }
 
@@ -933,7 +1107,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           ],
         },
         { title: 'Landform', step: 'identify', rows: note?.landform, empty: 'None adopted.' },
-        ...withPlanned([plannedViewsSection(ctx)]),
+        ...withPlanned([plannedViewsSection(ctx, 'block-note')]),
         reportViewsSection(ctx, !!note?.figures),
         inventorySection(ctx),
         landChecksSection(ctx),
@@ -985,14 +1159,20 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
             { label: 'Block ground', value: ctx.figure.paintBlocks ? 'Painted as harvested ground' : 'As captured' },
             {
               label: 'Outlines and pixel figure',
-              value: view?.hasClassPass ? 'From the view’s class pass' : 'None: saved without a class pass',
+              value: view?.hasClassPass
+                ? 'From the view’s class pass'
+                : `None: ${
+                    unprintedFor('analysis-sheet', ctx)
+                      .find((entry) => entry.id === view?.id)
+                      ?.reason.replace(/[.\s]*$/, '') ?? 'saved without a class pass'
+                  }`,
             },
           ],
         },
         ...(view
           ? [{ title: 'View settings', step: 'visit' as const, rows: view.settings, empty: 'Not recorded.' }]
           : []),
-        plannedViewsSection(ctx),
+        plannedViewsSection(ctx, 'analysis-sheet'),
         landformSection(ctx),
         runSection(ctx),
       ])
@@ -1012,8 +1192,10 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
               ? 'The figures and calculations are drawn from the views of interest once they are captured.'
               : 'No view in the package has a class pass yet.',
           },
-          plannedViewsSection(ctx),
+          unprintedSection(ctx, 'via-report'),
+          plannedViewsSection(ctx, 'via-report'),
         ])
+      const undrawn = unprintedFor('via-report', ctx).length
       return withPlanned([
         {
           title: 'Report',
@@ -1021,7 +1203,10 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           rows: [
             { label: 'Structure of', value: `${report.recipe} (reference document ${report.sources})` },
             { label: 'Logo', value: ctx.logo },
-            { label: 'Figures', value: plural(report.figures, 'saved view') },
+            {
+              label: 'Figures',
+              value: `${plural(report.figures, 'saved view')}${undrawn ? `; ${undrawn} more in the package not drawn (below)` : ''}`,
+            },
             { label: 'Drawn by', value: rendererRow(ctx, 'via-report') },
           ],
         },
@@ -1032,7 +1217,8 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           rows: [{ label: 'Items', value: report.toComplete ? plural(report.toComplete, 'item') : 'None' }],
           note: 'Judgements, office fields and signatures the run cannot give print blank and are listed at the end of the report.',
         },
-        plannedViewsSection(ctx),
+        unprintedSection(ctx, 'via-report'),
+        plannedViewsSection(ctx, 'via-report'),
         runSection(ctx),
       ])
     }
@@ -1051,7 +1237,8 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
               ? 'Filled from the views of interest once they are captured.'
               : 'No view in the package has a class pass yet.',
           },
-          plannedViewsSection(ctx),
+          unprintedSection(ctx, 'via-document'),
+          plannedViewsSection(ctx, 'via-document'),
         ])
       return withPlanned([
         {
@@ -1083,7 +1270,8 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           note: 'Judgements the run never makes (visibility term, lines of force, edges, the extent met) come from step 4 at the assessment station only, and are listed, never invented.',
         },
         ...(doc.gaps.length ? [{ title: 'Not filled by PGMaps', items: doc.gaps.map((gap) => ({ title: gap })) }] : []),
-        plannedViewsSection(ctx),
+        unprintedSection(ctx, 'via-document'),
+        plannedViewsSection(ctx, 'via-document'),
         runSection(ctx),
       ])
     }
@@ -1102,7 +1290,17 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         },
         landformSection(ctx),
         runSection(ctx),
-        viewsSection(ctx, 'Saved views', { screenshotsOnly: true }),
+        ...withPlanned([plannedViewsSection(ctx, 'field-brief')]),
+        {
+          // The package's saved views; a capture of a view of interest is listed with that view above.
+          ...viewsSection(
+            { ...ctx, views: ctx.views.filter((view) => view.inReport && !view.planned) },
+            'Saved views in the brief',
+            { screenshotsOnly: true },
+          ),
+          action: packageAction,
+          note: 'The brief takes the package’s views, as the other documents do; choose which under Package.',
+        },
       ]
     case 'worksheet':
       return [runSection(ctx), landformSection(ctx), viewpointSection(ctx), blocksSection(ctx), settingsSection(ctx)]
@@ -1242,14 +1440,15 @@ export type ContextInput = {
   assessment: ViaAssessment | null
   views: ContextView[]
   fs1252: { selected: number[]; reviews: Record<number, unknown> }
-  blockNote: { header: Row[]; landform: Row[]; measures: number } | null
+  blockNote: { blockId?: string; header: Row[]; landform: Row[]; measures: number } | null
   noteFigures: boolean
   figure: { viewId: string | null; style: string; labelStyle: string; cameraInfo: boolean; paintBlocks: boolean }
   document: ExportContext['document']
   report: ExportContext['report']
   logo: string
   renderer: ExportContext['renderer']
-  brief: { blockId: string | null; viewpoints: number }
+  /** `screenshots`: the views with a screenshot the brief takes; absent, every view with one. */
+  brief: { blockId: string | null; viewpoints: number; screenshots?: number }
   evidence: { loaded: boolean; gaps: string[]; counts: { views: number; runs: number; fields: number } }
   roadViewReady: boolean
   /** Absent: no block has a stand prescription. */
@@ -1261,6 +1460,8 @@ export type ContextInput = {
   visualInventory?: ExportContext['visualInventory']
   /** The package's views of interest (`resolvePackage`). Absent: none planned. */
   planned?: ExportPlannedView[]
+  /** The package's views that cannot be drawn, and why (`unprintedViews`). Absent: none. */
+  unprinted?: UnprintedView[]
   /** The capture's progress (`useViewCapture`). Absent: idle. */
   capture?: ExportCapture
   /** The package's recipe by name, or null/absent for none. */
@@ -1399,6 +1600,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
       ],
     })),
     planned,
+    unprinted: input.unprinted ?? [],
     capture: input.capture ?? IDLE_CAPTURE,
     recipe: input.recipe ?? null,
     settings: settingsRows(scene),
@@ -1422,7 +1624,9 @@ export function buildExportContext(input: ContextInput): ExportContext {
             inputs: !!input.fs1252.reviews[index],
           }))
       : [],
-    blockNote: input.blockNote ? { ...input.blockNote, figures: input.noteFigures } : null,
+    blockNote: input.blockNote
+      ? { ...input.blockNote, blockId: input.blockNote.blockId ?? '', figures: input.noteFigures }
+      : null,
     figure: input.figure,
     document: input.document,
     report: input.report,
@@ -1430,8 +1634,9 @@ export function buildExportContext(input: ContextInput): ExportContext {
     renderer: input.renderer,
     brief: {
       block: briefBlock?.name ?? null,
+      blockId: briefBlock?.id ?? null,
       viewpoints: input.brief.viewpoints,
-      screenshots: Math.min(3, input.views.filter((view) => view.screenshot).length),
+      screenshots: Math.min(3, input.brief.screenshots ?? input.views.filter((view) => view.screenshot).length),
     },
     evidence: { loaded: input.evidence.loaded, gaps: input.evidence.gaps, ...input.evidence.counts },
     roadViewReady: input.roadViewReady,
@@ -1476,6 +1681,18 @@ export type PackageInput = {
   savedViews: ReadonlyArray<{ id: string; name: string; plannedViewId?: string; plannedKey?: string }>
   /** Failed captures by view id, with the `viewCaptureKey` they failed under. */
   failures?: Readonly<Record<string, { key: string; reason: string }>>
+  /**
+   * Saved views (by id) without the before-harvest render an output pairs them with, which a capture standing there
+   * would take (`ExportPlannedView.beforeOwed`). Absent: none.
+   */
+  beforeOwed?: ReadonlySet<string>
+  /** Before renders that failed, by view of interest id, with the `viewCaptureKey` they failed under. */
+  beforeFailures?: Readonly<Record<string, { key: string; reason: string }>>
+  /**
+   * Whether a saved view has its analysis sheet (`viewImages[id]?.figure`): a current capture without one reads
+   * `no-figure` and is captured again (`viewCaptureState`). Absent: every current capture reads `captured`.
+   */
+  hasFigure?: (savedViewId: string) => boolean
 }
 
 export type ResolvedPackage = {
@@ -1512,17 +1729,26 @@ export function resolvePackage(input: PackageInput): ResolvedPackage {
       .filter((saved) => saved.plannedViewId === view.id && saved.plannedKey === key)
       .at(-1)
     const failure = input.failures?.[view.id]
-    const state = viewCaptureState(view, input.savedViews)
+    const beforeFailure = input.beforeFailures?.[view.id]
+    const state = viewCaptureState(view, input.savedViews, input.hasFigure)
+    const owed = state === 'captured' && !!capture && !!input.beforeOwed?.has(capture.id)
     return {
       id: view.id,
       key,
       name: view.name,
       block: input.blocks.find((block) => block.id === view.blockId)?.name ?? 'A block no longer in the scene',
+      blockId: view.blockId,
       lens: lensLabel(view.focalMm),
       state,
       include: isIncluded(view),
       savedViewId: capture?.id ?? null,
       failed: state !== 'captured' && failure && failure.key === key ? failure.reason : null,
+      ...(owed
+        ? {
+            beforeOwed: true,
+            beforeFailed: beforeFailure && beforeFailure.key === key ? beforeFailure.reason : null,
+          }
+        : {}),
     }
   })
   const saved = input.savedViews
@@ -1541,6 +1767,105 @@ export function resolvePackage(input: PackageInput): ResolvedPackage {
     viewIds,
     excludedViews: new Set(input.savedViews.filter((view) => !viewIds.has(view.id)).map((view) => view.id)),
   }
+}
+
+/**
+ * The saved views a file written for one block (`FOR_ONE_BLOCK`: the block note, the field brief) leaves out: the
+ * package's own (`excludedViews`) and the current capture of every view of interest planned for another block. A saved
+ * view not captured for a planned view keeps going in, as it always has.
+ */
+export function excludedForBlock(pkg: Pick<ResolvedPackage, 'planned' | 'excludedViews'>, blockId: string | null) {
+  const out = new Set(pkg.excludedViews)
+  if (!blockId) return out
+  for (const view of pkg.planned) if (view.blockId !== blockId && view.savedViewId) out.add(view.savedViewId)
+  return out
+}
+
+/**
+ * The package's views an output that draws figures cannot draw, and why, in the package's order: a view saved without
+ * a screenshot, or without the class pass its analysis sheet is drawn from (with the reason its save gave, when kept).
+ */
+export function unprintedViews(
+  views: ReadonlyArray<{ id: string; name: string }>,
+  images: Readonly<Record<string, { figure?: unknown; figureError?: string | null } | undefined>>,
+): UnprintedView[] {
+  return views.flatMap((view) => {
+    const image = images[view.id]
+    if (!image)
+      return [
+        {
+          id: view.id,
+          name: view.name,
+          reason:
+            'it has no screenshot or analysis sheet in this session (they are not kept when the page reloads, or its screenshot could not be taken): capture it again',
+        },
+      ]
+    if (image.figure) return []
+    const why = image.figureError?.trim().replace(/[.\s]*$/, '')
+    return [
+      {
+        id: view.id,
+        name: view.name,
+        reason: `its analysis sheet could not be drawn: ${why ? why[0].toLowerCase() + why.slice(1) : 'its class pass was not taken when it was saved'}`,
+      },
+    ]
+  })
+}
+
+/**
+ * A VIA document viewpoint's figure as What goes in lists it: its printed percent and term, or why it prints none.
+ * Every view the document holds has a class pass; a figure is missing only when the picture holds none of the
+ * landform, or the format's deductions (rock, private land) take all of it.
+ */
+export function documentFigureLine(
+  printed: { percent: string; term: string } | null,
+  areas: { landform: number } | null,
+): string {
+  if (printed) return `${printed.percent}% · ${printed.term}`
+  if (!areas) return 'No figure: the view has no class pass'
+  return areas.landform > 0
+    ? 'No figure: the format’s deductions (rock, private land) take all of the landform in the picture'
+    : 'No figure: the landform is not in the picture (its class pass shows none of it)'
+}
+
+/**
+ * The included views `kind` is written without, each with why, for the file's own notice: views of interest not
+ * captured (their capture's reason, else not captured yet) and views it cannot draw (`unprintedFor`).
+ */
+export function viewsLeftOut(kind: VisualsExport, ctx: PlannedContext): Array<{ name: string; reason: string }> {
+  return [
+    ...plannedForOutput(kind, ctx)
+      .filter((view) => !hasCurrentCapture(view))
+      .map((view) => ({
+        name: view.name,
+        reason: view.failed
+          ? `not captured: ${view.failed[0].toLowerCase()}${view.failed.slice(1)}`
+          : view.state === 'outdated'
+            ? 'not captured again since it changed, so its earlier capture is left out'
+            : 'not captured',
+      })),
+    ...unprintedFor(kind, ctx).map((view) => ({ name: view.name, reason: view.reason })),
+  ]
+}
+
+/**
+ * An engine's render of a saved view under the names the view was saved with: where it stood (`place`, the facts'
+ * Viewpoint line) and its own name. The engine draws the picture again; who and where the view is stay the saved
+ * record's, never the page's as it stands while the render runs.
+ */
+export function savedIdentity<
+  F extends { place?: string; viewpoint: string; facts: ReadonlyArray<{ label: string; value: string }> },
+>(drawn: F, own: F | undefined): F {
+  if (!own) return drawn
+  const ownLine = own.facts.find((fact) => fact.label === 'Viewpoint')
+  const named: F = {
+    ...drawn,
+    viewpoint: own.viewpoint,
+    facts: drawn.facts.map((fact) => (fact.label === 'Viewpoint' && ownLine ? ownLine : fact)),
+  }
+  if (own.place !== undefined) named.place = own.place
+  else delete named.place
+  return named
 }
 
 /** The package in one line, for its entry in the dialog's list. */

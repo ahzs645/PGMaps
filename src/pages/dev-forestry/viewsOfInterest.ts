@@ -166,10 +166,17 @@ export function viewAtPoint(
   existing: readonly ViewOfInterest[],
   focalMm = DEFAULT_FOCAL_MM,
 ): ViewOfInterest {
-  const placed = existing.filter((view) => view.source.kind === 'map').length
+  // Its place in the list (the number its marker shows), unless a view's name already uses that or a later number:
+  // then the next unused one. Counting map views alone named the fourth view "Viewpoint 2", and repeated a name once
+  // one was removed.
+  const used = existing.flatMap((view) => {
+    const match = /^Viewpoint (\d+)\b/.exec(view.name)
+    return match ? [Number(match[1])] : []
+  })
+  const number = Math.max(existing.length + 1, ...used.map((n) => n + 1))
   return {
     id: createViewOfInterestId(),
-    name: `Viewpoint ${placed + 1}, toward ${block.name}`,
+    name: `Viewpoint ${number}, toward ${block.name}`,
     source: { kind: 'map' },
     lng: point.lng,
     lat: point.lat,
@@ -245,18 +252,37 @@ export function groupByPlace(views: readonly ViewOfInterest[]): ViewOfInterest[]
 
 export const isIncluded = (view: ViewOfInterest) => view.include !== false
 
-/** A captured view's state: captured with its current key, captured before an edit, or not yet. */
-export type ViewCaptureState = 'captured' | 'outdated' | 'not-captured'
+/**
+ * A planned view's capture: `captured` (a saved view with its current key, with its analysis sheet), `no-figure`
+ * (saved with its current key, but its analysis sheet could not be drawn, or its screenshot and sheet are gone with
+ * the session), `outdated` (captured before an edit) or `not-captured`. Only `captured` is complete: every other
+ * state needs capturing, and *Capture N views* and an export's capture take it again (`needsCapture`).
+ */
+export type ViewCaptureState = 'captured' | 'no-figure' | 'outdated' | 'not-captured'
 
+/** A saved view as the capture state reads it: which planned view it captured, under which key. */
+export type SavedViewCapture = { id?: string; plannedViewId?: string; plannedKey?: string }
+
+/**
+ * The planned view's capture state. `hasFigure` says whether a saved view has its analysis sheet (the page's
+ * `viewImages[id]?.figure`); without it every current capture reads `captured`, as before the sheet was checked.
+ */
 export function viewCaptureState(
   view: ViewOfInterest,
-  savedViews: ReadonlyArray<{ plannedViewId?: string; plannedKey?: string }>,
+  savedViews: ReadonlyArray<SavedViewCapture>,
+  hasFigure?: (savedViewId: string) => boolean,
 ): ViewCaptureState {
   const mine = savedViews.filter((saved) => saved.plannedViewId === view.id)
   if (!mine.length) return 'not-captured'
   const key = viewCaptureKey(view)
-  return mine.some((saved) => saved.plannedKey === key) ? 'captured' : 'outdated'
+  const current = mine.filter((saved) => saved.plannedKey === key)
+  if (!current.length) return 'outdated'
+  if (!hasFigure) return 'captured'
+  return current.some((saved) => saved.id !== undefined && hasFigure(saved.id)) ? 'captured' : 'no-figure'
 }
+
+/** Whether a planned view needs (re)capturing: anything short of a current capture with its analysis sheet. */
+export const needsCapture = (state: ViewCaptureState) => state !== 'captured'
 
 /** Reads a stored list leniently: a malformed entry is dropped, never repaired into another view. */
 export function parseViewsOfInterest(raw: unknown): ViewOfInterest[] {

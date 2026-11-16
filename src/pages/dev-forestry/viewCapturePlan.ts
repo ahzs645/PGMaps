@@ -162,11 +162,41 @@ export function captureMessage(index: number, total: number, name: string): stri
   return `Capturing ${index + 1} of ${total}: ${name}…`
 }
 
-/** The batch's closing line: "Captured 4 of 5 views; 1 could not be captured." */
-export function captureSummary(captured: number, total: number, failed: number, cancelled: boolean): string {
-  const head = `Captured ${captured} of ${total} view${total === 1 ? '' : 's'}`
-  if (cancelled) return `${head}; cancelled.`
-  return failed ? `${head}; ${failed} could not be captured.` : `${head}.`
+/**
+ * The batch's closing line: "Captured 4 of 5 views; 1 could not be captured." `warned` counts the saved views
+ * without their analysis sheet (`sheet`), which are not counted as captured, or without their before-harvest render
+ * (`before`): "Captured 2 of 3 views; 1 saved without its analysis sheet."
+ */
+export function captureSummary(
+  captured: number,
+  total: number,
+  failed: number,
+  cancelled: boolean,
+  warned: { sheet?: number; before?: number } = {},
+): string {
+  // A view saved without its analysis sheet is not captured yet: the list and *Capture N views* take it again.
+  const head = `Captured ${captured - (warned.sheet ?? 0)} of ${total} view${total === 1 ? '' : 's'}`
+  const without = (count: number | undefined, what: string) =>
+    count ? `${count} saved without ${count === 1 ? 'its' : 'their'} ${what}${count === 1 ? '' : 's'}` : ''
+  const parts = [
+    cancelled ? 'cancelled' : '',
+    !cancelled && failed ? `${failed} could not be captured` : '',
+    without(warned.sheet, 'analysis sheet'),
+    without(warned.before, 'before-harvest render'),
+  ].filter(Boolean)
+  return parts.length ? `${head}; ${parts.join('; ')}.` : `${head}.`
+}
+
+/** "Drawing the before-harvest renders at VLI 144…" */
+export function beforeMessage(count: number, placeName: string): string {
+  return `Drawing the before-harvest render${count === 1 ? '' : 's'} at ${placeNameFromView(placeName)}…`
+}
+
+/** A view saved without its before-harvest render, with the page's reason when it named this view. */
+export function beforeWarning(name: string, notes: readonly string[]): string {
+  const own = notes.find((note) => note.startsWith(`${name}:`))
+  const reason = own ? own.slice(name.length + 1).trim() : notes.join(' ')
+  return `Saved, but its before-harvest render could not be taken${reason ? `: ${reason.replace(/^[A-Z]/, (c) => c.toLowerCase())}` : '.'}`
 }
 
 type SavedLike = { id: string; plannedViewId?: string }

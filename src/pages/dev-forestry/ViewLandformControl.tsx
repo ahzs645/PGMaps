@@ -4,11 +4,15 @@ import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 
 import { loadElevationGrid } from './demLoader'
-import { formatHa } from './measureFormat'
 import type { ForestryScene } from './scene'
 import type { TerrainCandidate } from './TerrainLandformFinder'
-import { viewLandformCandidate, viewLandformTileRange } from './viewLandform'
-import type { PolygonGeometry } from './visibility'
+import {
+  viewLandformCandidate,
+  viewLandformTileRange,
+  viewLandformVerdict,
+  type ViewLandformCandidate,
+} from './viewLandform'
+import { polygonAreaMeters, type PolygonGeometry } from './visibility'
 import type { ViewOfInterest } from './viewsOfInterest'
 
 type Status = { state: 'idle' | 'working' | 'failed'; message?: string }
@@ -44,12 +48,13 @@ export function ViewLandformControl({
     ? (scene.targets.find((target) => target.id === view.landformId && target.role === 'landscape') ?? null)
     : null
   const [status, setStatus] = useState<Status>({ state: 'idle' })
-  const [candidate, setCandidate] = useState<{ key: string; value: TerrainCandidate } | null>(null)
+  const [candidate, setCandidate] = useState<{ key: string; value: ViewLandformCandidate } | null>(null)
   const controller = useRef<AbortController | null>(null)
   // A reading belongs to the place and block it was read for: moving the view or editing the block drops it.
   const key = `${view.lng},${view.lat},${view.blockId}`
   const shown =
     candidate && candidate.key === key && candidate.value.blockGeometry === block?.geometry ? candidate : null
+  const verdict = shown && block ? viewLandformVerdict(shown.value, polygonAreaMeters(block.geometry) / 10_000) : null
 
   const hide = useRef(onHideCandidate)
   const current = useRef<TerrainCandidate | null>(null)
@@ -95,7 +100,10 @@ export function ViewLandformControl({
         water,
         eyeHeightMeters: scene.settings.observerHeightMeters,
       })
-      if (!found) throw new Error(`Nothing of ${block.name}, or the ground in front of it, is in view from here.`)
+      if (!found)
+        throw new Error(
+          `Nothing of ${block.name}, or of the ground in front of it, is in view from here: there is no face to read. Try another view, or draw the landform by hand.`,
+        )
       setCandidate({ key, value: found })
       onShowCandidate?.(found)
       setStatus({
@@ -146,25 +154,21 @@ export function ViewLandformControl({
         </Button>
       )}
       {status.state === 'failed' && <InlineAlert tone="error">{status.message}</InlineAlert>}
-      {shown && (
+      {shown && verdict && (
         <div className="space-y-1.5" aria-label="Landform seen from this view">
           <p className="text-3xs leading-4 text-muted-foreground">
-            Visible face round {shown.value.blockName}, {formatHa(shown.value.areaHectares * 10_000, 0)}, drawn on the
-            plan. A reading of the terrain from this view, not a checked delineation: compare it with the view before
-            adopting it. Adopting it adds it as a landform for this view only; the run&apos;s landform stays as it is.
+            {verdict.title}, drawn on the plan. A reading of the terrain from this view, not a checked delineation:
+            compare it with the view before adopting it. Adopting it adds it as a landform for this view only; the
+            run&apos;s landform stays as it is.
           </p>
-          {shown.value.blockOnly && (
-            <InlineAlert tone="warning">
-              The terrain finds little hillside beyond the block itself, so there is no landform to adopt from here.
-            </InlineAlert>
-          )}
+          {verdict.note && <InlineAlert tone={verdict.tone ?? 'info'}>{verdict.note}</InlineAlert>}
           {status.message && <InlineAlert tone="warning">{status.message}</InlineAlert>}
           <div className="flex gap-2">
             <Button
               type="button"
               size="xs"
               className="text-2xs"
-              disabled={shown.value.blockOnly}
+              disabled={!verdict.adoptable}
               onClick={() => {
                 onAdopt(view, shown.value)
                 dismiss()

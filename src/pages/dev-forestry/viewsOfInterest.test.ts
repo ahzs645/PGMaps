@@ -10,6 +10,7 @@ import {
   viewBearing,
   viewCaptureKey,
   viewCaptureState,
+  needsCapture,
   viewsForCandidate,
 } from './viewsOfInterest'
 import { sceneFingerprint } from './sceneInput'
@@ -106,6 +107,30 @@ describe('capture state', () => {
     expect(viewCaptureState({ ...view, name: 'Renamed', include: false }, saved)).toBe('captured')
     expect(viewCaptureState({ ...view, facing: { kind: 'bearing', degrees: 10 } }, saved)).toBe('outdated')
     expect(viewCaptureState(view, [])).toBe('not-captured')
+  })
+  it('reads a capture saved without its analysis sheet as one more to capture', () => {
+    const view = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
+    const key = viewCaptureKey(view)
+    const saved = [
+      { id: 'old', plannedViewId: view.id, plannedKey: key },
+      { id: 'new', plannedViewId: view.id, plannedKey: key },
+    ]
+    expect(viewCaptureState(view, saved, () => false)).toBe('no-figure')
+    expect(viewCaptureState(view, saved, (id) => id === 'new')).toBe('captured')
+    // A sheet under an earlier key does not make the current capture complete.
+    expect(viewCaptureState({ ...view, focalMm: 35 }, saved, () => true)).toBe('outdated')
+    expect(needsCapture('no-figure')).toBe(true)
+    expect(needsCapture('captured')).toBe(false)
+  })
+})
+
+describe('naming a view placed on the map', () => {
+  it('takes its place in the list, or the next number no view uses', () => {
+    const vli = viewsForCandidate(candidate([80, 100]), block)
+    const first = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, vli)
+    expect(first.name).toBe(`Viewpoint ${vli.length + 1}, toward ${block.name}`)
+    const later = { ...first, name: `Viewpoint 7, toward ${block.name}` }
+    expect(viewAtPoint({ lng: -122.71, lat: 53.9 }, block, [later]).name).toBe(`Viewpoint 8, toward ${block.name}`)
   })
 })
 

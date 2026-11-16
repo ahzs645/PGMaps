@@ -48,6 +48,18 @@ function recipeLine(recipe: RenderRecipe): string {
   return `- **${recipe.label}** — ${lens}, ${framing}; ${scene}${style}. Caption: "${recipe.caption}"`
 }
 
+/** The views of the package a document does not hold, each with why, as a closing Markdown section; '' when none. */
+export function viewsLeftOutMarkdown(leftOut: ReadonlyArray<{ name: string; reason: string }>): string {
+  if (!leftOut.length) return ''
+  return [
+    '',
+    '## Views left out of this document',
+    '',
+    ...leftOut.map((view) => `- ${view.name}: ${view.reason.replace(/[.\s]*$/, '')}.`),
+    '',
+  ].join('\n')
+}
+
 export function documentMarkdown(doc: ResolvedDocument, facts: DocumentFacts, generatedAt: Date): string {
   const { format } = doc
   const lines: string[] = [

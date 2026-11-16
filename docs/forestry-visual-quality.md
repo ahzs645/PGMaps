@@ -101,8 +101,13 @@ centre, nearest that bearing first, at most `DEFAULT_ARROWS_PER_VIEWPOINT` (2)
 while the row is open. Picking *Face the block* or one arrow on the row first
 adds just that view. Under the list, *Add the N that see the block to views*
 (after *Check which of them see the block*) or *Add the N with arrows at the
-block to views* adds every such row not listed yet, and a listed row reads
-"· in views". A view that repeats one already listed (within 1 m, the same
+block to views* adds every such row not listed yet, and a row listed for the
+finder's block reads "· in views" (the same viewpoint planned for another block
+does not). When arrows aim at the block, the row's facings start on *The N
+arrows at the block*, the choice *Add to views* adds; a check's *Hidden* and
+*% seen* show only for the block it was run for, and an "Added …" line stays
+under the row or bulk button it came from until the block changes or for
+`ADD_MESSAGE_MS` (8 s). A view that repeats one already listed (within 1 m, the same
 block and facing) is skipped, and the list holds at most
 `MAX_VIEWS_OF_INTEREST` (12), the saved-view limit, so every planned view can
 be captured.
@@ -129,7 +134,9 @@ reaching a little past the block's centre (× 1.15, held between 400 m and 8 km;
 left out of exports fainter. The inventory arrows the views face along are
 outlined, and those the finder's open row would add are fainter. Both have
 legend rows (`view-of-interest`, `view-arrow`), and the cones and arrows take no
-clicks. A point opens its row, and a view placed on the map can be dragged, but
+clicks. Views standing at one place share one point labelled with all their
+numbers ("2·3", `groupMarks`), and a click there opens each in turn. A point
+opens its row, and a view placed on the map can be dragged, but
 neither while the road view is open (a plan click moves the road view then) or
 while something is being drawn, picked or measured. The views are hidden while
 the VIA report captures its maps. The numbered points are HTML markers, so a
@@ -174,15 +181,27 @@ place's scene key, the road view open on a full run, the look, the lens applied
 to the eye map, the pose within 1° of the facing, terrain and timber ready) must
 hold for 300 ms with the camera's bearing unchanged, and each save is awaited to
 the end of its class pass (or an engine's capture) before the camera moves
-again. The saved view carries `plannedViewId` and `plannedKey`
+again. Each settled frame of a framed capture waits up to `SETTLE_TIMEOUT_MS`
+(45 s, `mapCapture.ts`) for its tiles, and PGMaps' own analysis sheet is drawn a
+second time when the first try fails: under load a 15 s wait failed about half
+the views of a batch. With `capture(ids, { before: true })` (Save & export's
+before pictures) each place's views are also drawn before harvest
+(`captureBeforeRenders`) once they are saved, while the road view still stands
+there; the harvest phase is put back, and the renders are kept by saved view in
+the page's `capturedBefore` with the planned key they were taken under. The saved view carries `plannedViewId` and `plannedKey`
 (`viewCaptureKey`: the place to 1e-6°, block, facing to 0.1°, lens, framing and
 landform; never the name or *Include*, so renaming a view or leaving it out
 keeps its capture). A recapture removes the view's earlier saves wherever they
 were saved, here or shelved (`withoutPlannedView`), so it replaces the view
 rather than adding a second. A view reads *Captured* while a saved view carries
 its id and current key, *Changed since captured* once its place, block, facing,
-lens, framing or landform has changed, and *Not captured* otherwise
-(`viewCaptureState`).
+lens, framing or landform has changed, *Saved, no analysis sheet* while its
+current save has no analysis sheet (its class pass failed, or the screenshot and
+sheet went with an earlier session), and *Not captured* otherwise
+(`viewCaptureState(view, saved, hasFigure)`). Only *Captured* is complete:
+`needsCapture` is every other state, so *Capture N views*, the strip's count and
+Save & export's capture all treat a save without its sheet as one still to
+capture.
 
 Each wait has its own budget, counted only while the capture waits on it
 (`CAPTURE_TIMEOUTS`): the run 5 minutes, the road view opening and its terrain
@@ -192,12 +211,15 @@ every view at that place with the reason; terrain, timber, a facing or a lens
 that does not take fails that view alone. A save that runs out of time stops
 the batch, because its class pass may still be moving the camera, and the rest
 are reported as not captured. A save whose screenshot or class pass could not
-be taken counts as captured, with a warning. *Cancel* finishes the view being
+be taken is kept, with a warning (`warning: 'sheet'` in the batch's failures)
+naming why, in its row and in the closing line ("Captured 2 of 3 views; 1 saved
+without its analysis sheet"); a missing before render is `warning: 'before'`. *Cancel* finishes the view being
 saved and stops. However a batch ends, it puts the reviewer back where they
 stood (`restore`, in `finally`): the viewpoint and active landform, the place
 stood at, the road view's lens, and the road view open at the same position and
 look when it was open; when it was closed, the run is made again for where they
-stood if they had one. A view with no landform of its own is captured against
+stood if they had one, and the last place's run is let go if they had none (kept,
+it read as "Scene changed — rerun"). A view with no landform of its own is captured against
 the landform active when the batch started, never the one the previous place's
 view made active. One capture runs at a time; the summary's view switcher and
 the panel's buttons stand aside meanwhile. A capture ends a lined-up field
@@ -213,9 +235,11 @@ road view's look, then the one for the summary's block, then the first listed �
 with "2 of 5", or where they stand and "5 planned" when they stand at none. The
 arrows stand at the previous or next view, wrapping, as *Stand here* does, and
 are off while a capture runs. With two or more blocks a block select sets the
-block the rows read, which is the sidebar's selection: when a planned view at
-this place assesses that block it stands at that view, and otherwise a road
-view facing a block turns to the chosen one. At a planned view the rows'
+block the rows read. At a planned view it reads that view's block (an arrow's
+view faces a bearing, not its block); picking another block stands at a planned
+view here for it, or else reads that block until the reviewer stands elsewhere.
+Away from planned views it is the block the road view faces, else the sidebar's
+selection, and a road view facing a block turns to the chosen one. At a planned view the rows'
 qualifier reads *planned view* and their note names it. A block the run does
 not hold (added or changed since) reads *Not in this run*, never another
 block's figures, and when the view's own landform is not the one the run
@@ -230,7 +254,15 @@ terrain zoom 12 and search box widened to take in the view, the scene's eye
 height, basemap water, *stop at the first crest* and *split at draws* off), and
 draws it on the plan with the finder's candidates. Like every terrain reading
 it is a candidate: only *Adopt for this view* takes it, and a reading that
-finds little beyond the block (`blockOnly`) cannot be adopted. Adopting adds a
+finds little beyond the block (`blockOnly`) cannot be adopted. The control says
+which case it is (`viewLandformVerdict`): a face round the block seen from here;
+a block seen with little hillside round it; or a block the terrain hides from
+here, when the reading is the land seen in front of it (`seededBy: 'in-front'`),
+titled and, if adopted, named "Face in front of …", never a face round the
+block, and adoptable only when it is more than `blockOnly`'s 2.5 × the block's
+area. A view such as VLI 145 at Tabor Mountain, which the run also reads as 0%
+of Test Block C in view, has nothing to adopt; VLI 150 at Purden Lake, which
+sees PL-1, reads a 460 ha face. Adopting adds a
 landform target (`role: 'landscape'`) built as the finder's *Use* builds one
 (`landformTargetFromCandidate`, inheriting the scene landform's objective and
 VAC, named "Visible face round … from" the view), or reuses a landform already
@@ -245,8 +277,10 @@ the scene's targets, so adopting one stales the run as adding any landform
 does. *Clear* takes the landform off the view and leaves the target in the
 scene. Standing at a view that has a landform (*Stand here*, the summary's
 arrows, a capture) makes it the run's active landform, so the run there, the
-summary and the saved view's figure read it; a capture puts the reviewer's
-landform back afterwards, while a plain stand leaves the view's active.
+summary and the saved view's figure read it. The reviewer's own landform is
+kept with the stand (`standing.landform`): a view with no landform of its own,
+stood at next, reads it again, *Back to the road* puts it back while the view's
+is still the active one, and a capture puts it back afterwards.
 
 ### Save & export
 
@@ -280,7 +314,8 @@ with (position, facing, eye height, lens, timber, harvest phase, design), the
 blocks and masks, the run's status and figures, the run settings and the
 review — each with *Change in step N*, which closes the dialog on that step.
 **Preview** builds the file itself and shows it (a PDF in the browser's viewer,
-an image, HTML in a sandboxed frame, text); *Download* saves that same file. An
+an image, HTML in a sandboxed frame, an Excel workbook as its sheets read back
+from the file by `workbookPreview.ts`, text); *Download* saves that same file. An
 output that cannot be written yet says why in the list (no block, no view in
 the package, the road view closed, a scene that cannot run).
 
@@ -306,12 +341,35 @@ capture):
 
 These were per-output choices before; each output's own options keep only what
 is its own. `resolvePackage` gives one set of views (`viewIds`) and its
-complement (`excludedViews`), and the block note, the analysis sheet, the VIA
-document and the VIA report (`USES_PACKAGE_VIEWS`) all read that set, engine
-renders included. A view of interest goes in through its current capture
-alone: an earlier capture, or one taken under another key, is left out, so no
-file is written from a stale capture. The field brief does not follow the
-package: it still lists every saved view, here and shelved.
+complement (`excludedViews`), and the block note, the field brief, the analysis
+sheet, the VIA document and the VIA report (`USES_PACKAGE_VIEWS`) all read that
+set, engine renders included. A view of interest goes in through its current
+capture alone: an earlier capture, or one taken under another key, is left out,
+so no file is written from a stale capture. The block note and the field brief
+are written for one block (`FOR_ONE_BLOCK`): a view of interest planned for
+another block is left out of them, never captured for them, and listed in *What
+goes in* as for another block (`excludedForBlock`); a saved view not captured
+for a planned view goes in as before.
+
+**Every view prints or is named.** The analysis sheet, the VIA document and the
+VIA report (`DRAWS_FIGURES`) draw a view from its class pass. A view of the
+package they cannot draw (saved without its analysis sheet, with the reason its
+save gave, `figureError`; or with no screenshot in this session) is listed under
+*Views not drawn* and named in the preview's notice, the download's line and the
+file itself: the report ends with *Views left out of this report* and lists each
+to complete, the document with *Views left out of this document*
+(`unprintedViews`, `viewsLeftOut`, `withViewsLeftOut`). A VIA document viewpoint
+whose picture holds none of the landform says so rather than "no class pass"
+(`documentFigureLine`).
+
+**Per-view fields come from the view's own record.** A report's viewpoint name,
+place, coordinates, direction, field of view, location map and inventory unit
+come from the view's saved figure (`viewImages[id]`, its `figureAt`), never the
+road view or the place stood at when the file is written. An engine draws only
+where the road view stands: a view saved at another place gets no background
+render (`renderJobFor`) and keeps PGMaps' figure and before picture, which the
+renderer row and the pair's note say; a render keeps the saved figure's names
+and place (`savedIdentity`).
 
 **Capture on export.** Preview and Download of an output in
 `USES_PACKAGE_VIEWS` first capture the included views of interest not captured
@@ -325,6 +383,20 @@ in the preview's note and in the download's *Saved* line, naming each view and
 why. A cancelled capture writes nothing, and closing the dialog cancels a
 capture it started. Such an output is available while any included view is
 still to capture, since the export captures it first.
+
+The VIA report's before pictures and the analysis sheet's with-timber figure
+(`NEEDS_BEFORE`) pair a view with its before-harvest render. Their capture also
+takes each view's render where it stands (`capture(ids, { before: true })`,
+kept in the page's `capturedBefore` under the view's capture key), and a captured
+view away from where the reviewer stands with none (`beforeOwed`) is captured
+again for it (`beforeToCapture`; one whose render failed under its key waits for
+a download). `captureBeforeRenders` takes a kept render first; a view saved at
+another place without one is absent, with why, never framed on the road view's
+terrain where the reviewer stands. After a capture the export waits for the road
+view to open again when it was open, so the views saved here render. Files are
+written one at a time: a preview started while another file is being written
+waits for it, and the pane says what it waits for; the outputs that draw views
+wait for a run in progress (`waitsForRun`).
 
 **The export makes what it reads.** The block note, FS1252, field brief,
 worksheet and Castor constraint read the run (`RUNS_ON_EXPORT`). When it is missing or stale, Preview

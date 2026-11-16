@@ -10,6 +10,7 @@ import {
   viewLandformCandidate,
   viewLandformName,
   viewLandformTileRange,
+  viewLandformVerdict,
 } from './viewLandform'
 import { metersPerDegree, pointInPolygon } from './visibility'
 import type { ViewOfInterest } from './viewsOfInterest'
@@ -138,5 +139,39 @@ describe('adopting a landform for a view', () => {
     expect('landformId' in cleared[0]).toBe(false)
     expect(cleared[1].landformId).toBe('lf-1')
     expect(cleared[1]).toBe(views[1])
+  })
+})
+
+describe('what the control says about a reading', () => {
+  const reading = { blockName: 'Test Block C', areaHectares: 44, blockOnly: true }
+  it('never calls the land in front of a hidden block a face round it', () => {
+    const hidden = viewLandformVerdict({ ...reading, seededBy: 'in-front' }, 29)
+    expect(hidden.adoptable).toBe(false)
+    expect(hidden.title).toBe('The land in front of Test Block C, 44 ha')
+    expect(hidden.note).toMatch(/^Test Block C is hidden from here/)
+    expect(hidden.note).not.toMatch(/beyond the block/)
+    // A wide face in front of a hidden block is adoptable, said for what it is.
+    const wide = viewLandformVerdict({ ...reading, areaHectares: 598, blockOnly: false, seededBy: 'in-front' }, 131)
+    expect(wide).toMatchObject({ adoptable: true, title: 'Face in front of Test Block C, 598 ha', tone: 'info' })
+  })
+  it('says why a block seen with little hillside round it gives nothing to adopt', () => {
+    const seen = viewLandformVerdict({ ...reading, areaHectares: 77, seededBy: 'block' }, 59)
+    expect(seen.adoptable).toBe(false)
+    expect(seen.note).toMatch(/little hillside round Test Block C beyond the block itself \(77 ha against its 59 ha\)/)
+    expect(viewLandformVerdict({ ...reading, areaHectares: 460, blockOnly: false, seededBy: 'block' }, 59)).toEqual({
+      title: 'Visible face round Test Block C, 460 ha',
+      adoptable: true,
+      tone: null,
+      note: null,
+    })
+  })
+  it('names an adopted face in front of a hidden block as that', () => {
+    const candidate = { blockName: 'Block A' } as Parameters<typeof viewLandformName>[0]
+    expect(viewLandformName({ ...candidate, seededBy: 'in-front' }, { name: 'VLI 145' })).toBe(
+      'Face in front of Block A from VLI 145',
+    )
+    expect(viewLandformName({ ...candidate, seededBy: 'block' }, { name: 'VLI 145' })).toBe(
+      'Visible face round Block A from VLI 145',
+    )
   })
 })

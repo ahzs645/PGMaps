@@ -290,6 +290,37 @@ export function assembleReport(recipe: ReportRecipe, ctx: ReportContext): Assemb
   }
 }
 
+/**
+ * The report with the views of its package it does not print named at its end, each with why (a view not captured,
+ * or one whose analysis sheet could not be drawn), and listed to complete before signing. A report never drops a
+ * view silently. Unchanged when every view prints.
+ */
+export function withViewsLeftOut(
+  report: AssembledReport,
+  leftOut: ReadonlyArray<{ name: string; reason: string }>,
+): AssembledReport {
+  if (!leftOut.length) return report
+  return {
+    ...report,
+    blocks: [
+      ...report.blocks,
+      heading('Views left out of this report', 2),
+      {
+        kind: 'list',
+        items: leftOut.map((view) => `${view.name}: ${view.reason.replace(/[.\s]*$/, '')}.`),
+        source: 'run',
+      },
+    ],
+    toComplete: [
+      ...report.toComplete,
+      ...leftOut.map((view) => ({
+        part: 'Figures',
+        what: `${view.name} is not in the report (${view.reason.replace(/[.\s]*$/, '')}): capture it again or leave it out of the package`,
+      })),
+    ],
+  }
+}
+
 /** The document format a recipe reads, checked. */
 export function recipeFormat(recipe: ReportRecipe) {
   const format = findDocumentFormat(recipe.format)

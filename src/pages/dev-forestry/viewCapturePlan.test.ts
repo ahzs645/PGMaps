@@ -110,6 +110,13 @@ describe('waiting for the road view', () => {
     expect(captureSummary(4, 5, 1, false)).toBe('Captured 4 of 5 views; 1 could not be captured.')
     expect(captureSummary(1, 1, 0, false)).toBe('Captured 1 of 1 view.')
     expect(captureSummary(2, 5, 0, true)).toBe('Captured 2 of 5 views; cancelled.')
+    // A save without its analysis sheet is not counted as captured; one without its before render is.
+    expect(captureSummary(3, 3, 0, false, { sheet: 1 })).toBe(
+      'Captured 2 of 3 views; 1 saved without its analysis sheet.',
+    )
+    expect(captureSummary(3, 4, 1, false, { sheet: 2, before: 1 })).toBe(
+      'Captured 1 of 4 views; 1 could not be captured; 2 saved without their analysis sheets; 1 saved without its before-harvest render.',
+    )
   })
 
   it('reads a lens as applied once the eye map shows its field across the canvas', () => {

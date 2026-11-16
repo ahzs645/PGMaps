@@ -16,7 +16,8 @@ import {
 } from './parts'
 import { CONSULTANT_RECIPE_PARTS } from './partsConsultant'
 import { findReportPart, REPORT_PARTS } from './registry'
-import { assembleReport, recipeFormat, REPORT_RECIPES } from './recipes'
+import { assembleReport, recipeFormat, REPORT_RECIPES, withViewsLeftOut } from './recipes'
+import { viewsLeftOutMarkdown } from '../viaDocument/markdown'
 
 const facts: DocumentFacts = {
   project: 'Block X1',
@@ -596,5 +597,32 @@ describe('rangeStanding', () => {
     )
     expect(rangeStanding('PR', 'PR', 'PR 1.6-7%')).toBe('within the Partial Retention range (PR 1.6-7%)')
     expect(rangeStanding('M', 'PR', 'PR 1.6-7%')).toBe('over the Partial Retention range (PR 1.6-7%)')
+  })
+})
+
+describe('views of the package a report or document does not print', () => {
+  it('names each at the end of the report and lists it to complete, never dropping it silently', () => {
+    const recipe = REPORT_RECIPES[0]
+    const report = assembleReport(recipe, context(recipe.format))
+    expect(withViewsLeftOut(report, [])).toBe(report)
+    const named = withViewsLeftOut(report, [
+      { name: 'VLI 145', reason: 'its analysis sheet could not be drawn: no frame.' },
+    ])
+    expect(named.blocks.slice(-2)).toEqual([
+      { kind: 'heading', level: 2, text: 'Views left out of this report' },
+      { kind: 'list', items: ['VLI 145: its analysis sheet could not be drawn: no frame.'], source: 'run' },
+    ])
+    expect(named.toComplete.at(-1)).toEqual({
+      part: 'Figures',
+      what: 'VLI 145 is not in the report (its analysis sheet could not be drawn: no frame): capture it again or leave it out of the package',
+    })
+    expect(reportMarkdown(named)).toContain('VLI 145: its analysis sheet could not be drawn: no frame.')
+  })
+
+  it('closes a VIA document with the views it does not hold', () => {
+    expect(viewsLeftOutMarkdown([])).toBe('')
+    expect(viewsLeftOutMarkdown([{ name: 'Viewpoint 4', reason: 'not captured' }])).toBe(
+      '\n## Views left out of this document\n\n- Viewpoint 4: not captured.\n',
+    )
   })
 })

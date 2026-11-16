@@ -1451,7 +1451,14 @@ function DevForestryVisuals() {
   // 30 m pullout through it, square to the block, and the road view opens
   // there facing the block. The road it replaced is kept to step back to, and
   // each place's saved views are shelved while you are elsewhere.
-  const [standing, setStanding] = useState<{ previous: Viewpoint; name: string; point: [number, number] } | null>(null)
+  // `landform`: a planned view's landform the stand made the run's active one (`set`), and the reviewer's own active
+  // landform before it (`reviewer`), which going back to the road restores while the view's is still active.
+  const [standing, setStanding] = useState<{
+    previous: Viewpoint
+    name: string
+    point: [number, number]
+    landform?: { reviewer: string | null | undefined; set: string | null }
+  } | null>(null)
   const [shelvedViews, setShelvedViews] = useState<Array<{ key: string; views: SavedDriveView[] }>>([])
   // Back to a design (or a road) whose views were shelved: they come back.
   useEffect(() => {
@@ -1588,13 +1595,25 @@ function DevForestryVisuals() {
     ) => {
       const centre = polygonInteriorPoint(block.geometry)
       if (!centre) return null
+      // A planned view's landform made active here is remembered with the reviewer's own, for the way back.
+      // The reviewer's value is kept as it was (absent or null), so restoring it gives back the same scene key.
+      const activeNow = sceneRef.current.activeLandformId
+      const landform =
+        'activeLandformId' in patch && (patch.activeLandformId ?? null) !== (activeNow ?? null)
+          ? {
+              reviewer: standing?.landform ? standing.landform.reviewer : activeNow,
+              set: patch.activeLandformId ?? null,
+            }
+          : standing?.landform
       if (!standing)
         setStanding({
           previous: sceneRef.current.viewpoint,
           name: place.name,
           point: [place.lng, place.lat],
+          ...(landform ? { landform } : {}),
         })
-      else setStanding({ ...standing, name: place.name, point: [place.lng, place.lat] })
+      else
+        setStanding({ ...standing, name: place.name, point: [place.lng, place.lat], ...(landform ? { landform } : {}) })
       const nextKey = moveViewpoint(
         {
           id: `stand-${place.key}`,
@@ -1667,23 +1686,40 @@ function DevForestryVisuals() {
   )
   // The finder's rows already planned, the scene's blocks the views can be for, and every saved view (here and
   // shelved) a planned view's capture is read from.
+  // A row is listed for the block the finder is ranked for: the same viewpoint planned for another block is not.
   const listedViewKeys = useMemo(
-    () => new Set(viewsOfInterest.flatMap((view) => (view.source.kind === 'map' ? [] : [view.source.key]))),
-    [viewsOfInterest],
+    () =>
+      new Set(
+        viewsOfInterest.flatMap((view) =>
+          view.source.kind === 'map' || view.blockId !== viewpointBlock?.id ? [] : [view.source.key],
+        ),
+      ),
+    [viewsOfInterest, viewpointBlock?.id],
   )
   const viewBlocks = useMemo(() => scene.targets.filter((target) => target.role === 'block'), [scene.targets])
   const capturedViewSources = useMemo(
     () => [...shelvedViews.flatMap((entry) => entry.views), ...savedViews],
     [shelvedViews, savedViews],
   )
+  // Whether a saved view has its analysis sheet: a planned view saved without one reads *Saved, no analysis sheet*
+  // and is captured again (`viewCaptureState`).
+  const savedViewHasFigure = useCallback((savedViewId: string) => !!viewImages[savedViewId]?.figure, [viewImages])
   // The road view's lens (View options → *Lens*; a capture sets each planned view's): display only, never in the scene.
   const [roadViewLens, setRoadViewLens] = useState<number | null>(null)
   // Filled in on every render once `saveView` is defined, so each capture step reads the page as it is then.
   const viewCaptureHostRef = useRef<ViewCaptureHost<ViewCaptureReturn> | null>(null)
   // The landform active when a batch started: a planned view without one of its own is captured against it, never
   // against the landform the previous place's view made active.
-  const captureBaseLandform = useRef<{ id: string | null } | null>(null)
+  const captureBaseLandform = useRef<{ id: string | null | undefined } | null>(null)
   const viewCapture = useViewCapture(viewCaptureHostRef)
+  // Before-harvest renders taken during a capture (`capture(ids, { before: true })`), by saved view id, with the planned
+  // view's capture key they were taken under: an export pairs a view away from where the reviewer stands from here.
+  const [capturedBefore, setCapturedBefore] = useState<
+    Record<
+      string,
+      { plannedKey: string | null; render: { dataUrl: string; width: number; height: number; caption: string } }
+    >
+  >({})
   // "Landform seen from here" for one planned view (`ViewLandformControl`, `viewLandform.ts`): the finder's visible
   // face read from the view's place, drawn with the finder's candidates, adopted only on the reviewer's click and then
   // for that view alone; the run's landform stays as it was. Rendered by `ViewsOfInterestPanel`'s `landformControl`.
@@ -1826,7 +1862,11 @@ function DevForestryVisuals() {
     const road = standing.previous.coordinates
     const nearest =
       road.length > 1 ? nearestPointOnLine(road, { lng: standing.point[0], lat: standing.point[1] }) : null
-    moveViewpoint(standing.previous)
+    // A planned view's landform the stand made active gives way to the reviewer's own again, unless the reviewer
+    // chose another landform since.
+    const landform = standing.landform
+    const restoreLandform = !!landform && (sceneRef.current.activeLandformId ?? null) === landform.set
+    moveViewpoint(standing.previous, restoreLandform ? { activeLandformId: landform.reviewer } : {})
     setStanding(null)
     if (driveRef.current.active) setRoadViewHeld(true)
     setDrive((current) => ({ ...current, active: false, playing: false }))
@@ -2303,6 +2343,14 @@ function DevForestryVisuals() {
     })
   }
   const reverseViewpointRows = viewpointChecks.rows
+  // The finder's rows read a check only for the block they are ranked for: another block's "Hidden" says nothing here.
+  const finderReverseRows = useMemo(
+    () =>
+      viewpointBlock && viewpointChecks.blockIds.includes(viewpointBlock.id)
+        ? viewpointChecks.rows
+        : new globalThis.Map<string, ReverseRoadResult>(),
+    [viewpointBlock, viewpointChecks],
+  )
   // Inventory viewpoints the block is in view from, for the Visuals paragraph: the two that see most.
   const inventoryFindings = useMemo<ViewpointFinding[]>(() => {
     if (viewpointChecks.blockIds.length !== 1) return []
@@ -3377,23 +3425,34 @@ function DevForestryVisuals() {
   // read live from DataBC; cards in the summary, never inputs to the run.
   const checkBlocks = useMemo(() => scene.targets.filter((target) => target.role === 'block'), [scene.targets])
   const landChecks = useLandChecks(checkBlocks, sceneLandform)
-  // The block the summary reads: the one the road view faces, else the sidebar's selection, else the first. The
-  // summary's block switcher sets that same selection. A block the run does not hold reads as not in the run.
-  const summaryBlock =
-    checkBlocks.find((target) => target.id === (drive.lookAtTargetId ?? selectedTargetId)) ?? checkBlocks[0] ?? null
-  // The planned view of interest the reviewer stands at (`summaryViewSwitch.ts`), for the summary's ◀ ▶.
+  // The planned view of interest the reviewer stands at (`summaryViewSwitch.ts`), for the summary's ◀ ▶: matched by
+  // the road view's look, then the block the road view faces or the sidebar's selection.
   const summaryView = useMemo(
     () =>
       currentPlannedView(viewsOfInterest, standingNow?.point ?? null, {
         look: { targetId: drive.lookAtTargetId, bearing: drive.lookBearing },
-        blockId: summaryBlock?.id ?? null,
+        blockId: drive.lookAtTargetId ?? selectedTargetId,
         centreOf: (id) => {
           const target = checkBlocks.find((entry) => entry.id === id)
           return target ? polygonInteriorPoint(target.geometry) : null
         },
       }),
-    [viewsOfInterest, standingNow, drive.lookAtTargetId, drive.lookBearing, summaryBlock, checkBlocks],
+    [viewsOfInterest, standingNow, drive.lookAtTargetId, drive.lookBearing, selectedTargetId, checkBlocks],
   )
+  // The block the summary reads: at a planned view, that view's block (an arrow's view faces a bearing, not its
+  // block); else the one the road view faces, else the sidebar's selection, else the first. The summary's block
+  // switcher sets the selection. A block the run does not hold reads as not in the run.
+  // At a view, a block picked in the summary that has no view here is read until the reviewer stands elsewhere.
+  const [summaryBlockAtView, setSummaryBlockAtView] = useState<{ viewId: string; blockId: string } | null>(null)
+  const viewBlockId = summaryView
+    ? summaryBlockAtView?.viewId === summaryView.id
+      ? summaryBlockAtView.blockId
+      : summaryView.blockId
+    : null
+  const summaryBlock =
+    checkBlocks.find((target) => target.id === (viewBlockId ?? drive.lookAtTargetId ?? selectedTargetId)) ??
+    checkBlocks[0] ??
+    null
   // That view's own landform, when it is not the one the run assessed: the rows say whose figures they are.
   const summaryViewLandformName =
     summaryView?.landformId && summaryView.landformId !== sceneLandform?.id
@@ -3416,10 +3475,14 @@ function DevForestryVisuals() {
     value: summaryBlock?.id ?? null,
     onChange: (blockId: string) => {
       setSelectedTargetId(blockId)
-      // A planned view here for that block is stood at; otherwise a road view facing a block turns to this one.
+      // A planned view here for that block is stood at (the current one when it is already for it); otherwise a
+      // road view facing a block turns to this one.
+      setSummaryBlockAtView(null)
+      if (summaryView?.blockId === blockId) return
       const here = viewForBlockHere(viewsOfInterest, standingNow?.point ?? null, blockId)
-      if (here && here.id !== summaryView?.id && !captureRunning) viewCapture.standAt(here.id)
-      else if (drive.lookAtTargetId && drive.lookAtTargetId !== blockId) updateDrive({ lookAtTargetId: blockId })
+      if (here && here.id !== summaryView?.id && !captureRunning) return viewCapture.standAt(here.id)
+      if (summaryView) setSummaryBlockAtView({ viewId: summaryView.id, blockId })
+      if (drive.lookAtTargetId && drive.lookAtTargetId !== blockId) updateDrive({ lookAtTargetId: blockId })
     },
   }
   const summaryMetrics = useMemo(
@@ -4086,7 +4149,17 @@ function DevForestryVisuals() {
         const engine = drive.renderer !== 'pgmaps' ? engineCaptureRef.current : null
         if (engine) setPreviewMessage(`Saved ${view.name}. ${engine.label} is drawing its analysis sheet…`)
         try {
-          const figure = await captureViewFigure(map, at)
+          // Tried twice: under load the framed view's terrain can take longer to settle than one read waits, and the
+          // second try finds its tiles loaded. The camera is the drive's again between tries (`captureFramed`).
+          let figure: SavedFigure
+          try {
+            figure = await captureViewFigure(map, at)
+          } catch (first) {
+            // Another engine's capture has its own budget and reports why; it is not drawn twice.
+            if (engine) throw first
+            setPreviewMessage(`Saved ${view.name}. Drawing its analysis sheet again…`)
+            figure = await captureViewFigure(map, at)
+          }
           setViewImages((current) =>
             current[view.id] ? { ...current, [view.id]: { ...current[view.id], figure } } : current,
           )
@@ -4095,14 +4168,15 @@ function DevForestryVisuals() {
           else setPreviewMessage(`Saved ${view.name}. Its analysis sheet is ready.`)
           return { viewId: view.id }
         } catch (error) {
+          const why = error instanceof Error ? error.message : String(error)
           const warning = engine
-            ? `${engine.label} could not draw its analysis sheet: ${error instanceof Error ? error.message : String(error)}`
-            : 'Its class pass could not be taken: its analysis sheet will have no outlines.'
-          setPreviewMessage(
-            engine
-              ? `Saved ${view.name}, but ${warning}`
-              : `Saved ${view.name}, but its class pass could not be taken: its analysis sheet will have no outlines.`,
+            ? `${engine.label} could not draw its analysis sheet: ${why}`
+            : `Its analysis sheet could not be drawn: ${why}`
+          // Kept with the view: the files that draw figures name it with this reason (`unprintedViews`).
+          setViewImages((current) =>
+            current[view.id] ? { ...current, [view.id]: { ...current[view.id], figureError: why } } : current,
           )
+          setPreviewMessage(`Saved ${view.name}, but ${warning[0].toLowerCase()}${warning.slice(1)}`)
           return { viewId: view.id, warning: `Saved, but ${warning[0].toLowerCase()}${warning.slice(1)}` }
         }
       })()
@@ -4184,15 +4258,14 @@ function DevForestryVisuals() {
       // A field photo's lens would hold the road view: standing elsewhere ends the comparison.
       if (fieldPhoto.match) fieldPhoto.setMatch(null)
       setRoadViewLens(view.focalMm)
+      // A view with no landform of its own reads the landform the reviewer chose: the one active when a batch
+      // started, or, standing at views one after another, the one active before the first view's was made active.
+      const base = captureBaseLandform.current ?? (standing?.landform ? { id: standing.landform.reviewer } : null)
       const nextKey = standAtPlace(
         { ...standPlace(view, candidate?.name), lng: view.lng, lat: view.lat },
         block,
         standFacing(view),
-        view.landformId
-          ? { activeLandformId: view.landformId }
-          : captureBaseLandform.current
-            ? { activeLandformId: captureBaseLandform.current.id }
-            : {},
+        view.landformId ? { activeLandformId: view.landformId } : base ? { activeLandformId: base.id } : {},
       )
       return nextKey ? { key: nextKey } : { error: 'Its block has no centre to face.' }
     },
@@ -4209,8 +4282,28 @@ function DevForestryVisuals() {
         framing: view.framing,
       }),
     savedViewIds: () => [...savedViews, ...shelvedViews.flatMap((entry) => entry.views)].map((view) => view.id),
+    // Each view's before-harvest render, taken while the road view still stands at its place; `captureBeforeRenders`
+    // puts the harvest phase back. Kept by saved view id with the planned view's key it was taken under.
+    before: async (saved) => {
+      const { renders, notes } = await captureBeforeRenders(saved)
+      const taken = saved.filter((entry) => renders[entry.id])
+      if (taken.length)
+        setCapturedBefore((current) => ({
+          ...current,
+          ...Object.fromEntries(
+            taken.map((entry) => [entry.id, { plannedKey: entry.plannedKey, render: renders[entry.id] }]),
+          ),
+        }))
+      return { taken: taken.map((entry) => entry.id), notes }
+    },
     snapshot: () => {
-      captureBaseLandform.current = { id: scene.activeLandformId ?? null }
+      // Standing at a planned view whose landform the stand made active, the reviewer's own is the batch's base.
+      captureBaseLandform.current = {
+        id:
+          standing?.landform && (scene.activeLandformId ?? null) === standing.landform.set
+            ? standing.landform.reviewer
+            : scene.activeLandformId,
+      }
       return {
         viewpoint: scene.viewpoint,
         activeLandformId: scene.activeLandformId,
@@ -4240,9 +4333,11 @@ function DevForestryVisuals() {
       } else {
         setRoadViewHeld(false)
         setDrive((current) => ({ ...current, active: false, playing: false }))
-        // The run the reviewer had is made again for where they stood; none is started where there was none.
+        // The run the reviewer had is made again for where they stood. None is started where there was none, and the
+        // last place's run is let go: kept, it read as the reviewer's scene changed ("Scene changed — rerun").
         if (back.hadRun && nextKey !== key)
           runForScene({ ...sceneRef.current, activeLandformId: back.activeLandformId, viewpoint: back.viewpoint })
+        else if (!back.hadRun) analysis.reset()
       }
     },
   }
@@ -4488,12 +4583,14 @@ function DevForestryVisuals() {
    * The render job for a saved view by `engine`, sized from the figure it already has: its figure, or (`before`) the
    * same framing before harvest for a report's before picture. No before job for a view saved before harvest (its
    * figure is already one), one with a lined-up field photo (the photo is its before) or one without the drive's pose
-   * (nothing to frame it on).
+   * (nothing to frame it on). None for a view saved at another place: an engine draws from the road view's terrain and
+   * the run where the reviewer stands, which are not that view's (`ENGINE_ELSEWHERE`); its figures stay PGMaps'.
    */
   const renderJobFor = (viewId: string, engine: RenderEngineId, phase?: 'before'): RenderJob | null => {
     const image = viewImages[viewId]
     const figure = image?.figure
     if (!image?.figureAt || !figure) return null
+    if (!savedViews.some((view) => view.id === viewId)) return null
     if (
       phase === 'before' &&
       (image.viewpoint?.harvestPhase === 'before' || image.viewpoint?.photo || !image.figureAt.pose)
@@ -4529,6 +4626,9 @@ function DevForestryVisuals() {
    * pass), keyed by view id: the before pictures of the VIA report and the with-timber pixel figure
    * (`timberMeasureFor`), which compares each with the view's after picture. The harvest phase is put back in
    * `finally`. A view that cannot be rendered gets its reason in `absent` and a note.
+   * A render a capture took where the view stands (`capturedBefore`, under the view's current planned key) is used
+   * first. The road view draws only where the reviewer stands, so a view saved at another place without one is
+   * absent, with why, rather than framed on terrain that is not under it.
    */
   const captureBeforeRenders = async (
     views: ReadonlyArray<{ id: string; name: string }>,
@@ -4541,11 +4641,18 @@ function DevForestryVisuals() {
     const absent: Record<string, string> = {}
     const notes: string[] = []
     const toRender: Array<{ id: string; name: string; at: FigureAt }> = []
+    const shelved = shelvedViews.flatMap((entry) => entry.views)
     for (const view of views) {
       const image = viewImages[view.id]
+      const saved = [...savedViews, ...shelved].find((entry) => entry.id === view.id)
+      const kept = capturedBefore[view.id]
       if (image?.viewpoint?.harvestPhase === 'before') absent[view.id] = TIMBER_ABSENT.savedBefore
-      else if (image?.figureAt?.pose) toRender.push({ id: view.id, name: view.name, at: image.figureAt })
-      else absent[view.id] = TIMBER_ABSENT.noBefore
+      else if (kept && kept.plannedKey === (saved?.plannedKey ?? null)) renders[view.id] = kept.render
+      else if (!image?.figureAt?.pose) absent[view.id] = TIMBER_ABSENT.noBefore
+      else if (shelved.some((entry) => entry.id === view.id)) {
+        absent[view.id] = TIMBER_ABSENT.elsewhere
+        notes.push(`${view.name}: ${TIMBER_ABSENT.elsewhere}.`)
+      } else toRender.push({ id: view.id, name: view.name, at: image.figureAt })
     }
     if (!toRender.length) return { renders, absent, notes }
     const eyeMap = eyeMapRef.current as unknown as import('maplibre-gl').Map | null
@@ -5007,6 +5114,8 @@ function DevForestryVisuals() {
     viewsOfInterest,
     setViewsOfInterest,
     viewCapture,
+    // Before renders a capture took where each view stands: the report pairs a view away from here from them.
+    capturedBefore,
   })
   const maskCollection: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
@@ -5621,7 +5730,7 @@ function DevForestryVisuals() {
             blockName={viewpointBlock?.name ?? null}
             state={viewpointInventory}
             candidates={viewpointCandidates}
-            reverseRows={reverseViewpointRows}
+            reverseRows={finderReverseRows}
             reverseRunning={analysis.reverseState.status === 'running'}
             onLoad={() => void loadViewpoints()}
             onCheck={handleRunReverse}
@@ -5649,6 +5758,7 @@ function DevForestryVisuals() {
           blocks={viewBlocks}
           targets={scene.targets}
           savedViews={capturedViewSources}
+          hasFigure={savedViewHasFigure}
           capture={viewCapture}
           openViewId={openViewId}
           onOpenView={setOpenViewId}

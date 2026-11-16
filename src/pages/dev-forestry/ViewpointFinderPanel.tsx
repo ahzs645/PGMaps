@@ -49,6 +49,38 @@ export type ViewpointInventoryState = {
   blockId: string | null
 }
 
+/** How long the finder's "Added …" line stays, milliseconds. */
+export const ADD_MESSAGE_MS = 8000
+const BULK_SCOPE = 'bulk'
+
+/**
+ * The facings a row offers: the default (the arrows aimed at the block that *Add to views* adds, when there are any),
+ * the block itself, and each arrow.
+ */
+export function facingOptions(
+  candidate: ViewpointCandidate,
+  defaultArrowIds: readonly string[],
+): Array<{ key: string; label: string }> {
+  return [
+    ...(defaultArrowIds.length
+      ? [
+          {
+            key: 'default',
+            label:
+              defaultArrowIds.length === 1
+                ? 'The arrow at the block'
+                : `The ${defaultArrowIds.length} arrows at the block`,
+          },
+        ]
+      : []),
+    { key: 'block', label: 'The block' },
+    ...candidate.arrows.map((entry, index) => ({
+      key: `arrow:${entry.id}`,
+      label: `Arrow ${index + 1} · ${compassPoint(entry.bearing)}${entry.aims ? ' · at the block' : ''}`,
+    })),
+  ]
+}
+
 /** Reverse-run classes that mark a viewpoint row rather than a road. */
 export const VIEWPOINT_ROAD_CLASSES: ReadonlySet<string> = new Set(['vli-viewpoint', 'rec-site'])
 
@@ -112,7 +144,16 @@ export function ViewpointFinderPanel({
   // 'default' until the reviewer picks: *Stand here* then faces the block, and *Add to views* adds the arrows aimed at
   // it (up to two), else one view facing it. Picking the block or an arrow sets both.
   const [facing, setFacing] = useState<string>('default')
-  const [addMessage, setAddMessage] = useState<string | null>(null)
+  // The last add's outcome, where it was asked for: under the row it came from, or under the bulk button. It goes
+  // when the block changes, another row opens, or after `ADD_MESSAGE_MS`.
+  const [addMessage, setAddMessage] = useState<{ scope: string; text: string } | null>(null)
+  const blockId = block?.id ?? null
+  useEffect(() => setAddMessage(null), [blockId])
+  useEffect(() => {
+    if (!addMessage) return
+    const timer = window.setTimeout(() => setAddMessage(null), ADD_MESSAGE_MS)
+    return () => window.clearTimeout(timer)
+  }, [addMessage])
   const select = (candidate: ViewpointCandidate) => {
     setSelectedKey(candidate.key)
     setFacing('default')
@@ -136,7 +177,10 @@ export function ViewpointFinderPanel({
   const bulk = (reverseRows.size > 0 ? seen : shown.filter((candidate) => candidate.arrows.some((a) => a.aims))).filter(
     (candidate) => !listedKeys?.has(candidate.key),
   )
-  const add = (requests: CandidateViewRequest[]) => setAddMessage(onAddViews?.(requests) ?? null)
+  const add = (scope: string, requests: CandidateViewRequest[]) => {
+    const text = onAddViews?.(requests) ?? null
+    setAddMessage(text ? { scope, text } : null)
+  }
   return (
     <ToolSection
       title="Viewpoints and rec sites"
@@ -225,6 +269,8 @@ export function ViewpointFinderPanel({
             const row = reverseRows.get(candidate.key)
             const selected = candidate.key === selectedKey
             const arrow = candidate.arrows.find((entry) => `arrow:${entry.id}` === facing) ?? null
+            // The arrows the default adds for this row (`viewsForCandidate`): up to two aimed at the block.
+            const defaultArrows = selected ? arrowIdsForFacing(candidate, block, 'default') : []
             return (
               <li key={candidate.key}>
                 <ResultRow
@@ -266,29 +312,30 @@ export function ViewpointFinderPanel({
                         aria-label={`Face from ${candidate.name}`}
                         className="flex flex-wrap gap-1"
                       >
-                        {[
-                          { key: 'block', label: 'The block' },
-                          ...candidate.arrows.map((entry, index) => ({
-                            key: `arrow:${entry.id}`,
-                            label: `Arrow ${index + 1} · ${compassPoint(entry.bearing)}${entry.aims ? ' · at the block' : ''}`,
-                          })),
-                        ].map((option) => (
-                          <button
-                            key={option.key}
-                            type="button"
-                            role="radio"
-                            aria-checked={facing === option.key || (facing === 'default' && option.key === 'block')}
-                            onClick={() => setFacing(option.key)}
-                            className={cn(
-                              'rounded-md border px-2 py-1 text-2xs transition-colors touch:min-h-10',
-                              facing === option.key || (facing === 'default' && option.key === 'block')
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-border bg-background text-foreground hover:bg-accent',
-                            )}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
+                        {facingOptions(candidate, defaultArrows).map((option) => {
+                          // With arrows aimed at the block, the default is its own choice (the arrows *Add* adds);
+                          // without, the default faces the block.
+                          const checked =
+                            facing === option.key ||
+                            (facing === 'default' && option.key === (defaultArrows.length ? 'default' : 'block'))
+                          return (
+                            <button
+                              key={option.key}
+                              type="button"
+                              role="radio"
+                              aria-checked={checked}
+                              onClick={() => setFacing(option.key)}
+                              className={cn(
+                                'rounded-md border px-2 py-1 text-2xs transition-colors touch:min-h-10',
+                                checked
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-border bg-background text-foreground hover:bg-accent',
+                              )}
+                            >
+                              {option.label}
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
                     <div className={cn('grid gap-1.5', onAddViews && 'grid-cols-2')}>
@@ -313,7 +360,11 @@ export function ViewpointFinderPanel({
                               ? `Plan ${facing === 'default' && highlighted.length > 1 ? 'these views' : 'this view'} for ${block.name} in step 2, without opening the road view`
                               : 'Add a cutblock first'
                           }
-                          onClick={() => add([{ candidate, arrowIds: facing === 'default' ? undefined : highlighted }])}
+                          onClick={() =>
+                            add(candidate.key, [
+                              { candidate, arrowIds: facing === 'default' ? undefined : highlighted },
+                            ])
+                          }
                         >
                           <ListPlus className="h-3.5 w-3.5" />
                           {facing === 'default' && highlighted.length > 1
@@ -328,9 +379,9 @@ export function ViewpointFinderPanel({
                         block, shown on the map. Pick a direction above to add just that one.
                       </p>
                     )}
-                    {addMessage && (
+                    {addMessage?.scope === candidate.key && (
                       <p className="text-3xs text-muted-foreground" role="status">
-                        {addMessage}
+                        {addMessage.text}
                       </p>
                     )}
                   </ResultRowDetail>
@@ -347,7 +398,12 @@ export function ViewpointFinderPanel({
           size="xs"
           className="w-full whitespace-normal"
           title={`Plan them as views of interest for ${block.name} in step 2`}
-          onClick={() => add(bulk.map((candidate) => ({ candidate })))}
+          onClick={() =>
+            add(
+              BULK_SCOPE,
+              bulk.map((candidate) => ({ candidate })),
+            )
+          }
         >
           <ListPlus className="h-3.5 w-3.5" />
           {reverseRows.size > 0
@@ -355,9 +411,9 @@ export function ViewpointFinderPanel({
             : `Add the ${bulk.length} with arrows at the block to views`}
         </Button>
       )}
-      {addMessage && !selectedCandidate && (
+      {addMessage?.scope === BULK_SCOPE && (
         <p className="text-3xs text-muted-foreground" role="status">
-          {addMessage}
+          {addMessage.text}
         </p>
       )}
       {data && data.droppedErrorViewpoints > 0 && (

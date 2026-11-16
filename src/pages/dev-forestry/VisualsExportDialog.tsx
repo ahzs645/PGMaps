@@ -27,7 +27,8 @@ import {
   USES_PACKAGE_VIEWS,
   VISUALS_EXPORT_GROUP_LABELS,
   VISUALS_EXPORTS,
-  RUNS_ON_EXPORT,
+  waitsForRun,
+  NEEDS_BEFORE,
   type ExportAction,
   type ExportContext,
   type ExportPlannedView,
@@ -92,10 +93,17 @@ type Preview =
   | { type: 'html'; html: string }
   | { type: 'text'; text: string; truncated: boolean }
 
+const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
 async function previewOf(file: BuiltFile): Promise<Preview> {
   const type = file.blob.type
   if (type === 'application/pdf') return { type: 'pdf', url: URL.createObjectURL(file.blob) }
   if (type.startsWith('image/')) return { type: 'image', url: URL.createObjectURL(file.blob) }
+  // A workbook is shown as its sheets, read back from the file itself, never as its zipped bytes.
+  if (type === XLSX_TYPE) {
+    const [{ workbookPreviewHtml }, ExcelJS] = await Promise.all([import('./workbookPreview'), import('exceljs')])
+    return { type: 'html', html: await workbookPreviewHtml(await file.blob.arrayBuffer(), ExcelJS) }
+  }
   const text = await file.blob.text()
   if (type === 'text/html') return { type: 'html', html: text }
   return { type: 'text', text: text.slice(0, TEXT_PREVIEW_CHARS), truncated: text.length > TEXT_PREVIEW_CHARS }
@@ -231,6 +239,7 @@ type PackageSelect = {
 const CAPTURE_LABELS: Record<ExportPlannedView['state'], string> = {
   captured: 'Captured',
   outdated: 'Changed since its capture: captured again on Preview or Download',
+  'no-figure': 'Captured without its analysis sheet: captured again on Preview or Download',
   'not-captured': 'To capture on Preview or Download',
 }
 
@@ -285,13 +294,13 @@ export function ExportPackagePane({
     </StyledSelect>
   )
   return (
-    <div className="grid gap-4 pb-2">
-      <section className="space-y-1.5" aria-label="Recipe">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 pb-2">
+      <section className="min-w-0 space-y-1.5" aria-label="Recipe">
         <PackageHeading>Recipe</PackageHeading>
         {select(recipe, 'Package recipe')}
         <p className="text-2xs text-muted-foreground">{recipe.note}</p>
       </section>
-      <section className="space-y-1.5" aria-label="Figures drawn by">
+      <section className="min-w-0 space-y-1.5" aria-label="Figures drawn by">
         <PackageHeading>Figures drawn by</PackageHeading>
         {select(renderer, 'Figures drawn by')}
         {renderer.unavailable ? (
@@ -305,7 +314,7 @@ export function ExportPackagePane({
           </p>
         )}
       </section>
-      <section className="space-y-1.5" aria-label="Views">
+      <section className="min-w-0 space-y-1.5" aria-label="Views">
         <PackageHeading>Views</PackageHeading>
         {planned.length > 0 && (
           <ul aria-label="Views of interest" className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}>
@@ -321,9 +330,11 @@ export function ExportPackagePane({
                   description={[
                     view.block,
                     view.lens,
-                    view.failed && view.state !== 'captured'
-                      ? `Not captured: ${view.failed.replace(/[.\s]*$/, '')}`
-                      : CAPTURE_LABELS[view.state],
+                    view.failed && view.state === 'no-figure'
+                      ? `Captured without its analysis sheet: ${view.failed.replace(/^Saved, but /, '').replace(/[.\s]*$/, '')}`
+                      : view.failed && view.state !== 'captured'
+                        ? `Not captured: ${view.failed.replace(/[.\s]*$/, '')}`
+                        : CAPTURE_LABELS[view.state],
                   ].join(' · ')}
                 />
               </li>
@@ -348,7 +359,7 @@ export function ExportPackagePane({
         )}
         <p className="text-2xs text-muted-foreground">
           {planned.length || saved.length
-            ? 'The block note, the analysis sheet, the VIA document and the VIA report take these views. A view of interest not yet captured is captured on Preview or Download: the page stands there, runs and saves it as Save viewpoint does.'
+            ? 'The block note, the field brief, the analysis sheet, the VIA document and the VIA report take these views (a block’s note and brief only the views planned for it). A view of interest not yet captured is captured on Preview or Download: the page stands there, runs and saves it as Save viewpoint does.'
             : 'No views yet. Add a view of interest in step 2, or save one in the road view.'}
         </p>
       </section>
@@ -404,8 +415,11 @@ export function VisualsExportDialog({
   onReadInventory?: () => void
   /** The package's choices (`ExportPackagePane`), shown under its own entry first in the list. Absent: no entry. */
   packagePane?: ReactNode
-  /** Captures views of interest as saved views (`viewsToCapture`), before an output that draws them is written. */
-  onCapture?: (viewIds: readonly string[]) => Promise<ViewCaptureReport>
+  /**
+   * Captures views of interest as saved views (`viewsToCapture`, `beforeToCapture`) before an output that draws them
+   * is written; `before`, with each one's before-harvest render where it stands.
+   */
+  onCapture?: (viewIds: readonly string[], options?: { before?: boolean }) => Promise<ViewCaptureReport>
   /** Stops a capture in flight; the views captured so far are kept. */
   onCancelCapture?: () => void
   portalContainer?: HTMLElement | null
@@ -439,6 +453,11 @@ export function VisualsExportDialog({
   // A new object per selection or content change: a preview is current only for its own request.
   const request = useMemo(() => ({ kind: item.kind, format: format.id, version }), [item.kind, format.id, version])
   const [result, setResult] = useState<PreviewResult | null>(null)
+  // What the preview waits on now, for its placeholder: the file being written, or the one before it finishing.
+  const [previewStage, setPreviewStage] = useState<{ request: object; text: string } | null>(null)
+  // The file being written, whatever asked for it: a build moves the page's maps and road view (the report's maps,
+  // its before pictures), so the next waits for it to finish rather than moving them at the same time.
+  const buildInFlight = useRef<Promise<unknown>>(Promise.resolve())
   const latestBuild = useRef(build)
   const latestContext = useRef(context)
   const latestRun = useRef(onRun)
@@ -472,12 +491,14 @@ export function VisualsExportDialog({
    */
   const prepare = useCallback(async (kind: VisualsExport, signal: AbortSignal, retry = false) => {
     let waited = false
-    const toCapture = exportPreparation(kind, latestContext.current, { retry }).capture
+    const first = exportPreparation(kind, latestContext.current, { retry })
+    const roadViewWasReady = latestContext.current.roadViewReady
+    const toCapture = first.capture
     const capturing = () => latestContext.current.capture.status === 'running'
     if (captureInFlight.current || (USES_PACKAGE_VIEWS.has(kind) && capturing()) || toCapture.length) {
       waited = true
       if (!captureInFlight.current && !capturing() && latestCapture.current) {
-        const pending = latestCapture.current(toCapture)
+        const pending = latestCapture.current(toCapture, first.captureBefore ? { before: true } : {})
         captureInFlight.current = pending
         const clear = () => {
           if (captureInFlight.current === pending) captureInFlight.current = null
@@ -493,6 +514,10 @@ export function VisualsExportDialog({
       } else await waitFor(() => !capturing(), signal)
       // The capture steps back to where the reviewer stood: let the page settle before reading what it needs now.
       await waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal)
+      // An output with before pictures renders the views saved here from the road view: when it was open before the
+      // capture, wait for the capture's way back to open it again and load its terrain.
+      if (roadViewWasReady && NEEDS_BEFORE.has(kind))
+        await waitFor(() => latestContext.current.roadViewReady, signal, ROAD_VIEW_SETTLE_MS)
     }
     const needs = exportPreparation(kind, latestContext.current, { retry })
     const running = () => latestContext.current.autoRun.status === 'running'
@@ -517,7 +542,7 @@ export function VisualsExportDialog({
         INVENTORY_WAIT_MS,
       )
     }
-    if (needs.run || (running() && RUNS_ON_EXPORT.has(kind))) {
+    if (needs.run || (running() && waitsForRun(kind))) {
       waited = true
       if (!running()) latestRun.current?.()
       const asked = Date.now()
@@ -578,6 +603,27 @@ export function VisualsExportDialog({
     }
   }, [])
 
+  /** Writes the file once the one before it is done; aborts while waiting, never in the middle of another's moves. */
+  const writeFile = useCallback(
+    async (kind: VisualsExport, formatId: string, signal: AbortSignal, onStage?: (text: string) => void) => {
+      let settled = false
+      void buildInFlight.current.then(() => (settled = true))
+      await Promise.resolve()
+      if (!settled) onStage?.('Waiting for the file started before this one to finish writing…')
+      await untilAborted(buildInFlight.current, signal)
+      if (signal.aborted) throw new Aborted('Stopped.')
+      onStage?.(
+        kind === 'via-report'
+          ? 'Writing the report: its maps and before pictures are captured from the page’s maps, a few seconds each…'
+          : 'Writing the file…',
+      )
+      const job = latestBuild.current(kind, formatId, signal)
+      buildInFlight.current = job.catch(() => undefined)
+      return job
+    },
+    [],
+  )
+
   useEffect(() => {
     if (!open || unavailable || view !== 'preview' || packageOpen) return
     const controller = new AbortController()
@@ -586,7 +632,9 @@ export function VisualsExportDialog({
       prepare(request.kind, controller.signal)
         .then((note) => {
           missing = note
-          return latestBuild.current(request.kind, request.format, controller.signal)
+          return writeFile(request.kind, request.format, controller.signal, (text) => {
+            if (!controller.signal.aborted) setPreviewStage({ request, text })
+          })
         })
         .then(async (file) => {
           const preview = await previewOf(file)
@@ -608,7 +656,7 @@ export function VisualsExportDialog({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [open, request, unavailable, view, packageOpen, prepare])
+  }, [open, request, unavailable, view, packageOpen, prepare, writeFile])
   // Object URLs live as long as their preview.
   useEffect(() => {
     const preview = result?.preview
@@ -647,7 +695,7 @@ export function VisualsExportDialog({
       let missing = ready ? (current?.missing ?? null) : null
       if (!file) {
         missing = await prepare(item.kind, controller.signal, true)
-        file = await latestBuild.current(item.kind, format.id, controller.signal)
+        file = await writeFile(item.kind, format.id, controller.signal)
       }
       if (controller.signal.aborted) return
       downloadBlob(file.blob, file.fileName)
@@ -691,7 +739,8 @@ export function VisualsExportDialog({
       bodyClassName="p-0 workspace-sm:p-0"
       contentProps={{ 'data-testid': 'visuals-export-dialog' }}
     >
-      <div className="grid min-w-0 sm:h-full sm:min-h-[24rem] sm:grid-cols-[15rem_minmax(0,1fr)]">
+      {/* One column on a phone that never grows past the dialog: a long option or row text wraps or ellipsizes. */}
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] sm:h-full sm:min-h-[24rem] sm:grid-cols-[15rem_minmax(0,1fr)]">
         <nav
           aria-label="Files"
           className="border-b border-border py-1 sm:min-h-0 sm:overflow-y-auto overscroll-none sm:border-b-0 sm:border-r"
@@ -786,7 +835,11 @@ export function VisualsExportDialog({
                 fullWidth={false}
                 label={`${item.label} view`}
                 value={view}
-                onChange={setView}
+                onChange={(next) => {
+                  // A download's line (saved, or why not) belongs to that download, not to the next view.
+                  setView(next)
+                  setStatus(null)
+                }}
                 options={[
                   { value: 'contents' as const, label: 'What goes in' },
                   { value: 'preview' as const, label: 'Preview' },
@@ -808,7 +861,7 @@ export function VisualsExportDialog({
                 <span role="status">{status.text}</span>
               </InlineAlert>
             )}
-            {!unavailable && preparation.note && (
+            {!unavailable && preparation.note && !(view === 'preview' && preparation.noteIsSkipped && current) && (
               <InlineAlert
                 loading={
                   context.autoRun.status === 'running' ||
@@ -832,7 +885,7 @@ export function VisualsExportDialog({
             {/* Side by side the pane scrolls; stacked on a phone it flows with the dialog. */}
             <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">
               {view === 'contents' ? (
-                <div className="grid gap-4 pb-2">
+                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 pb-2">
                   {options[item.kind] && (
                     <section className="space-y-1.5" aria-label="Options">
                       <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Options</h4>
@@ -862,7 +915,9 @@ export function VisualsExportDialog({
               ) : current?.error ? (
                 <InlineAlert tone="error">{current.error}</InlineAlert>
               ) : (
-                <InlineAlert loading>Preparing preview…</InlineAlert>
+                <InlineAlert loading>
+                  {previewStage?.request === request ? previewStage.text : 'Preparing preview…'}
+                </InlineAlert>
               )}
             </div>
           </section>

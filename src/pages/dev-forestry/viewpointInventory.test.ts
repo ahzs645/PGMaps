@@ -10,8 +10,10 @@ import {
   pulloutThrough,
   roadsNearBlock,
   tenureRoadLabel,
+  viewpointCandidateSummary,
   viewpointLayerUrl,
   viewpointsNearBlock,
+  type CandidateArrow,
 } from './viewpointInventory'
 import { bearingDegrees, haversineMeters, type PolygonGeometry } from './visibility'
 
@@ -318,5 +320,35 @@ describe('standing at a viewpoint', () => {
     const across = bearingDegrees({ lng: a[0], lat: a[1] }, { lng: b[0], lat: b[1] })
     const sight = bearingDegrees(point, block)
     expect(Math.abs(((across - sight + 540) % 360) - 180)).toBeCloseTo(90, 0)
+  })
+})
+
+describe("a candidate's line", () => {
+  const arrow = (id: string, aims: boolean): CandidateArrow => ({
+    id,
+    bearing: aims ? 45 : 200,
+    offsetDegrees: aims ? 5 : 150,
+    lengthMeters: 900,
+    aims,
+  })
+  const candidate = (arrows: CandidateArrow[]) => ({
+    key: 'vli:1',
+    kind: 'vli' as const,
+    name: 'VLI 1',
+    lng: -122.6,
+    lat: 53.9,
+    distanceMeters: 2100,
+    bearingToBlock: 45,
+    arrow: arrows[0] ?? null,
+    arrows,
+    weight: 1,
+  })
+  it('counts the arrows aimed at the block', () => {
+    expect(viewpointCandidateSummary(candidate([arrow('a', true), arrow('b', false)]))).toMatch(/2 arrows, one at it$/)
+    expect(viewpointCandidateSummary(candidate([arrow('a', true), arrow('b', true), arrow('c', false)]))).toMatch(
+      /3 arrows, 2 at it$/,
+    )
+    expect(viewpointCandidateSummary(candidate([arrow('a', true), arrow('b', true)]))).toMatch(/2 arrows, both at it$/)
+    expect(viewpointCandidateSummary(candidate([arrow('a', false), arrow('b', false)]))).toMatch(/2 arrows$/)
   })
 })

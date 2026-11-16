@@ -8,7 +8,7 @@ import type { PlanShow } from './planLayers'
 import { VIEW_OF_INTEREST_COLORS } from './planMapStyle'
 import type { PolygonGeometry } from './visibility'
 import type { ViewOfInterest } from './viewsOfInterest'
-import { chosenArrowCollection, viewsOfInterestPlan } from './viewsOfInterestGeometry'
+import { chosenArrowCollection, groupMarks, nextMarkAt, viewsOfInterestPlan } from './viewsOfInterestGeometry'
 
 /**
  * The plan map's views of interest: each view's lens cone along its facing and a numbered point, the open one drawn
@@ -48,6 +48,8 @@ export function ViewsOfInterestLayers({
   const viewsShown = visible && !hidden.has('view-of-interest')
   const arrowsShown = visible && !hidden.has('view-arrow') && chosenArrows.features.length > 0
   const sources = useMemo(() => new Map(views.map((view) => [view.id, view.source.kind])), [views])
+  // Views at one place share a marker ("2·3"); a click there opens each in turn.
+  const markers = useMemo(() => groupMarks(plan.marks), [plan.marks])
   return (
     <>
       <MapFillLayer
@@ -73,40 +75,44 @@ export function ViewsOfInterestLayers({
         sourceKey="forestry-views-of-interest-cones"
       />
       {viewsShown &&
-        plan.marks.map((mark) => {
-          const movable = !!onMove && sources.get(mark.id) === 'map'
+        markers.map((marker) => {
+          const single = marker.marks.length === 1
+          const movable = !!onMove && single && sources.get(marker.id) === 'map'
+          const names = marker.marks.map((mark) => `${mark.number}. ${mark.name}`).join('; ')
           return (
             <MapMarker
-              key={mark.id}
-              longitude={mark.lng}
-              latitude={mark.lat}
+              key={marker.id}
+              longitude={marker.lng}
+              latitude={marker.lat}
               draggable={movable}
               onClick={
                 onSelect
                   ? (event) => {
                       event.stopPropagation()
-                      onSelect(mark.id)
+                      onSelect(nextMarkAt(marker))
                     }
                   : undefined
               }
-              onDragEnd={movable ? (point) => onMove?.(mark.id, point) : undefined}
+              onDragEnd={movable ? (point) => onMove?.(marker.id, point) : undefined}
             >
               <MarkerContent>
                 <span
                   role="img"
-                  aria-label={`View ${mark.number}: ${mark.name}`}
-                  title={`${mark.number}. ${mark.name}${mark.included ? '' : ' (left out of exports)'}${movable ? ' · drag to move' : ''}`}
+                  aria-label={`View${single ? '' : 's'} ${marker.label}: ${marker.marks.map((mark) => mark.name).join('; ')}`}
+                  title={`${names}${marker.included ? '' : ' (left out of exports)'}${movable ? ' · drag to move' : ''}${single ? '' : ' · click again for the next'}`}
                   data-testid="view-of-interest-marker"
-                  data-view-id={mark.id}
+                  data-view-id={marker.id}
+                  data-view-ids={marker.marks.map((mark) => mark.id).join(' ')}
                   className={cn(
                     'fixed-palette flex items-center justify-center rounded-full border-2 border-white font-semibold tabular-nums text-white shadow',
-                    mark.open ? 'h-6 w-6 text-xs ring-2 ring-indigo-300' : 'h-5 w-5 text-2xs',
-                    !mark.included && 'opacity-60',
+                    marker.open ? 'h-6 min-w-6 text-xs ring-2 ring-indigo-300' : 'h-5 min-w-5 text-2xs',
+                    !single && 'px-1',
+                    !marker.included && 'opacity-60',
                     onSelect && 'cursor-pointer',
                   )}
                   style={{ backgroundColor: VIEW_OF_INTEREST_COLORS.view }}
                 >
-                  {mark.number}
+                  {marker.label}
                 </span>
               </MarkerContent>
             </MapMarker>

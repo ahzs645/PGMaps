@@ -122,3 +122,47 @@ export function chosenArrowCollection(
       }),
   }
 }
+
+/** Marks within this of each other share one marker, metres: views at one place stand at one point. */
+export const SHARED_MARK_METERS = 5
+
+/** One marker on the plan: the views standing there, labelled "2·3" when several share it. */
+export type PlannedViewMarker = {
+  /** The first view's id: the marker's key. */
+  id: string
+  marks: PlannedViewMark[]
+  label: string
+  lng: number
+  lat: number
+  open: boolean
+  /** Left out of exports only when every view there is. */
+  included: boolean
+}
+
+/**
+ * The marks grouped by place (within `SHARED_MARK_METERS`, in list order), so views stacked at one point show as one
+ * marker naming them all ("2·3") instead of one hiding under the other.
+ */
+export function groupMarks(marks: readonly PlannedViewMark[]): PlannedViewMarker[] {
+  const groups: PlannedViewMark[][] = []
+  for (const mark of marks) {
+    const group = groups.find((entry) => haversineMeters(entry[0], mark) <= SHARED_MARK_METERS)
+    if (group) group.push(mark)
+    else groups.push([mark])
+  }
+  return groups.map((group) => ({
+    id: group[0].id,
+    marks: group,
+    label: group.map((mark) => mark.number).join('·'),
+    lng: group[0].lng,
+    lat: group[0].lat,
+    open: group.some((mark) => mark.open),
+    included: group.some((mark) => mark.included),
+  }))
+}
+
+/** The view a click on a shared marker opens: the one after the open one there, else the first. */
+export function nextMarkAt(marker: PlannedViewMarker): string {
+  const open = marker.marks.findIndex((mark) => mark.open)
+  return marker.marks[(open + 1) % marker.marks.length].id
+}

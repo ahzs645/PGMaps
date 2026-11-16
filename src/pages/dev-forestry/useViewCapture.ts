@@ -13,6 +13,8 @@ import { useCallback, useRef, useState } from 'react'
 import {
   CAPTURE_TIMEOUTS,
   FACING_SETTLE_MS,
+  beforeMessage,
+  beforeWarning,
   captureMessage,
   captureSummary,
   captureWaitingFor,
@@ -23,7 +25,7 @@ import {
   type CaptureWait,
   type CaptureWant,
 } from './viewCapturePlan'
-import type { ViewOfInterest } from './viewsOfInterest'
+import { viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
 
 export type ViewCaptureStatus = 'idle' | 'running' | 'done' | 'cancelled' | 'error'
 
@@ -33,22 +35,36 @@ export type ViewCaptureState = {
   currentViewId: string | null
   done: number
   total: number
-  /** Views that could not be captured, with the reason in the page's words. */
-  failures: Array<{ viewId: string; reason: string }>
+  /**
+   * Views that could not be captured, with the reason in the page's words; and, with `warning`, views saved with
+   * something missing (their analysis sheet, their before-harvest render), which still count as captured here.
+   */
+  failures: ViewCaptureFailure[]
   /** One line for a status area: "Capturing 2 of 5: VLI 144, arrow 1…". */
   message: string | null
 }
 
+/**
+ * A view not captured (`warning` absent), or saved with something missing (`warning`): its analysis sheet (`sheet`,
+ * the screenshot or the class pass) or its before-harvest render (`before`).
+ */
+export type ViewCaptureFailure = { viewId: string; reason: string; warning?: 'sheet' | 'before' }
+
 export type ViewCaptureReport = {
   captured: string[]
-  failures: Array<{ viewId: string; reason: string }>
+  failures: ViewCaptureFailure[]
   cancelled: boolean
 }
 
 export type ViewCaptureApi = {
   state: ViewCaptureState
   /** Captures the given planned views in list order, grouped by place; resolves when all are tried or cancelled. */
-  capture: (viewIds: readonly string[]) => Promise<ViewCaptureReport>
+  /**
+   * `before`: also take each view's before-harvest render while standing there (the page's `captureBeforeRenders`),
+   * cached by saved view id in the page's `capturedBefore`, so an export can pair views away from where the reviewer
+   * stands. Off when absent.
+   */
+  capture: (viewIds: readonly string[], options?: { before?: boolean }) => Promise<ViewCaptureReport>
   cancel: () => void
   /** Stands at one planned view (run, then the road view facing it), as the finder's *Stand here* does. */
   standAt: (viewId: string) => void
@@ -73,6 +89,15 @@ export type ViewCaptureHost<Snapshot = unknown> = {
   save: (view: ViewOfInterest) => Promise<ViewSaveOutcome>
   /** Ids of every saved view, shelved ones included: a save is done once the page lists it. */
   savedViewIds: () => readonly string[]
+  /**
+   * Takes the before-harvest render of views just saved at this place, while the road view still stands there (the
+   * page's `captureBeforeRenders`), keeps them for exports, and puts the harvest phase back. Returns the saved view
+   * ids it took one for, and the page's notes on the rest.
+   */
+  before?: (saved: ReadonlyArray<{ id: string; name: string; plannedKey: string }>) => Promise<{
+    taken: readonly string[]
+    notes: readonly string[]
+  }>
   /** Where the reviewer stands now, and putting them back there. */
   snapshot: () => Snapshot
   restore: (snapshot: Snapshot) => void
@@ -170,7 +195,13 @@ async function waitReady<S>(
 export async function runViewCapture<S>(
   getHost: () => ViewCaptureHost<S> | null,
   viewIds: readonly string[],
-  control: { cancelled: () => boolean; onState: (state: ViewCaptureState) => void; clock?: CaptureClock },
+  control: {
+    cancelled: () => boolean
+    onState: (state: ViewCaptureState) => void
+    clock?: CaptureClock
+    /** Also take each view's before-harvest render at its place (`ViewCaptureHost.before`). */
+    before?: boolean
+  },
 ): Promise<ViewCaptureReport> {
   const clock = control.clock ?? BROWSER_CLOCK
   const host = getHost()
@@ -182,7 +213,7 @@ export async function runViewCapture<S>(
     }
   const { places, missing } = planCapture(host.views, viewIds)
   const total = places.reduce((sum, place) => sum + place.views.length, 0)
-  const failures: ViewCaptureReport['failures'] = missing.map((viewId) => ({
+  const failures: ViewCaptureFailure[] = missing.map((viewId) => ({
     viewId,
     reason: 'The view is no longer listed.',
   }))
@@ -222,6 +253,8 @@ export async function runViewCapture<S>(
         for (const view of place.views) fail(view, stood.error)
         continue
       }
+      // The views saved at this place, for their before-harvest renders once every one of them is saved.
+      const savedHere: Array<{ viewId: string; id: string; name: string; plannedKey: string }> = []
       for (let index = 0; index < place.views.length; index++) {
         if (control.cancelled()) break placeLoop
         const view = place.views[index]
@@ -266,9 +299,31 @@ export async function runViewCapture<S>(
         const listedBy = clock.now() + 5000
         while (!getHost()?.savedViewIds().includes(outcome.viewId) && clock.now() < listedBy) await clock.sleep(POLL_MS)
         captured.push(view.id)
-        if (outcome.warning) failures.push({ viewId: view.id, reason: outcome.warning })
+        if (outcome.warning) failures.push({ viewId: view.id, reason: outcome.warning, warning: 'sheet' })
+        savedHere.push({ viewId: view.id, id: outcome.viewId, name: view.name, plannedKey: viewCaptureKey(view) })
         done += 1
         update({ done })
+      }
+      if (control.before && savedHere.length && !control.cancelled()) {
+        const before = getHost()?.before
+        update({ currentViewId: savedHere[0].viewId, message: beforeMessage(savedHere.length, place.views[0].name) })
+        const outcome = before
+          ? await Promise.race([
+              before(savedHere).catch((error: unknown) => ({
+                taken: [] as string[],
+                notes: [error instanceof Error ? error.message : String(error)],
+              })),
+              clock.sleep(CAPTURE_TIMEOUTS.saveMs).then(() => 'timeout' as const),
+            ])
+          : { taken: [] as string[], notes: ['The page cannot take before-harvest renders.'] }
+        const notes = outcome === 'timeout' ? ['It did not finish drawing in time.'] : outcome.notes
+        const taken = new Set(outcome === 'timeout' ? [] : outcome.taken)
+        for (const entry of savedHere)
+          if (!taken.has(entry.id))
+            failures.push({ viewId: entry.viewId, reason: beforeWarning(entry.name, notes), warning: 'before' })
+        update({})
+        // A render still drawing may be moving the camera: nothing more is captured under it.
+        if (outcome === 'timeout') break placeLoop
       }
     }
     if (control.cancelled()) status = 'cancelled'
@@ -283,11 +338,17 @@ export async function runViewCapture<S>(
   }
   const cancelled = status === 'cancelled'
   const notCaptured = new Set(failures.filter((entry) => !captured.includes(entry.viewId)).map((f) => f.viewId))
+  const warnedBy = (kind: 'sheet' | 'before') =>
+    new Set(failures.filter((entry) => entry.warning === kind && captured.includes(entry.viewId)).map((f) => f.viewId))
+      .size
   update({
     status,
     currentViewId: null,
     done,
-    message: captureSummary(captured.length, total, notCaptured.size, cancelled),
+    message: captureSummary(captured.length, total, notCaptured.size, cancelled, {
+      sheet: warnedBy('sheet'),
+      before: warnedBy('before'),
+    }),
   })
   return { captured, failures, cancelled }
 }
@@ -300,7 +361,7 @@ export function useViewCapture<Snapshot>(hostRef: {
   const cancelledRef = useRef(false)
 
   const capture = useCallback(
-    async (viewIds: readonly string[]): Promise<ViewCaptureReport> => {
+    async (viewIds: readonly string[], options: { before?: boolean } = {}): Promise<ViewCaptureReport> => {
       if (runningRef.current)
         return {
           captured: [],
@@ -313,6 +374,7 @@ export function useViewCapture<Snapshot>(hostRef: {
         return await runViewCapture(() => hostRef.current, viewIds, {
           cancelled: () => cancelledRef.current,
           onState: setState,
+          before: options.before,
         })
       } finally {
         runningRef.current = false

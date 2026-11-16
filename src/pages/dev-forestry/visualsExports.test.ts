@@ -6,9 +6,15 @@ import { createViewOfInterestId, viewCaptureKey, type ViewOfInterest } from './v
 import { REPORT_RECIPES, recipeFormat } from './viaReport/recipes'
 import { VIA_DOCUMENT_FORMATS } from './viaDocument/formats'
 import {
+  beforeToCapture,
   buildExportContext,
+  documentFigureLine,
+  excludedForBlock,
   packageSummary,
+  unprintedViews,
+  viewsLeftOut,
   resolvePackage,
+  savedIdentity,
   uncapturedNote,
   viewsToCapture,
   type ExportPlannedView,
@@ -471,6 +477,7 @@ const exportPlanned = (id: string, overrides: Partial<ExportPlannedView> = {}): 
   key: `key-${id}`,
   name: `Viewpoint ${id}`,
   block: 'Block 1',
+  blockId: 'block-1',
   lens: '50 mm · 39.6° across',
   state: 'not-captured',
   include: true,
@@ -607,7 +614,7 @@ describe('views of interest in the exports', () => {
       'A view of interest is not in the file because it was not captured: Viewpoint a (The road view did not open).',
     )
     expect(uncapturedNote('scene', ctx)).toBeNull()
-    expect(exportPreparation('via-report', ctx).note).toMatch(/Download tries them again\.$/)
+    expect(exportPreparation('via-report', ctx).note).toMatch(/Download tries again\.$/)
   })
 
   it('lists each view of interest with its block, lens and capture state in what goes in', () => {
@@ -639,5 +646,179 @@ describe('views of interest in the exports', () => {
     expect(section?.items?.map((item) => item.title)).toEqual(['View from the road going north own'])
     expect(packageSummary({ ...ctx, recipe: 'District summary' })).toBe('District summary · PGMaps · 2 views')
     expect(packageSummary(withPlanned([exportPlanned('a')]))).toBe('No recipe · PGMaps · 1 view, 1 to capture')
+  })
+})
+
+describe('every view of the package prints or is named, with why', () => {
+  const withPlanned = (views: ExportPlannedView[], overrides: Partial<ContextInput> = {}) =>
+    buildExportContext(input(createSampleScene(), { planned: views, ...overrides }))
+
+  it('names a view saved without its analysis sheet, with the reason its save gave', () => {
+    const views = [
+      { id: 'drawn', name: 'Viewpoint 3' },
+      { id: 'sheetless', name: 'VLI 145' },
+      { id: 'gone', name: 'Viewpoint 4' },
+    ]
+    const unprinted = unprintedViews(views, {
+      drawn: { figure: {} },
+      sheetless: { figureError: 'The class pass found no landform pixels.' },
+    })
+    expect(unprinted).toEqual([
+      {
+        id: 'sheetless',
+        name: 'VLI 145',
+        reason: 'its analysis sheet could not be drawn: the class pass found no landform pixels',
+      },
+      { id: 'gone', name: 'Viewpoint 4', reason: expect.stringMatching(/^it has no screenshot or analysis sheet/) },
+    ])
+    expect(unprintedViews([{ id: 'x', name: 'X' }], { x: {} })[0].reason).toBe(
+      'its analysis sheet could not be drawn: its class pass was not taken when it was saved',
+    )
+  })
+
+  it('lists the views it cannot draw in what goes in, in the preview’s notice and in the file', () => {
+    const ctx = withPlanned(
+      [
+        exportPlanned('a', { state: 'captured', savedViewId: 'a-1' }),
+        exportPlanned('b', { state: 'no-figure', savedViewId: 'b-1' }),
+        exportPlanned('c', { failed: 'The run failed.' }),
+      ],
+      { unprinted: [{ id: 'b-1', name: 'Viewpoint b', reason: 'its analysis sheet could not be drawn: no frame' }] },
+    )
+    const sections = exportContents('via-report', ctx)
+    expect(sections.find((entry) => entry.title === 'Views not drawn')?.items).toEqual([
+      { title: 'Viewpoint b', subtitle: 'Not in the file: its analysis sheet could not be drawn: no frame' },
+    ])
+    const planned = sections.find((entry) => entry.title === 'Views of interest')?.items?.map((item) => item.subtitle)
+    expect(planned?.[1]).toMatch(/Captured, but not drawn in the file: its analysis sheet could not be drawn: no frame/)
+    expect(uncapturedNote('via-report', ctx)).toBe(
+      'A view of interest is not in the file because it was not captured: Viewpoint c (The run failed). A view is not drawn in the file: Viewpoint b (its analysis sheet could not be drawn: no frame).',
+    )
+    expect(viewsLeftOut('via-document', ctx)).toEqual([
+      { name: 'Viewpoint c', reason: 'not captured: the run failed.' },
+      { name: 'Viewpoint b', reason: 'its analysis sheet could not be drawn: no frame' },
+    ])
+    // The block note takes a view without its sheet as its screenshot: it is not named as left out there.
+    expect(viewsLeftOut('block-note', ctx).map((entry) => entry.name)).toEqual(['Viewpoint c'])
+  })
+
+  it('says why a document viewpoint prints no figure rather than calling its class pass missing', () => {
+    expect(documentFigureLine({ percent: '0.3', term: 'Very small' }, { landform: 900 })).toBe('0.3% · Very small')
+    expect(documentFigureLine(null, { landform: 0 })).toBe(
+      'No figure: the landform is not in the picture (its class pass shows none of it)',
+    )
+    expect(documentFigureLine(null, { landform: 120 })).toMatch(/deductions/)
+  })
+
+  it('shows the not-captured notice once in a preview that prints it', () => {
+    const ctx = withPlanned([exportPlanned('a', { failed: 'Cancelled.' })])
+    const prep = exportPreparation('via-report', ctx)
+    expect(prep.note).toMatch(/Download tries again\.$/)
+    expect(prep.noteIsSkipped).toBe(true)
+    expect(exportPreparation('via-report', withPlanned([exportPlanned('a')])).noteIsSkipped).toBe(false)
+  })
+})
+
+describe('views of interest planned for another block', () => {
+  const pkg = {
+    planned: [
+      exportPlanned('a', { state: 'captured', savedViewId: 'a-1' }),
+      exportPlanned('b', { state: 'captured', savedViewId: 'b-1', blockId: 'block-2', block: 'Block 2' }),
+      exportPlanned('c', { blockId: 'block-2', block: 'Block 2' }),
+    ],
+    excludedViews: new Set(['own-left-out']),
+  }
+
+  it('leaves them out of a block’s note and brief, but not saved views of its own', () => {
+    expect([...excludedForBlock(pkg, 'block-1')].sort()).toEqual(['b-1', 'own-left-out'])
+    expect([...excludedForBlock(pkg, null)]).toEqual(['own-left-out'])
+  })
+
+  it('neither captures them for that block’s note nor names them as missing, and lists them as for another block', () => {
+    const ctx = buildExportContext(
+      input(createSampleScene(), {
+        planned: pkg.planned,
+        blockNote: { blockId: 'block-1', header: [], landform: [], measures: 0 },
+      }),
+    )
+    expect(viewsToCapture('block-note', ctx)).toEqual([])
+    expect(viewsToCapture('via-report', ctx)).toEqual(['c'])
+    expect(uncapturedNote('block-note', ctx)).toBeNull()
+    const section = exportContents('block-note', ctx).find((entry) => entry.title === 'Views of interest')
+    expect(section?.items?.map((item) => item.subtitle)).toEqual([
+      'Block 1 · 50 mm · 39.6° across · Captured: in the file',
+      'Block 2 · 50 mm · 39.6° across · For another block: left out of this file',
+      'Block 2 · 50 mm · 39.6° across · For another block: left out of this file',
+    ])
+    expect(section?.note).toMatch(/2 views planned for another block are left out/)
+  })
+})
+
+describe('before-harvest renders taken where each view stands', () => {
+  it('captures again, with its before render, a captured view that has none, for the outputs that pair one', () => {
+    const ctx = buildExportContext(
+      input(createSampleScene(), {
+        planned: [
+          exportPlanned('a', { state: 'captured', savedViewId: 'a-1', beforeOwed: true }),
+          exportPlanned('b', { state: 'captured', savedViewId: 'b-1' }),
+          exportPlanned('c', { state: 'captured', savedViewId: 'c-1', beforeOwed: true, beforeFailed: 'No terrain.' }),
+          exportPlanned('d'),
+        ],
+      }),
+    )
+    expect(beforeToCapture('via-report', ctx)).toEqual(['a'])
+    expect(beforeToCapture('via-report', ctx, { retry: true })).toEqual(['a', 'c'])
+    expect(beforeToCapture('block-note', ctx)).toEqual([])
+    // The analysis sheet pairs its own view only.
+    expect(beforeToCapture('analysis-sheet', { ...ctx, figure: { ...ctx.figure, viewId: 'b-1' } })).toEqual([])
+    expect(beforeToCapture('analysis-sheet', { ...ctx, figure: { ...ctx.figure, viewId: 'a-1' } })).toEqual(['a'])
+    const prep = exportPreparation('via-report', ctx)
+    expect(prep).toMatchObject({ capture: ['d', 'a'], captureBefore: true })
+    expect(prep.note).toMatch(/captured again for its before-harvest render/)
+    expect(exportPreparation('block-note', ctx)).toMatchObject({ capture: ['d'], captureBefore: false })
+  })
+
+  it('takes the view’s own before failure only under the key it failed with', () => {
+    const a = planned('a')
+    const key = viewCaptureKey(a)
+    const resolved = resolvePackage({
+      choice: { recipeId: null, documentFormatId: null, excludedViews: new Set() },
+      recipes: REPORT_RECIPES,
+      formats: VIA_DOCUMENT_FORMATS,
+      roadViewStyleId: null,
+      planned: [a],
+      blocks: [{ id: 'block-1', name: 'Block 1' }],
+      savedViews: [{ id: 'a-1', name: 'A', plannedViewId: 'a', plannedKey: key }],
+      beforeOwed: new Set(['a-1']),
+      beforeFailures: { a: { key: 'old', reason: 'No terrain.' } },
+      hasFigure: () => true,
+    })
+    expect(resolved.planned[0]).toMatchObject({ state: 'captured', beforeOwed: true, beforeFailed: null })
+  })
+})
+
+describe('a view drawn again by an engine', () => {
+  it('keeps the names and place the view was saved with, whatever the page stands at while it renders', () => {
+    const own = {
+      place: 'VLI potencial 145',
+      viewpoint: 'VLI potencial 145, toward Block B',
+      facts: [
+        { label: 'Viewpoint', value: 'VLI potencial 145, 0.02 km' },
+        { label: 'Location', value: '53.90500, -122.47000' },
+      ],
+    }
+    type Named = { place?: string; viewpoint: string; facts: Array<{ label: string; value: string }> }
+    const drawn: Named = {
+      place: 'Viewpoint 3',
+      viewpoint: 'VLI potencial 145, toward Block B',
+      facts: [
+        { label: 'Viewpoint', value: 'Viewpoint 3, 0.02 km' },
+        { label: 'Location', value: '53.90500, -122.47000' },
+      ],
+    }
+    expect(savedIdentity(drawn, own)).toEqual({ ...drawn, place: 'VLI potencial 145', facts: own.facts })
+    const placeless = savedIdentity(drawn, { viewpoint: 'Road view', facts: [] })
+    expect('place' in placeless).toBe(false)
+    expect(savedIdentity(drawn, undefined)).toBe(drawn)
   })
 })

@@ -264,21 +264,47 @@ function drawCanvas(map: MapLibreMap, target: number | CaptureRegion, smooth: bo
   return { canvas, context }
 }
 
-/** Waits for the map to settle (tiles loaded), then reads the next frame. */
-function readSettledFrame<T>(map: MapLibreMap, read: () => T, what: string, timeoutMs = 15_000): Promise<T> {
+/**
+ * How long a capture waits for the map to settle before reading a frame. A framed view at a new bearing loads
+ * terrain and imagery tiles first; under load (a capture of several views, other tabs) that took over 15 s, which
+ * failed about half the framed views of a batch with "did not draw".
+ */
+export const SETTLE_TIMEOUT_MS = 45_000
+
+/**
+ * Waits for the map to settle (tiles loaded), then reads the next frame. On a timeout its listeners are taken off, so
+ * a frame that settles late is not read for nothing.
+ */
+function readSettledFrame<T>(map: MapLibreMap, read: () => T, what: string, timeoutMs = SETTLE_TIMEOUT_MS): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error(`${what} did not draw.`)), timeoutMs)
-    map.once('idle', () => {
-      map.once('render', () => {
-        window.clearTimeout(timer)
-        try {
-          resolve(read())
-        } catch (error) {
-          reject(error instanceof Error ? error : new Error(String(error)))
-        }
-      })
+    let finished = false
+    const onRender = () => {
+      if (finished) return
+      finished = true
+      window.clearTimeout(timer)
+      try {
+        resolve(read())
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error(String(error)))
+      }
+    }
+    const onIdle = () => {
+      if (finished) return
+      map.once('render', onRender)
       map.triggerRepaint()
-    })
+    }
+    const timer = window.setTimeout(() => {
+      if (finished) return
+      finished = true
+      map.off('idle', onIdle)
+      map.off('render', onRender)
+      reject(
+        new Error(
+          `${what} did not finish drawing within ${Math.round(timeoutMs / 1000)} s (its tiles were still loading).`,
+        ),
+      )
+    }, timeoutMs)
+    map.once('idle', onIdle)
     map.triggerRepaint()
   })
 }

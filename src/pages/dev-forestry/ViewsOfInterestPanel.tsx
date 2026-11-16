@@ -21,12 +21,14 @@ import {
   blockCentre,
   isIncluded,
   LENS_FOCAL_LENGTHS,
+  needsCapture,
   lensLabel,
   MAX_VIEWS_OF_INTEREST,
   normalizeBearing,
   orphanedViews,
   viewBearing,
   viewCaptureState,
+  type SavedViewCapture,
   type ViewCaptureState,
   type ViewOfInterest,
   type ViewOfInterestFacing,
@@ -43,7 +45,12 @@ export type ViewsOfInterestPanelProps = {
   /** Every scene target, to flag a view whose block or landform is gone. */
   targets: ReadonlyArray<{ id: string; role: string }>
   /** Every saved view, here and shelved: a planned view is captured while one carries its id and current key. */
-  savedViews: ReadonlyArray<{ plannedViewId?: string; plannedKey?: string }>
+  savedViews: ReadonlyArray<SavedViewCapture>
+  /**
+   * Whether a saved view has its analysis sheet (`viewImages[id].figure`): one saved without it reads *Saved, no
+   * analysis sheet* and is captured again (`viewCaptureState`).
+   */
+  hasFigure?: (savedViewId: string) => boolean
   capture: ViewCaptureApi
   /** The view whose row is open, highlighted on the plan. */
   openViewId: string | null
@@ -74,6 +81,7 @@ const SOURCE_LABELS: Record<ViewOfInterest['source']['kind'], string> = {
 
 const CAPTURE_LABELS: Record<ViewCaptureState, string> = {
   captured: 'Captured',
+  'no-figure': 'Saved, no analysis sheet',
   outdated: 'Changed since captured',
   'not-captured': 'Not captured',
 }
@@ -152,6 +160,7 @@ export function ViewsOfInterestPanel({
   blocks,
   targets,
   savedViews,
+  hasFigure,
   capture,
   openViewId,
   onOpenView,
@@ -174,17 +183,27 @@ export function ViewsOfInterestPanel({
     null
   const orphans = useMemo(() => orphanedViews(views, targets), [views, targets])
   const states = useMemo(
-    () => new Map(views.map((view) => [view.id, viewCaptureState(view, savedViews)])),
-    [views, savedViews],
+    () => new Map(views.map((view) => [view.id, viewCaptureState(view, savedViews, hasFigure)])),
+    [views, savedViews, hasFigure],
   )
   const included = views.filter(isIncluded)
   const captured = included.filter((view) => states.get(view.id) === 'captured').length
-  const toCapture = included.filter((view) => states.get(view.id) !== 'captured')
+  // A view saved without its analysis sheet is taken again with the rest.
+  const toCapture = included.filter((view) => needsCapture(states.get(view.id) ?? 'not-captured'))
   const running = capture.state.status === 'running'
-  const failures = useMemo(
-    () => new Map(capture.state.failures.map((failure) => [failure.viewId, failure.reason])),
-    [capture.state.failures],
-  )
+  // The last batch's word on each view: why it was not captured, or what its save is missing (`warning`). Several
+  // can name one view (no sheet and no before render); they are read together.
+  const failures = useMemo(() => {
+    const byView = new Map<string, { reason: string; warning: boolean }>()
+    for (const failure of capture.state.failures) {
+      const earlier = byView.get(failure.viewId)
+      byView.set(failure.viewId, {
+        reason: earlier ? `${earlier.reason} ${failure.reason}` : failure.reason,
+        warning: (earlier?.warning ?? true) && !!failure.warning,
+      })
+    }
+    return byView
+  }, [capture.state.failures])
 
   // Escape puts the plan's click mode down, as it does a drawing.
   useEffect(() => {
@@ -326,7 +345,10 @@ export function ViewsOfInterestPanel({
             const state = states.get(view.id) ?? 'not-captured'
             const open = view.id === openViewId
             const current = running && capture.state.currentViewId === view.id
-            const failure = failures.get(view.id)
+            // A failure counts while the view is still not captured; a warning is read beside its state.
+            const noted = failures.get(view.id)
+            const failure = noted && !noted.warning && state !== 'captured' ? noted.reason : null
+            const warning = noted?.warning && state !== 'not-captured' && state !== 'outdated' ? noted.reason : null
             const missingBlock = orphans.missingBlock.includes(view.id)
             const missingLandform = orphans.missingLandform.includes(view.id)
             return (
@@ -368,7 +390,7 @@ export function ViewsOfInterestPanel({
                             ? 'text-danger'
                             : state === 'captured'
                               ? 'text-success'
-                              : state === 'outdated'
+                              : state === 'outdated' || state === 'no-figure'
                                 ? 'text-warning'
                                 : 'text-muted-foreground',
                       )}
@@ -389,6 +411,14 @@ export function ViewsOfInterestPanel({
                       </InlineAlert>
                     )}
                     {failure && <InlineAlert tone="error">{failure}</InlineAlert>}
+                    {state === 'no-figure' && (
+                      <InlineAlert tone="warning">
+                        {warning ??
+                          'Saved, but its analysis sheet was not drawn (or its screenshot is gone with an earlier session).'}{' '}
+                        <em>Capture again</em> draws it.
+                      </InlineAlert>
+                    )}
+                    {state === 'captured' && warning && <InlineAlert tone="warning">{warning}</InlineAlert>}
                     <NameField
                       key={`${view.id}:${view.name}`}
                       view={view}
@@ -448,20 +478,23 @@ export function ViewsOfInterestPanel({
                       </SelectField>
                     </div>
                     {view.facing.kind === 'bearing' && !view.facing.arrowId && (
-                      <NumberField
-                        label="Bearing"
-                        labelClassName="text-2xs text-muted-foreground"
-                        inputClassName={cn(FORM_INPUT_CLASS, 'w-24 py-1 text-xs')}
-                        contentClassName="flex-row items-center justify-between gap-3"
-                        unit="° from north"
-                        min={0}
-                        max={359.9}
-                        updateOn="commit"
-                        value={view.facing.degrees}
-                        onValueChange={(degrees) =>
-                          update(view.id, { facing: { kind: 'bearing', degrees: normalizeBearing(degrees) } })
-                        }
-                      />
+                      // Under Facing, in its column, labelled above like the fields round it.
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <span aria-hidden="true" />
+                        <NumberField
+                          label="Bearing from north"
+                          labelClassName="text-2xs text-muted-foreground"
+                          inputClassName={cn(FORM_INPUT_CLASS, 'min-w-0 flex-1 py-1 text-xs')}
+                          unit="°"
+                          min={0}
+                          max={359.9}
+                          updateOn="commit"
+                          value={view.facing.degrees}
+                          onValueChange={(degrees) =>
+                            update(view.id, { facing: { kind: 'bearing', degrees: normalizeBearing(degrees) } })
+                          }
+                        />
+                      </div>
                     )}
                     <div className="grid grid-cols-2 gap-1.5">
                       <SelectField
@@ -519,7 +552,7 @@ export function ViewsOfInterestPanel({
                         onClick={() => void capture.capture([view.id])}
                       >
                         <Camera className="h-3.5 w-3.5" />
-                        {state === 'captured' ? 'Capture again' : 'Capture'}
+                        {state === 'not-captured' ? 'Capture' : 'Capture again'}
                       </Button>
                       <Button
                         type="button"
@@ -589,12 +622,14 @@ export function ViewsOfInterestPanel({
           </Button>
         </div>
       )}
-      {views.length > 0 && toCapture.length > 0 && captured > 0 && (
+      {views.length > 0 && toCapture.length > 0 && (
         <p className="flex items-center gap-1 text-3xs text-muted-foreground">
-          Exports use the {captured} captured view{captured === 1 ? '' : 's'} until the rest are captured.
+          Save &amp; export captures the {toCapture.length === 1 ? 'one' : toCapture.length} left before it writes a
+          file.
           <InfoTip label="About exporting before every view is captured">
-            Save &amp; export writes from saved views. A planned view that is not captured, or changed since it was, has
-            no screenshot or figure yet; capture it first to put it in.
+            Save &amp; export writes from saved views. Preview and Download first capture every included view that is
+            not captured, changed since its capture, or saved without its analysis sheet, as <em>Capture</em> does here;
+            capturing them now only saves that wait.
           </InfoTip>
         </p>
       )}

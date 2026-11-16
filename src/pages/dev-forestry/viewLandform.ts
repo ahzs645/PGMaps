@@ -47,6 +47,12 @@ export function viewLandformTileRange(
 }
 
 /**
+ * A view's landform reading: the finder's candidate, and whether it was read round the block's visible ground
+ * (`block`) or, the block being hidden from the view, from the land seen in front of it (`in-front`).
+ */
+export type ViewLandformCandidate = TerrainCandidate & { seededBy: 'block' | 'in-front' }
+
+/**
  * The visible face seen from the view's place, as a finder candidate (so the plan draws it with the finder's
  * candidates). Null when nothing of the block, or in front of it, is in view from there, or the view's place has
  * no terrain.
@@ -56,7 +62,7 @@ export function viewLandformCandidate(
   view: Pick<ViewOfInterest, 'lng' | 'lat' | 'name'>,
   block: Pick<TargetPolygon, 'id' | 'name' | 'geometry'>,
   options: { water?: ReadonlyArray<PolygonGeometry>; eyeHeightMeters: number },
-): TerrainCandidate | null {
+): ViewLandformCandidate | null {
   const visible = visibleFaceLandform(
     ground,
     block.geometry,
@@ -71,6 +77,7 @@ export function viewLandformCandidate(
   if (!visible) return null
   return {
     ...visible,
+    seededBy: visible.seededBy,
     blockId: block.id,
     blockName: block.name,
     blockGeometry: block.geometry,
@@ -116,9 +123,55 @@ export function landformTargetFromCandidate(
   }
 }
 
-/** The name a view's adopted landform takes: the finder's, and the view it was read from. */
-export function viewLandformName(candidate: TerrainCandidate, view: Pick<ViewOfInterest, 'name'>): string {
-  return `Visible face round ${candidate.blockName} from ${view.name}`
+/** The name a view's adopted landform takes: what it is, round the block or in front of it, and the view. */
+export function viewLandformName(
+  candidate: TerrainCandidate & { seededBy?: 'block' | 'in-front' },
+  view: Pick<ViewOfInterest, 'name'>,
+): string {
+  return candidate.seededBy === 'in-front'
+    ? `Face in front of ${candidate.blockName} from ${view.name}`
+    : `Visible face round ${candidate.blockName} from ${view.name}`
+}
+
+/**
+ * What the control says about a reading, and whether it can be adopted. The reading itself is the finder's
+ * (`visibleFaceLandform`); this only says it plainly:
+ * - the block seen, with a face round it: adoptable;
+ * - the block seen, but little hillside beyond it (`blockOnly`): not adoptable, it sits on a valley floor or a narrow
+ *   bank as seen from here;
+ * - the block hidden by the terrain: the reading is the land seen in front of it, adoptable only when that is a face
+ *   of its own (more than `blockOnly`'s 2.5 × the block's area), never called a face round the block.
+ */
+export function viewLandformVerdict(
+  candidate: Pick<TerrainCandidate, 'blockName' | 'areaHectares' | 'blockOnly'> & {
+    seededBy?: 'block' | 'in-front'
+  },
+  blockHectares: number,
+): { title: string; adoptable: boolean; tone: 'info' | 'warning' | null; note: string | null } {
+  const ha = (value: number) => `${Math.round(value)} ha`
+  const name = candidate.blockName
+  if (candidate.seededBy === 'in-front')
+    return candidate.blockOnly
+      ? {
+          title: `The land in front of ${name}, ${ha(candidate.areaHectares)}`,
+          adoptable: false,
+          tone: 'warning',
+          note: `${name} is hidden from here: nearer ground stands between this place and the block, so no landform round it can be read from here. The ${ha(candidate.areaHectares)} drawn is the land seen in front of it, too little to judge the block against. Read it from a view that sees the block (step 1's Which see the block), or draw the landform by hand.`,
+        }
+      : {
+          title: `Face in front of ${name}, ${ha(candidate.areaHectares)}`,
+          adoptable: true,
+          tone: 'info',
+          note: `${name} is hidden from here, so this is the face of the land seen in front of it, not a face round the block. A VIA uses it only where the block cannot be seen; from a view that sees the block, its own face is read.`,
+        }
+  if (candidate.blockOnly)
+    return {
+      title: `Visible face round ${name}, ${ha(candidate.areaHectares)}`,
+      adoptable: false,
+      tone: 'warning',
+      note: `From here the terrain finds little hillside round ${name} beyond the block itself (${ha(candidate.areaHectares)} against its ${ha(blockHectares)}): seen from this place it sits on a valley floor or a narrow bank, so there is no landform to adopt. Try a view farther off or across the valley, or draw the landform by hand.`,
+    }
+  return { title: `Visible face round ${name}, ${ha(candidate.areaHectares)}`, adoptable: true, tone: null, note: null }
 }
 
 const sameGeometry = (a: TargetPolygon['geometry'], b: TargetPolygon['geometry']) =>
