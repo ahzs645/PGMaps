@@ -199,13 +199,14 @@ describe('engine environment', () => {
   })
 
   it('takes today at the site when no date is chosen, and the default time for a malformed one', () => {
-    // 2026-11-14 03:00 UTC is still 13 November in B.C.
+    // 2026-07-14 03:00 UTC is still 13 July in B.C. (A summer date: tzdata 2026e keeps B.C. on daylight time from
+    // November 2026, so a winter offset depends on the platform's time-zone data.)
     const message = engineEnvironment(
       { ...DEFAULT_ENGINE_ENVIRONMENT, time: 'noon' },
       princeGeorge,
-      new Date(Date.UTC(2026, 10, 14, 3)),
+      new Date(Date.UTC(2026, 6, 14, 3)),
     )
-    expect(message.dateTime).toBe('2026-11-13T14:00:00-08:00')
+    expect(message.dateTime).toBe('2026-07-13T14:00:00-07:00')
     expect(message).toMatchObject({ ground: 'bare', weather: 'clear', sun: 'true' })
   })
 

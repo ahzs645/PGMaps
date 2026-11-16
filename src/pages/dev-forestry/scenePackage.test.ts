@@ -191,7 +191,10 @@ describe('the road view as a scene package', () => {
     expect(reopened.camera.projection).toMatchObject({ kind: 'perspective', aspectRatio: 16 / 9 })
     expect(reopened.camera.projection!.horizontalFovDegrees).toBeCloseTo(61.301335914105735, 10)
     expect(reopened.environment).toEqual(environment)
-    expect(reopened.environment?.utc).toBe('2026-11-12T22:00:00.000Z')
+    // The site's clock time, and the same instant in UTC. The offset is the platform's time-zone data: tzdata 2026e keeps
+    // B.C. on daylight time year-round from November 2026, so the test cannot fix one.
+    expect(reopened.environment?.dateTime.startsWith('2026-11-12T14:00:00')).toBe(true)
+    expect(reopened.environment?.utc).toBe(new Date(environment.dateTime).toISOString())
     environment.weather = 'snow'
     expect(saved.environment?.weather).toBe('clear')
     expect(() =>

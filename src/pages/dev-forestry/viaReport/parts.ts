@@ -439,7 +439,9 @@ export function viewpointNumber(name: string): number | null {
 export const viewpointPlaceName = (name: string) =>
   name
     .replace(/\s*\((?:VPT?|OV)\s*#?\s*\d+\)\s*$/i, '')
-    .replace(/^(?:VPT?|OV)\s*#?\s*\d+\s*[-:–]\s*/i, '')
+    // An alternation, not a bracket class of the three: Tailwind reads that bracket in a source file as an arbitrary CSS
+    // property, and the production build then fails on the CSS it writes.
+    .replace(/^(?:VPT?|OV)\s*#?\s*\d+\s*(?:-|:|–)\s*/i, '')
     .trim() || name
 
 /**
