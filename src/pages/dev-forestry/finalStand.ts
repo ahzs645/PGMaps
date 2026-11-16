@@ -18,7 +18,7 @@
  * Display only: never an analysis input. DOM-free and network-free (the slices yield through `setTimeout`).
  */
 
-import { TREE_SPECIES_IDS } from './forest'
+import { PACKAGE_SPECIES_IDS, packageSpecies } from './forest'
 import { forestBands, forestPatches, growForestPatch } from './forestPatches'
 import type { ForestConfiguration } from './ForestOverlay'
 import type { FrameCamera } from './figureFraming'
@@ -62,7 +62,7 @@ export type FinalStandInput = {
 
 export type FinalStand = {
   fields: typeof SCENE_TREE_FIELDS
-  species: typeof TREE_SPECIES_IDS
+  species: typeof PACKAGE_SPECIES_IDS
   count: number
   data: Float32Array
   /** The radius the stand is complete to: the one asked for, or less when the stem budget ran out. */
@@ -144,7 +144,8 @@ export function* finalStandSteps(
   })
   patches.sort((a, b) => a.nearest - b.nearest)
 
-  const species = TREE_SPECIES_IDS
+  // The package's species (`scenePackage.ts`): the six the other renderers know by name.
+  const species = PACKAGE_SPECIES_IDS
   const speciesIndex = new Map(species.map((id, i) => [id, i]))
   const chunks: Float32Array[] = []
   let count = 0
@@ -175,7 +176,7 @@ export function* finalStandSteps(
       chunk[o] = x
       chunk[o + 1] = y
       chunk[o + 2] = tree.elevationMeters
-      chunk[o + 3] = speciesIndex.get(tree.species) ?? 0
+      chunk[o + 3] = speciesIndex.get(packageSpecies(tree.species)) ?? 0
       chunk[o + 4] = tree.heightMeters
       chunk[o + 5] = Math.min(tree.heightMeters * tree.slenderness, tree.heightMeters * FINAL_STAND_MAX_CROWN_TO_HEIGHT)
       chunk[o + 6] = tree.tone

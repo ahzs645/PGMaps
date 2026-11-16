@@ -87,6 +87,7 @@ export const SNAG_CURVES: ReadonlyArray<SnagCurve> = [
     id: 'fir-everett',
     label: 'Subalpine fir',
     species: ['fir'],
+    borrowedBy: ['hemlock'],
     bcData: false,
     standing: [
       [0, 1],
@@ -96,12 +97,13 @@ export const SNAG_CURVES: ReadonlyArray<SnagCurve> = [
     heightLeft: ffeHeightLeft(1.1),
     source:
       'Everett et al. 1999, International Journal of Wildland Fire 9(4):223–234 (Washington Cascades burns, 23–41 cm: half down by 25 years, 3% standing at 80)',
-    note: 'No year-by-year BC curve: Huggard 1997 (ESSF, Sicamous Creek) measured slow early fall by decay class (0.2% a year in class 3), consistent with this. Height loss after the FVS Fire and Fuels Extension.',
+    note: 'No year-by-year BC curve: Huggard 1997 (ESSF, Sicamous Creek) measured slow early fall by decay class (0.2% a year in class 3), consistent with this. Western hemlock (and the cedar drawn as it) has no curve of its own here and takes this one, as it did while it was drawn as subalpine fir. Height loss after the FVS Fire and Fuels Extension.',
   },
   {
     id: 'spruce-everett',
     label: 'Spruce',
     species: ['spruce'],
+    borrowedBy: ['blackSpruce'],
     bcData: false,
     standing: [
       [0, 1],
@@ -110,7 +112,7 @@ export const SNAG_CURVES: ReadonlyArray<SnagCurve> = [
     ],
     heightLeft: ffeHeightLeft(1.1),
     source: 'Everett et al. 1999 (Engelmann spruce, 23–41 cm: half down by 25 years, 18% standing at 80)',
-    note: 'No BC data. Height loss after the FVS Fire and Fuels Extension.',
+    note: 'No BC data. Black spruce takes this curve, measured on Engelmann spruce, as it did while it was drawn as interior spruce. Height loss after the FVS Fire and Fuels Extension.',
   },
   {
     id: 'douglas-fir-everett',
@@ -130,13 +132,13 @@ export const SNAG_CURVES: ReadonlyArray<SnagCurve> = [
     id: 'aspen-angers',
     label: 'Trembling aspen',
     species: ['aspen'],
-    borrowedBy: ['birch'],
+    borrowedBy: ['birch', 'cottonwood'],
     bcData: false,
     standing: halfLife(15.1),
     heightLeft: ffeHeightLeft(1),
     source:
       'Angers et al. 2010, Forest Ecology and Management 259:246–256 (boreal Quebec, stems: half-life 15.1 years)',
-    note: 'No BC fall curve; aspen cavity trees at Riske Creek (Edworthy et al. 2012) lasted a median 9 years, so this may be slow. Paper birch has no western data and takes this curve. Height loss after the FVS Fire and Fuels Extension.',
+    note: 'No BC fall curve; aspen cavity trees at Riske Creek (Edworthy et al. 2012) lasted a median 9 years, so this may be slow. Paper birch has no western data and takes this curve; so does black cottonwood, as it did while it was drawn as aspen. Height loss after the FVS Fire and Fuels Extension.',
   },
 ]
 

@@ -604,3 +604,70 @@ test('the cost location, own records, budget items, build-ups and low and high c
   expect(saved.alignments).toEqual(before.alignments)
   expect(errors).toEqual([])
 })
+
+/** The active road's segments as the plan's `road-roads` source holds them (map state, not the legend). */
+async function activeRoadSegments(page: Page) {
+  return page.evaluate(() => {
+    const container = document.querySelector('[data-testid="road-plan-view"] .maplibregl-map')
+    if (!container) return null
+    const key = Object.keys(container).find((name) => name.startsWith('__reactFiber$'))
+    if (!key) return null
+    type Map = import('maplibre-gl').Map
+    type Hook = { memoizedState?: { current?: Map } | Map; next?: Hook }
+    type Fiber = { memoizedState?: Hook; return?: Fiber }
+    let fiber = (container as unknown as Record<string, Fiber>)[key]
+    for (let depth = 0; fiber && depth < 200; depth++, fiber = fiber.return!) {
+      for (let hook = fiber.memoizedState, count = 0; hook && count < 40; hook = hook.next, count++) {
+        const value = hook.memoizedState
+        const map =
+          value && typeof value === 'object' && 'current' in value ? value.current : (value as Map | undefined)
+        if (typeof map?.getTerrain !== 'function') continue
+        const source = map.getSource('road-roads')
+        if (source?.type !== 'geojson') return null
+        return (source.serialize().data as GeoJSON.FeatureCollection).features
+          .map((feature) => feature.properties ?? {})
+          .filter((properties) => properties.selected)
+      }
+    }
+    return null
+  })
+}
+
+test('a cost row opens where it falls, and a stretch takes the plan to its section coloured by cost', async ({
+  page,
+}) => {
+  const errors = await prepare(page)
+  const dialog = await openCosts(page)
+  // The whole estimate and each placed row spread along the road.
+  await dialog.getByRole('button', { name: 'Whole estimate', exact: true }).click()
+  await expect(dialog.getByTestId('road-cost-where-it-falls').first()).toHaveAttribute('data-cost-series', 'total')
+  const where = dialog.getByRole('button', { name: /^Where .+ falls$/ }).first()
+  await where.click()
+  await expect(where).toHaveAttribute('aria-expanded', 'true')
+  const panel = dialog.locator('[data-cost-stretches] [data-testid="road-cost-where-it-falls"]')
+  await expect(panel).toBeVisible()
+  const rowId = await panel.getAttribute('data-cost-series')
+  const stretch = panel.locator('li[data-cost-stretch]').first()
+  const [start, end] = (await stretch.getAttribute('data-cost-stretch'))!.split('-').map(Number)
+  await stretch.getByRole('button').click()
+  await expect(dialog).not.toBeVisible()
+
+  // The selected station is the stretch's costliest one, and the road is coloured by that row.
+  await expect
+    .poll(async () => Number(await page.getByLabel('Selected station metres', { exact: true }).inputValue()))
+    .toBeGreaterThan(start)
+  expect(Number(await page.getByLabel('Selected station metres', { exact: true }).inputValue())).toBeLessThanOrEqual(
+    end + 1e-6,
+  )
+  await expect
+    .poll(async () => (await activeRoadSegments(page))?.every((segment) => typeof segment.costClass === 'string'))
+    .toBe(true)
+  expect(await page.evaluate(() => localStorage.getItem('pgmaps-road-colour-by'))).toBe('cost')
+  const legend = page.getByTestId('road-plan-legend-content')
+  await expect(legend.locator('[data-legend-section="roads"]')).toContainText('Cost per metre')
+  if (rowId !== 'total') {
+    await legend.getByRole('button', { name: 'Whole estimate', exact: true }).click()
+    await expect(legend.locator('[data-legend-section="roads"]')).toContainText('Whole estimate')
+  }
+  expect(errors).toEqual([])
+})

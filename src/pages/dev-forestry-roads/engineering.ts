@@ -161,7 +161,7 @@ const HAUL_CLASS_RATES = {
 >
 
 /** The haul class of a movement `distanceM` long and the kilometres its distance rate is charged over. */
-function haulCharge(h: HaulSettings, distanceM: number) {
+export function haulCharge(h: HaulSettings, distanceM: number) {
   const category: HaulMovement['category'] =
     distanceM <= h.freeHaulDistanceM + EPS
       ? 'freehaul'
@@ -187,7 +187,26 @@ export interface HaulCostLine {
   rateUnit: string
   rateKey: keyof HaulSettings | null
   amount: number
+  /** What the line prices, so its cost can be traced back to the road (`costAttribution.ts`). */
+  source: HaulCostLineSource
 }
+
+/**
+ * What a haul cost line prices: the movements of one haul class and volume basis (their distance
+ * charge or their loading), supply or disposal at one site, the unallocated remainder at the
+ * default rate, one site's preparation, or the sidecast into one permitted range.
+ */
+export type HaulCostLineSource =
+  | {
+      kind: 'transport'
+      part: 'distance' | 'loading'
+      category: HaulMovement['category']
+      basis: HaulMovement['volumeBasis']
+    }
+  | { kind: 'site'; siteId: string; material: 'borrow' | 'waste' }
+  | { kind: 'unallocated'; material: 'borrow' | 'waste' }
+  | { kind: 'sitePreparation'; siteId: string }
+  | { kind: 'sidecast'; rangeId: string }
 
 const HAUL_CLASS_NAMES: Record<HaulMovement['category'], string> = {
   freehaul: 'Free haul',
@@ -231,6 +250,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
           rateUnit: '$/m³·km',
           rateKey,
           amount: work * h[rateKey],
+          source: { kind: 'transport', part: 'distance', category, basis },
         })
       if (volume > EPS)
         lines.push({
@@ -243,6 +263,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
           rateUnit: '$/m³',
           rateKey: loadingRateKey,
           amount: volume * h[loadingRateKey],
+          source: { kind: 'transport', part: 'loading', category, basis },
         })
     }
   }
@@ -272,6 +293,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
         rateUnit: '$/m³',
         rateKey: null,
         amount: volume * site.unitRate,
+        source: { kind: 'site', siteId: site.id, material: kind },
       })
     }
     const unallocated = kind === 'borrow' ? result.haul.unallocatedBorrowM3 : result.haul.unallocatedWasteM3
@@ -288,6 +310,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
         rateUnit: '$/m³',
         rateKey,
         amount: unallocated * h[rateKey],
+        source: { kind: 'unallocated', material: kind },
       })
   }
   for (const site of used.filter((s) => !s.lastResort))
@@ -301,6 +324,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
       rateUnit: '$',
       rateKey: null,
       amount: site.fixedCost,
+      source: { kind: 'sitePreparation', siteId: site.id },
     })
   for (const range of h.sidecastRanges ?? []) {
     const volume = result.movements
@@ -317,6 +341,7 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
         rateUnit: '$/bank m³',
         rateKey: null,
         amount: volume * range.unitRate,
+        source: { kind: 'sidecast', rangeId: range.id },
       })
   }
   return lines

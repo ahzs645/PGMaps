@@ -17,7 +17,14 @@
  * different species mix without an art pipeline.
  */
 
-import { SPECIES_CROWN_RATIO, VARIANTS_PER_SPECIES, TREE_SPECIES_IDS, type TreeSpeciesId } from './forest'
+import {
+  SPECIES_CROWN_RATIO,
+  TREE_DRAWING_IDS,
+  VARIANTS_PER_SPECIES,
+  drawingSpecies,
+  type TreeDrawingId,
+  type TreeSpeciesId,
+} from './forest'
 
 /**
  * Cell width over cell height in the atlas. Every card is drawn at this aspect
@@ -63,6 +70,14 @@ type SpeciesDrawing = {
   foliage: [number, number, number]
   bark: [number, number, number]
   broadleaf?: boolean
+  /** Half the butt's width as a share of the card (0.03 where absent): a cottonwood's bole is heavy. */
+  boleFoot?: number
+  /** How far the leader leans over at the top, as a share of the card: a hemlock's nods. */
+  nod?: number
+  /** Extra width near the top as a share of the crown's, for a black spruce's clubbed head. */
+  club?: number
+  /** Several thin stems from the ground in place of one bole: a tall shrub. */
+  stems?: number
 }
 
 /**
@@ -135,6 +150,107 @@ export const TREE_SPECIES_DRAWING: Record<TreeSpeciesId, SpeciesDrawing> = {
     bark: [226, 222, 212],
     broadleaf: true,
   },
+  hemlock: {
+    label: 'Western hemlock',
+    crownRatio: SPECIES_CROWN_RATIO.hemlock,
+    // Shade-tolerant: live crown lower than a spruce's in the same stand. Many fine tiers that
+    // hang at the tips, under a leader that nods over.
+    crownBase: 0.28,
+    tiers: 15,
+    droop: 1.5,
+    foliage: [50, 88, 60],
+    bark: [98, 76, 62],
+    nod: 0.05,
+  },
+  blackSpruce: {
+    label: 'Black spruce',
+    crownRatio: SPECIES_CROWN_RATIO.blackSpruce,
+    // A thin column of short limbs with a dense club at the top, on wet ground.
+    crownBase: 0.3,
+    tiers: 18,
+    droop: 1.0,
+    foliage: [36, 66, 56],
+    bark: [80, 68, 62],
+    club: 0.55,
+  },
+  cottonwood: {
+    label: 'Black cottonwood',
+    crownRatio: SPECIES_CROWN_RATIO.cottonwood,
+    crownBase: 0.42,
+    tiers: 0,
+    droop: 0,
+    foliage: [82, 122, 58],
+    bark: [122, 116, 104],
+    broadleaf: true,
+    boleFoot: 0.05,
+  },
+}
+
+/**
+ * A young conifer's crown width over its height, as drawn. Open-grown regeneration is broad for
+ * its height; the stem's real width still comes from its stand's closure, and this only sets the
+ * shape that width is stretched from, near what a 5 m stem carries at the closure drawn for it.
+ */
+export const YOUNG_CROWN_RATIO = 0.27
+
+/**
+ * Every drawing: the species above, each conifer's young form (the same tree with its crown to the
+ * ground, since nothing has shaded its lower limbs out yet) and the tall shrub.
+ */
+export const TREE_DRAWINGS: Record<TreeDrawingId, SpeciesDrawing> = Object.fromEntries(
+  TREE_DRAWING_IDS.map((drawing): [TreeDrawingId, SpeciesDrawing] => {
+    if (drawing === 'shrub') {
+      return [
+        drawing,
+        {
+          label: 'Tall shrub (alder, willow)',
+          crownRatio: YOUNG_CROWN_RATIO,
+          crownBase: 0.1,
+          tiers: 0,
+          droop: 0,
+          foliage: [96, 126, 64],
+          bark: [112, 102, 86],
+          broadleaf: true,
+          stems: 4,
+        },
+      ]
+    }
+    const species = drawingSpecies(drawing)
+    const spec = TREE_SPECIES_DRAWING[species]
+    if (drawing === species) return [drawing, spec]
+    return [
+      drawing,
+      {
+        ...spec,
+        label: `${spec.label}, young`,
+        crownRatio: YOUNG_CROWN_RATIO,
+        crownBase: 0.05,
+        // About a whorl a year: a young stem has fewer, and they have not begun to sag.
+        tiers: Math.max(7, Math.round(spec.tiers * 0.7)),
+        droop: spec.droop * 0.75,
+        club: undefined,
+      },
+    ]
+  }),
+) as Record<TreeDrawingId, SpeciesDrawing>
+
+/** A drawing's crown width over its height: what the layer stretches a card or mesh from. */
+export function drawingCrownRatio(drawing: TreeDrawingId): number {
+  return TREE_DRAWINGS[drawing].crownRatio
+}
+
+/** A drawing's foliage and bark, 0–1: the detailed mesh is coloured as its card is. */
+export function drawingPalette(drawing: TreeDrawingId): {
+  foliage: [number, number, number]
+  bark: [number, number, number]
+} {
+  const spec = TREE_DRAWINGS[drawing]
+  const unit = (colour: [number, number, number]): [number, number, number] => [
+    colour[0] / 255,
+    colour[1] / 255,
+    colour[2] / 255,
+  ]
+  return { foliage: unit(spec.foliage), bark: unit(spec.bark) }
 }
 
 /** Deterministic noise, so the same species and variant always draw the same. */
@@ -181,9 +297,10 @@ function blob(
  * `x` runs 0–1 across the card with the stem at 0.5, `y` runs 0 at the ground to
  * 1 at the leader. Shapes come back in draw order, back to front.
  */
-export function impostorShapes(species: TreeSpeciesId, variant: number): ImpostorShape[] {
-  const spec = TREE_SPECIES_DRAWING[species]
-  const random = mulberry32((TREE_SPECIES_IDS.indexOf(species) + 1) * 7919 + variant * 104_729)
+export function impostorShapes(drawing: TreeDrawingId, variant: number): ImpostorShape[] {
+  const spec = TREE_DRAWINGS[drawing]
+  // Species come first in `TREE_DRAWING_IDS`, so each keeps the seed it always had.
+  const random = mulberry32((TREE_DRAWING_IDS.indexOf(drawing) + 1) * 7919 + variant * 104_729)
   const shapes: ImpostorShape[] = []
 
   // The crown's half-width as a share of the card, which is `crownRatio` of the
@@ -191,18 +308,34 @@ export function impostorShapes(species: TreeSpeciesId, variant: number): Imposto
   const crownHalf = spec.crownRatio / BILLBOARD_ASPECT / 2
 
   // Bole first, so foliage closes over it.
-  const boleFoot = 0.03
+  const boleFoot = spec.boleFoot ?? 0.03
   const boleHead = 0.008
   const lean = (random() - 0.5) * 0.04
-  shapes.push({
-    points: [
-      [0.5 - boleFoot, 0],
-      [0.5 + boleFoot, 0],
-      [0.5 + boleHead + lean, 1],
-      [0.5 - boleHead + lean, 1],
-    ],
-    color: spec.bark,
-  })
+  if (spec.stems) {
+    // A shrub: thin stems fanning from one root, lost in the leaves by half height.
+    for (let stem = 0; stem < spec.stems; stem += 1) {
+      const reach = ((stem + 0.5) / spec.stems - 0.5) * 2 * crownHalf * 0.8
+      shapes.push({
+        points: [
+          [0.5 - 0.012, 0],
+          [0.5 + 0.012, 0],
+          [0.5 + reach + 0.008, 0.5],
+          [0.5 + reach - 0.008, 0.5],
+        ],
+        color: spec.bark,
+      })
+    }
+  } else {
+    shapes.push({
+      points: [
+        [0.5 - boleFoot, 0],
+        [0.5 + boleFoot, 0],
+        [0.5 + boleHead + lean, 1],
+        [0.5 - boleHead + lean, 1],
+      ],
+      color: spec.bark,
+    })
+  }
 
   if (spec.broadleaf) {
     // A rounded crown built from overlapping masses, darker behind.
@@ -246,8 +379,10 @@ export function impostorShapes(species: TreeSpeciesId, variant: number): Imposto
   for (let tier = 0; tier < spec.tiers; tier += 1) {
     const t = spec.tiers > 1 ? tier / (spec.tiers - 1) : 1
     const attach = spec.crownBase + (crownTop - spec.crownBase) * Math.pow(t, 0.92)
-    // Widest at the bottom of the live crown, tapering to the leader.
-    const half = crownHalf * Math.pow(1 - t, 1.2) + 0.015
+    // Widest at the bottom of the live crown, tapering to the leader; a black spruce swells again
+    // into a club just under its top.
+    const club = spec.club ? crownHalf * spec.club * Math.exp(-(((t - 0.86) / 0.08) ** 2)) : 0
+    const half = crownHalf * Math.pow(1 - t, 1.2) + 0.015 + club
     const spacing = (1 - spec.crownBase) / Math.max(1, spec.tiers)
     const drop = spacing * spec.droop * (1.4 + random() * 0.8)
     const lift = drop * 0.25
@@ -271,12 +406,13 @@ export function impostorShapes(species: TreeSpeciesId, variant: number): Imposto
     }
   }
 
-  // A leader, so the top is a point rather than a flat tier.
+  // A leader, so the top is a point rather than a flat tier. A hemlock's nods to one side.
+  const nod = spec.nod ? spec.nod * (random() < 0.5 ? -1 : 1) : 0
   shapes.push({
     points: [
       [0.5 - 0.02, 0.92],
       [0.5 + 0.02, 0.92],
-      [0.5, 1],
+      [0.5 + nod, 1],
     ],
     color: shade(spec.foliage, 1.08),
   })
@@ -289,9 +425,9 @@ export function impostorShapes(species: TreeSpeciesId, variant: number): Imposto
  * heights, each drawn from `impostorShapes` and set in its own slot so
  * neighbouring crowns just touch. Same coordinates as one tree's card.
  */
-export function impostorClumpShapes(species: TreeSpeciesId, variant: number): ImpostorShape[] {
-  const random = mulberry32((TREE_SPECIES_IDS.indexOf(species) + 1) * 3571 + variant * 65_537)
-  const spec = TREE_SPECIES_DRAWING[species]
+export function impostorClumpShapes(drawing: TreeDrawingId, variant: number): ImpostorShape[] {
+  const random = mulberry32((TREE_DRAWING_IDS.indexOf(drawing) + 1) * 3571 + variant * 65_537)
+  const spec = TREE_DRAWINGS[drawing]
   const crownHalf = spec.crownRatio / BILLBOARD_ASPECT / 2
   const slot = 1 / CLUMP_TREES
   const trees = Array.from({ length: CLUMP_TREES }, (_, k) => ({
@@ -304,7 +440,7 @@ export function impostorClumpShapes(species: TreeSpeciesId, variant: number): Im
   // Short trees first: taller ones behind them would hide them.
   trees.sort((a, b) => b.height - a.height)
   return trees.flatMap((tree) =>
-    impostorShapes(species, tree.variant).map((shape) => ({
+    impostorShapes(drawing, tree.variant).map((shape) => ({
       color: shape.color,
       points: shape.points.map(([x, y]): [number, number] => [
         Math.max(0, Math.min(1, tree.centre + ((x - 0.5) / crownHalf) * slot * 0.55)),
@@ -314,26 +450,45 @@ export function impostorClumpShapes(species: TreeSpeciesId, variant: number): Im
   )
 }
 
+/** A picture as bytes, four to a pixel, rows from the top. */
+export type AtlasImage = { width: number; height: number; data: Uint8ClampedArray }
+
 export type ImpostorAtlas = {
-  canvas: HTMLCanvasElement
-  /** Variants across. */
+  /** The drawn atlas (`buildImpostorAtlas`); absent on a baked one, which carries `image`. */
+  canvas?: HTMLCanvasElement
+  /** A baked atlas's colour and coverage (`impostorBake.ts`), not premultiplied. */
+  image?: AtlasImage
+  /**
+   * A baked atlas's second sheet, cell for cell with `image`: the surface normal in the view it was
+   * taken from (red across, green up, the third worked out), blue 1 on foliage and 0 on bark, alpha
+   * the depth toward the camera.
+   */
+  surface?: AtlasImage
+  /**
+   * Views round each tree, side by side in its row (1 where absent): a baked tree's variants each
+   * take this many columns, and the layer shows the one nearest where the eye stands.
+   */
+  azimuths?: number
+  /** Cells across: variants, times `azimuths` on a baked atlas. */
   columns: number
-  /** Species down. */
+  /** Drawings down. */
   rows: number
   cellWidth: number
   cellHeight: number
-  /** Row for each species, matching how the layer indexes the atlas. */
-  speciesRow: Record<TreeSpeciesId, number>
+  /** Row for each drawing, matching how the layer indexes the atlas. */
+  speciesRow: Record<TreeDrawingId, number>
 }
 
-/** Where one cell's top-left sits, in texture coordinates. */
+/** Where one cell's top-left sits, in texture coordinates: on a baked atlas, a variant's first view. */
 export function atlasCell(
-  atlas: Pick<ImpostorAtlas, 'columns' | 'rows' | 'speciesRow'>,
-  species: TreeSpeciesId,
+  atlas: Pick<ImpostorAtlas, 'columns' | 'rows' | 'speciesRow' | 'azimuths'>,
+  drawing: TreeDrawingId,
   variant: number,
 ): [number, number] {
-  const column = ((variant % atlas.columns) + atlas.columns) % atlas.columns
-  return [column / atlas.columns, atlas.speciesRow[species] / atlas.rows]
+  const views = atlas.azimuths ?? 1
+  const variants = Math.max(1, Math.round(atlas.columns / views))
+  const column = (((variant % variants) + variants) % variants) * views
+  return [column / atlas.columns, atlas.speciesRow[drawing] / atlas.rows]
 }
 
 /**
@@ -347,7 +502,7 @@ export function buildImpostorAtlas(cellHeight = 256, kind: 'tree' | 'clump' = 't
   const cellWidth = Math.round(cellHeight * (kind === 'clump' ? CLUMP_ASPECT : BILLBOARD_ASPECT))
   const shapesFor = kind === 'clump' ? impostorClumpShapes : impostorShapes
   const columns = VARIANTS_PER_SPECIES
-  const rows = TREE_SPECIES_IDS.length
+  const rows = TREE_DRAWING_IDS.length
 
   const canvas = document.createElement('canvas')
   canvas.width = cellWidth * columns
@@ -355,8 +510,8 @@ export function buildImpostorAtlas(cellHeight = 256, kind: 'tree' | 'clump' = 't
   const context = canvas.getContext('2d')
   if (!context) throw new Error('This browser gave the 3D stand no 2D canvas to draw its trees on.')
 
-  const speciesRow = {} as Record<TreeSpeciesId, number>
-  TREE_SPECIES_IDS.forEach((species, row) => {
+  const speciesRow = {} as Record<TreeDrawingId, number>
+  TREE_DRAWING_IDS.forEach((species, row) => {
     speciesRow[species] = row
     for (let variant = 0; variant < columns; variant += 1) {
       const originX = variant * cellWidth

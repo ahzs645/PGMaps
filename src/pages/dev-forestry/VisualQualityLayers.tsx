@@ -5,6 +5,9 @@ import { ViewshedOverlay, VIEWSHED_COLORS } from '@/features/terrain-viewshed'
 import { BasemapContextProbe, type BasemapContext } from './BasemapContextProbe'
 import { FigureStyleLayers, type FigureStyleData } from './FigureStyleLayers'
 import { ForestOverlay, type ForestStatus } from './ForestOverlay'
+import { MovingResolution } from './MovingResolution'
+import { GroundRelief } from './GroundRelief'
+import { FIXED_TREE_SUN } from './treeLayer'
 import { MapDrawCapture } from './MapDrawCapture'
 import { MapSketchDraft } from '@/components/ui/map-sketch'
 import { SatelliteImagery } from '@/components/ui/map-satellite-imagery'
@@ -91,6 +94,10 @@ export type SceneLayerData = {
   forestConfiguration: ComponentProps<typeof ForestOverlay>['configuration']
   /** The stand's placed patches, kept across the road view's map closing and reopening. */
   forestPatches: ComponentProps<typeof ForestOverlay>['patches']
+  /** Where the drawn trees' light comes from; null the fixed light (`ForestOverlay`'s `sun`). */
+  treeSun: ComponentProps<typeof ForestOverlay>['sun']
+  /** Whether the nearest trees lay shadows on the ground (`ForestOverlay`'s `shadows`). */
+  treeShadows: boolean
   facedArrowGeometry: GeoJSON.Polygon | null
   previewTerrainMessage: string | null
   /** Where "Find a landform from the terrain" reads from: a picked point or an inventory viewpoint. */
@@ -104,7 +111,7 @@ export type SceneLayerData = {
   standTreeCollection: Collection
   /** The stand profile's strip while the prescription dialog shows it (`profileStripPolygon`). */
   standStripCollection: Collection
-  forestGround: { floor: Collection; soil: Collection; water: Collection; cover: Collection }
+  forestGround: { floor: Collection; shade: Collection; soil: Collection; water: Collection; cover: Collection }
   previewRoad: Collection
   /** The road's cut bank and fill slope, by `kind`. */
   previewRoadScar: Collection
@@ -358,6 +365,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       )}
       {eye && (
         <>
+          <MovingResolution active={drive.movingResolution === 'reduced'} />
           <ForestOverlay
             active={drive.forest}
             configuration={forestConfiguration}
@@ -371,6 +379,8 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
                   : facedArrowGeometry
             }
             terrainMessage={data.previewTerrainMessage}
+            sun={data.treeSun}
+            shadows={data.treeShadows}
             onStatus={setForestStatus}
           />
           {/* The drawn ground stays when the timber is switched off: it is what
@@ -382,6 +392,16 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             interactive={false}
             fillColor="#3a4f35"
             fillOpacity={0.82}
+            lineWidth={0}
+            visible={!drive.imagery}
+          />
+          {/* The floor under a closed stand is darker than under an open one: the canopy's own
+        shade, by the closure the inventory records. */}
+          <MapFillLayer
+            data={forestGround.shade}
+            interactive={false}
+            fillColor="#16241a"
+            fillOpacity={['interpolate', ['linear'], ['get', 'closure'], 25, 0, 80, 0.2]}
             lineWidth={0}
             visible={!drive.imagery}
           />
@@ -674,6 +694,15 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         onFeatureClick={whenFree((id) => setSelectedTargetId(id))}
         hoverHtml={targetHoverHtml}
       />
+      {/* Relief over the ground drawn so far, the block's cut ground with it: open slopes and cut ground
+        take the hill's form. Not over imagery, which carries its own; nor where the ground is painted
+        to be read flat, in the note screenshot look and under the analysis colours. */}
+      {eye && (
+        <GroundRelief
+          active={!drive.imagery && !drive.reportLook && !drive.showAnalysis}
+          light={data.treeSun ?? FIXED_TREE_SUN}
+        />
+      )}
 
       <MapFillLayer
         data={planMasks}

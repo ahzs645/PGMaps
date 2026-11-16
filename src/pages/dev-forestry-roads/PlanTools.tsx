@@ -1,13 +1,13 @@
 /**
  * The plan's own tools beside Inspect and Edit: grade-held pegging, point query and the shared
  * measure tool (`map-measure.tsx`, the one `/dev/interact` measures with), with the plan
- * display options they bring (colour by grade class, follow the selected station). The plan keeps
+ * display options they bring (colour the road by grade class or cost, follow the selected station). The plan keeps
  * only the tool in hand; each tool keeps its own state, so a cursor move redraws the tool and not
  * the plan. Calculation lives in `pegCursor.ts`, `pointQuery.ts`, `gradeClasses.ts` and
  * `followStation.ts`.
  */
 import type { SnapLine } from './drawSnap'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl'
 import { Footprints, Ruler, ScanSearch } from 'lucide-react'
@@ -26,7 +26,54 @@ import './planTools.css'
 
 export type PlanTool = 'peg' | 'query' | 'measure'
 
-const STORAGE = { gradeColours: 'pgmaps-road-grade-colours', follow: 'pgmaps-road-follow-station' }
+const STORAGE = {
+  roadColour: 'pgmaps-road-colour-by',
+  /** The checkbox before "Colour road by": 'on' reads as grade class. */
+  gradeColours: 'pgmaps-road-grade-colours',
+  follow: 'pgmaps-road-follow-station',
+}
+
+/** What the plan colours the active road by. */
+export type RoadColourMode = 'plain' | 'grade' | 'cost'
+export const ROAD_COLOUR_OPTIONS: readonly { value: RoadColourMode; label: string }[] = [
+  { value: 'plain', label: 'Plain' },
+  { value: 'grade', label: 'Grade class' },
+  { value: 'cost', label: 'Cost per metre' },
+]
+const isRoadColourMode = (value: unknown): value is RoadColourMode =>
+  ROAD_COLOUR_OPTIONS.some((option) => option.value === value)
+
+function readRoadColour(): RoadColourMode {
+  try {
+    const stored = localStorage.getItem(STORAGE.roadColour)
+    if (isRoadColourMode(stored)) return stored
+    return localStorage.getItem(STORAGE.gradeColours) === 'on' ? 'grade' : 'plain'
+  } catch {
+    return 'plain'
+  }
+}
+// One value for the whole page: the plan's settings and the cost dialog both set it.
+let roadColour: RoadColourMode | null = null
+const roadColourListeners = new Set<() => void>()
+const roadColourSnapshot = () => (roadColour ??= readRoadColour())
+const subscribeRoadColour = (listener: () => void) => {
+  roadColourListeners.add(listener)
+  return () => roadColourListeners.delete(listener)
+}
+export function setRoadColourMode(next: RoadColourMode) {
+  if (roadColourSnapshot() === next) return
+  roadColour = next
+  try {
+    localStorage.setItem(STORAGE.roadColour, next)
+  } catch {
+    /* The choice still holds for this session. */
+  }
+  for (const listener of roadColourListeners) listener()
+}
+/** What the active road is coloured by, saved in this browser (the old grade checkbox carries over). */
+export function useRoadColourMode(): [RoadColourMode, (next: RoadColourMode) => void] {
+  return [useSyncExternalStore(subscribeRoadColour, roadColourSnapshot, () => 'plain'), setRoadColourMode]
+}
 function useStoredFlag(key: string): [boolean, (value: boolean) => void] {
   const [value, setValue] = useState(() => {
     try {
@@ -105,7 +152,7 @@ export interface PlanToolsInput {
 /** The plan's tool state, and the pieces the plan places: toolbar, panel slot, map layer, settings rows. */
 export function usePlanTools(input: PlanToolsInput) {
   const [tool, setTool] = useState<PlanTool | null>(null)
-  const [gradeColoursOn, setGradeColours] = useStoredFlag(STORAGE.gradeColours)
+  const [roadColourBy, setRoadColourBy] = useRoadColourMode()
   const [followOn, setFollow] = useStoredFlag(STORAGE.follow)
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null)
   // Pegging and query read a design road; measuring needs only the map.
@@ -150,12 +197,19 @@ export function usePlanTools(input: PlanToolsInput) {
     />
   )
   const settingsRows: (readonly [string, boolean, (value: boolean) => void])[] = available
-    ? [
-        ['Colour by grade', gradeColoursOn, setGradeColours],
-        ['Follow station', followOn, setFollow],
-      ]
+    ? [['Follow station', followOn, setFollow]]
     : []
-  return { tool: active, gradeColours: available && gradeColoursOn, toolbar, panelSlot, mapLayer, settingsRows }
+  return {
+    tool: active,
+    /** Plain wherever pegging and query are off (an access investigation, terrain alone). */
+    roadColour: available ? roadColourBy : ('plain' as RoadColourMode),
+    /** Null where the choice does not apply; the plan then offers no select. */
+    setRoadColour: available ? setRoadColourBy : null,
+    toolbar,
+    panelSlot,
+    mapLayer,
+    settingsRows,
+  }
 }
 
 export function PlanToolButtons({

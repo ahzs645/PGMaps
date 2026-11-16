@@ -17,13 +17,94 @@
 import { pointInPolygon, preparePolygons, type PolygonGeometry } from './visibility'
 import type { TargetPolygon } from './types'
 
-/** The species a BC interior stand is actually made of. */
-export type TreeSpeciesId = 'pine' | 'spruce' | 'fir' | 'douglasFir' | 'aspen' | 'birch'
+/**
+ * The species a BC interior stand is actually made of. Western hemlock, black spruce and black
+ * cottonwood were added on 15 November 2026 from a VRI tally of both sample scenes (rank 1, by
+ * area): hemlock is 16% of the treed cover round Purden Lake and leads 17% of its stands, black
+ * spruce 4% and cottonwood 1–3%; until then they drew as subalpine fir, interior spruce and aspen.
+ */
+export type TreeSpeciesId =
+  | 'pine'
+  | 'spruce'
+  | 'fir'
+  | 'douglasFir'
+  | 'aspen'
+  | 'birch'
+  | 'hemlock'
+  | 'blackSpruce'
+  | 'cottonwood'
 
-export const TREE_SPECIES_IDS: TreeSpeciesId[] = ['pine', 'spruce', 'fir', 'douglasFir', 'aspen', 'birch']
+/**
+ * In the order they were added: each drawing's seed is keyed to its place here, so a new species
+ * goes on the end or every drawing after it changes.
+ */
+export const TREE_SPECIES_IDS: TreeSpeciesId[] = [
+  'pine',
+  'spruce',
+  'fir',
+  'douglasFir',
+  'aspen',
+  'birch',
+  'hemlock',
+  'blackSpruce',
+  'cottonwood',
+]
 
 /** Broadleaves draw as a rounded crown on a pale stem rather than as tiers. */
-export const isBroadleaf = (species: TreeSpeciesId) => species === 'aspen' || species === 'birch'
+export const isBroadleaf = (species: TreeSpeciesId) =>
+  species === 'aspen' || species === 'birch' || species === 'cottonwood'
+
+/**
+ * The six species the scene package names (`scenePackage.ts`). The other renderers build their
+ * trees by species name, and one they do not know falls to a spruce, so a cottonwood would come
+ * out a conifer there: the package keeps sending the species each of the later ones was drawn as
+ * before it had a drawing of its own.
+ */
+export type PackageSpeciesId = 'pine' | 'spruce' | 'fir' | 'douglasFir' | 'aspen' | 'birch'
+export const PACKAGE_SPECIES_IDS: PackageSpeciesId[] = ['pine', 'spruce', 'fir', 'douglasFir', 'aspen', 'birch']
+export function packageSpecies(species: TreeSpeciesId): PackageSpeciesId {
+  if (species === 'hemlock') return 'fir'
+  if (species === 'blackSpruce') return 'spruce'
+  if (species === 'cottonwood') return 'aspen'
+  return species
+}
+
+/**
+ * How a stem is drawn where its species' mature drawing is the wrong shape. Display only.
+ *
+ * - `young`: a conifer in a stand shorter than `CANOPY_CLOSES_AT_METERS`. Before the canopy
+ *   closes nothing has shaded the lower branches out, so the crown runs to the ground; the
+ *   mature drawing shrunk to 5 m stood a regenerating opening on bare stems.
+ * - `shrub`: a tall-shrub thicket's stem (alder, willow): several stems from the ground under one
+ *   rounded mass, not a small tree with a bole.
+ */
+export type TreeForm = 'young' | 'shrub'
+
+/** A row of the tree atlases and one detailed mesh: a species, its young form, or the shrub. */
+export type ConiferSpeciesId = Exclude<TreeSpeciesId, 'aspen' | 'birch' | 'cottonwood'>
+export type TreeDrawingId = TreeSpeciesId | `${ConiferSpeciesId}Young` | 'shrub'
+
+/** Every drawing, species first in `TREE_SPECIES_IDS` order so their rows and seeds do not move. */
+export const TREE_DRAWING_IDS: TreeDrawingId[] = [
+  ...TREE_SPECIES_IDS,
+  ...TREE_SPECIES_IDS.filter((species): species is ConiferSpeciesId => !isBroadleaf(species)).map(
+    (species): TreeDrawingId => `${species}Young`,
+  ),
+  'shrub',
+]
+
+/** The drawing a stem takes. A broadleaf has no young form: its crown is rounded at any height. */
+export function treeDrawing(species: TreeSpeciesId, form?: TreeForm | null): TreeDrawingId {
+  if (form === 'shrub') return 'shrub'
+  if (form === 'young' && !isBroadleaf(species)) return `${species as ConiferSpeciesId}Young`
+  return species
+}
+
+/** The species a drawing is of (`shrub` is drawn in aspen's place, as the thicket was before). */
+export function drawingSpecies(drawing: TreeDrawingId): TreeSpeciesId {
+  if (drawing === 'shrub') return 'aspen'
+  return (drawing.endsWith('Young') ? drawing.slice(0, -5) : drawing) as TreeSpeciesId
+}
 
 /** Drawn silhouettes per species, so a stand is not one tree repeated. */
 export const VARIANTS_PER_SPECIES = 4
@@ -71,6 +152,12 @@ export const SPECIES_CROWN_RATIO: Record<TreeSpeciesId, number> = {
   douglasFir: 0.2,
   aspen: 0.22,
   birch: 0.2,
+  // Western hemlock: a little broader and softer than a spruce, on fine drooping sprays.
+  hemlock: 0.19,
+  // Black spruce: a thin column, the narrowest tree here.
+  blackSpruce: 0.09,
+  // Black cottonwood: the broadest, an open crown on heavy rising limbs.
+  cottonwood: 0.24,
 }
 
 /** The share-weighted mean crown ratio of a mix, so its species' widths average to the stand's. */
@@ -138,6 +225,20 @@ export type TreeInstance = {
   species: TreeSpeciesId
   /** Which drawn silhouette of that species this stem uses. */
   variant: number
+  /** Display only: the young or shrub drawing in place of the species' mature one (`TreeForm`). */
+  form?: TreeForm
+  /**
+   * Display only, far bands: the ground's rise per metre to the east and to the north under the
+   * stem, so a distant card is lit by the hill it stands on and its canopy tile lies along it.
+   */
+  slope?: readonly [number, number]
+  /**
+   * Display only, far bands: the canopy tile the stem lays over its own patch of ground
+   * (`canopyTileMeters`). `reach` is how much of the tile's half-side it may use before it would
+   * hang over a clearing, a block, water or open ground (0 lays none); `cover` is its stand's crown
+   * closure, 0–1, which the tile is cut out to.
+   */
+  canopy?: { reach: number; cover: number }
   /**
    * Display only: a colour (0–1 RGB) the stem is drawn in place of its own, for the road view's
    * *Tree colours: by treatment*. A colour, never a shape: it changes no pixel a tree covers.
@@ -153,14 +254,15 @@ export type TreeInstance = {
 }
 
 /**
- * BC inventory species codes, onto the six the page draws.
+ * BC inventory species codes, onto the nine the page draws.
  *
- * The inventory records dozens of species and this draws six silhouettes, so
- * each code maps to the one it most resembles from a road: the true firs,
- * hemlock and cedar read as subalpine fir's spire; Douglas-fir has its own
- * broad, open crown (it leads or shares about a quarter of the stands around
- * Prince George); broadleaves read as aspen or birch. A drawing decision, not
- * a taxonomy.
+ * The inventory records dozens of species and this draws nine silhouettes, so
+ * each code maps to the one it most resembles from a road: the true firs read
+ * as subalpine fir's spire; hemlock has its own drawing and cedar takes it;
+ * Douglas-fir has its own broad, open crown (it leads or shares about a
+ * quarter of the stands around Prince George); black spruce is its own thin
+ * column; broadleaves read as aspen, birch or cottonwood. A drawing decision,
+ * not a taxonomy.
  */
 const SPECIES_CODE_MAP: Record<string, TreeSpeciesId> = {
   // Pines
@@ -175,7 +277,7 @@ const SPECIES_CODE_MAP: Record<string, TreeSpeciesId> = {
   SX: 'spruce',
   SE: 'spruce',
   SW: 'spruce',
-  SB: 'spruce',
+  SB: 'blackSpruce',
   SS: 'spruce',
   // Firs, true and Douglas, plus hemlock and cedar — narrow crowns from a road
   BL: 'fir',
@@ -186,14 +288,18 @@ const SPECIES_CODE_MAP: Record<string, TreeSpeciesId> = {
   FDI: 'douglasFir',
   FDC: 'douglasFir',
   F: 'douglasFir',
-  HW: 'fir',
-  H: 'fir',
-  CW: 'fir',
-  C: 'fir',
+  // Hemlock has its own drawing; cedar's drooping conical crown reads nearer a hemlock's than a
+  // subalpine fir's spire (1.7% of the cover round Purden Lake, none on Tabor Mountain).
+  HW: 'hemlock',
+  HM: 'hemlock',
+  H: 'hemlock',
+  CW: 'hemlock',
+  C: 'hemlock',
   // Broadleaves
   AT: 'aspen',
-  AC: 'aspen',
-  ACT: 'aspen',
+  AC: 'cottonwood',
+  ACT: 'cottonwood',
+  ACB: 'cottonwood',
   A: 'aspen',
   EP: 'birch',
   EA: 'birch',
@@ -247,6 +353,8 @@ export type ForestMesh = {
     positions: { size: 3; value: Float32Array }
     normals: { size: 3; value: Float32Array }
     bark?: { size: 1; value: Float32Array }
+    /** Into the spray sheet (`treeSprays.ts`) where a triangle is a foliage card; below 0 where it is not. */
+    uvs?: { size: 2; value: Float32Array }
   }
   indices: { size: 1; value: Uint16Array }
 }
@@ -266,6 +374,32 @@ export function mulberry32(seed: number): () => number {
 /** A stable seed for a position, so the same ground grows the same trees. */
 export function seedForCell(x: number, y: number, seed: number): number {
   return (Math.imul(x, 0x27d4eb2d) ^ Math.imul(y, 0x165667b1) ^ seed) >>> 0
+}
+
+/**
+ * The lowest the trees' light is taken from, degrees above the horizon. A November afternoon at
+ * 54° north puts the sun under 10°, and a stand lit from there is black against its sky: the trees
+ * keep the sun's bearing and are lit from at least this high.
+ */
+export const LOWEST_TREE_SUN_DEGREES = 12
+
+/**
+ * Where the trees' light comes from for a sun position, as a unit vector in the mercator frame the
+ * tree layers work in (x east, y south, z up). Azimuth is clockwise from north.
+ */
+export function treeSunDirection(sun: { elevationDegrees: number; azimuthDegrees: number }): [number, number, number] {
+  const elevation = (Math.max(LOWEST_TREE_SUN_DEGREES, Math.min(90, sun.elevationDegrees)) * Math.PI) / 180
+  const azimuth = (sun.azimuthDegrees * Math.PI) / 180
+  return [Math.sin(azimuth) * Math.cos(elevation), -Math.cos(azimuth) * Math.cos(elevation), Math.sin(elevation)]
+}
+
+/**
+ * Which way a standing stem is turned about its own axis, radians counter-clockwise from east. Read
+ * off where it stands, so every layer that draws the stem turns it the same way: its baked card
+ * shows the side its detailed mesh would, and neither changes when the stand is uploaded again.
+ */
+export function stemTurn(lng: number, lat: number): number {
+  return (seedForCell(Math.round(lng * 1e6), Math.round(lat * 1e6), 0x51ed) / 4294967296) * Math.PI * 2
 }
 
 /**
@@ -409,7 +543,21 @@ export type TreePlacementOptions = {
    * grow there; the rest are never placed or tested.
    */
   bounds?: [number, number, number, number]
+  /**
+   * Far bands: the side of the canopy tile each stem lays, metres. Where set, every stem is given
+   * its `canopy` (how far the tile may reach, and its stand's closure). Nothing else changes: no
+   * stem moves, and none is added or taken away.
+   */
+  canopyTileMeters?: number
 }
+
+/**
+ * How close together a canopy tile's ground is sampled for open ground: 16 m, or a quarter of the
+ * tile where that is more. A road's cleared corridor is about 20 m wide, so in the 24 m band, out
+ * to 3 km, nothing that wide passes between two samples; past it, where a stem stands for 80 m of
+ * ground and a road is a few pixels, the samples are 25 m apart and a block is still far wider.
+ */
+const CANOPY_SAMPLE_METERS = 16
 
 export type Thinning = {
   geometry: PolygonGeometry
@@ -662,6 +810,7 @@ export function placeTrees({
   seed = 1,
   anchorLatitude,
   bounds,
+  canopyTileMeters = 0,
 }: TreePlacementOptions): TreeInstance[] {
   if (radiusMeters <= 0 || spacingMeters <= 0) return []
   const mixRatio = meanCrownRatio(speciesMix)
@@ -697,11 +846,20 @@ export function placeTrees({
   // the patch, each with its own box, long rings banded by latitude. Basemap
   // water arrives as tile-sized multipolygons, and tested whole it cost about
   // 870 ms a patch (a trace of the road view, November 2026).
-  const patchBox: [number, number, number, number] = bounds ?? [
+  const ownBox: [number, number, number, number] = bounds ?? [
     centre.lng - halfLng,
     centre.lat - halfLat,
     centre.lng + halfLng,
     centre.lat + halfLat,
+  ]
+  // A canopy tile reaches half its side past its stem, so a clearing just outside the patch counts.
+  const tileLat = canopyTileMeters / 2 / METERS_PER_DEGREE_LAT
+  const tileLng = canopyTileMeters / 2 / metersPerDegreeLng
+  const patchBox: [number, number, number, number] = [
+    ownBox[0] - tileLng,
+    ownBox[1] - tileLat,
+    ownBox[2] + tileLng,
+    ownBox[3] + tileLat,
   ]
   const standsAt = preparePolygons(stands, patchBox)
   const clearingsAt = preparePolygons(clearings, patchBox)
@@ -716,6 +874,46 @@ export function placeTrees({
   const thinnedAt = (lng: number, lat: number): Thinning | null => thinnings[thinningsAt.indexAt(lng, lat)] ?? null
   const surveyedAt = (lng: number, lat: number): InventoryStand | null =>
     inventory[inventoryAt.indexAt(lng, lat)] ?? null
+
+  // Ground a canopy tile must not hang over: a clearing (a block, a road, water), ground outside
+  // the stand, and ground the inventory says is not forest.
+  // The inventory's open ground by itself, prepared only where tiles are laid: asking which of
+  // several hundred stands a sample falls in, sixty-four times a stem, doubled a far patch's time.
+  const treelessAt =
+    canopyTileMeters > 0
+      ? preparePolygons(
+          inventory.filter((stand) => stand.cover && TREELESS_COVER.has(stand.cover)).map((stand) => stand.geometry),
+          patchBox,
+        )
+      : null
+  const openAt = (lng: number, lat: number) => {
+    if (clearingsAt.contains(lng, lat)) return true
+    if (stands.length > 0 && !standsAt.contains(lng, lat)) return true
+    return !!treelessAt && treelessAt.contains(lng, lat)
+  }
+  // A tile is the canopy over the ground its stem stands for, and a coarse band's stem stands for
+  // up to 80 m of it: laid whole beside a block, half of it would roof the cut ground. Its ground is
+  // sampled on a grid, and the tile stops one sample short of the nearest open ground, measured the
+  // way a square is: along its sides.
+  const canopySamples = Math.max(
+    3,
+    Math.ceil(canopyTileMeters / Math.max(CANOPY_SAMPLE_METERS, canopyTileMeters / 4)) + 1,
+  )
+  const canopyReachAt = (lng: number, lat: number) => {
+    let nearest = Infinity
+    for (let j = 0; j < canopySamples; j += 1) {
+      const y = (j / (canopySamples - 1)) * 2 - 1
+      for (let i = 0; i < canopySamples; i += 1) {
+        const x = (i / (canopySamples - 1)) * 2 - 1
+        const reach = Math.max(Math.abs(x), Math.abs(y))
+        if (reach < nearest && openAt(lng + x * tileLng, lat + y * tileLat)) nearest = reach
+      }
+    }
+    if (nearest === Infinity) return 1
+    const reach = nearest - 2 / (canopySamples - 1)
+    // Too small a tile to be worth laying: the stem's standing card is its whole canopy.
+    return reach >= 0.2 ? reach : 0
+  }
 
   const trees: TreeInstance[] = []
   const radiusLatSquared = halfLat * halfLat
@@ -840,6 +1038,17 @@ export function placeTrees({
         species,
         variant: Math.floor(random() * VARIANTS_PER_SPECIES) % VARIANTS_PER_SPECIES,
       })
+      // Read off what is already decided, never a draw of its own: a new draw here would move
+      // every later stem's height and crown.
+      const form: TreeForm | null = thicket
+        ? 'shrub'
+        : !isBroadleaf(species) && !retained && !residualHeight && standHeight < CANOPY_CLOSES_AT_METERS
+          ? 'young'
+          : null
+      if (form) trees[trees.length - 1].form = form
+      if (canopyTileMeters > 0) {
+        trees[trees.length - 1].canopy = { reach: canopyReachAt(lng, lat), cover: standClosure / 100 }
+      }
       const tint = prescribedKey !== null ? prescribed?.tints?.get(prescribedKey) : undefined
       if (tint) trees[trees.length - 1].tint = tint
       if (trees.length >= maxTrees) return trees

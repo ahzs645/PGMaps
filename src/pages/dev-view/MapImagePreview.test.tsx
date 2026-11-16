@@ -11,16 +11,15 @@ vi.mock('@/components/ui/styled-select', async (actual) => ({
 
 const io = vi.hoisted(() => ({ raster: vi.fn() }))
 vi.mock('./rasterPreview', () => ({ rasterPreview: io.raster }))
-vi.mock('@/components/ui/dialog', () => {
-  const Container = ({ children }: { children: ReactNode }) => <div>{children}</div>
-  return {
-    Dialog: Container,
-    DialogContent: Container,
-    DialogDescription: Container,
-    DialogHeader: Container,
-    DialogTitle: Container,
-  }
-})
+vi.mock('@/components/ui/dialog-shell', () => ({
+  DialogShell: ({ toolbar, footer, children }: { toolbar?: ReactNode; footer?: ReactNode; children: ReactNode }) => (
+    <div>
+      {toolbar}
+      {children}
+      {footer}
+    </div>
+  ),
+}))
 vi.mock('@/components/ui/map-panels', () => ({
   InlineAlert: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   CollapsibleSection: ({ children }: { children: ReactNode }) => <div>{children}</div>,

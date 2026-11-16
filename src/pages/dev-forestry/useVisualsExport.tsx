@@ -162,11 +162,21 @@ type BeforeRenders = {
 export function useExportOpener() {
   const [open, setOpen] = useState(false)
   const [initialOutput, setInitialOutput] = useState<VisualsExport>('block-note')
+  // Opened on the package's entry rather than an output (*Figures drawn by · Change* in the views panel).
+  const [initialPackage, setInitialPackage] = useState(false)
+  // Who draws the figures of the sheet, the document and the report: PGMaps as saved, or another engine. Held here,
+  // made before the panels, so the views panel can say it while the dialog is closed.
+  const [figureRenderer, setFigureRenderer] = useState<RoadRendererId>('pgmaps')
   const openExport = useCallback((kind: VisualsExport = 'block-note') => {
     setInitialOutput(kind)
+    setInitialPackage(false)
     setOpen(true)
   }, [])
-  return { open, setOpen, initialOutput, openExport }
+  const openPackage = useCallback(() => {
+    setInitialPackage(true)
+    setOpen(true)
+  }, [])
+  return { open, setOpen, initialOutput, initialPackage, openExport, openPackage, figureRenderer, setFigureRenderer }
 }
 export type ExportOpener = ReturnType<typeof useExportOpener>
 
@@ -323,8 +333,7 @@ export function useVisualsExport(input: {
   const [figureChoice, setFigureChoice] = useState<FigureChoice>(NO_FIGURE_CHOICE)
   // The VIA document's format; until chosen, the one drawn in the road view's figure style.
   const [documentFormatId, setDocumentFormatId] = useState<string | null>(null)
-  // Who draws the figures of the sheet, the document and the report: PGMaps as saved, or another engine.
-  const [figureRenderer, setFigureRenderer] = useState<RoadRendererId>('pgmaps')
+  const { figureRenderer, setFigureRenderer } = input.opener
   // The package's recipe (the VIA report's structure, and the VIA document's format it names); until chosen, none:
   // the report follows the document's format.
   const [packageRecipeId, setPackageRecipeId] = useState<string | null>(null)
@@ -1636,6 +1645,7 @@ export function useVisualsExport(input: {
     <VisualsExportDialog
       open={open}
       initialOutput={initialOutput}
+      initialPackage={input.opener.initialPackage}
       onOpenChange={setOpen}
       context={context}
       options={options}

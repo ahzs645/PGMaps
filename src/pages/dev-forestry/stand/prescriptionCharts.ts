@@ -20,6 +20,9 @@ export const SPECIES_LABELS: Record<TreeSpeciesId, string> = {
   douglasFir: 'Douglas-fir',
   aspen: 'Aspen',
   birch: 'Birch',
+  hemlock: 'Hemlock',
+  blackSpruce: 'Black spruce',
+  cottonwood: 'Cottonwood',
 }
 
 /** One class of a stacked kept/removed chart, stems per hectare. */

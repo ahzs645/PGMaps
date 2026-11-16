@@ -26,6 +26,8 @@ import {
   MAX_VIEWS_OF_INTEREST,
   normalizeBearing,
   orphanedViews,
+  captureChangeText,
+  captureKeyChanges,
   viewBearing,
   viewCaptureState,
   type SavedViewCapture,
@@ -69,8 +71,20 @@ export type ViewsOfInterestPanelProps = {
   onShowView?: (view: ViewOfInterest) => void
   /** Extra control in the open row, such as the landform seen from the view. */
   landformControl?: (view: ViewOfInterest) => ReactNode
+  /** The view's Table 3 record (significance, why chosen, experience, duration), in its open row. */
+  recordControl?: (view: ViewOfInterest) => ReactNode
+  /** A view renamed: its record, held by name, follows it. */
+  onRenamed?: (from: string, to: string) => void
   /** The last add's outcome, from the map or the finder ("Added 2 views", "Already listed"). */
   message?: string | null
+  /** Who draws the exported figures (Save & export's *Figures drawn by*), and opening that choice. */
+  renderer?: { label: string; id: string }
+  onChangeRenderer?: () => void
+  /**
+   * Whether a planned view's capture was saved where the reviewer stands now: an engine redraws only those
+   * (`renderJobFor`); the rest keep PGMaps' picture.
+   */
+  capturedHere?: (viewId: string) => boolean
 }
 
 const SOURCE_LABELS: Record<ViewOfInterest['source']['kind'], string> = {
@@ -172,8 +186,14 @@ export function ViewsOfInterestPanel({
   onOpenExport,
   onShowView,
   landformControl,
+  recordControl,
+  onRenamed,
   message = null,
+  renderer,
+  onChangeRenderer,
+  capturedHere,
 }: ViewsOfInterestPanelProps) {
+  const engine = !!renderer && renderer.id !== 'pgmaps'
   const blockById = useMemo(() => new Map(blocks.map((block) => [block.id, block])), [blocks])
   const [addBlockChoice, setAddBlockChoice] = useState<string | null>(null)
   const addBlockId =
@@ -251,8 +271,9 @@ export function ViewsOfInterestPanel({
       help={
         <>
           The places the block is looked at from, planned on the plan map before the road view is opened: click the
-          plan, or add BC&apos;s inventory viewpoints and rec sites from step 1 (a viewpoint adds up to two of its
-          arrows aimed at the block, else one view facing it). Each view faces its block or a bearing, through a lens.
+          plan, or add BC&apos;s inventory viewpoints and rec sites from the list below (a viewpoint adds up to two of
+          its arrows aimed at the block, else one view facing it). Each view faces its block or a bearing, through a
+          lens.
           <br />
           <em>Capture</em> stands at each view, runs the assessment there and saves the view as <em>Save viewpoint</em>{' '}
           does, without your driving; Save &amp; export then writes from those saved views. A view changed since its
@@ -330,7 +351,7 @@ export function ViewsOfInterestPanel({
 
       {views.length === 0 && blocks.length > 0 && (
         <p className="text-2xs text-muted-foreground">
-          No views yet. Add one on the map, or use <em>Add to views</em> on step 1&apos;s viewpoints and rec sites.
+          No views yet. Add one on the map, or with <em>Add</em> on the viewpoints and rec sites below.
         </p>
       )}
 
@@ -349,6 +370,10 @@ export function ViewsOfInterestPanel({
             const noted = failures.get(view.id)
             const failure = noted && !noted.warning && state !== 'captured' ? noted.reason : null
             const warning = noted?.warning && state !== 'not-captured' && state !== 'outdated' ? noted.reason : null
+            const changedText = state === 'outdated' ? captureChangeText(captureKeyChanges(view, savedViews)) : null
+            // An engine redraws a capture only where the reviewer stands now; elsewhere the figure stays PGMaps'.
+            const engineElsewhere =
+              engine && state !== 'not-captured' && state !== 'outdated' && capturedHere && !capturedHere(view.id)
             const missingBlock = orphans.missingBlock.includes(view.id)
             const missingLandform = orphans.missingLandform.includes(view.id)
             return (
@@ -382,6 +407,7 @@ export function ViewsOfInterestPanel({
                   }
                   trailing={
                     <span
+                      title={changedText ?? undefined}
                       className={cn(
                         'text-2xs font-normal',
                         current
@@ -419,10 +445,24 @@ export function ViewsOfInterestPanel({
                       </InlineAlert>
                     )}
                     {state === 'captured' && warning && <InlineAlert tone="warning">{warning}</InlineAlert>}
+                    {changedText && (
+                      <p className="text-2xs text-warning">
+                        {changedText} <em>Capture again</em> brings it up to date, as Save &amp; export would.
+                      </p>
+                    )}
+                    {engineElsewhere && (
+                      <p className="text-2xs text-muted-foreground">
+                        {renderer!.label} redraws only views captured where you stand now: this one keeps PGMaps&apos;
+                        picture, and the files say so. Stand here to have {renderer!.label} draw it.
+                      </p>
+                    )}
                     <NameField
                       key={`${view.id}:${view.name}`}
                       view={view}
-                      onCommit={(name) => update(view.id, { name })}
+                      onCommit={(name) => {
+                        update(view.id, { name })
+                        onRenamed?.(view.name, name)
+                      }}
                     />
                     <div className="grid grid-cols-2 gap-1.5">
                       <SelectField
@@ -472,7 +512,7 @@ export function ViewsOfInterestPanel({
                             (arrow) => view.facing.kind === 'bearing' && arrow.id === view.facing.arrowId,
                           ) && (
                             <option value={`arrow:${view.facing.arrowId}`}>
-                              Inventory arrow · {Math.round(view.facing.degrees)}° (load viewpoints in step 1 to see it)
+                              Inventory arrow · {Math.round(view.facing.degrees)}° (load the viewpoints below to see it)
                             </option>
                           )}
                       </SelectField>
@@ -527,6 +567,17 @@ export function ViewsOfInterestPanel({
                       </SelectField>
                     </div>
                     {landformControl?.(view)}
+                    {recordControl && (
+                      <details className="group rounded-md border border-border/60 bg-background/60 px-2 py-1.5">
+                        <summary className="cursor-pointer text-2xs font-medium text-foreground">
+                          Viewpoint record
+                          <span className="ml-1 font-normal text-muted-foreground">
+                            · significance, why chosen, experience, duration
+                          </span>
+                        </summary>
+                        <div className="pt-2">{recordControl(view)}</div>
+                      </details>
+                    )}
                     <CheckboxField
                       label="Include in exports"
                       checked={isIncluded(view)}
@@ -621,6 +672,32 @@ export function ViewsOfInterestPanel({
             Export…
           </Button>
         </div>
+      )}
+      {views.length > 0 && renderer && (
+        <p
+          className="flex flex-wrap items-center gap-x-1 text-2xs text-muted-foreground"
+          data-views-renderer={renderer.id}
+        >
+          Figures drawn by <span className="font-medium text-foreground">{renderer.label}</span>
+          {onChangeRenderer && (
+            <>
+              ·
+              <button
+                type="button"
+                className="rounded-sm font-medium text-link hover:text-link-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                onClick={onChangeRenderer}
+              >
+                Change
+              </button>
+            </>
+          )}
+          <InfoTip label="About who draws the figures">
+            Captures are always drawn by PGMaps. Save &amp; export&apos;s <em>Figures drawn by</em> can have another
+            engine (threejs-worldgen, Nanite Forest) redraw each captured view from its saved camera in the background.
+            It redraws only the views captured where you stand now; the others keep PGMaps&apos; picture, and the files
+            say which.
+          </InfoTip>
+        </p>
       )}
       {views.length > 0 && toCapture.length > 0 && (
         <p className="flex items-center gap-1 text-3xs text-muted-foreground">

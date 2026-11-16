@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react'
-import { SlidersHorizontal } from 'lucide-react'
+import { SlidersHorizontal, Trees } from 'lucide-react'
 
-import { FormField, StyledSelect } from '@/components/ui/form-field'
+import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
-import { ToggleRow } from '@/components/ui/toggle-row'
 import { ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { LIVE_PRESETS } from '@/lib/forestry/viaFigure/presets'
 import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
@@ -24,13 +23,13 @@ import {
   type RoadRendererId,
 } from './externalRenderers'
 import { setEngineBrowserOptions, useEngineBrowserOptions } from './engineBrowserOptions'
-import type { DriveState } from './Sidebar'
+import { DrawnTimberPanel, type DriveState } from './Sidebar'
 import type { TargetPolygon } from './types'
 import { LENS_FOCAL_LENGTHS, lensLabel } from './viewsOfInterest'
 import { compassPoint, EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
 
 const SELECT_CLASS =
-  'h-7 max-w-full rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+  'h-7 w-full min-w-0 rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
 export type LookArrow = { id: string; label: string; bearing: number }
 
@@ -58,17 +57,43 @@ function Group({ title, help, children }: { title: string; help?: ReactNode; chi
   )
 }
 
-function Row({ label, info, children }: { label: string; info?: ReactNode; children: ReactNode }) {
+/**
+ * One option: its label (with its explanation beside it) on the left, its control in a column of one width on the
+ * right, so every row of the panel lines up. `stacked` puts a control too wide for the column (a date and a time)
+ * under its label, full width. Not a `<label>`: a click on the explanation must not open the control.
+ */
+export function OptionRow({
+  label,
+  info,
+  stacked = false,
+  children,
+}: {
+  label: string
+  info?: ReactNode
+  stacked?: boolean
+  children: ReactNode
+}) {
+  const title = (
+    <span className="flex min-w-0 items-center gap-1 text-xs text-foreground">
+      <span className="truncate">{label}</span>
+      {info}
+    </span>
+  )
+  if (stacked)
+    return (
+      <div className="space-y-1">
+        {title}
+        {children}
+      </div>
+    )
   return (
-    <label className="flex items-center justify-between gap-2 text-xs">
-      <span className="flex items-center gap-1">
-        {label}
-        {info}
-      </span>
-      {children}
-    </label>
+    <div className="flex items-center justify-between gap-2">
+      {title}
+      <div className="w-[10.5rem] shrink-0">{children}</div>
+    </div>
   )
 }
+const Row = OptionRow
 
 /**
  * Everything about how the road view looks, in its own panel on the road view's bar: where to look
@@ -105,11 +130,7 @@ export function RoadViewOptions({
   return (
     <div className="space-y-2.5" data-testid="road-view-options">
       <Group title="Look">
-        <FormField
-          label="Where to look"
-          contentClassName="block"
-          labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
-        >
+        <Row label="Where to look">
           <StyledSelect
             className={cn(SELECT_CLASS, 'w-full')}
             value={
@@ -153,13 +174,11 @@ export function RoadViewOptions({
               </option>
             )}
           </StyledSelect>
-        </FormField>
+        </Row>
         {onLensChange && (
-          <FormField
+          <Row
             label="Lens"
-            contentClassName="block"
-            labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
-            hintAction={
+            info={
               <InfoTip label="About the lens">
                 The field of view across the road view, as a full-frame camera lens. 50 mm is the reference sheets&apos;
                 lens. A view saved with a lens set frames its analysis sheet with that lens; the field photo, while one
@@ -180,7 +199,7 @@ export function RoadViewOptions({
                 </option>
               ))}
             </StyledSelect>
-          </FormField>
+          </Row>
         )}
         {jump}
       </Group>
@@ -199,20 +218,18 @@ export function RoadViewOptions({
           </InfoTip>
         }
       >
-        <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Show in the road view">
-          <ToggleRow
-            layout="tile"
-            tone="primary"
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5" role="group" aria-label="Show in the road view">
+          <CheckboxField
+            className="min-w-0 text-xs"
             label="Analysis points"
-            active={drive.showAnalysis}
-            onClick={() => onDriveChange({ showAnalysis: !drive.showAnalysis })}
+            checked={drive.showAnalysis}
+            onCheckedChange={() => onDriveChange({ showAnalysis: !drive.showAnalysis })}
           />
-          <ToggleRow
-            layout="tile"
-            tone="primary"
+          <CheckboxField
+            className="min-w-0 text-xs"
             label="Note screenshot look"
-            active={drive.reportLook}
-            onClick={() =>
+            checked={drive.reportLook}
+            onCheckedChange={() =>
               onDriveChange(
                 drive.reportLook
                   ? { reportLook: false }
@@ -220,26 +237,23 @@ export function RoadViewOptions({
               )
             }
           />
-          <ToggleRow
-            layout="tile"
-            tone="primary"
+          <CheckboxField
+            className="min-w-0 text-xs"
             label="EVQO polygons"
-            active={drive.showEvqo}
-            onClick={() => onDriveChange({ showEvqo: !drive.showEvqo })}
+            checked={drive.showEvqo}
+            onCheckedChange={() => onDriveChange({ showEvqo: !drive.showEvqo })}
           />
-          <ToggleRow
-            layout="tile"
-            tone="primary"
+          <CheckboxField
+            className="min-w-0 text-xs"
             label="Landform"
-            active={drive.showLandform}
-            onClick={() => onDriveChange({ showLandform: !drive.showLandform })}
+            checked={drive.showLandform}
+            onCheckedChange={() => onDriveChange({ showLandform: !drive.showLandform })}
           />
-          <ToggleRow
-            layout="tile"
-            tone="primary"
+          <CheckboxField
+            className="min-w-0 text-xs"
             label="Distance haze"
-            active={drive.haze}
-            onClick={() => onDriveChange({ haze: !drive.haze })}
+            checked={drive.haze}
+            onCheckedChange={() => onDriveChange({ haze: !drive.haze })}
           />
         </div>
         {drive.showEvqo && (
@@ -297,6 +311,28 @@ export function RoadViewOptions({
       </Group>
 
       <Group title="Drawing">
+        <Row
+          label="While moving"
+          info={
+            <InfoTip label="About drawing while moving">
+              Lighter draws the road view at a lower resolution while it moves and at the screen&apos;s own half a
+              second after it stops: on a high-density screen that is about 60% fewer pixels a frame, for a smoother
+              drive on a slower computer. Saved views and images are taken still, at full resolution.
+            </InfoTip>
+          }
+        >
+          <StyledSelect
+            aria-label="While moving"
+            className={SELECT_CLASS}
+            value={drive.movingResolution}
+            onChange={(event) =>
+              onDriveChange({ movingResolution: event.target.value as DriveState['movingResolution'] })
+            }
+          >
+            <option value="full">Full resolution</option>
+            <option value="reduced">Lighter</option>
+          </StyledSelect>
+        </Row>
         <Row label="Display quality">
           <StyledSelect
             aria-label="Display quality"
@@ -370,6 +406,7 @@ export function RoadViewOptions({
         {drive.renderer !== 'pgmaps' && (
           <>
             <Row
+              stacked
               label="When"
               info={
                 <InfoTip label="About the engine's light">
@@ -382,7 +419,7 @@ export function RoadViewOptions({
                 <input
                   type="date"
                   aria-label="Engine date"
-                  className={cn(SELECT_CLASS, 'w-[8.75rem]')}
+                  className={cn(SELECT_CLASS, 'flex-1')}
                   value={
                     drive.engineEnvironment.date ?? localDate(new Date(), drive.engineEnvironment.timeZone ?? undefined)
                   }
@@ -391,7 +428,7 @@ export function RoadViewOptions({
                 <input
                   type="time"
                   aria-label="Engine time"
-                  className={cn(SELECT_CLASS, 'w-[6.5rem]')}
+                  className={cn(SELECT_CLASS, 'w-[6.5rem] flex-none')}
                   value={drive.engineEnvironment.time}
                   onChange={(event) => setEnvironment({ time: event.target.value || '14:00' })}
                 />
@@ -585,6 +622,48 @@ export function RoadViewOptions({
           </StyledSelect>
         </Row>
         <Row
+          label="Tree light"
+          info={
+            <InfoTip label="About tree light">
+              Fixed lights every tree from the same late-morning direction, as the page always has. Site date and time
+              lights them from where the sun is at the date and time set for the view (the same clock the other
+              renderers are given), kept at least 12° above the horizon so a low sun does not turn the stand black. A
+              light only: every tree covers the same part of the view.
+            </InfoTip>
+          }
+        >
+          <StyledSelect
+            aria-label="Tree light"
+            className={SELECT_CLASS}
+            value={drive.treeSun}
+            onChange={(event) => onDriveChange({ treeSun: event.target.value as DriveState['treeSun'] })}
+          >
+            <option value="fixed">Fixed</option>
+            <option value="site">Site date and time</option>
+          </StyledSelect>
+        </Row>
+        <Row
+          label="Tree shadows"
+          info={
+            <InfoTip label="About tree shadows">
+              The trees within 140 m lay a soft shadow on the ground, away from the trees&apos; light, so a stem stands
+              on its ground instead of on a flat sheet. A drawing aid: shadows fall on the ground only, are bent over it
+              at three points and can sit a little off steep ground, and no tree covers more or less of the view for
+              them.
+            </InfoTip>
+          }
+        >
+          <StyledSelect
+            aria-label="Tree shadows"
+            className={SELECT_CLASS}
+            value={drive.treeShadows ? 'on' : 'off'}
+            onChange={(event) => onDriveChange({ treeShadows: event.target.value === 'on' })}
+          >
+            <option value="on">On</option>
+            <option value="off">Off</option>
+          </StyledSelect>
+        </Row>
+        <Row
           label="Tree colours"
           info={
             <InfoTip label="About tree colours">
@@ -639,10 +718,32 @@ export function RoadViewOptionsButton(props: Parameters<typeof RoadViewOptions>[
       label="View options"
       icon={<SlidersHorizontal className="size-3.5" aria-hidden="true" />}
       count={roadViewOptionsCount(props.drive)}
+      width={344}
+      buttonClassName="touch:size-10"
+    >
+      {/* The popover adds no padding of its own. */}
+      <div className="p-3">
+        <RoadViewOptions {...props} />
+      </div>
+    </ToolbarPopover>
+  )
+}
+
+/**
+ * The road view bar's *Drawn timber* button: the timber the view is drawn with, beside *View options* rather than in
+ * the sidebar, so it is changed where its effect is seen. A drawing only; the figures never change.
+ */
+export function DrawnTimberButton(props: Parameters<typeof DrawnTimberPanel>[0]) {
+  return (
+    <ToolbarPopover
+      label="Drawn timber"
+      icon={<Trees className="size-3.5" aria-hidden="true" />}
       width={320}
       buttonClassName="touch:size-10"
     >
-      <RoadViewOptions {...props} />
+      <div className="p-3">
+        <DrawnTimberPanel {...props} />
+      </div>
     </ToolbarPopover>
   )
 }

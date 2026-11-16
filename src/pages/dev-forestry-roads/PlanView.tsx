@@ -114,9 +114,11 @@ import {
   sheetProperties,
 } from './planSheetSymbols'
 import { preparationMarginFeatures } from './preparationFootprint'
-import { usePlanTools } from './PlanTools'
+import { ROAD_COLOUR_OPTIONS, usePlanTools, type RoadColourMode } from './PlanTools'
 import { crossDrainMarks } from './crossDrainMarks'
 import { gradeClassRoadLines } from './gradeClasses'
+import { costColourHeading, costColourLines } from './costColours'
+import type { CostAttribution, CostSeriesId } from './costAttribution'
 import type {
   Alignment,
   ContextFeature,
@@ -236,6 +238,19 @@ interface PlanProps {
   onTypeStation?: (station: number) => number
   /** Sightlines from the Sight distance section (`sightPresentation.ts`); absent draws none. */
   sightlines?: GeoJSON.FeatureCollection | null
+  /**
+   * The active road's cost spread along it (`costAttribution.ts`), for "Colour road by → Cost per
+   * metre". Absent: the cost choice draws the road plain. Keep it one object while it is unchanged,
+   * so a station scrub does not re-send the road source.
+   */
+  costColours?: PlanCostColours
+}
+export interface PlanCostColours {
+  attribution: CostAttribution
+  /** A cost row's id, or the whole estimate. */
+  rowId: CostSeriesId
+  /** Goes back from one row to the whole estimate; offered in the legend while a row is shown. */
+  onWholeEstimate?: () => void
 }
 const ROAD_HISTORY_LAYER_IDS = Object.keys(ROAD_HISTORY_STYLES).map((key) => `road-history-${key}`)
 const PLAN_SHEET_LAYERS = planSheetLayers('road-context')
@@ -352,8 +367,8 @@ function Layers(
     planToolActive?: boolean
     /** The previewed edit would be refused on drop (`planEditCheck.ts`): draw the road as refused. */
     refusedEdit?: boolean
-    /** Colour the active road by grade class. */
-    gradeColours?: boolean
+    /** What the active road is coloured by. */
+    roadColour?: RoadColourMode
   },
 ) {
   const { map, isLoaded } = useMap()
@@ -448,7 +463,7 @@ function Layers(
     const data = fc(
       coordinates.length && range?.highlight !== false
         ? [
-            line(coordinates, { label: range?.label }),
+            line(coordinates, { label: range?.label, outline: range?.highlight === 'outline' }),
             ...(range?.start === range?.end && start
               ? [
                   {
@@ -469,7 +484,14 @@ function Layers(
         id: 'road-selection-highlight',
         type: 'line',
         source: 'road-selection',
-        paint: { 'line-color': '#e11d48', 'line-width': 12, 'line-opacity': 0.65 },
+        // An outlined range is a line either side of the road (a gap as wide as the road), so the
+        // road's own colours stay readable inside it.
+        paint: {
+          'line-color': '#e11d48',
+          'line-width': ['case', ['==', ['get', 'outline'], true], 2.5, 12],
+          'line-gap-width': ['case', ['==', ['get', 'outline'], true], 7, 0],
+          'line-opacity': ['case', ['==', ['get', 'outline'], true], 0.95, 0.65],
+        },
       })
     if (!map.getLayer('road-selection-point'))
       map.addLayer({
@@ -737,11 +759,17 @@ function Layers(
     props.alignment.id,
     props.terrainOnly,
   ])
+  const costColours = props.roadColour === 'cost' && !props.terrainOnly ? props.costColours : undefined
+  const costAttribution = costColours?.attribution
+  const costRowId = costColours?.rowId
   const roadLines = useMemo(() => {
-    const lines =
-      props.gradeColours && !props.terrainOnly
+    const lines = props.terrainOnly
+      ? allLines
+      : props.roadColour === 'grade'
         ? gradeClassRoadLines(allLines, analysis.stations, props.project.settings.maxGradePercent)
-        : allLines
+        : costAttribution && costRowId !== undefined
+          ? costColourLines(allLines, costAttribution, costRowId)
+          : allLines
     if (!props.refusedEdit) return lines
     return fc(
       lines.features.map((feature) =>
@@ -753,11 +781,26 @@ function Layers(
   }, [
     allLines,
     analysis.stations,
-    props.gradeColours,
+    props.roadColour,
+    costAttribution,
+    costRowId,
     props.terrainOnly,
     props.project.settings.maxGradePercent,
     props.refusedEdit,
   ])
+  // The legend names the row the road is coloured by and the average its classes are read against.
+  const costHeading = useMemo(
+    () => (costAttribution && costRowId !== undefined ? costColourHeading(costAttribution, costRowId) : undefined),
+    [costAttribution, costRowId],
+  )
+  const onWholeEstimate = costColours?.onWholeEstimate
+  const costAction = useMemo(
+    () =>
+      costHeading && costRowId !== 'total' && onWholeEstimate
+        ? { label: 'Whole estimate', onClick: onWholeEstimate }
+        : undefined,
+    [costHeading, costRowId, onWholeEstimate],
+  )
   const corridor = useMemo(() => {
     const reach = props.project.settings.crossSectionHalfWidth
     // A side whose batter ran past the section reach is drawn out to the reach, in red, rather
@@ -2342,7 +2385,8 @@ function Layers(
             curveLabels: props.showLabels && radiusLabels.length > 0,
             cableCursor: !!cableCursor,
             cableSupports: !!activeCable,
-          }),
+            roadsHeading: costHeading,
+          }).map((section) => (section.id === 'roads' && costAction ? { ...section, action: costAction } : section)),
           ...historicalMap.legend,
           ...referenceLegend(props.visibleReference, props.referenceStyles),
           ...(props.visibleBufferData.features.length
@@ -2842,6 +2886,8 @@ export function PlanView(input: PlanProps) {
           alignment={previewAlignment ?? props.alignment}
           savedAlignment={handleAlignment}
           analyses={previewAnalyses}
+          // The cost was spread over the saved road's stations: a dragged preview draws plain until it lands.
+          costColours={previewAlignment ? undefined : props.costColours}
           onPointDragStart={(id) => props.onSelectPoint(id)}
           onBendPreview={(afterId, coordinate) =>
             setBend(coordinate ? { original: props.alignment, afterId, coordinate } : null)
@@ -2867,7 +2913,7 @@ export function PlanView(input: PlanProps) {
           referenceSymbols={referenceSymbols}
           noteTool={noteTool}
           planToolActive={!!tools.tool}
-          gradeColours={tools.gradeColours}
+          roadColour={tools.roadColour}
           refusedEdit={!!previewRefusal}
         />
         {previewRefusal && dragAt && (
@@ -3058,6 +3104,27 @@ export function PlanView(input: PlanProps) {
                 <input type="checkbox" checked={checked} onChange={(event) => set(event.target.checked)} />
               </label>
             ))}
+            {tools.setRoadColour && (
+              <label className="grid gap-1 py-2 text-xs">
+                Colour road by
+                <StyledSelect
+                  value={tools.roadColour}
+                  onValueChange={(value) => tools.setRoadColour?.(value as RoadColourMode)}
+                  aria-label="Colour road by"
+                >
+                  {ROAD_COLOUR_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </StyledSelect>
+                {tools.roadColour === 'cost' && (
+                  <span className="text-2xs text-muted-foreground">
+                    Against the road&apos;s average $/m. Covered estimate → a row&apos;s colour button picks one cost.
+                  </span>
+                )}
+              </label>
+            )}
             <label className="mt-2 grid gap-1 border-t pt-2 text-xs">
               Legend and map symbols
               <StyledSelect

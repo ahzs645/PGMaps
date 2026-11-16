@@ -652,15 +652,17 @@ export function speciesFromText(code: string): TreeSpeciesId | null {
   if (own) return own
   if (key.length > 4) {
     if (key.includes('douglas')) return 'douglasFir'
+    if (key.includes('black') && key.includes('spruce')) return 'blackSpruce'
     for (const [word, id] of [
       ['pine', 'pine'],
       ['spruce', 'spruce'],
       ['fir', 'fir'],
-      ['hemlock', 'fir'],
-      ['cedar', 'fir'],
+      ['hemlock', 'hemlock'],
+      // Cedar is drawn as hemlock (`SPECIES_CODE_MAP` in `forest.ts`).
+      ['cedar', 'hemlock'],
       ['aspen', 'aspen'],
       ['poplar', 'aspen'],
-      ['cottonwood', 'aspen'],
+      ['cottonwood', 'cottonwood'],
       ['birch', 'birch'],
     ] as const)
       if (key.includes(word)) return id

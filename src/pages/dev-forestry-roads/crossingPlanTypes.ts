@@ -46,6 +46,11 @@ export interface CrossingEstimateRow {
   complete: boolean
   missing: string[]
   basisFingerprint: string
+  /**
+   * Set by `estimateCrossings`: whether this row's `knownSubtotal` is in the estimate's
+   * `crossingSubtotal`. A current row is left out while its link to an engineering culvert needs review.
+   */
+  inSubtotal?: boolean
 }
 
 export interface CrossingEstimate {

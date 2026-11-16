@@ -56,6 +56,17 @@ canvas,
 }
 
 @layer base {
+  /* The site header's height, which floating panels (`anchored-popover.tsx`) open below: the header is drawn over
+     them. Zero on a phone, where the header is a floating button bar of no height (`Navbar.tsx`). */
+  :root {
+    --app-top-inset: 0px;
+  }
+  @media (min-width: 768px) {
+    :root {
+      --app-top-inset: 56px;
+    }
+  }
+
   /* PG Maps' design tokens: change a value here and it reaches every page.
      Each rule also names the toolkit's workspace (`.geo-toolkit`) with the toolkit
      stylesheet's own selectors, and this file loads after it (main.tsx), so these

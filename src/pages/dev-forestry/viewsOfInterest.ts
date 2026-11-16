@@ -281,6 +281,42 @@ export function viewCaptureState(
   return current.some((saved) => saved.id !== undefined && hasFigure(saved.id)) ? 'captured' : 'no-figure'
 }
 
+/** What a capture key records, in `viewCaptureKey`'s order, as a reviewer names it. */
+const CAPTURE_KEY_PARTS = ['place', 'place', 'block', 'facing', 'lens', 'framing', 'landform'] as const
+export type CaptureKeyPart = (typeof CAPTURE_KEY_PARTS)[number]
+
+/**
+ * What changed since an outdated view was captured: the parts of its latest capture's key that differ from its key
+ * now, each named once, in key order ("lens", "landform"). Empty when it is captured as it stands, or when no
+ * capture's key can be read.
+ */
+export function captureKeyChanges(view: ViewOfInterest, savedViews: ReadonlyArray<SavedViewCapture>): CaptureKeyPart[] {
+  const key = viewCaptureKey(view)
+  const mine = savedViews.filter((saved) => saved.plannedViewId === view.id && saved.plannedKey)
+  if (!mine.length || mine.some((saved) => saved.plannedKey === key)) return []
+  let before: unknown
+  try {
+    before = JSON.parse(mine[mine.length - 1].plannedKey!)
+  } catch {
+    return []
+  }
+  const now = JSON.parse(key) as unknown[]
+  if (!Array.isArray(before) || before.length !== now.length) return []
+  const changed: CaptureKeyPart[] = []
+  now.forEach((value, index) => {
+    const part = CAPTURE_KEY_PARTS[index]
+    if (part && JSON.stringify(value) !== JSON.stringify(before[index]) && !changed.includes(part)) changed.push(part)
+  })
+  return changed
+}
+
+/** "Changed since captured: lens and landform." */
+export function captureChangeText(parts: readonly CaptureKeyPart[]): string {
+  if (!parts.length) return 'Changed since captured.'
+  const listed = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+  return `Changed since captured: ${listed}.`
+}
+
 /** Whether a planned view needs (re)capturing: anything short of a current capture with its analysis sheet. */
 export const needsCapture = (state: ViewCaptureState) => state !== 'captured'
 

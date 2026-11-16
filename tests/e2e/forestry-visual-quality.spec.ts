@@ -274,6 +274,7 @@ async function readMapState(page: Page, which: 'auto' | 'plan' | 'eye' = 'auto')
                 implementation?: {
                   distanceRanges: number[][]
                   renderLayerCount: number
+                  bakedCards: boolean
                   treeCount: number
                   reusedPatches: number
                   nearTreeCount: number
@@ -293,6 +294,7 @@ async function readMapState(page: Page, which: 'auto' | 'plan' | 'eye' = 'auto')
             forestError: tree?.implementation?.error ?? null,
             forestDistanceRanges: tree?.implementation?.distanceRanges,
             forestRenderLayerCount: tree?.implementation?.renderLayerCount,
+            forestBakedCards: Boolean(tree?.implementation?.bakedCards),
             forestReach: tree?.implementation?.coverageMeters ?? 0,
             zoom: map.getZoom?.() ?? 0,
             viewerCone: Boolean(map.getStyle?.()?.layers?.some((layer) => layer.id.startsWith('viewer-cone-fill'))),
@@ -316,6 +318,16 @@ async function readMapState(page: Page, which: 'auto' | 'plan' | 'eye' = 'auto')
 async function showRoadOptions(controls: Locator) {
   const show = controls.getByRole('button', { name: 'Show options', exact: true })
   if (await show.isVisible()) await show.click()
+}
+
+/** The drawn timber is the road view bar's tree popover; this opens it and returns the popover. */
+async function openDrawnTimber(page: Page) {
+  const controls = page.getByRole('region', { name: 'Road view controls' })
+  await showRoadOptions(controls)
+  await controls.getByRole('button', { name: /^Drawn timber/ }).click()
+  const panel = page.getByRole('dialog', { name: 'Drawn timber' })
+  await expect(panel).toBeVisible()
+  return panel
 }
 
 /** How the road view looks is in its bar's View options panel; this opens it and returns the panel. */
@@ -885,8 +897,11 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('button', { name: 'Look from the road' }).click()
     await expectSelected((await openViewOptions(page)).getByLabel('Where to look'), '')
     await page.keyboard.press('Escape')
-    await showStep(page, 'visit')
-    await expect(page.getByRole('button', { name: 'Stable silhouettes' })).toBeVisible()
+    await openDrawnTimber(page)
+    await expect(page.getByRole('button', { name: 'Baked from 3D', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
     // The region's mature median height from VRI (REGIONAL_STAND).
     await expect(page.getByLabel(/Stand height/)).toHaveValue('25')
     await expect(page.getByLabel(/Cleared width/)).toBeVisible()
@@ -902,21 +917,53 @@ test.describe('forestry visual quality', () => {
     expect((await readMapState(page))?.forestReach).toBeGreaterThan(10000)
     // No separate close mesh may appear inside the persistent foreground.
     const forest = await readMapState(page)
-    // Four bands: stem for stem to 300 m, then coarser shells holding the same closure.
-    expect(forest?.forestRenderLayerCount).toBe(4)
+    // Four bands: stem for stem to 300 m, then coarser shells holding the same closure. (The layer
+    // count is not the band count: slash and the stopped view's detailed meshes are layers too.)
+    expect(forest?.forestDistanceRanges).toHaveLength(4)
     expect(forest?.forestDistanceRanges?.[0]).toEqual([-2, -1, 250, 300])
     expect(forest?.forestDistanceRanges?.slice(1).every((range) => range[0] >= 250)).toBe(true)
-    // The same test exercises the default hybrid, billboard fallback and cleanup.
-    await page.screenshot({ path: test.info().outputPath('forest-hybrid.png') })
+    // The default is cards baked from the detailed meshes: drawn from the silhouettes until the bake
+    // is ready, then the same stand again from the baked atlas.
+    await expect.poll(async () => (await readMapState(page))?.forestBakedCards, { timeout: 60_000 }).toBe(true)
+    await page.screenshot({ path: test.info().outputPath('forest-baked.png') })
+    // The same test exercises the drawn silhouettes, the billboard fallback and cleanup.
+    await page.getByRole('button', { name: 'Stable silhouettes', exact: true }).click()
+    await expect.poll(async () => (await readMapState(page))?.forestBakedCards, { timeout: 60_000 }).toBe(false)
+    await expect.poll(async () => (await readMapState(page))?.nearTreeCount, { timeout: 60_000 }).toBeGreaterThan(50)
+    expect((await readMapState(page))?.forestError).toBeNull()
     await page.getByRole('button', { name: 'Billboards', exact: true }).click()
     await expect.poll(async () => (await readMapState(page))?.treeCount, { timeout: 60000 }).toBeGreaterThan(1000)
     expect((await readMapState(page))?.nearTreeCount).toBe(0)
     expect((await readMapState(page))?.treeLayer).toBe(true)
 
-    const timber = page.getByRole('button', { name: 'Standing timber', exact: true })
-    await expect(timber).toHaveAttribute('aria-pressed', 'true')
-    await timber.click()
-    await expect(timber).toHaveAttribute('aria-pressed', 'false')
+    // Back to the baked cards: already made, so the stand is drawn from them at once, with no
+    // shader, buffer or atlas failure.
+    await page.getByRole('button', { name: 'Baked from 3D', exact: true }).click()
+    await expect.poll(async () => (await readMapState(page))?.forestBakedCards, { timeout: 60_000 }).toBe(true)
+    await expect.poll(async () => (await readMapState(page))?.treeCount, { timeout: 60_000 }).toBeGreaterThan(1000)
+    await expect.poll(async () => (await readMapState(page))?.nearTreeCount, { timeout: 60_000 }).toBeGreaterThan(50)
+    expect((await readMapState(page))?.forestError).toBeNull()
+
+    // The trees' light, their shadows and the moving resolution are display settings: none of them
+    // regrows the stand or stops it drawing.
+    const stemsBefore = (await readMapState(page))?.treeCount
+    await page.keyboard.press('Escape')
+    const looks = await openViewOptions(page)
+    await choose(looks.getByLabel('Tree light', { exact: true }), 'site')
+    await choose(looks.getByLabel('Tree shadows', { exact: true }), 'off')
+    await choose(looks.getByLabel('While moving', { exact: true }), 'reduced')
+    await expectSelected(looks.getByLabel('Tree light', { exact: true }), 'site')
+    await page.keyboard.press('Escape')
+    expect((await readMapState(page))?.forestError).toBeNull()
+    // The stand may still be filling in its far patches: it only ever gains stems, never starts over.
+    expect((await readMapState(page))?.treeCount).toBeGreaterThanOrEqual(stemsBefore ?? 0)
+    expect((await readMapState(page))?.forestBakedCards).toBe(true)
+
+    await openDrawnTimber(page)
+    const timber = page.getByLabel('Draw standing timber')
+    await expect(timber).toBeChecked()
+    await timber.uncheck()
+    await expect(timber).not.toBeChecked()
     await expect(page.getByLabel(/Stand height/)).toHaveCount(0)
     await expect.poll(async () => (await readMapState(page))?.treeLayer, { timeout: 30_000 }).toBe(false)
   })

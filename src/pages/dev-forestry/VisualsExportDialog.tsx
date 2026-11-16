@@ -390,6 +390,7 @@ export function ExportPackagePane({
 export function VisualsExportDialog({
   open,
   initialOutput,
+  initialPackage = false,
   onOpenChange,
   context,
   options,
@@ -408,6 +409,8 @@ export function VisualsExportDialog({
 }: {
   open: boolean
   initialOutput: VisualsExport
+  /** Open on the package's entry rather than `initialOutput`'s pane. */
+  initialPackage?: boolean
   onOpenChange: (open: boolean) => void
   context: ExportContext
   /** Each output's own options (stations, figure style, block), shown above what goes in. */
@@ -443,8 +446,9 @@ export function VisualsExportDialog({
   portalContainer?: HTMLElement | null
 }) {
   const [selected, setSelected] = useState<VisualsExport>(initialOutput)
-  // The package's entry is open in place of an output's pane.
-  const [packageOpen, setPackageOpen] = useState(false)
+  // The package's entry is open in place of an output's pane. The page mounts the dialog only while it is open, so
+  // the first render takes `initialPackage` here: the open transition below never runs for that mount.
+  const [packageOpen, setPackageOpen] = useState(open && initialPackage && !!packagePane)
   // Teal in the built-in theme; an Appearance theme's own selection colours under one.
   const themed = useInterfaceThemeApplied()
   const [view, setView] = useState<'contents' | 'draft' | 'preview'>('contents')
@@ -465,7 +469,7 @@ export function VisualsExportDialog({
     setWasOpen(open)
     if (open) {
       setSelected(initialOutput)
-      setPackageOpen(false)
+      setPackageOpen(initialPackage && !!packagePane)
       setView('contents')
       setStatus(null)
     }

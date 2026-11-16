@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { ViewpointCandidate } from './viewpointInventory'
 import {
   addViews,
+  captureChangeText,
+  captureKeyChanges,
   groupByPlace,
   lensHfovDeg,
   MAX_VIEWS_OF_INTEREST,
@@ -145,5 +147,19 @@ describe('in the scene', () => {
   })
   it('drops malformed entries', () => {
     expect(parseViewsOfInterest([{ id: 'x' }, null, 4])).toEqual([])
+  })
+})
+
+describe('what changed since a capture', () => {
+  it('names each part of the key that moved, once', () => {
+    const view = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
+    const saved = [{ id: 's1', plannedViewId: view.id, plannedKey: viewCaptureKey(view) }]
+    expect(captureKeyChanges(view, saved)).toEqual([])
+    const edited = { ...view, focalMm: 28, landformId: 'land-1', lng: view.lng + 0.01, lat: view.lat + 0.01 }
+    expect(captureKeyChanges(edited, saved)).toEqual(['place', 'lens', 'landform'])
+    expect(captureChangeText(captureKeyChanges(edited, saved))).toBe(
+      'Changed since captured: place, lens and landform.',
+    )
+    expect(captureKeyChanges(edited, [])).toEqual([])
   })
 })

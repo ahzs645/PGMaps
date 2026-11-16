@@ -17,7 +17,7 @@ import {
   type EngineCaptureRequest,
 } from './engineCapture'
 import type { ClassPassLayer } from './figureClassPass'
-import { TREE_SPECIES_IDS } from './forest'
+import { PACKAGE_SPECIES_IDS } from './forest'
 import { SCENE_TREE_FIELDS } from './scenePackage'
 import { metersPerDegree } from './visibility'
 
@@ -269,7 +269,7 @@ describe('joining and reading the passes', () => {
 describe('a final capture', () => {
   const stand = {
     fields: SCENE_TREE_FIELDS,
-    species: TREE_SPECIES_IDS,
+    species: PACKAGE_SPECIES_IDS,
     count: 2,
     data: new Float32Array(14),
     radiusMeters: 4600,
