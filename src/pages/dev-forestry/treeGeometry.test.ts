@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { TREE_SPECIES_IDS } from './forest'
-import { TREE_SPECIES_DRAWING } from './impostor'
+import { TREE_DRAWING_IDS, TREE_SPECIES_IDS } from './forest'
+import { TREE_DRAWINGS, TREE_SPECIES_DRAWING } from './impostor'
 import { detailedTreeMesh, roadsideTreeMesh } from './treeGeometry'
 
 describe('detailed tree meshes', () => {
@@ -57,6 +57,56 @@ describe('detailed tree meshes', () => {
           expect(highest).toBeCloseTo(1, 6)
         }
         expect(detailedTreeMesh(species, 2).attributes.positions.value).not.toEqual(positions)
+      })
+    })
+  }
+})
+
+describe('every drawing, built of bough cards', () => {
+  for (const drawing of TREE_DRAWING_IDS) {
+    describe(drawing, () => {
+      const solid = detailedTreeMesh(drawing, 3)
+      const cards = detailedTreeMesh(drawing, 3, 'cards')
+      const positions = cards.attributes.positions.value
+      const bark = cards.attributes.bark!.value
+      const uvs = cards.attributes.uvs!.value
+
+      it('is the same tree as its solid build, in fewer triangles', () => {
+        expect(solid.attributes.uvs).toBeUndefined()
+        expect(cards.indices.value.length).toBeLessThan(solid.indices.value.length)
+        // Stems and limbs are the same tubes in both; only the sprays differ.
+        const woody = (mesh: typeof solid) =>
+          Array.from(mesh.attributes.bark!.value).filter((value) => value > 0).length
+        expect(woody(cards)).toBe(woody(solid))
+      })
+
+      it('stands one unit tall and starts its foliage where its card starts its crown', () => {
+        let top = 0
+        let lowest = Infinity
+        for (let i = 0; i < positions.length / 3; i += 1) {
+          top = Math.max(top, positions[i * 3 + 2])
+          if (bark[i] === 0) lowest = Math.min(lowest, positions[i * 3 + 2])
+        }
+        expect(top).toBeCloseTo(1, 6)
+        expect(lowest).toBeGreaterThan(TREE_DRAWINGS[drawing].crownBase - 0.2)
+        expect(lowest).toBeLessThan(TREE_DRAWINGS[drawing].crownBase + 0.15)
+      })
+
+      it('gives its foliage a place in the spray sheet and its wood none', () => {
+        expect(uvs.length).toBe((positions.length / 3) * 2)
+        for (let i = 0; i < positions.length / 3; i += 1) {
+          if (bark[i] > 0) expect(uvs[i * 2]).toBeLessThan(0)
+          else {
+            expect(uvs[i * 2]).toBeGreaterThanOrEqual(0)
+            expect(uvs[i * 2]).toBeLessThanOrEqual(1)
+            expect(uvs[i * 2 + 1]).toBeGreaterThanOrEqual(0)
+            expect(uvs[i * 2 + 1]).toBeLessThanOrEqual(1)
+          }
+        }
+      })
+
+      it('fits a 16-bit index buffer', () => {
+        expect(positions.length / 3).toBeLessThan(65_536)
       })
     })
   }

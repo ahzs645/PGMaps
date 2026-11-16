@@ -148,6 +148,18 @@ export type DriveState = {
   /** Tree shading: the drawing's own colours, or lit as crown volumes. Display only. */
   treeLook: TreeLook
   /**
+   * Where the trees' light comes from: the page's fixed late-morning light, or the sun at the site's
+   * date and time (`engineEnvironment`, the clock the other renderers are given). Display only.
+   */
+  treeSun: 'fixed' | 'site'
+  /** The nearest trees lay a shadow on the ground, away from the trees' light. Display only. */
+  treeShadows: boolean
+  /**
+   * Draw the road view at a lower resolution while it moves and at the screen's own once it holds
+   * still. Display only: saved views and images are taken still.
+   */
+  movingResolution: 'full' | 'reduced'
+  /**
    * Tree colours: natural, or by a stand prescription's treatment — before harvest the trees marked to
    * cut, after it the trees kept, and protected trees in both (`stand/prescribedCells.ts`). A colour only:
    * every tree covers the same pixels. Display only.
@@ -1516,6 +1528,12 @@ export function Sidebar({
                       value={drive.treeStyle}
                       onChange={(treeStyle) => onDriveChange({ treeStyle })}
                       options={[
+                        {
+                          value: 'baked',
+                          label: 'Baked from 3D',
+                          title:
+                            'Each card is its own 3D tree pictured from eight sides: it shows the side you stand on, and is the same tree when the view stops',
+                        },
                         {
                           value: 'hybrid',
                           label: 'Stable silhouettes',

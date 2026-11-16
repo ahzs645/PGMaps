@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  CANOPY_CLOSES_AT_METERS,
+  DEFAULT_SPECIES_MIX,
+  LOWEST_TREE_SUN_DEGREES,
+  PACKAGE_SPECIES_IDS,
   SPECIES_CROWN_RATIO,
+  TREE_DRAWING_IDS,
   TREE_SPECIES_IDS,
   VARIANTS_PER_SPECIES,
+  drawingSpecies,
+  packageSpecies,
+  stemTurn,
+  treeDrawing,
+  treeSunDirection,
   blockThinning,
   REGIONAL_STAND,
   bufferLine,
@@ -277,8 +287,8 @@ describe('placeTrees species', () => {
     expect(trees.length).toBeGreaterThan(500)
     expect(trees.every((tree) => TREE_SPECIES_IDS.includes(tree.species))).toBe(true)
     expect(trees.every((tree) => tree.variant >= 0 && tree.variant < VARIANTS_PER_SPECIES)).toBe(true)
-    // A stand is mixed, not one species repeated.
-    expect(new Set(trees.map((tree) => tree.species)).size).toBe(TREE_SPECIES_IDS.length)
+    // A stand is mixed, not one species repeated: every species of the regional mix turns up.
+    expect(new Set(trees.map((tree) => tree.species)).size).toBe(DEFAULT_SPECIES_MIX.length)
   })
 
   it('crowns each species around its own width', () => {
@@ -314,9 +324,21 @@ describe('speciesFromCode', () => {
     expect(speciesFromCode('SE')).toBe('spruce')
     expect(speciesFromCode('BL')).toBe('fir')
     expect(speciesFromCode('FDI')).toBe('douglasFir')
-    expect(speciesFromCode('HW')).toBe('fir')
     expect(speciesFromCode('AT')).toBe('aspen')
     expect(speciesFromCode('EP')).toBe('birch')
+  })
+
+  it('gives hemlock, black spruce and cottonwood their own drawings, and cedar the hemlock', () => {
+    // Round Purden Lake hemlock is 16% of the treed cover (VRI, 15 November 2026); it drew as fir.
+    expect(speciesFromCode('HW')).toBe('hemlock')
+    expect(speciesFromCode('HM')).toBe('hemlock')
+    expect(speciesFromCode('CW')).toBe('hemlock')
+    expect(speciesFromCode('SB')).toBe('blackSpruce')
+    expect(speciesFromCode('AC')).toBe('cottonwood')
+    expect(speciesFromCode('ACT')).toBe('cottonwood')
+    // The neighbours they were drawn as keep their own.
+    expect(speciesFromCode('SW')).toBe('spruce')
+    expect(speciesFromCode('BA')).toBe('fir')
   })
 
   it('falls back through the code to its stem and its genus', () => {
@@ -593,10 +615,10 @@ describe('species-true stands from the inventory', () => {
       { code: 'BL', percent: 15 },
       { code: 'ZZ', percent: 5 },
     ])
-    // Cottonwood draws as aspen; the unknown code is dropped and the rest renormalised.
-    expect(mix.map((entry) => entry.species)).toEqual(['aspen', 'spruce', 'birch', 'fir'])
+    // The unknown code is dropped and the rest renormalised.
+    expect(mix.map((entry) => entry.species)).toEqual(['cottonwood', 'spruce', 'birch', 'fir'])
     expect(mix.reduce((sum, entry) => sum + entry.share, 0)).toBeCloseTo(1, 6)
-    expect(mix[0]).toMatchObject({ species: 'aspen', heightMeters: 35 })
+    expect(mix[0]).toMatchObject({ species: 'cottonwood', heightMeters: 35 })
     expect(mix[2].heightMeters).toBeNull()
   })
 
@@ -636,5 +658,108 @@ describe('species-true stands from the inventory', () => {
     expect(groundCoverFromBclcs('N', 'U', 'HE', 'DE')).toBe('herb')
     expect(groundCoverFromBclcs('N', 'W', 'HG', null)).toBe('wetland')
     expect(groundCoverFromBclcs('N', 'U', 'RO', null)).toBe('rock')
+  })
+})
+
+describe('drawings, forms and the species other renderers are sent', () => {
+  it('keeps the first six species where they were, so their drawings and seeds do not move', () => {
+    expect(TREE_SPECIES_IDS.slice(0, 6)).toEqual(['pine', 'spruce', 'fir', 'douglasFir', 'aspen', 'birch'])
+    expect(TREE_DRAWING_IDS.slice(0, TREE_SPECIES_IDS.length)).toEqual(TREE_SPECIES_IDS)
+    expect(PACKAGE_SPECIES_IDS).toEqual(TREE_SPECIES_IDS.slice(0, 6))
+  })
+
+  it('sends the other renderers the species each later one was drawn as before', () => {
+    expect(packageSpecies('hemlock')).toBe('fir')
+    expect(packageSpecies('blackSpruce')).toBe('spruce')
+    expect(packageSpecies('cottonwood')).toBe('aspen')
+    for (const species of PACKAGE_SPECIES_IDS) expect(packageSpecies(species)).toBe(species)
+  })
+
+  it('gives a conifer a young drawing, a broadleaf none, and a shrub its own', () => {
+    expect(treeDrawing('spruce')).toBe('spruce')
+    expect(treeDrawing('spruce', 'young')).toBe('spruceYoung')
+    expect(treeDrawing('aspen', 'young')).toBe('aspen')
+    expect(treeDrawing('aspen', 'shrub')).toBe('shrub')
+    expect(drawingSpecies('hemlockYoung')).toBe('hemlock')
+    expect(drawingSpecies('shrub')).toBe('aspen')
+    for (const drawing of TREE_DRAWING_IDS) expect(TREE_SPECIES_IDS).toContain(drawingSpecies(drawing))
+  })
+
+  const around = (metres: number): GeoJSON.Polygon => {
+    const lat = metres / 111_320
+    const lng = lat / Math.cos((CENTRE.lat * Math.PI) / 180)
+    return box(CENTRE.lng - lng, CENTRE.lat - lat, CENTRE.lng + lng, CENTRE.lat + lat)
+  }
+  const grow = (stand: Partial<InventoryStand>) =>
+    placeTrees({
+      stands: [],
+      clearings: [],
+      centre: CENTRE,
+      radiusMeters: 150,
+      spacingMeters: 4,
+      inventory: [{ geometry: around(400), species: null, heightMeters: null, ...stand }],
+    })
+
+  it('draws a stand shorter than the canopy closes at as young conifers, and a taller one mature', () => {
+    const young = grow({ species: 'pine', heightMeters: CANOPY_CLOSES_AT_METERS - 4 })
+    expect(young.length).toBeGreaterThan(100)
+    expect(young.every((tree) => tree.form === 'young')).toBe(true)
+    const mature = grow({ species: 'pine', heightMeters: CANOPY_CLOSES_AT_METERS + 8 })
+    expect(mature.every((tree) => tree.form === undefined)).toBe(true)
+    // A broadleaf has no young drawing.
+    expect(grow({ species: 'aspen', heightMeters: 5 }).every((tree) => tree.form === undefined)).toBe(true)
+  })
+
+  it('marks a form without moving a stem: the same stand with and without the young drawing', () => {
+    // The form is read off the stand, never drawn from the stem's own random stream.
+    const young = grow({ species: 'spruce', heightMeters: CANOPY_CLOSES_AT_METERS - 1 })
+    const mature = grow({ species: 'spruce', heightMeters: CANOPY_CLOSES_AT_METERS + 1 })
+    expect(young.map((tree) => [tree.lng, tree.lat, tree.variant, tree.tone])).toEqual(
+      mature.map((tree) => [tree.lng, tree.lat, tree.variant, tree.tone]),
+    )
+  })
+
+  it('draws a tall-shrub thicket as shrubs', () => {
+    const thicket = grow({ cover: 'shrubTall' })
+    expect(thicket.length).toBeGreaterThan(100)
+    expect(thicket.every((tree) => tree.form === 'shrub' && tree.species === 'aspen')).toBe(true)
+  })
+})
+
+describe('stemTurn', () => {
+  it('turns a stem the same way every time, and its neighbour another', () => {
+    const turn = stemTurn(-122.4, 53.9)
+    expect(stemTurn(-122.4, 53.9)).toBe(turn)
+    expect(turn).toBeGreaterThanOrEqual(0)
+    expect(turn).toBeLessThan(Math.PI * 2)
+    expect(stemTurn(-122.40005, 53.9)).not.toBe(turn)
+  })
+
+  it('spreads a stand round the whole circle', () => {
+    const eighths = new Set<number>()
+    for (let i = 0; i < 400; i += 1)
+      eighths.add(Math.floor((stemTurn(-122.4 + i * 4e-5, 53.9 + i * 3e-5) / (Math.PI * 2)) * 8))
+    expect(eighths.size).toBe(8)
+  })
+})
+
+describe('treeSunDirection', () => {
+  it('points at the sun in the mercator frame: x east, y south, z up', () => {
+    const south = treeSunDirection({ elevationDegrees: 45, azimuthDegrees: 180 })
+    expect(south[0]).toBeCloseTo(0, 6)
+    expect(south[1]).toBeCloseTo(Math.SQRT1_2, 6)
+    expect(south[2]).toBeCloseTo(Math.SQRT1_2, 6)
+    const east = treeSunDirection({ elevationDegrees: 30, azimuthDegrees: 90 })
+    expect(east[0]).toBeGreaterThan(0.8)
+    expect(Math.hypot(...east)).toBeCloseTo(1, 6)
+  })
+
+  it('keeps a low or set sun above the horizon, on its own bearing', () => {
+    const low = treeSunDirection({ elevationDegrees: 3, azimuthDegrees: 225 })
+    const night = treeSunDirection({ elevationDegrees: -20, azimuthDegrees: 225 })
+    expect(low).toEqual(night)
+    expect(low[2]).toBeCloseTo(Math.sin((LOWEST_TREE_SUN_DEGREES * Math.PI) / 180), 6)
+    expect(low[0]).toBeLessThan(0)
+    expect(low[1]).toBeGreaterThan(0)
   })
 })

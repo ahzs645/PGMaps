@@ -91,7 +91,7 @@ import { RegrowthControls } from './dev-forestry/RegrowthControls'
 import { buildRegrowthStands, DEFAULT_REGROWTH, type ForestHistoryRecord } from './dev-forestry/regrowth'
 import { useDriveTerrain } from './dev-forestry/useDriveTerrain'
 import type { ForestStatus } from './dev-forestry/ForestOverlay'
-import type { TreeInstance } from './dev-forestry/forest'
+import { treeSunDirection, type TreeInstance } from './dev-forestry/forest'
 import {
   blockThinning,
   bufferLine,
@@ -399,8 +399,12 @@ const DEFAULT_DRIVE: DriveState = {
   roadClearWidthMeters: 20,
   // Facing a block from the road otherwise shows the roadside trees, not the block.
   viewingGap: true,
-  treeStyle: 'hybrid',
+  // Cards taken from each tree's own 3D model (`impostorBake.ts`): the default since 16 November 2026.
+  treeStyle: 'baked',
   treeLook: 'lit',
+  treeSun: 'fixed',
+  treeShadows: true,
+  movingResolution: 'full',
   treeColours: 'natural',
   renderer: 'pgmaps',
   engineEnvironment: DEFAULT_ENGINE_ENVIRONMENT,
@@ -2938,7 +2942,7 @@ function DevForestryVisuals() {
         drive.quality === 'fast'
           ? ('billboard' as const)
           : drive.quality === 'detailed'
-            ? ('hybrid' as const)
+            ? ('baked' as const)
             : drive.treeStyle,
       look: drive.treeLook,
       // Faster means cards only, stopped or not.
@@ -2985,6 +2989,15 @@ function DevForestryVisuals() {
       clearings: [...openings, ...standClearings],
     }
   }
+  // The trees' light: the sun where the site's clock puts it (the clock the other renderers are
+  // given), or the fixed light. Kept out of `forestConfiguration`, so an hour's change never
+  // regrows the stand.
+  const treeSunPlace = scene.viewpoint.coordinates[0]
+  const treeSun = useMemo(() => {
+    if (drive.treeSun !== 'site' || !treeSunPlace) return null
+    const place = { lng: treeSunPlace[0], lat: treeSunPlace[1] }
+    return treeSunDirection(engineEnvironment(drive.engineEnvironment, place, new Date()).sunPosition)
+  }, [drive.treeSun, drive.engineEnvironment, treeSunPlace])
   const currentForestStatus = forestStatus?.configuration === forestConfiguration ? forestStatus : null
   // The stand another renderer is given: a new package when any of this changes, and not for display switches.
   const engineStand = useMemo(
@@ -3033,7 +3046,7 @@ function DevForestryVisuals() {
   const forestGround = useMemo(() => {
     const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
     const bounds = sceneBounds(scene)
-    if (!drive.active || !bounds) return { floor: empty, soil: empty, water: empty, cover: empty }
+    if (!drive.active || !bounds) return { floor: empty, shade: empty, soil: empty, water: empty, cover: empty }
     const padLat = previewTerrain.radius / 111_320
     const padLng = padLat / Math.max(0.2, Math.cos((((bounds[1] + bounds[3]) / 2) * Math.PI) / 180))
     const [w, s, e, n] = [bounds[0] - padLng, bounds[1] - padLat, bounds[2] + padLng, bounds[3] + padLat]
@@ -3056,6 +3069,18 @@ function DevForestryVisuals() {
           }),
         ],
       } as GeoJSON.FeatureCollection,
+      // The floor under each surveyed stand, darker the more its canopy closes. Treed stands only:
+      // open ground has its own colour below.
+      shade: {
+        type: 'FeatureCollection',
+        features: forestInventory
+          .filter((stand) => !stand.cover && (stand.crownClosurePercent ?? 0) > 0)
+          .map((stand) => ({
+            type: 'Feature',
+            properties: { closure: stand.crownClosurePercent },
+            geometry: stand.geometry,
+          })),
+      } as GeoJSON.FeatureCollection,
       // Soil on cut ground only. The road clearing is a viewing aid, not a
       // cutblock: widened to see past the roadside timber it stays forest floor.
       soil: { type: 'FeatureCollection', features: forestOpenings.map(feature) } as GeoJSON.FeatureCollection,
@@ -3072,7 +3097,7 @@ function DevForestryVisuals() {
         })),
       } as GeoJSON.FeatureCollection,
     }
-  }, [drive.active, scene, previewTerrain.radius, forestOpenings, basemap.water, result?.renderCover])
+  }, [drive.active, scene, previewTerrain.radius, forestInventory, forestOpenings, basemap.water, result?.renderCover])
 
   // On the map, show what the whole road can see. Driving narrows it to the one
   // point the camera is standing at, which is the thing worth watching change.
@@ -5233,10 +5258,33 @@ function DevForestryVisuals() {
         }
       : undefined
   // The road view's map unmounts when it closes; the stand it placed outlives it, so reopening reuses it.
+  // Kept for as long as the stand is placed the same way: how a stem is drawn, shaded or detailed
+  // moves none, so changing those redraws the stand it has instead of growing it again (half a
+  // minute at a far view).
   const forestPatches = useMemo(() => {
-    void forestConfiguration
+    void [
+      forestConfiguration.anchorLatitude,
+      forestConfiguration.stands,
+      forestConfiguration.clearings,
+      forestConfiguration.openings,
+      forestConfiguration.thinnings,
+      forestConfiguration.inventory,
+      forestConfiguration.standHeightMeters,
+      forestConfiguration.elevation,
+      forestConfiguration.farRadiusMeters,
+    ]
     return new globalThis.Map<string, TreeInstance[]>()
-  }, [forestConfiguration])
+  }, [
+    forestConfiguration.anchorLatitude,
+    forestConfiguration.stands,
+    forestConfiguration.clearings,
+    forestConfiguration.openings,
+    forestConfiguration.thinnings,
+    forestConfiguration.inventory,
+    forestConfiguration.standHeightMeters,
+    forestConfiguration.elevation,
+    forestConfiguration.farRadiusMeters,
+  ])
   // The legend folds while the map shares the screen with the road view or the summary, where it
   // would cover much of a half-width map; a click opens it, until the arrangement changes again.
   const mapSharesScreen =
@@ -5264,6 +5312,8 @@ function DevForestryVisuals() {
     routeOutline,
     forestConfiguration,
     forestPatches,
+    treeSun,
+    treeShadows: drive.treeShadows,
     facedArrowGeometry,
     previewTerrainMessage: previewTerrain.message,
     treeFreeCollection,
@@ -6166,7 +6216,9 @@ function DevForestryVisuals() {
                           >
                             {eyeMapKept && (
                               <>
-                                <TerrainSupport terrain exaggeration={1} hillshade hillshadeIntensity={0.25} />
+                                {/* Stronger than it was at 0.25: the relief now lies over the drawn ground
+                                  (`GroundRelief`), where it has a hillside's form to carry. */}
+                                <TerrainSupport terrain exaggeration={1} hillshade hillshadeIntensity={0.5} />
                                 <VisualQualityLayers mode="eye" data={layerData} />
                                 {photoLook && <PhotoOverlay photo={fieldPhoto} />}
                                 {

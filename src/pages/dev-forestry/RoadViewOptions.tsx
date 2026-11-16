@@ -297,6 +297,28 @@ export function RoadViewOptions({
       </Group>
 
       <Group title="Drawing">
+        <Row
+          label="While moving"
+          info={
+            <InfoTip label="About drawing while moving">
+              Lighter draws the road view at a lower resolution while it moves and at the screen&apos;s own half a
+              second after it stops: on a high-density screen that is about 60% fewer pixels a frame, for a smoother
+              drive on a slower computer. Saved views and images are taken still, at full resolution.
+            </InfoTip>
+          }
+        >
+          <StyledSelect
+            aria-label="While moving"
+            className={SELECT_CLASS}
+            value={drive.movingResolution}
+            onChange={(event) =>
+              onDriveChange({ movingResolution: event.target.value as DriveState['movingResolution'] })
+            }
+          >
+            <option value="full">Full resolution</option>
+            <option value="reduced">Lighter</option>
+          </StyledSelect>
+        </Row>
         <Row label="Display quality">
           <StyledSelect
             aria-label="Display quality"
@@ -582,6 +604,48 @@ export function RoadViewOptions({
           >
             <option value="lit">Lit</option>
             <option value="flat">Flat</option>
+          </StyledSelect>
+        </Row>
+        <Row
+          label="Tree light"
+          info={
+            <InfoTip label="About tree light">
+              Fixed lights every tree from the same late-morning direction, as the page always has. Site date and time
+              lights them from where the sun is at the date and time set for the view (the same clock the other
+              renderers are given), kept at least 12° above the horizon so a low sun does not turn the stand black. A
+              light only: every tree covers the same part of the view.
+            </InfoTip>
+          }
+        >
+          <StyledSelect
+            aria-label="Tree light"
+            className={SELECT_CLASS}
+            value={drive.treeSun}
+            onChange={(event) => onDriveChange({ treeSun: event.target.value as DriveState['treeSun'] })}
+          >
+            <option value="fixed">Fixed</option>
+            <option value="site">Site date and time</option>
+          </StyledSelect>
+        </Row>
+        <Row
+          label="Tree shadows"
+          info={
+            <InfoTip label="About tree shadows">
+              The trees within 140 m lay a soft shadow on the ground, away from the trees&apos; light, so a stem stands
+              on its ground instead of on a flat sheet. A drawing aid: shadows fall on the ground only, are bent over it
+              at three points and can sit a little off steep ground, and no tree covers more or less of the view for
+              them.
+            </InfoTip>
+          }
+        >
+          <StyledSelect
+            aria-label="Tree shadows"
+            className={SELECT_CLASS}
+            value={drive.treeShadows ? 'on' : 'off'}
+            onChange={(event) => onDriveChange({ treeShadows: event.target.value === 'on' })}
+          >
+            <option value="on">On</option>
+            <option value="off">Off</option>
           </StyledSelect>
         </Row>
         <Row

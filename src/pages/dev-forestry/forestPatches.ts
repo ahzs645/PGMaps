@@ -91,6 +91,11 @@ export function growForestPatch(
           seed: patch.band + 1,
         })
       : []
+  const far = isFarBand(band)
+  // The slope is read across about half the band's spacing: the hill a far card stands on, not the
+  // hummock under one stem.
+  const reach = Math.max(12, Math.min(40, band.spacing / 2))
+  const reachLat = reach / 111_320
   return [
     ...placeTrees({
       ...inputs,
@@ -102,12 +107,39 @@ export function growForestPatch(
       anchorLatitude,
       // The patch is a square tile: grow only it, not the circle around it.
       bounds: [west, south, east, north],
+      ...(far ? { canopyTileMeters: canopyTileMeters(band) } : {}),
     }),
     ...edges,
   ].flatMap((tree) => {
     const height = elevation.elevationAt(tree.lng, tree.lat)
-    return Number.isFinite(height) ? [{ ...tree, elevationMeters: height }] : []
+    if (!Number.isFinite(height)) return []
+    if (!far) return [{ ...tree, elevationMeters: height }]
+    const reachLng = reachLat / Math.max(0.05, Math.cos((tree.lat * Math.PI) / 180))
+    const east = elevation.elevationAt(tree.lng + reachLng, tree.lat)
+    const west = elevation.elevationAt(tree.lng - reachLng, tree.lat)
+    const north = elevation.elevationAt(tree.lng, tree.lat + reachLat)
+    const south = elevation.elevationAt(tree.lng, tree.lat - reachLat)
+    // Off the edge of the elevation the ground is taken as level rather than guessed.
+    const slope: [number, number] = [
+      Number.isFinite(east) && Number.isFinite(west) ? (east - west) / (2 * reach) : 0,
+      Number.isFinite(north) && Number.isFinite(south) ? (north - south) / (2 * reach) : 0,
+    ]
+    return [{ ...tree, elevationMeters: height, slope }]
   })
+}
+
+/** The coarse bands, where a drawn stem stands for many: clump cards, canopy tiles, the hill's light. */
+export function isFarBand(band: ForestBand): boolean {
+  return band.spacing >= 20
+}
+
+/**
+ * The side of the canopy tile a far band's stem lays over its own ground, metres: a quarter wider
+ * than the band's spacing, so the tiles of neighbouring stems overlap as crowns do and a jittered
+ * stem still roofs its cell.
+ */
+export function canopyTileMeters(band: ForestBand): number {
+  return band.spacing * 1.25
 }
 
 /** Keep the same foreground representation all the way to the eye. */

@@ -30,7 +30,7 @@
  */
 
 import polygonClipping, { type MultiPolygon as ClipMultiPolygon } from 'polygon-clipping'
-import { TREE_SPECIES_IDS, type TreeInstance, type TreeSpeciesId } from './forest'
+import { PACKAGE_SPECIES_IDS, packageSpecies, type PackageSpeciesId, type TreeInstance } from './forest'
 import { CONE_BASE_DIAMETER, SPECIES_CROWN_RATIO } from './forest'
 import { forestBands, forestPatches, growForestPatch } from './forestPatches'
 import type { ForestConfiguration } from './ForestOverlay'
@@ -147,19 +147,19 @@ export type ScenePackage = {
   skylineTerrain?: ScenePackage['terrain'] & { earthCurvature: { earthRadiusMeters: number; refraction: number } }
   trees: {
     fields: typeof SCENE_TREE_FIELDS
-    species: TreeSpeciesId[]
+    species: PackageSpeciesId[]
     count: number
     data: number[]
   }
   /** How each species is drawn here, so a renderer can build a matching model. */
-  species: Record<TreeSpeciesId, { label: string; crownRatio: number; crownBase: number; broadleaf: boolean }>
+  species: Record<PackageSpeciesId, { label: string; crownRatio: number; crownBase: number; broadleaf: boolean }>
   /**
    * Each species' own detailed model (`detailedTreeMesh`), the one the road view draws when it stops, so another
    * renderer can draw the same trees and not only the same positions. Unit height and unit crown width: scale x
    * and y (across) by a stem's crown width and z by its height. Non-indexed triangles in the package frame (z up);
    * `bark` is 1 on wood, 0 on foliage. Our own geometry: no third-party asset to license.
    */
-  models?: Record<TreeSpeciesId, { positions: number[]; normals: number[]; bark: number[] }>
+  models?: Record<PackageSpeciesId, { positions: number[]; normals: number[]; bark: number[] }>
   /**
    * Cut ground. `ageYears`: years from harvest to the assessment (or view) date, null when the record has no date;
    * an engine greens the ground up with age (slash and soil at 0–2, shrubs and seedlings by 5, a young stand by
@@ -267,8 +267,9 @@ export type ScenePackageInput = {
 }
 
 /** A species' detailed mesh, unrolled to triangles at unit height and unit crown width. */
-function packageModel(species: TreeSpeciesId) {
-  const mesh = detailedTreeMesh(species, TREE_SPECIES_IDS.indexOf(species) + 1)
+function packageModel(species: PackageSpeciesId) {
+  // The solid build: another renderer has no spray sheet to cut bough cards out with.
+  const mesh = detailedTreeMesh(species, PACKAGE_SPECIES_IDS.indexOf(species) + 1)
   const p = mesh.attributes.positions.value
   const n = mesh.attributes.normals.value
   const b = mesh.attributes.bark?.value
@@ -315,7 +316,9 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
   const anchorLatitude = forest.anchorLatitude ?? eye.lat
   const bands = forestBands(treeRadiusMeters)
   const patches = forestPatches(eye, bands, anchorLatitude)
-  const species = [...TREE_SPECIES_IDS]
+  // The six species the other renderers know by name (`PACKAGE_SPECIES_IDS`): a hemlock goes as the fir it was
+  // drawn as before it had its own drawing, and so on.
+  const species = [...PACKAGE_SPECIES_IDS]
   const treeData: number[] = []
   const debrisData: number[] = []
   const openings = forest.openings ?? []
@@ -347,7 +350,7 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
         round(x),
         round(y),
         round(tree.elevationMeters),
-        species.indexOf(tree.species),
+        species.indexOf(packageSpecies(tree.species)),
         round(tree.heightMeters),
         // A stem's crown width is its height × slenderness (`placeTrees`).
         round(tree.heightMeters * tree.slenderness),

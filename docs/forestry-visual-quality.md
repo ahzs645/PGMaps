@@ -1263,10 +1263,14 @@ it.
 
 ### How a stem is drawn
 
-Two ways, and the panel switches between them so they can be compared at the
-same camera and the same stem count.
+Three ways, and the panel switches between them so they can be compared at the
+same camera and the same stem count. *Baked from 3D*, the default since
+16 November 2026, is a card taken from the tree's own 3D model (see **Baked
+tree cards** below); *Stable silhouettes* and *Billboards* are the drawn
+silhouettes described next, at three or two planes a near stem; *Solid cones*
+is the third.
 
-**Billboards** (the default) put the tree in a texture and stand each stem up as
+**Billboards** put the tree in a texture and stand each stem up as
 two triangles, turned to face the camera. It is what forest visualisers do,
 because a stand you can see a cutblock across is tens of thousands of stems and
 modelled geometry at that count buys detail nobody can resolve past a hundred
@@ -1287,12 +1291,37 @@ mix, and the panel says how much did. Run "Look up this view" first to have any
 of it.
 
 The silhouettes are generated in `impostor.ts` rather than shipped as assets:
-six BC interior species (lodgepole pine's long clean bole and short crown,
+nine BC interior species (lodgepole pine's long clean bole and short crown,
 interior spruce's spire, subalpine fir narrower still, interior Douglas-fir's
 broad, open, level-limbed crown, trembling aspen's rounded crown over a pale
-stem, paper birch's over a white one), four drawn variants each, into one
-24-cell atlas. Nothing to license, nothing to download, and the stand can be
-redrawn for a different species mix without an art pipeline.
+stem, paper birch's over a white one, western hemlock's hanging sprays under a
+nodding leader, black spruce's thin column with a club at its top, black
+cottonwood's open crown on a heavy grey bole), four drawn variants each.
+Nothing to license, nothing to download, and the stand can be redrawn for a
+different species mix without an art pipeline.
+
+Seven more drawings stand where a species' mature one is the wrong shape
+(`TreeForm`, `TREE_DRAWING_IDS` in `forest.ts`), sixteen rows of the atlas in
+all:
+
+- **A young conifer**, one for each of the six conifers. A conifer in a stand
+  shorter than `CANOPY_CLOSES_AT_METERS` (12 m, the height the page already
+  takes a canopy to close at) keeps its branches to the ground, because nothing
+  has shaded them out yet. The mature drawing shrunk to 5 m stood a
+  regenerating opening on bare stems. Its crown width is still its stand's
+  closure's; only the shape that width is stretched from changes
+  (`YOUNG_CROWN_RATIO`). The form is read off the stand, never drawn from the
+  stem's own random numbers, so marking a stand young moves no stem.
+- **The tall shrub.** A thicket's stems (alder, willow: VRI's tall shrub, 3 m)
+  were small aspens on bare boles, which read as umbrellas along a road. They
+  are several stems from one root under leaves from near the ground.
+
+Both change how much of an eye-level view a stand hides, the shrub most: it is
+leaves to the ground where the thicket was see-through below its crowns. On
+the Purden Lake sample the drawn stand covered 2 to 6 points more of five
+views after these drawings than before (`scripts/forestry/tree-views/README.md`
+has the table). The figures the run reports do not read the drawing and did
+not move; the *with drawn timber* figure of a saved view does.
 
 ### Species from the whole inventory record
 
@@ -1311,6 +1340,35 @@ fir: it leads or shares about a quarter of the stands around Prince George
 (51 of 189 polygons in a November 2026 query south of the city), and its broad,
 open crown reads nothing like a fir's spire.
 
+Western hemlock, black spruce and black cottonwood have their own drawings
+too, added on 15 November 2026 from a tally of VRI rank 1 by area over a box
+round each sample scene (the share of treed cover):
+
+| Species (VRI code) | Tabor Mountain | Purden Lake | Drawn before as |
+|---|---|---|---|
+| Interior spruce (`SX`) | 38.5% | 37.6% | spruce |
+| Subalpine fir (`BL`) | 18.2% | 10.5% | fir |
+| Western hemlock (`HW`) | 0% | 16.4%, leading 17% of stands | fir |
+| Paper birch (`EP`) | 12.7% | 6.7% | birch |
+| Trembling aspen (`AT`) | 11.0% | 4.6% | aspen |
+| Lodgepole pine (`PLI`) | 9.9% | 9.1% | pine |
+| Douglas-fir (`FDI`) | 5.2% | 6.6% | Douglas-fir |
+| Cottonwood (`AC`, `ACT`) | 3.4% | 1.4% | aspen |
+| Black spruce (`SB`) | 1.1% | 4.3% | spruce |
+| Western redcedar (`CW`) | 0% | 1.7% | fir |
+
+Hemlock was the second most common tree round Purden Lake and drew as a
+subalpine fir's spire. Cedar has no drawing of its own: it takes the hemlock's,
+which its drooping conical crown is nearer than the fir's (a judgement, at
+1.7% of one scene). The regional mix (`DEFAULT_SPECIES_MIX`) is unchanged:
+hemlock grows on one of the two scenes and not the other, so it is drawn only
+where the inventory records it.
+
+The new species' crown proportions (`SPECIES_CROWN_RATIO`) are drawing choices,
+as the first six are, not measurements. Their snags fall by the curves they
+fell by before, now named as borrowed (`borrowedBy` in `stand/snagDecay.ts`):
+hemlock the subalpine fir's, black spruce the spruce's, cottonwood the aspen's.
+
 ### Ground the inventory says is not forest
 
 VRI also says what non-treed ground is (BC Land Cover Classification, levels
@@ -1325,7 +1383,7 @@ stands only.
 
 ### Tree shading, and detail when the view is still
 
-Two settings beside *Display quality*, both display only:
+Settings beside *Display quality*, all display only:
 
 - **Tree shading.** *Lit* (the default) shades each card as the crown it
   pictures: a normal bent outward from the card's centre line so the sunny side
@@ -1334,6 +1392,31 @@ Two settings beside *Display quality*, both display only:
   little brightness and saturation variety per tree. Solid stems get wrapped
   light and crown-depth shading. *Flat* is the drawing's own colours, as
   before. Lighting never changes which pixels a tree covers.
+- **Tree light.** *Fixed* lights every tree from one late-morning direction, as
+  the page always has (`FIXED_TREE_SUN`). *Site date and time* lights them from
+  where the sun is at the date and time set for the view, the clock the other
+  renderers are given (`engineEnvironment`, `treeSunDirection`), kept at least
+  12° above the horizon (`LOWEST_TREE_SUN_DEGREES`): on a November afternoon at
+  54° north the sun is under 10°, and a stand lit from there is black against
+  its sky. The sun is not part of the forest's configuration, so changing the
+  hour never regrows the stand.
+- **Tree shadows.** The stems within 140 m lay a soft shadow on the ground,
+  away from the trees' light (`treeShadows.ts`). A stem the viewing gap leaves
+  undrawn lays none: a wedge of bare ground under the shadows of the trees
+  taken out of it was a black band across the foreground. MapLibre draws the ground and
+  gives a layer no way to light it, so this is not a shadow map: each stem lays
+  one dark quad as long as its height and the sun's elevation make it (1.8
+  heights at most), bent over the terrain at its foot, middle and end.
+  Overlapping shadows darken together, as the floor under a stand does. A
+  trial: on ground steeper than three points can follow, part of a shadow can
+  sit a little off the surface. Drawn before the trees, so it covers no part of
+  one.
+- **While moving.** *Lighter* draws the road view at 1.25 device pixels to a
+  CSS pixel while it moves and at the screen's own 350 ms after it stops
+  (`MovingResolution.tsx`): about 60% fewer pixels a frame on a high-density
+  screen. The drive camera places itself by the canvas's size in CSS pixels,
+  which this does not change. Off by default: on the machine the test views
+  were measured on a moving frame was already under 12 ms.
 - **Detail when stopped.** While the view moves every stem is a card, which
   keeps driving smooth. Once the camera has held still for half a second
   (`DETAIL_SETTLE_MS`, read off the frame's own matrix, so turning the head
@@ -1344,6 +1427,20 @@ Two settings beside *Display quality*, both display only:
   a volume). The same stems at the same positions, heights and crown widths;
   the cards step back from that ring for the frame. *Faster* turns it off.
 
+  Each spray was an eight-faced solid, and a crown of them read as a heap of
+  diamonds. The road view now builds the same tree, branch for branch, with
+  each spray as two crossed cards cut out by a bough's picture
+  (`foliage: 'cards'`, `treeSprays.ts`: a conifer bough, a pine's needle tufts,
+  a hemlock's hanging spray and two leaf clusters, generated like every other
+  drawing here). That is 40 to 50% fewer triangles, so a stopped frame takes
+  about half the time it did. A stem's mesh is coloured from its drawing's own
+  foliage and bark (`drawingPalette`) with the card's tint, where every mesh
+  used to be one green and a birch lost its white stem on stopping; limbs
+  inside the crown are drawn part bark, part foliage (`LIMB_BARK`). There is a
+  mesh for each drawing and each of two trees of it, so the stem that stops is
+  the tree that was moving. The solid build is what the scene package still
+  hands the other renderers, which have no spray sheet.
+
 These follow techniques surveyed in `forestry-visual-tools-trial-2026-11-12.md`
 §10 (Sylva's canopy cards, VistaWASM's wrap and back-light, OpenWorldGen-SDK's
 crown occlusion, BakedVoxelLighting's whorls), re-implemented here; no code or
@@ -1351,10 +1448,15 @@ asset from those projects is copied.
 
 **Screening is pinned.** The trial measured that a tree's drawn shape alone
 moves the share of a view a stand hides by 10–12 points at the same density and
-closure. `screenCoverage.test.ts` rasterises every species' far card and its
-detailed mesh side-on and pins both areas to within half a percent, and holds
-the detailed mesh within 15% of its card, so stopping cannot change the
-screening a viewer sees. Change a silhouette or the mesh and that test fails:
+closure. `screenCoverage.test.ts` rasterises every drawing's far card and its
+detailed mesh side-on and pins both areas to within half a percent, holds
+the detailed mesh within 15% of its card, and holds its baked card (the mean of
+its sixteen views) within 3% of its drawn card, so neither stopping nor
+choosing *Baked from 3D* changes the screening a viewer sees. The first six
+species measure what they were pinned at on 12 November; the later drawings'
+meshes were sized to their cards (`SOLID_SPRAY_SIZE`), and every drawing's
+bough cards to its drawn card (`BOUGH_CARD_SCALE`, solved by bisection: solve
+them again after changing a mesh, a silhouette or a spray picture). Change a silhouette or the mesh and that test fails:
 update its figures only on purpose. The first draft of the detailed fir covered
 0.79 of its card and the Douglas-fir 1.20; both were tuned against the test.
 
@@ -1363,6 +1465,153 @@ CPU (`atlasMips.ts`) with each cell's alpha rescaled so the share of texels
 past the cut-out threshold matches the full-size cell's. A GPU box filter
 thins a ragged crown with distance, and a thinner far canopy would screen less
 of a block than the stand it stands for.
+
+### Baked tree cards
+
+*Baked from 3D* (`impostorBake.ts`), the default, takes each tree's card from
+its own detailed mesh instead of from a separate silhouette: an orthographic picture
+from eight sides round the stem, the surface's normal kept beside its colour.
+Three things follow.
+
+- **The card is the tree.** The stem that stops is the stem that was moving,
+  in outline and in colour. On the Purden Lake views the stand covers the same
+  share of the view moving and stopped to within a point and a half.
+- **It shows the side the eye stands on.** Each stem has a turn of its own,
+  read off where it stands (`stemTurn`), the same turn its mesh is drawn at,
+  and shows the view nearest the bearing from it to the eye. Passed on a road,
+  a stem goes through two or three views instead of swivelling one face after
+  the camera, and no two neighbours show the same face. Near stems are one card
+  each: the crossed planes a silhouette needs are not drawn.
+- **It is lit as the mesh is.** Card and mesh go through one function
+  (`CROWN_LIGHT_GLSL`), the card from its baked normal, corrected for a stem
+  drawn wider than the tree its card was taken from.
+
+A stem shows **one** view, never a blend of two: a blend of two cut-out
+outlines ghosts every branch. It changes to the next at an angle of its own
+between the two, through a short dither, so a stand never changes at once and
+the share of stems showing each view is the share of the way round. A stand's
+cover is then the mean of its views' cover, which is what the coverage test
+pins.
+
+The far bands' clump cards are built of the same baked trees
+(`bakeClumpAtlas`), eight to a card as the drawn clumps are laid out.
+
+**Why not the octahedral grid.** The method is three.ez's octahedral impostor
+(MIT; `NOTICE-OCTAHEDRAL-IMPOSTOR.md` says what was taken and what was
+changed), which pictures a model from a hemisphere of directions on an
+octahedral grid, in square cells round its bounding sphere, and blends the
+three nearest. The road view looks within 45° of level and a tree is close to
+round, so the views here ring the stem at eye level; a square round a tall
+tree's sphere is seven tenths empty, so each view is as narrow as its tree;
+and the bake is rasterised on the CPU, so it is the same bytes on every machine
+and runs in the unit tests. The grid and its three-view blend would earn their
+keep for a camera that looks down on the stand: an aircraft photo match or an
+oblique figure, where the crown still changes to a flat disc at 58°
+(`TOP_DOWN_SIN`). Not built.
+
+**Cost.** Sixteen drawings, two trees each, eight views: 256 cells of 58 × 192
+pixels in two sheets of 928 × 3,072, about 30 MB on the GPU with their
+mipmaps, against under 3 MB for the drawn atlas. Baking takes a little over a
+second and is done a drawing at a time between frames the first time the
+road view opens; until it is ready the stand is drawn from the silhouettes.
+*Display quality* → *Detailed* draws baked cards whatever style is chosen, and
+*Faster* the two-plane silhouettes. A
+near stem's card is 192 pixels tall however near it stands, so a moving near
+tree is softer than a stopped one, and a wide shrub's card, stretched from a
+narrow cell, softer still. Depth toward the camera is baked into the second
+sheet and not yet used.
+
+`scripts/forestry/tree-atlas/export.ts` writes the baked sheets, the clump
+cards and the spray sheet as PNG files to look at
+(`node --import tsx scripts/forestry/tree-atlas/export.ts`).
+
+### Ground under a stand, and relief over the ground
+
+The road view's forest floor was one colour everywhere. The floor under each
+surveyed stand is now a little darker the more its canopy closes
+(`forestGround.shade`: nothing at 25% crown closure, to 20% of a dark green at
+80%). It was first tried at 42%, which drew the stands' own outlines as
+hard-edged patches wherever the viewing gap bared the foreground.
+
+The map's relief shading sat under the first label, and the road view's ground
+(floor, open cover, cut soil, road scars) is draped over it at 82–95%, which
+all but hid it: a cutblock on a hillside was one flat tan shape. `GroundRelief`
+lifts that same layer above those fills and above the block's own cut-ground
+colour while the road view draws its own ground (not over imagery, which
+carries its own, nor in the note screenshot look or under the analysis
+colours, where ground is painted to be read flat), lights it from where the
+trees are lit from, and fixes the light to the map: with MapLibre's default
+anchor it turned with the head. Its shadow is a dark green at 55%, not the
+plan's near-black, which a metre from the eye is ink. It moves and re-lights
+the terrain component's layer and adds none. Display only.
+
+### The far forest
+
+Across a valley is where a block is judged, and past 600 m a drawn stem stands
+for many. Five things make that hillside read as one (November 2026; the view
+they were worked out on is the Purden Lake sample from 5 km along its road,
+the block 2 to 4 km off):
+
+- **A canopy between the cards.** A far card is as tall as its trees and no
+  taller, and in the 80 m band the next row up a 20° slope stands 27 m higher:
+  the cards stopped reaching each other and the hillside between them was
+  forest floor, in stripes. Each far stem now also lays a **canopy tile** over
+  its own patch of ground (`TreeInstance.canopy`, the card's second plane in
+  `treeLayer.ts`): a square a quarter wider than the band's spacing, at 0.62 of
+  the stem's height so the top third of every card stands through it, tilted
+  with the slope under the stem. It is crowns seen from above, cut out to the
+  stand's crown closure as the eye sees it: along a slanted sight line the
+  share of gap is the share straight down to the power of the path's length
+  through the canopy (Beer–Lambert), so a stand 45% closed from above is 97%
+  closed from across a valley and opens again from a hill above it. Crowns are
+  5 m across while that is more than a few pixels, then groups of them twice
+  the size at each step, so a far canopy's gaps are gaps between clumps and
+  never a speckle. Tiles begin 900 m out and are fully drawn by 1,800 m; nearer,
+  the cards close a stand by themselves and a tile would read as a plate. A
+  tile turning edge-on, as over a crest, thins out and leaves the skyline to
+  the cards.
+- **No tile over open ground.** A tile's ground is sampled on a grid
+  (`canopyReachAt` in `placeTrees`: 16 m apart out to 3 km, 25 m past it), and
+  the tile stops one sample short of the nearest clearing, block, water, edge of
+  the stand or ground the inventory calls open. So nothing 20 m wide is roofed
+  out to 3 km, and nothing 25 m wide past it, where a road is a few pixels.
+  Laying tiles moves no stem and adds none (`farForest.test.ts`).
+- **The hill's light.** Every far card was lit as a crown on level ground
+  facing the camera, so a sunlit spur and a shaded draw were the same green.
+  A far stem carries the slope under it (`TreeInstance.slope`, read across
+  about half the band's spacing in `growForestPatch`), and its card and tile
+  are lit by that slope against level ground's, between half and 1.45 times,
+  coming in between 600 and 1,500 m.
+- **Trees on the crest.** MapLibre draws distant ground from coarser elevation
+  than the stems are stood on. A summit 3.6 km off was drawn about 30 m lower
+  than its trees' feet, which stood them in the sky with a strip of it under
+  them (the feet agreed with the elevation MapLibre holds there to 2 m; it is
+  the drawn surface that falls short). A far card now runs on 45 m below its
+  foot (`FAR_CARD_SKIRT_METERS`) as more of its own crowns, a little darker:
+  where the ground is drawn as measured the run is under it and never seen, and
+  on such a crest it is what stands between the hill and its trees. The tops
+  stay where they were, so the skyline's height does not change.
+- **Distance.** A far stand was as saturated as a near one. A card or tile now
+  loses colour and takes the sky's by Koschmieder's law at a 14 km reach
+  (`withDistance`): 7% at 1 km, 19% at 3 km, 43% at 8 km, never past 65%, with
+  a little of its saturation going first. It was a straight 4.5% a kilometre.
+
+All of it is display only and none of it is in the run. What it does to the
+picture, measured on that view against the page as it was (same camera, same
+168,904 stems): the drawn stand covers 61.1% of the far hillside's part of the
+view against 53.6%, and of the block's cut ground showing with the stand
+switched off, 76.9% still shows with it on against 76.4%. The canopy closes
+the hillside and leaves the block as it was. *Baked from 3D* gives 60.3% and
+75.6%: its far clump cards hide about a point more of the block's lower edge
+than the drawn ones. A frame takes no longer than it did (7 to 12 ms moving on
+the machine measured, as before). `scripts/forestry/tree-views/README.md` has
+the table.
+
+**The stand is kept through a change of style.** The placed stand was thrown
+away and grown again whenever how a stem is drawn, shaded or detailed was
+changed, half a minute at that view; it is now kept for as long as it is
+placed the same way (`forestPatches` in `DevForestryVisuals.tsx` is keyed to
+what places a stem and nothing else).
 
 ### Harvested ground
 
@@ -1718,6 +1967,14 @@ scene, renderer-neutral and display only:
 - the eye, bearing, pitch and vertical field of view;
 - each species' own detailed model.
 
+The package names six species (`PACKAGE_SPECIES_IDS`). The other renderers
+build their trees by species name and draw one they do not know as a spruce, so
+a cottonwood would come out a conifer there: a hemlock goes as the fir, a black
+spruce as the spruce and a cottonwood as the aspen each was drawn as before it
+had a drawing of its own (`packageSpecies`), and a stem's young or shrub form
+is not sent. The package is what it was; teaching an engine the new species is
+a change to the engine and then to this list.
+
 The models are `detailedTreeMesh`, which stands exactly one unit tall, so a
 stem's recorded height is the height it is drawn at.
 
@@ -1933,6 +2190,14 @@ follows it. Nothing of the engine is bundled; the frame is found by URL.
 | `src/pages/dev-forestry/forest.ts` | Cone geometry, stem placement, species mix, and the road buffer |
 | `src/pages/dev-forestry/impostor.ts` | Drawn tree silhouettes and the atlas they are packed into |
 | `src/pages/dev-forestry/treeLayer.ts` | The MapLibre custom layer that draws the stand |
+| `src/pages/dev-forestry/impostorBake.ts` | Tree cards baked from the detailed meshes, eight views a tree, and the clump cards built of them |
+| `src/pages/dev-forestry/treeSprays.ts` | The bough and leaf pictures a detailed mesh's foliage cards are cut out by |
+| `src/pages/dev-forestry/treeShadows.ts` | The shadows the nearest stems lay on the ground |
+| `src/pages/dev-forestry/GroundRelief.tsx` | Relief shading lifted over the road view's drawn ground, lit as the trees are |
+| `src/pages/dev-forestry/MovingResolution.tsx` | A lower drawing resolution while the road view moves |
+| `src/pages/dev-forestry/NOTICE-OCTAHEDRAL-IMPOSTOR.md` | What the baked cards take from three.ez's octahedral impostor (MIT) |
+| `scripts/forestry/tree-atlas/export.ts` | Writes the baked sheets and the spray sheet as PNG files |
+| `scripts/forestry/tree-views/` | Fixed road-view cameras measured for picture, tree cover and frame time, with the figures recorded |
 | `src/pages/dev-forestry/ForestOverlay.tsx` | Which ground to grow, and when to regrow it |
 | `src/pages/dev-forestry/visualsNarrative.ts`, `VisualsParagraphPanel.tsx` | Step 5's planning-note summary and the drafted Visuals paragraph |
 | `src/pages/dev-forestry/fieldChecklist.ts`, `fieldBrief.ts`, `FieldBriefPanel.tsx` | The VIA stage, the crew checklist, and step 2's one-page field brief |
