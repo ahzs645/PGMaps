@@ -23,6 +23,7 @@ import { ToolDisclosure } from '@/components/ui/tool-section'
 import { DEFAULT_LOCALE } from '@/lib/format'
 
 import { TREE_SPECIES_IDS, type TreeSpeciesId } from '../forest'
+import type { PolygonGeometry } from '../visibility'
 import {
   TARGET_LABELS,
   blockShareKept,
@@ -46,6 +47,7 @@ import {
 import { ClumpDistributionBars, SpeciesBars, StackedClassBars, StandProfile } from './StandCharts'
 import { ICO_CLASSES, type StandSummary } from './standMetrics'
 import type { Stand } from './standTrees'
+import { TassStandSource } from './TassStandSource'
 import {
   GEOMETRY_CROWN_AREA,
   convertTreeList,
@@ -95,6 +97,8 @@ type Props = {
   onClearImport?: () => void
   /** The imported list the block uses now; null or absent while it uses the drawn stand. */
   importedSource?: ImportedTreeSource | null
+  /** The block's shape, for placing a TASS plot over it (trial); without it the TASS source is not offered. */
+  blockGeometry?: PolygonGeometry | null
   /** The stand profile's strip while the Graphs tab shows it (null when it closes), for the plan map. */
   onStripChange?: (strip: { bearingDegrees: number | null; widthMeters: number } | null) => void
 }
@@ -574,12 +578,14 @@ function PrescriptionTab({
   )
 }
 
-type TreeSourceMode = 'drawn' | 'imported'
+type TreeSourceMode = 'drawn' | 'imported' | 'tass'
 
 const TREE_SOURCES = [
   { value: 'drawn' as const, label: 'Drawn stand' },
   { value: 'imported' as const, label: 'Imported tree list' },
 ]
+/** Trial: a TASS III plot placed over the block (`TassStandSource.tsx`). */
+const TASS_SOURCE = { value: 'tass' as const, label: 'TASS plot (trial)' }
 const CROWN_MEASURES = [
   { value: 'width' as const, label: 'Width (diameter)' },
   { value: 'radius' as const, label: 'Radius' },
@@ -671,12 +677,15 @@ function TreeSource({
   importedSource,
   onImportTrees,
   onClearImport,
+  blockGeometry,
 }: {
   importedSource: ImportedTreeSource | null
   onImportTrees: NonNullable<Props['onImportTrees']>
   onClearImport?: () => void
+  blockGeometry?: PolygonGeometry | null
 }) {
-  const [mode, setMode] = useState<TreeSourceMode>(importedSource ? 'imported' : 'drawn')
+  const fromTass = importedSource?.crs.startsWith('TASS plot') ?? false
+  const [mode, setMode] = useState<TreeSourceMode>(fromTass ? 'tass' : importedSource ? 'imported' : 'drawn')
   const [draft, setDraft] = useState<ImportDraft | null>(null)
   const [readError, setReadError] = useState<string | null>(null)
 
@@ -751,7 +760,7 @@ function TreeSource({
         size="sm"
         value={mode}
         onChange={setMode}
-        options={TREE_SOURCES}
+        options={blockGeometry !== undefined ? [...TREE_SOURCES, TASS_SOURCE] : TREE_SOURCES}
       />
       {importedSource ? (
         <CurrentSource source={importedSource} />
@@ -766,6 +775,8 @@ function TreeSource({
           </Button>
           {!importedSource && <span className="text-2xs text-muted-foreground">Already in use.</span>}
         </div>
+      ) : mode === 'tass' ? (
+        <TassStandSource geometry={blockGeometry ?? null} onImportTrees={onImportTrees} />
       ) : (
         <div className="space-y-3">
           <FileDropField
@@ -1166,6 +1177,7 @@ export function StandPrescriptionDialog({
   onImportTrees,
   onClearImport,
   importedSource = null,
+  blockGeometry,
   onStripChange,
 }: Props) {
   const [tab, setTab] = useState<Tab>('prescription')
@@ -1222,7 +1234,12 @@ export function StandPrescriptionDialog({
         {onImportTrees && (
           // Kept mounted under the other tabs so a half-done import survives a look at the table.
           <div hidden={shown !== 'prescription'} className="mb-4">
-            <TreeSource importedSource={importedSource} onImportTrees={onImportTrees} onClearImport={onClearImport} />
+            <TreeSource
+              importedSource={importedSource}
+              onImportTrees={onImportTrees}
+              onClearImport={onClearImport}
+              blockGeometry={blockGeometry}
+            />
           </div>
         )}
         {shown === 'prescription' && (

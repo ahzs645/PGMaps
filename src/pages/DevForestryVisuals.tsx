@@ -5022,6 +5022,7 @@ function DevForestryVisuals() {
         error={prescriptionEntry?.error ?? null}
         onAdopt={(figures) => handleTargetChange(prescriptionTarget.id, figures)}
         importedSource={prescriptionTarget.prescription.imported?.source ?? null}
+        blockGeometry={prescriptionTarget.geometry}
         onImportTrees={(trees, source) =>
           handleTargetChange(prescriptionTarget.id, {
             // Protected trees were the old stand's: a new list starts with none.

@@ -1485,6 +1485,29 @@ stems in the block (`PrescribedCells.replace`); coarser bands thin their grid
 stems by the share kept, as for a drawn stand. Measured crowns set the drawn
 cover there, not VRI's closure: that is the point of measuring them.
 
+**TASS plot (trial).** *Trees from: TASS plot (trial)* draws a TASS III stem
+table (PLOTSY `.tdt`, AppType `Tass_Stems`) over the block
+(`tassStandImport.ts`, `TassStandSource.tsx`). It is a trial: remove those two
+files and the dialog's `tass` mode to drop it. Columns are read by name from
+the export's `.tcl` (PLOTSY column metadata, not Tcl) with their units checked;
+without one, only TASS 4.3.1.2's bundled `Tass_Stems` layout is read, and only
+when every row has its 28 fields. A `.tcl` that remaps columns (`*ColID`) is
+refused. Only live stems over breast height are drawn; snags and down wood are
+counted and left out. Which corner the plot coordinates start from is asked
+and never assumed: TASS's help puts X/Y at the south-west corner and
+row/column at the north-west, and the bundled schema labels its X and Y
+"Row" and "Column". The plot is centred on the block, turned to the chosen
+bearing and, by default, repeated edge to edge; past `TREE_LIST_MAX_TREES` the
+copies nearest the centre are kept, so a large block is drawn as a patch round
+its centre and its stand table's per-hectare figures read low. Each tree keeps
+TASS's height to crown base (`crownBaseMeters`, packed only when a tree has
+one, so other lists save as before), and the near cards and detail meshes draw
+the crown from there (`TreeInstance.crownBase`, `TreeLayerOptions.crownBaseOf`,
+an identity for every stem without one, so `screenCoverage.test.ts` is
+unchanged). It is display only, like every imported list: the run's sightlines
+keep the regional canopy. The ministry's sample files are read only by the
+env-gated test (`TASS_SAMPLES`), never committed.
+
 **Snags.** *Snags* leaves the largest trees taken, so many per hectare,
 topped at the snag height and standing dead (`snagMesh`) instead of felled or
 hauled; the tree file lists them as `snag`. Drawing only.

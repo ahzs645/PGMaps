@@ -9,9 +9,9 @@ import {
   type Thinning,
   type TreeInstance,
 } from './forest'
-import { buildImpostorAtlas } from './impostor'
+import { TREE_SPECIES_DRAWING, buildImpostorAtlas } from './impostor'
 import { createTreeLayer, type TreeLook, type TreeStyle } from './treeLayer'
-import { detailedTreeMesh } from './treeGeometry'
+import { detailedCrownBase, detailedTreeMesh } from './treeGeometry'
 import { debrisMesh, felledTreeMesh, logMesh, placeDebris, snagMesh, stumpMesh } from './harvestedGround'
 import type { TreatedStemKind } from './stand/prescribedCells'
 
@@ -148,6 +148,9 @@ export function ForestOverlay(props: ForestOverlayProps) {
         atlas: clumpBand(i) ? clumpAtlas : atlas,
         clumps: style !== 'solid' && clumpBand(i),
         mesh: style === 'solid' ? coniferMesh() : undefined,
+        // Single-tree cards know the crown base they were drawn with; clumps and the plain cone do not.
+        crownBaseOf:
+          style !== 'solid' && !clumpBand(i) ? (species) => TREE_SPECIES_DRAWING[species].crownBase : undefined,
         crossedCards: i === 0 ? (style === 'hybrid' ? 3 : 2) : i === 1 ? 2 : undefined,
         range: canopyRange(bands, i),
         look,
@@ -165,6 +168,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
             createTreeLayer(`${LAYER_ID}-detail-${species}`, {
               style: 'solid',
               mesh: detailedTreeMesh(species, index + 1),
+              crownBaseOf: detailedCrownBase,
               range: [-2, -1, detailRadiusMeters - DETAIL_BLEND_METERS, detailRadiusMeters + 0.01],
               look,
             }),

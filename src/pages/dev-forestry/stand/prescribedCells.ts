@@ -88,6 +88,7 @@ export function prescribedCells(
               species: tree.species,
               variant: Math.floor(random() * VARIANTS_PER_SPECIES) % VARIANTS_PER_SPECIES,
               ...(tint ? { tint } : {}),
+              ...(tree.crownBaseMeters !== undefined ? { crownBase: tree.crownBaseMeters / tree.heightMeters } : {}),
             },
           ]
         })

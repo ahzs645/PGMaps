@@ -115,6 +115,13 @@ const DETAILED_SPECIES: Record<Exclude<TreeSpeciesId, 'aspen' | 'birch'>, Detail
   },
 }
 
+/** The crown base, 0–1 of height, `detailedTreeMesh` draws each species with. */
+export function detailedCrownBase(species: TreeSpeciesId): number {
+  if (species === 'aspen') return 0.44
+  if (species === 'birch') return 0.48
+  return DETAILED_SPECIES[species].crownBase
+}
+
 /** Widest crown radius in mesh units: matches `roadsideTreeMesh`, so a per-stem crown width means the same. */
 const DETAILED_CROWN_RADIUS = 0.56
 
