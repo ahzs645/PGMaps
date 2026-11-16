@@ -1,0 +1,16 @@
+/* Tourkit's card and ring in PGMaps' colours. Tourkit's own defaults have zero specificity, so these
+   win in any order; `.dark` on <html> reaches the player's body portal. */
+.tourkit-surface,
+.tourkit-overlay {
+  --tourkit-bg: hsl(var(--card));
+  --tourkit-ink: hsl(var(--card-foreground));
+  --tourkit-ink-2: hsl(var(--muted-foreground));
+  --tourkit-ink-3: hsl(var(--muted-foreground));
+  --tourkit-line: hsl(var(--border));
+  --tourkit-line-soft: hsl(var(--border));
+  --tourkit-track: hsl(var(--muted));
+  --tourkit-accent: hsl(var(--primary));
+  --tourkit-accent-ink: hsl(var(--primary-foreground));
+  --tourkit-ring: hsl(var(--ring));
+  --tourkit-font: inherit;
+}

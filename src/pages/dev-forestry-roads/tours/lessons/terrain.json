@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "id": "terrain",
+  "title": "Load a terrain surface",
+  "description": "Import a GeoTIFF elevation grid and check its name, cell size and coordinate system before reading elevations from it.",
+  "setup": {
+    "kind": "task",
+    "goal": "Load a GeoTIFF as the project’s ground and check what was loaded.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The sample is a synthetic slope in metres; the lesson changes the ground the training project is calculated on."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 4,
+  "docs": "/help/terrain",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "terrain",
+      "title": "Load the sample surface",
+      "steps": [
+        {
+          "id": "terrain-tab",
+          "anchor": {
+            "id": "road.workflow.terrain",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "terrain"
+            }
+          },
+          "check": {
+            "description": "Terrain is open",
+            "all": [
+              {
+                "path": "workflow.editor",
+                "equals": "terrain"
+              },
+              {
+                "path": "workflow.shown",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open Terrain",
+            "body": "Open the Terrain tab. Terrain source names the ground the road’s profiles and sections are calculated on."
+          }
+        },
+        {
+          "id": "options",
+          "anchor": {
+            "id": "road.terrain.importOptions",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.workflow.reveal",
+            "args": {
+              "editor": "terrain",
+              "section": "Import options"
+            }
+          },
+          "check": {
+            "description": "Import options is open",
+            "all": [
+              {
+                "path": "sections.open",
+                "where": {
+                  "name": "Import options"
+                },
+                "count": {
+                  "min": 1
+                }
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open the import options",
+            "body": "Expand Import options."
+          }
+        },
+        {
+          "id": "datum",
+          "anchor": {
+            "id": "road.terrain.datum",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.terrain.datum",
+            "args": {
+              "value": "Synthetic training metres"
+            }
+          },
+          "check": {
+            "description": "the datum reads Synthetic training metres",
+            "all": [
+              {
+                "path": "terrain.importDatum",
+                "equals": "Synthetic training metres"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Name the elevation reference",
+            "body": "In Imported DEM vertical datum (metres), enter Synthetic training metres. For your own data, enter the vertical reference supplied with the file."
+          }
+        },
+        {
+          "id": "import",
+          "anchor": {
+            "id": "road.command.import",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.file.import",
+            "args": {
+              "kind": "terrain",
+              "path": "help/terrain/training-slope.tif"
+            }
+          },
+          "check": {
+            "description": "the terrain source is training-slope.tif",
+            "all": [
+              {
+                "path": "terrain.name",
+                "equals": "training-slope.tif"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Load the sample",
+            "body": "Select Import GeoTIFF, LAS, LAZ or RoadEng and choose training-slope.tif, the sample file in this lesson’s guide. Wait for it to load."
+          }
+        },
+        {
+          "id": "source",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.terrain.source",
+            "placement": "right"
+          },
+          "overlay": {
+            "title": "Check what was loaded",
+            "body": "Terrain source now reads training-slope.tif, with 20 m cells in EPSG:32610. Check those details before reading elevations from a new surface."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -79,23 +79,6 @@ export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
   plugins: [
     react(),
-    {
-      name: 'forestry-help-index',
-      configureServer(server) {
-        const base = server.config.base
-        server.middlewares.use((request, response, next) => {
-          const url = new URL(request.url ?? '/', 'http://localhost')
-          const relative = url.pathname.slice(base.length)
-          if (url.pathname.startsWith(base) && relative === 'help') {
-            response.writeHead(302, { Location: url.pathname + '/' + url.search }).end()
-            return
-          }
-          if (url.pathname.startsWith(base) && /^help\/(?:[a-z0-9-]+\/)?$/.test(relative))
-            request.url = url.pathname + 'index.html' + url.search
-          next()
-        })
-      },
-    },
     webUpdateNotice({
       versionType: 'git_commit_hash',
       checkInterval: 5 * 60 * 1000,
@@ -135,7 +118,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      input: { app: 'index.html', ribbonHelp: 'help/ribbon.html' },
+      input: { app: 'index.html' },
       output: {
         manualChunks(id) {
           // The trailing slash matters: without it maplibre-gl-lidar, and the

@@ -24,12 +24,15 @@ export function ReadoutGrid({
   className?: string
   minColumnWidth?: string
   'data-testid'?: string
+  /** A live lesson's anchor (`data-tutorial-id`). */
+  'data-tutorial-id'?: string
 }) {
   return (
     <dl
       className={cn('grid gap-x-3 text-3xs leading-4 tabular-nums', className)}
       style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(${minColumnWidth}, 100%), 1fr))` }}
       data-testid={props['data-testid']}
+      data-tutorial-id={props['data-tutorial-id']}
     >
       {items
         .filter((item): item is ReadoutItem => Boolean(item))

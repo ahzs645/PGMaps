@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "id": "sketch-road",
+  "title": "Sketch a road",
+  "description": "Draw a new road on the open hillside in one stroke, finish the sketch and find the road you created.",
+  "setup": {
+    "kind": "task",
+    "goal": "Sketch a new road in one stroke and find it as the active road.",
+    "audience": [
+      "Forest road designers new to PGMaps"
+    ],
+    "access": [
+      "None: the lesson opens the synthetic training project, which needs no sign-in and no data download."
+    ],
+    "startingScreen": "The road designer on the Hillside access training project, zoomed to a road-free patch of the hillside.",
+    "sources": [],
+    "limitations": [
+      "The readings are those of the synthetic training terrain and the Hillside access roads as shipped."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 3,
+  "docs": "/help/sketch-road",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training-sketch",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "sketch",
+      "title": "Sketch a road",
+      "steps": [
+        {
+          "id": "sketch",
+          "anchor": {
+            "id": "road.command.sketch",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "sketch"
+            }
+          },
+          "check": {
+            "description": "the sketch tool is in hand",
+            "all": [
+              {
+                "path": "tool.mode",
+                "equals": "sketch"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Pick up the sketch tool",
+            "body": "Select Sketch a road. The panel above the plan says when the tool is ready."
+          }
+        },
+        {
+          "id": "stroke",
+          "anchor": {
+            "id": "road.plan",
+            "placement": "left"
+          },
+          "card": {
+            "placement": "docked"
+          },
+          "action": {
+            "id": "road.sketch.stroke",
+            "args": {
+              "stroke": [
+                [
+                  -122.72915,
+                  53.88568
+                ],
+                [
+                  -122.72732,
+                  53.88658
+                ],
+                [
+                  -122.7261,
+                  53.8873
+                ],
+                [
+                  -122.72458,
+                  53.88784
+                ],
+                [
+                  -122.72336,
+                  53.88856
+                ]
+              ],
+              "metresPerPixel": 0.43
+            }
+          },
+          "check": {
+            "description": "the project holds a third road",
+            "all": [
+              {
+                "path": "roads.count",
+                "equals": 3
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Draw the road in one stroke",
+            "body": "Press on the open hillside near the lower left and drag up to the right in one gentle S-curve, then let go. Start away from the existing roads: a stroke that touches a road’s end extends that road instead. The stroke becomes editable points, with curves fitted where the minimum radius allows."
+          }
+        },
+        {
+          "id": "done",
+          "anchor": {
+            "id": "road.sketch.done",
+            "placement": "bottom"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "inspect"
+            }
+          },
+          "check": {
+            "description": "the sketch tool is put down",
+            "all": [
+              {
+                "path": "tool.mode",
+                "equals": "inspect"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Put the tool down",
+            "body": "Select Done sketching to inspect the result. To extend the road first, draw another stroke that meets its end."
+          }
+        },
+        {
+          "id": "road",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.design.roadName",
+            "placement": "right"
+          },
+          "overlay": {
+            "title": "Find the new road",
+            "body": "Road name reads Sketched road 3: the new road is the active one. The number counts the roads already in the project."
+          }
+        }
+      ]
+    }
+  ]
+}

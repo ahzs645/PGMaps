@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "id": "quantities-cost",
+  "title": "Read earthworks and estimated cost",
+  "description": "Find the road’s cut and fill volumes and see how its base engineering estimate is itemised.",
+  "setup": {
+    "kind": "task",
+    "goal": "Read the earthwork volumes and the itemised base estimate.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": ["Volumes and rates are illustrative and change when the road or the terrain changes."]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 3,
+  "docs": "/help/quantities-cost",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "quantities",
+      "title": "Quantities and cost",
+      "steps": [
+        {
+          "id": "engineering-tab",
+          "anchor": {
+            "id": "road.workflow.engineering",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "engineering"
+            }
+          },
+          "check": {
+            "description": "Engineering is open",
+            "all": [
+              {
+                "path": "workflow.editor",
+                "equals": "engineering"
+              },
+              {
+                "path": "workflow.shown",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open Engineering",
+            "body": "Open the Engineering tab, where the quantity and cost tools are."
+          }
+        },
+        {
+          "id": "breakdown",
+          "anchor": {
+            "id": "road.engineering.quantities",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "quantities"
+            }
+          },
+          "check": {
+            "description": "the detail pane shows the quantities",
+            "all": [
+              {
+                "path": "detail.view",
+                "equals": "engineering"
+              },
+              {
+                "path": "panes.detail",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Show the breakdown",
+            "body": "Select Show quantities & cost breakdown. The detail pane switches to Engineering quantities."
+          }
+        },
+        {
+          "id": "volumes",
+          "completion": "continue",
+          "overlay": {
+            "title": "Read the earthworks",
+            "body": "In the road summary, Cut / fill gives excavation first and fill second: 5,086 m³ of cut and 22,158 m³ of fill. Complete sections, 100%, says how much of the road the volumes cover."
+          }
+        },
+        {
+          "id": "total",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.quantities.cost",
+            "placement": "left"
+          },
+          "context": {
+            "label": "the quantities in the detail pane",
+            "all": [
+              {
+                "path": "host.view",
+                "equals": "engineering"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Read the base estimate",
+            "body": "In the cost table, excavation, fill placement, surfacing and clearing total $351,032.76 at the training rates. This is the base estimate: the road’s unpriced stream crossing still needs its own review."
+          }
+        }
+      ]
+    }
+  ]
+}

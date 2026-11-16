@@ -25,7 +25,16 @@ import {
   type RibbonFieldId,
 } from './roadFieldDefinitions'
 
-export function TemplateField({ field, workspace }: { field: TemplateFieldId; workspace: RoadWorkspace }) {
+export function TemplateField({
+  field,
+  workspace,
+  tutorialId,
+}: {
+  field: TemplateFieldId
+  workspace: RoadWorkspace
+  /** The field's live-lesson anchor; given only by the Section editor, never the Ribbon's quick field. */
+  tutorialId?: string
+}) {
   const [, label, min, max] = TEMPLATE_FIELDS.find(([key]) => key === field)!
   const { alignment, analysis, updateAlignment } = workspace
   const lower = ditchWidthRange(alignment.template, field)?.min
@@ -41,6 +50,7 @@ export function TemplateField({ field, workspace }: { field: TemplateFieldId; wo
           : undefined
       }
       error={inputMessage(analysis.invalidInput, 'template', undefined, field)}
+      tutorialId={tutorialId}
       onChange={(value) => updateAlignment((a) => ({ ...a, template: { ...a.template, [field]: value } }))}
     />
   )
@@ -68,11 +78,12 @@ export function ProjectSettingField({ field, workspace }: { field: ProjectFieldI
   )
 }
 
-export function RoadNameField({ workspace }: { workspace: RoadWorkspace }) {
+export function RoadNameField({ workspace, tutorialId }: { workspace: RoadWorkspace; tutorialId?: string }) {
   return (
     <Field label="Road name">
       <input
         className={roadFieldClass}
+        data-tutorial-id={tutorialId}
         maxLength={200}
         value={workspace.alignment.name}
         onChange={(e) => workspace.updateAlignment((a) => ({ ...a, name: e.target.value }))}
@@ -98,6 +109,8 @@ export function TerrainImportField(p: TerrainProps & { field: TerrainFieldId; co
         <input
           className={roadFieldClass}
           aria-label="Imported DEM vertical datum (metres)"
+          // The Terrain editor's field only: the Ribbon's compact copy would make the anchor ambiguous.
+          data-tutorial-id={p.compact ? undefined : 'road.terrain.datum'}
           value={p.verticalReference}
           placeholder="e.g. CGVD2013 / EPSG:6647"
           onChange={(e) => p.onVerticalReference(e.target.value)}

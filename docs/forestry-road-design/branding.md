@@ -14,7 +14,7 @@ Brands and choices live in this browser's IndexedDB, not the project file. Exist
 
 The selected export identity reaches report HTML/PDF, map PDF, plot-book HTML/PDF, D-line sheets, and block-map sheets. Artwork is fitted without stretching, recolouring, or cropping. Print paths honour supplied numeric minimum logo widths and clear-space ratios, and refuse a slot that is too small. Textual identity rules and historical reconstruction status remain available in the profile and preview; applying a historical pack does not make it a current official identity.
 
-Downloaded report HTML and offline lessons freeze the chosen profile, artwork, font data, and font notices. Changing browser preferences later does not change that download. Workbench and Ribbon lesson downloads contain their playback assets, including the hand-written capture guards. Ordinary help pages follow the current help choice. Screen font files are packaged only when supplied by the pack or resolved from the pinned Brandkit library; source and affiliation URLs remain metadata.
+Downloaded report HTML freezes the chosen profile, artwork, font data, and font notices. Changing browser preferences later does not change that download. The help pages (`/help`) follow the current help choice. Screen font files are packaged only when supplied by the pack or resolved from the pinned Brandkit library; source and affiliation URLs remain metadata.
 
 ## Integration and limits
 
@@ -30,4 +30,4 @@ Downloaded report HTML and offline lessons freeze the chosen profile, artwork, f
 
 Imports validate ZIP paths and CRCs, reject unsupported schema versions, and accept a passive outlined SVG subset. Scripts, resource references, event handlers, live text, and inherited `currentColor` artwork are rejected. Errors leave existing choices intact.
 
-Run `npm run help:build` after branding runtime, lesson styles, or radius changes, and `npm run help:check` to verify generated exports. `src/branding/model.test.ts` covers profile safety, geometry, scope choices, ZIP budgets, and optional TTF PDF embedding. `tests/e2e/branding.spec.ts` covers independent choices, persistence, restoring defaults, and frozen offline downloads. Set `PGMAPS_BRANDKIT_PROVINCE` and `PGMAPS_BRANDKIT_HYDRO` to local source pack paths to run the two real-pack browser cases; those uploaded archives are not committed.
+`src/branding/model.test.ts` covers profile safety, geometry, scope choices, ZIP budgets, and optional TTF PDF embedding. `tests/e2e/branding.spec.ts` covers independent choices, persistence, restoring defaults, and frozen report downloads. Set `PGMAPS_BRANDKIT_PROVINCE` and `PGMAPS_BRANDKIT_HYDRO` to local source pack paths to run the two real-pack browser cases; those uploaded archives are not committed.

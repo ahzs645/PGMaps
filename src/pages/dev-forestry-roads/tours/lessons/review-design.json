@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "id": "review-design",
+  "title": "Review design checks",
+  "description": "Read what the design checks report for the training road and follow one to the setting it needs.",
+  "setup": {
+    "kind": "task",
+    "goal": "Read the review list and follow a check to its setting.",
+    "audience": [
+      "Forest road designers new to PGMaps"
+    ],
+    "access": [
+      "None: the lesson opens the synthetic training project, which needs no sign-in and no data download."
+    ],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The findings are those of the unedited training project; your own road will have its own."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 3,
+  "docs": "/help/review-design",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "review",
+      "title": "Review the design",
+      "steps": [
+        {
+          "id": "review-tab",
+          "anchor": {
+            "id": "road.workflow.review",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "review"
+            }
+          },
+          "check": {
+            "description": "Review is open",
+            "all": [
+              {
+                "path": "workflow.editor",
+                "equals": "review"
+              },
+              {
+                "path": "workflow.shown",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open Review",
+            "body": "Open the Review tab. Its list reflects the open project and the active road."
+          }
+        },
+        {
+          "id": "readiness",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.review.verdict",
+            "placement": "right"
+          },
+          "overlay": {
+            "title": "Read the findings",
+            "body": "Ready to review reports 3 outside a limit and 9 to do. Read the note under each: one flags the synthetic terrain, another that the fill is 17,580 m³ short with no borrow source set."
+          }
+        },
+        {
+          "id": "standards",
+          "anchor": {
+            "id": "road.review.action.standards",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.workflow.reveal",
+            "args": {
+              "editor": "review",
+              "section": "Design standards",
+              "scroll": false
+            }
+          },
+          "check": {
+            "description": "Design standards is open",
+            "all": [
+              {
+                "path": "sections.open",
+                "where": {
+                  "name": "Design standards"
+                },
+                "count": {
+                  "min": 1
+                }
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Follow a check to its setting",
+            "body": "Under To do, find Design standards and select Set standards. The Design standards settings open."
+          }
+        },
+        {
+          "id": "limits",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.review.standards",
+            "placement": "right"
+          },
+          "overlay": {
+            "title": "Read the design limits",
+            "body": "Grade limit (%) is 12 and Minimum radius (m) is 25. On a real job, check these against the job’s requirements before confirming them; here, leave them as they are."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "road-section",
+  "title": "Change the road cross-section",
+  "description": "Widen the left half of the road and check the two sides independently in the cross-section.",
+  "setup": {
+    "kind": "task",
+    "goal": "Change one half-width and read both widths at a station.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The readings are those of the synthetic training terrain and the Hillside access roads as shipped."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 3,
+  "docs": "/help/road-section",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "section",
+      "title": "Widen the left side",
+      "steps": [
+        {
+          "id": "template-tab",
+          "anchor": {
+            "id": "road.workflow.template",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "section"
+            }
+          },
+          "check": {
+            "description": "Section is open",
+            "all": [
+              {
+                "path": "workflow.editor",
+                "equals": "template"
+              },
+              {
+                "path": "workflow.shown",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open Section",
+            "body": "Open the Section tab. Road cross-section holds the widths, crossfall, batters and ditch of the road."
+          }
+        },
+        {
+          "id": "width",
+          "anchor": {
+            "id": "road.template.leftWidth",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.template.set",
+            "args": {
+              "field": "leftWidth",
+              "value": 4
+            }
+          },
+          "check": {
+            "description": "the left half-width is 4 m",
+            "all": [
+              {
+                "path": "template.leftWidth",
+                "equals": 4
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Widen the left side",
+            "body": "Change Left half-width (m) from 3 to 4. Leave Right half-width (m) at 3: each is measured from the road centreline."
+          }
+        },
+        {
+          "id": "widths",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.section.readout",
+            "placement": "left"
+          },
+          "context": {
+            "label": "the cross-section in the detail pane",
+            "all": [
+              {
+                "path": "host.view",
+                "equals": "section"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Read both widths",
+            "body": "At 0+000, Width L/R reads 4.0 / 3.0 in the cross-section: the left side is one metre wider, so the running width here is seven metres."
+          }
+        }
+      ]
+    }
+  ]
+}

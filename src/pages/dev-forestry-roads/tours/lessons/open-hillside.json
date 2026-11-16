@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "id": "open-hillside",
+  "title": "Open Hillside access and choose a workspace",
+  "description": "Find your way around the training project: the active road, a station on it, and the same work in another workspace interface.",
+  "setup": {
+    "kind": "orientation",
+    "goal": "Find the active road and a station on it, and switch workspace interface without losing either.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The readings are those of the synthetic training terrain and the Hillside access roads as shipped."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 4,
+  "docs": "/help/open-hillside",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "project",
+      "title": "The training project",
+      "steps": [
+        {
+          "id": "plan",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.plan",
+            "placement": "right"
+          },
+          "overlay": {
+            "title": "Hillside access on the plan",
+            "body": "This is Hillside access, a road on synthetic training ground. The project also holds a second road, Contour alternative. Every lesson starts from this project, and a reload starts it fresh."
+          }
+        },
+        {
+          "id": "basis",
+          "completion": "continue",
+          "overlay": {
+            "title": "A training project",
+            "body": "The Synthetic training badge in the header says the ground is made up for practice: its numbers are not survey data. Anything you change here is gone when the page reloads, unless you save a copy (Save and reopen a project shows how)."
+          }
+        },
+        {
+          "id": "road",
+          "anchor": {
+            "id": "road.road",
+            "placement": "bottom"
+          },
+          "action": {
+            "id": "road.alignment.select",
+            "args": {
+              "id": "demo-main"
+            }
+          },
+          "check": {
+            "description": "Hillside access is the active road",
+            "all": [
+              {
+                "path": "roads.activeId",
+                "equals": "demo-main"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Find the active road",
+            "body": "The road selector names the road the drawings show. Choose Hillside access if Contour alternative is showing."
+          }
+        },
+        {
+          "id": "preset",
+          "action": {
+            "id": "road.layout.select",
+            "args": {
+              "preset": "linked"
+            }
+          },
+          "check": {
+            "description": "the Linked overview preset is chosen",
+            "all": [
+              {
+                "path": "layout.preset",
+                "equals": "linked"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Show the linked views",
+            "body": "In the screen preset menu, choose Linked overview. The plan, the profile and the cross-section then show the same station side by side."
+          }
+        },
+        {
+          "id": "station",
+          "anchor": {
+            "id": "road.station",
+            "placement": "top"
+          },
+          "action": {
+            "id": "road.station.select",
+            "args": {
+              "chainage": 200
+            }
+          },
+          "check": {
+            "description": "the selected station is 0+200",
+            "all": [
+              {
+                "path": "station.metre",
+                "equals": 200
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Mark a station",
+            "body": "Type 200 in the Station box and press Enter. The red point labelled 0+200.0 on the plan is 200 metres along Hillside access from its start."
+          }
+        }
+      ]
+    },
+    {
+      "id": "workspaces",
+      "title": "Another workspace",
+      "steps": [
+        {
+          "id": "guided-map",
+          "anchor": {
+            "id": "road.command.chooseInterface",
+            "placement": "bottom"
+          },
+          "action": {
+            "id": "road.interface.select",
+            "args": {
+              "id": "guided"
+            }
+          },
+          "check": {
+            "description": "Guided map is the interface",
+            "all": [
+              {
+                "path": "interface.id",
+                "equals": "guided"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Switch to Guided map",
+            "body": "Select Switch workspace interface and choose Guided map. The interfaces arrange the same tools differently; the project stays as it is."
+          }
+        },
+        {
+          "id": "kept",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.station",
+            "placement": "top"
+          },
+          "overlay": {
+            "title": "The road and station stay",
+            "body": "Guided map shows the same project: Hillside access is still the active road and the station still reads 0+200."
+          }
+        },
+        {
+          "id": "back",
+          "anchor": {
+            "id": "road.command.chooseInterface",
+            "placement": "bottom"
+          },
+          "action": {
+            "id": "road.interface.select",
+            "args": {
+              "id": "workbench"
+            }
+          },
+          "check": {
+            "description": "Guided mode is the interface",
+            "all": [
+              {
+                "path": "interface.id",
+                "equals": "workbench"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Return to Guided mode",
+            "body": "Select Switch workspace interface again and choose Guided mode."
+          }
+        }
+      ]
+    }
+  ]
+}

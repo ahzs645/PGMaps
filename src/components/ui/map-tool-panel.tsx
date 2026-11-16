@@ -24,6 +24,7 @@ export function MapToolPanel({
   help,
   helpLabel,
   onClose,
+  closeTutorialId,
   closeLabel,
   closeKeys = 'Esc',
   hint,
@@ -43,6 +44,8 @@ export function MapToolPanel({
   /** Accessible name of the close button, e.g. "Cancel pegging". */
   closeLabel?: string
   closeKeys?: string
+  /** The close button's live-lesson anchor (`data-tutorial-id`). */
+  closeTutorialId?: string
   hint?: ReactNode
   status?: ReactNode
   statusTone?: 'default' | 'warning'
@@ -76,6 +79,7 @@ export function MapToolPanel({
             variant="ghost"
             className="ml-auto size-7 shrink-0"
             aria-label={closeLabel ?? 'Close'}
+            data-tutorial-id={closeTutorialId}
             title={closeKeys ? `${closeLabel ?? 'Close'} · ${closeKeys}` : closeLabel}
             onClick={onClose}
           >

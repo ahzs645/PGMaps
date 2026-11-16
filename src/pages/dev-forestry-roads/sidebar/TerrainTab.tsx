@@ -1,4 +1,5 @@
 import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
+import { ROAD_TOUR_ANCHORS } from '../tours/roadTour'
 import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
 import type { ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
@@ -75,7 +76,11 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         }
       >
         {/* The source by name: a bounding box and raw cell size are kept for the tooltip and report. */}
-        <div className={insetBox({ tone: 'muted' })} data-testid="road-scenario-evidence">
+        <div
+          className={insetBox({ tone: 'muted' })}
+          data-testid="road-scenario-evidence"
+          data-tutorial-id={ROAD_TOUR_ANCHORS.terrainSource}
+        >
           <div className="flex items-start gap-1.5">
             <p className="min-w-0 flex-1 text-sm font-medium leading-5" title={project.terrain.name}>
               {terrainSourceName(project.terrain.name)}
@@ -183,6 +188,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
       <TerrainProfilesPanel workspace={p.workspace} onDraw={() => p.onMode('profile')} onProfile={p.onProfile} />
       <RoadSection
         title="Import options"
+        toggleTutorialId={ROAD_TOUR_ANCHORS.importOptions}
         summary={`${SURFACES[p.pointCloud.surface]}${p.verticalReference ? ' · datum set' : ''}`}
         help={
           <>

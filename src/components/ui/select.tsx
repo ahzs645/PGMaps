@@ -171,13 +171,20 @@ type AppSelectProps = {
   triggerAriaDescribedBy?: string
   triggerAriaInvalid?: React.AriaAttributes['aria-invalid']
   triggerTitle?: string
+  /** The trigger's `data-tutorial-id`, when a live lesson points at this dropdown (`docs/shared-ui.md`). */
+  triggerTutorialId?: string
   name?: string
   required?: boolean
 }
 
 type TriggerAria = Pick<
   AppSelectProps,
-  'triggerAriaLabel' | 'triggerAriaLabelledBy' | 'triggerAriaDescribedBy' | 'triggerAriaInvalid' | 'triggerTitle'
+  | 'triggerAriaLabel'
+  | 'triggerAriaLabelledBy'
+  | 'triggerAriaDescribedBy'
+  | 'triggerAriaInvalid'
+  | 'triggerTitle'
+  | 'triggerTutorialId'
 >
 const triggerAria = (props: TriggerAria) => ({
   'aria-label': props.triggerAriaLabel,
@@ -185,6 +192,7 @@ const triggerAria = (props: TriggerAria) => ({
   'aria-describedby': props.triggerAriaDescribedBy,
   'aria-invalid': props.triggerAriaInvalid,
   title: props.triggerTitle,
+  'data-tutorial-id': props.triggerTutorialId,
 })
 
 /** The plain trigger's own classes: layout and states only; the caller's classes give the look. */
@@ -272,11 +280,19 @@ function AppSelect({
   triggerAriaDescribedBy,
   triggerAriaInvalid,
   triggerTitle,
+  triggerTutorialId,
   name,
   required,
   ...props
 }: AppSelectProps & Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange' | 'defaultValue'>) {
-  const aria = { triggerAriaLabel, triggerAriaLabelledBy, triggerAriaDescribedBy, triggerAriaInvalid, triggerTitle }
+  const aria = {
+    triggerAriaLabel,
+    triggerAriaLabelledBy,
+    triggerAriaDescribedBy,
+    triggerAriaInvalid,
+    triggerTitle,
+    triggerTutorialId,
+  }
   if (searchable)
     return (
       <div className={className} {...props}>
@@ -329,6 +345,7 @@ function PlainSelect({
   triggerAriaDescribedBy,
   triggerAriaInvalid,
   triggerTitle,
+  triggerTutorialId,
   id,
   disabled,
   triggerRef,
@@ -392,6 +409,7 @@ function PlainSelect({
           triggerAriaDescribedBy,
           triggerAriaInvalid,
           triggerTitle,
+          triggerTutorialId,
         })}
         data-value={value}
         data-select-trigger=""
@@ -423,6 +441,7 @@ function SearchableSelect({
   triggerAriaDescribedBy,
   triggerAriaInvalid,
   triggerTitle,
+  triggerTutorialId,
   id,
   disabled,
   searchPlaceholder = 'Search…',
@@ -473,6 +492,7 @@ function SearchableSelect({
             triggerAriaDescribedBy,
             triggerAriaInvalid,
             triggerTitle,
+            triggerTutorialId,
           })}
           aria-haspopup="listbox"
           aria-expanded={open}

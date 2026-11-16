@@ -96,6 +96,7 @@ export function StationBox({
       <div className="road-station-field flex rounded-md border border-input bg-background text-foreground focus-within:ring-1 focus-within:ring-ring">
         <input
           id={inputId}
+          data-tutorial-id="road.station"
           aria-label="Selected station metres"
           type="number"
           min={Math.floor(extent.min * 10) / 10}

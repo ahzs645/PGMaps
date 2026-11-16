@@ -134,7 +134,7 @@ export function BrandingDialog({
         <fieldset disabled={busy} className="text-sm">
           <legend className="font-medium">Apply this brand to</legend>
           {toggle('workspace', 'Workspace headers and interface colours')}
-          {toggle('help', 'Help pages and offline lessons')}
+          {toggle('help', 'Help pages')}
           {toggle('exports', 'Project reports and drawings')}
           <p className="text-xs text-muted-foreground">
             A logo uploaded for a block map sheet takes precedence over the selected brand.

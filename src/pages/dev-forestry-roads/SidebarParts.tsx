@@ -26,9 +26,23 @@ export { MAX_SECTION_REACH_M } from './sectionLimits'
  */
 export function RoadSection({
   toggleTestId,
+  toggleTutorialId,
   ...props
-}: Omit<ToolSectionProps, 'toggleProps'> & { toggleTestId?: string }) {
-  return <ToolSection {...props} toggleProps={toggleTestId ? { 'data-testid': toggleTestId } : undefined} />
+}: Omit<ToolSectionProps, 'toggleProps'> & {
+  toggleTestId?: string
+  /** The toggle's live-lesson anchor (`data-tutorial-id`). */
+  toggleTutorialId?: string
+}) {
+  return (
+    <ToolSection
+      {...props}
+      toggleProps={
+        toggleTestId || toggleTutorialId
+          ? { 'data-testid': toggleTestId, 'data-tutorial-id': toggleTutorialId }
+          : undefined
+      }
+    />
+  )
 }
 
 /**

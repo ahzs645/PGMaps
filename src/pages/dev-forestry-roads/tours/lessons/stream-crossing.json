@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "id": "stream-crossing",
+  "title": "Record a stream crossing",
+  "description": "Turn the road’s detected crossing of a stream into a crossing record for planning and pricing.",
+  "setup": {
+    "kind": "task",
+    "goal": "Record a detected stream crossing and see what it still needs.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The readings are those of the synthetic training terrain and the Hillside access roads as shipped."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 3,
+  "docs": "/help/stream-crossing",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "crossing",
+      "title": "Record the crossing",
+      "steps": [
+        {
+          "id": "engineering-tab",
+          "anchor": {
+            "id": "road.workflow.engineering",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "engineering"
+            }
+          },
+          "check": {
+            "description": "Engineering is open",
+            "all": [
+              {
+                "path": "workflow.editor",
+                "equals": "engineering"
+              },
+              {
+                "path": "workflow.shown",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open Engineering",
+            "body": "Open the Engineering tab. Its stream crossing summary says whether a detected crossing still needs a record or a price."
+          }
+        },
+        {
+          "id": "crossings",
+          "anchor": {
+            "id": "road.crossings.toggle",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.workflow.reveal",
+            "args": {
+              "editor": "engineering",
+              "section": "Stream crossing estimates"
+            }
+          },
+          "check": {
+            "description": "Stream crossing estimates is open",
+            "all": [
+              {
+                "path": "sections.open",
+                "where": {
+                  "name": "Stream crossing estimates"
+                },
+                "count": {
+                  "min": 1
+                }
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open the crossing estimates",
+            "body": "Expand Stream crossing estimates. The road starts with one detected crossing and an unpriced estimate."
+          }
+        },
+        {
+          "id": "record",
+          "anchor": {
+            "id": "road.crossings.record",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.crossings.record"
+          },
+          "check": {
+            "description": "the crossing has a record",
+            "all": [
+              {
+                "path": "crossings.records",
+                "equals": 1
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Record the crossing",
+            "body": "Select Record detected crossings. A record is made for the road’s crossing of Synthetic drainage."
+          }
+        },
+        {
+          "id": "options",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.crossings.structure",
+            "placement": "right"
+          },
+          "overlay": {
+            "title": "See what still needs a decision",
+            "body": "The record is for Synthetic drainage at 600.5 m. Its planning structure option is still Not selected, and its cost items need quantities, rates and a price source: record design and field evidence before choosing or pricing a structure."
+          }
+        }
+      ]
+    }
+  ]
+}

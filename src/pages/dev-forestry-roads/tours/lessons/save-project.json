@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "id": "save-project",
+  "title": "Save and reopen a project",
+  "description": "Save the project to a file you keep, then reopen it and check that its roads came back.",
+  "setup": {
+    "kind": "task",
+    "goal": "Save a project file and reopen it.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The readings are those of the synthetic training terrain and the Hillside access roads as shipped."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 4,
+  "docs": "/help/save-project",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "save",
+      "title": "Save a copy",
+      "steps": [
+        {
+          "id": "save",
+          "anchor": {
+            "id": "road.command.export",
+            "placement": "bottom"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "export"
+            }
+          },
+          "check": {
+            "description": "Save & export shows the project file",
+            "all": [
+              {
+                "path": "dialog.open",
+                "equals": "files"
+              },
+              {
+                "path": "files.output",
+                "equals": "project"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open Save & export",
+            "body": "Select Save in the header. Save & export opens on Project file."
+          }
+        },
+        {
+          "id": "project",
+          "anchor": {
+            "id": "road.files.save",
+            "placement": "left"
+          },
+          "action": {
+            "id": "road.files.save",
+            "args": {
+              "kind": "project"
+            }
+          },
+          "check": {
+            "description": "the project file is saved",
+            "all": [
+              {
+                "path": "files.saved",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Save the project file",
+            "body": "Select Save beside the preview. Your browser downloads a file ending in .road.json: keep it. It holds the project and both of its roads."
+          }
+        },
+        {
+          "id": "close",
+          "anchor": {
+            "id": "road.files",
+            "placement": "left"
+          },
+          "action": {
+            "id": "road.dialog.close"
+          },
+          "check": {
+            "description": "Save & export is closed",
+            "all": [
+              {
+                "path": "dialog.open",
+                "equals": null
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Close Save & export",
+            "body": "Close Save & export."
+          }
+        }
+      ]
+    },
+    {
+      "id": "reopen",
+      "title": "Reopen it",
+      "steps": [
+        {
+          "id": "open",
+          "anchor": {
+            "id": "road.command.open",
+            "placement": "bottom"
+          },
+          "action": {
+            "id": "road.project.reopen"
+          },
+          "check": {
+            "description": "a project is open from a file",
+            "all": [
+              {
+                "path": "files.openedFromFile",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open the saved file",
+            "body": "Select Open in the header and choose the .road.json file you saved."
+          }
+        },
+        {
+          "id": "reopened",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.road",
+            "placement": "bottom"
+          },
+          "overlay": {
+            "title": "Check the restored project",
+            "body": "The saved copy is open: the road selector shows Hillside access again, and both training roads are there. A copy you open is kept in this browser’s projects."
+          }
+        }
+      ]
+    }
+  ]
+}

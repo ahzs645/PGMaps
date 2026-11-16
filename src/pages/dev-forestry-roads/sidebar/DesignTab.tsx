@@ -1,4 +1,5 @@
 import { useStationReader } from '../roadStation'
+import { ROAD_TOUR_ANCHORS, roadPviLevelAnchor } from '../tours/roadTour'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { roadLimitReached } from '../roadLimits'
 import { RoadNameField } from '../SharedRoadFields'
@@ -121,7 +122,7 @@ export function DesignTab(p: SidebarProps) {
                 ))}
               </RoadSelect>
             </Field>
-            <RoadNameField workspace={p.workspace} />
+            <RoadNameField workspace={p.workspace} tutorialId={ROAD_TOUR_ANCHORS.roadName} />
           </div>
           {/* Two rows of two: four labelled buttons do not fit the sidebar's width on one line. The
               buttons are the registry's commands, so their enable rules match the ribbon's. */}
@@ -828,6 +829,7 @@ function VerticalAlignment(p: SidebarProps) {
   return (
     <RoadSection
       title="Vertical alignment"
+      toggleTutorialId={ROAD_TOUR_ANCHORS.verticalAlignment}
       summary={
         alignment.vertical.length
           ? `${alignment.vertical.length} PVIs · ${analysis.maxGradePercent.toFixed(1)}%`
@@ -901,6 +903,7 @@ function VerticalAlignment(p: SidebarProps) {
                     min={key === 'elevation' ? -1000 : 0}
                     max={key === 'elevation' ? 9000 : key === 'chainage' ? Math.max(analysis.length, v.chainage) : 2000}
                     step={key === 'elevation' ? 0.1 : 1}
+                    tutorialId={key === 'elevation' ? roadPviLevelAnchor(i + 1) : undefined}
                     onChange={(value) =>
                       updateAlignment((a) => ({
                         ...a,

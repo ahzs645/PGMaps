@@ -1,4 +1,5 @@
 import { AccessLockup } from './AccessLockup'
+import { roadInterfaceAnchor } from '@/pages/dev-forestry-roads/tours/roadTour'
 import { X } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
 import { layoutIcons, type WorkspaceLayout } from './workspaceLayouts'
@@ -43,11 +44,7 @@ export function InterfaceChooser({
             <AccessLockup />
             <h2 id={titleId}>Choose your workspace</h2>
           </div>
-          <a
-            href={`${import.meta.env.BASE_URL}help/index.html?${workspaceHelpSearch(current)}`}
-            target="_blank"
-            rel="noopener"
-          >
+          <a href={`${import.meta.env.BASE_URL}help?${workspaceHelpSearch(current)}`} target="_blank" rel="noopener">
             Workflow help
           </a>
           <button className="lp-close" onClick={onCancel} aria-label="Close interface chooser">
@@ -65,6 +62,7 @@ export function InterfaceChooser({
                 className="lp-card"
                 data-dock={layout.toolbar?.dock ?? 'none'}
                 aria-label={`Open ${name}`}
+                data-tutorial-id={roadInterfaceAnchor(layout.id)}
                 aria-current={isCurrent || undefined}
                 onClick={() => onChoose(layout)}
               >

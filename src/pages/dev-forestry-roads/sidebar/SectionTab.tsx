@@ -1,4 +1,5 @@
 import { useStationReader } from '../roadStation'
+import { ROAD_TOUR_ANCHORS } from '../tours/roadTour'
 import { useState } from 'react'
 import { ArrowRight, Copy, Trash2 } from 'lucide-react'
 import { insetBox } from '@/components/ui/inset-box'
@@ -66,7 +67,12 @@ export function SectionTab(
       >
         <div className="grid grid-cols-2 items-end gap-x-2 gap-y-1.5">
           {TEMPLATE_FIELDS.map(([key]) => (
-            <TemplateField key={key} field={key} workspace={p.workspace} />
+            <TemplateField
+              key={key}
+              field={key}
+              workspace={p.workspace}
+              tutorialId={key === 'leftWidth' ? ROAD_TOUR_ANCHORS.leftWidth : undefined}
+            />
           ))}
         </div>
         {/* Side values are edited under Template components, which shows one component at a time. */}

@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "id": "export-stations",
+  "title": "Export the station table",
+  "description": "Download the active road’s stations, coordinates, elevations and design values as a CSV file.",
+  "setup": {
+    "kind": "task",
+    "goal": "Export the station table as CSV.",
+    "audience": [
+      "Forest road designers new to PGMaps"
+    ],
+    "access": [
+      "None: the lesson opens the synthetic training project, which needs no sign-in and no data download."
+    ],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The readings are those of the synthetic training terrain and the Hillside access roads as shipped."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 2,
+  "docs": "/help/export-stations",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "export",
+      "title": "Export the stations",
+      "steps": [
+        {
+          "id": "save",
+          "anchor": {
+            "id": "road.command.export",
+            "placement": "bottom"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "export"
+            }
+          },
+          "check": {
+            "description": "Save & export is open",
+            "all": [
+              {
+                "path": "dialog.open",
+                "equals": "files"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open Save & export",
+            "body": "Select Save in the header to open Save & export."
+          }
+        },
+        {
+          "id": "format",
+          "anchor": {
+            "id": "road.files.output.csv",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.files.output",
+            "args": {
+              "kind": "csv"
+            }
+          },
+          "check": {
+            "description": "Station CSV is chosen",
+            "all": [
+              {
+                "path": "files.output",
+                "equals": "csv"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Choose Station CSV",
+            "body": "In GIS data, select Station CSV. The preview lists the active road’s stations."
+          }
+        },
+        {
+          "id": "download",
+          "anchor": {
+            "id": "road.files.save",
+            "placement": "left"
+          },
+          "action": {
+            "id": "road.files.save",
+            "args": {
+              "kind": "csv"
+            }
+          },
+          "check": {
+            "description": "the station CSV is saved",
+            "all": [
+              {
+                "path": "files.lastExport",
+                "equals": "csv"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Download it",
+            "body": "Select Download. Open the .csv in a spreadsheet: station_m, ground_elevation_m and design_elevation_m are among its columns, and the first station is 0 m."
+          }
+        },
+        {
+          "id": "close",
+          "anchor": {
+            "id": "road.files",
+            "placement": "left"
+          },
+          "action": {
+            "id": "road.dialog.close"
+          },
+          "check": {
+            "description": "Save & export is closed",
+            "all": [
+              {
+                "path": "dialog.open",
+                "equals": null
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Close Save & export",
+            "body": "Close Save & export to return to the road. The station table is in your downloads."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -31,4 +31,6 @@
 | Vehicle movement, timber haul, and full route cost | Check a logging truck’s swept path through a bend or junction. Choose a haul destination, orient the junction, and estimate loaded and return travel times. Compare connector construction, road rehabilitation, crossing costs, and delivered materials across routes. | Check whether the truck can make the turn, then see whether reusing an existing road changes the preferred cost option. |
 | Personalize the workspace | Find commands and settings with **Find tools**, reorder ribbon groups, pin controls, change the road summary, resize panes, and save a named screen layout. | Save one layout for pegging and another for reviewing drawings. |
 
+The help at `/help` lists the lessons built so far; each runs live in the designer, in Practice and Watch modes ([help and live lessons](live-lessons.md)), and new lessons follow the same contract.
+
 For the first recording, use the synthetic Hillside access example so the station readings match the existing lesson. Published LiDAR, basemaps, and live BC records depend on external services. The [road-design guides](README.md) cover data requirements and calculation limits for the specialist lessons.

@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "id": "vertical-profile",
+  "title": "Edit a road profile elevation",
+  "description": "Raise the first point of the road’s vertical alignment and read the new formation level in the cross-section.",
+  "setup": {
+    "kind": "task",
+    "goal": "Change a PVI level and see the road surface move while the ground stays.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The readings are those of the synthetic training terrain and the Hillside access roads as shipped."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 3,
+  "docs": "/help/vertical-profile",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "profile",
+      "title": "Raise the first point",
+      "steps": [
+        {
+          "id": "design-tab",
+          "anchor": {
+            "id": "road.workflow.design",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "alignment"
+            }
+          },
+          "check": {
+            "description": "Design is open",
+            "all": [
+              {
+                "path": "workflow.editor",
+                "equals": "design"
+              },
+              {
+                "path": "workflow.shown",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open Design",
+            "body": "Open the Design tab. The road’s alignment tools are here."
+          }
+        },
+        {
+          "id": "vertical",
+          "anchor": {
+            "id": "road.design.verticalAlignment",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.workflow.reveal",
+            "args": {
+              "editor": "design",
+              "section": "Vertical alignment"
+            }
+          },
+          "check": {
+            "description": "Vertical alignment is open",
+            "all": [
+              {
+                "path": "sections.open",
+                "where": {
+                  "name": "Vertical alignment"
+                },
+                "count": {
+                  "min": 1
+                }
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open Vertical alignment",
+            "body": "Expand Vertical alignment. Its points of vertical intersection (PVIs) define the road’s profile."
+          }
+        },
+        {
+          "id": "level",
+          "anchor": {
+            "id": "road.vertical.level.1",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.vertical.setLevel",
+            "args": {
+              "pvi": 1,
+              "elevation": 688.1
+            }
+          },
+          "check": {
+            "description": "PVI 1 is at 688.1 m",
+            "all": [
+              {
+                "path": "vertical.levels.0",
+                "equals": 688.1
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Raise PVI 1",
+            "body": "The level of PVI 1 reads 688. Change it to 688.1: type it, or press the up arrow in the field once (each press is 0.1 m)."
+          }
+        },
+        {
+          "id": "formation",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.section.readout",
+            "placement": "left"
+          },
+          "context": {
+            "label": "the cross-section in the detail pane",
+            "all": [
+              {
+                "path": "host.view",
+                "equals": "section"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Read the new formation level",
+            "body": "At 0+000, Fmn Z in the cross-section now reads 688.10 m while Grd Z stays 688.00 m: the edit moved the road surface, not the ground."
+          }
+        }
+      ]
+    }
+  ]
+}

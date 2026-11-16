@@ -88,11 +88,9 @@ so menus stay on the screen that opened them.
 
 ## Workflow help
 
-Open **Workflow help** in the workspace header or chooser, or use the help button beside the station controls to jump to the 200 m exercise. The guides use the synthetic Hillside access project. The Ribbon version reads the current layout and personal tool order, so its written steps, interactive lesson, and downloadable HTML follow the names the user sees.
+Open **Workflow help** in the workspace header or chooser: it opens `/help` with the interface in use, so each lesson's **Practise** and **Watch** run in that interface. The lessons run live over the designer on the synthetic Hillside access project, pointing at the real controls of whichever interface is open; see [Live lessons](live-lessons.md).
 
 A Ribbon section can set `collect` to `documentExports`, `dataExports`, or `remainingTools` to include unassigned tools in its settings. Explicit placements take precedence. **Find tools** also searches the mounted workflow editors and can open a section inside a folded group.
-
-Each exercise ships its guide, player and editable TourKit package under `public/help/<workflow>/`. Keep step IDs when editing a package. Run `npm run help:build` after editing a lesson, its styles or the shared radius in `src/index.css`; `npm run help:check` verifies the committed exports in CI. The builder replaces the imported TourKit bundle's capture parser with the hand-written guards in `src/help/parseCapture.ts`, preserving its isolated replay and asset sanitizer. It checks the original parser module's hash before replacing it, so a new upstream player requires a review of those boundaries. The shared radius is copied into `public/help/designTokens.css` and inlined in offline players; recorded Ribbon screens take the help page's computed radius. Ribbon-specific entry points are in `src/help/ribbonRoutes.ts`.
 
 Branding is an independent user choice for the workspace, help, and exports. See [Brandkit branding](branding.md) for imports, optional PDF fonts, offline packaging, and limits.
 

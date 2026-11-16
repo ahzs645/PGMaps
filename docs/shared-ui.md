@@ -240,7 +240,9 @@ first option, as a native select does). The menu is the Radix one from `AppSelec
 layered at `z-workspace-popover` so it opens above dialogs and fullscreen panes;
 past `SEARCHABLE_FROM` (10) options it becomes a combobox with a filter box, and
 `searchable` forces either way. `multiple` or a `size` above 1 renders a real
-`<select>`.
+`<select>`. `AppSelect`'s `triggerTutorialId` (`RoadSelect`'s `tutorialId`) puts a live
+lesson's anchor (`data-tutorial-id`) on the trigger itself
+([live lessons](forestry-road-design/live-lessons.md)).
 
 `className` is read as a native select's: width, flex, grid, margin and display
 classes (`splitSelectClasses`) size the wrapper and the rest style the trigger,

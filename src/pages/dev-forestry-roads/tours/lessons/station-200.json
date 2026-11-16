@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "id": "station-200",
+  "title": "Read the cut depth at station 0+200",
+  "description": "Follow one point on the Hillside access training road from the plan to the profile and the cross-section, then see the grade along the whole road.",
+  "setup": {
+    "kind": "task",
+    "goal": "Find a station on the road and read its grade, its centreline cut and the grade along the road.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000.",
+    "sources": [],
+    "limitations": ["The readings are those of the synthetic training terrain and the Hillside access road as shipped."]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 3,
+  "docs": "/help/station-200",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "one-station",
+      "title": "One station, three views",
+      "steps": [
+        {
+          "id": "plan",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.plan",
+            "placement": "right"
+          },
+          "overlay": {
+            "title": "The training road on the plan",
+            "body": "Hillside access is a 1,429 m road on synthetic terrain. This lesson follows one point on it, 200 metres from its start, through the plan, the profile and the cross-section."
+          }
+        },
+        {
+          "id": "station",
+          "anchor": {
+            "id": "road.station",
+            "placement": "top"
+          },
+          "action": {
+            "id": "road.station.select",
+            "args": {
+              "chainage": 200
+            }
+          },
+          "check": {
+            "description": "the selected station is 0+200",
+            "all": [
+              {
+                "path": "station.metre",
+                "equals": 200
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Go to station 0+200",
+            "body": "Type 200 in the Station box and press Enter. The plan marks the point 0+200.0: 0 kilometres plus 200 metres along the road."
+          }
+        },
+        {
+          "id": "profile",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.profile",
+            "placement": "left"
+          },
+          "overlay": {
+            "title": "Read the grade on the profile",
+            "body": "The profile shows how the road climbs along its length. The red line marks 0+200, where the road climbs at 7.3%."
+          }
+        },
+        {
+          "id": "section",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.section.readout",
+            "placement": "left"
+          },
+          "context": {
+            "label": "the cross-section in the detail pane",
+            "all": [
+              {
+                "path": "host.view",
+                "equals": "section"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Read the cut across the road",
+            "body": "In the cross-section the ground sits above the road at the centreline. Cut Dp reads 2.03 m: ground (Grd Z, 704.53 m) less formation (Fmn Z, 702.50 m)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "whole-road",
+      "title": "The whole road",
+      "steps": [
+        {
+          "id": "grade",
+          "anchor": {
+            "id": "road.detail.view",
+            "placement": "bottom"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "gradeDiagram"
+            }
+          },
+          "check": {
+            "description": "the detail pane shows the grade along the road",
+            "all": [
+              {
+                "path": "panes.detail",
+                "equals": true
+              },
+              {
+                "path": "detail.view",
+                "equals": "grade"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "See the grade along the whole road",
+            "body": "Open the detail pane's view list and choose Grade. It draws the road's grade and the ground's along the road, against the 12% grade limit."
+          }
+        }
+      ]
+    }
+  ]
+}

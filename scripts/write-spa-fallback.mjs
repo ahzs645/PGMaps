@@ -85,6 +85,7 @@ const spaRoutes = [
   'dev/color-palettes',
   'dev/climate-vulnerability',
   'dev/early-learning',
+  'help',
 ]
 
 if (!existsSync(indexPath)) {
@@ -114,5 +115,19 @@ if (existsSync(projectsRoot)) {
       copyFileSync(indexPath, entry)
     }
   }
+}
+// The road designer's help: a page per lesson (`/help/<lesson>`), and an entry at each address of the
+// old static help (`<lesson>/tour.html`, `ribbon.html`), which the app redirects to the lesson's page.
+const lessonsRoot = join(root, 'src', 'pages', 'dev-forestry-roads', 'tours', 'lessons')
+const helpEntries = ['help/ribbon.html']
+for (const filename of readdirSync(lessonsRoot)) {
+  if (!filename.endsWith('.json')) continue
+  const lesson = filename.slice(0, -5)
+  helpEntries.push(`help/${lesson}/index.html`, `help/${lesson}/tour.html`)
+}
+for (const entry of helpEntries) {
+  const target = join(root, 'dist', ...entry.split('/'))
+  mkdirSync(dirname(target), { recursive: true })
+  copyFileSync(indexPath, target)
 }
 console.log(`[spa] copied route and project entry points`)

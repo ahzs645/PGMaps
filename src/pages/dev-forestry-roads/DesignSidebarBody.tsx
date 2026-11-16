@@ -17,6 +17,7 @@ import type { DrawMode } from './PlanView'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { ContextFeature, Coordinate, RoadTemplate } from './types'
 import type { AccessHistorySelection } from './AccessHistorySelection'
+import { roadWorkflowAnchor } from './tours/roadTour'
 
 export type FileKind =
   | 'project'
@@ -214,7 +215,10 @@ export function DesignSidebar(p: SidebarProps) {
               onChange={setTab}
               stretch
               stacked
-              getTabProps={(option) => ({ title: option.label })}
+              getTabProps={(option) => ({
+                title: option.label,
+                'data-tutorial-id': roadWorkflowAnchor(option.value),
+              })}
               options={[
                 { value: 'terrain', label: 'Terrain', icon: Mountain },
                 { value: 'design', label: 'Design', icon: Route },

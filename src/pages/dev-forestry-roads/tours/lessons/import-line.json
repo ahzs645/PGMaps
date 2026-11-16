@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "id": "import-line",
+  "title": "Import a road line",
+  "description": "Bring an existing line from a GeoJSON file in as an editable road on the training terrain.",
+  "setup": {
+    "kind": "task",
+    "goal": "Import a line as a new road and check that the terrain supplies its ground.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The readings are those of the synthetic training terrain and the Hillside access roads as shipped."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 3,
+  "docs": "/help/import-line",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "import",
+      "title": "Import the line",
+      "steps": [
+        {
+          "id": "import",
+          "anchor": {
+            "id": "road.command.importAlignment",
+            "placement": "right"
+          },
+          "action": {
+            "id": "road.file.import",
+            "args": {
+              "kind": "alignment",
+              "path": "help/import-line/training-spur.geojson"
+            }
+          },
+          "check": {
+            "description": "Training spur is the active road",
+            "all": [
+              {
+                "path": "road.name",
+                "equals": "Training spur"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Choose the line file",
+            "body": "Select Import road line and choose training-spur.geojson, the sample file in this lesson’s guide. The line becomes a new road."
+          }
+        },
+        {
+          "id": "road",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.design.roadName",
+            "placement": "right"
+          },
+          "overlay": {
+            "title": "Check the active road",
+            "body": "Road name reads Training spur, the name in the file: the imported road is now the active one."
+          }
+        },
+        {
+          "id": "profile",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.profile",
+            "placement": "left"
+          },
+          "overlay": {
+            "title": "Check its ground",
+            "body": "The profile draws a ground line under the whole of the new road: the training terrain supplies elevations all along the line."
+          }
+        }
+      ]
+    }
+  ]
+}

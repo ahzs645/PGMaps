@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ROAD_TOUR_ANCHORS } from './tours/roadTour'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -173,7 +174,7 @@ export function EngineeringSummary({
         )}
         {tab === 'cost' && (
           <>
-            <EngineeringTable data-testid="road-cost-breakdown">
+            <EngineeringTable data-testid="road-cost-breakdown" data-tutorial-id={ROAD_TOUR_ANCHORS.costTable}>
               <thead>
                 <tr>
                   <ColumnHeader label="Cost item" className="text-left" />

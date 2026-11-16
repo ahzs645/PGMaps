@@ -1,4 +1,5 @@
 import { CommandButton } from '@/components/interfaces/CommandButton'
+import { ROAD_TOUR_ANCHORS } from '../tours/roadTour'
 import { StationValue } from '../roadStation'
 import type { RoadSettings } from '../types'
 import { useMemo, useRef, useState } from 'react'
@@ -138,6 +139,7 @@ export function ReviewTab(
       <div ref={standards} className="scroll-mt-2" />
       <RoadSection
         title="Design standards"
+        toggleTutorialId={ROAD_TOUR_ANCHORS.designStandards}
         summary={`${gradeRuleText(gradeRule(settings, project.standards))} · R${settings.minRadius} · ${confirmedOn ? 'confirmed' : 'not confirmed'}`}
         open={standardsOpen}
         onOpenChange={setStandardsOpen}

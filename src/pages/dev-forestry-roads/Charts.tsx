@@ -2516,7 +2516,11 @@ export function CrossSectionChart({
               </p>
             )}
           </div>
-          <ReadoutGrid data-testid="road-section-readout" items={sectionReadout} />
+          <ReadoutGrid
+            data-testid="road-section-readout"
+            data-tutorial-id={terrainOnly ? undefined : 'road.section.readout'}
+            items={sectionReadout}
+          />
           {clipped && (
             <p role="status" data-testid="road-section-clipped" className="text-3xs leading-4 text-muted-foreground">
               {roadScale

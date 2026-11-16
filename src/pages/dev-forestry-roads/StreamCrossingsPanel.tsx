@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ROAD_TOUR_ANCHORS } from './tours/roadTour'
 import { Button } from '@/components/ui/button'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
@@ -176,6 +177,7 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
   return (
     <RoadSection
       title="Stream crossing estimates"
+      toggleTutorialId={ROAD_TOUR_ANCHORS.crossings}
       summary={`${estimate.rows.length} crossings · ${estimate.complete ? money(estimate.knownSubtotal) : 'Incomplete / unpriced'}`}
       help="Each physical road–stream intersection keeps its own planning record. Select a structure option and enter item quantities, rates, quote/source and price date. No structure is approved automatically, and no DFO sizing or installed-price table is used as a default. Geometry or stream assessment changes need review; moved crossings receive new records. Shared costs are charged once in each road alternative's estimate before its contingency. Route-search price groups remain screening allowances."
       data-testid="stream-crossings-panel"
@@ -190,6 +192,7 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
         size="sm"
         variant="outline"
         disabled={!estimate.rows.some((entry) => entry.status === 'unrecorded')}
+        data-tutorial-id={ROAD_TOUR_ANCHORS.recordCrossings}
         onClick={() =>
           workspace.updateAlignment((a) => ({
             ...a,
@@ -236,6 +239,7 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
             <RoadSelect
               className={roadFieldClass}
               ariaLabel="Planning structure option"
+              tutorialId={ROAD_TOUR_ANCHORS.crossingStructure}
               value={row.record.structure}
               onValueChange={(value) => saveRecord({ ...row.record, structure: value as CrossingStructure })}
             >

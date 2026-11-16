@@ -38,6 +38,7 @@ export function RoadSelect({
   placeholder,
   id,
   triggerRef,
+  tutorialId,
 }: {
   value: string
   onValueChange: (value: string) => void
@@ -52,6 +53,8 @@ export function RoadSelect({
   id?: string
   /** The trigger button, e.g. for a pane's initial focus. */
   triggerRef?: Ref<HTMLButtonElement>
+  /** The trigger's lesson anchor (`data-tutorial-id`). */
+  tutorialId?: string
 }) {
   const { layout, trigger } = splitSelectClasses(className)
   const list = [...(options ?? optionsFromChildren(children))]
@@ -70,6 +73,7 @@ export function RoadSelect({
       searchable={searchable ?? list.length > SEARCHABLE_FROM}
       placeholder={placeholder}
       triggerRef={triggerRef}
+      triggerTutorialId={tutorialId}
     />
   )
 }
@@ -176,6 +180,7 @@ export function NumberField({
   inputClassName = roadFieldClass,
   error,
   clampOn,
+  tutorialId,
 }: {
   label: string
   ariaLabel?: string
@@ -200,6 +205,8 @@ export function NumberField({
    * caller then refuses to use it and says why through `error`.
    */
   clampOn?: 'commit' | 'never'
+  /** The input's live-lesson anchor (`data-tutorial-id`). */
+  tutorialId?: string
 }) {
   const note = useRangeNote(value, min, max)
   return (
@@ -216,6 +223,7 @@ export function NumberField({
       fixedDecimals={fixedDecimals}
       stepMode="increment"
       clampOn={clampOn}
+      data-tutorial-id={tutorialId}
       disabled={disabled}
       hideLabel={hideLabel}
       hintAction={hintAction(label, hint)}

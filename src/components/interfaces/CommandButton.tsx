@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { commandTooltip, resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
+import { roadCommandAnchor } from '@/pages/dev-forestry-roads/tours/roadTour'
 
 /**
  * How a renderer presents one registry command. The label and icon always come from
@@ -70,6 +71,7 @@ export function CommandButton({
         variant={presentation.emphasis === 'primary' ? 'default' : 'outline'}
         className={cn('min-w-0 gap-1 px-1', presentation.className)}
         data-command={id}
+        data-tutorial-id={roadCommandAnchor(id)}
         aria-label={presentation.ariaLabel}
         aria-pressed={command.pressed}
         title={presentation.title ?? (command.description || command.reason ? tooltip : undefined)}
@@ -96,6 +98,7 @@ export function CommandButton({
           !primary && 'text-foreground/80 hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground',
         )}
         data-command={id}
+        data-tutorial-id={roadCommandAnchor(id)}
         aria-label={presentation.ariaLabel}
         aria-pressed={command.pressed}
         aria-expanded={presentation.expanded}
@@ -124,6 +127,7 @@ export function CommandButton({
           captionFrom === '2xl' && '2xl:w-auto 2xl:max-w-[14rem] 2xl:px-3',
         )}
         data-command={id}
+        data-tutorial-id={roadCommandAnchor(id)}
         aria-label={presentation.ariaLabel}
         aria-pressed={command.pressed}
         aria-expanded={presentation.expanded}
@@ -158,6 +162,8 @@ export function CommandButton({
       type="button"
       className={quick ? 'lp-quick-command' : 'lp-command'}
       data-ribbon-item={id}
+      // A quick-access copy repeats a ribbon command, so only the ribbon's own button is a lesson anchor.
+      data-tutorial-id={quick ? undefined : roadCommandAnchor(id)}
       data-primary={primary || undefined}
       onClick={() => onRun(id)}
       disabled={command.disabled}

@@ -1,4 +1,5 @@
 import { RoadSelect } from './Controls'
+import { ROAD_TOUR_ANCHORS, roadCompareRowAnchor } from './tours/roadTour'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
@@ -89,12 +90,17 @@ export function CompareAlternatives({
     return !!result && result.stations.length > 0 && !hasCompleteCoverage(result)
   })
   return (
-    <div className="h-full space-y-2 overflow-auto overscroll-none" data-testid="road-compare">
+    <div
+      className="h-full space-y-2 overflow-auto overscroll-none"
+      data-testid="road-compare"
+      data-tutorial-id={ROAD_TOUR_ANCHORS.compareTable}
+    >
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
         <label className="flex min-w-0 items-center gap-2">
           Compared with
           <RoadSelect
             ariaLabel="Comparison baseline"
+            tutorialId={ROAD_TOUR_ANCHORS.compareBaseline}
             className="min-w-0 max-w-48 rounded-md border bg-background px-1 text-base md:text-xs"
             value={baselineAlignment.id}
             onValueChange={(value) => setBaselineId(value)}
@@ -136,6 +142,7 @@ export function CompareAlternatives({
               <tr
                 key={a.id}
                 aria-selected={a.id === activeId}
+                data-tutorial-id={roadCompareRowAnchor(a.id)}
                 title={available ? undefined : result.warnings.join('; ')}
                 className="cursor-pointer"
                 onClick={() => onSelect(a.id)}

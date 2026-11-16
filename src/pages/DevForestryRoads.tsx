@@ -86,6 +86,18 @@ import {
   SessionRestoredNotice,
 } from './dev-forestry-roads/ProjectHeader'
 import { saveStateText } from './dev-forestry-roads/saveState'
+import { createTourActionStream } from '@/lib/tours/tourActions'
+import { readTourLaunch, tourLaunchSearch, type TourLaunch } from '@/lib/tours/tourLaunch'
+import { ROAD_LESSON_IDS } from './dev-forestry-roads/tours/roadLessons'
+import {
+  ROAD_TOUR_ACTIONS,
+  createRoadTourExecutor,
+  createRoadTourSnapshotMemo,
+} from './dev-forestry-roads/tours/roadTour'
+import { synchronizeCrossingRecords } from './dev-forestry-roads/crossingPlan'
+import { TEMPLATE_FIELDS } from './dev-forestry-roads/roadFieldDefinitions'
+import { SectionOpenReporterContext } from '@/components/ui/section-open-reporter'
+import { withBase } from '@/lib/dataUrl'
 import {
   lazy,
   Suspense,
@@ -198,6 +210,10 @@ import { PlaceOnMapDialog } from './dev-forestry-roads/PlaceOnMapDialog'
 const SoftreeCompareDialog = lazy(() =>
   import('./dev-forestry-roads/SoftreeCompareDialog').then((m) => ({ default: m.SoftreeCompareDialog })),
 )
+// Loaded only when the address asks for a lesson: it carries Tourkit's player.
+const RoadLessonPlayer = lazy(() => import('./dev-forestry-roads/tours/RoadLessonPlayer'))
+/** What the person does in the designer, for a running lesson (`docs/forestry-road-design/live-lessons.md`). */
+const roadTourActions = createTourActionStream()
 import {
   applySpatialImport,
   buildSpatialImport,
@@ -494,6 +510,27 @@ export default function DevForestryRoads({
   const [taskPaneDocked, setTaskPaneDocked] = useState(false)
   const ribbonPreferences = useRibbonPreferences(active)
   const w = useRoadWorkspace()
+  // A live lesson the address asks for (`?tour=station-200&tourMode=practice`).
+  const [tourLaunch, setTourLaunch] = useState<TourLaunch | null>(() =>
+    readTourLaunch(window.location.search, ROAD_LESSON_IDS),
+  )
+  const [tourSnapshot] = useState(createRoadTourSnapshotMemo)
+  // What a lesson's checks read that the page did not keep: the sections open (by label), the
+  // output shown in Save & export, the last file saved, and whether a project was opened from a file.
+  const [openSections, setOpenSections] = useState<ReadonlySet<string>>(() => new Set())
+  const reportSection = useCallback((label: string, open: boolean) => {
+    setOpenSections((current) => {
+      if (current.has(label) === open) return current
+      const next = new Set(current)
+      if (open) next.add(label)
+      else next.delete(label)
+      return next
+    })
+  }, [])
+  const [lastExport, setLastExport] = useState<string | null>(null)
+  const [openedFromFile, setOpenedFromFile] = useState(false)
+  // The project file a lesson's Watch saved, which its next step reopens without a download.
+  const lessonSavedCopy = useRef<string | null>(null)
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const investigation = isAccessInvestigation(project)
   const blockSheet = useBlockSheet(project, source)
@@ -862,6 +899,7 @@ export default function DevForestryRoads({
   )
   const [costOpen, setCostOpen] = useState(false)
   const [exportOutput, setExportOutput] = useState<RoadExport | null>(null)
+  const [filesSelected, setFilesSelected] = useState<RoadExport>('project')
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [completeCostOpen, setCompleteCostOpen] = useState(false)
   const [networkOpen, setNetworkOpen] = useState(false)
@@ -2639,7 +2677,7 @@ export default function DevForestryRoads({
   const importFile = (files: File[]) => {
     const file = files[0]
     const label = files.length > 1 ? `${files.length} point-cloud tiles` : file.name
-    return void run(`Opening ${label}…`, async (signal) => {
+    return run(`Opening ${label}…`, async (signal) => {
       // RoadEng designs, terrains and zipped projects are read by their content, whichever button chose them.
       if (fileKind.current === 'project' || fileKind.current === 'terrain') {
         const { isRoadEngTerrain } = await import('./dev-forestry-roads/roadEngTerrain')
@@ -2830,6 +2868,7 @@ export default function DevForestryRoads({
         // A project file opens as its own project; the one that was open stays saved.
         await w.restore(opened, signal)
         w.markFileSaved()
+        setOpenedFromFile(true)
         w.setNotice(`Opened ${file.name}.`)
       } else {
         await readSpatial(file, SPATIAL_INTENTS[fileKind.current], signal)
@@ -3114,6 +3153,7 @@ export default function DevForestryRoads({
       else await w.restore(parseProject({ ...conflict.opened, name: conflict.keepBothName }), signal)
       if (signal.aborted) return
       w.markFileSaved()
+      setOpenedFromFile(true)
       w.setNotice(
         choice === 'replace'
           ? `Opened ${conflict.fileName} in place of the saved ${conflict.existing.name}.`
@@ -4075,6 +4115,7 @@ export default function DevForestryRoads({
         if (typeof file.content === 'string') downloadText(file.content, file.filename, file.mime)
         else downloadBlob(file.content, file.filename)
         if (kind === 'project') w.markFileSaved()
+        setLastExport(kind)
         w.setNotice(file.notice)
         w.setError('')
       }
@@ -4407,6 +4448,7 @@ export default function DevForestryRoads({
       helpLabel="About sketching a road"
       onClose={() => beginMode('inspect')}
       closeLabel="Done sketching"
+      closeTutorialId="road.sketch.done"
     />
   ) : isDrawing ? (
     <MapToolPanel
@@ -4678,6 +4720,7 @@ export default function DevForestryRoads({
   function openExport(kind: RoadExport) {
     setExportDay(isoDate(new Date()))
     setExportOutput(kind)
+    setFilesSelected(kind)
   }
   function openNewProject() {
     w.dismissExampleStart()
@@ -4849,7 +4892,107 @@ export default function DevForestryRoads({
     profile: () => showPane('profile'),
     sketch: () => drawFromRibbon('sketch'),
   }
-  const runCommand = (id: WorkspaceCommand) => commands[id]()
+  const runCommand = (id: WorkspaceCommand) => {
+    commands[id]()
+    roadTourActions.observe(ROAD_TOUR_ACTIONS.command, { command: id })
+  }
+  // Watch runs the same operations, and reports nothing: the stream carries only what the person did.
+  const executeTourAction = createRoadTourExecutor({
+    isCommand: (id) => Object.prototype.hasOwnProperty.call(commands, id),
+    runCommand: (id) => commands[id as WorkspaceCommand](),
+    selectStation,
+    selectRoad: selectAlignment,
+    // The PVI level field's own update: the road's PVIs stay in station order.
+    setPviLevel: (pvi, elevation) =>
+      updateAlignment((a) => ({
+        ...a,
+        vertical: a.vertical.map((v, i) => (i === pvi - 1 ? { ...v, elevation } : v)),
+      })),
+    setTemplateField: (field, value) => {
+      if (!TEMPLATE_FIELDS.some(([key]) => key === field)) throw new Error(`The template has no field "${field}".`)
+      updateAlignment((a) => ({ ...a, template: { ...a.template, [field]: value } }))
+    },
+    // As Find the best route does: open the editor, then the section by its own toggle.
+    revealSection: (editor, section, scroll) => {
+      showControls(editor as SidebarTab)
+      requestAnimationFrame(() => {
+        const target = ref.current?.querySelector<HTMLElement>(`[data-workflow-section="${CSS.escape(section)}"]`)
+        if (!target) return
+        if (scroll) {
+          revealEditorSection(target)
+          // The section's own heading, which the step points at, wholly in the sidebar's scroll port.
+          requestAnimationFrame(() => target.scrollIntoView({ block: 'nearest' }))
+        }
+        // Opened where it is, so the control the step points at stays on screen.
+        else if (target.matches('button[aria-expanded="false"]')) target.click()
+      })
+    },
+    sketch: (stroke, metresPerPixel) => finishSketchRef.current(stroke, metresPerPixel),
+    setImportDatum: setVerticalReference,
+    // The file chooser's path, with the lesson's own sample in place of the chosen file.
+    importFile: async (kind, path) => {
+      const response = await fetch(withBase(`/${path}`))
+      if (!response.ok) throw new Error(`The lesson's sample ${path} could not be read.`)
+      const file = new File([await response.blob()], path.split('/').pop()!)
+      fileKind.current = kind
+      pendingProject.current = null
+      await importFile([file])
+    },
+    selectInterface: (id) => {
+      const next = layouts.find((layout) => layout.id === id)
+      if (!next) throw new Error(`There is no interface "${id}".`)
+      setChoosingInterface(false)
+      setCustomizingRibbon(false)
+      setSummaryTarget(null)
+      setSummaryOpen(false)
+      selectLayout(next, investigation)
+    },
+    selectLayoutPreset: (preset) => {
+      const next = resolveLayout(preset, savedLayouts)
+      setLayoutSelection(preset)
+      if (!preset.startsWith('saved:')) restorePreset(next.base)
+      if (next.base !== 'linked') setDetail('section')
+    },
+    setFilesOutput: (kind) => setFilesSelected(kind as RoadExport),
+    // Save & export's Save, without the download: Watch keeps the project file for the next step.
+    saveFile: async (kind) => {
+      const file = await exportFile(kind as Parameters<typeof exportFile>[0])
+      if (kind === 'project' && typeof file.content === 'string') {
+        lessonSavedCopy.current = file.content
+        w.markFileSaved()
+      }
+      setLastExport(kind)
+      w.setNotice(`${file.filename} prepared for the lesson (Watch does not download it).`)
+    },
+    closeDialog: () => {
+      setExportOutput(null)
+      setChoosingInterface(false)
+    },
+    // Open's path for the copy Watch saved, kept in the training session (no library slot).
+    reopenSavedCopy: async () => {
+      if (openedFromFile) return
+      const content = lessonSavedCopy.current ?? (await exportFile('project')).content
+      if (typeof content !== 'string') throw new Error('The saved project is not a project file.')
+      await w.restore(parseProject(JSON.parse(content)), undefined, null, { training: true })
+      w.markFileSaved()
+      setOpenedFromFile(true)
+      w.setNotice('Opened the copy saved in this lesson.')
+    },
+    recordCrossings: () =>
+      updateAlignment((a) => ({
+        ...a,
+        crossingRecords: synchronizeCrossingRecords(a, w.analysis.crossings, project.context),
+      })),
+  })
+  const endTour = () => {
+    setTourLaunch(null)
+    // The address keeps the rest of its parameters; a reload then does not start the lesson again.
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${tourLaunchSearch(window.location.search, null)}${window.location.hash}`,
+    )
+  }
   const distributed = toolbar?.header === 'controls'
   // The desktop header line draws its tools as quiet, borderless buttons grouped on one strip
   // (`WorkspaceHeader`); the phone's row and the ribbon keep bordered ones.
@@ -5056,7 +5199,7 @@ export default function DevForestryRoads({
       className={`inline-flex shrink-0 items-center justify-center rounded-md hover:bg-accent focus-visible:outline ${
         quietHeader ? 'size-7 text-foreground/80 hover:text-foreground' : 'size-8'
       }`}
-      href={`${import.meta.env.BASE_URL}help/index.html?${helpLayout}`}
+      href={`${import.meta.env.BASE_URL}help?${helpLayout}`}
       target="_blank"
       rel="noopener"
       aria-label="Workflow help (opens in a new tab)"
@@ -5203,6 +5346,7 @@ export default function DevForestryRoads({
         <span
           title={planningBasis}
           data-testid="road-planning-basis"
+          data-tutorial-id="road.header.basis"
           className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-warning-border bg-warning-surface px-2 py-0 text-3xs leading-4 text-warning-foreground sm:block"
         >
           {/* One wording at a time, so the badge's text is what it shows: the short one on a
@@ -5503,6 +5647,8 @@ export default function DevForestryRoads({
       <FilesDialog
         open={!investigation && exportOutput !== null}
         initialOutput={exportOutput ?? 'project'}
+        selected={filesSelected}
+        onSelectedChange={setFilesSelected}
         onOpenChange={(open) => {
           if (!open) setExportOutput(null)
         }}
@@ -5707,7 +5853,7 @@ export default function DevForestryRoads({
             )
             return
           }
-          importFile(files)
+          void importFile(files)
         }}
       />
       {comparingRoadEng && (
@@ -5719,6 +5865,60 @@ export default function DevForestryRoads({
             portalContainer={ref.current}
             onStation={setStation}
             onClose={() => setComparingRoadEng(false)}
+          />
+        </Suspense>
+      )}
+      {tourLaunch && w.ready && (
+        <Suspense fallback={null}>
+          <RoadLessonPlayer
+            launch={tourLaunch}
+            snapshot={tourSnapshot({
+              training: w.training,
+              interfaceId: active.id,
+              roadName: displayedAlignment.name,
+              roadLength: displayedAnalysis.length,
+              station: w.station,
+              visiblePanes: focusMode ? (focusedPane ? [focusedPane] : []) : focusOptions.map((option) => option.value),
+              detail,
+              workflow: { editor: workflowTab, shown: inlineWorkflow ? !folded && !minimized : controlsShown },
+              toolMode: mode,
+              roadId: alignment.id,
+              roadCount: project.alignments.length,
+              groundShare: displayedAnalysis.stations.length
+                ? (100 * displayedAnalysis.stations.filter((s) => Number.isFinite(s.groundElevation ?? NaN)).length) /
+                  displayedAnalysis.stations.length
+                : 0,
+              pviLevels: alignment.vertical.map((v) => v.elevation),
+              template: { leftWidth: alignment.template.leftWidth, rightWidth: alignment.template.rightWidth },
+              section: at
+                ? {
+                    formationZ: at.designElevation,
+                    groundZ: at.groundElevation,
+                    widthLeft: at.leftWidth,
+                    widthRight: at.rightWidth,
+                  }
+                : null,
+              terrain: {
+                name: project.terrain.name,
+                kind: project.terrain.kind,
+                cellM: project.terrain.resolutionM ?? null,
+                epsg: project.terrain.epsg ?? null,
+                verticalReference: project.terrain.verticalReference ?? '',
+              },
+              importDatum: verticalReference,
+              busy: !!busy,
+              layoutPreset: layoutSelection,
+              dialog: choosingInterface ? 'interface' : exportOutput !== null ? 'files' : null,
+              filesOutput: filesSelected,
+              fileSaved: !!w.fileSave,
+              lastExport,
+              openedFromFile,
+              openSections: [...openSections],
+              crossingRecords: alignment.crossingRecords?.length ?? 0,
+            })}
+            execute={executeTourAction}
+            actions={roadTourActions}
+            onEnd={endTour}
           />
         </Suspense>
       )}
@@ -6187,7 +6387,7 @@ export default function DevForestryRoads({
                             actions={investigation ? undefined : closePanel('plan')}
                           >
                             {() => (
-                              <div className="min-h-0 flex-1">
+                              <div className="min-h-0 flex-1" data-tutorial-id="road.plan">
                                 <PlanView
                                   display={planDisplay}
                                   toolPanel={drawToolPanel}
@@ -6367,7 +6567,7 @@ export default function DevForestryRoads({
                                 className="flex min-h-0 flex-1 flex-col"
                               >
                                 {() => (
-                                  <div className="flex min-h-0 flex-1 flex-col">
+                                  <div className="flex min-h-0 flex-1 flex-col" data-tutorial-id="road.profile">
                                     {profileView !== 'grade' && (
                                       <div
                                         className={
@@ -6461,13 +6661,20 @@ export default function DevForestryRoads({
                                   <RoadSelect
                                     className="min-w-0 h-8 w-36"
                                     value={detail}
-                                    onValueChange={(value) => setDetail(value as typeof detail)}
+                                    onValueChange={(value) => {
+                                      setDetail(value as typeof detail)
+                                      // The same operation as the view's registry command, for a lesson.
+                                      const view = roadDetailViews.find((item) => item.value === value)
+                                      if (view)
+                                        roadTourActions.observe(ROAD_TOUR_ACTIONS.command, { command: view.command })
+                                    }}
                                     options={roadDetailViews.map((view) => ({
                                       value: view.value,
                                       label: view.label,
                                       disabled: 'roadOnly' in view && !!terrainProfile,
                                     }))}
                                     ariaLabel="Road detail view"
+                                    tutorialId="road.detail.view"
                                   />
                                 }
                                 actions={
@@ -6954,7 +7161,12 @@ export default function DevForestryRoads({
                             length={displayedAnalysis.length}
                             stationing={shownStationing}
                             onType={selectTypedStation}
-                            onCommit={() => setTypedStation((typed) => (typed ? { ...typed, committed: true } : typed))}
+                            onCommit={() => {
+                              setTypedStation((typed) => (typed ? { ...typed, committed: true } : typed))
+                              roadTourActions.observe(ROAD_TOUR_ACTIONS.station, {
+                                chainage: Math.round(w.station * 10) / 10,
+                              })
+                            }}
                             onStep={(direction) =>
                               selectStation(
                                 direction > 0
@@ -7121,7 +7333,10 @@ export default function DevForestryRoads({
           onDockChange: setTaskPaneDocked,
         }}
       >
-        {workspace}
+        {/* Only a running lesson listens to which sections are open (`section-open-reporter.ts`). */}
+        <SectionOpenReporterContext.Provider value={tourLaunch ? reportSection : null}>
+          {workspace}
+        </SectionOpenReporterContext.Provider>
       </RibbonPaneHost.Provider>
     </PanelWindowProvider>
   )

@@ -12,11 +12,9 @@ const DEFAULT_INTERFACE = 'workbench'
 export const DEFAULT_INTERFACE_NAME = 'Guided mode'
 
 /** Keep the launching workspace in help links, including layouts without a Ribbon. */
-export function workspaceHelpSearch(layout: { id: string; toolbar?: { dock: 'top' | 'side' } }) {
-  const params = new URLSearchParams({ interface: layout.id })
-  if (layout.toolbar?.dock === 'top') params.set('layout', 'ribbon')
-  else params.set('ribbonInterface', 'ribbon')
-  return params.toString()
+/** The help's address for an interface (`/help?interface=<id>`): its lessons then open in it. */
+export function workspaceHelpSearch(layout: { id: string }) {
+  return new URLSearchParams({ interface: layout.id }).toString()
 }
 
 export function initialInterfaceId(

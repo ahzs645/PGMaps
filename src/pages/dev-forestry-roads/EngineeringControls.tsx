@@ -1,4 +1,5 @@
 import { StationValue, useStationReader } from './roadStation'
+import { ROAD_TOUR_ANCHORS } from './tours/roadTour'
 import { RoadSection } from './SidebarParts'
 import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
@@ -562,7 +563,13 @@ export function EngineeringControls({
             { value: 'haul', label: 'Haul' },
           ]}
         />
-        <Button size="xs" variant="ghost" className="w-full justify-between" onClick={onQuantities}>
+        <Button
+          size="xs"
+          variant="ghost"
+          className="w-full justify-between"
+          data-tutorial-id={ROAD_TOUR_ANCHORS.showQuantities}
+          onClick={onQuantities}
+        >
           Show quantities & cost breakdown
           <ArrowRight className="size-3" />
         </Button>

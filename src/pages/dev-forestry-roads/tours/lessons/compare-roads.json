@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "id": "compare-roads",
+  "title": "Compare two alignments",
+  "description": "Compare Hillside access and Contour alternative on length, grade and cost, then make the alternative the active road.",
+  "setup": {
+    "kind": "task",
+    "goal": "Read a comparison of two roads against a baseline and switch to the other road.",
+    "audience": ["Forest road designers new to PGMaps"],
+    "access": ["None: the lesson opens the synthetic training project, which needs no sign-in and no data download."],
+    "startingScreen": "The road designer on the Hillside access training project, at station 0+000 with the cross-section shown.",
+    "sources": [],
+    "limitations": [
+      "The readings are those of the synthetic training terrain and the Hillside access roads as shipped."
+    ]
+  },
+  "level": "beginner",
+  "estimatedMinutes": 4,
+  "docs": "/help/compare-roads",
+  "defaultMode": "practice",
+  "spotlightStyle": "glow",
+  "interaction": "free",
+  "launch": {
+    "fixture": "hillside-training",
+    "path": "/dev/forestry/road-design"
+  },
+  "chapters": [
+    {
+      "id": "compare",
+      "title": "Compare the roads",
+      "steps": [
+        {
+          "id": "compare",
+          "anchor": {
+            "id": "road.compare.open",
+            "placement": "bottom"
+          },
+          "action": {
+            "id": "road.command",
+            "args": {
+              "command": "compare"
+            }
+          },
+          "check": {
+            "description": "the detail pane shows the comparison",
+            "all": [
+              {
+                "path": "detail.view",
+                "equals": "compare"
+              },
+              {
+                "path": "panes.detail",
+                "equals": true
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Open the comparison",
+            "body": "Select Compare all beside the road selector. The detail pane lists every road in the project."
+          }
+        },
+        {
+          "id": "baseline",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.compare.baseline",
+            "placement": "bottom"
+          },
+          "overlay": {
+            "title": "Check the baseline",
+            "body": "Compared with names the baseline, Hillside access. The other road’s differences are measured against it."
+          }
+        },
+        {
+          "id": "metrics",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.compare.table",
+            "placement": "left"
+          },
+          "overlay": {
+            "title": "Read the trade-off",
+            "body": "Contour alternative is longer, 1,474 m against 1,429 m, but its steepest grade is lower, 8.5% against 10%. Incomplete cost means the table cannot rank these roads on cost."
+          }
+        },
+        {
+          "id": "alternative",
+          "anchor": {
+            "id": "road.compare.row.demo-contour",
+            "placement": "left"
+          },
+          "action": {
+            "id": "road.alignment.select",
+            "args": {
+              "id": "demo-contour"
+            }
+          },
+          "check": {
+            "description": "Contour alternative is the active road",
+            "all": [
+              {
+                "path": "roads.activeId",
+                "equals": "demo-contour"
+              }
+            ]
+          },
+          "overlay": {
+            "title": "Select the alternative",
+            "body": "Select Contour alternative in the table to make it the active road."
+          }
+        },
+        {
+          "id": "selected",
+          "completion": "continue",
+          "anchor": {
+            "id": "road.design.roadName",
+            "placement": "right"
+          },
+          "overlay": {
+            "title": "Check the active road",
+            "body": "Road name now reads Contour alternative · training, and its profile and sections are on screen."
+          }
+        }
+      ]
+    }
+  ]
+}

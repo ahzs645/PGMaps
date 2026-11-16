@@ -165,9 +165,18 @@ export function useRoadWorkspace() {
     [update],
   )
 
-  /** Opens a project. `id` is its library slot; omit it to keep the project as a new one. */
+  /**
+   * Opens a project. `id` is its library slot; omit it to keep the project as a new one. `training`
+   * keeps a training session one (a live lesson's Watch reopening its own saved copy): no library
+   * slot, nothing persisted, and a reload starts the training project fresh again.
+   */
   const restore = useCallback(
-    async (next: RoadProject, signal?: AbortSignal, id: string | null = crypto.randomUUID()) => {
+    async (
+      next: RoadProject,
+      signal?: AbortSignal,
+      id: string | null = crypto.randomUUID(),
+      options: { training?: boolean } = {},
+    ) => {
       let terrain = terrainFromMetadata(next.terrain)
       if (!terrain && next.terrain.kind === 'geotiff') {
         const { loadTerrainMetadata } = await import('./terrain')
@@ -192,7 +201,8 @@ export function useRoadWorkspace() {
       }
       if (!terrain) throw Error('This project needs its original terrain. Import its GeoTIFF before reopening.')
       if (signal?.aborted) return
-      leaveTraining()
+      const training = options.training && trainingRef.current
+      if (!training) leaveTraining()
       setSource(terrain)
       lastValidInputs.clear()
       commit(next, false)
@@ -201,8 +211,8 @@ export function useRoadWorkspace() {
       gesture.current = null
       setCheckpoints([])
       setOpenedCount((count) => count + 1)
-      setProjectId(id)
-      setCanPersist(true)
+      setProjectId(training ? null : id)
+      if (!training) setCanPersist(true)
       setFileSaved(null)
       setBrowserSave({ kind: 'pending' })
       setExampleStart(false)
@@ -544,6 +554,8 @@ export function useRoadWorkspace() {
     lastEdit.current = 0
   }
   return {
+    /** The open project is the synthetic training example (`?example=training`). */
+    training: trainingSession,
     skipExampleLoad,
     project,
     source,

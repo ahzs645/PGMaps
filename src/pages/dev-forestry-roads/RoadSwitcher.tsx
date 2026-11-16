@@ -1,4 +1,5 @@
 import { RoadSelect } from './Controls'
+import { ROAD_TOUR_ANCHORS } from './tours/roadTour'
 import { Columns3 } from 'lucide-react'
 import { distinctRoadColors } from './roadColors'
 import { shortRoadNames } from './roadNames'
@@ -57,11 +58,13 @@ export function RoadSwitcher({
         options={options}
         disabled={disabled}
         ariaLabel="Viewing road"
+        tutorialId={ROAD_TOUR_ANCHORS.road}
       />
       {onCompare && (
         <button
           type="button"
           onClick={onCompare}
+          data-tutorial-id={ROAD_TOUR_ANCHORS.compareOpen}
           title="Compare all roads"
           aria-label="Compare all"
           className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground touch:h-9"

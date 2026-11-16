@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+import { ROAD_TOUR_ANCHORS, roadReviewActionAnchor } from './tours/roadTour'
 import { CheckCard } from './CheckCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -66,7 +67,13 @@ export function ReadinessList({
       measured={<p>{row.measured}</p>}
       action={
         row.action && (
-          <Button size="2xs" variant="outline" className="shrink-0 px-1.5" onClick={() => onAction(row.action!)}>
+          <Button
+            size="2xs"
+            variant="outline"
+            className="shrink-0 px-1.5"
+            data-tutorial-id={roadReviewActionAnchor(row.id)}
+            onClick={() => onAction(row.action!)}
+          >
             {row.action.label}
           </Button>
         )
@@ -110,7 +117,11 @@ export function ReadinessList({
   return (
     <div data-testid="road-readiness-checks">
       <RoadSection title="Ready to review" help={help}>
-        <p className={`text-xs font-semibold ${VERDICT_CLASS[verdict.tone]}`} data-testid="road-readiness-verdict">
+        <p
+          className={`text-xs font-semibold ${VERDICT_CLASS[verdict.tone]}`}
+          data-testid="road-readiness-verdict"
+          data-tutorial-id={ROAD_TOUR_ANCHORS.reviewVerdict}
+        >
           {verdict.text}
         </p>
         {lead}

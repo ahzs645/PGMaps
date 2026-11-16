@@ -6,9 +6,9 @@
   "scripts": {
     "remediation:sync": "npm --prefix vendor/bcdatamapper run remediation:sync --",
     "boundaries:fsa": "npm --prefix vendor/bcdatamapper run boundaries:fsa -- && npm run data:sync-from-bcdatamapper",
-    "predev": "npm run toolkit:build && node scripts/ensure-vendor-json-url.mjs && npm run projects:build && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run boundaries:search-index",
+    "predev": "npm run toolkit:build && node scripts/ensure-vendor-json-url.mjs && node scripts/ensure-tourkit.mjs && npm run projects:build && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run boundaries:search-index",
     "dev": "vite",
-    "prebuild": "npm run ci:prepare && npm run help:build && npm run projects:build && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run aqmap:forecast-zones -- --if-missing && npm run boundaries:search-index",
+    "prebuild": "npm run ci:prepare && npm run projects:build && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run aqmap:forecast-zones -- --if-missing && npm run boundaries:search-index",
     "build": "tsc -b && vite build && node scripts/write-spa-fallback.mjs",
     "prebuild:deploy": "npm run prebuild",
     "build:deploy": "vite build && node scripts/write-spa-fallback.mjs",
@@ -155,11 +155,9 @@
     "lidar:process": "python3 scripts/lidar/run.py",
     "lidar:inspector:browser": "node scripts/lidar/check_inspector_browser.cjs",
     "lidar:preview:build": "vite build --config lidar-preview/vite.config.ts",
-    "ci:prepare": "npm run toolkit:build && npm --prefix vendor/json-url run build",
+    "ci:prepare": "npm run toolkit:build && npm --prefix vendor/json-url run build && node scripts/ensure-tourkit.mjs",
     "example:access-history": "node --import tsx scripts/forestry/generate-access-history-example.ts",
-    "check:access-history": "tsc --project scripts/forestry/tsconfig.access-history.json",
-    "help:build": "node scripts/brand-help-tours.mjs",
-    "help:check": "node scripts/brand-help-tours.mjs --check"
+    "check:access-history": "tsc --project scripts/forestry/tsconfig.access-history.json"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.4",
@@ -220,6 +218,7 @@
     "sql.js": "1.15.1",
     "svg2pdf.js": "2.8.1",
     "tailwind-merge": "^2.2.0",
+    "tourkit": "github:ahzs645/tourkit#3899dd58df0a0ff108db8f4ded18a036ec8896ce",
     "whitebox-wasm": "0.6.1",
     "yalps": "0.6.4",
     "zstddec": "0.1.0"
@@ -252,5 +251,11 @@
   },
   "workspaces": [
     "packages/geo-toolkit"
-  ]
+  ],
+  "overrides": {
+    "tourkit": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
+  }
 }

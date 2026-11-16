@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ROAD_TOUR_ANCHORS, roadFilesOutputAnchor } from './tours/roadTour'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
@@ -74,6 +75,8 @@ export function FilesDialog({
   setupViews,
   setupLabels,
   blockSheetSettings,
+  selected: controlledSelected,
+  onSelectedChange,
 }: {
   open: boolean
   initialOutput?: RoadExport
@@ -108,8 +111,16 @@ export function FilesDialog({
   setupLabels?: Partial<Record<RoadExport, string>>
   /** The block sheet's settings, so a saved sheet setup can be saved from and applied to it. */
   blockSheetSettings?: { value: BlockSheetSettings; onApply: (settings: BlockSheetSettings) => void }
+  /** The output shown, when the page follows it (a live lesson reads it); otherwise the dialog keeps its own. */
+  selected?: RoadExport
+  onSelectedChange?: (kind: RoadExport) => void
 }) {
-  const [selected, setSelected] = useState<RoadExport>(initialOutput)
+  const [ownSelected, setOwnSelected] = useState<RoadExport>(initialOutput)
+  const selected = controlledSelected ?? ownSelected
+  const setSelected = (kind: RoadExport) => {
+    setOwnSelected(kind)
+    onSelectedChange?.(kind)
+  }
   const [view, setView] = useState<'preview' | 'setup' | 'issue'>('preview')
   // The part of the setup a click on the preview asked for: a plot-book chapter or a report section.
   const [setupFocus, setSetupFocus] = useState<{ chapter?: string; section?: ReportSectionId } | null>(null)
@@ -118,7 +129,8 @@ export function FilesDialog({
   if (open !== wasOpen) {
     setWasOpen(open)
     if (open) {
-      setSelected(initialOutput)
+      // Not `setSelected`: a page that follows the selection sets its own when it opens the dialog.
+      setOwnSelected(initialOutput)
       setView('preview')
     }
   }
@@ -195,7 +207,7 @@ export function FilesDialog({
       portalContainer={portalContainer}
       className="sm:h-[min(48rem,92dvh)]"
       bodyClassName="p-0 workspace-sm:p-0"
-      contentProps={{ 'data-testid': 'road-files-dialog' }}
+      contentProps={{ 'data-testid': 'road-files-dialog', 'data-tutorial-id': ROAD_TOUR_ANCHORS.files }}
     >
       <fieldset disabled={busy} className="min-w-0 sm:h-full sm:min-h-0">
         {/* A floor on the side-by-side layout: on a short screen the dialog body scrolls instead of the
@@ -225,6 +237,7 @@ export function FilesDialog({
                       trailing={<span className="text-3xs font-normal text-muted-foreground">{entry.extension}</span>}
                       className={`py-2 ${reason ? '[&_span]:text-muted-foreground' : ''}`}
                       aria-label={reason ? `${entry.label}, unavailable: ${reason}` : entry.label}
+                      data-tutorial-id={roadFilesOutputAnchor(entry.kind)}
                       onClick={() => select(entry.kind)}
                     />
                   )
@@ -248,6 +261,7 @@ export function FilesDialog({
                 className="shrink-0"
                 disabled={!!unavailable}
                 aria-label={item.kind === 'project' ? 'Save project JSON' : `Download ${item.label}`}
+                data-tutorial-id={ROAD_TOUR_ANCHORS.filesSave}
                 onClick={() => onSave(item.kind)}
               >
                 <Download className="size-4" />
