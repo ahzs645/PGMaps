@@ -121,7 +121,11 @@ import {
 import { measureHint, measureReadout } from '@/components/ui/map-measure'
 import { sketchStats } from '@/lib/geo/mapSketch'
 import { MapToolPanel } from '@/components/ui/map-tool-panel'
-import { leavesDrawingOnEscape } from './dev-forestry-roads/PlanTools'
+import { leavesDrawingOnEscape, useRoadColourMode } from './dev-forestry-roads/PlanTools'
+import { attributeCosts, type CostSeriesId } from './dev-forestry-roads/costAttribution'
+import { costBreakdownRows } from './dev-forestry-roads/costBreakdownRows'
+import { hasCostSeries } from './dev-forestry-roads/costColours'
+import type { CostStretchFocus } from './dev-forestry-roads/CostWhereItFalls'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
@@ -1186,6 +1190,58 @@ export default function DevForestryRoads({
     [w.analyses, displayedAlignment, displayedAnalysis],
   )
   const incompleteReasons = useMemo(() => incompleteReasonSummary(displayedAnalysis.stations), [displayedAnalysis])
+  // The cost dialog's "Where it falls" and the plan's "Colour road by → Cost per metre" read one
+  // spread of the estimate (`costAttribution.ts`), made only while either is in use.
+  const [roadColour, setRoadColour] = useRoadColourMode()
+  const [costSeries, setCostSeries] = useState<CostSeriesId>('total')
+  const costSpreadWanted =
+    !investigation && !terrainProfile && displayedAnalysis.stations.length > 1 && (costOpen || roadColour === 'cost')
+  const costAttribution = useMemo(
+    () =>
+      costSpreadWanted
+        ? attributeCosts({
+            analysis: displayedAnalysis,
+            alignment: displayedAlignment,
+            breakdown: costBreakdownRows({
+              analysis: displayedAnalysis,
+              alignment: displayedAlignment,
+              settings: project.settings,
+            }),
+          })
+        : undefined,
+    [costSpreadWanted, displayedAnalysis, displayedAlignment, project.settings],
+  )
+  // A row an edit removed falls back to the whole estimate.
+  const shownCostSeries = costAttribution && hasCostSeries(costAttribution, costSeries) ? costSeries : 'total'
+  const showWholeEstimate = useCallback(() => setCostSeries('total'), [])
+  const planCostColours = useMemo(
+    () =>
+      costAttribution && roadColour === 'cost'
+        ? { attribution: costAttribution, rowId: shownCostSeries, onWholeEstimate: showWholeEstimate }
+        : undefined,
+    [costAttribution, roadColour, shownCostSeries, showWholeEstimate],
+  )
+  const colourRoadByCost = (id: CostSeriesId) => {
+    setCostSeries(id)
+    setRoadColour('cost')
+  }
+  // A stretch picked in "Where it falls": framed and outlined on the plan, its costliest section
+  // selected, the road coloured by that row, and the dialog closed so the plan shows.
+  const focusCostStretch = (focus: CostStretchFocus) => {
+    w.setFeatureSelection({
+      alignmentId: displayedAlignment.id,
+      kind: 'range',
+      id: `cost-${focus.rowId}-${focus.start}`,
+      start: focus.start,
+      end: focus.end,
+      label: focus.label,
+      highlight: 'outline',
+    })
+    selectStation(focus.peakChainage ?? (focus.start + focus.end) / 2)
+    colourRoadByCost(focus.rowId)
+    planDisplay.setLegendOpen(true)
+    setCostOpen(false)
+  }
   const unpricedCount = useMemo(
     () =>
       displayedAnalysis.stations.length
@@ -5477,6 +5533,10 @@ export default function DevForestryRoads({
         alignment={displayedAlignment}
         settings={project.settings}
         portalContainer={ref.current}
+        attribution={costAttribution}
+        onFocusStretch={focusCostStretch}
+        colourBy={roadColour === 'cost' ? shownCostSeries : null}
+        onColourBy={colourRoadByCost}
         onSettings={(patch) => update((p) => ({ ...p, settings: { ...p.settings, ...patch } }))}
         project={project}
         // Each cost-dialog write (location, adoption, build-up, budget, scenarios) is its own undo step.
@@ -6162,6 +6222,7 @@ export default function DevForestryRoads({
                                   }
                                   alignment={displayedAlignment}
                                   analyses={displayAnalyses}
+                                  costColours={planCostColours}
                                   source={source}
                                   station={station}
                                   selectedStation={at}

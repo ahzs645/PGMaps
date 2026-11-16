@@ -122,6 +122,9 @@ its midpoint`), under the assignment and on the profile band (`templateTransitio
 | Stream association tolerance         | 1 m between culvert station and crossing                                                                                                  | `engineering.ts` `calculateCulvert`                                                 | Culvert and results marked incomplete                                            |
 | Base rates in the cost dialog        | 0–10,000 per unit; default borrow and waste 0–100,000; haul class and loading fields 0–100,000                                            | `CostBreakdown.tsx` `setting`, `haulRate`                                           | Field clamps                                                                     |
 | Haul transfers listed                | 100 per page                                                                                                                              | `EngineeringSummary.tsx`                                                            | Paginated                                                                        |
+| Where it falls: stretch length       | 20, 50, 100, 200 or 500 m; starts at the one nearest a tenth of the road                                                                  | `CostWhereItFalls.tsx` `COST_STRETCH_LENGTHS_M`, `defaultStretchLength`             | Fixed list                                                                       |
+| Where it falls: stretches listed     | the 5 costliest, then **Show all**                                                                                                        | `CostWhereItFalls.tsx` `COST_STRETCHES_SHOWN`                                       | **Show all** lists every stretch with a cost                                     |
+| Cost per metre classes               | under ½, ½–1, 1–2, 2–4 and 4 × or more the road's average $/m                                                                             | `costAttribution.ts` `COST_INTENSITY_BINS`                                          | —                                                                                |
 
 The full list of project budgets is in
 [Computation and file budgets](../forestry-road-design.md#computation-and-file-budgets).
@@ -378,6 +381,39 @@ unit rates. Download their JSON to retain temporary comparison inputs. The conve
 tools require an entered density or loose-to-compacted factor, full truck cycle and
 payload, or net crew productivity as appropriate. See
 [BC cost evidence and estimation roadmap](bc-cost-evidence.md).
+
+## Where the cost falls
+
+The cost dialog places the estimate on the road (`costAttribution.ts`), so a row reads as the
+stretches that make it up. **Where the cost falls** above the table sets the **Stretch length**
+(20 to 500 m, starting at the length nearest a tenth of the road) and **Whole estimate** opens the
+total spread the same way. The pin button at the start of a row opens that row's **Where it falls**:
+its five costliest stretches (**Show all** lists the rest), each with its station range, amount,
+share of the row, the quantity it follows in that stretch and, where sections are incomplete,
+how many metres of it are unknown. Rows with nothing placed on the road (mobilization,
+contingency) have no button.
+
+How each row is spread, by the quantity it pays for (`CostDriver` in `costBreakdownRows.ts`):
+
+- Excavation, a material's cut, shallow rock, overbreak, fill, surfacing and clearing by each
+  interval's own volume or area, on the row's own basis (curve-corrected where the correction is
+  applied). Courses and surfacing supply follow the interval's whole surfacing volume.
+- A haul line through the movements it prices: half of each movement's charge at each end. Borrow
+  and waste with no site follow each interval's borrow or waste.
+- Culverts, stream crossings and a site's supply, disposal or preparation whole, at their station.
+
+What stays unplaced is printed as its own line, **Not on the road**, with the reason: mobilization
+and contingency, crossing costs shared with other roads, and haul to or from a place off the road.
+An incomplete interval's earthwork is unknown, never zero, and takes no share. The spread never
+re-prices anything: a row's stretches and its part off the road add up to the row's amount, and
+the rows to the estimate's total (`costAttribution.test.ts` pins both).
+
+Picking a stretch closes the dialog, outlines the stretch on the plan and frames it, selects its
+costliest station so the section and profile show it, and colours the road by that row's cost per
+metre (`plan-tools.md`, **Colour road by**). The section at that station shows the template and
+the ground materials it cuts; the row's rate is the one in its own line of the table. **Colour road
+by this** in a row's panel colours the plan without leaving the dialog. Neither writes to the
+project.
 
 ## While an input is invalid
 

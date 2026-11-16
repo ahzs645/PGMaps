@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
+import { MapPin } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CellNumberField, NumberField, RoadSelect } from './Controls'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import { hasCompleteCoverage } from './analysisResult'
-import { haulCostLines, haulUnitCost } from './engineering'
-import { surfacingSupplyCost } from './gravel'
-import { materialPlanMissing, type HaulSettings } from './engineeringTypes'
-import type { Alignment, GroundMaterial, MaterialQuantity, RoadAnalysis, RoadProject, RoadSettings } from './types'
+import { haulUnitCost } from './engineering'
+import type { HaulSettings } from './engineeringTypes'
+import type { Alignment, RoadAnalysis, RoadProject, RoadSettings } from './types'
+import { COST_SETTING_RATE_KEYS, costBreakdownRows, type CostRow, type CostRowRate } from './costBreakdownRows'
 import { BCCostReferences } from './BCCostReferencesPanel'
 import { RateSources, type RateAdoptionTarget } from './RateAdoption'
 import { applyAdoption, rateSourceLines, withoutAdoption } from './costEvidence/rateAdoption'
@@ -24,9 +26,13 @@ import { unpricedQuantities } from './costReadiness'
 import { invalidInputNotice } from './inputErrors'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { insetBox } from '@/components/ui/inset-box'
-
-/** Compacted volume of a fill placement row's note. */
-const COMPACTED_M3 = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 1 })
+import type { CostAttribution, CostSeriesId } from './costAttribution'
+import {
+  COST_STRETCH_LENGTHS_M,
+  CostWhereItFalls,
+  defaultStretchLength,
+  type CostStretchFocus,
+} from './CostWhereItFalls'
 
 const money = (value: number, digits = 0) =>
   `$${value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
@@ -36,7 +42,7 @@ const quantity = (value: number | null, digits = 1) =>
     : value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 
 /** The base unit rates a preset sets; engineering inputs (materials, haul, structures) stay per project. */
-export const RATE_KEYS = ['cutRate', 'fillRate', 'surfacingRate', 'clearingRate'] as const
+export const RATE_KEYS = COST_SETTING_RATE_KEYS
 type RateKey = (typeof RATE_KEYS)[number]
 
 export const RATE_PRESETS: {
@@ -58,76 +64,11 @@ export function ratePresetFor(settings: RoadSettings) {
   return RATE_PRESETS.find((preset) => RATE_KEYS.every((key) => preset.rates[key] === settings[key]))
 }
 
-type Rate = {
-  value: number
-  unit: string
-  label: string
-  min?: number
-  max?: number
+type Rate = Omit<CostRowRate, 'edit'> & {
   /** Omitted: the rate is shown, and edited where its note says. */
   onChange?: (value: number) => void
-  /** The adoption target behind this cell (`adoptionTargets.ts`), so an adopted rate shows its reference on the row. */
-  rateKey?: string
 }
-type Row = {
-  id: string
-  item: string
-  quantity: number | null
-  unit: string
-  rate?: Rate
-  amount: number
-  /** Shown in place of the amount where a zero would read as a price: a cost that was not calculated. */
-  amountText?: string
-  note?: string
-}
-
-/**
- * A rock material's shallow cut and overbreak as rows of their own, at their own rates (or the
- * excavation rate where none is entered). Their amounts and the material's main row add up to its
- * excavation cost. Rates are edited with the material, in Engineering → Ground.
- */
-function rockRows(m: MaterialQuantity, entered: GroundMaterial | undefined, roadId: string): Row[] {
-  const rock = m.rock!
-  const rate = (value: number | undefined) => value ?? entered?.cutRate ?? 0
-  return [
-    ...(rock.shallowBankM3 > 0
-      ? [
-          {
-            id: `material-${m.materialId}-shallow`,
-            item: `Shallow rock · ${m.name}`,
-            quantity: rock.shallowBankM3,
-            unit: 'bank m³',
-            rate: {
-              value: rate(entered?.shallowCutRate),
-              unit: '$/m³',
-              label: `${m.name} shallow rock rate`,
-              rateKey: `${roadId}/material:${m.materialId}.shallowCutRate`,
-            },
-            amount: rock.shallowCost,
-            note: 'Rock cut no thicker than the template’s shallow depth; its rate is set with the material in Engineering → Ground.',
-          },
-        ]
-      : []),
-    ...(rock.overbreakBankM3 > 0
-      ? [
-          {
-            id: `material-${m.materialId}-overbreak`,
-            item: `Overbreak · ${m.name}`,
-            quantity: rock.overbreakBankM3,
-            unit: 'bank m³',
-            rate: {
-              value: rate(entered?.overbreakRate),
-              unit: '$/m³',
-              label: `${m.name} overbreak rate`,
-              rateKey: `${roadId}/material:${m.materialId}.overbreakRate`,
-            },
-            amount: rock.overbreakCost,
-            note: 'Rock blasted below the subgrade to the blasting level and refilled in place; its rate is set with the material in Engineering → Ground.',
-          },
-        ]
-      : []),
-  ]
-}
+type Row = Omit<CostRow, 'rate'> & { rate?: Rate }
 
 function RateCell({ rate }: { rate?: Rate }) {
   if (!rate) return <span className="text-muted-foreground">—</span>
@@ -189,6 +130,10 @@ export function CostBreakdown({
   onProjectEdit,
   runCase,
   portalContainer,
+  attribution,
+  onFocusStretch,
+  colourBy,
+  onColourBy,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -205,10 +150,48 @@ export function CostBreakdown({
   /** Analyses a copy of the road with other inputs, for the low and high cases. */
   runCase?: (alignment: Alignment, settings: RoadSettings) => RoadAnalysis
   portalContainer?: HTMLElement | null
+  /**
+   * The estimate spread along the road (`costAttribution.ts`) for the same analysis, alignment and
+   * settings. Absent: no "Where it falls".
+   */
+  attribution?: CostAttribution
+  /** A stretch was picked: frame it on the plan and open its governing section. */
+  onFocusStretch?: (focus: CostStretchFocus) => void
+  /** The row the plan is coloured by now; null when the plan is not coloured by cost. */
+  colourBy?: CostSeriesId | null
+  /** Colours the plan's road by one row's cost per metre (or the whole estimate's). */
+  onColourBy?: (id: CostSeriesId) => void
 }) {
   const [opened, setOpened] = useState<{ open: boolean; total: number }>({ open, total: analysis.estimatedCost })
   if (opened.open !== open) setOpened({ open, total: analysis.estimatedCost })
   const [preferences] = useCostPreferences()
+  // Session state: the dialog stays mounted while closed, so these hold until the page reloads.
+  const [stretchChoice, setStretchChoice] = useState<number | null>(null)
+  const stretchLengthM = stretchChoice ?? defaultStretchLength(analysis.length)
+  const [whereOpen, setWhereOpen] = useState<ReadonlySet<CostSeriesId>>(() => new Set())
+  const toggleWhere = (id: CostSeriesId) =>
+    setWhereOpen((open) => {
+      const next = new Set(open)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  const placedRows = useMemo(
+    () => new Set((attribution?.rows ?? []).filter((row) => row.placedTotal !== 0).map((row) => row.rowId)),
+    [attribution],
+  )
+  const where = (id: CostSeriesId) =>
+    attribution && (
+      <CostWhereItFalls
+        attribution={attribution}
+        id={id}
+        stretchLengthM={stretchLengthM}
+        stationing={alignment.stationing}
+        onFocusStretch={onFocusStretch}
+        colouring={colourBy === id}
+        onColourBy={onColourBy}
+      />
+    )
   const points = useMemo(() => alignment.points.map((point) => point.coordinate), [alignment.points])
   const suggestion = useLocationSuggestion(points, open && !project.costLocation)
   const currency = projectCurrency(project.costLocation)
@@ -225,244 +208,29 @@ export function CostBreakdown({
   }
   const result = analysis.engineering
   const haul = alignment.engineering?.haul
-  const roadKey = (key: string) => `${alignment.id}/${key}`
-  const setting = (key: RateKey, label: string, unit: string, max = 10000): Rate => ({
-    value: settings[key],
-    unit,
-    label,
-    max,
-    rateKey: key,
-    onChange: (value) => onSettings({ [key]: value }),
-  })
-  const haulRate = (key: keyof HaulSettings, label: string, unit: string, max = 1e9): Rate | undefined =>
-    haul && onHaul
-      ? {
-          value: haul[key] as number,
-          unit,
-          label,
-          max,
-          rateKey: roadKey(`haul.${key}`),
-          onChange: (value) => onHaul({ [key]: value }),
-        }
-      : undefined
   const costs = result?.costs
-  const supply = alignment.engineering?.surfacingSupply
-  const materialLayerVolumeM3 = result?.materialLayerVolumeM3 ?? 0
-  const genericSurfaceVolumeM3 = Math.max(0, analysis.surfaceVolumeM3 - materialLayerVolumeM3)
-  const surfacing = surfacingSupplyCost(genericSurfaceVolumeM3, settings.surfacingRate, supply)
-  const surfacingRows: Row[] = supply?.enabled
-    ? [
-        {
-          id: 'surfacing-source',
-          item: `Surfacing · ${supply.name}`,
-          quantity: surfacing.suppliedM3,
-          unit: 'compacted m³',
-          rate: { value: surfacing.rate, unit: '$/m³', label: 'Delivered aggregate rate' },
-          amount: surfacing.suppliedM3 * surfacing.rate,
-          note: 'Acquisition + processing + loading + entered one-way haul + placement. Edit in Engineering → Haul & cost settings.',
-        },
-        {
-          id: 'surfacing',
-          item: 'Surfacing · remaining supply',
-          quantity: surfacing.fallbackM3,
-          unit: 'compacted m³',
-          rate: setting('surfacingRate', 'Surfacing rate', '$/m³'),
-          amount: surfacing.fallbackM3 * settings.surfacingRate,
-          note: 'Volume beyond the entered source capacity uses this base rate.',
-        },
-      ]
-    : [
-        {
-          id: 'surfacing',
-          item: 'Surfacing',
-          quantity: genericSurfaceVolumeM3,
-          unit: 'm³',
-          rate: setting('surfacingRate', 'Surfacing rate', '$/m³'),
-          amount: genericSurfaceVolumeM3 * settings.surfacingRate,
-        },
-      ]
-  if (materialLayerVolumeM3 > 0)
-    surfacingRows.push({
-      id: 'material-course-placement',
-      item: 'Material courses · placement',
-      quantity: materialLayerVolumeM3,
-      unit: 'compacted m³',
-      rate: setting('fillRate', 'Material course placement rate', '$/m³'),
-      amount: materialLayerVolumeM3 * settings.fillRate,
-      note: 'The entered fill-placement rate places these courses; source material and haul are separate allocation lines. No delivered surfacing rate is charged on this volume.',
-    })
-  const haulLines = result && alignment.engineering ? haulCostLines(alignment.engineering, result) : []
-  const noPlan =
-    result && materialPlanMissing(result.haul)
-      ? result.haul.optimizationStatus === 'unsolved'
-        ? 'was not solved'
-        : 'is infeasible'
-      : null
-  const haulRows: Row[] = haulLines.length
-    ? haulLines.map((line) => ({
-        id: line.id,
-        item: line.item,
-        quantity: line.quantity,
-        unit: line.unit,
-        // Only the default borrow and waste rates are edited here; the others have one place each.
-        rate: (line.rateKey === 'borrowRate' || line.rateKey === 'wasteRate'
-          ? haulRate(line.rateKey, line.rateKey === 'borrowRate' ? 'Borrow rate' : 'Waste rate', line.rateUnit, 100000)
-          : undefined) ?? { value: line.rate, unit: line.rateUnit, label: `${line.item} rate` },
-        amount: line.amount,
-        note:
-          line.rateKey === 'borrowRate' || line.rateKey === 'wasteRate'
-            ? 'No site in reach with capacity left; the default rate applies. Its haul is not priced.'
-            : line.rateKey
-              ? 'Haul class rates are edited below.'
-              : 'The site’s own rate or fixed cost; edit it in Engineering → Haul.',
-      }))
-    : [
-        {
-          id: 'haul',
-          item: 'Haul, borrow and waste',
-          quantity: null,
-          unit: '',
-          amount: costs ? costs.haul + costs.borrow + costs.waste + costs.sitePreparation : 0,
-          // A plan that was not adopted leaves these costs out of the total; that is not $0 of work.
-          ...(noPlan ? { amountText: 'Not calculated' } : {}),
-          note: noPlan
-            ? `The material plan ${noPlan}, so no haul, borrow or waste cost is in the total. Open Engineering → Haul.`
-            : result?.haul.enabled
-              ? 'No material is moved, supplied or wasted.'
-              : 'Haul allocation is off; turn it on in Engineering → Haul.',
-        },
-      ]
-  const rows: Row[] = costs
-    ? [
-        ...result.materials.flatMap((m) => [
-          {
-            id: `material-${m.materialId}`,
-            item: m.purpose === 'stripping' ? `Stripping · ${m.name}` : `Excavation · ${m.name}`,
-            // A rock material's shallow cut and overbreak are rows of their own, below.
-            quantity: m.bankCutM3 - (m.rock?.shallowBankM3 ?? 0),
-            unit: analysis.curvatureCorrection?.applied ? 'bank m³ (curve-corrected)' : 'bank m³',
-            rate:
-              m.materialId === '__unclassified'
-                ? setting('cutRate', 'Unclassified excavation rate', '$/m³')
-                : onMaterialRate
-                  ? {
-                      value: alignment.engineering?.materials.find((x) => x.id === m.materialId)?.cutRate ?? 0,
-                      unit: '$/m³',
-                      label: `${m.name} excavation rate`,
-                      max: 10000,
-                      rateKey: roadKey(`material:${m.materialId}.cutRate`),
-                      onChange: (value: number) => onMaterialRate(m.materialId, value),
-                    }
-                  : undefined,
-            amount: m.excavationCost - (m.rock ? m.rock.shallowCost + m.rock.overbreakCost : 0),
-          },
-          ...(m.rock
-            ? rockRows(
-                m,
-                alignment.engineering?.materials.find((x) => x.id === m.materialId),
-                alignment.id,
-              )
-            : []),
-        ]),
-        // Fill priced by the material it is made of (`fillPlacement.ts`): one row per material with
-        // its own embankment rate, per bank m³ placed, and the rest at the project's fill rate.
-        ...(result.fillPlacement?.length
-          ? result.fillPlacement.map((line) => {
-              const material = alignment.engineering?.materials.find((x) => x.id === line.materialId)
-              return line.materialId === null
-                ? {
-                    id: 'fill',
-                    item: 'Fill placement',
-                    quantity: line.compactedM3,
-                    unit: 'm³',
-                    rate: setting('fillRate', 'Fill rate', '$/m³'),
-                    amount: line.amount,
-                  }
-                : {
-                    id: `fill-${line.materialId}`,
-                    item: `Fill placement · ${material?.name ?? line.materialId}`,
-                    quantity: line.bankM3,
-                    unit: 'bank m³ placed',
-                    rate: {
-                      value: line.rate,
-                      unit: '$/bank m³',
-                      label: `${material?.name ?? line.materialId} fill placement rate`,
-                    },
-                    amount: line.amount,
-                    note: `${COMPACTED_M3.format(line.compactedM3)} compacted m³. The material's own fill placement rate; edit it in Engineering → Ground.`,
-                  }
-            })
-          : [
-              {
-                id: 'fill',
-                item: 'Fill placement',
-                quantity: analysis.fillVolumeM3,
-                unit: analysis.curvatureCorrection?.applied ? 'm³ (curve-corrected)' : 'm³',
-                rate: setting('fillRate', 'Fill rate', '$/m³'),
-                amount: costs.fill,
-              },
-            ]),
-        ...surfacingRows,
-        {
-          id: 'clearing',
-          item: 'Clearing',
-          quantity: analysis.clearingAreaM2,
-          unit: 'm²',
-          rate: setting('clearingRate', 'Clearing rate', '$/m²'),
-          amount: costs.clearing,
-        },
-        {
-          id: 'structures',
-          item: 'Structures',
-          quantity: result.culverts.length,
-          unit: 'culverts',
-          amount: costs.structures,
-          note: 'Installed cost per culvert; edit in Engineering → Drainage.',
-        },
-        ...haulRows,
-        {
-          id: 'mobilization',
-          item: 'Mobilization',
-          quantity: 1,
-          unit: 'lump sum',
-          rate: haulRate('mobilizationCost', 'Mobilization', '$'),
-          amount: costs.mobilization,
-        },
-      ]
-    : [
-        {
-          id: 'cut',
-          item: 'Excavation',
-          quantity: analysis.cutVolumeM3,
-          unit: analysis.curvatureCorrection?.applied ? 'bank m³ (curve-corrected)' : 'bank m³',
-          rate: setting('cutRate', 'Cut rate', '$/m³'),
-          amount: analysis.cutVolumeM3 * settings.cutRate,
-        },
-        {
-          id: 'fill',
-          item: 'Fill placement',
-          quantity: analysis.fillVolumeM3,
-          unit: analysis.curvatureCorrection?.applied ? 'm³ (curve-corrected)' : 'm³',
-          rate: setting('fillRate', 'Fill rate', '$/m³'),
-          amount: analysis.fillVolumeM3 * settings.fillRate,
-        },
-        {
-          id: 'surfacing',
-          item: 'Surfacing',
-          quantity: analysis.surfaceVolumeM3,
-          unit: 'm³',
-          rate: setting('surfacingRate', 'Surfacing rate', '$/m³'),
-          amount: analysis.surfaceVolumeM3 * settings.surfacingRate,
-        },
-        {
-          id: 'clearing',
-          item: 'Clearing',
-          quantity: analysis.clearingAreaM2,
-          unit: 'm²',
-          rate: setting('clearingRate', 'Clearing rate', '$/m²'),
-          amount: analysis.clearingAreaM2 * settings.clearingRate,
-        },
-      ]
+  // The dialog and the cost attribution (`costAttribution.ts`) read one row list.
+  const breakdown = costBreakdownRows({
+    analysis,
+    alignment,
+    settings,
+    editable: { haul: Boolean(onHaul), materialRate: Boolean(onMaterialRate) },
+  })
+  const { noPlan } = breakdown
+  const withEdit = (rate: CostRowRate | undefined): Rate | undefined => {
+    if (!rate) return undefined
+    const { edit, ...shown } = rate
+    if (!edit) return shown
+    const onChange =
+      edit.kind === 'setting'
+        ? (value: number) => onSettings({ [edit.key]: value })
+        : edit.kind === 'haul'
+          ? onHaul && ((value: number) => onHaul({ [edit.key]: value }))
+          : onMaterialRate && ((value: number) => onMaterialRate(edit.materialId, value))
+    return onChange ? { ...shown, onChange } : shown
+  }
+  const rows: Row[] = breakdown.rows.map((row) => ({ ...row, rate: withEdit(row.rate) }))
+  const contingency = breakdown.contingency
   const preset = ratePresetFor(settings)
   const change = analysis.estimatedCost - opened.total
   // Work with a quantity and no rate: its amount is zero because it is unpriced, not because it is free.
@@ -549,6 +317,36 @@ export function CostBreakdown({
             </InlineAlert>
           </div>
         )}
+        {attribution && (
+          <div className="flex flex-wrap items-center gap-2" data-testid="road-cost-where">
+            <span className="flex items-center gap-1 font-medium">
+              Where the cost falls
+              <InfoTip label="How the cost is placed on the road">
+                Each row's amount is spread over the road by what it pays for: earthwork, surfacing and clearing by each
+                stretch's own volume or area, haul half to each end of a movement, culverts, crossings and sites where
+                they are. Nothing is re-priced: a row's stretches and its part off the road add up to its amount. Pick a
+                stretch to see it on the plan and open its costliest section.
+              </InfoTip>
+            </span>
+            <RoadSelect
+              value={String(stretchLengthM)}
+              onValueChange={(value) => setStretchChoice(Number(value))}
+              options={COST_STRETCH_LENGTHS_M.map((length) => ({ value: String(length), label: `${length} m` }))}
+              ariaLabel="Stretch length"
+              className="h-8 w-24"
+            />
+            <Button
+              size="xs"
+              variant="outline"
+              aria-expanded={whereOpen.has('total')}
+              onClick={() => toggleWhere('total')}
+            >
+              <MapPin className="size-3.5" aria-hidden />
+              Whole estimate
+            </Button>
+          </div>
+        )}
+        {attribution && whereOpen.has('total') && <div className={insetBox({ padding: 'md' })}>{where('total')}</div>}
         <div className="overflow-x-auto overscroll-none">
           <EngineeringTable
             className="[&_td]:bg-background [&_th]:bg-background max-sm:[&_td]:px-1 max-sm:[&_th]:px-1"
@@ -567,49 +365,79 @@ export function CostBreakdown({
               {rows.map((row) => {
                 const missing = unpricedOn(row.id)
                 const source = sourceOn(row)
+                const placed = placedRows.has(row.id)
+                const opened = placed && whereOpen.has(row.id)
                 return (
-                  <tr
-                    key={row.id}
-                    data-cost-row={row.id}
-                    data-unpriced={missing.length ? 'true' : undefined}
-                    title={[...missing.map((item) => `${item.text}.`), row.note].filter(Boolean).join(' ') || undefined}
-                  >
-                    <td className="text-left max-sm:whitespace-normal">
-                      {row.item}
-                      {/* Why this rate: the reference it was adopted from, in the reference's own unit. */}
-                      {source && (
-                        <span
-                          className={`block whitespace-normal text-3xs font-normal ${source.edited ? 'text-warning' : 'text-muted-foreground'}`}
-                          data-testid="road-cost-rate-source"
-                        >
-                          {source.edited ? 'Edited since adopted from' : 'Rate adopted from'} {source.observed}
-                        </span>
-                      )}
-                    </td>
-                    <td>{quantity(row.quantity, row.unit === 'culverts' || row.unit === 'lump sum' ? 0 : 1)}</td>
-                    <td className="text-left text-muted-foreground max-sm:whitespace-normal">{row.unit}</td>
-                    <td>
-                      <RateCell rate={row.rate} />
-                    </td>
-                    <td className="font-mono">
-                      {/* A line with nothing priced on it says so; a part-priced line keeps its amount. */}
-                      {row.amountText ? (
-                        <span className="font-sans font-medium text-warning">{row.amountText}</span>
-                      ) : missing.length > 0 && row.amount === 0 ? (
-                        <span className="font-sans font-medium text-warning">No rate</span>
-                      ) : (
-                        <>
-                          {missing.length > 0 && (
-                            <span className="mr-1 font-sans text-3xs font-medium text-warning">part unpriced</span>
-                          )}
-                          {money(row.amount, 2)}
-                        </>
-                      )}
-                    </td>
-                  </tr>
+                  <Fragment key={row.id}>
+                    <tr
+                      data-cost-row={row.id}
+                      data-unpriced={missing.length ? 'true' : undefined}
+                      title={
+                        [...missing.map((item) => `${item.text}.`), row.note].filter(Boolean).join(' ') || undefined
+                      }
+                    >
+                      <td className="text-left max-sm:whitespace-normal">
+                        {placed && (
+                          <Button
+                            size="icon-2xs"
+                            variant="ghost"
+                            className="-my-1 mr-1 align-middle"
+                            aria-label={`Where ${row.item} falls`}
+                            title="Where it falls on the road"
+                            aria-expanded={opened}
+                            onClick={() => toggleWhere(row.id)}
+                          >
+                            <MapPin className="size-3.5" aria-hidden />
+                          </Button>
+                        )}
+                        {row.item}
+                        {/* Why this rate: the reference it was adopted from, in the reference's own unit. */}
+                        {source && (
+                          <span
+                            className={`block whitespace-normal text-3xs font-normal ${source.edited ? 'text-warning' : 'text-muted-foreground'}`}
+                            data-testid="road-cost-rate-source"
+                          >
+                            {source.edited ? 'Edited since adopted from' : 'Rate adopted from'} {source.observed}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {quantity(
+                          row.quantity,
+                          row.unit === 'culverts' || row.unit === 'crossings' || row.unit === 'lump sum' ? 0 : 1,
+                        )}
+                      </td>
+                      <td className="text-left text-muted-foreground max-sm:whitespace-normal">{row.unit}</td>
+                      <td>
+                        <RateCell rate={row.rate} />
+                      </td>
+                      <td className="font-mono">
+                        {/* A line with nothing priced on it says so; a part-priced line keeps its amount. */}
+                        {row.amountText ? (
+                          <span className="font-sans font-medium text-warning">{row.amountText}</span>
+                        ) : missing.length > 0 && row.amount === 0 ? (
+                          <span className="font-sans font-medium text-warning">No rate</span>
+                        ) : (
+                          <>
+                            {missing.length > 0 && (
+                              <span className="mr-1 font-sans text-3xs font-medium text-warning">part unpriced</span>
+                            )}
+                            {money(row.amount, 2)}
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                    {opened && (
+                      <tr data-cost-stretches={row.id}>
+                        <td colSpan={5} className="whitespace-normal text-left">
+                          {where(row.id)}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 )
               })}
-              {costs && (
+              {costs && contingency && (
                 <>
                   <tr className="font-medium">
                     <td className="text-left" colSpan={4}>
@@ -617,14 +445,14 @@ export function CostBreakdown({
                     </td>
                     <td className="font-mono">{money(costs.subtotal, 2)}</td>
                   </tr>
-                  <tr data-cost-row="contingency">
-                    <td className="text-left">Contingency</td>
-                    <td>{quantity(costs.subtotal, 0)}</td>
-                    <td className="text-left text-muted-foreground">$ subtotal</td>
+                  <tr data-cost-row={contingency.id}>
+                    <td className="text-left">{contingency.item}</td>
+                    <td>{quantity(contingency.quantity, 0)}</td>
+                    <td className="text-left text-muted-foreground">{contingency.unit}</td>
                     <td>
-                      <RateCell rate={haulRate('contingencyPercent', 'Contingency', '%', 100)} />
+                      <RateCell rate={withEdit(contingency.rate)} />
                     </td>
-                    <td className="font-mono">{money(costs.contingency, 2)}</td>
+                    <td className="font-mono">{money(contingency.amount, 2)}</td>
                   </tr>
                 </>
               )}

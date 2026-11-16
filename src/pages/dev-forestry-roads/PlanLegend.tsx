@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Button } from '@/components/ui/button'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { SheetSymbolSwatch } from '@/components/ui/sheet-symbol-swatch'
 import {
@@ -83,7 +84,19 @@ export function PlanLegend({
       >
         <div className="mt-1 space-y-3 border-t pt-1.5" data-testid="road-plan-legend-content">
           {sections.map((section) => (
-            <MapLegendSection key={section.id} title={section.title} data-legend-section={section.id}>
+            <MapLegendSection
+              key={section.id}
+              title={section.title}
+              description={section.description}
+              actions={
+                section.action && (
+                  <Button size="2xs" variant="ghost" className="shrink-0" onClick={section.action.onClick}>
+                    {section.action.label}
+                  </Button>
+                )
+              }
+              data-legend-section={section.id}
+            >
               {section.entries.map((entry) => (
                 <LegendItem
                   key={entry.id}
