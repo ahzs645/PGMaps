@@ -8,7 +8,14 @@ import type { PlanShow } from './planLayers'
 import { VIEW_OF_INTEREST_COLORS } from './planMapStyle'
 import type { PolygonGeometry } from './visibility'
 import type { ViewOfInterest } from './viewsOfInterest'
-import { chosenArrowCollection, groupMarks, nextMarkAt, viewsOfInterestPlan } from './viewsOfInterestGeometry'
+import { bearingBetween, pointAlongBearing } from './driveMath'
+import {
+  chosenArrowCollection,
+  groupMarks,
+  nextMarkAt,
+  viewConeLengthMeters,
+  viewsOfInterestPlan,
+} from './viewsOfInterestGeometry'
 
 /**
  * The plan map's views of interest: each view's lens cone along its facing and a numbered point, the open one drawn
@@ -27,6 +34,8 @@ export function ViewsOfInterestLayers({
   visible = true,
   onSelect,
   onMove,
+  onTurn = null,
+  standingViewId = null,
 }: {
   views: readonly ViewOfInterest[]
   blocks: ReadonlyArray<{ id: string; geometry: PolygonGeometry }>
@@ -39,8 +48,37 @@ export function ViewsOfInterestLayers({
   visible?: boolean
   onSelect: ((id: string) => void) | null
   onMove: ((id: string, point: { lng: number; lat: number }) => void) | null
+  /** Turns a view to a compass bearing: the open view's cone tip is a handle, as the road view's own is. */
+  onTurn?: ((id: string, bearing: number) => void) | null
+  /**
+   * The view the road view stands at: drawn by the road view's own viewer (its cone and handles), so its point and
+   * cone are left out here rather than drawn twice.
+   */
+  standingViewId?: string | null
 }) {
-  const plan = useMemo(() => viewsOfInterestPlan(views, blocks, openViewId), [views, blocks, openViewId])
+  const shownViews = useMemo(
+    () => (standingViewId ? views.filter((view) => view.id !== standingViewId) : views),
+    [views, standingViewId],
+  )
+  // Numbers stay the list's: a view left out here keeps the others' numbers.
+  const plan = useMemo(() => {
+    const full = viewsOfInterestPlan(views, blocks, openViewId)
+    if (!standingViewId) return full
+    return {
+      marks: full.marks.filter((mark) => mark.id !== standingViewId),
+      cones: { ...full.cones, features: full.cones.features.filter((feature) => feature.id !== standingViewId) },
+    }
+  }, [views, blocks, openViewId, standingViewId])
+  // The open view's turn handle, at its cone's tip.
+  const turning = useMemo(() => {
+    if (!onTurn || !openViewId) return null
+    const view = shownViews.find((entry) => entry.id === openViewId)
+    const mark = plan.marks.find((entry) => entry.id === openViewId)
+    if (!view || !mark || mark.bearing === null) return null
+    const block = blocks.find((entry) => entry.id === view.blockId) ?? null
+    const tip = pointAlongBearing(view, mark.bearing, viewConeLengthMeters(view, block))
+    return { view, tip }
+  }, [onTurn, openViewId, shownViews, plan.marks, blocks])
   const chosenArrows = useMemo(
     () => chosenArrowCollection(arrows, views, previewArrowIds, openViewId),
     [arrows, views, previewArrowIds, openViewId],
@@ -74,6 +112,26 @@ export function ViewsOfInterestLayers({
         lineOpacity={0.85}
         sourceKey="forestry-views-of-interest-cones"
       />
+      {viewsShown && turning && onTurn && (
+        <MapMarker
+          key={`turn-${turning.view.id}`}
+          longitude={turning.tip.lng}
+          latitude={turning.tip.lat}
+          draggable
+          onDragEnd={(point) => onTurn(turning.view.id, bearingBetween(turning.view, point))}
+        >
+          <MarkerContent>
+            <span
+              role="img"
+              aria-label={`${turning.view.name}: drag to turn`}
+              title="Drag to turn this view"
+              data-testid="view-of-interest-turn"
+              className="fixed-palette block h-3.5 w-3.5 cursor-grab rounded-full border-2 bg-white shadow active:cursor-grabbing"
+              style={{ borderColor: VIEW_OF_INTEREST_COLORS.view }}
+            />
+          </MarkerContent>
+        </MapMarker>
+      )}
       {viewsShown &&
         markers.map((marker) => {
           const single = marker.marks.length === 1

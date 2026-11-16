@@ -36,8 +36,8 @@ is typed survives switching.
 
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
-| 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (spot or length of road, draw, import, snap); folded *Which roads see the block* and *Viewpoints and rec sites*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; see **Views of interest** below); *Look from the road*, and while in the road view the stand (folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*); **Saved views**; folded *Where you stand* at a spot or pullout (surveyed eye elevation); folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Viewpoint significance* and *Key viewpoints*; folded *Field brief and crew checklist* |
+| 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (*Assess from*: a view of interest, or a length of road drawn, imported or snapped); folded *Which roads see the block*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
+| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving, each with its Table 3 record; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); **Saved views**; folded *Where you stand* at a spot or pullout (surveyed eye elevation); folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Viewpoint significance* and *Key viewpoints*; folded *Field brief and crew checklist* |
 | 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
 | 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **Package**: buttons that open *Save & export* on the block note, the FS1252 form, the analysis sheet or the scene; folded *VIA evidence package* (recording a run and the evidence checklist) |
@@ -91,9 +91,12 @@ for a look, and nothing else needs it.
 
 **Adding views.** *Add on the map* (with a *For* block chooser when the scene
 has several) takes the plan's next click as a view standing there and facing
-the block (`viewAtPoint`); Esc cancels. Step 1's *Viewpoints and rec sites*
-adds inventory viewpoints for the block the finder is ranked for. *Add to
-views* on an open row adds, by default, one view per inventory arrow aimed at
+the block (`viewAtPoint`); Esc cancels. *Add from viewpoints and rec sites*,
+directly under the list, adds inventory viewpoints for the block the finder is
+ranked for. Each row carries its own *Add* (*Add 2* when two arrows aim at the
+block; *Added* once listed for this block), so nothing has to be opened first;
+opening a row shows its arrows on the plan, adds one direction, or stands
+there. *Add* adds, by default, one view per inventory arrow aimed at
 the block — within `ARROW_AIM_DEGREES` (30°) of the bearing to the block's
 centre, nearest that bearing first, at most `DEFAULT_ARROWS_PER_VIEWPOINT` (2)
 — and one view facing the block when no arrow aims at it
@@ -111,6 +114,44 @@ under the row or bulk button it came from until the block changes or for
 block and facing) is skipped, and the list holds at most
 `MAX_VIEWS_OF_INTEREST` (12), the saved-view limit, so every planned view can
 be captured.
+
+**Assess from a view (step 1).** A view of interest is the one way to put a
+viewpoint on the map. Step 1's *Road or viewpoint* reads *Assess from: A view |
+Length of road*. *A view* (`AssessFromView.tsx`) is a list of the views of
+interest: choosing one stands there and runs the assessment with the road view
+closed (`viewCapture.standAt(id, { roadView: false })`, which `standAtPlace`
+runs as *Run* would instead of opening the road view), and *Add a view on the
+map* places a view facing the chosen block and then assesses from it. The
+summary's view switcher and this list are the same choice. A spot placed
+directly before views existed is shown with *Make it a view*. *Length of road*
+while standing at a view goes back to the road the stand left.
+
+**Turning a view.** The open view's cone tip on the plan is a handle, like the
+road view's own: dragging it sets the view's facing to that bearing (an arrow's
+id is dropped). While the road view stands at a planned view it *is* that view:
+the plan draws it once, as the road view's viewer (the view's own point and cone
+are left out, `standingViewId`), and turning the road view's look handle turns
+the planned view too. Either way the view reads *Changed since captured* until
+it is captured again.
+
+**What changed since a capture.** An outdated view names what moved, read from
+its latest capture's key against its key now (`captureKeyChanges`): place,
+block, facing, lens, framing or landform ("Changed since captured: lens and
+landform."), on the row's state and in the open row.
+
+**Who draws the figures.** The strip under the list says *Figures drawn by* and
+links to *Save & export → Package* (`openPackage`); the renderer is held by the
+export opener (`useExportOpener`) so the panel can say it while the dialog is
+closed. Captures are always PGMaps'. With an engine chosen, a captured view
+saved at another place than the one stood at says that it keeps PGMaps' picture
+(`renderJobFor`'s rule), and that standing there lets the engine draw it.
+
+**The viewpoint record.** A planned view's Table 3 fields (significance, why it
+was chosen, viewing experience, view duration; `ViewpointRecordFields`) are in
+its own row under *Viewpoint record*, held on `viaReview.viewpointRecords` by the
+view's name, which its capture is saved under; renaming the view moves the
+record (`renamedViewpointRecords`). Step 2's *Viewpoint significance* lists only
+views saved by hand.
 
 **What a view is** (`viewsOfInterest.ts`, DOM-free): a place (a map click, or
 a VLI viewpoint or rec site by its candidate key), the block it assesses, a
@@ -2043,7 +2084,7 @@ as screened.
 
 ## Inventory viewpoints and their arrows
 
-Step 1's **Viewpoints and rec sites** reads five DataBC WFS layers within 12 km
+Step 2's **Add from viewpoints and rec sites** reads five DataBC WFS layers within 12 km
 of the block (`viewpointInventory.ts`): VLI viewing points
 (`REC_VIEWPOINT_POINT_SVW`), their landscape arrows
 (`REC_VIEWING_DIRECTION_LIN`), inventory screenings (`REC_SCREENINGS_POLY`),
@@ -2068,9 +2109,9 @@ drop one, because people at a site look around. **Check which of them see the
 block** sends them through the reverse run as one-point roads, bare earth at eye
 height. A visibility run resets the shared worker's reverse state, so the page
 keeps the viewpoint rows, with the block they were checked for, until the next
-check. **Assess from here** makes one the spot viewpoint. **Add to views**
-plans a row as step 2's views of interest for the block, without standing there
-(see **Views of interest**).
+check. **Add** plans a row as views of interest for the block, without
+standing there (see **Views of interest**); the finder sits under that list in
+step 2.
 
 ## Ridge layers
 
@@ -2199,14 +2240,21 @@ be shown, and most start hidden so the stack stays short.
 ## The road view's layout
 
 The bar over the map plays: play and pause, the route position with 10 m
-steps, speed, the harvest phase, **Save**, **Image** and **View options**, reset
+steps, speed, the harvest phase, **Save**, **Image**, **View options** and **Drawn timber**, reset
 look, the keys behind an (i), and the way back to the map. *View options*
 (`RoadViewOptions.tsx`, the shared `ToolbarPopover`) holds how the view looks,
 in four groups: **Look** (where to look, a jump to a view of the block, the
 lens),
 **Show** (analysis points, the note screenshot look, EVQO polygons, the landform,
-distance haze), **Figure** (figure and label style) and **Drawing** (display
-quality, tree shading, detail when stopped). Its badge counts what is drawn over
+distance haze, as checkboxes), **Figure** (figure and label style) and
+**Drawing** (display quality, tree shading, detail when stopped). Every option
+is one `OptionRow`: its label and explanation on the left, its control in one
+fixed-width column on the right, so the panel's rows line up; only the engine's
+date and time stack under their label. *Drawn timber* (the tree button,
+`DrawnTimberButton` over `DrawnTimberPanel`) holds whether timber stands, its
+height and cleared width, the viewpoint clearing, clearing private land,
+tree-free areas, how a stem is drawn and the viewing gap; tracing a tree-free
+area keeps its drawing controls in the sidebar, where the other drawings' are. Its badge counts what is drawn over
 the plain view. Satellite imagery is the road view's Layers button. What the
 stand is drawn from — block colours, the drawn timber, existing forest and
 regrowth — stays in step 2, first in that step while the road view is open. One status line over the map reads the

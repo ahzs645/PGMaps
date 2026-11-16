@@ -384,8 +384,11 @@ test('plans views of interest, captures them without driving and writes them thr
   })
 
   await test.step('Add to views on an inventory viewpoint adds its two arrows aimed at the block', async () => {
-    await unfold(page, 'identify', 'inventory-viewpoints')
-    const finder = page.locator('[data-via-panel="identify"]')
+    // The finder sits under the views of interest in step 2, which it adds to.
+    await unfold(page, 'visit', 'inventory-viewpoints')
+    const finder = page.locator('[data-via-panel="visit"]').locator('section', {
+      has: page.getByRole('list', { name: 'Inventory viewpoints near the block' }),
+    })
     await finder.getByRole('button', { name: 'Load around the block' }).click()
     const list = finder.getByRole('list', { name: 'Inventory viewpoints near the block' })
     const candidate = list.getByRole('button', { name: new RegExp(`^${VLI_NAME}`) })

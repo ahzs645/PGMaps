@@ -375,6 +375,7 @@ export function ExportPackagePane({
 export function VisualsExportDialog({
   open,
   initialOutput,
+  initialPackage = false,
   onOpenChange,
   context,
   options,
@@ -392,6 +393,8 @@ export function VisualsExportDialog({
 }: {
   open: boolean
   initialOutput: VisualsExport
+  /** Open on the package's entry rather than `initialOutput`'s pane. */
+  initialPackage?: boolean
   onOpenChange: (open: boolean) => void
   context: ExportContext
   /** Each output's own options (stations, figure style, block), shown above what goes in. */
@@ -439,7 +442,7 @@ export function VisualsExportDialog({
     setWasOpen(open)
     if (open) {
       setSelected(initialOutput)
-      setPackageOpen(false)
+      setPackageOpen(initialPackage && !!packagePane)
       setView('contents')
       setStatus(null)
     }

@@ -1,4 +1,4 @@
-import { ListPlus, Loader2, MapPin, Radar } from 'lucide-react'
+import { Check, ListPlus, Loader2, MapPin, Plus, Radar } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -183,7 +183,7 @@ export function ViewpointFinderPanel({
   }
   return (
     <ToolSection
-      title="Viewpoints and rec sites"
+      title="Add from viewpoints and rec sites"
       toggleProps={{ 'data-forestry-disclosure': 'inventory-viewpoints' }}
       // The section remounts after the road view; once loaded, it reopens on its list.
       defaultOpen={!!data}
@@ -201,13 +201,10 @@ export function ViewpointFinderPanel({
           it, because people at a site look around. Every viewpoint in the inventory carries a past expiry date, so
           expiry is not used to filter them; rows the inventory typed ERROR are left out.
           <br />
-          Pick a row to see it on the map, choose which way to face — the block or one of its arrows — and stand there:
-          the full assessment runs from it and the road view opens. Rows the block is in view from go into the step 5
-          Visuals paragraph; the check is bare earth from one point.
-          <br />
-          Or plan it without standing there: <em>Add to views</em> lists the row in step 2&apos;s views of interest for
-          this block — by default up to two of its arrows aimed at the block (highlighted on the map), else one view
-          facing it; pick the block or one arrow above to add just that.
+          <em>Add</em> on a row lists it in the views of interest above for this block: by default up to two of its
+          arrows aimed at the block, else one view facing it. Open a row to see its arrows on the map, add just one
+          direction, or stand there now (the assessment runs from it and the road view opens). Rows the block is in view
+          from go into the step 5 Visuals paragraph; the check is bare earth from one point.
         </>
       }
     >
@@ -271,39 +268,84 @@ export function ViewpointFinderPanel({
             const arrow = candidate.arrows.find((entry) => `arrow:${entry.id}` === facing) ?? null
             // The arrows the default adds for this row (`viewsForCandidate`): up to two aimed at the block.
             const defaultArrows = selected ? arrowIdsForFacing(candidate, block, 'default') : []
+            // What the row's own *Add* adds without opening it: the default views, at least one.
+            const addCount = Math.max(1, arrowIdsForFacing(candidate, block, 'default').length)
+            const listed = !!listedKeys?.has(candidate.key)
             return (
               <li key={candidate.key}>
-                <ResultRow
-                  className="px-2 py-1.5"
-                  selected={selected}
-                  onClick={() => select(candidate)}
-                  title={
-                    <span className="text-xs">
-                      {candidate.name}
-                      {listedKeys?.has(candidate.key) && (
-                        <span className="ml-1 font-normal text-muted-foreground">· in views</span>
-                      )}
-                    </span>
-                  }
-                  subtitle={
-                    <span className="whitespace-normal text-3xs leading-4">{viewpointCandidateSummary(candidate)}</span>
-                  }
-                  trailing={
-                    row && (
-                      <span
-                        className={cn(
-                          'text-xs',
-                          row.maxVisiblePercent > 0 ? 'text-rose-600' : 'font-normal text-muted-foreground',
+                <div className="flex items-stretch">
+                  <ResultRow
+                    className="min-w-0 flex-1 px-2 py-1.5"
+                    selected={selected}
+                    onClick={() => select(candidate)}
+                    title={
+                      <span className="text-xs">
+                        {candidate.name}
+                        {listedKeys?.has(candidate.key) && (
+                          <span className="ml-1 font-normal text-muted-foreground">· in views</span>
                         )}
-                        title="Share of the block's ground in view from here, bare earth"
-                      >
-                        {row.maxVisiblePercent > 0
-                          ? `${formatPercentValue(row.maxVisiblePercent, { maximumFractionDigits: 0 })} seen`
-                          : 'Hidden'}
                       </span>
-                    )
-                  }
-                />
+                    }
+                    subtitle={
+                      <span className="whitespace-normal text-3xs leading-4">
+                        {viewpointCandidateSummary(candidate)}
+                      </span>
+                    }
+                    trailing={
+                      row && (
+                        <span
+                          className={cn(
+                            'text-xs',
+                            row.maxVisiblePercent > 0 ? 'text-rose-600' : 'font-normal text-muted-foreground',
+                          )}
+                          title="Share of the block's ground in view from here, bare earth"
+                        >
+                          {row.maxVisiblePercent > 0
+                            ? `${formatPercentValue(row.maxVisiblePercent, { maximumFractionDigits: 0 })} seen`
+                            : 'Hidden'}
+                        </span>
+                      )
+                    }
+                  />
+                  {onAddViews && (
+                    // The row's own *Add*, beside it rather than inside its button: the default views for this block.
+                    <Button
+                      type="button"
+                      variant={listed ? 'ghost' : 'outline'}
+                      size="2xs"
+                      className={cn('my-1.5 mr-1.5 shrink-0 self-center', selected && 'bg-background')}
+                      disabled={!block || listed}
+                      aria-label={listed ? `${candidate.name} is in the views` : `Add ${candidate.name} to the views`}
+                      title={
+                        listed
+                          ? 'Already in the views of interest for this block'
+                          : block
+                            ? addCount > 1
+                              ? `Adds ${addCount} views: the arrows aimed at ${block.name}`
+                              : `Adds one view facing ${block.name}`
+                            : 'Add a cutblock first'
+                      }
+                      onClick={() => add(candidate.key, [{ candidate }])}
+                    >
+                      {listed ? (
+                        <>
+                          <Check className="h-3 w-3" />
+                          Added
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-3 w-3" />
+                          Add{addCount > 1 ? ` ${addCount}` : ''}
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+                {!selected && addMessage?.scope === candidate.key && (
+                  <p className="px-2 pb-1.5 text-3xs text-muted-foreground" role="status">
+                    {addMessage.text}
+                  </p>
+                )}
                 {selected && (
                   <ResultRowDetail className="space-y-2 pl-2">
                     {candidate.arrows.length > 0 && (
