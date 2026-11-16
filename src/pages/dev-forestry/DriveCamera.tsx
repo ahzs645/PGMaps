@@ -83,6 +83,9 @@ type Props = {
 /** Below this map width the controls open folded to the player row, as on a phone. */
 const NARROW_VIEW_PX = 640
 /** Look-around owns pointer gestures only while driving; the ordinary map is fully restored on exit. */
+/** How long the camera's frame loop keeps running after its last change, ms, before it sleeps. */
+const DRIVE_AWAKE_MS = 1000
+
 export function DriveCamera(props: Props) {
   const { map, isLoaded } = useMap()
   const controllerRef = useRef<DriveController | null>(null)
@@ -131,9 +134,12 @@ export function DriveCamera(props: Props) {
   // below being torn down and rebuilt, which would restart playback per render.
   const viewRef = useRef(view)
   const propsRef = useRef(props)
+  // Wakes the camera's frame loop, which sleeps while nothing moves (`DRIVE_AWAKE_MS`).
+  const wakeRef = useRef<() => void>(() => {})
   useEffect(() => {
     viewRef.current = view
     propsRef.current = props
+    wakeRef.current()
   })
   const coordinates = useMemo(
     () => props.roadCoordinates ?? props.stations.map((p): [number, number] => [p.lng, p.lat]),
@@ -191,7 +197,20 @@ export function DriveCamera(props: Props) {
     const started = performance.now()
     let previousFrame = 0,
       downgraded = false
+    // The loop runs every frame only while something can move the camera: playing, a walk key held, the camera not
+    // yet placed (terrain loading), or within `DRIVE_AWAKE_MS` of a change (a look, a prop, a resize, map data). A
+    // still road view then asks the page for no frames: it drew about 120 a second while an export waited on it.
+    let awakeUntil = performance.now() + DRIVE_AWAKE_MS
+    const wake = () => {
+      awakeUntil = performance.now() + DRIVE_AWAKE_MS
+      if (frame || disposed) return
+      // A sleep is not a slow frame, and a walker does not leap the time it slept.
+      previousFrame = 0
+      frame = requestAnimationFrame(render)
+    }
+    wakeRef.current = wake
     const render = (time: number) => {
+      frame = 0
       if (disposed) return
       const current = propsRef.current
       if (
@@ -233,7 +252,8 @@ export function DriveCamera(props: Props) {
       const walk = standRoad && current.standAt ? offsetFrom(standRoad, current.standAt) : walkRef.current
       const options: DriveOptions = { ...current, ...viewRef.current, walk, onStatus: setStatus }
       controller.tick(time, options)
-      frame = requestAnimationFrame(render)
+      if (current.playing || held.size > 0 || controller.currentStatus !== 'ready' || time < awakeUntil)
+        frame = requestAnimationFrame(render)
     }
     const canvas = map.getCanvas()
     const oldTouchAction = canvas.style.touchAction
@@ -267,6 +287,7 @@ export function DriveCamera(props: Props) {
     }
     const clearHeld = () => heldRef.current.clear()
     const key = (event: KeyboardEvent) => {
+      wake()
       if (event.key === 'Shift') heldRef.current.add('shift')
       if (walkKey(event)) {
         event.preventDefault()
@@ -300,6 +321,8 @@ export function DriveCamera(props: Props) {
     const hidden = () => {
       if (document.hidden) propsRef.current.onPause?.()
     }
+    map.on('data', wake)
+    map.on('resize', wake)
     canvas.addEventListener('pointerdown', down)
     canvas.addEventListener('pointermove', move)
     canvas.addEventListener('pointerup', up)
@@ -312,6 +335,9 @@ export function DriveCamera(props: Props) {
     return () => {
       disposed = true
       cancelAnimationFrame(frame)
+      wakeRef.current = () => {}
+      map.off('data', wake)
+      map.off('resize', wake)
       canvas.removeEventListener('pointerdown', down)
       canvas.removeEventListener('pointermove', move)
       canvas.removeEventListener('pointerup', up)

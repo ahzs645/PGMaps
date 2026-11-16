@@ -13,6 +13,7 @@ import { downloadBlob } from '@/lib/download'
 import { useInterfaceThemeApplied } from '@/lib/interfaceTheme'
 import { cn } from '@/lib/utils'
 
+import { timed } from './exportTiming'
 import { ReportDraftView, type ReportDraftResult } from './ReportDraftView'
 import type { ViewCaptureReport } from './useViewCapture'
 import { VIA_STEPS, type ViaStepId } from './via'
@@ -120,7 +121,7 @@ async function previewOf(file: BuiltFile): Promise<Preview> {
 }
 
 type PreviewResult =
-  | { request: object; file: BuiltFile; preview: Preview; error?: undefined; missing: string | null }
+  | { request: object; file: BuiltFile; preview: Preview; error?: undefined; missing: string | null; outdated?: true }
   | { request: object; file?: undefined; preview?: undefined; error: string; missing?: undefined }
 
 const stepLabel = (id: ViaStepId) => {
@@ -413,8 +414,8 @@ export function VisualsExportDialog({
   options: Partial<Record<VisualsExport, ReactNode>>
   /** Writes one output; `signal` aborts when the selection or its content changes. */
   build: (kind: VisualsExport, format: string, signal: AbortSignal) => Promise<BuiltFile>
-  /** Changes whenever an output's content would. */
-  version: unknown
+  /** Changes whenever this output's content would (and never for another output's state or a wait's progress). */
+  version: (kind: VisualsExport) => string
   /** Closes the dialog and opens a step of the sidebar. */
   onGoToStep?: (id: ViaStepId) => void
   /** Does a part's job: stand at a viewpoint, read the inventory, open the road view. */
@@ -479,8 +480,18 @@ export function VisualsExportDialog({
   const preparation = exportPreparation(item.kind, context)
 
   // A new object per selection or content change: a preview is current only for its own request.
-  const request = useMemo(() => ({ kind: item.kind, format: format.id, version }), [item.kind, format.id, version])
+  const itemVersion = version(item.kind)
+  const request = useMemo(
+    () => ({ kind: item.kind, format: format.id, version: itemVersion }),
+    [item.kind, format.id, itemVersion],
+  )
   const [result, setResult] = useState<PreviewResult | null>(null)
+  const latestRequest = useRef<object>(request)
+  const resultRef = useRef(result)
+  useEffect(() => {
+    latestRequest.current = request
+    resultRef.current = result
+  })
   // What the preview waits on now, for its placeholder: the file being written, or the one before it finishing.
   const [previewStage, setPreviewStage] = useState<{ request: object; text: string } | null>(null)
   // The file being written, whatever asked for it: a build moves the page's maps and road view (the report's maps,
@@ -510,7 +521,7 @@ export function VisualsExportDialog({
   })
   useEffect(() => {
     changedAt.current = Date.now()
-  }, [version])
+  }, [itemVersion])
 
   /**
    * Makes what the output reads before it is written: the views of interest the package includes and has not
@@ -536,19 +547,24 @@ export function VisualsExportDialog({
         pending.then(clear, clear)
       }
       if (captureInFlight.current) {
-        const report = await untilAborted(captureInFlight.current, signal)
+        const report = await timed('capture views of interest', () => untilAborted(captureInFlight.current!, signal))
         if (report.cancelled)
           throw new Error(
             'Capturing the views of interest was cancelled, so nothing was written. Preview writes the file with the views captured so far; Download tries the rest again.',
           )
       } else await waitFor(() => !capturing(), signal)
       // The capture steps back to where the reviewer stood: let the page settle before reading what it needs now.
-      await waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal)
+      await timed('settle after capture', () => waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal))
       // An output with before pictures renders the views saved here from the road view: when it was open before the
       // capture, wait for the capture's way back to open it again and load its terrain.
       if (roadViewWasReady && NEEDS_BEFORE.has(kind))
-        await waitFor(() => latestContext.current.roadViewReady, signal, ROAD_VIEW_SETTLE_MS)
+        await timed('road view back', () =>
+          waitFor(() => latestContext.current.roadViewReady, signal, ROAD_VIEW_SETTLE_MS),
+        )
     }
+    // A capture steps back where the reviewer stood and runs there again: the file waits for that run whatever it
+    // reads, or it is written from the run before and thrown away when the new one lands.
+    const captured = waited
     const needs = exportPreparation(kind, latestContext.current, { retry })
     const running = () => latestContext.current.autoRun.status === 'running'
     // The visual inventory, read alongside the run: a failed read does not stop the file, which then says not read.
@@ -559,38 +575,44 @@ export function VisualsExportDialog({
       const asked = Date.now()
       let started = status() === 'loading'
       latestReadInventory.current()
-      inventoryRead = waitFor(
-        () => {
-          const now = status()
-          if (now === 'loading') started = true
-          if (now === 'ready') return true
-          // An error from before the request counts only once the new read has had time to start.
-          if (now === 'error') return started || Date.now() - asked > RUN_START_MS
-          return false
-        },
-        signal,
-        INVENTORY_WAIT_MS,
+      inventoryRead = timed('visual inventory read', () =>
+        waitFor(
+          () => {
+            const now = status()
+            if (now === 'loading') started = true
+            if (now === 'ready') return true
+            // An error from before the request counts only once the new read has had time to start.
+            if (now === 'error') return started || Date.now() - asked > RUN_START_MS
+            return false
+          },
+          signal,
+          INVENTORY_WAIT_MS,
+        ),
       )
     }
-    if (needs.run || (running() && waitsForRun(kind))) {
+    const rerun =
+      captured && waitsForRun(kind) && latestContext.current.run !== 'current' && !latestContext.current.autoRun.blocker
+    if (needs.run || rerun || (running() && waitsForRun(kind))) {
       waited = true
       if (!running()) latestRun.current?.()
       const asked = Date.now()
       let started = running()
-      await waitFor(() => {
-        const ctx = latestContext.current
-        if (ctx.run === 'current') return true
-        if (ctx.autoRun.status === 'running') started = true
-        else if (started)
-          throw new Error(
-            ctx.autoRun.status === 'error'
-              ? `The assessment stopped: ${ctx.autoRun.error ?? 'no reason given'}.`
-              : 'The assessment was stopped before the file was written.',
-          )
-        else if (Date.now() - asked > RUN_START_MS)
-          throw new Error(ctx.autoRun.blocker ?? 'The assessment could not start: check the scene in step 1.')
-        return false
-      }, signal)
+      await timed('run', () =>
+        waitFor(() => {
+          const ctx = latestContext.current
+          if (ctx.run === 'current') return true
+          if (ctx.autoRun.status === 'running') started = true
+          else if (started)
+            throw new Error(
+              ctx.autoRun.status === 'error'
+                ? `The assessment stopped: ${ctx.autoRun.error ?? 'no reason given'}.`
+                : 'The assessment was stopped before the file was written.',
+            )
+          else if (Date.now() - asked > RUN_START_MS)
+            throw new Error(ctx.autoRun.blocker ?? 'The assessment could not start: check the scene in step 1.')
+          return false
+        }, signal),
+      )
     }
     await inventoryRead
     if (needs.landChecks || (kind === 'block-note' && latestContext.current.landChecks.pending)) {
@@ -606,20 +628,22 @@ export function VisualsExportDialog({
       waited = true
       latestRender.current?.(kind)
       const asked = Date.now()
-      await waitFor(() => {
-        const r = latestContext.current.renderer
-        if (r.failed) throw new Error(`${r.label} could not draw ${r.failed}`)
-        // The road view's terrain reloading after a run is a wait, not a failure, for a while.
-        if (r.unavailable && !(r.settling && Date.now() - asked < ROAD_VIEW_SETTLE_MS))
-          throw new Error(`${r.label} cannot draw the figures: ${r.unavailable}`)
-        // A view still missing with nothing queued (its render was kept under a scene the page has since moved on
-        // from) is asked for again: the wait used to sit on it for good.
-        const missing = rendererMissing(kind, r)
-        if (missing > 0 && !r.running) latestRender.current?.(kind)
-        return missing === 0
-      }, signal)
+      await timed('engine renders', () =>
+        waitFor(() => {
+          const r = latestContext.current.renderer
+          if (r.failed) throw new Error(`${r.label} could not draw ${r.failed}`)
+          // The road view's terrain reloading after a run is a wait, not a failure, for a while.
+          if (r.unavailable && !(r.settling && Date.now() - asked < ROAD_VIEW_SETTLE_MS))
+            throw new Error(`${r.label} cannot draw the figures: ${r.unavailable}`)
+          // A view still missing with nothing queued (its render was kept under a scene the page has since moved on
+          // from) is asked for again: the wait used to sit on it for good.
+          const missing = rendererMissing(kind, r)
+          if (missing > 0 && !r.running) latestRender.current?.(kind)
+          return missing === 0
+        }, signal),
+      )
     }
-    if (waited) await waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal)
+    if (waited) await timed('settle', () => waitFor(() => Date.now() - changedAt.current >= SETTLE_MS, signal))
     return uncapturedNote(kind, latestContext.current)
   }, [])
 
@@ -647,7 +671,7 @@ export function VisualsExportDialog({
           ? 'Writing the report: its maps and before pictures are captured from the page’s maps, a few seconds each…'
           : 'Writing the file…',
       )
-      const job = latestBuild.current(kind, formatId, signal)
+      const job = timed(`write ${kind}`, () => latestBuild.current(kind, formatId, signal))
       buildInFlight.current = job.catch(() => undefined)
       return job
     },
@@ -668,8 +692,13 @@ export function VisualsExportDialog({
         })
         .then(async (file) => {
           const preview = await previewOf(file)
+          // Written for content that has since changed: shown, marked out of date, while the current one is written
+          // (the pictures it drew are kept, so that one is quicker), rather than thrown away. Never downloaded.
           if (controller.signal.aborted) {
-            if ('url' in preview) URL.revokeObjectURL(preview.url)
+            // The current one already shown: this one is not needed.
+            if (resultRef.current?.request === latestRequest.current) {
+              if ('url' in preview) URL.revokeObjectURL(preview.url)
+            } else setResult({ request, file, preview, missing, outdated: true })
           } else setResult({ request, file, preview, missing })
         })
         .catch((error: unknown) => {
@@ -739,6 +768,8 @@ export function VisualsExportDialog({
     }
   }, [result])
   const current = result?.request === request ? result : null
+  // A preview written for content that has since changed, shown until the current one is written.
+  const outdated = !current && result?.preview && result.request && 'outdated' in result ? result : null
 
   const pane = useRef<HTMLElement>(null)
   const select = (kind: VisualsExport) => {
@@ -1014,6 +1045,18 @@ export function VisualsExportDialog({
                   {current.missing && <InlineAlert tone="warning">{current.missing}</InlineAlert>}
                   <div className="min-h-0 flex-1">
                     <PreviewView preview={current.preview} title={item.label} />
+                  </div>
+                </div>
+              ) : outdated?.preview && (outdated.request as { kind?: string }).kind === item.kind ? (
+                <div className="flex h-full min-h-0 flex-col gap-2">
+                  <InlineAlert loading>
+                    <span role="status">
+                      Out of date: the page changed while this was written. Writing it again, with the pictures already
+                      drawn kept.
+                    </span>
+                  </InlineAlert>
+                  <div className="min-h-0 flex-1">
+                    <PreviewView preview={outdated.preview} title={item.label} />
                   </div>
                 </div>
               ) : current?.error ? (

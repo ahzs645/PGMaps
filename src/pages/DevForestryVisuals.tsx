@@ -1,6 +1,7 @@
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { StyledSelect } from '@/components/ui/form-field'
 import { useRouteViewshed } from './dev-forestry/useRouteViewshed'
+import { timed } from './dev-forestry/exportTiming'
 import { RouteViewshedPanel } from './dev-forestry/RouteViewshedPanel'
 import { visibilityOutline } from '@/features/terrain-viewshed'
 import { sampleAlongLine } from './dev-forestry/visibility'
@@ -193,7 +194,7 @@ import { snagFates, snagStatesAt } from './dev-forestry/stand/snagDecay'
 import { Sidebar, type DrawMode, type DriveState, type StandPrescriptionLine } from './dev-forestry/Sidebar'
 import { TerrainSupport } from './dev-forestry/TerrainSupport'
 import { readShapeFile } from './dev-forestry/shapeImport'
-import { IMAGERY_BASEMAPS, SATELLITE_ATTRIBUTION } from '@/components/ui/map-satellite-imagery'
+import { IMAGERY_BASEMAPS, SATELLITE_ATTRIBUTION, SatelliteImagery } from '@/components/ui/map-satellite-imagery'
 import {
   VIEWPOINT_ROAD_CLASSES,
   arrowLabel,
@@ -341,7 +342,6 @@ import {
   DEFAULT_PLAN_SHOW,
   togglePlanLegendKey,
   type PlanBasemap,
-  type PlanLegendKey,
   type PlanShow,
 } from './dev-forestry/planLayers'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
@@ -445,40 +445,6 @@ function captureSamplesFromUrl(): number | undefined {
   return Number.isInteger(samples) && samples >= 1 && samples <= 256 ? samples : undefined
 }
 
-/**
- * Every plan legend row, hidden while the VIA report captures its maps: the report's map figure draws the blocks,
- * openings, road, inventory and viewpoints itself (`reportMaps.ts`), over the plan's basemap alone.
- */
-const REPORT_HIDDEN_PLAN_KEYS: ReadonlySet<PlanLegendKey> = new Set<PlanLegendKey>([
-  'block',
-  'landform',
-  'opening',
-  'road',
-  'tree-free',
-  'samples:visible',
-  'samples:hidden',
-  'samples:unknown',
-  'viewpoint',
-  'exposure',
-  'candidate:ridge-layer',
-  'candidate:facing',
-  'candidate:visible-face',
-  'other-ridge-layers',
-  'clue:ridge',
-  'clue:hollow',
-  'clue:other',
-  'vli-viewpoint',
-  'arrow',
-  'rec-site',
-  'screening',
-  'mask:natural',
-  'mask:private',
-  'mask:permanent',
-  'mask:retained',
-  'view-of-interest',
-  'view-arrow',
-])
-
 /** Where a saved view's figure is taken from: the station, the eye and the drive's exact pose, the lens. */
 type FigureAt = {
   stationIndex: number
@@ -562,6 +528,13 @@ type InventoryState = {
 
 /** Marks openings pulled from DataBC, so a re-lookup replaces them cleanly. */
 const HARVEST_SOURCE = 'BC consolidated cutblocks'
+/**
+ * The hidden map the VIA report's maps are captured on, CSS pixels: a fixed size, so every report frames its maps the
+ * same whatever the plan pane's size, and the reviewer's plan never moves while they are taken.
+ */
+const REPORT_CAPTURE_MAP_SIZE = { width: 1600, height: 1100 }
+/** How many areas' visual inventory reads the page keeps, so returning to one reads nothing again. */
+const SCENE_INVENTORY_AREAS_KEPT = 8
 
 /** Closes a traced ring and rejects anything too small to be a polygon. */
 function ringToPolygon(coordinates: Array<[number, number]>): GeoJSON.Polygon | null {
@@ -696,22 +669,18 @@ function DevForestryVisuals() {
   // The plan map's basemap and overlays (its Layers button) and the legend rows hidden;
   // the road view keeps its set on `drive`.
   const [planShow, setPlanShow] = useState<PlanShow>(DEFAULT_PLAN_SHOW)
-  // While the VIA report captures its maps, the plan draws only its basemap (the figure draws the rest) on the
-  // basemap the map asks for; null the rest of the time. `reportBasemapShown` follows once the plan has rendered it.
-  // `topo` is the vector map with the plan's own hillshade, for the 11 × 17 overview sheet.
+  // The VIA report's maps are captured on a hidden map of their own (`REPORT_CAPTURE_MAP_SIZE`), mounted only while
+  // they are taken: it draws only the basemap the map asks for (the figure draws the rest), so the reviewer's plan
+  // neither moves nor changes its look, and the road view's renders can run at the same time. `topo` is the vector
+  // map with hillshade, for the 11 × 17 overview sheet. `reportBasemapShown` follows once it has rendered.
+  const reportMapRef = useRef<MapRef>(null)
+  const [reportMapOn, setReportMapOn] = useState(false)
   const [reportBasemap, setReportBasemap] = useState<ReportMapPlan['basemap'] | null>(null)
   const reportBasemapShown = useRef<ReportMapPlan['basemap'] | null>(null)
   useEffect(() => {
     reportBasemapShown.current = reportBasemap
   }, [reportBasemap])
-  const planLook: PlanShow = reportBasemap
-    ? {
-        basemap: reportBasemap === 'topo' ? 'map' : reportBasemap,
-        hillshade: reportBasemap === 'topo',
-        evqo: false,
-        hidden: REPORT_HIDDEN_PLAN_KEYS,
-      }
-    : planShow
+  const planLook: PlanShow = planShow
   const [seenRoadClass, setSeenRoadClass] = useState<string | null>(null)
   const [autoClearing, setAutoClearing] = useState(DEFAULT_DRIVE.roadClearWidthMeters)
   if (basemap.roadClass !== seenRoadClass) {
@@ -2156,9 +2125,18 @@ function DevForestryVisuals() {
     error: string | null
     retrievedAt: string | null
   } | null>(null)
+  // Successful reads by area: the scene's bounds take in the viewpoint, so a capture standing at a view of interest
+  // and stepping back read the inventory twice more and turned it to loading under an export being written, which
+  // then threw its finished file away and wrote it again. Coming back to an area read before takes that read.
+  const sceneInventoryKept = useRef(new globalThis.Map<string, NonNullable<typeof sceneInventoryRead>>())
   useEffect(() => {
     if (!sceneInventoryRequest || sceneInventoryRead?.request === sceneInventoryRequest) return
     const key = sceneInventoryRequest.slice(0, sceneInventoryRequest.indexOf('#'))
+    const kept = sceneInventoryKept.current.get(key)
+    if (kept) {
+      setSceneInventoryRead({ ...kept, request: sceneInventoryRequest })
+      return
+    }
     const abort = new AbortController()
     let timedOut = false
     const timer = window.setTimeout(() => {
@@ -2168,8 +2146,14 @@ function DevForestryVisuals() {
     const bounds = key.split(',').map(Number) as [number, number, number, number]
     queryVisualInventory(bounds, abort.signal)
       .then(({ units, retrievedAt }) => {
-        if (!abort.signal.aborted)
-          setSceneInventoryRead({ request: sceneInventoryRequest, key, units, error: null, retrievedAt })
+        if (abort.signal.aborted) return
+        const read = { request: sceneInventoryRequest, key, units, error: null, retrievedAt }
+        const kept = sceneInventoryKept.current
+        kept.delete(key)
+        kept.set(key, read)
+        // A few areas: the scene's own and the places its views of interest stand.
+        for (const old of kept.keys()) if (kept.size > SCENE_INVENTORY_AREAS_KEPT) kept.delete(old)
+        setSceneInventoryRead(read)
       })
       .catch((error: unknown) => {
         if (!abort.signal.aborted || timedOut)
@@ -4615,11 +4599,13 @@ function DevForestryVisuals() {
   /** Shows the road view in a harvest phase and waits until its regrown stand could be saved; false on a timeout. */
   const showHarvestPhase = async (phase: 'before' | 'after') => {
     if (driveRef.current.harvestPhase === phase) return true
-    updateDrive({ harvestPhase: phase })
-    await waitUntil(() => driveRef.current.harvestPhase === phase, 5000)
-    // The stand is regrown for the phase: give it a moment to start, then wait until the view could be saved.
-    await new Promise((resolve) => window.setTimeout(resolve, 600))
-    return waitUntil(() => canSaveViewRef.current, 60_000)
+    return timed(`harvest phase ${phase}`, async () => {
+      updateDrive({ harvestPhase: phase })
+      await waitUntil(() => driveRef.current.harvestPhase === phase, 5000)
+      // The stand is regrown for the phase: give it a moment to start, then wait until the view could be saved.
+      await new Promise((resolve) => window.setTimeout(resolve, 600))
+      return waitUntil(() => canSaveViewRef.current, 60_000)
+    })
   }
   /**
    * Before-harvest renders of saved views from their own framed poses (`captureFramed`, the figure's framing, no class
@@ -4772,7 +4758,15 @@ function DevForestryVisuals() {
 
     // The plan map: on imagery for the overview and location maps, on the vector map for the regional one, and on
     // the vector map with its hillshade for the 11 × 17 overview sheet (17:11, its own window of the canvas).
-    const plan = mapRef.current as unknown as import('maplibre-gl').Map | null
+    let plan: import('maplibre-gl').Map | null = null
+    if (wants('maps')) {
+      setReportMapOn(true)
+      const loaded = await waitUntil(() => {
+        const map = reportMapRef.current as unknown as import('maplibre-gl').Map | null
+        return !!map && !!map.isStyleLoaded()
+      }, 30_000)
+      plan = loaded ? (reportMapRef.current as unknown as import('maplibre-gl').Map) : null
+    }
     const canvas = plan?.getCanvas()
     const frame = canvas
       ? captureFrame({ width: canvas.clientWidth, height: canvas.clientHeight }, REPORT_MAP_ASPECT.overview)
@@ -4782,9 +4776,10 @@ function DevForestryVisuals() {
       : null
     if (!wants('maps')) {
       // Another group only: the plan map is not moved.
-    } else if (!plan || !frame)
-      notes.push('The plan map is not open, so the report has no overview, location or regional map.')
-    else if (frame.width < 240 || frame.height < 180)
+    } else if (!plan || !frame) {
+      notes.push('The report’s capture map did not load, so the report has no overview, location or regional map.')
+      setReportMapOn(false)
+    } else if (frame.width < 240 || frame.height < 180)
       notes.push('The plan map pane is too small to capture the report’s maps; widen it and build the report again.')
     else {
       const sheet = sheetFrame ? planOverviewSheet(features, sheetFrame, sheetStyle) : null
@@ -4838,6 +4833,7 @@ function DevForestryVisuals() {
         }
       } finally {
         setReportBasemap(null)
+        setReportMapOn(false)
       }
     }
 
@@ -5265,7 +5261,7 @@ function DevForestryVisuals() {
     result,
     preliminaryDrive,
     planShow: planLook,
-    showInventory: showInventory && !reportBasemap,
+    showInventory,
     inventory,
     selectedTargetId,
     drawMode,
@@ -5906,6 +5902,25 @@ function DevForestryVisuals() {
         {exportDialog}
         {prescriptionDialog}
         {backgroundRenders.tray}
+        {reportMapOn && (
+          // Off screen but laid out and drawn (never `display: none`, which leaves MapLibre a 0 × 0 canvas).
+          <div
+            aria-hidden="true"
+            data-testid="visuals-report-capture-map"
+            className="pointer-events-none fixed top-0"
+            style={{ left: -REPORT_CAPTURE_MAP_SIZE.width - 1000, ...REPORT_CAPTURE_MAP_SIZE }}
+          >
+            <Map ref={reportMapRef} center={PG_CENTER} zoom={9} maxPitch={85} essentials={false} controls={null}>
+              <TerrainSupport
+                terrain={false}
+                exaggeration={1}
+                hillshade={reportBasemap === 'topo'}
+                hillshadeIntensity={0.45}
+              />
+              <SatelliteImagery visible={reportBasemap === 'satellite'} />
+            </Map>
+          </div>
+        )}
         {/* The panes already sit below the phone's floating toolbar, so overlays in them need not clear it. */}
         <div className="flex min-h-0 flex-1 [--map-mobile-toolbar-height:0px]">
           <TiledWorkspace
@@ -5979,7 +5994,7 @@ function DevForestryVisuals() {
                           hillshadeIntensity={0.45}
                         />
                         <VisualQualityLayers mode="plan" data={layerData} />
-                        <MapViewerCone viewer={reportBasemap ? null : planViewer} />
+                        <MapViewerCone viewer={planViewer} />
                         {/* Planned views of interest; their points take clicks only while nothing else owns the plan's. */}
                         <ViewsOfInterestLayers
                           views={viewsOfInterest}
@@ -5988,7 +6003,7 @@ function DevForestryVisuals() {
                           arrows={viewpointLayers.arrows}
                           previewArrowIds={finderArrowIds}
                           hidden={planLook.hidden}
-                          visible={!reportBasemap}
+                          visible
                           onSelect={
                             !drive.active && drawMode === 'none' && !mapPick && !measuring ? setOpenViewId : null
                           }

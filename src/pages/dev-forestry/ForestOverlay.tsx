@@ -93,6 +93,9 @@ export type ForestOverlayProps = {
   patches?: Map<string, TreeInstance[]>
 }
 const LAYER_ID = 'forestry-trees'
+/** How often a whole stand looks at the eye again, ms: no frame is asked for while nothing moves. */
+const FOREST_IDLE_POLL_MS = 200
+
 export function ForestOverlay(props: ForestOverlayProps) {
   const { map, isLoaded } = useMap()
   const eyeRef = useRef(props.centre)
@@ -425,12 +428,22 @@ export function ForestOverlay(props: ForestOverlayProps) {
         dirty = false
         lastUpload = time
       }
-      frame = requestAnimationFrame(tick)
+      // Every frame only while there is work: a stand still growing or an upload waiting. Once the stand is whole the
+      // eye is looked at a few times a second, so a still road view stops asking the page for frames (it drew about
+      // 120 a second while an export waited, competing with the export's own captures).
+      if (dirty || wanted.some((patch) => !cache.has(patch.key))) frame = requestAnimationFrame(tick)
+      else
+        idleTimer = window.setTimeout(() => {
+          idleTimer = 0
+          if (!disposed) frame = requestAnimationFrame(tick)
+        }, FOREST_IDLE_POLL_MS)
     }
+    let idleTimer = 0
     frame = requestAnimationFrame(tick)
     return () => {
       disposed = true
       cancelAnimationFrame(frame)
+      if (idleTimer) clearTimeout(idleTimer)
       if (settleTimer) clearTimeout(settleTimer)
       try {
         if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID)

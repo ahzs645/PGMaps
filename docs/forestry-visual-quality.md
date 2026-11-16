@@ -3108,9 +3108,15 @@ recipe's (`ReportRecipe.obliquePitch`, `DEFAULT_OBLIQUE_PITCH` 60°, looking dow
 on the blocks as 01's model confirmation does); 02 (`design-rationale`) takes 75°,
 near eye level from the viewpoint's side as its reference obliques are. Either
 goes through `horizonSafePitch` with roll 0 in `captureAtCamera`, which puts the
-camera back in `finally`. Every capture puts the plan map,
-the road view and the harvest phase back in `finally`, writes nothing to the
-scene, and runs only for the report file. Figure parts (`partsFigures.ts`) lay
+camera back in `finally`. The maps are taken on a hidden map of their own
+(`REPORT_CAPTURE_MAP_SIZE`, 1600 × 1100 CSS pixels, mounted off screen only
+while they are taken), never the reviewer's plan. It draws only the basemap a map
+asks for: imagery, the vector map, or the vector map with hillshade for the
+11 × 17 sheet; the figure draws the rest. The plan keeps its look and camera,
+every report frames its maps at the same size whatever the pane's, and the maps
+are taken at the same time as the road view's before pictures and renders
+(`ensurePictures`). Every capture puts the road view and the harvest phase back in
+`finally`, writes nothing to the scene, and runs only for the report file. Figure parts (`partsFigures.ts`) lay
 them out: the overview map page, 26's figure page (title, project and date,
 location and regional maps beside *Before project* and *After project*),
 photo / simulation pairs, and overhead renders; a missing picture prints a
@@ -3332,6 +3338,27 @@ oblique pitch and figure-page maps). The draft, Preview and Download share the
 cache, so a file captures only the groups still missing
 (`captureReportImages`'s `only`). The order is unchanged: maps, then before
 pictures, then renders.
+
+**Why a report is quick to write again** (from a 75 s trace of one VIA report
+preview, 15 November 2026: under 2 s of it was the report's own work). Every
+picture is captured once, kept by group, and reused by the draft, Preview and
+Download. The dialog restarts a preview only for its own output's content
+(`useVisualsExport`'s `contentOf`). The block note's viewpoint lookup, the
+land checks, the road view reloading, and a wait's clock or queue no longer
+restart a VIA report. Before, a preview written while one of them landed was
+thrown away and written again, which doubled that trace. A preview that is
+outdated anyway (the content did change) stays on screen, marked, while it is
+written again. The page keeps the visual inventory read for each area
+(`SCENE_INVENTORY_AREAS_KEPT`), so a capture standing at a view of interest and
+stepping back reads nothing again. After a capture, the file waits for the run
+made where the reviewer stood, whatever output it is. The road view's frame
+loops sleep when nothing moves: the camera loop (`DriveCamera.tsx`,
+`DRIVE_AWAKE_MS`) wakes on a look, a prop, a key, a resize or map data, and the
+stand's loop (`ForestOverlay.tsx`) looks at the eye five times a second once it
+is whole. Before, a still road view asked for about 120 frames a second while an
+export waited. Every slow step records a `pgmaps-export:` timing
+(`exportTiming.ts`; views captured, the run, each picture group, each harvest
+phase shown), which DevTools' *Timings* track shows beside a recorded trace.
 
 **Your own recipes** (`viaReport/userRecipes.ts`, kept by
 `userRecipeStore.ts`). The package's *Make a copy* copies the recipe in use as

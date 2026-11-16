@@ -79,6 +79,7 @@ import { recipeMakeup } from './viaReport/recipeMakeup'
 import { OwnRecipeTools } from './RecipeEditor'
 import type { DraftPicture, ReportDraftResult } from './ReportDraftView'
 import { useOwnRecipes } from './userRecipeStore'
+import { timed } from './exportTiming'
 import { ExportPackagePane, VisualsExportDialog, type BuiltFile } from './VisualsExportDialog'
 import type { ViewCaptureApi, ViewCaptureReport } from './useViewCapture'
 import { viewCaptureKey, type ViewOfInterest } from './viewsOfInterest'
@@ -753,28 +754,49 @@ export function useVisualsExport(input: {
       : null,
   }
   // What a preview depends on beyond the context: the text, the review, the office fields.
-  const version = [
-    input.sceneKey,
-    // The run's and the capture's progress are not content: a preview waiting on them must not restart each tick.
-    JSON.stringify({ ...context, autoRun: null, capture: null }),
-    JSON.stringify(fs1252),
-    JSON.stringify(blockNoteParts),
-    JSON.stringify(scene.viaReview ?? null),
-    JSON.stringify(scene.reportMetadata ?? null),
-    Object.keys(images).length,
-    documentFormat.id,
-    // A render finishing changes the figures the file is drawn from.
-    figureRenderer,
-    engineJobs.map((job) => (renders?.figures[job.key] ? 1 : 0)).join(''),
-    beforeJobs.map((job) => (renders?.figures[job.key] ? 1 : beforeFailed(job) ? 'x' : 0)).join(''),
-    reportRecipe.id,
-    // An own recipe's edits change the report under the same id.
-    reportRecipe.own ? JSON.stringify(reportRecipe) : '',
-    overviewSheetStyle,
-    // A picture group drawn in the draft changes what the files are written from.
-    pictureTick,
-    chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo',
-  ].join('|')
+  // What a preview depends on, per output. Progress and state another output reads are not content: a preview
+  // restarted by them throws a file that was nearly written away and writes it again, which once doubled a VIA
+  // report's 75 s (the block note's viewpoint lookup and the road view's reload landed under it).
+  const contentOf = (kind: VisualsExport) => {
+    const { autoRun: _run, capture: _capture, roadViewReady: _roadView, ...rest } = context
+    return {
+      ...rest,
+      // Only the block note prints the BC viewpoints near its block and the land status checks.
+      inventory: kind === 'block-note' ? rest.inventory : null,
+      landChecks: kind === 'block-note' ? rest.landChecks : null,
+      // A render finishing is content (the counts, and the jobs below); its clock and queue are not.
+      renderer: {
+        ...rest.renderer,
+        running: false,
+        left: null,
+        leftWithBefore: null,
+        measured: false,
+        settling: false,
+      },
+    }
+  }
+  const version = (kind: VisualsExport) =>
+    [
+      input.sceneKey,
+      JSON.stringify(contentOf(kind)),
+      JSON.stringify(fs1252),
+      JSON.stringify(blockNoteParts),
+      JSON.stringify(scene.viaReview ?? null),
+      JSON.stringify(scene.reportMetadata ?? null),
+      Object.keys(images).length,
+      documentFormat.id,
+      // A render finishing changes the figures the file is drawn from.
+      figureRenderer,
+      engineJobs.map((job) => (renders?.figures[job.key] ? 1 : 0)).join(''),
+      beforeJobs.map((job) => (renders?.figures[job.key] ? 1 : beforeFailed(job) ? 'x' : 0)).join(''),
+      reportRecipe.id,
+      // An own recipe's edits change the report under the same id.
+      reportRecipe.own ? JSON.stringify(reportRecipe) : '',
+      overviewSheetStyle,
+      // A picture group drawn in the draft changes what the files are written from.
+      pictureTick,
+      chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo',
+    ].join('|')
 
   // The export context under another name: the report's build names its own `context`.
   const exportContext = context
@@ -808,7 +830,8 @@ export function useVisualsExport(input: {
     maps: [
       input.sceneKey,
       named.map((view) => `${view.id}:${figureImages[view.id]?.savedAt ?? ''}`).join(','),
-      inventoryState.status,
+      // The maps draw the visual landscape inventory's units: kept while the same read holds, whatever else loads.
+      `${input.visualInventory?.status ?? 'none'}:${input.visualInventory?.units?.length ?? 0}`,
       overviewSheetStyle,
       overviewSheetStyle === 'end-map-portrait'
         ? `${chosenLogo ? `${chosenLogo.source}:${chosenLogo.name}` : 'no-logo'}|${draftReport?.subtitle ?? ''}`
@@ -836,12 +859,14 @@ export function useVisualsExport(input: {
         overviewSheetStyle === 'end-map-portrait'
           ? await (await import('@/branding/raster')).printedLogoRaster(branding)
           : null
-      const out = await input.captureReportImages({
-        views: named,
-        overviewSheet: { style: overviewSheetStyle, logo: endMapLogo, project: draftReport?.subtitle ?? null },
-        ...(reportRecipe.parts.includes('ea-figure-pages') ? { figurePageMaps: true } : {}),
-        only: { maps: true },
-      })
+      const out = await timed('report maps', () =>
+        input.captureReportImages!({
+          views: named,
+          overviewSheet: { style: overviewSheetStyle, logo: endMapLogo, project: draftReport?.subtitle ?? null },
+          ...(reportRecipe.parts.includes('ea-figure-pages') ? { figurePageMaps: true } : {}),
+          only: { maps: true },
+        }),
+      )
       const { overviewMap, overviewSheet, regionalMap, locationMaps, figurePageMaps } = out.images
       pictureCache.current.set('maps', {
         key: keys.maps,
@@ -851,11 +876,13 @@ export function useVisualsExport(input: {
         },
       })
     } else {
-      const out = await input.captureReportImages({
-        views: named,
-        ...(reportRecipe.obliquePitch !== undefined ? { obliquePitch: reportRecipe.obliquePitch } : {}),
-        only: { renders: true },
-      })
+      const out = await timed('report renders', () =>
+        input.captureReportImages!({
+          views: named,
+          ...(reportRecipe.obliquePitch !== undefined ? { obliquePitch: reportRecipe.obliquePitch } : {}),
+          only: { renders: true },
+        }),
+      )
       pictureCache.current.set('renders', {
         key: keys.renders,
         value: { images: { overhead: out.images.overhead ?? [] }, notes: out.notes },
@@ -868,7 +895,9 @@ export function useVisualsExport(input: {
     const keys = pictureKeys(named)
     const views = named.filter((view) => ids.includes(view.id))
     if (!views.length) return
-    const out = await input.captureReportImages({ views, only: { before: true } })
+    const out = await timed('report before pictures', () =>
+      input.captureReportImages!({ views, only: { before: true } }),
+    )
     for (const view of views) {
       const before = out.images.before?.[view.name]
       pictureCache.current.set(`before:${view.id}`, {
@@ -922,10 +951,17 @@ export function useVisualsExport(input: {
     if (!input.captureReportImages) return
     const keys = pictureKeys(named)
     const missing = (id: string, key: string) => pictureCache.current.get(id)?.key !== key
-    if (missing('maps', keys.maps)) await captureGroup('maps', named)
-    const befores = named.filter((view) => missing(`before:${view.id}`, keys.before(view.id))).map((view) => view.id)
-    if (befores.length) await captureBefores(befores, named)
-    if (missing('renders', keys.renders)) await captureGroup('renders', named)
+    // The maps are taken on their own hidden map, the before pictures and renders in the road view: the two run at the
+    // same time. Both are waited for, even when one fails, so nothing is still moving a map when the file is written.
+    const maps = missing('maps', keys.maps) ? captureGroup('maps', named) : Promise.resolve()
+    const roadView = (async () => {
+      const befores = named.filter((view) => missing(`before:${view.id}`, keys.before(view.id))).map((view) => view.id)
+      if (befores.length) await captureBefores(befores, named)
+      if (missing('renders', keys.renders)) await captureGroup('renders', named)
+    })()
+    const settled = await Promise.allSettled([maps, roadView])
+    const failed = settled.find((outcome) => outcome.status === 'rejected')
+    if (failed) throw (failed as PromiseRejectedResult).reason
   }
 
   /**

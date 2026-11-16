@@ -9,6 +9,7 @@
  * is now rather than as it was when the batch started. The decisions are in `viewCapturePlan.ts`.
  */
 import { useCallback, useRef, useState } from 'react'
+import { timed } from './exportTiming'
 
 import {
   CAPTURE_TIMEOUTS,
@@ -263,11 +264,8 @@ export async function runViewCapture<S>(
           getHost()?.face(view)
           await clock.sleep(FACING_SETTLE_MS)
         }
-        const ready = await waitReady(
-          getHost,
-          { key: stood.key, ...standFacing(view), lensMm: view.focalMm },
-          control.cancelled,
-          clock,
+        const ready = await timed('view capture: stand and run', () =>
+          waitReady(getHost, { key: stood.key, ...standFacing(view), lensMm: view.focalMm }, control.cancelled, clock),
         )
         if (!ready) break placeLoop
         if (!ready.ok) {
@@ -280,10 +278,9 @@ export async function runViewCapture<S>(
           continue
         }
         const saving = getHost()?.save(view) ?? Promise.resolve<ViewSaveOutcome>({ error: 'The page closed.' })
-        const outcome = await Promise.race([
-          saving,
-          clock.sleep(CAPTURE_TIMEOUTS.saveMs).then(() => 'timeout' as const),
-        ])
+        const outcome = await timed('view capture: save', () =>
+          Promise.race([saving, clock.sleep(CAPTURE_TIMEOUTS.saveMs).then(() => 'timeout' as const)]),
+        )
         if (outcome === 'timeout') {
           // The class pass may still be moving the camera: nothing more is captured, so nothing moves it under it.
           fail(view, 'Its analysis sheet did not finish drawing in time.')
@@ -308,13 +305,15 @@ export async function runViewCapture<S>(
         const before = getHost()?.before
         update({ currentViewId: savedHere[0].viewId, message: beforeMessage(savedHere.length, place.views[0].name) })
         const outcome = before
-          ? await Promise.race([
-              before(savedHere).catch((error: unknown) => ({
-                taken: [] as string[],
-                notes: [error instanceof Error ? error.message : String(error)],
-              })),
-              clock.sleep(CAPTURE_TIMEOUTS.saveMs).then(() => 'timeout' as const),
-            ])
+          ? await timed('view capture: before render', () =>
+              Promise.race([
+                before(savedHere).catch((error: unknown) => ({
+                  taken: [] as string[],
+                  notes: [error instanceof Error ? error.message : String(error)],
+                })),
+                clock.sleep(CAPTURE_TIMEOUTS.saveMs).then(() => 'timeout' as const),
+              ]),
+            )
           : { taken: [] as string[], notes: ['The page cannot take before-harvest renders.'] }
         const notes = outcome === 'timeout' ? ['It did not finish drawing in time.'] : outcome.notes
         const taken = new Set(outcome === 'timeout' ? [] : outcome.taken)

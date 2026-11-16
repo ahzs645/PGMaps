@@ -197,6 +197,10 @@ export class DriveController {
     this.lastReport = -Infinity
     this.ended = false
   }
+  /** The last status reported: a road view still waiting for terrain keeps ticking. */
+  get currentStatus(): DriveStatus | null {
+    return this.status
+  }
   private setStatus(status: DriveStatus, options: DriveOptions) {
     if (status !== this.status) {
       this.status = status
