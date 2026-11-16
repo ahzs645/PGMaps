@@ -106,6 +106,10 @@ export function ForestOverlay(props: ForestOverlayProps) {
   gapTargetRef.current = props.gapTarget ?? null
   statusRef.current = props.onStatus
   const { active, configuration, terrainMessage } = props
+  // The stand is grown round the eye, so it starts once there is one. Without this in the effect's dependencies, a
+  // road view that opened before its camera was placed (a view of interest's capture standing at a new place) never
+  // grew a stand: its status stayed "not ready" and the capture timed out after two minutes waiting for timber.
+  const hasEye = !!props.centre
   const {
     anchorLatitude: sceneLatitude,
     stands,
@@ -455,6 +459,7 @@ export function ForestOverlay(props: ForestOverlayProps) {
     }
   }, [
     active,
+    hasEye,
     configuration,
     patches,
     atlas,

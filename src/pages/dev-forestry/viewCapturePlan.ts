@@ -97,6 +97,8 @@ export type CaptureFacts = {
   roadViewOpen: boolean
   /** `canSaveView`: terrain, camera and drawn timber are ready. */
   canSave: boolean
+  /** What the road view still waits for, in words, while it cannot save (`saveBlocker`); absent when not known. */
+  saveBlocker?: string | null
   /** What the drive faces. */
   lookAtTargetId: string | null
   lookBearing: number | null
@@ -147,7 +149,9 @@ export function waitFailure(wait: Exclude<CaptureWait, null>, facts: CaptureFact
     case 'road view':
       return `The road view did not open on this place within ${minutes(CAPTURE_TIMEOUTS.roadViewMs)}.`
     case 'timber':
-      return `The road view's terrain or drawn timber did not finish loading within ${minutes(CAPTURE_TIMEOUTS.roadViewMs)}.`
+      return `The road view's terrain or drawn timber did not finish loading within ${minutes(CAPTURE_TIMEOUTS.roadViewMs)}${
+        facts.saveBlocker ? `: it was still waiting for ${facts.saveBlocker}` : ''
+      }.`
     case 'lens':
       return 'The road view did not take the view’s lens.'
     case 'facing':

@@ -758,15 +758,17 @@ export function useVisualsExport(input: {
   // restarted by them throws a file that was nearly written away and writes it again, which once doubled a VIA
   // report's 75 s (the block note's viewpoint lookup and the road view's reload landed under it).
   const contentOf = (kind: VisualsExport) => {
-    const { autoRun: _run, capture: _capture, roadViewReady: _roadView, ...rest } = context
     return {
-      ...rest,
+      ...context,
+      autoRun: null,
+      capture: null,
+      roadViewReady: null,
       // Only the block note prints the BC viewpoints near its block and the land status checks.
-      inventory: kind === 'block-note' ? rest.inventory : null,
-      landChecks: kind === 'block-note' ? rest.landChecks : null,
+      inventory: kind === 'block-note' ? context.inventory : null,
+      landChecks: kind === 'block-note' ? context.landChecks : null,
       // A render finishing is content (the counts, and the jobs below); its clock and queue are not.
       renderer: {
-        ...rest.renderer,
+        ...context.renderer,
         running: false,
         left: null,
         leftWithBefore: null,

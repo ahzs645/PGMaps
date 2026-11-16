@@ -3381,6 +3381,14 @@ is whole. Before, a still road view asked for about 120 frames a second while an
 export waited. Every slow step records a `pgmaps-export:` timing
 (`exportTiming.ts`; views captured, the run, each picture group, each harvest
 phase shown), which DevTools' *Timings* track shows beside a recorded trace.
+What the road view still waits for before a view can be saved is one value,
+`saveBlocker`: the road view opening, the forest records, a forest update
+waiting, the camera, or the drawn timber's patches. Each change is a mark of
+its own, and a capture that times out says which one it was. Those marks found
+the stand's bug: `ForestOverlay` grew nothing when its effect ran before the
+road view's eye was placed, and never ran again. A capture standing at a new
+place therefore always waited out its two minutes for timber. The effect now
+depends on there being an eye (`hasEye`).
 
 **Your own recipes** (`viaReport/userRecipes.ts`, kept by
 `userRecipeStore.ts`). The package's *Make a copy* copies the recipe in use as

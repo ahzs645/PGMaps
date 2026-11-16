@@ -1,7 +1,7 @@
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { StyledSelect } from '@/components/ui/form-field'
 import { useRouteViewshed } from './dev-forestry/useRouteViewshed'
-import { timed } from './dev-forestry/exportTiming'
+import { EXPORT_TIMING_PREFIX, timed } from './dev-forestry/exportTiming'
 import { RouteViewshedPanel } from './dev-forestry/RouteViewshedPanel'
 import { visibilityOutline } from '@/features/terrain-viewshed'
 import { sampleAlongLine } from './dev-forestry/visibility'
@@ -338,12 +338,7 @@ import {
 } from './dev-forestry/treeFreeAreas'
 import { standingPoint, surveyedEyeElevation } from './dev-forestry/viewpointStand'
 import { StoodViewpointPanel } from './dev-forestry/StoodViewpointPanel'
-import {
-  DEFAULT_PLAN_SHOW,
-  togglePlanLegendKey,
-  type PlanBasemap,
-  type PlanShow,
-} from './dev-forestry/planLayers'
+import { DEFAULT_PLAN_SHOW, togglePlanLegendKey, type PlanBasemap, type PlanShow } from './dev-forestry/planLayers'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { useVisualQualityTable } from './dev-forestry/useVisualQualityTable'
 import { ViewpointSummary, useViewpointSummaryPreferences } from './dev-forestry/ViewpointSummary'
@@ -3514,17 +3509,42 @@ function DevForestryVisuals() {
       viaAssessment,
     ],
   )
-  const canSaveView =
-    !preliminaryDrive &&
-    drive.active &&
-    !liveForest.loading &&
-    !liveForest.pendingUpdate &&
-    cameraStatus === 'ready' &&
-    // Without drawn timber (the note screenshot look) there is no forest to wait for.
-    (!drive.forest || (!!currentForestStatus?.ready && !currentForestStatus.error))
+  // What a view still waits for before it can be saved, in words, or null once it can: the road view, the forest
+  // records, the camera, the drawn timber. A capture that times out names it, and each change is a
+  // `pgmaps-export:` timing mark, so a trace shows which one held an export up.
+  const saveBlocker = preliminaryDrive
+    ? 'the road view opening'
+    : !drive.active
+      ? 'the road view, closed'
+      : liveForest.loading
+        ? 'the forest records (RESULTS, openings, VRI) loading'
+        : liveForest.pendingUpdate
+          ? 'a forest records update waiting to apply'
+          : cameraStatus !== 'ready'
+            ? `the camera (${cameraStatus ?? 'not placed'})`
+            : // Without drawn timber (the note screenshot look) there is no forest to wait for.
+              drive.forest && currentForestStatus?.error
+              ? `the drawn timber (${currentForestStatus.error})`
+              : drive.forest && !currentForestStatus?.ready
+                ? `the drawn timber (${
+                    currentForestStatus
+                      ? `${currentForestStatus.patchCount ?? 0} of ${currentForestStatus.totalPatches ?? '?'} patches`
+                      : `no stand for this configuration yet`
+                  })`
+                : null
+  const canSaveView = saveBlocker === null
+  useEffect(() => {
+    try {
+      performance.mark(`${EXPORT_TIMING_PREFIX}road view waits for ${saveBlocker ?? 'nothing'}`)
+    } catch {
+      // Marks are only for traces.
+    }
+  }, [saveBlocker])
   // The VIA report's before-harvest renders wait on it after switching the harvest phase.
   const canSaveViewRef = useRef(canSaveView)
   canSaveViewRef.current = canSaveView
+  const saveBlockerRef = useRef(saveBlocker)
+  saveBlockerRef.current = saveBlocker
   /** "View from Hwy 97 going north." — the caption a planning note puts under the screenshot. */
   const captionForView = (lookBearing: number | null) => {
     const coordinates = scene.viewpoint.coordinates
@@ -4212,6 +4232,7 @@ function DevForestryVisuals() {
         runError: analysis.state.status === 'error' ? (analysis.state.error ?? 'the run failed.') : null,
         roadViewOpen: drive.active && !preliminaryDrive,
         canSave: canSaveViewRef.current,
+        saveBlocker: saveBlockerRef.current,
         lookAtTargetId: drive.lookAtTargetId,
         lookBearing: drive.lookBearing,
         poseBearing: pose ? wrapBearing(pose.bearing) : null,
