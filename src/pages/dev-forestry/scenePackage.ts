@@ -64,6 +64,13 @@ export const SCENE_PACKAGE_VERSION = 1
 export const SCENE_TREE_FIELDS = ['x', 'y', 'z', 'species', 'height', 'crownWidth', 'tone'] as const
 /** Fields of one debris pile in `debris.data`: base position and footprint across, metres. */
 export const SCENE_DEBRIS_FIELDS = ['x', 'y', 'z', 'footprint'] as const
+/**
+ * Fields of one treated stem in `treated.data` (a stand prescription's stumps, felled trees, logs and
+ * snags): base position, metres; `kind` an index into `treated.kinds`; length along the stem and its
+ * diameter, metres; `heading` the way a lying stem points, degrees from north (0 for a standing one).
+ */
+export const SCENE_TREATED_FIELDS = ['x', 'y', 'z', 'kind', 'length', 'diameter', 'heading'] as const
+export const SCENE_TREATED_KINDS = ['stump', 'felled', 'log', 'snag'] as const
 
 export type ScenePackage = {
   format: typeof SCENE_PACKAGE_FORMAT
@@ -167,6 +174,18 @@ export type ScenePackage = {
     retainedShare?: number | null
   }>
   debris: { fields: typeof SCENE_DEBRIS_FIELDS; count: number; data: number[] }
+  /**
+   * What stand prescriptions leave of the trees they take, within the tree radius: stumps, felled trees
+   * with their crowns, limbed logs and snags (`stand/prescribedCells.ts`). Absent when no block has a
+   * prescription, and from packages written before prescriptions; an engine that ignores it still
+   * draws the right standing trees, which are in `trees`.
+   */
+  treated?: {
+    fields: typeof SCENE_TREATED_FIELDS
+    kinds: typeof SCENE_TREATED_KINDS
+    count: number
+    data: number[]
+  }
   roadScars: Array<{ kind: 'cut' | 'fill'; ring: Array<[number, number]> }>
   /**
    * Lakes and rivers cut to the terrain grid, one entry per polygon: the outer ring first, then holes. The surface
@@ -209,7 +228,7 @@ export type ScenePackageInput = {
   /** The road view's forest configuration, as `ForestOverlay` receives it. */
   forest: Pick<
     ForestConfiguration,
-    'anchorLatitude' | 'stands' | 'clearings' | 'openings' | 'thinnings' | 'inventory' | 'standHeightMeters'
+    'anchorLatitude' | 'stands' | 'clearings' | 'openings' | 'thinnings' | 'inventory' | 'standHeightMeters' | 'treated'
   >
   elevation: ElevationSource
   roadScars?: ReadonlyArray<RoadScarStrip>
@@ -347,6 +366,32 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
         debrisData.push(round(x), round(y), round(z), round(pile.slenderness / CONE_BASE_DIAMETER))
       }
     }
+  }
+
+  // A prescription's stumps, felled trees, logs and snags near enough to be drawn as stems.
+  const treatedData: number[] = []
+  if (forest.treated) {
+    SCENE_TREATED_KINDS.forEach((kind, kindIndex) => {
+      for (const stem of forest.treated?.[kind] ?? []) {
+        const [x, y] = toLocal(stem.lng, stem.lat)
+        if (Math.hypot(x, y) >= treeRadiusMeters) continue
+        const z = elevation.elevationAt(stem.lng, stem.lat)
+        if (!Number.isFinite(z)) continue
+        // The solid layer's width scale is height × slenderness / cone base (`treatedStems`): a standing
+        // stem's diameter, a lying stem's length (its height there is its diameter).
+        const across = (stem.heightMeters * stem.slenderness) / CONE_BASE_DIAMETER
+        const lying = kind === 'felled' || kind === 'log'
+        treatedData.push(
+          round(x),
+          round(y),
+          round(z),
+          kindIndex,
+          round(lying ? across : stem.heightMeters),
+          round(lying ? stem.heightMeters : across, 3),
+          round(stem.headingDegrees ?? 0, 1),
+        )
+      }
+    })
   }
 
   // The drawn ground on a square grid round the eye.
@@ -537,6 +582,16 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
       retainedShare,
     })),
     debris: { fields: SCENE_DEBRIS_FIELDS, count: debrisData.length / SCENE_DEBRIS_FIELDS.length, data: debrisData },
+    ...(treatedData.length
+      ? {
+          treated: {
+            fields: SCENE_TREATED_FIELDS,
+            kinds: SCENE_TREATED_KINDS,
+            count: treatedData.length / SCENE_TREATED_FIELDS.length,
+            data: treatedData,
+          },
+        }
+      : {}),
     roadScars: (input.roadScars ?? []).map((strip) => ({
       kind: strip.kind,
       ring: ring(strip.geometry.coordinates[0]),

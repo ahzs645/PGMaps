@@ -68,6 +68,9 @@ const FIELDS = [
   'PROJ_HEIGHT_2',
   'CROWN_CLOSURE',
   'VRI_LIVE_STEMS_PER_HA',
+  // Size of the stems, for the stand prescription's diameters (`stand/standTrees.ts`).
+  'QUAD_DIAM_125',
+  'BASAL_AREA',
   'PROJ_AGE_1',
   ...NON_VEG_COVER_FIELDS,
   ...BURN_FIELDS,
@@ -125,6 +128,10 @@ export type VriStand = {
   burnYear?: number
   /** Live stems per hectare (`VRI_LIVE_STEMS_PER_HA`); draws the stand at its own density. */
   stemsPerHa?: number | null
+  /** Quadratic mean diameter of stems 12.5 cm and over, cm (`QUAD_DIAM_125`). */
+  quadMeanDiameterCm?: number | null
+  /** Basal area, m²/ha (`BASAL_AREA`). */
+  basalAreaM2PerHa?: number | null
   ageYears: number | null
   geometry: PolygonGeometry
 }
@@ -272,6 +279,8 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
         heightMeters: finiteNumber(properties.PROJ_HEIGHT_1),
         crownClosurePercent: finiteNumber(properties.CROWN_CLOSURE),
         stemsPerHa: finiteNumber(properties.VRI_LIVE_STEMS_PER_HA),
+        quadMeanDiameterCm: finiteNumber(properties.QUAD_DIAM_125),
+        basalAreaM2PerHa: finiteNumber(properties.BASAL_AREA),
         ...(rockyPercent > 0 ? { rockyPercent: Math.min(100, rockyPercent) } : {}),
         coastInterior: coastInterior === 'C' || coastInterior === 'I' ? coastInterior : null,
         ...(burnYear ? { burnYear } : {}),

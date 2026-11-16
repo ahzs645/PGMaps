@@ -139,6 +139,12 @@ export type DriveState = {
   /** Tree shading: the drawing's own colours, or lit as crown volumes. Display only. */
   treeLook: TreeLook
   /**
+   * Tree colours: natural, or by a stand prescription's treatment — before harvest the trees marked to
+   * cut, after it the trees kept, and protected trees in both (`stand/prescribedCells.ts`). A colour only:
+   * every tree covers the same pixels. Display only.
+   */
+  treeColours: 'natural' | 'treatment'
+  /**
    * Which engine draws the road view (`externalRenderers.ts`): PGMaps' own map, or another engine in a frame over
    * it, fed the same scene and camera. Display only: figures, saved views and images stay PGMaps' own.
    */
@@ -357,9 +363,14 @@ const HARVEST_SYSTEMS: ReadonlyArray<{ id: HarvestSystem; label: string }> = [
 function BlockHarvestFields({
   target,
   onChange,
+  prescription,
+  onOpenPrescription,
 }: {
   target: TargetPolygon
   onChange: (patch: Partial<TargetPolygon>) => void
+  /** The block's stand prescription, read: one line of what it takes, or why it has none. */
+  prescription?: StandPrescriptionLine | null
+  onOpenPrescription?: () => void
 }) {
   const system = target.harvestSystem ?? 'clearcut'
   return (
@@ -406,9 +417,39 @@ function BlockHarvestFields({
           />
         </>
       )}
+      {system !== 'clearcut' && onOpenPrescription && (
+        <div className="flex w-full items-center gap-1.5">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onOpenPrescription}
+            aria-label={`Stand prescription for ${target.name}`}
+          >
+            {target.prescription ? 'Prescription…' : 'Prescribe trees…'}
+          </Button>
+          {prescription?.tone === 'warning' && (
+            <Badge tone="warning" pill>
+              Target not met
+            </Badge>
+          )}
+          <span className="min-w-0 truncate text-xs text-muted-foreground" title={prescription?.text}>
+            {prescription?.text ?? 'Random thinning to the share above'}
+          </span>
+          <InfoTip label="About stand prescriptions">
+            A prescription chooses which trees the block takes, tree by tree: thinning from below or above to a basal
+            area, stems or density target, or keeping groups of trees. The road view then draws exactly those trees, and
+            the trees taken as stumps or felled stems. It draws the stand only: Table 5 and 6 read the figures in this
+            row, which the prescription can copy in when you choose.
+          </InfoTip>
+        </div>
+      )}
     </div>
   )
 }
+
+/** One line for a prescribed block's row: what it takes, or why it could not be read. */
+export type StandPrescriptionLine = { text: string; tone: 'default' | 'warning' }
 
 /**
  * The handbook's own record for the page: the reviewer's judgements, what they
@@ -432,6 +473,10 @@ type SidebarProps = {
   onTargetChange: (targetId: string, patch: Partial<TargetPolygon>) => void
   onRemoveTarget: (targetId: string) => void
   onZoomToTarget: (targetId: string) => void
+  /** Opens a retention or partial-cut block's stand prescription. */
+  onOpenPrescription?: (targetId: string) => void
+  /** Each prescribed block's one-line reading, by target id. */
+  prescriptionLines?: ReadonlyMap<string, StandPrescriptionLine>
   onRemoveTreeFreeArea?: (areaId: string) => void
   /**
    * The automatic clearing in front of a stood-at viewpoint (`viewpointClearingArea`): its setting,
@@ -550,6 +595,8 @@ export function Sidebar({
   onTargetChange,
   onRemoveTarget,
   onZoomToTarget,
+  onOpenPrescription,
+  prescriptionLines,
   onRemoveTreeFreeArea,
   viewpointClearing,
   onViewpointClearingChange,
@@ -808,7 +855,12 @@ export function Sidebar({
             )}
           </div>
           {target.role === 'block' && (
-            <BlockHarvestFields target={target} onChange={(patch) => onTargetChange(target.id, patch)} />
+            <BlockHarvestFields
+              target={target}
+              onChange={(patch) => onTargetChange(target.id, patch)}
+              prescription={prescriptionLines?.get(target.id) ?? null}
+              onOpenPrescription={onOpenPrescription ? () => onOpenPrescription(target.id) : undefined}
+            />
           )}
           {target.role === 'landscape' && target.id !== activeLandformId && (
             <div className="mt-1.5">

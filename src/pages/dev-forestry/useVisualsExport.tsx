@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { standFileSummary, standTreeCsv, standTreeGeoJson, type PrescribedStandFile } from './stand/standExport'
 import { LogoChooser } from '@/branding/LogoChooser'
 import { logoDataUrl } from '@/branding/model'
 import { brandedHtml } from '@/branding/presentation'
@@ -157,6 +158,8 @@ export function useVisualsExport(input: {
   otherViews: ReadonlyArray<SavedDriveView>
   images: Readonly<Record<string, ViewImage>>
   roadView: { styleId: string | null; labelStyle: LabelStyleId | null }
+  /** The blocks with a stand prescription, read (`stand/standExport.ts`). */
+  prescribedStands: ReadonlyArray<PrescribedStandFile>
   currentStation: number
   blockNoteParts: BlockNoteParts | null
   noteFigures: boolean
@@ -566,6 +569,7 @@ export function useVisualsExport(input: {
     brief: { blockId: briefBlock?.id ?? null, viewpoints: briefPoints.length },
     evidence,
     roadViewReady: input.scenePackage.ready,
+    prescribedStands: standFileSummary(input.prescribedStands),
     officeFieldCount: FS1252_OFFICE_FIELDS.length,
     autoRun,
     landChecks: {
@@ -842,6 +846,11 @@ export function useVisualsExport(input: {
         return textFile(evidence.workspaceJson(), 'forestry-assessment-workspace.json', 'application/json')
       case 'scene-package':
         return input.scenePackage.build()
+      case 'stand-trees':
+        if (!input.prescribedStands.length) throw new Error('No block has a stand prescription.')
+        return format === 'geojson'
+          ? textFile(standTreeGeoJson(input.prescribedStands), 'prescribed-trees.geojson', 'application/geo+json')
+          : textFile(standTreeCsv(input.prescribedStands), 'prescribed-trees.csv', 'text/csv')
       case 'castor-constraint': {
         const constraint = castorVqoConstraint(scene, result)
         if (!constraint)

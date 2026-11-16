@@ -86,7 +86,47 @@ import {
   speciesFromCode,
   speciesMixFromInventory,
   type InventoryStand,
+  type Thinning,
 } from './dev-forestry/forest'
+import { buildStand, buildStandFromImport, type Stand, type StandBuild } from './dev-forestry/stand/standTrees'
+import { packImportedTrees, unpackImportedTrees, type PackedImportedTrees } from './dev-forestry/stand/treeListImport'
+import {
+  DEFAULT_PRESCRIPTION,
+  KEPT,
+  applyPrescription,
+  type PrescriptionResult,
+  type StandPrescription,
+} from './dev-forestry/stand/prescription'
+import {
+  prescribedCells,
+  treatedStems,
+  treatmentTints,
+  type TreatedStemKind,
+} from './dev-forestry/stand/prescribedCells'
+
+const PRESCRIPTION_LINE_FORMAT = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 })
+const PRESCRIPTION_ORDER_LABELS: Record<StandPrescription['order'], string> = {
+  fromBelow: 'Thinned from below',
+  fromAbove: 'Thinned from above',
+  proportional: 'Thinned evenly',
+}
+
+/** A block's stand from its saved tree list, or why the list cannot be read. */
+function importedStand(
+  geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon,
+  packed: PackedImportedTrees,
+  inventory: ReadonlyArray<InventoryStand>,
+  anchorLatitude: number,
+): StandBuild {
+  try {
+    return buildStandFromImport({ geometry, trees: unpackImportedTrees(packed), inventory, anchorLatitude })
+  } catch (error) {
+    return { stand: null, error: `The imported tree list cannot be read: ${String(error)}` }
+  }
+}
+
+/** A prescribed block's stand and what its prescription takes; `error` says why there is none. */
+type StandPrescriptionState = { stand: Stand | null; result: PrescriptionResult | null; error: string | null }
 import { roadScar } from './dev-forestry/harvestedGround'
 import { buildScenePackage } from './dev-forestry/scenePackage'
 import { fetchSceneCover } from './dev-forestry/bcVegetationInventory'
@@ -130,7 +170,14 @@ import {
   snapCorridorToRoad,
   type RoadCandidate,
 } from './dev-forestry/roadSnap'
-import { Sidebar, type DrawMode, type DriveState } from './dev-forestry/Sidebar'
+import { StandPrescriptionDialog } from './dev-forestry/stand/StandPrescriptionDialog'
+import { ScreenHeightPanel } from './dev-forestry/ScreenHeightPanel'
+import { screenHeightSteps, type ScreenHeightReading } from './dev-forestry/screenHeight'
+import { runCooperatively } from './dev-forestry-roads/cooperative'
+import type { PrescribedStandFile } from './dev-forestry/stand/standExport'
+import { profileStripPolygon, type ProfileStripChoice } from './dev-forestry/stand/profileStrip'
+import { snagFates, snagStatesAt } from './dev-forestry/stand/snagDecay'
+import { Sidebar, type DrawMode, type DriveState, type StandPrescriptionLine } from './dev-forestry/Sidebar'
 import { TerrainSupport } from './dev-forestry/TerrainSupport'
 import { readShapeFile } from './dev-forestry/shapeImport'
 import { IMAGERY_BASEMAPS, SATELLITE_ATTRIBUTION } from '@/components/ui/map-satellite-imagery'
@@ -327,6 +374,7 @@ const DEFAULT_DRIVE: DriveState = {
   viewingGap: true,
   treeStyle: 'hybrid',
   treeLook: 'lit',
+  treeColours: 'natural',
   renderer: 'pgmaps',
   engineEnvironment: DEFAULT_ENGINE_ENVIRONMENT,
   // Stopped, the nearest trees are drawn in full; moving, every tree is a card.
@@ -2331,6 +2379,12 @@ function DevForestryVisuals() {
         heightMeters: stand.heightMeters > 0 ? stand.heightMeters : null,
         crownClosurePercent: stand.crownClosurePercent,
         stemsPerHa: 'stemsPerHa' in stand ? stand.stemsPerHa : null,
+        quadMeanDiameterCm:
+          'quadMeanDiameterCm' in stand && typeof stand.quadMeanDiameterCm === 'number'
+            ? stand.quadMeanDiameterCm
+            : null,
+        basalAreaM2PerHa:
+          'basalAreaM2PerHa' in stand && typeof stand.basalAreaM2PerHa === 'number' ? stand.basalAreaM2PerHa : null,
         // The stand's whole recorded composition, so a mixed stand is drawn mixed.
         speciesMix:
           'speciesComposition' in stand && stand.speciesComposition
@@ -2369,19 +2423,6 @@ function DevForestryVisuals() {
     [scene.targets, clipAlteration],
   )
 
-  // Retention and partial-cut blocks are thinned in the road view, not cleared.
-  const forestThinnings = useMemo(
-    () =>
-      drive.harvestPhase === 'after'
-        ? scene.targets.flatMap((target) => {
-            const thinning = target.role === 'block' ? blockThinning(target) : null
-            const geometry = thinning ? clipAlteration(thinning.geometry) : null
-            return thinning && geometry ? [{ ...thinning, geometry }] : []
-          })
-        : [],
-    [drive.harvestPhase, scene.targets, clipAlteration],
-  )
-
   // Ground actually cut: the block after harvest, and disturbance still counting.
   const forestOpenings = useMemo<Array<GeoJSON.Polygon | GeoJSON.MultiPolygon>>(
     () =>
@@ -2404,9 +2445,9 @@ function DevForestryVisuals() {
     [drive.harvestPhase, scene.targets, scene.assessmentYear, scene.settings.greenUpAgeYears, result, clipAlteration],
   )
 
-  const forestClearings = useMemo(() => {
-    const openings = forestOpenings
-
+  // Ground that grows no timber whatever is harvested: the clearings less the cut blocks. A stand
+  // prescription reads its trees with these, so its trees are the ones the road view draws.
+  const standClearings = useMemo(() => {
     // The road is a clearing too. Without it the camera stands inside the timber
     // and the drive shows a trunk, which is not what a road looks like.
     const corridor =
@@ -2414,7 +2455,6 @@ function DevForestryVisuals() {
         ? bufferLine(scene.viewpoint.coordinates, drive.roadClearWidthMeters / 2)
         : null
     return [
-      ...openings,
       ...basemap.water,
       ...(scene.masks ?? [])
         .filter((m) => m.kind === 'natural' || (scene.clearPrivateLand && m.kind === 'private'))
@@ -2426,7 +2466,6 @@ function DevForestryVisuals() {
       ...previewRoadScar.map((strip) => strip.geometry),
     ]
   }, [
-    forestOpenings,
     drive.roadClearWidthMeters,
     scene.viewpoint,
     scene.masks,
@@ -2436,6 +2475,191 @@ function DevForestryVisuals() {
     basemap.water,
     previewRoadScar,
   ])
+  const forestClearings = useMemo(() => [...forestOpenings, ...standClearings], [forestOpenings, standClearings])
+
+  // Each prescribed block's stand, read tree by tree from the stems the road view draws there, and
+  // what its prescription takes (`stand/`). Display only: no figure the run reports reads it. A
+  // block's stand is kept while its shape and the stand's inputs are unchanged, so editing the
+  // prescription re-runs only the prescription.
+  const standCache = useRef(new globalThis.Map<string, { inputs: unknown[]; build: StandBuild }>())
+  const standPrescriptions = useMemo(() => {
+    const out = new globalThis.Map<string, StandPrescriptionState>()
+    const anchor = scene.viewpoint.coordinates[0]?.[1]
+    if (anchor == null) return out
+    for (const target of scene.targets) {
+      if (target.role !== 'block' || !target.prescription) continue
+      if (target.harvestSystem !== 'retention' && target.harvestSystem !== 'partial') continue
+      const imported = target.prescription.imported ?? null
+      const inputs = [
+        target.geometry,
+        clipAlteration,
+        forestStands,
+        standClearings,
+        forestInventory,
+        drive.treeHeightMeters,
+        anchor,
+        imported,
+      ]
+      const cached = standCache.current.get(target.id)
+      let build = cached && cached.inputs.every((value, i) => value === inputs[i]) ? cached.build : null
+      if (!build) {
+        const geometry = clipAlteration(target.geometry)
+        build = !geometry
+          ? { stand: null, error: 'Wildlife tree patches cover the whole block.' }
+          : imported
+            ? importedStand(geometry, imported.packed, forestInventory, anchor)
+            : buildStand({
+                geometry,
+                stands: forestStands,
+                clearings: standClearings,
+                inventory: forestInventory,
+                heightMeters: drive.treeHeightMeters,
+                anchorLatitude: anchor,
+              })
+        standCache.current.set(target.id, { inputs, build })
+      }
+      out.set(
+        target.id,
+        build.stand
+          ? { stand: build.stand, result: applyPrescription(build.stand, target.prescription, target), error: null }
+          : { stand: null, result: null, error: build.error },
+      )
+    }
+    return out
+  }, [
+    scene.targets,
+    scene.viewpoint.coordinates,
+    clipAlteration,
+    forestStands,
+    standClearings,
+    forestInventory,
+    drive.treeHeightMeters,
+  ])
+
+  // Prescribed trees on the plan, by what their prescription does with each (`VisualQualityLayers`).
+  const standTreeCollection = useMemo<GeoJSON.FeatureCollection>(() => {
+    const features: GeoJSON.Feature[] = []
+    for (const [targetId, entry] of standPrescriptions) {
+      if (!entry.stand || !entry.result) continue
+      const { removed, keptBecause } = entry.result
+      entry.stand.trees.forEach((tree, i) => {
+        features.push({
+          type: 'Feature',
+          properties: {
+            targetId,
+            key: tree.key,
+            status: removed[i] ? 'removed' : keptBecause[i] === KEPT.protected ? 'protected' : 'kept',
+            species: tree.species,
+            dbhCm: Math.round(tree.dbhCm * 10) / 10,
+            heightMeters: Math.round(tree.heightMeters * 10) / 10,
+          },
+          geometry: { type: 'Point', coordinates: [tree.lng, tree.lat] },
+        })
+      })
+    }
+    return { type: 'FeatureCollection', features }
+  }, [standPrescriptions])
+
+  // The prescribed blocks as files can carry them (Save & export, *Prescribed trees*).
+  const prescribedStands = useMemo<PrescribedStandFile[]>(
+    () =>
+      scene.targets.flatMap((target) => {
+        const entry = standPrescriptions.get(target.id)
+        return entry?.stand && entry.result && target.prescription
+          ? [{ blockName: target.name, stand: entry.stand, result: entry.result, prescription: target.prescription }]
+          : []
+      }),
+    [scene.targets, standPrescriptions],
+  )
+
+  // One line per prescribed block for its sidebar row.
+  const prescriptionLines = useMemo(() => {
+    const lines = new globalThis.Map<string, StandPrescriptionLine>()
+    for (const target of scene.targets) {
+      const entry = standPrescriptions.get(target.id)
+      if (!entry || !target.prescription) continue
+      if (!entry.result) {
+        lines.set(target.id, { text: entry.error ?? 'Reading the stand…', tone: 'warning' })
+        continue
+      }
+      const kept = 100 - entry.result.removedBasalAreaPercent
+      const pattern =
+        target.prescription.pattern === 'grouped'
+          ? `Groups of ${PRESCRIPTION_LINE_FORMAT.format(entry.result.clumps.retained.meanClumpSize)}`
+          : PRESCRIPTION_ORDER_LABELS[target.prescription.order]
+      lines.set(target.id, {
+        text: `${pattern} · ${Math.round(kept)}% basal area kept · ${Math.round(entry.result.summaries.retained.stemsPerHa)} stems/ha`,
+        tone: entry.result.reached ? 'default' : 'warning',
+      })
+    }
+    return lines
+  }, [scene.targets, standPrescriptions])
+
+  // Retention and partial-cut blocks are thinned in the road view, not cleared. A block with a stand
+  // prescription keeps exactly the trees its prescription chose (`stand/prescribedCells.ts`); before
+  // harvest, with *Tree colours: by treatment*, it marks them without cutting.
+  const forestThinnings = useMemo<Thinning[]>(
+    () =>
+      scene.targets.flatMap((target) => {
+        const thinning = target.role === 'block' ? blockThinning(target) : null
+        const geometry = thinning ? clipAlteration(thinning.geometry) : null
+        if (!thinning || !geometry) return []
+        const prescribed = standPrescriptions.get(target.id)
+        const ready = prescribed?.stand && prescribed.result ? prescribed : null
+        const coloured = drive.treeColours === 'treatment'
+        if (drive.harvestPhase === 'before') {
+          return ready && coloured
+            ? [
+                {
+                  geometry,
+                  keepFraction: 1,
+                  prescribed: prescribedCells(ready.stand!, ready.result!, {
+                    markOnly: true,
+                    tints: treatmentTints(ready.stand!, ready.result!, 'before'),
+                  }),
+                },
+              ]
+            : []
+        }
+        if (!ready) return [{ ...thinning, geometry }]
+        const kept =
+          ready.stand!.trees.length - ready.result!.removed.reduce((sum: number, flag: number) => sum + flag, 0)
+        return [
+          {
+            geometry,
+            keepFraction: ready.stand!.trees.length ? kept / ready.stand!.trees.length : thinning.keepFraction,
+            prescribed: prescribedCells(
+              ready.stand!,
+              ready.result!,
+              coloured ? { tints: treatmentTints(ready.stand!, ready.result!, 'after') } : {},
+            ),
+          },
+        ]
+      }),
+    [drive.harvestPhase, drive.treeColours, scene.targets, clipAlteration, standPrescriptions],
+  )
+
+  // What a prescription leaves of each tree it takes: stumps, and felled stems or logs where it leaves them.
+  const treatedStemsAfterHarvest = useMemo(() => {
+    if (drive.harvestPhase !== 'after') return null
+    const out: Record<TreatedStemKind, TreeInstance[]> = { stump: [], felled: [], log: [], snag: [] }
+    for (const target of scene.targets) {
+      const prescribed = standPrescriptions.get(target.id)
+      if (!prescribed?.stand || !prescribed.result || !target.prescription) continue
+      const stems = treatedStems(
+        prescribed.stand,
+        prescribed.result,
+        target.prescription.outcome,
+        target.prescription.snags.heightMeters,
+        snagStatesAt(snagFates(prescribed.stand, prescribed.result), target.prescription.snags.yearsAfterHarvest),
+      )
+      out.stump.push(...stems.stump)
+      out.felled.push(...stems.felled)
+      out.log.push(...stems.log)
+      out.snag.push(...stems.snag)
+    }
+    return out.stump.length || out.snag.length ? out : null
+  }, [drive.harvestPhase, scene.targets, standPrescriptions])
 
   const forestConfiguration = useMemo(
     () => ({
@@ -2444,6 +2668,7 @@ function DevForestryVisuals() {
       clearings: forestClearings,
       openings: forestOpenings,
       thinnings: forestThinnings,
+      treated: treatedStemsAfterHarvest,
       standHeightMeters: drive.treeHeightMeters,
       inventory: forestInventory,
       style:
@@ -2464,6 +2689,7 @@ function DevForestryVisuals() {
       forestClearings,
       forestOpenings,
       forestThinnings,
+      treatedStemsAfterHarvest,
       drive.treeHeightMeters,
       forestInventory,
       drive.quality,
@@ -2826,6 +3052,47 @@ function DevForestryVisuals() {
     },
     [setScene],
   )
+
+  // A block's stand prescription: the dialog open on one block, and protecting trees from the plan.
+  const [prescriptionTargetId, setPrescriptionTargetId] = useState<string | null>(null)
+  // The stand profile's strip, while the dialog's Graphs tab shows it; drawn on the plan.
+  const [profileStrip, setProfileStrip] = useState<ProfileStripChoice | null>(null)
+  const handleOpenPrescription = useCallback(
+    (targetId: string) => {
+      setScene((current) => ({
+        ...current,
+        targets: current.targets.map((target) =>
+          target.id === targetId && !target.prescription ? { ...target, prescription: DEFAULT_PRESCRIPTION } : target,
+        ),
+      }))
+      setPrescriptionTargetId(targetId)
+    },
+    [setScene],
+  )
+  const handleToggleProtectedTree = useCallback(
+    (targetId: string, key: number) => {
+      setScene((current) => ({
+        ...current,
+        targets: current.targets.map((target) => {
+          if (target.id !== targetId || !target.prescription) return target
+          const keys = new Set(target.prescription.protectedKeys)
+          if (keys.has(key)) keys.delete(key)
+          else keys.add(key)
+          return { ...target, prescription: { ...target.prescription, protectedKeys: [...keys] } }
+        }),
+      }))
+    },
+    [setScene],
+  )
+
+  const standStripCollection = useMemo<GeoJSON.FeatureCollection>(() => {
+    const stand = prescriptionTargetId ? standPrescriptions.get(prescriptionTargetId)?.stand : null
+    const polygon = stand && profileStrip ? profileStripPolygon(stand, profileStrip) : null
+    return {
+      type: 'FeatureCollection',
+      features: polygon ? [{ type: 'Feature', properties: {}, geometry: polygon }] : [],
+    }
+  }, [prescriptionTargetId, profileStrip, standPrescriptions])
 
   const handleRemoveTarget = useCallback(
     (targetId: string) => {
@@ -4069,8 +4336,60 @@ function DevForestryVisuals() {
     if (places.length || !plan) reportSettingCache.current = { result, targets: scene.targets, value }
     return value
   }
+  const prescriptionTarget = prescriptionTargetId
+    ? (scene.targets.find((target) => target.id === prescriptionTargetId) ?? null)
+    : null
+  const prescriptionEntry = prescriptionTarget ? standPrescriptions.get(prescriptionTarget.id) : undefined
+  const prescriptionDialog =
+    prescriptionTarget?.prescription &&
+    (prescriptionTarget.harvestSystem === 'retention' || prescriptionTarget.harvestSystem === 'partial') ? (
+      <StandPrescriptionDialog
+        open
+        onClose={() => {
+          setPrescriptionTargetId(null)
+          setProfileStrip(null)
+        }}
+        blockName={prescriptionTarget.name}
+        harvestSystem={prescriptionTarget.harvestSystem}
+        block={prescriptionTarget}
+        prescription={prescriptionTarget.prescription}
+        onChange={(prescription) => handleTargetChange(prescriptionTarget.id, { prescription })}
+        onRemove={() => {
+          handleTargetChange(prescriptionTarget.id, { prescription: null })
+          setPrescriptionTargetId(null)
+        }}
+        stand={prescriptionEntry?.stand ?? null}
+        result={prescriptionEntry?.result ?? null}
+        error={prescriptionEntry?.error ?? null}
+        onAdopt={(figures) => handleTargetChange(prescriptionTarget.id, figures)}
+        importedSource={prescriptionTarget.prescription.imported?.source ?? null}
+        onImportTrees={(trees, source) =>
+          handleTargetChange(prescriptionTarget.id, {
+            // Protected trees were the old stand's: a new list starts with none.
+            prescription: {
+              ...prescriptionTarget.prescription!,
+              imported: { source, packed: packImportedTrees(trees) },
+              protectedKeys: [],
+            },
+          })
+        }
+        onClearImport={() =>
+          handleTargetChange(prescriptionTarget.id, {
+            prescription: { ...prescriptionTarget.prescription!, imported: null, protectedKeys: [] },
+          })
+        }
+        onStripChange={setProfileStrip}
+        onClearProtected={() =>
+          handleTargetChange(prescriptionTarget.id, {
+            prescription: { ...prescriptionTarget.prescription!, protectedKeys: [] },
+          })
+        }
+      />
+    ) : null
+
   const exportDialog = useVisualsExport({
     opener: exportOpener,
+    prescribedStands,
     scene,
     setScene,
     sceneKey: key ?? '',
@@ -4327,7 +4646,97 @@ function DevForestryVisuals() {
     handleUseViewpoint,
     onInspectSample: tools.inspect,
     onRoadClick: seekFromPlan,
+    standTreeCollection,
+    standStripCollection,
+    onToggleProtectedTree: handleToggleProtectedTree,
   }
+  // How tall a screen of timber must be to hide a block from the station (`screenHeight.ts`): a
+  // design aid run on the road view's terrain, never a run figure.
+  const screenBlocks = useMemo(
+    () => scene.targets.filter((target) => target.role === 'block').map(({ id, name }) => ({ id, name })),
+    [scene.targets],
+  )
+  const [screenBlockChoice, setScreenBlockChoice] = useState<string | null>(null)
+  const screenBlockId = screenBlocks.find((block) => block.id === screenBlockChoice)?.id ?? screenBlocks[0]?.id ?? null
+  const screenStationIndex = result
+    ? drive.active
+      ? Math.min(driveStationIndex, result.stations.length - 1)
+      : result.assessmentStationIndex
+    : null
+  const screenStation =
+    result && screenStationIndex != null && result.stations[screenStationIndex]
+      ? {
+          station: result.stations[screenStationIndex],
+          label: drive.active
+            ? `Road view at ${(result.stations[screenStationIndex].distanceAlongMeters / 1000).toFixed(2)} km`
+            : 'Assessment viewpoint',
+        }
+      : null
+  const screenKey = `${screenBlockId}|${screenStationIndex}|${result ? (key ?? '') : ''}`
+  const [screenHeight, setScreenHeight] = useState<{
+    key: string
+    reading: ScreenHeightReading | null
+    running: { progress: number } | null
+    error: string | null
+  }>({ key: '', reading: null, running: null, error: null })
+  const screenAbort = useRef<AbortController | null>(null)
+  const screenUnavailable = !result
+    ? 'Run the visibility assessment first: the reading stands at its stations.'
+    : isStale
+      ? 'The run is out of date. Run it again first.'
+      : !previewTerrain.source
+        ? 'The terrain is still loading.'
+        : !screenBlockId
+          ? 'Add a proposed block first.'
+          : null
+  const screenStandHeight = (() => {
+    const stand = screenBlockId ? standPrescriptions.get(screenBlockId)?.stand : null
+    if (stand?.trees.length) return stand.trees.reduce((sum, tree) => sum + tree.heightMeters, 0) / stand.trees.length
+    return drive.treeHeightMeters
+  })()
+  const runScreenHeight = () => {
+    const block = scene.targets.find((target) => target.id === screenBlockId)
+    const ground = previewTerrain.source
+    if (!block || !ground || !screenStation || screenUnavailable) return
+    screenAbort.current?.abort()
+    const controller = new AbortController()
+    screenAbort.current = controller
+    const runKey = screenKey
+    const eyeHeight = result?.settings.observerHeightMeters ?? 1.5
+    setScreenHeight({ key: runKey, reading: null, running: { progress: 0 }, error: null })
+    const geometry = clipAlteration(block.geometry) ?? block.geometry
+    runCooperatively(
+      screenHeightSteps({
+        eye: {
+          lng: screenStation.station.lng,
+          lat: screenStation.station.lat,
+          heightAboveGroundMeters: eyeHeight,
+          ...(Number.isFinite(screenStation.station.groundElevationMeters)
+            ? { eyeElevationMeters: screenStation.station.groundElevationMeters + eyeHeight }
+            : {}),
+        },
+        block: geometry,
+        elevation: ground,
+      }),
+      {
+        signal: controller.signal,
+        onProgress: (progress) =>
+          setScreenHeight((current) =>
+            current.key === runKey ? { ...current, running: { progress: progress.fraction } } : current,
+          ),
+      },
+    ).then(
+      (reading) => setScreenHeight({ key: runKey, reading, running: null, error: null }),
+      (error: unknown) =>
+        setScreenHeight({
+          key: runKey,
+          reading: null,
+          running: null,
+          error: error instanceof DOMException && error.name === 'AbortError' ? null : String(error),
+        }),
+    )
+  }
+
   // The saved views a report reads, by the names it gives them: step 2's Table 3 and key viewpoints key on them.
   const reviewViewNames = [
     ...new Set([...shelvedViews.flatMap((entry) => entry.views), ...savedViews].map((view) => view.name)),
@@ -4521,6 +4930,19 @@ function DevForestryVisuals() {
               })
             }
           />
+          <ScreenHeightPanel
+            blocks={screenBlocks}
+            blockId={screenBlockId}
+            onBlockChange={setScreenBlockChoice}
+            stationLabel={screenStation?.label ?? null}
+            reading={screenHeight.key === screenKey ? screenHeight.reading : null}
+            running={screenHeight.key === screenKey ? screenHeight.running : null}
+            error={screenHeight.key === screenKey ? screenHeight.error : null}
+            unavailable={screenUnavailable}
+            onRun={runScreenHeight}
+            onCancel={() => screenAbort.current?.abort()}
+            standHeightMeters={screenStandHeight}
+          />
         </>
       }
       designComparisons={tools.design}
@@ -4586,6 +5008,8 @@ function DevForestryVisuals() {
       onSettingsChange={(settings) => setScene((current) => ({ ...current, settings }))}
       onThresholdsChange={(thresholds) => setScene((current) => ({ ...current, thresholds }))}
       onTargetChange={handleTargetChange}
+      onOpenPrescription={handleOpenPrescription}
+      prescriptionLines={prescriptionLines}
       onRemoveTarget={handleRemoveTarget}
       viewpointClearing={{
         stood: !!standPoint,
@@ -4769,6 +5193,7 @@ function DevForestryVisuals() {
           </Button>
         </div>
         {exportDialog}
+        {prescriptionDialog}
         {backgroundRenders.tray}
         {/* The panes already sit below the phone's floating toolbar, so overlays in them need not clear it. */}
         <div className="flex min-h-0 flex-1 [--map-mobile-toolbar-height:0px]">
@@ -4965,6 +5390,8 @@ function DevForestryVisuals() {
                           }
                           masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
                           treeFreeAreas={(scene.treeFreeAreas ?? []).length > 0 || !!viewpointClearing}
+                          standTrees={standTreeCollection.features.length > 0}
+                          standStrip={standStripCollection.features.length > 0}
                           evqo={planEvqoCodes}
                           hidden={planShow.hidden}
                           onToggle={(key) => setPlanShow((current) => togglePlanLegendKey(current, key))}

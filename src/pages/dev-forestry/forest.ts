@@ -138,6 +138,13 @@ export type TreeInstance = {
   species: TreeSpeciesId
   /** Which drawn silhouette of that species this stem uses. */
   variant: number
+  /**
+   * Display only: a colour (0–1 RGB) the stem is drawn in place of its own, for the road view's
+   * *Tree colours: by treatment*. A colour, never a shape: it changes no pixel a tree covers.
+   */
+  tint?: readonly [number, number, number]
+  /** Display only: which way a felled stem or log lies, degrees clockwise from north. */
+  headingDegrees?: number
 }
 
 /**
@@ -240,7 +247,7 @@ export type ForestMesh = {
 }
 
 /** Deterministic noise, so a stand does not shimmer as the camera moves. */
-function mulberry32(seed: number): () => number {
+export function mulberry32(seed: number): () => number {
   let state = seed >>> 0
   return () => {
     state = (state + 0x6d2b79f5) >>> 0
@@ -252,7 +259,7 @@ function mulberry32(seed: number): () => number {
 }
 
 /** A stable seed for a position, so the same ground grows the same trees. */
-function seedForCell(x: number, y: number, seed: number): number {
+export function seedForCell(x: number, y: number, seed: number): number {
   return (Math.imul(x, 0x27d4eb2d) ^ Math.imul(y, 0x165667b1) ^ seed) >>> 0
 }
 
@@ -399,7 +406,63 @@ export type TreePlacementOptions = {
   bounds?: [number, number, number, number]
 }
 
-export type Thinning = { geometry: PolygonGeometry; keepFraction: number; heightMeters?: number | null }
+export type Thinning = {
+  geometry: PolygonGeometry
+  keepFraction: number
+  heightMeters?: number | null
+  /**
+   * A stand prescription's own choice of stems (`stand/prescribedCells.ts`). Where set it decides
+   * which stems stand, in place of `keepFraction`'s random draw: on its own grid stem for stem,
+   * so a retained tree is the stem drawn there before harvest, and in coarser bands by the share
+   * of stems it keeps around each one. Its trees keep their own heights.
+   */
+  prescribed?: PrescribedCells | null
+}
+
+/**
+ * The stems a stand prescription keeps, keyed to the grid `placeTrees` grows them on. Built by
+ * `prescribedCells` (`stand/prescribedCells.ts`); read here only.
+ */
+export type PrescribedCells = {
+  spacingMeters: number
+  seed: number
+  anchorLatitude: number
+  /** `stemCellKey` of every stem the prescription takes out. */
+  removed: ReadonlySet<number>
+  /** Share of stems kept within `radiusMeters` of a point, 0–1, for bands drawn coarser than the stand's grid. */
+  shareAt: (lng: number, lat: number, radiusMeters: number) => number
+  /**
+   * Before harvest: the prescription only marks its trees, nothing is taken anywhere, and `tints`
+   * colours the marked ones (WinSVS's marking view).
+   */
+  markOnly?: boolean
+  /** Display only: colours for stems on the stand's grid, by `stemCellKey` (*Tree colours: by treatment*). */
+  tints?: ReadonlyMap<number, readonly [number, number, number]>
+  /**
+   * An imported stand: on the stand's own grid its trees are drawn as they are, in place of every grid
+   * stem in the block; coarser bands thin their grid stems by `shareAt` as for a drawn stand.
+   */
+  replace?: ReadonlyArray<TreeInstance>
+}
+
+/** The grid a placement of this spacing lays its stems on, degrees per cell. */
+export function stemGridSteps(spacingMeters: number, anchorLatitude: number): { lng: number; lat: number } {
+  const latScale = Math.max(0.05, Math.cos((anchorLatitude * Math.PI) / 180))
+  return { lng: spacingMeters / (METERS_PER_DEGREE_LAT * latScale), lat: spacingMeters / METERS_PER_DEGREE_LAT }
+}
+
+/**
+ * One number naming a grid cell, so a stem keeps its identity from before harvest to after.
+ * Exact for cells within ±2²⁴ of the origin: about 67,000 km at 4 m.
+ */
+export function stemCellKey(cellX: number, cellY: number): number {
+  return (cellX + 16_777_216) * 33_554_432 + (cellY + 16_777_216)
+}
+
+/** The cell a stem placed on this grid stands in: its jitter never leaves it (±0.425 of a cell). */
+export function stemCell(lng: number, lat: number, steps: { lng: number; lat: number }): [number, number] {
+  return [Math.floor(lng / steps.lng), Math.floor(lat / steps.lat)]
+}
 
 /** Share of a partial cut drawn standing when its volume removed is not recorded yet. */
 const UNRECORDED_PARTIAL_KEEP = 0.5
@@ -442,6 +505,12 @@ export type InventoryStand = {
   /** VRI's live stems per hectare and crown closure, where it recorded them. */
   stemsPerHa?: number | null
   crownClosurePercent?: number | null
+  /**
+   * VRI's quadratic mean diameter (cm, stems 12.5 cm and over) and basal area (m²/ha), where it
+   * recorded them. Drawing ignores them; a stand prescription sizes its trees' diameters to them.
+   */
+  quadMeanDiameterCm?: number | null
+  basalAreaM2PerHa?: number | null
   /**
    * Every species the inventory recorded in the stand, with its share and,
    * where recorded, its own height (VRI gives the leading two). Where present
@@ -693,7 +762,27 @@ export function placeTrees({
 
       // Its own draw, so thinning one block leaves every other stem in place.
       const thinned = thinnings.length > 0 ? thinnedAt(lng, lat) : null
-      if (thinned && mulberry32(seedForCell(cellX, cellY, seed + 7919))() >= thinned.keepFraction) continue
+      const prescribed = thinned?.prescribed ?? null
+      // The prescription's own grid: this stem is one of its trees, kept or taken by name.
+      const prescribedKey =
+        prescribed &&
+        Math.abs(prescribed.spacingMeters - spacing) < 1e-9 &&
+        prescribed.seed === seed &&
+        prescribed.anchorLatitude === anchorLat
+          ? stemCellKey(cellX, cellY)
+          : null
+      if (prescribed) {
+        if (prescribed.replace && prescribedKey !== null) {
+          // The block's measured trees stand here instead (added after the grid, below).
+          continue
+        } else if (prescribed.markOnly) {
+          // Marked, not cut: every stem stands.
+        } else if (prescribedKey !== null) {
+          if (prescribed.removed.has(prescribedKey)) continue
+        } else if (mulberry32(seedForCell(cellX, cellY, seed + 7919))() >= prescribed.shareAt(lng, lat, spacing / 2)) {
+          continue
+        }
+      } else if (thinned && mulberry32(seedForCell(cellX, cellY, seed + 7919))() >= thinned.keepFraction) continue
 
       // A recorded mix wins over the leading species alone; the leading
       // species over the regional mix. Its own draw, so adding a species to a
@@ -709,12 +798,14 @@ export function placeTrees({
       const surveyedHeight = thicket
         ? TALL_SHRUB_STAND.heightMeters
         : (mixEntry?.heightMeters ?? surveyed?.heightMeters ?? null)
-      const standHeight = thinned?.heightMeters ?? (retained ? heightMeters : (surveyedHeight ?? heightMeters))
+      // A prescription's trees keep their own heights: it chose them, and they stood there before.
+      const residualHeight = prescribed ? null : thinned?.heightMeters
+      const standHeight = residualHeight ?? (retained ? heightMeters : (surveyedHeight ?? heightMeters))
       if (standHeight <= 0) continue
       // A partial cut's residuals are mature trees, only shorter: they keep the stand's closure.
       const standClosure =
         recordedClosure ??
-        (thinned?.heightMeters
+        (residualHeight
           ? crownClosurePercent
           : crownClosurePercent * Math.min(1, standHeight / CANOPY_CLOSES_AT_METERS))
       // The crown the stand's closure calls for at the density drawn here —
@@ -744,6 +835,31 @@ export function placeTrees({
         species,
         variant: Math.floor(random() * VARIANTS_PER_SPECIES) % VARIANTS_PER_SPECIES,
       })
+      const tint = prescribedKey !== null ? prescribed?.tints?.get(prescribedKey) : undefined
+      if (tint) trees[trees.length - 1].tint = tint
+      if (trees.length >= maxTrees) return trees
+    }
+  }
+
+  // Imported stands: their trees in place of the grid stems skipped above, on the stand's own grid only.
+  for (const thinning of thinnings) {
+    const prescribed = thinning.prescribed
+    if (
+      !prescribed?.replace ||
+      Math.abs(prescribed.spacingMeters - spacing) >= 1e-9 ||
+      prescribed.seed !== seed ||
+      prescribed.anchorLatitude !== anchorLat
+    )
+      continue
+    for (const tree of prescribed.replace) {
+      if (bounds && (tree.lng < bounds[0] || tree.lng >= bounds[2] || tree.lat < bounds[1] || tree.lat >= bounds[3]))
+        continue
+      const deltaLat = tree.lat - centre.lat
+      const deltaLng = ((tree.lng - centre.lng) * metersPerDegreeLng) / METERS_PER_DEGREE_LAT
+      const distanceSquared = deltaLat * deltaLat + deltaLng * deltaLng
+      if (distanceSquared > radiusLatSquared || distanceSquared < innerLatSquared) continue
+      if (clearingsAt.contains(tree.lng, tree.lat)) continue
+      trees.push({ ...tree })
       if (trees.length >= maxTrees) return trees
     }
   }

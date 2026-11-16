@@ -523,6 +523,26 @@ export function RoadViewOptions({
           </StyledSelect>
         </Row>
         <Row
+          label="Tree colours"
+          info={
+            <InfoTip label="About tree colours">
+              By treatment colours the trees of blocks with a stand prescription: before harvest the trees marked to
+              cut, after it the trees kept, and protected trees in both. A colour only: every tree covers the same part
+              of the view, so screening and every number are unchanged.
+            </InfoTip>
+          }
+        >
+          <StyledSelect
+            aria-label="Tree colours"
+            className={SELECT_CLASS}
+            value={drive.treeColours}
+            onChange={(event) => onDriveChange({ treeColours: event.target.value as DriveState['treeColours'] })}
+          >
+            <option value="natural">Natural</option>
+            <option value="treatment">By treatment</option>
+          </StyledSelect>
+        </Row>
+        <Row
           label="Detail when stopped"
           info={
             <InfoTip label="About detail when stopped">

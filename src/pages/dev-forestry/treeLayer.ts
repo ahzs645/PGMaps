@@ -74,6 +74,9 @@ in vec3 a_offset;
 /** Crown width and tree height, in metres. */
 in vec2 a_scale;
 in vec3 a_color;
+/** Display only: which way the mesh's +x axis lies, degrees from north; read when u_useHeading is set. */
+in float a_heading;
+uniform float u_useHeading;
 
 uniform mat4 u_matrix;
 uniform vec3 u_eye;
@@ -108,7 +111,9 @@ void main() {
   // Each stem turned about its own axis by a hash of where it stands, so a
   // stand of one mesh does not have every branch pointing the same way. Fixed
   // per stem: the tree does not spin as the camera moves.
-  float turn = fract(sin(dot(a_offset.xy * 1.0e6, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318530718;
+  float turn = u_useHeading > 0.5
+    ? radians(90.0 - a_heading)
+    : fract(sin(dot(a_offset.xy * 1.0e6, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318530718;
   mat2 spin = mat2(cos(turn), sin(turn), -sin(turn), cos(turn));
   vec2 across = spin * a_position.xy;
   vec2 normalAcross = spin * a_normal.xy;
@@ -321,7 +326,7 @@ vec3 litCard(vec3 colour, float foliage) {
   vec3 light = vec3(0.34 * occlusion + 0.78 * wrap * mix(occlusion, 1.0, 0.5)) + back * vec3(0.9, 1.1, 0.55);
   // Per-tree variety beyond the warm/cool tint: brightness ±10% and
   // saturation ±15%, keyed to the same stable tint so it never flickers.
-  float vary = (v_tint.r - 0.99) / 0.13;
+  float vary = v_tint.r >= 2.0 ? 0.0 : (v_tint.r - 0.99) / 0.13;
   vec3 lit = colour * light * (1.0 + 0.1 * vary);
   float grey = dot(lit, vec3(0.299, 0.587, 0.114));
   return mix(vec3(grey), lit, 1.0 + 0.15 * vary * foliage);
@@ -344,7 +349,14 @@ void main() {
   vec3 colour = texel.rgb / max(texel.a, 0.001);
   // Tint the foliage only: bark is not green, and a tinted birch stem went pink.
   float foliage = clamp((colour.g - max(colour.r, colour.b)) * 12.0, 0.0, 1.0);
-  colour *= mix(vec3(1.0), v_tint, foliage);
+  if (v_tint.r >= 2.0) {
+    // A treatment colour (*Tree colours: by treatment*), carried as tint + 2: the foliage takes
+    // the colour at its own brightness. A colour only; the cut-out above is unchanged.
+    float luma = dot(colour, vec3(0.299, 0.587, 0.114));
+    colour = mix(colour, (v_tint - 2.0) * (0.45 + 1.1 * luma), max(foliage, 0.6));
+  } else {
+    colour *= mix(vec3(1.0), v_tint, foliage);
+  }
   if (v_top > 0.5) colour *= 1.12 - 0.45 * rim * rim;
   else if (u_lit > 0.5) colour = litCard(colour, foliage);
   fragColor = vec4(mix(colour, vec3(0.68, 0.76, 0.79), min(0.65, v_distance / 22000.0)), 1.0);
@@ -395,6 +407,11 @@ export type TreeLayerOptions = {
    * only: neither changes which pixels a tree covers.
    */
   look?: TreeLook
+  /**
+   * Solid only: each stem lies along its `headingDegrees` instead of a turn hashed from where it
+   * stands (felled trees and logs, `stand/prescribedCells.ts`).
+   */
+  headings?: boolean
 }
 
 export type TreeLook = 'flat' | 'lit'
@@ -444,6 +461,8 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
   let scaleBuffer: WebGLBuffer | null = null
   let thirdBuffer: WebGLBuffer | null = null
   let tintBuffer: WebGLBuffer | null = null
+  let headingBuffer: WebGLBuffer | null = null
+  let useHeadingLocation: WebGLUniformLocation | null = null
 
   let pending: TreeInstance[] | null = null
   let instanceCount = 0
@@ -508,12 +527,18 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         third[index * 2 + 1] = v
         // The drawing already carries its colour; this only shifts it a little,
         // warmer or cooler, so a stand is not one tree stamped out.
-        const warmth = 0.86 + tree.tone * 0.26
-        tints[index * 3] = warmth
-        tints[index * 3 + 1] = 0.9 + (1 - tree.tone) * 0.18
-        tints[index * 3 + 2] = 0.84 + tree.tone * 0.2
+        if (tree.tint) {
+          tints[index * 3] = tree.tint[0] + 2
+          tints[index * 3 + 1] = tree.tint[1] + 2
+          tints[index * 3 + 2] = tree.tint[2] + 2
+        } else {
+          const warmth = 0.86 + tree.tone * 0.26
+          tints[index * 3] = warmth
+          tints[index * 3 + 1] = 0.9 + (1 - tree.tone) * 0.18
+          tints[index * 3 + 2] = 0.84 + tree.tone * 0.2
+        }
       } else {
-        const [red, green, blue] = crownColor(tree.tone)
+        const [red, green, blue] = tree.tint ? tree.tint.map((value) => value * 255) : crownColor(tree.tone)
         third[index * 3] = red / 255
         third[index * 3 + 1] = green / 255
         third[index * 3 + 2] = blue / 255
@@ -526,6 +551,14 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
     gl.bufferData(gl.ARRAY_BUFFER, scales, gl.DYNAMIC_DRAW)
     gl.bindBuffer(gl.ARRAY_BUFFER, thirdBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, third, gl.DYNAMIC_DRAW)
+    if (headingBuffer) {
+      const headings = new Float32Array(trees.length)
+      trees.forEach((tree, index) => {
+        headings[index] = tree.headingDegrees ?? 0
+      })
+      gl.bindBuffer(gl.ARRAY_BUFFER, headingBuffer)
+      gl.bufferData(gl.ARRAY_BUFFER, headings, gl.DYNAMIC_DRAW)
+    }
     if (tints && tintBuffer) {
       gl.bindBuffer(gl.ARRAY_BUFFER, tintBuffer)
       gl.bufferData(gl.ARRAY_BUFFER, tints, gl.DYNAMIC_DRAW)
@@ -577,6 +610,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       litLocation = gl.getUniformLocation(program, 'u_lit')
       topCrownLocation = gl.getUniformLocation(program, 'u_topCrown')
       viewLocation = gl.getUniformLocation(program, 'u_view')
+      useHeadingLocation = gl.getUniformLocation(program, 'u_useHeading')
 
       vao = gl.createVertexArray()
       gl.bindVertexArray(vao)
@@ -634,6 +668,10 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
         offsetBuffer = perInstance(attribute('a_offset'), 3)
         scaleBuffer = perInstance(attribute('a_scale'), 2)
         thirdBuffer = perInstance(attribute('a_color'), 3)
+        if (options.headings) {
+          const location = attribute('a_heading')
+          if (location >= 0) headingBuffer = perInstance(location, 1)
+        }
 
         const indexBuffer = gl.createBuffer()
         instanceBuffers.push(indexBuffer!)
@@ -743,6 +781,7 @@ export function createTreeLayer(id: string, options: TreeLayerOptions): TreeLaye
       gl.uniform1f(meterScaleLocation, meterScale)
       gl.uniform1f(nearCutLocation, nearCut)
       gl.uniform1f(litLocation, options.look === 'lit' ? 1 : 0)
+      if (useHeadingLocation) gl.uniform1f(useHeadingLocation, headingBuffer ? 1 : 0)
       // A single tree's card is `BILLBOARD_ASPECT` of its height at the species' crown ratio (a spruce's taken for
       // all); a clump's is `CLUMP_WIDTH_FACTOR` × the crown width it stands for.
       gl.uniform1f(

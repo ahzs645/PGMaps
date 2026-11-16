@@ -82,6 +82,7 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
       delete kept.residualHeightMeters
       delete kept.plannedHarvestYear
       delete kept.displayColor
+      delete kept.prescription
       if (kept.harvestSystem !== 'partial') delete kept.harvestSystem
       // A field check counts once complete, as the run reads it; its note is a remark, and a
       // draft check without a date or observer leaves the model in charge.
