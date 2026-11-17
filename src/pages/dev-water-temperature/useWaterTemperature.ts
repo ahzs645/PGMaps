@@ -8,15 +8,28 @@ import {
   type Station,
 } from './data'
 
-const BASE = import.meta.env.DEV
-  ? '/__dev_water_temp/'
-  : 'https://raw.githubusercontent.com/ahzs645/unbcwatertemp-viz/main/public/data/'
+const PUBLISHED_BASE = 'https://raw.githubusercontent.com/ahzs645/unbcwatertemp-viz/main/public/data/'
+const LOCAL_BASE = '/__dev_water_temp/'
+/**
+ * In dev, a local checkout of the source (`../unbcwatertemp-viz` or
+ * `PGMAPS_WATER_TEMP_DATA_DIR`) wins; without one, the dev server answers 404
+ * and the page reads the published snapshot instead, as a build does.
+ */
+let localSnapshot: boolean | undefined = import.meta.env.DEV ? undefined : false
+
 async function readJson(file: string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(`${BASE}${file}`, { signal })
+  if (localSnapshot !== false) {
+    const response = await fetch(`${LOCAL_BASE}${file}`, { signal })
+    if (response.ok) {
+      localSnapshot = true
+      return response.json()
+    }
+    if (localSnapshot) throw new Error(`Could not load ${file} from the local UNBC snapshot directory.`)
+    localSnapshot = false
+  }
+  const response = await fetch(`${PUBLISHED_BASE}${file}`, { signal })
   if (!response.ok)
-    throw new Error(
-      `Could not load ${file}. ${import.meta.env.DEV ? 'Check the local UNBC snapshot directory.' : 'The reference repository snapshot is unavailable. Try again shortly.'}`,
-    )
+    throw new Error(`Could not load ${file}. The reference repository snapshot is unavailable. Try again shortly.`)
   return response.json()
 }
 
