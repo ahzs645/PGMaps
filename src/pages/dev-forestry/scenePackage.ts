@@ -56,12 +56,14 @@ import { curvatureDrop, EARTH_RADIUS_M, STANDARD_REFRACTION } from './skylineRea
 import { metersPerDegree, type PolygonGeometry } from './visibility'
 import type { EngineEnvironment } from './externalRenderers'
 import { checkSceneCamera, scenePerspective, type SceneCamera, type SceneViewport } from './sceneCamera'
+import { SCENE_TREE_FIELDS, treeComponents } from './sceneComponents'
+import { standOnGrid, validStandGrid, type SceneStandGrid } from './sceneStand'
 
 export const SCENE_PACKAGE_FORMAT = 'pgmaps-forest-scene'
 export const SCENE_PACKAGE_VERSION = 1
 
 /** Fields of one tree record in `trees.data`, in order. `species` is an index into `trees.species`. */
-export const SCENE_TREE_FIELDS = ['x', 'y', 'z', 'species', 'height', 'crownWidth', 'tone'] as const
+export { SCENE_TREE_FIELDS } from './sceneComponents'
 /** Fields of one debris pile in `debris.data`: base position and footprint across, metres. */
 export const SCENE_DEBRIS_FIELDS = ['x', 'y', 'z', 'footprint'] as const
 /**
@@ -95,6 +97,8 @@ export type ScenePackage = {
      * one, and open ground as open. Absent from older packages.
      */
     canopy?: Array<number | null>
+    /** Resolved stand height/composition and source, including beyond the explicit stem radius. */
+    stand?: SceneStandGrid
     /**
      * Natural ground cover at each post, row-major like `heights` (`SCENE_COVER`): what the ground is where the
      * forest is not closed, from VRI's BC Land Cover Classification and the slope, so bluffs, rock, grass and shrub
@@ -146,20 +150,21 @@ export type ScenePackage = {
    */
   skylineTerrain?: ScenePackage['terrain'] & { earthCurvature: { earthRadiusMeters: number; refraction: number } }
   trees: {
-    fields: typeof SCENE_TREE_FIELDS
+    fields: readonly string[]
     species: PackageSpeciesId[]
     count: number
     data: number[]
+    ids?: string[]
   }
   /** How each species is drawn here, so a renderer can build a matching model. */
-  species: Record<PackageSpeciesId, { label: string; crownRatio: number; crownBase: number; broadleaf: boolean }>
+  species: Record<string, { label: string; crownRatio: number; crownBase: number; broadleaf: boolean }>
   /**
    * Each species' own detailed model (`detailedTreeMesh`), the one the road view draws when it stops, so another
    * renderer can draw the same trees and not only the same positions. Unit height and unit crown width: scale x
    * and y (across) by a stem's crown width and z by its height. Non-indexed triangles in the package frame (z up);
    * `bark` is 1 on wood, 0 on foliage. Our own geometry: no third-party asset to license.
    */
-  models?: Record<PackageSpeciesId, { positions: number[]; normals: number[]; bark: number[] }>
+  models?: Record<string, { positions: number[]; normals: number[]; bark: number[] }>
   /**
    * Cut ground. `ageYears`: years from harvest to the assessment (or view) date, null when the record has no date;
    * an engine greens the ground up with age (slash and soil at 0–2, shrubs and seedlings by 5, a young stand by
@@ -316,10 +321,10 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
   const anchorLatitude = forest.anchorLatitude ?? eye.lat
   const bands = forestBands(treeRadiusMeters)
   const patches = forestPatches(eye, bands, anchorLatitude)
-  // The six species the other renderers know by name (`PACKAGE_SPECIES_IDS`): a hemlock goes as the fir it was
-  // drawn as before it had its own drawing, and so on.
+  // Component-aware consumers keep the native species; sceneForEngine negotiates old six-species consumers.
   const species = [...PACKAGE_SPECIES_IDS]
   const treeData: number[] = []
+  const treeIds: string[] = []
   const debrisData: number[] = []
   const openings = forest.openings ?? []
   for (const patch of patches) {
@@ -355,7 +360,9 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
         // A stem's crown width is its height × slenderness (`placeTrees`).
         round(tree.heightMeters * tree.slenderness),
         round(tree.tone, 3),
+        ...treeComponents(tree),
       )
+      treeIds.push(tree.id ?? `p:${tree.lng}:${tree.lat}:${tree.species}`)
     }
     // Slash where the road view draws it: the nearer bands only.
     if (openings.length && band.near < treeRadiusMeters && patch.band <= 1) {
@@ -521,6 +528,7 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
     if (burntYear) posts.burntYear = burntYear
     for (const fire of burntHere) burntFires.add(fire)
     if (posts.canopy) for (let i = 0; i < treeless.length; i += 1) if (treeless[i]) posts.canopy[i] = 0
+    posts.stand = standOnGrid(posts, postAt, canopyInputs)
     if (posts === skylineTerrain) continue
     let outlines: ClipMultiPolygon = seaPolygons(posts, seaPosts)
     if (posts === farTerrain && outlines.length) {
@@ -559,7 +567,13 @@ export function buildScenePackage(input: ScenePackageInput): ScenePackage {
     terrain,
     ...(farTerrain ? { farTerrain } : {}),
     ...(skylineTerrain ? { skylineTerrain } : {}),
-    trees: { fields: SCENE_TREE_FIELDS, species, count: treeData.length / SCENE_TREE_FIELDS.length, data: treeData },
+    trees: {
+      fields: SCENE_TREE_FIELDS,
+      species,
+      count: treeData.length / SCENE_TREE_FIELDS.length,
+      data: treeData,
+      ids: treeIds,
+    },
     species: Object.fromEntries(
       species.map((id) => [
         id,
@@ -646,8 +660,21 @@ export function parseScenePackage(raw: unknown): ScenePackage {
   if (!terrain || terrain.heights?.length !== terrain.columns * terrain.rows)
     throw new Error('The scene package terrain grid does not match its size.')
   const trees = value.trees
-  if (!trees || trees.data?.length !== trees.count * SCENE_TREE_FIELDS.length)
+  if (
+    !trees ||
+    !Array.isArray(trees.fields) ||
+    trees.fields.length < 7 ||
+    !['x', 'y', 'z', 'species', 'height', 'crownWidth', 'tone'].every((field, i) => trees.fields[i] === field) ||
+    trees.data?.length !== trees.count * trees.fields.length ||
+    (trees.ids !== undefined &&
+      (!Array.isArray(trees.ids) || trees.ids.length !== trees.count || trees.ids.some((id) => typeof id !== 'string')))
+  )
     throw new Error('The scene package tree list does not match its count.')
+  for (const grid of [value.terrain, value.farTerrain, value.skylineTerrain]) {
+    if (!grid?.stand) continue
+    if (!validStandGrid(grid.stand, grid.columns * grid.rows))
+      throw new Error('The scene package stand grid does not match its palette.')
+  }
   if (!value.camera || value.camera.position?.length !== 3) throw new Error('The scene package has no camera.')
   checkSceneCamera(value.camera)
   return value as ScenePackage

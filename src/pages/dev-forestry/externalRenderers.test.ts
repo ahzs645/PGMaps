@@ -109,6 +109,9 @@ describe('other road-view renderers', () => {
       'Drawn by threejs-worldgen · 15,867 trees · 141 fps',
     )
     expect(engineStatsLine(roadRendererInfo('nanite'), null)).toBe('Drawn by Nanite Forest')
+    expect(
+      engineStatsLine(roadRendererInfo('nanite'), { fps: 60, completedFps: 30, queue: { completionLatencyMs: 55 } }),
+    ).toBe('Drawn by Nanite Forest · 60 submitted fps · 30 completed fps · 55 ms GPU completion')
   })
 })
 

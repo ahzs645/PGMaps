@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BRIDGE_RESET, useBackgroundRenders, type RenderJob, type RenderRunner } from './BackgroundRenders'
 import { DEFAULT_ENGINE_ENVIRONMENT } from './externalRenderers'
 import type { ScenePackage } from './scenePackage'
+import { DEFAULT_ENGINE_RENDER_OPTIONS } from './engineRenderOptions'
+import type { EngineCaptureRequest } from './engineCapture'
 
 // The hook runs on `window` (message listener, timers, storage) and an iframe's `contentWindow`: both stubbed here,
 // the engine page's messages dispatched by hand.
@@ -33,6 +35,14 @@ afterEach(() => vi.unstubAllGlobals())
 const scene = {
   origin: { lng: -122.7, lat: 53.9 },
   camera: { position: [0, 0, 700], bearingDegrees: 30 },
+  trees: {
+    fields: ['x', 'y', 'z', 'species', 'height', 'crownWidth', 'tone'],
+    species: ['spruce'],
+    count: 0,
+    data: [],
+  },
+  species: {},
+  terrain: {},
 } as unknown as ScenePackage
 
 const job: RenderJob = {
@@ -44,6 +54,94 @@ const job: RenderJob = {
 }
 
 describe('background renders', () => {
+  it('does not post a late-built request after a GPU error rejects its job', async () => {
+    const seen: { current: ReturnType<typeof useBackgroundRenders> | null } = { current: null }
+    let complete!: (request: EngineCaptureRequest) => void
+    const making = new Promise<EngineCaptureRequest>((resolve) => {
+      complete = resolve
+    })
+    function Host(): ReactNode {
+      const renders = useBackgroundRenders({
+        urlFor: () => 'http://127.0.0.1:8460/',
+        environment: DEFAULT_ENGINE_ENVIRONMENT,
+        run: async (_job, engine) => {
+          await engine.capture(scene, () => making)
+        },
+      })
+      useEffect(() => {
+        seen.current = renders
+      })
+      return renders.tray
+    }
+    let renderer!: ReactTestRenderer
+    await act(async () => {
+      renderer = create(createElement(Host), {
+        createNodeMock: (element) => (element.type === 'iframe' ? { contentWindow: engineWindow } : null),
+      })
+    })
+    await act(async () => seen.current!.enqueue([job]))
+    await act(async () => send('http://localhost:8460', { type: 'pgmaps-engine-hello' }))
+    await act(async () => send('http://localhost:8460', { type: 'pgmaps-engine-ready' }))
+    await act(async () => send('http://localhost:8460', { type: 'pgmaps-engine-error', message: 'device lost' }))
+    expect(seen.current!.jobs[0]).toMatchObject({ status: 'error', error: expect.stringContaining('device lost') })
+    await act(async () =>
+      complete({
+        type: 'pgmaps-capture',
+        id: 'too-late',
+        position: [0, 0, 700],
+        frames: [],
+        classes: { terrain: [0, 0, 0], vegetation: [1, 1, 1], water: [2, 2, 2], layers: [] },
+      }),
+    )
+    expect(engineWindow.postMessage.mock.calls.some(([data]) => data.type === 'pgmaps-capture')).toBe(false)
+    await act(async () => renderer.unmount())
+  })
+  it('posts the queued quality snapshot through the progress wrapper after the scene is ready', async () => {
+    const seen: { current: ReturnType<typeof useBackgroundRenders> | null } = { current: null }
+    function Host(): ReactNode {
+      const renders = useBackgroundRenders({
+        urlFor: () => 'http://127.0.0.1:8460/',
+        environment: DEFAULT_ENGINE_ENVIRONMENT,
+        run: async (_job, engine) => {
+          await engine.capture(scene, (_pkg, options) => ({
+            type: 'pgmaps-capture',
+            id: 'frozen',
+            quality: 'final',
+            canopyCutoffPx: options?.dissolvePixels,
+            position: [0, 0, 700],
+            frames: [],
+            classes: { terrain: [0, 0, 0], vegetation: [1, 1, 1], water: [2, 2, 2], layers: [] },
+          }))
+        },
+      })
+      useEffect(() => {
+        seen.current = renders
+      })
+      return renders.tray
+    }
+    let renderer!: ReactTestRenderer
+    await act(async () => {
+      renderer = create(createElement(Host), {
+        createNodeMock: (element) => (element.type === 'iframe' ? { contentWindow: engineWindow } : null),
+      })
+    })
+    const queued = { ...job, renderOptions: { ...DEFAULT_ENGINE_RENDER_OPTIONS, dissolvePixels: 8 } }
+    await act(async () => seen.current!.enqueue([queued]))
+    queued.renderOptions.dissolvePixels = 1
+    await act(async () =>
+      send('http://localhost:8460', { type: 'pgmaps-engine-hello', accepts: ['render-options-v1'] }),
+    )
+    await act(async () => send('http://localhost:8460', { type: 'pgmaps-engine-ready' }))
+    const posted = engineWindow.postMessage.mock.calls
+      .map(([data]) => data)
+      .find((data) => data.type === 'pgmaps-capture')
+    expect(posted.renderOptions).toMatchObject({ dissolvePixels: 8, dissolveMode: 'relative' })
+    expect(posted.canopyCutoffPx).toBe(8)
+    expect(posted.renderOptions).not.toBe(queued.renderOptions)
+    await act(async () => send('http://localhost:8460', { type: 'pgmaps-engine-capture', id: 'frozen' }))
+    expect(seen.current!.jobs[0].status).toBe('done')
+    await act(async () => renderer.unmount())
+  })
   it('puts a job back when the engine bridge is torn down mid-capture, rather than leaving it waiting', async () => {
     const seen: { current: ReturnType<typeof useBackgroundRenders> | null } = { current: null }
     function Host(props: { url: string; run: RenderRunner }): ReactNode {

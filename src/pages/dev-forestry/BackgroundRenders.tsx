@@ -38,6 +38,14 @@ import {
 } from './renderEstimate'
 import type { ScenePackage } from './scenePackage'
 import { ACCEPTS_PACKED_ARRAYS, ACCEPTS_SCENE_KEYS, engineAccepts, packScene } from './scenePosting'
+import { sceneForEngine } from './sceneComponents'
+import { captureForEngine } from './engineRequests'
+import {
+  ACCEPTS_RENDER_OPTIONS,
+  DEFAULT_ENGINE_RENDER_OPTIONS,
+  parseEngineRenderOptions,
+  type EngineRenderOptions,
+} from './engineRenderOptions'
 
 export type RenderJob = {
   /** Unique per view, engine and scene: a finished render is kept under it. */
@@ -52,6 +60,8 @@ export type RenderJob = {
    */
   phase?: 'before'
   work: RenderWork
+  /** Frozen when enqueued; changing live quality does not alter a queued final image. */
+  renderOptions?: EngineRenderOptions
 }
 
 export type RenderJobState = {
@@ -121,15 +131,22 @@ function useCaptureBridge(
   channel: EngineChannel | null,
   engine: RenderEngineId | null,
   environment: EngineEnvironmentChoice,
+  renderOptions: EngineRenderOptions,
 ) {
   const helloRef = useRef<{ promise: Promise<void>; resolve: () => void } | null>(null)
   const handleRef = useRef<
     (EngineCaptureHandle & { onProgress: (cb: ((p: { done: number; total: number }) => void) | null) => void }) | null
   >(null)
   const environmentRef = useRef(environment)
+  const renderOptionsRef = useRef(renderOptions)
+  const postOptionsRef = useRef<(() => void) | null>(null)
   useEffect(() => {
     environmentRef.current = environment
   })
+  useEffect(() => {
+    renderOptionsRef.current = renderOptions
+    postOptionsRef.current?.()
+  }, [renderOptions])
   // The hello a cold job waits for exists as soon as an engine is wanted: its worker or frame connects a render
   // later, and the job must not miss the hello by asking before then.
   useEffect(() => {
@@ -155,6 +172,11 @@ function useCaptureBridge(
     // A handle taken before the bridge was torn down must not post into a bridge nothing listens to any more.
     let closed = false
     const post = channel.post
+    const postOptions = () => {
+      if (engineAccepts(accepts, ACCEPTS_RENDER_OPTIONS))
+        post({ type: 'pgmaps-render-options', options: renderOptionsRef.current })
+    }
+    postOptionsRef.current = postOptions
     const onMessage = (message: unknown) => {
       const raw = message as { type?: unknown; id?: unknown } | null
       if (raw?.type === 'pgmaps-engine-capture' && typeof raw.id === 'string') {
@@ -172,30 +194,41 @@ function useCaptureBridge(
       if (data?.type === 'pgmaps-engine-hello') {
         accepts = data.accepts
         heldKey = null
+        postOptions()
         resolveHello()
       } else if (data?.type === 'pgmaps-engine-scene-needed') sendWhole?.(data.key)
       else if (data?.type === 'pgmaps-engine-ready') readyWaiter?.()
       else if (data?.type === 'pgmaps-engine-error') failure?.(data.message ?? 'The engine stopped.')
     }
     const unlisten = channel.listen(onMessage)
-    const capture: EngineCaptureHandle['capture'] = (scene: ScenePackage, makeRequest) =>
+    const capture: EngineCaptureHandle['capture'] = (
+      scene: ScenePackage,
+      makeRequest,
+      options = DEFAULT_ENGINE_RENDER_OPTIONS,
+    ) =>
       new Promise((resolve, reject) => {
         if (closed) {
           reject(new Error(BRIDGE_RESET))
           return
         }
         let id: string | null = null
+        let finished = false
         const timer = window.setTimeout(() => {
+          finished = true
           readyWaiter = null
           if (id) replies.delete(id)
           reject(new Error(`${info.label} did not finish the render in ${CAPTURE_TIMEOUT_MS / 60_000} min.`))
         }, CAPTURE_TIMEOUT_MS)
         failure = (message) => {
+          finished = true
+          readyWaiter = null
+          if (id) replies.delete(id)
           window.clearTimeout(timer)
           abandon = null
           reject(new Error(`${info.label}: ${message}`))
         }
         abandon = () => {
+          finished = true
           window.clearTimeout(timer)
           reject(new Error(BRIDGE_RESET))
         }
@@ -204,12 +237,14 @@ function useCaptureBridge(
           renderLog('ready')
           // The request may still be waiting on the frame's stand, grown while the engine built the scene.
           Promise.resolve()
-            .then(() => makeRequest(scene))
+            .then(() => makeRequest(scene, options))
             .then(
               (request) => {
-                if (closed) return
+                if (closed || finished) return
+                request = captureForEngine(request, accepts, options)
                 id = request.id
                 replies.set(request.id, (data) => {
+                  finished = true
                   window.clearTimeout(timer)
                   failure = null
                   abandon = null
@@ -219,6 +254,7 @@ function useCaptureBridge(
                 post(request, captureTransfer(request))
               },
               (error: unknown) => {
+                finished = true
                 window.clearTimeout(timer)
                 failure = null
                 abandon = null
@@ -229,14 +265,15 @@ function useCaptureBridge(
         post(engineEnvironment(environmentRef.current, scene.origin, new Date()))
         // The package's numbers go as buffers handed over, not copied, and a page that still draws this very
         // package is sent its key alone (`scenePosting.ts`); an engine that takes neither gets the plain package.
-        const packed = engineAccepts(accepts, ACCEPTS_PACKED_ARRAYS) ? packScene(scene) : null
+        const compatible = sceneForEngine(scene, accepts)
+        const packed = engineAccepts(accepts, ACCEPTS_PACKED_ARRAYS) ? packScene(compatible) : null
         const keyOnly = packed !== null && engineAccepts(accepts, ACCEPTS_SCENE_KEYS) && heldKey === packed.key
         renderLog('scene', {
           stems: scene.trees?.count ?? null,
           water: scene.water?.length ?? 0,
           sent: keyOnly ? 'key' : packed ? 'packed' : 'plain',
         })
-        if (!packed) post({ type: 'pgmaps-scene', scene })
+        if (!packed) post({ type: 'pgmaps-scene', scene: compatible })
         else {
           const whole = () => {
             sendWhole = null
@@ -278,6 +315,7 @@ function useCaptureBridge(
       readyWaiter = null
       sendWhole = null
       handleRef.current = null
+      postOptionsRef.current = null
       helloRef.current = null
     }
   }, [engine, channel])
@@ -287,6 +325,7 @@ function useCaptureBridge(
 export function useBackgroundRenders(input: {
   urlFor: (engine: RenderEngineId) => string | null
   environment: EngineEnvironmentChoice
+  renderOptions?: Record<RenderEngineId, EngineRenderOptions>
   run: RenderRunner
 }) {
   const [jobs, setJobs] = useState<RenderJobState[]>([])
@@ -311,7 +350,12 @@ export function useBackgroundRenders(input: {
   // A worker on its own thread, or a page on a site of its own (`EngineSurface`): its long scripts never freeze the page.
   const url = engine ? input.urlFor(engine) : null
   const [channel, setChannel] = useState<EngineChannel | null>(null)
-  const { helloRef, handleRef } = useCaptureBridge(channel, engine, input.environment)
+  const { helloRef, handleRef } = useCaptureBridge(
+    channel,
+    engine,
+    input.environment,
+    (engine ? input.renderOptions?.[engine] : null) ?? DEFAULT_ENGINE_RENDER_OPTIONS,
+  )
   const runRef = useRef(input.run)
   useEffect(() => {
     runRef.current = input.run
@@ -370,12 +414,16 @@ export function useBackgroundRenders(input: {
         // The bridge sends the request once the engine's scene is ready: the render phase starts there.
         const wrapped: EngineCaptureHandle = {
           ...handle,
-          capture: (scene, make) =>
+          capture: (scene, make, options = job.renderOptions) =>
             handle
-              .capture(scene, (pkg) => {
-                enter('render')
-                return make(pkg)
-              })
+              .capture(
+                scene,
+                (pkg, frozenOptions) => {
+                  enter('render')
+                  return make(pkg, frozenOptions)
+                },
+                options,
+              )
               .then((reply) => {
                 // The engine has answered: what is left is reading its frames back into the figure.
                 enter('compose')
@@ -448,7 +496,10 @@ export function useBackgroundRenders(input: {
         ...current.filter((entry) => !(entry.status === 'error' && fresh.some((job) => job.key === entry.job.key))),
         ...fresh.map(
           (job): RenderJobState => ({
-            job,
+            job: {
+              ...job,
+              ...(job.renderOptions ? { renderOptions: parseEngineRenderOptions(job.renderOptions) } : {}),
+            },
             status: 'waiting',
             phase: null,
             estimate: estimateRender(job.engine, job.work, historyRef.current, false),

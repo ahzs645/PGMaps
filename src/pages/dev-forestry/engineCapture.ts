@@ -32,6 +32,7 @@
 import { classPaletteEntries, type ClassRaster } from '@/lib/forestry/viaFigure/composeFigure'
 import type { ClassPassLayer } from './figureClassPass'
 import type { FinalStand } from './finalStand'
+import { parseEngineRenderOptions, type EngineRenderOptions } from './engineRenderOptions'
 import type { FrameCamera } from './figureFraming'
 import type { ScenePackage } from './scenePackage'
 import { skylineTerrainRadius, type SkylineReach } from './skylineReach'
@@ -76,6 +77,8 @@ export type EngineCaptureFrame = {
 export type EngineCaptureRequest = {
   type: 'pgmaps-capture'
   id: string
+  /** Frozen display settings; negotiated through render-options-v1. Live scale and pacing never resize a capture. */
+  renderOptions?: EngineRenderOptions
   /** The eye, package local metres, absolute height. */
   position: [number, number, number]
   frames: EngineCaptureFrame[]
@@ -117,6 +120,7 @@ export type EngineCaptureRequest = {
     species: readonly string[]
     count: number
     data: Float32Array
+    ids?: string[]
     radiusMeters: number
     /** Bearing span it covers, degrees clockwise from north, [from, to] (may wrap past 360). */
     bearings: [number, number]
@@ -165,6 +169,10 @@ export type EngineCaptureReply = {
   scene: { createdAt: string | null; origin: ScenePackage['origin'] | null }
   /** The light and weather drawn (the engine's `sun` record included). */
   environment: Record<string, unknown> | null
+  renderOptions?: EngineRenderOptions
+  /** Adapter-reported geometry classes and approximations, retained with the saved image. */
+  representation?: Record<string, unknown>
+  dissolve?: Record<string, unknown>
   /** Tallest tree drawn, metres; null when none. */
   maxTreeHeightMeters: number | null
   /**
@@ -277,6 +285,7 @@ export function captureRequest(input: {
                   species: input.final.stand.species,
                   count: input.final.stand.count,
                   data: input.final.stand.data,
+                  ...(input.final.stand.ids ? { ids: input.final.stand.ids } : {}),
                   radiusMeters: input.final.stand.radiusMeters,
                   bearings: input.final.stand.bearings,
                 },
@@ -449,6 +458,9 @@ export function readCaptureReply(data: unknown, request: EngineCaptureRequest): 
       origin: isRecord(scene.origin) ? (scene.origin as ScenePackage['origin']) : null,
     },
     environment: isRecord(data.environment) ? data.environment : null,
+    ...(isRecord(data.renderOptions) ? { renderOptions: parseEngineRenderOptions(data.renderOptions) } : {}),
+    ...(isRecord(data.representation) ? { representation: data.representation } : {}),
+    ...(isRecord(data.dissolve) ? { dissolve: data.dissolve } : {}),
     maxTreeHeightMeters: finite(data.maxTreeHeightMeters) ? data.maxTreeHeightMeters : null,
     missing: strings(data.missing),
     missingDetail: strings(data.missingDetail),
@@ -555,9 +567,14 @@ export type FigureIllustration = {
   sceneCreatedAt: string | null
   /** The sun and weather drawn (the engine's record). */
   environment: Record<string, unknown> | null
+  renderOptions?: EngineRenderOptions
+  representation?: Record<string, unknown>
+  dissolve?: Record<string, unknown>
   depth: { nearestM: number | null; farthestM: number | null; skyShare: number }
   /** What was drawn without data, the engine's and PGMaps' own (terrain cut short). */
   missing: string[]
+  /** Detailed adapter assumptions, including schematic/quantized component geometry. */
+  missingDetail?: string[]
   /**
    * What the engine drew for a final render (`quality: 'final'`), as it reported it; null when it was asked for one
    * and drew the active capture instead, absent when none was asked for.

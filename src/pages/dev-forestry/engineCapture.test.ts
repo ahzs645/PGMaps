@@ -308,6 +308,11 @@ describe('a final capture', () => {
       asked,
     )
     expect(drawn.final).toEqual({ samples: 24, stems: 1_380_000, canopyCutoffMeters: 5200, millis: 9100 })
+    const provenance = {
+      representation: { components: 10, topology: 'dimensional envelopes' },
+      dissolve: { mode: 'relative', cutoffMeters: 4500, patchRadiusMeters: 5000 },
+    }
+    expect(readCaptureReply({ ...reply(asked), ...provenance }, asked)).toMatchObject(provenance)
     expect(readCaptureReply(reply(asked), asked).final).toBeNull()
     const active = request()
     expect(readCaptureReply(reply(active), active).final).toBeUndefined()

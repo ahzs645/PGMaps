@@ -23,6 +23,7 @@ import {
   type RoadRendererId,
 } from './externalRenderers'
 import { setEngineBrowserOptions, useEngineBrowserOptions } from './engineBrowserOptions'
+import { EngineRenderControls } from './EngineRenderControls'
 import { DrawnTimberPanel, type DriveState } from './Sidebar'
 import type { TargetPolygon } from './types'
 import { LENS_FOCAL_LENGTHS, lensLabel } from './viewsOfInterest'
@@ -405,6 +406,7 @@ export function RoadViewOptions({
         )}
         {drive.renderer !== 'pgmaps' && (
           <>
+            <EngineRenderControls renderer={drive.renderer} />
             <Row
               stacked
               label="When"
