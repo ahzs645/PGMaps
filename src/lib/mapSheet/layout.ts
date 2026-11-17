@@ -1,10 +1,10 @@
 /**
  * Sheet layouts as fractions of the page, so one template prints on any paper of its orientation.
- * The fractions were measured from tabloid (11 × 17 in) ArcGIS block-map sheets; type and line sizes
- * scale with the page by `resolveSheet`'s `k`. No DOM or network access.
+ * The fractions were measured from tabloid (11 × 17 in) block-map sheets and a 36 × 29 in operating
+ * plan; type and line sizes scale with the page by `resolveSheet`'s `k`. No DOM or network access.
  */
 
-export type PaperId = 'tabloid' | 'ansi-d' | 'letter' | 'a3' | 'a4'
+export type PaperId = 'tabloid' | 'ansi-d' | 'letter' | 'a3' | 'a4' | '36x29'
 export type Orientation = 'landscape' | 'portrait'
 
 /**
@@ -17,6 +17,7 @@ export const PAPER_SIZES: Record<PaperId, { label: string; short: number; long: 
   letter: { label: 'Letter 8.5 × 11 in', short: 612, long: 792 },
   a3: { label: 'A3', short: 841.89, long: 1190.55 },
   a4: { label: 'A4', short: 595.28, long: 841.89 },
+  '36x29': { label: '36 × 29 in', short: 2088, long: 2592 },
 }
 /** The paper the templates were measured on. Type sizes are given for it. */
 export const REFERENCE_PAPER: PaperId = 'tabloid'
@@ -40,7 +41,16 @@ export interface Rect {
   h: number
 }
 
-export type PanelId = 'blockInfo' | 'source' | 'legend' | 'roadTable' | 'footer' | 'comments' | 'notes'
+export type PanelId =
+  | 'blockInfo'
+  | 'source'
+  | 'legend'
+  | 'roadTable'
+  | 'footer'
+  | 'comments'
+  | 'notes'
+  | 'branding'
+  | 'locator'
 
 export interface SheetTemplate {
   id: string
@@ -149,9 +159,27 @@ export const IMAGERY_PORTRAIT: SheetTemplate = {
   ],
 }
 
+/** Ministry-style operating plan: a large map and a white, stacked information column. */
+export const OPERATING_PLAN_SIDE_PANEL: SheetTemplate = {
+  id: 'operating-plan-side-panel',
+  orientation: 'landscape',
+  neatline: [5 / 2592, 5 / 2088, 2587 / 2592, 2083 / 2088],
+  title: [2191 / 2592, 172 / 2088, 2587 / 2592, 394 / 2088],
+  frame: [8.5 / 2592, 13.824 / 2088, 2181.722 / 2592, 2068.881 / 2088],
+  panels: [
+    { id: 'branding', rect: [2191 / 2592, 9 / 2088, 2587 / 2592, 167 / 2088], bare: true },
+    { id: 'blockInfo', rect: [2191 / 2592, 400 / 2088, 2587 / 2592, 580 / 2088], title: 'Block Information' },
+    { id: 'legend', rect: [2191 / 2592, 590 / 2088, 2587 / 2592, 1442 / 2088], title: 'Legend' },
+    { id: 'source', rect: [2191 / 2592, 1445 / 2088, 2587 / 2592, 1503 / 2088], bare: true },
+    { id: 'locator', rect: [2191 / 2592, 1511 / 2088, 2587 / 2592, 1870 / 2088], title: 'Project Location' },
+    { id: 'footer', rect: [2191 / 2592, 1880 / 2088, 2587 / 2592, 2078 / 2088], bare: true },
+  ],
+}
+
 export const SHEET_TEMPLATES: readonly SheetTemplate[] = [
   LIDAR_SIDE_PANEL,
   FIELD_SIDE_PANEL,
   ACCESS_BOTTOM_PANEL,
   IMAGERY_PORTRAIT,
+  OPERATING_PLAN_SIDE_PANEL,
 ]

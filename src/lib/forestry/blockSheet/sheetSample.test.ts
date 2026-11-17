@@ -6,6 +6,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { GState, jsPDF } from 'jspdf'
+import { PDFDocument } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 import { encodeSheetImages } from '@/lib/mapSheet/png'
 import { createSheetPdf, drawSheetPdf, pdfTextUnfolded } from '@/lib/mapSheet/renderPdf'
@@ -14,7 +15,7 @@ import { blockFacts } from './blockFacts'
 import { composeSheet, sheetFocus, sheetFrame } from './composeSheet'
 import { prepareSheetTerrainNow } from './prepareSheet'
 import { sampleLayers, syntheticCanopy, syntheticImagery, syntheticTerrain } from './blockSheetFixtures'
-import { SHEET_KINDS, IMAGERY_BASEMAP } from './sheets'
+import { SHEET_KINDS, SHEET_PRESETS, IMAGERY_BASEMAP } from './sheets'
 
 const issue = { date: '2026-11-10', preparedBy: 'J. Planner', organisation: 'Example Forest Co.', revision: 'A' }
 const fields = {
@@ -31,7 +32,8 @@ describe('block sheet samples', () => {
     if (out) mkdirSync(out, { recursive: true })
     const facts = blockFacts(sampleLayers.block!.geometry, { source: syntheticTerrain, spacingM: 5 })
     for (const kind of SHEET_KINDS) {
-      const frame = sheetFrame(kind, 'tabloid', kind === 'general-access' ? 50000 : 10000, {
+      const preset = SHEET_PRESETS[kind]
+      const frame = sheetFrame(kind, preset.defaultPaper ?? 'tabloid', preset.defaultScale, {
         bounds: sheetFocus(sampleLayers)!,
       })
       const products = prepareSheetTerrainNow(
@@ -68,6 +70,14 @@ describe('block sheet samples', () => {
       drawSheetPdf(pdf, { jsPDF, GState }, ops)
       const bytes = pdf.output('arraybuffer')
       expect(new TextDecoder().decode(bytes.slice(0, 5))).toBe('%PDF-')
+      const document = await PDFDocument.load(bytes)
+      expect(document.getPageCount()).toBe(1)
+      const page = document.getPage(0)
+      expect(page.getWidth()).toBeCloseTo(sheet.width, 4)
+      expect(page.getHeight()).toBeCloseTo(sheet.height, 4)
+      if (kind === 'operating-plan') {
+        expect(page.getSize()).toEqual({ width: 2592, height: 2088 })
+      }
       expect(sheetSvg(ops, sheet.width, sheet.height)).toContain('<svg')
       if (out) writeFileSync(path.join(out, `${kind}.pdf`), Buffer.from(bytes))
     }

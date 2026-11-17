@@ -30,6 +30,7 @@ import {
 import { areaSymbolOps, lineSymbolOps, pointSymbolOps, scaleStroke, swatchOps } from '@/lib/mapSheet/symbols'
 import { fitLabel, fitText, LABEL_LINE_HEIGHT, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
 import { blockBounds, type BlockFacts, type BlockGeometry } from './blockFacts'
+import { operatingPlanBrand, operatingPlanLocator, operatingPlanTitle } from './operatingPlanPanels'
 import {
   infoFieldLabel,
   INFO_FIELD_ORIGIN,
@@ -698,6 +699,12 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
       case 'notes':
         notesPanel(ops, sheet, body)
         break
+      case 'branding':
+        operatingPlanBrand(ops, sheet, body, input)
+        break
+      case 'locator':
+        operatingPlanLocator(ops, sheet, body, input)
+        break
     }
   }
   return { width: sheet.width, height: sheet.height, ops, legend, classLegend, scale: projection.scale }
@@ -714,7 +721,7 @@ function sectionBox(ops: DrawOp[], sheet: ResolvedSheet, rect: Rect, title: stri
     y: rect.y,
     w: rect.w,
     h: bar,
-    fill: SHEET_CHROME.barFill,
+    fill: preset.kind === 'operating-plan' ? SHEET_CHROME.operatingPlanFill : SHEET_CHROME.barFill,
     stroke: { color: SHEET_CHROME.line, width: 1 * k },
   })
   ops.push({
@@ -733,6 +740,10 @@ function sectionBox(ops: DrawOp[], sheet: ResolvedSheet, rect: Rect, title: stri
 
 /** Title on the left, then the header fields spread across the rest of the bar, measured so none overlap. */
 function titleBar(ops: DrawOp[], sheet: ResolvedSheet, preset: SheetPreset, input: ComposeInput) {
+  if (preset.kind === 'operating-plan') {
+    operatingPlanTitle(ops, sheet, input)
+    return
+  }
   const k = sheet.k
   const bar = sheet.title
   ops.push({ op: 'rect', ...bar, fill: SHEET_CHROME.barFill, stroke: { color: SHEET_CHROME.line, width: 1 * k } })
@@ -905,7 +916,12 @@ function blockInfo(
 /** The LiDAR sheets' spare bar: what the base raster was made from. */
 function sourceBar(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, input: ComposeInput) {
   const k = sheet.k
-  ops.push({ op: 'rect', ...body, fill: SHEET_CHROME.barFill, stroke: { color: SHEET_CHROME.line, width: 1 * k } })
+  ops.push({
+    op: 'rect',
+    ...body,
+    fill: input.frame.preset.kind === 'operating-plan' ? SHEET_CHROME.operatingPlanFill : SHEET_CHROME.barFill,
+    stroke: { color: SHEET_CHROME.line, width: 1 * k },
+  })
   const size = fontSize(sheet, 6)
   ops.push({
     op: 'text',

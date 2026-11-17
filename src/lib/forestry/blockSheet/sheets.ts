@@ -7,6 +7,8 @@ import {
   FIELD_SIDE_PANEL,
   IMAGERY_PORTRAIT,
   LIDAR_SIDE_PANEL,
+  OPERATING_PLAN_SIDE_PANEL,
+  type PaperId,
   type SheetTemplate,
 } from '@/lib/mapSheet/layout'
 
@@ -17,6 +19,7 @@ export type SheetKind =
   | 'lidar-hillshade'
   | 'general-access'
   | 'field-imagery'
+  | 'operating-plan'
 
 /** What fills the map frame under the vectors. */
 export type SheetBase = 'white' | 'imagery' | 'slope' | 'canopy-height' | 'hillshade'
@@ -100,6 +103,8 @@ export interface SheetPreset {
   description: string
   template: SheetTemplate
   defaultScale: number
+  /** Native paper selected when switching to this preset; otherwise retain the chosen paper. */
+  defaultPaper?: PaperId
   base: SheetBase
   contours: 'default' | 'onImagery' | null
   /** Contour interval in metres; `CONTOUR_INTERVAL_M` when absent. */
@@ -137,6 +142,36 @@ const LIDAR_INFO = {
 } as const
 
 export const SHEET_PRESETS: Record<SheetKind, SheetPreset> = {
+  'operating-plan': {
+    kind: 'operating-plan',
+    label: 'Ministry-style Operating Plan',
+    title: 'Operating Plan',
+    description: 'White side column, two-column legend and project locator. Native 36 × 29 in, default 1:20,000.',
+    template: OPERATING_PLAN_SIDE_PANEL,
+    defaultScale: 20000,
+    defaultPaper: '36x29',
+    base: 'white',
+    contours: 'default',
+    contourIntervalM: 20,
+    contourIndexEvery: 5,
+    blockStyle: 'default',
+    latLngDecimals: 4,
+    blockLabel: 'Block',
+    info: {
+      columns: [
+        ['grossArea', 'mapsheet', 'forestDistrict'],
+        ['minElev', 'maxElev', 'operatingArea'],
+      ],
+      size: 6,
+      boldValues: false,
+    },
+    roadTable: false,
+    comments: false,
+    notesLines: false,
+    legendColumns: 2,
+    type: { title: 15, header: 11, section: 9, legend: 6.4, footer: 5.5 },
+    northArrowPt: 64,
+  },
   'field-layout': {
     kind: 'field-layout',
     label: 'Field Layout',
@@ -291,7 +326,7 @@ export const SHEET_KINDS = Object.keys(SHEET_PRESETS) as SheetKind[]
 
 /** Labels for the block information grid; the access and imagery sheets use the short elevation labels. */
 export function infoFieldLabel(id: InfoFieldId, kind: SheetKind): string {
-  const short = kind === 'general-access' || kind === 'field-imagery'
+  const short = kind === 'general-access' || kind === 'field-imagery' || kind === 'operating-plan'
   switch (id) {
     case 'mapsheet':
       return 'Mapsheet'

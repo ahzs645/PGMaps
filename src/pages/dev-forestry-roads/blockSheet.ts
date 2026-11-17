@@ -76,9 +76,11 @@ export function parseBlockSheetSettings(raw: unknown): BlockSheetSettings {
   }
 }
 
-/** Settings after an edit in the setup form: picking another sheet starts it at that sheet's default scale. */
+/** Picking another sheet starts at its default scale and, when specified, its native paper. */
 export function changeBlockSheetSettings(current: BlockSheetSettings, next: BlockSheetSettings): BlockSheetSettings {
-  return next.kind === current.kind ? next : { ...next, scale: SHEET_PRESETS[next.kind].defaultScale }
+  if (next.kind === current.kind) return next
+  const preset = SHEET_PRESETS[next.kind]
+  return { ...next, scale: preset.defaultScale, paper: preset.defaultPaper ?? next.paper }
 }
 
 /** Polygons that can be the sheet's block: harvest areas and imported reference areas. */
