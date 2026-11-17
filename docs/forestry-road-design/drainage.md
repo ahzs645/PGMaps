@@ -85,6 +85,10 @@ you choose.
 | Missing invert               | Lower end ground − 0.3 m, flat                                                                                                                                                                                                                                               | `designSurface.ts`, `carveCulvert`                                                   | Warning: "inverts missing; channel set 0.3 m below the lower end"                                     |
 | Assumed pipe slope           | 2 % when inverts are missing, flat or adverse                                                                                                                                                                                                                                | `hydrology.ts`, `analyzeDrainage` (`defaultSlope`)                                   | Slope shown with `*`                                                                                  |
 | Standard diameters           | 0.3, 0.4, 0.5, 0.6, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.4, 3.0 m                                                                                                                                                                                                       | `hydrology.ts`, `STANDARD_CULVERT_DIAMETERS_M`                                       | No size carries Q: minimum shown as "> 3.0"                                                           |
+| Batch duplicate distance     | 15 m of chainage, the culvert search distance                                                                                                                                                                                                                                | `crossDrainBatch.ts` `BATCH_DUPLICATE_M`                                             | A draft this close to a culvert or another draft is flagged as a duplicate; it can still be added     |
+| Batch stream clearance       | 15 m of chainage from a natural-stream crossing                                                                                                                                                                                                                              | `crossDrainBatch.ts` `BATCH_STREAM_CLEARANCE_M`                                      | The draft is refused: a stream crossing is placed on its own                                          |
+| Trial spacing                | 10–1,000 m; start and end on the road                                                                                                                                                                                                                                        | `crossDrainBatch.ts` `TRIAL_SPACING_LIMITS`, `trialSpacingProblem`                   | The preview is not filled and the panel says why                                                      |
+| Draft barrel span            | Farther daylight on both ends at the skew, rounded up to 0.5 m; unresolved: road width + 4 m, at least 12 m                                                                                                                                                                  | `crossDrainBatch.ts` `draftCulvert`, `BATCH_SPAN_STEP_M`                             | —                                                                                                     |
 | Culverts per road            | 100; diameter 0.1–20 m; length 0.2–500 m; skew −80° to 80°                                                                                                                                                                                                                   | `engineeringProject.ts`, `parseEngineering`                                          | Project refused                                                                                       |
 | Culvert off the road or grid | Chainage outside 0 to road length, or no cell found                                                                                                                                                                                                                          | `designSurface.ts`, `burnRoad`; `hydrology.ts`                                       | Warning: "outside the road or the surface grid; not checked"                                          |
 | Pour-point snap radius       | 0–2,000 m                                                                                                                                                                                                                                                                    | `drainageCatchments.ts`, `snapPourPoint`                                             | Invalid requests reject; no supported cell reports an error                                           |
@@ -222,8 +226,9 @@ equivalence with the RoadEng tutorial's filling or outlet-selection algorithms.
   formation edge) exists, and the fill toe only where fill meets rising ground. This repairs
   sampling. It never cuts below the triangulated design.
 - **Culverts are one-cell channels.** Each runs through its chainage at its skew, across the
-  whole footprint even if the entered barrel is shorter, at inverts interpolated inlet (left) to
-  outlet (right). Past each end, an apron of up to 10 m is cut at the end invert until the
+  whole footprint even if the entered barrel is shorter, at inverts interpolated from the inlet
+  end to the outlet end: left to right, or right to left for a culvert with its inlet on the right
+  (`inletSide`, [Culverts](culverts.md#inlet-side)). Past each end, an apron of up to 10 m is cut at the end invert until the
   original ground falls below it. A channel passes any flow: capacity is only checked afterwards.
 - **A missing invert is guessed.** The channel is set flat at the lower of its two end grounds
   minus 0.3 m. The panel warns, and the pipe slope falls back to 2 %.
@@ -404,6 +409,44 @@ assessed rather than counting the candidates as missing culverts; it is never me
 Stream crossings and pipe sizes are still reported and can still flag the row. Load LiDAR or
 another bare-earth DEM of 2 m or finer before placing cross-drains.
 
+## Placing cross-drains in a batch
+
+Under the cross-drain candidates, **Place cross-drains in a batch** fills a preview of draft
+culverts and adds the ready ones in one step (`crossDrainBatch.ts`, `useCrossDrainBatch.ts`,
+`CrossDrainBatchPanel.tsx`). Nothing reaches the road until **Add**.
+
+- **From candidates.** Tick sites in the table (a site already served through a culvert has no
+  box) and press **Preview draft culverts**. A site can merge several outlets, so its row shows
+  the site's stretch and outlet count; the pipe starts at the largest outlet and can be moved.
+  The inlet is proposed on the side that outlet is on: the side the site's water gathers on.
+  Water leaving over a fill may need the inlet on the other side, so every side waits for the
+  designer: pick it, or **Confirm proposed sides**. Coarse-grid candidates (cells over 2 m) stay
+  available and every such row says it is a screen.
+- **Trial spacing.** Start, end and spacing fill the same preview with a pipe at each station.
+  With no candidate to say where water gathers, the inlet is proposed at the barrel's uphill end
+  (the ground at its two ends); where that ground is level or missing there is no proposal and the
+  side must be chosen. Spacing rows replace earlier spacing rows and keep the candidate rows.
+- **The preview is the placed geometry.** Each draft is built into a culvert (span to the farther
+  daylight at its skew, crown at the draft cover under the centreline formation at mid-barrel,
+  falling at the draft's fall) and calculated by the engine's own culvert calculation
+  (`calculateCulverts` over `engineeringGeometry`), deepened once by any cover shortfall. The plan
+  draws each barrel in violet with an arrow past its outlet, red while a row is refused, grey when
+  excluded. Station, inlet side, skew and fall are edited in the row; diameter, cover and cost
+  for the whole batch above it.
+- **Refused rows** (not added until fixed or excluded): inlet side not confirmed, off the road, a
+  natural-stream crossing within 15 m (those stay in individual review under Culvert inputs), a
+  barrel crossing an existing culvert or another included draft, past 100 culverts on the road.
+- **Flagged rows** (added if included): another culvert or draft within 15 m, span short of the
+  daylight span, cover unknown or low, a fall that is not downhill, ground at the outlet end
+  higher than at the inlet, a candidate moved more than 40 m outside its site's stretch, a
+  coarse-grid screen.
+- **Adding.** The ready rows go in as one undo step named "Add N cross-drains"; one Undo removes
+  them all. It is refused while an input does not calculate, while the drainage run that filled
+  candidate rows is out of date, or while the road (its culverts aside) or that run differs from
+  what the preview was built on; the panel then says so, and **Use the preview as it now stands**
+  accepts the rows as re-checked. Adding culverts changes the drainage inputs, so the run reads
+  out of date until it is re-run.
+
 ## RoadEng culverts from a traverse
 
 RoadEng fills a road's culverts from its P-line traverse: _Culverts Re-Import_ reads every
@@ -420,7 +463,8 @@ culverts** does the same between a saved field book and the road on screen
   stream culvert. A downstream azimuth (flag 0) sets the skew against the road's direction on the
   book's grid, so grid convergence does not enter; flags 1 and 3 (square, downstream right or
   left) and 5 (from side shots) cross square. A culvert flowing to the road's left is placed with
-  its inlet on the left, as every PGMaps culvert is, and the notice says so. What the model has no
+  its inlet on the right (`inletSide`); written back, a culvert with its inlet on the right flows
+  left. A culvert read before the field existed keeps the direction its record states. What the model has no
   field for (book, station, P-station, box width, surveyed gradient, azimuth, flag, slope
   distance, the field as written) is kept on the culvert (`Culvert.roadEng`) and listed under it.
 - **Write to book** writes the road's culverts into the field book, each at the traverse station
