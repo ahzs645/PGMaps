@@ -135,14 +135,13 @@ Catalogue and band caches are local to this map session. There is no polling or 
 
 ## Optional Wayback release timeline
 
-The road designer's Wayback timeline is disabled by default. Set
-`VITE_ROAD_WAYBACK_TIMELINE=true` when starting Vite or building the site to
-offer **Map display settings → Historical imagery timeline** on georeferenced
-plans. Remove the variable or set it to `false` and restart or rebuild to hide
-the option. The standalone road-designer build takes the same Vite setting.
+Georeferenced road plans offer **Map display settings → Historical imagery timeline**
+by default. To hide the option, set `VITE_ROAD_WAYBACK_TIMELINE=false` and
+restart Vite or rebuild the site. Removing the variable or setting it to
+`true` restores the option on the next start or build. The standalone road
+designer uses the same setting.
 
-Even on an enabled build, opening a plan starts with the timeline off. Selecting
-it loads the Esri release catalog and shows the newest release. Use the slider,
+Selecting the timeline loads the Esri release catalog and shows the newest release. Use the slider,
 previous/next, or Play to step through releases chronologically. Playback
 advances every two seconds and stops at the newest release. Closing the card
 removes its tiles. Sentinel-2 imagery and Wayback share one display slot.

@@ -4,7 +4,7 @@ import { PlaybackControls } from '@pgmaps/geo-toolkit/ui/playback-controls'
 import { Button } from '@/components/ui/button'
 import { loadWaybackReleases, type WaybackRelease } from '@/lib/wayback'
 
-export const ROAD_WAYBACK_ENABLED = import.meta.env.VITE_ROAD_WAYBACK_TIMELINE === 'true'
+export const ROAD_WAYBACK_ENABLED = (import.meta.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') === 'true'
 
 export function useWaybackTimeline(active: boolean) {
   const [releases, setReleases] = useState<WaybackRelease[]>([])

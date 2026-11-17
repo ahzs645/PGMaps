@@ -287,7 +287,7 @@ test('Wayback timeline respects its deployment flag and only requests the select
   await expect.poll(async () => (await layer())?.layer).toBe(false)
   expect(catalogs).toBe(0)
   expect(tiles).toEqual([])
-  if (process.env.VITE_ROAD_WAYBACK_TIMELINE !== 'true') {
+  if ((process.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') !== 'true') {
     await expect(toggle).toHaveCount(0)
     await expect(page.getByRole('checkbox', { name: 'Sentinel-2 imagery' })).toBeVisible()
     return
