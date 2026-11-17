@@ -114,6 +114,7 @@ export function DesignStandardField({
             ariaLabel="Loaded trucks travel"
             className={roadFieldClass}
             value={s.loadedDirection ?? EITHER}
+            unsetValue={EITHER}
             disabled={disabled}
             onValueChange={(picked) =>
               standard({
@@ -140,6 +141,7 @@ export function DesignStandardField({
             ariaLabel="Design vehicle"
             className={roadFieldClass}
             value={s.designVehicle ?? NONE}
+            unsetValue={NONE}
             disabled={disabled}
             onValueChange={(picked) => standard({ designVehicle: picked === NONE ? null : picked })}
           >

@@ -816,6 +816,21 @@
   flex: none;
   width: var(--ribbon-choice-width);
 }
+/* A field that holds a value reads darker than one left at its default (a blank number showing its placeholder, a
+   dropdown on its "not set" option, `RoadSelect`'s `unsetValue`), so what the job has chosen stands out. */
+.lp-quick-setting:not(:disabled) .road-unit-field:has(input:not(:disabled, :placeholder-shown)),
+.lp-quick-setting:not(:disabled)
+  input:not([type='checkbox'], [type='radio'], :disabled, :placeholder-shown):not(.road-unit-field input),
+.lp-quick-setting:not(:disabled) :not(.road-select-unset) > [role='combobox']:not(:disabled) {
+  border-color: hsl(var(--foreground) / 0.45);
+  color: hsl(var(--foreground));
+}
+.lp-quick-setting .road-unit-field input:not(:placeholder-shown) {
+  color: hsl(var(--foreground));
+}
+.lp-quick-setting .road-select-unset [role='combobox'] {
+  color: hsl(var(--muted-foreground));
+}
 /* A dropdown's wrapper takes the space after the label, so its box lines up on the right like the inputs. */
 .lp-quick-setting label > :not(span:first-child):has([role='combobox']) {
   display: flex;
