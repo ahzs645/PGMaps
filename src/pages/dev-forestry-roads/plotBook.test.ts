@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
-import { plotBookHtml, rangedMaterialQuantities, SHEET_FRAME } from './plotBook'
+import { planSheetFraming, plotBookHtml, rangedMaterialQuantities, SHEET_FRAME } from './plotBook'
+import { reportingRows } from './stationReport'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, exportGrid } from './terrain'
 import { createReportChapter, createRoadReportSettings, parseRoadReportSettings } from './reportSettings'
 import { createEngineeringDesign } from './engineeringTypes'
 import type { Alignment, Coordinate, RoadStation, TerrainMetadata } from './types'
+import type { Culvert } from './engineeringTypes'
 import { chartStats, gradeAxis, intervalStats, valueAxis } from './chartsSheet'
 import { chartsTitle } from './chartsOptions'
 
@@ -612,5 +614,171 @@ describe('title block', () => {
     expect(x + w).toBe(W - SHEET_FRAME.x)
     expect(y + h).toBe(H - SHEET_FRAME.y)
     expect(stroke).toBe(SHEET_FRAME.stroke)
+  })
+})
+
+describe('drainage on the plot book', () => {
+  const grid = exportGrid(terrain, origin)
+  const culvert = (patch: Partial<Culvert>): Culvert => ({
+    id: 'c1',
+    name: 'CD-1',
+    kind: 'cross-drain',
+    chainage: 117,
+    skewDegrees: 0,
+    lengthM: 14,
+    diameterM: 0.6,
+    inletInvertM: 798.6,
+    outletInvertM: 798.4,
+    minCoverM: 0.3,
+    unitCost: 120,
+    fixedCost: 0,
+    ...patch,
+  })
+  const withCulverts = (culverts: Culvert[]): Alignment => ({
+    ...alignment,
+    engineering: { ...createEngineeringDesign(), culverts },
+  })
+  const sectionsOnly = (intervalM = 20) => {
+    const settings = createRoadReportSettings()
+    settings.chapters = [{ ...createReportChapter('sections', 's'), sectionIntervalM: intervalM }]
+    return settings
+  }
+  const bookFor = (road: Alignment, settings = sectionsOnly()) =>
+    plotBookHtml({
+      projectName: 'P',
+      alignment: road,
+      analysis: analyzeRoad(road, { elevationAt: (lng) => 800 + (lng - origin[0]) * 1000 }, DEFAULT_ROAD_SETTINGS),
+      terrain,
+      ...grid,
+      settings,
+      today: new Date('2026-11-01'),
+    })
+
+  it('adds a labelled section at a culvert between the section interval', () => {
+    const plain = bookFor(withCulverts([]))
+    const book = bookFor(withCulverts([culvert({})]))
+    expect(plain).not.toContain('data-role="culvert-section"')
+    // The 31 interval sections plus the culvert's, at its own station, between 0+100 and 0+120.
+    const labels = [...book.matchAll(/text-anchor="middle">(0\+\d{3}\.\d)<\/text>/g)].map((m) => m[1])
+    expect(labels).toHaveLength(32)
+    expect(labels.slice(5, 8)).toEqual(['0+100.0', '0+117.0', '0+120.0'])
+    expect(book).toContain('data-role="culvert-section">Culvert CD-1 · 600 mm pipe</text>')
+    expect(book.match(/data-role="culvert-barrel"/g)).toHaveLength(1)
+    expect(book).toContain('Sections @ 20 m and culverts')
+    expect(plain).toContain('Sections @ 20 m, 1:1 axes')
+  })
+
+  it('labels a culvert that falls on an interval section without adding one', () => {
+    const book = bookFor(
+      withCulverts([culvert({ chainage: 120, shape: 'box', spanM: 1.2, diameterM: 0.9, barrels: 2 })]),
+    )
+    expect([...book.matchAll(/text-anchor="middle">(0\+\d{3}\.\d)<\/text>/g)]).toHaveLength(31)
+    expect(book).toContain('Culvert CD-1 · 2 × box 1,200 × 900 mm')
+    // A name that already says culvert is not prefixed again.
+    expect(bookFor(withCulverts([culvert({ name: 'Culvert 1' })]))).toContain('>Culvert 1 · 600 mm pipe</text>')
+  })
+
+  it('leaves out a culvert outside the chapter range', () => {
+    const settings = sectionsOnly()
+    settings.chapters[0] = { ...settings.chapters[0], startM: 200, endM: 400 }
+    expect(bookFor(withCulverts([culvert({})]), settings)).not.toContain('data-role="culvert-section"')
+  })
+})
+
+describe('station schedule volumes', () => {
+  const grid = exportGrid(terrain, origin)
+  const schedule = (intervalM: number) => {
+    const settings = createRoadReportSettings()
+    settings.chapters = [
+      {
+        ...createReportChapter('schedule', 's'),
+        sectionIntervalM: intervalM,
+        columns: ['station', 'cutVolume', 'fillVolume'],
+      },
+    ]
+    return plotBookHtml({ projectName: 'P', alignment, analysis, terrain, ...grid, settings })
+  }
+  const printed = (book: string) => [...book.matchAll(/<tspan x="[\d.]+" dy="0">([^<]*)<\/tspan>/g)].map((m) => m[1])
+
+  it('totals each row over the whole interval, as the station table does', () => {
+    const cells = printed(schedule(100))
+    const rows = reportingRows(analysis, analysis.stations, 100)
+    const fmt2 = (v: number | null) =>
+      v === null ? '—' : v.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    // Header (3 cells), then station, cut, fill per row.
+    expect(cells.slice(3)).toEqual(
+      rows.flatMap((r) => [
+        expect.stringContaining(String(Math.round(r.station.chainage / 100))),
+        fmt2(r.cutVolume),
+        fmt2(r.fillVolume),
+      ]),
+    )
+    // A 100 m row holds every calculation interval since the previous row, not just its own.
+    const at200 = rows.find((r) => Math.abs(r.station.chainage - 200) < 1e-6)!
+    const own = analysis.stations.find((s) => Math.abs(s.chainage - 200) < 1e-6)!
+    const summed = analysis.stations
+      .filter((s) => s.chainage > 100 + 1e-6 && s.chainage <= 200 + 1e-6)
+      .reduce((sum, s) => sum + (s.cutVolumeM3 ?? 0), 0)
+    expect(at200.cutVolume).toBeCloseTo(summed, 6)
+    expect(summed).toBeGreaterThan((own.cutVolumeM3 ?? 0) * 2)
+    expect(cells).toContain('Cut since previous row (m³)')
+  })
+})
+
+describe('plan sheet framing', () => {
+  const grid = exportGrid(terrain, origin)
+  const book = (planSheets?: unknown) => {
+    const settings = createRoadReportSettings()
+    settings.chapters = [
+      { ...createReportChapter('plan-profile', 'p'), ...(planSheets === undefined ? {} : { planSheets }) } as never,
+    ]
+    return plotBookHtml({
+      projectName: 'P',
+      alignment,
+      analysis,
+      terrain,
+      ...grid,
+      settings: parseRoadReportSettings(settings),
+      today: new Date('2026-11-01'),
+    })
+  }
+  const sheets = (html: string) => html.split('<section class="sheet">').slice(1)
+
+  it('draws every sheet as before when no framing is set, or one set to zero', () => {
+    const automatic = book()
+    expect(book([])).toBe(automatic)
+    expect(book([{ atM: 300, rightM: 0, upM: 0, turnDeg: 0 }])).toBe(automatic)
+  })
+
+  it('moves and turns only the plan of the sheet holding the station, and says so', () => {
+    const automatic = sheets(book())
+    const framed = sheets(book([{ atM: 300, rightM: 20, turnDeg: 15 }]))
+    expect(framed).toHaveLength(3)
+    expect(framed[0]).toBe(automatic[0])
+    expect(framed[2]).toBe(automatic[2])
+    expect(framed[1]).not.toBe(automatic[1])
+    expect(framed[1]).toContain('framing set by hand: turned 15.0° left, moved 20.0 m right')
+    // The profile and mass haul are drawn as before.
+    const profile = (sheet: string) => sheet.slice(sheet.indexOf('<clipPath id="profile-'))
+    expect(profile(framed[1]).replace(/<g font-family[\s\S]*$/, '')).toBe(
+      profile(automatic[1]).replace(/<g font-family[\s\S]*$/, ''),
+    )
+  })
+
+  it('finds the sheet whose window holds the station, the end of the last one included', () => {
+    const chapter = { planSheets: [{ atM: 250 }, { atM: 600 }] }
+    expect(planSheetFraming(chapter, 0, 250, false)).toBeUndefined()
+    expect(planSheetFraming(chapter, 250, 500, false)).toEqual({ atM: 250 })
+    expect(planSheetFraming(chapter, 500, 600, true)).toEqual({ atM: 600 })
+  })
+
+  it('reads only valid framings and writes none when the list is empty', () => {
+    const settings = createRoadReportSettings()
+    const chapter = (planSheets: unknown) =>
+      parseRoadReportSettings({ ...settings, chapters: [{ ...settings.chapters[0], planSheets }] }).chapters[0]
+    expect('planSheets' in chapter([])).toBe(false)
+    expect(chapter([{ atM: 10, rightM: 0, upM: -4 }]).planSheets).toEqual([{ atM: 10, upM: -4 }])
+    expect(() => chapter([{ atM: 10, turnDeg: 200 }])).toThrow('Plan turn must be -180–180.')
+    expect(() => chapter([{ rightM: 5 }])).toThrow('Plan sheet station')
   })
 })

@@ -11,7 +11,11 @@ import { printedLogoSvg } from '@/branding/presentation'
  */
 import { sectionStations, type ToGrid } from './designExports'
 import { textWidth } from '@/lib/mapSheet/textMetrics'
-import { horizontalCurveSummary } from './engine'
+import { horizontalCurveSummary, nearestStation } from './engine'
+import { STATION_MATCH_M } from './stationAt'
+import { reportingRows, rowFlags, type StationRow } from './stationReport'
+import { culvertRiseM, culvertShapeOf, culvertSpanM, CULVERT_SHAPES } from './culverts/culvertShape'
+import type { Culvert, CulvertAnalysis } from './engineeringTypes'
 import { refuseInvalidResults } from './inputErrors'
 import { unknownEarthworkSpans } from './massHaul'
 import { chartsSheetBody } from './chartsSheet'
@@ -22,6 +26,7 @@ import {
   MAX_REPORT_SHEETS,
   parseRoadReportSettings,
   REPORT_PAPERS,
+  type PlanSheetFraming,
   type ReportChapter,
   type ReportColumn,
   type RoadReportSettings,
@@ -140,6 +145,7 @@ function planProfileSheet(
   alignment: Alignment,
   gradeLimits?: ProfileGradeLimits,
   terrainCellM?: number,
+  framing?: PlanSheetFraming,
 ) {
   // Value bands take room from the plan and the profile; without them the sheet is laid out as before.
   const bandsOn = !!settings.subviews.bands && settings.subviews.profile
@@ -150,7 +156,11 @@ function planProfileSheet(
   const grid = inWindow.map((s) => toGrid(s.coordinate))
   const [x0, y0] = grid[0],
     [x1, y1] = grid[grid.length - 1]
-  const angle = Math.atan2(y1 - y0, x1 - x0)
+  // A framing set by hand turns the plan counter-clockwise from the first-to-last alignment and moves
+  // its frame over the ground; without one every term below is the automatic framing's.
+  const angle = Math.atan2(y1 - y0, x1 - x0) - ((framing?.turnDeg ?? 0) * Math.PI) / 180
+  const panRight = framing?.rightM ?? 0,
+    panUp = framing?.upM ?? 0
   const rotate = ([x, y]: [number, number]): [number, number] => {
     const dx = x - x0,
       dy = y - y0
@@ -183,8 +193,8 @@ function planProfileSheet(
   const scale = physicalScale ?? Math.min(plan.width / Math.max(1, maxX - minX), plan.height / Math.max(1, maxY - minY))
   const px = ([x, y]: [number, number]) =>
     [
-      plan.left + (x - minX) * scale + (plan.width - (maxX - minX) * scale) / 2,
-      plan.top + plan.height / 2 - (y - (minY + maxY) / 2) * scale,
+      plan.left + (x - minX - panRight) * scale + (plan.width - (maxX - minX) * scale) / 2,
+      plan.top + plan.height / 2 - (y - (minY + maxY) / 2 - panUp) * scale,
     ] as const
   const line = (points: [number, number][]) =>
     points
@@ -251,7 +261,7 @@ function planProfileSheet(
     .join('')
   const north = (-angle * 180) / Math.PI
   const bar = niceStep((plan.width / scale) * 0.25, 1)
-  const planSvg = `<clipPath id="${clipId}"><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}"/></clipPath><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}" fill="none" stroke="#111827"/><g clip-path="url(#${clipId})">${contourPaths}<path d="${side('daylight', -1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('daylight', 1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('width', -1)}" fill="none" stroke="#4b5563"/><path d="${side('width', 1)}" fill="none" stroke="#4b5563"/><path d="${line(grid)}" fill="none" stroke="#c026d3" stroke-width="2"/>${ticks}</g><g transform="translate(${plan.left + 40} ${plan.top + 50}) rotate(${north.toFixed(1)})"><path d="M0,-22 L7,8 L0,3 L-7,8 Z" fill="#111827"/><text y="-26" font-size="12" text-anchor="middle">N</text></g><g transform="translate(${plan.left + 20} ${plan.top + plan.height - 20})"><rect width="${(bar * scale).toFixed(1)}" height="6" fill="#111827"/><text y="-4" font-size="11">${bar} m</text></g><text x="${plan.left}" y="${plan.top - 10}" font-size="14" font-weight="600">Plan · ${formatRoadStation(start)} to ${formatRoadStation(end)}</text>${noteSvg}`
+  const planSvg = `<clipPath id="${clipId}"><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}"/></clipPath><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}" fill="none" stroke="#111827"/><g clip-path="url(#${clipId})">${contourPaths}<path d="${side('daylight', -1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('daylight', 1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('width', -1)}" fill="none" stroke="#4b5563"/><path d="${side('width', 1)}" fill="none" stroke="#4b5563"/><path d="${line(grid)}" fill="none" stroke="#c026d3" stroke-width="2"/>${ticks}</g><g transform="translate(${plan.left + 40} ${plan.top + 50}) rotate(${north.toFixed(1)})"><path d="M0,-22 L7,8 L0,3 L-7,8 Z" fill="#111827"/><text y="-26" font-size="12" text-anchor="middle">N</text></g><g transform="translate(${plan.left + 20} ${plan.top + plan.height - 20})"><rect width="${(bar * scale).toFixed(1)}" height="6" fill="#111827"/><text y="-4" font-size="11">${bar} m</text></g><text x="${plan.left}" y="${plan.top - 10}" font-size="14" font-weight="600">Plan · ${formatRoadStation(start)} to ${formatRoadStation(end)}${framingNote(framing)}</text>${noteSvg}`
 
   // Profile with a mass-haul strip, sharing the station scale.
   const profile = bandsOn
@@ -365,6 +375,97 @@ function planProfileSheet(
   return `${settings.subviews.plan ? planSvg + curves : ''}<clipPath id="profile-${clipId}"><rect x="0" y="${profile.top - 32}" width="${W}" height="${profile.height + 58}"/></clipPath>${settings.subviews.profile ? `<g clip-path="url(#profile-${clipId})">${profileOnly}</g>${bandsSvg}` : ''}${settings.subviews.mass ? massOnly : ''}${legend}<text x="60" y="1000" font-size="10">${html(scaleNote)} · profile vertical exaggeration ${physicalScale === null ? `${drawnExaggeration.toFixed(1)}× on this sheet` : `${chapter.verticalExaggeration}×`}${chapter.horizontalScale !== null || chapter.verticalExaggeration !== 1 ? ' · plots clipped to their frames' : ''}</text>`
 }
 
+/** What a plan's heading says about a framing set by hand, or nothing for the automatic one. */
+function framingNote(framing: PlanSheetFraming | undefined) {
+  if (!framing) return ''
+  const parts = [
+    framing.turnDeg ? `turned ${fmt(Math.abs(framing.turnDeg), 1)}° ${framing.turnDeg > 0 ? 'left' : 'right'}` : '',
+    framing.rightM ? `moved ${fmt(Math.abs(framing.rightM), 1)} m ${framing.rightM > 0 ? 'right' : 'left'}` : '',
+    framing.upM ? `moved ${fmt(Math.abs(framing.upM), 1)} m ${framing.upM > 0 ? 'up' : 'down'}` : '',
+  ].filter(Boolean)
+  return parts.length ? ` · framing set by hand: ${html(parts.join(', '))}` : ''
+}
+
+/** The framing set for the plan sheet whose window holds its station; the first listed wins. */
+export function planSheetFraming(
+  chapter: Pick<ReportChapter, 'planSheets'>,
+  start: number,
+  end: number,
+  last: boolean,
+): PlanSheetFraming | undefined {
+  return chapter.planSheets?.find((f) => f.atM >= start - 1e-6 && (f.atM < end - 1e-6 || (last && f.atM <= end + 1e-6)))
+}
+
+/** A culvert's opening as a section label prints it: the diameter of a round pipe, else span × rise. */
+function culvertOpening(culvert: Culvert | undefined) {
+  if (!culvert) return ''
+  const mm = (m: number) => fmt(m * 1000, 0)
+  const shape = culvertShapeOf(culvert)
+  const barrels = (culvert.barrels ?? 1) > 1 ? `${culvert.barrels} × ` : ''
+  return shape === 'round'
+    ? ` · ${barrels}${mm(culvert.diameterM)} mm pipe`
+    : ` · ${barrels}${CULVERT_SHAPES.find((s) => s.value === shape)?.label.toLowerCase() ?? shape} ${mm(culvertSpanM(culvert))} × ${mm(culvertRiseM(culvert))} mm`
+}
+
+/** A culvert drawn on its section sheet: its analysis, its entry and how far its station is from the section's. */
+export type SectionCulvert = { analysis: CulvertAnalysis; culvert?: Culvert; offsetM: number }
+
+/**
+ * Each culvert in the range at the calculated station at its chainage, which the engine always
+ * places (`engineeringKnots`). A culvert whose station is not calculated (an older analysis) takes
+ * the nearest one, and its label says how far off that is.
+ */
+export function culvertSections(
+  analysis: RoadAnalysis,
+  alignment: Alignment,
+  rangeStart: number,
+  rangeEnd: number,
+): Map<number, SectionCulvert[]> {
+  const byIndex = new Map<number, SectionCulvert[]>()
+  for (const c of analysis.engineering?.culverts ?? []) {
+    if (!(c.chainage >= rangeStart - 1e-6 && c.chainage <= rangeEnd + 1e-6)) continue
+    const station = nearestStation(analysis.stations, c.chainage)
+    if (!station) continue
+    const entry = alignment.engineering?.culverts.find((x) => x.id === c.id)
+    const list = byIndex.get(station.index) ?? []
+    list.push({ analysis: c, culvert: entry, offsetM: c.chainage - station.chainage })
+    byIndex.set(station.index, list)
+  }
+  return byIndex
+}
+
+/**
+ * The barrel on a section: its invert and crown from the culvert's own profile, each point placed at
+ * its offset across the station (negative left, `sectionGeometry`). A skewed barrel is drawn as its
+ * projection on the section line.
+ */
+function culvertBarrelSvg(
+  station: RoadStation,
+  culvert: CulvertAnalysis,
+  x: (offset: number) => number,
+  y: (z: number) => number,
+) {
+  const R = 6371008.8,
+    lat = (station.coordinate[1] * Math.PI) / 180,
+    bearing = (station.bearing * Math.PI) / 180
+  const offsetOf = ([lng, la]: [number, number]) => {
+    const east = ((lng - station.coordinate[0]) * Math.PI * R * Math.cos(lat)) / 180,
+      north = ((la - station.coordinate[1]) * Math.PI * R) / 180
+    return east * Math.cos(bearing) - north * Math.sin(bearing)
+  }
+  const points = culvert.profile.filter(
+    (p) => p.invertElevation !== null && p.crownElevation !== null && Number.isFinite(p.invertElevation),
+  )
+  if (points.length < 2) return ''
+  const along = points.map((p) => ({ o: offsetOf(p.coordinate as [number, number]), p }))
+  if (along.some((a) => !Number.isFinite(a.o))) return ''
+  const outline = [
+    ...along.map((a) => `${x(a.o).toFixed(1)},${y(a.p.invertElevation!).toFixed(1)}`),
+    ...[...along].reverse().map((a) => `${x(a.o).toFixed(1)},${y(a.p.crownElevation!).toFixed(1)}`),
+  ].join(' ')
+  return `<polygon points="${outline}" fill="#2563eb" fill-opacity="0.25" stroke="#1d4ed8" stroke-width="1.2" data-role="culvert-barrel"/>`
+}
+
 /** Walls, barriers and sub-cuts on a section sheet, as the section chart colours them. */
 const STRUCTURE_FILL: Record<string, string> = {
   'cut-wall': '#64748b',
@@ -379,6 +480,8 @@ function sectionSheet(
   chapter: ReportChapter,
   projectName: string,
   roadName: string,
+  /** Culverts by the index of the station they are drawn at (`culvertSections`). */
+  culverts?: Map<number, SectionCulvert[]>,
 ) {
   const W = REPORT_PAPERS[settings.paper].viewWidth
   const columns = 4,
@@ -418,7 +521,21 @@ function sectionSheet(
           })
           .join(' ')
       }
-      return `<g><rect x="${ox + 4}" y="${oy + 4}" width="${cellW - 8}" height="${cellH - 8}" fill="none" stroke="#d1d5db"/><text x="${ox + cellW / 2}" y="${oy + 22}" font-size="13" font-weight="600" text-anchor="middle">${html(formatDrawingLabel(settings.stationLabel, { station: formatRoadStation(s.chainage), grade: s.gradePercent, ground: s.groundElevation, design: s.designElevation, radius: s.curveRadiusM, road: roadName, project: projectName }))}</text><clipPath id="section-${index}"><rect x="${ox + 8}" y="${oy + 28}" width="${cellW - 16}" height="${cellH - 54}"/></clipPath><g clip-path="url(#section-${index})"><line x1="${x(0)}" x2="${x(0)}" y1="${oy + 28}" y2="${oy + cellH - 26}" stroke="#e11d48" stroke-dasharray="4 3"/><path d="${pathOf('ground')}" fill="none" stroke="#6b7280" stroke-width="1.3"/><path d="${pathOf('design')}" fill="none" stroke="#0d9488" stroke-width="2"/>${s.section.some((p) => p.preparedGround !== undefined) ? `<path d="${pathOf('preparedGround')}" fill="none" stroke="#d97706" stroke-dasharray="4 3" stroke-width="1.3" data-role="prepared-ground"/>` : ''}${(
+      const here = culverts?.get(s.index) ?? []
+      const labelText = here
+        .map(
+          (c) =>
+            `${/^culvert\b/i.test(c.analysis.name) ? '' : 'Culvert '}${c.analysis.name}${culvertOpening(c.culvert)}${Math.abs(c.offsetM) > STATION_MATCH_M ? ` · at ${formatRoadStation(c.analysis.chainage)}, nearest section ${fmt(Math.abs(c.offsetM), 2)} m ${c.offsetM > 0 ? 'back' : 'ahead'}` : ''}`,
+        )
+        .join('; ')
+      // Over the drawing on a white backing, so the centreline does not run through it; shrunk to the cell.
+      const labelSize = Math.min(11, (11 * (cellW - 28)) / Math.max(1, textWidth(labelText, 11, 'bold')))
+      const labelWidth = textWidth(labelText, labelSize, 'bold') + 8
+      const culvertLabel = here.length
+        ? `<rect x="${(ox + cellW / 2 - labelWidth / 2).toFixed(1)}" y="${oy + 28}" width="${labelWidth.toFixed(1)}" height="${(labelSize + 5).toFixed(1)}" fill="#fff"/><text x="${ox + cellW / 2}" y="${(oy + 28 + labelSize + 1).toFixed(1)}" font-size="${Number(labelSize.toFixed(2))}" font-weight="600" text-anchor="middle" fill="#1d4ed8" data-role="culvert-section">${html(labelText)}</text>`
+        : ''
+      const barrels = here.map((c) => culvertBarrelSvg(s, c.analysis, x, y)).join('')
+      return `<g${here.length ? ' data-culvert="true"' : ''}><rect x="${ox + 4}" y="${oy + 4}" width="${cellW - 8}" height="${cellH - 8}" fill="none" stroke="${here.length ? '#1d4ed8' : '#d1d5db'}"/><text x="${ox + cellW / 2}" y="${oy + 22}" font-size="13" font-weight="600" text-anchor="middle">${html(formatDrawingLabel(settings.stationLabel, { station: formatRoadStation(s.chainage), grade: s.gradePercent, ground: s.groundElevation, design: s.designElevation, radius: s.curveRadiusM, road: roadName, project: projectName }))}</text><clipPath id="section-${index}"><rect x="${ox + 8}" y="${oy + 28}" width="${cellW - 16}" height="${cellH - 54}"/></clipPath><g clip-path="url(#section-${index})"><line x1="${x(0)}" x2="${x(0)}" y1="${oy + 28}" y2="${oy + cellH - 26}" stroke="#e11d48" stroke-dasharray="4 3"/><path d="${pathOf('ground')}" fill="none" stroke="#6b7280" stroke-width="1.3"/><path d="${pathOf('design')}" fill="none" stroke="#0d9488" stroke-width="2"/>${s.section.some((p) => p.preparedGround !== undefined) ? `<path d="${pathOf('preparedGround')}" fill="none" stroke="#d97706" stroke-dasharray="4 3" stroke-width="1.3" data-role="prepared-ground"/>` : ''}${(
         s.structures ?? []
       )
         .filter((st) => st.outline.every(([o, z]) => Number.isFinite(o) && Number.isFinite(z)))
@@ -428,7 +545,7 @@ function sectionSheet(
         )
         .join(
           '',
-        )}</g><text x="${ox + 12}" y="${oy + cellH - 12}" font-size="10">L · cut ${fmt(s.cutAreaM2)} m² · fill ${fmt(s.fillAreaM2)} m² · CL ${fmt(s.designElevation, 2)}</text><text x="${ox + cellW - 12}" y="${oy + cellH - 12}" font-size="10" text-anchor="end">R</text></g>`
+        )}${barrels}</g>${culvertLabel}<text x="${ox + 12}" y="${oy + cellH - 12}" font-size="10">L · cut ${fmt(s.cutAreaM2)} m² · fill ${fmt(s.fillAreaM2)} m² · CL ${fmt(s.designElevation, 2)}</text><text x="${ox + cellW - 12}" y="${oy + cellH - 12}" font-size="10" text-anchor="end">R</text></g>`
     })
     .join('')
 }
@@ -503,17 +620,22 @@ function tableSheets(title: string, headers: string[], rows: string[][], note: s
     })
   return result
 }
-const SCHEDULE_COLUMNS: Record<ReportColumn, { title: string; value: (s: RoadStation) => string }> = {
-  station: { title: 'Station (m)', value: (s) => formatRoadStation(s.chainage) },
-  ground: { title: 'Ground (m)', value: (s) => fmt(s.groundElevation, 2) },
-  design: { title: 'Design (m)', value: (s) => fmt(s.designElevation, 2) },
-  grade: { title: 'Grade (%)', value: (s) => fmt(s.gradePercent, 2) },
-  cutArea: { title: 'Cut (m²)', value: (s) => fmt(s.cutAreaM2, 2) },
-  fillArea: { title: 'Fill (m²)', value: (s) => fmt(s.fillAreaM2, 2) },
-  cutVolume: { title: 'Interval cut (m³)', value: (s) => fmt(s.cutVolumeM3, 2) },
-  fillVolume: { title: 'Interval fill (m³)', value: (s) => fmt(s.fillVolumeM3, 2) },
-  mass: { title: 'Mass (m³)', value: (s) => fmt(s.massM3, 2) },
-  flags: { title: 'Flags', value: (s) => s.flags.join('; ') || '—' },
+/**
+ * The schedule's columns, read from the station table's rows (`reportingRows`). Volumes are each
+ * row's total since the previous row; with volumes printed, the flags also say what road with
+ * unknown earthwork a row leaves out (`rowFlags`).
+ */
+const SCHEDULE_COLUMNS: Record<ReportColumn, { title: string; value: (r: StationRow, summed: boolean) => string }> = {
+  station: { title: 'Station (m)', value: (r) => formatRoadStation(r.station.chainage) },
+  ground: { title: 'Ground (m)', value: (r) => fmt(r.station.groundElevation, 2) },
+  design: { title: 'Design (m)', value: (r) => fmt(r.station.designElevation, 2) },
+  grade: { title: 'Grade (%)', value: (r) => fmt(r.station.gradePercent, 2) },
+  cutArea: { title: 'Cut (m²)', value: (r) => fmt(r.station.cutAreaM2, 2) },
+  fillArea: { title: 'Fill (m²)', value: (r) => fmt(r.station.fillAreaM2, 2) },
+  cutVolume: { title: 'Cut since previous row (m³)', value: (r) => fmt(r.cutVolume, 2) },
+  fillVolume: { title: 'Fill since previous row (m³)', value: (r) => fmt(r.fillVolume, 2) },
+  mass: { title: 'Mass (m³)', value: (r) => fmt(r.station.massM3, 2) },
+  flags: { title: 'Flags', value: (r, summed) => (summed ? rowFlags(r) : r.station.flags).join('; ') || '—' },
 }
 
 /** Same linear average-end-area rule as the engine, clipped analytically at report boundaries. */
@@ -654,6 +776,7 @@ function plotBookHtmlInChainage({
           gradeLimits,
           // A RoadEng TIN by its point spacing, not the grid kept over its box.
           terrainResolution(terrain).spacingM,
+          planSheetFraming(chapter, start, end, end >= rangeEnd - 1e-6),
         )
         if (body)
           add({
@@ -692,26 +815,42 @@ function plotBookHtmlInChainage({
           })
       }
     } else if (chapter.kind === 'sections' || chapter.kind === 'schedule') {
-      const sections = sectionStations(analysis, chapter.sectionIntervalM).filter(
-        (s) => s.chainage >= rangeStart - 1e-6 && s.chainage <= rangeEnd + 1e-6,
-      )
+      const inRange = (s: RoadStation) => s.chainage >= rangeStart - 1e-6 && s.chainage <= rangeEnd + 1e-6
       if (chapter.kind === 'sections') {
+        // A section at every culvert too, between the interval's sections where it falls there.
+        const culverts = culvertSections(analysis, alignment, rangeStart, rangeEnd)
+        const picked = new Map(
+          sectionStations(analysis, chapter.sectionIntervalM)
+            .filter(inRange)
+            .map((s) => [s.index, s]),
+        )
+        for (const index of culverts.keys()) picked.set(index, analysis.stations[index])
+        const sections = [...picked.values()].sort((a, b) => a.chainage - b.chainage)
         for (let i = 0; i < sections.length; i += 12)
           add({
             title: `${chapter.title} ${formatRoadStation(sections[i].chainage)}–${formatRoadStation(sections[Math.min(sections.length, i + 12) - 1].chainage)}`,
-            body: sectionSheet(sections.slice(i, i + 12), settings, chapter, projectName, alignment.name),
-            scale: `Sections @ ${chapter.sectionIntervalM} m, ${chapter.horizontalScale === null ? '1:1 axes' : `1:${chapter.horizontalScale}`}`,
+            body: sectionSheet(sections.slice(i, i + 12), settings, chapter, projectName, alignment.name, culverts),
+            scale: `Sections @ ${chapter.sectionIntervalM} m${culverts.size ? ' and culverts' : ''}, ${chapter.horizontalScale === null ? '1:1 axes' : `1:${chapter.horizontalScale}`}`,
           })
-      } else
+      } else {
+        // The station table's rows (`reportingRows`): the same stations `sectionStations` picks, each
+        // volume summed over the whole interval since the previous row.
+        const rows = reportingRows(analysis, analysis.stations, chapter.sectionIntervalM).filter((r) =>
+          inRange(r.station),
+        )
+        const summed = chapter.columns.some((c) => c === 'cutVolume' || c === 'fillVolume')
         add(
           ...tableSheets(
             chapter.title,
             chapter.columns.map((c) => SCHEDULE_COLUMNS[c].title),
-            sections.map((s) => chapter.columns.map((c) => SCHEDULE_COLUMNS[c].value(s))),
-            'Reporting interval selects existing analytical stations; interval volumes retain their calculation interval. Unknown values remain —.',
+            rows.map((r) => chapter.columns.map((c) => SCHEDULE_COLUMNS[c].value(r, summed))),
+            summed
+              ? 'Reporting interval selects existing analytical stations; each volume is the total since the previous row of the whole road, as in the station table. A row that holds road with unknown earthwork reports its known part and says so. Unknown values remain —.'
+              : 'Reporting interval selects existing analytical stations; interval volumes retain their calculation interval. Unknown values remain —.',
             W,
           ),
         )
+      }
     } else if (chapter.kind === 'curves') {
       add(
         ...tableSheets(

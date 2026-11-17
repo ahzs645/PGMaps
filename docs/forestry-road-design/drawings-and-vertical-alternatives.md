@@ -65,9 +65,9 @@ preview opens its chapter here.
 
 | Chapter             | Controls and contents                                                                                                                                                                                          |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plan & profile      | Station range, maximum metres per sheet, physical horizontal scale or auto-fit, profile vertical exaggeration, plan/profile/mass subviews, contours and legend.                                                |
-| Cross-sections      | Station range and report interval; equal axis scales or a fixed physical print scale. Original ground, prepared ground when present, and design remain separate.                                               |
-| Station schedule    | Station range, report interval and selected/reordered columns in their selected order. Calculation-interval volumes retain their own analytical intervals.                                                     |
+| Plan & profile      | Station range, maximum metres per sheet, physical horizontal scale or auto-fit, profile vertical exaggeration, plan/profile/mass subviews, contours and legend. Optional framing set by hand per plan sheet.   |
+| Cross-sections      | Station range and report interval, plus a labelled section at every culvert; equal axis scales or a fixed physical print scale. Original ground, prepared ground and design remain separate.                   |
+| Station schedule    | Station range, report interval and selected/reordered columns in their selected order. Cut and fill volumes are each row's total since the previous row, as in the station table.                              |
 | Horizontal curves   | Fitted circular portions intersecting the chapter's range. BC/EC on a spiralled curve refer to its circular arc.                                                                                               |
 | Culvert inventory   | Entered structures in the range, geometric length/cover/grade, installed cost and review warnings.                                                                                                             |
 | Material quantities | Cut/stripping, reusable material, unsuitable bank volume and excavation cost over the selected range. Range boundaries clip the engine's linear average-end-area integration; missing intervals stay excluded. |
@@ -76,12 +76,47 @@ Plan & profile sheets can also carry numeric value bands under the profile and B
 low point labels on it; both are off until ticked (see
 [profile labels and bands](profile-labels-and-bands.md)).
 
+### Culverts on the cross-sections
+
+A cross-section chapter draws a section at each culvert in its range as well as at its interval,
+including a culvert that falls between two interval sections. The engine always calculates a
+station at a culvert's chainage (`engineeringKnots`, `templates.ts`), so the section is the
+analysed one, not an interpolation. Its cell is outlined in blue and labelled with the culvert's
+name and opening (a round pipe's diameter, else shape, span × rise, and the number of barrels),
+and the barrel is drawn between its invert and crown from the culvert's own profile, projected on
+the section line where it is skewed. A culvert that falls on an interval section is labelled
+there without adding one; the sheet's scale line then reads "Sections @ 20 m and culverts". An
+analysis made before culvert stations were calculated draws the nearest section and says how far
+off it is. A book with no culverts prints exactly as before. (`culvertSections`, `plotBook.ts`.)
+
+### Station schedule volumes
+
+The station schedule's rows are the station table's (`reportingRows`, `stationReport.ts`): the
+same calculated stations the report interval picks, with each cut and fill volume the total of
+every calculation interval since the previous row, so a 100 m row holds the whole 100 m. The
+first row of the road sums nothing, and the first row of a chapter that starts part way holds
+the road since the previous row of the whole road, as the station table does. With volumes
+printed, the flags column also says what road with unknown earthwork a row leaves out. A
+schedule without volume columns prints as before.
+
+### Framing a plan sheet by hand
+
+Each plan sheet is framed automatically: turned so its first and last stations run left to right
+and centred on the road in its window. On a switchback that can clip a leg of the road. **Plan
+sheet framing** under a plan & profile chapter keeps a framing for single sheets, saved with the
+chapter as `planSheets`: the sheet whose stations include **Sheet at station** is moved by **Move
+right** and **Move up** (metres on the ground, along the sheet) and turned by **Turn left**
+(degrees, counter-clockwise; negative turns right). The north arrow and scale bar follow, and the
+plan's heading says "framing set by hand" with the values. The profile and mass haul on that
+sheet are not moved. The first framing listed for a sheet wins. A field put back to 0 is not
+stored, and with no framing every sheet is drawn exactly as before.
+
 Curve tables can also be added as a chapter automatically, or inset at the top right of each
 plan. An inset shows the first eight curves in that window with an explicit count note; use the
 full curve-table chapter for the complete schedule.
 
 Report intervals select existing analytical sections through the same `sectionStations` helper
-used by design exports. They do not interpolate a new engineering solution. At a fixed physical
+used by design exports (the schedule through `reportingRows`, which picks the same stations). They do not interpolate a new engineering solution. At a fixed physical
 scale, the exporter shortens the plan/profile window to the printable horizontal width. Terrain
 and highly exaggerated profiles may extend outside a frame and are clipped; the scale/exaggeration
 note says so. Printing with browser **Fit to page** changes the physical scale. Use the selected
@@ -105,6 +140,7 @@ Label offsets affect drawing placement only.
 | Fixed horizontal scale denominator 50–100,000 or auto-fit                       | `parseRoadReportSettings`                                                                           |
 | Profile vertical exaggeration 0.1–20                                            | `parseRoadReportSettings`                                                                           |
 | Label expression 200 characters; known fields only; offsets ±100 drawing pixels | `validateLabelTemplate`, `parseRoadReportSettings`                                                  |
+| 100 plan sheet framings per chapter; move ±5,000 m; turn ±180°                  | `reportSettings.ts`, `PLAN_SHEET_FRAMING_LIMITS`                                                    |
 
 Outputs retain source terrain/datum, sheet numbering and the preliminary-planning title block.
 An empty table reports that no records are available. A missing terrain contour layer reports
