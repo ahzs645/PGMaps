@@ -51,6 +51,7 @@ import {
   PLAN_DRAINAGE_STYLES,
   PLAN_LINE_DASHES,
   STREAM_ZOOM_STOPS,
+  GROUND_DRAINAGE_STYLES,
 } from './planLegendModel'
 import { distinctRoadColors } from './roadColors'
 import { planHover, type ScreenStation } from './planHover'
@@ -157,6 +158,8 @@ interface PlanProps {
   detailArea?: Coordinate[][] | null
   /** A drawing tool's card (`MapToolPanel`), shown in the corner the plan tools use. */
   toolPanel?: ReactNode
+  /** A tool's card in the plan's top-right corner, stacked with the Sentinel-2 card (existing-ground drainage). */
+  cornerPanel?: ReactNode
   display: ReturnType<typeof usePlanDisplay>
   selectedRange?: RoadSelectionRange
   onMapReady?: (map: MapLibreMap | null) => void
@@ -207,6 +210,11 @@ interface PlanProps {
   overlay?: GeoJSON.FeatureCollection
   /** Drainage results: features carry `role` ('stream-existing' | 'stream-design' | 'diversion' | 'pond' | 'low-point'). */
   drainage?: GeoJSON.FeatureCollection
+  /**
+   * Existing-ground drainage over an analysis area, with no road (`groundDrainagePlan`): features
+   * carry a `ground-*` role. Kept apart from `drainage`, the road's own before/after check.
+   */
+  groundDrainage?: GeoJSON.FeatureCollection
   /**
    * Design-vehicle swept path: features carry `role` ('swept-wheels' | 'swept-body' | 'swept-deficit',
    * and from the vehicle tools 'swept-area' | 'vehicle-outline' | 'vehicle-trace' | 'vehicle-template' | 'vehicle-lock').
@@ -1115,6 +1123,7 @@ function Layers(
       contours: display?.contours ?? fc([]),
       overlay: props.overlay ?? fc([]),
       drainage,
+      'ground-drainage': props.groundDrainage ?? fc([]),
       swept: props.swept ?? fc([]),
     }
     for (const [name, data] of Object.entries(inputs)) {
@@ -1507,6 +1516,95 @@ function Layers(
         'circle-stroke-color': '#ffffff',
       },
     })
+    // Existing-ground drainage over an analysis area, before any road: its own source and colours,
+    // so it never reads as the road's before/after check. Streams thin by zoom as the road's do.
+    const groundRole = (role: string): ExpressionSpecification => ['==', ['get', 'role'], role]
+    add({
+      id: 'road-ground-drainage-watershed-fill',
+      type: 'fill',
+      source: 'road-ground-drainage',
+      filter: groundRole('ground-watershed'),
+      paint: { 'fill-color': GROUND_DRAINAGE_STYLES['ground-watershed'].color, 'fill-opacity': 0.06 },
+    })
+    add({
+      id: 'road-ground-drainage-watershed-line',
+      type: 'line',
+      source: 'road-ground-drainage',
+      filter: groundRole('ground-watershed'),
+      paint: { 'line-color': GROUND_DRAINAGE_STYLES['ground-watershed'].color, 'line-width': 1, 'line-opacity': 0.7 },
+    })
+    add({
+      id: 'road-ground-drainage-catchment-fill',
+      type: 'fill',
+      source: 'road-ground-drainage',
+      filter: groundRole('ground-catchment'),
+      paint: { 'fill-color': GROUND_DRAINAGE_STYLES['ground-catchment'].color, 'fill-opacity': 0.18 },
+    })
+    add({
+      id: 'road-ground-drainage-catchment-line',
+      type: 'line',
+      source: 'road-ground-drainage',
+      filter: groundRole('ground-catchment'),
+      paint: { 'line-color': GROUND_DRAINAGE_STYLES['ground-catchment'].color, 'line-width': 2 },
+    })
+    add({
+      id: 'road-ground-drainage-area',
+      type: 'line',
+      source: 'road-ground-drainage',
+      filter: groundRole('ground-area'),
+      paint: {
+        'line-color': GROUND_DRAINAGE_STYLES['ground-area'].color,
+        'line-width': 2,
+        'line-dasharray': [3, 1.5],
+      },
+    })
+    add({
+      id: 'road-ground-drainage-stream',
+      type: 'line',
+      source: 'road-ground-drainage',
+      filter: groundRole('ground-stream'),
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: {
+        'line-color': GROUND_DRAINAGE_STYLES['ground-stream'].color,
+        'line-width': ['interpolate', ['linear'], ['coalesce', ['get', 'areaHa'], 0], 0, 1.2, 5, 2.5, 50, 4.5],
+        'line-opacity': streamZoomOpacity,
+      },
+    })
+    add({
+      id: 'road-ground-drainage-snap',
+      type: 'line',
+      source: 'road-ground-drainage',
+      filter: groundRole('ground-outlet-snap'),
+      paint: {
+        'line-color': GROUND_DRAINAGE_STYLES['ground-outlet'].color,
+        'line-width': 1.5,
+        'line-dasharray': [1, 1],
+      },
+    })
+    add({
+      id: 'road-ground-drainage-point',
+      type: 'circle',
+      source: 'road-ground-drainage',
+      filter: ['==', ['geometry-type'], 'Point'],
+      paint: {
+        'circle-radius': ['match', ['get', 'role'], 'ground-outlet', 6, 5],
+        'circle-color': [
+          'match',
+          ['get', 'role'],
+          'ground-outlet',
+          GROUND_DRAINAGE_STYLES['ground-outlet'].color,
+          '#ffffff',
+        ],
+        'circle-stroke-width': 2,
+        'circle-stroke-color': [
+          'match',
+          ['get', 'role'],
+          'ground-outlet',
+          '#ffffff',
+          GROUND_DRAINAGE_STYLES['ground-outlet-requested'].color,
+        ],
+      },
+    })
     // Swept path: body and load dashed under the solid wheel paths; red where wheels leave the formation.
     add({
       id: 'road-swept-body',
@@ -1648,6 +1746,15 @@ function Layers(
       'road-context-line',
       ...ROAD_HISTORY_LAYER_IDS,
       ...PLAN_SHEET_LAYER_IDS,
+      // Ground drainage is evidence under the roads, so pegging over it keeps the road on top.
+      'road-ground-drainage-watershed-fill',
+      'road-ground-drainage-watershed-line',
+      'road-ground-drainage-catchment-fill',
+      'road-ground-drainage-catchment-line',
+      'road-ground-drainage-area',
+      'road-ground-drainage-stream',
+      'road-ground-drainage-snap',
+      'road-ground-drainage-point',
       'road-corridor',
       'road-corridor-reach',
       'road-formation',
@@ -1711,6 +1818,7 @@ function Layers(
     props.terrainOnly,
     props.overlay,
     drainage,
+    props.groundDrainage,
     props.swept,
     props.sheetSymbols,
   ])
@@ -2371,6 +2479,7 @@ function Layers(
               ticks,
               overlay: props.overlay,
               drainage: props.drainage ? drainage : undefined,
+              groundDrainage: props.groundDrainage,
               swept: props.swept,
             },
             alignments: props.project.alignments,
@@ -2494,6 +2603,7 @@ export function PlanView(input: PlanProps) {
         activeCableId: undefined,
         overlay: undefined,
         drainage: undefined,
+        groundDrainage: undefined,
         swept: undefined,
       }
     : input
@@ -3287,14 +3397,21 @@ export function PlanView(input: PlanProps) {
             />
           </div>
         )}
-        {showSentinel && (
-          <div className="absolute right-12 top-12 z-30 max-h-[calc(100%-6rem)] max-w-[calc(100%-4rem)] overflow-hidden">
-            <Sentinel2Panel
-              state={sentinel}
-              paused={sentinelView.paused}
-              moving={sentinelView.moving}
-              onClose={() => setShowSentinel(false)}
-            />
+        {(showSentinel || props.cornerPanel) && (
+          <div className="absolute right-12 top-12 z-30 flex max-h-[calc(100%-6rem)] max-w-[calc(100%-4rem)] flex-col items-end gap-2 overflow-hidden">
+            {props.cornerPanel && (
+              <div className="flex min-h-0 max-w-full shrink" style={{ maxHeight: 'inherit' }}>
+                {props.cornerPanel}
+              </div>
+            )}
+            {showSentinel && (
+              <Sentinel2Panel
+                state={sentinel}
+                paused={sentinelView.paused}
+                moving={sentinelView.moving}
+                onClose={() => setShowSentinel(false)}
+              />
+            )}
           </div>
         )}
         {tools.panelSlot}

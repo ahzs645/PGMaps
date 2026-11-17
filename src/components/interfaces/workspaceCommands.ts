@@ -48,6 +48,7 @@ import {
   TrendingUp,
   Cylinder,
   Droplets,
+  CloudRain,
   FileJson,
   LayoutPanelTop,
   MapPlus,
@@ -243,6 +244,12 @@ export const workspaceCommands = {
     description: 'Add GIS files or a folder, show or hide layers, and fit them on the plan.',
   },
   drawProfile: { label: 'Draw terrain profile', icon: ChartArea },
+  groundDrainage: {
+    label: 'Existing-ground drainage',
+    icon: CloudRain,
+    description:
+      'Route flow over the terrain inside an area you draw, import or take from a block, with no road needed. Its streams and catchments stay on the plan while you peg.',
+  },
   drawBlock: { label: 'Draw cutblock', icon: Trees },
   drawStream: { label: 'Draw stream', icon: Waves },
   drawAvoid: { label: 'Draw avoidance area', icon: Shapes, description: 'Draw an area route searches keep out of.' },

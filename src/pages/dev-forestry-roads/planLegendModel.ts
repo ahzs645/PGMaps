@@ -50,6 +50,7 @@ export interface PlanLegendSources {
   ticks: GeoJSON.FeatureCollection
   overlay?: GeoJSON.FeatureCollection
   drainage?: GeoJSON.FeatureCollection
+  groundDrainage?: GeoJSON.FeatureCollection
   swept?: GeoJSON.FeatureCollection
 }
 
@@ -90,6 +91,16 @@ export const PLAN_DRAINAGE_STYLES: Record<string, { label: string; color: string
   catchment: { label: 'Selected upstream catchment', color: '#0891b2', shape: 'area' },
   watershed: { label: 'D8 watershed partitions', color: '#7c3aed', shape: 'area' },
   'pour-point': { label: 'Snapped drainage pour point', color: '#0891b2', shape: 'circle' },
+}
+
+/** Existing-ground drainage before the first peg (`groundDrainage.ts`), drawn apart from the road's check. */
+export const GROUND_DRAINAGE_STYLES: Record<string, { label: string; color: string; shape: PlanLegendShape }> = {
+  'ground-area': { label: 'Drainage analysis area', color: '#0f766e', shape: 'dashed-line' },
+  'ground-stream': { label: 'Flow on existing ground', color: '#1d4ed8', shape: 'line' },
+  'ground-watershed': { label: 'Watershed partitions', color: '#7c3aed', shape: 'area' },
+  'ground-catchment': { label: 'Catchment above the outlet', color: '#0891b2', shape: 'area' },
+  'ground-outlet-requested': { label: 'Outlet as picked', color: '#0891b2', shape: 'circle' },
+  'ground-outlet': { label: 'Outlet snapped to flow', color: '#0e7490', shape: 'circle' },
 }
 
 function geometryShape(feature: GeoJSON.Feature): PlanLegendShape | null {
@@ -395,6 +406,13 @@ export function buildPlanLegend({
     drainage.add({ id: `drainage-${role}-${shape}`, ...style })
   }
   drainage.finish()
+  const ground = section('ground-drainage', 'Existing-ground drainage')
+  for (const feature of sources.groundDrainage?.features ?? []) {
+    const role = String(feature.properties?.role)
+    const style = GROUND_DRAINAGE_STYLES[role]
+    if (style) ground.add({ id: `ground-drainage-${role}`, ...style })
+  }
+  ground.finish()
   const swept = section('swept', 'Design vehicle swept path')
   const roles = new Set((sources.swept?.features ?? []).map((f) => String(f.properties?.role)))
   if (roles.has('swept-wheels'))

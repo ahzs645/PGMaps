@@ -159,6 +159,7 @@ export interface PlacedProject {
 /** Project parts with coordinates this does not move; placing refuses while any holds something. */
 const UNMOVED: [keyof RoadProject, string][] = [
   ['drainage', 'drainage runs'],
+  ['groundDrainage', 'the existing-ground drainage area'],
   ['provincialStreamData', 'provincial stream evidence'],
   ['surveyBooks', 'survey field books'],
   ['fieldReview', 'field review issues'],

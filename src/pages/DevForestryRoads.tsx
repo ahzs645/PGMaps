@@ -228,6 +228,7 @@ import {
   readSpatialImport,
   SpatialCrsQuestion,
   SPATIAL_ACCEPT,
+  spatialFeatureName,
   type ImportIntent,
   type RoleChoice,
   type SpatialFile,
@@ -300,9 +301,17 @@ import { useCrossDrainBatch } from './dev-forestry-roads/useCrossDrainBatch'
 import { stationEntry } from './dev-forestry-roads/stationEntry'
 import { runDrainage, type DrainageRun, type DrainageSettings } from './dev-forestry-roads/drainageRun'
 import { terrainGridCellM } from './dev-forestry-roads/tinGround'
+import { GroundDrainagePanel, type AreaChoice } from './dev-forestry-roads/GroundDrainagePanel'
+import { useGroundDrainage } from './dev-forestry-roads/useGroundDrainage'
+import {
+  DEFAULT_GROUND_DRAINAGE_SETTINGS,
+  type GroundDrainageArea,
+  type GroundDrainageState,
+} from './dev-forestry-roads/groundDrainage'
 import {
   createDrainageEvidence,
   drainageInputFingerprint,
+  drainageTerrainFingerprint,
   drainageEvidenceGeoJson,
   drainageEvidenceNeedsRecompute,
   parseDrainageComparisons,
@@ -618,6 +627,31 @@ export default function DevForestryRoads({
     ],
   )
   const drainageFingerprint = useMemo(() => drainageInputFingerprint(drainageInput), [drainageInput])
+  // Existing-ground drainage needs no road: an area, the terrain and its own settings.
+  const [groundDrainageOpen, setGroundDrainageOpen] = useState(false)
+  const [groundImportChoices, setGroundImportChoices] = useState<{
+    fileName: string
+    choices: AreaChoice[]
+  } | null>(null)
+  const groundTerrainFingerprint = useMemo(() => drainageTerrainFingerprint(project.terrain), [project.terrain])
+  const groundDrainage = useGroundDrainage({
+    state: project.groundDrainage,
+    source,
+    terrainName: project.terrain.name,
+    terrainFingerprint: groundTerrainFingerprint,
+    sourceM: terrainGridCellM(project.terrain),
+  })
+  const changeGroundDrainage = (next: GroundDrainageState) => update((p) => ({ ...p, groundDrainage: next }))
+  const setGroundDrainageArea = (area: GroundDrainageArea) => {
+    // A new area drops the old outlet: it was picked on ground that may no longer be routed.
+    update((p) => ({
+      ...p,
+      groundDrainage: { settings: p.groundDrainage?.settings ?? DEFAULT_GROUND_DRAINAGE_SETTINGS, area },
+    }))
+    setGroundImportChoices(null)
+    setGroundDrainageOpen(true)
+    w.setNotice(`Drainage area: ${area.name}. Route flow to draw it on the plan.`)
+  }
   // One run per road, with the inputs it was computed from: a run is stale when any of them changes.
   const [drainage, setDrainage] = useState<
     Map<
@@ -738,7 +772,7 @@ export default function DevForestryRoads({
   const [terrainRoadOverlay, setTerrainRoadOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   const [terrainRoadsOverlay, setTerrainRoadsOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   // Drawing an area makes an avoidance area unless "Draw block" asked for a harvest block.
-  const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest'>('avoid')
+  const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest' | 'drainage'>('avoid')
   useEffect(() => {
     if (mode !== 'avoid') setPolygonKind('avoid')
   }, [mode])
@@ -746,7 +780,8 @@ export default function DevForestryRoads({
   const [planPick, setPlanPick] = useState<{ prompt: string; onPick: (at: Coordinate) => void } | null>(null)
   const [accessMarks, setAccessMarks] = useState<AccessMark[] | null>(null)
   const [skidReachFeatures, setSkidReachFeatures] = useState<GeoJSON.Feature[] | null>(null)
-  const drawnArea = polygonKind === 'harvest' ? 'harvest block' : 'avoidance area'
+  const drawnArea =
+    polygonKind === 'harvest' ? 'harvest block' : polygonKind === 'drainage' ? 'drainage area' : 'avoidance area'
   const [routePreviewState, setRoutePreviewState] = useState<{
     guide: Alignment
     source: TerrainSource
@@ -1906,8 +1941,14 @@ export default function DevForestryRoads({
       if (!commitValidated({ ...project, cables: [...project.cables, next] })) return
       setActiveCable(next.id)
       setDetail('cable')
+    } else if (mode === 'avoid' && polygonKind === 'drainage') {
+      setGroundDrainageArea({
+        source: 'drawn',
+        name: 'Drawn area',
+        geometry: { type: 'Polygon', coordinates: [[...draft, draft[0]]] },
+      })
     } else if (mode === 'stream' || mode === 'avoid') {
-      const kind = mode === 'avoid' ? polygonKind : mode
+      const kind = mode === 'avoid' ? (polygonKind === 'drainage' ? 'avoid' : polygonKind) : mode
       const feature = {
         id: uid(),
         name: `${kind === 'stream' ? 'Stream' : kind === 'harvest' ? 'Harvest block' : 'Avoidance area'} ${project.context.length + 1}`,
@@ -3038,11 +3079,12 @@ export default function DevForestryRoads({
     // Fit the plan without changing which panes show: the sidebar is where the import is reviewed.
     if (planMap.current) fitPlanPoints(planMap.current, points)
   }
-  const readSpatial = async (file: File, intent: ImportIntent, signal?: AbortSignal) => {
+  /** A spatial file read through `readSpatialImport`, its CRS and units asked when it states none; null if cancelled. */
+  const readSpatialAnswered = (file: File) => {
     // A CAD drawing states no CRS and often not its units: it is asked, or on a flat-plane project
     // read in the plane's own file coordinates (a plan from the same job shares them).
     const plane = project.terrain.epsg === LOCAL_PLANE_EPSG ? project.terrain.localPlane : undefined
-    const read = await importTerrainWithAnswers(async (answers) => {
+    return importTerrainWithAnswers(async (answers) => {
       try {
         return await readSpatialImport(file, {
           ...(answers.epsg !== undefined ? { crs: { epsg: answers.epsg } } : plane ? { crs: { plane } } : {}),
@@ -3058,6 +3100,9 @@ export default function DevForestryRoads({
         )
       }
     }, askTerrain)
+  }
+  const readSpatial = async (file: File, intent: ImportIntent, signal?: AbortSignal) => {
+    const read = await readSpatialAnswered(file)
     if (!read) {
       w.setNotice(`Import of ${file.name} cancelled. Nothing was changed.`)
       return
@@ -3067,6 +3112,35 @@ export default function DevForestryRoads({
     if (proposal.ask) setSpatialChoice({ file: read, roles: proposal.roles, intent })
     else commitSpatial(read, proposal.roles, intent)
   }
+  /**
+   * An analysis area for existing-ground drainage from a spatial file. The picker is for an area,
+   * so its polygons are the candidates; lines and points are left out and said so. Several
+   * polygons are listed for the person to choose one, or all as one area.
+   */
+  const importGroundDrainageArea = (file: File) =>
+    void run(`Reading ${file.name}…`, async (signal) => {
+      const read = await readSpatialAnswered(file)
+      if (!read || signal.aborted) {
+        if (!read) w.setNotice(`Import of ${file.name} cancelled. Nothing was changed.`)
+        return
+      }
+      const choices: AreaChoice[] = read.collection.features.flatMap((feature, i) =>
+        feature.geometry?.type === 'Polygon' || feature.geometry?.type === 'MultiPolygon'
+          ? [{ name: spatialFeatureName(feature.properties) ?? `Polygon ${i + 1}`, geometry: feature.geometry }]
+          : [],
+      )
+      const skipped = read.collection.features.length - choices.length
+      if (!choices.length) throw Error(`${file.name} holds no polygons to use as a drainage area.`)
+      if (skipped) w.setNotice(`${skipped} line or point feature${skipped === 1 ? '' : 's'} in ${file.name} left out.`)
+      if (choices.length === 1)
+        setGroundDrainageArea({
+          source: 'imported',
+          name: choices[0].name,
+          fileName: file.name,
+          geometry: choices[0].geometry,
+        })
+      else setGroundImportChoices({ fileName: file.name, choices })
+    })
   /** One importer for every spatial picker; the intent only sets what the picker is for. */
   const importSpatial = (file: File, intent: ImportIntent) =>
     void run(`Reading ${file.name}…`, (signal) => readSpatial(file, intent, signal))
@@ -4978,6 +5052,10 @@ export default function DevForestryRoads({
     drawStream: () => drawFromRibbon('stream'),
     drawAvoid: () => drawArea('avoid'),
     drawProfile: () => drawFromRibbon('profile'),
+    groundDrainage: () => {
+      showPane('plan')
+      setGroundDrainageOpen((open) => !open)
+    },
     importAlignment: () => requestFile('alignment'),
     duplicateRoad,
     deleteRoad,
@@ -5245,6 +5323,7 @@ export default function DevForestryRoads({
     drawAvoid: { pressed: mode === 'avoid' && polygonKind === 'avoid' },
     drawStream: { pressed: mode === 'stream' },
     drawProfile: { pressed: mode === 'profile' },
+    groundDrainage: { pressed: groundDrainageOpen },
     traceRoad: { pressed: mode === 'trace' },
     inspect: { pressed: mode === 'inspect' },
     sectionCsv: {
@@ -6692,6 +6771,75 @@ export default function DevForestryRoads({
                                   onCableDistance={setCableDistance}
                                   overlay={investigation ? undefined : planOverlay}
                                   drainage={investigation ? undefined : drainageOnPlan}
+                                  groundDrainage={
+                                    !investigation && groundDrainageOpen ? groundDrainage.plan : undefined
+                                  }
+                                  cornerPanel={
+                                    !investigation && groundDrainageOpen ? (
+                                      <GroundDrainagePanel
+                                        state={project.groundDrainage}
+                                        onChange={changeGroundDrainage}
+                                        blocks={project.context.flatMap((feature) =>
+                                          feature.kind === 'harvest' && feature.geometry.type === 'Polygon'
+                                            ? [{ id: feature.id, name: feature.name, geometry: feature.geometry }]
+                                            : [],
+                                        )}
+                                        drawing={mode === 'avoid' && polygonKind === 'drainage'}
+                                        onDraw={() =>
+                                          mode === 'avoid' && polygonKind === 'drainage'
+                                            ? beginMode('inspect')
+                                            : drawArea('drainage')
+                                        }
+                                        onImport={importGroundDrainageArea}
+                                        importChoices={groundImportChoices}
+                                        onChooseImport={(choice) => {
+                                          if (!choice || !groundImportChoices) return setGroundImportChoices(null)
+                                          const { fileName, choices } = groundImportChoices
+                                          setGroundDrainageArea(
+                                            choice === 'all'
+                                              ? {
+                                                  source: 'imported',
+                                                  name: `${fileName} (${choices.length} polygons)`,
+                                                  fileName,
+                                                  geometry: {
+                                                    type: 'MultiPolygon',
+                                                    coordinates: choices.flatMap((c) =>
+                                                      c.geometry.type === 'Polygon'
+                                                        ? [c.geometry.coordinates]
+                                                        : c.geometry.coordinates,
+                                                    ),
+                                                  },
+                                                }
+                                              : {
+                                                  source: 'imported',
+                                                  name: choice.name,
+                                                  fileName,
+                                                  geometry: choice.geometry,
+                                                },
+                                          )
+                                        }}
+                                        picking={!!planPick}
+                                        onPickOutlet={() =>
+                                          planPick
+                                            ? pickOnPlan(null)
+                                            : pickOnPlan('Click the plan where the drainage outlet is.', (coordinate) =>
+                                                update((p) => ({
+                                                  ...p,
+                                                  groundDrainage: {
+                                                    ...p.groundDrainage,
+                                                    settings:
+                                                      p.groundDrainage?.settings ?? DEFAULT_GROUND_DRAINAGE_SETTINGS,
+                                                    outlet: coordinate,
+                                                  },
+                                                })),
+                                              )
+                                        }
+                                        drainage={groundDrainage}
+                                        sourceM={terrainGridCellM(project.terrain)}
+                                        onClose={() => setGroundDrainageOpen(false)}
+                                      />
+                                    ) : undefined
+                                  }
                                   swept={!investigation && showSwept ? sweptOnPlan : undefined}
                                   sightlines={investigation ? undefined : planSightlines}
                                   // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.

@@ -677,6 +677,11 @@ export interface RoadProject {
   totalCostPlanning?: TotalCostPlanning
   /** Portable inputs and compact, fingerprinted drainage evidence; full grids are recomputed. */
   drainage?: DrainageProjectState
+  /**
+   * Existing-ground drainage before the first peg: the analysis area, routing settings and outlet.
+   * Needs no road; results are recomputed from the terrain (`groundDrainage.ts`).
+   */
+  groundDrainage?: import('./groundDrainage').GroundDrainageState
   /** Scoped provincial fish/watershed evidence; FWA arcs are retained in context. */
   provincialStreamData?: ProvincialStreamData
   /** Charged once in each alternative's estimate, never once per stream. */
