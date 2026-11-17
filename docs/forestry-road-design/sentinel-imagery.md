@@ -132,3 +132,23 @@ layer, never through a `styles` swap, so `setStyle` never runs.
   added to the map, the scene list renders, and the change view prints an interval.
 
 Catalogue and band caches are local to this map session. There is no polling or automatic failure retry. HTTP 429 without Retry-After holds new searches for 60 s; HTTP 503 without it keeps the normal 5 s spacing. Successful decoded bands survive cancellation of their originating effect. The public Earth Search service promises no guaranteed service: these application limits are conservative client budgets, not a published provider quota.
+
+## Optional Wayback release timeline
+
+The road designer's Wayback timeline is disabled by default. Set
+`VITE_ROAD_WAYBACK_TIMELINE=true` when starting Vite or building the site to
+offer **Map display settings → Historical imagery timeline** on georeferenced
+plans. Remove the variable or set it to `false` and restart or rebuild to hide
+the option. The standalone road-designer build takes the same Vite setting.
+
+Even on an enabled build, opening a plan starts with the timeline off. Selecting
+it loads the Esri release catalog and shows the newest release. Use the slider,
+previous/next, or Play to step through releases chronologically. Playback
+advances every two seconds and stops at the newest release. Closing the card
+removes its tiles. Sentinel-2 imagery and Wayback share one display slot.
+These controls affect the map view only. A mosaic release date does not date
+a road or establish when its imagery was acquired.
+
+Enable direct Esri access only for deployments covered by the applicable
+imagery terms. The workbench's existing manual release picker is separate.
+See [Esri's terms summary](https://goto.arcgis.com/termsofuse/viewsummary).

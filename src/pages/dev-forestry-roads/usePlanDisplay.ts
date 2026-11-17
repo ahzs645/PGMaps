@@ -64,8 +64,16 @@ export function usePlanDisplay() {
   const [showLabels, setShowLabels] = useState(true)
   const [showEarthwork, setShowEarthwork] = useState(true)
   const [notesOpen, setNotesOpen] = useState(false)
-  // Sentinel-2 imagery reads from the network, so it starts off.
-  const [showSentinel, setShowSentinel] = useState(false)
+  // These opaque imagery layers share the same place under the road linework.
+  const [imagery, setImagery] = useState<'sentinel' | 'wayback' | null>(null)
+  const showSentinel = imagery === 'sentinel'
+  const setShowSentinel = useCallback((value: boolean | ((shown: boolean) => boolean)) => {
+    setImagery((current) => {
+      const visible = typeof value === 'function' ? value(current === 'sentinel') : value
+      return visible ? 'sentinel' : current === 'sentinel' ? null : current
+    })
+  }, [])
+  const setShowWayback = (shown: boolean) => setImagery(shown ? 'wayback' : null)
   const [showHrdem, setShowHrdem] = useState(true)
   const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
   const fit = (target: FitRequest['target']) =>
@@ -92,6 +100,8 @@ export function usePlanDisplay() {
     setShowEarthwork,
     notesOpen,
     setNotesOpen,
+    showWayback: imagery === 'wayback',
+    setShowWayback,
     showSentinel,
     setShowSentinel,
     showHrdem,

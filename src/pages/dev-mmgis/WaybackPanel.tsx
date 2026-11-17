@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
 import { StyledSelect } from '@/components/ui/styled-select'
-import { iconemViewUrl, WAYBACK_CATALOG, waybackReleases, type WaybackRelease } from './iconem'
+import { loadWaybackReleases, waybackCredit, type WaybackRelease } from '@/lib/wayback'
+import { iconemViewUrl } from './iconem'
 import { MAX_TILE_OVERLAYS, uid, type Mission } from './model'
 
 export function WaybackPanel({ mission, change }: { mission: Mission; change: (fn: (m: Mission) => Mission) => void }) {
@@ -16,11 +17,7 @@ export function WaybackPanel({ mission, change }: { mission: Mission; change: (f
     const controller = new AbortController()
     async function load() {
       try {
-        const response = await fetch(WAYBACK_CATALOG, {
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]),
-        })
-        if (!response.ok) throw new Error(`Esri returned HTTP ${response.status}.`)
-        const items = waybackReleases(await response.json())
+        const items = await loadWaybackReleases(controller.signal)
         if (!controller.signal.aborted) {
           setReleases(items)
           setSelected(items[0].id)
@@ -42,9 +39,7 @@ export function WaybackPanel({ mission, change }: { mission: Mission; change: (f
       id: uid(),
       name: `Wayback · ${release.date}`,
       tiles: [release.tiles],
-      attribution: release.itemUrl
-        ? `<a href="${release.itemUrl}" target="_blank" rel="noopener noreferrer">Esri Wayback · imagery credits</a>`
-        : 'Esri World Imagery Wayback and contributors',
+      attribution: waybackCredit(release),
       visible: true,
       opacity: 1,
     }

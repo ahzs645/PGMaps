@@ -121,41 +121,43 @@ async function toggleFromRibbon(page: Page) {
 }
 
 /** The plan map's own state: the imagery layer, its place in the stack and its credit. */
-async function imagery(page: Page, camera?: { center: [number, number]; zoom: number }) {
-  return page.evaluate((camera) => {
-    const container = document.querySelector('[data-testid="road-plan-view"] .maplibregl-map')
-    const key = container && Object.keys(container).find((name) => name.startsWith('__reactFiber$'))
-    if (!container || !key) return null
-    type Map = import('maplibre-gl').Map
-    type Hook = { memoizedState?: { current?: Map } | Map; next?: Hook }
-    type Fiber = { memoizedState?: Hook; return?: Fiber }
-    let fiber = (container as unknown as Record<string, Fiber>)[key]
-    for (let depth = 0; fiber && depth < 200; depth++, fiber = fiber.return!) {
-      for (let hook = fiber.memoizedState, count = 0; hook && count < 40; hook = hook.next, count++) {
-        const value = hook.memoizedState
-        const map =
-          value && typeof value === 'object' && 'current' in value ? value.current : (value as Map | undefined)
-        if (typeof map?.getTerrain !== 'function') continue
-        if (camera) map.jumpTo({ ...camera, pitch: 0, bearing: 0, roll: 0 })
-        const ids = (map.getStyle().layers ?? []).map((layer) => layer.id)
-        const source = map.getSource('road-sentinel2') as { attribution?: string; type?: string } | undefined
-        return {
-          layer: !!map.getLayer('road-sentinel2'),
-          quad: (source as { coordinates?: number[][] } | undefined)?.coordinates ?? null,
-          regional: !!map.getLayer('road-regional-hillshade'),
-          hrdem: !!map.getLayer('road-hrdem-relief'),
-          type: source?.type ?? null,
-          belowContours:
-            ids.indexOf('road-sentinel2') >= 0 && ids.indexOf('road-sentinel2') < ids.indexOf('road-contours'),
-          aboveHillshade: ids.indexOf('road-sentinel2') > ids.indexOf('road-terrain'),
-          credit: source?.attribution ?? null,
-          attribution:
-            document.querySelector('[data-testid="road-plan-view"] .maplibregl-ctrl-attrib')?.textContent ?? '',
+async function imagery(page: Page, camera?: { center: [number, number]; zoom: number }, layerId = 'road-sentinel2') {
+  return page.evaluate(
+    ({ camera, layerId }) => {
+      const container = document.querySelector('[data-testid="road-plan-view"] .maplibregl-map')
+      const key = container && Object.keys(container).find((name) => name.startsWith('__reactFiber$'))
+      if (!container || !key) return null
+      type Map = import('maplibre-gl').Map
+      type Hook = { memoizedState?: { current?: Map } | Map; next?: Hook }
+      type Fiber = { memoizedState?: Hook; return?: Fiber }
+      let fiber = (container as unknown as Record<string, Fiber>)[key]
+      for (let depth = 0; fiber && depth < 200; depth++, fiber = fiber.return!) {
+        for (let hook = fiber.memoizedState, count = 0; hook && count < 40; hook = hook.next, count++) {
+          const value = hook.memoizedState
+          const map =
+            value && typeof value === 'object' && 'current' in value ? value.current : (value as Map | undefined)
+          if (typeof map?.getTerrain !== 'function') continue
+          if (camera) map.jumpTo({ ...camera, pitch: 0, bearing: 0, roll: 0 })
+          const ids = (map.getStyle().layers ?? []).map((layer) => layer.id)
+          const source = map.getSource(layerId) as { attribution?: string; type?: string } | undefined
+          return {
+            layer: !!map.getLayer(layerId),
+            quad: (source as { coordinates?: number[][] } | undefined)?.coordinates ?? null,
+            regional: !!map.getLayer('road-regional-hillshade'),
+            hrdem: !!map.getLayer('road-hrdem-relief'),
+            type: source?.type ?? null,
+            belowContours: ids.indexOf(layerId) >= 0 && ids.indexOf(layerId) < ids.indexOf('road-contours'),
+            aboveHillshade: ids.indexOf(layerId) > ids.indexOf('road-terrain'),
+            credit: source?.attribution ?? null,
+            attribution:
+              document.querySelector('[data-testid="road-plan-view"] .maplibregl-ctrl-attrib')?.textContent ?? '',
+          }
         }
       }
-    }
-    return null
-  }, camera)
+      return null
+    },
+    { camera, layerId },
+  )
 }
 
 test('Sentinel-2 imagery: the ribbon toggle adds the layer under the road, lists scenes and dates a clearing as an interval', async ({
@@ -243,5 +245,80 @@ test('Sentinel follows the settled view, pauses below z12, and reuses a previous
   expect(searches).toHaveLength(2)
   await imagery(page, { center: [-122.71, 53.895], zoom: 10 })
   await expect.poll(async () => (await imagery(page))?.layer).toBe(false)
+  expect(errors).toEqual([])
+})
+
+test('Wayback timeline respects its deployment flag and only requests the selected releases', async ({ page }) => {
+  let catalogs = 0
+  const tiles: string[] = []
+  const headers = { 'Access-Control-Allow-Origin': '*' }
+  await page.route('**/waybackconfig.json', (route) => {
+    catalogs++
+    if (catalogs === 1) return route.fulfill({ status: 503, headers })
+    return route.fulfill({
+      headers,
+      json: Object.fromEntries(
+        ['2016-01-06', '2019-06-12', '2024-08-21'].map((date, id) => [
+          id,
+          {
+            itemTitle: `World Imagery (Wayback ${date})`,
+            itemURL: `https://wayback.maptiles.arcgis.com/test/${id}/{level}/{row}/{col}`,
+          },
+        ]),
+      ),
+    })
+  })
+  await page.route('https://wayback.maptiles.arcgis.com/**', (route) => {
+    tiles.push(new URL(route.request().url()).pathname.split('/')[2])
+    return route.fulfill({
+      headers,
+      contentType: 'image/png',
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+        'base64',
+      ),
+    })
+  })
+  const errors = await open(page, { failing: false })
+  const settings = page.getByRole('button', { name: 'Map display settings', exact: true })
+  await settings.click()
+  const toggle = page.getByRole('checkbox', { name: 'Historical imagery timeline' })
+  const layer = () => imagery(page, undefined, 'road-wayback')
+  await expect.poll(async () => (await layer())?.layer).toBe(false)
+  expect(catalogs).toBe(0)
+  expect(tiles).toEqual([])
+  if (process.env.VITE_ROAD_WAYBACK_TIMELINE !== 'true') {
+    await expect(toggle).toHaveCount(0)
+    await expect(page.getByRole('checkbox', { name: 'Sentinel-2 imagery' })).toBeVisible()
+    return
+  }
+  await toggle.check()
+  await page.getByRole('button', { name: 'Close map settings' }).click()
+  const card = page.getByRole('region', { name: 'Historical imagery timeline' })
+  await expect(card.getByRole('alert')).toContainText('503')
+  await card.getByRole('button', { name: 'Retry catalog' }).click()
+  const slider = card.getByRole('slider')
+  await expect(slider).toHaveAttribute('aria-valuetext', '2024-08-21')
+  await expect.poll(() => tiles.includes('2')).toBe(true)
+  await expect.poll(async () => (await layer())?.belowContours).toBe(true)
+  await expect.poll(async () => (await layer())?.aboveHillshade).toBe(true)
+  await card.getByRole('button', { name: 'Previous frame' }).click()
+  await expect.poll(() => tiles.includes('1')).toBe(true)
+  await slider.press('Home')
+  await expect(slider).toHaveAttribute('aria-valuetext', '2016-01-06')
+  await expect.poll(() => tiles.includes('0')).toBe(true)
+  await card.getByRole('button', { name: 'Play', exact: true }).click()
+  await expect(slider).toHaveAttribute('aria-valuetext', '2019-06-12')
+  await card.getByRole('button', { name: 'Pause' }).click()
+  await card.getByRole('button', { name: 'Close imagery timeline' }).click()
+  await expect.poll(async () => (await layer())?.layer).toBe(false)
+  await settings.click()
+  await expect(toggle).not.toBeChecked()
+  await toggle.check()
+  await expect.poll(async () => (await layer())?.layer).toBe(true)
+  await page.getByRole('checkbox', { name: 'Sentinel-2 imagery' }).check()
+  await expect(toggle).not.toBeChecked()
+  await expect.poll(async () => (await layer())?.layer).toBe(false)
+  expect(catalogs).toBe(2)
   expect(errors).toEqual([])
 })

@@ -12,9 +12,11 @@ import {
   trueColourRgba,
 } from './render'
 import { defaultPair, defaultScene, type RatedScene } from './sceneChoice'
-import { SENTINEL_ANCHOR_LAYER_ID, SENTINEL_LAYER_ID, sentinelBeforeId } from './planOrder'
+import { SENTINEL_ANCHOR_LAYER_ID, SENTINEL_LAYER_ID, imageryBeforeId } from './planOrder'
 
 const BASELINE_04 = { red: { scale: 0.0001, offset: -0.1 }, nir: { scale: 0.0001, offset: -0.1 } }
+
+const beforeSentinel = (layers: Parameters<typeof imageryBeforeId>[0]) => imageryBeforeId(layers, 'road-sentinel2')
 
 describe('true colour', () => {
   it('draws the TCI as it is and leaves no-data clear', () => {
@@ -145,20 +147,20 @@ describe('imagery layer order', () => {
       layer('stream'),
       layer(SENTINEL_ANCHOR_LAYER_ID),
     ]
-    expect(sentinelBeforeId(ok)).toBeNull()
+    expect(beforeSentinel(ok)).toBeNull()
   })
 
   it('moves the imagery when a hillshade lands above it or it ends up over the engineering layers', () => {
     expect(
-      sentinelBeforeId([
+      beforeSentinel([
         layer(SENTINEL_LAYER_ID, 'raster'),
         layer('road-terrain', 'raster'),
         layer(SENTINEL_ANCHOR_LAYER_ID),
       ]),
     ).toBe(SENTINEL_ANCHOR_LAYER_ID)
-    expect(sentinelBeforeId([layer(SENTINEL_ANCHOR_LAYER_ID), layer(SENTINEL_LAYER_ID, 'raster')])).toBe(
+    expect(beforeSentinel([layer(SENTINEL_ANCHOR_LAYER_ID), layer(SENTINEL_LAYER_ID, 'raster')])).toBe(
       SENTINEL_ANCHOR_LAYER_ID,
     )
-    expect(sentinelBeforeId([layer(SENTINEL_LAYER_ID, 'raster')])).toBeNull()
+    expect(beforeSentinel([layer(SENTINEL_LAYER_ID, 'raster')])).toBeNull()
   })
 })
