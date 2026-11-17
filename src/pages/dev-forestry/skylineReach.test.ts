@@ -7,7 +7,7 @@ import {
   skylineReach,
   skylineTerrainRadius,
 } from './skylineReach'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree } from './visibility'
 
 const EYE = { lng: -116.9, lat: 50.1, elevation: 501.5 }

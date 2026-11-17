@@ -4,7 +4,7 @@
  */
 import type { PdfContourSurface } from '@/lib/geoPdf/contours'
 import type { PdfSource } from '@/lib/geoPdf/types'
-import { localRasterResolution } from '../dev-forestry/localRaster'
+import { localRasterResolution } from '@/lib/forestry/terrain/localRaster'
 import { yieldToHost } from './cooperative'
 import {
   MAX_ROAD_RASTER_CELLS,
@@ -13,7 +13,7 @@ import {
   TerrainImportQuestion,
   validateRoadRaster,
 } from './terrain'
-import type { Bounds } from '../dev-forestry/terrain'
+import type { Bounds } from '@/lib/forestry/terrain/terrain'
 import type { TerrainMetadata, TerrainSource } from './types'
 
 export function contourTerrain(

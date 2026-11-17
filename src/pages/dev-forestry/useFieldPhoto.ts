@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { FieldRecord } from './assessmentTools'
-import { loadElevationGrid } from './demLoader'
+import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
 import { MAX_WALK_METERS, nearestStation } from './driveMath'
 import {
   clampFov,
@@ -36,7 +36,7 @@ import { panoViewPose, projectToPhoto, reprojectEquirect, terrainSkyline, type P
 import { fitSkyline, photoSkyline, terrainProfile, type SkylineFit } from './skylineFit'
 import { nearestPointOnLine } from './roadSnap'
 import type { ForestryScene } from './scene'
-import { demTileRange, type ElevationSource } from './terrain'
+import { demTileRange, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import type { AnalysisResult } from './types'
 import { bearingDegrees, polygonBounds } from './visibility'
 import { visibleProposalCentre } from './vqe'

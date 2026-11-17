@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import proj4 from 'proj4'
 import { describe, expect, it, vi } from 'vitest'
-import { METRIC_CRS, toMetric } from './sourceGrids'
+import { METRIC_CRS, toMetric } from '@/lib/lidar/sourceGrids'
 import type { TreeCrop, TreeIsolation, IsolatedPoint } from './treeIsolation'
 import {
   assignPoints,

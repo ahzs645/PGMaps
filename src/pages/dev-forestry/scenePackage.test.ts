@@ -7,7 +7,7 @@ import {
   parseScenePackage,
   type ScenePackageInput,
 } from './scenePackage'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree } from './visibility'
 import { DEFAULT_ENGINE_ENVIRONMENT, engineEnvironment } from './externalRenderers'
 

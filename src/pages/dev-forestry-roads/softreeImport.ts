@@ -21,7 +21,7 @@
  *
  * Checked by `softreeImport.test.ts`. Pure: no DOM or network access.
  */
-import type { LocalRaster } from '../dev-forestry/types'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 import { placedAlignmentRoad, type XY } from './landXmlImport'
 import { LOCAL_PLANE_EPSG, type LocalPlacement } from './localPlane'
 import { fitPolylineAlignment, MAX_FIT_SOURCE_POINTS } from './polylineFit'

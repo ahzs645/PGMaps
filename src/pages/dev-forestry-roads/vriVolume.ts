@@ -7,11 +7,7 @@
  * `bcVegetationInventory.ts`: the bounding box goes in `CQL_FILTER` (longitude first), never the WFS
  * `bbox` parameter (latitude first under WFS 2.0 with EPSG:4326), and `propertyName` stays narrow.
  */
-import {
-  BC_VEGETATION_WFS,
-  clampVegetationBounds,
-  MAX_VEGETATION_FEATURES,
-} from '../dev-forestry/bcVegetationInventory'
+import { BC_VEGETATION_WFS, clampVegetationBounds, MAX_VEGETATION_FEATURES } from '@/lib/forestry/bcVegetationWfs'
 import type { VolumeStand } from './cableVolume'
 
 const TYPE_NAME = 'pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY'

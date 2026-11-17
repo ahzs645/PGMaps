@@ -28,7 +28,7 @@
  */
 import type { LandformBoundary, TerrainLandform } from './landformFromTerrain'
 import { flowAccumulation, morph, signedArea, simplifyRing, traceRings } from './landformFromTerrain'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import {
   earthCurvatureDropMeters,
   metersPerDegree,

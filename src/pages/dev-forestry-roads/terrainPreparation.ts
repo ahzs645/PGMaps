@@ -1,5 +1,5 @@
 /** Bounded terrain preparation in source grid metres. Null cells stay unknown. */
-import type { LocalRaster } from '../dev-forestry/types'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 import { DEFAULT_LOCALE } from '@/lib/format'
 
 export const MAX_PREPARED_CELLS = 4_194_304

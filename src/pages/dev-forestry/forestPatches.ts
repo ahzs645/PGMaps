@@ -2,7 +2,7 @@
 import { placeTrees, type TreeInstance, type TreePlacementOptions } from './forest'
 import { placeEdgeTrees } from './harvestedGround'
 import type { PolygonGeometry } from './visibility'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { haversineMeters } from './visibility'
 
 // Load beyond visibility before the anchor advances by 75 m.

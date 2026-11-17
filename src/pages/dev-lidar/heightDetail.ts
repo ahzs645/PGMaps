@@ -1,6 +1,6 @@
 import type { Map, ImageSource } from 'maplibre-gl'
 import { HEATMAP_COLORS } from './canopyHeatmaps'
-import { readSourceGrid, sourceCell, sourceValue, toMetric, type SourceGrid } from './sourceGrids'
+import { readSourceGrid, sourceCell, sourceValue, toMetric, type SourceGrid } from '@/lib/lidar/sourceGrids'
 import detailUrl from './height-detail.generated.json?url'
 export const DETAIL_LAYER = 'canopy-height-native-detail'
 export interface HeightDetail {

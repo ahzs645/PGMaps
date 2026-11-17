@@ -2275,11 +2275,11 @@ of two ways (`EngineSurface.tsx`, `engineChannel.ts`):
 | `src/pages/dev-forestry/visualsWorkspace.ts` | The workspace's panes, presets and which panes show before the road view opens |
 | `src/pages/dev-forestry/viewpointSummaryRows.ts` | The viewpoint summary's rows, read from the run |
 | `src/pages/dev-forestry/ViewpointSummary.tsx` | The summary pane and its settings dialog, on the shared `MetricSummary` |
-| `src/pages/dev-forestry/terrain.ts` | DEM tile maths and the elevation mosaic |
+| `src/lib/forestry/terrain/terrain.ts` | DEM tile maths and the elevation mosaic |
 | `src/pages/dev-forestry/visibility.ts` | Sightlines, sampling, areas, perspective weighting |
 | `src/pages/dev-forestry/analysis.ts` | The run itself — stations, grids, reduction |
 | `src/pages/dev-forestry/analysis.worker.ts` | Off-thread wrapper: fetch terrain, then trace |
-| `src/pages/dev-forestry/demLoader.ts` | Tile fetching and decoding, with an injectable decoder |
+| `src/lib/forestry/terrain/demLoader.ts` | Tile fetching and decoding, with an injectable decoder |
 | `src/pages/dev-forestry/vqo.ts` | Visual quality classes, both threshold scales, VAC, green-up, partial cutting |
 | `src/pages/dev-forestry/via.ts` | The VIA handbook's steps and Tables 1–7: ocular class, X, adjustments, final rating |
 | `src/pages/dev-forestry/ViaPanels.tsx` | The headline and the step 2, 4 and 5 fields that record the reviewer's judgements |

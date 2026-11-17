@@ -8,7 +8,7 @@
  * DOM-free and network-free.
  */
 
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 
 /** Mean earth radius, metres. */
 export const EARTH_RADIUS_M = 6_371_000

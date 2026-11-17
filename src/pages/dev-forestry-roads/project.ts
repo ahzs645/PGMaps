@@ -63,7 +63,7 @@ import { parseTerrainReferenceSurfaces, pointCloudImportSummary } from './terrai
 import { parseSectionComponents, parseSectionLayers } from './sectionAssembly'
 import { parseRockCut } from './rockExcavation'
 import { parseSurveyBooks } from './surveyInterchange'
-import { localRasterResolution } from '../dev-forestry/localRaster'
+import { localRasterResolution } from '@/lib/forestry/terrain/localRaster'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, roadProjection, validateRoadRaster } from './terrain'
 import type {
   Alignment,

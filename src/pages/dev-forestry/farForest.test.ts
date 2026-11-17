@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { placeTrees, type InventoryStand } from './forest'
 import { canopyTileMeters, forestBands, forestPatches, growForestPatch, isFarBand } from './forestPatches'
 import { lightBearing } from './GroundRelief'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { pointInPolygon } from './visibility'
 
 const CENTRE = { lng: -122.75, lat: 53.9 }

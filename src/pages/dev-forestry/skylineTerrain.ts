@@ -14,7 +14,7 @@ import {
   type BearingRange,
   type SkylineReach,
 } from './skylineReach'
-import { demTileRange, type Bounds, type DemTileRange, type ElevationSource } from './terrain'
+import { demTileRange, type Bounds, type DemTileRange, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree } from './visibility'
 
 /** Most tiles one skyline mosaic may take; the zoom steps down until it fits (z12 at 15 km in B.C.: about 36). */

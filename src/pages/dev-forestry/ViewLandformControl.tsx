@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 
-import { loadElevationGrid } from './demLoader'
+import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
 import type { ForestryScene } from './scene'
 import type { TerrainCandidate } from './TerrainLandformFinder'
 import {

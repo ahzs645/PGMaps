@@ -8,7 +8,7 @@
  * run from the high point down the ridge. No DOM, no network; the DEM and the landform mask come in.
  * Ported from the VIA figure-style prototype (November 2026).
  */
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { planGrid, type PlanGrid } from './planGrid'
 
 export interface TerrainLinesOptions {

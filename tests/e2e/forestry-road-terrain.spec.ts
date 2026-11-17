@@ -1,6 +1,6 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator } from '@playwright/test'
-import { localRasterResolution } from '../../src/pages/dev-forestry/localRaster'
+import { localRasterResolution } from '../../src/lib/forestry/terrain/localRaster'
 import type { LocalRaster } from '../../src/pages/dev-forestry/types'
 import { positionAt } from '../../src/pages/dev-forestry-roads/engine'
 import { createDemoProject } from '../../src/pages/dev-forestry-roads/terrain'

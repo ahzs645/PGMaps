@@ -4,10 +4,13 @@ import proj4 from 'proj4'
 import { describe, expect, it, vi } from 'vitest'
 import type { ElevationProfile } from 'maplibre-gl-lidar'
 import { NativeTransect, normalizeNativeProfile, startNativeTransect, refreshNativeTransect } from './NativeTransect'
-import { METRIC_CRS, type SourceGrid, readSourceGrid } from './sourceGrids'
+import { METRIC_CRS, type SourceGrid, readSourceGrid } from '@/lib/lidar/sourceGrids'
 import type { TreeIsolation } from './treeIsolation'
 import { downloadText } from '@/lib/download'
-vi.mock('./sourceGrids', async () => ({ ...(await vi.importActual('./sourceGrids')), readSourceGrid: vi.fn() }))
+vi.mock('@/lib/lidar/sourceGrids', async () => ({
+  ...(await vi.importActual('@/lib/lidar/sourceGrids')),
+  readSourceGrid: vi.fn(),
+}))
 vi.mock('@/lib/download', () => ({ downloadText: vi.fn() }))
 const grid: SourceGrid = {
   width: 2,

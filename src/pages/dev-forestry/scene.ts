@@ -8,7 +8,7 @@ import { geometryBounds, type BBox } from '@/lib/geo'
 import type { InventoryEvidence } from './types'
 import type { AssessmentMask, LocalRaster } from './types'
 import { parseMasks } from './assessmentMasks'
-import { parseRasters } from './localRaster'
+import { parseRasters } from '@/lib/forestry/terrain/localRaster'
 import type { FormMetadata } from './pdf/fs1252'
 import { parseViaReview, type ViaReview } from './via'
 

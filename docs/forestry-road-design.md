@@ -186,7 +186,7 @@ The real-data option reads the same published products as `/dev/lidar`:
   `f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf`.
 - The loader checks the source hash in `summary.json`, reads the published
   terrain checksum from `checksums.json`, and delegates GeoTIFF SHA-256 and
-  1 m north-up/CRS checks to `dev-lidar/sourceGrids.ts`.
+  1 m north-up/CRS checks to `src/lib/lidar/sourceGrids.ts`.
 - `loadTerrainMetadata()` reopens a saved remote project against its recorded
   terrain checksum. It does not quietly replace the saved terrain with a
   newly published product. A mismatch is an error requiring explicit review.

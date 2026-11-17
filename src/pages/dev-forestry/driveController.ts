@@ -1,5 +1,5 @@
 /** Camera lifecycle, independent of React. Tested with a deterministic clock and a structural map adapter. */
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import {
   nearestStation,
   roadPlacement,

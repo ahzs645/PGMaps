@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { gunzipSync } from 'node:zlib'
 import proj4 from 'proj4'
 import { describe, it, expect } from 'vitest'
-import { METRIC_CRS } from '../sourceGrids'
+import { METRIC_CRS } from '@/lib/lidar/sourceGrids'
 import { estimatedDbh, stemVolume } from './allometry'
 import { drawnPolygon, parseInventoryPolygon, polygonHa, scopeArea } from './geometry'
 import {

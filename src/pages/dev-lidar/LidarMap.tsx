@@ -6,7 +6,7 @@ import { ImageDown } from 'lucide-react'
 import { Map as ToolkitMap, MapControls, MapScaleBar, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
 import { MapTerrain, type MapTerrainProps } from '@/components/ui/map-layers'
-import { MAX_DEM_ZOOM, TERRAIN_ATTRIBUTION, TERRARIUM_TILE_URL } from '../dev-forestry/terrain'
+import { MAX_DEM_ZOOM, TERRAIN_ATTRIBUTION, TERRARIUM_TILE_URL } from '@/lib/forestry/terrain/terrain'
 
 const MAX_PITCH = 75
 

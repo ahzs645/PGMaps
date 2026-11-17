@@ -203,7 +203,7 @@ inside the ±12,000 m range and is read as real ground. GeoTIFFs registered with
 using `ModelPixelScale` and `ModelTiepoint` tags before importing.
 
 **Horizontal datum.** EPSG:3157 uses the pinned NAD83(CSRS) → WGS84 transformation from
-`dev-lidar/sourceGrids.ts` (`METRIC_CRS`, a 7-parameter shift of about 2 m). The other accepted
+`src/lib/lidar/sourceGrids.ts` (`METRIC_CRS`, a 7-parameter shift of about 2 m). The other accepted
 codes are built with proj4's `NAD83` or `WGS84` datum, which proj4 treats as identical to WGS84.
 Alignments are stored as WGS84 coordinates, so a line drawn on a 3157 terrain can sit up to about
 2 m from the same ground when that ground is imported in BC Albers or NAD83 UTM. Recheck tight

@@ -7,7 +7,7 @@ import { ExternalLink } from '@/components/ui/text-button'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 import type { AnalysisSummary, RasterKey } from './types'
-import { LIDAR_BC_SAMPLE_LAZ } from './lidarbc/bcLidarIndex'
+import { LIDAR_BC_SAMPLE_LAZ } from '@/lib/lidar/bcLidarIndex'
 
 export function LidarResults({
   summary,

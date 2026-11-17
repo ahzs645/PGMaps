@@ -1,5 +1,5 @@
 import type { CanopySource } from './canopy'
-import { lngLatToMercator, mercatorToLngLat, type ElevationSource } from './terrain'
+import { lngLatToMercator, mercatorToLngLat, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import {
   earthCurvatureDropMeters,
   haversineMeters,

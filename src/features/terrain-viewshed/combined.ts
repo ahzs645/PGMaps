@@ -1,4 +1,4 @@
-import type { Bounds, ElevationSource } from '@/pages/dev-forestry/terrain'
+import type { Bounds, ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { computeViewshed, viewshedBounds, type GeoPoint, type ViewshedResult, type ViewshedSettings } from './model'
 
 export const MAX_ROAD_OBSERVERS = 32

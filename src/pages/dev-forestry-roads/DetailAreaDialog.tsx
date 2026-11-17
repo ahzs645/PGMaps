@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { formatBytes } from '../dev-lidar/lidarbc/bcLidarIndex'
+import { formatBytes } from '@/lib/lidar/bcLidarIndex'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'

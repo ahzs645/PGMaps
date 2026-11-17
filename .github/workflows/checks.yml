@@ -35,6 +35,8 @@ jobs:
       - run: npm run ci:prepare
       - run: node scripts/sync-bcdatamapper-data.mjs
       - run: npx tsc -b
+      # The road designer imports no other page, so it can build and be exported on its own.
+      - run: npm run road-design:check-boundary
       - run: npm run lint -- --max-warnings=0
       - run: npm run format:check
       - run: npx vitest run

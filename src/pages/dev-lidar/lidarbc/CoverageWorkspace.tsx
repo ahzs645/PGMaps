@@ -38,7 +38,7 @@ import {
   type LidarBcProductId,
   type LidarBcTile,
   type LonLatBounds,
-} from './bcLidarIndex'
+} from '@/lib/lidar/bcLidarIndex'
 import { isCapped, useLidarBcCoverage, useLidarBcViewTiles, useLidarBcYearCounts } from './useBcLidarIndex'
 
 const SATELLITE_STYLE: StyleSpecification = {

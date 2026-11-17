@@ -16,10 +16,10 @@ import {
 import { groundCoverFromBclcs } from './forest'
 import { coverSourceFromVri } from './sceneCover'
 import type { CanopyStand } from './canopy'
-import { loadElevationGrid } from './demLoader'
-import { localRasterResolution, rasterSampler } from './localRaster'
+import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
+import { localRasterResolution, rasterSampler } from '@/lib/forestry/terrain/localRaster'
 import { DEFAULT_REVERSE_SETTINGS, computeReverseViewshed } from './reverseViewshed'
-import { MAX_DEM_TILES, demResolutionMeters, demTileRange } from './terrain'
+import { MAX_DEM_TILES, demResolutionMeters, demTileRange } from '@/lib/forestry/terrain/terrain'
 import { polygonBounds, type PolygonGeometry } from './visibility'
 import type { AnalysisWorkerRequest, AnalysisWorkerResponse } from './types'
 

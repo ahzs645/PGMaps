@@ -1,6 +1,6 @@
 /** Appendix 5 review aids. These geometric diagnostics are engineering
  * heuristics, not the Handbook's qualitative design judgements or a VQO score. */
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import {
   bearingDegrees,
   earthCurvatureDropMeters,

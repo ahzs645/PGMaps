@@ -12,7 +12,7 @@
  *
  * Pure: no DOM or network access. The page loads the terrain grid and passes it in.
  */
-import { demTileRange, type DemTileRange, type ElevationSource } from './terrain'
+import { demTileRange, type DemTileRange, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { RIDGE_LAYER_DEFAULTS, VISIBLE_FACE_DEFAULTS, visibleFaceLandform } from './ridgeLayers'
 import { TERRAIN_LANDFORM_DEFAULTS } from './landformFromTerrain'
 import type { ForestryScene } from './scene'

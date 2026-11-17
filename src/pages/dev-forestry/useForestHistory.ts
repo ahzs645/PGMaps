@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchForestHistory, type ForestHistoryData } from './bcForestHistory'
 import { forestHistoryAreas } from './regrowth'
 import type { PolygonGeometry } from './visibility'
-import type { Bounds } from './terrain'
+import type { Bounds } from '@/lib/forestry/terrain/terrain'
 
 export function useForestHistory(active: boolean, road: number[][], polygons: PolygonGeometry[], freeze = false) {
   const areas = useMemo(() => forestHistoryAreas(road, polygons), [road, polygons])

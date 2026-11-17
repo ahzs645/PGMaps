@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { loadPreviewTerrain } from './previewTerrainCache'
-import { demTileRange, type Bounds, type ElevationSource } from './terrain'
+import { demTileRange, type Bounds, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { haversineMeters, polygonBounds, type PolygonGeometry } from './visibility'
 
 /** A bounded, fixed DEM mosaic is loaded before growing trees. Camera movement

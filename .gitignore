@@ -9,6 +9,8 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+# The standalone road designer's deployment defaults (no secrets); local overrides stay ignored.
+!standalone/forestry-road-design/.env
 
 # Editor directories and files
 .vscode/*

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { CanopyGrid, buildCanopyGrid, type CanopyStand } from './canopy'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { DEFAULT_SIGHTLINE_OPTIONS, testSightline } from './visibility'
 
 const BOUNDS: [number, number, number, number] = [-0.02, -0.01, 0.06, 0.01]

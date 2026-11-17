@@ -29,7 +29,7 @@ import {
   restorationZip,
 } from '@/features/lidar-restoration/outputs'
 import { DEFAULT_LOCALE } from '@/lib/format'
-import { LIDAR_BC_SAMPLE_LAZ } from '@/pages/dev-lidar/lidarbc/bcLidarIndex'
+import { LIDAR_BC_SAMPLE_LAZ } from '@/lib/lidar/bcLidarIndex'
 
 export default function DevLidarRestoration() {
   const [files, setFiles] = useState<File[]>([])

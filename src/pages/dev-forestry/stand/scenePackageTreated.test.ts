@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CONE_BASE_DIAMETER, type TreeInstance } from '../forest'
 import { SCENE_TREATED_FIELDS, SCENE_TREATED_KINDS, buildScenePackage, type ScenePackageInput } from '../scenePackage'
-import type { ElevationSource } from '../terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree } from '../visibility'
 
 const EYE = { lng: -122.6, lat: 53.9 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { PhotoPose } from './photoPose'
 import { fitSkyline, photoSkyline, projectDirection, terrainProfile, type Pixels } from './skylineFit'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 
 const SKY = [120, 170, 230]
 const CLOUD = [235, 236, 238]

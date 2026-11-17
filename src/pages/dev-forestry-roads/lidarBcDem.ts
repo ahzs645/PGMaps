@@ -10,7 +10,7 @@
  *
  * No DOM and no network: `fetch` is passed in, so the tests run anywhere.
  */
-import { LIDAR_BC_SERVICE, productById, type LidarBcProduct } from '../dev-lidar/lidarbc/bcLidarIndex'
+import { LIDAR_BC_SERVICE, productById, type LidarBcProduct } from '@/lib/lidar/bcLidarIndex'
 import type { Coordinate } from './types'
 
 /** The DEM products a road can be built on: the 1:2,500 tiles first, then the older 1:20,000 sheets. */

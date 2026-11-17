@@ -163,7 +163,7 @@ import {
 import { joinEngineCapture } from './dev-forestry/engineFramedCapture'
 import { loadSkylineTerrain } from './dev-forestry/skylineTerrain'
 import { frameBearingRange } from './dev-forestry/skylineReach'
-import { demResolutionMeters, type ElevationSource } from './dev-forestry/terrain'
+import { demResolutionMeters, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import {
   DEFAULT_ENGINE_ENVIRONMENT,
   engineEnvironment,

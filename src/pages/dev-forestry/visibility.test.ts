@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import {
   DEFAULT_SIGHTLINE_OPTIONS,
   apparentSolidAngle,

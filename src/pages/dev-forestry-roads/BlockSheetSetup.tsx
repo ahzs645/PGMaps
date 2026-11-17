@@ -25,8 +25,12 @@ import {
   parseBlockSheetSettings,
   type BlockSheetSettings,
 } from './blockSheet'
+import { ROAD_DESIGN_DEPLOYMENT } from './deployment'
 import { terrainReferenceSurfaces } from './terrain'
 import type { RoadProject, TerrainSource } from './types'
+
+/** *Symbol gallery*'s address on this deployment, or null when it has none. */
+const gallery = ROAD_DESIGN_DEPLOYMENT.blockSheetGallery
 
 const STORAGE_KEY = 'pgmaps.forestryRoads.blockSheet'
 
@@ -160,14 +164,26 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
           {logoError}
         </p>
       )}
-      <Link
-        to="/dev/forestry/block-sheets"
-        target="_blank"
-        rel="noreferrer"
-        className="justify-self-start text-xs text-muted-foreground underline hover:text-foreground"
-      >
-        Symbol gallery
-      </Link>
+      {gallery &&
+        (gallery.startsWith('/') ? (
+          <Link
+            to={gallery}
+            target="_blank"
+            rel="noreferrer"
+            className="justify-self-start text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Symbol gallery
+          </Link>
+        ) : (
+          <a
+            href={gallery}
+            target="_blank"
+            rel="noreferrer"
+            className="justify-self-start text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Symbol gallery
+          </a>
+        ))}
     </div>
   )
   /** Replaces the settings, e.g. from a saved sheet setup (`SheetSetupLibrary.tsx`). */

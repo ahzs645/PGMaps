@@ -1,6 +1,6 @@
 import proj4 from 'proj4'
 import type { FeatureCollection, Polygon } from 'geojson'
-import { METRIC_CRS, toMetric } from './sourceGrids'
+import { METRIC_CRS, toMetric } from '@/lib/lidar/sourceGrids'
 import type { CrownFeature, IsolatedPoint, TreeCrop, TreeIsolation } from './treeIsolation'
 import type { WorkflowOptions } from './analysisWorkflows'
 import { treeCropCSV } from './treeIsolation'

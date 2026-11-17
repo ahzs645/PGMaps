@@ -1,10 +1,11 @@
 /** Terrain adapters keep the source resolution, datum and missing-data footprint explicit. */
 import proj4 from 'proj4'
-import { loadElevationGrid, type TileDecoder } from '../dev-forestry/demLoader'
-import { demResolutionMeters, demTileRange, type Bounds } from '../dev-forestry/terrain'
-import { localRasterResolution, rasterProjection } from '../dev-forestry/localRaster'
-import type { LocalRaster } from '../dev-forestry/types'
-import { METRIC_CRS, readSourceGrid, type SourceGrid } from '../dev-lidar/sourceGrids'
+import { loadElevationGrid, type TileDecoder } from '@/lib/forestry/terrain/demLoader'
+import { demResolutionMeters, demTileRange, type Bounds } from '@/lib/forestry/terrain/terrain'
+import { localRasterResolution, rasterProjection } from '@/lib/forestry/terrain/localRaster'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
+import { METRIC_CRS, readSourceGrid, type SourceGrid } from '@/lib/lidar/sourceGrids'
+import { PUBLISHED_LIDAR_SAMPLE_BASE, ROAD_DESIGN_DEPLOYMENT } from './deployment'
 import { alignmentLength, offsetCoordinate, positionAt } from './engine'
 import { requireScenarioTerrain } from './scenarioCoverage'
 import type {
@@ -43,7 +44,11 @@ export const DEFAULT_ROAD_SETTINGS: RoadSettings = {
 export const MAX_ROAD_RASTER_CELLS = 4_194_304
 export const DEMO_ORIGIN: Coordinate = [-122.72, 53.89]
 export const DEMO_BOUNDS: Bounds = [-122.731, 53.884, -122.689, 53.907]
-export const LIDAR_BASE = 'https://pgmaps.ahmadjalil.com/data/lidar-analysis/bc-093g086/'
+/**
+ * The LiDAR sample's published home: what a project records, whichever copy the checksum-verified bytes
+ * were read from (`lidarSampleBases`).
+ */
+export const LIDAR_BASE = PUBLISHED_LIDAR_SAMPLE_BASE
 export const LIDAR_SOURCE_SHA256 = 'f5246f351e8d5923bf8a5dfddc0753032dbe8cb6e687ae58818cc701cb398ecf'
 const DEMO_METADATA: TerrainMetadata = {
   kind: 'demo',
@@ -561,8 +566,11 @@ export async function loadTerrainMetadata(metadata: TerrainMetadata, signal?: Ab
     url.password
   )
     throw Error('This project needs its original terrain GeoTIFF re-imported; no substitute terrain has been loaded.')
-  const grid = await abortable(readSourceGrid(new URL('.', url).href, 'dtm-1m.tif', metadata.sha256), signal)
-  checkAbort(signal)
+  const grid = await readLidarSample(
+    [...new Set([...lidarSampleBases(), new URL('.', url).href])],
+    (base) => abortable(readSourceGrid(base, 'dtm-1m.tif', metadata.sha256!), signal),
+    signal,
+  )
   const source = sourceGridTerrain(grid),
     projection = roadProjection(3157)
   const corners = [
@@ -581,19 +589,40 @@ export async function loadTerrainMetadata(metadata: TerrainMetadata, signal?: Ab
   return source
 }
 
+/**
+ * Where the LiDAR sample is read, in order: this site's own copy below its base, then the
+ * deployment's mirror (`VITE_ROAD_DESIGN_LIDAR_MIRROR`, PGMaps' published copy by default).
+ */
+export function lidarSampleBases(): string[] {
+  const local =
+    typeof location === 'undefined'
+      ? null
+      : new URL(`${import.meta.env.BASE_URL}data/lidar-analysis/bc-093g086/`, location.origin).href
+  return [...new Set([local, ROAD_DESIGN_DEPLOYMENT.lidarSampleMirror].filter((at): at is string => !!at))]
+}
+
+/** Runs `read` on each base in turn, keeping the first that answers; the last failure is the one reported. */
+async function readLidarSample<T>(bases: string[], read: (base: string) => Promise<T>, signal?: AbortSignal) {
+  let failure: unknown = new Error('No LiDAR sample location is configured.')
+  for (const base of bases) {
+    try {
+      const value = await read(base)
+      checkAbort(signal)
+      return value
+    } catch (error) {
+      checkAbort(signal)
+      failure = error
+    }
+  }
+  throw failure
+}
+
 export async function loadLidarTerrain(
   signal?: AbortSignal,
   onProgress?: (message: string) => void,
 ): Promise<{ metadata: TerrainMetadata; source: TerrainSource; alignments?: Alignment[] }> {
   checkAbort(signal)
   onProgress?.('Reading the published LiDAR terrain manifest…')
-  const local =
-    typeof location === 'undefined'
-      ? LIDAR_BASE
-      : new URL(`${import.meta.env.BASE_URL}data/lidar-analysis/bc-093g086/`, location.origin).href
-  let base = local,
-    checksums: Record<string, { sha256: string }>,
-    summary: { source_sha256?: string }
   async function manifest(at: string) {
     const replies = await Promise.all([
       fetch(new URL('checksums.json', at), { signal }),
@@ -604,14 +633,12 @@ export async function loadLidarTerrain(
       [Record<string, { sha256: string }>, { source_sha256?: string }]
     >
   }
-  try {
-    ;[checksums, summary] = await manifest(base)
-  } catch (error) {
-    checkAbort(signal)
-    if (base === LIDAR_BASE) throw error
-    base = LIDAR_BASE
-    ;[checksums, summary] = await manifest(base)
-  }
+  const { base, value } = await readLidarSample(
+    lidarSampleBases(),
+    async (at) => ({ base: at, value: await manifest(at) }),
+    signal,
+  )
+  const [checksums, summary] = value
   const hash = checksums['dtm-1m.tif']?.sha256
   if (summary.source_sha256 !== LIDAR_SOURCE_SHA256 || !hash || !/^[a-f0-9]{64}$/.test(hash))
     throw Error('LiDAR source or terrain checksum does not match the documented BC tile.')
@@ -639,9 +666,9 @@ export async function loadLidarTerrain(
     resolutionM: 1,
     epsg: 3157,
     verticalReference: 'CGVD2013 (CGG2013), EPSG:6647; metres',
-    // Provenance must be HTTPS. A local http dev server reads the same checksum-verified bytes,
-    // so it records the published location instead of its own address.
-    sourceUrl: new URL('dtm-1m.tif', new URL(base).protocol === 'https:' ? base : LIDAR_BASE).href,
+    // The bytes are checked against the pinned checksum wherever they were read (this site's copy,
+    // a mirror, a local http dev server), so the project records the published location.
+    sourceUrl: new URL('dtm-1m.tif', LIDAR_BASE).href,
     sha256: hash,
   }
   loaded.set(terrainKey(metadata), { source, bounds })

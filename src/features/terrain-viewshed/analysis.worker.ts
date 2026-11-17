@@ -1,12 +1,12 @@
 import { ViewshedResultCache } from './resultCache'
-import { loadElevationGrid } from '@/pages/dev-forestry/demLoader'
-import { demResolutionMeters, demTileRange, type ElevationGrid } from '@/pages/dev-forestry/terrain'
+import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
+import { demResolutionMeters, demTileRange, type ElevationGrid } from '@/lib/forestry/terrain/terrain'
 import { computeViewshed, viewshedBounds, type ViewshedSettings } from './model'
 import { combinedViewshedBounds, computeCombinedViewshed } from './combined'
 import type { GeoPoint, ViewshedResult } from './model'
-import type { Bounds } from '@/pages/dev-forestry/terrain'
+import type { Bounds } from '@/lib/forestry/terrain/terrain'
 import type { LocalRaster } from '@/pages/dev-forestry/types'
-import { parseRasters, rasterSampler, localRasterResolution } from '@/pages/dev-forestry/localRaster'
+import { parseRasters, rasterSampler, localRasterResolution } from '@/lib/forestry/terrain/localRaster'
 
 const results = new ViewshedResultCache()
 let lastRetry = 0

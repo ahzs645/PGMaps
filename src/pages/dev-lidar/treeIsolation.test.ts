@@ -9,7 +9,7 @@ import {
   type TreeIsolation,
   type TreeCrop,
 } from './treeIsolation'
-import { toMetric } from './sourceGrids'
+import { toMetric } from '@/lib/lidar/sourceGrids'
 import { treePointVertices } from './treePointLayer'
 const data = JSON.parse(
   readFileSync(new URL('./treeIsolation.generated.json', import.meta.url), 'utf8'),

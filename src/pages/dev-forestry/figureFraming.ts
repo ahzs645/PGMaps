@@ -11,7 +11,7 @@
  * curvature and refraction as the run's sightlines); `planFraming` turns that extent into cameras.
  * Ported from the VIA figure-style prototype's `framing.ts` (November 2026). No DOM or network access.
  */
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import {
   earthCurvatureDropMeters,
   metersPerDegree,

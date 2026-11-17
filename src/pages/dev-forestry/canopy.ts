@@ -13,13 +13,11 @@
  * profile step rather than a polygon search.
  */
 
-import { lngLatToMercator, mercatorToLngLat } from './terrain'
+import { lngLatToMercator, mercatorToLngLat, type CanopySource } from '@/lib/forestry/terrain/terrain'
 import { pointInPolygon, polygonBounds, type PolygonGeometry } from './visibility'
 
 /** Metres of vegetation standing on the ground at a point. */
-export interface CanopySource {
-  heightAtMercator(x: number, y: number): number
-}
+export type { CanopySource }
 
 export type CanopyStand = {
   /** Projected stand height, in metres (`PROJ_HEIGHT_1`). */

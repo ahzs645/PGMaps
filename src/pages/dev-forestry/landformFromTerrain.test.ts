@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { landformFromTerrain, traceRings } from './landformFromTerrain'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree, pointInPolygon, polygonAreaMeters } from './visibility'
 
 const ORIGIN = { lng: -122.6, lat: 53.9 }

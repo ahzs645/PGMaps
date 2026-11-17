@@ -11,8 +11,13 @@ import {
   type ViewshedSettings,
 } from './model'
 import { haversineMeters } from '@/pages/dev-forestry/visibility'
-import { localRasterResolution, parseRasters, rasterProjection, rasterSampler } from '@/pages/dev-forestry/localRaster'
-import { lngLatToMercator, mercatorToLngLat } from '@/pages/dev-forestry/terrain'
+import {
+  localRasterResolution,
+  parseRasters,
+  rasterProjection,
+  rasterSampler,
+} from '@/lib/forestry/terrain/localRaster'
+import { lngLatToMercator, mercatorToLngLat } from '@/lib/forestry/terrain/terrain'
 
 const SETTINGS: ViewshedSettings = { observer: { lng: 0, lat: 0 }, radiusMeters: 500, heightA: 1.2, heightB: 1.7 }
 const FLAT = { elevationAt: () => 100 }

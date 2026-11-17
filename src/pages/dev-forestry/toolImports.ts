@@ -1,6 +1,6 @@
 /** Browser adapters; no requests or uploads. Original assets stay on the user's device. */
 import { createId } from './scene'
-import { MAX_RASTER_CELLS, parseRasters, rasterProjection } from './localRaster'
+import { MAX_RASTER_CELLS, parseRasters, rasterProjection } from '@/lib/forestry/terrain/localRaster'
 import type { LocalRaster } from './types'
 import type { FieldRecord } from './assessmentTools'
 

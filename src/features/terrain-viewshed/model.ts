@@ -4,7 +4,7 @@ import {
   mercatorToLngLat,
   type Bounds,
   type ElevationSource,
-} from '@/pages/dev-forestry/terrain'
+} from '@/lib/forestry/terrain/terrain'
 import {
   earthCurvatureDropMeters,
   testSightline,

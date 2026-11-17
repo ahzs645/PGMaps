@@ -60,7 +60,7 @@ import {
   endMapViewpointLabel,
   type EndMapBasemap,
 } from './reportEndMap'
-import { demTileRange } from './terrain'
+import { demTileRange } from '@/lib/forestry/terrain/terrain'
 import { bearingDegrees, haversineMeters } from './visibility'
 
 const square = (lng: number, lat: number, d: number): GeoJSON.Polygon => ({

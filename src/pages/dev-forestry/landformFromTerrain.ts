@@ -19,7 +19,7 @@
  * checked. It is pure — no DOM, no network — so it runs against any
  * `ElevationSource` and is tested on synthetic ground.
  */
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree, pointInPolygon, polygonAreaMeters, polygonBounds, type PolygonGeometry } from './visibility'
 
 export type LandformBoundary =

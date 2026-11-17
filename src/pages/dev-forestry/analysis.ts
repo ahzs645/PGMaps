@@ -9,8 +9,14 @@ import { reviewLandformDesign } from './landformDesign'
 import { traceSightlineProfile } from './sightlineProfile'
 import { buildCanopyGrid, type CanopyStand, type CanopySource } from './canopy'
 import { assessmentMaskSampler, parseMasks } from './assessmentMasks'
-import { parseRasters, rasterSampler } from './localRaster'
-import { demResolutionMeters, lngLatToMercator, mercatorToLngLat, type Bounds, type ElevationSource } from './terrain'
+import { parseRasters, rasterSampler } from '@/lib/forestry/terrain/localRaster'
+import {
+  demResolutionMeters,
+  lngLatToMercator,
+  mercatorToLngLat,
+  type Bounds,
+  type ElevationSource,
+} from '@/lib/forestry/terrain/terrain'
 import { activeLandform, alterationWeight, canonicalInput, unionContributions } from './integrity'
 import { greenUpReading } from './greenUp'
 import {

@@ -1,7 +1,7 @@
 /** Visual regrowth assumptions only: never used by the assessment/screening model. */
 import { speciesFromCode, type InventoryStand } from './forest'
 import { polygonBounds, type PolygonGeometry } from './visibility'
-import type { Bounds } from './terrain'
+import type { Bounds } from '@/lib/forestry/terrain/terrain'
 
 export type ForestHistoryRecord = {
   id: string

@@ -11,9 +11,11 @@
   },
   "include": [
     "vite.config.ts",
+    "vite.road-design.config.ts",
     "scripts/remediation-dev-data.ts",
     "scripts/water-temp-dev-data.ts",
     "src/maps/aqmap/server/**/*.ts",
+    "src/types/shpjs.d.ts",
     "src/maps/aqmap/lib/smokeLayers.ts",
     "src/lib/parseCsv.ts"
   ]

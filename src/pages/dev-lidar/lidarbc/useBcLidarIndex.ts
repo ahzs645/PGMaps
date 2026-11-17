@@ -11,7 +11,7 @@ import {
   type LidarBcProduct,
   type LidarBcTile,
   type LonLatBounds,
-} from './bcLidarIndex'
+} from '@/lib/lidar/bcLidarIndex'
 
 export type TileCollection = FeatureCollection<Geometry, LidarBcTile>
 

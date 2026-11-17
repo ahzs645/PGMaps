@@ -15,7 +15,7 @@ import {
   parseTerrainBackgrounds,
   resampleBackground,
 } from './terrainPreparation'
-import type { LocalRaster } from '../dev-forestry/types'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 
 const source: LocalRaster = {
   id: 'source',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ridgeLayerLandform } from './ridgeLayers'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree, pointInPolygon, type PolygonGeometry } from './visibility'
 
 const ORIGIN = { lng: -122.7, lat: 54.5 }

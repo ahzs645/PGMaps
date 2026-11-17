@@ -1,5 +1,6 @@
 /** Shared, serializable scenario and worker shapes. Optional additions migrate v1 scenes. */
-import { DEFAULT_DEM_ZOOM } from './terrain'
+import { DEFAULT_DEM_ZOOM } from '@/lib/forestry/terrain/terrain'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 import type { ReverseViewshedResult } from './reverseViewshed'
 import type { VacRating, VisualQualityClassId } from './vqo'
 export type ViewpointMode = 'spot' | 'corridor'
@@ -73,21 +74,7 @@ export type AssessmentMask = {
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
   source: string
 }
-/** A cropped, native-resolution, north-up raster. Null cells remain unknown. Heights are metres. */
-export type LocalRaster = {
-  id: string
-  name: string
-  kind: 'terrain' | 'canopy'
-  epsg: number
-  origin: [number, number]
-  pixelSize: [number, number]
-  width: number
-  height: number
-  values: Array<number | null>
-  acquired: string
-  verticalReference: string
-  sha256: string
-}
+export type { LocalRaster }
 export type Availability = 'complete' | 'partial' | 'unavailable' | 'not-requested' | 'scenario-only'
 export type InventoryEvidence = {
   status: Availability

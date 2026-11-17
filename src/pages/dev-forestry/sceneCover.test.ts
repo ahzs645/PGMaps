@@ -14,7 +14,7 @@ import {
   slopeOnGrid,
   type CanopyGrid,
 } from './sceneCover'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree } from './visibility'
 
 const EYE = { lng: -123.9, lat: 49.6 }

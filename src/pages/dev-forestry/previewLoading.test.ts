@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createForestHistoryLoader, type ForestHistoryData } from './bcForestHistory'
 import { createPreviewTerrainLoader } from './previewTerrainCache'
-import { ElevationGrid, type Bounds, type DemTileRange } from './terrain'
+import { ElevationGrid, type Bounds, type DemTileRange } from '@/lib/forestry/terrain/terrain'
 
 const bounds: Bounds = [-122.65, 53.85, -122.55, 53.95]
 const signal = () => new AbortController().signal

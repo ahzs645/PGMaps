@@ -2,7 +2,7 @@ import type { Feature, Polygon, MultiPolygon, Position, FeatureCollection } from
 import intersect from '@turf/intersect'
 import kinks from '@turf/kinks'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
-import { toMetric } from '../sourceGrids'
+import { toMetric } from '@/lib/lidar/sourceGrids'
 export type InventoryPolygon = Feature<Polygon | MultiPolygon>
 const ringArea = (ring: Position[]) => {
   const xy = ring.map((p) => toMetric(p[0], p[1]))

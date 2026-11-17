@@ -30,7 +30,7 @@ import proj4 from 'proj4'
 import { LOCAL_PLANE_DEFINITION, LOCAL_PLANE_EPSG, projectedCrsDefinition } from '@/lib/geo/projectedCrs'
 import { alignmentLength } from './engine'
 import { gridAlignmentRoad, type XY } from './landXmlImport'
-import type { LocalRaster } from '../dev-forestry/types'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 import type { Alignment, Coordinate, RoadProject, TerrainMetadata } from './types'
 
 export { LOCAL_PLANE_EPSG }

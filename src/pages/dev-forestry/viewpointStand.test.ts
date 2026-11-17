@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { computeAnalysis } from './analysis'
 import { createEmptyScene, parseScene, serializeScene, type ForestryScene } from './scene'
 import { buildSceneInput, sceneFingerprint } from './sceneInput'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { DEFAULT_ANALYSIS_SETTINGS, type AnalysisInput } from './types'
 import {
   DEFAULT_VIEWPOINT_CLEARING,

@@ -31,7 +31,7 @@
  *
  * Pure: no DOM or network access.
  */
-import type { LocalRaster } from '../dev-forestry/types'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 import { applyRoadEngSystemToDecoded, riggingSetToRoadEngLoggingSystem } from './cableEquipment/cableEquipment'
 import { matchingRiggingSet, type RiggingSet } from './dline/riggingSets'
 import { alignmentLength, designProfileAt, horizontalCurveFits } from './engine'

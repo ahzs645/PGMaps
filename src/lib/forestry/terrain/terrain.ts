@@ -139,6 +139,11 @@ export interface ElevationSource {
   elevationAtMercator?(x: number, y: number): number
 }
 
+/** Canopy height above ground, in metres, at a normalised Web Mercator position (`canopy.ts`). */
+export interface CanopySource {
+  heightAtMercator(x: number, y: number): number
+}
+
 /**
  * A mosaic of decoded DEM tiles at one zoom, sampled bilinearly.
  *

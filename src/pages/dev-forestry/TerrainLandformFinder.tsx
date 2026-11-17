@@ -10,7 +10,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { formatPercentValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-import { loadElevationGrid } from './demLoader'
+import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
 import {
   landformFromTerrain,
   TERRAIN_LANDFORM_DEFAULTS,
@@ -30,7 +30,7 @@ import type { ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
 import { formatHa, formatKm } from './measureFormat'
 import { LANDFORM_METHOD_COLORS } from './planMapStyle'
-import { demTileRange } from './terrain'
+import { demTileRange } from '@/lib/forestry/terrain/terrain'
 import type { AnalysisResult, TargetPolygon } from './types'
 import { metersPerDegree, polygonBounds, type PolygonGeometry } from './visibility'
 

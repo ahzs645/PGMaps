@@ -44,7 +44,7 @@ import {
 import { fitText, textWidth } from '@/lib/mapSheet/textMetrics'
 import { ASSESSMENT_VIEWPOINT_COLOR, ROAD_COLOR } from './planMapStyle'
 import { ROLE_COLORS } from './scene'
-import { DEM_TILE_SIZE, demTileRange, EARTH_RADIUS_METERS } from './terrain'
+import { DEM_TILE_SIZE, demTileRange, EARTH_RADIUS_METERS } from '@/lib/forestry/terrain/terrain'
 import type { TargetPolygon } from './types'
 import { blockId } from './viaDocument/resolve'
 import {

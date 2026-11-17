@@ -1,6 +1,6 @@
 import proj4 from 'proj4'
 import { describe, expect, it } from 'vitest'
-import { METRIC_CRS } from './sourceGrids'
+import { METRIC_CRS } from '@/lib/lidar/sourceGrids'
 import type { TreeCrop } from './treeIsolation'
 import {
   canPinProfile,

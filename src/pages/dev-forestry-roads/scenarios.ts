@@ -1,6 +1,6 @@
 import { loadBcHarvestHistory } from './harvestHistory'
-import type { TileDecoder } from '../dev-forestry/demLoader'
-import type { Bounds } from '../dev-forestry/terrain'
+import type { TileDecoder } from '@/lib/forestry/terrain/demLoader'
+import type { Bounds } from '@/lib/forestry/terrain/terrain'
 import { loadBcExistingRoads } from './existingRoads'
 import { alignmentLength, analyzeRoad, distance, positionAt } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'

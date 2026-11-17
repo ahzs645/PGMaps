@@ -1,7 +1,7 @@
 import type { LocalRaster } from '../dev-forestry/types'
-import type { Bounds, ElevationSource } from '../dev-forestry/terrain'
-import { lngLatToMercator, mercatorToLngLat } from '../dev-forestry/terrain'
-import { EARTH_CIRCUMFERENCE_METERS } from '../dev-forestry/terrain'
+import type { Bounds, ElevationSource } from '@/lib/forestry/terrain/terrain'
+import { lngLatToMercator, mercatorToLngLat } from '@/lib/forestry/terrain/terrain'
+import { EARTH_CIRCUMFERENCE_METERS } from '@/lib/forestry/terrain/terrain'
 import { DEFAULT_SIGHTLINE_OPTIONS, haversineMeters, testSightline, type GeoPoint } from '../dev-forestry/visibility'
 
 export const VIEWSHED_COLORS = {

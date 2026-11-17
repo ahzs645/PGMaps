@@ -10,7 +10,7 @@ import {
   terrainSkyline,
   type PhotoPose,
 } from './photoPose'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 
 /** Mapillary image 433510958589782, Hart Highway: its computed rotation and compass angle. */
 const HART_ROTATION: [number, number, number] = [1.2727802695681, 0.56020910208924, -0.70187491085786]

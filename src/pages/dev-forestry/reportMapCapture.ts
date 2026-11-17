@@ -10,7 +10,7 @@ import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import type { RasterImage } from '@/lib/mapSheet/drawOps'
 
 import { collectPlacesFromMap, type BasemapQueryMap } from './basemapContext'
-import { loadElevationGrid } from './demLoader'
+import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
 import { captureAtCamera, rasterizeSheet } from './mapCapture'
 import { composeEndMap, endMapBasemapFromMap, endMapContours, type EndMapBasemap } from './reportEndMap'
 import {
@@ -31,7 +31,7 @@ import {
   type ReportMapFeatures,
   type ReportMapPlan,
 } from './reportMaps'
-import { demTileRange } from './terrain'
+import { demTileRange } from '@/lib/forestry/terrain/terrain'
 import type { ReportFigure } from './viaReport/model'
 
 /** Longest side of a captured report map, pixels: sharp across a printed page. */

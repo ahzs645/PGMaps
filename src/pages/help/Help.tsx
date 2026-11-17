@@ -53,7 +53,7 @@ export default function Help() {
   return (
     <BrandScope surface="help">
       <link rel="stylesheet" href={`${import.meta.env.BASE_URL}brand/access.css`} />
-      <div className="min-h-full bg-background pt-[calc(env(safe-area-inset-top)+4rem)] md:pt-0">
+      <div className="min-h-full bg-background pt-[calc(env(safe-area-inset-top)+var(--app-navbar-offset,4rem))] md:pt-0">
         <header className="border-b bg-card">
           <div className="container mx-auto flex min-w-0 items-center justify-between gap-3 px-4 py-3 sm:px-6">
             <Link

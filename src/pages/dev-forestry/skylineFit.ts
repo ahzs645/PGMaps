@@ -15,7 +15,7 @@
  */
 
 import { cameraAxes, type PhotoPose } from './photoPose'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { earthCurvatureDropMeters } from './visibility'
 
 const RAD = Math.PI / 180

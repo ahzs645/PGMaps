@@ -12,7 +12,7 @@
  */
 
 import type { CanopySource } from './canopy'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import {
   DEFAULT_SIGHTLINE_OPTIONS,
   haversineMeters,

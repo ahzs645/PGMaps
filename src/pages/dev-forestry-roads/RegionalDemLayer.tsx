@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { MapTerrain, type MapTerrainProps } from '@/components/ui/map-layers'
 import type { Map as MaplibreMap } from 'maplibre-gl'
 import { useMap } from '@/components/ui/map'
-import { TERRAIN_ATTRIBUTION, TERRARIUM_TILE_URL } from '../dev-forestry/terrain'
+import { TERRAIN_ATTRIBUTION, TERRARIUM_TILE_URL } from '@/lib/forestry/terrain/terrain'
 
 /** Context relief streams only the visible tiles, at no finer than the regional analysis source. */
 const DEM: MapTerrainProps['dem'] = {

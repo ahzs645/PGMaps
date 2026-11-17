@@ -1,6 +1,6 @@
 /** Bounded live context for the driving preview; full/offline data belongs in bcdatamapper. */
 import { BC_VISUAL_SERVICE, clampQueryBounds } from './bcVisualInventory'
-import type { Bounds } from './terrain'
+import type { Bounds } from '@/lib/forestry/terrain/terrain'
 import { FOREST_HISTORY_MAX_CELLS, type ForestHistoryRecord } from './regrowth'
 import type { PolygonGeometry } from './visibility'
 

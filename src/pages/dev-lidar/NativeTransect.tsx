@@ -5,9 +5,9 @@ import { useKeyedState } from './useKeyedState'
 import type { ElevationProfile, LidarControl } from 'maplibre-gl-lidar'
 import { Button } from '@/components/ui/button'
 import { downloadText } from '@/lib/download'
-import { readSourceGrid, sourceCell, sourceValue, toMetric } from './sourceGrids'
+import { readSourceGrid, sourceCell, sourceValue, toMetric } from '@/lib/lidar/sourceGrids'
 import type { TreeIsolation } from './treeIsolation'
-import type { SourceGrid } from './sourceGrids'
+import type { SourceGrid } from '@/lib/lidar/sourceGrids'
 import { DEFAULT_LOCALE } from '@/lib/format'
 export function startNativeTransect(
   control: Pick<LidarControl, 'clearCrossSection' | 'enableCrossSection' | 'setCrossSectionBufferDistance'>,

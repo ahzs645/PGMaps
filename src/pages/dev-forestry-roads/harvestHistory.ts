@@ -1,5 +1,5 @@
 /** Historical harvest evidence and geographic access candidates. No road-use or connectivity inference. */
-import type { Bounds } from '../dev-forestry/terrain'
+import type { Bounds } from '@/lib/forestry/terrain/terrain'
 import type { ContextFeature } from './types'
 
 export const BC_HARVEST_SERVICE =

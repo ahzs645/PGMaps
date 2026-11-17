@@ -17,7 +17,7 @@
 import { MercatorCoordinate } from 'maplibre-gl'
 
 import type { TreeInstance } from './forest'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 
 /** Stems within this many metres of the eye lay a shadow; they fade out over the last quarter. */
 export const SHADOW_REACH_METERS = 140

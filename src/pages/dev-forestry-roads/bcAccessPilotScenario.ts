@@ -1,4 +1,4 @@
-import type { TileDecoder } from '../dev-forestry/demLoader'
+import type { TileDecoder } from '@/lib/forestry/terrain/demLoader'
 import { createAccessHistoryState } from './accessHistory'
 import { INTERNAL_ACCESS_DRAFT_NAME } from './investigationWorkspace'
 import { BC_ACCESS_PILOT_RECIPE, loadBcAccessPilot } from './bcAccessPilot'

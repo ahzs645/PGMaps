@@ -3,7 +3,7 @@
  * printed slope map and the terrain can be compared range for range over the same block.
  * DOM and network free: a terrain raster and a lon/lat polygon in.
  */
-import type { LocalRaster } from '../dev-forestry/types'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 import { roadProjection } from './terrain'
 
 export interface SlopeRange {

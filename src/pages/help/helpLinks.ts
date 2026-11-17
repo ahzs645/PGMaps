@@ -1,10 +1,12 @@
 import { tourLaunchSearch, type TourLaunchMode } from '@/lib/tours/tourLaunch'
+import { ROAD_DESIGN_DEPLOYMENT } from '../dev-forestry-roads/deployment'
 
 /**
  * Addresses for the help (`/help`, `/help/<lesson>`): the designer address that runs a lesson, and
- * where each address of the old static help now goes. Keep this file free of DOM access.
+ * where each address of the old static help now goes. The designer's own address is the
+ * deployment's (`deployment.ts`). Keep this file free of DOM access.
  */
-export const ROAD_DESIGNER_PATH = '/dev/forestry/road-design'
+export const ROAD_DESIGNER_PATH = ROAD_DESIGN_DEPLOYMENT.designerPath
 
 /** The interface the help's links open the designer in: the address's, else none (the designer's own choice). */
 export function helpInterface(search: string, known: readonly string[]): string | null {

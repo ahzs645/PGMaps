@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict'
 import { decode } from 'fast-png'
-import { decodeTerrariumElevation, DEM_TILE_SIZE } from '../../src/pages/dev-forestry/terrain'
+import { decodeTerrariumElevation, DEM_TILE_SIZE } from '../../src/lib/forestry/terrain/terrain'
 import { ROAD_SCENARIOS, loadRoadScenario } from '../../src/pages/dev-forestry-roads/scenarios'
 import { alignmentLength, analyzeRoad } from '../../src/pages/dev-forestry-roads/engine'
 import { createEngineeringDesign } from '../../src/pages/dev-forestry-roads/engineeringTypes'

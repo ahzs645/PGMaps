@@ -1,0 +1,10 @@
+/* No PGMaps navbar sits above the designer here, so its pages keep no room for one. */
+:root {
+  --app-navbar-offset: 0px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}

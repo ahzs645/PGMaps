@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { describe, it, expect, vi } from 'vitest'
 import { applyHeightDetail, maskEligible, detailColour, type HeightDetail } from './heightDetail'
-import { sourceCell, sourceValue, readSourceGrid } from './sourceGrids'
+import { sourceCell, sourceValue, readSourceGrid } from '@/lib/lidar/sourceGrids'
 const detail = JSON.parse(
   readFileSync(new URL('./height-detail.generated.json', import.meta.url), 'utf8'),
 ) as HeightDetail

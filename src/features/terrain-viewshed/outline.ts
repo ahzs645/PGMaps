@@ -1,5 +1,5 @@
 import { contours } from 'd3'
-import { lngLatToMercator, mercatorToLngLat } from '@/pages/dev-forestry/terrain'
+import { lngLatToMercator, mercatorToLngLat } from '@/lib/forestry/terrain/terrain'
 import { VIEWSHED_COLORS, type ViewshedResult } from './model'
 import type { OverlayMode } from './ViewshedOverlay'
 

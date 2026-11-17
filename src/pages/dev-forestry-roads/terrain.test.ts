@@ -3,6 +3,7 @@ import { fromArrayBuffer, writeArrayBuffer } from 'geotiff'
 import type { PointCloudResult, RunPointCloudOptions } from './pointCloudClient'
 import {
   LIDAR_BASE,
+  lidarSampleBases,
   TerrainImportQuestion,
   createDemoProject,
   demoTerrain,
@@ -199,6 +200,15 @@ describe('road GeoTIFF sampling', () => {
     expect(metadata.raster?.values[5]).toBeNull()
     expect(Number.isNaN(source.elevationAt(...coordinate(512501, 5971999)))).toBe(true)
     expect(source.elevationAt(...coordinate(512503, 5971997))).toBeCloseTo(112.5, 6)
+  })
+
+  it("reads the LiDAR sample from this site's copy first, then the deployment's mirror", () => {
+    vi.stubGlobal('location', { origin: 'https://roads.example.org' })
+    expect(lidarSampleBases()).toEqual([
+      new URL(`${import.meta.env.BASE_URL}data/lidar-analysis/bc-093g086/`, 'https://roads.example.org').href,
+      LIDAR_BASE,
+    ])
+    vi.unstubAllGlobals()
   })
 
   it('restores the recorded native raster bytes without consulting a newer manifest', async () => {

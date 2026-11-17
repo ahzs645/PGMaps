@@ -10,7 +10,7 @@ import {
   type ScreenHeightInput,
   type ScreenHeightSample,
 } from './screenHeight'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { earthCurvatureDropMeters, metersPerDegree, pointInPolygon } from './visibility'
 
 const LNG = -122.75

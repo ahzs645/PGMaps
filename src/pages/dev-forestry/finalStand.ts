@@ -22,7 +22,7 @@ import { PACKAGE_SPECIES_IDS, packageSpecies } from './forest'
 import { forestBands, forestPatches, growForestPatch } from './forestPatches'
 import type { ForestConfiguration } from './ForestOverlay'
 import type { FrameCamera } from './figureFraming'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree } from './visibility'
 import { SCENE_TREE_FIELDS } from './scenePackage'
 

@@ -1,6 +1,6 @@
-import { demResolutionMeters, demTileRange, type ElevationGrid } from '../dev-forestry/terrain'
-import { loadElevationGrid } from '../dev-forestry/demLoader'
-import { localRasterResolution, parseRasters, rasterSampler } from '../dev-forestry/localRaster'
+import { demResolutionMeters, demTileRange, type ElevationGrid } from '@/lib/forestry/terrain/terrain'
+import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
+import { localRasterResolution, parseRasters, rasterSampler } from '@/lib/forestry/terrain/localRaster'
 import {
   computeViewshedRow,
   createViewshedResult,

@@ -106,6 +106,12 @@ To try a bcdatamapper change locally before it is published, run with
 `VITE_DATA_HOSTS_LOCAL=1`. The sync then copies every folder and the app reads
 them all from `public/data`.
 
+A build deployed somewhere other than this site can replace the file at build
+time with `VITE_DATA_HOSTS`, the same JSON on one line. The standalone road
+designer does this (`docs/forestry-road-design/standalone-build.md`): its build
+ships no `public/data`, so it names a host for each data folder it reads.
+`VITE_DATA_HOSTS_LOCAL=1` still wins over both.
+
 ## Writing data requests
 
 Fetch data through `fetchJson`, `fetchBytes` or `fetchGzipText`

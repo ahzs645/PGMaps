@@ -18,7 +18,7 @@
 
 import { MAX_SIGHTLINE_STEPS, sightlineSampling } from '@/features/terrain-viewshed/model'
 
-import { lngLatToMercator, mercatorToLngLat, type ElevationSource } from './terrain'
+import { lngLatToMercator, mercatorToLngLat, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { DEFAULT_ANALYSIS_SETTINGS } from './types'
 import {
   DEFAULT_SIGHTLINE_OPTIONS,

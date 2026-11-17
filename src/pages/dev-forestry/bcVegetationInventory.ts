@@ -23,6 +23,12 @@
  * feature cap below.
  */
 
+import {
+  BC_VEGETATION_WFS,
+  clampVegetationBounds,
+  MAX_VEGETATION_FEATURES,
+  MAX_VEGETATION_QUERY_DEGREES,
+} from '@/lib/forestry/bcVegetationWfs'
 import { fetchFirePerimeters, FIRE_READ_YEARS } from './bcWildfire'
 import {
   BURNT_RECENT_YEARS,
@@ -33,7 +39,7 @@ import {
 } from './sceneCover'
 import { metersPerDegree, polygonBounds, type PolygonGeometry } from './visibility'
 
-export const BC_VEGETATION_WFS = 'https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY/ows'
+export { BC_VEGETATION_WFS, clampVegetationBounds, MAX_VEGETATION_FEATURES, MAX_VEGETATION_QUERY_DEGREES }
 
 const TYPE_NAME = 'pub:WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY'
 
@@ -76,15 +82,6 @@ const FIELDS = [
   ...BURN_FIELDS,
   'GEOMETRY',
 ]
-
-/**
- * Widest box worth asking for. Un-generalised VRI runs about 2 MB over a
- * 13 km × 10 km view, so this is a payload limit rather than a service one.
- */
-export const MAX_VEGETATION_QUERY_DEGREES = 0.35
-
-/** Cap on features in one answer, so a dense valley cannot return a hundred megabytes. */
-export const MAX_VEGETATION_FEATURES = 4000
 
 export type VriStand = {
   featureId: number | null
@@ -140,30 +137,6 @@ export type VegetationResult = {
   stands: VriStand[]
   /** True when the cap was hit, so the answer covers only part of the box. */
   truncated: boolean
-}
-
-/** Keeps a query box inside what the service and the browser can carry. */
-export function clampVegetationBounds(
-  bounds: [number, number, number, number],
-  maxDegrees = MAX_VEGETATION_QUERY_DEGREES,
-): [number, number, number, number] {
-  const [minLng, minLat, maxLng, maxLat] = bounds
-  // A box that already fits comes back untouched, rather than round-tripped
-  // through a centre and a half-width and out the other side as -122.45000001.
-  if (Math.abs(maxLng - minLng) <= maxDegrees && Math.abs(maxLat - minLat) <= maxDegrees) return bounds
-
-  const centreLng = (minLng + maxLng) / 2
-  const centreLat = (minLat + maxLat) / 2
-  const halfLng = Math.min(Math.abs(maxLng - minLng) / 2, maxDegrees / 2)
-  const halfLat = Math.min(Math.abs(maxLat - minLat) / 2, maxDegrees / 2)
-  // Six decimal places is about 10 cm, and keeps the query string short.
-  const round = (value: number) => Number(value.toFixed(6))
-  return [
-    round(centreLng - halfLng),
-    round(centreLat - halfLat),
-    round(centreLng + halfLng),
-    round(centreLat + halfLat),
-  ]
 }
 
 const ROCKY_CODES = ROCKY_NON_VEG_TYPES.map((code) => `'${code}'`).join(',')

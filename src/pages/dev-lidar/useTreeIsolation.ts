@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useKeyedState } from './useKeyedState'
 import treeUrl from './treeIsolation.generated.json?url'
-import { readSourceGrid, sourceCell, sourceValue, toMetric } from './sourceGrids'
+import { readSourceGrid, sourceCell, sourceValue, toMetric } from '@/lib/lidar/sourceGrids'
 import { crownCells, type TreeIsolation, type CrownFeature, type TreeCrop } from './treeIsolation'
 import { DEFAULT_LOCALE } from '@/lib/format'
 export { treeUrl }

@@ -53,7 +53,7 @@ export const DETAIL_SETTLE_MS = 450
 const DETAIL_BLEND_METERS = 0
 import { canopyRange, canopyTileMeters, forestBands, forestPatches, growForestPatch, isFarBand } from './forestPatches'
 import { haversineMeters, type PolygonGeometry } from './visibility'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 
 export type ForestStatus = {
   configuration?: ForestConfiguration

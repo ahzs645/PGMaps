@@ -83,7 +83,7 @@
  */
 import { strToU8, zipSync } from 'fflate'
 import { csrsUtmZone } from '@/lib/geo/projectedCrs'
-import type { LocalRaster } from '../dev-forestry/types'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 import {
   encodeRoadEngDLineChunks,
   roadEngDLineChunkCount,

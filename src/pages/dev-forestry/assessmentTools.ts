@@ -2,7 +2,7 @@
 import { parseScene, type ForestryScene } from './scene'
 import { findSceneLandform, sceneFingerprint } from './sceneInput'
 import { polygonAreaMeters } from './visibility'
-import { parseRasters } from './localRaster'
+import { parseRasters } from '@/lib/forestry/terrain/localRaster'
 import type { LocalRaster } from './types'
 import type { AnalysisResult, Viewpoint } from './types'
 import { assessVia, type ViaAssessment } from './via'

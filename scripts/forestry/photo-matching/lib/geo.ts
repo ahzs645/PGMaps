@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createCanvas, loadImage, type Canvas, type SKRSContext2D } from '@napi-rs/canvas'
-import * as terrain from '../../../../src/pages/dev-forestry/terrain'
+import * as terrain from '../../../../src/lib/forestry/terrain/terrain'
 import { cameraAxes, projectToPhoto, type PhotoPose } from '../../../../src/pages/dev-forestry/photoPose'
 
 export { createCanvas, loadImage }

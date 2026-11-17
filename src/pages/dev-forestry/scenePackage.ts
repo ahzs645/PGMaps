@@ -51,7 +51,7 @@ import { detailedTreeMesh } from './treeGeometry'
 // A capture's package (`engineCapture.ts`) also carries `farTerrain`, a coarse grid to 15 km, `skylineTerrain` past it
 // out to the frames' farthest skyline, and stems out past the assessed landform; the road view's own package keeps
 // 3 km of terrain and 600 m of stems.
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { curvatureDrop, EARTH_RADIUS_M, STANDARD_REFRACTION } from './skylineReach'
 import { metersPerDegree, type PolygonGeometry } from './visibility'
 import type { EngineEnvironment } from './externalRenderers'

@@ -1,6 +1,6 @@
 import { MapTerrain, type MapTerrainProps } from '@/components/ui/map-layers'
 
-import { MAX_DEM_ZOOM, TERRAIN_ATTRIBUTION, TERRARIUM_TILE_URL } from './terrain'
+import { MAX_DEM_ZOOM, TERRAIN_ATTRIBUTION, TERRARIUM_TILE_URL } from '@/lib/forestry/terrain/terrain'
 
 const DEM: MapTerrainProps['dem'] = {
   tiles: [TERRARIUM_TILE_URL],

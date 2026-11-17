@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { eyeClearing, MIN_SCREENED_LANDFORM_SHARE, screenedLandformShare } from './analysis'
 import { alterationWeight } from './integrity'
-import { lngLatToMercator } from './terrain'
+import { lngLatToMercator } from '@/lib/forestry/terrain/terrain'
 
 describe('accuracy study changes (docs/forestry-visual-quality.md, Evidence for the defaults)', () => {
   it('counts a retention-system opening recorded at 0 % clearcut as an opening', () => {

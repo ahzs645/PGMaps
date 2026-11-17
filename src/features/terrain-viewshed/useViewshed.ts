@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GeoPoint, ViewshedResult, ViewshedSettings } from './model'
-import type { Bounds } from '@/pages/dev-forestry/terrain'
+import type { Bounds } from '@/lib/forestry/terrain/terrain'
 import type { LocalRaster } from '@/pages/dev-forestry/types'
 
 export type ViewshedOptions = {

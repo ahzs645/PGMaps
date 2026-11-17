@@ -1,5 +1,9 @@
-import { loadElevationGrid, type LoadElevationGridOptions, type LoadElevationGridResult } from './demLoader'
-import { renderedGroundSource } from './terrain'
+import {
+  loadElevationGrid,
+  type LoadElevationGridOptions,
+  type LoadElevationGridResult,
+} from '@/lib/forestry/terrain/demLoader'
+import { renderedGroundSource } from '@/lib/forestry/terrain/terrain'
 
 /** Two fixed mosaics, at most 128 tiles each (~64 MB total). Reuse decoded
  * elevations, not rendered LOD samples, so reopening cannot move the ground. */

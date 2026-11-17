@@ -1,14 +1,27 @@
 /** Raster sampling and validation have no browser or network dependencies. */
 import proj4 from 'proj4'
 import { LOCAL_PLANE_DEFINITION, LOCAL_PLANE_EPSG, projectedCrsDefinition } from '@/lib/geo/projectedCrs'
-import { mercatorToLngLat, type ElevationSource } from './terrain'
-import type { CanopySource } from './canopy'
-import type { LocalRaster } from './types'
+import { mercatorToLngLat, type CanopySource, type ElevationSource } from './terrain'
 
 proj4.defs(
   'EPSG:3005',
   '+proj=aea +lat_1=50 +lat_2=58.5 +lat_0=45 +lon_0=-126 +x_0=1000000 +y_0=0 +datum=NAD83 +units=m +no_defs',
 )
+/** A cropped, native-resolution, north-up raster. Null cells remain unknown. Heights are metres. */
+export type LocalRaster = {
+  id: string
+  name: string
+  kind: 'terrain' | 'canopy'
+  epsg: number
+  origin: [number, number]
+  pixelSize: [number, number]
+  width: number
+  height: number
+  values: Array<number | null>
+  acquired: string
+  verticalReference: string
+  sha256: string
+}
 export const MAX_RASTER_CELLS = 1_048_576
 /** What a raster's CRS may be, for messages. */
 export const RASTER_CRS_TEXT = 'WGS84, Web Mercator, BC Albers, or a NAD83, NAD83(CSRS) or WGS84 UTM zone'

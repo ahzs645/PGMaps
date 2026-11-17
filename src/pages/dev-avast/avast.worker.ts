@@ -4,8 +4,8 @@
  * finishes. DEM tiles come through the forestry loader, which shares its
  * decoded-tile and Cache Storage caches with the other terrain tools.
  */
-import { loadElevationGrid } from '../dev-forestry/demLoader'
-import { demTileRange } from '../dev-forestry/terrain'
+import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
+import { demTileRange } from '@/lib/forestry/terrain/terrain'
 import { albersBoxToLngLat, albersToLngLat } from './projection'
 import { runOverlay, type ElevationFactory } from './run'
 import { buildVriIndex, vriFillCandidate } from './vriFill'

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { MIN_LEDGER_CELLS_PER_PROPOSAL, computeAnalysis, prepareTargets } from './analysis'
 import type { CanopyStand } from './canopy'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { DEFAULT_ANALYSIS_SETTINGS, type AnalysisInput, type TargetPolygon } from './types'
 import { polygonAreaMeters } from './visibility'
 import { vegHeightForSlope } from './vqo'

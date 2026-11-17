@@ -1,6 +1,6 @@
 import type { Feature, FeatureCollection, Polygon, MultiPolygon } from 'geojson'
 import type { WorkflowOptions, WorkflowFeature } from './analysisWorkflows'
-import { sourceCell } from './sourceGrids'
+import { sourceCell } from '@/lib/lidar/sourceGrids'
 export interface CrownProperties {
   id: string
   height_m: number

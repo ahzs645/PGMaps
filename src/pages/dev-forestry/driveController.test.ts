@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { DriveController, type DriveMap, type DriveOptions, type DrivePose } from './driveController'
 import { HAZE_VISIBILITY_METERS, MAX_WALK_METERS, hazeRings, roadPath, walkStep } from './driveMath'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 
 /** A structural map that records where the camera was put. */
 function fakeMap() {

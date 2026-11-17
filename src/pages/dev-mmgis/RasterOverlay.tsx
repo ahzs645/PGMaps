@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { interpolateViridis } from 'd3'
 import { MapCanvasLayer, boundsToQuad } from '@/components/ui/map-layers'
 import type { LocalRaster } from '../dev-forestry/types'
-import { lngLatToMercator, mercatorToLngLat } from '../dev-forestry/terrain'
+import { lngLatToMercator, mercatorToLngLat } from '@/lib/forestry/terrain/terrain'
 import { rasterBounds, rasterCellSampler } from './raster'
 
 export function RasterOverlay({ raster }: { raster: LocalRaster }) {

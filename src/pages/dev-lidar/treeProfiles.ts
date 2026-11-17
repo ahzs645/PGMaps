@@ -1,4 +1,4 @@
-import { toMetric } from './sourceGrids'
+import { toMetric } from '@/lib/lidar/sourceGrids'
 import type { TreeCrop } from './treeIsolation'
 import type { IsolatedPoint } from './treeIsolation'
 import { TREE_COLOURS } from './treeIsolation'

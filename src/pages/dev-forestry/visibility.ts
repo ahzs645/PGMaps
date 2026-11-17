@@ -1,6 +1,11 @@
 /** Terrain-only geometry. Unknown terrain is NOT an unobstructed sightline. */
 import type { CanopySource } from './canopy'
-import { EARTH_RADIUS_METERS, lngLatToMercator, mercatorToLngLat, type ElevationSource } from './terrain'
+import {
+  EARTH_RADIUS_METERS,
+  lngLatToMercator,
+  mercatorToLngLat,
+  type ElevationSource,
+} from '@/lib/forestry/terrain/terrain'
 export type GeoPoint = { lng: number; lat: number }
 export type GroundPoint = GeoPoint & { groundElevationMeters: number }
 export type SightlineOptions = {

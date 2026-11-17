@@ -1,0 +1,80 @@
+name: Road design standalone
+
+# Builds the forestry road designer as a site of its own (`npm run road-design:build`) and, when a
+# repository is named, exports it there (`npm run road-design:export`). By hand only, like the other
+# feature suites: Actions → Road design standalone → Run workflow. Where the site is deployed comes
+# from the inputs and standalone/forestry-road-design/.env, never this file.
+# Guide: docs/forestry-road-design/standalone-build.md.
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Path the site is served from: "/" at a domain root, "/road-design/" under a subpath'
+        default: '/'
+      export_repository:
+        description: 'Repository to export to (owner/name); empty builds only. Needs the ROAD_DESIGN_EXPORT_TOKEN secret.'
+        default: ''
+      export_branch:
+        description: 'Branch of that repository to commit to'
+        default: 'main'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: road-design-standalone-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: pgmaps
+      # Only what the designer builds against; no scraper data.
+      - run: git submodule update --init packages/geo-toolkit vendor/brandkit vendor/json-url
+        working-directory: pgmaps
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: 'pgmaps/.nvmrc'
+          cache: npm
+          cache-dependency-path: pgmaps/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: pgmaps
+      - run: npm run toolkit:build && node scripts/ensure-tourkit.mjs
+        working-directory: pgmaps
+      - run: npm run road-design:check-boundary
+        working-directory: pgmaps
+      - name: Build
+        run: npm run road-design:build
+        working-directory: pgmaps
+        env:
+          ROAD_DESIGN_BASE: ${{ inputs.base }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: road-design-standalone
+          path: pgmaps/standalone/forestry-road-design/dist
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Clone the export repository
+        if: inputs.export_repository != ''
+        env:
+          TOKEN: ${{ secrets.ROAD_DESIGN_EXPORT_TOKEN }}
+          REPOSITORY: ${{ inputs.export_repository }}
+          BRANCH: ${{ inputs.export_branch }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "Add a ROAD_DESIGN_EXPORT_TOKEN secret that can push to $REPOSITORY."; exit 1; fi
+          git clone "https://x-access-token:${TOKEN}@github.com/${REPOSITORY}.git" target
+          cd target
+          # A new branch starts empty, not from the repository's default branch.
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then git checkout "$BRANCH"
+          else git checkout --orphan "$BRANCH" && git rm -rf --quiet --ignore-unmatch .; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Export
+        if: inputs.export_repository != ''
+        run: node scripts/road-design/export.mjs --out ../target --commit --push origin --branch "${{ inputs.export_branch }}"
+        working-directory: pgmaps

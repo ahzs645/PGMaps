@@ -17,7 +17,7 @@
  * Free of DOM and network access, like the rest of the geometry here.
  */
 
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { earthCurvatureDropMeters } from './visibility'
 
 type Vec3 = [number, number, number]

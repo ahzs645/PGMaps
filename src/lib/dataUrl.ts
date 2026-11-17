@@ -8,9 +8,13 @@ const ABSOLUTE = /^[a-z][a-z0-9+.-]*:|^\/\//i
  * `src/config/data-hosts.json`. `VITE_DATA_HOSTS_LOCAL=1` ignores the file, so
  * a local build reads a changed bcdatamapper snapshot from public/data before
  * it is published (the sync script then copies every folder too).
+ * `VITE_DATA_HOSTS` (the file's JSON) replaces it for a build deployed
+ * elsewhere, such as the standalone road designer (docs/data-hosts.md).
  */
 export const DATA_HOSTS: readonly DataHost[] =
-  import.meta.env.VITE_DATA_HOSTS_LOCAL === '1' ? [] : parseDataHosts(dataHostsConfig)
+  import.meta.env.VITE_DATA_HOSTS_LOCAL === '1'
+    ? []
+    : parseDataHosts(import.meta.env.VITE_DATA_HOSTS ? JSON.parse(import.meta.env.VITE_DATA_HOSTS) : dataHostsConfig)
 
 /**
  * Resolve a root-relative path for this deploy.

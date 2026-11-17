@@ -10,7 +10,7 @@ import {
   terrainAscii,
   terrainSurfaceLandXml,
 } from './terrainPreparation'
-import type { LocalRaster } from '../dev-forestry/types'
+import type { LocalRaster } from '@/lib/forestry/terrain/localRaster'
 import { mergePointClouds, type PointCloud } from './pointCloud'
 import { gridSurface } from './pointCloud.worker'
 

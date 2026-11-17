@@ -8,7 +8,7 @@ import {
   reverseStationsToGeoJson,
   type ReverseRoad,
 } from './reverseViewshed'
-import type { ElevationSource } from './terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 
 /** Terrain that varies with longitude only, so a ridge can be placed exactly. */
 function profile(elevationForLng: (lng: number) => number): ElevationSource {

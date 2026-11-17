@@ -18,7 +18,7 @@ import {
   summarizeRun,
   timelineScene,
 } from './assessmentTools'
-import { localRasterResolution, parseRasters, rasterSampler } from './localRaster'
+import { localRasterResolution, parseRasters, rasterSampler } from '@/lib/forestry/terrain/localRaster'
 import { createEmptyScene, createSampleScene, parseScene, serializeScene, type ForestryScene } from './scene'
 import { buildSceneInput, sceneFingerprint } from './sceneInput'
 import { traceSightlineProfile } from './sightlineProfile'

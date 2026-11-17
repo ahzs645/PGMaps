@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { computeViewshedRow, createViewshedResult, viewshedLayout, type ViewshedInput } from './analysis'
 import { metersPerDegree } from '../dev-forestry/visibility'
-import type { ElevationSource } from '../dev-forestry/terrain'
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 
 const input: ViewshedInput = {
   observer: { lng: -122.75, lat: 53.92 },

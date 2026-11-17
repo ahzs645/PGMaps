@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import proj4 from 'proj4'
 import { describe, it, expect, vi } from 'vitest'
-import { METRIC_CRS } from './sourceGrids'
+import { METRIC_CRS } from '@/lib/lidar/sourceGrids'
 import type { TreeIsolation } from './treeIsolation'
 const state = vi.hoisted(() => ({
   cloud: null as unknown,
@@ -40,8 +40,8 @@ vi.mock('maplibre-gl-lidar', () => ({
     }
   },
 }))
-vi.mock('./sourceGrids', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./sourceGrids')>()
+vi.mock('@/lib/lidar/sourceGrids', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/lidar/sourceGrids')>()
   return {
     ...actual,
     readSourceGrid: async () => ({

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, it, expect } from 'vitest'
 import { benchmarkPreview, checkBenchmarks, type BenchmarkData } from './TreeBenchmarks'
 import { pointKey } from './treeInspection'
-import { toMetric } from './sourceGrids'
+import { toMetric } from '@/lib/lidar/sourceGrids'
 import type { TreeIsolation } from './treeIsolation'
 const data = JSON.parse(
   readFileSync(new URL('./treeBenchmarks.generated.json', import.meta.url), 'utf8'),
