@@ -1,4 +1,5 @@
 /** Evaluates prepared ground and ordered section additions. No renderer, network or DOM state. */
+import { culvertInletSide } from './culverts/culvertInlet'
 import { sectionCrossfall, sideValue } from './templates'
 import type { Alignment, RoadStation, RoadTemplate, SectionSample } from './types'
 import { featureSectionAnchor, type SectionReferenceSources } from './sectionReferences'
@@ -203,9 +204,9 @@ export function assembledSection({
     const edgeGround = constructionGround(sign * width),
       cutAtEdge = edgeGround !== null && edgeGround > edgeZ + EPS
     let depth = sideValue(t, name, 'DitchDepth')
-    if (name === 'left' && depth > 0)
+    if (depth > 0)
       for (const c of e?.culverts ?? [])
-        if (c.ditchDipPercent && c.inletInvertM !== null)
+        if (c.ditchDipPercent && c.inletInvertM !== null && culvertInletSide(c) === name)
           depth = Math.max(
             depth,
             Math.min(

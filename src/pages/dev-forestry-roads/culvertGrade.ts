@@ -11,7 +11,7 @@ type Inverts = Pick<Culvert, 'inletInvertM' | 'outletInvertM' | 'lengthM'>
 /** The slope the capacity figure assumes for a pipe with no fall entered yet: 2 %, the drainage run's default. */
 export const ASSUMED_CULVERT_SLOPE = 0.02
 
-/** Fall from the inlet (left) to the outlet (right) as a percentage of the horizontal span; null without both inverts. */
+/** Fall from the inlet to the outlet (either side, `inletSide`) as a percentage of the horizontal span; null without both inverts. */
 export function culvertFallPercent(c: Inverts): number | null {
   return c.inletInvertM !== null && c.outletInvertM !== null && c.lengthM > 0
     ? ((c.inletInvertM - c.outletInvertM) / c.lengthM) * 100

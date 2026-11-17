@@ -1,5 +1,6 @@
 /** Bounded validation for optional engineering inputs in v1 road projects. */
 import { parseCulvertOptions } from './culverts/culvertOptions'
+import { parseCulvertInletSide } from './culverts/culvertInlet'
 import { parseRoadEngCulvertRecord } from './roadEngCulverts'
 import { parseRoadEngPlacedCulvertRecord } from './roadEngPlacedCulverts'
 import type { AlignmentEngineering, RoadTemplate } from './types'
@@ -130,6 +131,7 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       skewDegrees: numeric(v.skewDegrees, 'Culvert skew', -80, 80),
       lengthM: numeric(v.lengthM, 'Culvert length', 0.2, 500),
       diameterM: numeric(v.diameterM, 'Culvert diameter', 0.1, 20),
+      ...parseCulvertInletSide(v.inletSide),
       inletInvertM: invert(v.inletInvertM, 'Inlet invert'),
       outletInvertM: invert(v.outletInvertM, 'Outlet invert'),
       minCoverM: numeric(v.minCoverM, 'Minimum cover', 0, 100),
