@@ -47,7 +47,8 @@ formats are specified in the
 | D-line stake-out CSV                                           | One row per support and anchor of a D-line with a saved layout: station from the yarder, offset 0, grid easting/northing with EPSG, lon/lat, ground, support height, saddle elevation                                                                                                                                                                                                                                                                                                                                        | Project grid (terrain EPSG, else local UTM) and WGS84                            | A survey of the stake; tree or anchor sizes                                                                                                                               |
 | D-line sheet (PDF)                                             | One tabloid page for the D-line on screen: issue stamp, profile with supports and load path, plan strip with contours, support and stake-out table, forces and angles, limits, rigging, assumptions                                                                                                                                                                                                                                                                                                                          | Project grid in the table; plan north-up                                         | Pages per support; anchors' and trees' sizes                                                                                                                              |
 | Landing reach CSV                                              | One row per bearing: reach or lower bound, what limited it, tailhold position, settings                                                                                                                                                                                                                                                                                                                                                                                                                                      | WGS84 lon/lat                                                                    | Lateral yarding, side-slope, profile samples                                                                                                                              |
-| LandXML 1.2 (`.xml`)                                           | Active road only: lines, arcs and clothoid spirals; PVI profile with parabolic curves; ground profile; design and ground cross-sections about every 20 m; superelevation per curve; 3D feature lines                                                                                                                                                                                                                                                                                                                         | Terrain's projected EPSG, else WGS84 UTM zone of the first point                 | Other alternatives, surfaces (TIN), template/corridor model, curve widening, ditches as objects, culverts                                                                 |
+| LandXML 1.2 (`.xml`)                                           | Active road only: lines, arcs and clothoid spirals; PVI profile with parabolic curves; ground profile; design and ground cross-sections about every 20 m; superelevation per curve; 3D feature lines                                                                                                                                                                                                                                                                                                                         | Terrain's projected EPSG, else WGS84 UTM zone of the first point                 | Other alternatives, design surfaces (their own files), template/corridor model, curve widening, ditches as objects, culverts                                                                 |
+| Design surfaces (`-subgrade-surface.xml`, `-finished-surface.xml`) | Active road only: the subgrade or the finished surface as LandXML 1.2 TINs, one `Surface` per piece between incomplete sections, with explicit faces and an outer boundary | Same as LandXML | Volumes, walls and barriers as solids, the original ground (its own Terrain surface file) |
 | RoadEng design (`.dsnx`)                                       | The road on screen or every road, one alignment each: PIs with radii and spirals, per-curve design values, vertical PIs with curves, calculated stations with design levels (ground levels for a road without a profile), report stations at template-range, ground-layer, pit and superelevation points, ground types and haul costs. A road read from RoadEng also keeps everything else its design held: the `.dsn` with PGMaps' edits written into the fields they came from, the kept `.ds2` records, `.ds1` and `.ds3` | Same as LandXML                                                                  | A wall, barrier or sub-cut a template's components do not hold, a culvert's inverts and costs (kept in `[PGMaps]`); a road not read from RoadEng gets no RoadEng template |
 | Stakeout CSV                                                   | Active road, about every 20 m: centreline, formation edges, ditch bottoms (cut only) and catch points with offset, grid coordinates, level, ground and cut/fill                                                                                                                                                                                                                                                                                                                                                              | Same as LandXML                                                                  | Reference or offset stakes, instrument data, point descriptions for a data collector                                                                                      |
 | CAD drawing (`.dxf`, R12)                                      | Active road: plan centreline (lines and true arcs, spirals as polylines), 3D feature lines for the centreline, formation edges, ditch bottoms and catch points at every calculated station, station ticks and labels; profile and cross-sections at true scale below the plan                                                                                                                                                                                                                                                | Plan: same as LandXML. Profile and sections: their own frames below the plan     | Surfaces, hatching, title block, other roads, terrain contours                                                                                                            |
@@ -95,6 +96,7 @@ book.
 | Section and stake interval            | 20 m (nearest calculated station)                                                                                                                                                                                                                                                                                                                                                                                                | `designExports.ts`, `landXml` / `stakeoutCsv` (`sectionStations`)                                                                                                                                                                                                                                                                                                                        | Fixed                                                                                                                                |
 | LandXML import                        | 50,000,000 characters; 4,000 elements an alignment; checks 7 mm, 1 mm, 0.06°                                                                                                                                                                                                                                                                                                                                                     | `landXmlImport.ts` `MAX_LANDXML_BYTES`, `MAX_LANDXML_ELEMENTS`, `LANDXML_LENGTH_TOLERANCE_M`, `LANDXML_JOINT_TOLERANCE_M`, `LANDXML_KINK_TOLERANCE_DEG`                                                                                                                                                                                                                                  |
 | LandXML superelevation                | 2,000 `Superelevation` elements an alignment; rate 0–20 %                                                                                                                                                                                                                                                                                                                                                                        | `landXmlSuperelevation.ts` `MAX_LANDXML_SUPERELEVATIONS`                                                                                                                                                                                                                                                                                                                                 |
+| Design surfaces                       | A vertical face is drawn 10 mm wide; section points within 1 mm across the road are one point | `designSurfaceExport.ts` `VERTICAL_FACE_INSET_M`, `SAME_OFFSET_M` |
 | RoadEng design import (`.dsnx`)       | 50,000,000 bytes, 100,000,000 a part unpacked; 50 alignments; 1,998 PIs and 498 vertical PIs an alignment; rebuild checks 10 mm plan and profile; fit 0.1 m; thinned profile 10 mm, doubled until it fits 500 PVIs                                                                                                                                                                                                               | `roadEngImport.ts` `MAX_ROADENG_BYTES`, `MAX_ROADENG_ENTRY_BYTES`, `MAX_ROADENG_ALIGNMENTS`, `MAX_ROADENG_PIS`, `MAX_ROADENG_VIPS`, `ROADENG_PLAN_TOLERANCE_M`, `ROADENG_PROFILE_TOLERANCE_M`, `ROADENG_FIT_DEVIATION_M`                                                                                                                                                                 | Refused over the size, alignment and PI limits; a check outside its limit follows the design's stations                              |
 | Values by station                     | 100 a road, 200 stations each; values within the template field's limits                                                                                                                                                                                                                                                                                                                                                         | `templateParameterOverrides.ts`, `MAX_PARAMETER_OVERRIDES`, `MAX_OVERRIDE_POINTS`                                                                                                                                                                                                                                                                                                        | The file is refused; a RoadEng design's further overrides are listed under Not carried over                                          |
 | RoadEng parts kept with a road        | 4,000,000 characters an alignment (its `.dsn`, base64 `.ds1`/`.ds3`, kept `.ds2` records, the first alignment's `.dsn` for a later one, its P-line)                                                                                                                                                                                                                                                                              | `roadEngImport.ts` `MAX_ROADENG_SOURCE_CHARS`                                                                                                                                                                                                                                                                                                                                            | Over it the road keeps none and a RoadEng file written from it holds only what this workspace models; the notice says so             |
@@ -257,7 +259,7 @@ Those results are not the current design, so each output follows one rule
 | Rule       | Outputs                                                                                                                                       | Why                                                                                                            |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | Stamped    | Report HTML, Report PDF, Map PDF, Block map sheet, Report package (refused while it holds plot-book sheets)                                   | A person reads them, and the stamp is the first thing on the page                                              |
-| Refused    | LandXML, DXF, Stakeout CSV, Plot book, Station CSV, Culvert schedule CSV, GeoJSON, Shapefile, and the Station table, Engineering and Selected-section CSV downloads | They go to a contractor or into other software, and have nowhere to carry a notice their reader will see       |
+| Refused    | LandXML, Subgrade and Finished surface, DXF, Stakeout CSV, Plot book, Station CSV, Culvert schedule CSV, GeoJSON, Shapefile, and the Station table, Engineering and Selected-section CSV downloads | They go to a contractor or into other software, and have nowhere to carry a notice their reader will see       |
 | Unaffected | Project JSON, Map notes, Terrain surface and grid, Stream register, Fish & watershed evidence                                                 | They hold no calculated design result. The project JSON is still refused by its own validation, as noted above |
 
 - **The stamp** on the report is a red box under the title: "Not current: this report leaves out an
@@ -308,7 +310,8 @@ Those results are not the current design, so each output follows one rule
   with a `PntList3D` of "northing easting elevation" at every calculated station. A station where
   the point or its level is missing ends one part and starts the next (`EDGE_L_1`, `EDGE_L_2`).
   They are the same lines as the DXF's (`sectionFeatureLines`, `designExports.ts`). They are string
-  lines for CAD and machine-control software to read; no design surface (TIN) is written.
+  lines for CAD and machine-control software to read. The design surfaces (TIN) are their own
+  files ([Design surfaces](#design-surfaces-landxml-tin)).
 - **Superelevation** (`landXmlSuperelevationXml`, `landXmlSuperelevation.ts`): one `Superelevation`
   per curve with superelevation, its stations where the engine puts them (`curveDesignAt`):
   `BeginRunoffSta` and `FullSuperSta` `share × runoff` before and `(1 − share) × runoff` after the
@@ -317,6 +320,74 @@ Those results are not the current design, so each output follows one rule
   `runoff × crown ÷ e` beyond them when the road has one (else the same stations), `FullSuperelev`
   the curve's e in percent, positive, and `AdverseSE` `non-adverse`. Curve widening has no LandXML
   element and is not written.
+
+### Design surfaces (LandXML TIN)
+
+**Subgrade surface** and **Finished surface** in Save & export's Survey & CAD group write the
+road on screen as LandXML 1.2 TINs for CAD and machine control (`designSurfaceExport.ts`). The
+original ground stays the separate **Terrain surface** file.
+
+- **Built from the engineering sections only.** Each calculated station's section design line
+  (`RoadStation.section`, the line the LandXML `CrossSect` "Design" carries) gives that station's
+  points, with the named points of `sectionCodePoints` (catch points, ditch bottoms, formation
+  edges, centreline) as vertices. Nothing is interpolated between stations, and offsets are
+  negative to the left looking up-station.
+- **Subgrade** is the design line itself: this workspace's profile is the subgrade.
+- **Finished surface** is the subgrade raised by the surfacing courses across the running surface
+  (`template.layers`, or `surfaceDepth` / `leftSurfaceDepth` / `rightSurfaceDepth`, on the
+  station's own widths, widening included) and the subgrade itself from the formation edges out:
+  ditches and batters are the same on both surfaces. A course with a side slope narrows as
+  `courseStack` draws it.
+- **Explicit faces.** Consecutive sections are joined by `<Faces>`, never left for the receiving
+  program to triangulate. The named points present in both sections are matched, so the centreline,
+  edges, ditch bottoms and catch points are triangle edges; the points between them are paired in
+  order across the road. Faces wind counter-clockwise seen from above in grid easting/northing.
+- **Never across a gap.** An interval with an incomplete section at either end (`complete` false:
+  missing ground, a section that does not close) is not bridged. The surface breaks there into
+  separate pieces, each its own `<Surface>` (`… part 2`), and the export notice and an XML comment
+  name each stretch with no surface in the road's stations, with the section builder's reason. A
+  road with no two complete sections in a row writes no file and says so.
+- **An outer boundary for each piece**: a closed `PntList3D` in `SourceData/Boundaries`
+  (`bndType="outer"`, `edgeTrim="true"`), along the first section, up the right catch points, back
+  along the last section and down the left catch points.
+- **Vertical faces.** A TIN cannot hold two levels at one point, so a square-edged course and any
+  vertical step in a design line are drawn `VERTICAL_FACE_INSET_M` (10 mm) wide, the upper point
+  moved toward the centreline. The comment counts the steps in a design line.
+- **Folds are reported, not hidden.** On the inside of a curve tighter than the section reaches,
+  consecutive sections can cross; those faces are kept as built and the notice counts them.
+- **Same grid, units and datum as the LandXML alignment** (`exportGrid`): metres, the terrain's
+  EPSG and vertical datum text in `CoordinateSystem`, points "northing easting level" to the
+  millimetre. Refused while an input is invalid, like the alignment file.
+- **Not in it:** volumes (compare surfaces in the receiving program), walls and barriers as solids
+  (their outlines are in the alignment file's `CrossSect`), sub-cut bottoms, curve-corrected
+  anything.
+
+#### Receiving-software check list (unverified)
+
+Nobody has opened these files in the programs below yet. Run each check and record the program,
+version and date here before relying on the surfaces in the field. Autodesk distinguishes
+importing a LandXML surface's points from keeping the faces it supplies, so check the surface
+the program builds, not only the coordinates.
+
+1. **Civil 3D** (Insert → LandXML, "Import as… Surface"):
+   - The file imports with no "ignored element" messages, one surface per piece, named
+     `<road> Subgrade` / `<road> Finished surface` (`part n` where the road has gaps).
+   - **Faces kept:** the triangle count in Surface Properties → Statistics → TIN equals the number
+     of `<F>` elements of that `<Surface>`, and the triangles drawn match the file's (no triangles
+     re-made by Delaunay across the road, no triangles across a gap between pieces).
+   - **Boundary:** the outer boundary appears under Definition → Boundaries and trims nothing
+     inside the piece; no triangle lies outside it.
+   - **Coordinates and levels:** with the drawing's coordinate system set to the file's EPSG, three
+     points (a catch point, the centreline, a formation edge) at a known station match the Stakeout
+     CSV to the millimetre; the surface's elevation at the centreline matches the profile, and the
+     finished surface sits the surfacing depth above the subgrade there.
+   - A surface-to-surface volume between the two surfaces is close to the road's surfacing volume
+     over the same stations (not exact: the TIN joins sections with straight faces).
+2. **Trimble Business Center** and **Leica Infinity**: import, faces kept, boundary present,
+   coordinates as above; export to the machine-control format (`.ttm`, `.dxf` or `.xml`) and
+   check the face count survives.
+3. **QGIS** (no native LandXML surface reader): skip, or check the points through a converter.
+4. **RoadEng**: not a target; RoadEng builds its own surfaces from the design.
 
 ### Importing a LandXML alignment
 

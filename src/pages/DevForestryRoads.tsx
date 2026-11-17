@@ -388,6 +388,7 @@ import { incompleteReasonSummary } from './dev-forestry-roads/sectionCompletenes
 import { unpricedQuantities } from './dev-forestry-roads/costReadiness'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
+import { designSurfaceLandXml } from './dev-forestry-roads/designSurfaceExport'
 import { exportedRoadStyles } from './dev-forestry-roads/exportStyles'
 import { roleOverrides } from './dev-forestry-roads/styleLibrary'
 import { readStoredStyleLibrary, StyleLibraryPanel } from './dev-forestry-roads/StyleLibraryPanel'
@@ -3949,6 +3950,21 @@ export default function DevForestryRoads({
               ),
             )
           : text(stakeoutCsv({ alignment, analysis, ...grid }), `${basename}-stakeout.csv`, 'text/csv;charset=utf-8')
+      }
+      case 'subgrade-landxml':
+      case 'finished-surface-landxml': {
+        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
+        const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
+        const kindOf = kind === 'subgrade-landxml' ? 'subgrade' : 'finished'
+        const written = designSurfaceLandXml({
+          kind: kindOf,
+          name: safe.name,
+          alignment,
+          analysis,
+          terrain: project.terrain,
+          ...grid,
+        })
+        return text(written.xml, `${basename}-${kindOf}-surface.xml`, 'application/xml', written.notice)
       }
       case 'csv':
         return text(
