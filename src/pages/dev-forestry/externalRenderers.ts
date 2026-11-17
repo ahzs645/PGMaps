@@ -80,7 +80,7 @@ export const ROAD_RENDERERS: readonly RoadRendererInfo[] = [
     id: 'nanite',
     label: 'Nanite Forest',
     summary:
-      'GPU-driven cluster levels of detail (three.js, WebGPU), drawing PGMaps’ own tree models. One uniform scale per stem: heights are kept, crown widths become each species’ median.',
+      'GPU-driven cluster levels of detail (three.js, WebGPU), with separate component shapes for measured stems. Recorded dimensions are kept; procedural crown shapes remain approximations.',
     licence: 'MIT',
     needsWebGpu: true,
     workerPath: 'engines/nanite/pgmaps-engine.js',
@@ -487,9 +487,14 @@ export function engineStatsLine(info: RoadRendererInfo, stats: Record<string, un
   const count = (key: string) => (typeof stats[key] === 'number' ? (stats[key] as number) : null)
   const drawn = count('drawn') ?? count('visible') ?? count('instances')
   const fps = count('fps')
+  const queue = stats.queue && typeof stats.queue === 'object' ? (stats.queue as Record<string, unknown>) : null
   const parts = [`Drawn by ${info.label}`]
   if (drawn !== null) parts.push(`${Math.round(drawn).toLocaleString('en-CA')} trees`)
-  if (fps !== null) parts.push(`${Math.round(fps)} fps`)
+  if (fps !== null) parts.push(`${Math.round(fps)}${queue ? ' submitted' : ''} fps`)
+  const completedFps = count('completedFps')
+  if (completedFps !== null) parts.push(`${Math.round(completedFps)} completed fps`)
+  if (typeof queue?.completionLatencyMs === 'number' && Number.isFinite(queue.completionLatencyMs))
+    parts.push(`${Math.round(queue.completionLatencyMs)} ms GPU completion`)
   // The sun asked for, and the one the light came from when the engine moved it (its daylight look).
   const sun = stats.sun as { elevation?: unknown; drawnElevation?: unknown } | undefined
   const asked = typeof sun?.elevation === 'number' ? sun.elevation : null

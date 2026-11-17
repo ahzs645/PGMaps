@@ -7,8 +7,8 @@
  * by `growForestPatch` with that band's spacing and seed — out to `radiusMeters` (the landform's farthest point plus a
  * kilometre) within the frames' bearings. Species, heights, VRI crown closure, clearings, openings, thinnings,
  * reserves and tree-free areas therefore follow exactly the rules the road view follows, and inside the near band the
- * stems are the road view's own stems. Crowns come from `crownWidthForClosure` at the near band's density (about
- * 3–4 m on a mature stand), never wider than `FINAL_STAND_MAX_CROWN_TO_HEIGHT` of the stem's height.
+ * stems are the road view's own stems. Crowns keep each native or supplied individual's width. Dense inventories
+ * past the near grid's capacity carry an expansion factor rather than claiming every representative is one tree.
  *
  * Output is the package's tree layout (`SCENE_TREE_FIELDS`) in its local metres, one Float32Array to transfer.
  * Patches grow nearest first; when the next would pass `FINAL_STAND_MAX_STEMS`, growing stops and the stand's radius
@@ -25,12 +25,10 @@ import type { FrameCamera } from './figureFraming'
 import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { metersPerDegree } from './visibility'
 import { SCENE_TREE_FIELDS } from './scenePackage'
+import { treeComponents } from './sceneComponents'
 
-/** Most stems a final stand carries: about 42 MB of floats, a few milliseconds a frame as instanced cards. */
+/** Most stems a final stand carries; appended metadata is transferred with its numeric buffer. */
 export const FINAL_STAND_MAX_STEMS = 1_500_000
-
-/** A crown at most this share of its stem's height: a spire, not a clump. */
-export const FINAL_STAND_MAX_CROWN_TO_HEIGHT = 0.35
 
 /** How far past the farthest class polygon (the landform, the blocks) the stand reaches, metres. */
 export const FINAL_STAND_PAST_LANDFORM_METERS = 1000
@@ -61,10 +59,11 @@ export type FinalStandInput = {
 }
 
 export type FinalStand = {
-  fields: typeof SCENE_TREE_FIELDS
+  fields: readonly string[]
   species: typeof PACKAGE_SPECIES_IDS
   count: number
   data: Float32Array
+  ids?: string[]
   /** The radius the stand is complete to: the one asked for, or less when the stem budget ran out. */
   radiusMeters: number
   requestedRadiusMeters: number
@@ -144,10 +143,11 @@ export function* finalStandSteps(
   })
   patches.sort((a, b) => a.nearest - b.nearest)
 
-  // The package's species (`scenePackage.ts`): the six the other renderers know by name.
+  // The package's species; compatibility conversion happens only at the consumer boundary.
   const species = PACKAGE_SPECIES_IDS
   const speciesIndex = new Map(species.map((id, i) => [id, i]))
   const chunks: Float32Array[] = []
+  const idChunks: string[][] = []
   let count = 0
   let radius = requested
   let clipped = false
@@ -164,6 +164,7 @@ export function* finalStandSteps(
     const { patch, nearest } = patches[i]
     const grown = growForestPatch(patch, band, inputs, elevation, anchorLatitude)
     const chunk = new Float32Array(grown.length * FIELDS)
+    const chunkIds: string[] = []
     let kept = 0
     for (const tree of grown) {
       const x = (tree.lng - origin.lng) * scale.lng
@@ -178,8 +179,10 @@ export function* finalStandSteps(
       chunk[o + 2] = tree.elevationMeters
       chunk[o + 3] = speciesIndex.get(packageSpecies(tree.species)) ?? 0
       chunk[o + 4] = tree.heightMeters
-      chunk[o + 5] = Math.min(tree.heightMeters * tree.slenderness, tree.heightMeters * FINAL_STAND_MAX_CROWN_TO_HEIGHT)
+      chunk[o + 5] = tree.heightMeters * tree.slenderness
       chunk[o + 6] = tree.tone
+      chunk.set(treeComponents(tree), o + 7)
+      chunkIds.push(tree.id ?? `p:${tree.lng}:${tree.lat}:${tree.species}`)
       kept++
     }
     if (count + kept > maxStems) {
@@ -189,6 +192,7 @@ export function* finalStandSteps(
       break
     }
     chunks.push(chunk.subarray(0, kept * FIELDS))
+    idChunks.push(chunkIds)
     count += kept
     if (now() - sliceStart >= sliceMillis) {
       yield
@@ -198,16 +202,19 @@ export function* finalStandSteps(
 
   // One buffer; with the radius brought in, only the stems inside it.
   const data = new Float32Array(count * FIELDS)
+  const ids: string[] = []
   let written = 0
-  for (const chunk of chunks) {
+  for (const [i, chunk] of chunks.entries()) {
     if (!clipped) {
       data.set(chunk, written * FIELDS)
+      ids.push(...idChunks[i])
       written += chunk.length / FIELDS
       continue
     }
     for (let k = 0; k < chunk.length; k += FIELDS)
       if (Math.hypot(chunk[k] - eyeX, chunk[k + 1] - eyeY) < radius) {
         data.set(chunk.subarray(k, k + FIELDS), written * FIELDS)
+        ids.push(idChunks[i][k / FIELDS])
         written++
       }
   }
@@ -216,6 +223,7 @@ export function* finalStandSteps(
     species,
     count: written,
     data: written === count ? data : data.slice(0, written * FIELDS),
+    ids,
     radiusMeters: radius,
     requestedRadiusMeters: requested,
     bearings,
@@ -245,7 +253,7 @@ export function moveStandOrigin(
   const dx = (from.lng - to.lng) * scale.lng
   const dy = (from.lat - to.lat) * scale.lat
   if (Math.abs(dx) < 1e-3 && Math.abs(dy) < 1e-3) return stand
-  for (let k = 0; k < stand.data.length; k += FIELDS) {
+  for (let k = 0; k < stand.data.length; k += stand.fields.length) {
     stand.data[k] += dx
     stand.data[k + 1] += dy
   }

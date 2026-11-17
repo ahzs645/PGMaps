@@ -26,6 +26,9 @@ import { EngineSurface } from './EngineSurface'
 import { captureTransfer, type EngineCaptureRequest } from './engineCapture'
 import type { ScenePackage } from './scenePackage'
 import { ACCEPTS_PACKED_ARRAYS, engineAccepts, packScene } from './scenePosting'
+import { sceneForEngine } from './sceneComponents'
+import { captureForEngine } from './engineRequests'
+import { ACCEPTS_RENDER_OPTIONS, DEFAULT_ENGINE_RENDER_OPTIONS, type EngineRenderOptions } from './engineRenderOptions'
 
 type Props = {
   renderer: Exclude<RoadRendererId, 'pgmaps'>
@@ -38,6 +41,7 @@ type Props = {
   stand: object
   /** The light and weather to draw; sent on its own, so a change never rebuilds the stand. */
   environment: EngineEnvironmentChoice
+  renderOptions?: EngineRenderOptions
   /** Back to PGMaps' own drawing. */
   onUsePgmaps: () => void
   /** Filled while the engine listens: asks it for an analysis sheet's frames (`engineCapture.ts`). */
@@ -56,7 +60,11 @@ export type EngineCaptureHandle = {
    */
   capture: (
     scene: ScenePackage,
-    request: (scene: ScenePackage) => EngineCaptureRequest | Promise<EngineCaptureRequest>,
+    request: (
+      scene: ScenePackage,
+      renderOptions?: EngineRenderOptions,
+    ) => EngineCaptureRequest | Promise<EngineCaptureRequest>,
+    renderOptions?: EngineRenderOptions,
   ) => Promise<unknown>
 }
 
@@ -77,6 +85,7 @@ export function ExternalRoadRenderer({
   buildScene,
   stand,
   environment,
+  renderOptions = DEFAULT_ENGINE_RENDER_OPTIONS,
   onUsePgmaps,
   captureRef,
 }: Props) {
@@ -88,12 +97,18 @@ export function ExternalRoadRenderer({
   // The latest scene builder, for the bridge, which lives outside render.
   const buildRef = useRef(buildScene)
   const environmentRef = useRef(environment)
+  const renderOptionsRef = useRef(renderOptions)
   useLayoutEffect(() => {
     buildRef.current = buildScene
     environmentRef.current = environment
+    renderOptionsRef.current = renderOptions
   })
   // The bridge runs on every map move and must never re-render the page, so it is plain functions over refs.
-  const bridgeRef = useRef<{ sendScene: () => void; sendEnvironment: () => void } | null>(null)
+  const bridgeRef = useRef<{
+    sendScene: () => void
+    sendEnvironment: () => void
+    sendRenderOptions: () => void
+  } | null>(null)
 
   useEffect(() => {
     if (!channel) return
@@ -105,6 +120,7 @@ export function ExternalRoadRenderer({
     // buffers, not copied number by number on this page's main thread (`scenePosting.ts`).
     let accepts: unknown = null
     const postScene = (scene: ScenePackage) => {
+      scene = sceneForEngine(scene, accepts)
       if (!engineAccepts(accepts, ACCEPTS_PACKED_ARRAYS)) {
         post({ type: 'pgmaps-scene', scene })
         return
@@ -141,6 +157,10 @@ export function ExternalRoadRenderer({
       const place = pose ?? current?.origin
       if (place) post(engineEnvironment(environmentRef.current, place, new Date()))
     }
+    const sendRenderOptions = () => {
+      if (listening && engineAccepts(accepts, ACCEPTS_RENDER_OPTIONS))
+        post({ type: 'pgmaps-render-options', options: renderOptionsRef.current })
+    }
     // The road view's terrain may still be loading when an engine is chosen: wait for it, retrying, rather than
     // stopping with an error the engine never recovers from.
     let waitTimer = 0
@@ -173,39 +193,54 @@ export function ExternalRoadRenderer({
       postScene(scene)
       sendCamera()
     }
-    bridgeRef.current = { sendScene, sendEnvironment }
+    bridgeRef.current = { sendScene, sendEnvironment, sendRenderOptions }
 
     // Captures: the next `ready` after a capture's scene, then the reply with the request's id.
     let readyWaiter: (() => void) | null = null
+    let captureFailure: ((error: Error) => void) | null = null
     const replies = new Map<string, (data: unknown) => void>()
-    const capture: EngineCaptureHandle['capture'] = (scene, makeRequest) =>
+    const capture: EngineCaptureHandle['capture'] = (scene, makeRequest, options = { ...renderOptionsRef.current }) =>
       new Promise((resolve, reject) => {
         if (!listening) {
           reject(new Error(`${info.label} is not running yet.`))
           return
         }
+        if (captureFailure) {
+          reject(new Error(`${info.label} is already capturing a view.`))
+          return
+        }
         let id: string | null = null
+        let finished = false
         const timer = window.setTimeout(() => {
-          readyWaiter = null
-          if (id) replies.delete(id)
-          reject(new Error(`${info.label} did not finish the capture in ${CAPTURE_TIMEOUT_MS / 1000} s.`))
+          captureFailure?.(new Error(`${info.label} did not finish the capture in ${CAPTURE_TIMEOUT_MS / 1000} s.`))
         }, CAPTURE_TIMEOUT_MS)
+        captureFailure = (error) => {
+          finished = true
+          window.clearTimeout(timer)
+          readyWaiter = null
+          captureFailure = null
+          if (id) replies.delete(id)
+          reject(error)
+        }
         readyWaiter = () => {
           readyWaiter = null
           Promise.resolve()
-            .then(() => makeRequest(scene))
+            .then(() => makeRequest(scene, options))
             .then(
               (request) => {
+                if (finished) return
+                request = captureForEngine(request, accepts, options)
                 id = request.id
                 replies.set(request.id, (data) => {
                   window.clearTimeout(timer)
+                  captureFailure = null
+                  finished = true
                   resolve(data)
                 })
                 post(request, captureTransfer(request))
               },
               (error: unknown) => {
-                window.clearTimeout(timer)
-                reject(error instanceof Error ? error : new Error(String(error)))
+                captureFailure?.(error instanceof Error ? error : new Error(String(error)))
               },
             )
         }
@@ -230,6 +265,7 @@ export function ExternalRoadRenderer({
       if (data.type === 'pgmaps-engine-hello') {
         accepts = data.accepts
         listening = true
+        sendRenderOptions()
         sendScene()
       } else if (data.type === 'pgmaps-engine-ready') {
         setPhase('ready')
@@ -239,6 +275,7 @@ export function ExternalRoadRenderer({
       } else if (data.type === 'pgmaps-engine-stats') {
         setStats(data)
       } else if (data.type === 'pgmaps-engine-error') {
+        captureFailure?.(new Error(data.message ?? 'The engine stopped.'))
         setPhase('error')
         setMessage(data.message ?? 'The engine stopped.')
       }
@@ -270,6 +307,7 @@ export function ExternalRoadRenderer({
 
     return () => {
       bridgeRef.current = null
+      captureFailure?.(new Error(`${info.label} closed during the capture.`))
       window.clearTimeout(waitTimer)
       if (captureRef?.current?.capture === capture) captureRef.current = null
       replies.clear()
@@ -290,6 +328,9 @@ export function ExternalRoadRenderer({
   useEffect(() => {
     bridgeRef.current?.sendEnvironment()
   }, [environment])
+  useEffect(() => {
+    bridgeRef.current?.sendRenderOptions()
+  }, [renderOptions])
 
   return (
     <>

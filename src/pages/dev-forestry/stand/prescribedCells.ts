@@ -79,6 +79,10 @@ export function prescribedCells(
           const tint = options.tints?.get(tree.key)
           return [
             {
+              id: `imported:${stand.origin.lng}:${stand.origin.lat}:${tree.id}`,
+              dbhCm: tree.dbhCm,
+              expansion: tree.expansion,
+              source: 'imported',
               lng: tree.lng,
               lat: tree.lat,
               elevationMeters: 0,

@@ -54,18 +54,10 @@ export const TREE_SPECIES_IDS: TreeSpeciesId[] = [
 export const isBroadleaf = (species: TreeSpeciesId) =>
   species === 'aspen' || species === 'birch' || species === 'cottonwood'
 
-/**
- * The six species the scene package names (`scenePackage.ts`). The other renderers build their
- * trees by species name, and one they do not know falls to a spruce, so a cottonwood would come
- * out a conifer there: the package keeps sending the species each of the later ones was drawn as
- * before it had a drawing of its own.
- */
-export type PackageSpeciesId = 'pine' | 'spruce' | 'fir' | 'douglasFir' | 'aspen' | 'birch'
-export const PACKAGE_SPECIES_IDS: PackageSpeciesId[] = ['pine', 'spruce', 'fir', 'douglasFir', 'aspen', 'birch']
+/** Species order is stable across native drawings and component-aware scene consumers. */
+export type PackageSpeciesId = TreeSpeciesId
+export const PACKAGE_SPECIES_IDS: PackageSpeciesId[] = [...TREE_SPECIES_IDS]
 export function packageSpecies(species: TreeSpeciesId): PackageSpeciesId {
-  if (species === 'hemlock') return 'fir'
-  if (species === 'blackSpruce') return 'spruce'
-  if (species === 'cottonwood') return 'aspen'
   return species
 }
 
@@ -213,6 +205,14 @@ export function crownWidthForClosure(crownClosurePercent: number, stemsPerSquare
 }
 
 export type TreeInstance = {
+  /** Stable geographic or imported source identity; independent of array order and harvest. */
+  id?: string
+  /** Supplied diameter, centimetres, where known; absent is not a measured zero. */
+  dbhCm?: number
+  /** Recorded stems represented by this drawn stem (one for an individual imported tree). */
+  expansion?: number
+  /** Provenance of the drawing record, not a claim that its generated shape was measured. */
+  source?: 'regional' | 'inventory' | 'imported'
   lng: number
   lat: number
   /** Ground elevation at the stem, in metres. Filled by the caller from the terrain. */
@@ -1026,6 +1026,9 @@ export function placeTrees({
           ? 1
           : SPECIES_CROWN_RATIO[species] / mixRatio
       trees.push({
+        id: `g:${Math.round(anchorLat * 1e6).toString(36)}:${seed.toString(36)}:${cellX.toString(36)}:${cellY.toString(36)}`,
+        expansion: Math.max(1, standStems / ((keep * 10_000) / (spacing * spacing))),
+        source: surveyed ? 'inventory' : 'regional',
         lng,
         lat,
         elevationMeters: 0,

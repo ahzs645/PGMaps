@@ -1,6 +1,10 @@
 # Other renderers, fed PGMaps' own scene
 
-Trial only. Nothing here is imported by the app, bundled or deployed.
+The active adapters are the pinned `vendor/threejs-nanites` and
+`vendor/threejs-worldgen` submodules, built by `npm run engines:build`. The patches
+and comparisons below are historical trial material. Current additive records
+and controls are described in [stand-components-v1](../stand-components-v1.md)
+and [adapter-quality](../adapter-quality.md). VistaWASM remains a separate trial.
 
 The road view on `/dev/forestry/visual-quality` can write its scene out as a file:
 Sidebar → **3D scene for other renderers** → `forestry-scene-package.json`

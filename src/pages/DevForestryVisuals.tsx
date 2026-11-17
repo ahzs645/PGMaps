@@ -172,6 +172,8 @@ import {
   roadRendererUrl,
 } from './dev-forestry/externalRenderers'
 import { useEngineBrowserOptions } from './dev-forestry/engineBrowserOptions'
+import { engineCaptureOptionsKey } from './dev-forestry/engineRenderOptions'
+import { beforeHarvestCells } from './dev-forestry/stand/beforeHarvestCells'
 import type { BasemapContext } from './dev-forestry/BasemapContextProbe'
 import { FieldPhotoPanel, PhotoOverlay, StreetPhotoInset } from './dev-forestry/FieldPhoto'
 import { useFieldPhoto } from './dev-forestry/useFieldPhoto'
@@ -2963,8 +2965,8 @@ function DevForestryVisuals() {
   }, [scene.targets, standPrescriptions])
 
   // Retention and partial-cut blocks are thinned in the road view, not cleared. A block with a stand
-  // prescription keeps exactly the trees its prescription chose (`stand/prescribedCells.ts`); before
-  // harvest, with *Tree colours: by treatment*, it marks them without cutting.
+  // prescription keeps exactly the trees its prescription chose (`stand/prescribedCells.ts`). Imported
+  // stems remain the source before harvest too; treatment colours only mark them without cutting.
   const thinningsAt = useCallback(
     (phase: HarvestPhase): Thinning[] =>
       scene.targets.flatMap((target) => {
@@ -2975,18 +2977,8 @@ function DevForestryVisuals() {
         const ready = prescribed?.stand && prescribed.result ? prescribed : null
         const coloured = drive.treeColours === 'treatment'
         if (phase === 'before') {
-          return ready && coloured
-            ? [
-                {
-                  geometry,
-                  keepFraction: 1,
-                  prescribed: prescribedCells(ready.stand!, ready.result!, {
-                    markOnly: true,
-                    tints: treatmentTints(ready.stand!, ready.result!, 'before'),
-                  }),
-                },
-              ]
-            : []
+          const before = ready ? beforeHarvestCells(ready.stand!, ready.result!, coloured) : null
+          return before ? [{ geometry, keepFraction: 1, prescribed: before }] : []
         }
         if (!ready) return [{ ...thinning, geometry }]
         const kept =
@@ -4138,6 +4130,7 @@ function DevForestryVisuals() {
       frameWidth * (Math.tan((first.vfovDeg * Math.PI) / 360) / Math.tan((first.hfovDeg * Math.PI) / 360)),
     )
     const scenePackage = currentScenePackage(eye, {
+      includeModels: false,
       forest,
       harvestPhase: phase,
       cover: await coverRead,
@@ -4173,7 +4166,7 @@ function DevForestryVisuals() {
     // A capture that fails before its request is made must not leave the stand's own failure unhandled.
     growing.catch(() => {})
     const asked: { request: EngineCaptureRequest | null } = { request: null }
-    const raw = await engine.capture(scenePackage, async (pkg) => {
+    const raw = await engine.capture(scenePackage, async (pkg, renderOptions) => {
       const stand = await growing
       asked.request = captureRequest({
         origin: pkg.origin,
@@ -4184,7 +4177,11 @@ function DevForestryVisuals() {
         layers,
         terrainColour: CLASS_PASS_BACKGROUND,
         zones: zoneLayers.length ? { layers: zoneLayers, terrainColour: zoneColor(6) } : null,
-        final: { stand: stand ? moveStandOrigin(stand, eye, pkg.origin) : null, samples: captureSamplesFromUrl() },
+        final: {
+          stand: stand ? moveStandOrigin(stand, eye, pkg.origin) : null,
+          samples: captureSamplesFromUrl(),
+          canopyCutoffPx: renderOptions?.dissolvePixels,
+        },
       })
       return asked.request
     })
@@ -4202,6 +4199,9 @@ function DevForestryVisuals() {
       capturedAt: new Date().toISOString(),
       sceneCreatedAt: reply.scene.createdAt,
       environment: reply.environment,
+      ...(reply.renderOptions ? { renderOptions: reply.renderOptions } : {}),
+      ...(reply.representation ? { representation: reply.representation } : {}),
+      ...(reply.dissolve ? { dissolve: reply.dissolve } : {}),
       depth: depthSummary(joined.depth.data),
       missing: [
         ...reply.missing,
@@ -4585,6 +4585,7 @@ function DevForestryVisuals() {
       /** The stand in another harvest phase than the road view's (`forestFor`), with that phase. */
       forest?: typeof forestConfiguration
       harvestPhase?: HarvestPhase
+      includeModels?: boolean
     } = {},
   ) => {
     const {
@@ -4904,6 +4905,7 @@ function DevForestryVisuals() {
   const backgroundRenders = useBackgroundRenders({
     urlFor: (engine) => roadRendererUrl(engine, import.meta.env, engineBrowserOptions),
     environment: drive.engineEnvironment,
+    renderOptions: engineBrowserOptions.render,
     run: async (job, handle) => {
       const image = viewImagesRef.current[job.viewId]
       if (!image?.figureAt) throw new Error('its camera was not kept: save the view again.')
@@ -4943,10 +4945,11 @@ function DevForestryVisuals() {
     const frames = figure.camera?.frames ?? 1
     const name = savedViews.find((view) => view.id === viewId)?.name ?? image.caption.replace(/\.$/, '')
     return {
-      key: `${viewId}|${engine}|${key ?? ''}${phase ? `|${phase}` : ''}`,
+      key: `${viewId}|${engine}|${key ?? ''}${phase ? `|${phase}` : ''}|${engineCaptureOptionsKey(engineBrowserOptions.render[engine])}`,
       viewId,
       viewName: phase ? `${name}, before harvest` : name,
       engine,
+      renderOptions: { ...engineBrowserOptions.render[engine] },
       ...(phase ? { phase } : {}),
       work: {
         frames,
@@ -6989,10 +6992,11 @@ function DevForestryVisuals() {
                               url={engineUrl}
                               mapRef={eyeMapRef}
                               poseRef={drivePoseRef}
-                              buildScene={(at) => currentScenePackage(at)}
+                              buildScene={(at) => currentScenePackage(at, { includeModels: false })}
                               captureRef={engineCaptureRef}
                               stand={engineStand}
                               environment={drive.engineEnvironment}
+                              renderOptions={engineBrowserOptions.render[drive.renderer]}
                               onUsePgmaps={() => setDrive((current) => ({ ...current, renderer: 'pgmaps' }))}
                             />
                           )}

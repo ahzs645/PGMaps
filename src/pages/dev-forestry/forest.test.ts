@@ -665,13 +665,13 @@ describe('drawings, forms and the species other renderers are sent', () => {
   it('keeps the first six species where they were, so their drawings and seeds do not move', () => {
     expect(TREE_SPECIES_IDS.slice(0, 6)).toEqual(['pine', 'spruce', 'fir', 'douglasFir', 'aspen', 'birch'])
     expect(TREE_DRAWING_IDS.slice(0, TREE_SPECIES_IDS.length)).toEqual(TREE_SPECIES_IDS)
-    expect(PACKAGE_SPECIES_IDS).toEqual(TREE_SPECIES_IDS.slice(0, 6))
+    expect(PACKAGE_SPECIES_IDS).toEqual(TREE_SPECIES_IDS)
   })
 
-  it('sends the other renderers the species each later one was drawn as before', () => {
-    expect(packageSpecies('hemlock')).toBe('fir')
-    expect(packageSpecies('blackSpruce')).toBe('spruce')
-    expect(packageSpecies('cottonwood')).toBe('aspen')
+  it('keeps native species for component-aware renderers', () => {
+    expect(packageSpecies('hemlock')).toBe('hemlock')
+    expect(packageSpecies('blackSpruce')).toBe('blackSpruce')
+    expect(packageSpecies('cottonwood')).toBe('cottonwood')
     for (const species of PACKAGE_SPECIES_IDS) expect(packageSpecies(species)).toBe(species)
   })
 

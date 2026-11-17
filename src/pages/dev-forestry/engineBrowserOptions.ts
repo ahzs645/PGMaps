@@ -10,24 +10,42 @@ import {
   parseEngineBrowserOptions,
   type EngineBrowserOptions,
 } from './externalRenderers'
+import {
+  DEFAULT_ENGINE_RENDER_OPTIONS,
+  parseEngineRenderOptions,
+  type EngineRenderOptions,
+} from './engineRenderOptions'
+
+type StoredOptions = EngineBrowserOptions & { render: Record<'worldgen' | 'nanite', EngineRenderOptions> }
+const DEFAULT_OPTIONS: StoredOptions = {
+  ...DEFAULT_ENGINE_BROWSER_OPTIONS,
+  render: { worldgen: { ...DEFAULT_ENGINE_RENDER_OPTIONS }, nanite: { ...DEFAULT_ENGINE_RENDER_OPTIONS } },
+}
 
 const STORAGE_KEY = 'pgmaps.forestryVisuals.engineOptions'
 
-let current: EngineBrowserOptions | null = null
+let current: StoredOptions | null = null
 const listeners = new Set<() => void>()
 
-function read(): EngineBrowserOptions {
+function read(): StoredOptions {
   if (current) return current
   try {
-    current = parseEngineBrowserOptions(JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? 'null'))
+    const raw = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? 'null')
+    current = {
+      ...parseEngineBrowserOptions(raw),
+      render: {
+        worldgen: parseEngineRenderOptions(raw?.render?.worldgen),
+        nanite: parseEngineRenderOptions(raw?.render?.nanite),
+      },
+    }
   } catch {
     // Storage blocked or unreadable: the defaults, for this page only.
-    current = DEFAULT_ENGINE_BROWSER_OPTIONS
+    current = DEFAULT_OPTIONS
   }
   return current
 }
 
-export function setEngineBrowserOptions(patch: Partial<EngineBrowserOptions>) {
+export function setEngineBrowserOptions(patch: Partial<StoredOptions>) {
   current = { ...read(), ...patch }
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
@@ -53,6 +71,6 @@ function subscribe(listener: () => void) {
 }
 
 /** This browser's engine choices, following any change made here or in another tab. */
-export function useEngineBrowserOptions(): EngineBrowserOptions {
-  return useSyncExternalStore(subscribe, read, () => DEFAULT_ENGINE_BROWSER_OPTIONS)
+export function useEngineBrowserOptions(): StoredOptions {
+  return useSyncExternalStore(subscribe, read, () => DEFAULT_OPTIONS)
 }
