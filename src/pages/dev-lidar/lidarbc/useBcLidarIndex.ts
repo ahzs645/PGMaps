@@ -3,14 +3,19 @@ import type { FeatureCollection, Geometry } from 'geojson'
 import {
   countUrl,
   coverageUrl,
+  detailCountsUrl,
+  filterWhere,
   parseCount,
+  parseDetailCounts,
   parseYearCounts,
   TILE_PAGE,
   tilesUrl,
   yearCountsUrl,
+  type DetailCount,
   type LidarBcProduct,
   type LidarBcTile,
   type LonLatBounds,
+  type TileFilter,
 } from '@/lib/lidar/bcLidarIndex'
 
 export type TileCollection = FeatureCollection<Geometry, LidarBcTile>
@@ -55,6 +60,48 @@ export function useLidarBcYearCounts(products: readonly LidarBcProduct[]) {
   return { counts, error }
 }
 
+export interface FilterBreakdown {
+  /** Tiles per year, within the detail filter. */
+  years: { year: number; tiles: number }[] | null
+  /** Tiles per density or cell size, within the year filter. */
+  details: DetailCount[] | null
+  error: string
+}
+
+/**
+ * One product's tiles counted by year and by density (or cell size), each within the other filter,
+ * so picking a year shows that year's densities and picking a density that density's years.
+ */
+export function useLidarBcBreakdown(product: LidarBcProduct, filter: TileFilter): FilterBreakdown {
+  type Rows = { product: string }
+  const [years, setYears] = useState<Rows & { rows: FilterBreakdown['years'] }>()
+  const [details, setDetails] = useState<Rows & { rows: FilterBreakdown['details'] }>()
+  const [error, setError] = useState('')
+  const yearsWhere = filterWhere(product, filter, 'year')
+  const detailsWhere = filterWhere(product, filter, 'detail')
+  useEffect(() => {
+    const abort = new AbortController()
+    getJson(yearCountsUrl(product, yearsWhere), abort.signal)
+      .then((json) => setYears({ product: product.id, rows: parseYearCounts(json) }))
+      .catch((e) => !aborted(e) && setError(message(e)))
+    return () => abort.abort()
+  }, [product, yearsWhere])
+  useEffect(() => {
+    const abort = new AbortController()
+    getJson(detailCountsUrl(product, detailsWhere), abort.signal)
+      .then((json) => setDetails({ product: product.id, rows: parseDetailCounts(product, json) }))
+      .catch((e) => !aborted(e) && setError(message(e)))
+    return () => abort.abort()
+  }, [product, detailsWhere])
+  // Another product's rows are never shown under this one; the same product's last rows stay up
+  // while a new filter loads, so the bars do not blink.
+  return {
+    years: years?.product === product.id ? years.rows : null,
+    details: details?.product === product.id ? details.rows : null,
+    error,
+  }
+}
+
 export interface ViewTiles {
   /** Tiles in the view, or null below the product's drawing zoom. */
   tiles: TileCollection | null
@@ -68,11 +115,11 @@ export interface ViewTiles {
 export function useLidarBcViewTiles(
   product: LidarBcProduct,
   view: { bounds: LonLatBounds; zoom: number } | null,
-  year: number | null,
+  filter: TileFilter,
 ): ViewTiles {
   const [state, setState] = useState<ViewTiles>({ tiles: null, count: null, loading: false, error: '' })
   const key = view
-    ? `${product.id}|${year}|${view.zoom.toFixed(1)}|${Object.values(view.bounds)
+    ? `${product.id}|${filter.year}|${filter.detail}|${view.zoom.toFixed(1)}|${Object.values(view.bounds)
         .map((n) => n.toFixed(4))
         .join(',')}`
     : ''
@@ -83,8 +130,8 @@ export function useLidarBcViewTiles(
     const timer = window.setTimeout(() => {
       setState((previous) => ({ ...previous, loading: true, error: '' }))
       Promise.all([
-        getJson(countUrl(product, view.bounds, year), abort.signal).then(parseCount),
-        draw ? (getJson(tilesUrl(product, view.bounds, year), abort.signal) as Promise<TileCollection>) : null,
+        getJson(countUrl(product, view.bounds, filter), abort.signal).then(parseCount),
+        draw ? (getJson(tilesUrl(product, view.bounds, filter), abort.signal) as Promise<TileCollection>) : null,
       ])
         .then(([count, tiles]) => setState({ count, tiles, loading: false, error: '' }))
         .catch((error) => !aborted(error) && setState((p) => ({ ...p, loading: false, error: message(error) })))
@@ -93,7 +140,7 @@ export function useLidarBcViewTiles(
       window.clearTimeout(timer)
       abort.abort()
     }
-    // `key` stands for the view, product and year.
+    // `key` stands for the view, product and filter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
   return state

@@ -145,7 +145,7 @@ export function LidarToolLayout({
       subtitle={subtitle ?? tool?.description}
       hideTitleOnMobile
       scrollClassName="overscroll-contain"
-      actions={
+      back={
         frame ? (
           <Button variant="ghost" size="icon" className="size-8 shrink-0" asChild>
             <Link to={LIDAR_BASE} aria-label="All LiDAR tools" title="All LiDAR tools">
@@ -180,12 +180,16 @@ export function LidarToolLayout({
     >
       <div
         className={cn(
-          'absolute inset-0 flex min-h-0 flex-col overflow-hidden',
+          // The tools' toolbars, profiles and tables sit beside their maps, not on them: paint
+          // them as map chrome (white beside the white sidebar, the card under a theme) rather
+          // than letting the map surround's tint show through.
+          'absolute inset-0 flex min-h-0 flex-col overflow-hidden bg-background',
           reserveMobileSheet && 'max-md:pb-[calc(var(--lidar-sheet-peek)_+_env(safe-area-inset-bottom,0px))]',
         )}
         style={{ '--lidar-sheet-peek': `${MOBILE_COLLAPSED_VISIBLE_HEIGHT}px` } as CSSProperties}
         aria-label={label}
         data-lidar-workspace
+        data-map-chrome
       >
         {children}
       </div>

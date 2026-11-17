@@ -5,6 +5,15 @@ import { LABEL_ANCHOR } from './basemaps'
 import { isForestMode, FOREST_PALETTES } from './forestry'
 import type { WorkflowFeature, WorkflowOptions } from './analysisWorkflows'
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] }
+/** Colours the workflow layers and the legend (`LidarLegend.tsx`) both read. */
+export const GAP_COLOURS = { fill: '#22d3ee', outline: '#075985' } as const
+export const PLOT_P95_RAMP = [
+  [0, '#faf5ff'],
+  [10, '#d8b4fe'],
+  [20, '#a855f7'],
+  [35, '#581c87'],
+] as const
+export const CLEARANCE_COLOUR = '#f472b6'
 export const WORKFLOW_LAYERS = [
   'workflow-gaps',
   'workflow-plots',
@@ -28,7 +37,7 @@ export function installWorkflowLayers(map: Map) {
       type: 'fill',
       source: 'workflow-features',
       layout: hidden,
-      paint: { 'fill-color': '#22d3ee', 'fill-opacity': 0.45, 'fill-outline-color': '#075985' },
+      paint: { 'fill-color': GAP_COLOURS.fill, 'fill-opacity': 0.45, 'fill-outline-color': GAP_COLOURS.outline },
     })
   if (!map.getLayer('workflow-plots'))
     add({
@@ -37,19 +46,7 @@ export function installWorkflowLayers(map: Map) {
       source: 'workflow-features',
       layout: hidden,
       paint: {
-        'fill-color': [
-          'interpolate',
-          ['linear'],
-          ['get', 'p95_m'],
-          0,
-          '#faf5ff',
-          10,
-          '#d8b4fe',
-          20,
-          '#a855f7',
-          35,
-          '#581c87',
-        ],
+        'fill-color': ['interpolate', ['linear'], ['get', 'p95_m'], ...PLOT_P95_RAMP.flat()],
         'fill-opacity': 0.55,
       },
     })
@@ -67,7 +64,7 @@ export function installWorkflowLayers(map: Map) {
       type: 'line',
       source: 'workflow-features',
       layout: hidden,
-      paint: { 'line-color': '#f472b6', 'line-width': 3 },
+      paint: { 'line-color': CLEARANCE_COLOUR, 'line-width': 3 },
     })
   if (!map.getLayer('workflow-forest'))
     add({

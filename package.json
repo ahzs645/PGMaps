@@ -159,6 +159,7 @@
     "engines:build": "node scripts/build-engines.mjs",
     "toolkit:watch": "npm run watch --workspace @pgmaps/geo-toolkit",
     "lidar:process": "python3 scripts/lidar/run.py",
+    "lidar:fetch-analysis": "node scripts/lidar/fetch-analysis.mjs",
     "lidar:inspector:browser": "node scripts/lidar/check_inspector_browser.cjs",
     "lidar:preview:build": "vite build --config lidar-preview/vite.config.ts",
     "ci:prepare": "npm run toolkit:build && npm --prefix vendor/json-url run build && node scripts/ensure-tourkit.mjs",

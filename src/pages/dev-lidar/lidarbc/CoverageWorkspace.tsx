@@ -6,7 +6,6 @@ import { Download, FileText } from 'lucide-react'
 import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { numberColumn, textColumn } from '@/components/map/tableColumns'
 import { Button } from '@/components/ui/button'
-import { StyledSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Map } from '@/components/ui/map'
 import { MapGeoJsonLayer } from '@/components/ui/map-layers'
@@ -31,6 +30,8 @@ import {
   formatBytes,
   LIDAR_BC_PORTAL,
   LIDAR_BC_PRODUCTS,
+  detailField,
+  NO_FILTER,
   storedFile,
   YEAR_STOPS,
   yearColorExpression,
@@ -38,8 +39,15 @@ import {
   type LidarBcProductId,
   type LidarBcTile,
   type LonLatBounds,
+  type TileFilter,
 } from '@/lib/lidar/bcLidarIndex'
-import { isCapped, useLidarBcCoverage, useLidarBcViewTiles, useLidarBcYearCounts } from './useBcLidarIndex'
+import {
+  isCapped,
+  useLidarBcBreakdown,
+  useLidarBcCoverage,
+  useLidarBcViewTiles,
+  useLidarBcYearCounts,
+} from './useBcLidarIndex'
 
 const SATELLITE_STYLE: StyleSpecification = {
   version: 8,
@@ -102,7 +110,12 @@ function tableColumns(product: LidarBcProduct) {
  */
 export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
   const [productId, setProductId] = useState<LidarBcProductId>('pointcloud')
-  const [year, setYear] = useState<number | null>(null)
+  const [filter, setFilter] = useState<TileFilter>(NO_FILTER)
+  const year = filter.year
+  const changeFilter = (change: Partial<TileFilter>) => {
+    setFilter((previous) => ({ ...previous, ...change }))
+    setSelected(null)
+  }
   const [view, setView] = useState<{ bounds: LonLatBounds; zoom: number } | null>(null)
   const [selected, setSelected] = useState<TileFeature | null>(null)
   const [sheetCollapse, setSheetCollapse] = useState(0)
@@ -116,9 +129,11 @@ export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
   const product = LIDAR_BC_PRODUCTS.find((item) => item.id === productId)!
   const coverage = useLidarBcCoverage()
   const years = useLidarBcYearCounts(LIDAR_BC_PRODUCTS)
-  const inView = useLidarBcViewTiles(product, view, year)
-  const productYears = years.counts[product.id]
-  const total = productYears?.reduce((sum, row) => sum + row.tiles, 0)
+  const inView = useLidarBcViewTiles(product, view, filter)
+  const breakdown = useLidarBcBreakdown(product, filter)
+  const total = years.counts[product.id]?.reduce((sum, row) => sum + row.tiles, 0)
+  const pointCloud = detailField(product) === 'density'
+  const detailLabel = breakdown.details?.find((row) => row.key === filter.detail)?.label
   const shownCoverage = useMemo<FeatureCollection | null>(() => {
     if (!coverage.data || year == null) return coverage.data
     return { ...coverage.data, features: coverage.data.features.filter((f) => Number(f.properties?.YEAR_) === year) }
@@ -265,7 +280,8 @@ export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
                     }
                     onClick={() => {
                       setProductId(item.id)
-                      setSelected(null)
+                      // Densities and cell sizes differ between products; the year carries over.
+                      changeFilter({ detail: null })
                     }}
                   />
                 )
@@ -279,32 +295,68 @@ export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
           </SidebarSection>
           <SidebarSection
             title="Acquisition year"
-            subtitle={total == null ? undefined : `${tilesText(total)} of ${product.label.toLowerCase()} in BC`}
+            subtitle={
+              year == null
+                ? total == null
+                  ? undefined
+                  : `${tilesText(total)} of ${product.label.toLowerCase()} in BC · select a year to filter`
+                : `Showing ${year} only`
+            }
+            actions={
+              year == null ? undefined : <TextButton onClick={() => changeFilter({ year: null })}>All years</TextButton>
+            }
           >
-            <StyledSelect
-              aria-label="Acquisition year"
-              value={year ?? ''}
-              onChange={(event) => {
-                setYear(event.target.value ? Number(event.target.value) : null)
-                setSelected(null)
-              }}
-            >
-              <option value="">All years</option>
-              {productYears?.map((row) => (
-                <option key={row.year} value={row.year}>
-                  {row.year} · {tilesText(row.tiles)}
-                </option>
-              ))}
-            </StyledSelect>
-            {productYears && productYears.length > 0 && (
+            {breakdown.years && breakdown.years.length > 0 && (
               <ShareBars
-                className="mt-3"
                 aria-label={`${product.label} tiles per year`}
-                items={productYears.map((row) => ({ key: String(row.year), label: row.year, values: [row.tiles] }))}
-                max={Math.max(...productYears.map((row) => row.tiles))}
+                items={breakdown.years.map((row) => ({ key: String(row.year), label: row.year, values: [row.tiles] }))}
+                max={Math.max(...breakdown.years.map((row) => row.tiles))}
                 formatValue={count}
                 series={[{ className: 'bg-emerald-600' }]}
+                selectedKey={year == null ? null : String(year)}
+                onSelect={(key) => changeFilter({ year: key == null ? null : Number(key) })}
               />
+            )}
+          </SidebarSection>
+          <SidebarSection
+            title={pointCloud ? 'Point density' : 'Cell size'}
+            subtitle={
+              filter.detail == null
+                ? `${pointCloud ? 'Points per m²' : 'Grid cell'} of each tile${year == null ? '' : ` from ${year}`} · select one to filter`
+                : `Showing ${detailLabel ?? 'one value'} only${drawing ? '' : ` · tiles draw from zoom ${product.minZoom}`}`
+            }
+            actions={
+              filter.detail == null ? (
+                <InfoTip label={pointCloud ? 'About point density' : 'About cell size'}>
+                  {pointCloud
+                    ? 'The density each tile was flown to, as LidarBC records it for the tile: the points per square metre of the acquisition contract, not a count of the file. Most of BC was flown at 8 pts/m²; the denser tiles are project areas flown for forestry or engineering.'
+                    : 'The raster cell size LidarBC records for each tile. Rasters carry no point density: their source point clouds are listed under Point clouds. "Not stated" tiles have a blank cell size in the index.'}{' '}
+                  The shaded overview at low zoom is drawn by year only, so this filter shows on the map once tiles
+                  draw.
+                </InfoTip>
+              ) : (
+                <TextButton onClick={() => changeFilter({ detail: null })}>
+                  {pointCloud ? 'All densities' : 'All sizes'}
+                </TextButton>
+              )
+            }
+          >
+            {breakdown.details && breakdown.details.length > 0 && (
+              <ShareBars
+                aria-label={`${product.label} tiles per ${pointCloud ? 'density' : 'cell size'}`}
+                labelWidth="4.5rem"
+                items={breakdown.details.map((row) => ({ key: row.key, label: row.label, values: [row.tiles] }))}
+                max={Math.max(...breakdown.details.map((row) => row.tiles))}
+                formatValue={count}
+                series={[{ className: 'bg-sky-600' }]}
+                selectedKey={filter.detail}
+                onSelect={(key) => changeFilter({ detail: key })}
+              />
+            )}
+            {breakdown.error && (
+              <InlineAlert tone="warning" className="mt-2">
+                {breakdown.error}
+              </InlineAlert>
             )}
           </SidebarSection>
           <SidebarSection
@@ -338,12 +390,6 @@ export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
                 },
               ]}
             />
-            {!drawing && view && (
-              <InlineAlert className="mt-2">
-                Zoom in to draw individual {product.grid} tiles (zoom {product.minZoom}+). The shaded area is all BC
-                coverage{year == null ? '' : ` from ${year}`}.
-              </InlineAlert>
-            )}
             {isCapped(inView) && (
               <InlineAlert tone="warning" className="mt-2">
                 Showing the first {count(tiles.length)} of {count(inView.count!)} tiles. Zoom in to see them all.
@@ -402,7 +448,11 @@ export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
               fillOpacity={0.35}
               lineWidth={0.8}
               onFeatureClick={(id) => choose(tiles.find((t) => String(t.properties.OBJECTID) === String(id)))}
-              hoverHtml={(p) => `${String(p.maptile ?? '')} · ${String(p.year ?? '')}`}
+              hoverHtml={(p) =>
+                [p.maptile, p.year, p.density != null ? `${p.density} pts/m²` : p.spacing]
+                  .filter((part) => part != null && String(part).trim() !== '')
+                  .join(' · ')
+              }
             />
           )}
           {selectedCollection && (

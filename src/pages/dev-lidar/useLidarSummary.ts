@@ -17,7 +17,13 @@ export function useLidarSummary(analysisBase: string) {
     }, 20_000)
     fetch(new URL('summary.json', analysisBase), { signal: controller.signal })
       .then(async (r) => {
-        if (!r.ok) throw Error('The processed analysis is not available in this deployment.')
+        // A dev server or SPA fallback answers a missing file with index.html and a 200.
+        if (!r.ok || (r.headers.get('content-type') ?? '').includes('text/html'))
+          throw Error(
+            import.meta.env.DEV
+              ? 'The processed analysis is not in public/data/lidar-analysis. Run `npm run lidar:fetch-analysis` to copy the deployed one.'
+              : 'The processed analysis is not available in this deployment.',
+          )
         const data = await r.json()
         checkAnalysisSummary(data)
         if (active) setSummary(data)

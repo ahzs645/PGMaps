@@ -4,6 +4,7 @@ import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { PanelDialog } from '@/components/ui/dialog-shell'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { downloadText } from '@/lib/download'
 import { benchmarkPreview } from '../TreeBenchmarks'
@@ -121,6 +122,7 @@ export function LidarComparison({
         >
           Fit plot
         </Button>
+        <ComparisonDetailsDialog data={data} plot={plot} a={a} b={b} agreement={agreement} />
         {view === 'profile' && (
           <NumericRangeField
             label="Rotation"
@@ -188,26 +190,94 @@ export function LidarComparison({
           })}
         </div>
       </div>
-      <div className="max-h-[24dvh] shrink-0 overflow-y-auto overscroll-contain border-t p-3 text-xs">
-        <p>
-          <strong>{plot.accepted_returns.toLocaleString(DEFAULT_LOCALE)} full input returns processed.</strong> Views
-          display the same deterministic {plot.sample.sampled.toLocaleString(DEFAULT_LOCALE)}-point sample. Grey means
-          unassigned; colours are each method’s own IDs.
-        </p>
-        <p className="mt-1 text-muted-foreground">
-          Adjusted Rand agreement: {agreement?.adjusted_rand_index?.toFixed(3) ?? 'unavailable'} ·{' '}
-          {agreement?.common_assigned_points.toLocaleString(DEFAULT_LOCALE) ?? '—'} common assigned core returns.
-          Agreement and assigned coverage are not accuracy. Watershed timing is membership lookup; treeX includes its
-          own terrain processing.
-        </p>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t px-3 py-1.5 text-xs text-muted-foreground">
+        <span>
+          {plot.accepted_returns.toLocaleString(DEFAULT_LOCALE)} returns processed ·{' '}
+          {plot.sample.sampled.toLocaleString(DEFAULT_LOCALE)}-point sample shown · grey is unassigned
+        </span>
+        <span>Adjusted Rand {agreement?.adjusted_rand_index?.toFixed(3) ?? 'unavailable'}</span>
         {picked && (
-          <p className="mt-1">
-            Picked original return: {picked.node}:{picked.index} · {picked.height.toFixed(2)} m above terrain
-          </p>
+          <span className="text-foreground">
+            Picked return {picked.node}:{picked.index} · {picked.height.toFixed(2)} m above terrain
+          </span>
         )}
-        <details className="mt-2">
-          <summary className="cursor-pointer font-medium">All methods, versions and processing parameters</summary>
-          <div className="mt-2 overflow-x-auto">
+      </div>
+    </div>
+  )
+}
+
+type Plot = ComparisonData['benchmark']['plots'][number]
+type Method = Plot['methods'][number]
+
+function ComparisonDetailsDialog({
+  data,
+  plot,
+  a,
+  b,
+  agreement,
+}: {
+  data: ComparisonData
+  plot: Plot
+  a: Method
+  b: Method
+  agreement: Plot['pairwise_agreement'][number] | undefined
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <PanelDialog
+      open={open}
+      onOpenChange={setOpen}
+      size="lg"
+      title="Methods, review and export"
+      subtitle={`Plot ${plot.id} · A: ${a.name} · B: ${b.name}`}
+      trigger={
+        <Button variant="outline" size="sm">
+          Methods & review
+        </Button>
+      }
+    >
+      <div className="space-y-4 text-xs">
+        <div className="space-y-1">
+          <p>
+            <strong>{plot.accepted_returns.toLocaleString(DEFAULT_LOCALE)} full input returns processed.</strong> Views
+            display the same deterministic {plot.sample.sampled.toLocaleString(DEFAULT_LOCALE)}-point sample. Grey means
+            unassigned; colours are each method’s own IDs.
+          </p>
+          <p className="text-muted-foreground">
+            Adjusted Rand agreement: {agreement?.adjusted_rand_index?.toFixed(3) ?? 'unavailable'} ·{' '}
+            {agreement?.common_assigned_points.toLocaleString(DEFAULT_LOCALE) ?? '—'} common assigned core returns.
+            Agreement and assigned coverage are not accuracy. Watershed timing is membership lookup; treeX includes its
+            own terrain processing.
+          </p>
+        </div>
+        <section className="space-y-2">
+          <h3 className="font-medium">Review A against B</h3>
+          <ComparisonPreference
+            scope={`${data.benchmark.source_sha256}/lidar/${plot.id}/${data.benchmark.segmentation_sha256}`}
+            left={a}
+            right={b}
+            onExport={(review) =>
+              downloadText(
+                JSON.stringify(
+                  {
+                    scope: 'Same BC LiDAR plot; no reviewed instance truth',
+                    source_sha256: data.benchmark.source_sha256,
+                    plot,
+                    comparison: { a: a.id, b: b.id, agreement },
+                    review,
+                  },
+                  null,
+                  2,
+                ),
+                'lidar-model-comparison.json',
+                'application/json',
+              )
+            }
+          />
+        </section>
+        <section className="space-y-2">
+          <h3 className="font-medium">All methods and versions</h3>
+          <div className="overflow-x-auto">
             <EngineeringTable>
               <thead>
                 <tr>
@@ -231,42 +301,18 @@ export function LidarComparison({
               </tbody>
             </EngineeringTable>
           </div>
-          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-3xs">
-            {JSON.stringify(
-              plot.methods.map(({ id, status, parameters, reason }) => ({ id, status, parameters, reason })),
-              null,
-              2,
-            )}
-          </pre>
-        </details>
-        <details className="mt-2">
-          <summary className="cursor-pointer font-medium">Choose a result, add notes and export</summary>
-          <div className="mt-2">
-            <ComparisonPreference
-              scope={`${data.benchmark.source_sha256}/lidar/${plot.id}/${data.benchmark.segmentation_sha256}`}
-              left={a}
-              right={b}
-              onExport={(review) =>
-                downloadText(
-                  JSON.stringify(
-                    {
-                      scope: 'Same BC LiDAR plot; no reviewed instance truth',
-                      source_sha256: data.benchmark.source_sha256,
-                      plot,
-                      comparison: { a: a.id, b: b.id, agreement },
-                      review,
-                    },
-                    null,
-                    2,
-                  ),
-                  'lidar-model-comparison.json',
-                  'application/json',
-                )
-              }
-            />
-          </div>
-        </details>
+          <details>
+            <summary className="cursor-pointer font-medium">Processing parameters</summary>
+            <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-3xs">
+              {JSON.stringify(
+                plot.methods.map(({ id, status, parameters, reason }) => ({ id, status, parameters, reason })),
+                null,
+                2,
+              )}
+            </pre>
+          </details>
+        </section>
       </div>
-    </div>
+    </PanelDialog>
   )
 }

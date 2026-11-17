@@ -102,7 +102,7 @@ export default function DevLidarRestoration() {
       title="LiDAR road restoration"
       subtitle="Local files · SCRIP + PEM-style screening"
       icon={Sprout}
-      actions={<ForestryBackLink />}
+      back={<ForestryBackLink />}
       density="compact"
     >
       <SidebarSection>

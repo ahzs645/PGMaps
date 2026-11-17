@@ -11,6 +11,15 @@ vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/
 vi.mock('@/components/ui/info-tip', () => ({
   InfoTip: ({ children, label }: { children: ReactNode; label: string }) => <span aria-label={label}>{children}</span>,
 }))
+// So does the Radix dialog behind the methods and review dialog; render its trigger and body inline.
+vi.mock('@/components/ui/dialog-shell', () => ({
+  PanelDialog: ({ trigger, children }: { trigger?: ReactNode; children?: ReactNode }) => (
+    <>
+      {trigger}
+      {children}
+    </>
+  ),
+}))
 const state = vi.hoisted(() => ({ data: null as ComparisonData | null }))
 vi.mock('./useComparisonData', () => ({ useComparisonData: () => ({ data: state.data, error: '', retry: vi.fn() }) }))
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }))

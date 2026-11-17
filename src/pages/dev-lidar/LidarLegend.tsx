@@ -1,12 +1,23 @@
-import { MapGradientLegendItem, MapLegendNote, MapLegendPanel, MapSwatch } from '@/components/ui/map-panels'
-import { ANALYSIS_MODES } from './analysisWorkflows'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapSwatch } from '@/components/ui/map-panels'
+import { ANALYSIS_MODES, type WorkflowOptions } from './analysisWorkflows'
+import { MESH_COLOURS, meshCss } from './buildingMesh'
+import { CLEARANCE_COLOUR, GAP_COLOURS, PLOT_P95_RAMP } from './workflowMapLayers'
 import { isSpeciesMode, SPECIES_COLOURS, speciesLegend } from './species'
 import type { LidarController } from './useLidarWorkspace'
 
 /** The map's legend, floating in its bottom-right corner like every other map page's. */
 export function LidarLegend({ controller, className }: { controller: LidarController; className?: string }) {
-  const { summary, basemap, surfaceVisible, raster, analysisOptions, forestLegend, legend, workflowProducts } =
-    controller
+  const {
+    summary,
+    basemap,
+    surfaceVisible,
+    raster,
+    analysisOptions,
+    forestLegend,
+    legend,
+    workflowProducts,
+    workflowRows,
+  } = controller
   if (!summary || !legend) return null
   const categorical = isSpeciesMode(analysisOptions.mode) && speciesLegend(analysisOptions).categorical
   const forestUnit = isSpeciesMode(analysisOptions.mode)
@@ -23,8 +34,10 @@ export function LidarLegend({ controller, className }: { controller: LidarContro
       : surfaceVisible
         ? legend.title
         : 'Processed surface hidden'
-  const description =
-    !forestLegend && analysisOptions.mode
+  const rows = workflowLegendRows(analysisOptions, workflowRows.length)
+  const description = rows
+    ? undefined
+    : !forestLegend && analysisOptions.mode
       ? ANALYSIS_MODES.find((item) => item.id === analysisOptions.mode)?.note
       : !surfaceVisible && !forestLegend
         ? basemap === 'vector'
@@ -39,7 +52,7 @@ export function LidarLegend({ controller, className }: { controller: LidarContro
       description={description}
       collapsible
       defaultCollapsed="mobile"
-      width="sm"
+      width={rows ? 'md' : 'sm'}
       className={className}
       aria-label="Processed surface legend"
     >
@@ -57,7 +70,8 @@ export function LidarLegend({ controller, className }: { controller: LidarContro
           </span>
         </div>
       )}
-      {(surfaceVisible || forestLegend) && !categorical && (
+      {rows}
+      {!rows && (surfaceVisible || forestLegend) && !categorical && (
         <MapGradientLegendItem
           colors={forestLegend?.colors ?? legend.colors}
           ticks={
@@ -69,7 +83,53 @@ export function LidarLegend({ controller, className }: { controller: LidarContro
           }
         />
       )}
-      <MapLegendNote className="mt-1.5">Click the map to inspect height · candidates are unvalidated</MapLegendNote>
     </MapLegendPanel>
   )
+}
+
+/** Coloured rows for the workflow layers drawn in one colour or ramp; null for every other mode. */
+function workflowLegendRows(options: WorkflowOptions, shown: number) {
+  const count = shown.toLocaleString()
+  if (options.mode === 'gaps')
+    return (
+      <LegendItem
+        color={GAP_COLOURS.fill}
+        swatchShape="square"
+        swatch={
+          <MapSwatch
+            color={GAP_COLOURS.fill}
+            style={{ boxShadow: `inset 0 0 0 1px ${GAP_COLOURS.outline}` }}
+            aria-hidden="true"
+          />
+        }
+        label={`${options.enclosed ? 'Enclosed gaps' : 'Gaps'} < ${options.threshold} m`}
+        value={count}
+      />
+    )
+  if (options.mode === 'plots')
+    return (
+      <MapGradientLegendItem
+        colors={PLOT_P95_RAMP.map(([, colour]) => colour)}
+        ticks={PLOT_P95_RAMP.map(([height], index) =>
+          index === PLOT_P95_RAMP.length - 1 ? `${height} m P95` : String(height),
+        )}
+      />
+    )
+  if (options.mode === 'clearance')
+    return (
+      <LegendItem
+        color={CLEARANCE_COLOUR}
+        swatchShape="line"
+        label={`Vegetation ≤ ${options.clearance} m from roof`}
+        value={count}
+      />
+    )
+  if (options.mode === 'models')
+    return (
+      <div className="space-y-0.5">
+        <LegendItem color={meshCss(MESH_COLOURS.roof)} swatchShape="square" label="Roofs" />
+        <LegendItem color={meshCss(MESH_COLOURS.wall)} swatchShape="square" label="Walls" />
+      </div>
+    )
+  return null
 }

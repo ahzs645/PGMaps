@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   countUrl,
+  DETAIL_NOT_STATED,
+  detailCountsUrl,
+  detailField,
+  filterWhere,
+  NO_FILTER,
+  parseDetailCounts,
   coverageUrl,
   estimatedBytes,
   formatBytes,
@@ -33,7 +39,7 @@ describe('BC LiDAR index queries', () => {
   })
 
   it('asks for one view of tiles as WGS84 GeoJSON, longitude first', () => {
-    const url = tilesUrl(pointcloud, princeGeorge, 2024)
+    const url = tilesUrl(pointcloud, princeGeorge, { year: 2024, detail: null })
     expect(url.startsWith(`${LIDAR_BC_SERVICE}/4/query?`)).toBe(true)
     const p = params(url)
     expect(p.get('where')).toBe('year=2024')
@@ -46,11 +52,11 @@ describe('BC LiDAR index queries', () => {
   })
 
   it('counts a view or the whole province, for all years or one', () => {
-    expect(params(countUrl(pointcloud, null, null)).get('where')).toBe('1=1')
-    expect(params(countUrl(pointcloud, null, null)).has('geometry')).toBe(false)
-    expect(params(countUrl(pointcloud, princeGeorge, null)).get('returnCountOnly')).toBe('true')
+    expect(params(countUrl(pointcloud, null, NO_FILTER)).get('where')).toBe('1=1')
+    expect(params(countUrl(pointcloud, null, NO_FILTER)).has('geometry')).toBe(false)
+    expect(params(countUrl(pointcloud, princeGeorge, NO_FILTER)).get('returnCountOnly')).toBe('true')
     // A year is a number; anything else must not reach the where clause.
-    expect(params(countUrl(pointcloud, null, 2019.7)).get('where')).toBe('year=2019')
+    expect(params(countUrl(pointcloud, null, { year: 2019.7, detail: null })).get('where')).toBe('year=2019')
   })
 
   it('groups counts by year on the service and reads them back sorted', () => {
@@ -65,6 +71,53 @@ describe('BC LiDAR index queries', () => {
       { year: 2024, tiles: 5 },
     ])
     expect(() => parseYearCounts({ error: { message: 'Invalid query' } })).toThrow()
+  })
+
+  it('filters by density on point clouds and by cell size on rasters', () => {
+    expect(detailField(pointcloud)).toBe('density')
+    expect(detailField(dsm2500)).toBe('spacing')
+    expect(filterWhere(pointcloud, { year: 2024, detail: '8' })).toBe('year=2024 AND density=8')
+    expect(filterWhere(pointcloud, { year: 2024, detail: '8' }, 'year')).toBe('density=8')
+    expect(filterWhere(pointcloud, { year: 2024, detail: '8' }, 'detail')).toBe('year=2024')
+    // Text never reaches the where clause as a density, and quotes in a cell size are escaped.
+    expect(filterWhere(pointcloud, { year: null, detail: '8 OR 1=1' })).toBe('1=0')
+    expect(filterWhere(dsm2500, { year: null, detail: "1 metre' OR '1'='1" })).toBe("spacing='1 metre'' OR ''1''=''1'")
+    expect(filterWhere(dsm2500, { year: null, detail: DETAIL_NOT_STATED })).toBe(
+      "(spacing IS NULL OR spacing='' OR spacing=' ')",
+    )
+    expect(params(detailCountsUrl(pointcloud, 'year=2024')).get('groupByFieldsForStatistics')).toBe('density')
+    expect(params(detailCountsUrl(dsm2500)).get('where')).toBe('1=1')
+  })
+
+  it('reads densities in order and merges blank cell sizes into one row', () => {
+    expect(
+      parseDetailCounts(pointcloud, {
+        features: [
+          { attributes: { density: 12, tiles: 3 } },
+          { attributes: { density: 8, tiles: 100 } },
+          { attributes: { density: 4, tiles: 2 } },
+        ],
+      }),
+    ).toEqual([
+      { key: '4', label: '4 pts/m²', tiles: 2 },
+      { key: '8', label: '8 pts/m²', tiles: 100 },
+      { key: '12', label: '12 pts/m²', tiles: 3 },
+    ])
+    expect(
+      parseDetailCounts(dsm2500, {
+        features: [
+          { attributes: { spacing: ' ', tiles: 5 } },
+          { attributes: { spacing: null, tiles: 1 } },
+          { attributes: { spacing: '2 metre', tiles: 7 } },
+          { attributes: { spacing: '1 metre', tiles: 9 } },
+        ],
+      }),
+    ).toEqual([
+      { key: '1 metre', label: '1 m', tiles: 9 },
+      { key: '2 metre', label: '2 m', tiles: 7 },
+      { key: DETAIL_NOT_STATED, label: 'Not stated', tiles: 6 },
+    ])
+    expect(() => parseDetailCounts(pointcloud, { error: { message: 'Invalid query' } })).toThrow()
   })
 
   it('reads a count, and reports the service error instead of zero', () => {

@@ -2,6 +2,14 @@ import { MercatorCoordinate, type CustomLayerInterface } from 'maplibre-gl'
 import { coloredVertexLayer } from './coloredVertexLayer'
 import type { BuildingModel } from './analysisWorkflows'
 
+/** Linear RGB of each surface kind; the legend (`LidarLegend.tsx`) draws the same values. */
+export const MESH_COLOURS = {
+  roof: [1, 0.66, 0.18],
+  wall: [0.35, 0.65, 0.83],
+  other: [0.3, 0.36, 0.4],
+} as const
+export const meshCss = (rgb: readonly number[]) => `rgb(${rgb.map((x) => Math.round(x * 255)).join(' ')})`
+
 /** Translate in double precision before GPU upload to preserve small roof facets. */
 export function meshVertices(model: BuildingModel, ground: number) {
   const origin = MercatorCoordinate.fromLngLat(model.centre)
@@ -9,10 +17,10 @@ export function meshVertices(model: BuildingModel, ground: number) {
   for (const triangle of model.triangles) {
     const base =
       triangle.kind === 'RoofSurface'
-        ? [1, 0.66, 0.18]
+        ? MESH_COLOURS.roof
         : triangle.kind === 'WallSurface'
-          ? [0.35, 0.65, 0.83]
-          : [0.3, 0.36, 0.4]
+          ? MESH_COLOURS.wall
+          : MESH_COLOURS.other
     const points = triangle.vertices.map(([lng, lat, z]) => MercatorCoordinate.fromLngLat([lng, lat], z - ground))
     const a = points[0],
       b = points[1],
