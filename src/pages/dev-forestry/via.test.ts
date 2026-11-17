@@ -16,6 +16,7 @@ import {
   retentionLevelFor,
   table2Class,
   viaStepStatuses,
+  viewpointTypeOf,
   type OcularResult,
   type ViaReview,
 } from './via'
@@ -306,6 +307,22 @@ describe('viaStepStatuses', () => {
 })
 
 describe('review storage and FS1252 hand-off', () => {
+  it("keeps each view's 3.2.1 type on its record, and reads the review's own only at the assessment station", () => {
+    const review = parseViaReview({
+      viewpointType: 2,
+      viewpointRecords: { Bay: { significance: 'High (5)', type: 3 }, Dock: { type: 9 }, Ferry: { reason: 'Ferry' } },
+    })!
+    expect(review.viewpointRecords).toEqual({
+      Bay: { significance: 'High (5)', type: 3 },
+      Ferry: { reason: 'Ferry' },
+    })
+    expect(viewpointTypeOf(review, 'Bay', false)).toBe(3)
+    expect(viewpointTypeOf(review, 'Bay', true)).toBe(3)
+    expect(viewpointTypeOf(review, 'Ferry', true)).toBe(2)
+    expect(viewpointTypeOf(review, 'Ferry', false)).toBeNull()
+    expect(viewpointTypeOf(review, null, true)).toBe(2)
+  })
+
   it('drops anything it does not recognise', () => {
     const parsed = parseViaReview({
       ocular: { visibleness: 'glaring', scale: 'small', shape: 'natural', onBoundary: 'yes' },

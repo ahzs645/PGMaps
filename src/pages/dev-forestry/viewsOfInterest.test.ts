@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import type { ViewpointCandidate } from './viewpointInventory'
 import {
   addViews,
+  blockCentre,
   captureChangeText,
   captureKeyChanges,
   groupByPlace,
+  handSaveLink,
   lensHfovDeg,
   MAX_VIEWS_OF_INTEREST,
   parseViewsOfInterest,
@@ -161,5 +163,88 @@ describe('what changed since a capture', () => {
       'Changed since captured: place, lens and landform.',
     )
     expect(captureKeyChanges(edited, [])).toEqual([])
+  })
+})
+
+describe('a view saved by hand from the road view', () => {
+  // About 1 km south of Block A's centre, so the block lies due north.
+  const eye = { lng: -122.595, lat: 53.896 }
+  const toBlock = viewBearing(
+    { ...viewAtPoint(eye, block, []), facing: { kind: 'block' } },
+    blockCentre(block.geometry),
+  )!
+  const base = {
+    views: [] as ReturnType<typeof viewAtPoint>[],
+    standingView: null,
+    blocks: [block],
+    lookAtTargetId: block.id,
+    fallbackBlockId: null,
+    focalMm: null,
+    name: 'View from Hwy 16 going north',
+  }
+
+  it('lists a new view where the eye stands, facing the block it looks at', () => {
+    const link = handSaveLink({ ...base, pose: { ...eye, bearing: toBlock } })
+    expect(link.kind).toBe('add')
+    if (link.kind !== 'add') return
+    expect(link.view).toMatchObject({
+      name: 'View from Hwy 16 going north',
+      source: { kind: 'map' },
+      lng: eye.lng,
+      lat: eye.lat,
+      blockId: block.id,
+      facing: { kind: 'block' },
+      focalMm: 50,
+      framing: 'landform',
+    })
+  })
+
+  it('faces the bearing it looks along when it is turned off the block, with the road view lens', () => {
+    const link = handSaveLink({ ...base, focalMm: 35, pose: { ...eye, bearing: toBlock + 30 } })
+    expect(link.kind === 'add' && link.view.facing).toEqual({
+      kind: 'bearing',
+      degrees: Math.round((toBlock + 30) * 10) / 10,
+    })
+    expect(link.kind === 'add' && link.view.focalMm).toBe(35)
+  })
+
+  it('is the capture of the view stood at while the road view faces its way, else a view of its own', () => {
+    const stood = { ...viewAtPoint(eye, block, []), id: 'voi-stood' }
+    const facing = handSaveLink({
+      ...base,
+      views: [stood],
+      standingView: stood,
+      pose: { ...eye, bearing: toBlock + 1 },
+    })
+    expect(facing).toEqual({ kind: 'update', view: stood })
+    const turned = handSaveLink({
+      ...base,
+      views: [stood],
+      standingView: stood,
+      pose: { ...eye, bearing: toBlock + 40 },
+    })
+    expect(turned.kind).toBe('add')
+  })
+
+  it('joins a listed view it repeats, and names a new one apart from those listed', () => {
+    const listed = { ...viewAtPoint(eye, block, []), id: 'voi-listed' }
+    expect(handSaveLink({ ...base, views: [listed], pose: { ...eye, bearing: toBlock } })).toEqual({
+      kind: 'update',
+      view: listed,
+    })
+    const named = { ...listed, name: base.name, lng: eye.lng + 0.01 }
+    const link = handSaveLink({ ...base, views: [named], pose: { ...eye, bearing: toBlock } })
+    expect(link.kind === 'add' && link.view.name).toBe('View from Hwy 16 going north (2)')
+  })
+
+  it('is saved alone, with the reason, with no cutblock, no position or a full list', () => {
+    expect(handSaveLink({ ...base, blocks: [], pose: { ...eye, bearing: 0 } }).kind).toBe('none')
+    expect(handSaveLink({ ...base, pose: null }).kind).toBe('none')
+    const full = Array.from({ length: MAX_VIEWS_OF_INTEREST }, (_, i) => ({
+      ...viewAtPoint({ lng: eye.lng + 0.01 * (i + 1), lat: eye.lat }, block, []),
+      id: `voi-${i}`,
+    }))
+    const link = handSaveLink({ ...base, views: full, pose: { ...eye, bearing: toBlock } })
+    expect(link).toEqual({ kind: 'none', reason: expect.stringContaining(`hold ${MAX_VIEWS_OF_INTEREST}`) })
   })
 })

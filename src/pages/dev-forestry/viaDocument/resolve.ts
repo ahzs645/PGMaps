@@ -103,6 +103,8 @@ export interface ViewpointReview {
   extent?: string
   importance?: string
   duration?: string
+  /** Handbook 3.2.1's viewpoint type, 1 to 5, as the reviewer recorded it for this view. */
+  viewpointType?: number
   rationale?: string
   /** Why the viewpoint was chosen ("high boat traffic", 22, 23 Table 3). */
   selectionReason?: string

@@ -6,7 +6,7 @@ import {
   NullableNumberField,
   NumberField,
 } from '@/components/ui/form-field'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
@@ -14,14 +14,11 @@ import { DialogShell } from '@/components/ui/dialog-shell'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
 import { InfoTip } from '@/components/ui/info-tip'
-import { createId } from './scene'
-import { importFieldImage } from './toolImports'
 import { projectToPhoto, type PhotoPose } from './photoPose'
 import { maskAt } from './assessmentMasks'
 import { haversineMeters } from './visibility'
-import type { FieldRecord, ToolsDocument } from './assessmentTools'
+import type { FieldRecord, ToolsDocument, ToolView } from './assessmentTools'
 import type { AnalysisResult, Viewpoint } from './types'
-import { formatKm } from './measureFormat'
 
 /** The camera record's coordinates and angles; a blank pitch or roll means level (0). */
 const CAMERA_FIELDS = [
@@ -36,93 +33,176 @@ const CAMERA_FIELDS = [
 type Props = {
   document: ToolsDocument
   onChange: (next: ToolsDocument | ((current: ToolsDocument) => ToolsDocument)) => void
-  result: AnalysisResult | null
-  viewpoint: Viewpoint
-  activeLandformId: string | null
-  currentStation: number
+  /** Viewpoints recorded here before the views of interest, kept for their photographs and runs (`earlierToolViews`). */
+  earlier: ToolView[]
+  /** Opens an attachment's dialog. */
+  onOpen: (id: string) => void
+  /** Imports an image as an attachment, filed under no viewpoint. */
+  onImport: (file: File, kind: FieldRecord['kind']) => void
+  busy: boolean
+  error: string | null
+  /** Stands there, as before: an earlier viewpoint's *Use viewpoint*. */
   onUseView: (viewpoint: Viewpoint) => void
+  /** Lists an earlier spot viewpoint with the views of interest, under its own id; null when it cannot be. */
+  onListView?: (view: ToolView) => string | null
 }
+
+/**
+ * Step 2's field records: the photographs and evidence images of the assessment, each filed under a view of
+ * interest (its row lists and adds them). Viewpoints are the views of interest; the ones recorded here before them
+ * are kept, for their photographs and runs, until listed with the views or removed.
+ */
 export function ToolFieldPanel({
   document: d,
   onChange,
-  result,
-  viewpoint,
-  activeLandformId,
-  currentStation,
+  earlier,
+  onOpen,
+  onImport,
+  busy,
+  error,
   onUseView,
+  onListView,
 }: Props) {
-  const [name, setName] = useState(''),
-    [mode, setMode] = useState<'route' | 'station'>('station'),
-    [selected, setSelected] = useState<string | null>(null),
-    [kind, setKind] = useState<FieldRecord['kind']>('photo'),
-    [error, setError] = useState<string | null>(null),
-    [busy, setBusy] = useState(false),
-    [annotation, setAnnotation] = useState('Ridge')
+  const [kind, setKind] = useState<FieldRecord['kind']>('photo')
+  const [listError, setListError] = useState<string | null>(null)
+  return (
+    <ToolSection
+      title="Field records"
+      summary={d.fields.length ? `${d.fields.length} attachment${d.fields.length === 1 ? '' : 's'}` : 'None yet'}
+      toggleProps={{ 'data-forestry-disclosure': 'field-records' }}
+      help="Photographs and evidence images for the assessment. File each under a view of interest: its row in Views of interest lists the photos filed under it and adds more. They stay on this device and travel in the workspace export."
+    >
+      <div className="space-y-2">
+        {earlier.length > 0 && (
+          <div className="space-y-1.5" role="group" aria-label="Viewpoints recorded before the views of interest">
+            <p className="text-2xs text-muted-foreground">
+              Recorded here before the views of interest. List one with them to keep its photographs and runs there.
+            </p>
+            {earlier.map((v) => (
+              <div key={v.id} className="space-y-1 border-b py-1.5">
+                <p className="text-xs font-medium">
+                  {v.name} · {v.viewpoint.mode === 'spot' ? 'spot' : 'route'}
+                </p>
+                {v.notes && <p className="text-2xs text-muted-foreground">{v.notes}</p>}
+                <div className="flex flex-wrap gap-1.5">
+                  {onListView && (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      disabled={v.viewpoint.mode !== 'spot'}
+                      title={
+                        v.viewpoint.mode === 'spot'
+                          ? 'List it with the views of interest, facing a block'
+                          : 'A whole road is not a place: it stays here for its runs'
+                      }
+                      onClick={() => {
+                        const id = onListView(v)
+                        setListError(id ? null : 'Add a cutblock first, or remove a view of interest to make room.')
+                      }}
+                    >
+                      List with views of interest
+                    </Button>
+                  )}
+                  <Button size="xs" variant="outline" onClick={() => onUseView(v.viewpoint)}>
+                    Use viewpoint
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() =>
+                      onChange((current) => ({
+                        ...current,
+                        views: current.views.filter((x) => x.id !== v.id),
+                        fields: current.fields.map((f) => (f.viewId === v.id ? { ...f, viewId: null } : f)),
+                      }))
+                    }
+                  >
+                    Remove {v.name}
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {listError && <InlineAlert tone="warning">{listError}</InlineAlert>}
+          </div>
+        )}
+        <FormField label="Attachment type">
+          <StyledSelect value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+            <option value="photo">Reference field photo</option>
+            <option value="simulation">Simulation image</option>
+            <option value="map">Topographic map</option>
+            <option value="design">Design analysis</option>
+          </StyledSelect>
+        </FormField>
+        <FileButton
+          label="Import field attachment"
+          accept="image/jpeg,image/png,image/webp"
+          disabled={busy}
+          onFiles={([file]) => onImport(file, kind)}
+        >
+          {busy ? 'Reading image…' : 'Import photograph or evidence image'}
+        </FileButton>
+        <InfoTip label="About imported photographs" showLabel>
+          A resized evidence copy is stored; keep the original high-resolution photographs. EXIF values are suggestions.
+          Verify position, date, true-north heading and field of view; panoramas and edited or cropped photos need
+          manual calibration.
+        </InfoTip>
+        {d.fields.map((f) => (
+          <div key={f.id} className="flex items-center justify-between gap-2">
+            <TextButton className="min-w-0" onClick={() => onOpen(f.id)}>
+              <span className="truncate">
+                {f.name} · {f.kind}
+              </span>
+            </TextButton>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                onChange((current) => ({ ...current, fields: current.fields.filter((x) => x.id !== f.id) }))
+              }
+            >
+              Remove {f.name}
+            </Button>
+          </div>
+        ))}
+        {error && <InlineAlert tone="error">{error}</InlineAlert>}
+      </div>
+    </ToolSection>
+  )
+}
+
+/**
+ * One attachment's evidence and camera match, opened from Field records or from its view's row. Rendered beside the
+ * sidebar's sections rather than inside one, so folding a section never takes it away.
+ */
+export function FieldRecordDialog({
+  document: d,
+  onChange,
+  views,
+  result,
+  selected,
+  onClose,
+  onAddViewAt,
+}: {
+  document: ToolsDocument
+  onChange: (next: ToolsDocument | ((current: ToolsDocument) => ToolsDocument)) => void
+  /** Every viewpoint a record can be filed under: the views of interest, then any recorded before them. */
+  views: ToolView[]
+  result: AnalysisResult | null
+  selected: string | null
+  onClose: () => void
+  /** Lists a view of interest at the photo's place and returns its id; null when it cannot. */
+  onAddViewAt?: (point: { lng: number; lat: number }, name: string) => string | null
+}) {
+  const [annotation, setAnnotation] = useState('Ridge')
   const field = d.fields.find((f) => f.id === selected) ?? null
   const change = (patch: Partial<FieldRecord>) => {
     if (field)
-      onChange({
-        ...d,
-        fields: d.fields.map((f) =>
+      onChange((current) => ({
+        ...current,
+        fields: current.fields.map((f) =>
           f.id === field.id ? { ...f, ...patch, alignmentChecked: patch.alignmentChecked ?? false } : f,
         ),
-      })
-  }
-  const addView = (point?: [number, number], fallback?: string) => {
-    if (d.views.length >= 12) {
-      setError('Twelve viewpoints are saved. Remove one or export this workspace.')
-      return
-    }
-    const station = result?.stations[currentStation] ?? result?.stations[result.assessmentStationIndex]
-    const vp = point
-      ? {
-          id: createId('viewpoint'),
-          name: name.trim() || fallback || 'Field viewpoint',
-          mode: 'spot' as const,
-          coordinates: [point],
-        }
-      : mode === 'station' && station
-        ? {
-            id: createId('viewpoint'),
-            name: name.trim() || `Station ${formatKm(station.distanceAlongMeters)}`,
-            mode: 'spot' as const,
-            coordinates: [[station.lng, station.lat] as [number, number]],
-          }
-        : structuredClone(viewpoint)
-    if (!vp.coordinates.length) {
-      setError('Place a viewpoint or run the road assessment first.')
-      return
-    }
-    const id = createId('tool-view')
-    onChange({
-      ...d,
-      views: [...d.views, { id, name: name.trim() || vp.name, viewpoint: vp, landformId: activeLandformId, notes: '' }],
-      fields: field && point ? d.fields.map((f) => (f.id === field.id ? { ...f, viewId: id } : f)) : d.fields,
-    })
-    setName('')
-    setError(null)
-  }
-  const documentRef = useRef(d)
-  documentRef.current = d
-  const upload = async (file: File) => {
-    if (d.fields.length >= 24) {
-      setError('The workspace holds at most 24 attachments.')
-      return
-    }
-    setBusy(true)
-    setError(null)
-    try {
-      const f = await importFieldImage(file, kind, d.views[0]?.id ?? null)
-      const latest = documentRef.current
-      if (latest.fields.length >= 24) throw new Error('The workspace holds at most 24 attachments.')
-      if (!latest.views.some((v) => v.id === f.viewId)) f.viewId = null
-      onChange({ ...latest, fields: [...latest.fields, f] })
-      setSelected(f.id)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
+      }))
   }
   const station =
     field &&
@@ -164,265 +244,155 @@ export function ToolFieldPanel({
             }).filter((p) => p !== null),
           )
       : []
+  if (!field) return null
   return (
-    <ToolSection
-      title="Field records"
-      summary={d.views.length ? `${d.views.length} viewpoint${d.views.length === 1 ? '' : 's'} recorded` : 'None yet'}
-      toggleProps={{ 'data-forestry-disclosure': 'field-records' }}
-      help="Assessment viewpoints with their photographs and why each matters. They stay on this device and travel in the workspace export."
-    >
-      <div className="space-y-2">
-        <FormField label="Viewpoint name">
-          <input className={FORM_INPUT_CLASS} value={name} onChange={(e) => setName(e.target.value)} />
-        </FormField>
-        <FormField label="Save viewpoint from">
-          <StyledSelect value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
-            <option value="station">Current sampled station</option>
-            <option value="route">Entire current road or spot</option>
-          </StyledSelect>
-        </FormField>
-        <Button size="sm" variant="outline" onClick={() => addView()} disabled={mode === 'station' && !result}>
-          Record assessment viewpoint
-        </Button>
-        {d.views.map((v) => (
-          <div key={v.id} className="space-y-1 border-b py-2">
-            <p className="text-xs font-medium">
-              {v.name} · {v.viewpoint.mode === 'spot' ? 'spot' : 'route'}
-            </p>
-            <FormField label={`Significance of ${v.name}`} hideLabel>
-              <textarea
-                className={FORM_INPUT_CLASS}
-                value={v.notes}
-                placeholder="Public use, viewing opportunity, field visit or engagement evidence"
-                onChange={(e) =>
-                  onChange((current) => ({
-                    ...current,
-                    views: current.views.map((x) => (x.id === v.id ? { ...x, notes: e.target.value } : x)),
-                  }))
-                }
-              />
-            </FormField>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => onUseView(v.viewpoint)}>
-                Use viewpoint
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  onChange({
-                    ...d,
-                    views: d.views.filter((x) => x.id !== v.id),
-                    fields: d.fields.map((f) => (f.viewId === v.id ? { ...f, viewId: null } : f)),
-                  })
-                }
-              >
-                Remove {v.name}
-              </Button>
-            </div>
-          </div>
-        ))}
-        <FormField label="Attachment type">
-          <StyledSelect value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
-            <option value="photo">Reference field photo</option>
-            <option value="simulation">Simulation image</option>
-            <option value="map">Topographic map</option>
-            <option value="design">Design analysis</option>
-          </StyledSelect>
-        </FormField>
-        <FileButton
-          label="Import field attachment"
-          accept="image/jpeg,image/png,image/webp"
-          disabled={busy}
-          onFiles={([file]) => void upload(file)}
-        >
-          {busy ? 'Reading image…' : 'Import photograph or evidence image'}
-        </FileButton>
-        <InfoTip label="About imported photographs" showLabel>
-          A resized evidence copy is stored; keep the original high-resolution photographs. EXIF values are suggestions.
-          Verify position, date, true-north heading and field of view; panoramas and edited or cropped photos need
-          manual calibration.
-        </InfoTip>
-        {d.fields.map((f) => (
-          <div key={f.id} className="flex items-center justify-between gap-2">
-            <TextButton className="min-w-0" onClick={() => setSelected(f.id)}>
-              <span className="truncate">
-                {f.name} · {f.kind}
-              </span>
-            </TextButton>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => onChange({ ...d, fields: d.fields.filter((x) => x.id !== f.id) })}
+    <DialogShell title={field.name} subtitle="Field evidence and camera match" onClose={onClose} size="xl">
+      <div className="grid gap-5 md:grid-cols-[2fr_1fr]">
+        <div className="space-y-3">
+          <div className="relative overflow-hidden" style={{ aspectRatio: `${field.width}/${field.height}` }}>
+            <img src={field.image} alt={field.name} className="h-full w-full object-contain" />
+            <svg
+              className="absolute inset-0 h-full w-full"
+              viewBox={`0 0 ${field.width} ${field.height}`}
+              aria-label="Photo annotations and projected proposal samples"
+              onClick={(e) => {
+                if (!annotation.trim() || field.annotations.length >= 50) return
+                const rect = e.currentTarget.getBoundingClientRect()
+                change({
+                  annotations: [
+                    ...field.annotations,
+                    {
+                      x: (e.clientX - rect.left) / rect.width,
+                      y: (e.clientY - rect.top) / rect.height,
+                      label: annotation.trim().slice(0, 100),
+                    },
+                  ],
+                })
+              }}
             >
-              Remove {f.name}
-            </Button>
+              {dots.map((p, i) => (
+                <circle key={i} cx={p!.x} cy={p!.y} r={3} fill="#ef4444" fillOpacity="0.5" />
+              ))}
+              {field.annotations.map((a, i) => (
+                <g key={i}>
+                  <circle cx={a.x * field.width} cy={a.y * field.height} r="5" fill="#fbbf24" />
+                  <text
+                    x={a.x * field.width + 8}
+                    y={a.y * field.height}
+                    fill="#fff"
+                    stroke="#000"
+                    strokeWidth="0.6"
+                    fontSize="22"
+                  >
+                    {a.label}
+                  </text>
+                </g>
+              ))}
+            </svg>
           </div>
-        ))}
-        {error && <InlineAlert tone="error">{error}</InlineAlert>}
-      </div>
-      {field && (
-        <DialogShell
-          title={field.name}
-          subtitle="Field evidence and camera match"
-          onClose={() => setSelected(null)}
-          size="xl"
-        >
-          <div className="grid gap-5 md:grid-cols-[2fr_1fr]">
-            <div className="space-y-3">
-              <div className="relative overflow-hidden" style={{ aspectRatio: `${field.width}/${field.height}` }}>
-                <img src={field.image} alt={field.name} className="h-full w-full object-contain" />
-                <svg
-                  className="absolute inset-0 h-full w-full"
-                  viewBox={`0 0 ${field.width} ${field.height}`}
-                  aria-label="Photo annotations and projected proposal samples"
-                  onClick={(e) => {
-                    if (!annotation.trim() || field.annotations.length >= 50) return
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    change({
-                      annotations: [
-                        ...field.annotations,
-                        {
-                          x: (e.clientX - rect.left) / rect.width,
-                          y: (e.clientY - rect.top) / rect.height,
-                          label: annotation.trim().slice(0, 100),
-                        },
-                      ],
-                    })
-                  }}
-                >
-                  {dots.map((p, i) => (
-                    <circle key={i} cx={p!.x} cy={p!.y} r={3} fill="#ef4444" fillOpacity="0.5" />
-                  ))}
-                  {field.annotations.map((a, i) => (
-                    <g key={i}>
-                      <circle cx={a.x * field.width} cy={a.y * field.height} r="5" fill="#fbbf24" />
-                      <text
-                        x={a.x * field.width + 8}
-                        y={a.y * field.height}
-                        fill="#fff"
-                        stroke="#000"
-                        strokeWidth="0.6"
-                        fontSize="22"
-                      >
-                        {a.label}
-                      </text>
-                    </g>
-                  ))}
-                </svg>
-              </div>
-              <InfoTip label="What the red points are" showLabel>
-                Projected proposal ground samples, hidden ground included: an alignment aid. It does not mask terrain or
-                canopy and is not a photographic percent-alteration measurement.
-              </InfoTip>
-              <FormField label="Annotation to place on image">
-                <input
-                  className={FORM_INPUT_CLASS}
-                  value={annotation}
-                  onChange={(e) => setAnnotation(e.target.value)}
-                />
-              </FormField>
-              <p className="text-xs">
-                Click the image to label a ridge, drainage, skyline, natural pattern or design issue.
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => change({ annotations: field.annotations.slice(0, -1) })}
-              >
-                Undo last annotation
-              </Button>
-              {!pose && (
-                <InlineAlert>
-                  Record position, heading, field of view and camera elevation to project the proposal. A matching
-                  sampled station can supply estimated camera elevation.
-                </InlineAlert>
+          <InfoTip label="What the red points are" showLabel>
+            Projected proposal ground samples, hidden ground included: an alignment aid. It does not mask terrain or
+            canopy and is not a photographic percent-alteration measurement.
+          </InfoTip>
+          <FormField label="Annotation to place on image">
+            <input className={FORM_INPUT_CLASS} value={annotation} onChange={(e) => setAnnotation(e.target.value)} />
+          </FormField>
+          <p className="text-xs">
+            Click the image to label a ridge, drainage, skyline, natural pattern or design issue.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => change({ annotations: field.annotations.slice(0, -1) })}>
+            Undo last annotation
+          </Button>
+          {!pose && (
+            <InlineAlert>
+              Record position, heading, field of view and camera elevation to project the proposal. A matching sampled
+              station can supply estimated camera elevation.
+            </InlineAlert>
+          )}
+        </div>
+        <div className="space-y-3">
+          <FormField label="Evidence name">
+            <input className={FORM_INPUT_CLASS} value={field.name} onChange={(e) => change({ name: e.target.value })} />
+          </FormField>
+          <FormField label="Evidence viewpoint">
+            <StyledSelect value={field.viewId ?? ''} onChange={(e) => change({ viewId: e.target.value || null })}>
+              <option value="">Not linked</option>
+              {views.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </StyledSelect>
+          </FormField>
+          <FormField label="Field date">
+            <input
+              type="date"
+              className={FORM_INPUT_CLASS}
+              value={field.captured}
+              onChange={(e) => change({ captured: e.target.value })}
+            />
+          </FormField>
+          <CollapsibleSection toggleProps={{ 'data-forestry-disclosure': '' }} label="Camera record" defaultOpen>
+            <div className="space-y-2 py-2">
+              {CAMERA_FIELDS.map(({ key, label, step }) =>
+                key === 'pitch' || key === 'roll' ? (
+                  <NumberField
+                    key={key}
+                    label={label}
+                    step={step}
+                    blankValue="zero"
+                    value={field[key]}
+                    onValueChange={(value) => change({ [key]: value })}
+                  />
+                ) : (
+                  <NullableNumberField
+                    key={key}
+                    label={label}
+                    step={step}
+                    value={field[key]}
+                    onValueChange={(value) => change({ [key]: value })}
+                  />
+                ),
               )}
             </div>
-            <div className="space-y-3">
-              <FormField label="Evidence name">
-                <input
-                  className={FORM_INPUT_CLASS}
-                  value={field.name}
-                  onChange={(e) => change({ name: e.target.value })}
-                />
-              </FormField>
-              <FormField label="Evidence viewpoint">
-                <StyledSelect value={field.viewId ?? ''} onChange={(e) => change({ viewId: e.target.value || null })}>
-                  <option value="">Not linked</option>
-                  {d.views.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </StyledSelect>
-              </FormField>
-              <FormField label="Field date">
-                <input
-                  type="date"
-                  className={FORM_INPUT_CLASS}
-                  value={field.captured}
-                  onChange={(e) => change({ captured: e.target.value })}
-                />
-              </FormField>
-              <CollapsibleSection toggleProps={{ 'data-forestry-disclosure': '' }} label="Camera record" defaultOpen>
-                <div className="space-y-2 py-2">
-                  {CAMERA_FIELDS.map(({ key, label, step }) =>
-                    key === 'pitch' || key === 'roll' ? (
-                      <NumberField
-                        key={key}
-                        label={label}
-                        step={step}
-                        blankValue="zero"
-                        value={field[key]}
-                        onValueChange={(value) => change({ [key]: value })}
-                      />
-                    ) : (
-                      <NullableNumberField
-                        key={key}
-                        label={label}
-                        step={step}
-                        value={field[key]}
-                        onValueChange={(value) => change({ [key]: value })}
-                      />
-                    ),
-                  )}
-                </div>
-              </CollapsibleSection>
-              <FormField label="Camera elevation reference">
-                <input
-                  className={FORM_INPUT_CLASS}
-                  value={field.verticalReference ?? ''}
-                  placeholder="Datum; verify EXIF altitude against terrain"
-                  onChange={(e) => change({ verticalReference: e.target.value })}
-                />
-              </FormField>
-              <FormField label="Field and design notes">
-                <textarea
-                  className={FORM_INPUT_CLASS}
-                  value={field.notes}
-                  onChange={(e) => change({ notes: e.target.value })}
-                />
-              </FormField>
-              <CheckboxField
-                label="I checked the camera record and image alignment against field evidence."
-                checked={field.alignmentChecked}
-                onCheckedChange={(alignmentChecked) => change({ alignmentChecked })}
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={field.lng === null || field.lat === null}
-                onClick={() => {
-                  if (field.lng !== null && field.lat !== null) addView([field.lng, field.lat], field.name)
-                }}
-              >
-                Record photo location as viewpoint
-              </Button>
-            </div>
-          </div>
-        </DialogShell>
-      )}
-    </ToolSection>
+          </CollapsibleSection>
+          <FormField label="Camera elevation reference">
+            <input
+              className={FORM_INPUT_CLASS}
+              value={field.verticalReference ?? ''}
+              placeholder="Datum; verify EXIF altitude against terrain"
+              onChange={(e) => change({ verticalReference: e.target.value })}
+            />
+          </FormField>
+          <FormField label="Field and design notes">
+            <textarea
+              className={FORM_INPUT_CLASS}
+              value={field.notes}
+              onChange={(e) => change({ notes: e.target.value })}
+            />
+          </FormField>
+          <CheckboxField
+            label="I checked the camera record and image alignment against field evidence."
+            checked={field.alignmentChecked}
+            onCheckedChange={(alignmentChecked) => change({ alignmentChecked })}
+          />
+          {onAddViewAt && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={field.lng === null || field.lat === null}
+              title="List a view of interest where the photo was taken, and file the photo under it"
+              onClick={() => {
+                if (field.lng === null || field.lat === null) return
+                const id = onAddViewAt({ lng: field.lng, lat: field.lat }, field.name)
+                if (id) change({ viewId: id })
+              }}
+            >
+              Add the photo&rsquo;s place to the views of interest
+            </Button>
+          )}
+        </div>
+      </div>
+    </DialogShell>
   )
 }

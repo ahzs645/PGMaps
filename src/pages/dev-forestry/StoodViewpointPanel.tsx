@@ -18,12 +18,15 @@ export function StoodViewpointPanel({
   terrainGroundMeters,
   observerHeightMeters,
   onSurveyedEyeChange,
+  bare = false,
 }: {
   viewpoint: Viewpoint
   /** The terrain model's ground at the standing point, once the road view's terrain has loaded. */
   terrainGroundMeters: number | null
   observerHeightMeters: number
   onSurveyedEyeChange: (surveyedEye: SurveyedEye | undefined) => void
+  /** Without its own section: inside the row of the view of interest stood at, which names the place itself. */
+  bare?: boolean
 }) {
   const stand = standingPoint(viewpoint)
   if (!stand) return null
@@ -34,6 +37,52 @@ export function StoodViewpointPanel({
     terrainGroundMeters !== null && Number.isFinite(terrainGroundMeters)
       ? terrainGroundMeters + observerHeightMeters
       : null
+  const body = (
+    <div className="space-y-1.5" data-testid="stood-viewpoint">
+      <p className="text-2xs text-muted-foreground">
+        {bare ? 'Where you stand' : viewpoint.name || 'Viewpoint'}
+        {modelEye !== null
+          ? ` · terrain model ground ${metres(terrainGroundMeters!)}, eye ${metres(modelEye)} at ${formatMeasure(observerHeightMeters, 'm', { maximumFractionDigits: 1 })} up`
+          : ' · terrain model ground loads with the road view'}
+      </p>
+      <NullableNumberField
+        label="Surveyed eye elevation"
+        aria-label="Surveyed eye elevation, metres above sea level"
+        value={surveyed}
+        min={-500}
+        max={9000}
+        step={0.1}
+        suffix="m"
+        placeholder={modelEye !== null ? `${Math.round(modelEye)} (terrain model)` : 'Terrain model'}
+        updateOn="commit"
+        inputClassName={FORM_INPUT_CLASS}
+        contentClassName="block"
+        labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
+        unitClassName="text-2xs"
+        onValueChange={(value) => onSurveyedEyeChange(surveyedEyeFor(viewpoint, value))}
+      />
+      {surveyed !== null && terrainGroundMeters !== null && surveyed < terrainGroundMeters && (
+        <InlineAlert tone="warning">
+          The terrain model&rsquo;s ground here is {metres(terrainGroundMeters - surveyed)} above this eye, so it hides
+          the near view. Check the elevation and its datum.
+        </InlineAlert>
+      )}
+      {surveyed !== null && modelEye !== null && surveyed >= (terrainGroundMeters ?? -Infinity) && (
+        <p className="text-2xs text-muted-foreground">
+          {Math.abs(surveyed - modelEye) < 0.5
+            ? 'The same as the terrain model reads.'
+            : `${metres(Math.abs(surveyed - modelEye))} ${surveyed > modelEye ? 'above' : 'below'} the terrain model's eye.`}
+        </p>
+      )}
+      {lapsed !== null && (
+        <p className="text-2xs text-muted-foreground">
+          A surveyed elevation ({metres(viewpoint.surveyedEye!.elevationMeters)}) was entered {metres(lapsed)} from here
+          and is not used. Enter one for this point.
+        </p>
+      )}
+    </div>
+  )
+  if (bare) return body
   return (
     <ToolSection
       title="Where you stand"
@@ -49,49 +98,7 @@ export function StoodViewpointPanel({
         </>
       }
     >
-      <div className="space-y-1.5" data-testid="stood-viewpoint">
-        <p className="text-2xs text-muted-foreground">
-          {viewpoint.name || 'Viewpoint'}
-          {modelEye !== null
-            ? ` · terrain model ground ${metres(terrainGroundMeters!)}, eye ${metres(modelEye)} at ${formatMeasure(observerHeightMeters, 'm', { maximumFractionDigits: 1 })} up`
-            : ' · terrain model ground loads with the road view'}
-        </p>
-        <NullableNumberField
-          label="Surveyed eye elevation"
-          aria-label="Surveyed eye elevation, metres above sea level"
-          value={surveyed}
-          min={-500}
-          max={9000}
-          step={0.1}
-          suffix="m"
-          placeholder={modelEye !== null ? `${Math.round(modelEye)} (terrain model)` : 'Terrain model'}
-          updateOn="commit"
-          inputClassName={FORM_INPUT_CLASS}
-          contentClassName="block"
-          labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
-          unitClassName="text-2xs"
-          onValueChange={(value) => onSurveyedEyeChange(surveyedEyeFor(viewpoint, value))}
-        />
-        {surveyed !== null && terrainGroundMeters !== null && surveyed < terrainGroundMeters && (
-          <InlineAlert tone="warning">
-            The terrain model&rsquo;s ground here is {metres(terrainGroundMeters - surveyed)} above this eye, so it
-            hides the near view. Check the elevation and its datum.
-          </InlineAlert>
-        )}
-        {surveyed !== null && modelEye !== null && surveyed >= (terrainGroundMeters ?? -Infinity) && (
-          <p className="text-2xs text-muted-foreground">
-            {Math.abs(surveyed - modelEye) < 0.5
-              ? 'The same as the terrain model reads.'
-              : `${metres(Math.abs(surveyed - modelEye))} ${surveyed > modelEye ? 'above' : 'below'} the terrain model's eye.`}
-          </p>
-        )}
-        {lapsed !== null && (
-          <p className="text-2xs text-muted-foreground">
-            A surveyed elevation ({metres(viewpoint.surveyedEye!.elevationMeters)}) was entered {metres(lapsed)} from
-            here and is not used. Enter one for this point.
-          </p>
-        )}
-      </div>
+      {body}
     </ToolSection>
   )
 }

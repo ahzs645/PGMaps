@@ -385,3 +385,81 @@ export function orphanedViews(
     missingLandform: views.filter((view) => view.landformId && !landforms.has(view.landformId)).map((view) => view.id),
   }
 }
+
+/** How far the road view may be turned from a view's facing and a hand save still be that view's capture, degrees. */
+export const HAND_SAVE_FACING_DEGREES = 2
+
+/**
+ * What *Save viewpoint* (a view saved by hand from the road view) joins, so every saved view is a view of interest:
+ * `update` saves it as the capture of the planned view stood at, when the road view still faces that view's way, or
+ * of a listed view it repeats; `add` lists a new view where the eye stands, facing the block the road view looks at
+ * (or the bearing it looks along); `none` saves it alone, with the reason.
+ */
+export type HandSaveLink =
+  | { kind: 'update'; view: ViewOfInterest }
+  | { kind: 'add'; view: ViewOfInterest }
+  | { kind: 'none'; reason: string }
+
+export function handSaveLink(input: {
+  views: readonly ViewOfInterest[]
+  /** The planned view stood at (`currentPlannedView`), if any. */
+  standingView: ViewOfInterest | null
+  /** The road view's eye and the way it looks (the drive's exact pose). */
+  pose: { lng: number; lat: number; bearing: number } | null
+  blocks: ReadonlyArray<{ id: string; name: string; geometry: PolygonGeometry }>
+  /** The block the road view looks at, if it looks at one. */
+  lookAtTargetId: string | null
+  /** The block to list the view for when the road view looks at none (the summary's). */
+  fallbackBlockId: string | null
+  /** The road view's lens, else `DEFAULT_FOCAL_MM`. */
+  focalMm: number | null
+  /** The view's name: its planning-note caption. */
+  name: string
+}): HandSaveLink {
+  const { views, standingView, pose, blocks } = input
+  if (!pose) return { kind: 'none', reason: 'The road view had no position to list it at.' }
+  const centreOf = (blockId: string) => {
+    const block = blocks.find((entry) => entry.id === blockId)
+    return block ? blockCentre(block.geometry) : null
+  }
+  const turned = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
+  if (standingView) {
+    const bearing = viewBearing(standingView, centreOf(standingView.blockId))
+    if (bearing !== null && turned(bearing, pose.bearing) <= HAND_SAVE_FACING_DEGREES)
+      return { kind: 'update', view: standingView }
+  }
+  const block =
+    blocks.find((entry) => entry.id === input.lookAtTargetId) ??
+    blocks.find((entry) => entry.id === input.fallbackBlockId) ??
+    blocks[0]
+  if (!block) return { kind: 'none', reason: 'A view of interest is for a cutblock: add one to list this view.' }
+  const centre = blockCentre(block.geometry)
+  const facesBlock =
+    input.lookAtTargetId === block.id &&
+    !!centre &&
+    turned(bearingDegrees(pose, centre), pose.bearing) <= HAND_SAVE_FACING_DEGREES
+  const taken = new Set(views.map((view) => view.name))
+  let name = input.name
+  for (let n = 2; taken.has(name); n += 1) name = `${input.name} (${n})`
+  const view: ViewOfInterest = {
+    id: createViewOfInterestId(),
+    name,
+    source: { kind: 'map' },
+    lng: pose.lng,
+    lat: pose.lat,
+    blockId: block.id,
+    facing: facesBlock
+      ? { kind: 'block' }
+      : { kind: 'bearing', degrees: normalizeBearing(Math.round(pose.bearing * 10) / 10) },
+    focalMm: input.focalMm ?? DEFAULT_FOCAL_MM,
+    framing: 'landform',
+  }
+  const repeated = views.find((other) => sameView(other, view))
+  if (repeated) return { kind: 'update', view: repeated }
+  if (views.length >= MAX_VIEWS_OF_INTEREST)
+    return {
+      kind: 'none',
+      reason: `The views of interest hold ${MAX_VIEWS_OF_INTEREST}: remove one to list this view with them.`,
+    }
+  return { kind: 'add', view }
+}

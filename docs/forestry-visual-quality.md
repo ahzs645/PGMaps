@@ -37,7 +37,7 @@ is typed survives switching.
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
 | 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site; each button's tooltip describes the scenario and lists what its scene holds, counted by `scenarioSummary.ts`); **Road or viewpoint** (*Assess from*: a view of interest, or a length of road drawn, imported or snapped); folded *Which roads see the block*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving, each with its Table 3 record; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); **Saved views**; folded *Where you stand* at a spot or pullout (surveyed eye elevation); folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1); folded *Viewpoint significance* and *Key viewpoints*; folded *Field brief and crew checklist* |
+| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; each row holds everything about that view: its record with significance and 3.2.1 type, its field photos, its key-viewpoint choice and, at the view stood at, the surveyed eye and the field photo line-up; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); **Saved views** (only saves not listed with the views); on the road only, folded *Where you stand*, *Field photo* and **Viewpoint type** (3.2.1); folded *Route preview* and *Field records* (attachments); folded *Field brief and crew checklist* |
 | 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
 | 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **Package**: buttons that open *Save & export* on the block note, the FS1252 form, the analysis sheet or the scene; folded *VIA evidence package* (recording a run and the evidence checklist) |
@@ -146,12 +146,67 @@ closed. Captures are always PGMaps'. With an engine chosen, a captured view
 saved at another place than the one stood at says that it keeps PGMaps' picture
 (`renderJobFor`'s rule), and that standing there lets the engine draw it.
 
-**The viewpoint record.** A planned view's Table 3 fields (significance, why it
-was chosen, viewing experience, view duration; `ViewpointRecordFields`) are in
-its own row under *Viewpoint record*, held on `viaReview.viewpointRecords` by the
-view's name, which its capture is saved under; renaming the view moves the
-record (`renamedViewpointRecords`). Step 2's *Viewpoint significance* lists only
-views saved by hand.
+**Everything about one view is in its row.** What the reviewer fills in for a
+viewpoint is entered once, in that view's open row, never in a section of its own
+elsewhere in the steps:
+
+- *Viewpoint record*: the Table 3 fields (significance, why it was chosen,
+  viewing experience, view duration) and the handbook 3.2.1 viewpoint type
+  (`ViewpointRecordFields`), held on `viaReview.viewpointRecords` by the view's
+  name, which its capture is saved under. The view stood at also offers the
+  run's 3.2.1 estimate (`viewpointTypeEstimate`); no other view does, because
+  the run measured only that one. Step 4 and the reports read a view's own type
+  first and fall back to the review's `viewpointType` only at the assessment
+  station (`viewpointTypeOf`, and `vp.review.viewpointType` in the district
+  form), so a review saved before types were kept per view reads the same.
+- *Field photos*: the *Field records* attachments filed under the view
+  (`FieldRecord.viewId` is the view's id), and *Add a field photo…*, which
+  files the new photo under it. The attachment dialog is mounted beside the
+  sidebar's sections (`tools.fieldDialog`), so a folded section never closes it.
+- *Key viewpoint for <block>* (and *for the blocks together* when the scene
+  has several blocks; `KeyViewpointFields`): ticking it writes
+  `viaReview.keyViewpoints` by block name and view name, taking the choice
+  over from another view; unticking clears only this view's choice. A row
+  offers its own block, and any block the review already gives it.
+- At the view stood at (`standingViewId`, the summary's `currentPlannedView`),
+  the row says *assessing from here* and holds what belongs to the place:
+  the surveyed eye elevation (`StoodViewpointPanel` with `bare`) and the
+  Mapillary or own field photo the road view lines up with. Standing on a
+  road, or at a place that is not a planned view, those two and the road's
+  **Viewpoint type** stay in step 2.
+- *Reopen saved* opens the road view where the view's capture was saved under
+  the current scene (the old *Saved views* button).
+
+Renaming a view moves its record and any key-viewpoint choice naming it
+(`renamedViewpointRecords`).
+
+**A view saved by hand is a view of interest.** *Save viewpoint* on the road
+view's bar lists what it saved with the views (`handSaveLink`): standing at a
+planned view and still facing its way (within `HAND_SAVE_FACING_DEGREES`, 2°),
+the save is that view's capture and replaces its earlier saves under this scene
+(a save under another design stays, for the design comparison); otherwise a new
+view is listed where the eye stands, facing the block the road view looks at
+or the bearing it looks along, with the road view's lens (50 mm when none is
+set) and the save's caption as its name ("… (2)" when that name is taken). A
+save that repeats a listed view joins it. Its picture is framed exactly as
+before: the link only tags the saved view with `plannedViewId` and
+`plannedKey`. **Saved views** lists only saves that could not be listed (no
+cutblock, or 12 views already), and saves made before this.
+
+**Field records file under the views.** The views of interest are the tools'
+viewpoints (`plannedToolViews`, by the view's id, standing on its 30 m pullout as
+*Stand here* does): the viewpoint matrix, *Assessment evidence viewpoint*, the
+evidence package and a photo's *Evidence viewpoint* all list them. Viewpoints
+recorded in *Field records* before this are kept (`earlierToolViews`) with their
+photographs and runs, under *Recorded here before the views of interest*, until
+the reviewer lists one with the views (*List with views of interest*, spot
+viewpoints only, under the same id, its notes becoming the view's reason) or
+removes it; nothing converts them unasked. A photo's *Add the photo's place to
+the views of interest* lists a view where it was taken and files it there. The
+assessment workspace export carries the views as viewpoints too
+(`withPlannedViews`), so a run filed under one reads back under its name; its
+import drops those copies again when its scene brings the views back, and the
+project file stores only the workspace's own.
 
 **What a view is** (`viewsOfInterest.ts`, DOM-free): a place (a map click, or
 a VLI viewpoint or rec site by its candidate key), the block it assesses, a
@@ -3384,7 +3439,7 @@ drape, which had its own read, while the views took their unit only from step
 
 **What the reviewer gives for the reports.** Four inputs the run never makes
 are review records (`viaReview`, out of `sceneFingerprint` and `AnalysisInput`),
-each entered once. Step 2's *Viewpoint significance* holds Table 3 per saved
+each entered once. A view's row (step 2, *Viewpoint record*) holds Table 3 per
 view, by the view's name (`viewpointRecords`): significance on the MOF 2005
 five-point scale, stored as printed ("High (5)", which `significanceScore`
 reads), why it was chosen, the viewing experience and the view duration.
@@ -3392,8 +3447,8 @@ reads), why it was chosen, the viewing experience and the view duration.
 `selectionReason`, `viewingExperience` and `duration`; the step 4 judgements
 stay with the assessment station's view, which `atAssessment` marks
 (`atAssessmentStation` in `facts.ts`, used wherever a part asks which view is
-judged). Step 2's *Key viewpoints* names a saved view per block, and one for
-the blocks together (`keyViewpoints`); `documentFacts` carries it as
+judged). A view's row ticks it as its block's key viewpoint, or the blocks'
+together (`keyViewpoints`); `documentFacts` carries it as
 `DocumentFacts.keyViewpoints` and `chooseKeyViewpoints` takes it over the
 run's choice when that view sees the block (for the group, two or more of
 them), a block given its own view leaving the group. The discussion then says

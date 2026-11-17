@@ -623,6 +623,11 @@ export type ViewpointRecord = {
   experience?: string
   /** How long the proposal stays in view ("sustained", "under 10 seconds"). */
   duration?: string
+  /**
+   * Handbook 3.2.1's viewpoint type for this view. Step 4 and the reports read the assessment station's view's type,
+   * and fall back to the review's own `viewpointType` (recorded before types were kept per view).
+   */
+  type?: ViewpointTypeId
 }
 
 /** A key viewpoint the reviewer chose for the report: a saved view's name, and why. */
@@ -638,6 +643,10 @@ export type ViaReview = {
   retention?: RetentionLevel | null
   /** Aggregated retention was already netted out of the geometry (3.4.3.3), so it is not counted twice. */
   retentionNetted?: boolean
+  /**
+   * 3.2.1 for the assessment as a whole: what was recorded before each view kept its own type
+   * (`ViewpointRecord.type`), and the type of a road assessed with no view of interest stood at.
+   */
   viewpointType?: ViewpointTypeId | null
   /** 3.5.2 — landscape character, constraints, design strategies. */
   rationale?: string
@@ -670,6 +679,19 @@ export type ViaReview = {
   keyViewpoints?: { blocks?: Record<string, KeyViewpointRecord>; group?: KeyViewpointRecord | null }
   /** Sub-landforms by landform name: what each is part of and where it is divided (step 1). */
   landformRecords?: Record<string, LandformRecord>
+}
+
+/**
+ * A view's 3.2.1 type: its own record's, else, at the assessment station, the review's whole-assessment type (recorded
+ * before each view kept one, or for a road assessed with no view of interest stood at).
+ */
+export function viewpointTypeOf(
+  review: ViaReview | null | undefined,
+  viewName: string | null,
+  atAssessmentStation: boolean,
+): ViewpointTypeId | null {
+  const own = viewName ? review?.viewpointRecords?.[viewName]?.type : undefined
+  return own ?? (atAssessmentStation ? (review?.viewpointType ?? null) : null)
 }
 
 export type DesignSuggestion = { rating: DesignRating; basis: string }
@@ -882,6 +904,10 @@ function parseViewpointRecord(value: Record<string, unknown>): ViewpointRecord {
     reason: text(value.reason),
     experience: text(value.experience),
     duration: text(value.duration, 200),
+    type:
+      typeof value.type === 'number' && [1, 2, 3, 4, 5].includes(value.type)
+        ? (value.type as ViewpointTypeId)
+        : undefined,
   })
 }
 function parseKeyViewpoint(value: unknown): KeyViewpointRecord | undefined {
