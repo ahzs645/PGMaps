@@ -4203,6 +4203,7 @@ function DevForestryVisuals() {
       ...(reply.representation ? { representation: reply.representation } : {}),
       ...(reply.dissolve ? { dissolve: reply.dissolve } : {}),
       depth: depthSummary(joined.depth.data),
+      missingDetail: reply.missingDetail,
       missing: [
         ...reply.missing,
         ...(terrain.clipped ? [`landform past ${km(terrain.terrainRadiusMeters)} cut`] : []),

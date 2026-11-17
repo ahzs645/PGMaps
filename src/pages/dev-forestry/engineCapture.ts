@@ -573,6 +573,8 @@ export type FigureIllustration = {
   depth: { nearestM: number | null; farthestM: number | null; skyShare: number }
   /** What was drawn without data, the engine's and PGMaps' own (terrain cut short). */
   missing: string[]
+  /** Detailed adapter assumptions, including schematic/quantized component geometry. */
+  missingDetail?: string[]
   /**
    * What the engine drew for a final render (`quality: 'final'`), as it reported it; null when it was asked for one
    * and drew the active capture instead, absent when none was asked for.
