@@ -166,6 +166,33 @@ The steep slope was searched by marked regions with the camera at its GPS positi
 
 Neither was accepted. The skyline in the photo's corner is a single straight ridge, which fits many cameras.
 
+## Third pass: the browser search on fourteen helicopter photos (17 November 2026)
+
+Fourteen iPhone HEIC photos were taken from a helicopter over about 40 minutes, at 900–1,630 m and 41–67 knots. Lenses
+were 26–52 mm equivalent, and ten of the photos are portrait. Each was run through the bench (`match.ts`) and through
+the page's new search (`wideOrientation.ts`, in Node on the page's terrain: zoom 11 to 25 km over zoom 9 to 90 km).
+
+| Outcome | Photos | Bench and browser |
+| --- | ---: | --- |
+| Trustworthy in both | 4 | Within 2° of heading and 0.5° of pitch. Recorded headings were 55°, 125°, 146° and 136° out |
+| Ambiguous in both, same camera | 7 | Within 1.2° of heading. A runner-up heading fits about as well |
+| Ambiguous in both, different cameras | 1 | Fits of 81–85% that disagree by 33° |
+| No usable fit | 2 | 17–34% of columns agree; the photos look steeply down at forest |
+
+- **The browser reproduces the bench.** On the first photo checked it gave the identical camera on the bench's own
+  terrain. On the page's coarser far terrain it agreed to within 0.3° there, and to within about 2° across all four
+  trustworthy photos. It took 8–23 s per photo against the bench's 33 s for that photo; the bench's full runs here took
+  several minutes each.
+- **The sun settles cameras.** On two trustworthy photos the predicted sun lands on the sun breaking through cloud. On
+  an ambiguous one, a bright sky to the left, a backlit hillside and a mapped 2023+ cutblock on a photographed clearing
+  all favour the winner over the runner-up 110° away.
+- **Most of these photos are hard.** They look 15–33° down at continuous forest, with one smooth ridge as the
+  skyline, and the automatic reader also takes some cloud edges for sky.
+- **Neighbouring frames would help.** Two photos 3 s apart fitted 240° and 228°, both ambiguous: their agreement is
+  evidence neither fit uses alone.
+- **HEIC.** Chromium cannot decode these files, but `exifr` read their GPS, heading, lens, tilt sensor and GPS time
+  directly. The tilt sensor was within 0.5–3.6° of the fitted pitch while it read gravity alone.
+
 ## Repeatable workflow (15 November 2026)
 
 The bench became a workflow for new photos:
