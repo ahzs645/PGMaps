@@ -2,6 +2,7 @@ import { ribbonFieldLabels, type RibbonFieldId } from '@/pages/dev-forestry-road
 import { Fragment, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronUp, ChevronDown, PanelRightOpen, PanelRightClose } from 'lucide-react'
 import { TabBar } from '@/components/ui/tab-bar'
+import type { ActionMenuItem } from '@/components/ui/action-menu'
 import { AccessLockup } from './AccessLockup'
 import { RibbonFinder, type RibbonResult, type ToolResult } from './RibbonFinder'
 import { editorSections, revealEditorSection } from './ribbonEditorSections'
@@ -32,6 +33,7 @@ export function WorkspaceTools({
   leading,
   quickTools,
   narrowMenu = [],
+  narrowMenuExtras = [],
   switcher,
   states,
   groupName,
@@ -70,6 +72,8 @@ export function WorkspaceTools({
    * (see `.lp-ribbon-more` in interfaces.css), e.g. the interface switch.
    */
   narrowMenu?: WorkspaceCommand[]
+  /** Tools outside the command registry that fold into the same More menu (the colour scheme, help). */
+  narrowMenuExtras?: readonly ActionMenuItem[]
   /** The end of the tab row, e.g. the save status and the interface switch. */
   switcher?: ReactNode
   states: Partial<Record<WorkspaceCommand, CommandState>>
@@ -375,10 +379,11 @@ export function WorkspaceTools({
           </div>
         )}
         {quickTools}
-        {(quickAccess.length > 0 || narrowMenu.length > 0) && (
+        {(quickAccess.length > 0 || narrowMenu.length > 0 || narrowMenuExtras.length > 0) && (
           <span className="lp-ribbon-more">
             <CommandMenu
               commands={[...quickAccess, ...narrowMenu]}
+              extraItems={narrowMenuExtras}
               states={states}
               disabled={disabled}
               onCommand={onCommand}

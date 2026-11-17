@@ -1058,8 +1058,8 @@
   }
 }
 
-/* Quick access shows where the tab row has room for it; below that, its commands
-   and the interface switch fold into one More menu (`narrowMenu`). */
+/* Quick access shows where the tab row has room for it; below that, its commands,
+   the interface switch, the colour scheme and help fold into one More menu (`narrowMenu`). */
 .lp-quick-access {
   display: none;
 }
@@ -1078,7 +1078,13 @@
   background: hsl(var(--accent));
 }
 @media (max-width: 899px) {
-  .lp-ribbon-tabs > [data-command='chooseInterface'] {
+  .lp-ribbon-tabs > :is([data-command='chooseInterface'], [data-theme-mode], [data-workflow-help]) {
+    display: none;
+  }
+}
+/* On a phone the tabs are the row's main control: the wordmark gives them its room. */
+@media (max-width: 599px) {
+  .lp-ribbon-tabs > .access-lockup {
     display: none;
   }
 }

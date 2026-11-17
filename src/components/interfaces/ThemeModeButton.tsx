@@ -1,5 +1,6 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import type { ActionMenuItem } from '@/components/ui/action-menu'
 import { cn } from '@/lib/utils'
 
 // The colour scheme, one press at a time: light, dark, then the system's own setting.
@@ -29,4 +30,24 @@ export function ThemeModeButton({ className }: { className?: string }) {
       <current.Icon aria-hidden="true" className="size-4" />
     </button>
   )
+}
+
+/** The same three schemes as menu items, for a More menu that stands in for the button on narrow screens. */
+export function useThemeModeItems(): ActionMenuItem[] {
+  const { theme, setTheme } = useTheme()
+  const current = theme ?? 'system'
+  return [
+    { type: 'label', id: 'theme-label', label: 'Colour scheme' },
+    ...MODES.map(
+      ({ value, label, Icon }): ActionMenuItem => ({
+        id: `theme-${value}`,
+        label,
+        icon: <Icon className="size-4" aria-hidden="true" />,
+        radio: true,
+        checked: current === value,
+        keepOpen: true,
+        onSelect: () => setTheme(value),
+      }),
+    ),
+  ]
 }
