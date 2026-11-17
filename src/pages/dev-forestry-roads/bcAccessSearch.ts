@@ -106,14 +106,14 @@ function reportedOpening(
   }
 }
 
-function businessCode(value: unknown, label: string): string | undefined {
+export function businessCode(value: unknown, label: string): string | undefined {
   if (value === undefined || value === null || value === '') return undefined
   if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$/.test(value.trim()))
     throw Error(`${label} must be an identifier containing letters, numbers, dots, colons, underscores or hyphens.`)
   return value.trim()
 }
 
-function calendarDate(value: unknown, label: string): string | undefined {
+export function calendarDate(value: unknown, label: string): string | undefined {
   if (value === undefined || value === null || value === '') return undefined
   if (typeof value !== 'string' && typeof value !== 'number') throw Error(`Invalid ${label}.`)
   const date = new Date(value)

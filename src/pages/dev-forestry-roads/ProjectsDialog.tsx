@@ -92,6 +92,7 @@ export function ProjectsDialog({
   onCreate,
   onScenario,
   onOpenBcOpening,
+  onOpenBcPlannedBlock,
   portalContainer,
   newProjectRequest,
   startingStandards,
@@ -111,6 +112,8 @@ export function ProjectsDialog({
   onScenario?: (id: RoadScenarioId) => void
   /** Resolves only after a new investigation workspace has loaded; rejection leaves discovery open. */
   onOpenBcOpening?: (openingId: string) => Promise<void>
+  /** Starts a design from an FTEN cutblock that has no RESULTS opening ID, by its cutblock key. */
+  onOpenBcPlannedBlock?: (cutblockSKey: string) => Promise<void>
   portalContainer?: HTMLElement | null
   /** Rises each time something outside asks for the new-project form. */
   newProjectRequest?: number
@@ -219,6 +222,11 @@ export function ProjectsDialog({
   const openBcStudy = async (openingId: string) => {
     if (!onOpenBcOpening) throw Error('Opening BC studies is unavailable in this workspace.')
     await onOpenBcOpening(openingId)
+    if (mounted.current) close(false)
+  }
+  const openBcPlannedBlock = async (cutblockSKey: string) => {
+    if (!onOpenBcPlannedBlock) throw Error('Opening BC cutblocks is unavailable in this workspace.')
+    await onOpenBcPlannedBlock(cutblockSKey)
     if (mounted.current) close(false)
   }
   const openExample = async (openingId: string) => {
@@ -557,7 +565,12 @@ export function ProjectsDialog({
           </>
         ) : view === 'discover' ? (
           <>
-            <BcAccessDiscoveryPanel onOpenStudy={openBcStudy} disabled={busy} active={open} />
+            <BcAccessDiscoveryPanel
+              onOpenStudy={openBcStudy}
+              onOpenPlannedBlock={onOpenBcPlannedBlock ? openBcPlannedBlock : undefined}
+              disabled={busy}
+              active={open}
+            />
           </>
         ) : (
           <>

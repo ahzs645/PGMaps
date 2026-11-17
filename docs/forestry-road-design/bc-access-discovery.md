@@ -121,8 +121,8 @@ history, reviewed access anchor or historical route automatically.
 cutblock ID. Filled fields are combined with AND. Default result size is 25; the
 interface can request 10, 25 or 50. One extra source row detects a capped result.
 A message says when more records match and asks for a narrower query. Search is
-read-only; **Open study** separately loads the evidence and terrain. A failed open
-keeps the results and the existing project.
+read-only; **Open study** (or **Design from this block**) separately loads the evidence
+and terrain. A failed open keeps the results and the existing project.
 
 A live search for licence **A18165** returned 25 visible records with `hasMore: true`
 at 03:42:59 UTC. This establishes at least 26 matches, not an exact provincial
@@ -133,8 +133,32 @@ Two visible legacy rows under A18165 reported negative opening IDs, `-131060000`
 and `-139210000`. Their FTEN keys and original reported values remain visible,
 but the positive-ID RESULTS-linked study loader cannot open them. The result
 explains that limitation. A row without geometry also remains visible with its
-study action unavailable. Supporting FTEN-key-only studies is a future adapter
-extension, not a reason to erase legacy records.
+study action unavailable.
+
+**Blocks with no opening ID:** about one FTEN block in six (40,867 of 223,710 on
+17 November 2026) has no RESULTS opening ID, most of them blocks in a cutting
+permit before harvest is reported. Their study stays unavailable, because there is
+no opening to cross-check. **Design from this block** instead starts a new design
+(`bcPlannedBlock.ts`, `bcPlannedBlockScenario.ts`):
+
+- the FTEN record is read again by its `CUT_BLOCK_SKEY`, and refused if the source
+  now reports a positive opening (open its study instead), a different key, more
+  than one record or no polygon;
+- FTEN road segments within about 1 km of the block's own footprint, and regional
+  terrain, are loaded with it; any failure opens nothing and keeps the current project;
+- the project opens in design mode with no road yet, framed on the block. The block
+  is `proposed` unless FTEN reports a harvest start, which keeps it `harvested` with
+  that date; block, harvest-authority and lifecycle status codes are kept as reported
+  and not translated into an authorization or harvest state;
+- three scenario warnings stay with the project: no opening to cross-check, nearby
+  roads are candidates only (or none returned is not evidence of none), and the
+  Forest Operations Map was not queried.
+
+Searching cutblock **PRN024** returns key 870485 (licence N2E, permit A08, block
+status HB, planned harvest 20 October 2026, 16.74 ha planned gross). Designing from
+it on 17 November 2026 loaded the block and 32 FTEN road segment parts.
+FOM planned blocks and roads, and reconciling a FOM filing with its FTEN record,
+are not implemented.
 
 **Saved studies:** search by project name or opening ID, and filter access studies
 versus road designs. Cards say block parts and context road records; designed

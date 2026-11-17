@@ -143,7 +143,10 @@ it does not establish a recommended route. The [terrain guide](forestry-road-des
 records provenance, limits and the distinction between a ground-coverage check and complete sections.
 
 **Projects → Find BC cutblocks** adds bounded live search by opening, licence,
-cutting permit, timber mark and block ID. The scenario library also contains four
+cutting permit, timber mark and block ID. A block with no RESULTS opening ID has no
+study; **Design from this block** opens it, with nearby FTEN roads, as a design with no
+road yet, framed on the block ([guide](forestry-road-design/bc-access-discovery.md#search-behavior-you-can-rely-on)).
+The scenario library also contains four
 checked real-record studies. These open in persisted **Access investigation** mode:
 the source map, block/road-record counts and evidence panel replace the engineering
 dashboard. The internal compatibility alignment is neither drawn nor analysed;

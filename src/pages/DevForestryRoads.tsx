@@ -46,6 +46,7 @@ import { TerrainLayerSelect } from './dev-forestry-roads/TerrainLayerSelect'
 import { RoadSelect } from './dev-forestry-roads/Controls'
 import { AccessHistoryPanel } from './dev-forestry-roads/AccessHistoryPanel'
 import { loadBcAccessPilotScenario } from './dev-forestry-roads/bcAccessPilotScenario'
+import { loadBcPlannedBlockScenario } from './dev-forestry-roads/bcPlannedBlockScenario'
 import {
   awaitingFirstRoad,
   isAccessInvestigation,
@@ -2409,6 +2410,26 @@ export default function DevForestryRoads({
         w.setNotice(loaded.notice)
       },
       { label: 'Cancel opening study', notice: 'Opening study cancelled. The current project was kept.' },
+      true,
+    )
+  /** An FTEN block with no opening ID has nothing to investigate, so it starts a design with no road yet. */
+  const openBcPlannedBlock = async (cutblockSKey: string) =>
+    run(
+      'Loading the selected BC cutblock…',
+      async (signal) => {
+        const loaded = await loadBcPlannedBlockScenario({ cutblockSKey, signal, onProgress: w.setBusy })
+        if (signal.aborted) return
+        await w.flush()
+        if (signal.aborted) return
+        w.startProject(loaded.project, loaded.source)
+        beginMode('inspect')
+        setActiveProfile(null)
+        setSelectedPoint(null)
+        setRoutePreviewState(null)
+        setFitRevision((revision) => revision + 1)
+        w.setNotice(loaded.notice)
+      },
+      { label: 'Cancel loading the cutblock', notice: 'Cutblock loading cancelled. The current project was kept.' },
       true,
     )
   /** Opens the file picker for `kind`. `newProject` names the project a terrain file is to start. */
@@ -5620,6 +5641,7 @@ export default function DevForestryRoads({
         onCreate={createProject}
         onScenario={openScenario}
         onOpenBcOpening={openBcOpening}
+        onOpenBcPlannedBlock={openBcPlannedBlock}
         portalContainer={ref.current}
         newProjectRequest={newProjectRequest}
         startingStandards={STARTING_JOB_STANDARDS}

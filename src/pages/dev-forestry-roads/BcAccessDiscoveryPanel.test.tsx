@@ -251,4 +251,49 @@ describe('BC cutblock discovery', () => {
     await act(async () => opening.resolve(undefined))
     expect(text(view.root)).not.toContain('Opening study…')
   })
+
+  it('offers a design, not a study, for a block with no opening ID, and only when the host can open one', async () => {
+    const base = result()
+    const planned = {
+      ...base.records[0],
+      id: 'ften-cutblock:870001',
+      openingId: null,
+      cutblockSKey: '870001',
+      cutBlockId: 'TST001',
+      disturbanceStartDate: undefined,
+      disturbanceEndDate: undefined,
+    }
+    vi.spyOn(searchSource, 'searchBcCutblocks').mockResolvedValue(
+      result('99001', { records: [...base.records, planned], returnedCount: 2, matchedCountLowerBound: 2 }),
+    )
+    const onOpenStudy = vi.fn<(_: string) => Promise<void>>().mockResolvedValue(undefined)
+    const opening = deferred<void>()
+    const onOpenPlannedBlock = vi.fn<(_: string) => Promise<void>>().mockReturnValue(opening.promise)
+    let view!: ReactTestRenderer
+    await act(async () => {
+      view = create(createElement(BcAccessDiscoveryPanel, { onOpenStudy, onOpenPlannedBlock }))
+    })
+    views.push(view)
+    await enterOpening(view)
+    await submit(view)
+    expect(button(view, 'Study unavailable for opening not reported, cutblock TST001').props.disabled).toBe(true)
+    // A block with an opening keeps its study and gets no design action.
+    expect(() => button(view, 'Design from cutblock 2, record fixture-key-99001')).toThrow(/Missing button/)
+    expect(text(view.root)).toContain('You can still start a design from its FTEN footprint')
+    const design = button(view, 'Design from cutblock TST001, record 870001')
+    await act(async () => design.props.onClick())
+    expect(onOpenPlannedBlock).toHaveBeenCalledExactlyOnceWith('870001')
+    expect(onOpenStudy).not.toHaveBeenCalled()
+    expect(text(button(view, 'Design from cutblock TST001, record 870001'))).toBe('Opening block…')
+    expect(button(view, 'Open study for opening 99001, cutblock 2').props.disabled).toBe(true)
+    await act(async () => opening.reject(Error('Terrain service unavailable.')))
+    expect(text(view.root)).toContain('Could not open cutblock TST001. Terrain service unavailable.')
+    expect(button(view, 'Design from cutblock TST001, record 870001').props.disabled).toBe(false)
+
+    const { view: without } = await harness()
+    await enterOpening(without)
+    await submit(without)
+    expect(() => button(without, 'Design from cutblock TST001, record 870001')).toThrow(/Missing button/)
+    expect(text(without.root)).not.toContain('You can still start a design')
+  })
 })

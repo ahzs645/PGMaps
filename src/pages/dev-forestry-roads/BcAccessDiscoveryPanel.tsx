@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Search, SquareArrowOutUpRight, X } from 'lucide-react'
+import { PencilRuler, Search, SquareArrowOutUpRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ListHeader, ListState } from '@/components/ui/result-list'
@@ -34,6 +34,8 @@ const errorMessage = (cause: unknown) => (cause instanceof Error ? cause.message
 
 interface BcAccessDiscoveryProps {
   onOpenStudy: (openingId: string) => Promise<void>
+  /** Starts a design from a block with no opening ID, by its FTEN cutblock key. Absent hides the action. */
+  onOpenPlannedBlock?: (cutblockSKey: string) => Promise<void>
   disabled?: boolean
   /** Stops an in-flight query when a containing dialog is hidden without unmounting. */
   active?: boolean
@@ -44,7 +46,11 @@ export function BcAccessDiscoveryPanel({ active = true, ...props }: BcAccessDisc
   return active ? <ActiveDiscoveryPanel {...props} /> : null
 }
 
-function ActiveDiscoveryPanel({ onOpenStudy, disabled = false }: Omit<BcAccessDiscoveryProps, 'active'>) {
+function ActiveDiscoveryPanel({
+  onOpenStudy,
+  onOpenPlannedBlock,
+  disabled = false,
+}: Omit<BcAccessDiscoveryProps, 'active'>) {
   const [draft, setDraft] = useState<SearchDraft>(EMPTY_DRAFT)
   const [limit, setLimit] = useState(BC_CUTBLOCK_SEARCH_DEFAULT_LIMIT)
   const [result, setResult] = useState<BcCutblockSearchResult | null>(null)
@@ -52,6 +58,7 @@ function ActiveDiscoveryPanel({ onOpenStudy, disabled = false }: Omit<BcAccessDi
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [openingId, setOpeningId] = useState<string | null>(null)
+  const [blockKey, setBlockKey] = useState<string | null>(null)
   const [openError, setOpenError] = useState('')
   const pending = useRef<AbortController | null>(null)
   const pendingOpen = useRef(false)
@@ -121,7 +128,22 @@ function ActiveDiscoveryPanel({ onOpenStudy, disabled = false }: Omit<BcAccessDi
       if (mounted.current) setOpeningId(null)
     }
   }
-  const blocked = disabled || openingId !== null
+  const openPlannedBlock = async (record: BcCutblockSearchRecord) => {
+    if (disabled || pendingOpen.current || !onOpenPlannedBlock) return
+    pendingOpen.current = true
+    setBlockKey(record.cutblockSKey)
+    setOpenError('')
+    try {
+      await onOpenPlannedBlock(record.cutblockSKey)
+    } catch (cause) {
+      if (mounted.current)
+        setOpenError(`Could not open cutblock ${record.cutBlockId ?? record.cutblockSKey}. ${errorMessage(cause)}`)
+    } finally {
+      pendingOpen.current = false
+      if (mounted.current) setBlockKey(null)
+    }
+  }
+  const blocked = disabled || openingId !== null || blockKey !== null
   const hasSelector = SEARCH_FIELDS.some(({ key }) => draft[key].trim())
 
   return (
@@ -206,8 +228,12 @@ function ActiveDiscoveryPanel({ onOpenStudy, disabled = false }: Omit<BcAccessDi
         </p>
       )}
       {openingId && <InlineAlert loading>Opening study for {openingId}…</InlineAlert>}
+      {blockKey && <InlineAlert loading>Opening FTEN cutblock {blockKey}…</InlineAlert>}
       {openError && (
-        <InlineAlert tone="error" title="Study not opened">
+        <InlineAlert
+          tone="error"
+          title={openError.startsWith('Could not open cutblock') ? 'Cutblock not opened' : 'Study not opened'}
+        >
           {openError}
         </InlineAlert>
       )}
@@ -252,6 +278,8 @@ function ActiveDiscoveryPanel({ onOpenStudy, disabled = false }: Omit<BcAccessDi
                         disabled={blocked}
                         opening={openingId !== null && openingId === record.openingId}
                         onOpen={(id) => void openStudy(id)}
+                        loadingBlock={blockKey !== null && blockKey === record.cutblockSKey}
+                        onOpenBlock={onOpenPlannedBlock ? () => void openPlannedBlock(record) : undefined}
                       />
                     </li>
                   ))}
@@ -270,13 +298,19 @@ function CutblockSearchRecord({
   disabled,
   opening,
   onOpen,
+  loadingBlock,
+  onOpenBlock,
 }: {
   record: BcCutblockSearchRecord
   disabled: boolean
   opening: boolean
   onOpen: (openingId: string) => void
+  loadingBlock: boolean
+  onOpenBlock?: () => void
 }) {
   const available = record.openingId !== null && record.bounds !== null
+  // Only a block with no positive opening ID; one with an opening goes through its study.
+  const designable = !!onOpenBlock && record.openingId === null && record.bounds !== null
   const facts = [
     ['Forest licence', record.forestFileId],
     ['Cutting permit', record.cuttingPermitId],
@@ -314,6 +348,8 @@ function CutblockSearchRecord({
             : record.reportedOpeningId
               ? 'A positive opening ID is required to open a study. This reported identifier cannot be cross-checked with RESULTS.'
               : 'An opening ID is needed to open a study.'}
+          {designable &&
+            ' You can still start a design from its FTEN footprint and the tenure roads near it; nothing is cross-checked with RESULTS.'}
         </p>
       )}
       <Button
@@ -328,6 +364,20 @@ function CutblockSearchRecord({
         <SquareArrowOutUpRight className="size-3.5" aria-hidden="true" />
         {!available ? 'Study unavailable' : opening ? 'Opening study…' : 'Open study'}
       </Button>
+      {designable && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full sm:ml-2 sm:w-auto"
+          disabled={disabled}
+          aria-label={`Design from cutblock ${record.cutBlockId ?? record.cutblockSKey}, record ${record.cutblockSKey}`}
+          onClick={onOpenBlock}
+        >
+          <PencilRuler className="size-3.5" aria-hidden="true" />
+          {loadingBlock ? 'Opening block…' : 'Design from this block'}
+        </Button>
+      )}
     </article>
   )
 }

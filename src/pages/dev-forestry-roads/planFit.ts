@@ -9,6 +9,17 @@ export function roadPlanFitCoordinates(
   active: Alignment,
 ): Coordinate[] {
   if (isAccessInvestigation(project)) return investigationCoordinates(project)
+  // With no road yet the alignment is a hidden placeholder that says nothing about the site: frame the blocks the
+  // road is for, or else what was loaded. A returned tenure road can run for tens of kilometres past the block.
+  if (project.designPlaceholderId) {
+    const blocks = project.context.flatMap((feature) =>
+      feature.kind === 'harvest' && feature.geometry.type === 'Polygon'
+        ? feature.geometry.coordinates[0].map(([x, y]) => [x, y] as Coordinate)
+        : [],
+    )
+    const loaded = blocks.length ? blocks : investigationCoordinates(project)
+    if (loaded.length) return loaded
+  }
   const roads = target === 'active' ? [active] : project.alignments
   const coordinates = roads.flatMap((alignment) => alignment.points.map((point) => point.coordinate))
   // A block a road reaches is part of the picture: fit the whole block, not just the landing.
