@@ -255,6 +255,7 @@ describe('parseDesignStandards', () => {
       runningSurfaceWidthM: 5,
       maxClearingWidthM: 20,
       maxCrossDrainSpacingM: 150,
+      ditchErosionHazard: 'moderate',
       source: 'Company road standard, class 3',
       confirmedOn: '2026-11-09',
     })
@@ -267,6 +268,13 @@ describe('parseDesignStandards', () => {
         'The design standards confirmation date must be a real date, written YYYY-MM-DD.',
       )
     expect(parseDesignStandards(standards({ confirmedOn: '2026-11-09' })).confirmedOn).toBe('2026-11-09')
+  })
+
+  it('keeps a record without a ditch soil class without one, and refuses an unknown class', () => {
+    expect('ditchErosionHazard' in parseDesignStandards(DEFAULT_DESIGN_STANDARDS)).toBe(false)
+    expect(() => parseDesignStandards({ ...DEFAULT_DESIGN_STANDARDS, ditchErosionHazard: 'sandy' })).toThrow(
+      /erosion hazard/,
+    )
   })
 
   it('refuses half a short-pitch allowance and out-of-range limits', () => {

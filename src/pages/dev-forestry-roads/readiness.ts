@@ -22,6 +22,9 @@ import { assessCostReadiness, type CostReadinessAssessment } from './costReadine
 import { buildCrossingRegister, type CrossingRegister } from './crossingRegister'
 import { buildCulvertSchedule } from './culverts/culvertSchedule'
 import { culvertChannels } from './culverts/culvertChannels'
+import { crossDrainSpacingGuidance, switchbackChainages, type CrossDrainStretch } from './culverts/crossDrainSpacing'
+import { CROSS_DRAIN_PLACEMENT, CROSS_DRAIN_SPACING } from './culverts/engineeringManual'
+import { curvePoints } from './profileAnnotations'
 import {
   CROSSING_APPROACH_TANGENT_M,
   CROSSING_SKEW_SCREEN_DEG,
@@ -76,6 +79,7 @@ export type ReadinessTarget =
   | 'drainage'
   | 'constraints'
   | 'haul-destination'
+  | 'cross-drain-guide'
 
 export interface ReadinessRow {
   id: string
@@ -179,7 +183,6 @@ export interface ReadinessInput {
 }
 
 const SLOPE_SHEET_JUDGED_ON = `The sheet's share of ground at ${SLOPE_SHEET_CHECK.steepPercent}% or steeper in a ±${SLOPE_SHEET_CHECK.stripHalfWidthM} m strip, per ${SLOPE_SHEET_CHECK.intervalM} m, within ${SLOPE_SHEET_CHECK.flagPoints} points of the terrain's. The sheet's JPEG classes are area estimates (about 9–12%); it is evidence beside the estimate, never an input to it`
-const CROSS_DRAIN_JUDGED_ON = 'A culvert at every modelled stream and cross-drain site; none undersized'
 const EPS = 1e-6
 const station = (chainage: number) => labelStation(chainage)
 const num = (value: number, digits = 0) =>
@@ -1506,66 +1509,92 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
       })
   }
 
+  // Ditch relief and stream crossings are two rules (EM 3.5.5.6: a cross drain relieves the ditch
+  // and is placed by spacing; a defined watercourse is a stream crossing designed on its own). The
+  // modelled culvert capacity is evidence printed beside each, never what either row is judged on.
   const record = input.drainage?.record
-  if (!record || input.drainage?.stale)
-    add({
-      id: 'drainage',
-      group: 'water',
-      check: 'Cross-drain sites and modelled streams drained',
-      state: 'not-assessed',
+  const ditchRelief = { id: 'ditch-relief', group: 'water', check: 'Cross-drain candidates relieved' } as const
+  const streamCrossings = {
+    id: 'stream-crossings',
+    group: 'water',
+    check: 'Modelled streams cross the road in a culvert',
+  } as const
+  const DITCH_RELIEF_JUDGED_ON = `A culvert at every modelled cross-drain candidate, on terrain of ${DITCH_DETAIL_CELL_M} m cells or finer`
+  const STREAM_CROSSINGS_JUDGED_ON =
+    'A culvert at every modelled stream, and no stream carried along the road. Modelled culvert capacity is evidence, not the rule'
+  if (!record || input.drainage?.stale) {
+    const notRun = {
+      state: 'not-assessed' as const,
       result: record ? 'The drainage check is out of date' : 'The drainage check has not been run',
       measured: record ? 'The road, its culverts, the terrain or a limit changed since it ran' : undefined,
-      judgedOn: 'A culvert at every modelled stream and cross-drain site',
-      action: { label: record ? 'Run again' : 'Run check', target: 'drainage' },
-    })
-  else {
+      action: { label: record ? 'Run again' : 'Run check', target: 'drainage' as const },
+    }
+    add({ ...ditchRelief, ...notRun, judgedOn: DITCH_RELIEF_JUDGED_ON })
+    add({ ...streamCrossings, ...notRun, judgedOn: STREAM_CROSSINGS_JUDGED_ON })
+  } else {
     const flowsBare = register.rows.filter((row) => row.modelled && row.structure.kind === 'none').length
     const summary = record.summary
+    const action = { label: 'Open drainage', target: 'drainage' } as const
+    const capacity = summary.culverts
+      ? `Evidence: ${summary.undersized} of ${plural(summary.culverts, 'culvert')} below the modelled peak`
+      : 'Evidence: no culvert to size'
     // Cells coarser than a ditch read flow leaving the road wherever the ground falls away, so
     // their cross-drain count is a screen: it neither flags the row nor lets it be met.
     const screening = record.grid.cellM > DITCH_DETAIL_CELL_M
-    const issues = [
-      summary.lowPoints && !screening
-        ? `${plural(summary.lowPoints, 'cross-drain site has', 'cross-drain sites have')} no culvert`
-        : '',
-      flowsBare ? `${plural(flowsBare, 'modelled stream has', 'modelled streams have')} no culvert` : '',
-      summary.redirected ? `${plural(summary.redirected, 'stream is', 'streams are')} carried along the road` : '',
-      summary.undersized ? `${plural(summary.undersized, 'culvert is', 'culverts are')} undersized` : '',
-    ].filter(Boolean)
-    const measured = `${summary.crossings} modelled ${summary.crossings === 1 ? 'stream' : 'streams'} · ${plural(summary.lowPoints, 'cross-drain candidate')}${screening ? ` (screening on ${num(record.grid.cellM)} m cells)` : ''} · ${num(summary.pondingAreaM2)} m² new ponding · ${summary.undersized} of ${plural(summary.culverts, 'culvert')} undersized`
+    const reliefMeasured = `${plural(summary.lowPoints, 'cross-drain candidate')} without a culvert${screening ? ` (screening on ${num(record.grid.cellM)} m cells)` : ''} · ${num(summary.pondingAreaM2)} m² new ponding · ${capacity}`
     add(
-      issues.length
+      screening
         ? {
-            id: 'drainage',
-            group: 'water',
-            check: 'Cross-drain sites and modelled streams drained',
-            state: 'attention',
-            severity: 'limit',
-            result: issues.slice(0, 2).join(' and ') + (issues.length > 2 ? `, and ${issues.length - 2} more` : ''),
-            measured,
-            judgedOn: CROSS_DRAIN_JUDGED_ON,
-            action: { label: 'Open drainage', target: 'drainage' },
+            ...ditchRelief,
+            state: 'not-assessed',
+            result: `Cross-drain candidates need terrain of ${DITCH_DETAIL_CELL_M} m cells or finer`,
+            measured: reliefMeasured,
+            judgedOn: DITCH_RELIEF_JUDGED_ON,
+            action,
           }
-        : screening
+        : summary.lowPoints
           ? {
-              id: 'drainage',
-              group: 'water',
-              check: 'Cross-drain sites and modelled streams drained',
-              state: 'not-assessed',
-              result: `Cross-drain sites need terrain of ${DITCH_DETAIL_CELL_M} m cells or finer`,
-              measured,
-              judgedOn: CROSS_DRAIN_JUDGED_ON,
-              action: { label: 'Open drainage', target: 'drainage' },
+              ...ditchRelief,
+              state: 'attention',
+              severity: 'limit',
+              result: `${plural(summary.lowPoints, 'cross-drain candidate has', 'cross-drain candidates have')} no culvert`,
+              measured: reliefMeasured,
+              judgedOn: DITCH_RELIEF_JUDGED_ON,
+              action,
             }
           : {
-              id: 'drainage',
-              group: 'water',
-              check: 'Cross-drain sites and modelled streams drained',
+              ...ditchRelief,
               state: 'met',
-              result: 'Every modelled stream and cross-drain site has a culvert',
-              measured,
-              judgedOn: CROSS_DRAIN_JUDGED_ON,
+              result: 'Every modelled cross-drain candidate has a culvert',
+              measured: reliefMeasured,
+              judgedOn: DITCH_RELIEF_JUDGED_ON,
             },
+    )
+    const streamIssues = [
+      flowsBare ? `${plural(flowsBare, 'modelled stream has', 'modelled streams have')} no culvert` : '',
+      summary.redirected ? `${plural(summary.redirected, 'stream is', 'streams are')} carried along the road` : '',
+    ].filter(Boolean)
+    const streamMeasured = `${summary.crossings} modelled ${summary.crossings === 1 ? 'stream' : 'streams'} · ${capacity}`
+    add(
+      streamIssues.length
+        ? {
+            ...streamCrossings,
+            state: 'attention',
+            severity: 'limit',
+            result: streamIssues.join(' and '),
+            measured: streamMeasured,
+            judgedOn: STREAM_CROSSINGS_JUDGED_ON,
+            action,
+          }
+        : {
+            ...streamCrossings,
+            state: 'met',
+            result: summary.crossings
+              ? `${every(summary.crossings, 'modelled stream crosses', 'modelled streams cross')} in a culvert`
+              : 'No modelled stream crosses the road',
+            measured: streamMeasured,
+            judgedOn: STREAM_CROSSINGS_JUDGED_ON,
+          },
     )
   }
 
@@ -1612,6 +1641,101 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
             measured: spacingText,
             judgedOn: `Maximum spacing ${trim(spacingLimit)} m, between culverts and from each road end`,
           },
+    )
+  }
+
+  // The Engineering Manual's spacing table (EM 3.5.5.6, Table 3-14), read for each grade band of
+  // each run. Optional: it needs the ditch soil's erosion hazard, which is only ever entered.
+  const guidance = {
+    id: 'cross-drain-guidance',
+    group: 'water',
+    check: 'Cross-drain spacing within the manual’s table',
+  } as const
+  const GUIDANCE_JUDGED_ON = `Maximum spacing by road grade and ditch-soil erosion hazard, the shortest limit of any grade band in the run, between culverts and from each road end (${CROSS_DRAIN_SPACING.locator}). Low points and switchbacks are placed by site (${CROSS_DRAIN_PLACEMENT.requiredLocator})`
+  const hazard = standards?.ditchErosionHazard
+  if (!hazard)
+    add({
+      ...guidance,
+      state: 'not-assessed',
+      result: 'The ditch soil’s erosion hazard is not entered',
+      judgedOn: GUIDANCE_JUDGED_ON,
+      action: { label: 'Enter soil class', target: 'cross-drain-guide' },
+    })
+  else if (analysis.length <= EPS || !stations.length)
+    add({
+      ...guidance,
+      state: 'not-assessed',
+      result: 'No sections were calculated, so the grade is not known',
+      judgedOn: GUIDANCE_JUDGED_ON,
+    })
+  else {
+    const read = crossDrainSpacingGuidance({
+      stations,
+      lengthM: analysis.length,
+      culverts: engineering?.culverts ?? [],
+      hazard,
+      lowPoints: curvePoints(alignment, analysis.length, engineering?.culverts ?? [])
+        .filter((point) => point.kind === 'low')
+        .map((point) => point.chainage),
+      switchbacks: switchbackChainages(stations),
+    })
+    const hazardLabel = CROSS_DRAIN_SPACING.hazards.find((h) => h.value === hazard)?.label.toLowerCase()
+    const describe = (run: CrossDrainStretch) =>
+      `${span(run)} ${num(run.lengthM)} m${run.governing ? ` against ${num(run.governing.limitM)} m at ${run.governing.label}` : ''}${
+        run.governing && run.steepestOnlyLimitM !== null && run.steepestOnlyLimitM !== run.governing.limitM
+          ? ` (the steepest grade alone reads ${num(run.steepestOnlyLimitM)} m)`
+          : ''
+      }`
+    const sites = [
+      ...read.stretches.flatMap((run) => run.lowPoints.map((c) => `low point ${station(c)}`)),
+      ...read.stretches.flatMap((run) => run.switchbacks.map((c) => `switchback ${station(c)}`)),
+    ]
+    const rock = read.stretches.reduce((sum, run) => sum + run.rockLineDitchM, 0)
+    const notes = [
+      sites.length
+        ? `Place by site: ${sites.slice(0, 4).join(', ')}${sites.length > 4 ? ` and ${sites.length - 4} more` : ''}`
+        : '',
+      rock > EPS
+        ? `Rock-line the ditch over ${num(rock)} m above ${CROSS_DRAIN_SPACING.rockLineDitchAbovePercent}%`
+        : '',
+    ].filter(Boolean)
+    const shown = read.over.length ? read.over : read.notDetermined.length ? read.notDetermined : read.stretches
+    const measured = [
+      `${hazardLabel} erosion hazard · ${plural(read.stretches.length, 'run')}: ${shown.slice(0, 3).map(describe).join(' · ')}${shown.length > 3 ? ` · and ${shown.length - 3} more` : ''}`,
+      ...notes,
+    ].join(' · ')
+    const worst = read.over.reduce<CrossDrainStretch | null>(
+      (best, run) =>
+        !best || run.lengthM - (run.governing?.limitM ?? 0) > best.lengthM - (best.governing?.limitM ?? 0) ? run : best,
+      null,
+    )
+    add(
+      worst
+        ? {
+            ...guidance,
+            state: 'attention',
+            severity: 'limit',
+            result: `${plural(read.over.length, 'run is', 'runs are')} longer than the manual’s table allows`,
+            measured,
+            judgedOn: GUIDANCE_JUDGED_ON,
+            action: { label: 'Add culvert', target: 'culverts', chainage: (worst.start + worst.end) / 2 },
+          }
+        : read.notDetermined.length
+          ? {
+              ...guidance,
+              state: 'not-assessed',
+              result: `${plural(read.notDetermined.length, 'run has', 'runs have')} no design grade over part of ${read.notDetermined.length === 1 ? 'its' : 'their'} length`,
+              measured,
+              judgedOn: GUIDANCE_JUDGED_ON,
+              action: { label: 'Open guide', target: 'cross-drain-guide' },
+            }
+          : {
+              ...guidance,
+              state: 'met',
+              result: 'No run is longer than the manual’s table allows for its grades',
+              measured,
+              judgedOn: GUIDANCE_JUDGED_ON,
+            },
     )
   }
 
