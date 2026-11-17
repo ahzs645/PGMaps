@@ -51,6 +51,7 @@ jobs:
       pull-requests: read
     outputs:
       cable: ${{ steps.filter.outputs.cable }}
+      heic: ${{ steps.filter.outputs.heic }}
     steps:
       - uses: actions/checkout@v4
       - id: filter
@@ -61,6 +62,12 @@ jobs:
               - 'crates/cable-layout/**'
               - 'scripts/build-cable-wasm.mjs'
               - 'src/pages/dev-forestry-roads/cableLayout/cable_layout.wasm'
+              - '.github/workflows/checks.yml'
+            heic:
+              - 'crates/heic-decode/**'
+              - 'scripts/build-heic-wasm.mjs'
+              - 'src/lib/heic/heic_decode.wasm'
+              - 'src/lib/heic/fixtures/**'
               - '.github/workflows/checks.yml'
 
   cable-wasm:
@@ -88,4 +95,31 @@ jobs:
         with:
           name: cable-layout-wasm-rebuilt
           path: crates/cable-layout/target/wasm32-unknown-unknown/release/cable_layout.wasm
+          if-no-files-found: ignore
+
+  heic-wasm:
+    needs: cable-changes
+    if: github.event_name == 'workflow_dispatch' || needs.cable-changes.outputs.heic == 'true'
+    # The HEIC photo decoder is Rust (a thin interface over the heifer crate) compiled to
+    # WebAssembly and committed beside its loader, so Vite, Vitest and the Pages build need no Rust.
+    # This job runs the crate's tests, rebuilds it with the pinned toolchain and the locked crates,
+    # and fails when the committed bytes differ. The rebuilt file is uploaded as
+    # `heic-decode-wasm-rebuilt`: commit it as src/lib/heic/heic_decode.wasm.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned Rust toolchain
+        working-directory: crates/heic-decode
+        run: rustup toolchain install 1.98.0 --profile minimal --target wasm32-unknown-unknown
+      - name: Crate tests
+        working-directory: crates/heic-decode
+        run: cargo test --release --locked
+      - name: Rebuild heic_decode.wasm and compare
+        run: npm run wasm:heic -- --check
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heic-decode-wasm-rebuilt
+          path: crates/heic-decode/target/wasm32-unknown-unknown/release/heic_decode.wasm
           if-no-files-found: ignore

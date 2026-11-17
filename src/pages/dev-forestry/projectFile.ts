@@ -5,7 +5,7 @@
  * figures, the assessment workspace, and the package's recipe and renderer. Not in it: terrain, the inventories and
  * the run, which are read and made again.
  *
- * Pictures stay the data URLs they are. A figure's rasters (a class code per pixel, tens of megabytes raw) are
+ * The JSON reader still accepts inline pictures. A figure's rasters (a class code per pixel, tens of megabytes raw) are
  * gzipped one by one and written as base64, so a dozen views fit in a file a browser can read. No DOM access: the
  * gzip is the platform's `CompressionStream`, which Node has too.
  */
@@ -14,7 +14,7 @@ import { parseScene, serializeScene, type ForestryScene } from './scene'
 
 export const PROJECT_FORMAT = 'pgmaps-visual-quality-project'
 export const PROJECT_VERSION = 1
-export const PROJECT_FILE_EXTENSION = '.pgvq.json'
+export const PROJECT_FILE_EXTENSION = '.pgvq.zip'
 /** The largest project file opened, bytes. */
 export const MAX_PROJECT_FILE_BYTES = 400 * 1024 * 1024
 /** Saved views kept per place, the page's own limit. */
@@ -78,13 +78,13 @@ async function through(bytes: Uint8Array, stream: { readable: ReadableStream; wr
 const gzip = (bytes: Uint8Array) => through(bytes, new CompressionStream('gzip'))
 const gunzip = (bytes: Uint8Array) => through(bytes, new DecompressionStream('gzip'))
 
-function toBase64(bytes: Uint8Array): string {
+export function toBase64(bytes: Uint8Array): string {
   let binary = ''
   const step = 0x8000
   for (let i = 0; i < bytes.length; i += step) binary += String.fromCharCode(...bytes.subarray(i, i + step))
   return btoa(binary)
 }
-function fromBase64(text: string): Uint8Array {
+export function fromBase64(text: string): Uint8Array {
   const binary = atob(text)
   const bytes = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
@@ -131,9 +131,9 @@ async function unpack(value: unknown): Promise<unknown> {
   return out
 }
 
-/** The project as the file's text. */
-export async function serializeProject(state: ProjectState, savedAt = new Date()): Promise<string> {
-  return JSON.stringify({
+/** The same project document underlies standalone JSON and the project ZIP. */
+export async function packProject(state: ProjectState, savedAt = new Date()) {
+  return {
     format: PROJECT_FORMAT,
     version: PROJECT_VERSION,
     savedAt: savedAt.toISOString(),
@@ -146,7 +146,11 @@ export async function serializeProject(state: ProjectState, savedAt = new Date()
     engineFigures: await pack(state.engineFigures),
     workspace: state.workspace,
     package: state.pkg,
-  })
+  }
+}
+
+export async function serializeProject(state: ProjectState, savedAt = new Date()): Promise<string> {
+  return JSON.stringify(await packProject(state, savedAt))
 }
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
@@ -213,6 +217,12 @@ export async function parseProject(input: string): Promise<{ state: ProjectState
   } catch {
     throw new Error('This is not a project file: it is not JSON.')
   }
+  return readProject(raw)
+}
+
+export async function readProject(
+  raw: Record<string, unknown>,
+): Promise<{ state: ProjectState; summary: ProjectSummary }> {
   if (!raw || raw.format !== PROJECT_FORMAT)
     throw new Error('This is not a visual-quality project file. Choose one saved as Project in Save & export.')
   if (!finite(raw.version) || raw.version < 1) throw new Error('The project file states no version.')

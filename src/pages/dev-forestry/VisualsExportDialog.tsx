@@ -120,6 +120,11 @@ async function previewOf(file: BuiltFile): Promise<Preview> {
     const [{ workbookPreviewHtml }, ExcelJS] = await Promise.all([import('./workbookPreview'), import('exceljs')])
     return { type: 'html', html: await workbookPreviewHtml(await file.blob.arrayBuffer(), ExcelJS) }
   }
+  if (type === 'application/zip') {
+    const { projectArchiveFileList } = await import('./projectArchive')
+    const text = await projectArchiveFileList(file.blob)
+    return { type: 'text', text: text.slice(0, TEXT_PREVIEW_CHARS), truncated: text.length > TEXT_PREVIEW_CHARS }
+  }
   const text = await file.blob.text()
   if (type === 'text/html') return { type: 'html', html: text }
   return { type: 'text', text: text.slice(0, TEXT_PREVIEW_CHARS), truncated: text.length > TEXT_PREVIEW_CHARS }
@@ -815,6 +820,7 @@ export function VisualsExportDialog({
       // again the views of interest whose capture failed.
       const again = exportPreparation(item.kind, context, { retry: true })
       const ready =
+        item.kind !== 'project' &&
         !again.run &&
         !again.landChecks &&
         !again.render &&

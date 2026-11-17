@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { FieldRecord } from './assessmentTools'
+import { HeicDecodeError } from '@/lib/heic/heicDecode'
+import { showablePhoto } from '@/lib/heic/heicDecodeClient'
 import { loadElevationGrid } from '@/lib/forestry/terrain/demLoader'
 import { MAX_WALK_METERS, nearestStation } from './driveMath'
 import {
@@ -20,6 +22,7 @@ import {
   type RoadViewPose,
 } from './exifPose'
 import type { MatchedCamera } from './matchedCamera'
+import type { OwnPhotoStep } from './ownPhotoSteps'
 import {
   fetchMapillaryImage,
   mapillaryToken,
@@ -81,6 +84,12 @@ export type OwnPhoto = {
   src: string
   /** Whether `src` is an object URL this hook made and must revoke. */
   objectUrl: boolean
+  /** Original bytes for a local photo, shared with its project attachment. */
+  original?: Blob
+  /** `heic` when `src` is a JPEG decoded here from the picked HEIC file (`showablePhoto`). */
+  decodedFrom?: 'heic' | null
+  /** False when a decoded photo's colours could not be brought to sRGB; its geometry is unaffected. */
+  srgb?: boolean
   width: number
   height: number
   /** The field record it came from, so a confirmed pose can be saved back. */
@@ -213,10 +222,13 @@ export function useFieldPhoto({
   eyeHeightMeters: number
 }) {
   const [own, setOwn] = useState<OwnPhoto | null>(null)
-  const [ownStatus, setOwnStatus] = useState<{ loading: boolean; error: string | null }>({
+  const ownRequest = useRef(0)
+  const [ownStatus, setOwnStatus] = useState<{ loading: boolean; error: string | null; stage?: string }>({
     loading: false,
     error: null,
   })
+  // The own photo's dialog (`OwnPhotoDialog`), kept here so it outlives the sidebar panel that opens it.
+  const [ownDialog, setOwnDialog] = useState<{ open: boolean; step: OwnPhotoStep }>({ open: false, step: 'position' })
   const token = mapillaryToken()
   const [input, setInput] = useState('')
   const [image, setImage] = useState<MapillaryImage | null>(null)
@@ -276,6 +288,8 @@ export function useFieldPhoto({
         return
       }
       if (!token) return
+      ownRequest.current++
+      setOwnStatus({ loading: false, error: null })
       abort.current?.abort()
       const controller = new AbortController()
       abort.current = controller
@@ -682,6 +696,8 @@ export function useFieldPhoto({
    * once per spot. The tools need no road view, so they work for a photo taken far from the scene's road.
    */
   const ownTerrain = useRef<{ id: string; source: ElevationSource } | null>(null)
+  /** The same terrain as state, so what is drawn from it (the skyline over the photo) follows its loading. */
+  const [ownTerrainLoaded, setOwnTerrainLoaded] = useState<{ id: string; source: ElevationSource } | null>(null)
   const loadOwnTerrain = useCallback(
     async (lng: number, lat: number, signal: AbortSignal, onTiles?: (loaded: number, total: number) => void) => {
       const id = `${lng.toFixed(3)},${lat.toFixed(3)}`
@@ -721,6 +737,7 @@ export function useFieldPhoto({
         },
       }
       ownTerrain.current = { id, source }
+      setOwnTerrainLoaded({ id, source })
       return source
     },
     [],
@@ -740,6 +757,39 @@ export function useFieldPhoto({
       current.height,
     )
   }
+  /**
+   * The terrain's skyline for the own photo's camera as it stands, in the photo's pixels: drawn over the photo in
+   * its dialog, so a camera can be judged against the ridgeline with no road view. Null until the camera tools'
+   * terrain is loaded for the photo's spot (`loadOwnSkyline`, or any tool that loads it).
+   */
+  const ownSkylineTerrain =
+    own && ownLng !== null && ownLat !== null && ownTerrainLoaded?.id === `${ownLng.toFixed(3)},${ownLat.toFixed(3)}`
+      ? ownTerrainLoaded.source
+      : null
+  const ownSkyline = useMemo(() => {
+    if (!own || !ownSkylineTerrain || own.pose.lng === null || own.pose.lat === null) return null
+    const pose = ownCamera(own, ownSkylineTerrain)
+    if (!Number.isFinite(pose.altitudeMeters)) return null
+    return terrainSkyline(pose, ownSkylineTerrain, { columns: 200, maxDistanceMeters: WIDE_RADIUS_METERS * 0.95 })
+  }, [own, ownSkylineTerrain])
+  const [ownSkylineStatus, setOwnSkylineStatus] = useState<{ loading: boolean; error: string | null }>({
+    loading: false,
+    error: null,
+  })
+  /** Loads the terrain round the own photo so its skyline can be drawn over it. */
+  const loadOwnSkyline = useCallback(async () => {
+    if (ownLng === null || ownLat === null) return
+    setOwnSkylineStatus({ loading: true, error: null })
+    try {
+      await loadOwnTerrain(ownLng, ownLat, new AbortController().signal)
+      setOwnSkylineStatus({ loading: false, error: null })
+    } catch (error) {
+      setOwnSkylineStatus({
+        loading: false,
+        error: `The terrain did not load: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    }
+  }, [ownLng, ownLat, loadOwnTerrain])
   /** The own photo's pixels at the bench's working width, kept while the photo is open. */
   const ownPixels = useRef<{ src: string; pixels: ImageData } | null>(null)
   const readOwnPixels = async (current: OwnPhoto) => {
@@ -972,7 +1022,7 @@ export function useFieldPhoto({
   const showOnMap = useCallback(
     async (which: 'camera' | 'runner-up') => {
       const angles = candidateAngles(which)
-      if (!own || !angles || own.pose.lng === null || own.pose.lat === null) return
+      if (!own || !angles || own.pose.lng === null || own.pose.lat === null) return false
       setToolsBusy('Laying the photo on the map…')
       try {
         const terrain = await loadOwnTerrain(own.pose.lng, own.pose.lat, new AbortController().signal)
@@ -993,8 +1043,10 @@ export function useFieldPhoto({
           seenShare: drape.seenShare,
         })
         setToolsError(null)
+        return true
       } catch (error) {
         setToolsError(`Could not lay the photo on the map: ${error instanceof Error ? error.message : String(error)}`)
+        return false
       } finally {
         setToolsBusy(null)
       }
@@ -1097,14 +1149,28 @@ export function useFieldPhoto({
 
   /** Opens the reviewer's own photo, read here and kept here, with its EXIF as the starting pose. */
   const openOwnFile = useCallback(
-    async (file: File, roadView: RoadViewPose | null) => {
+    async (
+      file: File,
+      roadView: RoadViewPose | null,
+      saved?: { pose: OwnPose; recordId: string | null; blob: Blob },
+    ) => {
+      const request = ++ownRequest.current
       if (file.size > OWN_PHOTO_MAX_BYTES) {
         setOwnStatus({ loading: false, error: 'Use a photo smaller than 25 MB.' })
         return
       }
-      setOwnStatus({ loading: true, error: null })
-      const src = URL.createObjectURL(file)
+      setOwnStatus({ loading: true, error: null, stage: 'Reading the photo…' })
+      let src: string | null = null
       try {
+        // A HEIC photo is shown by Safari and decoded here everywhere else; its tags are read from the file itself.
+        const shown = await showablePhoto(file, {
+          onDecoding: () => {
+            if (request === ownRequest.current)
+              setOwnStatus({ loading: true, error: null, stage: 'Decoding the HEIC photo in this browser…' })
+          },
+        })
+        if (request !== ownRequest.current) return
+        src = URL.createObjectURL(shown.blob)
         let tags: Record<string, unknown> | null = null
         try {
           const exifr = await import('exifr')
@@ -1116,6 +1182,11 @@ export function useFieldPhoto({
           /* No readable EXIF: every value starts from the road view. */
         }
         const size = await decodeImage(src)
+        if (request !== ownRequest.current) {
+          URL.revokeObjectURL(src)
+          return
+        }
+        const shownSrc = src
         const exif = readExif(tags, size)
         const start = startingPose({ exif, roadView, eyeHeightMeters })
         abort.current?.abort()
@@ -1135,25 +1206,41 @@ export function useFieldPhoto({
         setOwn({
           id: `own-${Date.now().toString(36)}`,
           name: file.name.slice(0, 200),
-          src,
+          src: shownSrc,
           objectUrl: true,
+          original: saved?.blob ?? file,
+          decodedFrom: shown.decodedFrom,
+          srgb: shown.srgb,
           ...size,
-          recordId: null,
+          recordId: saved?.recordId ?? null,
           exif,
-          pose: start.pose,
-          sources: start.sources,
+          pose: saved?.pose ?? start.pose,
+          sources: saved
+            ? {
+                position: saved.pose.lng === null || saved.pose.lat === null ? null : 'record',
+                heading: 'record',
+                pitch: 'record',
+                roll: 'record',
+                fov: 'record',
+                eyeHeight: 'record',
+              }
+            : start.sources,
           start: { pose: start.pose, sources: start.sources },
           headingReference: start.headingReference,
           declinationEast: null,
         })
         setOwnStatus({ loading: false, error: null })
+        return true
       } catch (error) {
-        URL.revokeObjectURL(src)
+        if (src) URL.revokeObjectURL(src)
+        if (request !== ownRequest.current) return
+        const reason = error instanceof Error ? error.message : String(error)
         setOwnStatus({
           loading: false,
-          error: isHeic(file)
-            ? 'This browser cannot show HEIC photos (Safari can). Export it as JPEG, keeping its location, and open that.'
-            : `Could not read the photo: ${error instanceof Error ? error.message : String(error)}`,
+          error:
+            error instanceof HeicDecodeError || isHeic(file)
+              ? `This HEIC photo could not be decoded here: ${reason} Export it as JPEG, keeping its location, and open that.`
+              : `Could not read the photo: ${reason}`,
         })
       }
     },
@@ -1163,6 +1250,7 @@ export function useFieldPhoto({
   /** Opens a field record's stored photo, starting from the camera the record holds. */
   const openOwnRecord = useCallback(
     (record: FieldRecord, roadView: RoadViewPose | null) => {
+      ownRequest.current++
       const start = startingPose({ exif: null, record, roadView, eyeHeightMeters })
       abort.current?.abort()
       setImage(null)
@@ -1371,6 +1459,14 @@ export function useFieldPhoto({
     skylineReady: !!skylineSource,
     own,
     ownStatus,
+    /** The own photo's dialog: whether it is open, and on which step. */
+    ownDialog,
+    openOwnDialog: (step?: OwnPhotoStep) => setOwnDialog((current) => ({ open: true, step: step ?? current.step })),
+    closeOwnDialog: () => setOwnDialog((current) => ({ ...current, open: false })),
+    /** The terrain skyline for the own photo's camera, in its pixels; null until its terrain is loaded. */
+    ownSkyline,
+    ownSkylineStatus,
+    loadOwnSkyline,
     ownFov,
     ownOnRoad,
     ownStand,
@@ -1396,10 +1492,20 @@ export function useFieldPhoto({
      */
     standEyeHeightMeters: comparingOwn ? Math.max(1, ownEyeHeight ?? own.pose.eyeHeightMeters) : null,
     clear: () => {
+      ownRequest.current++
       abort.current?.abort()
+      cameraAbort.current?.abort()
       setImage(null)
       setOwn(null)
       setMatch(null)
+      setInput('')
+      setCameraSearch({ status: 'idle' })
+      setLandmark(null)
+      setPairs([])
+      setPendingPixel(null)
+      setControlSolve(null)
+      setPhotoDrape(null)
+      setModelViews({})
       setStatus({ loading: false, error: null })
       setOwnStatus({ loading: false, error: null })
     },

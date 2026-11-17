@@ -1,5 +1,6 @@
 /** Browser adapters; no requests or uploads. Original assets stay on the user's device. */
 import { createId } from './scene'
+import { showablePhoto } from '@/lib/heic/heicDecodeClient'
 import { MAX_RASTER_CELLS, parseRasters, rasterProjection } from '@/lib/forestry/terrain/localRaster'
 import type { LocalRaster } from './types'
 import type { FieldRecord } from './assessmentTools'
@@ -17,7 +18,9 @@ export async function importFieldImage(
   } catch {
     /* Missing EXIF remains unknown; fields can be recorded by the reviewer. */
   }
-  const bitmap = await createImageBitmap(file),
+  // A HEIC photo is decoded here where the browser cannot show it; its tags came from the file itself, above.
+  const shown = await showablePhoto(file)
+  const bitmap = await createImageBitmap(shown.blob),
     factor = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height)),
     canvas = document.createElement('canvas')
   canvas.width = Math.round(bitmap.width * factor)

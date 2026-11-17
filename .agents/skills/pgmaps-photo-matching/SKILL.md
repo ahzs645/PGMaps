@@ -118,22 +118,22 @@ Never pick a control's map position automatically: a "sharpest nearby bend" pick
 
 ## 6. Compare in the visual-quality page
 
-The page can now find the camera itself, with no road view needed, in the own photo's **Find the camera** panel:
-- **Find the camera (all headings):** the same skyline search, in the browser (`wideOrientation.ts`).
+The page can now find the camera itself, with no road view needed, in the own photo's window (**Line up a photo of my own…**; steps Position, Direction, Check). It opens HEIC straight from the phone. The Direction step's **Find it for me** holds:
+- **Skyline search (Search every heading):** the same skyline search, in the browser (`wideOrientation.ts`). The terrain's skyline is then drawn on the photo in the window.
 - **Holds and a landmark:** angles held near a value, and a landmark picked at the photo's centre.
 - **Points paired in the photo and on the plan:** solved in closed form plus Levenberg–Marquardt (`controlPose.ts`),
   with held-out errors in metres.
-- **Checks:** the photo laid on the plan, and a model view scored against the photo (`photoViews.ts`).
+- **Checks (the Check step):** the photo laid on the plan, and a model view scored against the photo (`photoViews.ts`).
 
 It does not do control lines, region masks or reading features from mapped layers; use the bench for those, then
 **Use a matched camera…**.
 
 `/dev/forestry/visual-quality` can stand its road view at the matched camera:
-1. In step 2's Field photo panel, choose **Line up a photo of my own** and open the photo.
-2. Choose **Use a matched camera…** and pick the case file. Position, altitude, heading, pitch, roll and lens come from it, with the held-out accuracy and any warnings. A case made for another photo, a camera more than 300 m from the photo's GPS fix, and an untrusted fit are each flagged.
-3. **Line up my photo** stands the road view there, with the photo over it.
+1. In step 2's Field photo panel, choose **Line up a photo of my own…** and open the photo.
+2. In the Direction step, under **Matched camera**, choose **Use a matched camera…** and pick the case file. Position, altitude, heading, pitch, roll and lens come from it, with the held-out accuracy and any warnings. A case made for another photo, a camera more than 300 m from the photo's GPS fix, and an untrusted fit are each flagged.
+3. **Line up in the road view** stands the road view there, with the photo over it.
 
-Without a case file, **Taken from the air** puts the eye at the photo's GPS altitude. The heading still comes from the phone, though, so run the bench for a camera to trust. The road view walks at most 2 km off the scene's road line: draw the road or viewpoint near where the aircraft was. Nothing is uploaded; the page reads both files in the browser.
+Without a case file, **Taken from the air** (the Position step) puts the eye at the photo's GPS altitude. The heading still comes from the phone, though, so run the bench for a camera to trust. The road view walks at most 2 km off the scene's road line: draw the road or viewpoint near where the aircraft was. Nothing is uploaded; the page reads both files in the browser.
 
 ## 7. Report back
 

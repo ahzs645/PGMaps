@@ -58,6 +58,7 @@ type Props = {
   onRun: (scene: ForestryScene) => void
   analysisRunning: boolean
   onImportScene: (scene: ForestryScene) => void
+  onOriginalPhoto: (file: File) => void
   /** The views of interest as viewpoints (`plannedToolViews`): what runs and evidence are filed under. */
   plannedViews: ToolView[]
   /** Lists a view of interest at a photo's place and returns its id; null when it cannot. */
@@ -78,6 +79,7 @@ export function useAssessmentTools({
   onRun,
   analysisRunning,
   onImportScene,
+  onOriginalPhoto,
   plannedViews,
   onAddViewAt,
   onListView,
@@ -100,7 +102,9 @@ export function useAssessmentTools({
     [inspectIndex, setInspectIndex] = useState(0),
     [inspectStation, setInspectStation] = useState(0)
   const documentRef = useRef(d),
-    saveQueue = useRef(Promise.resolve())
+    saveQueue = useRef(Promise.resolve()),
+    workspaceChanged = useRef(false),
+    workspaceGeneration = useRef(0)
   documentRef.current = d
   // Every viewpoint as the tools read it: the views of interest, then any recorded before them.
   const viewsDocument = useMemo(() => withPlannedViews(d, plannedViews), [d, plannedViews])
@@ -118,7 +122,7 @@ export function useAssessmentTools({
     let active = true
     loadTools()
       .then((next) => {
-        if (active) {
+        if (active && !workspaceChanged.current) {
           setDocument(next)
           setCurve(next.growthCurve.map((p) => `${p.age},${p.height}`).join('\n'))
         }
@@ -140,6 +144,7 @@ export function useAssessmentTools({
     if (analysisRunning) cancelTools()
   }, [analysisRunning, cancelTools])
   const change = useCallback((update: ToolsDocument | ((current: ToolsDocument) => ToolsDocument)) => {
+    workspaceChanged.current = true
     const next = typeof update === 'function' ? update(documentRef.current) : update
     setDocument(next)
     documentRef.current = next
@@ -285,12 +290,15 @@ export function useAssessmentTools({
     }
     setFieldBusy(true)
     setFieldError(null)
+    const generation = workspaceGeneration.current
     try {
       const f = await importFieldImage(file, kind, viewId)
+      if (generation !== workspaceGeneration.current) return
       const latest = documentRef.current
       if (latest.fields.length >= 24) throw new Error('The workspace holds at most 24 attachments.')
       if (!withPlannedViews(latest, plannedRef.current).views.some((v) => v.id === f.viewId)) f.viewId = null
       change({ ...latest, fields: [...latest.fields, f] })
+      if (kind === 'photo') onOriginalPhoto(file)
       setSelectedField(f.id)
     } catch (e) {
       setFieldError(e instanceof Error ? e.message : String(e))
@@ -883,17 +891,20 @@ export function useAssessmentTools({
     workspaceJson: () =>
       serializeTools({ ...withPlannedViews(documentRef.current, plannedRef.current), currentScene: scene }),
     /** The workspace as stored, for the project file: its scene carries the views of interest itself. */
-    storedWorkspaceJson: () => serializeTools({ ...documentRef.current, currentScene: scene }),
+    storedWorkspaceJson: () => serializeTools({ ...documentRef.current, currentScene: undefined }),
   }
   /** Replaces the stored workspace with a project file's (`projectFile.ts`); the page sets the scene itself. */
-  const restoreWorkspace = (text: string) => {
-    const parsed = parseTools(JSON.parse(text))
+  const restoreWorkspace = (text: string | null) => {
+    const parsed = text === null ? emptyTools() : parseTools(JSON.parse(text))
+    workspaceGeneration.current++
     runner.cancel()
     change(parsed)
     setCurve(parsed.growthCurve.map((p) => `${p.age},${p.height}`).join('\n'))
     setOpenedRun(null)
     setSelectedViews([])
     setSelectedLandforms([])
+    setSelectedField(null)
+    setError(null)
   }
   return {
     restoreWorkspace,

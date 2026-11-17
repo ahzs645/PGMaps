@@ -13,6 +13,7 @@ import { TextButton } from '@/components/ui/text-button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { InfoTip } from '@/components/ui/info-tip'
+import { PHOTO_FILE_ACCEPT } from '@/lib/heic/heicFile'
 import { projectToPhoto, type PhotoPose } from './photoPose'
 import { maskAt } from './assessmentMasks'
 import { haversineMeters } from './visibility'
@@ -129,7 +130,7 @@ export function ToolFieldPanel({
         </FormField>
         <FileButton
           label="Import field attachment"
-          accept="image/jpeg,image/png,image/webp"
+          accept={PHOTO_FILE_ACCEPT}
           disabled={busy}
           onFiles={([file]) => onImport(file, kind)}
         >

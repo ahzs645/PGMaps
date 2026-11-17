@@ -139,8 +139,8 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     group: 'files',
     label: 'Project',
     description:
-      'Everything in progress in one file, to open again with Open a project in step 1: the scene and review, every saved view with its picture, analysis figure and before render, the workspace and the package’s choices.',
-    formats: [{ id: 'json', label: 'Project file', extension: '.pgvq.json' }],
+      'A ZIP you can reopen in step 1. Keeps the scene, review, workspace, photos, saved captures and project attachments together.',
+    formats: [{ id: 'zip', label: 'Project ZIP', extension: '.pgvq.zip' }],
   },
   {
     kind: 'scene',
@@ -732,6 +732,7 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
     case 'views':
       return null
     case 'project':
+      return ctx.evidence.loaded ? null : 'The stored workspace is still loading.'
     case 'scene':
       return null
     case 'scene-package':
@@ -1322,6 +1323,7 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           step: 'rate',
           rows: [
             { label: 'Recorded assessments', value: String(ctx.evidence.runs) },
+            { label: 'Field records', value: String(ctx.evidence.fields) },
             { label: 'Viewpoints', value: String(ctx.evidence.views) },
             { label: 'Field records', value: String(ctx.evidence.fields) },
           ],

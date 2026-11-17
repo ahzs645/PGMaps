@@ -141,6 +141,7 @@
     "walkability:build-factor-masks": "node scripts/build-walkability-factor-masks.mjs",
     "lint": "eslint src/ packages/geo-toolkit/src",
     "wasm:cable": "node scripts/build-cable-wasm.mjs",
+    "wasm:heic": "node scripts/build-heic-wasm.mjs",
     "road-design:check-boundary": "node scripts/road-design/check-boundary.mjs",
     "road-design:dev": "vite --config vite.road-design.config.ts",
     "road-design:build": "vite build --config vite.road-design.config.ts && node standalone/forestry-road-design/verify-build.mjs",

@@ -1,0 +1,5 @@
+# Pinned so `npm run wasm:heic` rebuilds the committed heic_decode.wasm byte for byte.
+[toolchain]
+channel = "1.98.0"
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

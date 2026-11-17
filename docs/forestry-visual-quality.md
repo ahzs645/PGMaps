@@ -465,7 +465,7 @@ interest's *Export…*).
 | | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
 | | Worksheet | Markdown | — |
 | | VIA evidence package | PDF, printable HTML | — |
-| Save and reopen | Project | `.pgvq.json` | — (everything in progress in one file; below) |
+| Save and reopen | Project | `.pgvq.zip` | — (scene, photos, captures and attachments; below) |
 | | Scene, Saved views, Assessment workspace, 3D scene | JSON | — |
 | For other tools | Castor constraint | `constraints.csv`, zone GeoJSON | — |
 | | Prescribed trees | CSV, GeoJSON points | — (every block with a stand prescription; see **Stand prescriptions**) |
@@ -592,18 +592,22 @@ The block note's pane shows what the report will hold:
   page with the caveat that they are a DataBC screen, never a legal
   determination or a mask. On by default; *Options* leaves them out.
 
-**Project: everything in one file** (`projectFile.ts`, DOM-free). *Project*
-writes the work in progress as one `.pgvq.json` file, and step 1's *Open a
-project…*, under *Start from*, opens it and carries on. It holds the scene
+**Project ZIP** (`projectArchive.ts` and `projectFile.ts`, DOM-free). *Project*
+writes a `.pgvq.zip` archive. Step 1's *Open a project…*, under *Start from*,
+opens it and still reads earlier `.pgvq.json` files. The archive holds the scene
 (blocks, landforms, the road or viewpoint, views of interest, settings, the
 review with its hand edits), every saved view here and at other viewpoints
 (the shelved ones, under the scene fingerprint they were saved in) with its
 screenshot, its analysed figure (class pass, callouts, framing, `figureAt`) and
 its before-harvest render, another engine's finished figures, the assessment
-workspace, and the package's renderer and recipe (held on the export opener
-for this). It does not hold terrain, the inventories or the run: they are read
-and made again, the run by the first output that needs it. Pictures stay the
-data URLs they are; a figure's rasters are gzipped one by one
+workspace, and the package's renderer and recipe. Terrain and inventories are
+read again, and the first output that needs the run makes it again. The ZIP
+contains `project.json` with references to image files under `photos/` and
+`captures/` and an `archive.json` manifest. Successful local photo imports
+also keep the original file under **Project attachments**, where other
+source files can be attached. The open local photo comes back with its edited
+camera. ZIPs can be up to 400 MB, including their expanded contents.
+A figure's rasters are gzipped one by one
 (`CompressionStream`) and written as base64, since a class pass is tens of
 megabytes raw and a few kilobytes packed. A file is read through the scene's
 own reader and checked piece by piece: a view whose numbers do not read, a
@@ -617,6 +621,16 @@ three files stay for their own uses: *Scene* for the scene alone, *Saved views*
 for *Open saved preview*, *Assessment workspace* as the browser store's backup.
 Opening a project replaces what is on the map and the saved views without
 asking, as the *Start from* samples do.
+
+**Reviewing a historical VIA.** Start with the source report, figures and
+conversion notes under **Project attachments**. Selected evidence images also
+appear under **Visit → Field photos**. Before recalculating a reported
+percentage, check the mapped cutblocks and treatment against the study date,
+verify each viewpoint's position, bearing and lens, and confirm the visible
+landform and exclusions used on the original sheet. The reference measurements
+keep their reported units, denominator and method. A new PGMaps run records its
+own values. Save the reviewed copy with **Save & export → Project** to keep
+those sources with any new photos and captures.
 
 **Castor constraint** (`castorConstraint.ts`, DOM-free) writes the landform's
 objective as the cover constraint a timber supply model carries, for
@@ -1355,12 +1369,40 @@ street-level photo from Mapillary, or with a photo of your own.
   camera is looking, with how far ahead or back it was taken; **Line up**
   jumps to it. It stays hidden while a photo is lined up.
 
-- **A photo of your own.** *Line up a photo of my own* (under the Mapillary
-  part, and available without a Mapillary token) opens a JPEG, PNG or WebP
-  in the browser as an object URL — nothing is uploaded or stored — or
-  **Open** takes a *Field records* photograph (kind `photo`) from its stored
-  copy. It lives in the Field photo panel rather than in Field records because
-  the overlay, the nudge controls and the road view's line-up are all here.
+- **A photo of your own.** *Line up a photo of my own…* (under the Mapillary
+  part, and available without a Mapillary token) opens a window
+  (`OwnPhotoDialog.tsx`). It starts on a chooser: pick or drop a JPEG, PNG,
+  WebP or HEIC, read in the browser as an object URL — nothing is uploaded or
+  stored — or **Open** a *Field records* photograph (kind `photo`) from its
+  stored copy. With a photo open, the window holds the photo on the left and
+  three steps on the right, as tabs that each say what they rest on:
+  1. **Position**: what the EXIF gave (time, camera, GPS altitude, distance
+     from the road line), latitude and longitude typed or **Pick on the
+     plan**, *Taken from the air*, and the altitude or eye height.
+  2. **Direction**: heading, field of view, pitch and roll, each with where
+     it came from, and *Find it for me* (the camera tools below).
+  3. **Check**: the model view and the photo on the plan.
+  The footer states the camera as it stands and ends the job: *Line up in the
+  road view*, with the reason when the road view cannot stand there (a spot
+  more than 2 km off the road line still gets every camera tool). The step
+  states are one pure reading (`ownPhotoSteps.ts`, DOM-free, unit-tested): a
+  step being done says what the camera rests on, never that it is right; the
+  phone's own heading counts as still to find.
+  - **The sidebar keeps a summary** (`OwnFieldPhoto.tsx`): the photo's name,
+    the camera in one line, the three steps' states, *Open the camera* and
+    *Line up*. The window's open state and step live in `useFieldPhoto`, so
+    they outlive the panel that opened it.
+  - **Steps that need the plan hide the window.** Picking the spot, the
+    landmark or a paired point hides it while the plan's banner says what to
+    click, with the photo and the spot being paired shown small in the corner
+    over the sidebar; it comes back after the click or Cancel, where it was.
+    *Photo on the plan* closes it and leaves a *Back to the camera* card. The
+    spot the photo was taken from is marked on the plan.
+  - **The terrain's skyline is drawn on the photo** in the window (yellow,
+    dashed) for the camera as it stands, to 85 km, from the camera tools'
+    terrain: it follows every typed value and every tool's result, so a
+    camera can be judged against the ridgeline with no road view. *Draw the
+    terrain skyline on it* loads the terrain when no tool has yet.
   The starting pose (`exifPose.ts`, DOM-free, unit-tested) comes from the
   field record's camera first, then EXIF (read with `exifr`, already used by
   Field records), then the road view as it stands, then defaults:
@@ -1380,22 +1422,24 @@ street-level photo from Mapillary, or with a photo of your own.
     from the air** (phone GPS altitude over ground is too rough for eye level,
     and fine from a helicopter hundreds of metres up).
   Pitch and roll start level (EXIF records neither); eye height starts at the
-  settings' observer height. Every value is editable — latitude and longitude
-  typed or **Pick on the plan**, heading, pitch, roll, field of view and eye
-  height — and each says where it came from. The overlay adds narrower/wider
+  settings' observer height. Every value is editable in its step — latitude
+  and longitude typed or **Pick on the plan**, heading, pitch, roll, field of
+  view and eye height — and each says where it came from. The road view's
+  overlay adds narrower/wider
   field-of-view buttons beside the turn and tilt arrows; with an own photo the
   arrows and *Auto-align* change the pose itself, and Reset returns heading and
   pitch to where they started. **Save this pose to the field record** writes
   the camera back to the record it came from (altitude as road-view ground
   plus eye height) and leaves its "I checked…" box unticked for the reviewer.
-- **Find the camera.** A panel under the own photo's pose fields finds the
+- **Find the camera.** The Direction step's *Find it for me* finds the
   camera with no road view, so it works for a photo taken far from the
-  scene's road. It holds five tools, and every result can be checked with
-  the last two. The options follow functional specifications of Pic2Map and
+  scene's road. It offers three ways (*Skyline search*, *Paired points*,
+  *Matched camera*) with *Hold an angle near a value* folded under the first
+  two, and every result can be checked in the Check step. The options follow functional specifications of Pic2Map and
   QCALVIEW written under route A
   (`docs/forestry-road-design/reference-repo-licensing-and-conversion.md`);
   their code was not opened by the implementer.
-  - **Find the camera (all headings)** searches heading, pitch and roll from
+  - **Skyline search** (*Search every heading*) searches heading, pitch and roll from
     the photo's skyline over every heading (`wideOrientation.ts`, in a
     worker), the browser form of the photo-matching bench's `orient.ts`.
     From an aircraft a phone's recorded heading can be 50–140° out, which
@@ -1450,13 +1494,40 @@ street-level photo from Mapillary, or with a photo of your own.
       plus 2.5 px of noise), it recovered heading to 0.05–0.3° from the
       phone's heading 85–146° out. Three pairs were enough, and held-out
       errors were 1–40 m.
-  - **HEIC.** Chrome and Firefox cannot show iPhone HEIC photos; opening one
-    says so and asks for a JPEG with its location kept. Safari shows them.
-    The tags (position, heading, lens, tilt, GPS time) are read from either.
+  - **HEIC.** Chrome and Firefox cannot show an iPhone's HEIC photos, so one
+    is decoded in the browser (`src/lib/heic/`): Safari shows it itself, and
+    elsewhere a worker decodes it to upright sRGB pixels and hands back a
+    JPEG held in memory, in about a second for a 24 MP photo. The file is
+    known by its `ftyp` brands, not its name. The tags (position, heading,
+    lens, tilt, GPS time) are read from the HEIC itself with `exifr`; the
+    JPEG carries none. The picked file stays the original for the project's
+    attachment. *Field records* imports read HEIC the same way.
+    - **Decoder:** `heic_decode.wasm` (420 KB) is built from
+      `crates/heic-decode`, a thin interface over the heifer crate (MIT OR
+      Apache-2.0, pure Rust, decode-only build; `NOTICE-HEIFER.md`), with
+      `npm run wasm:heic`. The file's rotation is applied and Display P3 is
+      converted to sRGB from the ICC profile, which is what a browser draws
+      for the same photo exported as JPEG. libheif-js was tried beside it
+      and not used: it is LGPL-3.0, which this repository does not ship as
+      WebAssembly, three times the size, and returns Display P3 values
+      unconverted.
+    - **Tested on the fourteen helicopter photos (17 November 2026):** both
+      decoders read all fourteen, at the same size and orientation. Against
+      macOS's own decoder heifer measured 49.3–51.3 dB (worst channel error
+      4–6 of 255) and libheif-js 46.6–51.9 dB (worst 16–32); heifer took
+      0.3–0.75 s a photo in Node and libheif-js about 10% less. In the
+      browser each opened in 0.6–1.3 s. IMG_9297 opened as HEIC gave the
+      camera its JPEG export had given: heading 48.9°, pitch −5.7°, roll
+      1.0°, 195 sky columns, 99% agreeing, model-view agreement 0.35.
+      IMG_9310 matched its JPEG to 0.1–0.2°. IMG_9320 was *not settled* either
+      way, with a different best guess from each file: where the skyline is
+      weak, small pixel differences choose between candidates, which is what
+      *not settled* reports.
 - **From the air, and matched cameras.** An own photo can carry an absolute
   altitude (`OwnPose.altitudeMeters`, metres above sea level): its GPS altitude
-  when it was taken from the air, or the altitude of a **matched camera**.
-  *Use a matched camera…* reads a case file of the photo-matching bench
+  when it was taken from the air (the Position step's *Taken from the air*),
+  or the altitude of a **matched camera**. *Use a matched camera…* (Direction
+  → *Matched camera*) reads a case file of the photo-matching bench
   (`scripts/forestry/photo-matching/`, `matchedCamera.ts`, DOM-free and
   unit-tested). From the air a phone's heading can be 50–140° out; the bench
   fits heading, pitch and roll to the photo's skyline over all headings, and

@@ -590,6 +590,7 @@ export type SidebarProps = {
    */
   /** Step 1: the road and the proposed cutblocks. */
   setup: ReactNode
+  projectAttachments?: ReactNode
   /** Step 1: nearby inventory units to adopt as the landform. */
   landformFinder?: ReactNode
   /** Step 2: preparing the eye-level view, and the views saved from it. */
@@ -703,6 +704,7 @@ export function Sidebar({
   onOpenExport,
   onAddRoadDisturbance,
   setup,
+  projectAttachments,
   landformFinder,
   visit,
   fieldPhoto,
@@ -1047,15 +1049,16 @@ export function Sidebar({
           </div>
           <FileButton
             label="Project file"
-            accept=".json"
+            accept=".json,.zip"
             variant="outline"
             className={cn(GRID_BUTTON, 'mt-1.5 w-full')}
-            title="A project saved as Project in Save & export: the scene, the saved views with their pictures, the review and the workspace"
+            title="Open a PGMaps project ZIP or an earlier project JSON file"
             onFiles={([file]) => onOpenProject(file)}
           >
             <FileUp className="h-3.5 w-3.5" />
             Open a project…
           </FileButton>
+          {projectAttachments}
         </ToolSection>
 
         <ToolSection

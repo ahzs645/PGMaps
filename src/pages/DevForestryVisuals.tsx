@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button'
 import { Map, MapControls, MapLayersControl, type MapRef } from '@/components/ui/map'
 import { MapMeasureControl, MapMeasurePanel, useMeasureKeys } from '@/components/ui/map-measure'
 import { MapSketch, useMapSketch } from '@/components/ui/map-sketch'
-import { MapOverlay } from '@/components/ui/map-panels'
+import { InlineAlert, MapOverlay } from '@/components/ui/map-panels'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
@@ -47,6 +47,8 @@ import {
 import { queryVisualInventory } from './dev-forestry/visualInventoryQuery'
 import { usePersistentScene } from './dev-forestry/usePersistentScene'
 import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
+import { ProjectAttachments } from './dev-forestry/ProjectAttachments'
+import type { ProjectAttachment } from './dev-forestry/projectArchive'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
 import { ToolSourcesPanel } from './dev-forestry/ToolSourcesPanel'
 import { WildlifeTreePatchPanel } from './dev-forestry/WildlifeTreePatchPanel'
@@ -620,6 +622,18 @@ function DevForestryVisuals() {
     () => scene.targets.find((target) => target.role === 'block')?.id ?? null,
   )
   const [importMessage, setImportMessage] = useState<string | null>(null)
+  const [projectTitle, setProjectTitle] = useState<string | null>(null)
+  const [projectMessage, setProjectMessage] = useState<{ text: string; error?: boolean } | null>(null)
+  const [projectAttachments, setProjectAttachments] = useState<ProjectAttachment[]>([])
+  const addProjectAttachments = useCallback((files: File[]) => {
+    setProjectAttachments((current) => [
+      ...current,
+      ...files
+        .filter((file) => !current.some((entry) => entry.blob === file))
+        .map((blob) => ({ name: blob.name, blob })),
+    ])
+  }, [])
+  const projectRequest = useRef(0)
   const [pendingPreview, setPendingPreview] = useState<{ key: string; view?: SavedDriveView } | null>(null)
   // Swapping viewpoints with the road view open keeps its map (WebGL context, style, tiles, terrain and
   // the drawn stand) while the new run is made, rather than closing it and building it all again.
@@ -2639,10 +2653,22 @@ function DevForestryVisuals() {
   // The own photo laid on the plan for one candidate camera (Field photo → Find the camera), with its landmark and
   // paired points: a check of the camera that needs neither the skyline nor the road view.
   const photoDrape = fieldPhoto.photoDrape
+  // Where the own photo was taken, marked while its window works with the plan (a spot picked, points paired).
+  const ownPhotoLng = fieldPhoto.own?.pose.lng ?? null
+  const ownPhotoLat = fieldPhoto.own?.pose.lat ?? null
   const photoMarks = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
       features: [
+        ...(ownPhotoLng !== null && ownPhotoLat !== null
+          ? [
+              {
+                type: 'Feature' as const,
+                properties: { kind: 'camera' },
+                geometry: { type: 'Point' as const, coordinates: [ownPhotoLng, ownPhotoLat] },
+              },
+            ]
+          : []),
         ...(fieldPhoto.landmark
           ? [
               {
@@ -2659,7 +2685,7 @@ function DevForestryVisuals() {
         })),
       ],
     }),
-    [fieldPhoto.landmark, fieldPhoto.pairs],
+    [ownPhotoLng, ownPhotoLat, fieldPhoto.landmark, fieldPhoto.pairs],
   )
   useEffect(() => {
     const map = mapRef.current
@@ -2696,7 +2722,7 @@ function DevForestryVisuals() {
           source: MARKS,
           paint: {
             'circle-radius': 6,
-            'circle-color': ['match', ['get', 'kind'], 'landmark', '#f59e0b', '#2563eb'],
+            'circle-color': ['match', ['get', 'kind'], 'landmark', '#f59e0b', 'camera', '#111827', '#2563eb'],
             'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 2,
           },
@@ -4398,6 +4424,9 @@ function DevForestryVisuals() {
       const savedAt = Date.now()
       const bearing = ((Math.round(map.getBearing()) % 360) + 360) % 360
       const photo = fieldPhoto.match && fieldPhoto.image?.thumbUrl ? fieldPhoto.image : null
+      const ownPhoto = fieldPhoto.match && !photo ? fieldPhoto.own : null
+      const photoUrl = photo?.thumbUrl ?? ownPhoto?.src
+      const photoCapture = photoUrl ? captureImageUrl(photoUrl) : null
       const viewpoint: Omit<ViewpointPage, 'simulation'> = {
         title: view.name,
         design: design?.name ?? null,
@@ -4461,6 +4490,24 @@ function DevForestryVisuals() {
           ...current,
           [view.id]: { ...image, caption, savedAt, viewpoint, figureAt: at },
         }))
+        if (photoCapture) {
+          void photoCapture.then((image) => {
+            if (!image) return
+            const takenOn = photo?.capturedAt?.slice(0, 10) ?? ownPhoto?.exif?.takenAt?.slice(0, 10) ?? null
+            const caption = photo
+              ? `Mapillary ${takenOn ?? 'photo'}${photo.creator ? ` by ${photo.creator}` : ''}, facing ${Math.round(photo.bearing)}°.`
+              : `${ownPhoto?.name ?? 'Field photo'}, facing ${Math.round(ownPhoto?.pose.bearing ?? bearing)}°.`
+            setViewImages((current) => {
+              const entry = current[view.id]
+              return entry
+                ? {
+                    ...current,
+                    [view.id]: { ...entry, viewpoint: { ...viewpoint, photo: { ...image, caption, takenOn } } },
+                  }
+                : current
+            })
+          })
+        }
         // Another engine takes seconds to draw the sheet's frames: say so, and say who drew them.
         const engine = drive.renderer !== 'pgmaps' ? engineCaptureRef.current : null
         if (engine) setPreviewMessage(`Saved ${view.name}. ${engine.label} is drawing its analysis sheet…`)
@@ -4496,20 +4543,6 @@ function DevForestryVisuals() {
           return { viewId: view.id, warning: `Saved, but ${warning[0].toLowerCase()}${warning.slice(1)}` }
         }
       })()
-      if (photo?.thumbUrl) {
-        void captureImageUrl(photo.thumbUrl).then((image) => {
-          if (!image) return
-          const photoCaption = `Mapillary ${photo.capturedAt?.slice(0, 10) ?? 'photo'}${photo.creator ? ` by ${photo.creator}` : ''}, facing ${Math.round(photo.bearing)}°.`
-          setViewImages((current) => {
-            const entry = current[view.id]
-            const withPhoto = {
-              ...viewpoint,
-              photo: { ...image, caption: photoCaption, takenOn: photo.capturedAt?.slice(0, 10) ?? null },
-            }
-            return entry ? { ...current, [view.id]: { ...entry, viewpoint: withPhoto } } : current
-          })
-        })
-      }
     }
     updateDrive({ playing: false, positionMeters: view.positionMeters })
     setRestoreLook({ yaw: view.yaw, tilt: view.tilt })
@@ -4886,6 +4919,7 @@ function DevForestryVisuals() {
     return view.id
   }
   const tools = useAssessmentTools({
+    onOriginalPhoto: (file) => addProjectAttachments([file]),
     plannedViews,
     onAddViewAt: (point, name) => listViewAt(point, name),
     onListView: (earlier) => {
@@ -4922,38 +4956,58 @@ function DevForestryVisuals() {
     },
     analysisRunning: analysis.state.status === 'running' || analysis.reverseState.status === 'running',
   })
-  /** Everything in progress as one file (`projectFile.ts`), for Save & export's Project. */
+  /** Everything in progress as one archive, for Save & export's Project. */
   const buildProjectFile = async () => {
-    const { serializeProject, PROJECT_FILE_EXTENSION } = await import('./dev-forestry/projectFile')
-    const text = await serializeProject({
-      scene,
-      views: savedViews,
-      shelved: shelvedViews.filter((entry) => entry.key !== key && entry.views.length),
-      images: viewImages,
-      capturedBefore,
-      engineFigures,
-      workspace: tools.evidence.loaded ? tools.evidence.storedWorkspaceJson() : null,
-      pkg: { renderer: exportOpener.figureRenderer, recipeId: exportOpener.packageRecipeId },
-    })
+    // Start reading the local object URL before a photo change can revoke it.
+    const own = fieldPhoto.own
+    const photo = own
+      ? (own.original
+          ? Promise.resolve(own.original)
+          : fetch(own.src).then((response) => {
+              if (!response.ok) throw new Error('The open field photo could not be read.')
+              return response.blob()
+            })
+        ).then((blob) => ({ name: own.name, blob, pose: own.pose, recordId: own.recordId }))
+      : Promise.resolve(null)
+    const [{ writeProjectArchive }, { PROJECT_FILE_EXTENSION }, openPhoto] = await Promise.all([
+      import('./dev-forestry/projectArchive'),
+      import('./dev-forestry/projectFile'),
+      photo,
+    ])
+    const blob = await writeProjectArchive(
+      {
+        scene,
+        views: savedViews,
+        shelved: shelvedViews.filter((entry) => entry.key !== key && entry.views.length),
+        images: viewImages,
+        capturedBefore,
+        engineFigures,
+        workspace: tools.evidence.storedWorkspaceJson(),
+        pkg: { renderer: exportOpener.figureRenderer, recipeId: exportOpener.packageRecipeId },
+      },
+      { title: projectTitle, attachments: projectAttachments, photo: openPhoto },
+    )
     const name =
-      scene.targets
-        .find((target) => target.role === 'block')
-        ?.name.replace(/[^\w-]+/g, '-')
+      (projectTitle ?? scene.targets.find((target) => target.role === 'block')?.name)
+        ?.replace(/[^\w-]+/g, '-')
         .replace(/^-+|-+$/g, '')
         .slice(0, 40) || 'visual-quality'
     return {
-      blob: new Blob([text], { type: 'application/json' }),
+      blob,
       fileName: `${name}-project${PROJECT_FILE_EXTENSION}`,
     }
   }
   /** Opens a project file: the scene, the saved views with their pictures, the workspace and the package's choices. */
   const openProjectFile = async (file: File) => {
-    setImportMessage('Reading the project…')
+    const request = ++projectRequest.current
+    setProjectMessage({ text: 'Reading the project…' })
     try {
-      const { parseProject, projectOpenedLine, MAX_PROJECT_FILE_BYTES } = await import('./dev-forestry/projectFile')
-      if (file.size > MAX_PROJECT_FILE_BYTES)
-        throw new Error(`Use a project file smaller than ${Math.round(MAX_PROJECT_FILE_BYTES / 1024 / 1024)} MB.`)
-      const { state, summary } = await parseProject(await file.text())
+      const [{ openProjectArchive }, { projectOpenedLine }] = await Promise.all([
+        import('./dev-forestry/projectArchive'),
+        import('./dev-forestry/projectFile'),
+      ])
+      const { state, summary, media } = await openProjectArchive(file)
+      if (request !== projectRequest.current) return
       cancelPreview()
       analysis.reset()
       runSnapshotRef.current = null
@@ -4966,6 +5020,10 @@ function DevForestryVisuals() {
       setDrawMode('none')
       setDraftCoordinates([])
       setStanding(null)
+      setOpenViewId(null)
+      setProjectAttachments(media.attachments)
+      setProjectTitle(media.title)
+      fieldPhoto.clear()
       setScene(state.scene)
       setSaved({ key: sceneFingerprint(state.scene), views: state.views })
       setShelvedViews(state.shelved)
@@ -4973,21 +5031,29 @@ function DevForestryVisuals() {
       setCapturedBefore(state.capturedBefore as typeof capturedBefore)
       setEngineFigures(state.engineFigures as typeof engineFigures)
       setSelectedTargetId(state.scene.targets.find((target) => target.role === 'block')?.id ?? null)
-      if (state.pkg.renderer === 'pgmaps' || state.pkg.renderer === 'worldgen' || state.pkg.renderer === 'nanite')
-        exportOpener.setFigureRenderer(state.pkg.renderer)
+      exportOpener.setFigureRenderer(
+        state.pkg.renderer === 'worldgen' || state.pkg.renderer === 'nanite' ? state.pkg.renderer : 'pgmaps',
+      )
       exportOpener.setPackageRecipeId(state.pkg.recipeId)
       let workspaceNote = ''
-      if (state.workspace) {
-        try {
-          tools.restoreWorkspace(state.workspace)
-        } catch (error) {
-          workspaceNote = ` The assessment workspace was not read: ${error instanceof Error ? error.message : 'it is not a workspace'}.`
-        }
+      try {
+        tools.restoreWorkspace(state.workspace)
+      } catch (error) {
+        tools.restoreWorkspace(null)
+        workspaceNote = ` The assessment workspace was not read: ${error instanceof Error ? error.message : 'it is not a workspace'}.`
       }
-      setImportMessage(projectOpenedLine(file.name, summary) + workspaceNote)
+      if (media.photo) {
+        const { blob, name, pose, recordId } = media.photo
+        void fieldPhoto.openOwnFile(new File([blob], name), null, { pose, recordId, blob })
+      }
+      setProjectMessage({ text: projectOpenedLine(file.name, summary) + workspaceNote })
       window.setTimeout(() => fitBounds(sceneBounds(state.scene)), 50)
     } catch (error) {
-      setImportMessage(error instanceof Error ? error.message : 'The project could not be opened.')
+      if (request !== projectRequest.current) return
+      setProjectMessage({
+        text: error instanceof Error ? error.message : 'The project could not be opened.',
+        error: true,
+      })
     }
   }
   // Saved views drawn again by another engine at final quality, in the background (`BackgroundRenders.tsx`).
@@ -5924,13 +5990,14 @@ function DevForestryVisuals() {
       onLineUp={() => lineUpPhoto()}
       own={{
         records: tools.photoRecords,
+        onOriginalPhoto: (file) => addProjectAttachments([file]),
         roadView:
           drive.active && cameraEye
             ? { lng: cameraEye.lng, lat: cameraEye.lat, bearing: lookBearing, hfov: viewerFov }
             : null,
         canLineUp: !previewInputError(scene),
         onLineUp: lineUpOwnPhoto,
-        onPickPoint: (onPoint) => setMapPick(onPoint ? { onPoint } : null),
+        onPickPoint: (onPoint, hint) => setMapPick(onPoint ? { onPoint, hint } : null),
         pickActive: !!mapPick,
         onSaveToRecord: tools.updateFieldRecord,
       }}
@@ -6415,6 +6482,21 @@ function DevForestryVisuals() {
       roadViewOpening={!!pendingPreview || drive.active}
       onClearScene={handleClearScene}
       onOpenProject={(file) => void openProjectFile(file)}
+      projectAttachments={
+        <>
+          {projectMessage && (
+            <div role="status" className="mt-2">
+              <InlineAlert tone={projectMessage.error ? 'error' : 'info'}>{projectMessage.text}</InlineAlert>
+            </div>
+          )}
+          <ProjectAttachments
+            title={projectTitle}
+            files={projectAttachments}
+            onAdd={addProjectAttachments}
+            onRemove={(file) => setProjectAttachments((current) => current.filter((entry) => entry !== file))}
+          />
+        </>
+      }
       onOpenExport={exportOpener.openExport}
       onOpenPackage={exportOpener.openPackage}
       onAddRoadDisturbance={handleAddRoadDisturbance}

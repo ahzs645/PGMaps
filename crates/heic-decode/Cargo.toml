@@ -1,0 +1,24 @@
+[package]
+name = "heic-decode"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Decodes a HEIC/HEIF photo to sRGB pixels for PGMaps, compiled to WebAssembly. A thin interface over the heifer crate."
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+# Decoding only: the container and HEVC decoder crates and thiserror, nothing else.
+heifer = { version = "=0.5.1", default-features = false }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+strip = true
+incremental = false

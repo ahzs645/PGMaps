@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { strFromU8, unzipSync, zipSync } from 'fflate'
 
 import { parseProject, PROJECT_FORMAT, projectOpenedLine, serializeProject, type ProjectState } from './projectFile'
+import { emptyProjectMedia, openProjectArchive, writeProjectArchive } from './projectArchive'
 import type { SavedDriveView } from './previewState'
 import { createEmptyScene } from './scene'
 
@@ -93,5 +95,71 @@ describe('the project file', () => {
     await expect(parseProject('nope')).rejects.toThrow('not JSON')
     await expect(parseProject('{"type":"pgmaps-driving-preview"}')).rejects.toThrow('not a visual-quality project')
     await expect(parseProject(JSON.stringify({ format: PROJECT_FORMAT, version: 99 }))).rejects.toThrow('newer PGMaps')
+  })
+})
+
+describe('the project ZIP', () => {
+  it('opens the original photo, supporting files, field images and captured figures with their original bytes', async () => {
+    const written = state()
+    const field = 'data:image/png;base64,iVBORw0KGgo='
+    written.workspace = JSON.stringify({ version: 1, fields: [{ image: field }] })
+    written.capturedBefore['view-b'] = {
+      plannedKey: 'k',
+      render: { dataUrl: 'data:image/png;base64,YmVmb3Jl', width: 1, height: 1 },
+    }
+    const original = new Blob([new Uint8Array([255, 216, 255, 217])])
+    const pose = {
+      lng: -121,
+      lat: 53,
+      bearing: 73,
+      roll: 2,
+      pitch: 3,
+      hfov: 50,
+      eyeHeightMeters: 2,
+      altitudeMeters: 615,
+    }
+    const blob = await writeProjectArchive(written, {
+      title: 'Reference VIA',
+      attachments: [
+        { name: 'Camera original.JPG', blob: original },
+        { name: 'Source report.pdf', blob: new Blob(['source bytes']) },
+      ],
+      photo: { name: 'Camera original.JPG', blob: original, pose, recordId: null },
+    })
+    const entries = unzipSync(new Uint8Array(await blob.arrayBuffer()))
+    expect(Object.keys(entries)).toEqual(
+      expect.arrayContaining([
+        'project.json',
+        'archive.json',
+        'photos/field/1.png',
+        'captures/views/2.jpg',
+        'captures/before/3.png',
+        'attachments/1/Camera original.JPG',
+        'attachments/2/Source report.pdf',
+      ]),
+    )
+    expect(strFromU8(entries['project.json'])).not.toContain('data:image/')
+    expect(Object.keys(entries).filter((path) => path.endsWith('Camera original.JPG'))).toHaveLength(1)
+    const read = await openProjectArchive(blob)
+    expect(read.summary.dropped).toEqual([])
+    expect(read.state.workspace).toBe(written.workspace)
+    expect(read.state.capturedBefore).toEqual(written.capturedBefore)
+    expect(read.state.images['view-b']).toEqual(written.images['view-b'])
+    expect(read.state.engineFigures).toEqual(written.engineFigures)
+    expect(read.media.title).toBe('Reference VIA')
+    expect(read.media.photo?.pose).toEqual(pose)
+    expect(read.media.photo?.blob).toBe(read.media.attachments[0].blob)
+    expect(await read.media.photo?.blob.arrayBuffer()).toEqual(await original.arrayBuffer())
+    expect(await read.media.attachments[1].blob.text()).toBe('source bytes')
+  })
+
+  it('opens earlier project JSON and reports an incomplete ZIP', async () => {
+    const legacy = await openProjectArchive(new Blob([await serializeProject(state())]))
+    expect(legacy.summary.pictures).toBe(2)
+    expect(legacy.media).toEqual(emptyProjectMedia())
+    const archived = await writeProjectArchive(state(), emptyProjectMedia())
+    const entries = unzipSync(new Uint8Array(await archived.arrayBuffer()))
+    delete entries['captures/views/1.jpg']
+    await expect(openProjectArchive(new Blob([zipSync(entries) as BlobPart]))).rejects.toThrow('missing a file')
   })
 })
