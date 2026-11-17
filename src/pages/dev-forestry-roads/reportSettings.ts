@@ -17,6 +17,8 @@ export const REPORT_CHAPTER_KINDS = [
   'structures',
   'materials',
   'charts',
+  'stakes',
+  'clearing',
 ] as const
 export type ReportChapterKind = (typeof REPORT_CHAPTER_KINDS)[number]
 export const REPORT_COLUMNS = [
@@ -119,6 +121,11 @@ export interface RoadReportSettings {
   package?: ReportPackageSettings
   /** The preliminary estimate's allowances and contingency (`EstimateSettings`); absent is all blank. */
   estimate?: EstimateSettings
+  /**
+   * The road that holds the design as issued, which the report's record of changes compares the
+   * active road with (`recordChanges.ts`); absent prints no comparison.
+   */
+  recordBaselineId?: string
 }
 export const MAX_REPORT_CHAPTERS = 16
 export const MAX_REPORT_SHEETS = 500
@@ -133,6 +140,8 @@ export function createReportChapter(kind: ReportChapterKind, id: string): Report
       structures: 'Culvert inventory',
       materials: 'Material quantities',
       charts: 'Profile, grade & mass haul',
+      stakes: 'Slope-stake book',
+      clearing: 'Clearing schedule',
     }[kind],
     kind,
     startM: null,
@@ -276,5 +285,8 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
     // Written only when a part was moved from its default, so older files read back unchanged.
     ...(reportPackage && !isDefaultPackage(reportPackage) ? { package: reportPackage } : {}),
     ...(estimate && Object.keys(estimate).length ? { estimate } : {}),
+    ...(typeof r.recordBaselineId === 'string' && r.recordBaselineId && r.recordBaselineId.length <= 200
+      ? { recordBaselineId: r.recordBaselineId }
+      : {}),
   }
 }

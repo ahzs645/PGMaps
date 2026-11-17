@@ -80,7 +80,9 @@ export const detailTitle = (view: DetailView) => roadDetailViews.find((item) => 
 
 /**
  * What the profile pane draws, chosen from the picker that stands in its title: the profile, the
- * profile with a linked grade strip under it (same zoom and station), or the grade chart alone.
+ * profile with a linked grade strip under it (same zoom and station), the profile with the mass-haul
+ * diagram under it on the same stationing (as RoadEng and a plan-and-profile sheet show them), or
+ * the grade chart alone.
  */
 export const roadProfileViews = [
   {
@@ -94,6 +96,12 @@ export const roadProfileViews = [
     label: 'Profile + grade',
     title: 'Road profile & grade',
     terrainTitle: 'Terrain profile & grade',
+  },
+  {
+    value: 'profile-mass',
+    label: 'Profile + mass haul',
+    title: 'Road profile & mass haul',
+    terrainTitle: 'Terrain profile · elevation & distance',
   },
   { value: 'grade', label: 'Grade', title: 'Road grade', terrainTitle: 'Terrain grade' },
 ] as const

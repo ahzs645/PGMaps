@@ -5,6 +5,7 @@ import {
   bandTextWidth,
   bandValueAnchor,
   profileValueBands,
+  superelevationDiagram,
   type BandValue,
 } from './profileBands'
 import { roadSidehill, SIDEHILL_CLASSES, type SidehillClass } from './sectionSideSlope'
@@ -14,6 +15,8 @@ import type { Alignment, RoadAnalysis } from './types'
 /** Height of one numeric row and of the curvature diagram, in pixels. */
 const ROW_PX = 16
 const CURVATURE_PX = 30
+/** The superelevation diagram: both edges' crossfall about the centreline. */
+const SUPER_PX = 34
 /** The profile chart's plot margins (`chartFrame`, `Charts.tsx`), so values sit under their stations. */
 const plotLeft = (width: number) => (width < 380 ? 48 : 58)
 const PLOT_RIGHT = 16
@@ -21,7 +24,7 @@ const PLOT_RIGHT = 16
  * Three rows (ground, ground grade, sidehill) on a terrain profile; seven and the curvature diagram on
  * a road.
  */
-const bandsHeight = (terrainOnly: boolean) => (terrainOnly ? 3 * ROW_PX : 7 * ROW_PX + CURVATURE_PX) + 2
+const bandsHeight = (terrainOnly: boolean) => (terrainOnly ? 3 * ROW_PX : 7 * ROW_PX + CURVATURE_PX + SUPER_PX) + 2
 
 /** The sidehill strip's fill by class: none on gentle ground, rising tints, then amber and red. */
 const SIDEHILL_FILL: Record<SidehillClass, string | null> = {
@@ -154,7 +157,31 @@ function ValueBandsSvg({
       : [...chainages].reverse().find((c) => c < station - 1e-6)
     if (next !== undefined) onStation(next)
   }
+  const superelevation = useMemo(
+    () => (terrainOnly ? [] : superelevationDiagram(analysis, alignment, start, end)),
+    [analysis, alignment, start, end, terrainOnly],
+  )
   const curveTop = bands.rows.length * ROW_PX + 1
+  const superTop = curveTop + CURVATURE_PX
+  const superMid = superTop + SUPER_PX / 2 - 1
+  const superMax = Math.max(2, ...superelevation.flatMap((v) => [Math.abs(v.left ?? 0), Math.abs(v.right ?? 0)]))
+  const superScale = (SUPER_PX / 2 - 4) / superMax
+  // Edge rise relative to the centreline: crossfall is positive falling away, so the edge sits below.
+  const superPath = (side: 'left' | 'right') => {
+    let pen = false
+    return superelevation
+      .map((v) => {
+        const value = v[side]
+        if (value === null) {
+          pen = false
+          return ''
+        }
+        const command = pen ? 'L' : 'M'
+        pen = true
+        return `${command}${x(v.chainage).toFixed(1)},${(superMid + value * superScale).toFixed(1)}`
+      })
+      .join(' ')
+  }
   const zeroY = curveTop + CURVATURE_PX / 2
   const scale = bands.maxCurvaturePerKm > 0 ? (CURVATURE_PX / 2 - 3) / bands.maxCurvaturePerKm : 0
   return (
@@ -269,6 +296,40 @@ function ValueBandsSvg({
                 {label.text}
               </text>
             ))}
+        </g>
+      )}
+      {showCurvature && (
+        <g data-band="superelevation">
+          <rect x={left} y={superTop} width={plotWidth} height={SUPER_PX - 2} fill="hsl(var(--muted))" opacity={0.5} />
+          {superelevation.map((v, i) => {
+            const next = superelevation[i + 1]
+            if (!v.superelevated || !next) return null
+            return (
+              <rect
+                key={v.chainage}
+                x={x(v.chainage)}
+                y={superTop}
+                width={Math.max(0.5, x(next.chainage) - x(v.chainage))}
+                height={SUPER_PX - 2}
+                fill="#7c3aed"
+                opacity={0.08}
+              />
+            )
+          })}
+          <text x={3} y={superTop + 11} fontSize="9" fill="hsl(var(--muted-foreground))">
+            Super e
+            <title>
+              Superelevation diagram: each edge of the running surface relative to the centreline, from its crossfall
+              (%). Solid left edge, dashed right edge; tinted where the curve is superelevated. Scale ±
+              {Math.round(superMax)}%.
+            </title>
+          </text>
+          <line x1={left} x2={left + plotWidth} y1={superMid} y2={superMid} stroke="hsl(var(--border))" />
+          <path d={superPath('left')} fill="none" stroke="#7c3aed" strokeWidth={1.3} />
+          <path d={superPath('right')} fill="none" stroke="#7c3aed" strokeWidth={1.3} strokeDasharray="3 2" />
+          <text x={left + plotWidth - 2} y={superTop + 9} fontSize="8" textAnchor="end" fill="#7c3aed">
+            L — · R - -
+          </text>
         </g>
       )}
       {station >= start && station <= end && (

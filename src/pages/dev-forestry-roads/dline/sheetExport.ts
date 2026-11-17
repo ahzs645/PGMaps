@@ -19,9 +19,9 @@ import { cableGroundSource, fieldProfileErrors } from './fieldProfile'
 import { dLineFrame } from './frame'
 import { dLineExtras } from './outputs'
 import { buildDLineSheet, type DLineSheetInput } from './sheet'
-import type { ExportBrand } from '@/branding/model'
-import { configurePdfBrand, drawPdfBrandLogo } from '@/branding/pdf'
-import { brandLogoSvg } from '@/branding/presentation'
+import type { ExportBrand, UploadedLogo } from '@/branding/model'
+import { configurePdfBrand, drawPdfPrintedLogo } from '@/branding/pdf'
+import { printedLogoSvg } from '@/branding/presentation'
 
 /** Why the sheet cannot be made for this D-line, or null. Its own invalid inputs refuse it. */
 export function dLineSheetUnavailable(line: CableLine | undefined): string | null {
@@ -44,6 +44,8 @@ export function dLineSheetUnavailable(line: CableLine | undefined): string | nul
 
 export interface DLineSheetRequest {
   branding?: ExportBrand
+  /** The user's own logo (`printedLogo`), printed in place of the brand's. */
+  logo?: UploadedLogo | null
   project: RoadProject
   line: CableLine
   terrain: TerrainSource
@@ -89,6 +91,7 @@ export async function prepareDLineSheet(request: DLineSheetRequest): Promise<DLi
   })
   return {
     brandName: request.branding?.brand.profile.name,
+    ...(request.logo ? { logoSlot: true } : {}),
     projectName: project.name,
     line,
     analysis,
@@ -116,7 +119,7 @@ export async function dLineSheetPdf(request: DLineSheetRequest): Promise<Blob> {
   const pdf = createSheetPdf(jspdf, sheet.width, sheet.height)
   const fonts = configurePdfBrand(pdf, request.branding)
   drawSheetPdf(pdf, jspdf, ops, request.branding ? fonts : undefined)
-  await drawPdfBrandLogo(pdf, request.branding, 28, 15, 175, 26)
+  await drawPdfPrintedLogo(pdf, request.branding, request.logo, 28, 15, 175, 26)
   return pdf.output('blob')
 }
 
@@ -125,8 +128,11 @@ export async function dLineSheetPreview(request: DLineSheetRequest) {
   const sheet = buildDLineSheet(await prepareDLineSheet(request))
   const { sheetSvg } = await import('@/lib/mapSheet/renderSvg')
   let svg = sheetSvg(sheet.ops, sheet.width, sheet.height)
-  if (request.branding)
-    svg = svg.replace('</svg>', brandLogoSvg(request.branding.brand, 28, 15, 175, 26, 72 / 25.4) + '</svg>')
+  if (request.branding || request.logo)
+    svg = svg.replace(
+      '</svg>',
+      printedLogoSvg(request.branding?.brand, request.logo, 28, 15, 175, 26, 72 / 25.4) + '</svg>',
+    )
   return {
     src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
     width: sheet.width,

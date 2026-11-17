@@ -904,6 +904,7 @@ export function calculateEngineering(
       usableCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
       unusableCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
       strippingCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
+      materialCutVolumesM3: s.complete && s.index === 0 ? {} : null,
       massM3: null,
       ...(hasRock
         ? {
@@ -954,6 +955,7 @@ export function calculateEngineering(
       backfillShortfall = 0
     const curvature =
       settings.curvatureCorrection === 'apply' ? (geometry.curvatureAt?.((a.chainage + b.chainage) / 2) ?? 0) : 0
+    const byMaterial: Record<string, number> = {}
     for (let j = 0; j < materials.length; j++) {
       const m = materials[j]
       const preparation = (station: RoadStation) =>
@@ -973,6 +975,7 @@ export function calculateEngineering(
         haulBank = bank
       const q = quantities.get(m.id)!
       q.bankCutM3 += bank
+      byMaterial[m.id] = bank
       q.excavationCost += bank * m.cutRate
       if (m.purpose === 'stripping') stripping += bank
       else if (!m.rock && m.id !== defaults.id) common += bank
@@ -1035,6 +1038,7 @@ export function calculateEngineering(
     current.usableCutVolumeM3 = usable
     current.unusableCutVolumeM3 = unusable
     current.strippingCutVolumeM3 = stripping
+    current.materialCutVolumesM3 = byMaterial
     const chainage = (a.chainage + b.chainage) / 2
     const demands: NonNullable<EarthworkInterval['demands']> = []
     const addLayer = (id: string, materialId: string | undefined, areaA: number, areaB: number, subgrade = false) => {

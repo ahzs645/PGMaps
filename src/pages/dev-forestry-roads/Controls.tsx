@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
  * input, a select and a `h-8` button line up in a row; textareas keep their own height.
  */
 export const roadFieldClass =
-  'w-full min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-base md:text-xs md:[&:not(textarea)]:h-8'
+  'w-full min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-base md:text-xs md:[&:not(textarea)]:h-8 disabled:cursor-not-allowed disabled:opacity-50'
 
 export type RoadSelectOption = Omit<StyledSelectOption, 'group'>
 
@@ -104,9 +104,9 @@ export function splitUnit(label: string): { text: string; unit: string } | null 
 
 /** The bordered box, its borderless input and the unit inside it (`splitUnit`). */
 const unitRowClass =
-  'road-unit-field flex w-full min-w-0 items-center rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring md:h-8'
+  'road-unit-field flex w-full min-w-0 items-center rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring md:h-8 has-[input:disabled]:cursor-not-allowed has-[input:disabled]:opacity-50'
 const unitInputClass =
-  'w-full min-w-0 flex-1 border-0 bg-transparent px-2 py-1.5 text-base outline-none md:h-full md:text-xs'
+  'w-full min-w-0 flex-1 border-0 bg-transparent px-2 py-1.5 text-base outline-none md:h-full md:text-xs disabled:cursor-not-allowed'
 const unitClass = 'pointer-events-none shrink-0 pr-2 text-xs text-muted-foreground'
 
 /** Label, name and box props for a road number field, with the unit inside the box when it has one. */

@@ -283,7 +283,7 @@ import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/Desig
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
 import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
 import { projectProfileJunctions, withVerticalControl } from './dev-forestry-roads/profileJunctions'
-import { gradeRule } from './dev-forestry-roads/designStandards'
+import { DEFAULT_DESIGN_STANDARDS, gradeRule } from './dev-forestry-roads/designStandards'
 import {
   applyJobStandardsToNewProject,
   startingJobStandards,
@@ -515,6 +515,8 @@ export default function DevForestryRoads({
   const [styleLibraryRevision, setStyleLibraryRevision] = useState(0)
   const branding = useBranding()
   const selectedExportBrand = exportBrand(branding)
+  // The user's own logo (Your details), printed in place of the brand's on every document (`printedLogo`).
+  const printLogo = branding.logo
   const [customizingRibbon, setCustomizingRibbon] = useState(false)
   const [paneHost, setPaneHost] = useState<HTMLDivElement | null>(null)
   const [taskPaneDocked, setTaskPaneDocked] = useState(false)
@@ -1414,6 +1416,16 @@ export default function DevForestryRoads({
     [displayedAlignment, w.featureSelection],
   )
   const sharedProfileRange = profileRange?.alignmentId === displayedAlignment.id ? profileRange.range : undefined
+  // The project's grid for the section readout's centreline easting and northing.
+  const sectionGrid = useMemo(() => {
+    try {
+      return displayedAlignment.points.length
+        ? exportGrid(project.terrain, displayedAlignment.points[0].coordinate)
+        : undefined
+    } catch {
+      return undefined
+    }
+  }, [project.terrain, displayedAlignment.points])
   // Hold scale, the pinned section and Use this section for… (`SectionPaneTools.tsx`).
   const sectionTools = useSectionTools({ alignment, displayedAlignment, analysis: displayedAnalysis })
   const onProfileRange = useCallback(
@@ -1468,7 +1480,11 @@ export default function DevForestryRoads({
       downloadText(
         kind === 'csv'
           ? cableProfileCsv(cableLine, cableAnalysis, project.terrain, extras)
-          : brandedHtml(cableProfileHtml(cableLine, cableAnalysis, project.terrain, extras), selectedExportBrand),
+          : brandedHtml(
+              cableProfileHtml(cableLine, cableAnalysis, project.terrain, extras),
+              selectedExportBrand,
+              printLogo,
+            ),
         kind === 'csv' ? 'd-line-profile.csv' : 'd-line-profile.html',
         kind === 'csv' ? 'text/csv;charset=utf-8' : 'text/html;charset=utf-8',
       )
@@ -3242,8 +3258,12 @@ export default function DevForestryRoads({
     brandedHtml(
       terrainProfile
         ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
-        : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
+        : projectReportHtml(safe, analysis, {
+            drainageHasLiveRun: !!drainageEntry && !drainageStale,
+            analyses: w.analyses,
+          }),
       selectedExportBrand,
+      printLogo,
     )
   /** The grid a RoadEng file is written in: the export grid, or a flat-plane project's own file coordinates. */
   const roadEngGrid = async () => {
@@ -3344,6 +3364,7 @@ export default function DevForestryRoads({
     }
     const html = plotBookHtml({
       branding: selectedExportBrand,
+      logo: printLogo,
       projectName: safe.name,
       settings,
       issue: safe.issue,
@@ -3504,7 +3525,7 @@ export default function DevForestryRoads({
     const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
       content:
         mime.startsWith('text/html') && !content.includes('id="pgmaps-export-brand"')
-          ? brandedHtml(content, selectedExportBrand)
+          ? brandedHtml(content, selectedExportBrand, printLogo)
           : content,
       filename,
       mime,
@@ -3863,7 +3884,7 @@ export default function DevForestryRoads({
     ])
     const plan = packagePlan(undefined, '')
     const input = summaryInput(safe, plan, [issueLine(issueStamp(safe.issue)), PLANNING_CAVEAT], [], true)
-    return brandedHtml(estimateHtml({ ...input, appendices: [], omitted: [] }), selectedExportBrand)
+    return brandedHtml(estimateHtml({ ...input, appendices: [], omitted: [] }), selectedExportBrand, printLogo)
   }
   /**
    * The report package (`reportPackage.ts`): a main PDF and one PDF per appendix part, each with a
@@ -3939,13 +3960,15 @@ export default function DevForestryRoads({
               {
                 drainageHasLiveRun: road.id === alignment.id && !!drainageEntry && !drainageStale,
                 packageNotice: packageReportNotice(plan, file),
+                analyses: w.analyses,
               },
             ),
             selectedExportBrand,
+            printLogo,
           )
           entries.push({
             label: `${road.name} · report`,
-            pdf: await bytes(await reportPdfBlob(html, selectedExportBrand)),
+            pdf: await bytes(await reportPdfBlob(html, selectedExportBrand, printLogo)),
           })
         }
         if (file.plotbook.length) {
@@ -3986,8 +4009,10 @@ export default function DevForestryRoads({
               brandedHtml(
                 packageSummaryHtml(packageSummaryInput(safe, plan, stampLines, contents)),
                 selectedExportBrand,
+                printLogo,
               ),
               selectedExportBrand,
+              printLogo,
             ),
           )
         let front = await summaryPdf(entries.map((e) => ({ label: e.label, page: 999 })))
@@ -4061,7 +4086,12 @@ export default function DevForestryRoads({
       if (kind === 'dline-sheet-pdf') {
         void run('Building the D-line sheet…', async (signal) => {
           const { dLineSheetPdf } = await import('./dev-forestry-roads/dline/sheetExport')
-          const blob = await dLineSheetPdf({ ...dLineSheetRequest(safe), signal, branding: selectedExportBrand })
+          const blob = await dLineSheetPdf({
+            ...dLineSheetRequest(safe),
+            signal,
+            branding: selectedExportBrand,
+            logo: printLogo,
+          })
           const name = (cableLine?.name ?? 'd-line').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'd-line'
           downloadBlob(blob, `${basename}-${name.slice(0, 40)}-sheet.pdf`)
           w.setNotice('D-line sheet downloaded.')
@@ -4092,7 +4122,10 @@ export default function DevForestryRoads({
           const html = await estimatePageHtml(safe)
           signal.throwIfAborted()
           const { reportPdfBlob } = await import('./dev-forestry-roads/pdf')
-          downloadBlob(await reportPdfBlob(html, selectedExportBrand), `${basename}-preliminary-estimate.pdf`)
+          downloadBlob(
+            await reportPdfBlob(html, selectedExportBrand, printLogo),
+            `${basename}-preliminary-estimate.pdf`,
+          )
           w.setNotice('Preliminary estimate downloaded.')
         })
         return
@@ -4138,8 +4171,9 @@ export default function DevForestryRoads({
               `${basename}-map.pdf`,
               signal,
               selectedExportBrand,
+              printLogo,
             )
-          } else await exportReportPdf(reportHtml(safe), `${basename}-report.pdf`, selectedExportBrand)
+          } else await exportReportPdf(reportHtml(safe), `${basename}-report.pdf`, selectedExportBrand, printLogo)
           w.setNotice(kind === 'map-pdf' ? 'Map PDF downloaded.' : 'Report PDF downloaded.')
         })
         return
@@ -4229,6 +4263,7 @@ export default function DevForestryRoads({
         html: brandedHtml(
           summary.replace('</body>', `<hr style="margin:28px 0">${filesBody}</body>`),
           selectedExportBrand,
+          printLogo,
         ),
       }
     }
@@ -4236,7 +4271,12 @@ export default function DevForestryRoads({
     if (kind === 'plotbook-pdf') return { type: 'html', html: (await exportFile('plotbook')).content as string }
     if (kind === 'dline-sheet-pdf') {
       const { dLineSheetPreview } = await import('./dev-forestry-roads/dline/sheetExport')
-      const preview = await dLineSheetPreview({ ...dLineSheetRequest(safe), signal, branding: selectedExportBrand })
+      const preview = await dLineSheetPreview({
+        ...dLineSheetRequest(safe),
+        signal,
+        branding: selectedExportBrand,
+        logo: printLogo,
+      })
       return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
     }
     if (kind === 'block-sheet-pdf') {
@@ -4694,6 +4734,7 @@ export default function DevForestryRoads({
       onStation={selectStation}
       terrainOnly={!!terrainProfile}
       swept={swept}
+      clearingLimitM={project.standards?.maxClearingWidthM ?? null}
       onVerticalChange={
         busy || draftAlignment || numericPegAlignment || terrainProfile || templatePreview || costPreview
           ? undefined
@@ -4707,6 +4748,8 @@ export default function DevForestryRoads({
       <StationTable
         terrainOnly={!!terrainProfile}
         roadName={displayedAlignment.name}
+        alignment={displayedAlignment}
+        terrain={project.terrain}
         analysis={displayedAnalysis}
         station={station}
         onStation={selectStation}
@@ -5757,6 +5800,9 @@ export default function DevForestryRoads({
           count: project.alignments.filter((road) => road.id !== project.designPlaceholderId).length,
           activeName: alignment.name,
         }}
+        baselineRoads={project.alignments
+          .filter((road) => road.id !== alignment.id && road.id !== project.designPlaceholderId)
+          .map((road) => ({ id: road.id, name: road.name }))}
         roadScope={scopeFor}
         onRoadScope={(scope, kind) =>
           (kind === 'report-package' || kind === 'estimate-pdf' ? setPackageScope : setRoadScope)(scope)
@@ -6646,7 +6692,10 @@ export default function DevForestryRoads({
                                     {profileView !== 'grade' && (
                                       <div
                                         className={
-                                          profileView === 'profile-grade' ? 'min-h-0 flex-[3]' : 'min-h-0 flex-1'
+                                          profileView === 'profile-grade' ||
+                                          (profileView === 'profile-mass' && !terrainProfile)
+                                            ? 'min-h-0 flex-[3]'
+                                            : 'min-h-0 flex-1'
                                         }
                                       >
                                         <ProfileChart
@@ -6688,7 +6737,21 @@ export default function DevForestryRoads({
                                         />
                                       </div>
                                     )}
-                                    {profileView !== 'profile' && (
+                                    {profileView === 'profile-mass' && !terrainProfile && (
+                                      // The mass haul under the profile follows the profile's zoom, as RoadEng's
+                                      // profile and mass-haul windows do.
+                                      <div className="min-h-32 flex-[2] border-t" data-testid="road-profile-mass-strip">
+                                        <MassHaulChart
+                                          selectedRange={selectedRange}
+                                          viewRange={sharedProfileRange}
+                                          analysis={displayedAnalysis}
+                                          engineeringInputs={displayedAlignment.engineering}
+                                          station={station}
+                                          onStation={selectStation}
+                                        />
+                                      </div>
+                                    )}
+                                    {(profileView === 'profile-grade' || profileView === 'grade') && (
                                       // Under the profile the strip takes the profile's zoom and station; its
                                       // readouts are the profile's own.
                                       <div
@@ -6799,6 +6862,7 @@ export default function DevForestryRoads({
                                     >
                                       {detail === 'section' && (
                                         <CrossSectionChart
+                                          grid={terrainProfile ? undefined : sectionGrid}
                                           holdScale={sectionTools.holdScale}
                                           roadScale={sectionTools.roadScale}
                                           showSideSlopes={sectionTools.sideSlopes}
@@ -6847,6 +6911,7 @@ export default function DevForestryRoads({
                                           selectedRange={terrainProfile ? undefined : selectedRange}
                                           selectedCulvertId={currentCulvertId}
                                           onSelectCulvert={selectCulvert}
+                                          culvertDesigns={displayedAlignment.engineering?.culverts}
                                           terrainOnly={!!terrainProfile}
                                           sourceLabel={project.terrain.name}
                                           analysis={displayedAnalysis}
@@ -6902,6 +6967,20 @@ export default function DevForestryRoads({
                                       )}
                                       {detail === 'engineering' && !terrainProfile && (
                                         <EngineeringSummary
+                                          alignment={displayedAlignment}
+                                          equipment={project.standards?.equipment}
+                                          onEquipmentChange={
+                                            busy
+                                              ? undefined
+                                              : (equipment) =>
+                                                  commitValidated({
+                                                    ...project,
+                                                    standards: (({ equipment: _old, ...rest }) => {
+                                                      void _old
+                                                      return equipment.length ? { ...rest, equipment } : rest
+                                                    })(project.standards ?? DEFAULT_DESIGN_STANDARDS),
+                                                  })
+                                          }
                                           selectedCulvertId={currentCulvertId}
                                           onSelectCulvert={selectCulvert}
                                           analysis={displayedAnalysis}

@@ -1,4 +1,5 @@
 /** Derived curve review. Uses fitted geometry and calculated sections; never edits the design. */
+import { curveElements } from './curveElements'
 import { curveDesignAt, horizontalCurveSummary } from './engine'
 import { evaluateCurveCriteria } from './roadCriteria'
 import { horizontalCurveEvents } from './planAnnotations'
@@ -233,6 +234,12 @@ export function curveReviewCsv(alignment: Alignment, rows: CurveReview[], terrai
     'runoff_out_m',
     'side_friction_demand',
     'side_friction_limit',
+    'pi_station_m',
+    'tangent_in_m',
+    'tangent_out_m',
+    'long_chord_m',
+    'external_m',
+    'middle_ordinate_m',
   ]
   return [
     header.map(csvValue).join(','),
@@ -286,6 +293,9 @@ export function curveReviewCsv(alignment: Alignment, rows: CurveReview[], terrai
         r.runoffOutM,
         r.sideFrictionDemand,
         r.sideFrictionLimit,
+        ...((e) => (e ? [e.piChainage, e.tangentInM, e.tangentOutM, e.chordM, e.externalM, e.middleOrdinateM] : []))(
+          curveElements(r),
+        ),
       ]
         .map(csvValue)
         .join(','),

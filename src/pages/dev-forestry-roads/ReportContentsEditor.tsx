@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { CheckboxField } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
+import { SelectField } from '@/components/ui/form-field'
 import { SelectAllActions } from '@/components/ui/text-button'
 import { ALWAYS_PRINTED_SECTIONS, REPORT_SECTIONS, toggleReportSection, type ReportSectionId } from './reportContents'
 import { createRoadReportSettings, parseRoadReportSettings, type RoadReportSettings } from './reportSettings'
@@ -14,7 +15,10 @@ export function ReportContentsEditor({
   value,
   onChange,
   focus,
+  baselineRoads,
 }: {
+  /** Roads that may hold the issued design for the record of changes; none hides the choice. */
+  baselineRoads?: { id: string; name: string }[]
   value?: RoadReportSettings
   onChange: (settings: RoadReportSettings) => void
   focus?: ReportSectionId
@@ -61,6 +65,30 @@ export function ReportContentsEditor({
           />
         ))}
       </div>
+      {baselineRoads && baselineRoads.length > 0 && (
+        <SelectField
+          label="Issued design for the record of changes"
+          hint="Keep the design as issued as a copy of the road (Duplicate road), edit the road to the field record, then choose the copy here."
+          value={
+            settings.recordBaselineId && baselineRoads.some((road) => road.id === settings.recordBaselineId)
+              ? settings.recordBaselineId
+              : ''
+          }
+          onChange={(event) => {
+            const id = event.target.value
+            const next: RoadReportSettings = { ...settings, recordBaselineId: id }
+            if (!id) delete next.recordBaselineId
+            onChange(parseRoadReportSettings(next))
+          }}
+        >
+          <option value="">None: no comparison</option>
+          {baselineRoads.map((road) => (
+            <option key={road.id} value={road.id}>
+              {road.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
       <p className="text-muted-foreground">
         {omitted.length
           ? `${REPORT_SECTIONS.length - omitted.length} of ${REPORT_SECTIONS.length} sections print.`

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { LocateFixed } from 'lucide-react'
+import { PersonInput } from '@/branding/PersonInput'
 import { Button } from '@/components/ui/button'
 import { FileDropField } from '@/components/ui/file-drop-field'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -998,12 +999,12 @@ function PathReviewEditor({
       </Field>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Reviewer">
-          <input
+          <PersonInput
             className={roadFieldClass}
             value={reviewer}
             disabled={disabled}
             maxLength={200}
-            onChange={(event) => setReviewer(event.target.value)}
+            onValueChange={setReviewer}
           />
         </Field>
         <Field label="Review date">

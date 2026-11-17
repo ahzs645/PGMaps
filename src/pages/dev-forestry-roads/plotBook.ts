@@ -1,6 +1,8 @@
+import { clearingSchedule, slopeStakeBook, stakeText } from './builderSchedules'
+import { STAKE_REASON_TEXT, stationExtras } from './stationExtras'
 import { labelStation, withStationing } from './roadStationing'
-import type { ExportBrand, BrandRecord } from '@/branding/model'
-import { brandLogoSvg } from '@/branding/presentation'
+import type { ExportBrand, BrandRecord, UploadedLogo } from '@/branding/model'
+import { printedLogoSvg } from '@/branding/presentation'
 /**
  * A printable plot book in the RoadEng multi-plot shape: chapter 1 is plan-and-profile sheets
  * with a mass-haul strip, one sheet per window of road; chapter 2 is cross-section sheets at a
@@ -103,6 +105,7 @@ function titleBlock(
   W: number,
   brand?: BrandRecord,
   unitsPerMm = 96 / 25.4,
+  logo?: UploadedLogo | null,
 ) {
   // Fit a field in its box: shrink the type first (to 70%), and only shorten what still does not fit.
   // Plain clipping cut "Rev A - draft for review" to "Rev A - draft for rev…" at full size.
@@ -121,7 +124,7 @@ function titleBlock(
     split = x + 470
   const author = [stamp.preparedBy, stamp.organisation].filter(Boolean).join(', ')
   const revision = stamp.revision ? `Rev ${stamp.revision.replace(/^rev(ision)?\.?\s*/i, '')}` : 'Rev not recorded'
-  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="${TITLE_BLOCK.width}" height="${TITLE_BLOCK.height}" fill="#fff" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/><line x1="${x}" x2="${x + TITLE_BLOCK.width}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + TITLE_BLOCK.height}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" ${size(project, 44, 16)} font-weight="700">${html(shown(project, 44))}</text><text x="${x + 610}" y="${y + 21}" ${size(revision, 22, 13)} font-weight="700" text-anchor="end" data-role="revision">${html(shown(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" ${size(road, 62, 12)}>${html(shown(road, 62))}</text><text x="${x + 10}" y="${y + 60}" ${size(sheet, 62, 12)} font-weight="600">${html(shown(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" ${size(`${terrain.name} · ${terrain.verticalReference}`, 84, 10)} fill="#4b5563">${html(shown(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" ${size(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84, 10)} data-role="prepared-by">${html(shown(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" ${size(scale, 24, 10)}>${html(shown(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text>${brand ? brandLogoSvg(brand, split + 10, y + 82, 130, 28, unitsPerMm) : `<text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text>`}</g>`
+  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="${TITLE_BLOCK.width}" height="${TITLE_BLOCK.height}" fill="#fff" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/><line x1="${x}" x2="${x + TITLE_BLOCK.width}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + TITLE_BLOCK.height}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" ${size(project, 44, 16)} font-weight="700">${html(shown(project, 44))}</text><text x="${x + 610}" y="${y + 21}" ${size(revision, 22, 13)} font-weight="700" text-anchor="end" data-role="revision">${html(shown(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" ${size(road, 62, 12)}>${html(shown(road, 62))}</text><text x="${x + 10}" y="${y + 60}" ${size(sheet, 62, 12)} font-weight="600">${html(shown(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" ${size(`${terrain.name} · ${terrain.verticalReference}`, 84, 10)} fill="#4b5563">${html(shown(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" ${size(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84, 10)} data-role="prepared-by">${html(shown(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" ${size(scale, 24, 10)}>${html(shown(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text>${brand || logo ? printedLogoSvg(brand, logo, split + 10, y + 82, 130, 28, unitsPerMm) : `<text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">DDC Access</text>`}</g>`
 }
 
 /** One plan-and-profile sheet for the stations between `start` and `end`. */
@@ -572,9 +575,12 @@ function plotBookHtmlInChainage({
   today,
   gradeLimits,
   branding,
+  logo,
 }: {
   projectName: string
   branding?: ExportBrand
+  /** The user's own logo (`printedLogo`), printed in each title block in place of the brand's. */
+  logo?: UploadedLogo | null
   alignment: Alignment
   analysis: RoadAnalysis
   terrain: TerrainMetadata
@@ -737,6 +743,77 @@ function plotBookHtmlInChainage({
           W,
         ),
       )
+    } else if (chapter.kind === 'stakes' || chapter.kind === 'clearing') {
+      // The builder's tables (`builderSchedules.ts`), at the chapter's section interval.
+      const extras = stationExtras(alignment, analysis, toGrid)
+      const inRange = (chainage: number) => chainage >= rangeStart - 1e-6 && chainage <= rangeEnd + 1e-6
+      if (chapter.kind === 'stakes')
+        add(
+          ...tableSheets(
+            chapter.title,
+            [
+              'Station',
+              'Why',
+              'Left stake',
+              'Hinge L (m)',
+              'CL C/F (m)',
+              'Formation (m)',
+              'Hinge R (m)',
+              'Right stake',
+            ],
+            slopeStakeBook(alignment, analysis, extras, chapter.sectionIntervalM)
+              .filter((r) => inRange(r.station.chainage))
+              .map(({ station: s, extra: e, reasons }) => {
+                const hinge = (c: (typeof e.catch)['left']) =>
+                  c ? `${c.hinge === 'ditch' ? 'D ' : ''}${fmt(c.hingeOffsetM, 1)}` : '—'
+                return [
+                  formatRoadStation(s.chainage),
+                  reasons
+                    .filter((r) => r !== 'interval')
+                    .map((r) => STAKE_REASON_TEXT[r])
+                    .join(', '),
+                  stakeText(e.catch.left),
+                  hinge(e.catch.left),
+                  fmt(e.centreDepthM, 2),
+                  fmt(s.designElevation, 2),
+                  hinge(e.catch.right),
+                  stakeText(e.catch.right),
+                ]
+              }),
+            'Stakes read cut (C) or fill (F) from the catch to the hinge (D: ditch bottom, else formation edge), then the distance from the centreline. Engineering Manual Table 5-10 points; a guide only, stake from the field survey.',
+            W,
+          ),
+        )
+      else
+        add(
+          ...tableSheets(
+            chapter.title,
+            [
+              'Station',
+              'Sidehill (%)',
+              'Catch L (m)',
+              'Catch R (m)',
+              'Clear L (m)',
+              'Clear R (m)',
+              'Clear W (m)',
+              'Area (m²)',
+            ],
+            clearingSchedule(analysis, extras, chapter.sectionIntervalM)
+              .filter((r) => inRange(r.station.chainage))
+              .map(({ station: s, extra: e, areaM2 }) => [
+                formatRoadStation(s.chainage),
+                fmt(e.sidehillPercent, 0),
+                fmt(e.catch.left?.offsetM, 1),
+                fmt(e.catch.right?.offsetM, 1),
+                fmt(e.clearingM.left, 1),
+                fmt(e.clearingM.right, 1),
+                fmt(e.clearingWidthM, 1),
+                fmt(areaM2, 0),
+              ]),
+            'Clearing widths station by station (Engineering Manual §3.5.3): to each catch point plus preparation margins. Area is since the previous row.',
+            W,
+          ),
+        )
     } else if (chapter.kind === 'materials') {
       add(
         ...tableSheets(
@@ -759,7 +836,7 @@ function plotBookHtmlInChainage({
   const pages = sheets
     .map(
       (sheet, i) =>
-        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"${sheet.chapter ? ` data-chapter="${html(sheet.chapter)}"` : ''}><rect width="${W}" height="${H}" fill="#fff"/><rect x="${SHEET_FRAME.x}" y="${SHEET_FRAME.y}" width="${W - 2 * SHEET_FRAME.x}" height="${H - 2 * SHEET_FRAME.y}" fill="none" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp, W, branding?.brand, W / REPORT_PAPERS[settings.paper].widthMm)}</svg></section>`,
+        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"${sheet.chapter ? ` data-chapter="${html(sheet.chapter)}"` : ''}><rect width="${W}" height="${H}" fill="#fff"/><rect x="${SHEET_FRAME.x}" y="${SHEET_FRAME.y}" width="${W - 2 * SHEET_FRAME.x}" height="${H - 2 * SHEET_FRAME.y}" fill="none" stroke="#111827" stroke-width="${SHEET_FRAME.stroke}"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp, W, branding?.brand, W / REPORT_PAPERS[settings.paper].widthMm, logo)}</svg></section>`,
     )
     .join('')
   const paper = REPORT_PAPERS[settings.paper]

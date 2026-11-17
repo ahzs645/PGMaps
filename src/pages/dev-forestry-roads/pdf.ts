@@ -1,7 +1,7 @@
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { downloadBlob } from '@/lib/download'
-import type { ExportBrand } from '@/branding/model'
-import { configurePdfBrand, drawPdfBrandLogo, setPdfBrandFont } from '@/branding/pdf'
+import type { ExportBrand, UploadedLogo } from '@/branding/model'
+import { configurePdfBrand, drawPdfPrintedLogo, setPdfBrandFont } from '@/branding/pdf'
 
 const text = (value: string) =>
   value.replace(/−/g, '-').replace(/[–—]/g, ' - ').replace(/→/g, ' to ').replace(/Σ/g, 'Sum ')
@@ -239,6 +239,8 @@ export async function exportMapPdf(
   filename: string,
   signal?: AbortSignal,
   branding?: ExportBrand,
+  /** The user's own logo (`printedLogo`), printed in place of the brand's. */
+  logo?: UploadedLogo | null,
 ) {
   throwIfAborted(signal)
   if (map.getCanvas().clientWidth < 1 || map.getCanvas().clientHeight < 1)
@@ -254,17 +256,17 @@ export async function exportMapPdf(
   const width = pdf.internal.pageSize.getWidth(),
     height = pdf.internal.pageSize.getHeight()
   const fonts = configurePdfBrand(pdf, branding)
-  await drawPdfBrandLogo(pdf, branding, width - 58, 8, 46, 20)
+  const logoDrawn = await drawPdfPrintedLogo(pdf, branding, logo, width - 58, 8, 46, 20)
   if (branding) setPdfBrandFont(pdf, fonts, true)
   pdf.setFontSize(16)
-  const title: string[] = pdf.splitTextToSize(text(name), width - (branding ? 84 : 24))
+  const title: string[] = pdf.splitTextToSize(text(name), width - (logoDrawn ? 84 : 24))
   pdf.text(title, 12, 18)
   pdf.setFontSize(8)
   if (branding) setPdfBrandFont(pdf, fonts)
-  const metadata: string[] = pdf.splitTextToSize(text(`${terrain} | ${datum}`), width - (branding ? 84 : 24))
+  const metadata: string[] = pdf.splitTextToSize(text(`${terrain} | ${datum}`), width - (logoDrawn ? 84 : 24))
   const metadataY = 18 + title.length * 7
   pdf.text(metadata, 12, metadataY)
-  const imageY = Math.max(metadataY + metadata.length * 4 + 5, branding ? 34 : 0)
+  const imageY = Math.max(metadataY + metadata.length * 4 + 5, logoDrawn ? 34 : 0)
   const scale = Math.min((width - 24) / capture.width, (height - imageY - 22) / capture.height)
   const w = capture.width * scale,
     h = capture.height * scale
@@ -323,12 +325,22 @@ async function svgImage(element: Element) {
 }
 
 /** The existing report is the content contract; write its text/tables as paginated PDF text. */
-export async function exportReportPdf(html: string, filename: string, branding?: ExportBrand) {
-  downloadBlob(await reportPdfBlob(html, branding), filename)
+export async function exportReportPdf(
+  html: string,
+  filename: string,
+  branding?: ExportBrand,
+  logo?: UploadedLogo | null,
+) {
+  downloadBlob(await reportPdfBlob(html, branding, logo), filename)
 }
 
 /** The report PDF as a Blob, for the download above and the report package. */
-export async function reportPdfBlob(html: string, branding?: ExportBrand): Promise<Blob> {
+export async function reportPdfBlob(
+  html: string,
+  branding?: ExportBrand,
+  /** The user's own logo (`printedLogo`), printed in place of the brand's. */
+  logo?: UploadedLogo | null,
+): Promise<Blob> {
   const { jsPDF } = await import('jspdf')
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const fonts = configurePdfBrand(pdf, branding)
@@ -337,9 +349,8 @@ export async function reportPdfBlob(html: string, branding?: ExportBrand): Promi
     width = 182,
     bottom = 280
   let y = margin
+  if (await drawPdfPrintedLogo(pdf, branding, logo, margin, y, 70, 28)) y += 32
   if (branding) {
-    await drawPdfBrandLogo(pdf, branding, margin, y, 70, 28)
-    y += 32
     pdf.setProperties({
       subject: branding.brand.profile.provenance.status,
       creator: 'PGMaps / Brandkit ' + branding.brand.profile.id,
@@ -444,7 +455,7 @@ export async function reportPdfBlob(html: string, branding?: ExportBrand): Promi
   /** Figures already drawn to an image while placing the heading above them. */
   const figures = new Map<Element, Awaited<ReturnType<typeof svgImage>>>()
   const render = async (element: Element): Promise<void> => {
-    if (branding && element.hasAttribute('data-brand-header')) return
+    if ((branding || logo) && element.hasAttribute('data-brand-header')) return
     const tag = element.tagName.toLowerCase()
     if (NON_CONTENT.test(tag)) return
     const inlineText = () =>

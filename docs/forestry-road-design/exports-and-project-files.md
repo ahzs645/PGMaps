@@ -1154,6 +1154,12 @@ in the project file.
 - **The date of issue defaults to the day the document is made.** The report then says "(day of
   printing)". Enter a date to hold it on reissued copies.
 - **Nothing increments the revision for you.** Change it each time you issue.
+- **Your details fill a blank stamp on a click.** *Use my details* copies the name, designation and
+  organisation from the browser's Your details (top of the Save & export list) into the fields the stamp
+  leaves blank; a filled field stays as it is. The designation ("RPF #4521") prints after the name on
+  every stamped document. It is optional, and a project without one saves exactly as before.
+- **Every document prints the logo from Your details,** in place of the selected brand's: the report and
+  map PDF, the report HTML header, every plot-book title block, the D-line sheet and the block sheets.
 - **The report also prints the [readiness checks](review-and-standards.md#the-readiness-list), the
   crossing register and the design standards,** so the printed document says what was and was not
   checked, including every check that was not assessed.

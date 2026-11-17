@@ -7,6 +7,27 @@ import { createDemoProject, demoTerrain } from './terrain'
 const today = new Date(2026, 10, 9)
 
 describe('issue stamp', () => {
+  it('prints a designation after the name, and a project without one reads and writes as before', () => {
+    const stamp = issueStamp(
+      {
+        preparedBy: 'J. Smith',
+        designation: 'RPF #4521',
+        organisation: 'Northwood',
+        revision: 'A',
+        issuedOn: '',
+        note: '',
+      },
+      today,
+    )
+    expect(stamp.preparedBy).toBe('J. Smith, RPF #4521')
+    expect(issueLine(stamp)).toBe('Rev A · Issued 2026-11-09 · Prepared by J. Smith, RPF #4521, Northwood')
+    expect(parseProjectIssue({ ...EMPTY_PROJECT_ISSUE, designation: 'RPF' })).toMatchObject({ designation: 'RPF' })
+    expect('designation' in parseProjectIssue({ ...EMPTY_PROJECT_ISSUE, designation: '' })).toBe(false)
+    expect('designation' in parseProjectIssue(EMPTY_PROJECT_ISSUE)).toBe(false)
+    // A designation alone names nobody, so the stamp still asks who prepared it.
+    expect(issueStamp({ ...EMPTY_PROJECT_ISSUE, designation: 'RPF' }, today).missing).toContain('prepared by')
+  })
+
   it('prints the day of printing until a date of issue is entered, and says what is not recorded', () => {
     const blank = issueStamp(undefined, today)
     expect(blank).toMatchObject({ date: '2026-11-09', dateDefaulted: true, missing: ['prepared by', 'revision'] })

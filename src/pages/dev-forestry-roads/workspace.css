@@ -1,8 +1,22 @@
 /* No pane in the designer bounces or chains its scroll at an edge. `contain` still lets
    macOS rubber-band a table past its sticky header; `none` stops that in every direction.
-   Toolkit pieces carry their own `overscroll-contain`, so this has to outrank them. */
+   Toolkit pieces carry their own `overscroll-contain`, so this has to outrank them.
+   Only boxes that scroll get it, never every element: Chrome stops a wheel at any box with
+   `overflow: hidden` (every `truncate` label, a rounded list's clip) or at a text field when
+   it carries `none`, so the wheel over a field or a row never reached the pane behind it,
+   and Save & export's file list and Sheet setup would not scroll at all. */
 .road-workspace,
-.road-workspace * {
+.road-workspace
+  :is(
+    [class*='overflow-auto'],
+    [class*='overflow-x-auto'],
+    [class*='overflow-y-auto'],
+    [class*='overflow-scroll'],
+    [class*='overflow-x-scroll'],
+    [class*='overflow-y-scroll'],
+    [class*='overscroll-'],
+    .road-plan-toolbar
+  ) {
   overscroll-behavior: none !important;
 }
 

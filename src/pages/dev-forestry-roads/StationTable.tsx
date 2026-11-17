@@ -20,6 +20,7 @@ import {
 import { useScheduleToolbar } from './scheduleToolbar'
 import {
   availableStationColumns,
+  columnTotal,
   reportingRows,
   rowFlags,
   stationReportCsv,
@@ -29,7 +30,9 @@ import {
   type StationColumn,
   type StationRow,
 } from './stationReport'
-import type { RoadAnalysis } from './types'
+import { stationExtras } from './stationExtras'
+import { exportGrid } from './terrain'
+import type { Alignment, RoadAnalysis, TerrainMetadata } from './types'
 
 // Cached formatters: `toLocaleString` with options builds one per call, and the table formats
 // every cell of every row (153 ms of a single render in a recorded trace).
@@ -49,17 +52,24 @@ const number = (v: number | null | undefined, decimals = 1) =>
 const fixed = (v: number | null | undefined, decimals: number) =>
   v == null || !Number.isFinite(v) ? '—' : formatter(decimals, decimals).format(v)
 
-const DEFAULT_HIDDEN = STATION_COLUMNS.filter((c) => c.hidden).map((c) => c.id)
-const STORAGE = 'pgmaps-road-station-columns'
+const STORAGE = 'pgmaps-road-station-columns-v2'
+/** The first version kept only the hidden ids, so a column added later could not stay hidden by default. */
+const STORAGE_V1 = 'pgmaps-road-station-columns'
 const INTERVALS = [0, 20, 50, 100, 200, 500]
 
-function readHidden(): string[] {
+/** Each column the person has switched on (true) or off (false); others follow their default. */
+function readChoices(): Record<string, boolean> {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(STORAGE) ?? 'null')
-    return Array.isArray(value) && value.every((v) => typeof v === 'string') ? value : DEFAULT_HIDDEN
+    if (value && typeof value === 'object' && Object.values(value).every((v) => typeof v === 'boolean'))
+      return value as Record<string, boolean>
+    const old: unknown = JSON.parse(localStorage.getItem(STORAGE_V1) ?? 'null')
+    if (Array.isArray(old) && old.every((v) => typeof v === 'string'))
+      return Object.fromEntries(STATION_COLUMNS.map((c) => [c.id, !old.includes(c.id)]))
   } catch {
-    return DEFAULT_HIDDEN
+    /* Column choice is a convenience. */
   }
+  return {}
 }
 
 /**
@@ -74,8 +84,13 @@ export const StationTable = memo(function StationTable({
   onStation,
   terrainOnly = false,
   roadName,
+  alignment,
+  terrain,
 }: {
   analysis: RoadAnalysis
+  /** With these the table offers the builder's columns: stakes, ditches, clearing, grid E/N. */
+  alignment?: Alignment
+  terrain?: TerrainMetadata
   station: number
   onStation: (value: number) => void
   terrainOnly?: boolean
@@ -86,7 +101,7 @@ export const StationTable = memo(function StationTable({
   const [flagged, setFlagged] = useState(false)
   const [range, setRange] = useState<{ start: number; end: number | null }>({ start: 0, end: null })
   const [every, setEvery] = useState(0)
-  const [hidden, setHidden] = useState<string[]>(readHidden)
+  const [choices, setChoices] = useState<Record<string, boolean>>(readChoices)
   const scroller = useRef<HTMLDivElement>(null)
   // Keep the selected row in view inside the table's own scroll port, never scrolling the page.
   useEffect(() => {
@@ -99,9 +114,10 @@ export const StationTable = memo(function StationTable({
     if (target.top < box.top + header) port.scrollTop -= box.top + header - target.top
     else if (target.bottom > box.bottom) port.scrollTop += target.bottom - box.bottom
   }, [active?.index])
-  const toggle = (id: string) => {
-    const next = hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id]
-    setHidden(next)
+  const shown = (c: StationColumn) => choices[c.id] ?? !c.hidden
+  const toggle = (c: StationColumn) => {
+    const next = { ...choices, [c.id]: !shown(c) }
+    setChoices(next)
     try {
       localStorage.setItem(STORAGE, JSON.stringify(next))
     } catch {
@@ -109,18 +125,31 @@ export const StationTable = memo(function StationTable({
     }
   }
   const end = Math.min(analysis.length, range.end ?? analysis.length)
+  const extras = useMemo(() => {
+    if (!alignment || !analysis.stations.length) return null
+    try {
+      const grid = terrain ? exportGrid(terrain, alignment.points[0].coordinate) : null
+      return stationExtras(alignment, analysis, grid?.toGrid)
+    } catch {
+      return null
+    }
+  }, [alignment, analysis, terrain])
   const reported = useMemo(() => {
     const inRange = analysis.stations.filter((s) => s.chainage >= range.start - 0.001 && s.chainage <= end + 0.001)
-    return reportingRows(analysis, inRange, every)
-  }, [analysis, range.start, end, every])
+    return reportingRows(analysis, inRange, every, extras)
+  }, [analysis, range.start, end, every, extras])
   const rows = useMemo(
     () => reported.filter((r) => !flagged || r.station.flags.length || (!terrainOnly && r.unknownM > 1e-6)),
     [reported, flagged, terrainOnly],
   )
   // Totals are the sum of the reported rows, whether or not the flag filter is showing them all.
   const totals = useMemo(() => tableTotals(reported), [reported])
-  const available = useMemo(() => availableStationColumns(analysis, terrainOnly), [analysis, terrainOnly])
-  const columns = useMemo(() => available.filter((c) => !hidden.includes(c.id)), [available, hidden])
+  const available = useMemo(
+    () => availableStationColumns(analysis, terrainOnly, !!extras),
+    [analysis, terrainOnly, extras],
+  )
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `shown` reads only `choices`
+  const columns = useMemo(() => available.filter(shown), [available, choices])
   const narrowed = range.start > 0.001 || end < analysis.length - 0.001
   // A road with a start station or equations takes station names in From and To, and marks each
   // equation between the rows it falls between (`roadStationing.ts`).
@@ -210,11 +239,11 @@ export const StationTable = memo(function StationTable({
           </div>
         </div>
       </ToolbarPopover>
-      <ToolbarPopover {...popover} label="Choose columns" icon={<Columns3 />} width={176}>
-        <div className="grid gap-1 p-2.5 text-xs">
+      <ToolbarPopover {...popover} label="Choose columns" icon={<Columns3 />} width={196}>
+        <div className="grid max-h-80 gap-1 overflow-y-auto p-2.5 text-xs">
           {available.map((c) => (
-            <label key={c.id} className="flex items-center gap-2 whitespace-nowrap">
-              <input type="checkbox" checked={!hidden.includes(c.id)} onChange={() => toggle(c.id)} />
+            <label key={c.id} className="flex items-center gap-2 whitespace-nowrap" title={c.title}>
+              <input type="checkbox" checked={shown(c)} onChange={() => toggle(c)} />
               {c.label}
             </label>
           ))}
@@ -317,7 +346,7 @@ export const StationTable = memo(function StationTable({
               <tr className="font-semibold">
                 <td className="text-left">Cum. tot.</td>
                 {columns.map((c) => (
-                  <td key={c.id}>{c.sum ? number(totals[c.sum]) : ''}</td>
+                  <td key={c.id}>{c.sum || c.materialId ? number(columnTotal(c, totals)) : ''}</td>
                 ))}
                 <td className="text-left font-normal text-warning">{totalsNote(totals)}</td>
               </tr>
@@ -359,8 +388,8 @@ const StationTableRow = memo(function StationTableRow({
       {columns.map((c) => (
         <td
           key={c.id}
-          className={partial && c.sum ? 'text-warning' : undefined}
-          title={partial && c.sum ? flags[0] : undefined}
+          className={partial && (c.sum || c.materialId) ? 'text-warning' : undefined}
+          title={partial && (c.sum || c.materialId) ? flags[0] : undefined}
         >
           {fixed(c.value(row), c.decimals)}
         </td>

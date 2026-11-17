@@ -26,6 +26,9 @@ import {
   type PreviewCamera,
 } from './previewCamera'
 import { isBeyondReachFlag } from './engine'
+import { BARREL_MIN_OPENING_PX, barrelPolygons, culvertBarrel, shadedColour } from './culvertBarrel'
+import { culvertRiseM, culvertShapeOf, culvertSpanM } from './culverts/culvertShape'
+import type { Culvert } from './engineeringTypes'
 import {
   TERRAIN_ELEVATION_COLORS,
   TERRAIN_SLOPE_STOPS,
@@ -417,6 +420,7 @@ export function TerrainPreview({
   sourceLabel = 'Project terrain',
   selectedCulvertId,
   onSelectCulvert,
+  culvertDesigns,
   maxGradePercent,
 }: {
   selectedRange?: RoadSelectionRange
@@ -429,6 +433,8 @@ export function TerrainPreview({
   sourceLabel?: string
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
+  /** The culverts as designed, for each barrel's shape and span; without them a barrel is round. */
+  culvertDesigns?: Culvert[]
   /** Road faces steeper than this draw in the over-grade colour, as on the plan. */
   maxGradePercent?: number
 }) {
@@ -1016,22 +1022,33 @@ export function TerrainPreview({
                     }
                   }) ?? []
                 const activePoint = activeVertex ? project(activeVertex) : null
+                // Each culvert's barrel as a tube of quads, with its two openings (culvertBarrel.ts).
+                // The tube is drawn over the road like RoadEng's see-through fill; only the faces
+                // turned to the camera are drawn, so it reads solid without a depth sort of the scene.
                 const culverts = terrainOnly
                   ? []
                   : (analysis.engineering?.culverts ?? []).map((culvert) => {
-                      const segments = culvert.profile.slice(1).flatMap((p, i) => {
-                        const previous = culvert.profile[i]
-                        if (!finite(previous.crownElevation) || !finite(p.crownElevation)) return []
-                        const [ax, ay] = geometryFrame.point(previous.coordinate),
-                          [bx, by] = geometryFrame.point(p.coordinate)
-                        const clipped = clipLine(
-                          { x: ax, y: ay, z: previous.crownElevation },
-                          { x: bx, y: by, z: p.crownElevation },
-                          bounds,
-                        )
-                        return clipped ? [{ a: project(clipped[0]), b: project(clipped[1]) }] : []
+                      const design = culvertDesigns?.find((c) => c.id === culvert.id)
+                      const crownRise = culvert.profile.find(
+                        (p) => finite(p.crownElevation) && finite(p.invertElevation),
+                      )
+                      const riseM = design
+                        ? culvertRiseM(design)
+                        : crownRise
+                          ? (crownRise.crownElevation as number) - (crownRise.invertElevation as number)
+                          : 0
+                      const barrel = culvertBarrel({
+                        profile: culvert.profile.filter((p) => {
+                          const [x, y] = geometryFrame.point(p.coordinate)
+                          return x >= bounds[0] && x <= bounds[2] && y >= bounds[1] && y <= bounds[3]
+                        }),
+                        riseM,
+                        spanM: design ? culvertSpanM(design) : riseM,
+                        shape: design ? culvertShapeOf(design) : 'round',
+                        point: (coordinate) => geometryFrame.point(coordinate) as [number, number],
+                        exaggeration,
                       })
-                      return { culvert, segments }
+                      return { culvert, barrel: barrel ? barrelPolygons(barrel, project) : null }
                     })
                 const scaleBar = scaleBarLength(pixelsPerMetreAtFocus(camera, angle))
                 const svgPoint = (event: { clientX: number; clientY: number }, element: Element) => {
@@ -1299,11 +1316,11 @@ export function TerrainPreview({
                         (a, b) =>
                           Number(a.culvert.id === selectedCulvertId) - Number(b.culvert.id === selectedCulvertId),
                       )
-                      .map(({ culvert, segments }) => (
+                      .map(({ culvert, barrel }) => (
                         <g
                           key={culvert.id}
                           role="button"
-                          tabIndex={segments.length ? 0 : undefined}
+                          tabIndex={barrel ? 0 : undefined}
                           aria-label={`Inspect 3D culvert ${culvert.name}`}
                           aria-pressed={selectedCulvertId === culvert.id}
                           className="cursor-pointer"
@@ -1320,23 +1337,49 @@ export function TerrainPreview({
                             }
                           }}
                         >
-                          {segments.map(({ a, b }, index) => (
-                            <line
-                              key={index}
-                              x1={a.x}
-                              y1={a.y}
-                              x2={b.x}
-                              y2={b.y}
-                              stroke={
+                          {barrel &&
+                            (() => {
+                              const colour =
                                 selectedCulvertId === culvert.id
                                   ? ROAD_CHART_COLORS.selected
                                   : culvert.warnings.length
-                                    ? '#b45309'
+                                    ? '#dc2626'
                                     : '#0284c7'
-                              }
-                              strokeWidth={selectedCulvertId === culvert.id ? 6 : 4}
-                            />
-                          ))}
+                              if (barrel.openingPx < BARREL_MIN_OPENING_PX)
+                                return (
+                                  <line
+                                    x1={barrel.axis[0].x}
+                                    y1={barrel.axis[0].y}
+                                    x2={barrel.axis[1].x}
+                                    y2={barrel.axis[1].y}
+                                    stroke={colour}
+                                    strokeWidth={selectedCulvertId === culvert.id ? 6 : 4}
+                                  />
+                                )
+                              return (
+                                <>
+                                  {barrel.sides.map((side, index) => (
+                                    <polygon
+                                      key={`side-${index}`}
+                                      points={side.points}
+                                      fill={shadedColour(colour, side.light)}
+                                      stroke={shadedColour(colour, side.light)}
+                                      strokeWidth={0.5}
+                                      strokeLinejoin="round"
+                                    />
+                                  ))}
+                                  {barrel.ends.map((end, index) => (
+                                    <polygon
+                                      key={`end-${index}`}
+                                      points={end}
+                                      fill="#1e3a8a"
+                                      stroke={colour}
+                                      strokeWidth={selectedCulvertId === culvert.id ? 2 : 1.25}
+                                    />
+                                  ))}
+                                </>
+                              )
+                            })()}
                         </g>
                       ))}
                     {section.length > 1 && (

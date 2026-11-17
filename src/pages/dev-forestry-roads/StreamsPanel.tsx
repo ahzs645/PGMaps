@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, Trash2, Upload } from 'lucide-react'
+import { PersonInput } from '@/branding/PersonInput'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -366,11 +367,12 @@ function StreamDetails({
               </RoadSelect>
             </Field>
             <Field label="Assessor">
-              <input
+              <PersonInput
                 className={roadFieldClass}
                 maxLength={200}
+                withDesignation
                 value={assessment.assessor ?? ''}
-                onChange={(event) => onChange({ assessor: event.target.value || undefined })}
+                onValueChange={(assessor) => onChange({ assessor: assessor || undefined })}
               />
             </Field>
           </div>

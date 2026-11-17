@@ -12,6 +12,7 @@ import { NumberField } from './Controls'
 import { nearestStation, verticalCurveSummary } from './engine'
 import { verticalFitNote } from './curveFit'
 import { CurveReviewPanel } from './CurveReviewPanel'
+import { ClearingPanel, SlopeStakePanel } from './BuilderSchedulePanels'
 import { SweptPathPanel, type VehicleToolsProps } from './SweptPathPanel'
 import { GradeCell, GradeHoldPicker } from './GradeScheduleFields'
 import { ScheduleToolbar, ScheduleToolbarContext } from './scheduleToolbar'
@@ -49,6 +50,7 @@ export function DesignSchedules({
   terrainOnly = false,
   terrain,
   swept,
+  clearingLimitM = null,
 }: {
   alignment: Alignment
   analysis: RoadAnalysis
@@ -59,8 +61,10 @@ export function DesignSchedules({
   terrainOnly?: boolean
   terrain?: TerrainMetadata
   swept?: SweptPathProps
+  /** The job's clearing width limit (`DesignStandards.maxClearingWidthM`), marked in the clearing schedule. */
+  clearingLimitM?: number | null
 }) {
-  const [tab, setTab] = useState<'sampled' | 'horizontal' | 'vertical' | 'swept'>('sampled')
+  const [tab, setTab] = useState<'sampled' | 'horizontal' | 'vertical' | 'stakes' | 'clearing' | 'swept'>('sampled')
   const [gradeHold, setGradeHold] = useState<GradeHold>('back')
   const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   const failingTurns = new Set(swept?.result?.maneuvers.filter((t) => !t.fits).map((t) => t.id)).size
@@ -90,6 +94,8 @@ export function DesignSchedules({
             { value: 'sampled', label: 'Samples' },
             { value: 'horizontal', label: 'Curves', ariaLabel: 'Horizontal curves', disabled: terrainOnly },
             { value: 'vertical', label: 'Vertical', ariaLabel: 'Vertical controls', disabled: terrainOnly },
+            { value: 'stakes', label: 'Stakes', ariaLabel: 'Slope-stake book', disabled: terrainOnly },
+            { value: 'clearing', label: 'Clearing', ariaLabel: 'Clearing-width schedule', disabled: terrainOnly },
             ...(swept
               ? [
                   {
@@ -121,6 +127,25 @@ export function DesignSchedules({
               terrain={terrain}
               swept={swept?.result ?? null}
               onOpenSwept={swept ? () => setTab('swept') : undefined}
+            />
+          )}
+          {tab === 'stakes' && !terrainOnly && (
+            <SlopeStakePanel
+              alignment={alignment}
+              analysis={analysis}
+              terrain={terrain}
+              station={station}
+              onStation={onStation}
+            />
+          )}
+          {tab === 'clearing' && !terrainOnly && (
+            <ClearingPanel
+              alignment={alignment}
+              analysis={analysis}
+              terrain={terrain}
+              station={station}
+              onStation={onStation}
+              limitM={clearingLimitM}
             />
           )}
           {tab === 'swept' && swept && !terrainOnly && (

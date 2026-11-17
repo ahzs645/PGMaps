@@ -5,6 +5,7 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { downloadText } from '@/lib/download'
 import { formatRoadStation } from './Charts'
+import { curveElements } from './curveElements'
 import {
   buildCurveReview,
   curveReviewCsv,
@@ -151,6 +152,12 @@ export function CurveReviewPanel({
                 ['Curve', ''],
                 ['Turn', 'direction / full Δ'],
                 ['Radius', 'm'],
+                ['PI', 'L-Stn'],
+                ['T', 'm'],
+                ['L', 'm'],
+                ['C', 'm'],
+                ['E', 'm'],
+                ['M', 'm'],
                 ['Start', 'BC or TS'],
                 ['End', 'EC or ST'],
                 ['Review', ''],
@@ -160,42 +167,59 @@ export function CurveReviewPanel({
             </tr>
           </thead>
           <tbody>
-            {rows.map((c) => (
-              <tr key={c.id} aria-selected={active?.id === c.id}>
-                <td>
-                  <button
-                    className="underline"
-                    onClick={() => {
-                      setSelectedId(c.id)
-                      setExpanded(true)
-                      onStation((c.start + c.end) / 2)
-                    }}
-                    aria-label={`Review curve ${c.id}`}
+            {rows.map((c) => {
+              const e = curveElements(c)
+              return (
+                <tr key={c.id} aria-selected={active?.id === c.id}>
+                  <td>
+                    <button
+                      className="underline"
+                      onClick={() => {
+                        setSelectedId(c.id)
+                        setExpanded(true)
+                        onStation((c.start + c.end) / 2)
+                      }}
+                      aria-label={`Review curve ${c.id}`}
+                    >
+                      {c.id}
+                    </button>
+                  </td>
+                  <td>
+                    {c.direction === 'left' ? 'L' : 'R'} · {number(c.deflectionDegrees, 1)}°
+                  </td>
+                  <td>{number(c.radius)}</td>
+                  <td className="font-mono">{e ? formatRoadStation(e.piChainage) : '—'}</td>
+                  <td
+                    title={
+                      e && Math.abs(e.tangentInM - e.tangentOutM) > 0.005
+                        ? `Back ${number(e.tangentInM, 2)} m · forward ${number(e.tangentOutM, 2)} m`
+                        : 'Tangent length, PI to the curve start and end'
+                    }
                   >
-                    {c.id}
-                  </button>
-                </td>
-                <td>
-                  {c.direction === 'left' ? 'L' : 'R'} · {number(c.deflectionDegrees, 1)}°
-                </td>
-                <td>{number(c.radius)}</td>
-                <td>
-                  <button className="underline" onClick={() => onStation(c.fullStart)}>
-                    {c.events[0].label} {formatRoadStation(c.fullStart)}
-                  </button>
-                </td>
-                <td>
-                  <button className="underline" onClick={() => onStation(c.fullEnd)}>
-                    {c.events.at(-1)!.label} {formatRoadStation(c.fullEnd)}
-                  </button>
-                </td>
-                <td className={c.warnings.length ? 'text-warning' : 'text-muted-foreground'}>
-                  {c.warnings.length
-                    ? `${c.warnings.length} review flag${c.warnings.length === 1 ? '' : 's'}`
-                    : 'Screen only'}
-                </td>
-              </tr>
-            ))}
+                    {e ? number(e.tangentInM, 2) : '—'}
+                  </td>
+                  <td>{e ? number(e.lengthM, 2) : '—'}</td>
+                  <td title="Long chord of the circular arc">{e ? number(e.chordM, 2) : '—'}</td>
+                  <td title="External: PI to the curve's midpoint">{e ? number(e.externalM, 2) : '—'}</td>
+                  <td title="Middle ordinate of the circular arc">{e ? number(e.middleOrdinateM, 2) : '—'}</td>
+                  <td>
+                    <button className="underline" onClick={() => onStation(c.fullStart)}>
+                      {c.events[0].label} {formatRoadStation(c.fullStart)}
+                    </button>
+                  </td>
+                  <td>
+                    <button className="underline" onClick={() => onStation(c.fullEnd)}>
+                      {c.events.at(-1)!.label} {formatRoadStation(c.fullEnd)}
+                    </button>
+                  </td>
+                  <td className={c.warnings.length ? 'text-warning' : 'text-muted-foreground'}>
+                    {c.warnings.length
+                      ? `${c.warnings.length} review flag${c.warnings.length === 1 ? '' : 's'}`
+                      : 'Screen only'}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </EngineeringTable>
       </div>

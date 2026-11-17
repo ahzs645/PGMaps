@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ClipboardCheck, ScanSearch, X } from 'lucide-react'
+import { PersonInput } from '@/branding/PersonInput'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
@@ -572,11 +573,11 @@ export function RoadOnTerrainFinder({
                         />
                       </Field>
                       <Field label="Reviewed by (optional)" hint="Leave blank to record it unreviewed.">
-                        <input
+                        <PersonInput
                           className={roadFieldClass}
                           value={reviewer}
                           maxLength={200}
-                          onChange={(event) => setReviewer(event.target.value)}
+                          onValueChange={setReviewer}
                         />
                       </Field>
                       <Button

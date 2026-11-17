@@ -6,6 +6,7 @@ import { csvRows } from '@pgmaps/geo-toolkit/export'
 import { nearestStation } from './engine'
 import { refuseInvalidResults } from './inputErrors'
 import { formatStationLabel, hasStationing, type RoadStationing } from './roadStationing'
+import type { StationExtra } from './stationExtras'
 import type { RoadAnalysis, RoadStation } from './types'
 
 /**
@@ -43,11 +44,19 @@ const QUANTITIES = Object.keys(INTERVAL_QUANTITIES) as IntervalQuantity[]
  * that road has a value, so the rows always add up to the totals. `unknownM` is the road length
  * since the previous row whose earthwork is unknown and left out.
  */
-export type StationRow = { station: RoadStation; span: number; unknownM: number } & Record<
-  IntervalQuantity,
-  number | null
->
-export type StationTotals = Record<IntervalQuantity, number | null> & { unknownM: number }
+export type StationRow = {
+  station: RoadStation
+  span: number
+  unknownM: number
+  /** The station's builder figures (`stationExtras.ts`), when the table was given them. */
+  extra?: StationExtra
+  /** Bank cut of each ground material since the previous row, null where none of it is known. */
+  materials?: Record<string, number | null>
+} & Record<IntervalQuantity, number | null>
+export type StationTotals = Record<IntervalQuantity, number | null> & {
+  unknownM: number
+  materials: Record<string, number | null>
+}
 
 export interface StationColumn {
   id: string
@@ -66,6 +75,10 @@ export interface StationColumn {
   hidden?: boolean
   /** Needs a ground material marked rock: left out of the table and CSV until there is one. */
   rock?: boolean
+  /** Reads the station's builder figures: offered only when the table was given them. */
+  extra?: boolean
+  /** A ground material's bank cut since the previous row, totalled by material. */
+  materialId?: string
   value: (row: StationRow) => number | null
   /** A quantity summed down the table into the totals row. */
   sum?: IntervalQuantity
@@ -328,7 +341,191 @@ export const STATION_COLUMNS: StationColumn[] = [
     value: (r) => r.deepRockVolume,
     sum: 'deepRockVolume',
   },
+  ...EXTRA_COLUMNS(),
 ]
+
+/** The builder's columns, read from `stationExtras.ts`: RoadEng's L-line, slope stake and ditch columns. */
+function EXTRA_COLUMNS(): StationColumn[] {
+  const side = (s: 'left' | 'right') => (s === 'left' ? 'L' : 'R')
+  const sided = (
+    id: string,
+    label: string,
+    unit: string,
+    csv: string,
+    decimals: number,
+    title: (s: 'left' | 'right') => string,
+    value: (e: StationExtra, s: 'left' | 'right') => number | null,
+    hidden = true,
+  ): StationColumn[] =>
+    (['left', 'right'] as const).map((s) => ({
+      id: `${id}${side(s)}`,
+      label: `${label} ${side(s)}`,
+      unit,
+      csv: `${csv}_${s}`,
+      road: true,
+      extra: true,
+      hidden,
+      decimals,
+      title: title(s),
+      value: (r) => (r.extra ? value(r.extra, s) : null),
+    }))
+  return [
+    {
+      id: 'centreDepth',
+      label: 'CL C/F',
+      unit: 'm',
+      csv: 'centreline_cut_fill_m',
+      road: true,
+      extra: true,
+      decimals: 2,
+      title: 'Centreline cut (+) or fill (−): ground minus formation',
+      value: (r) => r.extra?.centreDepthM ?? null,
+    },
+    {
+      id: 'gradeLast',
+      label: 'Grd last',
+      unit: '%',
+      csv: 'design_grade_last_pct',
+      road: true,
+      extra: true,
+      hidden: true,
+      decimals: 2,
+      title: 'Design grade from the previous calculated station',
+      value: (r) => r.extra?.gradeLastPercent ?? null,
+    },
+    {
+      id: 'gradeNext',
+      label: 'Grd next',
+      unit: '%',
+      csv: 'design_grade_next_pct',
+      road: true,
+      extra: true,
+      hidden: true,
+      decimals: 2,
+      title: 'Design grade to the next calculated station',
+      value: (r) => r.extra?.gradeNextPercent ?? null,
+    },
+    {
+      id: 'easting',
+      label: 'CL E',
+      unit: 'm',
+      csv: 'centreline_easting',
+      road: true,
+      terrain: true,
+      extra: true,
+      hidden: true,
+      decimals: 2,
+      title: "Centreline easting in the project's grid",
+      value: (r) => r.extra?.easting ?? null,
+    },
+    {
+      id: 'northing',
+      label: 'CL N',
+      unit: 'm',
+      csv: 'centreline_northing',
+      road: true,
+      terrain: true,
+      extra: true,
+      hidden: true,
+      decimals: 2,
+      title: "Centreline northing in the project's grid",
+      value: (r) => r.extra?.northing ?? null,
+    },
+    ...sided(
+      'catch',
+      'Stake',
+      'm',
+      'slope_stake_offset_m',
+      2,
+      (s) => `Slope stake (catch point) horizontal distance from the centreline, ${s}`,
+      (e, s) => e.catch[s]?.offsetM ?? null,
+      false,
+    ),
+    ...sided(
+      'catchCutFill',
+      'Stake C/F',
+      'm',
+      'slope_stake_cut_fill_m',
+      2,
+      (s) =>
+        `Cut (+) or fill (−) at the ${s} slope stake: catch ground minus the hinge (ditch bottom in cut, else the formation edge)`,
+      (e, s) => e.catch[s]?.cutFillM ?? null,
+    ),
+    ...sided(
+      'ditchDepth',
+      'Ditch D',
+      'm',
+      'ditch_depth_m',
+      2,
+      (s) => `Formation edge minus ditch bottom, ${s}; blank where that side has no constructed ditch`,
+      (e, s) => e.ditchDepthM[s],
+    ),
+    ...sided(
+      'ditchGrade',
+      'Ditch grd',
+      '%',
+      'ditch_grade_pct',
+      2,
+      (s) => `Ditch-bottom grade from the previous calculated station, ${s}`,
+      (e, s) => e.ditchGradePercent[s],
+    ),
+    ...sided(
+      'clearing',
+      'Clear',
+      'm',
+      'clearing_offset_m',
+      2,
+      (s) => `Clearing limit from the centreline, ${s}: the catch plus preparation margins`,
+      (e, s) => e.clearingM[s],
+    ),
+    {
+      id: 'clearingWidth',
+      label: 'Clear W',
+      unit: 'm',
+      csv: 'clearing_width_m',
+      road: true,
+      extra: true,
+      decimals: 1,
+      title: 'Clearing width, limit to limit',
+      value: (r) => r.extra?.clearingWidthM ?? null,
+    },
+    ...sided(
+      'crossfall',
+      'X-fall',
+      '%',
+      'crossfall_pct',
+      1,
+      (s) => `Running-surface crossfall, ${s}, positive falling away from the centreline; superelevation included`,
+      (e, s) => e.crossfallPercent[s],
+    ),
+  ]
+}
+
+/** Each ground material's bank cut as a column, for a road with materials (RoadEng's layer volumes). */
+function materialColumns(analysis: RoadAnalysis): StationColumn[] {
+  return (analysis.engineering?.materials ?? []).map((m) => ({
+    id: `material:${m.materialId}`,
+    label: `${m.name} V`,
+    unit: 'bank m³',
+    csv: `cut_bank_m3_${
+      m.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '') || m.materialId
+    }`,
+    road: true,
+    extra: true,
+    hidden: true,
+    decimals: 1,
+    materialId: m.materialId,
+    title: `Bank cut of ${m.name} ${SINCE}. The materials add up to Cut vol, preparation included.`,
+    value: (r) => r.materials?.[m.materialId] ?? null,
+  }))
+}
+
+/** A column's figure in the totals row, or null when it has none. */
+export const columnTotal = (c: StationColumn, totals: StationTotals) =>
+  c.sum ? totals[c.sum] : c.materialId ? (totals.materials[c.materialId] ?? null) : null
 
 /** With the curvature correction applied, the volume columns say they are corrected. */
 const CORRECTED: Record<string, Pick<StationColumn, 'label' | 'title' | 'csv'>> = {
@@ -348,18 +545,26 @@ const CORRECTED: Record<string, Pick<StationColumn, 'label' | 'title' | 'csv'>> 
  * The columns this road's table offers: borrow and waste only once haul is allocated, rock only once
  * a ground material is marked rock.
  */
-export function availableStationColumns(analysis: RoadAnalysis, terrainOnly = false): StationColumn[] {
+export function availableStationColumns(
+  analysis: RoadAnalysis,
+  terrainOnly = false,
+  /** Whether the rows carry builder figures (`stationExtras.ts`); without them those columns are left out. */
+  extras = false,
+): StationColumn[] {
   const haul = !!analysis.engineering?.haul.enabled
   const rock = !!analysis.engineering?.rock
   const corrected = !!analysis.curvatureCorrection?.applied
-  return STATION_COLUMNS.filter(
-    (c) =>
-      (terrainOnly ? c.terrain : c.road) &&
-      (!c.haul || haul) &&
-      (!c.rock || rock) &&
-      // The separate corrected columns repeat the main ones once the correction is applied.
-      !(corrected && (c.id === 'curvedCut' || c.id === 'curvedFill')),
-  ).map((c) => (corrected && CORRECTED[c.id] ? { ...c, ...CORRECTED[c.id] } : c))
+  return [...STATION_COLUMNS, ...materialColumns(analysis)]
+    .filter(
+      (c) =>
+        (terrainOnly ? c.terrain : c.road) &&
+        (!c.haul || haul) &&
+        (!c.rock || rock) &&
+        (!c.extra || extras) &&
+        // The separate corrected columns repeat the main ones once the correction is applied.
+        !(corrected && (c.id === 'curvedCut' || c.id === 'curvedFill')),
+    )
+    .map((c) => (corrected && CORRECTED[c.id] ? { ...c, ...CORRECTED[c.id] } : c))
 }
 
 /**
@@ -368,7 +573,13 @@ export function availableStationColumns(analysis: RoadAnalysis, terrainOnly = fa
  * and is counted in the row's `unknownM`, so a row that holds a gap still reports its known part.
  * The first row starts the table: nothing precedes it, so it sums nothing.
  */
-export function reportingRows(analysis: RoadAnalysis, stations: RoadStation[], every: number): StationRow[] {
+export function reportingRows(
+  analysis: RoadAnalysis,
+  stations: RoadStation[],
+  every: number,
+  /** Builder figures by station index (`stationExtras`); rows then carry them and material cut. */
+  extras?: StationExtra[] | null,
+): StationRow[] {
   const picked = every > 0 ? new Set<number>() : null
   if (picked && stations.length) {
     const first = stations[0].chainage,
@@ -391,6 +602,21 @@ export function reportingRows(analysis: RoadAnalysis, stations: RoadStation[], e
           : 0,
       unknownM: 0,
     } as StationRow
+    if (extras) {
+      row.extra = extras[s.index]
+      const materials: Record<string, number | null> = {}
+      for (const m of analysis.engineering?.materials ?? []) {
+        let sum: number | null = null
+        if (!previous) sum = extras[s.index]?.materialCutM3 ? 0 : null
+        else
+          for (let i = previous.index + 1; i <= s.index; i++) {
+            const v = extras[i]?.materialCutM3?.[m.materialId]
+            if (v !== undefined) sum = (sum ?? 0) + v
+          }
+        materials[m.materialId] = sum
+      }
+      row.materials = materials
+    }
     for (const key of QUANTITIES) {
       const value = INTERVAL_QUANTITIES[key]
       row[key] = null
@@ -417,9 +643,13 @@ export function reportingRows(analysis: RoadAnalysis, stations: RoadStation[], e
 
 /** The totals row: each quantity summed down the rows, and the road length they leave out. */
 export function tableTotals(rows: StationRow[]): StationTotals {
-  const totals = { unknownM: rows.reduce((sum, row) => sum + row.unknownM, 0) } as StationTotals
+  const totals = { unknownM: rows.reduce((sum, row) => sum + row.unknownM, 0), materials: {} } as StationTotals
   for (const key of QUANTITIES)
     totals[key] = rows.some((row) => row[key] !== null) ? rows.reduce((sum, row) => sum + (row[key] ?? 0), 0) : null
+  for (const id of new Set(rows.flatMap((row) => Object.keys(row.materials ?? {}))))
+    totals.materials[id] = rows.some((row) => row.materials?.[id] != null)
+      ? rows.reduce((sum, row) => sum + (row.materials?.[id] ?? 0), 0)
+      : null
   return totals
 }
 
@@ -453,7 +683,11 @@ export function stationReportCsv(
   stationing?: RoadStationing | null,
 ): string {
   refuseInvalidResults('Station table CSV', analysis)
-  const columns = availableStationColumns(analysis, terrainOnly)
+  const columns = availableStationColumns(
+    analysis,
+    terrainOnly,
+    rows.some((row) => row.extra),
+  )
   const totals = tableTotals(rows)
   const named = hasStationing(stationing)
   return (
@@ -479,7 +713,7 @@ export function stationReportCsv(
               [
                 'total',
                 ...(named ? [null] : []),
-                ...columns.map((c) => (c.sum ? totals[c.sum] : null)),
+                ...columns.map((c) => columnTotal(c, totals)),
                 totals.unknownM,
                 rows.length ? 'Sum of the rows above' : '',
               ],

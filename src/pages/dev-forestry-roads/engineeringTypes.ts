@@ -298,6 +298,12 @@ export interface EngineeringStation {
   /** Bank cut of stripping materials since the previous station; null where the interval is unknown. */
   strippingCutVolumeM3?: number | null
   /**
+   * Bank cut of each ground material since the previous station, keyed by material id, on the same
+   * terms as the material totals (preparation included, the interval's curvature scale applied), so
+   * the stations add up to each material's `bankCutM3`. Null where the interval is unknown.
+   */
+  materialCutVolumesM3?: Record<string, number> | null
+  /**
    * With a haul allocation adopted: the compacted fill this interval takes from off the road, and
    * the bank cut it sends off the road or sidecasts, a site found or not. Their sums are the haul
    * summary's borrow and waste. Null with haul off, with no adopted prescription, or where the

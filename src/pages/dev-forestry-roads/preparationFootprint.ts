@@ -43,3 +43,48 @@ export function preparationMarginFeatures(a: RoadStation, b: RoadStation): GeoJS
     ]
   })
 }
+
+/** The plan's clearing limits: a dashed line on each side, the same colour in the legend. */
+export const CLEARING_LINE_COLOR = '#15803d'
+
+/**
+ * Each side's clearing limit as a line through the complete stations, broken where a section is
+ * incomplete: the clearing distance the clearing schedule prints (`stationExtras.ts`), else the catch.
+ */
+export function clearingLineFeatures(stations: readonly RoadStation[]): GeoJSON.Feature<GeoJSON.LineString>[] {
+  const features: GeoJSON.Feature<GeoJSON.LineString>[] = []
+  for (const sign of [-1, 1] as const) {
+    let run: [number, number][] = []
+    const flush = () => {
+      if (run.length > 1)
+        features.push({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: run },
+          properties: {
+            role: 'clearing',
+            side: sign < 0 ? 'left' : 'right',
+            beyond: false,
+            color: CLEARING_LINE_COLOR,
+          },
+        })
+      run = []
+    }
+    for (const s of stations) {
+      const clearing = sign < 0 ? s.leftClearingM : s.rightClearingM
+      const daylight = sign < 0 ? s.leftDaylightM : s.rightDaylightM
+      const distance =
+        clearing != null && Number.isFinite(clearing)
+          ? Math.abs(clearing)
+          : daylight != null
+            ? Math.abs(daylight)
+            : null
+      if (!s.complete || distance === null) {
+        flush()
+        continue
+      }
+      run.push(offsetCoordinate(s.coordinate, s.bearing + 90, sign * distance) as [number, number])
+    }
+    flush()
+  }
+  return features
+}

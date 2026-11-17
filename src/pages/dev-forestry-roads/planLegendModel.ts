@@ -1,4 +1,5 @@
 /** Legend entries derived from the same visible GeoJSON collections used by the plan renderer. */
+import { CLEARING_LINE_COLOR } from './preparationFootprint'
 import { symbolKeyColor, type SheetSymbol } from '@/lib/mapSheet/symbols'
 import { PLAN_SHEET_SYMBOLS, type PlanSheetKey } from './planSheetSymbols'
 import { shortRoadNames } from './roadNames'
@@ -306,6 +307,16 @@ export function buildPlanLegend({
   const earthwork = section('earthwork', 'Earthwork')
   if (showEarthwork && !terrainOnly) {
     for (const feature of sources.corridor.features) {
+      if (feature.properties?.role === 'clearing') {
+        earthwork.add({
+          id: 'clearing',
+          label: 'Clearing limit',
+          color: CLEARING_LINE_COLOR,
+          shape: 'dashed-line',
+          dash: [4, 2],
+        })
+        continue
+      }
       const beyond = feature.properties?.beyond === true
       const color = String(feature.properties?.color)
       earthwork.add({

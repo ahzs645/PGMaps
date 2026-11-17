@@ -100,6 +100,8 @@ import {
   type HeldSectionFrame,
 } from './sectionFrame'
 import { BalanceLineOverlay, BalanceWhatIfPanel, useBalanceWhatIf } from './MassHaulBalanceLine'
+import { MassHaulTables } from './MassHaulTables'
+import { ProfileGroundLayers } from './ProfileGroundLayers'
 import {
   CHART_MEASURE_HINT,
   ChartMeasurementBand,
@@ -114,6 +116,7 @@ import type {
   Alignment,
   AlignmentEngineering,
   CableAnalysis,
+  Coordinate,
   RoadAnalysis,
   RoadStation,
   RoadTemplate,
@@ -1681,6 +1684,14 @@ export function ProfileChart({
                       ))}
                     </g>
                   ))}
+                {!terrainOnly && (
+                  <ProfileGroundLayers
+                    stations={analysis.stations}
+                    engineering={analysis.engineering?.stations}
+                    x={f.x}
+                    y={f.y}
+                  />
+                )}
                 {differencePolygons(knownGround, f.x, f.y).map((p, i) => (
                   <polygon key={i} points={p.points} fill={p.color} opacity={0.23} />
                 ))}
@@ -2154,6 +2165,7 @@ export function CrossSectionChart({
   roadScale = false,
   pinnedStation,
   showSideSlopes = false,
+  grid,
 }: {
   station: RoadStation | undefined
   onShift?: (meters: number) => void
@@ -2171,6 +2183,8 @@ export function CrossSectionChart({
   pinnedStation?: RoadStation
   /** Draw each side's fitted ground side slope (`sectionSideSlope.ts`) with its percentage. */
   showSideSlopes?: boolean
+  /** The project's grid, for the centreline's easting and northing in the readout. */
+  grid?: { toGrid: (coordinate: Coordinate) => [number, number]; epsg: number }
 }) {
   const id = useId().replace(/:/g, '')
   const drag = useRef<number | null>(null)
@@ -2393,6 +2407,20 @@ export function CrossSectionChart({
                 ? 'Sampled ground grade; no vertical design has been set'
                 : 'Design grade at this station',
           },
+          (() => {
+            // RoadEng's Grd.Lst / Grd.Nxt: the design grade from the previous and to the next calculated station.
+            const i = analysis?.stations.findIndex((s) => Math.abs(s.chainage - station.chainage) < 0.001) ?? -1
+            if (!analysis || i < 0 || !alignment?.vertical.length) return null
+            const grade = (a?: RoadStation, b?: RoadStation) =>
+              a && b && a.designElevation != null && b.designElevation != null && b.chainage > a.chainage
+                ? (100 * (b.designElevation - a.designElevation)) / (b.chainage - a.chainage)
+                : undefined
+            return {
+              label: 'Grd Lst/Nxt',
+              value: `${side(grade(analysis.stations[i - 1], station), grade(station, analysis.stations[i + 1]), 2)}%`,
+              title: 'Design grade from the previous calculated station / to the next one',
+            }
+          })(),
           {
             label: 'Grd Z',
             value: fixed(station.groundElevation, 2),
@@ -2449,6 +2477,15 @@ export function CrossSectionChart({
               : `Daylight offsets left / right (m); — means unresolved. ${incompleteLabel}`,
             tone: station.complete ? ('default' as const) : ('warning' as const),
           },
+          grid &&
+            (() => {
+              const [x, y] = grid.toGrid(station.coordinate)
+              return {
+                label: 'CL E/N',
+                value: `${fixed(x, 1)} / ${fixed(y, 1)}`,
+                title: `Centreline easting / northing (m), EPSG:${grid.epsg}`,
+              }
+            })(),
           { label: 'Cut A', value: `${fixed(station.cutAreaM2)} m²`, title: 'Cut area of this section' },
           { label: 'Fill A', value: `${fixed(station.fillAreaM2)} m²`, title: 'Fill area of this section' },
           engineering && {
@@ -3262,6 +3299,12 @@ export function MassHaulChart({
             onLevel={setWhatIfLevel}
             onOpen={() => setWhatIfLevel(0)}
             onClose={() => setWhatIfLevel(null)}
+            onStation={onStation}
+          />
+          <MassHaulTables
+            diagram={diagram}
+            sites={engineeringInputs?.sites}
+            freeHaulM={engineeringInputs?.haul.freeHaulDistanceM ?? null}
             onStation={onStation}
           />
           {haul && haul.pits.length > 0 && (

@@ -30,6 +30,8 @@ describe('report package plan', () => {
     expect(plan.appendices.map((a) => a.key)).toEqual([
       'report:sections',
       'report:station-schedule',
+      'report:clearing',
+      'report:slope-stakes',
       'plotbook:sections',
     ])
     expect(plan.appendices[0].filename).toBe('Road-appendix-cross-sections.pdf')

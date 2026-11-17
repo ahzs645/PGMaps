@@ -8,6 +8,7 @@
  * speed and widths) and whether a person has confirmed the set.
  */
 import { isCalendarDate } from './projectIssue'
+import { parseAssumedEquipment, type AssumedEquipment } from './quantitySchedule'
 import type { Alignment, RoadSettings, RoadStation } from './types'
 
 export interface DesignStandards {
@@ -34,6 +35,11 @@ export interface DesignStandards {
   source?: string
   /** Date a person confirmed the record (YYYY-MM-DD). Absent while the limits are the starting values. */
   confirmedOn?: string
+  /**
+   * The construction equipment the design assumes for moving material (Engineering Manual §3.5.3;
+   * EGBC/FPBC Forest Roads §5.2.4). The designer's entry, never inferred; absent is none entered.
+   */
+  equipment?: AssumedEquipment[]
 }
 
 /** Starting values for a new project. They are placeholders until a person confirms them. */
@@ -113,6 +119,7 @@ export function parseDesignStandards(raw: unknown): DesignStandards {
     maxCrossDrainSpacingM: optional(r.maxCrossDrainSpacingM, 'Cross-drain spacing', STANDARD_LIMITS.crossDrainSpacingM),
     ...(r.source === undefined || r.source === '' ? {} : { source: shortText(r.source, 'Standards source', 500) }),
     ...(r.confirmedOn === undefined ? {} : { confirmedOn: String(r.confirmedOn) }),
+    ...(r.equipment === undefined ? {} : { equipment: parseAssumedEquipment(r.equipment) }),
   }
 }
 

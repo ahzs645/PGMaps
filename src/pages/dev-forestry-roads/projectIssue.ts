@@ -1,9 +1,16 @@
+import { nameWithDesignation } from '@/branding/profile'
+
 /**
  * The issue stamp printed on documents that leave the workspace: who prepared them, for whom, which
  * revision and when. Pure, with no DOM or network access.
  */
 export interface ProjectIssue {
   preparedBy: string
+  /**
+   * Professional designation printed after the name ("RPF #4521"). Optional, so a project saved without one
+   * writes and reads exactly as before.
+   */
+  designation?: string
   organisation: string
   /** Free text: "A", "Rev 2", "Issued for review". */
   revision: string
@@ -45,8 +52,10 @@ export function parseProjectIssue(raw: unknown): ProjectIssue {
   }
   const issuedOn = text(r.issuedOn, 'Date of issue', 10)
   if (issuedOn && !isCalendarDate(issuedOn)) throw Error('The date of issue must be a real date, written YYYY-MM-DD.')
+  const designation = text(r.designation, 'Designation', 120)
   return {
     preparedBy: text(r.preparedBy, 'Prepared by', 200),
+    ...(designation ? { designation } : {}),
     organisation: text(r.organisation, 'Organisation', 200),
     revision: text(r.revision, 'Revision', 40),
     issuedOn,
@@ -65,6 +74,7 @@ export interface IssueStamp {
   date: string
   /** True when the date is the day of printing because none was entered. */
   dateDefaulted: boolean
+  /** The name with its designation ("J. Smith, RPF #4521"), as every stamped document prints it. */
   preparedBy: string
   organisation: string
   revision: string
@@ -82,7 +92,7 @@ export function issueStamp(issue: ProjectIssue | undefined, today: Date = new Da
   return {
     date: value.issuedOn || isoDate(today),
     dateDefaulted: !value.issuedOn,
-    preparedBy: value.preparedBy.trim(),
+    preparedBy: nameWithDesignation(value.preparedBy, value.designation ?? ''),
     organisation: value.organisation.trim(),
     revision: value.revision.trim(),
     note: value.note.trim(),

@@ -1,3 +1,7 @@
+import { UseMyDetailsButton } from '@/branding/PreparerProfile'
+import { blanksFilledFromProfile, designationText } from '@/branding/profile'
+import { useBranding } from '@/branding/useBranding'
+
 import { Field, roadFieldClass } from './Controls'
 import { EMPTY_PROJECT_ISSUE, type ProjectIssue } from './projectIssue'
 
@@ -16,11 +20,27 @@ export function IssueStampEditor({
   today: string
 }) {
   const issue = value ?? EMPTY_PROJECT_ISSUE
-  const set = (patch: Partial<ProjectIssue>) => onChange({ ...issue, ...patch })
-  const text = (key: 'preparedBy' | 'organisation' | 'revision' | 'note', maxLength: number, placeholder: string) => (
+  const { profile } = useBranding()
+  const set = (patch: Partial<ProjectIssue>) => {
+    const next = { ...issue, ...patch }
+    // A cleared designation is removed, so the project file is the same as one that never had one.
+    if (!next.designation) delete next.designation
+    onChange(next)
+  }
+  // Your details fill only what the stamp leaves blank; the stamp is the project's record.
+  const fromProfile = blanksFilledFromProfile<'preparedBy' | 'designation' | 'organisation'>(issue, {
+    preparedBy: profile?.name ?? '',
+    designation: profile ? designationText(profile) : '',
+    organisation: profile?.organisation ?? '',
+  })
+  const text = (
+    key: 'preparedBy' | 'designation' | 'organisation' | 'revision' | 'note',
+    maxLength: number,
+    placeholder: string,
+  ) => (
     <input
       className={roadFieldClass}
-      value={issue[key]}
+      value={issue[key] ?? ''}
       maxLength={maxLength}
       placeholder={placeholder}
       onChange={(event) => set({ [key]: event.target.value })}
@@ -32,8 +52,12 @@ export function IssueStampEditor({
         Printed at the top of the report, on the map PDF and in every plot-book title block, with the terrain source and
         &ldquo;not for construction&rdquo;. Saved with the project.
       </p>
+      <UseMyDetailsButton patch={fromProfile} onApply={set} />
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Prepared by">{text('preparedBy', 200, 'Your name')}</Field>
+        <Field label="Designation" hint="Printed after the name, such as RPF #4521 or P.Eng.">
+          {text('designation', 120, 'Optional')}
+        </Field>
         <Field label="Organisation">{text('organisation', 200, 'Company or licensee')}</Field>
         <Field label="Revision" hint="Free text, such as A, 2 or Issued for review. Change it each time you issue.">
           {text('revision', 40, 'e.g. A')}

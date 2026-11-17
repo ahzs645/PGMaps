@@ -106,7 +106,7 @@ import { areaPatternId, keepSymbolImages, symbolImages, type SymbolImageMap } fr
 import type { AreaSymbol, SheetSymbol } from '@/lib/mapSheet/symbols'
 import { cutblockBufferSymbol } from './cutblockBufferStyle'
 import { keepAttributionFolded } from '@/components/ui/map-attribution'
-import { labelsWithRoom, planLabelWidthPx, PLAN_LABEL_HEIGHT_PX, type LabelBox } from './planLabelRoom'
+import { CULVERTS_TOGETHER_M, CulvertCard } from './CulvertCard'
 import {
   PLAN_SHEET_LAYER_IDS,
   PLAN_SHEET_ROAD_HIT_LAYER_IDS,
@@ -115,7 +115,7 @@ import {
   riparianSheetKey,
   sheetProperties,
 } from './planSheetSymbols'
-import { preparationMarginFeatures } from './preparationFootprint'
+import { CLEARING_LINE_COLOR, clearingLineFeatures, preparationMarginFeatures } from './preparationFootprint'
 import { ROAD_COLOUR_OPTIONS, usePlanTools, type RoadColourMode } from './PlanTools'
 import { crossDrainMarks } from './crossDrainMarks'
 import { gradeClassRoadLines } from './gradeClasses'
@@ -550,6 +550,7 @@ function Layers(
   // follow it during the gesture too, read once a frame and only re-rendered when the eighth-of-a-zoom
   // step or the whole-degree bearing changes; waiting for zoomend left a deep zoom's labels piled up.
   const [view, setView] = useState<{ zoom: number; bearing: number } | null>(null)
+  const [culvertCardId, setCulvertCardId] = useState<string | null>(null)
   useEffect(() => {
     if (!map || !isLoaded) return
     let frame = 0
@@ -656,77 +657,6 @@ function Layers(
       return []
     }
   }, [props.alignment, props.terrainOnly, pixelMetres])
-  // Culvert labels that would land on one another, on a station or curve label, or on another culvert's
-  // Ø mark fold to their own Ø mark (planLabelRoom.ts). Overlap does not change with panning, so this
-  // follows the zoom/bearing step and the labels only.
-  const plannedCulverts = analysis.engineering?.culverts
-  const culvertDesigns = props.alignment.engineering?.culverts
-  const culvertLabelRoom = useMemo(() => {
-    if (!map || !view || !props.showLabels || !plannedCulverts?.length) return null
-    const at = (coordinate: readonly number[], dx = 0, dy = 0) => {
-      const point = map.project(coordinate as [number, number])
-      return { x: point.x + dx, y: point.y + dy }
-    }
-    const boxes: LabelBox[] = []
-    for (const s of annotationStations) {
-      if (Math.abs(s.chainage - (chosen?.chainage ?? -1)) <= (labelInterval ?? 0) * 0.3) continue
-      const text = formatRoadStation(s.chainage).replace(/\.0$/, '')
-      const [dx, dy] = labelOffset(s.bearing, view.bearing, text.length)
-      boxes.push({
-        id: `station-${s.chainage}`,
-        ...at(s.coordinate, dx, dy),
-        width: planLabelWidthPx(text),
-        height: PLAN_LABEL_HEIGHT_PX,
-        priority: 0,
-        fixed: true,
-      })
-    }
-    for (const { id, label, at: where } of radiusLabels) {
-      const [dx, dy] = labelOffset(where.bearing, view.bearing, label.length, -1)
-      boxes.push({
-        id,
-        ...at(where.coordinate, dx, dy),
-        width: planLabelWidthPx(label),
-        height: PLAN_LABEL_HEIGHT_PX,
-        priority: 0,
-        fixed: true,
-      })
-    }
-    plannedCulverts.forEach((culvert, index) => {
-      const design = culvertDesigns?.find((c) => c.id === culvert.id)
-      const stacked = plannedCulverts.slice(0, index).filter((c) => Math.abs(c.chainage - culvert.chainage) < 0.001)
-      const centre = at(culvert.coordinate, 0, stacked.length * 24)
-      boxes.push({
-        id: `mark-${culvert.id}`,
-        ...centre,
-        width: planLabelWidthPx('Ø'),
-        height: PLAN_LABEL_HEIGHT_PX,
-        priority: 0,
-        fixed: true,
-        owner: culvert.id,
-      })
-      boxes.push({
-        id: culvert.id,
-        ...centre,
-        width: planLabelWidthPx(`Ø ${Math.round((design?.diameterM ?? 0) * 1000)} mm · ${culvert.name}`),
-        height: PLAN_LABEL_HEIGHT_PX,
-        priority: culvert.id === props.selectedCulvertId ? 2 : culvert.warnings.length ? 1 : 0,
-        owner: culvert.id,
-      })
-    })
-    return labelsWithRoom(boxes)
-  }, [
-    map,
-    view,
-    props.showLabels,
-    plannedCulverts,
-    culvertDesigns,
-    props.selectedCulvertId,
-    annotationStations,
-    radiusLabels,
-    chosen,
-    labelInterval,
-  ])
   const allLines = useMemo(() => {
     if (investigation) return fc([])
     const colors = distinctRoadColors(props.project.alignments)
@@ -815,40 +745,39 @@ function Layers(
       if (s.groundElevation === null || !s.flags.some((f) => f.startsWith(side) && isBeyondReachFlag(f))) return null
       return { offset: reach, beyond: true }
     }
-    return fc(
-      (props.terrainOnly ? [] : analysis.stations.slice(1)).flatMap((b, i) => {
-        const a = analysis.stations[i]
-        const al = extent(a, 'Left'),
-          bl = extent(b, 'Left'),
-          br = extent(b, 'Right'),
-          ar = extent(a, 'Right')
-        if (!al || !bl || !br || !ar) return []
-        const beyond = al.beyond || bl.beyond || br.beyond || ar.beyond
-        if (!beyond && (!a.complete || !b.complete)) return []
-        const points = [
-          offsetCoordinate(a.coordinate, a.bearing - 90, al.offset),
-          offsetCoordinate(b.coordinate, b.bearing - 90, bl.offset),
-          offsetCoordinate(b.coordinate, b.bearing + 90, br.offset),
-          offsetCoordinate(a.coordinate, a.bearing + 90, ar.offset),
-        ]
-        return [
-          ...preparationMarginFeatures(a, b),
-          {
-            type: 'Feature' as const,
-            geometry: { type: 'Polygon' as const, coordinates: [[...points, points[0]]] },
-            properties: {
-              chainage: (a.chainage + b.chainage) / 2,
-              beyond,
-              color: beyond
-                ? '#dc2626'
-                : (a.cutAreaM2 ?? 0) + (b.cutAreaM2 ?? 0) >= (a.fillAreaM2 ?? 0) + (b.fillAreaM2 ?? 0)
-                  ? '#d97706'
-                  : '#3b82f6',
-            },
+    const footprint = (props.terrainOnly ? [] : analysis.stations.slice(1)).flatMap((b, i) => {
+      const a = analysis.stations[i]
+      const al = extent(a, 'Left'),
+        bl = extent(b, 'Left'),
+        br = extent(b, 'Right'),
+        ar = extent(a, 'Right')
+      if (!al || !bl || !br || !ar) return []
+      const beyond = al.beyond || bl.beyond || br.beyond || ar.beyond
+      if (!beyond && (!a.complete || !b.complete)) return []
+      const points = [
+        offsetCoordinate(a.coordinate, a.bearing - 90, al.offset),
+        offsetCoordinate(b.coordinate, b.bearing - 90, bl.offset),
+        offsetCoordinate(b.coordinate, b.bearing + 90, br.offset),
+        offsetCoordinate(a.coordinate, a.bearing + 90, ar.offset),
+      ]
+      return [
+        ...preparationMarginFeatures(a, b),
+        {
+          type: 'Feature' as const,
+          geometry: { type: 'Polygon' as const, coordinates: [[...points, points[0]]] },
+          properties: {
+            chainage: (a.chainage + b.chainage) / 2,
+            beyond,
+            color: beyond
+              ? '#dc2626'
+              : (a.cutAreaM2 ?? 0) + (b.cutAreaM2 ?? 0) >= (a.fillAreaM2 ?? 0) + (b.fillAreaM2 ?? 0)
+                ? '#d97706'
+                : '#3b82f6',
           },
-        ]
-      }),
-    )
+        },
+      ]
+    })
+    return fc([...footprint, ...(props.terrainOnly ? [] : clearingLineFeatures(analysis.stations))])
   }, [analysis, props.terrainOnly, props.project.settings.crossSectionHalfWidth])
   const formation = useMemo(
     () =>
@@ -978,7 +907,9 @@ function Layers(
             id: culvert.id,
             chainage: culvert.chainage,
             name: culvert.name,
-            color: culvert.id === props.selectedCulvertId ? '#e11d48' : culvert.warnings.length ? '#d97706' : '#0284c7',
+            // Blue as RoadEng draws a culvert; red when it has warnings. Never amber, the road's own colour.
+            // Selection widens it (the layer's paint), so a selected culvert keeps its warning colour.
+            color: culvert.warnings.length ? '#dc2626' : '#0284c7',
             selected: culvert.id === props.selectedCulvertId,
           }),
         ),
@@ -1297,7 +1228,16 @@ function Layers(
       id: 'road-corridor',
       type: 'fill',
       source: 'road-corridor',
+      // The clearing lines share the source; a fill layer would close each one into an area.
+      filter: ['==', ['geometry-type'], 'Polygon'],
       paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.28 },
+    })
+    add({
+      id: 'road-clearing',
+      type: 'line',
+      source: 'road-corridor',
+      filter: ['==', ['get', 'role'], 'clearing'],
+      paint: { 'line-color': CLEARING_LINE_COLOR, 'line-width': 1.4, 'line-dasharray': [4, 2] },
     })
     add({
       id: 'road-corridor-reach',
@@ -1375,7 +1315,14 @@ function Layers(
       id: 'road-structures',
       type: 'line',
       source: 'road-structures',
-      paint: { 'line-color': ['get', 'color'], 'line-width': ['case', ['==', ['get', 'selected'], true], 6, 4] },
+      // Two thin lines either side of a gap, the pipe's walls across the road, as RoadEng draws a
+      // culvert. Its name and size are in the card a click opens (CulvertCard.tsx).
+      layout: { 'line-cap': 'butt' },
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': ['case', ['==', ['get', 'selected'], true], 2.5, 1.75],
+        'line-gap-width': ['case', ['==', ['get', 'selected'], true], 6, 4],
+      },
     })
     add({
       id: 'road-draft',
@@ -1657,7 +1604,14 @@ function Layers(
       map.setLayoutProperty(id, 'visibility', props.sheetSymbols ? 'none' : 'visible')
     map.setPaintProperty('road-context-fill', 'fill-opacity', props.sheetSymbols ? 0 : CONTEXT_FILL_OPACITY)
     map.setLayoutProperty('road-contours', 'visibility', props.showContours ? 'visible' : 'none')
-    for (const id of ['road-corridor', 'road-corridor-reach', 'road-formation', 'road-edges', 'road-ditches'])
+    for (const id of [
+      'road-corridor',
+      'road-corridor-reach',
+      'road-clearing',
+      'road-formation',
+      'road-edges',
+      'road-ditches',
+    ])
       map.setLayoutProperty(id, 'visibility', props.showEarthwork && !props.terrainOnly ? 'visible' : 'none')
     // Keep all analytical overlays above a replaced terrain image/style.
     for (const id of [
@@ -1674,6 +1628,7 @@ function Layers(
       'road-formation',
       'road-edges',
       'road-ditches',
+      'road-clearing',
       // A named point shows through the earthwork footprint and sits under the road that ends on it.
       REFERENCE_POINT_LAYER_ID,
       REFERENCE_ICON_LAYER_ID,
@@ -1823,6 +1778,8 @@ function Layers(
         return
       }
       if ((e.originalEvent.target as Element)?.closest('.maplibregl-marker')) return
+      // The culvert card closes on a click anywhere else; a click on a culvert below opens it again.
+      setCulvertCardId(null)
       if (mode === 'inspect' && onHistorySelect) {
         const historyLayers = map
           .getStyle()
@@ -1853,9 +1810,19 @@ function Layers(
         onOverlaySelect(preview.properties)
         return
       }
-      const structure = map.queryRenderedFeatures(e.point, { layers: ['road-structures'] })[0]?.properties
+      // A few pixels' grace: the culvert is drawn as two hairlines.
+      const structure = map.queryRenderedFeatures(
+        [
+          [e.point.x - 5, e.point.y - 5],
+          [e.point.x + 5, e.point.y + 5],
+        ],
+        { layers: ['road-structures'] },
+      )[0]?.properties
       if (structure?.chainage !== undefined) {
-        if (structure.id) onSelectCulvert?.(String(structure.id))
+        if (structure.id) {
+          onSelectCulvert?.(String(structure.id))
+          setCulvertCardId(String(structure.id))
+        }
         onStation(Number(structure.chainage))
         return
       }
@@ -2305,39 +2272,52 @@ function Layers(
       <span data-testid="road-map-ready" data-ready={isLoaded} className="sr-only">
         {isLoaded ? 'Road map ready' : 'Loading road map'}
       </span>
+      {/* The line across the road is the culvert; this is its keyboard and click target only, so
+          the plan carries no label boxes. Name and size open in its card. */}
       {!props.terrainOnly &&
-        analysis.engineering?.culverts.map((culvert, index, culverts) => {
-          const design = props.alignment.engineering?.culverts.find((c) => c.id === culvert.id)
+        analysis.engineering?.culverts.map((culvert) => {
           const selected = props.selectedCulvertId === culvert.id
-          const labelOffset =
-            culverts.slice(0, index).filter((c) => Math.abs(c.chainage - culvert.chainage) < 0.001).length * 24
           return (
-            <MapMarker
-              key={`culvert-${culvert.id}`}
-              longitude={culvert.coordinate[0]}
-              latitude={culvert.coordinate[1]}
-              offset={[0, labelOffset]}
-            >
+            <MapMarker key={`culvert-${culvert.id}`} longitude={culvert.coordinate[0]} latitude={culvert.coordinate[1]}>
               <MarkerContent>
                 <button
-                  className={`fixed-palette rounded-sm border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${selected ? 'border-rose-600 text-rose-700 ring-2 ring-rose-400/50' : culvert.warnings.length ? 'border-warning text-warning' : 'border-sky-600 text-sky-800'}`}
+                  type="button"
+                  className="block size-4 rounded-full bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                   aria-label={`Inspect structure ${culvert.name}`}
                   aria-pressed={selected}
                   onClick={() => {
                     props.onSelectCulvert?.(culvert.id)
                     props.onStation(culvert.chainage)
+                    setCulvertCardId(culvert.id)
                   }}
-                  title={`${culvert.name} · ${formatRoadStation(culvert.chainage)} · cover ${culvert.coverM?.toFixed(2) ?? 'unknown'} m. ${culvert.warnings.join(' ')}`}
-                >
-                  Ø
-                  {props.showLabels && design && (!culvertLabelRoom || culvertLabelRoom.has(culvert.id))
-                    ? ` ${Math.round(design.diameterM * 1000)} mm · ${culvert.name}`
-                    : ''}
-                </button>
+                  title={`${culvert.name} · ${formatRoadStation(culvert.chainage)}`}
+                />
               </MarkerContent>
             </MapMarker>
           )
         })}
+      {(() => {
+        const culvert = culvertCardId ? analysis.engineering?.culverts.find((c) => c.id === culvertCardId) : undefined
+        if (!culvert || props.terrainOnly) return null
+        const designOf = (id: string) => props.alignment.engineering?.culverts.find((c) => c.id === id)
+        return (
+          <CulvertCard
+            culvert={culvert}
+            design={designOf(culvert.id)}
+            together={(analysis.engineering?.culverts ?? [])
+              .filter((c) => c.id !== culvert.id && Math.abs(c.chainage - culvert.chainage) < CULVERTS_TOGETHER_M)
+              .map((c) => ({ culvert: c, design: designOf(c.id) }))}
+            onPick={(id) => {
+              const picked = analysis.engineering?.culverts.find((c) => c.id === id)
+              if (!picked) return
+              props.onSelectCulvert?.(id)
+              props.onStation(picked.chainage)
+              setCulvertCardId(id)
+            }}
+            onClose={() => setCulvertCardId(null)}
+          />
+        )
+      })()}
       <AccessHistoryLayers data={historicalMap} selection={props.historySelection} />
       <SightlinePlanLayers data={props.sightlines} />
       <MapLineLayer

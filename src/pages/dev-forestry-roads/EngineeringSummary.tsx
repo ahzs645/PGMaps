@@ -8,8 +8,11 @@ import { TabBar } from '@/components/ui/tab-bar'
 import { hasCompleteCoverage } from './analysisResult'
 import { materialPlanMissing } from './engineeringTypes'
 import { formatRoadStation } from './Charts'
-import type { CulvertAnalysis, RoadAnalysis, RoadSettings } from './types'
+import type { Alignment, CulvertAnalysis, RoadAnalysis, RoadSettings } from './types'
 import { insetBox } from '@/components/ui/inset-box'
+import { QuantitySchedulePanel } from './QuantitySchedulePanel'
+import { ReviewCharts } from './ReviewChartsPanel'
+import type { AssumedEquipment } from './quantitySchedule'
 
 const fmt = (value: number | null | undefined, digits = 1) =>
   value == null || !Number.isFinite(value) ? '—' : value.toLocaleString('en-CA', { maximumFractionDigits: digits })
@@ -89,7 +92,15 @@ export function EngineeringSummary({
   onExport,
   selectedCulvertId,
   onSelectCulvert,
+  equipment,
+  onEquipmentChange,
+  alignment,
 }: {
+  /** The road, for the cumulative cost chart's attribution. */
+  alignment?: Alignment
+  /** The construction equipment the design assumes (`DesignStandards.equipment`). */
+  equipment?: AssumedEquipment[]
+  onEquipmentChange?: (next: AssumedEquipment[]) => void
   analysis: RoadAnalysis
   settings: RoadSettings
   station: number
@@ -98,7 +109,7 @@ export function EngineeringSummary({
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
 }) {
-  const [tab, setTab] = useState<'cost' | 'materials' | 'haul' | 'structures'>('cost')
+  const [tab, setTab] = useState<'schedule' | 'charts' | 'cost' | 'materials' | 'haul' | 'structures'>('cost')
   const [page, setPage] = useState(0)
   const result = analysis.engineering
   const noPlan = result && materialPlanMissing(result.haul) ? 'Not calculated' : null
@@ -151,9 +162,11 @@ export function EngineeringSummary({
           onChange={setTab}
           options={[
             { value: 'cost', label: 'Cost' },
+            { value: 'schedule', label: 'Schedule', ariaLabel: 'Schedule of quantities and equipment' },
             { value: 'materials', label: 'Materials' },
             { value: 'haul', label: 'Haul' },
             { value: 'structures', label: 'Structures' },
+            { value: 'charts', label: 'Charts', ariaLabel: 'Review charts' },
           ]}
         />
         <Button size="sm" variant="outline" onClick={onExport}>
@@ -371,6 +384,18 @@ export function EngineeringSummary({
               </>
             )}
           </>
+        )}
+        {tab === 'charts' && (
+          <ReviewCharts analysis={analysis} alignment={alignment} settings={settings} onStation={onStation} />
+        )}
+        {tab === 'schedule' && (
+          <QuantitySchedulePanel
+            alignment={alignment}
+            analysis={analysis}
+            settings={settings}
+            equipment={equipment ?? []}
+            onEquipmentChange={onEquipmentChange}
+          />
         )}
         {tab === 'structures' && (
           <>

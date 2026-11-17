@@ -27,6 +27,8 @@ export const PACKAGE_CHAPTERS = [
   'curves',
   'structures',
   'materials',
+  'stakes',
+  'clearing',
 ] as const
 export type PackageChapter = (typeof PACKAGE_CHAPTERS)[number]
 const CHAPTER_LABELS: Record<PackageChapter, string> = {
@@ -37,6 +39,8 @@ const CHAPTER_LABELS: Record<PackageChapter, string> = {
   curves: 'Horizontal curve table',
   structures: 'Culvert inventory',
   materials: 'Material quantities',
+  stakes: 'Slope-stake book',
+  clearing: 'Clearing schedule',
 }
 
 export type PackagePartId = `report:${ReportSectionId}` | `plotbook:${PackageChapter}` | `sheet:${SheetKind}`
@@ -78,7 +82,14 @@ export const PACKAGE_PARTS: readonly PackagePart[] = [
  * charts and the 250 m plan-and-profile sheets are in the package; one block sheet, the field layout.
  */
 export function defaultPlacement(id: PackagePartId): PackagePlacement {
-  if (id === 'report:sections' || id === 'report:station-schedule' || id === 'plotbook:sections') return 'appendix'
+  if (
+    id === 'report:sections' ||
+    id === 'report:station-schedule' ||
+    id === 'report:clearing' ||
+    id === 'report:slope-stakes' ||
+    id === 'plotbook:sections'
+  )
+    return 'appendix'
   if (id.startsWith('report:')) return 'main'
   if (id === 'plotbook:charts' || id === 'plotbook:plan-profile') return 'main'
   if (id === 'sheet:field-layout') return 'main'

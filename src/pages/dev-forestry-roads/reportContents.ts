@@ -27,10 +27,16 @@ export const REPORT_SECTIONS = [
       'Haul scenario',
     ],
   },
+  { id: 'quantity-schedule', label: 'Schedule of quantities and equipment', heading: 'Schedule of quantities' },
+  { id: 'balance-points', label: 'Balance points', heading: 'Balance points' },
+  { id: 'end-haul', label: 'End haul summary', heading: 'End haul summary' },
+  { id: 'record-changes', label: 'Record of changes from the issued design', heading: 'Record of changes' },
   { id: 'sections', label: 'Cross-sections', heading: 'Cross-sections' },
   { id: 'model-flags', label: 'Model flags', heading: 'Model flags' },
   { id: 'crossing-review', label: 'Crossing review', heading: 'Crossing review' },
   { id: 'station-schedule', label: 'Station schedule', heading: 'Station schedule' },
+  { id: 'clearing', label: 'Clearing schedule', heading: 'Clearing schedule' },
+  { id: 'slope-stakes', label: 'Slope-stake book', heading: 'Slope-stake book' },
 ] as const satisfies readonly { id: string; label: string; heading: string | readonly string[] }[]
 
 export type ReportSectionId = (typeof REPORT_SECTIONS)[number]['id']

@@ -42,6 +42,8 @@ const KIND_LABELS: Record<ReportChapterKind, string> = {
   structures: 'Culvert inventory',
   materials: 'Material quantities',
   charts: 'Profile, grade & mass haul',
+  stakes: 'Slope-stake book',
+  clearing: 'Clearing schedule',
 }
 const COLUMN_LABELS = {
   station: 'Station',
@@ -341,7 +343,10 @@ function ChapterFields({
             onChange={(horizontalScale) => onPatch({ horizontalScale })}
           />
         )}
-        {(chapter.kind === 'sections' || chapter.kind === 'schedule') && (
+        {(chapter.kind === 'sections' ||
+          chapter.kind === 'schedule' ||
+          chapter.kind === 'stakes' ||
+          chapter.kind === 'clearing') && (
           <NumberField
             label="Report station interval (m)"
             value={chapter.sectionIntervalM}

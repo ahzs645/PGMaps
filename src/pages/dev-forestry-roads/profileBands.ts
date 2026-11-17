@@ -327,3 +327,42 @@ function sidehillRow(stations: readonly RoadStation[], sidehill: readonly Statio
     }),
   }
 }
+
+/** One station's running-surface crossfall each side, positive falling away from the centreline. */
+export interface SuperelevationVertex {
+  chainage: number
+  left: number | null
+  right: number | null
+  superelevated: boolean
+}
+
+/**
+ * The superelevation diagram over `start`–`end`: each calculated station's crossfall on both sides
+ * (`sectionCrossfall`, the section's own), so normal crown, runoff and full superelevation read as
+ * two edge lines about the centreline. A design value, read wherever the road is.
+ */
+export function superelevationDiagram(
+  analysis: Pick<RoadAnalysis, 'stations'>,
+  alignment: Alignment,
+  start: number,
+  end: number,
+): SuperelevationVertex[] {
+  return analysis.stations
+    .filter((s) => s.chainage >= start - EPS && s.chainage <= end + EPS)
+    .map((s) => {
+      try {
+        const curve = curveDesignAt(alignment, s.chainage)
+        const template = templateAt(alignment, s.chainage).template
+        const left = sectionCrossfall(template, 'left', curve),
+          right = sectionCrossfall(template, 'right', curve)
+        return {
+          chainage: s.chainage,
+          left: finite(left) ? left : null,
+          right: finite(right) ? right : null,
+          superelevated: !!curve && curve.superPercent > 0,
+        }
+      } catch {
+        return { chainage: s.chainage, left: null, right: null, superelevated: false }
+      }
+    })
+}

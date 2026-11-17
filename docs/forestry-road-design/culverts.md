@@ -189,6 +189,21 @@ checks in words. Columns are fixed in `CULVERT_SCHEDULE_COLUMNS`.
 The printed report carries the same rows under **Culvert schedule**, in the _Costs, materials,
 culverts and haul_ section.
 
+## How a culvert is drawn
+
+- **Plan.** Two thin lines across the road, the barrel's walls, at the barrel's own length and
+  skew, as RoadEng draws one. Blue, red when the culvert has a warning, heavier when selected; never
+  amber, the road's colour. There is no label on the plan: a click opens the culvert's card (station,
+  opening, span or barrel length, cover, grade, skew, warnings), and the card lists every other
+  culvert within `CULVERTS_TOGETHER_M`, whose lines would sit on top of one another
+  (`CulvertCard.tsx`).
+- **3D.** The barrel as a shaded tube from inlet invert to outlet invert, with the opening that faces
+  the camera drawn dark (`culvertBarrel.ts`). A box is square-cornered; the other shapes are an
+  ellipse of span and rise. The opening keeps its true shape under the view's height exaggeration,
+  and the axis its true elevation. It is drawn over the road and fill, as RoadEng's see-through fill
+  shows it. Under `BARREL_MIN_OPENING_PX` across it is drawn as a line along its axis, and with
+  either invert unknown it is not drawn. One barrel is drawn however many the culvert has.
+
 ## Limits and budgets
 
 | Limit                                 | Value                               | Enforcement                                          |
@@ -205,6 +220,8 @@ culverts and haul_ section.
 | Cover floors                          | 0.6 m stream, 0.3 m cross-drain     | `COVER_RULES`                                        |
 | Headwater limit                       | HW/D 1.0                            | `HEADWATER_LIMIT`                                    |
 | Inlet-control equation ranges         | Unsubmerged to 3.5, submerged from 4.0, a straight line between | `INLET_CONTROL`          |
+| Same-station culverts in the plan card | Within 2 m along the road          | `CULVERTS_TOGETHER_M`                                |
+| 3D barrel drawn as a line             | Opening under 5 px across           | `BARREL_MIN_OPENING_PX`                              |
 
 These bounds keep inputs sane and state the manuals' thresholds; they are not design tolerances.
 
@@ -232,5 +249,6 @@ These bounds keep inputs sane and state the manuals' thresholds; they are not de
 - Deduct approach fills from the subgrade, or build an engineered cost estimate.
 - Read the Interior manual's road group 1 hybrid rules, baffled or headwalled culverts, or "dry"
   installations: tell these apart by hand.
-- Draw a box or an arch to shape on the plan, profile or section, or carve it wider than one cell
-  in the drainage check.
+- Draw a box or an arch to shape on the plan, profile or section (the 3D view draws a box square and
+  an arch as an ellipse), draw more than one barrel, or carve it wider than one cell in the drainage
+  check.
