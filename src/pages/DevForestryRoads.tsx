@@ -276,6 +276,7 @@ import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialo
 import { isFullCostRecordCurrent } from './dev-forestry-roads/fullCostRecord'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
 import { usePlanSightlines } from './dev-forestry-roads/planSightlines'
+import { waybackTimelineAvailable } from './dev-forestry-roads/WaybackTimeline'
 import { usePlanDisplay, type FitRequest } from './dev-forestry-roads/usePlanDisplay'
 import { TerrainPreview } from './dev-forestry-roads/TerrainPreview'
 import { PeggingEditor } from './dev-forestry-roads/PeggingEditor'
@@ -5172,6 +5173,7 @@ export default function DevForestryRoads({
     fitTerrain: () => fitPlan('terrain'),
     contours: () => togglePlanOption(planDisplay.setShowContours),
     stationLabels: () => togglePlanOption(planDisplay.setShowLabels),
+    waybackTimeline: () => togglePlanOption(planDisplay.setShowWayback),
     sentinel2: () => togglePlanOption(planDisplay.setShowSentinel),
     earthworks: () => togglePlanOption(planDisplay.setShowEarthwork),
     lidar: () => requestTerrain('lidar'),
@@ -5417,6 +5419,11 @@ export default function DevForestryRoads({
     contours: { disabled: false, pressed: planDisplay.showContours },
     fieldNotes: { pressed: planDisplay.notesOpen },
     stationLabels: { disabled: false, pressed: planDisplay.showLabels },
+    waybackTimeline: {
+      hidden: !waybackTimelineAvailable(project.terrain),
+      disabled: false,
+      pressed: planDisplay.showWayback,
+    },
     sentinel2: { disabled: false, pressed: planDisplay.showSentinel },
     earthworks: { hidden: !!terrainProfile, disabled: false, pressed: planDisplay.showEarthwork },
     drawBlock: { pressed: mode === 'avoid' && polygonKind === 'harvest' },
@@ -5874,6 +5881,7 @@ export default function DevForestryRoads({
         <CustomizeRibbonPane
           toolbar={toolbar}
           defaults={ribbonPreferences.defaults}
+          states={commandStates}
           currentTab={groupName}
           onClose={() => setCustomizingRibbon(false)}
           onApply={(draft) => {

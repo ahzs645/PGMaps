@@ -88,7 +88,7 @@ function serveCog(route: Route) {
   })
 }
 
-async function open(page: Page, search: { failing: boolean }) {
+async function open(page: Page, search: { failing: boolean }, layout = 'ribbon') {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.route('https://s3.amazonaws.com/elevation-tiles-prod/**', (route) => route.abort())
@@ -107,7 +107,7 @@ async function open(page: Page, search: { failing: boolean }) {
     })
   })
   await page.route(`${COGS}/**`, serveCog)
-  await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
+  await page.goto(`/dev/forestry/road-design?interface=${layout}&example=training`)
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   return errors
 }
@@ -287,13 +287,35 @@ test('Wayback timeline respects its deployment flag and only requests the select
   await expect.poll(async () => (await layer())?.layer).toBe(false)
   expect(catalogs).toBe(0)
   expect(tiles).toEqual([])
-  if ((process.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') !== 'true') {
+  const enabled = (process.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') === 'true'
+  if (enabled) await expect(toggle).not.toBeChecked()
+  else {
     await expect(toggle).toHaveCount(0)
     await expect(page.getByRole('checkbox', { name: 'Sentinel-2 imagery' })).toBeVisible()
+  }
+  await page.getByRole('button', { name: 'Close map settings' }).click()
+  const ribbon = page.getByRole('region', { name: 'Command ribbon' })
+  await ribbon.getByRole('tab', { name: 'View', exact: true }).click()
+  const command = ribbon.getByRole('button', { name: 'Historical imagery timeline', exact: true })
+  if (enabled) await expect(command).toHaveAttribute('aria-pressed', 'false')
+  else await expect(command).toHaveCount(0)
+  await ribbon.getByRole('button', { name: 'Find tools' }).click()
+  const finder = page.getByRole('dialog', { name: 'Find ribbon tools' })
+  await finder.getByRole('combobox').fill('Historical imagery timeline')
+  const result = finder.getByRole('option', { name: /Historical imagery timeline/ })
+  if (!enabled) {
+    await expect(result).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await ribbon.getByRole('button', { name: 'Customize ribbon', exact: true }).click()
+    const customize = page.getByRole('complementary', { name: 'Customize ribbon' })
+    await customize.getByRole('button', { name: 'Map layers', exact: true }).click()
+    await expect(customize.getByText('Historical imagery timeline', { exact: true })).toHaveCount(0)
+    await expect(customize.getByText('Sentinel-2 imagery', { exact: true })).toBeVisible()
+    expect(catalogs).toBe(0)
     return
   }
-  await toggle.check()
-  await page.getByRole('button', { name: 'Close map settings' }).click()
+  await result.click()
+  await expect(command).toHaveAttribute('aria-pressed', 'true')
   const card = page.getByRole('region', { name: 'Historical imagery timeline' })
   await expect(card.getByRole('alert')).toContainText('503')
   await card.getByRole('button', { name: 'Retry catalog' }).click()
@@ -302,7 +324,7 @@ test('Wayback timeline respects its deployment flag and only requests the select
   await expect.poll(() => tiles.includes('2')).toBe(true)
   await expect.poll(async () => (await layer())?.belowContours).toBe(true)
   await expect.poll(async () => (await layer())?.aboveHillshade).toBe(true)
-  await card.getByRole('button', { name: 'Previous frame' }).click()
+  await slider.press('ArrowLeft')
   await expect.poll(() => tiles.includes('1')).toBe(true)
   await slider.press('Home')
   await expect(slider).toHaveAttribute('aria-valuetext', '2016-01-06')
@@ -310,15 +332,65 @@ test('Wayback timeline respects its deployment flag and only requests the select
   await card.getByRole('button', { name: 'Play', exact: true }).click()
   await expect(slider).toHaveAttribute('aria-valuetext', '2019-06-12')
   await card.getByRole('button', { name: 'Pause' }).click()
-  await card.getByRole('button', { name: 'Close imagery timeline' }).click()
+  await card.getByRole('button', { name: 'Close timeline' }).click()
   await expect.poll(async () => (await layer())?.layer).toBe(false)
   await settings.click()
   await expect(toggle).not.toBeChecked()
+  await expect(command).toHaveAttribute('aria-pressed', 'false')
   await toggle.check()
+  await expect(command).toHaveAttribute('aria-pressed', 'true')
   await expect.poll(async () => (await layer())?.layer).toBe(true)
   await page.getByRole('checkbox', { name: 'Sentinel-2 imagery' }).check()
   await expect(toggle).not.toBeChecked()
   await expect.poll(async () => (await layer())?.layer).toBe(false)
+  await expect(command).toHaveAttribute('aria-pressed', 'false')
   expect(catalogs).toBe(2)
   expect(errors).toEqual([])
 })
+
+for (const layout of ['guided', 'workbench', 'dashboard']) {
+  test(`Wayback timeline docks below the plan in ${layout}`, async ({ page }) => {
+    const enabled = (process.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') === 'true'
+    let catalogs = 0
+    await page.route('**/waybackconfig.json', (route) => {
+      catalogs++
+      return route.fulfill({
+        json: {
+          1: {
+            itemTitle: 'World Imagery (Wayback 2024-08-21)',
+            itemURL: 'https://wayback.maptiles.arcgis.com/test/1/{level}/{row}/{col}',
+          },
+        },
+      })
+    })
+    await page.route('https://wayback.maptiles.arcgis.com/**', (route) => route.abort())
+    const errors = await open(page, { failing: false }, layout)
+    const settings = page.getByRole('button', { name: 'Map display settings', exact: true })
+    if (layout === 'guided') {
+      const guide = page.getByRole('region', { name: 'Road layout guide' })
+      await guide.getByRole('tab', { name: 'View', exact: true }).click()
+      const command = guide.getByRole('button', { name: 'Historical imagery timeline', exact: true })
+      if (enabled) await command.click()
+      else await expect(command).toHaveCount(0)
+    }
+    await settings.click()
+    const checkbox = page.getByRole('checkbox', { name: 'Historical imagery timeline' })
+    if (!enabled) {
+      await expect(checkbox).toHaveCount(0)
+      expect(catalogs).toBe(0)
+      return
+    }
+    if (layout === 'guided') await expect(checkbox).toBeChecked()
+    else await checkbox.check()
+    await page.getByRole('button', { name: 'Close map settings' }).click()
+    const timeline = page.getByRole('region', { name: 'Historical imagery timeline' })
+    await expect(timeline.getByRole('slider')).toHaveAttribute('aria-valuetext', '2024-08-21')
+    await expect(timeline.getByRole('button', { name: 'Close timeline' })).toBeInViewport()
+    const map = await page.getByTestId('road-plan-view').boundingBox()
+    const band = await timeline.boundingBox()
+    expect(band!.y).toBeGreaterThanOrEqual(map!.y + map!.height - 1)
+    expect(Math.abs(band!.width - map!.width)).toBeLessThan(2)
+    expect(catalogs).toBe(1)
+    expect(errors).toEqual([])
+  })
+}

@@ -1,6 +1,7 @@
 import { EXPORT_ITEMS, type RoadExport } from '@/pages/dev-forestry-roads/exportCatalog'
 import {
   FileArchive,
+  History,
   FileChartLine,
   FileDiff,
   FileDigit,
@@ -294,6 +295,12 @@ export const workspaceCommands = {
   fitTerrain: { label: 'Fit terrain', icon: Focus, investigation: true },
   contours: { label: 'Contours', icon: WavesLadder, investigation: true },
   stationLabels: { label: 'Station labels', icon: Tags },
+  waybackTimeline: {
+    label: 'Historical imagery timeline',
+    icon: History,
+    description: 'Browse Esri Wayback mosaic releases beneath the road plan.',
+    investigation: true,
+  },
   sentinel2: { label: 'Sentinel-2 imagery', icon: Satellite, investigation: true },
   earthworks: { label: 'Earthworks', icon: Layers2 },
   lidar: {

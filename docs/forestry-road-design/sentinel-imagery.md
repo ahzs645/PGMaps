@@ -135,19 +135,20 @@ Catalogue and band caches are local to this map session. There is no polling or 
 
 ## Optional Wayback release timeline
 
-Georeferenced road plans offer **Map display settings → Historical imagery timeline**
-by default. To hide the option, set `VITE_ROAD_WAYBACK_TIMELINE=false` and
-restart Vite or rebuild the site. Removing the variable or setting it to
-`true` restores the option on the next start or build. The standalone road
-designer uses the same setting.
+In all four interfaces, open a georeferenced Plan and choose **Map display settings → Historical imagery timeline**.
+Ribbon also has **View → Map layers → Historical imagery timeline** and **Find tools**. In Guided map, use **View**.
 
-Selecting the timeline loads the Esri release catalog and shows the newest release. Use the slider,
-previous/next, or Play to step through releases chronologically. Playback
-advances every two seconds and stops at the newest release. Closing the card
-removes its tiles. Sentinel-2 imagery and Wayback share one display slot.
-These controls affect the map view only. A mosaic release date does not date
-a road or establish when its imagery was acquired.
+The timeline spans the width of the Plan pane directly below the map. On first open it shows Esri’s newest mosaic
+beneath the road linework. Drag the slider, use its arrow keys, or select **Play** to advance one release every
+two seconds until the newest. Closing the timeline removes the layer. Selecting Sentinel-2 also closes Wayback.
+A release dates the mosaic. Imagery at a particular road can be older or identical across several releases.
 
-Enable direct Esri access only for deployments covered by the applicable
-imagery terms. The workbench's existing manual release picker is separate.
-See [Esri's terms summary](https://goto.arcgis.com/termsofuse/viewsummary).
+The option is available by default. Set `VITE_ROAD_WAYBACK_TIMELINE=false` and restart Vite or rebuild the site
+to hide it. Removing the variable or setting it to `true` restores the option. The standalone designer uses the
+same setting.
+
+Opening Wayback requests the catalog. The plan then requests tiles for the selected release and visible area.
+Tile traffic varies with the viewport, zoom and playback. Esri publishes no numeric request allowance for these
+endpoints in the service information reviewed. Deployments need rights to use Esri imagery and must retain its
+attribution. The mission workbench uses the same catalog and credits for its manual release picker.
+See [workbench source limits](../mmgis-workbench.md) and [Esri’s terms summary](https://goto.arcgis.com/termsofuse/viewsummary).

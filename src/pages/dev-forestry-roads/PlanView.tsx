@@ -89,8 +89,9 @@ import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
 import { TerrainRasterLayers } from './TerrainRasterLayers'
 import { MapRasterLayer } from '@/components/ui/map-layers'
+import { commandDef } from '@/components/interfaces/workspaceCommands'
 import { waybackCredit } from '@/lib/wayback'
-import { ROAD_WAYBACK_ENABLED, useWaybackTimeline, WaybackTimeline } from './WaybackTimeline'
+import { waybackTimelineAvailable, useWaybackTimeline, WaybackTimeline } from './WaybackTimeline'
 import { SENTINEL_ANCHOR_LAYER_ID } from './sentinel/planOrder'
 import { usePlanImageryOrder } from './usePlanImageryOrder'
 import { Sentinel2Layer } from './sentinel/Sentinel2Layer'
@@ -2873,7 +2874,7 @@ export function PlanView(input: PlanProps) {
   // A project on the flat plane has no place on Earth: no basemap, online relief or imagery, and
   // a grid at round file coordinates instead.
   const plane = isLocalPlane(props.project.terrain) ? (props.project.terrain.localPlane ?? null) : null
-  const waybackAvailable = ROAD_WAYBACK_ENABLED && !plane
+  const waybackAvailable = waybackTimelineAvailable(props.project.terrain)
   const waybackActive = waybackAvailable && props.display.showWayback
   const timeline = useWaybackTimeline(waybackActive)
   usePlanImageryOrder(props.display.navigationMap, waybackActive && !!timeline.release, 'road-wayback')
@@ -3259,7 +3260,7 @@ export function PlanView(input: PlanProps) {
                   ['Labels', showLabels, setShowLabels],
                   ['Sentinel-2 imagery', showSentinel, setShowSentinel],
                   ...(waybackAvailable
-                    ? [['Historical imagery timeline', waybackActive, props.display.setShowWayback] as const]
+                    ? [[commandDef('waybackTimeline').label, waybackActive, props.display.setShowWayback] as const]
                     : []),
                   ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
                   ...(reference.length && props.onReferenceVisibility
@@ -3419,15 +3420,12 @@ export function PlanView(input: PlanProps) {
             />
           </div>
         )}
-        {(showSentinel || waybackActive || props.cornerPanel) && (
+        {(showSentinel || props.cornerPanel) && (
           <div className="absolute right-12 top-12 z-30 flex max-h-[calc(100%-6rem)] max-w-[calc(100%-4rem)] flex-col items-end gap-2 overflow-hidden">
             {props.cornerPanel && (
               <div className="flex min-h-0 max-w-full shrink" style={{ maxHeight: 'inherit' }}>
                 {props.cornerPanel}
               </div>
-            )}
-            {waybackActive && (
-              <WaybackTimeline timeline={timeline} onClose={() => props.display.setShowWayback(false)} />
             )}
             {showSentinel && (
               <Sentinel2Panel
@@ -3480,6 +3478,7 @@ export function PlanView(input: PlanProps) {
             </Button>
           ))}
       </div>
+      {waybackActive && <WaybackTimeline timeline={timeline} onClose={() => props.display.setShowWayback(false)} />}
       <div
         ref={setLegendSlot}
         className="road-plan-legend-slot flex max-h-[45%] min-h-0 shrink-0 flex-col pb-2 empty:hidden"

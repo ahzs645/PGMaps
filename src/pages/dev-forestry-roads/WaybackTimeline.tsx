@@ -1,10 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
-import { PlaybackControls } from '@pgmaps/geo-toolkit/ui/playback-controls'
+import { MapTimeline } from '@pgmaps/geo-toolkit/ui/map-timeline'
+import { InlineAlert } from '@pgmaps/geo-toolkit/ui/map-panels'
 import { Button } from '@/components/ui/button'
 import { loadWaybackReleases, type WaybackRelease } from '@/lib/wayback'
+import { isLocalPlane } from './localPlane'
+import type { TerrainMetadata } from './types'
 
-export const ROAD_WAYBACK_ENABLED = (import.meta.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') === 'true'
+const ROAD_WAYBACK_ENABLED = (import.meta.env.VITE_ROAD_WAYBACK_TIMELINE ?? 'true') === 'true'
+
+export function waybackTimelineAvailable(terrain: Pick<TerrainMetadata, 'epsg'>) {
+  return ROAD_WAYBACK_ENABLED && !isLocalPlane(terrain)
+}
+
+const playbackSpeeds = [{ intervalMs: 2000, label: '1×' }]
 
 export function useWaybackTimeline(active: boolean) {
   const [releases, setReleases] = useState<WaybackRelease[]>([])
@@ -27,11 +36,29 @@ export function useWaybackTimeline(active: boolean) {
     return () => controller.abort()
   }, [active, releases.length, error])
 
+  const buckets = useMemo(
+    () =>
+      releases.map(({ id, date }, i) => {
+        const year = date.slice(0, 4)
+        const periodStart = year !== releases[i - 1]?.date.slice(0, 4)
+        const day = new Date(date)
+        return {
+          key: id,
+          label: date,
+          tickLabel: periodStart ? year : date.slice(5),
+          periodStart,
+          start: day,
+          end: day,
+        }
+      }),
+    [releases],
+  )
+
   return {
     release: releases[frame],
     frame,
     setFrame,
-    count: releases.length,
+    buckets,
     error,
     retry: () => setError(''),
   }
@@ -44,45 +71,34 @@ export function WaybackTimeline({
   timeline: ReturnType<typeof useWaybackTimeline>
   onClose: () => void
 }) {
-  const [playing, setPlaying] = useState(false)
   return (
-    <section
-      data-map-export-ignore
-      aria-label="Historical imagery timeline"
-      className="w-80 max-w-full overflow-y-auto rounded-lg border bg-background/95 p-2 shadow-sm"
-    >
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold">Esri Wayback releases</h3>
-        <Button size="icon-2xs" variant="ghost" aria-label="Close imagery timeline" onClick={onClose}>
-          <X />
-        </Button>
-      </div>
-      {timeline.error ? (
-        <div className="text-xs">
-          <span role="alert">{timeline.error}</span>{' '}
-          <Button size="sm" variant="outline" onClick={timeline.retry}>
-            Retry catalog
+    <section data-map-export-ignore aria-label="Historical imagery timeline" className="min-w-0 shrink-0">
+      {timeline.release ? (
+        <MapTimeline
+          placement="inline"
+          label="Esri Wayback mosaic release date"
+          summary="Esri Wayback · mosaic release date. Local imagery may be older."
+          buckets={timeline.buckets}
+          value={timeline.frame}
+          onValueChange={timeline.setFrame}
+          speeds={playbackSpeeds}
+          loop={false}
+          onClose={onClose}
+        />
+      ) : (
+        <div className="flex items-center gap-2">
+          <InlineAlert tone={timeline.error ? 'error' : 'info'} loading={!timeline.error} className="min-w-0 flex-1">
+            {timeline.error || 'Loading Wayback releases…'}
+          </InlineAlert>
+          {timeline.error && (
+            <Button size="sm" variant="outline" onClick={timeline.retry}>
+              Retry catalog
+            </Button>
+          )}
+          <Button size="icon-2xs" variant="ghost" aria-label="Close timeline" onClick={onClose}>
+            <X />
           </Button>
         </div>
-      ) : timeline.release ? (
-        <>
-          <PlaybackControls
-            frame={timeline.frame}
-            frameCount={timeline.count}
-            onFrameChange={timeline.setFrame}
-            frameLabel={timeline.release.date}
-            playing={playing}
-            onPlayingChange={setPlaying}
-            intervalMs={2000}
-            loop={false}
-            label="Wayback timeline"
-          />
-          <p className="mt-1 text-2xs text-muted-foreground">Mosaic release date. Local imagery may be older.</p>
-        </>
-      ) : (
-        <p role="status" className="text-xs">
-          Loading Wayback releases…
-        </p>
       )}
     </section>
   )

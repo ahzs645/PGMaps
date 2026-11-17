@@ -67,13 +67,23 @@ export function usePlanDisplay() {
   // These opaque imagery layers share the same place under the road linework.
   const [imagery, setImagery] = useState<'sentinel' | 'wayback' | null>(null)
   const showSentinel = imagery === 'sentinel'
-  const setShowSentinel = useCallback((value: boolean | ((shown: boolean) => boolean)) => {
-    setImagery((current) => {
-      const visible = typeof value === 'function' ? value(current === 'sentinel') : value
-      return visible ? 'sentinel' : current === 'sentinel' ? null : current
-    })
-  }, [])
-  const setShowWayback = (shown: boolean) => setImagery(shown ? 'wayback' : null)
+  const setImageryVisible = useCallback(
+    (layer: 'sentinel' | 'wayback', value: boolean | ((shown: boolean) => boolean)) => {
+      setImagery((current) => {
+        const visible = typeof value === 'function' ? value(current === layer) : value
+        return visible ? layer : current === layer ? null : current
+      })
+    },
+    [],
+  )
+  const setShowSentinel = useCallback(
+    (value: boolean | ((shown: boolean) => boolean)) => setImageryVisible('sentinel', value),
+    [setImageryVisible],
+  )
+  const setShowWayback = useCallback(
+    (value: boolean | ((shown: boolean) => boolean)) => setImageryVisible('wayback', value),
+    [setImageryVisible],
+  )
   const [showHrdem, setShowHrdem] = useState(true)
   const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
   const fit = (target: FitRequest['target']) =>
