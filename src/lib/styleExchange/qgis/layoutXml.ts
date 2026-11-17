@@ -10,6 +10,7 @@
 import {
   PAPER_SIZES,
   SHEET_PANEL_IDS,
+  OPERATING_PLAN_SIDE_PANEL,
   SHEET_TEMPLATES,
   fontSize,
   resolveSheet,
@@ -284,7 +285,7 @@ export function layoutXml(layout: LayoutDocument, crs: ProjectCrsId, fallbackExt
             map_uuid: mapUuid,
             resizeToContents: 0,
             syncMode: 'AllProjectLayers',
-            columnCount: 1,
+            columnCount: layout.template.id === OPERATING_PLAN_SIDE_PANEL.id ? 2 : 1,
             symbolWidth: 7,
             symbolHeight: 4,
             boxSpace: 2,

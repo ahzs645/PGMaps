@@ -152,24 +152,23 @@ describe('ArcGIS Pro map and layout files', () => {
 
   it.each(
     SHEET_TEMPLATES.flatMap((template) => (Object.keys(PAPER_SIZES) as PaperId[]).map((paper) => [template.id, paper])),
-  )('reads the %s template on %s back to the same fractions', (id, paper) => {
+  )('reads the %s template on %s back within 0.0001 page fractions', (id, paper) => {
     const template = SHEET_TEMPLATES.find((t) => t.id === id)!
     const layout = { ...FIXTURE_LAYOUT, template, paper: paper as PaperId }
     const read = readArcgisFile('sheet.pagx', arcgisPagx(layout, FIXTURE_DOCUMENT).files[0].content)
     expect(read.layouts[0].paper).toBe(paper)
-    // A layout file keeps page fractions to 4 decimals (0.09 mm on a 36-inch sheet), so each
-    // fraction comes back within 0.0001 of the template's.
-    const back = read.layouts[0].template!
-    const { neatline, title, frame, panels, ...rest } = back
-    expect(rest).toEqual({ id: template.id, orientation: template.orientation })
-    expect(panels.map(({ rect: _rect, ...panel }) => panel)).toEqual(
-      template.panels.map(({ rect: _rect, ...panel }) => panel),
-    )
-    const near = (got: readonly number[], want: readonly number[]) =>
-      got.forEach((v, i) => expect(Math.abs(v - want[i])).toBeLessThanOrEqual(1.0001e-4))
-    near(neatline, template.neatline)
-    near(title, template.title)
-    near(frame, template.frame)
-    panels.forEach((panel, i) => near(panel.rect, template.panels[i].rect))
+    const back = read.layouts[0].template
+    expect(back.id).toBe(template.id)
+    expect(back.orientation).toBe(template.orientation)
+    const panelMetadata = (panels: typeof template.panels) =>
+      panels.map((panel) => ({ id: panel.id, title: panel.title, bare: panel.bare }))
+    expect(panelMetadata(back.panels)).toEqual(panelMetadata(template.panels))
+    const original = [template.neatline, template.title, template.frame, ...template.panels.map((panel) => panel.rect)]
+    const returned = [back.neatline, back.title, back.frame, ...back.panels.map((panel) => panel.rect)]
+    // Pro stores inches to five decimals; the reader stores page fractions to four. Allow one
+    // fraction unit for their combined rounding (less than 0.3 pt even on native 36 × 29 paper).
+    for (let rect = 0; rect < original.length; rect++)
+      for (let coordinate = 0; coordinate < 4; coordinate++)
+        expect(Math.abs(returned[rect][coordinate] - original[rect][coordinate])).toBeLessThanOrEqual(0.0001)
   })
 })

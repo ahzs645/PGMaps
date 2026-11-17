@@ -8,6 +8,7 @@
  */
 import type { SqlJsStatic } from 'sql.js'
 import { catalogueSymbolLibrary } from '@/lib/forestry/blockSheet/symbolLibrary'
+import { SHEET_PRESETS } from '@/lib/forestry/blockSheet/sheets'
 import { SHEET_TEMPLATES } from '@/lib/mapSheet/layout'
 import { arcgisMapx } from '@/lib/styleExchange/arcgis/mapx'
 import { arcgisLayerFiles } from '@/lib/styleExchange/arcgis/lyrx'
@@ -71,7 +72,7 @@ export interface StyledExportBundle {
 export function exportLayouts(name: string, document: StyleDocument): LayoutDocument[] {
   return SHEET_TEMPLATES.map((template) => ({
     name: template.id,
-    paper: 'tabloid',
+    paper: Object.values(SHEET_PRESETS).find((preset) => preset.template.id === template.id)?.defaultPaper ?? 'tabloid',
     template,
     title: name,
     subtitle: 'Proposed roads',
@@ -224,6 +225,7 @@ export async function styledExportBundle(
       `Open ${stem}.qgz in QGIS 3.28 or later. The layers read data/ beside it, so keep the folder together.`,
       'Each layer in data/ also has its own .qml: dragged into QGIS alone, a shapefile takes its style with it.',
       'layouts/ holds the block sheet layouts as print templates: Project > New Print Layout > Add Items from Template.',
+      'The operating-plan template includes branding and locator spaces to fill in QGIS; the populated locator is in the Block map sheet PDF.',
     ]
   } else if (kind === 'arcgis-pro') {
     files.push(...data.files)
@@ -237,6 +239,7 @@ export async function styledExportBundle(
       'The layer files read the shapefiles in data/ by relative path: keep the folder together.',
       'The .pagx files are the block sheet layouts (Insert > Import Layout). styles/ holds every PGMaps map symbol',
       'as a style: Catalog pane > Styles > Add > Add Style.',
+      'The operating-plan template includes branding and locator spaces to fill in Pro; the populated locator is in the Block map sheet PDF.',
       'These files follow the published CIM specification; they were checked against Esri sample files, not in',
       'ArcGIS Pro itself.',
     ]
