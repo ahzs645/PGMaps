@@ -295,6 +295,8 @@ import { StationTable } from './dev-forestry-roads/StationTable'
 import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
 import { CompareAlternatives } from './dev-forestry-roads/CompareAlternatives'
 import { DRAINAGE_SETTINGS_KEY, DrainagePanel, readDrainageSettings } from './dev-forestry-roads/DrainagePanel'
+import { useCrossDrainBatch } from './dev-forestry-roads/useCrossDrainBatch'
+import { stationEntry } from './dev-forestry-roads/stationEntry'
 import { runDrainage, type DrainageRun, type DrainageSettings } from './dev-forestry-roads/drainageRun'
 import { terrainGridCellM } from './dev-forestry-roads/tinGround'
 import {
@@ -2068,6 +2070,30 @@ export default function DevForestryRoads({
       : !drainageEvidence ||
         drainageEvidence.fingerprint !== drainageFingerprint ||
         drainageEvidenceNeedsRecompute(drainageEvidence, project.terrain))
+  // Cross-drains placed in a batch: candidate sites or a trial spacing, previewed through the
+  // engine and added in one named undo step (`useCrossDrainBatch.ts`).
+  const crossDrainBatch = useCrossDrainBatch({
+    project,
+    alignment,
+    calculatedAlignment: w.calculatedAlignment,
+    analysis,
+    source,
+    run: drainageEntry?.run ?? null,
+    drainageStale: drainageStale || !drainageEntry,
+    drainageFingerprint,
+    commit: (next, label) => {
+      if (busy) return false
+      try {
+        w.commit(shareUnchanged(project, parseProject(next)), true, label, true)
+        w.setError('')
+        return true
+      } catch (cause) {
+        w.setError(cause instanceof Error ? cause.message : 'Could not add the culverts.')
+        return false
+      }
+    },
+    setNotice: w.setNotice,
+  })
   /** Drawn on the plan only while current, so an outdated run never reads as the present road. */
   const drainageOnPlan =
     !drainageStale && !terrainProfile ? (drainageEntry?.run.plan ?? drainageEvidence?.features) : undefined
@@ -6515,6 +6541,7 @@ export default function DevForestryRoads({
                                   selectedRange={investigation || terrainProfile ? undefined : selectedRange}
                                   onMapReady={onPlanReady}
                                   selectedCulvertId={currentCulvertId}
+                                  draftCulverts={terrainProfile ? undefined : crossDrainBatch.plan}
                                   onHistorySelect={inspectHistoryEvidence}
                                   historySelection={historySelection}
                                   onSelectCulvert={selectCulvert}
@@ -7033,6 +7060,9 @@ export default function DevForestryRoads({
                                       )}
                                       {detail === 'drainage' && !terrainProfile && (
                                         <DrainagePanel
+                                          batch={crossDrainBatch}
+                                          stations={stationEntry(alignment.stationing, analysis.length)}
+                                          roadLength={analysis.length}
                                           run={drainageEntry?.run ?? null}
                                           onShowCulverts={showCulverts}
                                           stale={drainageStale}

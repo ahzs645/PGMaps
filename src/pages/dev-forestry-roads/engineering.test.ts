@@ -995,7 +995,13 @@ describe('culvert inlet side', () => {
     const c = culvert({ inletSide: 'right', skewDegrees: 15 })
     const { a, r } = analysed(c)
     const without = { ...a, engineering: { ...a.engineering!, culverts: [] } }
-    const preview = calculateCulverts([c], without, analyzeRoad(without, flat, settings), flat, engineeringGeometry(without, flat))
+    const preview = calculateCulverts(
+      [c],
+      without,
+      analyzeRoad(without, flat, settings),
+      flat,
+      engineeringGeometry(without, flat),
+    )
     expect(preview).toEqual(r.engineering!.culverts)
   })
 })
