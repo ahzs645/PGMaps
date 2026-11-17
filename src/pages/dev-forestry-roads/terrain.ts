@@ -18,6 +18,7 @@ import type {
   TerrainSource,
 } from './types'
 import { parseTerrainPreparation, type TerrainPreparationRecord } from './terrainPreparation'
+import { cropChosen, describeCrop, projectCropChoice, type PointCloudCropChoice } from './pointCloudCrop'
 import { analysisTin, tinGround, tinTerrainSource, type TinData, type TinGround } from './tinGround'
 
 export const DEFAULT_TEMPLATE: RoadTemplate = {
@@ -884,6 +885,13 @@ export interface PointCloudImport {
   /** Full-density corridor around WGS84 source line; 0 or omitted disables preservation. */
   preserveCorridorM?: number
   preservePath?: Coordinate[]
+  /**
+   * Keep only the points in these areas or the road's corridor (`preservePath`) before thinning
+   * (`pointCloudCrop.ts`). Every file is still decoded whole.
+   */
+  crop?: PointCloudCropChoice
+  /** What the crop kept, footprint in WGS84, once every file is read and before the surface is built. */
+  onCrop?: (report: { footprint: Coordinate[][]; areaM2: number; message: string }) => void
   retainTin?: boolean
   /** Run the ground filter: 'auto' only when the cloud has no ground-classified points. */
   classify: boolean | 'auto'
@@ -988,6 +996,15 @@ export async function loadLas(
           },
         }
       : undefined
+  const road = (options.preservePath ?? []).map((p) => [p[0], p[1]] as [number, number])
+  if (cropChosen(options.crop, road.length) && knownEpsg === null)
+    throw Error(
+      'Cropping needs the CRS before the cloud is read. Turn the crop off, or import the LAZ once to state its CRS.',
+    )
+  const crop =
+    knownEpsg === null
+      ? undefined
+      : projectCropChoice(options.crop, road, (p) => roadProjection(knownEpsg).forward([...p]) as [number, number])
   const tinSurface = options.surface === 'tin' && options.breaklines ? await import('./tinSurface') : null
   const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
     b.toString(16).padStart(2, '0'),
@@ -1009,10 +1026,13 @@ export async function loadLas(
     preserve,
     retainTin: options.retainTin ?? false,
     breaklines: options.breaklines ?? null,
+    // Absent without a crop, so an uncropped import keeps its terrain id.
+    ...(crop ? { crop } : {}),
     // The same bytes in another stated CRS are different terrain.
     ...(unstated.length && assumed !== null ? { assumedEpsg: assumed } : {}),
   })
   const { runPointCloudWorker } = await import('./pointCloudClient')
+  let cropLine = ''
   const stages = { reading: 'Reading points', classifying: 'Classifying ground', gridding: 'Building the surface' }
   // The header and hash are read; the bytes move to the worker rather than being copied, and are
   // detached from here on. Breaklines are projected once the worker reports the CRS it read, so a
@@ -1023,6 +1043,7 @@ export async function loadLas(
     vegetation: options.vegetationEvidence !== false,
     classify: options.classify,
     preserve,
+    ...(crop ? { crop } : {}),
     ...(assumed !== null ? { assumedEpsg: assumed } : {}),
     surface: {
       method: options.surface,
@@ -1053,6 +1074,18 @@ export async function loadLas(
         : []
     },
     signal: options.signal,
+    onCrop: (report) => {
+      // The footprint is in the cloud's CRS, which the worker has read by now.
+      const back = knownEpsg === null ? null : roadProjection(knownEpsg)
+      cropLine = describeCrop({ ...report, areaM2: report.footprint.areaM2 })
+      options.onProgress?.(`${cropLine} Building the surface…`)
+      if (back)
+        options.onCrop?.({
+          footprint: report.footprint.rings.map((ring) => ring.map((p) => back.inverse(p) as Coordinate)),
+          areaM2: report.footprint.areaM2,
+          message: cropLine,
+        })
+    },
     onProgress: (stage, done, total) =>
       options.onProgress?.(`${stages[stage]}${total > 1 ? ` · ${done} of ${total} tiles` : ''}…`),
   })
@@ -1111,6 +1144,18 @@ export async function loadLas(
         surface: options.surface,
         preserveCorridorM: options.preserveCorridorM ?? 0,
         preservedPoints: result.cloud.preservedPoints ?? 0,
+        ...(crop && result.cloud.crop
+          ? {
+              cropCorridorM: crop.corridor?.halfWidthM ?? 0,
+              cropAreas: crop.polygons?.length ?? 0,
+              cropAreaName: (options.crop?.areaName ?? '').slice(0, 200),
+              cropUpslopeMarginM: crop.upslopeMarginM ?? 0,
+              cropDecodedPoints: result.cloud.crop.total,
+              cropInsidePoints: result.cloud.crop.inside,
+              cropMarginPoints: result.cloud.crop.margin,
+              cropSummary: cropLine.slice(0, 500),
+            }
+          : {}),
         cellM: grid.cellM,
         gapCells: options.surface === 'mean' ? 3 : 0,
         breaklinesSha256: options.breaklines ? await hashPreparation(options.breaklines) : '',
@@ -1147,6 +1192,7 @@ export async function loadLas(
     `, ${count(grid.width * grid.height - known)} cells left missing.`,
     ` CRS EPSG:${epsg} ${crsEntered ? 'as entered (the file states none)' : 'from the file'}; vertical datum ${raster.verticalReference} ${datumEntered ? 'as entered' : 'from the file'}.`,
     vegetationLine ? ` Vegetation evidence for road finding ${vegetationLine}.` : '',
+    cropLine ? ` ${cropLine}` : '',
   ]
   return { metadata, source: rasterSource(raster), summary: parts.join('') }
 }
@@ -1229,6 +1275,7 @@ export function pointCloudImportSummary(metadata: TerrainMetadata): Array<{ labe
     ...(typeof p.vegetationEvidence === 'string' && p.vegetationEvidence
       ? [{ label: 'Vegetation evidence', value: p.vegetationEvidence }]
       : []),
+    ...(typeof p.cropSummary === 'string' && p.cropSummary ? [{ label: 'Crop', value: p.cropSummary }] : []),
     { label: 'Sources', value: record.sources.map((source) => source.name).join(', ') },
   ]
 }

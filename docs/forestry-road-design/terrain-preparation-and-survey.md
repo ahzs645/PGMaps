@@ -30,6 +30,36 @@ points are never silently discarded to make the budget. The pure preparation API
 accepts polygon AOIs. The displayed grid can still be coarser than source points where the
 pre-existing output-cell budget requires it; preserved point density does not establish accuracy.
 
+### Cropping a point cloud
+
+**Crop before building the surface** (Terrain → Point-cloud options) keeps only the points inside a
+drawn or imported area, inside a corridor round the active road, or inside either, and drops the
+rest before thinning, the ground filter and gridding (`pointCloudCrop.ts`, run in
+`pointCloud.worker.ts`; only the grid returns to the page). **Draw crop area** uses the plan's
+area drawing; **Import crop area** reads a polygon file through `readSpatialImport` and takes each
+polygon's outer ring (holes are not cut out, lines and points are left out, and the notice says
+so). The area is kept for this session as the next import's choice, never in the project.
+
+The LAZ decoder still reads each source tile whole: whitebox-wasm decodes the file in one call, and
+a LAS is decoded in full. A crop therefore does not shorten the read or lower its memory; it only
+cuts what goes into surface building, which saves the point budget (density the thinning would
+have spent outside the area), the ground filter's time and the grid's size. Vegetation evidence
+for road finding is gathered from every decoded return before the crop.
+
+**Upslope margin** keeps ground outside the crop, up to that distance, where it stands higher than
+the crop's nearest edge, so drainage still has the slope that drains onto the road. Before the
+ground filter runs, "ground" here is the lowest ground return in each 5 m cell, else the lowest
+non-noise return; distance runs over 8-connected cell centres and reads a little long on
+diagonals, never short. Ground below the crop is never kept by the margin.
+
+Once every file is read, and before the ground filter and the surface run, the import reports what
+the crop kept (points inside, points in the margin, the decoded total, the area) on the busy line
+and draws the kept footprint (5 m cells) filled on the plan. The preparation record keeps the
+crop's settings and counts, and the crop is part of the terrain's checksum. A crop that keeps no
+point fails with that message. Cropping needs the CRS before the cloud is read, as the corridor
+preservation does. With no crop set the import is unchanged: `pointCloudCrop.test.ts` pins the
+grids of a test cloud to the ones the code gave before the crop existed.
+
 **Retain source TIN** stores source grid coordinates, elevations and constrained triangle indices
 in the preparation record. This is optional because the arrays increase project size. The TIN
 can be exported through **Save → Terrain surface LandXML**. With no retained source TIN the
@@ -249,31 +279,32 @@ documented exchange specification; these open imports/exports do not imply binar
 
 ## Limits and checks
 
-| Limit                                                                                                                        | Enforcing implementation                                                                              |
-| ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 12 ground/mosaic sources; 1 GB combined point-cloud files                                                                    | `MAX_TERRAIN_SOURCES`, `mosaicRasters`, `loadLas`                                                     |
-| 4,194,304 output cells, with no mosaic coarsening                                                                            | `MAX_PREPARED_CELLS`, `mosaicRasters`                                                                 |
-| Point thinning: existing 3,000,000 decoded points / 1,500,000 TIN points                                                     | `DEFAULT_MAX_POINTS`, `tinSurface.ts` `MAX_POINTS`                                                    |
-| Retained TIN: 250,000 vertices / 500,000 faces                                                                               | `gridSurface`, `parseTerrainPreparation` (`MAX_RETAINED_TIN_VERTICES`, `MAX_RETAINED_TIN_INDICES`)    |
-| TIN elevation editing: 100,000,000 triangle-cell checks                                                                      | `editTinElevation`                                                                                    |
-| Named analytical reference surfaces: twelve / 4,194,304 total cells                                                          | `parseTerrainReferenceSurfaces`                                                                       |
-| Preservation regions: 2,000 vertices / 100 polygons / 100,000,000 point-vertex operations                                    | `preservedPointMask`                                                                                  |
-| Six backgrounds / 1,048,576 combined display pixels                                                                          | `MAX_BACKGROUND_PIXELS`, `parseTerrainBackgrounds`                                                    |
-| Resampled background: at most 524,288 display pixels; refused under 16,384 left                                              | `BACKGROUND_LAYER_PIXELS`, `MIN_BACKGROUND_PIXELS`, `loadTerrainBackground`                           |
-| Background file: 64 MB / 33,554,432 source pixels                                                                            | `loadTerrainBackground`, `MAX_BACKGROUND_SOURCE_PIXELS`                                               |
-| Graded pad ≤500 m wide / 1,000 m long, batters 0.1–10 H:V                                                                    | `gradePad`                                                                                            |
-| 20 saved field books / 2,000 legs / 10,000 side shots / 100 km per traverse                                                  | `parseSurveyBooks`, `reduceTraverse`                                                                  |
-| Combined scale factor 0.999–1.001; UTM zones only                                                                            | `SCALE_FACTOR_LIMITS`, `combinedScaleFactor`, `scaleFactor.ts`                                        |
-| KML: 30 MB expanded / 500 features / 50,000 vertices / 100,000 XML elements                                                  | `xmlTree`, `parseKml`, `readSpatialFile`                                                              |
-| Traverse file: 50 MB / 20,000 records / 25 side shots a side / 100 station equations                                         | `MAX_TRAVERSE_FILE_BYTES`, `MAX_TRAVERSE_RECORDS`, `MAX_SIDE_SHOTS_PER_SIDE`, `MAX_STATION_EQUATIONS` |
-| RoadEng traverse (`.tr1`): 20,000,000 characters                                                                             | `softreeNativeTraverse.ts` `MAX_NATIVE_TRAVERSE_CHARS`                                                |
-| Start station ±10,000 km; field notes: 20,000 stations or points / 2,000,000 characters a book, the file as written included | `MAX_SURVEY_START_STATION_M`, `MAX_SURVEY_SOFTREE_ITEMS`, `MAX_SURVEY_SOFTREE_CHARS`                  |
-| Field notes: 10,000 characters a label or kept line; three ground layers; 25 side shots a side                               | `MAX_SURVEY_SOFTREE_TEXT`, `parseSurveyBooks`, `MAX_SIDE_SHOTS_PER_SIDE`                              |
-| Unit-survey side shot within 5° of square to its leg                                                                         | `SIDE_SHOT_SQUARE_DEG`                                                                                |
-| Polycorder export: three side shots a side, three decimals                                                                   | `POLYCORDER_SIDE_SHOTS`, `POLYCORDER_EXPORT_DECIMALS`                                                 |
-| Softree ASCII: 200 MB of text / 10,000,000 terrain points / 2,000,000 location points                                        | `MAX_SOFTREE_ASCII_BYTES`, `MAX_SOFTREE_TERRAIN_ASCII_POINTS`, `MAX_SOFTREE_LOCATION_POINTS`          |
-| Terrain ASCII ground: cells from 1 m; 1,500,000 TIN points                                                                   | `SOFTREE_TERRAIN_MIN_CELL_M`, `tinSurface.ts` `MAX_POINTS`                                            |
-| Location ASCII road: fit within 0.1 m; profile from 0.01 m, at most 498 PVIs                                                 | `SOFTREE_LOCATION_FIT_DEVIATION_M`, `SOFTREE_PROFILE_TOLERANCE_M`, `SOFTREE_MAX_PVIS`                 |
+| Limit                                                                                                                                                               | Enforcing implementation                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 12 ground/mosaic sources; 1 GB combined point-cloud files                                                                                                           | `MAX_TERRAIN_SOURCES`, `mosaicRasters`, `loadLas`                                                     |
+| 4,194,304 output cells, with no mosaic coarsening                                                                                                                   | `MAX_PREPARED_CELLS`, `mosaicRasters`                                                                 |
+| Point thinning: existing 3,000,000 decoded points / 1,500,000 TIN points                                                                                            | `DEFAULT_MAX_POINTS`, `tinSurface.ts` `MAX_POINTS`                                                    |
+| Retained TIN: 250,000 vertices / 500,000 faces                                                                                                                      | `gridSurface`, `parseTerrainPreparation` (`MAX_RETAINED_TIN_VERTICES`, `MAX_RETAINED_TIN_INDICES`)    |
+| TIN elevation editing: 100,000,000 triangle-cell checks                                                                                                             | `editTinElevation`                                                                                    |
+| Named analytical reference surfaces: twelve / 4,194,304 total cells                                                                                                 | `parseTerrainReferenceSurfaces`                                                                       |
+| Preservation regions: 2,000 vertices / 100 polygons / 100,000,000 point-vertex operations                                                                           | `preservedPointMask`                                                                                  |
+| Crop: 2,000 vertices / 100 areas / 400,000,000 point-vertex operations; corridor ≤1,000 m a side; upslope margin ≤500 m on 5 m cells (coarser past 4,000,000 cells) | `CROP_LIMITS`, `validateCrop`, `cropMask`                                                             |
+| Six backgrounds / 1,048,576 combined display pixels                                                                                                                 | `MAX_BACKGROUND_PIXELS`, `parseTerrainBackgrounds`                                                    |
+| Resampled background: at most 524,288 display pixels; refused under 16,384 left                                                                                     | `BACKGROUND_LAYER_PIXELS`, `MIN_BACKGROUND_PIXELS`, `loadTerrainBackground`                           |
+| Background file: 64 MB / 33,554,432 source pixels                                                                                                                   | `loadTerrainBackground`, `MAX_BACKGROUND_SOURCE_PIXELS`                                               |
+| Graded pad ≤500 m wide / 1,000 m long, batters 0.1–10 H:V                                                                                                           | `gradePad`                                                                                            |
+| 20 saved field books / 2,000 legs / 10,000 side shots / 100 km per traverse                                                                                         | `parseSurveyBooks`, `reduceTraverse`                                                                  |
+| Combined scale factor 0.999–1.001; UTM zones only                                                                                                                   | `SCALE_FACTOR_LIMITS`, `combinedScaleFactor`, `scaleFactor.ts`                                        |
+| KML: 30 MB expanded / 500 features / 50,000 vertices / 100,000 XML elements                                                                                         | `xmlTree`, `parseKml`, `readSpatialFile`                                                              |
+| Traverse file: 50 MB / 20,000 records / 25 side shots a side / 100 station equations                                                                                | `MAX_TRAVERSE_FILE_BYTES`, `MAX_TRAVERSE_RECORDS`, `MAX_SIDE_SHOTS_PER_SIDE`, `MAX_STATION_EQUATIONS` |
+| RoadEng traverse (`.tr1`): 20,000,000 characters                                                                                                                    | `softreeNativeTraverse.ts` `MAX_NATIVE_TRAVERSE_CHARS`                                                |
+| Start station ±10,000 km; field notes: 20,000 stations or points / 2,000,000 characters a book, the file as written included                                        | `MAX_SURVEY_START_STATION_M`, `MAX_SURVEY_SOFTREE_ITEMS`, `MAX_SURVEY_SOFTREE_CHARS`                  |
+| Field notes: 10,000 characters a label or kept line; three ground layers; 25 side shots a side                                                                      | `MAX_SURVEY_SOFTREE_TEXT`, `parseSurveyBooks`, `MAX_SIDE_SHOTS_PER_SIDE`                              |
+| Unit-survey side shot within 5° of square to its leg                                                                                                                | `SIDE_SHOT_SQUARE_DEG`                                                                                |
+| Polycorder export: three side shots a side, three decimals                                                                                                          | `POLYCORDER_SIDE_SHOTS`, `POLYCORDER_EXPORT_DECIMALS`                                                 |
+| Softree ASCII: 200 MB of text / 10,000,000 terrain points / 2,000,000 location points                                                                               | `MAX_SOFTREE_ASCII_BYTES`, `MAX_SOFTREE_TERRAIN_ASCII_POINTS`, `MAX_SOFTREE_LOCATION_POINTS`          |
+| Terrain ASCII ground: cells from 1 m; 1,500,000 TIN points                                                                                                          | `SOFTREE_TERRAIN_MIN_CELL_M`, `tinSurface.ts` `MAX_POINTS`                                            |
+| Location ASCII road: fit within 0.1 m; profile from 0.01 m, at most 498 PVIs                                                                                        | `SOFTREE_LOCATION_FIT_DEVIATION_M`, `SOFTREE_PROFILE_TOLERANCE_M`, `SOFTREE_MAX_PVIS`                 |
 
 Analytical tests cover protected points and budget failure, mosaic overlap/no-data/CRS rules,
 pad planes and batters, retained-TIN validation, LandXML/ASCII coordinates and missing faces,

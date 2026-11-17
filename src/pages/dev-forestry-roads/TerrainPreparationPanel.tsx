@@ -100,7 +100,7 @@ export function TerrainPreparationPanel({
 }: {
   workspace: RoadWorkspace
   verticalReference: string
-  pointCloud?: Pick<PointCloudImport, 'classify' | 'surface' | 'preserveCorridorM' | 'retainTin'>
+  pointCloud?: Pick<PointCloudImport, 'classify' | 'surface' | 'preserveCorridorM' | 'retainTin' | 'crop'>
   /** Asks for a CRS or vertical datum the chosen files do not state; null when cancelled. */
   onAskTerrain?: (needs: TerrainImportNeeds) => Promise<TerrainImportAnswers | null>
 }) {
