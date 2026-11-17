@@ -12,6 +12,7 @@ import { ToolSection } from '@/components/ui/tool-section'
 import { cn } from '@/lib/utils'
 
 import { VIEW_OF_INTEREST_COLORS } from './planMapStyle'
+import { groupLeadOf, groupMembers, groupSuggestion, handOver, joinGroup, leaveGroup } from './viewGroups'
 import type { ViewCaptureApi } from './useViewCapture'
 import { arrowLabel } from './ViewpointFinderPanel'
 import { ARROW_AIM_DEGREES, type CandidateArrow, type ViewpointInventory } from './viewpointInventory'
@@ -87,6 +88,13 @@ export type ViewsOfInterestPanelProps = {
   onReopenSaved?: (viewId: string) => void
   /** Whether a capture of the view is saved under the current scene, so it can be reopened. */
   canReopenSaved?: (viewId: string) => boolean
+  /**
+   * The groups whose step 4 assessment holds something, by their lead's id (`ViaReview.stations`). Given, each open
+   * row offers *Step 4 assessed with* and the perspective suggestion (`viewGroups.ts`).
+   */
+  assessedGroups?: ReadonlySet<string>
+  /** A group passed to another lead (its lead left it or was removed): its step 4 record moves with it. */
+  onLeadChanged?: (from: string, to: string) => void
   /** A view renamed: its record, held by name, follows it. */
   onRenamed?: (from: string, to: string) => void
   /** The last add's outcome, from the map or the finder ("Added 2 views", "Already listed"). */
@@ -147,6 +155,81 @@ function facingSummary(view: ViewOfInterest, arrows: readonly CandidateArrow[]):
   const arrowId = view.facing.arrowId
   const index = arrowId ? arrows.findIndex((arrow) => arrow.id === arrowId) : -1
   return index >= 0 ? `arrow ${index + 1} · ${compassPoint(degrees)}` : `looks ${compassPoint(degrees)} (${degrees}°)`
+}
+
+/**
+ * Which group's step 4 a view shares (`viewGroups.ts`): its own, or another group's, and the perspective suggestion
+ * when it sees its block from the same side as an earlier view. Nothing is grouped without the reviewer's choice.
+ */
+function GroupFields({
+  view,
+  views,
+  blocks,
+  assessed,
+  onChange,
+  onLeadChanged,
+}: {
+  view: ViewOfInterest
+  views: readonly ViewOfInterest[]
+  blocks: readonly Block[]
+  assessed: ReadonlySet<string>
+  onChange: ViewsOfInterestPanelProps['onChange']
+  onLeadChanged?: (from: string, to: string) => void
+}) {
+  const lead = groupLeadOf(view, views)
+  const members = groupMembers(lead.id, views)
+  const otherLeads = views.filter((entry) => entry.id !== lead.id && groupLeadOf(entry, views).id === entry.id)
+  const centreOf = (blockId: string) => {
+    const block = blocks.find((entry) => entry.id === blockId)
+    return block ? blockCentre(block.geometry) : null
+  }
+  const suggestion = groupSuggestion(view, views, centreOf)
+  const join = (leadId: string) => onChange((current) => joinGroup(current, view.id, leadId))
+  const leave = () => {
+    const left = leaveGroup(views, view.id)
+    onChange(() => left.views)
+    if (left.newLeadId) onLeadChanged?.(view.id, left.newLeadId)
+  }
+  const km = (meters: number) => (meters / 1000).toFixed(1)
+  return (
+    <div className="space-y-1.5" data-view-group={lead.id}>
+      <SelectField
+        label="Step 4 assessed with"
+        labelClassName="text-2xs text-muted-foreground"
+        className={cn(FORM_INPUT_CLASS, 'py-1 text-xs')}
+        aria-label={`Step 4 assessment of ${view.name}`}
+        value={lead.id === view.id ? '' : lead.id}
+        onValueChange={(value) => (value ? join(value) : leave())}
+      >
+        <option value="">
+          {lead.id === view.id && members.length > 1 ? `Its own, for ${members.length} views` : 'Its own assessment'}
+        </option>
+        {lead.id !== view.id && <option value={lead.id}>{lead.name}</option>}
+        {otherLeads.map((entry) => (
+          <option key={entry.id} value={entry.id}>
+            {entry.name}
+          </option>
+        ))}
+      </SelectField>
+      {suggestion && (
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-2xs text-muted-foreground">
+          <span className="min-w-0">
+            Sees {blocks.find((block) => block.id === view.blockId)?.name ?? 'its block'} from the same side as{' '}
+            {suggestion.lead.name}: {Math.round(suggestion.apartDegrees)}° apart, {km(suggestion.distancesMeters[0])}{' '}
+            and {km(suggestion.distancesMeters[1])} km away.
+          </span>
+          <Button type="button" variant="outline" size="2xs" onClick={() => join(suggestion.lead.id)}>
+            Assess together
+          </Button>
+        </p>
+      )}
+      <p className="text-2xs text-muted-foreground" data-group-assessed={assessed.has(lead.id) || undefined}>
+        {assessed.has(lead.id)
+          ? 'Step 4 recorded for this group.'
+          : 'Step 4 not recorded yet: Stand here, then assess in step 4.'}
+      </p>
+    </div>
+  )
 }
 
 /** A folded group in an open row, as the viewpoint record has always been. */
@@ -225,6 +308,8 @@ export function ViewsOfInterestPanel({
   standingControl,
   onReopenSaved,
   canReopenSaved,
+  assessedGroups,
+  onLeadChanged,
   onRenamed,
   message = null,
   renderer,
@@ -276,6 +361,12 @@ export function ViewsOfInterestPanel({
   const update = (id: string, patch: Partial<ViewOfInterest>) =>
     onChange((current) => current.map((view) => (view.id === id ? { ...view, ...patch } : view)))
   const remove = (id: string) => {
+    // A lead's group passes to the next of its views first, with its step 4 record.
+    const handed = handOver(views, id)
+    if (handed.newLeadId) {
+      onChange(() => handed.views)
+      onLeadChanged?.(id, handed.newLeadId)
+    }
     onChange((current) => current.filter((view) => view.id !== id))
     if (openViewId === id) onOpenView(null)
   }
@@ -445,6 +536,9 @@ export function ViewsOfInterestPanel({
                       {SOURCE_LABELS[view.source.kind]} · {block?.name ?? 'block missing'} ·{' '}
                       {facingSummary(view, arrows)} · {view.focalMm} mm
                       {isIncluded(view) ? '' : ' · left out of exports'}
+                      {assessedGroups && groupLeadOf(view, views).id !== view.id
+                        ? ` · assessed with ${groupLeadOf(view, views).name}`
+                        : ''}
                       {standingHere && (
                         <>
                           {' · '}
@@ -640,6 +734,16 @@ export function ViewsOfInterestPanel({
                       </RowGroup>
                     )}
                     {keyControl?.(view)}
+                    {assessedGroups && (
+                      <GroupFields
+                        view={view}
+                        views={views}
+                        blocks={blocks}
+                        assessed={assessedGroups}
+                        onChange={onChange}
+                        onLeadChanged={onLeadChanged}
+                      />
+                    )}
                     <CheckboxField
                       label="Include in exports"
                       checked={isIncluded(view)}

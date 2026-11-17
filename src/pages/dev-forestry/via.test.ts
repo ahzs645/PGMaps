@@ -17,6 +17,12 @@ import {
   table2Class,
   viaStepStatuses,
   viewpointTypeOf,
+  assessAtCapture,
+  hasStep4,
+  movedStation,
+  reviewAtStation,
+  routeStep4Patch,
+  topLevelStep4,
   type OcularResult,
   type ViaReview,
 } from './via'
@@ -436,5 +442,80 @@ describe('harvest systems (3.4.3.3 and 3.4.4)', () => {
 
   it('offers no measured retention when no block records any', () => {
     expect(measuredRetention([clearcut], () => 1000)).toBeNull()
+  })
+})
+
+describe('step 4 per group of views of interest', () => {
+  const review: ViaReview = {
+    ocular: { visibleness: 'easy', scale: 'small', shape: 'natural', onBoundary: false },
+    rationale: 'Earlier, ungrouped',
+    visualsNote: 'Kept',
+    stations: { 'voi-a': { roads: 1, rationale: 'From the bay' } },
+  }
+
+  it("reads a group's own step 4 in place of the review's, and nothing for a group with none", () => {
+    const atA = reviewAtStation(review, 'voi-a')
+    expect(atA).toMatchObject({ roads: 1, rationale: 'From the bay', visualsNote: 'Kept' })
+    expect(atA.ocular).toBeUndefined()
+    const atB = reviewAtStation(review, 'voi-b')
+    expect(atB.rationale).toBeUndefined()
+    expect(atB.visualsNote).toBe('Kept')
+    expect(reviewAtStation(review, null)).toBe(review)
+  })
+
+  it("sends step 4's fields to the group's record and the rest to the review", () => {
+    expect(routeStep4Patch(review, 'voi-b', { retention: 'high', visualsNote: 'Edited' })).toEqual({
+      visualsNote: 'Edited',
+      stations: { 'voi-a': { roads: 1, rationale: 'From the bay' }, 'voi-b': { retention: 'high' } },
+    })
+    expect(routeStep4Patch(review, null, { roads: 2 })).toEqual({ roads: 2 })
+  })
+
+  it('takes an earlier step 4 only as its fields, moves a record to a new lead, and reads stored records back', () => {
+    expect(topLevelStep4(review)).toEqual({ ocular: review.ocular, rationale: 'Earlier, ungrouped' })
+    expect(hasStep4(topLevelStep4(review))).toBe(true)
+    expect(hasStep4({ rationale: '  ' })).toBe(false)
+    expect(movedStation(review, 'voi-a', 'voi-c')).toEqual({ stations: { 'voi-c': review.stations!['voi-a'] } })
+    expect(movedStation(review, 'voi-x', 'voi-c')).toBeNull()
+    const read = parseViaReview({ stations: { 'voi-a': { roads: 9, design: { position: 1 }, visualsNote: 'no' } } })
+    expect(read?.stations?.['voi-a']).toMatchObject({ roads: null, design: { position: 1 } })
+    expect(read?.stations?.['voi-a']).not.toHaveProperty('visualsNote')
+  })
+
+  it("rates a group on a captured view's own figure, leaving out what only a run gives", () => {
+    const judgement = {
+      ocular: { visibleness: 'easy' as const, scale: 'small' as const, shape: 'natural' as const, onBoundary: false },
+      design: {
+        'force-lines': 0 as const,
+        'natural-character': 0 as const,
+        'edge-treatment': 0 as const,
+        position: 0 as const,
+        'number-size-spacing': 0 as const,
+      },
+      roads: 0 as const,
+      retention: null,
+      retentionNetted: true,
+    }
+    const rated = assessAtCapture({
+      objectiveId: 'partial-retention',
+      review: judgement,
+      xPercent: 4,
+      distanceMeters: 2400,
+    })
+    // Distance comes from the view: 2.4 km reads Moderate (0).
+    expect(rated.design.distance).toMatchObject({ rating: 0, measured: { rating: 0 } })
+    expect(rated.y).toBe(0)
+    expect(rated.adjusted?.percent).toBe(4)
+    expect(rated.rating).not.toBeNull()
+    // A partial cut in view needs the run's Table 6 figure: no adjusted figure.
+    expect(
+      assessAtCapture({
+        objectiveId: 'partial-retention',
+        review: judgement,
+        xPercent: 4,
+        distanceMeters: 2400,
+        seesPartialCut: true,
+      }).adjusted,
+    ).toBeNull()
   })
 })

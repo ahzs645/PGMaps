@@ -213,6 +213,37 @@ const STEP_TAB_LABELS: Record<ViaStepId, string> = {
   rate: 'Rate',
 }
 
+/** Which group of views steps 4 and 5 are made for, and the offer to take in an assessment made before groups. */
+function AssessingFrom({ group }: { group: NonNullable<SidebarProps['assessGroup']> }) {
+  const list = (names: string[]) =>
+    names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  return (
+    <div className="space-y-1.5 px-3 pt-2 text-2xs text-muted-foreground" data-assessing-group={group.leadName}>
+      {group.memberNames.length > 1 ? (
+        <p>
+          Standing at <span className="font-medium text-foreground">{group.standingName}</span>. One assessment covers{' '}
+          {list(group.memberNames)}, grouped in their rows in step 2.
+        </p>
+      ) : (
+        <p>
+          Assessing from <span className="font-medium text-foreground">{group.standingName}</span>. Views that see the
+          block the same way can share this assessment: group them in their rows in step 2.
+        </p>
+      )}
+      {group.onUseEarlier && (
+        <InlineAlert>
+          <span className="flex items-center justify-between gap-2">
+            <span className="min-w-0">An assessment was recorded before views were grouped.</span>
+            <Button type="button" variant="outline" size="2xs" className="shrink-0" onClick={group.onUseEarlier}>
+              Use it here
+            </Button>
+          </span>
+        </InlineAlert>
+      )}
+    </div>
+  )
+}
+
 /** A button in a two-column grid of actions, as in the road designer's sidebar. */
 const GRID_BUTTON = 'h-auto min-h-8 whitespace-normal px-2 text-xs touch:min-h-10'
 
@@ -613,6 +644,18 @@ export type SidebarProps = {
    * (`AssessFromView`). Shown in place of the old spot placement; absent keeps it.
    */
   assessFromView?: ReactNode
+  /**
+   * Steps 4 and 5 made for a group of views of interest (`viewGroups.ts`): its lead and the views it covers, and an
+   * assessment recorded before groups existed that the reviewer can take into this group's. Absent on a road.
+   */
+  assessGroup?: {
+    leadName: string
+    /** The view stood at, which may be any view of the group. */
+    standingName: string
+    memberNames: string[]
+    /** An earlier, ungrouped step 4 exists and this group has none yet. */
+    onUseEarlier?: () => void
+  } | null
   /** What *Assess from* shows: a view while standing at one, else the viewpoint's mode. */
   assessMode?: Viewpoint['mode']
   /** Switching *Assess from*; absent switches the viewpoint's mode and clears it, as before. */
@@ -686,6 +729,7 @@ export function Sidebar({
   viewpointFinder,
   viewsOfInterest,
   assessFromView,
+  assessGroup = null,
   assessMode,
   onAssessModeChange,
   roadViewForest,
@@ -1782,6 +1826,7 @@ export function Sidebar({
       {/* Step 4 — 3.4: the ocular class first, then the measured and adjusted figure. */}
       <div {...stepPanelProps('assess')}>
         <StepIntro id="assess" status={via.statuses.assess} summary={summaries.assess} />
+        {assessGroup && <AssessingFrom group={assessGroup} />}
         {assessment ? (
           <>
             <ToolSection
@@ -1819,6 +1864,7 @@ export function Sidebar({
       {/* Step 5 — 3.5 and 4.0: the rating, why, and the package. */}
       <div {...stepPanelProps('rate')}>
         <StepIntro id="rate" status={via.statuses.rate} summary={summaries.rate} />
+        {assessGroup && <AssessingFrom group={{ ...assessGroup, onUseEarlier: undefined }} />}
         {assessment && (
           <ToolSection
             title="Final rating"

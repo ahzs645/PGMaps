@@ -3,6 +3,7 @@
  * figures (through `documentFacts`), the run's assessment and the reviewer's record, and the settings each view was
  * saved with. One function, so the dialog's contents and the file read the same context. No DOM or network access.
  */
+import { groupIdForName } from '../viewGroups'
 import type { TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 import type { SavedFigure } from '../FigureSheetPanel'
 import { assessmentAlterationClipper } from '../assessmentMaskGeometry'
@@ -226,6 +227,9 @@ export function buildReportContext(input: {
     assessment: input.assessment,
     breakdown: input.breakdown,
     greenUp: input.greenUp ?? null,
+    // Each group of views of interest carries its own step 4 to its views.
+    groupOf: (name) => groupIdForName(scene.viewsOfInterest ?? [], name),
+    objectiveId: landform?.objectiveId ?? null,
   })
   const setting = (label: string) =>
     input.views.flatMap((view) => view.settings ?? []).find((row) => row.label === label)?.value ?? null

@@ -39,7 +39,7 @@ is typed survives switching.
 | 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site; each button's tooltip describes the scenario and lists what its scene holds, counted by `scenarioSummary.ts`); **Road or viewpoint** (*Assess from*: a view of interest, or a length of road drawn, imported or snapped); folded *Which roads see the block*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
 | 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; each row holds everything about that view: its record with significance and 3.2.1 type, its field photos, its key-viewpoint choice and, at the view stood at, the surveyed eye and the field photo line-up; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); **Saved views** (only saves not listed with the views); on the road only, folded *Where you stand*, *Field photo* and **Viewpoint type** (3.2.1); folded *Route preview* and *Field records* (attachments); folded *Field brief and crew checklist* |
 | 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
-| 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
+| 4 · Assess against the VQO | 3.4 | *Assessing from* (the group of views of interest the judgements are for; see **Step 4 per group of views** below), **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
 | 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **Package**: buttons that open *Save & export* on the block note, the FS1252 form, the analysis sheet or the scene; folded *VIA evidence package* (recording a run and the evidence checklist) |
 
 Under every step, after step 5, a folded **Resources** section holds reading
@@ -179,6 +179,39 @@ elsewhere in the steps:
 
 Renaming a view moves its record and any key-viewpoint choice naming it
 (`renamedViewpointRecords`).
+
+**Step 4 per group of views.** The handbook assesses from each significant
+viewpoint, but views close enough to see the block the same way need only one
+assessment. Step 4 (the ocular terms, the design adjustments, roads,
+retention and the rationale, `STEP4_KEYS`) is therefore made per group of views
+of interest (`viewGroups.ts`, DOM-free):
+
+- A group is led by one view; the others name it in `ViewOfInterest.assessedWith`
+  (out of the capture key: grouping never outdates a capture). Its step 4 is
+  `viaReview.stations[<lead id>]`. Each open row has *Step 4 assessed with*
+  (its own, or another group) and says whether its group's step 4 is recorded.
+- Grouping is the reviewer's. A row proposes joining an earlier view that sees
+  the same block from the same perspective (`samePerspective`: within
+  `SAME_PERSPECTIVE_DEGREES`, 10°, of each other as seen from the block's centre,
+  the nearer at least `SAME_PERSPECTIVE_DISTANCE_RATIO`, 0.8, of the farther's
+  distance), with *Assess together*; nothing is grouped without that click.
+  Joining moves a lead's whole group; a lead leaving or removed hands the group
+  to its next view and its record moves with it (`handOver`, `movedStation`).
+  A lead that joins another group leaves its own record unread in the review.
+- Assessing from a view of interest reads and writes its group's record
+  (`reviewAtStation`, `routeStep4Patch`); steps 4 and 5 say *Assessing from
+  <lead>, for <the others> too*. A road, or a place that is no view of
+  interest, keeps step 4 at the top of the review, as before groups. A step 4
+  recorded before groups is offered once, *Use it here*, never copied unasked.
+- In the documents and reports (`documentFacts` with `groupOf`), every view
+  whose group has a step 4 prints that group's terms (`DocumentViewpoint.ocular`,
+  read through `judgedOcular`), not only the run's station. At the run's station
+  the rating is the run's; elsewhere it is read on the view's own captured figure
+  (`assessAtCapture`: X is its `sightlinePercent`, the distance its own), which
+  leaves out what only a run gives: the number-size-spacing suggestion, retention
+  measured from the blocks, and a partial cut's Table 6 figure (a view that sees
+  one gets no adjusted figure). Appendix 1's breakdown, and the one class met
+  from all viewpoints, stay the run station's.
 
 **A view saved by hand is a view of interest.** *Save viewpoint* on the road
 view's bar lists what it saved with the views (`handSaveLink`): standing at a

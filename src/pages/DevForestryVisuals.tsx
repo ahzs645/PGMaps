@@ -374,10 +374,16 @@ import {
   assessVia,
   fs1252ReviewFromVia,
   partialCutEntries,
+  hasStep4,
+  movedStation,
+  reviewAtStation,
+  routeStep4Patch,
+  topLevelStep4,
   table2Class,
   viaStepStatuses,
   type ViaReview,
 } from './dev-forestry/via'
+import { groupLeadOf, groupMembers } from './dev-forestry/viewGroups'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonAreaMeters, polygonBounds } from './dev-forestry/visibility'
 
@@ -709,27 +715,6 @@ function DevForestryVisuals() {
       : null
   }, [scene])
   const sceneLandform = findSceneLandform(scene)
-  const viaAssessment = useMemo(
-    () =>
-      sceneLandform
-        ? assessVia({
-            objectiveId: sceneLandform.objectiveId,
-            result,
-            review: scene.viaReview,
-            blocks: scene.targets.filter((target) => target.role === 'block'),
-          })
-        : null,
-    [sceneLandform, result, scene.viaReview, scene.targets],
-  )
-  const viaStatuses = viaStepStatuses({
-    hasViewpoint: scene.viewpoint.coordinates.length > 0,
-    blockCount: scene.targets.filter((target) => target.role === 'block').length,
-    hasLandform: !!sceneLandform,
-    hasResult: !!result,
-    visited: !!result && (visitedKey === visitKey || savedViews.length > 0),
-    numericalReady: !!result?.quality?.numericalReady,
-    assessment: viaAssessment,
-  })
   const updateViaReview = useCallback(
     (patch: Partial<ViaReview>) => {
       setScene((current) => ({ ...current, viaReview: { ...current.viaReview, ...patch } }))
@@ -3587,6 +3572,42 @@ function DevForestryVisuals() {
       }),
     [viewsOfInterest, standingNow, drive.lookAtTargetId, drive.lookBearing, selectedTargetId, checkBlocks],
   )
+  // Step 4 is made per group of views (`viewGroups.ts`): assessing from a view of interest reads and writes its
+  // group's record, led by `assessStationId`; on a road, or a place that is no view of interest, the review's own.
+  const assessStationId = summaryView ? groupLeadOf(summaryView, viewsOfInterest).id : null
+  const viaReviewNow = useMemo(
+    () => reviewAtStation(scene.viaReview, assessStationId),
+    [scene.viaReview, assessStationId],
+  )
+  const updateViaReviewNow = useCallback(
+    (patch: Partial<ViaReview>) =>
+      setScene((current) => ({
+        ...current,
+        viaReview: { ...current.viaReview, ...routeStep4Patch(current.viaReview, assessStationId, patch) },
+      })),
+    [setScene, assessStationId],
+  )
+  const viaAssessment = useMemo(
+    () =>
+      sceneLandform
+        ? assessVia({
+            objectiveId: sceneLandform.objectiveId,
+            result,
+            review: viaReviewNow,
+            blocks: scene.targets.filter((target) => target.role === 'block'),
+          })
+        : null,
+    [sceneLandform, result, viaReviewNow, scene.targets],
+  )
+  const viaStatuses = viaStepStatuses({
+    hasViewpoint: scene.viewpoint.coordinates.length > 0,
+    blockCount: scene.targets.filter((target) => target.role === 'block').length,
+    hasLandform: !!sceneLandform,
+    hasResult: !!result,
+    visited: !!result && (visitedKey === visitKey || savedViews.length > 0),
+    numericalReady: !!result?.quality?.numericalReady,
+    assessment: viaAssessment,
+  })
   // The block the summary reads: at a planned view, that view's block (an arrow's view faces a bearing, not its
   // block); else the one the road view faces, else the sidebar's selection, else the first. The summary's block
   // switcher sets the selection. A block the run does not hold reads as not in the run.
@@ -5402,7 +5423,7 @@ function DevForestryVisuals() {
     stale: isStale,
     snapshot: result ? (runSnapshotRef.current?.scene ?? null) : null,
     assessment: viaAssessment,
-    fs1252Review: viaAssessment ? fs1252ReviewFromVia(viaAssessment, scene.viaReview) : null,
+    fs1252Review: viaAssessment ? fs1252ReviewFromVia(viaAssessment, viaReviewNow) : null,
     savedViews,
     otherViews: shelvedViews.flatMap((entry) => entry.views),
     images: viewImages,
@@ -5832,8 +5853,8 @@ function DevForestryVisuals() {
         assessment: viaAssessment,
         stale: isStale,
         statuses: viaStatuses,
-        review: scene.viaReview ?? {},
-        onReviewChange: updateViaReview,
+        review: viaReviewNow,
+        onReviewChange: updateViaReviewNow,
         landformName: sceneLandform?.name ?? null,
       }}
       setup={<PreviewWorkflow part="setup" {...previewProps} />}
@@ -6058,6 +6079,23 @@ function DevForestryVisuals() {
           />
         )
       }
+      assessGroup={
+        summaryView && assessStationId
+          ? {
+              leadName: viewsOfInterest.find((view) => view.id === assessStationId)?.name ?? summaryView.name,
+              standingName: summaryView.name,
+              memberNames: groupMembers(assessStationId, viewsOfInterest).map((view) => view.name),
+              // A step 4 made before groups is taken into this group's only on the reviewer's click.
+              onUseEarlier:
+                hasStep4(topLevelStep4(scene.viaReview)) && !hasStep4(scene.viaReview?.stations?.[assessStationId])
+                  ? () =>
+                      updateViaReview({
+                        stations: { ...scene.viaReview?.stations, [assessStationId]: topLevelStep4(scene.viaReview) },
+                      })
+                  : undefined,
+            }
+          : null
+      }
       assessMode={standingNow || assessFromViewChosen ? 'spot' : scene.viewpoint.mode}
       onAssessModeChange={handleAssessModeChange}
       assessFromView={
@@ -6229,6 +6267,15 @@ function DevForestryVisuals() {
               ),
             }
           }}
+          assessedGroups={
+            new Set(
+              Object.entries(scene.viaReview?.stations ?? {}).flatMap(([id, record]) => (hasStep4(record) ? [id] : [])),
+            )
+          }
+          onLeadChanged={(from, to) => {
+            const moved = movedStation(sceneRef.current.viaReview, from, to)
+            if (moved) updateViaReview(moved)
+          }}
           standingViewId={summaryView?.id ?? null}
           standingControl={() => (
             <>
@@ -6251,8 +6298,8 @@ function DevForestryVisuals() {
           scene={scene}
           result={result}
           stale={isStale}
-          review={scene.viaReview ?? {}}
-          onReviewChange={updateViaReview}
+          review={viaReviewNow}
+          onReviewChange={updateViaReviewNow}
           selectedTargetId={selectedTargetId}
           inventory={viewpointInventory.data}
           otherViewpoints={inventoryFindings}

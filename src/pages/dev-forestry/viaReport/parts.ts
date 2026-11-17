@@ -13,7 +13,7 @@ import type { AlterationBreakdown } from '../types'
 import { settingLocation, type ReportSetting } from './setting'
 import type { DocumentFacts, DocumentViewpoint, ResolvedDocument, ResolvedViewpoint } from '../viaDocument/resolve'
 import { andList, blockId, blockList, landformParentFromName, otherPlannedName } from '../viaDocument/resolve'
-import { atAssessmentStation } from '../viaDocument/facts'
+import { atAssessmentStation, judgedOcular } from '../viaDocument/facts'
 import { firstFigureNumber } from './partsFigures'
 import {
   CLASS_NAMES,
@@ -1197,7 +1197,8 @@ const basicDefinition: ReportPart = {
   sources: ['03', '05'],
   build: (ctx) => {
     const vps = ctx.facts.viewpoints
-    const ocular = ctx.review?.ocular ?? null
+    // Each viewpoint's terms are its group's step 4 (`judgedOcular`).
+    const ocularOf = (vp: (typeof vps)[number]) => judgedOcular(vp, ctx)
     const hidden = (vp: (typeof vps)[number]) =>
       vp.blocks.length > 0 && vp.blocks.every((block) => block.status === 'not visible')
     const term = (vp: (typeof vps)[number], value: (at: (typeof vps)[number]) => string | undefined) =>
@@ -1205,12 +1206,14 @@ const basicDefinition: ReportPart = {
     const line = (label: string, value: (vp: (typeof vps)[number]) => string) => [label, ...vps.map(value)]
     const rows = [
       line(`Level of impact (${IMPACT_TERMS.join(', ')})`, (vp) => term(vp, (at) => at.review?.impact)),
-      line('Visibility', (vp) => term(vp, () => VISIBLENESS_TERMS.find((t) => t.id === ocular?.visibleness)?.label)),
+      line('Visibility', (vp) =>
+        term(vp, () => VISIBLENESS_TERMS.find((t) => t.id === ocularOf(vp)?.visibleness)?.label),
+      ),
       line('Scale', (vp) =>
-        hidden(vp) ? 'N/A' : term(vp, () => SCALE_TERMS.find((t) => t.id === ocular?.scale)?.label),
+        hidden(vp) ? 'N/A' : term(vp, () => SCALE_TERMS.find((t) => t.id === ocularOf(vp)?.scale)?.label),
       ),
       line('Design', (vp) =>
-        hidden(vp) ? 'N/A' : term(vp, () => SHAPE_TERMS.find((t) => t.id === ocular?.shape)?.label),
+        hidden(vp) ? 'N/A' : term(vp, () => SHAPE_TERMS.find((t) => t.id === ocularOf(vp)?.shape)?.label),
       ),
     ]
     const code = ctx.assessment?.ocular ? (CLASS_CODES_BY_ID[ctx.assessment.ocular.classId] ?? null) : null
@@ -1308,7 +1311,10 @@ const visualDesign: ReportPart = {
     const retentionBands = RETENTION_LEVELS.map(
       (level) => `${level.label.replace(/\s*retention\s*\(\w+\)$/, '')} (${RETENTION_GRADE[level.id]})`,
     ).join(', ')
-    const ocular = ctx.assessment?.ocular ? (CLASS_CODES_BY_ID[ctx.assessment.ocular.classId] ?? null) : null
+    const ocularCode = (vp: DocumentViewpoint) => {
+      const id = judgedOcular(vp, ctx)?.classId
+      return id ? (CLASS_CODES_BY_ID[id as keyof typeof CLASS_CODES_BY_ID] ?? null) : null
+    }
     const rows: Array<{ label: string; value: (vp: DocumentViewpoint) => string }> = [
       { label: `Response to visual force lines? ${options('force-lines')}`, value: judged((r) => r.forceLines) },
       { label: `Borrows from natural character? ${options('natural-character')}`, value: judged((r) => r.borrow) },
@@ -1323,7 +1329,10 @@ const visualDesign: ReportPart = {
       { label: `Position on the landform? ${options('position')}`, value: judged((r) => r.position) },
       {
         label: `Category of visually altered landform: ${CLASS_ORDER.map((code) => CLASS_NAMES[code]).join(', ')}`,
-        value: (vp) => (atAssessmentStation(vp) && ocular ? CLASS_NAMES[ocular] : ''),
+        value: (vp) => {
+          const code = atAssessmentStation(vp) ? ocularCode(vp) : null
+          return code ? CLASS_NAMES[code] : ''
+        },
       },
     ]
     const cells = rows.map((row) => vps.map(row.value))

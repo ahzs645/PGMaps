@@ -184,6 +184,18 @@ export interface DocumentViewpoint {
    * (hand-built facts): the view carrying a `review` is taken as it (`atAssessmentStation`, `facts.ts`).
    */
   atAssessment?: boolean
+  /**
+   * The reviewer's step 4 applies to this view: it stands at the run's station, or its group of views of interest has
+   * a step 4 of its own (`ViaReview.stations`), rated on the view's own captured figure. Absent: as `atAssessment`.
+   */
+  judged?: boolean
+  /** Step 4's terms by eye for this view (its group's), and the ocular class they give; absent when not judged. */
+  ocular?: {
+    visibleness?: string | null
+    scale?: string | null
+    shape?: string | null
+    classId?: string | null
+  }
   appendix1?: ViewpointAppendix1 | null
 }
 

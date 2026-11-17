@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { countClasses, FIGURE_CLASS } from '@/lib/forestry/viaFigure/composeFigure'
 
 import type { SavedFigure } from '../FigureSheetPanel'
-import { documentFacts, lensMmForHfov, offAxisDegrees, viewpointPlace } from './facts'
+import {
+  atAssessmentStation,
+  documentFacts,
+  judgedOcular,
+  lensMmForHfov,
+  offAxisDegrees,
+  viewpointPlace,
+} from './facts'
 import { formatForSource } from './formats'
 import { resolveViaDocument } from './resolve'
 
@@ -454,5 +461,57 @@ describe('other landforms a saved view counts', () => {
     // The same name the view's blocks take, so a landform's list matches them.
     expect(read.blocks.map((b) => b.id)).toEqual(expect.arrayContaining(['X1', 'P2']))
     expect('landformBlocks' in viewOf({})).toBe(false)
+  })
+})
+
+describe('step 4 per group of views of interest', () => {
+  const judgement = {
+    ocular: { visibleness: 'easy' as const, scale: 'small' as const, shape: 'natural' as const, onBoundary: false },
+    design: {
+      'force-lines': -1 as const,
+      'natural-character': 0 as const,
+      'edge-treatment': 0 as const,
+      position: 0 as const,
+      'number-size-spacing': 0 as const,
+    },
+    roads: 0 as const,
+    retentionNetted: true,
+    rationale: 'Seen low on the far shore',
+  }
+  const groups: Record<string, string> = { a: 'voi-a', b: 'voi-b', c: 'voi-b' }
+  const facts = documentFacts({
+    project: 'Block X1',
+    objective: 'PR',
+    objectiveId: 'partial-retention',
+    views: [
+      { name: 'a', figure: { ...figure(3), place: 'Bay' } },
+      { name: 'b', figure: { ...figure(7), place: 'Ferry' } },
+      { name: 'c', figure: { ...figure(9), place: 'Dock' } },
+    ],
+    assessmentStation: 7,
+    review: { ocular: { visibleness: 'difficult' }, stations: { 'voi-a': judgement } },
+    assessment: null,
+    breakdown: null,
+    groupOf: (name) => groups[name] ?? null,
+  })
+
+  it("prints each group's terms on its own views, rated on the view's captured figure", () => {
+    const [bay, ferry, dock] = facts.viewpoints
+    expect(atAssessmentStation(bay)).toBe(true)
+    expect(bay.ocular).toMatchObject({ visibleness: 'easy', scale: 'small', shape: 'natural' })
+    expect(bay.review).toMatchObject({
+      visibility: 'Easy to see',
+      forceLines: 'Good',
+      rationale: 'Seen low on the far shore',
+    })
+    expect(bay.review?.extent).toBeTruthy()
+    expect(judgedOcular(bay, {})?.classId).toBeTruthy()
+    // The run's station, in a group with nothing recorded: judged, with its terms left to complete, never the
+    // review's ungrouped ones.
+    expect(atAssessmentStation(ferry)).toBe(true)
+    expect(ferry.ocular?.visibleness).toBeNull()
+    // Another view of that group, away from the station, takes nothing.
+    expect(atAssessmentStation(dock)).toBe(false)
+    expect(dock.ocular).toBeUndefined()
   })
 })

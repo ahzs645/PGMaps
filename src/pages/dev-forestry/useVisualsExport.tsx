@@ -1,3 +1,4 @@
+import { groupIdForName } from './viewGroups'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { standFileSummary, standTreeCsv, standTreeGeoJson, type PrescribedStandFile } from './stand/standExport'
@@ -582,6 +583,8 @@ export function useVisualsExport(input: {
         breakdown: result?.perspectiveAlteration ?? null,
         ...(result ? { screeningModelled: !!result.settings.screeningEnabled } : {}),
         greenUp: result ? runGreenUpBasis(result).label : null,
+        groupOf: (name) => groupIdForName(scene.viewsOfInterest ?? [], name),
+        objectiveId: landform?.objectiveId ?? null,
       })
     : null
   const viaDocument = facts ? resolveViaDocument(documentFormat, facts) : null

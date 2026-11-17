@@ -65,6 +65,11 @@ export type ViewOfInterest = {
   landformId?: string | null
   /** Left out of every export while false; absent reads as included. */
   include?: boolean
+  /**
+   * The view whose step 4 assessment this one shares (`viewGroups.ts`): the reviewer's grouping of views that see the
+   * block from the same perspective. Absent: the view is assessed on its own (or leads its group).
+   */
+  assessedWith?: string
 }
 
 /** The lenses offered: 50 mm is the reference sheets' lens (39.6° across), the default. */
@@ -364,6 +369,9 @@ export function parseViewsOfInterest(raw: unknown): ViewOfInterest[] {
       framing: value.framing === 'single' ? 'single' : 'landform',
       ...(typeof value.landformId === 'string' ? { landformId: value.landformId } : {}),
       ...(value.include === false ? { include: false } : {}),
+      ...(typeof value.assessedWith === 'string' && value.assessedWith !== value.id
+        ? { assessedWith: value.assessedWith }
+        : {}),
     })
     if (views.length >= MAX_VIEWS_OF_INTEREST) break
   }

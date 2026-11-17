@@ -8,7 +8,7 @@
  * blank and is listed as to complete. Registered in `registry.ts`. No DOM or network access.
  */
 import { blockId, blockList, significanceScore } from '../viaDocument/resolve'
-import { atAssessmentStation } from '../viaDocument/facts'
+import { atAssessmentStation, judgedOcular } from '../viaDocument/facts'
 import { CLASS_NAMES, PERCENT_SCALES, readPercent, type ClassCode, type PercentScale } from '../viaDocument/scales'
 import { fillSentence, type Sentence } from '../viaDocument/wording'
 import { SCALE_TERMS, SHAPE_TERMS, VIEWPOINT_TYPES, VISIBLENESS_TERMS, type DesignElementId } from '../via'
@@ -459,7 +459,8 @@ const criteriaRating2001: ReportPart = {
   sources: ['01'],
   build: (ctx) => {
     const vps = ctx.facts.viewpoints
-    const ocular = ctx.review?.ocular ?? null
+    // Each viewpoint's terms are its group's step 4 (`judgedOcular`).
+    const ocularOf = (vp: (typeof vps)[number]) => judgedOcular(vp, ctx)
     const scale = ctx.document.format.percentScale
     const rows: CriterionRow[] = [
       {
@@ -480,14 +481,16 @@ const criteriaRating2001: ReportPart = {
           allHidden(vp)
             ? 'Not visible'
             : atAssessmentStation(vp)
-              ? (VISIBLENESS_TERMS.find((t) => t.id === ocular?.visibleness)?.label ?? '')
+              ? (VISIBLENESS_TERMS.find((t) => t.id === ocularOf(vp)?.visibleness)?.label ?? '')
               : '',
       },
       {
         label: 'Scale of alteration',
         options: SCALE_TERMS.map((t) => t.label).join(', '),
         value: (vp, index) => {
-          const chosen = atAssessmentStation(vp) ? SCALE_TERMS.find((t) => t.id === ocular?.scale)?.label : undefined
+          const chosen = atAssessmentStation(vp)
+            ? SCALE_TERMS.find((t) => t.id === ocularOf(vp)?.scale)?.label
+            : undefined
           if (chosen) return chosen
           const printed = ctx.document.viewpoints[index]?.printed
           return printed ? `${printed.term.charAt(0).toUpperCase()}${printed.term.slice(1)} (${printed.percent}%)` : ''
@@ -505,7 +508,7 @@ const criteriaRating2001: ReportPart = {
           allHidden(vp)
             ? 'No visible alteration'
             : atAssessmentStation(vp)
-              ? (SHAPE_TERMS.find((t) => t.id === ocular?.shape)?.label ?? '')
+              ? (SHAPE_TERMS.find((t) => t.id === ocularOf(vp)?.shape)?.label ?? '')
               : '',
       },
       {
@@ -515,7 +518,7 @@ const criteriaRating2001: ReportPart = {
           String(
             significanceScore(vp.review?.importance) ??
               vp.review?.viewpointType ??
-              (atAssessmentStation(vp) ? ctx.review?.viewpointType : null) ??
+              ((vp.atAssessment ?? atAssessmentStation(vp)) ? ctx.review?.viewpointType : null) ??
               '',
           ),
       },
@@ -528,8 +531,8 @@ const criteriaRating2001: ReportPart = {
         label: 'Category of visually altered landform',
         options: CLASS_ORDER.map((code) => CLASS_NAMES[code]).join(', '),
         value: (vp) => {
-          const id = atAssessmentStation(vp) ? ctx.assessment?.ocular?.classId : undefined
-          const code = id ? CLASS_CODES_BY_ID[id] : undefined
+          const id = atAssessmentStation(vp) ? judgedOcular(vp, ctx)?.classId : undefined
+          const code = id ? CLASS_CODES_BY_ID[id as keyof typeof CLASS_CODES_BY_ID] : undefined
           return code ? CLASS_NAMES[code] : ''
         },
       },

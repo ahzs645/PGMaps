@@ -679,6 +679,76 @@ export type ViaReview = {
   keyViewpoints?: { blocks?: Record<string, KeyViewpointRecord>; group?: KeyViewpointRecord | null }
   /** Sub-landforms by landform name: what each is part of and where it is divided (step 1). */
   landformRecords?: Record<string, LandformRecord>
+  /**
+   * Step 4 per group of views of interest, by the id of the view leading the group (`viewGroups.ts`): the ocular
+   * class, the design adjustments and the rationale made from that group's perspective. Assessing from a view reads
+   * and writes its group's record (`reviewAtStation`, `routeStep4Patch`); a road, or a place that is not a view of
+   * interest, keeps them at the top of the review, as before groups.
+   */
+  stations?: Record<string, StationJudgement>
+}
+
+/** The fields step 4 records: kept per group of views (`ViaReview.stations`) or, on a road, at the top. */
+export const STEP4_KEYS = ['ocular', 'design', 'roads', 'retention', 'retentionNetted', 'rationale'] as const
+export type StationJudgement = Pick<ViaReview, (typeof STEP4_KEYS)[number]>
+
+const isStep4Key = (key: string): key is (typeof STEP4_KEYS)[number] => (STEP4_KEYS as readonly string[]).includes(key)
+
+/**
+ * The review as step 4 reads it when assessing from a group of views: its own record's judgements in place of the
+ * top-level ones (none yet: nothing recorded). With no group, the review as it is.
+ */
+export function reviewAtStation(review: ViaReview | null | undefined, stationId: string | null): ViaReview {
+  if (!stationId) return review ?? {}
+  const rest = Object.fromEntries(Object.entries(review ?? {}).filter(([key]) => !isStep4Key(key))) as ViaReview
+  return { ...rest, ...(review?.stations?.[stationId] ?? {}) }
+}
+
+/** A patch from step 4, sent to the group's record when assessing from one; other fields go to the review as given. */
+export function routeStep4Patch(
+  review: ViaReview | null | undefined,
+  stationId: string | null,
+  patch: Partial<ViaReview>,
+): Partial<ViaReview> {
+  if (!stationId) return patch
+  const own = Object.fromEntries(Object.entries(patch).filter(([key]) => isStep4Key(key))) as StationJudgement
+  if (!Object.keys(own).length) return patch
+  const rest = Object.fromEntries(Object.entries(patch).filter(([key]) => !isStep4Key(key))) as Partial<ViaReview>
+  return {
+    ...rest,
+    stations: { ...review?.stations, [stationId]: { ...review?.stations?.[stationId], ...own } },
+  }
+}
+
+/** Whether a step 4 record holds anything the reviewer gave: a term, a rating, a level or the rationale. */
+export function hasStep4(judgement: StationJudgement | null | undefined): boolean {
+  if (!judgement) return false
+  return (
+    !!(judgement.ocular?.visibleness || judgement.ocular?.scale || judgement.ocular?.shape) ||
+    Object.values(judgement.design ?? {}).some((value) => value !== null && value !== undefined) ||
+    judgement.roads != null ||
+    !!judgement.retention ||
+    !!judgement.rationale?.trim()
+  )
+}
+
+/** The top-level step 4 fields, as recorded before groups (or on a road). */
+export function topLevelStep4(review: ViaReview | null | undefined): StationJudgement {
+  return Object.fromEntries(STEP4_KEYS.flatMap((key) => (review?.[key] !== undefined ? [[key, review[key]]] : [])))
+}
+
+/** Moves a group's step 4 record to the view that now leads it; null when there was none or the target has one. */
+export function movedStation(
+  review: ViaReview | null | undefined,
+  from: string,
+  to: string,
+): Partial<ViaReview> | null {
+  const record = review?.stations?.[from]
+  if (!record || from === to || review?.stations?.[to]) return null
+  const stations = { ...review!.stations }
+  delete stations[from]
+  stations[to] = record
+  return { stations }
 }
 
 /**
@@ -864,6 +934,62 @@ export function assessVia(input: {
   }
 }
 
+/**
+ * A group's step 4 read on one of its captured views rather than on the run: X is the view's own sightline figure
+ * (`SavedFigure.sightlinePercent`, the run's perspective alteration at its station when it was captured) and the
+ * measured distance its own. What only a run gives is left to the reviewer: no number-size-spacing suggestion, no
+ * partial cut's Table 6 figure (a view that sees one gives no adjusted figure), and retention from the review alone.
+ */
+export function assessAtCapture(input: {
+  objectiveId: VisualQualityClassId
+  review: StationJudgement | null | undefined
+  xPercent: number | null
+  distanceMeters: number | null
+  /** The view sees a partial cut, whose Table 6 figure only the run adds to X. */
+  seesPartialCut?: boolean
+}): Pick<
+  ViaAssessment,
+  'ocular' | 'design' | 'designTotal' | 'roads' | 'retentionFactor' | 'y' | 'adjusted' | 'rating'
+> {
+  const review = input.review ?? {}
+  const ocular = ocularClass(review.ocular)
+  const distance = designDistanceScore(input.distanceMeters)
+  const design = Object.fromEntries(
+    DESIGN_ELEMENTS.map((element) => {
+      const suggestion: DesignSuggestion | null =
+        element.id === 'distance' && distance
+          ? {
+              rating: distance.score,
+              basis: `${((input.distanceMeters ?? 0) / 1000).toFixed(1)} km (${distance.band})`,
+            }
+          : null
+      return [element.id, { rating: review.design?.[element.id] ?? suggestion?.rating ?? null, measured: suggestion }]
+    }),
+  ) as ViaAssessment['design']
+  const ratings = DESIGN_ELEMENTS.map((element) => design[element.id].rating)
+  const designTotal = ratings.every((value) => value !== null)
+    ? ratings.reduce<number>((sum, value) => sum + (value ?? 0), 0)
+    : null
+  const roads = review.roads ?? null
+  const retentionFactor =
+    review.retentionNetted === true
+      ? 0
+      : review.retention
+        ? (RETENTION_LEVELS.find((level) => level.id === review.retention)?.factor ?? null)
+        : null
+  const y =
+    designTotal !== null && roads !== null && retentionFactor !== null ? designTotal + roads + retentionFactor : null
+  const x = input.seesPartialCut ? null : input.xPercent
+  const adjustedValue = x !== null && y !== null ? adjustedPercent(x, y) : null
+  const adjusted =
+    adjustedValue !== null ? { percent: adjustedValue, classId: table2Class(adjustedValue)?.id ?? null } : null
+  const rating =
+    ocular && adjusted
+      ? finalRating({ objectiveId: input.objectiveId, ocular, adjustedPercent: adjusted.percent })
+      : null
+  return { ocular, design, designTotal, roads, retentionFactor, y, adjusted, rating }
+}
+
 // ---------------------------------------------------------------------------
 // Scene storage and the FS1252 hand-off
 
@@ -946,6 +1072,11 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
   const landformRecords = namedRecords(value.landformRecords, (entry) =>
     strip<LandformRecord>({ parent: text(entry.parent, 200), divider: text(entry.divider) }),
   )
+  // Each group's step 4 is read as a review's own would be, keeping only its step 4 fields.
+  const stations = namedRecords(value.stations, (entry) => {
+    const read = parseViaReview(entry)
+    return read ? topLevelStep4(read) : {}
+  })
   return {
     ocular: {
       visibleness: member(VISIBLENESS_IDS, ocularRaw.visibleness),
@@ -973,6 +1104,7 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
     ...(keyViewpoints ? { keyViewpoints } : {}),
     ...(reportEdits ? { reportEdits } : {}),
     ...(landformRecords ? { landformRecords } : {}),
+    ...(stations ? { stations } : {}),
   }
 }
 

@@ -11,7 +11,17 @@ import { TIMBER_ABSENT, type TimberMeasure } from '@/lib/forestry/viaFigure/timb
 import type { SavedFigure } from '../FigureSheetPanel'
 import { terrainDetailNote } from '../figureFraming'
 import type { AlterationBreakdown } from '../types'
-import type { DesignElementId, ViaAssessment, ViaReview, ViewpointRecord, Visibleness } from '../via'
+import {
+  assessAtCapture,
+  hasStep4,
+  reviewAtStation,
+  type DesignElementId,
+  type ViaAssessment,
+  type ViaReview,
+  type ViewpointRecord,
+  type Visibleness,
+} from '../via'
+import type { VisualQualityClassId } from '../vqo'
 import {
   otherPlannedName,
   type DocumentFacts,
@@ -68,7 +78,10 @@ function withTimberOf(view: FactsView): DocumentViewpoint['withTimber'] {
   return { absent: view.timber?.kind === 'absent' ? view.timber.reason : TIMBER_ABSENT.noBefore }
 }
 
-function reviewAt(review: ViaReview | null, assessment: ViaAssessment | null): ViewpointReview {
+function reviewAt(
+  review: ViaReview | null,
+  assessment: Pick<ViaAssessment, 'design' | 'rating'> | null,
+): ViewpointReview {
   const out: ViewpointReview = {}
   const visibleness = review?.ocular?.visibleness
   if (visibleness) out.visibility = VISIBILITY_TERM[visibleness]
@@ -105,7 +118,20 @@ function tableThree(record: ViewpointRecord | undefined): ViewpointReview {
  * Whether a viewpoint stands at the assessment station, the one view the step 4 judgements belong to. Facts from
  * `documentFacts` say so; hand-built facts without the flag are read the old way, by which view carries a review.
  */
-export const atAssessmentStation = (vp: DocumentViewpoint) => vp.atAssessment ?? !!vp.review
+export const atAssessmentStation = (vp: DocumentViewpoint) => vp.judged ?? vp.atAssessment ?? !!vp.review
+
+/**
+ * The step 4 terms by eye a part prints for a viewpoint: the view's own (its group's), else, for hand-built facts,
+ * the review's and the assessment's at the station. Null where step 4 does not apply.
+ */
+export function judgedOcular(
+  vp: DocumentViewpoint,
+  fallback: { review?: ViaReview | null; assessment?: ViaAssessment | null },
+): NonNullable<DocumentViewpoint['ocular']> | null {
+  if (vp.ocular) return vp.ocular
+  if (!atAssessmentStation(vp)) return null
+  return { ...fallback.review?.ocular, classId: fallback.assessment?.ocular?.classId ?? null }
+}
 
 /** The handbook's a, b, c, X, Y and adjusted figure for the assessment station, once the run gives X. */
 function appendix1At(assessment: ViaAssessment | null, breakdown: AlterationBreakdown | null) {
@@ -171,6 +197,13 @@ export function documentFacts(input: {
   screeningModelled?: boolean
   /** What the run's existing openings' green-up rests on (`runGreenUpBasis(result).label`), when there is a run. */
   greenUp?: string | null
+  /**
+   * The group of views of interest a saved view's step 4 is kept under (`groupIdForName`, by the view's name), so
+   * each group's judgements reach its own views; absent, or null for a view, reads the review's top-level step 4.
+   */
+  groupOf?: (viewName: string) => string | null
+  /** The landform's objective id, for rating a group on its own captured figure (`assessAtCapture`). */
+  objectiveId?: VisualQualityClassId | null
 }): DocumentFacts {
   const otherPlanned = new Set(input.otherPlanned ?? [])
   const placeOf = (view: FactsView) => view.figure.place || viewpointPlace(view.figure.viewpoint) || view.name
@@ -184,11 +217,40 @@ export function documentFacts(input: {
     const objective = input.objective ?? ((figure.rating?.vqo as ClassCode | undefined) || null)
     // Why the picture's pixel figure and the run's sightline figure can part (the map drew the blocks coarser).
     const terrainNote = terrainDetailNote(figure.terrainDetail ?? null)
-    // Table 3 is given per view; the step 4 judgements only at the assessment station.
+    // Table 3 is given per view. Step 4 is its group's: at the run's station with the run's assessment, elsewhere
+    // rated on the view's own captured figure; a view in no group reads the review's own at the station only.
+    const groupId = input.groupOf?.(view.name) ?? null
+    const stepReview = groupId ? reviewAtStation(input.review, groupId) : input.review
+    const groupRecord = groupId ? input.review?.stations?.[groupId] : undefined
+    const objectiveId = input.objectiveId ?? input.assessment?.objective.id ?? null
+    const elsewhere =
+      !atAssessment && groupId && hasStep4(groupRecord) && objectiveId
+        ? assessAtCapture({
+            objectiveId,
+            review: groupRecord,
+            xPercent: figure.sightlinePercent,
+            distanceMeters: figure.distanceKm === null ? null : figure.distanceKm * 1000,
+            seesPartialCut: (figure.partialCuts ?? []).length > 0,
+          })
+        : null
+    const judged = atAssessment || !!elsewhere
     const review: ViewpointReview = {
       ...tableThree(input.review?.viewpointRecords?.[view.name]),
-      ...(atAssessment ? reviewAt(input.review, input.assessment) : {}),
+      ...(atAssessment
+        ? reviewAt(stepReview ?? null, input.assessment)
+        : elsewhere
+          ? reviewAt(stepReview ?? null, elsewhere)
+          : {}),
     }
+    const ocularClassId = atAssessment ? input.assessment?.ocular?.classId : elsewhere?.ocular?.classId
+    const ocular = judged
+      ? {
+          visibleness: stepReview?.ocular?.visibleness ?? null,
+          scale: stepReview?.ocular?.scale ?? null,
+          shape: stepReview?.ocular?.shape ?? null,
+          classId: ocularClassId ?? null,
+        }
+      : null
     // A block id as `blocks` names it: the name the sheet prints, an other planned block's without its note.
     const blockName = (id: string) => {
       const title =
@@ -272,8 +334,10 @@ export function documentFacts(input: {
           }
         },
       ),
-      ...(atAssessment || Object.keys(review).length ? { review } : {}),
+      ...(judged || Object.keys(review).length ? { review } : {}),
       atAssessment,
+      ...(groupId || elsewhere ? { judged } : {}),
+      ...(ocular ? { ocular } : {}),
       ...(atAssessment ? { appendix1: appendix1At(input.assessment, input.breakdown) } : {}),
     }
   })
