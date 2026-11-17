@@ -30,6 +30,7 @@ import { photoNearDrive } from './mapillary'
 import { formatKm } from './measureFormat'
 import { OwnFieldPhoto, type OwnPhotoActions } from './OwnFieldPhoto'
 import type { FieldPhotoState } from './useFieldPhoto'
+import type { SunCheck } from './wideOrientation'
 
 function Credit({ photo }: { photo: { creator: string | null; pageUrl: string } }) {
   return (
@@ -443,6 +444,7 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
             {photo.alignment.message}
           </p>
         )}
+        {own && <CameraSearchPanel photo={photo} />}
         <p className="text-3xs leading-4 text-muted-foreground">
           {own
             ? `Heading ${own.pose.bearing.toFixed(1)}°, pitch ${own.pose.pitch >= 0 ? '+' : ''}${own.pose.pitch.toFixed(2)}°, ${own.pose.hfov.toFixed(1)}° across, eye ${Math.round((photo.ownEyeHeight ?? own.pose.eyeHeightMeters) * 10) / 10} m up${own.pose.altitudeMeters !== null && own.pose.altitudeMeters !== undefined ? ` (${Math.round(own.pose.altitudeMeters)} m above sea level)` : ''}. `
@@ -519,6 +521,93 @@ export function StreetPhotoInset({
           Mapillary · CC BY-SA 4.0
         </ExternalLink>
       </p>
+    </div>
+  )
+}
+
+const sunText = (sun: SunCheck) =>
+  sun.elevation < 0
+    ? 'the sun was below the horizon'
+    : sun.inFrame && sun.pixel
+      ? `the sun (${Math.round(sun.elevation)}° up) should be in the frame`
+      : Math.abs(sun.relativeBearing) > 90
+        ? `the sun (${Math.round(sun.elevation)}° up) was behind the camera, ${Math.round(Math.abs(sun.relativeBearing))}° to the ${sun.relativeBearing < 0 ? 'left' : 'right'}`
+        : `the sun (${Math.round(sun.elevation)}° up) was ${Math.round(Math.abs(sun.relativeBearing))}° ${sun.relativeBearing < 0 ? 'left' : 'right'} of the view's centre, out of frame`
+
+/** The all-headings camera search for an own photo: heading, pitch and roll from its skyline, with what to check. */
+function CameraSearchPanel({ photo }: { photo: FieldPhotoState }) {
+  const search = photo.cameraSearch
+  const working = search.status === 'working'
+  return (
+    <div className="space-y-1" data-testid="camera-search">
+      <div className="flex gap-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          className="flex-1 text-2xs touch:h-10"
+          disabled={!photo.drawing || working}
+          onClick={() => void photo.findCamera()}
+        >
+          {working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+          {working
+            ? search.stage === 'terrain'
+              ? `Loading terrain 90 km round…${search.tiles ? ` ${search.tiles.loaded}/${search.tiles.total} tiles` : ''}`
+              : search.stage === 'photo'
+                ? 'Reading the skyline…'
+                : `Searching every heading… ${Math.round(search.done * 100)}%`
+            : 'Find the camera (all headings)'}
+        </Button>
+        {working && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="text-2xs touch:h-10"
+            onClick={photo.cancelCameraSearch}
+          >
+            Cancel
+          </Button>
+        )}
+      </div>
+      {search.status === 'done' && (
+        <div className="space-y-1 text-3xs leading-4" role="status">
+          <p className={search.result.trustworthy ? 'text-foreground' : 'font-medium text-destructive'}>
+            {search.result.trustworthy
+              ? 'Found: '
+              : search.result.ambiguous
+                ? 'Not settled — another heading fits about as well: '
+                : 'Best fit, not trustworthy: '}
+            heading {search.result.bearing.toFixed(1)}°, pitch {search.result.pitch.toFixed(1)}°, roll{' '}
+            {search.result.roll.toFixed(1)}°. {search.result.fit.agreeing} sky columns across{' '}
+            {Math.round(search.result.fit.span * 100)}% of the frame; {Math.round(search.result.fit.agreement * 100)}%
+            agree.{' '}
+            {search.recordedOffBy !== null &&
+              `The phone's heading was ${Math.round(Math.abs(search.recordedOffBy))}° out. `}
+            Searched in {search.seconds.toFixed(0)} s.
+          </p>
+          {search.sun && <p className="text-muted-foreground">For this camera, {sunText(search.sun.best)}.</p>}
+          {search.result.runnerUp && (
+            <p className="text-muted-foreground">
+              Next best: heading {Math.round(search.result.runnerUp.bearing)}°
+              {search.sun?.runnerUp ? `, where ${sunText(search.sun.runnerUp)}` : ''}.{' '}
+              <button type="button" className="underline" onClick={photo.tryRunnerUp}>
+                Try it
+              </button>
+            </p>
+          )}
+          <p className="text-muted-foreground">
+            Check before trusting it: the yellow skyline should sit on the ridgeline, the orange outline on the block,
+            and the sun where the light comes from. A bright sky, a backlit hillside or shadows can tell two headings
+            apart.
+          </p>
+        </div>
+      )}
+      {search.status === 'failed' && (
+        <p className="text-3xs leading-4 text-foreground" role="status">
+          {search.message}
+        </p>
+      )}
     </div>
   )
 }

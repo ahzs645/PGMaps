@@ -118,6 +118,8 @@ Never pick a control's map position automatically: a "sharpest nearby bend" pick
 
 ## 6. Compare in the visual-quality page
 
+The page can now find the camera itself: **Find the camera (all headings)** runs the same search in the browser (`src/pages/dev-forestry/wideOrientation.ts`), with the sun shown for both candidate headings. It does not do controls, regions or the near-ground pinning; use the bench for those, then **Use a matched camera…**.
+
 `/dev/forestry/visual-quality` can stand its road view at the matched camera:
 1. In step 2's Field photo panel, choose **Line up a photo of my own** and open the photo.
 2. Choose **Use a matched camera…** and pick the case file. Position, altitude, heading, pitch, roll and lens come from it, with the held-out accuracy and any warnings. A case made for another photo, a camera more than 300 m from the photo's GPS fix, and an untrusted fit are each flagged.

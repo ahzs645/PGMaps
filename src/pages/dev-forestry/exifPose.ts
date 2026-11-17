@@ -44,6 +44,13 @@ export type ExifReading = {
    * taken from the air (`OwnPose.altitudeMeters`); on the ground the eye stands at the terrain plus eye height.
    */
   altitudeMeters: number | null
+  /**
+   * Camera pitch from an iPhone's tilt sensor (Apple maker note): within about a degree of the skyline's in tests,
+   * but only while the sensor reads gravity alone. `g` is its magnitude; far from 1 the aircraft was manoeuvring.
+   */
+  tilt?: { pitch: number; g: number } | null
+  /** The GPS fix's time, UTC (ISO 8601): for where the sun was. The camera clock carries no time zone. */
+  gpsTimeUtc?: string | null
 }
 
 /** The pose the reviewer edits; position may be unknown until picked or typed. */
@@ -258,7 +265,17 @@ export function readExif(
   tags: Record<string, unknown> | null | undefined,
   { width, height }: { width: number; height: number },
 ): ExifReading {
-  if (!tags) return { position: null, heading: null, fov: null, takenAt: null, camera: null, altitudeMeters: null }
+  if (!tags)
+    return {
+      position: null,
+      heading: null,
+      fov: null,
+      takenAt: null,
+      camera: null,
+      altitudeMeters: null,
+      tilt: null,
+      gpsTimeUtc: null,
+    }
   const direction = num(tags.GPSImgDirection)
   const focal35 = num(tags.FocalLengthIn35mmFormat) ?? num(tags.FocalLengthIn35mmFilm)
   let fov: ExifReading['fov'] = null
@@ -286,7 +303,47 @@ export function readExif(
     takenAt: cameraClock(tags.DateTimeOriginal ?? tags.CreateDate ?? tags.DateTime),
     camera: cameraName(tags),
     altitudeMeters: altitude === null ? null : below ? -Math.abs(altitude) : altitude,
+    tilt: appleTilt(tags.makerNote ?? tags.MakerNote),
+    gpsTimeUtc: gpsTimeUtc(tags.GPSDateStamp, tags.GPSTimeStamp),
   }
+}
+
+/**
+ * Pitch from the acceleration vector in an Apple maker note (tag 0x0008, "Apple iOS" header, IFD at byte 14). Read
+ * as "up" in the camera's frame: the back camera looks along +Z, so pitch is asin(z / |a|). Roll is not returned:
+ * the vector is in the sensor's frame, which a quarter-turned photo does not share.
+ */
+export function appleTilt(note: unknown): { pitch: number; g: number } | null {
+  if (!(note instanceof Uint8Array) || note.length < 16) return null
+  if (String.fromCharCode(...note.subarray(0, 9)) !== 'Apple iOS') return null
+  const view = new DataView(note.buffer, note.byteOffset, note.byteLength)
+  const little = String.fromCharCode(note[12], note[13]) !== 'MM'
+  try {
+    const count = view.getUint16(14, little)
+    for (let i = 0; i < count; i++) {
+      const entry = 16 + i * 12
+      if (view.getUint16(entry, little) !== 8 || view.getUint16(entry + 2, little) !== 10) continue
+      const at = view.getUint32(entry + 8, little)
+      const [x, y, z] = [0, 1, 2].map((k) => view.getInt32(at + k * 8, little) / view.getInt32(at + k * 8 + 4, little))
+      const g = Math.hypot(x, y, z)
+      if (!Number.isFinite(g) || g === 0) return null
+      return { pitch: (Math.asin(z / g) * 180) / Math.PI, g }
+    }
+  } catch {
+    // A truncated note: no tilt rather than a wrong one.
+  }
+  return null
+}
+
+/** GPSDateStamp (`YYYY:MM:DD`) and GPSTimeStamp (hours, minutes, seconds) as an ISO UTC time. */
+export function gpsTimeUtc(date: unknown, time: unknown): string | null {
+  if (date instanceof Date && Number.isFinite(date.getTime())) date = date.toISOString().slice(0, 10)
+  if (typeof date !== 'string' || !/^\d{4}[:-]\d{2}[:-]\d{2}$/.test(date)) return null
+  const parts = Array.isArray(time) ? time.map(Number) : typeof time === 'string' ? time.split(':').map(Number) : null
+  if (!parts || parts.length !== 3 || !parts.every(Number.isFinite)) return null
+  const [h, m, sec] = parts
+  const instant = new Date(`${date.replace(/:/g, '-')}T00:00:00Z`).getTime() + ((h * 60 + m) * 60 + sec) * 1000
+  return Number.isFinite(instant) ? new Date(instant).toISOString() : null
 }
 
 /**

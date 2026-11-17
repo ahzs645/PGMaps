@@ -1263,6 +1263,33 @@ street-level photo from Mapillary, or with a photo of your own.
   pitch to where they started. **Save this pose to the field record** writes
   the camera back to the record it came from (altitude as road-view ground
   plus eye height) and leaves its "I checked…" box unticked for the reviewer.
+- **Find the camera (all headings).** From an aircraft a phone's recorded
+  heading can be 50–140° out, so *Auto-align*'s ±3° search finds nothing or a
+  false match. This button, beside it while an own photo is compared, searches
+  heading, pitch and roll from the photo's skyline over every heading
+  (`wideOrientation.ts`, in a worker), the browser form of the photo-matching
+  bench's `orient.ts`:
+  - **Terrain.** The overlay's own terrain (zoom 11 to 25 km) is layered over a
+    zoom-9 ring out to 90 km, about 20 tiles. On test photos this found the
+    bench's camera to within 0.3° of heading and pitch.
+  - **Search.** A coarse search in angles first. Turning about the vertical
+    never changes a ray's elevation, so each pitch and roll is worked out once
+    and every heading is a shift along the horizon table. Then `fitSkyline`
+    refines at quarter-degree rolls, given only the horizon round the frame.
+    About 10 s on a desktop, 3× faster than the bench.
+  - **Pitch from the tilt sensor.** An iPhone's tilt sensor (Apple maker note,
+    `appleTilt` in `exifPose.ts`) narrows pitch to ±6° when it reads gravity
+    alone (|a| within 0.05 g).
+  - **What it reports.** The result says when another heading at least 15°
+    away fits about as well (**not settled**). It shows where the sun was
+    (from the GPS fix's UTC time) for the camera and for the runner-up, and
+    *Try it* swaps to the runner-up to compare. The pose fields are marked
+    *fitted to the skyline*.
+  - **HEIC.** Chrome and Firefox cannot show iPhone HEIC photos; opening one
+    says so and asks for a JPEG with its location kept. Safari shows them.
+    The tags (position, heading, lens, tilt, GPS time) are read from either.
+  - **A road nearby.** Like *Line up my photo*, it needs the scene's road
+    within 2 km of where the photo was taken.
 - **From the air, and matched cameras.** An own photo can carry an absolute
   altitude (`OwnPose.altitudeMeters`, metres above sea level): its GPS altitude
   when it was taken from the air, or the altitude of a **matched camera**.

@@ -33,7 +33,9 @@ import {
   type RoadPhoto,
 } from './mapillary'
 import { panoViewPose, projectToPhoto, reprojectEquirect, terrainSkyline, type PhotoPose } from './photoPose'
-import { fitSkyline, photoSkyline, terrainProfile, type SkylineFit } from './skylineFit'
+import { fitSkyline, photoSkyline, terrainProfile, type ProfilePoint, type SkylineFit } from './skylineFit'
+import { sunCheck, type SunCheck, type WideSearchResult } from './wideOrientation'
+import { runWideOrientation } from './wideOrientationClient'
 import { nearestPointOnLine } from './roadSnap'
 import type { ForestryScene } from './scene'
 import { demTileRange, type ElevationSource } from '@/lib/forestry/terrain/terrain'
@@ -91,6 +93,41 @@ export type OwnStand =
   | { status: 'too-far'; offRoadMeters: number }
   | { status: 'no-terrain'; offRoadMeters: number }
   | { status: 'ok'; offRoadMeters: number; alongMeters: number }
+
+/**
+ * Terrain for the all-headings search: an aircraft sees ridges far beyond the overlay's 25 km. The overlay's own
+ * terrain (zoom 11 to 25 km) is used first; past it a coarser ring at zoom 9 (about 180 m cells, some 20 tiles)
+ * is enough for ridges 25–90 km off.
+ */
+const WIDE_RADIUS_METERS = 90000
+const WIDE_MAX_ZOOM = 9
+const WIDE_MAX_TILES = 40
+/** A tilt-sensor pitch is used only while it reads gravity alone (|a| within this of 1 g), then ± this many degrees. */
+const TILT_G_TOLERANCE = 0.05
+const TILT_PITCH_SPAN = 6
+/** The photo's width while its skyline is read, as the photo-matching bench reads it. */
+const WIDE_WORK_WIDTH = 1050
+
+export type CameraSearch =
+  | { status: 'idle' }
+  | {
+      status: 'working'
+      stage: 'terrain' | 'photo' | 'search'
+      done: number
+      tiles?: { loaded: number; total: number }
+    }
+  | {
+      status: 'done'
+      result: WideSearchResult
+      /** Where the sun was for the found camera and for the runner-up: evidence between the two headings. */
+      sun: { best: SunCheck; runnerUp: SunCheck | null } | null
+      /** The recorded heading's error against the found one, degrees; null without a recorded heading. */
+      recordedOffBy: number | null
+      seconds: number
+    }
+  | { status: 'failed'; message: string }
+
+const isHeic = (file: File) => /\.hei[cf]$/i.test(file.name) || /image\/hei[cf]/i.test(file.type)
 
 const decodeImage = async (src: string) => {
   const picture = new Image()
@@ -172,6 +209,9 @@ export function useFieldPhoto({
   } | null>(null)
   const [skylineGround, setSkylineGround] = useState<{ id: string; source: ElevationSource } | null>(null)
   const abort = useRef<AbortController | null>(null)
+  const [cameraSearch, setCameraSearch] = useState<CameraSearch>({ status: 'idle' })
+  const cameraAbort = useRef<AbortController | null>(null)
+  const wideHorizon = useRef<{ id: string; profile: ProfilePoint[] } | null>(null)
   const [alignment, setAlignment] = useState<{
     status: 'idle' | 'working' | 'done' | 'failed'
     fit: SkylineFit | null
@@ -590,6 +630,150 @@ export function useFieldPhoto({
     }
   }, [image, own, match, drawing, skylineSource, panoFrame])
 
+  /**
+   * Finds heading, pitch and roll from the photo's skyline over every heading (`wideOrientation.ts`, in a worker):
+   * for a photo from the air, or any photo whose recorded heading is not trusted. Position, altitude and lens stay.
+   */
+  const findCamera = useCallback(async () => {
+    if (!own || !drawing || own.pose.lng === null || own.pose.lat === null) return
+    cameraAbort.current?.abort()
+    const controller = new AbortController()
+    cameraAbort.current = controller
+    const t0 = performance.now()
+    const base = drawing.pose
+    try {
+      setCameraSearch({ status: 'working', stage: 'terrain', done: 0 })
+      const { lng, lat, altitudeMeters } = base
+      const id = `${lng.toFixed(4)},${lat.toFixed(4)},${Math.round(altitudeMeters)}`
+      let profile = wideHorizon.current?.id === id ? wideHorizon.current.profile : null
+      if (!profile) {
+        const degLat = WIDE_RADIUS_METERS / 110574
+        const degLng = WIDE_RADIUS_METERS / (111320 * Math.cos((lat * Math.PI) / 180))
+        const bounds: [number, number, number, number] = [lng - degLng, lat - degLat, lng + degLng, lat + degLat]
+        let zoom = WIDE_MAX_ZOOM
+        let range = demTileRange(bounds, zoom)
+        while (range.tileCount > WIDE_MAX_TILES && zoom > 4) range = demTileRange(bounds, --zoom)
+        const { grid } = await loadElevationGrid({
+          range,
+          signal: controller.signal,
+          concurrency: 6,
+          onProgress: (loaded, total) =>
+            setCameraSearch({ status: 'working', stage: 'terrain', done: loaded / total, tiles: { loaded, total } }),
+        })
+        const near = skylineSource
+        const layered: ElevationSource = {
+          elevationAt: (x, y) => {
+            const z = near?.elevationAt(x, y)
+            return z !== undefined && Number.isFinite(z) ? z : grid.elevationAt(x, y)
+          },
+        }
+        profile = terrainProfile({ lng, lat, altitudeMeters }, layered, {
+          from: 0,
+          to: 359.9,
+          step: 0.1,
+          maxDistanceMeters: WIDE_RADIUS_METERS * 0.95,
+        })
+        wideHorizon.current = { id, profile }
+      }
+      setCameraSearch({ status: 'working', stage: 'photo', done: 0 })
+      const picture = new Image()
+      picture.src = own.src
+      await picture.decode()
+      const width = Math.min(WIDE_WORK_WIDTH, picture.naturalWidth)
+      const height = Math.round((picture.naturalHeight * width) / picture.naturalWidth)
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d', { willReadFrequently: true })!
+      context.drawImage(picture, 0, 0, width, height)
+      const pixels = context.getImageData(0, 0, width, height)
+      const sx = base.width / width,
+        sy = base.height / height
+      const skyline = photoSkyline(pixels, 200).map((point) => (point ? { x: point.x * sx, y: point.y * sy } : null))
+      const tilt = own.exif?.tilt
+      const tiltOk = !!tilt && Math.abs(tilt.g - 1) <= TILT_G_TOLERANCE
+      const airborne = own.pose.altitudeMeters !== null && own.pose.altitudeMeters !== undefined
+      const pitchRange: [number, number] = tiltOk
+        ? [tilt.pitch - TILT_PITCH_SPAN, tilt.pitch + TILT_PITCH_SPAN]
+        : airborne
+          ? [-50, 10]
+          : [-20, 15]
+      setCameraSearch({ status: 'working', stage: 'search', done: 0 })
+      const result = await runWideOrientation(
+        { pose: { ...base, roll: 0 }, profile, skyline, pitchRange, rollRange: [-15, 15], headingSpan: 180 },
+        controller.signal,
+        (done) => setCameraSearch({ status: 'working', stage: 'search', done }),
+      )
+      if (controller.signal.aborted) return
+      if (!result) {
+        setCameraSearch({
+          status: 'failed',
+          message: 'Too little open sky over distant terrain to search by. Line it up by hand.',
+        })
+        return
+      }
+      const utc = own.exif?.gpsTimeUtc ? new Date(own.exif.gpsTimeUtc) : null
+      const at = (pose: { bearing: number; pitch: number; roll: number }) => sunCheck({ ...base, ...pose }, utc!)
+      const recorded = own.exif?.heading?.degrees ?? null
+      setOwn((current) =>
+        current
+          ? {
+              ...current,
+              pose: { ...current.pose, bearing: result.bearing, pitch: result.pitch, roll: result.roll },
+              sources: { ...current.sources, heading: 'skyline', pitch: 'skyline', roll: 'skyline' },
+            }
+          : current,
+      )
+      setCameraSearch({
+        status: 'done',
+        result,
+        sun: utc ? { best: at(result), runnerUp: result.runnerUp ? at(result.runnerUp) : null } : null,
+        recordedOffBy: recorded === null ? null : ((recorded - result.bearing + 540) % 360) - 180,
+        seconds: (performance.now() - t0) / 1000,
+      })
+    } catch (error) {
+      if (controller.signal.aborted) return
+      setCameraSearch({
+        status: 'failed',
+        message: `The camera search stopped: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    }
+  }, [own, drawing, skylineSource])
+
+  /** Swaps to the search's runner-up heading, to compare it with the photo. */
+  const tryRunnerUp = useCallback(() => {
+    if (cameraSearch.status !== 'done' || !cameraSearch.result.runnerUp) return
+    const { result } = cameraSearch
+    const runnerUp = result.runnerUp!
+    setOwn((current) =>
+      current
+        ? {
+            ...current,
+            pose: { ...current.pose, bearing: runnerUp.bearing, pitch: runnerUp.pitch, roll: runnerUp.roll },
+          }
+        : current,
+    )
+    setCameraSearch({
+      ...cameraSearch,
+      result: {
+        ...result,
+        bearing: runnerUp.bearing,
+        pitch: runnerUp.pitch,
+        roll: runnerUp.roll,
+        meanLoss: runnerUp.meanLoss,
+        runnerUp: { bearing: result.bearing, pitch: result.pitch, roll: result.roll, meanLoss: result.meanLoss },
+      },
+      sun:
+        cameraSearch.sun && cameraSearch.sun.runnerUp
+          ? { best: cameraSearch.sun.runnerUp, runnerUp: cameraSearch.sun.best }
+          : cameraSearch.sun,
+      recordedOffBy:
+        cameraSearch.recordedOffBy === null
+          ? null
+          : ((cameraSearch.recordedOffBy + result.bearing - runnerUp.bearing + 540) % 360) - 180,
+    })
+  }, [cameraSearch])
+
   /** Opens the reviewer's own photo, read here and kept here, with its EXIF as the starting pose. */
   const openOwnFile = useCallback(
     async (file: File, roadView: RoadViewPose | null) => {
@@ -603,7 +787,10 @@ export function useFieldPhoto({
         let tags: Record<string, unknown> | null = null
         try {
           const exifr = await import('exifr')
-          tags = ((await exifr.parse(file, { translateValues: false })) as Record<string, unknown> | undefined) ?? null
+          tags =
+            ((await exifr.parse(file, { translateValues: false, makerNote: true })) as
+              | Record<string, unknown>
+              | undefined) ?? null
         } catch {
           /* No readable EXIF: every value starts from the road view. */
         }
@@ -614,6 +801,8 @@ export function useFieldPhoto({
         setImage(null)
         setMatch(null)
         setAlignment({ status: 'idle', fit: null, message: null })
+        cameraAbort.current?.abort()
+        setCameraSearch({ status: 'idle' })
         setOwn({
           id: `own-${Date.now().toString(36)}`,
           name: file.name.slice(0, 200),
@@ -633,7 +822,9 @@ export function useFieldPhoto({
         URL.revokeObjectURL(src)
         setOwnStatus({
           loading: false,
-          error: `Could not read the photo: ${error instanceof Error ? error.message : String(error)}`,
+          error: isHeic(file)
+            ? 'This browser cannot show HEIC photos (Safari can). Export it as JPEG, keeping its location, and open that.'
+            : `Could not read the photo: ${error instanceof Error ? error.message : String(error)}`,
         })
       }
     },
@@ -796,6 +987,13 @@ export function useFieldPhoto({
   return {
     alignment,
     autoAlign,
+    cameraSearch,
+    findCamera,
+    tryRunnerUp,
+    cancelCameraSearch: () => {
+      cameraAbort.current?.abort()
+      setCameraSearch({ status: 'idle' })
+    },
     look,
     viewFov,
     viewHfov,
