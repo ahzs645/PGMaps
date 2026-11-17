@@ -58,6 +58,12 @@ function roadDesignStaticFiles(env: Record<string, string>): Plugin {
         return { path: rel, bytes: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') }
       })
       this.emitFile({ type: 'asset', fileName: '.nojekyll', source: '' })
+      // Cloudflare (and Netlify) read this; other hosts ignore it. File names under assets/ carry their hash.
+      this.emitFile({
+        type: 'asset',
+        fileName: '_headers',
+        source: '/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n',
+      })
       const settings = Object.fromEntries(
         Object.entries(env).filter(
           ([key]) => key === 'ROAD_DESIGN_BASE' || key.startsWith('VITE_ROAD_DESIGN_') || key === 'VITE_DATA_HOSTS',

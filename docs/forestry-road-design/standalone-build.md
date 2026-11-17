@@ -134,6 +134,18 @@ from the repository's variables (Settings → Secrets and variables → Actions 
 to GitHub Pages when `ROAD_DESIGN_DEPLOY_PAGES` is `true`. Browser (Playwright) suites stay in
 PGMaps.
 
+### Cloudflare
+
+Every export carries a `wrangler.jsonc` that deploys the build as a Cloudflare Worker with static
+assets (no server code), named by `--name`, with `not_found_handling: "single-page-application"` so a
+deep link such as `/help/sketch-road` opens the page. The build writes a `_headers` file that lets
+Cloudflare cache the hashed files under `assets/` for a year. In the exported repository,
+`npm run deploy` builds and deploys with wrangler (run by `npx` at `CLOUDFLARE.wrangler` in the
+manifest, so it never enters the lockfile), and `build.yml` deploys from `main` when the variable
+`ROAD_DESIGN_DEPLOY_CLOUDFLARE` is `true` and the secrets `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` are set. Keep `ROAD_DESIGN_BASE` at `/` for a Worker. The largest file, the
+WhiteboxTools wasm at about 17.6 MB, is under Cloudflare's 25 MiB limit per asset.
+
 ### From GitHub Actions
 
 **Road design standalone** (`.github/workflows/road-design-standalone.yml`, by hand only) builds the

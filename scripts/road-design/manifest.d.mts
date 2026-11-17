@@ -12,3 +12,4 @@ export declare const AGENT_SECTIONS: readonly string[]
 export declare const SHARED_TESTS_LEFT_OUT: Readonly<Record<string, string>>
 export declare const TEST_DATA_FOLDERS: readonly string[]
 export declare const ALIAS_ENTRIES: readonly string[]
+export declare const CLOUDFLARE: { readonly compatibilityDate: string; readonly wrangler: string }

@@ -126,3 +126,9 @@ export const DEV_PACKAGES = [
 
 /** The `AGENTS.md` sections that hold for the tool on its own (by `##` heading). */
 export const AGENT_SECTIONS = ['Forestry road design', 'MapLibre 6', 'Shared UI']
+
+/**
+ * Cloudflare deployment of an export (Workers static assets, `wrangler.jsonc`). The compatibility date
+ * moves only on purpose; wrangler runs by `npx` at this version, so it never enters the lockfile.
+ */
+export const CLOUDFLARE = { compatibilityDate: '2026-11-01', wrangler: '4.163.0' }
