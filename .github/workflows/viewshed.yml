@@ -28,7 +28,7 @@ jobs:
       - name: Check application types
         run: npx tsc -b
       - name: Check viewshed and shared terrain geometry
-        run: npx vitest run src/pages/dev-viewshed/analysis.test.ts src/lib/forestry/terrain/terrain.test.ts src/pages/dev-forestry/visibility.test.ts
+        run: npx vitest run src/pages/dev-viewshed/analysis.test.ts packages/geo-toolkit/src/terrain/terrain.test.ts src/pages/dev-forestry/visibility.test.ts
       - name: Build browser and worker bundles
         run: npx vite build
       - run: npx playwright install --with-deps chromium

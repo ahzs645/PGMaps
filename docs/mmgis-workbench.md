@@ -106,7 +106,7 @@ Focused checks:
 
 ```sh
 npm run toolkit:build
-npx vitest run src/pages/dev-mmgis src/features/terrain-viewshed src/lib/geoFileImport.test.ts src/pages/dev-data/model.test.ts src/lib/forestry/terrain/terrain.test.ts src/pages/dev-forestry/visibility.test.ts
+npx vitest run src/pages/dev-mmgis src/features/terrain-viewshed src/lib/geoFileImport.test.ts src/pages/dev-data/model.test.ts packages/geo-toolkit/src/terrain/terrain.test.ts src/pages/dev-forestry/visibility.test.ts
 npx eslint src/pages/DevMmgis.tsx src/pages/dev-mmgis
 npx tsc -b
 # With an existing Vite server:

@@ -21,8 +21,10 @@ npm has not installed) and on an import that resolves to no file. `checks.yml` r
 pull request.
 
 When the designer needs something another page has, move it to shared code and point both at it.
-The DEM tile maths, elevation mosaic, tile loader and local rasters the designer shared with the
-visual-quality tool now live in `src/lib/forestry/terrain/`; the LiDAR source grids and the LidarBC
+The DEM tile maths, elevation mosaic and tile loader the designer shared with the visual-quality
+tool are generic, so they went to the toolkit (`@pgmaps/geo-toolkit/terrain`; PG Maps' paths in
+`src/lib/forestry/terrain/` re-export them, with PG Maps' own tile store); the local rasters, which
+read PG Maps' CRS list, live in `src/lib/forestry/terrain/localRaster.ts`; the LiDAR source grids and the LidarBC
 index in `src/lib/lidar/`; the VRI request limits in `src/lib/forestry/bcVegetationWfs.ts`; the
 `shpjs` declarations in `src/types/shpjs.d.ts`.
 
