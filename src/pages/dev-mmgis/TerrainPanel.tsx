@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { iconemViewUrl } from './iconem'
 import { MapPin, Mountain, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
@@ -230,6 +231,22 @@ export function TerrainPanel({
           />
           Show 3D terrain · 1× elevation
         </label>
+        <label className="mm-check">
+          <input
+            type="checkbox"
+            checked={mission.hillshade === true}
+            onChange={(e) => change((m) => ({ ...m, hillshade: e.target.checked }))}
+          />
+          Shade terrain relief
+        </label>
+        <a
+          className="mm-help underline"
+          target="_blank"
+          rel="noopener noreferrer"
+          href={iconemViewUrl(mission.camera, 'terrain')}
+        >
+          Open this location in Iconem Terrain Viewer ↗
+        </a>
         <p className="mm-help">
           Relief uses AWS Terrain Tiles. Profiles, pixel inspection and visibility analysis use your imported DEM when
           present; otherwise they use overview terrain.

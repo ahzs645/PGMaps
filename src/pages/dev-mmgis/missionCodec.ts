@@ -1,6 +1,15 @@
 import type { FeatureCollection, Geometry } from 'geojson'
 import { RAMPS, type LayerStyle } from '@/lib/layerStyle'
-import { clampText, makeLayer, MAX_KEY_TEXT, MAX_TEXT, type Camera, type Mission, type MissionLayer } from './model'
+import {
+  clampText,
+  makeLayer,
+  MAX_TILE_OVERLAYS,
+  MAX_KEY_TEXT,
+  MAX_TEXT,
+  type Camera,
+  type Mission,
+  type MissionLayer,
+} from './model'
 export { clampText, MAX_KEY_TEXT, MAX_TEXT } from './model'
 import { identifyFeatures } from './featureIdentity'
 
@@ -182,9 +191,10 @@ export function parseMission(value: unknown): Mission {
     layers,
     camera: camera(m.camera),
     view: m.view as Mission['view'],
+    ...(m.hillshade === true && { hillshade: true }),
     terrain: m.terrain === true,
     time: { enabled: time.enabled === true, start, end },
-    tiles: list(m.tiles, 20).map((v) => {
+    tiles: list(m.tiles, MAX_TILE_OVERLAYS).map((v) => {
       const t = object(v),
         cog = t.cog ? object(t.cog) : null
       return {
@@ -225,7 +235,7 @@ export function parseMission(value: unknown): Mission {
           }
         })
       if (b.tiles !== undefined)
-        preset.tiles = list(b.tiles, 20).map((v) => {
+        preset.tiles = list(b.tiles, MAX_TILE_OVERLAYS).map((v) => {
           const t = object(v)
           return { id: text(t.id), visible: t.visible === true, opacity: finite(t.opacity, 0, 1) }
         })
@@ -241,6 +251,7 @@ export function parseMission(value: unknown): Mission {
         if (!['map', 'split', 'globe'].includes(String(b.view))) throw Error('Invalid saved site view.')
         preset.view = b.view as Mission['view']
       }
+      if (b.hillshade !== undefined) preset.hillshade = b.hillshade === true
       if (b.terrain !== undefined) preset.terrain = b.terrain === true
       return { ...preset, id: text(b.id), name: label(b.name), camera: camera(b.camera) }
     }),
