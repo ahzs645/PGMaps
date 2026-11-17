@@ -2,13 +2,22 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { createLazPerf } from 'laz-perf'
+import { initTools, runTool } from 'whitebox-wasm/tools'
+import { cropRegionBox, cropRegionTest } from '@/lib/lidar/cropRegion'
+import { planLargeLaz, writeLas } from '@/lib/lidar/largeLaz'
+import { decodeBatch, newScratch } from '@/lib/lidar/largeLazDecode'
 import { encodeLas, mergePointClouds, readPointCloud, setWhiteboxSources } from './pointCloud'
 import { gridSurface } from './pointCloud.worker'
 import {
   applyCropMask,
   cropFootprint,
   cropMask,
+  cropReachM,
+  cropReadBox,
+  cropTiles,
   describeCrop,
+  footprintPolygons,
   projectCropChoice,
   validateCrop,
   type PointCloudCrop,
@@ -313,4 +322,143 @@ describe('cropping on import', () => {
     expect(read.count).toBe(0)
     expect(read.crop).toMatchObject({ kept: 0, total: cloud.x.length })
   })
+})
+
+describe('crop region and tiles', () => {
+  const square: Array<[number, number]> = [
+    [0, 0],
+    [10, 0],
+    [10, 10],
+    [0, 10],
+  ]
+  it('grows a region by its reach, and keeps the ring test alone at no reach', () => {
+    const exact = cropRegionTest({ polygons: [square] }),
+      reach = cropRegionTest({ polygons: [square] }, 5)
+    expect([exact(5, 5), exact(12, 5), reach(12, 5), reach(14.9, 5), reach(15.1, 5)]).toEqual([
+      true,
+      false,
+      true,
+      true,
+      false,
+    ])
+    // A corner is reached by distance, not by the grown box.
+    expect(reach(13.6, 13.6)).toBe(false)
+    const corridor = cropRegionTest(
+      {
+        corridor: {
+          points: [
+            [0, 0],
+            [100, 0],
+          ],
+          halfWidthM: 10,
+        },
+      },
+      5,
+    )
+    expect([corridor(50, 14.9), corridor(50, 15.1)]).toEqual([true, false])
+    expect(cropRegionBox({ polygons: [square] }, 5)).toEqual([-5, -5, 15, 15])
+  })
+
+  it('picks the tiles the crop reaches from their headers alone', () => {
+    const crop = { polygons: [square], upslopeMarginM: 20 }
+    expect(cropReachM(crop)).toBe(30)
+    const tiles = cropTiles(
+      [
+        { name: 'a', min: [-100, -100], max: [5, 5], points: 1 },
+        { name: 'b', min: [35, 0], max: [100, 100], points: 1 },
+        { name: 'c', min: [41, 0], max: [100, 100], points: 1 },
+      ],
+      crop,
+    )
+    expect(tiles.map((t) => t.touches)).toEqual([true, true, false])
+    expect(cropReadBox(tiles[0], crop)).toEqual([-30, -30, 5, 5])
+  })
+
+  it('fills each kept region and cuts its holes out', () => {
+    const x: number[] = [],
+      y: number[] = []
+    for (let i = 0; i < 30; i++)
+      for (let j = 0; j < 30; j++)
+        if (!(i >= 10 && i < 20 && j >= 10 && j < 20)) {
+          x.push(i + 0.5)
+          y.push(j + 0.5)
+        }
+    // A second, separate block.
+    for (let i = 50; i < 60; i++)
+      for (let j = 0; j < 10; j++) {
+        x.push(i + 0.5)
+        y.push(j + 0.5)
+      }
+    const polygons = footprintPolygons(cropFootprint(x, y).rings)
+    expect(polygons.map((p) => p.length).sort()).toEqual([1, 2])
+  })
+})
+
+describe('reading only the crop’s reach, chunk by chunk', () => {
+  let laz: Uint8Array
+  beforeAll(async () => {
+    const tools = readFileSync(join(wasmDir, 'whitebox-cli.wasm'))
+    await initTools(tools)
+    const result = await runTool('lidar_shift', {
+      args: ['--input=/work/in.las', '--output=/work/out.laz'],
+      input: { 'in.las': bytes },
+    })
+    laz = result.files['out.laz']
+  })
+
+  const strip: Array<[number, number]> = [
+    [E + 50, N + 20],
+    [E + 70, N + 20],
+    [E + 70, N + 60],
+    [E + 50, N + 60],
+  ]
+  const crops: PointCloudCrop[] = [
+    { polygons: [strip] },
+    { polygons: [strip], upslopeMarginM: 25 },
+    {
+      corridor: {
+        points: [
+          [E + 5, N + 5],
+          [E + 110, N + 80],
+        ],
+        halfWidthM: 6,
+      },
+      upslopeMarginM: 15,
+    },
+  ]
+  for (const [name, source] of [
+    ['LAS', () => bytes],
+    ['LAZ', () => laz],
+  ] as const)
+    it(`keeps exactly the points a whole-file crop keeps (${name})`, async () => {
+      const data = source()
+      const file = new File([data.slice()], `tile.${name.toLowerCase()}`)
+      const plan = await planLargeLaz(file, { epsg: null, crsRecords: [] })
+      const module = plan.header.compressed ? await createLazPerf() : null
+      for (const crop of crops) {
+        const reachM = cropReachM(crop)
+        const { records, count } = await decodeBatch(
+          module,
+          {
+            compressed: plan.header.compressed,
+            format: plan.header.pointFormat,
+            length: plan.header.pointLength,
+            scale: plan.header.scale,
+            offset: plan.header.offset,
+            chunks: plan.chunks,
+            selection: { kind: 'area', box: cropRegionBox(crop, reachM), limit: 1e7, region: crop, reachM },
+          },
+          async (c) => new Uint8Array(await file.slice(c.start, c.start + c.bytes).arrayBuffer()),
+          newScratch(),
+        )
+        expect(count).toBeLessThan(cloud.x.length)
+        const whole = await readPointCloud(data.slice(), { crop })
+        const chunked = await readPointCloud(writeLas(plan, records, count), { crop })
+        expect(chunked.crop).toMatchObject({ inside: whole.crop!.inside, margin: whole.crop!.margin })
+        expect(chunked.x).toEqual(whole.x)
+        expect(chunked.y).toEqual(whole.y)
+        expect(chunked.z).toEqual(whole.z)
+        expect(chunked.classification).toEqual(whole.classification)
+      }
+    })
 })

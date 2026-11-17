@@ -572,7 +572,13 @@ export default function DevForestryRoads({
   const [pointCloud, setPointCloud] = useState<PointCloudChoice>({ classify: 'auto', surface: 'mean' })
   const [breaklines, setBreaklines] = useState<{ name: string; data: unknown } | null>(null)
   // What the last point-cloud import's crop kept: its footprint on the plan and its sentence.
-  const [cropFootprint, setCropFootprint] = useState<{ rings: Coordinate[][]; message: string } | null>(null)
+  const [cropFootprint, setCropFootprint] = useState<{
+    kept: Coordinate[][][]
+    inside: Coordinate[][][]
+    message: string
+  } | null>(null)
+  // The tiles of the last cropped import as their headers state them, and whether the crop reached each.
+  const [cropTiles, setCropTiles] = useState<Array<{ name: string; touches: boolean; ring: Coordinate[] }> | null>(null)
   const [detail, setDetail] = useState<DetailView>('section')
   // What the profile pane draws, remembered in this browser; display only, never in the project.
   const [profileView, setStoredProfileView] = useState<ProfileView>(() => {
@@ -878,14 +884,30 @@ export default function DevForestryRoads({
           geometry: { type: 'LineString' as const, coordinates: [...ring, ring[0]] },
           properties: { kind: 'point-cloud-crop', color: '#0d9488', label: 'Point-cloud crop area' },
         })),
+        // Each tile's stated extent: ground past the margin there is still available for upstream
+        // catchments by widening the margin. Then what was kept (margin included), and inside the crop.
+        ...(investigation ? [] : (cropTiles ?? [])).map((tile) => ({
+          type: 'Feature' as const,
+          geometry: { type: 'LineString' as const, coordinates: tile.ring },
+          properties: {
+            kind: 'point-cloud-tile',
+            color: tile.touches ? '#0369a1' : '#94a3b8',
+            label: `${tile.name}: ${tile.touches ? 'reached by the crop' : 'not read'}`,
+          },
+        })),
         ...(investigation || !cropFootprint
           ? []
           : [
-              {
+              ...cropFootprint.kept.map((polygon) => ({
                 type: 'Feature' as const,
-                geometry: { type: 'Polygon' as const, coordinates: cropFootprint.rings },
-                properties: { kind: 'point-cloud-kept', color: '#0d9488', fill: true, label: cropFootprint.message },
-              },
+                geometry: { type: 'Polygon' as const, coordinates: polygon },
+                properties: { kind: 'point-cloud-kept', color: '#38bdf8', fill: true, label: cropFootprint.message },
+              })),
+              ...cropFootprint.inside.map((polygon) => ({
+                type: 'Feature' as const,
+                geometry: { type: 'Polygon' as const, coordinates: polygon },
+                properties: { kind: 'point-cloud-inside', color: '#0d9488', fill: true, label: 'Kept inside the crop' },
+              })),
             ]),
       ],
     }),
@@ -910,6 +932,7 @@ export default function DevForestryRoads({
       project.cables,
       pointCloud.crop?.areas,
       cropFootprint,
+      cropTiles,
     ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
@@ -2804,6 +2827,11 @@ export default function DevForestryRoads({
           throw Error(
             'Choose one GeoTIFF, or one or more LAS/LAZ tiles. To join GeoTIFFs, use Prepare and combine terrain → Add GeoTIFFs to ground mosaic.',
           )
+        // A new import replaces the last one's crop drawing, cropped or not.
+        if (clouds.length) {
+          setCropFootprint(null)
+          setCropTiles(null)
+        }
         // Whatever the files do not state is asked for here, for this import only.
         const loaded = await importTerrainWithAnswers(
           (answers) =>
@@ -2818,7 +2846,8 @@ export default function DevForestryRoads({
                     breaklines: breaklines?.data,
                     signal,
                     onProgress: (message) => w.setBusy(`${label}: ${message}`),
-                    onCrop: ({ footprint, message }) => setCropFootprint({ rings: footprint, message }),
+                    onTiles: setCropTiles,
+                    onCrop: ({ kept, inside, message }) => setCropFootprint({ kept, inside, message }),
                   })
                 : loadRaster(file, answers.verticalReference ?? '').then((raster) => ({ ...raster, summary: '' })),
           askTerrain,

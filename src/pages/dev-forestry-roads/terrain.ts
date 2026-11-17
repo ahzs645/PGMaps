@@ -18,7 +18,15 @@ import type {
   TerrainSource,
 } from './types'
 import { parseTerrainPreparation, type TerrainPreparationRecord } from './terrainPreparation'
-import { cropChosen, describeCrop, projectCropChoice, type PointCloudCropChoice } from './pointCloudCrop'
+import {
+  boxRing,
+  cropChosen,
+  cropTiles,
+  describeCrop,
+  footprintPolygons,
+  projectCropChoice,
+  type PointCloudCropChoice,
+} from './pointCloudCrop'
 import { analysisTin, tinGround, tinTerrainSource, type TinData, type TinGround } from './tinGround'
 
 export const DEFAULT_TEMPLATE: RoadTemplate = {
@@ -890,8 +898,19 @@ export interface PointCloudImport {
    * (`pointCloudCrop.ts`). Every file is still decoded whole.
    */
   crop?: PointCloudCropChoice
-  /** What the crop kept, footprint in WGS84, once every file is read and before the surface is built. */
-  onCrop?: (report: { footprint: Coordinate[][]; areaM2: number; message: string }) => void
+  /**
+   * What the crop kept, once every file is read and before the surface is built: MultiPolygon
+   * coordinates (WGS84) of the cells kept in all (`kept`, margin included) and inside the crop.
+   */
+  onCrop?: (report: {
+    kept: Coordinate[][][]
+    inside: Coordinate[][][]
+    areaM2: number
+    insideAreaM2: number
+    message: string
+  }) => void
+  /** Each tile's stated extent (WGS84) and whether the crop reaches it, before any point is read. */
+  onTiles?: (tiles: Array<{ name: string; touches: boolean; ring: Coordinate[]; areaM2: number }>) => void
   retainTin?: boolean
   /** Run the ground filter: 'auto' only when the cloud has no ground-classified points. */
   classify: boolean | 'auto'
@@ -920,12 +939,24 @@ export async function loadLas(
   options: PointCloudImport = { classify: 'auto', surface: 'mean' },
 ): Promise<{ metadata: TerrainMetadata; source: TerrainSource; summary: string }> {
   const files = [file, ...(options.additionalFiles ?? [])]
-  if (files.length > 12 || files.reduce((s, f) => s + f.size, 0) > 1_000_000_000)
+  const road = (options.preservePath ?? []).map((p) => [p[0], p[1]] as [number, number])
+  // With a crop, nothing is read whole up front: the headers come from each file's first bytes,
+  // and only what the crop reaches is read later (`pointCloudCropRead.ts`).
+  const cropping = cropChosen(options.crop, road.length)
+  if (files.length > 12 || (!cropping && files.reduce((s, f) => s + f.size, 0) > 1_000_000_000))
     throw Error('Crop the point clouds first; combine at most 12 files / 1 GB total.')
-  const bytes = await file.arrayBuffer()
-  const additionalBytes = await Promise.all(files.slice(1).map((f) => f.arrayBuffer()))
-  const { readPointCloudHeader } = await import('./pointCloud')
-  const headers = [bytes, ...additionalBytes].map((b) => readPointCloudHeader(new Uint8Array(b)))
+  let bytes: ArrayBuffer | null = null,
+    additionalBytes: ArrayBuffer[] = []
+  let headers: import('@/lib/lidar/lasHeader').PointCloudHeader[]
+  if (cropping) {
+    const { readHeaderSlice } = await import('./pointCloudCropRead')
+    headers = await Promise.all(files.map(readHeaderSlice))
+  } else {
+    bytes = await file.arrayBuffer()
+    additionalBytes = await Promise.all(files.slice(1).map((f) => f.arrayBuffer()))
+    const { readPointCloudHeader } = await import('./pointCloud')
+    headers = [bytes, ...additionalBytes].map((b) => readPointCloudHeader(new Uint8Array(b)))
+  }
   const header = headers[0]
   const named = (indices: number[]) => indices.map((i) => files[i].name)
   const all = headers.map((_, i) => i)
@@ -996,8 +1027,7 @@ export async function loadLas(
           },
         }
       : undefined
-  const road = (options.preservePath ?? []).map((p) => [p[0], p[1]] as [number, number])
-  if (cropChosen(options.crop, road.length) && knownEpsg === null)
+  if (cropping && knownEpsg === null)
     throw Error(
       'Cropping needs the CRS before the cloud is read. Turn the crop off, or import the LAZ once to state its CRS.',
     )
@@ -1005,6 +1035,45 @@ export async function loadLas(
     knownEpsg === null
       ? undefined
       : projectCropChoice(options.crop, road, (p) => roadProjection(knownEpsg).forward([...p]) as [number, number])
+  // Which tiles the crop reaches, from their headers, before any point is read; only those are read.
+  let cropRead: Awaited<ReturnType<typeof import('./pointCloudCropRead').readCroppedTiles>> | null = null
+  let tilesLine = ''
+  if (crop && knownEpsg !== null) {
+    const tiles = cropTiles(
+      headers.map((h, i) => ({ name: files[i].name, min: h.min, max: h.max, points: h.points })),
+      crop,
+    )
+    const back = roadProjection(knownEpsg)
+    options.onTiles?.(
+      tiles.map((t) => ({
+        name: t.name,
+        touches: t.touches,
+        ring: boxRing(t.box).map((p) => back.inverse(p) as Coordinate),
+        areaM2: (t.box[2] - t.box[0]) * (t.box[3] - t.box[1]),
+      })),
+    )
+    const touched = tiles.filter((t) => t.touches)
+    if (!touched.length)
+      throw Error(
+        `The crop reaches none of ${tiles.length === 1 ? files[0].name : `the ${tiles.length} tiles`}. Check the area against the tiles drawn on the plan.`,
+      )
+    const missed = tiles.filter((t) => !t.touches)
+    tilesLine =
+      `The crop reaches ${touched.length} of ${tiles.length} tile${tiles.length === 1 ? '' : 's'}` +
+      (missed.length ? ` (not read: ${missed.map((t) => t.name).join(', ')})` : '') +
+      `; they cover ${(touched.reduce((a, t) => a + (t.box[2] - t.box[0]) * (t.box[3] - t.box[1]), 0) / 10_000).toFixed(1)} ha.`
+    options.onProgress?.(`${tilesLine} Reading only the crop's reach…`)
+    const { readCroppedTiles } = await import('./pointCloudCropRead')
+    cropRead = await readCroppedTiles(files, tiles, crop, { signal: options.signal, onProgress: options.onProgress })
+    if (!cropRead.buffers.length)
+      throw Error(
+        `No point of the ${touched.length === 1 ? 'tile' : `${touched.length} tiles`} it reaches lies within the crop.`,
+      )
+    ;[bytes, ...additionalBytes] = cropRead.buffers
+  }
+  if (!bytes) throw Error('No point-cloud bytes to import.')
+  // The files the surface is made from: with a crop, only the tiles it read.
+  const readFiles = cropRead ? cropRead.sourceFiles.map((i) => files[i]) : files
   const tinSurface = options.surface === 'tin' && options.breaklines ? await import('./tinSurface') : null
   const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
     b.toString(16).padStart(2, '0'),
@@ -1044,7 +1113,9 @@ export async function loadLas(
     classify: options.classify,
     preserve,
     ...(crop ? { crop } : {}),
-    ...(assumed !== null ? { assumedEpsg: assumed } : {}),
+    // A tile read in chunks is rewritten without CRS records it kept only in extended VLRs; the
+    // CRS its header stated (or the person entered) goes with it.
+    ...(assumed !== null ? { assumedEpsg: assumed } : cropRead && knownEpsg !== null ? { assumedEpsg: knownEpsg } : {}),
     surface: {
       method: options.surface,
       cellM: 1,
@@ -1077,12 +1148,21 @@ export async function loadLas(
     onCrop: (report) => {
       // The footprint is in the cloud's CRS, which the worker has read by now.
       const back = knownEpsg === null ? null : roadProjection(knownEpsg)
-      cropLine = describeCrop({ ...report, areaM2: report.footprint.areaM2 })
+      cropLine = describeCrop(
+        { ...report, areaM2: report.footprint.areaM2 },
+        cropRead !== null && cropRead.tiles.every((t) => t.method !== 'whole'),
+      )
       options.onProgress?.(`${cropLine} Building the surface…`)
+      const wgs = (rings: Array<Array<[number, number]>>) =>
+        footprintPolygons(rings).map((polygon) =>
+          polygon.map((ring) => ring.map((p) => back!.inverse(p) as Coordinate)),
+        )
       if (back)
         options.onCrop?.({
-          footprint: report.footprint.rings.map((ring) => ring.map((p) => back.inverse(p) as Coordinate)),
+          kept: wgs(report.footprint.rings),
+          inside: wgs(report.insideFootprint.rings),
           areaM2: report.footprint.areaM2,
+          insideAreaM2: report.insideFootprint.areaM2,
           message: cropLine,
         })
     },
@@ -1109,7 +1189,7 @@ export async function loadLas(
   const datumEntered = !!verticalReference.trim()
   const raster = validateRoadRaster({
     id: `terrain-${terrainHash.slice(0, 16)}`,
-    name: `${files.length > 1 ? `${files.length} point-cloud sources` : file.name.slice(0, 160)} · ground ${options.surface === 'tin' ? 'TIN' : 'mean'} ${grid.cellM.toFixed(2)} m`,
+    name: `${readFiles.length > 1 ? `${readFiles.length} point-cloud sources` : readFiles[0].name.slice(0, 160)} · ground ${options.surface === 'tin' ? 'TIN' : 'mean'} ${grid.cellM.toFixed(2)} m`,
     kind: 'terrain',
     epsg,
     origin: grid.origin,
@@ -1132,7 +1212,8 @@ export async function loadLas(
     raster,
     preparation: {
       operation: 'point-cloud',
-      sources: files.map((f, i) => ({
+      // With a crop, the tiles it read: each hash is of the points read within the crop's reach.
+      sources: readFiles.map((f, i) => ({
         name: f.name.slice(0, 200),
         sha256: sourceHashes[i],
         epsg,
@@ -1153,7 +1234,13 @@ export async function loadLas(
               cropDecodedPoints: result.cloud.crop.total,
               cropInsidePoints: result.cloud.crop.inside,
               cropMarginPoints: result.cloud.crop.margin,
-              cropSummary: cropLine.slice(0, 500),
+              cropSummary: `${cropLine} ${tilesLine}`.trim().slice(0, 1000),
+              cropRead: cropRead
+                ? cropRead.tiles
+                    .map((t) => `${t.name.slice(0, 60)}: ${t.method}`)
+                    .join('; ')
+                    .slice(0, 1000)
+                : 'whole files',
             }
           : {}),
         cellM: grid.cellM,
@@ -1193,6 +1280,7 @@ export async function loadLas(
     ` CRS EPSG:${epsg} ${crsEntered ? 'as entered (the file states none)' : 'from the file'}; vertical datum ${raster.verticalReference} ${datumEntered ? 'as entered' : 'from the file'}.`,
     vegetationLine ? ` Vegetation evidence for road finding ${vegetationLine}.` : '',
     cropLine ? ` ${cropLine}` : '',
+    tilesLine ? ` ${tilesLine}` : '',
   ]
   return { metadata, source: rasterSource(raster), summary: parts.join('') }
 }

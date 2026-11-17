@@ -21,6 +21,7 @@ import {
 } from './vegetationEvidence'
 import { readPointCloudHeader } from '@/lib/lidar/lasHeader'
 import { cropFootprint, type CropFootprint, type PointCloudCrop } from './pointCloudCrop'
+import { cropRegionTest } from '@/lib/lidar/cropRegion'
 import {
   classifyGround,
   groundSummary,
@@ -57,7 +58,8 @@ export interface PointCloudWorkerRequest {
   vegetation?: boolean
   /**
    * Keep only the points in this area (`pointCloudCrop.ts`), dropped before thinning. Every file is
-   * still decoded whole; vegetation evidence still sees every return. A `crop` message reports what
+   * decoded whole unless the page already read it cropped (`largeLaz*.ts`); vegetation evidence sees
+   * every return the worker is given. A `crop` message reports what
    * was kept before the ground filter and the surface run.
    */
   crop?: PointCloudCrop
@@ -102,8 +104,10 @@ export type PointCloudWorkerResponse =
       kept: number
       /** Points that go on to the surface: `kept` thinned to the point budget. */
       points: number
-      /** In the cloud's CRS. */
+      /** Cells holding a kept point, margin included; in the cloud's CRS. */
       footprint: CropFootprint
+      /** Cells holding a point inside the crop itself. */
+      insideFootprint: CropFootprint
     }
   | {
       type: 'done'
@@ -183,7 +187,21 @@ async function run({
         throw Error(
           `None of the ${cloud.crop.total.toLocaleString('en-CA')} points read lies inside the crop. Check the area against the tile, or widen it.`,
         )
-      post({ type: 'crop', ...cloud.crop, points: cloud.count, footprint: cropFootprint(cloud.x, cloud.y) })
+      const inside = cropRegionTest(crop)
+      const ix: number[] = [],
+        iy: number[] = []
+      for (let i = 0; i < cloud.count; i++)
+        if (inside(cloud.x[i], cloud.y[i])) {
+          ix.push(cloud.x[i])
+          iy.push(cloud.y[i])
+        }
+      post({
+        type: 'crop',
+        ...cloud.crop,
+        points: cloud.count,
+        footprint: cropFootprint(cloud.x, cloud.y),
+        insideFootprint: cropFootprint(ix, iy),
+      })
     }
     let request = requested
     if (askBreaklines) {

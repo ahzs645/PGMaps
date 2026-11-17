@@ -15,10 +15,10 @@
  * No DOM or network access: the worker runs it, and the unit tests run it on plain arrays.
  */
 
+import { cropRegionBox, cropRegionTest, inRing, type CropRegion } from '@/lib/lidar/cropRegion'
+
 /** Source projected x/y, as `PointPreservation`'s regions are. */
-export interface PointCloudCrop {
-  corridor?: { points: Array<[number, number]>; halfWidthM: number }
-  polygons?: Array<Array<[number, number]>>
+export interface PointCloudCrop extends CropRegion {
   /** Keep ground up to this far outside the crop where it stands above the crop's nearest edge. */
   upslopeMarginM?: number
 }
@@ -68,65 +68,6 @@ export function validateCrop(crop: PointCloudCrop | undefined): PointCloudCrop |
   return crop
 }
 
-function inRing(x: number, y: number, ring: Array<[number, number]>) {
-  let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [a, b] = ring[i],
-      [c, d] = ring[j]
-    if (b > y !== d > y && x < ((c - a) * (y - b)) / (d - b) + a) inside = !inside
-  }
-  return inside
-}
-
-function segmentDistanceSquared(x: number, y: number, a: [number, number], b: [number, number]) {
-  const dx = b[0] - a[0],
-    dy = b[1] - a[1],
-    size = dx * dx + dy * dy
-  const t = size ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / size)) : 0
-  return (x - a[0] - t * dx) ** 2 + (y - a[1] - t * dy) ** 2
-}
-
-/** Ring bounding boxes and the corridor's padded box, so most points skip the exact tests. */
-function regionTest(crop: PointCloudCrop) {
-  const rings = (crop.polygons ?? []).map((ring) => {
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity
-    for (const [x, y] of ring) {
-      minX = Math.min(minX, x)
-      minY = Math.min(minY, y)
-      maxX = Math.max(maxX, x)
-      maxY = Math.max(maxY, y)
-    }
-    return { ring, minX, minY, maxX, maxY }
-  })
-  const corridor = crop.corridor
-  const segments = corridor
-    ? corridor.points.slice(1).map((b, k) => {
-        const a = corridor.points[k],
-          h = corridor.halfWidthM
-        return {
-          a,
-          b,
-          minX: Math.min(a[0], b[0]) - h,
-          minY: Math.min(a[1], b[1]) - h,
-          maxX: Math.max(a[0], b[0]) + h,
-          maxY: Math.max(a[1], b[1]) + h,
-        }
-      })
-    : []
-  const h2 = corridor ? corridor.halfWidthM ** 2 : 0
-  return (x: number, y: number) => {
-    for (const r of rings)
-      if (x >= r.minX && x <= r.maxX && y >= r.minY && y <= r.maxY && inRing(x, y, r.ring)) return true
-    for (const s of segments)
-      if (x >= s.minX && x <= s.maxX && y >= s.minY && y <= s.maxY && segmentDistanceSquared(x, y, s.a, s.b) <= h2)
-        return true
-    return false
-  }
-}
-
 export interface CropResult {
   /** 1 for a point kept. */
   mask: Uint8Array
@@ -158,7 +99,7 @@ export function cropMask(
   const vertices = (valid.corridor?.points.length ?? 0) + (valid.polygons ?? []).reduce((s, r) => s + r.length, 0)
   if (vertices * n > CROP_LIMITS.maxRegionWork)
     throw Error('The crop is too detailed for this many points; simplify the area or the road.')
-  const test = regionTest(valid)
+  const test = cropRegionTest(valid)
   let inside = 0
   for (let i = 0; i < n; i++)
     if (test(x[i], y[i])) {
@@ -167,6 +108,24 @@ export function cropMask(
     }
   const margin = valid.upslopeMarginM ? upslopeMargin(cloud, mask, valid.upslopeMarginM) : 0
   return { mask, inside, margin, kept: inside + margin, total: n }
+}
+
+/** The margin's cell: `marginCellM`, grown only for a cloud wider than `maxMarginCells` of them. */
+function marginCellFor(width: number, height: number) {
+  let cell = CROP_LIMITS.marginCellM
+  while ((width / cell + 2) * (height / cell + 2) > CROP_LIMITS.maxMarginCells) cell *= 1.5
+  return cell
+}
+
+/**
+ * How far past the crop region a point can be and still be kept: the upslope margin plus two cells
+ * (a margin cell's centre is within the margin of a crop cell's, and each point within half a
+ * diagonal of its cell's centre). A reader that drops points beyond this keeps every point the
+ * crop would, and the same ground in every cell the margin reads, while the margin's cell stays
+ * `marginCellM` (clouds up to about 10 km across).
+ */
+export function cropReachM(crop: PointCloudCrop): number {
+  return crop.upslopeMarginM ? crop.upslopeMarginM + 2 * CROP_LIMITS.marginCellM : 0
 }
 
 /**
@@ -194,8 +153,11 @@ function upslopeMargin(
     seeds += mask[i]
   }
   if (!seeds || seeds === n) return 0
-  let cell = CROP_LIMITS.marginCellM
-  while (((maxX - minX) / cell + 1) * ((maxY - minY) / cell + 1) > CROP_LIMITS.maxMarginCells) cell *= 1.5
+  const cell = marginCellFor(maxX - minX, maxY - minY)
+  // Cells on whole multiples of the cell size, so a cloud read only near the crop (the chunked
+  // read, `cropReachM`) has the same cells, ground and margin as the whole tile.
+  minX = Math.floor(minX / cell) * cell
+  minY = Math.floor(minY / cell) * cell
   const cols = Math.floor((maxX - minX) / cell) + 1,
     rows = Math.floor((maxY - minY) / cell) + 1,
     size = cols * rows
@@ -378,7 +340,10 @@ export function cropFootprint(
     if (y[i] > maxY) maxY = y[i]
   }
   let cell = cellM
-  while (((maxX - minX) / cell + 1) * ((maxY - minY) / cell + 1) > maxCells) cell *= 1.5
+  while (((maxX - minX) / cell + 2) * ((maxY - minY) / cell + 2) > maxCells) cell *= 1.5
+  // Whole multiples of the cell, so two footprints of one cloud (inside, kept) share their cells.
+  minX = Math.floor(minX / cell) * cell
+  minY = Math.floor(minY / cell) * cell
   const cols = Math.floor((maxX - minX) / cell) + 1,
     rows = Math.floor((maxY - minY) / cell) + 1
   const filled = new Uint8Array(cols * rows)
@@ -485,21 +450,27 @@ export function projectCropChoice(
 }
 
 /** What the crop kept, as one sentence for the busy line and the import summary. */
-export function describeCrop(report: {
-  total: number
-  inside: number
-  margin: number
-  kept: number
-  points: number
-  areaM2: number
-}): string {
+export function describeCrop(
+  report: {
+    total: number
+    inside: number
+    margin: number
+    kept: number
+    points: number
+    areaM2: number
+  },
+  /** The tiles were read in chunks, keeping only the crop's reach. */
+  chunked = false,
+): string {
   const count = (n: number) => n.toLocaleString('en-CA')
   return (
-    `Crop kept ${count(report.kept)} of ${count(report.total)} decoded points` +
+    `Crop kept ${count(report.kept)} of ${count(report.total)} ${chunked ? "points read within the crop's reach" : 'decoded points'}` +
     (report.margin ? ` (${count(report.inside)} inside, ${count(report.margin)} in the upslope margin)` : '') +
     ` over ${(report.areaM2 / 10_000).toFixed(1)} ha` +
     (report.points < report.kept ? `, thinned to ${count(report.points)} for the surface` : '') +
-    '. The whole tile was still read.'
+    (chunked
+      ? ". Each tile was read chunk by chunk and only points within the crop's reach were kept."
+      : '. The whole tile was still read.')
   )
 }
 
@@ -529,4 +500,76 @@ export function cropAreasFromFeatures(features: ReadonlyArray<{ geometry: unknow
     else skipped++
   }
   return { areas, holes, skipped }
+}
+
+const ringArea = (ring: ReadonlyArray<readonly [number, number]>) =>
+  ring.slice(1).reduce((s, p, k) => s + (ring[k][0] * p[1] - p[0] * ring[k][1]) / 2, 0)
+
+/**
+ * A footprint's rings as MultiPolygon coordinates: each anticlockwise ring an outer boundary, each
+ * clockwise ring a hole in the smallest outer ring holding it, so a map fills what was kept.
+ */
+export function footprintPolygons(rings: CropFootprint['rings']): Array<Array<Array<[number, number]>>> {
+  const outers = rings.filter((r) => ringArea(r) > 0).sort((a, b) => ringArea(a) - ringArea(b))
+  const polygons = outers.map((r) => [r])
+  for (const hole of rings.filter((r) => ringArea(r) < 0)) {
+    // A hole's corner lies on its outer ring's grid, never on that ring: test the midpoint of its first edge.
+    const x = (hole[0][0] + hole[1][0]) / 2,
+      y = (hole[0][1] + hole[1][1]) / 2
+    const k = outers.findIndex((outer) => inRing(x, y, outer))
+    if (k >= 0) polygons[k].push(hole)
+  }
+  return polygons
+}
+
+/** A source tile as its header states it, and whether the crop's reach touches it. */
+export interface CropTile {
+  name: string
+  /** The header's horizontal extent in the cloud's CRS: [minX, minY, maxX, maxY]. */
+  box: [number, number, number, number]
+  points: number
+  touches: boolean
+}
+
+/**
+ * Which tiles the crop reaches, from their headers alone: no point is read to decide it. A tile
+ * whose stated extent misses the crop's box grown by its reach (`cropReachM`) is never read.
+ */
+export function cropTiles(
+  headers: ReadonlyArray<{ name: string; min: readonly number[]; max: readonly number[]; points: number }>,
+  crop: PointCloudCrop,
+): CropTile[] {
+  const [x0, y0, x1, y1] = cropRegionBox(crop, cropReachM(crop))
+  return headers.map((h) => {
+    const box: CropTile['box'] = [h.min[0], h.min[1], h.max[0], h.max[1]]
+    return {
+      name: h.name,
+      box,
+      points: h.points,
+      touches: box[0] <= x1 && box[2] >= x0 && box[1] <= y1 && box[3] >= y0,
+    }
+  })
+}
+
+/** The part of a tile the reader needs: its extent within the crop's reach. */
+export function cropReadBox(tile: CropTile, crop: PointCloudCrop): [number, number, number, number] {
+  const [x0, y0, x1, y1] = cropRegionBox(crop, cropReachM(crop))
+  return [Math.max(x0, tile.box[0]), Math.max(y0, tile.box[1]), Math.min(x1, tile.box[2]), Math.min(y1, tile.box[3])]
+}
+
+/** A box as a closed ring with `steps` points an edge, so a projected outline follows its curvature. */
+export function boxRing(
+  [x0, y0, x1, y1]: readonly [number, number, number, number],
+  steps = 8,
+): Array<[number, number]> {
+  const ring: Array<[number, number]> = []
+  const edge = (ax: number, ay: number, bx: number, by: number) => {
+    for (let k = 0; k < steps; k++) ring.push([ax + ((bx - ax) * k) / steps, ay + ((by - ay) * k) / steps])
+  }
+  edge(x0, y0, x1, y0)
+  edge(x1, y0, x1, y1)
+  edge(x1, y1, x0, y1)
+  edge(x0, y1, x0, y0)
+  ring.push(ring[0])
+  return ring
 }
