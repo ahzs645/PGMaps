@@ -514,6 +514,7 @@ const criteriaRating2001: ReportPart = {
         value: (vp) =>
           String(
             significanceScore(vp.review?.importance) ??
+              vp.review?.viewpointType ??
               (atAssessmentStation(vp) ? ctx.review?.viewpointType : null) ??
               '',
           ),

@@ -4,6 +4,7 @@ import { assessmentAlterationClipper } from './assessmentMaskGeometry'
 import { assessmentMaskSampler, parseMasks } from './assessmentMasks'
 import {
   comparisonScene,
+  earlierToolViews,
   emptyTools,
   greenUpJobs,
   greenUpSensitiveOpenings,
@@ -13,11 +14,15 @@ import {
   matrixJobs,
   parseGrowthCurve,
   parseTools,
+  plannedToolViews,
   serializeTools,
   stabilityJobs,
   summarizeRun,
   timelineScene,
+  withPlannedViews,
+  type ToolView,
 } from './assessmentTools'
+import { viewAtPoint } from './viewsOfInterest'
 import { localRasterResolution, parseRasters, rasterSampler } from '@/lib/forestry/terrain/localRaster'
 import { createEmptyScene, createSampleScene, parseScene, serializeScene, type ForestryScene } from './scene'
 import { buildSceneInput, sceneFingerprint } from './sceneInput'
@@ -501,5 +506,58 @@ describe('which design a scene shows', () => {
       ),
     }
     expect(matchingDesign(edited, [{ id: 'a', name: 'Original layout', scene: base }])).toBeNull()
+  })
+})
+
+describe("the views of interest as the tools' viewpoints", () => {
+  const block = {
+    id: 'block-1',
+    name: 'Block A',
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [
+        [
+          [-122.6, 53.9],
+          [-122.59, 53.9],
+          [-122.59, 53.91],
+          [-122.6, 53.91],
+          [-122.6, 53.9],
+        ],
+      ],
+    },
+  }
+  const view = { ...viewAtPoint({ lng: -122.595, lat: 53.896 }, block, []), id: 'voi-a', landformId: 'land-1' }
+
+  it('stands each on its pullout under its own id, with its landform and Table 3 notes; a view without its block goes', () => {
+    const planned = plannedToolViews([view, { ...view, id: 'voi-b', blockId: 'gone' }], [block], {
+      viewpointRecords: { [view.name]: { significance: 'High (5)', reason: ' Boat traffic ' } },
+    })
+    expect(planned).toHaveLength(1)
+    expect(planned[0]).toMatchObject({
+      id: 'voi-a',
+      name: view.name,
+      landformId: 'land-1',
+      notes: 'High (5) — Boat traffic',
+      viewpoint: { id: 'stand-voi-a', mode: 'corridor' },
+    })
+    expect(planned[0].viewpoint.coordinates).toHaveLength(2)
+  })
+
+  it('reads the views of interest first and keeps earlier viewpoints that are not one of them', () => {
+    const planned = plannedToolViews([view], [block], null)
+    const earlier: ToolView = {
+      id: 'tool-view-1',
+      name: 'Turnout',
+      viewpoint: { id: 'vp', name: 'Turnout', mode: 'spot', coordinates: [[-122.62, 53.9]] },
+      landformId: null,
+      notes: '',
+    }
+    const stale = { ...earlier, id: 'voi-a', name: 'Copy' }
+    const d = { ...emptyTools(), views: [earlier, stale] }
+    expect(withPlannedViews(d, planned).views.map((v) => v.id)).toEqual(['voi-a', 'tool-view-1'])
+    expect(earlierToolViews(d, planned).map((v) => v.id)).toEqual(['tool-view-1'])
+    // An exported workspace carries both, and reads back.
+    const read = parseTools(JSON.parse(serializeTools(withPlannedViews(d, planned))))
+    expect(read.views.map((v) => v.id)).toEqual(['voi-a', 'tool-view-1'])
   })
 })

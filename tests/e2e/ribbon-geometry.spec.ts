@@ -99,7 +99,7 @@ test('the ribbon stays put while a pane is open, a tool is pegging, or a caption
   await expect(peg).toHaveAttribute('aria-pressed', 'false')
 })
 
-test('a narrow ribbon folds quick access and the interface switch into More', async ({ page }) => {
+test('a narrow ribbon folds quick access, the interface switch, colour scheme and help into More', async ({ page }) => {
   await page.setViewportSize({ width: 600, height: 900 })
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
@@ -108,8 +108,30 @@ test('a narrow ribbon folds quick access and the interface switch into More', as
   const ribbon = page.getByRole('region', { name: 'Command ribbon' })
   await expect(ribbon.getByRole('group', { name: 'Quick access' })).toBeHidden()
   await expect(ribbon.getByRole('button', { name: 'Switch workspace interface' })).toBeHidden()
+  await expect(ribbon.getByRole('button', { name: /^Colour scheme/ })).toBeHidden()
+  await expect(ribbon.getByRole('link', { name: /Workflow help/ })).toBeHidden()
   await ribbon.getByRole('button', { name: 'More workspace commands' }).click()
-  await expect(page.getByRole('menuitem')).toHaveText(['Save project file', /^Undo/, /^Redo/, 'Switch interface'])
+  await expect(page.getByRole('menuitem')).toHaveText([
+    'Save project file',
+    /^Undo/,
+    /^Redo/,
+    'Switch interface',
+    'Workflow help',
+  ])
+  await expect(page.getByRole('menuitemradio')).toHaveText(['Light', 'Dark', 'System'])
+  await page.getByRole('menuitemradio', { name: 'Dark' }).click()
+  await expect(page.locator('html')).toHaveClass(/\bdark\b/)
+})
+
+test('on a phone the ribbon tabs keep room beside the tab row tools', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 })
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
+  const tabs = page.getByRole('region', { name: 'Command ribbon' }).getByRole('tablist', { name: 'Ribbon tabs' })
+  await expect(tabs).toBeVisible()
+  expect((await tabs.boundingBox())!.width).toBeGreaterThan(100)
 })
 
 test('ribbon scroll arrows appear only in directions with more tools', async ({ page }) => {

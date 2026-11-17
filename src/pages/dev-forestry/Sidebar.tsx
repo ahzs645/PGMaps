@@ -578,8 +578,11 @@ export type SidebarProps = {
   fieldPhoto?: ReactNode
   /** Step 2: the pre-layout field brief for the layout crew, and the crew's checklist answered back. */
   fieldBrief?: ReactNode
-  /** Step 2: each saved view's Table 3 record and the key viewpoints the reviewer chose (`ReviewRecordFields`). */
-  viewpointRecords?: ReactNode
+  /**
+   * Step 2's *Viewpoint type* for the road: false while a view of interest is stood at, whose row keeps its own type.
+   * Default true.
+   */
+  showViewpointType?: boolean
   /** Step 3: which landform the run measures, and its green area. */
   landformScope: ReactNode
   /** Step 3: assessment masks and local terrain or canopy surfaces, a folded section of its own. */
@@ -670,7 +673,7 @@ export function Sidebar({
   visit,
   fieldPhoto,
   fieldBrief,
-  viewpointRecords,
+  showViewpointType = true,
   landformScope,
   localSources,
   wildlifeTreePatches,
@@ -1427,19 +1430,20 @@ export function Sidebar({
             {fieldPhoto}
           </ToolSection>
         )}
-        <ToolSection
-          title="Viewpoint type"
-          help="Handbook 3.2.1: how important the viewpoint is, from how long the proposal stays in view at travel speed. Types 4 and 5 are land uses a terrain model cannot see."
-        >
-          <ViewpointTypeField
-            result={result}
-            review={via.review}
-            speedKmh={drive.speedKmh}
-            onChange={via.onReviewChange}
-            hideLabel
-          />
-        </ToolSection>
-        {viewpointRecords}
+        {showViewpointType && (
+          <ToolSection
+            title="Viewpoint type"
+            help="Handbook 3.2.1: how important the viewpoint is, from how long the proposal stays in view at travel speed. Types 4 and 5 are land uses a terrain model cannot see. This is the road's: each view of interest keeps its own type in its row, under Viewpoint record."
+          >
+            <ViewpointTypeField
+              result={result}
+              review={via.review}
+              speedKmh={drive.speedKmh}
+              onChange={via.onReviewChange}
+              hideLabel
+            />
+          </ToolSection>
+        )}
         {fieldBrief}
       </div>
 

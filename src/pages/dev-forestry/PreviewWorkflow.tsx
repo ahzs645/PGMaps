@@ -45,6 +45,8 @@ type Props = {
   onFinish: () => void
   message: string | null
   views: SavedDriveView[]
+  /** Saved views listed with the views of interest instead, each reopened from its row there. */
+  listedWithViews?: number
   onRestore: (view: SavedDriveView) => void
   onRemoveView: (id: string) => void
   onExport: () => void
@@ -137,13 +139,20 @@ export function PreviewWorkflow(props: Props) {
         help={
           <>
             Your record of each viewpoint (handbook 3.2). Save a view from the road view&rsquo;s bar; it is named with
-            its planning-note caption. Reopen one to compare both harvest phases from the same spot. The downloaded
+            its planning-note caption and listed with the views of interest, where its row reopens it and keeps its
+            record. A view is listed here only when it could not be (no cutblock, or the list full). The downloaded
             preview holds the geometry and views; terrain and inventory need a connection when it is reopened.
           </>
         }
       >
-        {!props.views.length && (
+        {!props.views.length && !props.listedWithViews && (
           <p className="text-2xs text-muted-foreground">None yet. Save one from the road view&rsquo;s bar.</p>
+        )}
+        {!!props.listedWithViews && (
+          <p className="text-2xs text-muted-foreground">
+            {props.listedWithViews === 1 ? 'One saved view is' : `${props.listedWithViews} saved views are`} listed with
+            the views of interest above: <em>Reopen saved</em> in its row opens it.
+          </p>
         )}
         {props.onReopenPrevious && (
           <ActionButton onClick={props.onReopenPrevious}>Reopen previous saved preview</ActionButton>

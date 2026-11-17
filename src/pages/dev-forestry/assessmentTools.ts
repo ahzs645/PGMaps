@@ -5,14 +5,73 @@ import { polygonAreaMeters } from './visibility'
 import { parseRasters } from '@/lib/forestry/terrain/localRaster'
 import type { LocalRaster } from './types'
 import type { AnalysisResult, Viewpoint } from './types'
-import { assessVia, type ViaAssessment } from './via'
+import { assessVia, type ViaAssessment, type ViaReview } from './via'
+import { pulloutThrough } from './viewpointInventory'
+import { blockCentre, type ViewOfInterest } from './viewsOfInterest'
+import type { PolygonGeometry } from './visibility'
 import { heightCurveProblem, MAX_LIBRARY_CURVES, type LibraryCurve } from './castorCurves'
 import { greenUpReading } from './greenUp'
 import { runHeadline, type HeadlineScale } from './runRevision'
 
 export const MAX_TOOL_JOBS = 12
 export type ToolOption = { id: string; name: string; scene: ForestryScene }
+/**
+ * A viewpoint the tools run from and file evidence under. The views of interest are the viewpoints
+ * (`plannedToolViews`); a document's own `views` are the ones recorded in step 2 before them, kept for their runs and
+ * photographs until the reviewer lists or removes them.
+ */
 export type ToolView = { id: string; name: string; viewpoint: Viewpoint; landformId: string | null; notes: string }
+
+/** At most this many viewpoints in a document: the twelve views of interest and twelve recorded before them. */
+export const MAX_TOOL_VIEWS = 24
+
+/**
+ * The views of interest as the tools' viewpoints, by the view's own id, so a photograph or a run filed under one
+ * follows it: each stands on the 30 m pullout through its place, square to its block, as *Stand here* does, with the
+ * landform it was adopted against. The notes are its Table 3 significance and why it was chosen. A view whose block
+ * is gone is left out.
+ */
+export function plannedToolViews(
+  views: readonly ViewOfInterest[],
+  blocks: ReadonlyArray<{ id: string; geometry: PolygonGeometry }>,
+  review: ViaReview | null | undefined,
+): ToolView[] {
+  return views.flatMap((view) => {
+    const block = blocks.find((entry) => entry.id === view.blockId)
+    const centre = block ? blockCentre(block.geometry) : null
+    if (!centre) return []
+    const record = review?.viewpointRecords?.[view.name]
+    return [
+      {
+        id: view.id,
+        name: view.name,
+        viewpoint: {
+          id: `stand-${view.id}`,
+          name: view.name,
+          mode: 'corridor',
+          coordinates: pulloutThrough(view, centre),
+        },
+        landformId: view.landformId ?? null,
+        notes: [record?.significance, record?.reason?.trim()].filter(Boolean).join(' — '),
+      },
+    ]
+  })
+}
+
+/**
+ * The document as the tools read it: the views of interest first, then the viewpoints recorded before them that are
+ * not one of them (an exported workspace carries both, and reads back the same).
+ */
+export function withPlannedViews(d: ToolsDocument, planned: readonly ToolView[]): ToolsDocument {
+  const ids = new Set(planned.map((view) => view.id))
+  return { ...d, views: [...planned, ...d.views.filter((view) => !ids.has(view.id))] }
+}
+
+/** The viewpoints recorded in step 2 before the views of interest, which are not one of them. */
+export function earlierToolViews(d: ToolsDocument, planned: readonly ToolView[]): ToolView[] {
+  const ids = new Set(planned.map((view) => view.id))
+  return d.views.filter((view) => !ids.has(view.id))
+}
 export type FieldRecord = {
   id: string
   name: string
@@ -107,7 +166,7 @@ export function parseTools(raw: unknown): ToolsDocument {
     !Array.isArray(d.fields) ||
     !Array.isArray(d.runs) ||
     d.options.length > 12 ||
-    d.views.length > 12 ||
+    d.views.length > MAX_TOOL_VIEWS ||
     d.fields.length > 24 ||
     d.runs.length > MAX_TOOL_JOBS
   )

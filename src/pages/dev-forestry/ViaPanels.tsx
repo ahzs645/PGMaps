@@ -277,6 +277,21 @@ export function ViaHeadline({
 // ---------------------------------------------------------------------------
 // Step 2 — 3.2.1 viewpoint type
 
+/** The run's 3.2.1 estimate and how it was read, or why there is none (`viewpointImportance`). */
+export function viewpointTypeEstimate(
+  result: AnalysisResult | null,
+  speedKmh: number,
+): { rating: ViewpointTypeId | null; hint: string } {
+  const computed = result && result.stations.length > 1 ? viewpointImportance(result, { speedKmh }) : null
+  if (!computed) return { rating: null, hint: 'Run the simulation to estimate how long the proposal is in view.' }
+  if (!computed.rating) return { rating: null, hint: 'Nothing proposed is in view from the road in this run.' }
+  return {
+    rating: computed.rating,
+    hint: `From the run: type ${computed.rating}, about ${Math.round(computed.exposedSeconds)} s in view at ${speedKmh} km/h. Types 4 and 5 are land uses a terrain model cannot see; choose them if they apply.`,
+  }
+}
+
+/** 3.2.1 for a road assessed with no view of interest stood at; a view of interest keeps its own type in its row. */
 export function ViewpointTypeField({
   result,
   review,
@@ -291,18 +306,9 @@ export function ViewpointTypeField({
   /** Leave the label to a section heading that already names the field. */
   hideLabel?: boolean
 }) {
-  const computed = result && result.stations.length > 1 ? viewpointImportance(result, { speedKmh }) : null
+  const estimate = viewpointTypeEstimate(result, speedKmh)
   return (
-    <ChoiceField
-      label={hideLabel ? undefined : 'Viewpoint type (handbook 3.2.1)'}
-      hint={
-        computed
-          ? computed.rating
-            ? `From the run: type ${computed.rating}, about ${Math.round(computed.exposedSeconds)} s in view at ${speedKmh} km/h. Types 4 and 5 are land uses a terrain model cannot see; choose them if they apply.`
-            : 'Nothing proposed is in view from the road in this run.'
-          : 'Run the simulation to estimate how long the proposal is in view.'
-      }
-    >
+    <ChoiceField label={hideLabel ? undefined : 'Viewpoint type (handbook 3.2.1)'} hint={estimate.hint}>
       <StyledSelect
         className={SELECT_CLASS}
         aria-label="Viewpoint type"
@@ -312,7 +318,7 @@ export function ViewpointTypeField({
         }
       >
         <option value="">
-          {computed?.rating ? `Use the run's estimate (type ${computed.rating})` : 'Not recorded'}
+          {estimate.rating ? `Use the run's estimate (type ${estimate.rating})` : 'Not recorded'}
         </option>
         {VIEWPOINT_TYPES.map((type) => (
           <option key={type.id} value={type.id}>

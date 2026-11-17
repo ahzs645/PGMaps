@@ -1,13 +1,15 @@
-import { FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
-import { ToolDisclosure, ToolSection } from '@/components/ui/tool-section'
+import { CheckboxField, FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
+import { ToolDisclosure } from '@/components/ui/tool-section'
 
 import {
   VIEWPOINT_SIGNIFICANCE,
+  VIEWPOINT_TYPES,
   type KeyViewpointRecord,
   type LandformRecord,
   type ViaReview,
   type ViewpointRecord,
   type ViewpointSignificance,
+  type ViewpointTypeId,
 } from './via'
 
 /** Drops empty text, so a cleared field leaves no record behind. */
@@ -29,137 +31,80 @@ function withEntry<T extends object>(
 }
 
 /**
- * Step 2's Table 3 (22, 23): each saved view's significance on the MOF 2005 five-point scale, why it was chosen,
- * the viewing experience and how long the view lasts. Facts the reviewer gives per viewpoint, held on the review
- * record by the view's name; they never change the run.
+ * A view of interest's key-viewpoint choices, in its row: whether it is the key viewpoint the consultant reports
+ * discuss its block from, and the blocks together from, overriding the run's choice (`chooseKeyViewpoints`). Held on
+ * the review by block name and view name; never an input to the run.
  */
-export function ViewpointRecordsSection({
-  views,
-  plannedNames,
-  review,
-  onReviewChange,
-}: {
-  /** The saved views' names, as the report names them. */
-  views: readonly string[]
-  /** Names of planned views of interest, rated in their own rows rather than here. */
-  plannedNames?: ReadonlySet<string>
-  review: ViaReview
-  onReviewChange: (patch: Partial<ViaReview>) => void
-}) {
-  const records = review.viewpointRecords ?? {}
-  const recorded = views.filter((name) => records[name]?.significance).length
-  // A planned view of interest is rated in its own row (`ViewsOfInterestPanel`); only views saved by hand are here.
-  const listed = plannedNames ? views.filter((name) => !plannedNames.has(name)) : views
-  const plannedCount = views.length - listed.length
-  return (
-    <ToolSection
-      title="Viewpoint significance"
-      summary={views.length ? `${recorded} of ${views.length} rated` : 'No saved views'}
-      toggleProps={{ 'data-forestry-disclosure': 'viewpoint-records' }}
-      help="Table 3 of the consultant VIA reports, per saved view: the viewpoint's significance on the MOF 2005 five-point scale, why it was chosen, what viewing from it is like and how long the view lasts. The reports print them for every viewpoint, and choosing a key viewpoint by impact reads the significance. A review record: editing it never changes the run."
-    >
-      {!views.length && (
-        <p className="text-2xs text-muted-foreground">Save a view from the road view&rsquo;s bar to rate it.</p>
-      )}
-      {plannedCount > 0 && (
-        <p className="text-2xs text-muted-foreground">
-          {plannedCount === 1 ? 'One view of interest is' : `${plannedCount} views of interest are`} rated in its row
-          under Views of interest, step 2.
-        </p>
-      )}
-      {listed.map((name) => {
-        const record = records[name] ?? {}
-        return (
-          <ToolDisclosure
-            key={name}
-            label={name}
-            summary={record.significance ?? 'Not rated'}
-            toggleProps={{ 'data-forestry-disclosure': `viewpoint-record-${name}` }}
-          >
-            <ViewpointRecordFields name={name} review={review} onReviewChange={onReviewChange} />
-          </ToolDisclosure>
-        )
-      })}
-    </ToolSection>
-  )
-}
-
-/**
- * Step 2's key viewpoints: the saved view each block is assessed from in the consultant reports, and the one the
- * blocks are assessed from together, when the reviewer chooses rather than the run (`chooseKeyViewpoints`).
- */
-export function KeyViewpointsSection({
-  views,
+export function KeyViewpointFields({
+  name,
   blocks,
+  group,
   review,
   onReviewChange,
 }: {
-  views: readonly string[]
-  /** The proposed blocks' names. */
+  /** The view's name, as the reports name it. */
+  name: string
+  /** The blocks it can be key for: its own block, and any block the review already gives it. */
   blocks: readonly string[]
+  /** Offer *the blocks together* (more than one block in the scene). */
+  group: boolean
   review: ViaReview
   onReviewChange: (patch: Partial<ViaReview>) => void
 }) {
   const record = review.keyViewpoints ?? {}
-  const chosen = blocks.filter((block) => record.blocks?.[block]).length + (record.group ? 1 : 0)
   const setBlock = (block: string, entry: KeyViewpointRecord | null) =>
     onReviewChange({ keyViewpoints: tidy({ ...record, blocks: withEntry(record.blocks, block, entry) }) })
   const setGroup = (entry: KeyViewpointRecord | null) =>
     onReviewChange({ keyViewpoints: tidy({ ...record, group: entry }) })
-  const picker = (
+  const choice = (
     label: string,
     entry: KeyViewpointRecord | undefined | null,
     onPick: (entry: KeyViewpointRecord | null) => void,
-  ) => (
-    <div className="space-y-1.5" key={label}>
-      <SelectField
-        label={label}
-        aria-label={label}
-        className="w-full rounded-md border bg-background p-1"
-        value={entry?.view ?? ''}
-        onChange={(event) =>
-          onPick(event.target.value ? tidy({ view: event.target.value, reason: entry?.reason }) : null)
-        }
-      >
-        <option value="">Chosen by the run</option>
-        {views.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </SelectField>
-      {entry?.view && (
-        <FormField label={`Why · ${label.toLowerCase()}`} hideLabel>
-          <input
-            className={FORM_INPUT_CLASS}
-            maxLength={2000}
-            aria-label={`Why · ${label}`}
-            placeholder="Why this viewpoint (optional)"
-            value={entry.reason ?? ''}
-            onChange={(event) => onPick(tidy({ view: entry.view, reason: event.target.value }))}
-          />
-        </FormField>
-      )}
-    </div>
-  )
+  ) => {
+    const mine = entry?.view === name
+    // Another view already chosen: ticking this one takes the choice over, and the label says from which.
+    const other = entry?.view && !mine ? entry.view : null
+    return (
+      <div className="space-y-1.5" key={label}>
+        <CheckboxField
+          label={
+            <>
+              {label}
+              {other && <span className="text-muted-foreground"> · now {other}</span>}
+            </>
+          }
+          aria-label={`${label}: ${name}`}
+          checked={mine}
+          onCheckedChange={(checked) => onPick(checked ? { view: name } : null)}
+        />
+        {mine && (
+          <FormField label={`Why · ${label.toLowerCase()}`} hideLabel>
+            <input
+              className={FORM_INPUT_CLASS}
+              maxLength={2000}
+              aria-label={`Why · ${label}: ${name}`}
+              placeholder="Why this viewpoint (optional)"
+              value={entry?.reason ?? ''}
+              onChange={(event) => onPick(tidy({ view: name, reason: event.target.value }))}
+            />
+          </FormField>
+        )}
+      </div>
+    )
+  }
   return (
-    <ToolSection
-      title="Key viewpoints"
-      summary={chosen ? `${chosen} chosen by you` : 'Chosen by the run'}
-      toggleProps={{ 'data-forestry-disclosure': 'key-viewpoints' }}
-      help="The consultant reports discuss each block once, from its key viewpoint. The run chooses it (the largest share of the block in view, or the most significant impact); choose one here to override it, and the report says you chose it, with your reason. A viewpoint that does not see the block is not taken: the report lists it to complete. A review record: it never changes the run."
-    >
-      {!views.length || !blocks.length ? (
-        <p className="text-2xs text-muted-foreground">Save a view and draw a cutblock to choose its key viewpoint.</p>
-      ) : (
-        <>
-          {blocks.map((block) =>
-            picker(`Key viewpoint for ${block}`, record.blocks?.[block], (entry) => setBlock(block, entry)),
-          )}
-          {blocks.length > 1 && picker('Key viewpoint for the blocks together', record.group, setGroup)}
-        </>
+    <div className="space-y-1.5" data-key-viewpoint={name}>
+      {blocks.map((block) =>
+        choice(`Key viewpoint for ${block}`, record.blocks?.[block], (entry) =>
+          // Unticking clears only this view's choice, never another view's.
+          setBlock(block, entry ?? (record.blocks?.[block]?.view === name ? null : (record.blocks?.[block] ?? null))),
+        ),
       )}
-    </ToolSection>
+      {group &&
+        choice('Key viewpoint for the blocks together', record.group, (entry) =>
+          setGroup(entry ?? (record.group?.view === name ? null : (record.group ?? null))),
+        )}
+    </div>
   )
 }
 
@@ -230,10 +175,16 @@ export function ViewpointRecordFields({
   name,
   review,
   onReviewChange,
+  typeEstimate,
 }: {
   name: string
   review: ViaReview
   onReviewChange: (patch: Partial<ViaReview>) => void
+  /**
+   * The run's 3.2.1 estimate, offered only for the view the run stands at (`viewpointImportance`); the hint says how
+   * it was read, or why there is none.
+   */
+  typeEstimate?: { rating: ViewpointTypeId | null; hint: string }
 }) {
   const records = review.viewpointRecords ?? {}
   const record = records[name] ?? {}
@@ -259,6 +210,25 @@ export function ViewpointRecordFields({
           </option>
         ))}
       </SelectField>
+      <SelectField
+        label="Viewpoint type (3.2.1)"
+        aria-label={`Viewpoint type of ${name}`}
+        className="w-full rounded-md border bg-background p-1"
+        value={record.type ? String(record.type) : ''}
+        onChange={(event) =>
+          change(name, { type: event.target.value ? (Number(event.target.value) as ViewpointTypeId) : undefined })
+        }
+      >
+        <option value="">
+          {typeEstimate?.rating ? `Use the run's estimate (type ${typeEstimate.rating})` : 'Not recorded'}
+        </option>
+        {VIEWPOINT_TYPES.map((type) => (
+          <option key={type.id} value={String(type.id)}>
+            {type.id}. {type.label}
+          </option>
+        ))}
+      </SelectField>
+      {typeEstimate && <p className="text-2xs text-muted-foreground">{typeEstimate.hint}</p>}
       <FormField label="Why it was chosen">
         <textarea
           className={FORM_INPUT_CLASS}
@@ -294,12 +264,39 @@ export function ViewpointRecordFields({
   )
 }
 
-/** Moves a viewpoint's record to its new name when the view is renamed; unchanged when it had none. */
+/**
+ * Moves a viewpoint's records to its new name when the view is renamed: its Table 3 record (unless the new name
+ * already has one) and any key-viewpoint choice naming it. Null when nothing names it.
+ */
 export function renamedViewpointRecords(review: ViaReview, from: string, to: string): Partial<ViaReview> | null {
+  if (from === to) return null
+  const patch: Partial<ViaReview> = {}
   const record = review.viewpointRecords?.[from]
-  if (!record || from === to || review.viewpointRecords?.[to]) return null
-  const next = { ...review.viewpointRecords }
-  delete next[from]
-  next[to] = record
-  return { viewpointRecords: next }
+  if (record && !review.viewpointRecords?.[to]) {
+    const next = { ...review.viewpointRecords }
+    delete next[from]
+    next[to] = record
+    patch.viewpointRecords = next
+  }
+  const key = review.keyViewpoints
+  const blocks = key?.blocks
+  const blockNamed = blocks && Object.values(blocks).some((entry) => entry.view === from)
+  const groupNamed = key?.group?.view === from
+  if (key && (blockNamed || groupNamed)) {
+    patch.keyViewpoints = {
+      ...key,
+      ...(blocks
+        ? {
+            blocks: Object.fromEntries(
+              Object.entries(blocks).map(([block, entry]) => [
+                block,
+                entry.view === from ? { ...entry, view: to } : entry,
+              ]),
+            ),
+          }
+        : {}),
+      ...(groupNamed ? { group: { ...key.group!, view: to } } : {}),
+    }
+  }
+  return Object.keys(patch).length ? patch : null
 }

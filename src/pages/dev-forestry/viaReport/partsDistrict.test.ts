@@ -345,6 +345,21 @@ describe('the 2001 form parts (01, 03, 05)', () => {
     expect(choices(build('criteria-rating-2001', ctx).blocks)[0]).toMatchObject({ chosen: 'PR' })
   })
 
+  it("prints each viewpoint's own 3.2.1 type, wherever it stands", () => {
+    const ctx = context(
+      'form-2001-analysis-sheets',
+      [
+        { ...lakeshore, review: {} },
+        { ...ridge, review: { viewpointType: 2 } },
+      ],
+      { review: { viewpointType: 4 } },
+    )
+    const table = tables(build('criteria-rating-2001', ctx).blocks)[0]
+    if (table.kind !== 'table') throw new Error('table expected')
+    // The ridge's own type, away from the assessment station; the lakeshore falls back to the review's.
+    expect(table.rows[5].slice(1)).toEqual(['4', '2'])
+  })
+
   it('asks the five summary questions, answering only the numerical one from the run', () => {
     const out = build('summary-2001-five', context('form-2001-analysis-sheets'))
     const asked = choices(out.blocks)

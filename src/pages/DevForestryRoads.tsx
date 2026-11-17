@@ -34,6 +34,8 @@ import {
   type WorkspaceCommand,
 } from '@/components/interfaces/workspaceCommands'
 import { AccessLockup } from '@/components/interfaces/AccessLockup'
+import { ThemeModeButton, useThemeModeItems } from '@/components/interfaces/ThemeModeButton'
+import type { ActionMenuItem } from '@/components/ui/action-menu'
 import { BrandingDialog } from '@/branding/BrandingDialog'
 import { useBranding } from '@/branding/useBranding'
 import { exportBrand } from '@/branding/store'
@@ -1082,6 +1084,7 @@ export default function DevForestryRoads({
   const pendingFiles = useRef<{ files: File[]; kind: FileKind } | null>(null)
   const operation = useRef<AbortController | null>(null)
   useDocumentTitle(`${w.project.name} · Forest road design · PGMaps`)
+  const themeModeItems = useThemeModeItems()
   useEffect(() => () => operation.current?.abort(), [])
 
   const terrainProfile = useMemo(() => {
@@ -5263,12 +5266,14 @@ export default function DevForestryRoads({
     if (station >= displayedAnalysis.length) w.setStation(0)
     setPlaying(!playing)
   }
+  const workflowHelpHref = `${import.meta.env.BASE_URL}help?${helpLayout}`
   const workflowHelp = (
     <a
+      data-workflow-help
       className={`inline-flex shrink-0 items-center justify-center rounded-md hover:bg-accent focus-visible:outline ${
         quietHeader ? 'size-7 text-foreground/80 hover:text-foreground' : 'size-8'
       }`}
-      href={`${import.meta.env.BASE_URL}help?${helpLayout}`}
+      href={workflowHelpHref}
       target="_blank"
       rel="noopener"
       aria-label="Workflow help (opens in a new tab)"
@@ -5278,6 +5283,17 @@ export default function DevForestryRoads({
       <CircleQuestionMark aria-hidden="true" className="size-4" />
     </a>
   )
+  // Below the width where the tab row has room for them, the colour scheme and help join the More menu.
+  const narrowMenuExtras: ActionMenuItem[] = [
+    ...themeModeItems,
+    { type: 'separator', id: 'help-separator' },
+    {
+      id: 'workflow-help',
+      label: 'Workflow help',
+      icon: <CircleQuestionMark className="size-4" aria-hidden="true" />,
+      onSelect: () => window.open(workflowHelpHref, '_blank', 'noopener'),
+    },
+  ]
   const projectNameControl = (
     <ProjectName name={project.name} disabled={!!busy} onRename={(name) => update((p) => ({ ...p, name }))} />
   )
@@ -5542,6 +5558,7 @@ export default function DevForestryRoads({
         leading={distributed && <ForestryBackLink />}
         quickTools={distributed && undoHistory}
         narrowMenu={distributed ? ['chooseInterface'] : undefined}
+        narrowMenuExtras={distributed ? narrowMenuExtras : undefined}
         switcher={
           distributed && (
             <>
@@ -5549,6 +5566,7 @@ export default function DevForestryRoads({
               {/* A fixed slot: the mark coming and going never moves the tools beside it. */}
               <span className="lp-status-slot">{saveMark}</span>
               {interfaceSwitch('lg')}
+              <ThemeModeButton />
               {workflowHelp}
             </>
           )

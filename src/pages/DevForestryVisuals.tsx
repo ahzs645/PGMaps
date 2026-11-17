@@ -28,6 +28,7 @@ import { MapMeasureControl, MapMeasurePanel, useMeasureKeys } from '@/components
 import { MapSketch, useMapSketch } from '@/components/ui/map-sketch'
 import { MapOverlay } from '@/components/ui/map-panels'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
+import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
 import { PG_CENTER } from '@/components/ui/map-styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -210,12 +211,8 @@ import {
 } from './dev-forestry/ViewpointFinderPanel'
 import { VisualsParagraphPanel, type BlockNoteParts } from './dev-forestry/VisualsParagraphPanel'
 import { FieldBriefPanel } from './dev-forestry/FieldBriefPanel'
-import {
-  KeyViewpointsSection,
-  renamedViewpointRecords,
-  ViewpointRecordFields,
-  ViewpointRecordsSection,
-} from './dev-forestry/ReviewRecordFields'
+import { KeyViewpointFields, renamedViewpointRecords, ViewpointRecordFields } from './dev-forestry/ReviewRecordFields'
+import { viewpointTypeEstimate } from './dev-forestry/ViaPanels'
 import { otherPlannedName } from './dev-forestry/viaDocument/resolve'
 import { DrawnTimberButton, OptionRow, RoadViewOptionsButton } from './dev-forestry/RoadViewOptions'
 import { useExportOpener, useVisualsExport, type BlockNoteChoices } from './dev-forestry/useVisualsExport'
@@ -256,7 +253,7 @@ import { captureReportMap, waitUntil } from './dev-forestry/reportMapCapture'
 import type { ReportImages } from './dev-forestry/viaReport/parts'
 import { DEFAULT_OBLIQUE_PITCH } from './dev-forestry/viaReport/recipes'
 import type { ReportFigure } from './dev-forestry/viaReport/model'
-import { matchingDesign } from './dev-forestry/assessmentTools'
+import { matchingDesign, plannedToolViews } from './dev-forestry/assessmentTools'
 import {
   focalForHfov,
   landformAngularExtent,
@@ -340,7 +337,7 @@ import { PlanMapLegend } from './dev-forestry/PlanMapLegend'
 import { PlanClickToMove, PlanViewerHandles } from './dev-forestry/PlanViewerHandles'
 import { ViewsOfInterestLayers } from './dev-forestry/ViewsOfInterestLayers'
 import { ViewsOfInterestPanel } from './dev-forestry/ViewsOfInterestPanel'
-import { addViews, viewAtPoint, viewsForCandidate } from './dev-forestry/viewsOfInterest'
+import { addViews, handSaveLink, viewAtPoint, viewsForCandidate } from './dev-forestry/viewsOfInterest'
 import {
   DEFAULT_VIEWPOINT_CLEARING,
   MAX_TREE_FREE_AREAS,
@@ -4218,8 +4215,33 @@ function DevForestryVisuals() {
     } | null = null,
   ): Promise<ViewSaveOutcome> => {
     if (!canSaveView) return Promise.resolve({ error: 'The road view was not ready to save.' })
-    // A recapture replaces the planned view's earlier saves, wherever they were saved.
-    const replaced = planned ? withoutPlannedView(savedViews, shelvedViews, planned.plannedViewId) : null
+    // A view saved by hand is a view of interest too (`handSaveLink`): the capture of the planned view stood at, or
+    // a view listed where the eye stands. It is tagged as that view's capture; its picture is framed as before.
+    const caption = captionForView(eyeMapRef.current?.getBearing() ?? null).replace(/\.$/, '')
+    const hand = planned
+      ? null
+      : handSaveLink({
+          views: viewsOfInterest,
+          standingView: summaryView,
+          pose: drivePoseRef.current,
+          blocks: viewBlocks,
+          lookAtTargetId: drive.lookAtTargetId,
+          fallbackBlockId: summaryBlock?.id ?? selectedTargetId,
+          focalMm: roadViewLens,
+          name: caption,
+        })
+    const link = planned
+      ? { plannedViewId: planned.plannedViewId, plannedKey: planned.plannedKey }
+      : hand && hand.kind !== 'none'
+        ? { plannedViewId: hand.view.id, plannedKey: viewCaptureKey(hand.view) }
+        : null
+    // A recapture replaces the planned view's earlier saves, wherever they were saved. A hand save replaces only
+    // those under this scene: one under another design stays, for the design comparison.
+    const replaced = planned
+      ? withoutPlannedView(savedViews, shelvedViews, planned.plannedViewId)
+      : hand?.kind === 'update'
+        ? withoutPlannedView(savedViews, [], hand.view.id)
+        : null
     const keptViews = replaced?.saved ?? savedViews
     if (keptViews.length >= MAX_SAVED_VIEWS) {
       const reason = 'Twelve comparisons are saved. Remove one or download this preview before starting another.'
@@ -4232,11 +4254,11 @@ function DevForestryVisuals() {
       id: createId('view'),
       ...(design ? { designName: design.name } : {}),
       // The caption without its full stop: it is also the option label "… · 0.60 km".
-      name: planned?.name ?? captionForView(eyeMapRef.current?.getBearing() ?? null).replace(/\.$/, ''),
+      name: planned?.name ?? (hand && hand.kind !== 'none' ? hand.view.name : caption),
       positionMeters: drive.positionMeters,
       lookAtTargetId: drive.lookAtTargetId,
       ...(drive.lookBearing !== null ? { lookBearing: drive.lookBearing } : {}),
-      ...(planned ? { plannedViewId: planned.plannedViewId, plannedKey: planned.plannedKey } : {}),
+      ...(link ?? {}),
       ...cameraLook.current,
       treeHeightMeters: drive.treeHeightMeters,
       roadClearWidthMeters: drive.roadClearWidthMeters,
@@ -4379,14 +4401,19 @@ function DevForestryVisuals() {
       const previous = { key: saved.key, views: saved.views }
       setShelvedViews((current) => [...current.filter((entry) => entry.key !== previous.key), previous])
     }
-    if (planned) {
-      setShelvedViews((current) => withoutPlannedView([], current, planned.plannedViewId).shelved)
-      const removed = new Set(replaced?.removed)
-      if (removed.size)
-        setViewImages((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !removed.has(id))))
-    }
+    if (planned) setShelvedViews((current) => withoutPlannedView([], current, planned.plannedViewId).shelved)
+    const removed = new Set(replaced?.removed)
+    if (removed.size)
+      setViewImages((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !removed.has(id))))
+    if (hand?.kind === 'add') setViewsOfInterest((current) => addViews(current, [hand.view]).views)
     setSaved({ key, views: [...keptViews, view] })
-    setPreviewMessage(`Saved ${view.name}. Save & export keeps or shares it.`)
+    setPreviewMessage(
+      hand?.kind === 'none'
+        ? `Saved ${view.name}. ${hand.reason}`
+        : hand
+          ? `Saved ${view.name} with the views of interest. Save & export keeps or shares it.`
+          : `Saved ${view.name}. Save & export keeps or shares it.`,
+    )
     return finished
   }
   // What a capture of planned views (`useViewCapture`) reads and does, rebuilt on every render so each step of a
@@ -4666,7 +4693,13 @@ function DevForestryVisuals() {
     onFinish: finishDraft,
     onReopenPrevious: saved.key !== key && saved.views.length ? reopenPreviousPreview : undefined,
     message: previewMessage ?? importMessage,
-    views: savedViews,
+    // A view listed with the views of interest is reopened from its row there; this lists only the rest.
+    views: savedViews.filter(
+      (view) => !view.plannedViewId || !viewsOfInterest.some((planned) => planned.id === view.plannedViewId),
+    ),
+    listedWithViews: savedViews.filter(
+      (view) => view.plannedViewId && viewsOfInterest.some((planned) => planned.id === view.plannedViewId),
+    ).length,
     onRestore: openPreview,
     onExport: () => exportOpener.openExport('views'),
     storageWarning: sceneStorageWarning ?? storageWarning,
@@ -4709,7 +4742,50 @@ function DevForestryVisuals() {
     label: arrowLabel(arrow, index),
     bearing: arrow.bearing,
   }))
+  // The views of interest are the tools' viewpoints: runs and photographs are filed under them by id.
+  const plannedViews = useMemo(
+    () => plannedToolViews(viewsOfInterest, viewBlocks, scene.viaReview),
+    [viewsOfInterest, viewBlocks, scene.viaReview],
+  )
+  /** Lists a view of interest at a point (a photo's place, an earlier viewpoint), facing a block; its id, or null. */
+  const listViewAt = (
+    point: { lng: number; lat: number },
+    name: string,
+    extra: { id?: string; landformId?: string | null } = {},
+  ): string | null => {
+    const current = sceneRef.current.viewsOfInterest ?? []
+    const blocks = sceneRef.current.targets.filter((target) => target.role === 'block')
+    const block = blocks.find((target) => target.id === selectedTargetId) ?? blocks[0]
+    if (!block) return null
+    const landform =
+      extra.landformId && sceneRef.current.targets.some((t) => t.id === extra.landformId && t.role === 'landscape')
+        ? { landformId: extra.landformId }
+        : {}
+    const view = { ...viewAtPoint(point, block, current), name, ...(extra.id ? { id: extra.id } : {}), ...landform }
+    const added = addViews(current, [view])
+    if (added.views.length === current.length) return null
+    setViewsOfInterest(() => added.views)
+    return view.id
+  }
   const tools = useAssessmentTools({
+    plannedViews,
+    onAddViewAt: (point, name) => listViewAt(point, name),
+    onListView: (earlier) => {
+      const spot = earlier.viewpoint.mode === 'spot' ? earlier.viewpoint.coordinates[0] : null
+      if (!spot) return null
+      const id = listViewAt({ lng: spot[0], lat: spot[1] }, earlier.name, {
+        id: earlier.id,
+        landformId: earlier.landformId,
+      })
+      // Its significance notes become the view's reason, unless the view's record already gives one.
+      const notes = earlier.notes.trim()
+      const records = sceneRef.current.viaReview?.viewpointRecords
+      if (id && notes && !records?.[earlier.name]?.reason)
+        updateViaReview({
+          viewpointRecords: { ...records, [earlier.name]: { ...records?.[earlier.name], reason: notes } },
+        })
+      return id
+    },
     scene,
     result,
     currentStation: drive.active ? driveStationIndex : (result?.assessmentStationIndex ?? 0),
@@ -4739,7 +4815,7 @@ function DevForestryVisuals() {
       images: viewImages,
       capturedBefore,
       engineFigures,
-      workspace: tools.evidence.loaded ? tools.evidence.workspaceJson() : null,
+      workspace: tools.evidence.loaded ? tools.evidence.storedWorkspaceJson() : null,
       pkg: { renderer: exportOpener.figureRenderer, recipeId: exportOpener.packageRecipeId },
     })
     const name =
@@ -5698,10 +5774,58 @@ function DevForestryVisuals() {
     )
   }
 
-  // The saved views a report reads, by the names it gives them: step 2's Table 3 and key viewpoints key on them.
-  const reviewViewNames = [
-    ...new Set([...shelvedViews.flatMap((entry) => entry.views), ...savedViews].map((view) => view.name)),
-  ]
+  // The street-level or own photo the road view lines up with: in the stood-at view's row, else in step 2.
+  const fieldPhotoPanel = (
+    <FieldPhotoPanel
+      photo={fieldPhoto}
+      canLineUp={
+        !!fieldPhoto.image && !!fieldPhoto.onRoad && fieldPhoto.onRoad.offsetMeters <= 60 && !previewInputError(scene)
+      }
+      onLineUp={() => lineUpPhoto()}
+      own={{
+        records: tools.photoRecords,
+        roadView:
+          drive.active && cameraEye
+            ? { lng: cameraEye.lng, lat: cameraEye.lat, bearing: lookBearing, hfov: viewerFov }
+            : null,
+        canLineUp: !previewInputError(scene),
+        onLineUp: lineUpOwnPhoto,
+        onPickPoint: (onPoint) => setMapPick(onPoint ? { onPoint } : null),
+        pickActive: !!mapPick,
+        onSaveToRecord: tools.updateFieldRecord,
+      }}
+    />
+  )
+  // Where the eye stands and the surveyed eye there: in the row of the view of interest stood at, else in step 2.
+  const stoodViewpointPanel = (bare: boolean) => (
+    <StoodViewpointPanel
+      bare={bare}
+      viewpoint={scene.viewpoint}
+      terrainGroundMeters={
+        standPoint && previewTerrain.source ? previewTerrain.source.elevationAt(standPoint.lng, standPoint.lat) : null
+      }
+      observerHeightMeters={scene.settings.observerHeightMeters}
+      onSurveyedEyeChange={(eye) => {
+        setScene((current) => {
+          const viewpoint = { ...current.viewpoint }
+          if (eye) viewpoint.surveyedEye = eye
+          else delete viewpoint.surveyedEye
+          return { ...current, viewpoint }
+        })
+        // A run input: the run goes stale and closes the road view, so, as for a stand, it is
+        // held open and reopens where it was once the run is made again.
+        const open = driveRef.current
+        if (!open.active) return
+        setRoadViewHeld(true)
+        setStandRequest((request) => ({
+          serial: (request?.serial ?? 0) + 1,
+          positionMeters: open.positionMeters,
+          lookAtTargetId: open.lookAtTargetId,
+          lookBearing: open.lookBearing ?? null,
+        }))
+      }}
+    />
+  )
   const sidebar = (
     <Sidebar
       via={{
@@ -5763,34 +5887,7 @@ function DevForestryVisuals() {
       visit={
         <>
           <PreviewWorkflow part="visit" {...previewProps} />
-          <StoodViewpointPanel
-            viewpoint={scene.viewpoint}
-            terrainGroundMeters={
-              standPoint && previewTerrain.source
-                ? previewTerrain.source.elevationAt(standPoint.lng, standPoint.lat)
-                : null
-            }
-            observerHeightMeters={scene.settings.observerHeightMeters}
-            onSurveyedEyeChange={(eye) => {
-              setScene((current) => {
-                const viewpoint = { ...current.viewpoint }
-                if (eye) viewpoint.surveyedEye = eye
-                else delete viewpoint.surveyedEye
-                return { ...current, viewpoint }
-              })
-              // A run input: the run goes stale and closes the road view, so, as for a stand, it is
-              // held open and reopens where it was once the run is made again.
-              const open = driveRef.current
-              if (!open.active) return
-              setRoadViewHeld(true)
-              setStandRequest((request) => ({
-                serial: (request?.serial ?? 0) + 1,
-                positionMeters: open.positionMeters,
-                lookAtTargetId: open.lookAtTargetId,
-                lookBearing: open.lookBearing ?? null,
-              }))
-            }}
-          />
+          {!summaryView && stoodViewpointPanel(false)}
           <RouteViewshedPanel
             preview={routeViewshed}
             driving={drive.active}
@@ -5816,6 +5913,7 @@ function DevForestryVisuals() {
             }}
           />
           {tools.field}
+          {tools.fieldDialog}
         </>
       }
       landformScope={<AssessmentPanel part="scope" {...assessmentProps} />}
@@ -5907,48 +6005,8 @@ function DevForestryVisuals() {
         </>
       }
       designComparisons={tools.design}
-      fieldPhoto={
-        <FieldPhotoPanel
-          photo={fieldPhoto}
-          canLineUp={
-            !!fieldPhoto.image &&
-            !!fieldPhoto.onRoad &&
-            fieldPhoto.onRoad.offsetMeters <= 60 &&
-            !previewInputError(scene)
-          }
-          onLineUp={() => lineUpPhoto()}
-          own={{
-            records: tools.photoRecords,
-            roadView:
-              drive.active && cameraEye
-                ? { lng: cameraEye.lng, lat: cameraEye.lat, bearing: lookBearing, hfov: viewerFov }
-                : null,
-            canLineUp: !previewInputError(scene),
-            onLineUp: lineUpOwnPhoto,
-            onPickPoint: (onPoint) => setMapPick(onPoint ? { onPoint } : null),
-            pickActive: !!mapPick,
-            onSaveToRecord: tools.updateFieldRecord,
-          }}
-        />
-      }
-      viewpointRecords={
-        <>
-          <ViewpointRecordsSection
-            views={reviewViewNames}
-            plannedNames={new Set(viewsOfInterest.map((view) => view.name))}
-            review={scene.viaReview ?? {}}
-            onReviewChange={updateViaReview}
-          />
-          <KeyViewpointsSection
-            views={reviewViewNames}
-            blocks={scene.targets
-              .filter((target) => target.role === 'block' && !otherPlannedName(target.name))
-              .map((target) => target.name)}
-            review={scene.viaReview ?? {}}
-            onReviewChange={updateViaReview}
-          />
-        </>
-      }
+      fieldPhoto={summaryView ? undefined : fieldPhotoPanel}
+      showViewpointType={!summaryView}
       fieldBrief={
         <FieldBriefPanel
           scene={scene}
@@ -6103,6 +6161,11 @@ function DevForestryVisuals() {
           renderer={roadRendererInfo(exportOpener.figureRenderer)}
           onChangeRenderer={exportOpener.openPackage}
           capturedHere={(viewId) => savedViews.some((saved) => saved.plannedViewId === viewId)}
+          canReopenSaved={(viewId) => savedViews.some((saved) => saved.plannedViewId === viewId)}
+          onReopenSaved={(viewId) => {
+            const latest = savedViews.filter((saved) => saved.plannedViewId === viewId).at(-1)
+            if (latest) openPreview(latest)
+          }}
           onShowView={(view) =>
             mapRef.current?.flyTo({
               center: [view.lng, view.lat],
@@ -6111,7 +6174,70 @@ function DevForestryVisuals() {
           }
           landformControl={renderViewLandform}
           recordControl={(view) => (
-            <ViewpointRecordFields name={view.name} review={scene.viaReview ?? {}} onReviewChange={updateViaReview} />
+            <ViewpointRecordFields
+              name={view.name}
+              review={scene.viaReview ?? {}}
+              onReviewChange={updateViaReview}
+              // The run's 3.2.1 estimate belongs to the view it stands at, and to no other.
+              typeEstimate={view.id === summaryView?.id ? viewpointTypeEstimate(result, drive.speedKmh) : undefined}
+            />
+          )}
+          keyControl={(view) => {
+            const review = scene.viaReview ?? {}
+            const reportBlocks = viewBlocks.filter((block) => !otherPlannedName(block.name)).map((block) => block.name)
+            const own = viewBlocks.find((block) => block.id === view.blockId)?.name
+            // Its own block, and any block the review already gives it, so an earlier choice stays in sight.
+            const blocks = reportBlocks.filter(
+              (name) => name === own || review.keyViewpoints?.blocks?.[name]?.view === view.name,
+            )
+            if (!blocks.length && reportBlocks.length < 2) return null
+            return (
+              <KeyViewpointFields
+                name={view.name}
+                blocks={blocks}
+                group={reportBlocks.length > 1}
+                review={review}
+                onReviewChange={updateViaReview}
+              />
+            )
+          }}
+          photoControl={(view) => {
+            const filed = tools.fieldsFor(view.id)
+            return {
+              count: filed.length,
+              node: (
+                <div className="space-y-1.5">
+                  {filed.map((record) => (
+                    <TextButton
+                      key={record.id}
+                      className="block min-w-0 max-w-full truncate text-left text-2xs"
+                      onClick={() => tools.openField(record.id)}
+                    >
+                      {record.name} · {record.kind}
+                    </TextButton>
+                  ))}
+                  <FileButton
+                    label={`Add a field photo of ${view.name}`}
+                    accept="image/jpeg,image/png,image/webp"
+                    size="2xs"
+                    disabled={tools.fieldBusy}
+                    onFiles={([file]) => tools.importField(file, 'photo', view.id)}
+                  >
+                    Add a field photo…
+                  </FileButton>
+                </div>
+              ),
+            }
+          }}
+          standingViewId={summaryView?.id ?? null}
+          standingControl={() => (
+            <>
+              {stoodViewpointPanel(true)}
+              <div className="space-y-1.5 border-t border-border/60 pt-2">
+                <p className="text-2xs font-medium text-foreground">Field photo</p>
+                {fieldPhotoPanel}
+              </div>
+            </>
           )}
           onRenamed={(from, to) => {
             const moved = renamedViewpointRecords(sceneRef.current.viaReview ?? {}, from, to)

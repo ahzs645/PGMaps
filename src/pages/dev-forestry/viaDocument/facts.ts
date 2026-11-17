@@ -97,6 +97,7 @@ function tableThree(record: ViewpointRecord | undefined): ViewpointReview {
   if (record?.reason?.trim()) out.selectionReason = record.reason.trim()
   if (record?.experience?.trim()) out.viewingExperience = record.experience.trim()
   if (record?.duration?.trim()) out.duration = record.duration.trim()
+  if (record?.type) out.viewpointType = record.type
   return out
 }
 

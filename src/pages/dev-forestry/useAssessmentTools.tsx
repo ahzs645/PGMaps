@@ -12,12 +12,14 @@ import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { formatMeasure } from '@/lib/format'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { ToolFieldPanel } from './ToolFieldPanel'
+import { FieldRecordDialog, ToolFieldPanel } from './ToolFieldPanel'
+import { importFieldImage } from './toolImports'
 import { formatPct } from './measureFormat'
 import { SightlineProfileChart } from './SightlineProfileChart'
 import { createId, type ForestryScene } from './scene'
 import {
   comparisonScene,
+  earlierToolViews,
   emptyTools,
   greenUpJobs,
   greenUpSensitiveOpenings,
@@ -29,10 +31,12 @@ import {
   stabilityJobs,
   summarizeRun,
   timelineScene,
+  withPlannedViews,
   type FieldRecord,
   type ToolJob,
   type ToolRun,
   type ToolsDocument,
+  type ToolView,
 } from './assessmentTools'
 import { loadTools, saveTools } from './toolsStorage'
 import { useToolRunner } from './useToolRunner'
@@ -56,6 +60,12 @@ type Props = {
   onImportScene: (scene: ForestryScene) => void
   /** Opens Save & export on one of its outputs. */
   onOpenExport?: (kind: 'evidence' | 'workspace') => void
+  /** The views of interest as viewpoints (`plannedToolViews`): what runs and evidence are filed under. */
+  plannedViews: ToolView[]
+  /** Lists a view of interest at a photo's place and returns its id; null when it cannot. */
+  onAddViewAt?: (point: { lng: number; lat: number }, name: string) => string | null
+  /** Lists a viewpoint recorded before the views of interest with them, under its own id; null when it cannot. */
+  onListView?: (view: ToolView) => string | null
 }
 /** A loaded curve's span, for its option label: ages covered and the height it reaches. */
 const curveReach = (c: LibraryCurve) =>
@@ -71,6 +81,9 @@ export function useAssessmentTools({
   analysisRunning,
   onImportScene,
   onOpenExport,
+  plannedViews,
+  onAddViewAt,
+  onListView,
 }: Props) {
   const [d, setDocument] = useState<ToolsDocument>(emptyTools),
     [loaded, setLoaded] = useState(false),
@@ -92,6 +105,13 @@ export function useAssessmentTools({
   const documentRef = useRef(d),
     saveQueue = useRef(Promise.resolve())
   documentRef.current = d
+  // Every viewpoint as the tools read it: the views of interest, then any recorded before them.
+  const viewsDocument = useMemo(() => withPlannedViews(d, plannedViews), [d, plannedViews])
+  const plannedRef = useRef(plannedViews)
+  plannedRef.current = plannedViews
+  const [selectedField, setSelectedField] = useState<string | null>(null),
+    [fieldBusy, setFieldBusy] = useState(false),
+    [fieldError, setFieldError] = useState<string | null>(null)
   const key = useMemo(() => sceneFingerprint(scene), [scene]),
     runner = useToolRunner(key)
   // The previous run's headline beside this one's, after a boundary edit or an applied design.
@@ -191,7 +211,10 @@ export function useAssessmentTools({
     setError(null)
     try {
       if (file.size > 100_000_000) throw new Error('Workspace exceeds 100 MB.')
-      const parsed = parseTools(JSON.parse(await file.text()))
+      const read = parseTools(JSON.parse(await file.text()))
+      // The export carries its scene's views of interest as viewpoints too; the scene brings them back as views.
+      const listed = new Set((read.currentScene?.viewsOfInterest ?? []).map((view) => view.id))
+      const parsed = { ...read, views: read.views.filter((view) => !listed.has(view.id)) }
       runner.cancel()
       change(parsed)
       if (parsed.currentScene) onImportScene(parsed.currentScene)
@@ -257,20 +280,63 @@ export function useAssessmentTools({
     </>
   )
   const busy = !loaded || runner.running || analysisRunning
+  /** Imports an image as an attachment, filed under `viewId` when that is a viewpoint, and opens it. */
+  const importField = async (file: File, kind: FieldRecord['kind'], viewId: string | null = null) => {
+    if (documentRef.current.fields.length >= 24) {
+      setFieldError('The workspace holds at most 24 attachments.')
+      return
+    }
+    setFieldBusy(true)
+    setFieldError(null)
+    try {
+      const f = await importFieldImage(file, kind, viewId)
+      const latest = documentRef.current
+      if (latest.fields.length >= 24) throw new Error('The workspace holds at most 24 attachments.')
+      if (!withPlannedViews(latest, plannedRef.current).views.some((v) => v.id === f.viewId)) f.viewId = null
+      change({ ...latest, fields: [...latest.fields, f] })
+      setSelectedField(f.id)
+    } catch (e) {
+      setFieldError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setFieldBusy(false)
+    }
+  }
   const field = (
     <>
       {loaded && (
         <ToolFieldPanel
           document={d}
           onChange={change}
-          result={result}
-          viewpoint={scene.viewpoint}
-          activeLandformId={scene.activeLandformId ?? null}
-          currentStation={currentStation}
+          earlier={earlierToolViews(d, plannedViews)}
+          onOpen={setSelectedField}
+          onImport={(file, kind) => void importField(file, kind)}
+          busy={fieldBusy || busy}
+          error={fieldError}
           onUseView={onUseView}
+          onListView={
+            onListView &&
+            ((view) => {
+              // Listed under its own id, so its photographs and runs follow; the workspace's copy goes.
+              const id = onListView(view)
+              if (id) change((current) => ({ ...current, views: current.views.filter((v) => v.id !== view.id) }))
+              return id
+            })
+          }
         />
       )}
     </>
+  )
+  /** The attachment dialog, rendered beside the sidebar's sections so a folded section never closes it. */
+  const fieldDialog = (
+    <FieldRecordDialog
+      document={d}
+      onChange={change}
+      views={viewsDocument.views}
+      result={result}
+      selected={selectedField}
+      onClose={() => setSelectedField(null)}
+      onAddViewAt={onAddViewAt}
+    />
   )
   const design = (
     <ToolSection
@@ -391,7 +457,7 @@ export function useAssessmentTools({
         }
       >
         <div className="space-y-2 text-xs">
-          {d.views.map((v) => (
+          {viewsDocument.views.map((v) => (
             <CheckboxField
               key={v.id}
               label={v.name}
@@ -399,7 +465,7 @@ export function useAssessmentTools({
               onCheckedChange={() => setSelectedViews(toggle(selectedViews, v.id))}
             />
           ))}
-          {!d.views.length && <p>Record a viewpoint in step 2 first.</p>}
+          {!viewsDocument.views.length && <p>Add a view of interest in step 2 first.</p>}
           {scene.targets
             .filter((t) => t.role === 'landscape')
             .map((t) => (
@@ -418,7 +484,7 @@ export function useAssessmentTools({
                 run(
                   matrixJobs(
                     scene,
-                    d.views.filter((v) => selectedViews.includes(v.id)),
+                    viewsDocument.views.filter((v) => selectedViews.includes(v.id)),
                     selectedLandforms,
                   ),
                 ),
@@ -749,7 +815,7 @@ export function useAssessmentTools({
   const report = (
     <ToolSection
       title="VIA evidence package"
-      summary={`${evidenceGaps(d).length} evidence gap${evidenceGaps(d).length === 1 ? '' : 's'}`}
+      summary={`${evidenceGaps(viewsDocument).length} evidence gap${evidenceGaps(viewsDocument).length === 1 ? '' : 's'}`}
       toggleProps={{ 'data-forestry-disclosure': 'via-evidence' }}
       help={
         <>
@@ -769,7 +835,7 @@ export function useAssessmentTools({
         <FormField label="Assessment evidence viewpoint">
           <StyledSelect value={reportView} onChange={(e) => setReportView(e.target.value)}>
             <option value="">Not linked</option>
-            {d.views.map((v) => (
+            {viewsDocument.views.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
               </option>
@@ -786,14 +852,16 @@ export function useAssessmentTools({
         )}
         <ToolDisclosure
           toggleProps={{ 'data-forestry-disclosure': '' }}
-          label={`Evidence checklist · ${evidenceGaps(d).length} gaps`}
+          label={`Evidence checklist · ${evidenceGaps(viewsDocument).length} gaps`}
           defaultOpen
         >
           <ul className="list-disc space-y-1 py-2 pl-4">
-            {evidenceGaps(d).map((g) => (
+            {evidenceGaps(viewsDocument).map((g) => (
               <li key={g}>{g}</li>
             ))}
-            {!evidenceGaps(d).length && <li>Expected evidence categories present. Check content and adequacy.</li>}
+            {!evidenceGaps(viewsDocument).length && (
+              <li>Expected evidence categories present. Check content and adequacy.</li>
+            )}
           </ul>
         </ToolDisclosure>
         <div className="flex flex-wrap items-center gap-2">
@@ -829,11 +897,15 @@ export function useAssessmentTools({
   /** The package and the workspace backup for Save & export, written from the stored document. */
   const evidence = {
     loaded,
-    gaps: evidenceGaps(d),
-    counts: { views: d.views.length, runs: d.runs.length, fields: d.fields.length },
-    pdf: () => evidencePdfBlob(parseTools(documentRef.current)),
-    html: () => buildEvidenceHtml(parseTools(documentRef.current)),
-    workspaceJson: () => serializeTools({ ...documentRef.current, currentScene: scene }),
+    gaps: evidenceGaps(viewsDocument),
+    counts: { views: viewsDocument.views.length, runs: d.runs.length, fields: d.fields.length },
+    pdf: () => evidencePdfBlob(withPlannedViews(parseTools(documentRef.current), plannedRef.current)),
+    html: () => buildEvidenceHtml(withPlannedViews(parseTools(documentRef.current), plannedRef.current)),
+    // The views of interest go in with the rest, so a run or photo filed under one reads back under its name.
+    workspaceJson: () =>
+      serializeTools({ ...withPlannedViews(documentRef.current, plannedRef.current), currentScene: scene }),
+    /** The workspace as stored, for the project file: its scene carries the views of interest itself. */
+    storedWorkspaceJson: () => serializeTools({ ...documentRef.current, currentScene: scene }),
   }
   /** Replaces the stored workspace with a project file's (`projectFile.ts`); the page sets the scene itself. */
   const restoreWorkspace = (text: string) => {
@@ -857,6 +929,13 @@ export function useAssessmentTools({
     running: runner.running,
     photoRecords,
     updateFieldRecord,
+    fieldDialog,
+    /** The attachments filed under a viewpoint, for its row. */
+    fieldsFor: (viewId: string) => d.fields.filter((f) => f.viewId === viewId),
+    openField: setSelectedField,
+    importField: (file: File, kind: FieldRecord['kind'], viewId: string) => void importField(file, kind, viewId),
+    fieldBusy: fieldBusy || busy,
+
     /** Saved design alternatives, so a saved view can say which one it shows. */
     designOptions: d.options,
   }

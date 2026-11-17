@@ -39,6 +39,7 @@ export function RoadSelect({
   id,
   triggerRef,
   tutorialId,
+  unsetValue,
 }: {
   value: string
   onValueChange: (value: string) => void
@@ -55,6 +56,11 @@ export function RoadSelect({
   triggerRef?: Ref<HTMLButtonElement>
   /** The trigger's lesson anchor (`data-tutorial-id`). */
   tutorialId?: string
+  /**
+   * The option that means nothing is chosen ("Not set", "Either way"): while it shows, the ribbon draws the field
+   * light, as it does a blank number, and a field holding a choice darker (`road-select-unset`, interfaces.css).
+   */
+  unsetValue?: string
 }) {
   const { layout, trigger } = splitSelectClasses(className)
   const list = [...(options ?? optionsFromChildren(children))]
@@ -62,7 +68,7 @@ export function RoadSelect({
     <AppSelect
       id={id}
       title={title}
-      className={cn('min-w-0', layout)}
+      className={cn('min-w-0', layout, unsetValue !== undefined && value === unsetValue && 'road-select-unset')}
       triggerClassName={cn(compactSelectTriggerClass, trigger)}
       contentClassName={workspaceSelectContentClass}
       triggerAriaLabel={ariaLabel}

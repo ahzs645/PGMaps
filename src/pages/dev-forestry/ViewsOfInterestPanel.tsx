@@ -1,4 +1,4 @@
-import { Camera, Crosshair, Download, Footprints, Loader2, Trash2 } from 'lucide-react'
+import { Camera, Crosshair, Download, Footprints, History, Loader2, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -71,8 +71,22 @@ export type ViewsOfInterestPanelProps = {
   onShowView?: (view: ViewOfInterest) => void
   /** Extra control in the open row, such as the landform seen from the view. */
   landformControl?: (view: ViewOfInterest) => ReactNode
-  /** The view's Table 3 record (significance, why chosen, experience, duration), in its open row. */
+  /** The view's Table 3 record (significance, type, why chosen, experience, duration), in its open row. */
   recordControl?: (view: ViewOfInterest) => ReactNode
+  /** Whether the view is its block's (or the blocks') key viewpoint for the reports, in its open row. */
+  keyControl?: (view: ViewOfInterest) => ReactNode
+  /** The field photographs linked to the view (`FieldRecord.viewId`), and adding one, in its open row. */
+  photoControl?: (view: ViewOfInterest) => { count: number; node: ReactNode } | null
+  /**
+   * The view the run stands at (`currentPlannedView`): its row says so, and only it shows `standingControl`, what
+   * belongs to the place stood at (the surveyed eye, the street-level photo the road view lines up with).
+   */
+  standingViewId?: string | null
+  standingControl?: (view: ViewOfInterest) => ReactNode
+  /** Reopens the view's saved capture in the road view, where it was saved under the current scene. */
+  onReopenSaved?: (viewId: string) => void
+  /** Whether a capture of the view is saved under the current scene, so it can be reopened. */
+  canReopenSaved?: (viewId: string) => boolean
   /** A view renamed: its record, held by name, follows it. */
   onRenamed?: (from: string, to: string) => void
   /** The last add's outcome, from the map or the finder ("Added 2 views", "Already listed"). */
@@ -135,6 +149,24 @@ function facingSummary(view: ViewOfInterest, arrows: readonly CandidateArrow[]):
   return index >= 0 ? `arrow ${index + 1} · ${compassPoint(degrees)}` : `looks ${compassPoint(degrees)} (${degrees}°)`
 }
 
+/** A folded group in an open row, as the viewpoint record has always been. */
+function RowGroup({
+  title,
+  summary,
+  children,
+  ...props
+}: { title: string; summary: string; children: ReactNode } & Record<`data-${string}`, string>) {
+  return (
+    <details className="group rounded-md border border-border/60 bg-background/60 px-2 py-1.5" {...props}>
+      <summary className="cursor-pointer text-2xs font-medium text-foreground">
+        {title}
+        <span className="ml-1 font-normal text-muted-foreground">· {summary}</span>
+      </summary>
+      <div className="pt-2">{children}</div>
+    </details>
+  )
+}
+
 /** The view's name, edited in place and written on Enter or leaving the field, not on every key. */
 function NameField({ view, onCommit }: { view: ViewOfInterest; onCommit: (name: string) => void }) {
   const [draft, setDraft] = useState(view.name)
@@ -187,6 +219,12 @@ export function ViewsOfInterestPanel({
   onShowView,
   landformControl,
   recordControl,
+  keyControl,
+  photoControl,
+  standingViewId = null,
+  standingControl,
+  onReopenSaved,
+  canReopenSaved,
   onRenamed,
   message = null,
   renderer,
@@ -273,7 +311,9 @@ export function ViewsOfInterestPanel({
           The places the block is looked at from, planned on the plan map before the road view is opened: click the
           plan, or add BC&apos;s inventory viewpoints and rec sites from the list below (a viewpoint adds up to two of
           its arrows aimed at the block, else one view facing it). Each view faces its block or a bearing, through a
-          lens.
+          lens. Open a row for everything about that view: its record and 3.2.1 type, its field photos, whether it is a
+          key viewpoint and, at the view you stand at, the surveyed eye and the field photo to line up with. A view
+          saved from the road view&apos;s bar is listed here too.
           <br />
           <em>Capture</em> stands at each view, runs the assessment there and saves the view as <em>Save viewpoint</em>{' '}
           does, without your driving; Save &amp; export then writes from those saved views. A view changed since its
@@ -376,6 +416,8 @@ export function ViewsOfInterestPanel({
               engine && state !== 'not-captured' && state !== 'outdated' && capturedHere && !capturedHere(view.id)
             const missingBlock = orphans.missingBlock.includes(view.id)
             const missingLandform = orphans.missingLandform.includes(view.id)
+            const standingHere = view.id === standingViewId
+            const photos = open ? (photoControl?.(view) ?? null) : null
             return (
               <li key={view.id} data-view-of-interest={view.id}>
                 <ResultRow
@@ -403,6 +445,14 @@ export function ViewsOfInterestPanel({
                       {SOURCE_LABELS[view.source.kind]} · {block?.name ?? 'block missing'} ·{' '}
                       {facingSummary(view, arrows)} · {view.focalMm} mm
                       {isIncluded(view) ? '' : ' · left out of exports'}
+                      {standingHere && (
+                        <>
+                          {' · '}
+                          <span className="font-medium text-foreground" data-assessing-from="">
+                            assessing from here
+                          </span>
+                        </>
+                      )}
                     </span>
                   }
                   trailing={
@@ -567,17 +617,29 @@ export function ViewsOfInterestPanel({
                       </SelectField>
                     </div>
                     {landformControl?.(view)}
-                    {recordControl && (
-                      <details className="group rounded-md border border-border/60 bg-background/60 px-2 py-1.5">
-                        <summary className="cursor-pointer text-2xs font-medium text-foreground">
-                          Viewpoint record
-                          <span className="ml-1 font-normal text-muted-foreground">
-                            · significance, why chosen, experience, duration
-                          </span>
-                        </summary>
-                        <div className="pt-2">{recordControl(view)}</div>
-                      </details>
+                    {standingHere && standingControl && (
+                      <section
+                        aria-label={`Where you stand at ${view.name}`}
+                        className="space-y-2 rounded-md border border-border/60 bg-background/60 px-2 py-1.5"
+                      >
+                        {standingControl(view)}
+                      </section>
                     )}
+                    {recordControl && (
+                      <RowGroup title="Viewpoint record" summary="significance, type, why chosen, experience, duration">
+                        {recordControl(view)}
+                      </RowGroup>
+                    )}
+                    {photos && (
+                      <RowGroup
+                        title="Field photos"
+                        summary={photos.count ? `${photos.count} linked` : 'none linked'}
+                        data-view-photos={view.id}
+                      >
+                        {photos.node}
+                      </RowGroup>
+                    )}
+                    {keyControl?.(view)}
                     <CheckboxField
                       label="Include in exports"
                       checked={isIncluded(view)}
@@ -605,6 +667,19 @@ export function ViewsOfInterestPanel({
                         <Camera className="h-3.5 w-3.5" />
                         {state === 'not-captured' ? 'Capture' : 'Capture again'}
                       </Button>
+                      {onReopenSaved && canReopenSaved?.(view.id) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="2xs"
+                          disabled={running}
+                          title="Open the road view where this view was saved, as it was saved"
+                          onClick={() => onReopenSaved(view.id)}
+                        >
+                          <History className="h-3.5 w-3.5" />
+                          Reopen saved
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"
