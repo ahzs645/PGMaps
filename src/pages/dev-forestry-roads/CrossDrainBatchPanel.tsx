@@ -160,6 +160,7 @@ export function CrossDrainBatchPanel({
                         entry={stations}
                         label={`Draft ${n} station`}
                         hideLabel
+                        precision={1}
                         value={d.chainage}
                         max={roadLength}
                         updateOn="commit"
@@ -230,7 +231,7 @@ export function CrossDrainBatchPanel({
                           ))}
                         </ul>
                       ) : (
-                        <span className="text-muted-foreground">Ready</span>
+                        <span className="text-muted-foreground">{d.included ? 'Ready' : 'Not added'}</span>
                       )}
                     </td>
                   </tr>

@@ -3,6 +3,7 @@ import { engineeringGeometry } from './engine'
 import { calculateCulverts } from './engineering'
 import type { DrainageRun } from './drainageRun'
 import { DITCH_DETAIL_CELL_M } from './hydrology'
+import { createEngineeringDesign } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadProject, TerrainSource } from './types'
 import {
   acceptedCulverts,
@@ -179,7 +180,8 @@ export function useCrossDrainBatch({
             : null
   const accept = () => {
     if (blocked) return
-    const engineering = alignment.engineering!
+    // A road with no engineering inputs yet gets the empty design, as the culvert editor does.
+    const engineering = alignment.engineering ?? createEngineeringDesign()
     const next: RoadProject = {
       ...project,
       alignments: project.alignments.map((a) =>
