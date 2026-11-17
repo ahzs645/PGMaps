@@ -58,6 +58,7 @@ import {
   drainageReportHtml,
   drainageInputFingerprint,
 } from './drainageEvidence'
+import { parseGroundDrainage } from './groundDrainage'
 import { parseTerrainPreparation, parseTerrainBackgrounds } from './terrainPreparation'
 import { parseTerrainReferenceSurfaces, pointCloudImportSummary } from './terrain'
 import { parseSectionComponents, parseSectionLayers } from './sectionAssembly'
@@ -988,6 +989,7 @@ export function parseProject(raw: unknown): RoadProject {
     ...(r.vehicleLibrary === undefined ? {} : { vehicleLibrary: parseVehicleLibrary(r.vehicleLibrary) }),
     ...(r.reportSettings === undefined ? {} : { reportSettings: parseRoadReportSettings(r.reportSettings) }),
     ...(r.drainage === undefined ? {} : { drainage: parseDrainageProjectState(r.drainage) }),
+    ...(r.groundDrainage === undefined ? {} : { groundDrainage: parseGroundDrainage(r.groundDrainage) }),
     ...(r.surveyBooks === undefined ? {} : { surveyBooks: parseSurveyBooks(r.surveyBooks) }),
     ...(r.notes === undefined ? {} : { notes: parseMapNotes(r.notes) }),
     ...(reference === undefined ? {} : { reference }),

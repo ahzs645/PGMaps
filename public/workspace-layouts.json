@@ -69,7 +69,8 @@
               "rows": 2,
               "items": ["drawBlock", "drawStream"],
               "more": ["drawAvoid", "drawProfile"]
-            }
+            },
+            { "label": "Drainage", "items": ["groundDrainage"] }
           ]
         },
         {
@@ -235,7 +236,7 @@
           "label": "Terrain",
           "icon": "map",
           "hint": "Choose the ground surface for your road.",
-          "commands": ["terrain", "import"]
+          "commands": ["terrain", "import", "groundDrainage"]
         },
         {
           "label": "Alignment",

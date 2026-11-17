@@ -46,6 +46,7 @@ const PROJECT_FIELDS: Partial<Record<keyof RoadProject, string>> = {
   networkPlanning: 'Network planning',
   totalCostPlanning: 'Complete-access inputs',
   drainage: 'Drainage inputs',
+  groundDrainage: 'Existing-ground drainage',
   provincialStreamData: 'Provincial stream data',
   sharedCrossingCosts: 'Shared crossing costs',
   context: 'Map layers',

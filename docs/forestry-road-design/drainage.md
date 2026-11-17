@@ -108,6 +108,59 @@ The page does not respond while the check runs. A finished run keeps contributin
 run is higher. Full-fill now needs at least another 16 bytes per cell of live spill-surface/depth
 temporary arrays (about 67 MB at the budget), in addition to queues, heaps and other working arrays.
 
+## Existing-ground drainage before the first peg
+
+Terrain → **Existing-ground drainage** routes flow over the terrain alone, with no road: open it
+on a new project before pegging to see where water runs, where streams form and what drains to a
+point. The road's check above needs design elevations, so it only starts once a road exists.
+
+**The area.** In the card on the plan: **Draw** an area on the plan, **Import polygon** from any
+spatial file (`readSpatialImport`; a file with several polygons lists them to choose one or all,
+and its lines and points are left out and said so), or **Use a block's boundary** from a harvest
+block already on the plan. A block's boundary is copied: editing the block later does not move the
+area. Holes in a polygon stay out of the area. An optional **upslope margin** samples ground
+beyond the boundary, so catchments that drain into the area are not cut off at its line; the
+margin is a buffer all round, since which side is upslope is only known after routing.
+
+**What is routed.** The same tiled grid as the road's check (`GridTiles`, 32-cell tiles): only the
+tiles touching the area or its margin are sampled, and the routed-cell budget counts those, never
+the box. Cells outside the area and margin are never sampled and act as outlets, like the grid's
+edge; cells inside without ground stay gaps and act as outlets too. Routing is the road check's:
+the same depression filling, D8 directions, flow accumulation, stream lines (thinned by zoom as
+above) and, when **Watersheds** is on, the same watershed partition. The card lists the terrain,
+the working cell (and whether it was coarsened to fit the budget), the routing extent, the cells
+routed, the area and margin in hectares and the gaps in each.
+
+**Outlets.** **Pick on plan** asks for one click; the outlet snaps to the cell with the largest
+contributing area within the snap radius. The card shows the picked and snapped points, the
+contributing area, how much of it lies in the margin, and whether the catchment reaches the edge
+of the area and margin or missing ground, either of which means its area may continue past it.
+The routed grid stays in the worker, so a new outlet or snap radius is answered without routing
+again.
+
+**Current or stale.** The results are keyed to the terrain, the area and the routing settings
+(stream threshold, margin, working cell, depression policy, watershed size; `groundDrainageKey`).
+Pegging, moving or deleting a road leaves them current, and they stay on the plan, under the
+roads, while you peg. A new terrain, area or routing setting makes them stale: the card says so
+and the plan stops drawing them until **Route flow** is run again. Closing the card hides them.
+
+**Saved.** The area, the settings and the picked outlet are saved in the project file
+(`groundDrainage`); the routed grid and results are not, and are recomputed from the terrain. A
+project on the flat plane must clear the area before **Place on map**. The road's own drainage
+check keeps its own inputs, runs and evidence, and never reads these.
+
+**Where it runs.** Sampling reads the terrain on the page in slices (`cooperative.ts`), so the
+page stays usable and **Cancel** stops it; routing and outlets run in `groundDrainage.worker.ts`.
+
+| Limit              | Value                                                            | Enforced in                                                                               | What happens when exceeded                                        |
+| ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Routed cells       | 4,194,304 cells held in the tiles touching the area or margin    | `drainageRun.ts` `MAX_DRAINAGE_ROUTED_CELLS`; `groundDrainage.ts` `sampleAreaGridSteps`   | Cell grows by 1.25× until the touched tiles fit; the card says so |
+| Finest cell        | Maximum of 1 m, the source spacing and the optional working cell | `groundDrainage.ts` `sampleAreaGridSteps`                                                 | A finer request never upsamples the source                        |
+| Upslope margin     | 0 m default; 0–2,000 m                                           | `groundDrainage.ts` `MAX_GROUND_DRAINAGE_MARGIN_M`                                        | Refused when read from a file; the field holds the range          |
+| Stream threshold   | 1 ha default; 0.05–500 ha                                        | `groundDrainage.ts` `DEFAULT_GROUND_DRAINAGE_SETTINGS`, `parseGroundDrainageSettings`     | Refused when read; the field holds the range                      |
+| Area vertices      | 50,000                                                           | `groundDrainage.ts` `MAX_GROUND_DRAINAGE_AREA_VERTICES`                                   | The area is refused: simplify it first                            |
+| Outlet snap radius | 25 m default; 0–2,000 m                                          | `groundDrainage.ts` `MAX_GROUND_DRAINAGE_SNAP_M`; `drainageCatchments.ts` `snapPourPoint` | No supported cell within the radius: the card says so             |
+
 ## Where flow is routed
 
 The grid is laid over the box around the centreline and catch points plus the buffer, aligned to
