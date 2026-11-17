@@ -1358,3 +1358,61 @@ describe('the slope sheet row', () => {
     expect(assess({ slopeSheet: check([]) }).row('slope-sheet').state).toBe('met')
   })
 })
+
+describe('assessReadiness: minimum elevation at a crossing', () => {
+  // The road's crest at 0+200: tangents 5 % up and about 2 % down, a 40 m curve that runs 0.35 m under the PVI.
+  const minimum = (chainage: number, elevation: number) => ({
+    id: `min-${chainage}`,
+    chainage,
+    elevation,
+    toleranceAboveM: 0,
+    toleranceBelowM: 0,
+    gradePercent: null,
+    gradeTolerancePercent: 0,
+    bound: 'minimum' as const,
+    crossing: { id: 'mapped:creek', name: 'Willow Creek' },
+  })
+
+  it('adds no row for a road without a minimum, so existing projects read as before', () => {
+    expect(assess().rows.some((row) => row.id === 'crossing-minimum')).toBe(false)
+  })
+
+  it('judges a crossing inside a vertical curve on the curve, not on the tangents through its PVI', () => {
+    // At 0+190 the tangent is at 809.50 m and clears 809.45; the crest curve there is at 809.41.
+    const { row, analysis } = assess({ alignment: road({ verticalControls: [minimum(190, 809.45)] }) })
+    expect(row('crossing-minimum')).toMatchObject({
+      state: 'attention',
+      severity: 'limit',
+      result: '1 crossing below the minimum elevation',
+      measured:
+        'Willow Creek (0+190.0): formation 809.41 m, 0.04 m below the minimum 809.45 m, on the vertical curve at 0+200.0',
+      action: { target: 'profile', chainage: 190 },
+    })
+    // The station flags carry the same finding.
+    expect(analysis.verticalChecks).toEqual([
+      expect.objectContaining({
+        kind: 'control-elevation',
+        message:
+          'Elevation 809.41 is 0.04 m below the minimum 809.45 at Willow Creek at 0+190.0, inside the vertical curve at 0+200.0',
+      }),
+    ])
+  })
+
+  it('is met, with the least clearance, when the finished profile is at or above every minimum', () => {
+    const { row, analysis } = assess({
+      alignment: road({ verticalControls: [minimum(200, 809.5), minimum(60, 801)] }),
+    })
+    expect(row('crossing-minimum')).toMatchObject({
+      state: 'met',
+      result: 'The profile clears all 2 minimum crossing elevations',
+      measured: 'Least clearance 0.15 m at Willow Creek (0+200.0), on the vertical curve at 0+200.0',
+    })
+    expect(analysis.verticalChecks ?? []).toEqual([])
+  })
+
+  it('is not assessed without a designed profile', () => {
+    expect(
+      assess({ alignment: road({ vertical: [], verticalControls: [minimum(200, 809.5)] }) }).row('crossing-minimum'),
+    ).toMatchObject({ state: 'not-assessed', result: 'No designed profile to check' })
+  })
+})

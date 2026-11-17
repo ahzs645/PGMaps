@@ -105,6 +105,40 @@ describe('road project boundary', () => {
     ).toThrow(/line or polygon geometry/)
   })
 
+  it('reads a control without a bound exactly as before, and round-trips a minimum elevation', () => {
+    const project = createDemoProject()
+    const target = {
+      id: 'target',
+      chainage: 50,
+      elevation: 800.123456,
+      toleranceAboveM: 0.1,
+      toleranceBelowM: 0.2,
+      gradePercent: null,
+      gradeTolerancePercent: 0,
+    }
+    const minimum = {
+      ...target,
+      id: 'minimum',
+      chainage: 80,
+      toleranceAboveM: 0,
+      toleranceBelowM: 0,
+      bound: 'minimum' as const,
+      crossing: { id: 'mapped:creek', name: 'Willow Creek' },
+    }
+    const alignments = [{ ...project.alignments[0], verticalControls: [target, minimum] }]
+    const loaded = parseProject(JSON.parse(serializeProject({ ...project, alignments })))
+    expect(loaded.alignments[0].verticalControls).toEqual([target, minimum])
+    // No bound key is added to a control that had none.
+    expect(Object.keys(loaded.alignments[0].verticalControls![0])).not.toContain('bound')
+    const broken = (patch: object) => [{ ...project.alignments[0], verticalControls: [{ ...minimum, ...patch }] }]
+    expect(() => parseProject({ ...project, alignments: broken({ elevation: null, gradePercent: 2 }) })).toThrow(
+      /minimum elevation control needs its elevation/,
+    )
+    expect(() => parseProject({ ...project, alignments: broken({ bound: 'maximum' }) })).toThrow(
+      /bound must be minimum/,
+    )
+  })
+
   it('round-trips the full supported UI vertical ranges and rejects unsupported latitude edges', () => {
     const project = createDemoProject()
     project.alignments[0].vertical = [

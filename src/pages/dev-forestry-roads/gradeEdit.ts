@@ -8,7 +8,7 @@
  * drags keep it inside the control's tolerance band, and a typed grade that would move it is
  * refused. A PVI that already misses its control is not held, so a bad control never locks a road.
  */
-import { formatStation } from './verticalStandards'
+import { controlBand, formatStation } from './verticalStandards'
 import { constrainPviDrag, MAX_DRAG_GRADE, MIN_PVI_GAP_M } from './verticalTools'
 import type { VerticalControl, VerticalPoint } from './types'
 
@@ -56,16 +56,19 @@ export function controlAt(controls: readonly VerticalControl[] | undefined, chai
 /** The band a held PVI keeps to, or null when its control does not hold it. */
 function holdingBand(controls: readonly VerticalControl[] | undefined, point: VerticalPoint) {
   const control = controlAt(controls, point.chainage)
-  if (!control || control.elevation === null) return null
-  const low = control.elevation - control.toleranceBelowM,
-    high = control.elevation + control.toleranceAboveM
+  const band = control ? controlBand(control) : null
+  if (!control || !band) return null
+  // A minimum control holds only from below: the PVI may rise as far as it likes.
+  const { low, high } = band
   // A PVI already off its control is not held: dragging is how it gets fixed.
   if (point.elevation < low - EPS || point.elevation > high + EPS) return null
   return { control, low, high }
 }
 
 const controlText = (control: VerticalControl) =>
-  `Held by the control at ${formatStation(control.chainage)}: ${control.elevation!.toFixed(2)} m (+${control.toleranceAboveM.toFixed(2)}/−${control.toleranceBelowM.toFixed(2)})`
+  control.bound === 'minimum'
+    ? `Held by the minimum elevation at ${formatStation(control.chainage)}: at least ${control.elevation!.toFixed(2)} m`
+    : `Held by the control at ${formatStation(control.chainage)}: ${control.elevation!.toFixed(2)} m (+${control.toleranceAboveM.toFixed(2)}/−${control.toleranceBelowM.toFixed(2)})`
 
 export type GradeEditResult = { points: VerticalPoint[]; movedId: string } | { error: string }
 
@@ -108,7 +111,10 @@ export function setTangentGrade(
   const band = holdingBand(controls, moved)
   if (band && (elevation < band.low - EPS || elevation > band.high + EPS))
     return {
-      error: `${label(movedIndex)} sits on the control at ${formatStation(band.control.chainage)} (${band.control.elevation!.toFixed(2)} m). Hold ${label(movedIndex)} instead, or change the control.`,
+      error:
+        band.control.bound === 'minimum'
+          ? `That puts ${label(movedIndex)} below the minimum elevation at ${formatStation(band.control.chainage)} (at least ${band.control.elevation!.toFixed(2)} m). Hold ${label(movedIndex)} instead, or change the minimum.`
+          : `${label(movedIndex)} sits on the control at ${formatStation(band.control.chainage)} (${band.control.elevation!.toFixed(2)} m). Hold ${label(movedIndex)} instead, or change the control.`,
     }
   return {
     points: sorted.map((p) => (p.id === moved.id ? { ...p, elevation } : p)),

@@ -145,6 +145,20 @@ describe('dragging a PVI', () => {
     })
   })
 
+  it('lets a PVI on a minimum elevation rise freely and holds it from below', () => {
+    const minimum: VerticalControl = { ...control(100, 104), bound: 'minimum' }
+    expect(dragPvi({ ...base, chainage: 100, elevation: 109, controls: [minimum] })).toEqual({
+      chainage: 100,
+      elevation: 109,
+      held: [],
+    })
+    expect(dragPvi({ ...base, chainage: 100, elevation: 101, controls: [minimum] })).toEqual({
+      chainage: 100,
+      elevation: 104,
+      held: ['Held by the minimum elevation at 0+100.0: at least 104.00 m'],
+    })
+  })
+
   it('stays quiet inside the slack', () => {
     const out = dragPvi({
       ...base,

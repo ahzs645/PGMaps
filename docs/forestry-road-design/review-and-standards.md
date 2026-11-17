@@ -119,6 +119,16 @@ curves and tangents are short and goes to the first. The K row judges K alone. T
 optimizer keeps to both minimums ([Alignment and optimization](alignment-and-optimization.md)), and
 a RoadEng design carries them in its optimizer standards (`roadEngOptimizer.ts`).
 
+**Minimum elevations at crossings** are the row `crossing-minimum` (`crossingMinimumRow`,
+`readiness.ts`), listed only when the road has a minimum elevation control, so a road without one
+reads as before. Each minimum is read on the finished profile, vertical curves as the engine applies
+them (`readMinimumElevations`, `verticalStandards.ts`): a crossing inside a crest curve can sit under
+its minimum although the tangents through the curve's PVI clear it, and the row says when the reading
+is on a curve. A formation below a minimum needs attention and goes to the worst one; with every
+minimum cleared the row is met and quotes the least clearance. With no designed profile, or a station
+the profile cannot be read at, it is not assessed. The level is always the designer's entry: the
+row never derives one from the ground, the stream or a structure.
+
 ### What the list does not do
 
 - It reads the active road only. Switch roads to review another.

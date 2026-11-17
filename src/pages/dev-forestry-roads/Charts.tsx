@@ -1968,7 +1968,29 @@ export function ProfileChart({
                     const gradeY = c.elevation ?? level
                     return (
                       <g key={`control-${c.id}`} pointerEvents="none" data-vertical-control={failed ? 'fail' : 'pass'}>
-                        {c.elevation !== null && (
+                        {c.elevation !== null && c.bound === 'minimum' && (
+                          // A floor: a bar at the minimum with a short arrow up, since the line may run anywhere above it.
+                          <g data-vertical-minimum="">
+                            <line
+                              x1={x - 7}
+                              x2={x + 7}
+                              y1={f.y(c.elevation)}
+                              y2={f.y(c.elevation)}
+                              stroke={color}
+                              strokeWidth={3}
+                              strokeLinecap="round"
+                            />
+                            <path
+                              d={`M${x},${f.y(c.elevation)} V${f.y(c.elevation) - 14} M${x - 4},${f.y(c.elevation) - 10} L${x},${f.y(c.elevation) - 14} L${x + 4},${f.y(c.elevation) - 10}`}
+                              fill="none"
+                              stroke={color}
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                              opacity={0.8}
+                            />
+                          </g>
+                        )}
+                        {c.elevation !== null && c.bound !== 'minimum' && (
                           <>
                             <line
                               x1={x}
@@ -2003,10 +2025,13 @@ export function ProfileChart({
                           />
                         )}
                         <title>
-                          Control {formatRoadStation(c.chainage)}
-                          {c.elevation !== null
-                            ? ` · Z ${format(c.elevation, 2)} (+${format(c.toleranceAboveM, 2)}/−${format(c.toleranceBelowM, 2)} m)`
-                            : ''}
+                          {c.bound === 'minimum' ? 'Minimum elevation' : 'Control'} {formatRoadStation(c.chainage)}
+                          {c.crossing ? ` · ${c.crossing.name}` : ''}
+                          {c.elevation !== null && c.bound === 'minimum'
+                            ? ` · at least ${format(c.elevation, 2)} m`
+                            : c.elevation !== null
+                              ? ` · Z ${format(c.elevation, 2)} (+${format(c.toleranceAboveM, 2)}/−${format(c.toleranceBelowM, 2)} m)`
+                              : ''}
                           {c.gradePercent !== null
                             ? ` · grade ${format(c.gradePercent)} ±${format(c.gradeTolerancePercent)}%`
                             : ''}

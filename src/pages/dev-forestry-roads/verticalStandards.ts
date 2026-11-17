@@ -42,6 +42,51 @@ export interface VerticalControl {
   /** Target grade, signed percent; null checks elevation only. */
   gradePercent: number | null
   gradeTolerancePercent: number
+  /**
+   * `'minimum'`: `elevation` is a lower bound the formation may rise above but not fall below (a
+   * gully crossing's minimum level); the tolerances do not apply and are stored as 0. Omitted: the
+   * target with tolerance every control was before. A minimum control always has an elevation.
+   */
+  bound?: 'minimum'
+  /** The Crossing Register row a minimum control was started from, its name kept for labels. */
+  crossing?: { id: string; name: string }
+}
+/** The levels a control's elevation allows: one-sided for a minimum. Null when it sets no elevation. */
+export function controlBand(control: VerticalControl): { low: number; high: number } | null {
+  if (control.elevation === null) return null
+  if (control.bound === 'minimum') return { low: control.elevation, high: Infinity }
+  return { low: control.elevation - control.toleranceBelowM, high: control.elevation + control.toleranceAboveM }
+}
+export const isMinimumControl = (control: VerticalControl) => control.bound === 'minimum'
+/** "Control 2 at 0+140.0", or "Minimum at Willow Creek (0+140.0)" for a minimum from a crossing. */
+export function controlLabel(control: VerticalControl, index: number) {
+  if (control.bound === 'minimum')
+    return control.crossing
+      ? `Minimum elevation at ${control.crossing.name} (${stn(control.chainage)})`
+      : `Minimum elevation at ${stn(control.chainage)}`
+  return `Control ${index + 1} at ${stn(control.chainage)}`
+}
+/** "The minimum elevation of 812.40 m at Willow Creek (0+140.0)", for export notices. */
+export function minimumControlName(control: VerticalControl) {
+  return `The minimum elevation of ${control.elevation?.toFixed(2) ?? '?'} m at ${
+    control.crossing ? `${control.crossing.name} (${stn(control.chainage)})` : stn(control.chainage)
+  }`
+}
+/**
+ * Notes for an export format with no field for a minimum elevation control: one per minimum on the
+ * road, naming it, or none. `format` is the file's name as the notice prints it.
+ */
+export function minimumControlExportNotes(controls: readonly VerticalControl[] | undefined, format: string) {
+  return (controls ?? [])
+    .filter(isMinimumControl)
+    .map((c) => `${minimumControlName(c)} is not in the ${format}: the format has no field for a minimum elevation.`)
+}
+/** How a control's elevation reads: "812.40 m (+0.10/−0.10 m)" or "at least 812.40 m". */
+export function controlLevelText(control: VerticalControl) {
+  if (control.elevation === null) return ''
+  return control.bound === 'minimum'
+    ? `at least ${control.elevation.toFixed(2)} m`
+    : `${control.elevation.toFixed(2)} m (+${control.toleranceAboveM.toFixed(2)}/−${control.toleranceBelowM.toFixed(2)} m)`
 }
 export interface VerticalCurveInfo {
   pviId: string
@@ -112,6 +157,46 @@ export function gradeWindowAt(standards: VerticalStandards | undefined, chainage
     if (range.maxGradePercent !== null) high = Math.min(high, range.maxGradePercent)
   }
   return { low, high }
+}
+
+/** The applied vertical curve a station falls inside, ends included; undefined on a tangent. */
+export function curveAt(curves: readonly VerticalCurveInfo[], chainage: number) {
+  return curves.find((c) => c.valid && c.length > 0 && chainage >= c.start - EPS && chainage <= c.end + EPS)
+}
+
+export interface MinimumElevationReading {
+  control: VerticalControl
+  /** Finished formation elevation at the control, on the vertical curve where one covers it; null when unread. */
+  elevation: number | null
+  /** Elevation minus the minimum; negative below it. Null when unread. */
+  clearanceM: number | null
+  /** The PVI station of the applied curve the control falls inside, or null on a tangent. */
+  curveAt: number | null
+}
+
+/**
+ * Each minimum control read against the finished profile: the vertical curves as the engine applied
+ * them, so a crossing inside a sag is judged on the curve, not the tangents through its PVI.
+ */
+export function readMinimumElevations(
+  controls: readonly VerticalControl[] | undefined,
+  curves: readonly VerticalCurveInfo[],
+  valueAt: (chainage: number) => { elevation: number } | null,
+  length: number,
+): MinimumElevationReading[] {
+  return (controls ?? [])
+    .filter((c) => c.bound === 'minimum' && c.elevation !== null)
+    .map((control) => {
+      const inside = control.chainage >= -EPS && control.chainage <= length + EPS
+      const at = inside ? valueAt(control.chainage) : null
+      const elevation = at && Number.isFinite(at.elevation) ? at.elevation : null
+      return {
+        control,
+        elevation,
+        clearanceM: elevation === null ? null : elevation - control.elevation!,
+        curveAt: curveAt(curves, control.chainage)?.chainage ?? null,
+      }
+    })
 }
 
 export function checkVerticalDesign({
@@ -278,7 +363,18 @@ export function checkVerticalDesign({
     if (control.chainage < -EPS || control.chainage > length + EPS) continue
     const at = valueAt(control.chainage)
     if (!at) continue
-    if (control.elevation !== null) {
+    if (control.elevation !== null && control.bound === 'minimum') {
+      if (at.elevation < control.elevation - EPS) {
+        const curve = curveAt(curves, control.chainage)
+        checks.push({
+          kind: 'control-elevation',
+          chainage: control.chainage,
+          start: control.chainage,
+          end: control.chainage,
+          message: `Elevation ${at.elevation.toFixed(2)} is ${(control.elevation - at.elevation).toFixed(2)} m below the minimum ${control.elevation.toFixed(2)}${control.crossing ? ` at ${control.crossing.name}` : ''} at ${stn(control.chainage)}${curve ? `, inside the vertical curve at ${stn(curve.chainage)}` : ''}`,
+        })
+      }
+    } else if (control.elevation !== null) {
       const difference = at.elevation - control.elevation
       if (difference > control.toleranceAboveM + EPS || difference < -control.toleranceBelowM - EPS)
         checks.push({

@@ -375,7 +375,23 @@ function parseVerticalControl(raw: unknown): VerticalControl {
   }
   if (control.elevation === null && control.gradePercent === null)
     throw Error('A vertical control point needs an elevation, a grade or both.')
-  return control
+  // Older files carry neither field, and read exactly as before.
+  if (c.bound === undefined && c.crossing === undefined) return control
+  if (c.bound !== undefined && c.bound !== 'minimum') throw Error('A vertical control bound must be minimum.')
+  if (c.bound === 'minimum' && control.elevation === null)
+    throw Error('A minimum elevation control needs its elevation.')
+  const crossing =
+    c.crossing === undefined
+      ? undefined
+      : (() => {
+          const x = object(c.crossing, 'Control crossing')
+          return { id: text(x.id, 'Control crossing ID'), name: text(x.name, 'Control crossing name') }
+        })()
+  return {
+    ...control,
+    ...(c.bound === 'minimum' ? { bound: 'minimum' as const } : {}),
+    ...(crossing ? { crossing } : {}),
+  }
 }
 function parseVehicleCheck(raw: unknown): VehicleCheck {
   const r = object(raw, 'Vehicle check')

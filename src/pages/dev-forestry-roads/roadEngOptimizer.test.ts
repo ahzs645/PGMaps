@@ -246,6 +246,34 @@ describe('RoadEng optimizer settings', () => {
     expect(written(imported(), DSN)).toBe(DSN)
   })
 
+  it('leaves a minimum elevation out of the design and names it, since RoadEng has no field for one', () => {
+    const base = imported()
+    const alignment = {
+      ...base,
+      verticalControls: [
+        ...(base.verticalControls ?? []),
+        {
+          id: 'minimum',
+          chainage: 400,
+          elevation: 305.25,
+          toleranceAboveM: 0,
+          toleranceBelowM: 0,
+          gradePercent: null,
+          gradeTolerancePercent: 0,
+          bound: 'minimum' as const,
+          crossing: { id: 'mapped:creek', name: 'Willow Creek' },
+        },
+      ],
+    }
+    const { overrides, notes } = roadEngOptimizerOverrides(alignment, FRAME, DSN)
+    // Nothing else changed, so nothing is written: the minimum does not reach the control points.
+    expect(overrides).toEqual({})
+    expect(written(alignment, DSN)).toBe(DSN)
+    expect(notes).toEqual([
+      "The minimum elevation of 305.25 m at Willow Creek (0+400.0) on the vertical alignment opt 3 is not written: RoadEng's control points hold a level with one tolerance either side and have no field for a minimum.",
+    ])
+  })
+
   it('writes edits back, keeping what PGMaps does not model, and reads them as written', () => {
     let alignment = imported()
     alignment = {

@@ -31,7 +31,7 @@ import {
 import { gradeRule, gradeRuleText, gradeSpanOf, reviewGrades, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
 import { DITCH_DETAIL_CELL_M } from './hydrology'
-import { horizontalCurveSummary, verticalCurveSummary } from './engine'
+import { designProfileAt, horizontalCurveSummary, verticalCurveSummary } from './engine'
 import { evaluateCurveCriteria } from './roadCriteria'
 import { materialPlanMissing } from './engineeringTypes'
 import { invalidInputMessages, type EngineeringInputList } from './inputErrors'
@@ -51,7 +51,7 @@ import type {
   RoadTemplate,
   TerrainMetadata,
 } from './types'
-import type { VerticalCurveInfo } from './verticalStandards'
+import { readMinimumElevations, type VerticalCurveInfo } from './verticalStandards'
 import { bestSlopeSheetCheck, SLOPE_SHEET_CHECK, slopeSheets, type SlopeSheetCheck } from './slopeSheetCheck'
 
 export type ReadinessState = 'met' | 'attention' | 'not-assessed'
@@ -268,6 +268,78 @@ const COST_FLAG_OWNERS: Record<string, string> = {
   'excluded-culverts': 'structure-costs',
   // A standing reminder of what no estimate here covers; the report prints it in full.
   'project-scope': 'none',
+}
+
+/**
+ * The finished profile at or above every minimum elevation control (a crossing's floor), read on the
+ * vertical curves as the engine applies them: a crossing inside a sag is judged on the curve, which
+ * runs below the tangents through its PVI. No row when the road has no minimum control, so a road
+ * without one reads as before. A level that could not be read is not assessed, never met.
+ */
+function crossingMinimumRow(
+  alignment: Alignment,
+  curves: readonly VerticalCurveInfo[] | null,
+  length: number,
+  noProfile: string,
+): ReadinessRow | null {
+  const minima = (alignment.verticalControls ?? []).filter((c) => c.bound === 'minimum' && c.elevation !== null)
+  if (!minima.length) return null
+  const base = {
+    id: 'crossing-minimum',
+    group: 'alignment' as const,
+    check: 'Profile at or above each minimum crossing elevation',
+    judgedOn: 'The finished formation, vertical curves included, against each minimum the designer entered',
+  }
+  if (!curves) return { ...base, state: 'not-assessed', result: noProfile }
+  const readings = readMinimumElevations(
+    minima,
+    curves,
+    (s) => {
+      try {
+        return designProfileAt(alignment, s)
+      } catch {
+        return null
+      }
+    },
+    length,
+  )
+  const name = (r: (typeof readings)[number]) =>
+    r.control.crossing ? `${r.control.crossing.name} (${station(r.control.chainage)})` : station(r.control.chainage)
+  const onCurve = (r: (typeof readings)[number]) =>
+    r.curveAt === null ? '' : `, on the vertical curve at ${station(r.curveAt)}`
+  const below = readings.filter((r) => r.clearanceM !== null && r.clearanceM < -1e-6)
+  if (below.length) {
+    const worst = below.reduce((a, b) => (b.clearanceM! < a.clearanceM! ? b : a))
+    return {
+      ...base,
+      state: 'attention',
+      severity: 'limit',
+      result: `${plural(below.length, 'crossing')} below the minimum elevation`,
+      measured: `${name(worst)}: formation ${worst.elevation!.toFixed(2)} m, ${Math.abs(worst.clearanceM!).toFixed(2)} m below the minimum ${worst.control.elevation!.toFixed(2)} m${onCurve(worst)}`,
+      action: {
+        label: `Go to ${station(worst.control.chainage)}`,
+        target: 'profile',
+        chainage: worst.control.chainage,
+      },
+    }
+  }
+  const unread = readings.filter((r) => r.clearanceM === null)
+  if (unread.length)
+    return {
+      ...base,
+      state: 'not-assessed',
+      result: `The profile could not be read at ${unread.map(name).join(', ')}`,
+    }
+  const closest = readings.reduce((a, b) => (b.clearanceM! < a.clearanceM! ? b : a))
+  return {
+    ...base,
+    state: 'met',
+    result:
+      readings.length === 1
+        ? 'The profile clears the minimum crossing elevation'
+        : `The profile clears all ${readings.length} minimum crossing elevations`,
+    measured: `Least clearance ${closest.clearanceM!.toFixed(2)} m at ${name(closest)}${onCurve(closest)}`,
+  }
 }
 
 /**
@@ -996,6 +1068,13 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
     })
 
   add(verticalLengthsRow(alignment, analysis, profileRead ? curveSummary! : null, noProfile))
+  const minimumRow = crossingMinimumRow(
+    alignment,
+    profileRead ? curveSummary! : null,
+    calculated ? analysis.length : Infinity,
+    noProfile,
+  )
+  if (minimumRow) add(minimumRow)
 
   add(sightDistanceRow(input, calculated))
   const turnouts = mapped ? null : turnoutSightRow(input, calculated)

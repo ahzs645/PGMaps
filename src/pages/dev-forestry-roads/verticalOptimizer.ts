@@ -22,6 +22,9 @@
 import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
 import { analyzeRoad, centrelineSamples, positionAt, sectionAreasAt, verticalCurveSummary } from './engine'
 import {
+  controlBand,
+  controlLabel,
+  controlLevelText,
   gradeWindowAt,
   curvatureRuleAt,
   formatStation,
@@ -134,6 +137,8 @@ export interface VerticalOptimizationReport {
     achievedElevation: number
     gradePercent: number | null
     achievedGradePercent: number
+    /** Set on a minimum elevation control: `elevation` is its floor, not a target. */
+    bound?: 'minimum'
   }[]
   /** Total cost only: the price put on each interval's cut/fill imbalance for the chosen line, CAD per m³. */
   imbalancePrice: number | null
@@ -467,6 +472,19 @@ function* profileSearch(
   const tied = (i: number) => o.tieEndsToGround && (i === 0 || i === pvis.length - 1)
   const levels = pvis.map((s, i) => {
     const control = elevationControlAt(s)
+    if (control?.bound === 'minimum') {
+      // A minimum is a floor, not a target: the ladder stands on the ground (or on the minimum where
+      // the ground is below it) and keeps every level at or above the minimum, the minimum itself
+      // included exactly as entered. The line is free to go higher where that is cheaper.
+      const floor = control.elevation!
+      const centre = Math.max(referenceAt(s), floor)
+      const values = [floor]
+      for (let j = -ladder; j <= ladder; j++) {
+        const z = centre + j * o.levelStepM
+        if (z > floor + EPS) values.push(z)
+      }
+      return values.sort((a, b) => a - b)
+    }
     if (control) {
       const low = control.elevation! - control.toleranceBelowM,
         high = control.elevation! + control.toleranceAboveM
@@ -673,9 +691,10 @@ function* profileSearch(
     const g = grade(i, a, b)
     for (const c of controls) {
       if (c.chainage < start - EPS || c.chainage > end + EPS) continue
-      if (c.elevation !== null) {
+      const band = controlBand(c)
+      if (band) {
         const z = za + ((zb - za) * (c.chainage - start)) / (end - start)
-        if (z > c.elevation + c.toleranceAboveM + 1e-6 || z < c.elevation - c.toleranceBelowM - 1e-6) return c
+        if (z > band.high + 1e-6 || z < band.low - 1e-6) return c
       }
       if (c.gradePercent !== null && Math.abs(g - c.gradePercent) > c.gradeTolerancePercent + 1e-6) return c
     }
@@ -742,12 +761,19 @@ function* profileSearch(
     shortestCurveM: Infinity,
     tangent: 0,
   })
-  const controlName = (c: VerticalControl) =>
-    `Control ${(alignment.verticalControls ?? []).indexOf(c) + 1} at ${formatStation(c.chainage)}`
+  const controlName = (c: VerticalControl) => controlLabel(c, (alignment.verticalControls ?? []).indexOf(c))
+  /** "holds the line at 812.40 m (+0.10/−0.10 m)", or "keeps the line at or above 812.40 m". */
+  const holds = (c: VerticalControl) =>
+    c.bound === 'minimum'
+      ? `keeps the line at or above ${c.elevation!.toFixed(2)} m`
+      : `holds the line at ${controlLevelText(c)}`
   /** What holds the level at a PVI, when something does: the search cannot move it. */
   const heldBy = (i: number) => {
     const control = elevationControlAt(pvis[i])
-    if (control) return `${controlName(control)} holds the line at ${control.elevation!.toFixed(2)} m`
+    if (control)
+      return control.bound === 'minimum'
+        ? `${controlName(control)} ${holds(control)}`
+        : `${controlName(control)} holds the line at ${control.elevation!.toFixed(2)} m`
     if (o.tieEndsToGround && (i === 0 || i === n - 1))
       return `the road ${i === 0 ? 'start' : 'end'} is tied to ground at ${pviGround[i]!.toFixed(2)} m`
     return ''
@@ -775,9 +801,15 @@ function* profileSearch(
       const asked = missed.gradePercent,
         tolerance = missed.gradeTolerancePercent
       if (asked === null && t.offCurve.has(missed))
-        reason = `${controlName(missed)} holds the line at ${missed.elevation!.toFixed(2)} m (+${missed.toleranceAboveM.toFixed(2)}/−${missed.toleranceBelowM.toFixed(2)} m). A vertical curve there moves the line off it by more than that, and no line within ${band} runs straight through it. Widen that control's tolerance or “Search ±”, or lower “Curve K”.`
+        reason =
+          missed.bound === 'minimum'
+            ? `${controlName(missed)} ${holds(missed)}. A sag curve there drops the line below it, and no line within ${band} clears it on the curve. Widen “Search ±” so the line can fill more there, or lower “Curve K”.`
+            : `${controlName(missed)} holds the line at ${controlLevelText(missed)}. A vertical curve there moves the line off it by more than that, and no line within ${band} runs straight through it. Widen that control's tolerance or “Search ±”, or lower “Curve K”.`
       else if (asked === null)
-        reason = `${controlName(missed)} holds the line at ${missed.elevation!.toFixed(2)} m (+${missed.toleranceAboveM.toFixed(2)}/−${missed.toleranceBelowM.toFixed(2)} m), which no line within ${band} reaches. Widen that control's tolerance or “Search ±”, or move the control.`
+        reason =
+          missed.bound === 'minimum'
+            ? `${controlName(missed)} ${holds(missed)}, which no line within ${band} reaches inside the grade limits. Widen “Search ±” so the line can fill more, or check the minimum.`
+            : `${controlName(missed)} holds the line at ${controlLevelText(missed)}, which no line within ${band} reaches. Widen that control's tolerance or “Search ±”, or move the control.`
       else if (asked + tolerance < low - EPS || asked - tolerance > high + EPS)
         reason = `${controlName(missed)} asks for a grade of ${pct(asked)} (±${tolerance.toFixed(1)}%), outside the ${pct(low)} to ${pct(high)} grade limit there. Change the control's grade or the limit.`
       else
@@ -901,12 +933,10 @@ function* profileSearch(
           }
           // A curve moves the line at its PVI by L × grade change ÷ 800: a control there is held to that.
           const held = strict ? elevationControls[i] : undefined
-          if (held) {
+          const heldBand = held ? controlBand(held) : null
+          if (held && heldBand) {
             const there = levels[i][b] + (half * 2 * (g2 - g1)) / 800
-            if (
-              there > held.elevation! + held.toleranceAboveM + CONTROL_FIT ||
-              there < held.elevation! - held.toleranceBelowM - CONTROL_FIT
-            ) {
+            if (there > heldBand.high + CONTROL_FIT || there < heldBand.low - CONTROL_FIT) {
               dropped.controls.set(held, (dropped.controls.get(held) ?? 0) + 1)
               dropped.offCurve.add(held)
               continue
@@ -1021,10 +1051,8 @@ function* profileSearch(
           size = Math.max(needed(z), held.get(i) ?? 0)
         if (!Number.isFinite(size)) continue
         const there = z + (size * (rise - fall * z)) / 800
-        const target = Math.max(
-          control.elevation! - control.toleranceBelowM,
-          Math.min(control.elevation! + control.toleranceAboveM, there),
-        )
+        const band = controlBand(control)!
+        const target = Math.max(band.low, Math.min(band.high, there))
         if (Math.abs(there - target) > 1e-9)
           for (let step = 0; step < 20; step++) {
             const share = 1 - (size * fall) / 800
@@ -1353,6 +1381,7 @@ function* profileSearch(
         achievedElevation: designElevationAt(vertical, c.chainage),
         gradePercent: c.gradePercent,
         achievedGradePercent: gradeOf(c.chainage),
+        ...(c.bound === 'minimum' ? { bound: 'minimum' as const } : {}),
       })),
       imbalancePrice: o.objective === 'total' ? chosenResult.price : null,
       result: {
@@ -1401,16 +1430,23 @@ export function verticalOptimizationLog(report: VerticalOptimizationReport): { l
     },
     { label: 'Vertical curves', value: curves.join(', ') },
     { label: 'Road ends', value: `Start ${end[ends.start]}; end ${end[ends.end]}` },
-    ...report.controls.map((control) => ({
-      label: `Control at ${formatStation(control.chainage)}`,
-      value: [
-        control.elevation !== null && `${control.achievedElevation.toFixed(2)} m`,
-        control.gradePercent !== null && pct(control.achievedGradePercent),
-        'held',
-      ]
-        .filter(Boolean)
-        .join(', '),
-    })),
+    ...report.controls.map((control) =>
+      control.bound === 'minimum' && control.elevation !== null
+        ? {
+            label: `Minimum at ${formatStation(control.chainage)}`,
+            value: `${control.achievedElevation.toFixed(2)} m, ${(control.achievedElevation - control.elevation).toFixed(2)} m above the ${control.elevation.toFixed(2)} m minimum`,
+          }
+        : {
+            label: `Control at ${formatStation(control.chainage)}`,
+            value: [
+              control.elevation !== null && `${control.achievedElevation.toFixed(2)} m`,
+              control.gradePercent !== null && pct(control.achievedGradePercent),
+              'held',
+            ]
+              .filter(Boolean)
+              .join(', '),
+          },
+    ),
     {
       label: 'Objective',
       value:
