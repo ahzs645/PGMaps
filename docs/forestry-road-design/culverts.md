@@ -281,6 +281,19 @@ they existed; a field put back to its first choice is removed from the project f
 - A culvert read from a RoadEng traverse with a box width keeps that width in its RoadEng record;
   it is not turned into a box here.
 
+## Inlet side
+
+A culvert's inlet is its left end looking up-station unless **Inlet side** says right
+(`inletSide`, `culverts/culvertInlet.ts`). It is optional like the fields above: absent is left,
+left is never stored, and a culvert without it calculates exactly as before
+(`engineering.test.ts`, `designSurface.test.ts`). The barrel's line is the same either way; the
+side sets which end the inlet invert, the profile's first sample, the cover and grade, the ditch
+dip (the inlet side's ditch), the drainage check's channel, the schedule's inlet and outlet
+coordinates and the plan's flow arrow belong to. The invert fields are named for the side
+(`left inlet invert` or `right inlet invert`). A RoadEng traverse culvert that flows to the road's
+left reads with its inlet on the right. Batch placement proposes a side and asks the designer to
+confirm it ([Drainage](drainage.md#placing-cross-drains-in-a-batch)).
+
 ## Culvert schedule export
 
 Save & export → GIS data → **Culvert schedule** (`.csv`), one row per culvert of the active road,

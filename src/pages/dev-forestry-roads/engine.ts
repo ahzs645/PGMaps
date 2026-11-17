@@ -34,7 +34,8 @@ import {
   validateTemplate,
   validateComponentTransitions,
 } from './templates'
-import { calculateEngineering } from './engineering'
+import { calculateEngineering, type EngineeringGeometry } from './engineering'
+import { culvertInletSide } from './culverts/culvertInlet'
 import { estimateCrossings } from './crossingPlan'
 import type { CrossingCostItem } from './crossingPlanTypes'
 import { resolvedCableLine } from './cableGeometry'
@@ -858,6 +859,31 @@ export function surfaceLayersAt(alignment: Alignment, chainage: number) {
   return surfaceLayerAreas(t, t.leftWidth + left + widening('left'), t.rightWidth + right + widening('right'))
 }
 
+/** The compiled path and profile as the engineering calculation reads them. */
+function geometryOf(
+  alignment: Alignment,
+  path: Path,
+  profile: ReturnType<typeof verticalProfile>,
+  terrain: TerrainSource,
+): EngineeringGeometry {
+  return {
+    positionAt: (s) => location(path, s),
+    offsetCoordinate,
+    designElevationAt: (s) =>
+      profile.value(s)?.elevation ?? finite(terrain.elevationAt(...location(path, s).coordinate)),
+    widthsAt: (s) => effectiveWidths(alignment, s),
+    curvatureAt: (s) => signedCurvatureAt(path, s),
+  }
+}
+
+/**
+ * The geometry `analyzeRoad` hands the engineering calculation, for checking culverts that are not
+ * yet in the road (`calculateCulverts`) exactly as the road will calculate them.
+ */
+export function engineeringGeometry(alignment: Alignment, terrain: TerrainSource): EngineeringGeometry {
+  return geometryOf(alignment, compile(alignment), verticalProfile(alignment.vertical, []), terrain)
+}
+
 function verticalProfile(points: VerticalPoint[], warnings: string[]) {
   if (points.length > 500) throw new Error('Use at most 500 vertical control points per alignment.')
   const pv = [...points].sort((a, b) => a.chainage - b.chainage)
@@ -1196,9 +1222,9 @@ function legacySectionAt(
       ditchSideRun = Math.max(0, (ditchWidth - Math.min(ditchWidth, sideValue(t, name, 'DitchBottomWidth'))) / 2)
     const edgeZ = (z ?? NaN) - (width * crossfall) / 100
     // A culvert dip deepens the inlet-side ditch so its bottom falls to the inlet invert at the dip grade.
-    if (name === 'left' && ditchDepth > 0)
+    if (ditchDepth > 0)
       for (const culvert of alignment.engineering?.culverts ?? []) {
-        if (!culvert.ditchDipPercent || culvert.inletInvertM === null) continue
+        if (!culvert.ditchDipPercent || culvert.inletInvertM === null || culvertInletSide(culvert) !== name) continue
         const required = culvert.inletInvertM + (Math.abs(s - culvert.chainage) * culvert.ditchDipPercent) / 100
         ditchDepth = Math.max(ditchDepth, Math.min(MAX_DITCH_DIP_DEPTH, edgeZ - required))
       }
@@ -1922,14 +1948,13 @@ function analyzeRoadInChainage(
     },
   }
   if (alignment.engineering) {
-    const engineering = calculateEngineering(alignment, result, settings, terrain, {
-      positionAt: (s) => location(path, s),
-      offsetCoordinate,
-      designElevationAt: (s) =>
-        profile.value(s)?.elevation ?? finite(terrain.elevationAt(...location(path, s).coordinate)),
-      widthsAt: (s) => effectiveWidths(alignment, s),
-      curvatureAt: (s) => signedCurvatureAt(path, s),
-    })
+    const engineering = calculateEngineering(
+      alignment,
+      result,
+      settings,
+      terrain,
+      geometryOf(alignment, path, profile, terrain),
+    )
     result.engineering = engineering
     result.estimatedCost = engineering.costs.total
     result.balanceM3 = engineering.balanceM3

@@ -33,6 +33,7 @@ import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './
 import { CulvertOptionFields, CulvertStandards } from './culverts/CulvertEditorParts'
 import { buildCulvertSchedule } from './culverts/culvertSchedule'
 import { culvertChannels } from './culverts/culvertChannels'
+import { culvertInletSide, otherSide, withInletSide, type CulvertInletSide } from './culverts/culvertInlet'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { nearestStation } from './engine'
 import {
@@ -1447,6 +1448,24 @@ export function EngineeringControls({
                     <option value="stream">Natural stream</option>
                   </RoadSelect>
                 </Field>
+                <Field label="Inlet side">
+                  <RoadSelect
+                    ariaLabel={`Culvert ${index + 1} inlet side`}
+                    className={roadFieldClass}
+                    value={culvertInletSide(c)}
+                    onValueChange={(value) =>
+                      edit((e) => ({
+                        ...e,
+                        culverts: e.culverts.map((x) =>
+                          x.id === c.id ? withInletSide(x, value as CulvertInletSide) : x,
+                        ),
+                      }))
+                    }
+                  >
+                    <option value="left">Left, flows to the right</option>
+                    <option value="right">Right, flows to the left</option>
+                  </RoadSelect>
+                </Field>
                 <Fields<Culvert>
                   value={c}
                   fields={[
@@ -1549,13 +1568,13 @@ export function EngineeringControls({
                       fields={[
                         {
                           key: 'inletInvertM',
-                          label: `Culvert ${index + 1} left inlet invert (m)`,
+                          label: `Culvert ${index + 1} ${culvertInletSide(c)} inlet invert (m)`,
                           min: -12000,
                           max: 12000,
                         },
                         {
                           key: 'outletInvertM',
-                          label: `Culvert ${index + 1} right outlet invert (m)`,
+                          label: `Culvert ${index + 1} ${otherSide(culvertInletSide(c))} outlet invert (m)`,
                           min: -12000,
                           max: 12000,
                         },

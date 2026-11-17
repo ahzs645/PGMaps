@@ -241,5 +241,14 @@ describe('burning the road prism', () => {
     }).channels[0]
     expect(assumed.assumedInverts).toBe(true)
     expect(assumed.inletZ).toBeCloseTo(799.7, 6)
+    // An inlet on the right runs the same line the other way: east end first, at the inlet invert.
+    const right = burnRoad(grid, analysis, toGrid, { culverts: [{ ...culvert, inletSide: 'right' }] })
+    const flipped = right.channels[0]
+    const xOf = (i: number) => (i % surface.width) * surface.cellM + surface.origin[0]
+    expect(xOf(flipped.barrel[0])).toBeGreaterThan(6.3)
+    expect(xOf(flipped.barrel[flipped.barrel.length - 1])).toBeLessThan(-4.4)
+    expect(right.surface.values[flipped.barrel[0]]).toBeCloseTo(799.9, 6)
+    expect(right.surface.values[flipped.barrel[flipped.barrel.length - 1]]).toBeCloseTo(799.7, 6)
+    expect(new Set(flipped.barrel)).toEqual(new Set(channel.barrel))
   })
 })

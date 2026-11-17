@@ -33,6 +33,7 @@ import { materialDemandKey, requiredFillAt } from './allocationPolicy'
 import { resolveHorizons } from './groundHorizons'
 import { pappusVolume } from './curvedVolume'
 import { overbreakSwell } from './rockExcavation'
+import { culvertInletSide } from './culverts/culvertInlet'
 
 const EPS = 1e-7
 const R = 6371008.8
@@ -672,8 +673,10 @@ function calculateCulvert(
   terrain: TerrainSource,
   geometry: EngineeringGeometry,
 ): CulvertAnalysis {
+  // `angle` runs from the inlet end to the outlet end: the right-facing perpendicular turned by the
+  // skew, reversed when the inlet is on the right. The barrel's line is the same either way.
   const location = geometry.positionAt(c.chainage),
-    angle = (location.bearing + 90 + c.skewDegrees + 360) % 360
+    angle = (location.bearing + 90 + c.skewDegrees + (culvertInletSide(c) === 'right' ? 180 : 0) + 360) % 360
   const start = geometry.offsetCoordinate(location.coordinate, angle, -c.lengthM / 2),
     end = geometry.offsetCoordinate(location.coordinate, angle, c.lengthM / 2)
   const station = analysis.stations.reduce((nearest, p) =>
@@ -717,8 +720,10 @@ function calculateCulvert(
     warnings.push(`Barrel is shorter than the centred daylight span (${requiredLengthM.toFixed(2)} m).`)
   const distances = Array.from({ length: 41 }, (_, i) => (c.lengthM * i) / 40)
   distances.push(c.lengthM / 2)
+  // The formation edges along the barrel, measured from the inlet end.
+  const axisSign = culvertInletSide(c) === 'right' ? -1 : 1
   for (const value of [-station.leftWidth / cosine, station.rightWidth / cosine])
-    if (Math.abs(value) <= c.lengthM / 2) distances.push(c.lengthM / 2 + value)
+    if (Math.abs(value) <= c.lengthM / 2) distances.push(c.lengthM / 2 + axisSign * value)
   const candidates = analysis.stations.filter(
     (s) => Math.abs(s.chainage - c.chainage) <= c.lengthM + 2 * (analysis.stations[1]?.chainage ?? 10),
   )
@@ -837,6 +842,23 @@ function calculateCulvert(
     complete: coverM !== null && requiredLengthM !== null && associationResolved,
     warnings,
   }
+}
+
+/**
+ * The engine's own culvert results for culverts not (yet) in the road: the same calculation, the
+ * same checks. Batch placement previews draft culverts through it, so what it shows is what the
+ * road will calculate once they are added. A cross-drain without a ditch dip does not change the
+ * road's sections, so `analysis` is the road's current one.
+ */
+export function calculateCulverts(
+  culverts: readonly Culvert[],
+  alignment: Alignment,
+  analysis: RoadAnalysis,
+  terrain: TerrainSource,
+  geometry: EngineeringGeometry,
+): CulvertAnalysis[] {
+  if (!analysis.stations.length) return []
+  return culverts.map((c) => calculateCulvert(c, alignment, analysis, terrain, geometry))
 }
 
 export function calculateEngineering(

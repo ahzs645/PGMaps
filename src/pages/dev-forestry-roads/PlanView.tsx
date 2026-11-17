@@ -217,6 +217,8 @@ interface PlanProps {
   onPourPoint?: (coordinate: Coordinate) => void
   onOverlaySelect?: (properties: GeoJSON.GeoJsonProperties) => void
   selectedCulvertId?: string
+  /** Draft culverts of a cross-drain batch preview, drawn on the culvert layer (`crossDrainBatchPlan.ts`). */
+  draftCulverts?: GeoJSON.Feature[]
   onSelectCulvert?: (id: string) => void
   /** Inspect the source/history of a mapped cutblock or existing road. */
   onContextSelect?: (feature: ContextFeature, at?: Coordinate) => void
@@ -902,8 +904,8 @@ function Layers(
   )
   const structures = useMemo(
     () =>
-      fc(
-        (props.terrainOnly ? [] : (analysis.engineering?.culverts ?? [])).flatMap((culvert) => {
+      fc([
+        ...(props.terrainOnly ? [] : (analysis.engineering?.culverts ?? [])).flatMap((culvert) => {
           const properties = {
             id: culvert.id,
             chainage: culvert.chainage,
@@ -923,8 +925,10 @@ function Layers(
             ),
           ]
         }),
-      ),
-    [analysis, props.terrainOnly, props.selectedCulvertId],
+        // Draft culverts from a cross-drain batch preview (`crossDrainBatchPlan.ts`).
+        ...(props.terrainOnly ? [] : (props.draftCulverts ?? [])),
+      ]),
+    [analysis, props.terrainOnly, props.selectedCulvertId, props.draftCulverts],
   )
   const section = useMemo(
     () =>
@@ -1332,7 +1336,8 @@ function Layers(
       paint: {
         'line-color': ['get', 'color'],
         'line-width': ['case', ['==', ['get', 'selected'], true], 2.5, 1.75],
-        'line-gap-width': ['case', ['==', ['get', 'selected'], true], 6, 4],
+        // A draft culvert's flow arrow is one line, not two walls.
+        'line-gap-width': ['case', ['==', ['get', 'arrow'], true], 0, ['==', ['get', 'selected'], true], 6, 4],
       },
     })
     // The flow arrow out of each culvert's outlet (culvertFlowArrow.ts), a single line.

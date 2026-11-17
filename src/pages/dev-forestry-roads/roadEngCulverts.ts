@@ -179,10 +179,6 @@ export function culvertsFromTraverse(
       )
       skew = Math.sign(skew) * MAX_SKEW_DEG
     }
-    if (flowsLeft)
-      notes.push(
-        `The culvert at P-station ${pLabel(t.pStationM)} flows to the road's left; PGMaps puts a culvert's inlet on the left.`,
-      )
     const made = options.make(at.chainage)
     const record: RoadEngCulvertRecord = {
       bookId: book.id,
@@ -201,6 +197,8 @@ export function culvertsFromTraverse(
       kind: 'stream',
       chainage: Math.round(at.chainage * 1000) / 1000,
       skewDegrees: Math.round(skew * 100) / 100,
+      // Flowing to the road's left puts the inlet on the right.
+      ...(flowsLeft ? { inletSide: 'right' as const } : {}),
       lengthM: made.lengthM,
       diameterM: m.sizeYM !== null && m.sizeYM > 0 ? Math.min(20, Math.max(0.1, m.sizeYM)) : made.diameterM,
       inletInvertM: null,
@@ -314,8 +312,12 @@ function softreeCulvertFor(
 ): SoftreeCulvert {
   const record = c.roadEng?.bookId === book.id && c.roadEng.traverseStation === station ? c.roadEng : undefined
   const original = record ? details.extras.find((e) => e.station === station)?.culvert : undefined
+  // A culvert with its inlet on the right flows to the road's left; one read before `inletSide`
+  // existed keeps the direction its record states.
   const flowsLeft =
-    record?.flag === 3 || (record?.azimuthDeg !== undefined && skewFromAzimuth(record.azimuthDeg, bearing).flowsLeft)
+    c.inletSide === 'right' ||
+    record?.flag === 3 ||
+    (record?.azimuthDeg !== undefined && skewFromAzimuth(record.azimuthDeg, bearing).flowsLeft)
   const metres = {
     sizeYM: c.diameterM,
     sizeXM: record?.boxWidthM ?? null,

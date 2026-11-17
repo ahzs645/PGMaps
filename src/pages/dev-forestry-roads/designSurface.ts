@@ -4,6 +4,7 @@
  * carved through the prism so the hydrology run can pass water under the road.
  * Pure: projection is passed in, no DOM or network access.
  */
+import { culvertInletSide } from './culverts/culvertInlet'
 import { offsetCoordinate } from './engine'
 import type { Culvert, RoadAnalysis, RoadStation } from './types'
 import { cellIndexAt, cloneSurfaceGrid, gridCellIndex, type SurfaceGrid, type ToGrid } from './surfaceGrid'
@@ -252,7 +253,7 @@ function mergedU(a: Float64Array, b: Float64Array): number[] {
 
 export interface CulvertChannel {
   id: string
-  /** Carved cells, ordered inlet (left) to outlet (right), including the aprons beyond the barrel. */
+  /** Carved cells, ordered inlet to outlet (`inletSide`, left when omitted), including the aprons beyond the barrel. */
   cells: Int32Array
   /** The subset of `cells` along the barrel itself, across the footprint. */
   barrel: Int32Array
@@ -435,7 +436,7 @@ export function burnRoad(
  * A planning simplification of a culvert: a one-cell-wide channel along the barrel line (through
  * the chainage on the centreline, rotated by the skew from the right-facing perpendicular), long
  * enough to cross the whole footprint even when the entered barrel is shorter. Along it the
- * surface is lowered to the invert, interpolated inlet (left) → outlet (right) and held flat past
+ * surface is lowered to the invert, interpolated inlet → outlet (`inletSide`, left when omitted) and held flat past
  * the barrel ends. With an invert missing, the channel is flat at the lower ground of its two ends
  * less 0.3 m. Beyond each end an apron of up to `apronM` is cut at the end invert until the
  * original ground falls below it, so the outlet does not read as a buried pit. Pipe capacity is
@@ -452,9 +453,11 @@ export function carveCulvert(
   const p = frame.at(culvert.chainage)
   if (!Number.isFinite(p.x)) return null
   const phi = (culvert.skewDegrees * Math.PI) / 180
-  // Right-facing perpendicular (dy, −dx), turned clockwise by the skew.
-  const rx = p.dy,
-    ry = -p.dx
+  // Right-facing perpendicular (dy, −dx), turned clockwise by the skew, then pointed from the inlet
+  // end to the outlet end: reversed when the inlet is on the right.
+  const sign = culvertInletSide(culvert) === 'right' ? -1 : 1
+  const rx = sign * p.dy,
+    ry = -sign * p.dx
   const vx = rx * Math.cos(phi) + ry * Math.sin(phi),
     vy = -rx * Math.sin(phi) + ry * Math.cos(phi)
   const step = surface.cellM / 2,

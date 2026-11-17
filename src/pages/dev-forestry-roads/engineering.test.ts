@@ -4,12 +4,13 @@ import {
   alignmentLength,
   analyzeRoad,
   distance,
+  engineeringGeometry,
   horizontalCurveSummary,
   nearestStation,
   offsetCoordinate,
   verticalCurveSummary,
 } from './engine'
-import { haulCostLines, haulUnitCost } from './engineering'
+import { calculateCulverts, haulCostLines, haulUnitCost } from './engineering'
 import { createEngineeringDesign, DEFAULT_HAUL_SETTINGS } from './engineeringTypes'
 import {
   sideValue,
@@ -944,6 +945,64 @@ describe('culvert ditch dip', () => {
     // Beyond 50 m of dip the normal ditch is deeper than the dip line, and the right ditch never dips.
     expect(at(0, 'left')).toBeCloseTo(798.5, 6)
     expect(at(50, 'right')).toBeCloseTo(798.5, 6)
+  })
+
+  it('dips the right ditch instead when the inlet is on the right', () => {
+    const a = road(799)
+    a.template = { ...a.template, ditchWidth: 1, ditchDepth: 0.5 }
+    a.engineering!.culverts = [culvert({ inletSide: 'right', inletInvertM: 797.5, ditchDipPercent: 2 })]
+    const s = analyzeRoad(a, flat, settings).stations.find((x) => Math.abs(x.chainage - 50) < 1e-6)!
+    const at = (offset: number) => s.section.find((p) => Math.abs(p.offset - offset) < 1e-6)!.design!
+    expect(at(3.5)).toBeCloseTo(797.5, 6)
+    expect(at(-3.5)).toBeCloseTo(798.5, 6)
+  })
+})
+
+describe('culvert inlet side', () => {
+  const analysed = (c: Culvert) => {
+    const a = road(801)
+    a.engineering!.culverts = [c]
+    return { a, r: analyzeRoad(a, flat, settings) }
+  }
+
+  it('keeps a culvert without the field exactly as before: inlet at the left end', () => {
+    const { r } = analysed(culvert())
+    const c = r.engineering!.culverts[0]
+    // The road runs north, so the left end is west of the centreline.
+    expect(c.start[0]).toBeLessThan(c.coordinate[0])
+    expect(c.end[0]).toBeGreaterThan(c.coordinate[0])
+    expect(c.profile[0].invertElevation).toBeCloseTo(800, 9)
+    expect(c.profile[c.profile.length - 1].invertElevation).toBeCloseTo(799.88, 9)
+    expect(c.gradePercent).toBeCloseTo(-1, 9)
+    // 'left' written out is the same culvert as one without the field.
+    expect(analysed(culvert({ inletSide: 'left' })).r.engineering!.culverts[0]).toEqual(c)
+  })
+
+  it('runs a right inlet from the east end with the same line, cover, grade and cost', () => {
+    const left = analysed(culvert()).r.engineering!.culverts[0]
+    const right = analysed(culvert({ inletSide: 'right' })).r.engineering!.culverts[0]
+    expect(right.start[0]).toBeCloseTo(left.end[0], 12)
+    expect(right.end[0]).toBeCloseTo(left.start[0], 12)
+    expect(right.profile[0].coordinate[0]).toBeGreaterThan(right.coordinate[0])
+    expect(right.profile[0].invertElevation).toBeCloseTo(800, 9)
+    expect(right.coverM).toBeCloseTo(left.coverM!, 9)
+    expect(right.gradePercent).toBeCloseTo(left.gradePercent!, 9)
+    expect(right.installedCost).toBeCloseTo(left.installedCost, 9)
+    expect(right.requiredLengthM).toBeCloseTo(left.requiredLengthM!, 9)
+  })
+
+  it('previews a culvert not in the road exactly as the road calculates it', () => {
+    const c = culvert({ inletSide: 'right', skewDegrees: 15 })
+    const { a, r } = analysed(c)
+    const without = { ...a, engineering: { ...a.engineering!, culverts: [] } }
+    const preview = calculateCulverts(
+      [c],
+      without,
+      analyzeRoad(without, flat, settings),
+      flat,
+      engineeringGeometry(without, flat),
+    )
+    expect(preview).toEqual(r.engineering!.culverts)
   })
 })
 

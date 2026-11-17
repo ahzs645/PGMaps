@@ -17,6 +17,9 @@ import type { CulvertTiming } from './timeOfConcentration'
 import { depressionPolicyLabel, snapPolicyLabel } from './drainageSensitivity'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
+import { CrossDrainBatchPanel } from './CrossDrainBatchPanel'
+import type { CrossDrainBatch } from './useCrossDrainBatch'
+import type { StationEntry } from './stationEntry'
 
 type PourPointOptions = Pick<PourPoint, 'surface' | 'snapRadiusM' | 'snapPolicy'>
 
@@ -76,6 +79,9 @@ export function DrainagePanel({
   onSaveComparison,
   onRemoveComparison,
   onExportComparisons,
+  batch,
+  stations,
+  roadLength,
 }: {
   run: DrainageRun | null
   stale: boolean
@@ -98,6 +104,10 @@ export function DrainagePanel({
   onSaveComparison?: (label: string) => void
   onRemoveComparison?: (id: string) => void
   onExportComparisons?: (baselineId: string) => void
+  /** Batch placement of cross-drains (`useCrossDrainBatch.ts`); omitted, the table has no selection. */
+  batch?: CrossDrainBatch
+  stations?: StationEntry
+  roadLength?: number
 }) {
   const [pointOptions, setPointOptions] = useState<PourPointOptions>({
     surface: 'design',
@@ -433,6 +443,7 @@ export function DrainagePanel({
               <EngineeringTable>
                 <thead>
                   <tr>
+                    {batch && <ColumnHeader label="Pick" />}
                     <ColumnHeader label="Station" className="text-left" />
                     <ColumnHeader label="Stretch" className="text-left" />
                     <ColumnHeader label="Side" />
@@ -446,6 +457,19 @@ export function DrainagePanel({
                 <tbody>
                   {run.lowPoints.map((p) => (
                     <tr key={p.id}>
+                      {batch && (
+                        <td>
+                          {!p.throughCulvert && (
+                            <input
+                              type="checkbox"
+                              aria-label={`Pick site at ${formatRoadStation(p.chainage)}`}
+                              checked={batch.selected.has(p.id)}
+                              disabled={stale}
+                              onChange={() => batch.toggle(p.id)}
+                            />
+                          )}
+                        </td>
+                      )}
                       <td className="text-left">{station(p.chainage)}</td>
                       <td className="text-left">
                         {p.toChainage > p.fromChainage
@@ -467,6 +491,15 @@ export function DrainagePanel({
                 No flow of {n(Math.max(0.05, (LOW_POINT_MIN_CELLS * run.cellM ** 2) / 10_000), 2)} ha or more leaves the
                 road.
               </p>
+            )}
+            {batch && stations && roadLength !== undefined && (
+              <CrossDrainBatchPanel
+                batch={batch}
+                stations={stations}
+                roadLength={roadLength}
+                selectable={uncovered.length}
+                runCurrent={!stale}
+              />
             )}
           </section>
           <section aria-label="Culvert sizing">

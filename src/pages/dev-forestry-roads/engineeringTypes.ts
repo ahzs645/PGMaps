@@ -133,12 +133,17 @@ export interface Culvert {
   /** Horizontal barrel span; the actual inclined length is computed from known inverts. */
   lengthM: number
   diameterM: number
-  /** Endpoint inverts retain the project's vertical datum. Inlet is the left endpoint. */
+  /**
+   * Which end is the inlet, looking up-station (`culverts/culvertInlet.ts`). Omitted is left, as
+   * before the field existed; left is never stored.
+   */
+  inletSide?: 'left' | 'right'
+  /** Endpoint inverts retain the project's vertical datum, at the inlet and outlet ends (`inletSide`). */
   inletInvertM: number | null
   outletInvertM: number | null
   minCoverM: number
   /**
-   * Ditch dip toward the inlet: the inlet-side (left) ditch is deepened so its bottom falls at this
+   * Ditch dip toward the inlet: the inlet-side ditch (`inletSide`, left when omitted) is deepened so its bottom falls at this
    * grade (%) to the inlet invert, like RoadEng's culvert dip. Omitted means no dip.
    */
   ditchDipPercent?: number
