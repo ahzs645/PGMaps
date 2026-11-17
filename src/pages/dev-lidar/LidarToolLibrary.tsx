@@ -1,5 +1,6 @@
-import { ArrowLeft, ArrowUpRight, Layers3 } from 'lucide-react'
+import { ArrowUpRight, Layers3 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { DevLibraryBackLink } from '@/components/dev/PageBackLink'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolPageHeader } from '@/components/ui/tool-page-header'
 import { LIDAR_TOOL_ICONS } from './LidarToolLayout'
@@ -7,19 +8,14 @@ import { LIDAR_TOOLS, toolPath } from './workspaceTools'
 
 export function LidarToolLibrary({ valid = true }: { valid?: boolean }) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-8" aria-label="LiDAR tool library">
+    <div
+      className="theme-tint-emerald min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-8"
+      aria-label="LiDAR tool library"
+    >
       <div className="mx-auto max-w-5xl">
         <ToolPageHeader
           className="mb-0"
-          back={
-            <Link
-              to="/dev"
-              className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="size-4" aria-hidden="true" />
-              Dev tools
-            </Link>
-          }
+          back={<DevLibraryBackLink />}
           eyebrow="BC 093G086 · original LiDAR + processed products"
           eyebrowIcon={Layers3}
           eyebrowClassName="text-emerald-700 dark:text-emerald-400"

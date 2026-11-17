@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
+import { ToolPageHeader } from '@/components/ui/tool-page-header'
 
 const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0000/-96.0000/B1/L1/L2'
 
@@ -282,18 +283,15 @@ export default function DevLibrary() {
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 pb-8 pt-24 sm:px-6 sm:pb-12 sm:pt-28 md:py-12">
-        <div className="mb-8 flex flex-col gap-5 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-md border bg-background px-3 py-1 text-sm font-medium text-muted-foreground">
-              <Beaker className="h-4 w-4" />
-              Dev library
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">Development Pages</h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-              Choose a development tool or prototype to open its dedicated subpage.
-            </p>
-          </div>
-        </div>
+        <ToolPageHeader
+          size="lg"
+          className="mb-8 sm:mb-10"
+          eyebrow="Dev library"
+          eyebrowIcon={Beaker}
+          eyebrowClassName="text-muted-foreground"
+          title="Development Pages"
+          description="Choose a development tool or prototype to open its dedicated subpage."
+        />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {devEntries.map((entry) => (

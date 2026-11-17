@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Eye, EyeOff, Loader2, Play, RotateCcw } from 'lucide-react'
 
-import { DevPageHeader } from '@/components/DevPageHeader'
+import { DevLibraryBackLink } from '@/components/dev/PageBackLink'
+import { ToolPageHeader } from '@/components/ui/tool-page-header'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_MAP_LOADER, MapLoader, type MapLoaderVariant } from '@/components/ui/map-loader'
 import { cn } from '@/lib/utils'
@@ -59,10 +60,12 @@ export default function DevLoad() {
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 pb-10 pt-24 sm:px-6 sm:pt-28 md:py-12">
-        <DevPageHeader
+        <ToolPageHeader
           className="mb-8"
+          back={<DevLibraryBackLink />}
           eyebrow="Dev playground"
-          icon={Loader2}
+          eyebrowIcon={Loader2}
+          eyebrowClassName="text-muted-foreground"
           title="Map loading screen"
           description="Preview the production map loader without waiting for a map or dataset to load."
         />

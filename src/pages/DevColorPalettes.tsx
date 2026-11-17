@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Palette } from 'lucide-react'
-import { DevPageHeader } from '@/components/DevPageHeader'
+import { DevLibraryBackLink } from '@/components/dev/PageBackLink'
+import { ToolPageHeader } from '@/components/ui/tool-page-header'
 import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
 import { InlineAlert, MapSidebarShell, SearchInput } from '@/components/ui/map-panels'
@@ -57,16 +58,14 @@ export default function DevColorPalettes() {
   }, [literalQuery])
   return (
     <div className="mx-auto max-w-[1500px] space-y-7 px-4 pb-12 pt-24 sm:px-6 md:pt-10">
-      <DevPageHeader
+      <ToolPageHeader
+        className="mb-0"
+        back={<DevLibraryBackLink />}
         eyebrow="Dev playground"
-        icon={Palette}
+        eyebrowIcon={Palette}
+        eyebrowClassName="text-muted-foreground"
         title="Colour palettes & scales"
         description="Inspect the colours we already use, find their source pages, and experiment with a smaller part of a palette in light and dark mode."
-        actions={
-          <Button variant="outline" asChild>
-            <Link to="/dev">All dev pages</Link>
-          </Button>
-        }
       />
       <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
         <span>{catalog.palettes.length} palette / source groups</span>

@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
-import { ArrowLeft, BookOpen, Database, Landmark, MapPinned } from 'lucide-react'
+import { BookOpen, Database, Landmark, MapPinned } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { CopyButton } from '@/components/ui/copy-button'
 import { ExternalLink } from '@/components/ui/text-button'
 import { ToolPageHeader } from '@/components/ui/tool-page-header'
+import { DevLibraryBackLink } from '@/components/dev/PageBackLink'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import {
   AIR_DATA_VIEWS,
@@ -93,15 +94,7 @@ export default function DevGov() {
         <ToolPageHeader
           size="lg"
           className="mb-0"
-          back={
-            <Link
-              to="/dev"
-              className="mb-5 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="size-4" aria-hidden="true" />
-              Dev library
-            </Link>
-          }
+          back={<DevLibraryBackLink />}
           eyebrow="Government sources"
           eyebrowIcon={Landmark}
           eyebrowClassName="text-muted-foreground"

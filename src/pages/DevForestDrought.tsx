@@ -21,6 +21,7 @@ export default function DevForestDrought() {
     <div className="min-h-full bg-gradient-to-b from-background to-muted/25">
       <div className="mx-auto max-w-7xl px-4 pb-8 pt-20 sm:px-6 md:pt-6">
         <ToolPageHeader
+          className="theme-tint-emerald"
           back={<ForestryBackLink variant="text" />}
           eyebrow="Forest climate & soil water"
           eyebrowIcon={Droplets}

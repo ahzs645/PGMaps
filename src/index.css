@@ -378,10 +378,11 @@ canvas,
   --palette-tint-950: initial;
 }
 
-/* A page whose own accent is green or amber (Parks, Census) puts `theme-tint-green` or
-   `theme-tint-amber` on its panel. Under a theme that family then draws from the tint ramp inside
-   the panel, like the blue families do everywhere; outside it, and without a theme, green and
-   amber stay the status and category colours they are. tailwind-theme.mjs, `pageAccentPalette`. */
+/* A page whose own accent is green, amber or emerald (Parks, Census, the LiDAR and forestry tool
+   pages) puts `theme-tint-green`, `theme-tint-amber` or `theme-tint-emerald` on its panel or
+   accent. Under a theme that family then draws from the tint ramp inside it, like the blue
+   families do everywhere; outside it, and without a theme, the family stays the status and
+   category colour it is. tailwind-theme.mjs, `pageAccentPalette`. */
 [data-interface-theme] .theme-tint-green {
   --palette-green-50: var(--palette-tint-50);
   --palette-green-100: var(--palette-tint-100);
@@ -407,6 +408,19 @@ canvas,
   --palette-amber-800: var(--palette-tint-800);
   --palette-amber-900: var(--palette-tint-900);
   --palette-amber-950: var(--palette-tint-950);
+}
+[data-interface-theme] .theme-tint-emerald {
+  --palette-emerald-50: var(--palette-tint-50);
+  --palette-emerald-100: var(--palette-tint-100);
+  --palette-emerald-200: var(--palette-tint-200);
+  --palette-emerald-300: var(--palette-tint-300);
+  --palette-emerald-400: var(--palette-tint-400);
+  --palette-emerald-500: var(--palette-tint-500);
+  --palette-emerald-600: var(--palette-tint-600);
+  --palette-emerald-700: var(--palette-tint-700);
+  --palette-emerald-800: var(--palette-tint-800);
+  --palette-emerald-900: var(--palette-tint-900);
+  --palette-emerald-950: var(--palette-tint-950);
 }
 
 /* Workspace branding supplies the primary colour when Appearance leaves it unset. */

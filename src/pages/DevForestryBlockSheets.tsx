@@ -34,7 +34,7 @@ export default function DevForestryBlockSheets() {
           back={<ForestryBackLink variant="text" />}
           eyebrow="Block map sheets"
           eyebrowIcon={MapIcon}
-          eyebrowClassName="text-amber-700 dark:text-amber-400"
+          eyebrowClassName="theme-tint-amber text-amber-700 dark:text-amber-400"
           title="Block sheet symbol gallery"
           description="Every block sheet preset at several scales and papers, every map symbol beside the values it was drawn from, where the reference legends disagreed with their maps, and the VIA figure styles."
           aside={

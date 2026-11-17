@@ -7,7 +7,8 @@ import { Map, MapControls } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ExternalLink } from '@/components/ui/text-button'
-import { DevPageHeader } from '@/components/DevPageHeader'
+import { DevLibraryBackLink } from '@/components/dev/PageBackLink'
+import { ToolPageHeader } from '@/components/ui/tool-page-header'
 import { DEFAULT_LOCALE, formatBytes } from '@/lib/format'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { withBase } from '@/lib/dataUrl'
@@ -312,9 +313,11 @@ function DevBcerBoundaries() {
   return (
     <div className="min-h-full overflow-auto bg-gradient-to-b from-muted/40 via-background to-background">
       <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
-        <DevPageHeader
+        <ToolPageHeader
+          back={<DevLibraryBackLink />}
           eyebrow="Boundary geometry comparison"
-          icon={GitCompareArrows}
+          eyebrowIcon={GitCompareArrows}
+          eyebrowClassName="text-muted-foreground"
           title="BCER admin zones: optimized vs raw"
           description={
             <>
@@ -322,8 +325,8 @@ function DevBcerBoundaries() {
               Their viewports and selected zones stay synchronized so you can inspect boundary detail.
             </>
           }
-          actions={
-            <>
+          aside={
+            <div className="flex flex-wrap gap-2">
               <Link
                 to="/dev/boundaries"
                 className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm hover:bg-muted touch:h-10"
@@ -338,7 +341,7 @@ function DevBcerBoundaries() {
               >
                 BCER source
               </ExternalLink>
-            </>
+            </div>
           }
         />
 

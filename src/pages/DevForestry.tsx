@@ -1,8 +1,8 @@
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Droplets, Eye, Layers, Route, Sprout, TreePine, Trees } from 'lucide-react'
+import { Droplets, Eye, Layers, Route, Sprout, TreePine, Trees } from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
+import { DevLibraryBackLink } from '@/components/dev/PageBackLink'
 import { ToolPageHeader } from '@/components/ui/tool-page-header'
 
 const forestryTools: DevEntry[] = [
@@ -106,15 +106,7 @@ export default function DevForestry() {
         <ToolPageHeader
           size="lg"
           className="mb-8 sm:mb-10"
-          back={
-            <Link
-              to="/dev"
-              className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Dev library
-            </Link>
-          }
+          back={<DevLibraryBackLink />}
           eyebrow="Forestry"
           eyebrowIcon={TreePine}
           eyebrowClassName="text-muted-foreground"
