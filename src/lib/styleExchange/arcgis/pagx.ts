@@ -10,7 +10,7 @@
  * layouts Pro 3.6 wrote. No DOM or network access.
  */
 import { SHEET_CHROME } from '@/lib/forestry/blockSheet/styles'
-import { resolveSheet, type Rect } from '@/lib/mapSheet/layout'
+import { OPERATING_PLAN_SIDE_PANEL, resolveSheet, type Rect } from '@/lib/mapSheet/layout'
 import { safeFileStem, type LayoutDocument, type StyleDocument, type WriteResult } from '../model'
 import { CIM_BUILD, CIM_VERSION, cimColor, diagnostic, trim, type Json } from './cimCommon'
 import { symbolReference } from './cim'
@@ -192,7 +192,7 @@ function northArrowSymbol(height: number, k: number): Json {
   })
 }
 
-function legendElement(w: Writer, rect: Rect, layers: Json[], k: number): Json {
+function legendElement(w: Writer, rect: Rect, layers: Json[], k: number, columns = 1): Json {
   const text = (size: number) => symbolReference(cimTextSymbol(size, '#000000', { vertical: 'Center' }))
   // One legend entry; without a layer, the template Pro uses for layers added later.
   const item = (layer?: Json): Json => ({
@@ -256,7 +256,7 @@ function legendElement(w: Writer, rect: Rect, layers: Json[], k: number): Json {
     layerNameGap: trim(3 * k),
     fittingStrategy: 'AdjustColumnsAndFont',
     groupLayerNameGap: trim(3 * k),
-    columns: 1,
+    columns,
     makeColumnsSameWidth: true,
     defaultLegendItem: item(),
     balanceColumns: true,
@@ -317,6 +317,8 @@ export function arcgisPagx(layout: LayoutDocument, doc: StyleDocument, options: 
   assertWritable(doc)
   const ctx: LayerContext = { diagnostics: [], format: 'pagx' }
   const sheet = resolveSheet(layout.template, layout.paper)
+  const barFill =
+    layout.template.id === OPERATING_PLAN_SIDE_PANEL.id ? SHEET_CHROME.operatingPlanFill : SHEET_CHROME.barFill
   const k = sheet.k
   const w: Writer = { height: sheet.height, k }
   const extent = layout.extent ?? doc.extent
@@ -394,7 +396,7 @@ export function arcgisPagx(layout: LayoutDocument, doc: StyleDocument, options: 
       w,
       'Title bar',
       title,
-      { fill: SHEET_CHROME.barFill, stroke: { color: SHEET_CHROME.line, width: 1 * k } },
+      { fill: barFill, stroke: { color: SHEET_CHROME.line, width: 1 * k } },
       { 'pgmaps:role': 'title-bar' },
     ),
   )
@@ -447,7 +449,7 @@ export function arcgisPagx(layout: LayoutDocument, doc: StyleDocument, options: 
           w,
           `${name} header`,
           { ...panel.rect, h: bar },
-          { fill: SHEET_CHROME.barFill, stroke: { color: SHEET_CHROME.line, width: 1 * k } },
+          { fill: barFill, stroke: { color: SHEET_CHROME.line, width: 1 * k } },
           { 'pgmaps:panel': panel.id, 'pgmaps:part': 'header' },
         ),
       )
@@ -479,6 +481,7 @@ export function arcgisPagx(layout: LayoutDocument, doc: StyleDocument, options: 
         { x: legendBody.x + pad, y: legendBody.y + pad, w: legendBody.w - pad * 2, h: legendBody.h - pad * 2 },
         layers,
         k,
+        layout.template.id === OPERATING_PLAN_SIDE_PANEL.id ? 2 : 1,
       ),
     )
   } else

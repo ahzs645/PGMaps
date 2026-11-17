@@ -152,11 +152,23 @@ describe('ArcGIS Pro map and layout files', () => {
 
   it.each(
     SHEET_TEMPLATES.flatMap((template) => (Object.keys(PAPER_SIZES) as PaperId[]).map((paper) => [template.id, paper])),
-  )('reads the %s template on %s back to the same fractions', (id, paper) => {
+  )('reads the %s template on %s back within 0.0001 page fractions', (id, paper) => {
     const template = SHEET_TEMPLATES.find((t) => t.id === id)!
     const layout = { ...FIXTURE_LAYOUT, template, paper: paper as PaperId }
     const read = readArcgisFile('sheet.pagx', arcgisPagx(layout, FIXTURE_DOCUMENT).files[0].content)
     expect(read.layouts[0].paper).toBe(paper)
-    expect(read.layouts[0].template).toEqual(template)
+    const back = read.layouts[0].template
+    expect(back.id).toBe(template.id)
+    expect(back.orientation).toBe(template.orientation)
+    const panelMetadata = (panels: typeof template.panels) =>
+      panels.map((panel) => ({ id: panel.id, title: panel.title, bare: panel.bare }))
+    expect(panelMetadata(back.panels)).toEqual(panelMetadata(template.panels))
+    const original = [template.neatline, template.title, template.frame, ...template.panels.map((panel) => panel.rect)]
+    const returned = [back.neatline, back.title, back.frame, ...back.panels.map((panel) => panel.rect)]
+    // Pro stores inches to five decimals; the reader stores page fractions to four. Allow one
+    // fraction unit for their combined rounding (less than 0.3 pt even on native 36 × 29 paper).
+    for (let rect = 0; rect < original.length; rect++)
+      for (let coordinate = 0; coordinate < 4; coordinate++)
+        expect(Math.abs(returned[rect][coordinate] - original[rect][coordinate])).toBeLessThanOrEqual(0.0001)
   })
 })

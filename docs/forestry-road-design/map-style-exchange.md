@@ -25,7 +25,7 @@ how the files were checked.
 | Output (Save & export → GIS data) | Files                                                                                                                                                                                                                                      | Opens in                                                    |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
 | Shapefile                         | `road_centrelines`, `road_stations`, `road_culverts` shapefiles, and beside each a `.qml`, an `.sld` and a `.lyrx`                                                                                                                         | Any GIS; QGIS loads the `.qml` with the layer automatically |
-| QGIS project                      | `<project>.qgz`; `data/` with the road layers plus `context_lines` (streams, existing and deactivated roads) and `context_areas` (constraints, other blocks), each with its `.qml`; `layouts/` with the four block sheet layouts as `.qpt` | QGIS 3.28 and later, including 4.x                          |
+| QGIS project                      | `<project>.qgz`; `data/` with the road layers plus `context_lines` (streams, existing and deactivated roads) and `context_areas` (constraints, other blocks), each with its `.qml`; `layouts/` with the five block sheet layouts as `.qpt` | QGIS 3.28 and later, including 4.x                          |
 | ArcGIS Pro map                    | A `.lyrx` per layer, `<project>.mapx`, `layouts/*.pagx`, `styles/*.stylx` (every PGMaps symbol), `data/`                                                                                                                                   | ArcGIS Pro 3.x (see [Checks](#checks))                      |
 | Web map styles                    | `maplibre/style.json` with the data inline and `sprite(@2x).json/png`; `geolibre/<project>.geolibre` and a `.geolibre.style.json` per layer; `sld/*.sld`; `geojson/*.geojson`                                                              | MapLibre GL, GeoLibre, GeoServer, QGIS                      |
 | Symbol library                    | Every catalogue symbol as a QGIS style library (`qgis/*.xml`), an ArcGIS Pro style (`arcgis/*.stylx`) and a GeoLibre style library (`geolibre/*.json`)                                                                                     | QGIS Style Manager, ArcGIS Pro Styles, GeoLibre             |
@@ -34,6 +34,10 @@ Roads take the proposed-road symbol in each road's own colour and are labelled w
 Context takes the sheet symbol `contextSheetKey` gives it (`exportStyles.ts`); a deactivated road
 takes the existing-road symbol with the deactivation crosses on it, as the plan draws the two.
 Culverts and stations take the plan's colours.
+
+The layout bundles also include the operating-plan template at its native 36 × 29-inch size,
+with a two-column legend. Its branding and locator boxes are editable spaces to fill in the GIS
+program; the **Block map sheet** PDF draws the project locator and user branding automatically.
 
 ## Rules and first match
 

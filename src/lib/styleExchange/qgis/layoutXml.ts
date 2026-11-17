@@ -9,6 +9,7 @@
  */
 import {
   PAPER_SIZES,
+  OPERATING_PLAN_SIDE_PANEL,
   SHEET_TEMPLATES,
   fontSize,
   resolveSheet,
@@ -47,7 +48,17 @@ export const LAYOUT_ITEM = {
   scalebar: 65646,
 } as const
 
-const PANEL_IDS: readonly PanelId[] = ['blockInfo', 'source', 'legend', 'roadTable', 'footer', 'comments', 'notes']
+const PANEL_IDS: readonly PanelId[] = [
+  'blockInfo',
+  'source',
+  'legend',
+  'roadTable',
+  'footer',
+  'comments',
+  'notes',
+  'branding',
+  'locator',
+]
 const NORTH_ARROW_SVG = ':/images/north_arrows/layout_default_north_arrow.svg'
 
 /** Fixed item ids, so the same layout always writes the same file. */
@@ -283,7 +294,7 @@ export function layoutXml(layout: LayoutDocument, crs: ProjectCrsId, fallbackExt
             map_uuid: mapUuid,
             resizeToContents: 0,
             syncMode: 'AllProjectLayers',
-            columnCount: 1,
+            columnCount: layout.template.id === OPERATING_PLAN_SIDE_PANEL.id ? 2 : 1,
             symbolWidth: 7,
             symbolHeight: 4,
             boxSpace: 2,

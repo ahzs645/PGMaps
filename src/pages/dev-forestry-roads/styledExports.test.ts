@@ -3,6 +3,7 @@ import initSqlJs, { type SqlJsStatic } from 'sql.js'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { encodePng } from '@/lib/mapSheet/png'
 import { readStyleFile } from '@/lib/styleExchange/readStyleFile'
+import { readQgisFile } from '@/lib/styleExchange/qgis/read'
 import { roadShapefileLayers } from './designExports'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { contextShapefileLayers } from './exportStyles'
@@ -61,13 +62,27 @@ const zip = (files: { path: string; content: string | Uint8Array }[]) =>
   )
 
 describe('styled GIS exports', () => {
-  it('writes the QGIS project with data, a style per layer and the four sheet layouts', async () => {
+  it('writes the QGIS project with data, a style per layer and all five sheet layouts', async () => {
     const { files } = await bundle('qgis-project')
     const paths = files.map((f) => f.path)
     expect(paths).toContain('Test-project.qgz')
     for (const id of ['context_lines', 'context_areas', 'road_centrelines', 'road_stations', 'road_culverts'])
       expect(paths).toEqual(expect.arrayContaining([`data/${id}.shp`, `data/${id}.qml`]))
-    expect(paths.filter((p) => p.startsWith('layouts/') && p.endsWith('.qpt'))).toHaveLength(4)
+    expect(paths.filter((p) => p.startsWith('layouts/') && p.endsWith('.qpt'))).toHaveLength(5)
+    expect(paths).toContain('layouts/operating-plan-side-panel.qpt')
+    const operating = readQgisFile(
+      'operating-plan.qpt',
+      files.find((file) => file.path === 'layouts/operating-plan-side-panel.qpt')!.content,
+    )
+    expect(operating.layouts[0].paper).toBe('36x29')
+    expect(operating.layouts[0].template.panels.map((panel) => panel.id)).toEqual([
+      'branding',
+      'blockInfo',
+      'legend',
+      'source',
+      'locator',
+      'footer',
+    ])
     expect(paths).toContain('README.txt')
   })
 
@@ -76,7 +91,8 @@ describe('styled GIS exports', () => {
     const paths = files.map((f) => f.path)
     expect(paths).toEqual(expect.arrayContaining(['road_centrelines.lyrx', 'data/road_centrelines.shp']))
     expect(paths.some((p) => p.endsWith('.mapx'))).toBe(true)
-    expect(paths.filter((p) => !p.includes('/') && p.endsWith('.pagx'))).toHaveLength(4)
+    expect(paths.filter((p) => !p.includes('/') && p.endsWith('.pagx'))).toHaveLength(5)
+    expect(paths).toContain('operating-plan-side-panel.pagx')
     expect(paths.some((p) => p.startsWith('styles/') && p.endsWith('.stylx'))).toBe(true)
     const lyrx = JSON.parse(files.find((f) => f.path === 'road_centrelines.lyrx')!.content as string)
     expect(lyrx.layerDefinitions[0].featureTable.dataConnection.workspaceConnectionString).toBe('DATABASE=.\\data')
