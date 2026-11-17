@@ -1,7 +1,7 @@
 import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from '../Controls'
 import type { Culvert } from '../engineeringTypes'
 import { CULVERT_OPTION_LIMITS, withCulvertOption, type CulvertOptions } from './culvertOptions'
-import type { CulvertScheduleRow } from './culvertSchedule'
+import { culvertHydraulicsText, type CulvertScheduleRow } from './culvertSchedule'
 import { CULVERT_SHAPES, culvertShapeOf, MAX_CULVERT_BARRELS, type CulvertShape } from './culvertShape'
 import { CULVERT_INLET_EDGES, CULVERT_MATERIALS } from './engineeringManual'
 
@@ -155,6 +155,7 @@ export function CulvertStandards({ row, appraisalBasis }: { row: CulvertSchedule
   const notMet = row.checks.filter((check) => check.state === 'not-met' && check.id !== 'length')
   const open = row.checks.filter((check) => check.state === 'not-assessed')
   const notes = row.checks.filter((check) => check.state === 'note')
+  const hydraulics = culvertHydraulicsText(row)
   const cost = row.cost.replacedByCrossingRecord
     ? row.cost.basis
     : row.cost.installedCad === null
@@ -188,6 +189,14 @@ export function CulvertStandards({ row, appraisalBasis }: { row: CulvertSchedule
           {row.class.major ? '. Needs a professional engineer’s design.' : '.'}
         </dd>
       </div>
+      {hydraulics && (
+        <div data-testid="road-culvert-hydraulics" data-control={row.headwater.governing?.control ?? 'not-determined'}>
+          <dt className="inline font-medium text-foreground">Hydraulics </dt>
+          <dd className="inline text-muted-foreground">
+            {hydraulics}. Tailwater, debris and the road’s low point away from the barrel are not modelled.
+          </dd>
+        </div>
+      )}
       <div data-testid="road-culvert-checks">
         <dt className="font-medium text-foreground">Design checks</dt>
         {notMet.map((check) => (

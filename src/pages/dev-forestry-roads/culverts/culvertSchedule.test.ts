@@ -81,6 +81,9 @@ const drainage = (checks: Record<string, unknown>[]): { record: DrainageEvidence
   } as unknown as DrainageEvidence,
 })
 
+/** One CSV line's cells, quotes honoured. */
+const csvCells = (line: string) => [...line.matchAll(/("(?:[^"]|"")*"|[^,]*)(,|$)/g)].map((m) => m[1]).slice(0, -1)
+
 describe('the culvert schedule', () => {
   it('keeps construction cost, appraisal treatment and design evidence apart for each culvert', () => {
     const { analysis, schedule: result } = schedule([
@@ -184,6 +187,65 @@ describe('the culvert schedule', () => {
     const named = withStationing({ startStation: 1000, equations: [] }, () => culvertScheduleCsv(result)).split('\n')[1]
     expect(named.startsWith('1+100.0,100,')).toBe(true)
     expect(alignment.engineering!.culverts).toHaveLength(1)
+  })
+  it('adds fall, depth to invert, headwater by each control, freeboard and a suggested size, after the original columns', () => {
+    const { analysis, schedule: result } = schedule([culvert({ material: 'csp' })], {
+      drainage: drainage([{ id: 'c1', designFlowM3s: 0.9, capacityM3s: 2.1, adequate: true }]),
+    })
+    const row = result.rows[0]
+    expect(row.fallOneIn).toBeCloseTo(40, 9)
+    const profile = analysis.engineering!.culverts[0].profile
+    expect(row.depthToInvert.inletM).toBeCloseTo(profile[0].groundElevation! - 803.3, 9)
+    expect(row.depthToInvert.outletM).toBeCloseTo(profile[profile.length - 1].groundElevation! - 803.0, 9)
+    expect(row.headwater.inlet && row.headwater.outlet).toBeTruthy()
+    expect(row.headwater.governing).not.toBeNull()
+    // The template's surfacing lifts the lowest subgrade over the barrel to the road surface.
+    expect(row.headwater.road!.surfacingM).toBe(DEFAULT_TEMPLATE.surfaceDepth)
+    expect(row.headwater.freeboardM).toBeCloseTo(row.headwater.road!.lowestSurfaceM - row.headwater.elevationM!, 9)
+    expect(row.checks.find((check) => check.id === 'overtopping')!.state).not.toBe('not-assessed')
+    expect(row.headwater.suggested!.diameterM).toBeGreaterThan(0)
+    // The original columns keep their places; the new ones follow them.
+    const original = CULVERT_SCHEDULE_COLUMNS.indexOf('evidence')
+    expect(original).toBe(34)
+    expect(CULVERT_SCHEDULE_COLUMNS.slice(original + 1)).toEqual([
+      'fall_one_in',
+      'inlet_depth_to_invert_m',
+      'outlet_depth_to_invert_m',
+      'road_surface_over_invert_m',
+      'inlet_control_hw_m',
+      'outlet_control_hw_m',
+      'outlet_control_method',
+      'governing_control',
+      'governing_hw_m',
+      'governing_hw_over_d',
+      'headwater_elevation_m',
+      'road_surface_low_m',
+      'freeboard_m',
+      'suggested_diameter_m',
+    ])
+    const cells = csvCells(culvertScheduleCsv(result).trimEnd().split('\n')[1])
+    expect(cells).toHaveLength(CULVERT_SCHEDULE_COLUMNS.length)
+    expect(cells[original + 1]).toBe('40')
+    expect(cells[CULVERT_SCHEDULE_COLUMNS.indexOf('governing_control')]).toBe(row.headwater.governing!.control)
+    expect(cells[CULVERT_SCHEDULE_COLUMNS.indexOf('outlet_control_method')]).toBe('full flow')
+    expect(culvertScheduleReportHtml(result)).toContain('Falls 1 in 40 (2.5%)')
+  })
+  it('leaves the headwater figures empty without a current drainage check', () => {
+    const row = schedule([culvert({})]).schedule.rows[0]
+    expect(row.headwater).toMatchObject({
+      inlet: null,
+      outlet: null,
+      governing: null,
+      freeboardM: null,
+      suggested: null,
+    })
+    const cells = csvCells(
+      culvertScheduleCsv(schedule([culvert({})]).schedule)
+        .trimEnd()
+        .split('\n')[1],
+    )
+    expect(cells[CULVERT_SCHEDULE_COLUMNS.indexOf('governing_control')]).toBe('not determined')
+    expect(cells[CULVERT_SCHEDULE_COLUMNS.indexOf('freeboard_m')]).toBe('')
   })
   it('prints the schedule for the report, and nothing for a road with no culverts', () => {
     const html = culvertScheduleReportHtml(schedule([culvert({ name: 'A <b> pipe' })]).schedule)

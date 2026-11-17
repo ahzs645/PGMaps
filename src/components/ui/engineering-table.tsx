@@ -22,6 +22,11 @@ interface EngineeringTableProps extends TableHTMLAttributes<HTMLTableElement> {
  * A dense, ruled data table for engineering schedules: right-aligned tabular numbers, a cell
  * rule between columns, banded rows and a tinted `aria-selected` row. Put it inside a scroll
  * container and give the `<thead>` `className="sticky top-0"` when the header should stay.
+ *
+ * The borders are separate, each cell drawing its own bottom and right rule and the first cell
+ * of a row its left one, never `border-collapse`: a collapsed border belongs to the table, so on
+ * a sticky header or pinned column it stays behind as the rows scroll, leaving a transparent
+ * strip the rows show through and a header that shifts by a line as it sticks.
  */
 export function EngineeringTable({
   className,
@@ -34,12 +39,13 @@ export function EngineeringTable({
   return (
     <table
       className={cn(
-        'w-full border-collapse',
+        'w-full border-separate border-spacing-0',
         text ? 'whitespace-normal text-left text-xs' : 'whitespace-nowrap text-right text-2xs tabular-nums',
-        '[&_td]:border-x [&_td]:border-b [&_td]:border-border/60',
+        '[&_td]:border-b [&_td]:border-r [&_td]:border-border/60 [&_tr>td:first-child]:border-l',
+        !rowHeaders && '[&_th+td]:border-l',
         text ? '[&_td]:p-2' : '[&_td]:px-2 [&_td]:py-0.5',
         rowHeaders &&
-          '[&_tbody_th]:border-x [&_tbody_th]:border-b [&_tbody_th]:border-border/60 [&_tbody_th]:text-left [&_tbody_th]:font-normal',
+          '[&_tbody_th]:border-b [&_tbody_th]:border-r [&_tbody_th]:border-border/60 [&_tbody_tr>th:first-child]:border-l [&_tbody_th]:text-left [&_tbody_th]:font-normal',
         rowHeaders && (text ? '[&_tbody_th]:p-2' : '[&_tbody_th]:px-2 [&_tbody_th]:py-0.5'),
         compact &&
           '[overflow-wrap:normal] [&_td]:px-1 [&_tbody_th]:px-1 [&_tbody_th]:whitespace-normal [&_thead_th]:px-1',
@@ -62,7 +68,10 @@ export function ColumnHeader({
   return (
     <th
       scope="col"
-      className={cn('border border-border/70 bg-muted px-2 py-1 align-bottom font-medium leading-tight', className)}
+      className={cn(
+        'border-y border-r border-border/70 bg-muted first:border-l px-2 py-1 align-bottom font-medium leading-tight',
+        className,
+      )}
       {...props}
     >
       <span className="block">{label}</span>

@@ -458,8 +458,12 @@ export function CostBreakdown({
               )}
             </tbody>
             <tfoot>
-              <tr className="border-t border-border font-semibold" data-cost-row="total">
-                <th scope="row" className="border border-border/60 px-2 py-2 text-left align-top" colSpan={4}>
+              <tr className="font-semibold" data-cost-row="total">
+                <th
+                  scope="row"
+                  className="border-x border-b border-border/60 px-2 py-2 text-left align-top"
+                  colSpan={4}
+                >
                   <div className="flex items-baseline gap-2">
                     Total
                     <span

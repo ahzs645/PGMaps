@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { ChevronLeft, Trash2, Upload } from 'lucide-react'
 import { PersonInput } from '@/branding/PersonInput'
 import { Button } from '@/components/ui/button'
@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils'
 import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { ConstraintPolicyEditor } from './ConstraintPolicyEditor'
+import { NaturalChannelPanel } from './NaturalChannelPanel'
+import { crossingForCulvert } from './culverts/naturalChannel'
 import type { ConstraintPolicy } from './constraints'
 import { riparianArea } from './riparian'
 import {
@@ -128,6 +130,24 @@ export function StreamsPanel({
           key={open.id}
           stream={open}
           crossings={crossings.get(open.id) ?? 0}
+          channelReading={
+            <NaturalChannelPanel
+              stream={open}
+              crossings={[...analyses.values()].flatMap((r) => r.crossings.filter((c) => c.featureId === open.id))}
+              terrain={w.source}
+              terrainMeta={project.terrain}
+              recordedWidthM={open.streamAssessment?.channelWidthM ?? null}
+              onUse={(channelWidthM) => save(open.id, { channelWidthM, widthBasis: 'estimate', widthDate: today() })}
+              culvertsAt={(crossing) => {
+                for (const [alignmentId, result] of analyses) {
+                  if (!result.crossings.includes(crossing)) continue
+                  const culverts = project.alignments.find((a) => a.id === alignmentId)?.engineering?.culverts ?? []
+                  return culverts.filter((c) => crossingForCulvert(c, result.crossings) === crossing)
+                }
+                return []
+              }}
+            />
+          }
           onBack={() => setOpenId(null)}
           onProfile={() => onProfile(open.id)}
           onChange={(patch) => save(open.id, patch)}
@@ -191,6 +211,7 @@ export function StreamsPanel({
 function StreamDetails({
   stream,
   crossings,
+  channelReading,
   onBack,
   onProfile,
   onChange,
@@ -199,6 +220,8 @@ function StreamDetails({
 }: {
   stream: ContextFeature
   crossings: number
+  /** The candidate channel read from the terrain at this stream's crossings (`NaturalChannelPanel`). */
+  channelReading?: ReactNode
   onBack: () => void
   onProfile: () => void
   onChange: (patch: Partial<StreamAssessment>) => void
@@ -338,6 +361,7 @@ function StreamDetails({
           onChange={(oneKmAverageWidthM) => onChange({ oneKmAverageWidthM })}
         />
       </div>
+      {channelReading}
       <details className={insetBox({ padding: 'none' })} data-testid="stream-riparian-policy">
         <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Riparian map & route treatment</summary>
         <div className="space-y-2 border-t p-2">

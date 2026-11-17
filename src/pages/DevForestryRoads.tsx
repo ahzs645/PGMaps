@@ -169,6 +169,7 @@ import type { LocationAsciiOptions } from './dev-forestry-roads/softreeExports'
 import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
 import { buildCulvertSchedule, culvertScheduleCsv } from './dev-forestry-roads/culverts/culvertSchedule'
+import { culvertChannels } from './dev-forestry-roads/culverts/culvertChannels'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
 import { FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { insetBox } from '@/components/ui/inset-box'
@@ -1973,6 +1974,46 @@ export default function DevForestryRoads({
       return
     w.setNotice(`${alignment.name} now ${end === 'start' ? 'starts' : 'ends'} at ${name}.`)
   }
+  /** Review → Field review: the issue's geospatial PDF, drawn from the plan map (`fieldPackPdf.ts`). */
+  function downloadFieldPackPdf(issue: import('./dev-forestry-roads/fieldReview').FieldIssue) {
+    void run(
+      'Building the field pack PDF…',
+      async (signal) => {
+        const { fieldPackPdf } = await import('./dev-forestry-roads/fieldPackPdf')
+        if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((id) => id !== 'plan'))
+        // Two frames for the plan to lay out; Cancel ends the wait, since a hidden page draws no frames.
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+          signal.addEventListener('abort', () => resolve(), { once: true })
+        })
+        if (signal.aborted) return
+        const map = planMap.current
+        if (!map) throw Error('The plan map is still loading. Try again once it is ready.')
+        resizeMap(map)
+        const attribution = [
+          ...new Set(
+            Object.values(map.getStyle().sources).flatMap((source) =>
+              'attribution' in source && source.attribution
+                ? [new DOMParser().parseFromString(source.attribution, 'text/html').body.textContent?.trim() ?? '']
+                : [],
+            ),
+          ),
+        ].join(' | ')
+        const blob = await fieldPackPdf(map, issue, {
+          attribution,
+          signal,
+          branding: selectedExportBrand,
+          logo: printLogo,
+        })
+        downloadBlob(blob, `${`${issue.label}-${issue.roadName}`.replace(/[^\w.-]+/g, '-')}.pdf`)
+        w.setNotice(`${issue.label} field pack PDF downloaded. Its KML was downloaded beside it.`)
+      },
+      {
+        label: 'Cancel',
+        notice: `${issue.label} is issued and its KML downloaded; the PDF was cancelled. Download it again from its row in Field review.`,
+      },
+    )
+  }
   const run = async (
     message: string,
     action: (signal: AbortSignal) => Promise<void>,
@@ -3567,6 +3608,11 @@ export default function DevForestryRoads({
                 analysis,
                 place: project.costLocation?.place,
                 drainage: { record: drainageEvidence, stale: drainageStale },
+                channels: culvertChannels({
+                  culverts: alignment.engineering?.culverts ?? [],
+                  crossings: analysis.crossings,
+                  context: project.context,
+                }),
               }),
             ),
           ),
@@ -6313,6 +6359,7 @@ export default function DevForestryRoads({
                               onShowDrainage={() => showDetailPane('drainage')}
                               onSelectRoad={selectAlignment}
                               onShowCulverts={showCulverts}
+                              onFieldPackPdf={downloadFieldPackPdf}
                               onShowSwept={() => showDetailPane('swept')}
                               vehicleFit={vehicleFitOnRoad}
                               engineeringRequest={engineeringRequest}

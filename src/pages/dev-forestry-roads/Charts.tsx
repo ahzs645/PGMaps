@@ -125,6 +125,8 @@ import type {
   VerticalPoint,
 } from './types'
 import { batterSource } from './groundBatters'
+import { culvertProfileMark, fixed as fixedText } from './culvertLongSection'
+import { culvertBarrels, culvertShapeOf, culvertSizeText } from './culverts/culvertShape'
 
 export const ROAD_CHART_COLORS = {
   ground: '#a07845',
@@ -1396,6 +1398,7 @@ export function ProfileChart({
           | { kind: 'station' }
           | { kind: 'grade'; x: number; y: number; angle: number; text: string }
           | { kind: 'junction'; placement: JunctionLabelPlacement }
+          | { kind: 'culvert'; x: number; y: number; anchor: 'start' | 'end'; text: string }
         const labelCandidates: LabelCandidate<PlacedLabel>[] = [
           {
             id: 'station',
@@ -1487,9 +1490,76 @@ export function ProfileChart({
             }),
           })
         }
+        // Culvert tags ("600 mm · cover 1.42 m") place last, so no label above moves for them, and
+        // step aside for the vertical-curve labels, which keep their place over their PVI. A tag with
+        // no room is left to its tooltip like any other label.
+        const culvertTags = new Map<
+          string,
+          {
+            x: number
+            y: number
+            markerY: number
+            text: string
+            mark: ReturnType<typeof culvertProfileMark> | undefined
+          }
+        >()
+        if (!terrainOnly)
+          (analysis.engineering?.culverts ?? []).forEach((culvert, culvertIndex, culverts) => {
+            if (culvert.chainage < displayedDomain[0] || culvert.chainage > displayedDomain[1]) return
+            const s = nearestOf(analysis.stations, culvert.chainage)
+            const elevation = s?.designElevation ?? s?.groundElevation
+            if (!finite(elevation)) return
+            const x = f.x(culvert.chainage),
+              y = f.y(elevation)
+            const before = culverts
+              .slice(0, culvertIndex)
+              .filter((c) => Math.abs(c.chainage - culvert.chainage) < 0.001).length
+            const grouped = culverts.filter((c) => Math.abs(c.chainage - culvert.chainage) < 0.001).length
+            const lift = 12 + before * 19
+            const markerY = y - f.top > grouped * 19 + 8 ? y - lift : y + lift
+            const design = alignment.engineering?.culverts.find((c) => c.id === culvert.id)
+            const mark = design ? culvertProfileMark(culvert, design, f.x, f.y) : undefined
+            const sizeText = design
+              ? culvertShapeOf(design) === 'round' && culvertBarrels(design) === 1
+                ? `${Math.round(design.diameterM * 1000)} mm`
+                : culvertSizeText(design)
+              : 'Culvert'
+            const detail = !mark
+              ? ''
+              : !mark.opening
+                ? ' · inverts not entered'
+                : mark.centreCoverM !== null
+                  ? ` · cover ${fixedText(mark.centreCoverM, 2)} m`
+                  : ''
+            const text = `${sizeText}${detail}${selectedCulvertId === culvert.id ? ' · selected' : ''}`
+            culvertTags.set(culvert.id, { x, y, markerY, text, mark })
+            const up = markerY < y ? -1 : 1
+            labelCandidates.push({
+              id: `culvert-${culvert.id}`,
+              priority: selectedCulvertId === culvert.id ? 66 : 65,
+              options: [0, 1, 2, 3].flatMap((tier) =>
+                (['start', 'end'] as const).map((anchor) => {
+                  const labelX = anchor === 'start' ? x + 7 : x - 7,
+                    labelY = markerY + up * tier * 12
+                  return {
+                    box: textBox(labelX, labelY, text, 9, anchor),
+                    value: { kind: 'culvert' as const, x: labelX, y: labelY, anchor, text },
+                  }
+                }),
+              ),
+            })
+          })
         const placedLabels = placeLabels(labelCandidates, {
           bounds: plotBox,
           obstacles: [
+            // Vertical-curve labels sit over their PVI outside this pass; culvert tags keep clear of them.
+            ...curves.flatMap((curve) => {
+              if (!labelledCurves.has(curve.pviId)) return []
+              const p = sorted.find((item) => item.id === curve.pviId)
+              if (!p || p.chainage < displayedDomain[0] || p.chainage > displayedDomain[1]) return []
+              const text = `${curve.valid ? 'VC' : 'Unfitted VC'} ${format(curve.length, 0)}${curve.k === null ? '' : ` K=${format(curve.k)}`}`
+              return [textBox(f.x(p.chainage), Math.max(f.top + 10, f.y(p.elevation) - 13), text, 9, 'middle')]
+            }),
             // The diamond's own extent: its label starts 8 px out, clear of it by the placement gap.
             ...junctionMarks.map(({ x, y }) => ({ left: x - 6, top: y - 6, right: x + 6, bottom: y + 6 })),
             ...sorted
@@ -1792,27 +1862,16 @@ export function ProfileChart({
                   )
                 })}
                 {!terrainOnly &&
-                  analysis.engineering?.culverts.map((culvert, culvertIndex, culverts) => {
-                    const s = analysis.stations.reduce<RoadStation | undefined>(
-                      (best, item) =>
-                        !best || Math.abs(item.chainage - culvert.chainage) < Math.abs(best.chainage - culvert.chainage)
-                          ? item
-                          : best,
-                      undefined,
-                    )
-                    const elevation = s?.designElevation ?? s?.groundElevation
-                    if (!finite(elevation)) return null
-                    const x = f.x(culvert.chainage),
-                      y = f.y(elevation)
-                    const lift =
-                      12 +
-                      culverts.slice(0, culvertIndex).filter((c) => Math.abs(c.chainage - culvert.chainage) < 0.001)
-                        .length *
-                        19
-                    const grouped = culverts.filter((c) => Math.abs(c.chainage - culvert.chainage) < 0.001).length
-                    const markerY = y - f.top > grouped * 19 + 8 ? y - lift : y + lift
+                  analysis.engineering?.culverts.map((culvert) => {
+                    const tag = culvertTags.get(culvert.id)
+                    if (!tag) return null
+                    const { x, y, markerY, mark } = tag
+                    const placedTag = placedLabels.get(`culvert-${culvert.id}`)
                     const selected = selectedCulvertId === culvert.id
-                    const design = alignment.engineering?.culverts.find((c) => c.id === culvert.id)
+                    const colour = culvert.warnings.length ? ROAD_CHART_COLORS.selected : ROAD_CHART_COLORS.fill
+                    const outline = selected ? ROAD_CHART_COLORS.selected : colour
+                    // Drawn to the profile's own scales: the opening sits on its invert at the centreline.
+                    const opening = mark?.opening
                     return (
                       <g
                         key={culvert.id}
@@ -1835,26 +1894,99 @@ export function ProfileChart({
                           }
                         }}
                       >
+                        {opening && (
+                          <g data-culvert-opening={opening.toScale ? 'to-scale' : 'least-size'}>
+                            {mark.shape === 'box' ? (
+                              <rect
+                                x={opening.x - opening.width / 2}
+                                y={opening.invertY - opening.height}
+                                width={opening.width}
+                                height={opening.height}
+                                fill={colour}
+                                fillOpacity={0.18}
+                                stroke={outline}
+                                strokeWidth={selected ? 2 : 1.2}
+                                strokeDasharray={opening.toScale ? undefined : '2 1.5'}
+                              />
+                            ) : (
+                              <ellipse
+                                cx={opening.x}
+                                cy={opening.invertY - opening.height / 2}
+                                rx={opening.width / 2}
+                                ry={opening.height / 2}
+                                fill={colour}
+                                fillOpacity={0.18}
+                                stroke={outline}
+                                strokeWidth={selected ? 2 : 1.2}
+                                strokeDasharray={opening.toScale ? undefined : '2 1.5'}
+                              />
+                            )}
+                            {/* The invert, at its true level whatever size the opening is drawn. */}
+                            <line
+                              x1={opening.x - opening.width / 2 - 3}
+                              x2={opening.x + opening.width / 2 + 3}
+                              y1={opening.invertY}
+                              y2={opening.invertY}
+                              stroke={outline}
+                              strokeWidth={1.4}
+                            />
+                            {mark.cover && Math.abs(mark.cover.gradeY - mark.cover.crownY) > 2 && (
+                              <g stroke={outline} strokeWidth={1}>
+                                <line
+                                  x1={mark.cover.x + opening.width / 2 + 4}
+                                  x2={mark.cover.x + opening.width / 2 + 4}
+                                  y1={mark.cover.crownY}
+                                  y2={mark.cover.gradeY}
+                                />
+                                {[mark.cover.crownY, mark.cover.gradeY].map((tickY) => (
+                                  <line
+                                    key={tickY}
+                                    x1={mark.cover!.x + opening.width / 2 + 1}
+                                    x2={mark.cover!.x + opening.width / 2 + 7}
+                                    y1={tickY}
+                                    y2={tickY}
+                                  />
+                                ))}
+                              </g>
+                            )}
+                          </g>
+                        )}
+                        <line
+                          x1={x}
+                          x2={x}
+                          y1={markerY > y ? markerY : markerY + 10}
+                          y2={y}
+                          stroke={outline}
+                          strokeWidth={0.8}
+                          opacity={0.6}
+                        />
                         <path
                           d={`M${x - 6},${markerY} L${x + 6},${markerY} L${x},${markerY + 10} Z`}
-                          fill={culvert.warnings.length ? ROAD_CHART_COLORS.selected : ROAD_CHART_COLORS.fill}
+                          fill={colour}
                           stroke={selected ? ROAD_CHART_COLORS.selected : 'hsl(var(--background))'}
                           strokeWidth={selected ? 3 : 1}
                         />
-                        <text
-                          x={x + 7}
-                          y={markerY}
-                          fontSize="9"
-                          fill={selected ? ROAD_CHART_COLORS.selected : ROAD_CHART_COLORS.fill}
-                          stroke="hsl(var(--background))"
-                          strokeWidth={3}
-                          paintOrder="stroke"
-                        >
-                          {design ? `${Math.round(design.diameterM * 1000)} mm` : 'Culvert'}
-                          {selected ? ' · selected' : ''}
-                        </text>
+                        {placedTag?.kind === 'culvert' && (
+                          <text
+                            x={placedTag.x}
+                            y={placedTag.y}
+                            textAnchor={placedTag.anchor}
+                            fontSize="9"
+                            fill={selected ? ROAD_CHART_COLORS.selected : ROAD_CHART_COLORS.fill}
+                            stroke="hsl(var(--background))"
+                            strokeWidth={3}
+                            paintOrder="stroke"
+                          >
+                            {placedTag.text}
+                          </text>
+                        )}
                         <title>
-                          {culvert.name} · {formatRoadStation(culvert.chainage)} · cover {format(culvert.coverM)} m.{' '}
+                          {culvert.name} · {formatRoadStation(culvert.chainage)} ·{' '}
+                          {mark?.invertM != null
+                            ? `invert ${fixedText(mark.invertM, 2)} m at the centreline · cover to grade ${mark.centreCoverM === null ? 'unknown' : `${fixedText(mark.centreCoverM, 2)} m`} there · `
+                            : 'inverts not entered, so the opening is not drawn · '}
+                          least cover {culvert.coverM === null ? 'unknown' : `${fixedText(culvert.coverM, 2)} m`}.
+                          {opening && !opening.toScale ? ' Opening drawn at the least legible size, not to scale.' : ''}{' '}
                           {culvert.warnings.join(' ')}
                         </title>
                       </g>

@@ -6,6 +6,8 @@ import type { Alignment, RoadSettings, TerrainMetadata } from './types'
 import { positionAt } from './engine'
 import { DITCH_DETAIL_CELL_M } from './hydrology'
 import { groupNamedWarnings } from './reportWarnings'
+import { parseConcentrationSettings } from './timeOfConcentration'
+import { idfLabel } from './idfCurve'
 
 export const MAX_DRAINAGE_RECORDS = 20
 export const MAX_DRAINAGE_EVIDENCE_VERTICES = 200_000
@@ -124,6 +126,7 @@ export function parseDrainageSettings(value?: unknown): DrainageSettings {
     ...(r.workingResolutionM === undefined
       ? {}
       : { workingResolutionM: number(r.workingResolutionM, 1, 100_000, 'Working grid resolution') }),
+    ...(r.concentration === undefined ? {} : { concentration: parseConcentrationSettings(r.concentration) }),
   }
 }
 export function parsePourPoint(value: unknown): PourPoint {
@@ -153,7 +156,10 @@ export function drainageInputFingerprint(input: DrainageFingerprintInput): strin
   delete alignment.fullCostRecord
   const terrain = { ...input.terrain }
   delete terrain.backgrounds
-  return fingerprint({ ...input, alignment, terrain }, 'drainage-v1')
+  // Per-culvert intensity switched off changes no figure, so a curve kept for later stales no run.
+  const settings = { ...input.settings }
+  if (!settings.concentration?.enabled) delete settings.concentration
+  return fingerprint({ ...input, alignment, terrain, settings }, 'drainage-v1')
 }
 export function drainageRoadFingerprint(input: Pick<DrainageFingerprintInput, 'alignment' | 'roadSettings'>): string {
   const alignment = { ...input.alignment }
@@ -487,6 +493,19 @@ export function createDrainageEvidence(
         diameterM: c.diameterM,
         minimumDiameterM: c.minimumDiameterM ?? '>3.0',
         adequate: c.adequate,
+        ...(c.timing
+          ? {
+              tcMin: c.timing.tcMin,
+              ...(c.timing.kirpichTcMin === null ? {} : { kirpichTcMin: c.timing.kirpichTcMin }),
+              pathLengthM: c.timing.pathLengthM,
+              ...(c.timing.pathSlope === null ? {} : { pathSlope: c.timing.pathSlope }),
+              slopeMethod: c.timing.slopeMethod,
+              intensityMmPerHr: c.timing.intensityMmPerHr,
+              returnPeriodYears: c.timing.returnPeriodYears,
+              idf: c.timing.idf.slice(0, 2_000),
+              ...(c.timing.flags.length ? { timingFlags: c.timing.flags.join(',') } : {}),
+            }
+          : {}),
       },
     })),
   ]
@@ -621,7 +640,11 @@ export function drainageReportHtml(
   return `<section><h2>Drainage review evidence</h2><p><strong>${stale ? 'Historical / out of date — recompute before use.' : 'Inputs match this record.'}</strong></p>
 <p>Run ${escape(record.createdAt)}. Source: ${escape(record.terrain.name)}; ${escape(record.terrain.verticalReference)}; native ${fmt(record.terrain.resolutionM)} m, analysis ${fmt(record.grid.cellM)} m cells (${record.grid.routedCells === undefined ? `${fmt(record.grid.width, 0)} × ${fmt(record.grid.height, 0)}` : `${fmt(record.grid.routedCells, 0)} routed along the road in a ${fmt(record.grid.width, 0)} × ${fmt(record.grid.height, 0)} grid`}). ${record.terrain.sha256 ? `Source SHA-256: ${escape(record.terrain.sha256)}.` : record.terrain.sourceKind === 'regional' ? 'Unchecksummed regional terrain requires recomputation after reopening.' : ''}</p>
 <p>Calculation: ${escape(record.algorithmVersion ?? 'Legacy calculation; rerun for current results')}.</p>
-<p>Rainfall ${fmt(record.settings.rainfallMmPerHr)} mm/h; runoff C ${fmt(record.settings.runoffCoefficient)}; Manning n ${fmt(record.settings.manningN)}; stream threshold ${fmt(record.settings.streamThresholdHa)} ha; buffer ${fmt(record.settings.bufferM)} m.</p>
+<p>${
+    record.settings.concentration?.enabled && record.settings.concentration.idf
+      ? `Intensity per culvert: the IDF curve at each culvert's Kirpich (1940) time of concentration, Tc = 0.0195·L^0.77·S^−0.385 (min, m, m/m), ${escape(record.settings.concentration.slopeMethod)} slope of the longest flow path, at least ${fmt(record.settings.concentration.minimumTcMin)} min. IDF: ${escape(idfLabel(record.settings.concentration.idf))}. Rainfall`
+      : 'Rainfall'
+  } ${fmt(record.settings.rainfallMmPerHr)} mm/h${record.settings.concentration?.enabled ? ' (not used for culverts)' : ''}; runoff C ${fmt(record.settings.runoffCoefficient)}; Manning n ${fmt(record.settings.manningN)}; stream threshold ${fmt(record.settings.streamThresholdHa)} ha; buffer ${fmt(record.settings.bufferM)} m.</p>
 <p>Depression policy: ${escape(record.settings.depressionPolicy?.mode ?? 'fill-all')}${record.settings.depressionPolicy?.mode === 'depth-limited' ? `; maximum whole-basin fill ${fmt(record.settings.depressionPolicy.maxDepthM)} m` : ''}. Requested working cell: ${record.settings.workingResolutionM === undefined ? 'source resolution (minimum 1 m)' : `${fmt(record.settings.workingResolutionM)} m`}. Potential ponding is measured to the spill level independently of the selected routing treatment.</p>
 ${record.pourPoint ? `<p>Requested pour point ${record.pourPoint.coordinate.map((c) => fmt(c, 6)).join(', ')}; ${escape(record.pourPoint.surface)} surface; snap radius ${fmt(record.pourPoint.snapRadiusM)} m; policy ${escape(record.pourPoint.snapPolicy ?? 'max-accumulation')}.</p>` : ''}
 ${record.selectedCatchment ? `<p>Selected outlet ${record.selectedCatchment.snappedCoordinate.map((c) => fmt(c, 6)).join(', ')}; cell ${fmt(record.selectedCatchment.outletCell, 0)}; snap distance ${fmt(record.selectedCatchment.snappedDistanceM)} m; contributing area ${fmt(record.selectedCatchment.areaHa)} ha (${fmt(record.selectedCatchment.cells, 0)} cells).</p>` : ''}
@@ -645,6 +668,27 @@ ${record.selectedCatchment ? `<p>Selected outlet ${record.selectedCatchment.snap
       return [escape(p.id), fmt(p.chainage), fmt(p.areaHa), fmt(p.divertedM), p.redirected ? 'Yes' : 'No']
     }),
   )}
+${
+  features('culvert-check').some((f) => f.properties?.tcMin !== undefined)
+    ? `<h3>Culvert time of concentration and intensity</h3>${table(
+        ['Culvert', 'Flow path (m)', 'Slope', 'Kirpich / used Tc (min)', 'Intensity (mm/h)', 'Return period', 'Flags'],
+        features('culvert-check').map((f) => {
+          const p = f.properties!
+          return [
+            escape(p.name),
+            fmt(p.pathLengthM, 0),
+            p.pathSlope === undefined
+              ? 'none measurable'
+              : `${fmt(Number(p.pathSlope) * 100, 1)}% (${escape(p.slopeMethod)})`,
+            `${p.kirpichTcMin === undefined ? '—' : fmt(p.kirpichTcMin, 1)} / ${fmt(p.tcMin, 1)}`,
+            fmt(p.intensityMmPerHr, 1),
+            `${fmt(p.returnPeriodYears, 0)}-year`,
+            escape(p.timingFlags ?? ''),
+          ]
+        }),
+      )}`
+    : ''
+}
 <h3>Culvert capacity review</h3>${table(
     [
       'Culvert',

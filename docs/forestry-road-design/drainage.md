@@ -93,6 +93,17 @@ you choose.
 | Watersheds                   | 1,000 qualifying outlet basins                                                                                                                                                                                                                                               | `MAX_WATERSHEDS`                                                                     | Rejects; increase the minimum area                                                                    |
 | Portable evidence            | 20 road records, 5,000 features per record, 200,000 vertices                                                                                                                                                                                                                 | `drainageEvidence.ts`, `MAX_DRAINAGE_RECORDS`, `MAX_DRAINAGE_EVIDENCE_VERTICES`      | Invalid or oversized evidence is rejected                                                             |
 | Saved sensitivity runs       | 12 per project; numeric summaries with at most 100 culvert pairs each                                                                                                                                                                                                        | `drainageEvidence.ts`, `MAX_DRAINAGE_COMPARISONS`, `parseDrainageComparisons`        | Remove a saved comparison before adding another; no raster or polygon copies                          |
+| Per-culvert intensity          | Off by default; needs an IDF curve when on                    | `timeOfConcentration.ts` `activeConcentration`, `DEFAULT_CONCENTRATION_SETTINGS` | The run refuses with "no IDF curve"                                         |
+| Kirpich coefficient            | 0.0195 (min, m, m/m)                                          | `KIRPICH_K_METRIC`                                                              | —                                                                           |
+| Kirpich catchment range        | 0.49–45.3 ha                                                  | `KIRPICH_MIN_AREA_HA`, `KIRPICH_MAX_AREA_HA`                                    | Flagged: Tc extrapolated                                                    |
+| Kirpich slope range            | 3–10 %                                                        | `KIRPICH_MIN_SLOPE`, `KIRPICH_MAX_SLOPE`                                        | Flagged: Tc extrapolated                                                    |
+| Measurable path slope          | 0.1 %                                                         | `MIN_MEASURABLE_SLOPE`                                                          | Minimum Tc used, flagged                                                    |
+| Minimum Tc                     | 5 min default; 1–60 min                                       | `DEFAULT_MINIMUM_TC_MIN`, `MIN_TC_LIMITS`                                       | Tc raised to it, flagged when Kirpich is shorter; outside the range refused |
+| Flow-path profile mean         | 12 m on cells of 3 m or finer; none on coarser                | `groundTrend.ts` `groundWindowFor`; `smoothProfile`                             | —                                                                           |
+| IDF table                      | 2–24 durations, rising, 1–10,080 min, 0.01–2,000 mm/h         | `idfCurve.ts` `MAX_IDF_POINTS`, `parseIdfTable`                                 | Refused                                                                     |
+| IDF equation                   | A 0.001–100,000; B −2 to 0; read over 5 min–24 h              | `parseIdfCurve`, `ECCC_SHORTEST_DURATION_MIN`, `ECCC_LONGEST_DURATION_MIN`       | Outside the durations: held at the end and flagged                          |
+| IDF table durations            | The table's own first and last rows                           | `logLogInterpolate`                                                             | Held at the end and flagged, never extrapolated                             |
+| Imported IDF file              | 1 MB; needs Table 2b                                          | `MAX_IDF_FILE_BYTES`, `parseEcccIdfText`                                        | Refused                                                                     |
 
 **Runtime.** The check runs on the page's main thread and cannot be cancelled. The previous
 full-fill implementation took about 2–4 s on the published LiDAR road (1.29 million 1 m cells);
@@ -270,11 +281,12 @@ equivalence with the RoadEng tutorial's filling or outlet-selection algorithms.
 - **Peak flow** is Q = C · i · A / 360, with Q in m³/s, i in mm/h and A in hectares. A is the
   largest design-surface contributing area on the culvert's barrel cells, which includes
   whatever the ditches bring to it.
-- **There is no time of concentration.** The Rational method assumes the storm lasts as long as
-  the catchment takes to respond. The tool does not compute that duration, so you must: choose i
-  from an IDF curve at a duration matching the catchment's time of concentration and at the
-  return period your standard requires. One intensity is used for every culvert, so a small
-  cross-drain and a large stream crossing cannot both be right with the same i.
+- **Intensity: one for every culvert, or each culvert's own.** By default every culvert uses the
+  **Rainfall (mm/h)** figure, and the tool does not compute a duration: choose i from an IDF curve
+  at a duration matching the catchment's time of concentration and at the return period your
+  standard requires. With **Intensity → Per culvert: Tc and IDF** on, each culvert's intensity is
+  read from an IDF curve you enter at its own time of concentration (next section). Off, every
+  figure is exactly as before, and a curve kept with the option off does not stale a run.
 - **The Rational method suits small catchments.** Many design guides limit it to catchments of a
   few tens of hectares to a few square kilometres. In much of BC the design flood comes from
   snowmelt or rain-on-snow, which a rainfall intensity does not represent.
@@ -290,8 +302,69 @@ equivalence with the RoadEng tutorial's filling or outlet-selection algorithms.
   barrel together, a box by its own wetted perimeter, an arch as the round pipe of the same end
   area, and the material's Manning n in place of the run's ([Culverts](culverts.md)). A plain
   round pipe keeps the figures above. The minimum diameter stays a single round pipe.
-- **Inlet-control headwater** is checked from this run's peak in the culvert editor and the
-  culvert schedule, not here: see [Culverts](culverts.md#inlet-control-headwater).
+- **Inlet- and outlet-control headwater and overtopping** are checked from this run's peak in the
+  culvert editor and the culvert schedule, not here: see
+  [Culverts](culverts.md#inlet-control-headwater).
+
+### Per-culvert time of concentration and IDF intensity
+
+Drainage → **Intensity** (`DrainageIntensityEditor.tsx`; `timeOfConcentration.ts`, `idfCurve.ts`).
+
+1. **Flow path.** From the barrel cell that collects the culvert's design catchment, the longest
+   D8 flow path upstream on the routed design surface (the conditioned elevations the run routed
+   over), so it can run down a ditch to the pipe (`flowPathProfile`, `longestFlowPath`). L is that
+   path's length in metres.
+2. **Slope**, m/m, one of:
+   - **10–85** (default): (z at 85 % of L − z at 10 % of L, from the outlet) / 0.75 L — Benson
+     (1962), USGS Water-Supply Paper 1580-B.
+   - **Equal-area**: S = 2·∫(z − z₀)dx / L², the line through the outlet with the profile's area
+     under it — Australian Rainfall and Runoff (1987), Book IV.
+   - **End-to-end**: total fall / L, the slope Kirpich's own data used.
+
+   The profile is read on a centred moving mean of 12 m along the path on cells of 3 m or finer
+   (none on coarser cells), the window the route searches use for grades (`groundWindowFor`,
+   `groundTrend.ts`), shrinking near the ends so a straight profile is unchanged. A 1 m stump hole
+   at the 10 % point moves a raw 10–85 slope by 1.3 points on a 100 m path; on the mean, by 0.1.
+   The slopes are chords or areas over most of the path, so the mean otherwise moves them little.
+3. **Time of concentration**, Kirpich (1940), metric: **Tc = 0.0195 · L^0.77 · S^−0.385**, Tc in
+   minutes, L in metres, S in m/m (TxDOT Hydraulic Design Manual, ch. 4 §11: K = 0.0078 with L in
+   feet, 0.0195 in metres). Kirpich fitted it to seven small agricultural catchments in Tennessee
+   of 1.2–112 acres (0.49–45.3 ha) with well-defined channels and slopes of 3–10 % (Chow, Maidment
+   & Mays, _Applied Hydrology_, 1988, Table 15.1.2). A catchment or slope outside that range is
+   **flagged** in the run's notes and the culvert's figures, never silently used. Tc is at least
+   the **minimum Tc**, 5 minutes by default: FHWA HEC-22 (3rd ed., 2009) recommends 5 minutes as
+   the least time of concentration, and 5 minutes is ECCC's shortest published duration. A path
+   with under 0.1 % fall has no Kirpich time: the minimum is used and the culvert says so.
+4. **Intensity**, mm/h, from the IDF curve at duration Tc:
+   - **Table**: duration → intensity for the return period, read linearly in log(intensity)
+     against log(duration) between rows. Hand check: 100 mm/h at 10 min and 50 mm/h at 30 min give
+     64.58 mm/h at 20 min.
+   - **Equation**: ECCC's fitted interpolation equation, R = A·T^B, R in mm/h and **T in hours**
+     (station file, Table 3), used over the 5 min–24 h it was fitted to.
+   - Beyond either end of the curve nothing is extrapolated: the end is used and flagged. Past the
+     longest duration that overstates the intensity.
+5. **Peak**: Q = C · i_culvert · A / 360 as before; capacity, minimum diameter and headwater read
+   that Q.
+
+**The curve is yours.** Enter the station, ID, return period and source with the table or the
+equation, or import one station's ECCC short-duration IDF text file (Environment and Climate
+Change Canada, Engineering Climate Datasets, Open Government Licence – Canada): its station line,
+Table 2b's rates (−99.9, fewer than 10 years, is left out) and Table 3's A and B are read by hand,
+and you pick the return period. The file is not stored or bundled; the project keeps the curve you
+chose with its source line (release, date and file name). The report's settings line names the
+method, the slope, the minimum and the curve; its culvert table gives each culvert's flow path,
+slope, Kirpich and used Tc, intensity, return period and flags.
+
+**When it helps, and when it does not.** On the small steep catchments forest road culverts
+drain, Kirpich usually gives under 5 minutes: the test hillside's gully (2.2 ha, 306 m path at
+12 %) reads 3.6 minutes, so the 5-minute minimum governs and the intensity is the curve's 5-minute
+figure, much higher than a typical single "design" figure. Per-culvert intensity matters most
+where catchments differ in size: a 0.2 ha cross-drain and a 40 ha stream crossing do not share a
+critical duration. It does not make the Rational method fit larger catchments (many guides stop at
+tens of hectares to a few km²), it does not represent snowmelt or rain-on-snow, which set the
+design flood over much of BC, and Kirpich was fitted to channelled farmland: on forested hillslopes
+with subsurface stormflow it tends to give too short a Tc and so too high an intensity. The flow
+path stops at the buffer and data edges like the catchment does. It remains a planning screen.
 
 ## Reading the results
 
@@ -519,8 +592,8 @@ one it rewrote starts from the defaults.
   projects; the latest three full in-memory road runs can be inspected until reload. The
   browser setting `pgmaps-road-drainage-settings` is a fallback for older projects without
   project inputs, not the sole record.
-- **No wetness index, time of concentration, hydrographs, hydraulic grade
-  lines, inlet control, headwater, scour or outlet protection.**
+- **No wetness index, hydrographs, hydraulic grade lines, scour or outlet protection.** Time of
+  concentration is the per-culvert option above; inlet and outlet control are the culverts'.
 - **No ditch capacity or erosion check.** Ditches carry whatever reaches them.
 - **No fish passage, channel stability or debris-flow assessment.**
 - **Not a hydrotechnical design.** It is a planning screen for where water goes and roughly how

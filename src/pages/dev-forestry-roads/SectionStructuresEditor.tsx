@@ -60,7 +60,7 @@ export function StructureQuantities({ quantities }: { quantities: readonly Struc
     <EngineeringTable rowHeaders compact data-testid="road-structure-quantities" aria-label="Structure quantities">
       <thead>
         <tr>
-          <th className="text-left">Structure</th>
+          <ColumnHeader label="Structure" className="text-left" />
           <ColumnHeader label="Length" unit="m" />
           <ColumnHeader label="Volume" unit="m³" />
         </tr>

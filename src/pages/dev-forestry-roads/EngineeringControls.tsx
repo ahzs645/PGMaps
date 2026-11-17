@@ -32,6 +32,7 @@ import { horizonReplacements, MAX_HORIZON_DEPTH_M, nextHorizon } from './groundH
 import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './culvertGrade'
 import { CulvertOptionFields, CulvertStandards } from './culverts/CulvertEditorParts'
 import { buildCulvertSchedule } from './culverts/culvertSchedule'
+import { culvertChannels } from './culverts/culvertChannels'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { nearestStation } from './engine'
 import {
@@ -395,6 +396,11 @@ export function EngineeringControls({
             record: project.drainage?.records.find((record) => record.alignmentId === alignment.id),
             stale: drainageStale ?? true,
           },
+          channels: culvertChannels({
+            culverts: design.culverts,
+            crossings: analysis?.crossings,
+            context: project.context,
+          }),
         })
       : null
   const constrainedAllocation = !!(

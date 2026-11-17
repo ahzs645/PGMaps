@@ -190,6 +190,12 @@ export function DrainageSettingField({ field, settings, onSettings }: DrainagePr
       {...DRAINAGE_FIELDS[field]}
       value={settings[field]}
       onChange={(next) => onSettings({ ...settings, [field]: next })}
+      // With per-culvert intensity on, culverts read the IDF curve; this figure is kept for when it is off.
+      hint={
+        field === 'rainfallMmPerHr' && settings.concentration?.enabled
+          ? 'Not used for culverts: each culvert reads the IDF curve at its own time of concentration (Drainage → Intensity).'
+          : undefined
+      }
     />
   )
 }

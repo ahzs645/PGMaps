@@ -7,6 +7,7 @@
  * Free of DOM and network access.
  */
 import type { Culvert, CulvertAnalysis } from '../engineeringTypes'
+import { culvertHeadwater, type CulvertHeadwater } from './culvertHeadwater'
 import { inletControlHeadwater } from './culvertHydraulics'
 import { culvertBarrels, culvertPurposeOf, culvertRiseM, culvertShapeOf } from './culvertShape'
 import {
@@ -16,10 +17,14 @@ import {
   crossDrainSpacingM,
   DESIGN_FLOOD,
   EMBEDMENT_RULES,
+  GOVERNING_CONTROL_LOCATOR,
   GRADIENT_RULES,
   HEADWATER_LIMIT,
+  OUTLET_CONTROL,
+  ROADWAY_OVERTOPPING,
   STOCK_DIAMETERS_M,
 } from './engineeringManual'
+import { bankfullAreaCheck, channelWidthEvidence, streamWidthRatioCheck, type BankfullReading } from './naturalChannel'
 
 export type CulvertCheckState = 'met' | 'not-met' | 'not-assessed' | 'note'
 export type CulvertCheckId =
@@ -31,8 +36,13 @@ export type CulvertCheckId =
   | 'stock-size'
   | 'capacity'
   | 'headwater'
+  | 'governing-headwater'
+  | 'overtopping'
+  | 'suggested-size'
   | 'embedment'
   | 'design-flood'
+  | 'bankfull-area'
+  | 'stream-width-ratio'
 
 export interface CulvertCheckResult {
   id: CulvertCheckId
@@ -53,19 +63,41 @@ export interface CulvertFlowCheck {
   adequate: boolean
   slope: number
   slopeAssumed: boolean
+  /**
+   * Set when the drainage check timed this culvert's catchment (Kirpich time of concentration and an
+   * IDF curve, `timeOfConcentration.ts`): the intensity its peak used, mm/h, and where it came from.
+   */
+  timing?: { tcMin: number; intensityMmPerHr: number; returnPeriodYears: number | null; idf: string }
 }
 
 export interface CulvertChecksInput {
   culvert: Culvert
   /** The engine's geometry for it; undefined before a calculation. */
-  analysis?: Pick<CulvertAnalysis, 'coverM' | 'gradePercent' | 'requiredLengthM'>
+  analysis?: Pick<CulvertAnalysis, 'coverM' | 'gradePercent' | 'requiredLengthM'> &
+    Partial<Pick<CulvertAnalysis, 'profile' | 'barrelLengthM'>>
   /** The road's design grade at the culvert's station, %; null where it is not known. */
   roadGradePercent: number | null
-  drainage: { state: 'current' | 'stale' | 'not-run'; check?: CulvertFlowCheck; rainfallMmPerHr?: number }
+  drainage: {
+    state: 'current' | 'stale' | 'not-run'
+    check?: CulvertFlowCheck
+    rainfallMmPerHr?: number
+    /** The run's Manning n, for outlet control where the culvert has no material. */
+    manningN?: number
+  }
+  /** Surfacing over the subgrade at the culvert (the thinner side's), m: lifts the subgrade to the road surface. */
+  surfacingM?: number | null
+  /** A known tailwater depth above the outlet invert, m. Omitted: not known, as nothing in the project holds one. */
+  tailwaterM?: number
   /** The crossing record that replaces this culvert's allowance names an embedded culvert. */
   embeddedStructure?: boolean
   /** The longer of the two runs of road beside this culvert with no other culvert in it. */
   adjacentRun?: CulvertRun
+  /**
+   * The stream channel at this culvert's crossing (`naturalChannel.ts`): the recorded channel width
+   * and a terrain reading where one was made. Omitted adds no channel checks; given, a stream
+   * culvert gets the 3 × high-water area and stream width ratio screens.
+   */
+  channel?: { recordedWidthM: number | null; reading: BankfullReading | null; major?: boolean }
 }
 
 /** A run of road between this culvert and the next one, or the road's end. */
@@ -78,6 +110,37 @@ export interface CulvertRun {
 }
 
 const trim = (value: number, digits = 2) => String(Number(value.toFixed(digits)))
+
+const noFlowReason = (drainage: CulvertChecksInput['drainage']) =>
+  drainage.state === 'stale'
+    ? 'The drainage check is out of date'
+    : drainage.state === 'not-run'
+      ? 'No drainage check has been run'
+      : 'The drainage check did not reach this culvert'
+
+/**
+ * Inlet- and outlet-control headwater, the governing control, the road over the barrel and the
+ * suggested stock size for one culvert, from the same inputs its checks read.
+ */
+export function culvertHeadwaterFor(input: CulvertChecksInput): CulvertHeadwater {
+  const { culvert, analysis, drainage } = input
+  const flow = drainage.state === 'current' ? drainage.check : undefined
+  const known = culvert.inletInvertM !== null && culvert.outletInvertM !== null
+  const barrelLengthM =
+    analysis?.barrelLengthM ??
+    (known ? Math.hypot(culvert.lengthM, culvert.outletInvertM! - culvert.inletInvertM!) : null)
+  return culvertHeadwater({
+    culvert,
+    flowM3s: flow ? flow.designFlowM3s : null,
+    noFlowReason: noFlowReason(drainage),
+    runManningN: drainage.manningN,
+    barrelLengthM,
+    profile: analysis?.profile,
+    surfacingM: input.surfacingM,
+    embedded: (culvert.embedmentM ?? 0) > 0 || !!input.embeddedStructure,
+    tailwaterM: input.tailwaterM,
+  })
+}
 
 /** Cover the manual requires over this culvert, m: the greater of the rule's floor and its share of the rise. */
 export function requiredCoverM(culvert: Pick<Culvert, 'diameterM' | 'kind'>): number {
@@ -220,12 +283,7 @@ export function culvertChecks(input: CulvertChecksInput): CulvertCheckResult[] {
 
   // Capacity and headwater need a current drainage check.
   const flow = drainage.state === 'current' ? drainage.check : undefined
-  const noFlow =
-    drainage.state === 'stale'
-      ? 'The drainage check is out of date'
-      : drainage.state === 'not-run'
-        ? 'No drainage check has been run'
-        : 'The drainage check did not reach this culvert'
+  const noFlow = noFlowReason(drainage)
   out.push({
     id: 'capacity',
     label: 'Barrel-full capacity carries the modelled peak',
@@ -283,6 +341,90 @@ export function culvertChecks(input: CulvertChecksInput): CulvertCheckResult[] {
     }
   }
 
+  // Governing control, overtopping and the suggested size (HDS-5): added beside the inlet check above,
+  // which keeps its own figure.
+  const hw = culvertHeadwaterFor(input)
+  const tailwaterText =
+    input.tailwaterM === undefined
+      ? 'tailwater not known, so (dc + D)/2 at the outlet'
+      : 'tailwater as entered, or (dc + D)/2 where higher'
+  const governing = hw.governing
+  const caution =
+    governing?.control === 'outlet' && governing.outletMethod === 'full-flow' && hw.outlet?.range === 'caution'
+      ? ' Under 1.2D: HDS-5 asks for caution with its approximate method.'
+      : governing?.outletMethod === 'backwater'
+        ? ' The barrel flows part full, so outlet control is a backwater profile up the barrel, not HDS-5’s full-flow approximation.'
+        : governing?.outletMethod === 'steep'
+          ? ' The barrel is steep (normal depth under critical), so the outlet does not control.'
+          : ''
+  const outletText = (g: NonNullable<typeof governing>) =>
+    g.outletMethod === 'steep'
+      ? 'outlet control does not apply'
+      : `outlet control ${trim(g.outletMethod === 'backwater' ? hw.outlet!.backwater!.hwOverD! : hw.outlet!.hwOverD)}${g.outletMethod === 'backwater' ? ' by backwater' : ''}`
+  const controlsText = (g: NonNullable<typeof governing>) =>
+    `${g.control === 'inlet' ? 'Inlet' : 'Outlet'} control governs: HW/D ${trim(g.hwOverD)} (${trim(g.headwaterM)} m); inlet control ${trim(hw.inlet!.hwOverD)}, ${outletText(g)}`
+  out.push({
+    id: 'governing-headwater',
+    label: 'Governing headwater stays at or below the crown',
+    judgedOn: `The higher of inlet- and outlet-control headwater over diameter at most ${trim(HEADWATER_LIMIT.hwOverD)} at the modelled peak; outlet control by HDS-5’s full-flow method, ${tailwaterText}, or under 0.75D a backwater profile up the part-full barrel from critical depth or the tailwater`,
+    locator: `${HEADWATER_LIMIT.locator}; ${OUTLET_CONTROL.locator}; ${GOVERNING_CONTROL_LOCATOR}`,
+    ...(!governing
+      ? { state: 'not-assessed', result: hw.governingMissing ?? 'Not worked out' }
+      : governing.hwOverD <= HEADWATER_LIMIT.hwOverD + 1e-6
+        ? { state: 'met', result: `${controlsText(governing)}.${caution}` }
+        : {
+            state: 'not-met',
+            result: `${controlsText(governing)}, over ${trim(HEADWATER_LIMIT.hwOverD)}.${caution}`,
+          }),
+  })
+  out.push({
+    id: 'overtopping',
+    label: 'Headwater stays below the road',
+    judgedOn:
+      'The governing headwater elevation (inlet invert plus headwater) below the lowest road surface over the barrel; freeboard stated, no minimum set',
+    locator: ROADWAY_OVERTOPPING.locator,
+    ...(hw.elevationM === null
+      ? {
+          state: 'not-assessed',
+          result:
+            culvert.inletInvertM === null
+              ? 'The inlet invert is not entered'
+              : (hw.governingMissing ?? 'The governing headwater is not known'),
+        }
+      : !hw.road || hw.freeboardM === null
+        ? { state: 'not-assessed', result: 'The road over the barrel is not known' }
+        : (() => {
+            const road = hw.road,
+              surface = road.surfacingM === null ? 'subgrade (no surfacing known)' : 'road surface'
+            const shoulder =
+              road.surfacingM !== null && road.surfacingM > 0
+                ? `, ${trim(hw.shoulderFreeboardM!)} m below the subgrade shoulder`
+                : ''
+            return hw.freeboardM > 1e-6
+              ? {
+                  state: 'met' as const,
+                  result: `Headwater at ${trim(hw.elevationM!)} m, ${trim(hw.freeboardM)} m below the lowest ${surface} over the barrel${shoulder}`,
+                }
+              : {
+                  state: 'not-met' as const,
+                  result: `Headwater at ${trim(hw.elevationM!)} m reaches the lowest ${surface} over the barrel (${trim(road.lowestSurfaceM)} m): it overtops by ${trim(-hw.freeboardM)} m`,
+                }
+          })()),
+  })
+  const suggestion = hw.suggested
+  out.push({
+    id: 'suggested-size',
+    label: 'Smallest stock size by headwater',
+    judgedOn: `The smallest size in EM Table 3-13 whose governing HW/D is at most ${trim(HEADWATER_LIMIT.hwOverD)} at the same peak, inverts, material, inlet and barrels. A suggestion only: the diameter is not changed`,
+    locator: `EM Table 3-13, p. 166; ${HEADWATER_LIMIT.locator}`,
+    ...(suggestion
+      ? {
+          state: 'note',
+          result: `Ø ${trim(suggestion.diameterM * 1000, 0)} mm by headwater (HW/D ${trim(suggestion.hwOverD)}, ${suggestion.control} control${suggestion.outletMethod === 'backwater' ? ', outlet control by backwater' : ''}); entered Ø ${trim(culvert.diameterM * 1000, 0)} mm`,
+        }
+      : { state: 'not-assessed', result: hw.suggestedMissing ?? 'Not worked out' }),
+  })
+
   if (embedded) {
     const need = requiredEmbedmentM(culvert),
       entered = culvert.embedmentM ?? null
@@ -308,13 +450,37 @@ export function culvertChecks(input: CulvertChecksInput): CulvertCheckResult[] {
     label: 'Design flood for the culvert’s time on site',
     state: 'note',
     result: `${temporary ? `Temporary (on site ${DESIGN_FLOOD.temporaryYears} years or less): the ${DESIGN_FLOOD.temporary} peak` : `Permanent: the ${DESIGN_FLOOD.permanent} peak`}. ${
-      drainage.rainfallMmPerHr === undefined
-        ? 'The drainage check uses one storm intensity for every culvert'
-        : `The drainage check used ${trim(drainage.rainfallMmPerHr, 1)} mm/h for every culvert`
+      drainage.check?.timing
+        ? `The drainage check used ${trim(drainage.check.timing.intensityMmPerHr, 1)} mm/h at this culvert's ${trim(drainage.check.timing.tcMin, 1)} min time of concentration${drainage.check.timing.returnPeriodYears === null ? '' : `, ${drainage.check.timing.returnPeriodYears}-year curve`} (${drainage.check.timing.idf})${
+            drainage.check.timing.returnPeriodYears !== null &&
+            `Q${drainage.check.timing.returnPeriodYears}` !==
+              (temporary ? DESIGN_FLOOD.temporary : DESIGN_FLOOD.permanent)
+              ? `. That curve is not the ${temporary ? DESIGN_FLOOD.temporary : DESIGN_FLOOD.permanent} storm this culvert is designed for`
+              : ''
+          }`
+        : drainage.rainfallMmPerHr === undefined
+          ? 'The drainage check uses one storm intensity for every culvert'
+          : `The drainage check used ${trim(drainage.rainfallMmPerHr, 1)} mm/h for every culvert`
     }: confirm it is that storm for this catchment.`,
     judgedOn: `${DESIGN_FLOOD.permanent} for a culvert on site over ${DESIGN_FLOOD.temporaryYears} years, ${DESIGN_FLOOD.temporary} otherwise`,
     locator: DESIGN_FLOOD.locator,
   })
+  if (input.channel) {
+    // The high-water area needs a section read from the terrain; a recorded width alone gives none.
+    const area =
+      input.channel.reading &&
+      bankfullAreaCheck({
+        culvert,
+        reading: input.channel.reading,
+        major: input.channel.major,
+        embeddedStructure: input.embeddedStructure,
+      })
+    const ratio = streamWidthRatioCheck({
+      culvert,
+      channel: channelWidthEvidence(input.channel.recordedWidthM, input.channel.reading),
+    })
+    for (const check of [area, ratio]) if (check) out.push(check)
+  }
   return out
 }
 

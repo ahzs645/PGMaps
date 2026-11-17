@@ -687,6 +687,8 @@ export interface RoadProject {
   riggingSets?: import('./dline/riggingSets').RiggingSet[]
   profiles?: { id: string; name: string; points: Coordinate[] }[]
   surveyBooks?: import('./surveyInterchange').SurveyBookRecord[]
+  /** Roads issued to a field crew with their checks, and the observations brought back (`fieldReview.ts`). */
+  fieldReview?: import('./fieldReview').FieldReviewState
   /** Sketches, pins, lines and areas drawn on the plan. Kept apart from design data; nothing reads them. */
   notes?: import('./mapNotes').MapNote[]
   /** Imported points, lines and areas kept as reference: drawn and listed, read by no calculation. */

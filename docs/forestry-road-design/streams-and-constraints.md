@@ -49,6 +49,59 @@ provisions, are not modelled.
   reach geometry or rules version reads as **Needs review**. Restoring the same inputs and rules clears it.
 - **Older projects** open with their streams unassessed.
 
+## Channel read from the terrain
+
+Opening a stream that a road crosses shows **Channel read from the terrain** under its widths
+(`NaturalChannelPanel.tsx`, `culverts/naturalChannel.ts`). For each crossing (the first three) it
+cuts a straight section of the existing ground square to the stream, 20 m upstream of the crossing
+along the stream line so road fill is not read as channel, 20 m either side of the line, at the
+terrain's own cell or point spacing (`terrainResolution`), never finer. Upstream is the line's
+higher end on the terrain; where the terrain cannot tell, the line's own order is used and the
+reading says so. A gap in the terrain stays unknown.
+
+From the section it reads a **candidate bankfull** width, mean and maximum depth, area and
+width-to-depth ratio:
+
+- **Thalweg.** The lowest ground within ±8 m of the stream line. Samples within 3 cm of it are
+  tied; the run of tied samples nearest the line is taken, never simply the first lowest sample,
+  so a side pocket as deep as the channel is not chosen. Ground still falling at ±8 m means the
+  mapped line is off the channel, and nothing is read.
+- **Bankfull** is the first bench: the lowest stage, at least 0.15 m above the thalweg, where the
+  waterline's top width grows at least 20 m per metre of rise (ground flatter than 1 in 10 each
+  side) and at least three times the median rate below it: the first peak of the bench index
+  (Riley, S.J. 1972, J. Hydrology 17: 23-31). The water spreads only through ground connected to
+  the thalweg. The width-to-depth minimum (Wolman, M.G. 1955, USGS Prof. Paper 271) is reported
+  beside it; where the two disagree by more than 0.1 m of stage the reading says so.
+- **Not read** when the water would reach a gap or the section's end before a bench, or no bench
+  is found within 4 m. Every figure is then blank, never zero.
+
+Flags:
+
+| Flag                 | When                                                                  | Effect                                                    |
+| -------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
+| Too coarse           | Cells wider than a quarter of the width found; or, unread, over 2 m   | **Use** is off; the 3 × area check is not assessed        |
+| Level bed            | The bed is level within 1 cm for 2 m and 3 samples or more            | Depth and area are lower bounds ("at least")              |
+| Gap                  | Samples with no ground                                                | Stated; a reading the water reaches it through is not read |
+| Indicators disagree  | Width-to-depth minimum more than 0.1 m of stage from the bench        | Stated; read the section sketch before using the width   |
+
+**Use** writes the width, rounded to 0.1 m, to the stream's **Channel width** with **Measured
+from: Estimate** and today's date, on the reviewer's click only. Nothing else changes, and no
+class is set: the width then goes through the class rules like any entered width, and a reviewed
+class reads **Needs review**, as for any width change.
+
+Under each reading, the stream culverts placed at that crossing get the two screens of
+[Culverts](culverts.md#natural-channel-screens), 3 × the high-water area and the stream width ratio,
+with this reading's area and width.
+
+**How far to trust it.** On 1 m LiDAR each bank is placed to within about a cell (a 4.85 m
+synthetic channel reads 5.95 m on 1 m cells and 5.0 m on 0.25 m cells), so a channel narrower than
+about 4 m (four cells) is flagged and not offered. That covers most S4 and S6 streams and the 1.5 m
+S3/S4 break: those widths need a field measurement. LiDAR rarely returns the bed under water, and
+a hydro-flattened DEM is level there, so depth and area are usually lower bounds. Overhanging
+canopy, undercut banks and logs in the channel are not seen. Bankfull is a geomorphic stage, not
+the channel width averaged over a reach that FPPR s. 47 and the Riparian Management Area
+Guidebook mean, and not the high-water width a crew reads from vegetation and sediment (EM 3.6.7).
+
 ## Cost groups
 
 The Design tab's **Crossing prices** used to call its price label a class. It is a **cost group**: a name

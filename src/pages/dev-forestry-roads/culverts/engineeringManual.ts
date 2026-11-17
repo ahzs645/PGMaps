@@ -184,3 +184,43 @@ export const INLET_CONTROL = {
   } satisfies Record<'thin-wall' | 'concrete', Record<CulvertInletEdge, InletCoefficients | null>>,
   locator: 'FHWA HDS-5, 3rd edition (2012), Appendix A, Table A.1',
 } as const
+
+/**
+ * FHWA HDS-5's outlet-control method for a barrel flowing full, or treated as full by its approximate
+ * method (3.1.4, Eq. 3.5 and 3.6b):
+ *
+ * - barrel losses H = (1 + ke + Ku·n²·L/R^1.33)·V²/2g, with the exit loss the full velocity head
+ * - headwater above the inlet invert HWo = ho + H − L·So, the approach and outlet velocities neglected
+ * - ho = the tailwater depth, or (dc + D)/2 where that is higher, dc never more than D
+ *
+ * Read from HDS-5, third edition (FHWA-HIF-12-026, April 2012), on 17 November 2026.
+ */
+export const OUTLET_CONTROL = {
+  /** Ku of Eq. 3.4b in SI units (29 in US customary), HDS-5 p. 3.10. */
+  kuSI: 19.63,
+  /**
+   * Entrance loss coefficient ke by inlet (Table C.2). Thin-wall is "Pipe, or Pipe-Arch, Corrugated
+   * Metal", read for every pipe that is not concrete, as the inlet-control coefficients are: the table
+   * has no plastic row. Concrete projecting is "socket end (groove-end)", the inlet the concrete
+   * inlet-control coefficients describe; concrete headwall is "square-edge".
+   */
+  entranceLoss: {
+    'thin-wall': { projecting: 0.9, headwall: 0.5, mitered: 0.7 },
+    concrete: { projecting: 0.2, headwall: 0.5, mitered: 0.7 },
+  } satisfies Record<'thin-wall' | 'concrete', Record<CulvertInletEdge, number>>,
+  entranceLossLocator: 'FHWA HDS-5 (2012), Appendix C, Table C.2, p. C.6',
+  /**
+   * HDS-5 says not to use the approximate method below a headwater of 0.75D (3.1.4, p. 3.12; 3.3.3,
+   * p. 3.24) and to use it with caution below 1.2D (3.3.3, p. 3.24).
+   */
+  approximateFloorHwOverD: 0.75,
+  cautionBelowHwOverD: 1.2,
+  rangeLocator: 'FHWA HDS-5 (2012), 3.1.4, p. 3.12, and 3.3.3, p. 3.24',
+  locator: 'FHWA HDS-5 (2012), 3.1.4, Eq. 3.5 and 3.6b, pp. 3.10-3.12',
+} as const
+
+/** Overtopping begins when the headwater reaches the roadway (HDS-5 3.1.5, p. 3.15). */
+export const ROADWAY_OVERTOPPING = { locator: 'FHWA HDS-5 (2012), 3.1.5, p. 3.15' } as const
+
+/** Where the governing control comes from: the higher of the two headwaters (HDS-5 DG 1.2, Step 5). */
+export const GOVERNING_CONTROL_LOCATOR = 'FHWA HDS-5 (2012), Design Guideline 1.2, Step 5, p. DG1.1'

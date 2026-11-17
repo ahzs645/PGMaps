@@ -12,6 +12,8 @@ import { CROSS_DRAIN_SITE_M, DITCH_DETAIL_CELL_M, LOW_POINT_MIN_CELLS } from './
 import { parseDrainageSettings, type DrainageComparisonSnapshot, type DrainageEvidence } from './drainageEvidence'
 import type { PourPoint } from './drainageCatchments'
 import { DrainageSensitivityPanel } from './DrainageSensitivityPanel'
+import { DrainageIntensityEditor } from './DrainageIntensityEditor'
+import type { CulvertTiming } from './timeOfConcentration'
 import { depressionPolicyLabel, snapPolicyLabel } from './drainageSensitivity'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
@@ -33,6 +35,14 @@ export function readDrainageSettings(): DrainageSettings {
 }
 
 const n = (v: number, digits = 0) => v.toLocaleString('en-CA', { maximumFractionDigits: digits })
+/** "Tc 12.4 min · 58.1 mm/h, 10-year" with the path it came from; a flagged one says so. */
+// One formatter per precision: a per-row `toLocaleString` with options builds a new one each call.
+const whole = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 0 }),
+  tenth = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 1 })
+const timingText = (t: CulvertTiming) =>
+  `Tc ${tenth.format(t.tcMin)} min · ${tenth.format(t.intensityMmPerHr)} mm/h, ${whole.format(t.returnPeriodYears)}-year · path ${whole.format(t.pathLengthM)} m at ${
+    t.pathSlope === null ? 'no measurable slope' : `${tenth.format(t.pathSlope * 100)}% (${t.slopeMethod})`
+  }${t.flags.length ? ' · outside range, see notes' : ''}`
 
 /**
  * Flow on the existing ground against flow on the design surface: streams the road carries along
@@ -143,6 +153,10 @@ export function DrainagePanel({
               <DrainageSettingField field="runoffCoefficient" settings={settings} onSettings={onSettings} />
               <DrainageSettingField field="manningN" settings={settings} onSettings={onSettings} />
             </div>
+          </div>
+          <div role="group" aria-label="Culvert intensity" className={groupRow}>
+            <span className={groupHeading}>Intensity</span>
+            <DrainageIntensityEditor settings={settings} onSettings={onSettings} />
           </div>
           <div role="group" aria-label="Flow network" className={groupRow}>
             <span className={groupHeading}>Flow network</span>
@@ -489,6 +503,15 @@ export function DrainagePanel({
                             value: `${n(c.diameterM, 2)} / ${c.minimumDiameterM === null ? '> 3.0' : n(c.minimumDiameterM, 2)}`,
                           },
                           { label: 'Slope', value: `${n(c.slope * 100, 1)}%${c.slopeAssumed ? ' (assumed)' : ''}` },
+                          ...(c.timing
+                            ? [
+                                {
+                                  label: 'Tc · intensity',
+                                  value: timingText(c.timing),
+                                  tone: c.timing.flags.length ? ('warning' as const) : ('default' as const),
+                                },
+                              ]
+                            : []),
                         ]}
                       />
                     </article>
@@ -504,6 +527,9 @@ export function DrainagePanel({
                         <ColumnHeader label="Capacity" unit="m³/s" />
                         <ColumnHeader label="Slope" unit="%" />
                         <ColumnHeader label="Diameter" unit="m entered / min" />
+                        {run.culverts.some((c) => c.timing) && (
+                          <ColumnHeader label="Tc · intensity" unit="min · mm/h" className="text-left" />
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -524,6 +550,14 @@ export function DrainagePanel({
                           <td>
                             {n(c.diameterM, 2)} / {c.minimumDiameterM === null ? '> 3.0' : n(c.minimumDiameterM, 2)}
                           </td>
+                          {run.culverts.some((x) => x.timing) && (
+                            <td
+                              className={cn('text-left', c.timing?.flags.length && 'text-warning')}
+                              title={c.timing?.idf}
+                            >
+                              {c.timing ? timingText(c.timing) : '—'}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -548,8 +582,11 @@ export function DrainagePanel({
             catch lines, of {n(run.domain.boxCells)} in the box around it; {n(run.changedCells)} changed by the road.
           </p>
           <p className="text-2xs text-muted-foreground">
-            Planning estimate, not a hydrotechnical design: surface runoff only, D8 routing, the Rational method with no
-            time of concentration, and pipes at full flow without inlet control. * slope assumed 2 %.
+            Planning estimate, not a hydrotechnical design: surface runoff only, D8 routing, the Rational method{' '}
+            {run.culverts.some((c) => c.timing)
+              ? 'at each culvert’s Kirpich time of concentration'
+              : 'with no time of concentration'}
+            , and pipes at full flow (headwater is checked with the culverts). * slope assumed 2 %.
           </p>
         </>
       )}

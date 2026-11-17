@@ -37,6 +37,23 @@ function solve(rows: number[][], rhs: number[]): number[] {
   return a.map((r) => r[3])
 }
 
+/**
+ * True when the projected CRS's linear unit is the metre, read from proj4's parse rather than the
+ * text: OGC WKT can follow the `UNIT` with `AXIS`, `EXTENSION` and `AUTHORITY` clauses (GDAL's
+ * Web Mercator does), and a pattern anchored to the end refused it.
+ */
+export function projectedInMetres(wkt: string): boolean {
+  let parsed: { units?: string; to_meter?: number }
+  try {
+    parsed = proj4.Proj(wkt) as unknown as { units?: string; to_meter?: number }
+  } catch {
+    return false
+  }
+  const units = parsed.units?.toLowerCase()
+  if (units) return units === 'm' || units === 'meter' || units === 'metre' || units === 'meters' || units === 'metres'
+  return parsed.to_meter === 1
+}
+
 export function fitMapFrame(page: number, bbox: Box, local: number[], geographic: number[], wkt: string): MapFrame {
   if (
     bbox.length !== 4 ||
@@ -77,9 +94,8 @@ export function fitMapFrame(page: number, bbox: Box, local: number[], geographic
       return Math.hypot(p[0] - xy[0], p[1] - xy[1])
     }),
   )
-  // The templates use metre-based Albers/UTM. Refuse other units rather than calling feet metres.
-  const metre = /UNIT\["(?:Meter|Metre|metre|meter)",\s*1(?:\.0)?\]\s*\]\s*$/i.test(wkt)
-  if (!metre) throw Error('PDF map registration currently requires a projected CRS in metres.')
+  // Refuse units other than metres rather than calling feet metres.
+  if (!projectedInMetres(wkt)) throw Error('PDF map registration currently requires a projected CRS in metres.')
   if (registrationErrorM > PDF_LIMITS.registrationErrorM)
     throw Error(
       `The PDF map controls disagree by ${registrationErrorM.toFixed(1)} m; georeference the sheet before importing.`,

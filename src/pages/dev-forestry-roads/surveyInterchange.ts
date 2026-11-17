@@ -384,7 +384,16 @@ export function traverseCsv(
   ].join('\r\n')
 }
 
-type XmlNode = { name: string; text: string; children: XmlNode[] }
+type XmlNode = { name: string; text: string; children: XmlNode[]; attributes?: Record<string, string> }
+/** A tag's attributes, names lower-cased without their prefix. Only quoted values are read. */
+function tagAttributes(token: string): Record<string, string> | undefined {
+  let found: Record<string, string> | undefined
+  for (const m of token.matchAll(/\s([\w:.-]+)\s*=\s*("([^"]*)"|'([^']*)')/g)) {
+    found ??= {}
+    found[m[1].split(':').at(-1)!.toLowerCase()] = decode(m[3] ?? m[4] ?? '')
+  }
+  return found
+}
 const decode = (s: string) =>
   s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_m, k: string) =>
     k[0] === '#'
@@ -420,7 +429,8 @@ function xmlTree(text: string): XmlNode {
         ?.toLowerCase()
       if (!name || ++count > 100_000 || stack.length > 50)
         throw Error('KML XML complexity exceeds the supported limit.')
-      const node: XmlNode = { name, text: '', children: [] }
+      const attributes = tagAttributes(token)
+      const node: XmlNode = { name, text: '', children: [], ...(attributes ? { attributes } : {}) }
       stack.at(-1)!.children.push(node)
       if (!/\/\s*>$/.test(token)) stack.push(node)
     } else stack.at(-1)!.text += decode(token)
@@ -448,9 +458,39 @@ function kmlCoordinates(node: XmlNode): number[][] {
     return p.slice(0, 2) // KML altitude is deliberately not adopted as measured ground or road design.
   })
 }
+/** Attributes a placemark keeps at most, and characters of one name or value. */
+export const KML_ATTRIBUTE_LIMITS = { count: 50, nameChars: 100, valueChars: 2_000 } as const
+/** Property names the reader sets itself; an attribute of the same name is kept with a `kml_` prefix. */
+const OWN_PROPERTIES = new Set(['name', 'description', 'source', 'kmlId', 'timestamp'])
 /**
- * Placemark points, lines and polygons with their name and description. A placemark says where a
- * feature is, never what it is, so no feature leaves here classified as a stream or a constraint.
+ * A placemark's `ExtendedData`: `<Data name><value>` and `<SchemaData><SimpleData name>`, as text,
+ * the way a shapefile's attributes arrive. Avenza and Google Earth write both forms.
+ */
+function extendedData(mark: XmlNode): Record<string, string> {
+  const out: Record<string, string> = {}
+  const extended = mark.children.find((c) => c.name === 'extendeddata')
+  if (!extended) return out
+  const add = (rawName: string | undefined, value: string) => {
+    const name = rawName?.trim().slice(0, KML_ATTRIBUTE_LIMITS.nameChars)
+    if (!name || Object.keys(out).length >= KML_ATTRIBUTE_LIMITS.count) return
+    const key = OWN_PROPERTIES.has(name) ? `kml_${name}` : name
+    if (!(key in out)) out[key] = value.trim().slice(0, KML_ATTRIBUTE_LIMITS.valueChars)
+  }
+  for (const data of descendants(extended, 'data'))
+    add(data.attributes?.name, data.children.find((c) => c.name === 'value')?.text ?? '')
+  for (const data of descendants(extended, 'simpledata')) add(data.attributes?.name, data.text)
+  return out
+}
+/** The placemark's `TimeStamp/when`, or its `TimeSpan/begin`, as written. */
+function placemarkTime(mark: XmlNode): string | undefined {
+  const stamp = mark.children.find((c) => c.name === 'timestamp' || c.name === 'timespan')
+  const when = stamp?.children.find((c) => c.name === 'when' || c.name === 'begin')?.text.trim()
+  return when ? when.slice(0, 40) : undefined
+}
+/**
+ * Placemark points, lines and polygons with their name, description, `id`, time and ExtendedData
+ * attributes. A placemark says where a feature is, never what it is, so no feature leaves here
+ * classified as a stream or a constraint.
  */
 export function parseKml(text: string): GeoJSON.FeatureCollection {
   const tree = xmlTree(text),
@@ -468,6 +508,9 @@ export function parseKml(text: string): GeoJSON.FeatureCollection {
       .replace(/\s+/g, ' ')
       .trim()
       .slice(0, 500)
+    const attributes = extendedData(mark)
+    const kmlId = mark.attributes?.id?.trim().slice(0, 200)
+    const timestamp = placemarkTime(mark)
     const geometries: GeoJSON.Geometry[] = []
     for (const node of descendants(mark, 'point')) {
       const coordinates = kmlCoordinates(node)
@@ -497,8 +540,11 @@ export function parseKml(text: string): GeoJSON.FeatureCollection {
         type: 'Feature',
         geometry,
         properties: {
+          ...attributes,
           name,
           ...(description ? { description } : {}),
+          ...(kmlId ? { kmlId } : {}),
+          ...(timestamp ? { timestamp } : {}),
           source: 'KML geographic linework; altitude discarded',
         },
       })

@@ -105,10 +105,12 @@ import { CUTBLOCK_BUFFER_PATTERNS, keepCutblockBuffers, MAX_CUTBLOCK_BUFFER_M } 
 import { keepReferenceStyles, parseReferenceStyles } from './referenceStyles'
 import { gradeRule, gradeRuleText, parseDesignStandards } from './designStandards'
 import { issueStamp, parseProjectIssue, PLANNING_CAVEAT } from './projectIssue'
+import { parseFieldReview } from './fieldReview'
 import { parseHaulSettings } from './haulReview'
 import { projectReadiness, readinessReportHtml, vehicleFit, type VehicleFit } from './readiness'
 import { crossingRegisterReportHtml } from './crossingRegister'
 import { buildCulvertSchedule, culvertScheduleReportHtml } from './culverts/culvertSchedule'
+import { culvertChannels } from './culverts/culvertChannels'
 import { vehiclePreset } from './jobStandards'
 import { foundRoadSearchRows, parseFoundRoadSearchSettings } from './foundRoadSearch'
 import { terrainResolution } from './tinGround'
@@ -989,6 +991,7 @@ export function parseProject(raw: unknown): RoadProject {
     ...(r.reportSettings === undefined ? {} : { reportSettings: parseRoadReportSettings(r.reportSettings) }),
     ...(r.drainage === undefined ? {} : { drainage: parseDrainageProjectState(r.drainage) }),
     ...(r.surveyBooks === undefined ? {} : { surveyBooks: parseSurveyBooks(r.surveyBooks) }),
+    ...(r.fieldReview === undefined ? {} : { fieldReview: parseFieldReview(r.fieldReview) }),
     ...(r.notes === undefined ? {} : { notes: parseMapNotes(r.notes) }),
     ...(reference === undefined ? {} : { reference }),
     ...(cutblockBuffers.length ? { cutblockBuffers } : {}),
@@ -1975,6 +1978,11 @@ function projectReportHtmlInChainage(
           analysis,
           place: project.costLocation?.place,
           drainage: { record: savedDrainage, stale: drainageStale },
+          channels: culvertChannels({
+            culverts: active.engineering?.culverts ?? [],
+            crossings: analysis.crossings,
+            context: project.context,
+          }),
         }),
       )
     : ''

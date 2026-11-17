@@ -161,6 +161,7 @@ const UNMOVED: [keyof RoadProject, string][] = [
   ['drainage', 'drainage runs'],
   ['provincialStreamData', 'provincial stream evidence'],
   ['surveyBooks', 'survey field books'],
+  ['fieldReview', 'field review issues'],
   ['cutblockBuffers', 'cutblock buffers'],
   ['networkPlanning', 'network planning'],
   ['accessHistory', 'access history'],

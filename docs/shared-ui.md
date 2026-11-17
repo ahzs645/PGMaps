@@ -591,6 +591,14 @@ track grows to the longest cell in any column.
   `engineeringPinnedColumnClass` keeps the identifying first column in view. The road design
   wraps this as `CellNumberField` (`dev-forestry-roads/Controls.tsx`); never put a labelled form
   field in a table cell, where every row repeats the column header above its input.
+  For a header that stays in view, put the table in a scroll container and give its `<thead>`
+  `className="sticky top-0"`. The table's borders are separate (`border-separate
+  border-spacing-0`), never `border-collapse`: a collapsed border belongs to the table, not the
+  cell, so on a sticky header or pinned column it scrolls away with the rows, leaving a strip the
+  rows show through and a header that shifts by a line as it sticks. Each cell draws its own
+  bottom and right rule, the first cell of a row its left, and `ColumnHeader` its top. A border on
+  a `<tr>` does not draw in this mode: give the cells the classes instead, and a cell that sets its
+  own `border` should set only the sides the table leaves to it, or the rule doubles.
 - Configurable workspaces (`src/components/interfaces/`): define each command once in
   `workspaceCommands.ts` (label, icon, `kind`, editor, investigation availability) and render it
   only through `CommandButton`, whose `surface` (`ribbon`, `quick`, `header`, `toolbar`, `sidebar`)

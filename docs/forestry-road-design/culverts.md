@@ -135,7 +135,7 @@ behind those nomographs, FHWA HDS-5's inlet-control design equations
 - **Round pipes only**, for a projecting, mitered or headwall inlet. Steel and plastic pipes read
   the corrugated-metal coefficients; concrete reads its own, and a mitered concrete inlet has none
   and is not assessed.
-- **Outlet control is not checked.** Neither is tailwater, debris or an embedded culvert's bed.
+- Tailwater, debris and an embedded culvert's bed are not checked.
 - **The slope term is held at the nomographs' 2 %**, so the figure is the one a designer reads
   from the nomograph. By the equation a steeper pipe's headwater is slightly lower.
 - **Where the coefficients came from.** HDS-5's own file (49 MB) could not be read on
@@ -146,6 +146,112 @@ behind those nomographs, FHWA HDS-5's inlet-control design equations
   nomograph and 0.87 here, and the 1200 mm trial fails, as it does there
   (`culvertModules.test.ts`). **Confirm the coefficients against HDS-5 before relying on a
   headwater figure for anything but a screen.**
+
+### Outlet control, governing control, overtopping and a suggested size
+
+Three checks and a note follow the inlet-control check. The inlet-control check keeps its own
+figure, so a culvert reads exactly as it did before. The figures come from
+`culverts/culvertHeadwater.ts`, and the data with its sources is `OUTLET_CONTROL`,
+`ROADWAY_OVERTOPPING` and `GOVERNING_CONTROL_LOCATOR` in `culverts/engineeringManual.ts`.
+The sources were read from FHWA HDS-5, third edition (FHWA-HIF-12-026, 2012), on 17 November 2026.
+
+| Check | Rule | Source | State when it cannot be made |
+| --- | --- | --- | --- |
+| Governing headwater | The higher of the inlet- and outlet-control headwater, over the diameter, at most 1.0 at the modelled peak | EM 3.5.5.1.3; HDS-5 3.1.4, DG 1.2 Step 5 | Not assessed: no current check; inverts missing; no Manning n; not a round pipe; embedded; no inlet coefficients; outlet control under 0.75D and its backwater profile could not be worked out |
+| Headwater stays below the road | The inlet invert plus the governing headwater is below the lowest road surface over the barrel. The freeboard is stated, and no minimum is set | HDS-5 3.1.5 p. 3.15 | Not assessed: the governing headwater is not known; no point of the barrel lies under the road formation |
+| Smallest stock size by headwater | A note: the smallest EM Table 3-13 size whose governing HW/D is at most 1.0 at the same peak, inverts, material, inlet and barrels | EM Table 3-13 p. 166 | Not assessed when the governing headwater cannot be worked out |
+
+- **Outlet control** uses HDS-5's full-flow energy method (Eq. 3.5 and 3.6b, pp. 3.10-3.12),
+  in SI units throughout: H = (1 + ke + 19.63·n²·L/R^1.33)·V²/2g with g = 9.81 m/s²,
+  and HWo = ho + H − L·So. L is the inclined barrel and L·So the inlet invert less the outlet
+  invert. The approach and outlet velocities are neglected, as in HDS-5's hand method.
+- **The tailwater is not known.** No channel rating is held, so ho is (dc + D)/2, with dc never
+  more than D. `fullFlowOutletControl` accepts a known tailwater (`tailwaterM`), which sets ho
+  where it is higher. No project field stores one yet.
+- **ke comes from Table C.2 (p. C.6).** A corrugated pipe takes 0.9 projecting, 0.5 with a
+  headwall and 0.7 mitered. A smooth-wall plastic pipe and a pipe with no material set take the
+  corrugated values, because the table has no plastic row. Concrete takes 0.2 projecting
+  (groove end, the inlet its inlet-control coefficients describe), 0.5 with a square-edged
+  headwall and 0.7 mitered.
+- **Manning n** is the material's (EM 3.5.5.7). With no material it is the drainage check's own n.
+- **The method's range.** HDS-5 says to use the approximation with caution below 1.2D and not at
+  all below 0.75D, where it asks for a backwater calculation (3.1.4 p. 3.12; 3.3.3 p. 3.24).
+  Below 0.75D outlet control is read from a **backwater profile** instead
+  (`backwaterOutletControl`, `culvertHydraulics.ts`): a gradually varied flow profile carried up
+  the part-full round barrel from the outlet by the standard step method (Chow, _Open-Channel
+  Hydraulics_, 1959, ch. 10), `BACKWATER_STEPS` steps with Manning friction averaged over each.
+  It starts at the tailwater or critical depth, whichever is higher (a free outfall passes
+  critical depth; with no tailwater known it is critical depth). The headwater is the inlet's
+  specific energy plus ke·V²/2g, approach velocity neglected as in HDS-5's hand method. Where
+  the profile reaches the crown, the rest of the barrel is carried at full-flow friction. Where
+  Manning normal depth is under critical depth the barrel is **steep**: the outlet does not
+  control and inlet control governs. The check, the editor's Hydraulics line and the CSV's
+  `outlet_control_method` (`full flow`, `backwater`, `steep barrel`) say which was read.
+  Checked against closed forms (`culvertHeadwater.test.ts`): on a level barrel of no length the
+  headwater is critical depth's specific energy plus the entrance loss, and up a long mild
+  barrel the depth reaches Manning normal depth within 1 %.
+- **The road over the barrel** is the lowest subgrade the engine's culvert profile has under the
+  formation, raised by the surfacing of the thinner side (its course stack, else its surface
+  depth). That gives a **road surface** freeboard, and a second freeboard to the **subgrade
+  shoulder**, which is where HDS-5's worked examples measure it. Only the road along the barrel
+  is read. HDS-5 notes that overtopping usually begins at the road's sag low point, which may
+  lie away from the culvert.
+- **The suggested size never changes a diameter.** It keeps the culvert's barrels, material,
+  inlet and inverts, and reads outlet control the same way, by backwater below 0.75D.
+- **Checked against HDS-5 Design Guideline 1.3, Example Problem No. 1** (Culvert Design Form,
+  p. DG1.4). The example is worked in US customary units, converted here to SI: 200 ft³/s,
+  tailwater 3.5 ft, a 200 ft barrel on 1 %, ke 0.2. The 60 in and 54 in concrete trials reproduce
+  the form's outlet-control elevations of 105.5 ft and 107.0 ft to within 0.02 m. The 72 in
+  corrugated trial reads 105.4 ft against 105.5 ft. The 60 in corrugated trial reads 108.5 ft
+  against 108.9 ft, the gap between the equation and a reading of the nomograph; both are over
+  the allowable 108 ft (`culvertHeadwater.test.ts`).
+- **Review's culvert row** judges the governing headwater and the road over it as well as cover,
+  gradient, embedment and inlet headwater (`readiness.ts`).
+
+**Schedule columns.** The culvert schedule CSV adds these columns after `evidence`, so no earlier
+column moves:
+
+- `fall_one_in`: horizontal span over the drop
+- `inlet_depth_to_invert_m` and `outlet_depth_to_invert_m`: ground less the invert
+- `road_surface_over_invert_m`: the road surface at the centreline less the invert there
+- `inlet_control_hw_m`, `outlet_control_hw_m`
+- `governing_control` (`inlet`, `outlet` or `not determined`)
+- `governing_hw_m`, `governing_hw_over_d`
+- `headwater_elevation_m`
+- `road_surface_low_m`, `freeboard_m`
+- `suggested_diameter_m`
+
+The editor and the report print the same figures on one **Hydraulics** line
+(`culvertHydraulicsText`).
+
+### Natural-channel screens
+
+Stream culverts only, and only where a channel is known: the culvert schedule, report, CSV and Review read the stream width ratio from the crossing stream's recorded **Channel width**; the 3 × area screen needs a section read from the terrain, so it prints under that reading in the stream's panel ([Streams and constraints](streams-and-constraints.md#channel-read-from-the-terrain)) and not in the schedule (`culvertChannels.ts`).
+
+
+| Check                          | Rule                                                                                                            | Source                                                   | State when it cannot be made |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------- |
+| 3 × bankfull area (stream)     | Opening (every barrel) at least 3 × the candidate bankfull area. A note on a major culvert                       | Engineering Manual (rev. 2018) s. 3.6.7, p. 79, Fig. 3-4  | Not assessed: no usable channel reading; embedded |
+| Stream width ratio (stream)    | Channel width ÷ culvert width (barrels add): under 1.0 low (0 points), 1.0-1.3 moderate (3), over 1.3 high (6)   | BC MoE (2011) closed-bottom fish passage field assessment | Not assessed: no width; a note on an open-bottom arch |
+
+- **The area check is the manual's high-water estimation method,** which takes the high-water
+  (mean annual flood, Q2) cross-section as A = (W1 + W2)/2 × D and the Q100 opening as 3 × A, for
+  non-major stream culverts only, and not as the sole method for a professional design. Here A is
+  the area of the candidate bankfull section read from the terrain, not a crew's high-water
+  section. Where the bed may be a water surface the area is a lower bound: an opening short of
+  3 × that bound is not met, and one clearing it is not assessed, never met.
+- **The width ratio is a screen, not a fish-passage status.** The protocol scores five measures
+  (embeddedness, outlet drop, stream width ratio, slope, length) in the field; this reads one of
+  them. It uses the stream's recorded channel width when there is one, else a usable terrain
+  candidate, and says which. The protocol measures the channel downstream; the candidate is read
+  upstream. Barrels side by side add their widths, as the protocol adds pipes at one outlet level.
+- **Where the bands came from.** The ratio's definition (channel width ÷ culvert width) and the
+  example "1.2 scores 3" are from the Ministry of Environment's own paper on the method (Thompson,
+  "Assessing Fish Passage at Culverts"); the band edges 1.0 and 1.3 are from a secondary listing of
+  the 2011 protocol's table. Confirm them against the protocol before relying on a score.
+- **The Engineering Manual edition.** The section numbers are from the 1 August 2018 revision
+  (s. 3.6.7). The checks above cite a later revision's numbering (s. 3.5.5); find the method's
+  section in that edition before printing both together.
 
 ## Shape, barrels, material and the other optional fields
 
@@ -196,13 +302,42 @@ culverts and haul_ section.
   amber, the road's colour. There is no label on the plan: a click opens the culvert's card (station,
   opening, span or barrel length, cover, grade, skew, warnings), and the card lists every other
   culvert within `CULVERTS_TOGETHER_M`, whose lines would sit on top of one another
-  (`CulvertCard.tsx`).
+  (`CulvertCard.tsx`). An arrow leaves the outlet along the barrel (`culvertFlowArrow.ts`): the
+  inlet-to-outlet direction as entered, not a computed flow, so an adverse barrel still points to its
+  outlet and its warning says why.
 - **3D.** The barrel as a shaded tube from inlet invert to outlet invert, with the opening that faces
   the camera drawn dark (`culvertBarrel.ts`). A box is square-cornered; the other shapes are an
   ellipse of span and rise. The opening keeps its true shape under the view's height exaggeration,
   and the axis its true elevation. It is drawn over the road and fill, as RoadEng's see-through fill
   shows it. Under `BARREL_MIN_OPENING_PX` across it is drawn as a line along its axis, and with
   either invert unknown it is not drawn. One barrel is drawn however many the culvert has.
+- **Profile.** The opening at its station, drawn to the profile's own scales: its rise upward from
+  the invert where the barrel crosses the centreline (the engine's sample at the barrel's middle),
+  and its width along the road the span ÷ cos(skew), the width the barrel cuts the profile's plane.
+  A round pipe or an arch is an ellipse in the profile's vertical exaggeration, a box a rectangle.
+  A line from the crown up to the design grade is the cover there, and the tag gives the figure
+  ("600 mm · cover 1.42 m"). That is the cover at the centreline; the tooltip also gives the
+  engine's least cover, the figure every check and the schedule use. Smaller than
+  `CULVERT_PROFILE_MIN_PX` (6 px) either way, the opening is drawn at that size with a dashed
+  outline, its invert line still at its true level, and the tooltip says it is not to scale: at a
+  whole road on screen a pipe is under a pixel across, so this is the usual case until you zoom to
+  a few hundred metres. With either invert missing nothing is drawn below grade: the tag stays and
+  reads "inverts not entered". Culverts at one station keep stacked markers, each with its own button
+  (`Inspect structure <name> at <station>`). The tags go through the profile's one label pass
+  (`placeLabels`) after every other label, keep clear of the vertical-curve labels, and try each
+  side of their marker and three tiers out before giving way to the tooltip. Geometry: `culvertProfileMark`, `culvertLongSection.ts`.
+- **Long section.** Engineering → Structures draws the selected culvert along its barrel, left inlet
+  to right outlet: the ground (a gap where terrain is missing, never bridged or drawn at zero), the
+  road's design surface read across the barrel from the analysed sections either side of its station
+  (negative offsets left, so the inlet end is the left side of the road), the fill over the barrel
+  shaded, the formation the cover is measured to, the barrel as a band from invert to crown, and a
+  dashed line at crown plus the manual's cover (`requiredCoverM`) over the formation, where the
+  engine measures cover. The heading gives the fall from the engine's grade, as a percent and as
+  "1 in X"; each end its invert, or "not entered"; the least-cover point is marked at the engine's
+  own sample with the engine's figure beside the manual's. The vertical exaggeration is printed. The
+  design surface ignores the small change of road grade along a skewed barrel; the formation and
+  every figure are the engine's. Display only: nothing drawn here reaches a figure, the schedule or
+  an export.
 
 ## Limits and budgets
 
@@ -222,6 +357,25 @@ culverts and haul_ section.
 | Inlet-control equation ranges         | Unsubmerged to 3.5, submerged from 4.0, a straight line between | `INLET_CONTROL`          |
 | Same-station culverts in the plan card | Within 2 m along the road          | `CULVERTS_TOGETHER_M`                                |
 | 3D barrel drawn as a line             | Opening under 5 px across           | `BARREL_MIN_OPENING_PX`                              |
+| Profile opening drawn at least        | 6 px either way, dashed when not to scale | `CULVERT_PROFILE_MIN_PX`                       |
+| Plan flow arrow shaft                 | 0.2 × span, 1.5 to 4 m              | `FLOW_ARROW_SHARE`, `FLOW_ARROW_MIN_M`, `FLOW_ARROW_MAX_M` |
+| Outlet-control friction constant | Ku 19.63 (SI) | `OUTLET_CONTROL.kuSI` |
+| Entrance loss ke | 0.2 to 0.9 by material and inlet (Table C.2) | `OUTLET_CONTROL.entranceLoss` |
+| Outlet approximation not read | Below HW/D 0.75: a backwater profile is read instead | `OUTLET_CONTROL.approximateFloorHwOverD` |
+| Backwater profile steps | 60 along the barrel | `BACKWATER_STEPS` |
+| Outlet approximation, caution | Below HW/D 1.2 | `OUTLET_CONTROL.cautionBelowHwOverD` |
+| Suggested sizes | EM Table 3-13, 400 to 1800 mm | `STOCK_DIAMETERS_M`, `HEADWATER_LIMIT` |
+| Section upstream of the crossing    | 20 m along the stream line     | `NATURAL_CHANNEL.upstreamM`                  |
+| Section half-width                  | 20 m                           | `NATURAL_CHANNEL.halfWidthM`                 |
+| Sample spacing                      | The terrain's cell, never finer; at most 401 samples | `sampleChannelSection`, `maxSamples` |
+| Thalweg window and tie              | ±8 m; 3 cm                     | `thalwegSearchM`, `thalwegTieM`              |
+| Stage step and ceiling              | 0.05 m to 4 m                  | `stageStepM`, `maxDepthM`                    |
+| Least bankfull depth                | 0.15 m                         | `minBankfullDepthM`                          |
+| Bench                               | 20 m/m and 3 × the median below | `benchIndexMin`, `benchIndexFactor`         |
+| Level bed                           | 1 cm over 2 m and 3 samples    | `levelToleranceM`, `levelRunMinM`, `levelRunMinSamples` |
+| Too coarse                          | Under 4 cells across; unread over 2 m cells | `coarseCellsAcross`, `coarseCellM` |
+| Area factor                         | 3                              | `HIGH_WATER_AREA_RULE`                       |
+| Stream width ratio bands            | 1.0, 1.3                       | `STREAM_WIDTH_RATIO`                         |
 
 These bounds keep inputs sane and state the manuals' thresholds; they are not design tolerances.
 
@@ -244,11 +398,14 @@ These bounds keep inputs sane and state the manuals' thresholds; they are not de
 ## What it does not do
 
 - Size a culvert, choose a structure or decide fish passage. It never changes a diameter.
-- Check outlet control, tailwater, overtopping, scour, riprap size, debris or ice.
-- Apply the 3 × bankfull sizing method, compute a time of concentration or pick a storm.
+- Model a tailwater from the channel, run a backwater profile beyond the barrel, or read overtopping at the road's low
+  point away from the barrel; check scour, riprap size, debris or ice.
+- Size by the 3 × bankfull method (the screen only judges an opening against a terrain candidate),
+  or pick a storm. Time of concentration is the drainage check's per-culvert option
+  ([Drainage](drainage.md)).
 - Deduct approach fills from the subgrade, or build an engineered cost estimate.
 - Read the Interior manual's road group 1 hybrid rules, baffled or headwalled culverts, or "dry"
   installations: tell these apart by hand.
-- Draw a box or an arch to shape on the plan, profile or section (the 3D view draws a box square and
-  an arch as an ellipse), draw more than one barrel, or carve it wider than one cell in the drainage
-  check.
+- Draw a box or an arch to shape on the plan or section (the profile and the 3D view draw a box
+  square and an arch as an ellipse), draw more than one barrel, or carve it wider than one cell in the
+  drainage check.

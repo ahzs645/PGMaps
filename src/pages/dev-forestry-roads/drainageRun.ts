@@ -8,6 +8,7 @@ import { sampleCorridorGrid } from './corridorGrid'
 import { burnRoad } from './designSurface'
 import { analyzeDrainage, DITCH_DETAIL_CELL_M, type DrainageAnalysis } from './hydrology'
 import { parseDepressionPolicy, type DepressionPolicy } from './drainagePolicies'
+import { activeConcentration, timingFlagText, type ConcentrationSettings } from './timeOfConcentration'
 import type { ToGrid, ToLonLat } from './surfaceGrid'
 import type { Culvert, RoadAnalysis, TerrainSource } from './types'
 import {
@@ -32,6 +33,12 @@ export interface DrainageSettings {
   depressionPolicy?: DepressionPolicy
   /** Optional coarser working grid; never finer than the source or the 1 m sampling floor. */
   workingResolutionM?: number
+  /**
+   * Per-culvert intensity: Kirpich time of concentration on each culvert's longest flow path and
+   * the IDF intensity at it (`timeOfConcentration.ts`). Omitted or off: `rainfallMmPerHr` for
+   * every culvert, as before.
+   */
+  concentration?: ConcentrationSettings
 }
 /** Forested-hillside planning defaults: C 0.35, corrugated steel pipe n 0.024. */
 export const DEFAULT_DRAINAGE_SETTINGS: DrainageSettings = {
@@ -121,6 +128,7 @@ export function runDrainage({
   if (!Number.isInteger(maxCells) || maxCells < 1 || maxCells > MAX_DRAINAGE_ROUTED_CELLS)
     throw Error('The drainage cell budget must be from 1 to 4,194,304 routed cells.')
   const depressionPolicy = parseDepressionPolicy(settings.depressionPolicy)
+  const concentration = activeConcentration(settings.concentration)
   const minimumM = Math.max(1, resolutionM, settings.workingResolutionM ?? 0)
   if (!analysis.stations.some((s) => s.designElevation !== null))
     throw Error('The road has no design elevations on this terrain, so there is no design surface to route over.')
@@ -147,6 +155,7 @@ export function runDrainage({
     manningN: settings.manningN,
     streamThresholdM2: settings.streamThresholdHa * 10_000,
     depressionPolicy,
+    ...(concentration ? { concentration } : {}),
   })
   result.warnings.push(
     'Contributing areas stop at the sampled buffer and terrain-data edges. Increase the upslope buffer and compare catchments before relying on the flow estimate.',
@@ -186,6 +195,16 @@ export function runDrainage({
       result.warnings.push(
         `${culvert.name}: the modeled design catchment (${culvert.designAreaHa.toFixed(2)} ha) is much smaller than the existing-ground catchment (${culvert.existingAreaHa.toFixed(2)} ha). Inspect diverted flow, the inlet location and terrain detail before relying on this pipe check.`,
       )
+  if (concentration) {
+    result.warnings.push(
+      `Each culvert's intensity is the IDF curve's at its own time of concentration (Kirpich on its longest flow path, ${concentration.slopeMethod} slope, at least ${concentration.minimumTcMin} min), not ${settings.rainfallMmPerHr} mm/h. Kirpich was fitted to small channelled agricultural catchments; on forested hillslopes it tends to give a short Tc and so a high intensity.`,
+    )
+    for (const culvert of result.culverts)
+      if (culvert.timing?.flags.length)
+        result.warnings.push(
+          `${culvert.name}: ${culvert.timing.flags.map((flag) => timingFlagText(flag, culvert.timing!, culvert.designAreaHa)).join('; ')}.`,
+        )
+  }
   const grid = {
     origin: existing.origin,
     cellM: existing.cellM,

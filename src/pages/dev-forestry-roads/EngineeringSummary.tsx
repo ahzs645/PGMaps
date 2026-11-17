@@ -8,7 +8,9 @@ import { TabBar } from '@/components/ui/tab-bar'
 import { hasCompleteCoverage } from './analysisResult'
 import { materialPlanMissing } from './engineeringTypes'
 import { formatRoadStation } from './Charts'
-import type { Alignment, CulvertAnalysis, RoadAnalysis, RoadSettings } from './types'
+import type { Alignment, Culvert, CulvertAnalysis, RoadAnalysis, RoadSettings, RoadStation } from './types'
+import { requiredCoverM } from './culverts/culvertChecks'
+import { bandPath, culvertLongSection, fixed, runsPath } from './culvertLongSection'
 import { insetBox } from '@/components/ui/inset-box'
 import { QuantitySchedulePanel } from './QuantitySchedulePanel'
 import { ReviewCharts } from './ReviewChartsPanel'
@@ -17,68 +19,150 @@ import type { AssumedEquipment } from './quantitySchedule'
 const fmt = (value: number | null | undefined, digits = 1) =>
   value == null || !Number.isFinite(value) ? '—' : value.toLocaleString('en-CA', { maximumFractionDigits: digits })
 
-function CulvertProfile({ culvert }: { culvert: CulvertAnalysis }) {
-  const samples = culvert.profile
-  const values = samples
-    .flatMap((s) => [s.groundElevation, s.formationElevation, s.invertElevation, s.crownElevation])
-    .filter((v): v is number => v !== null && Number.isFinite(v))
-  if (!values.length || samples.length < 2)
-    return <p className="text-xs text-muted-foreground">No sampled culvert profile.</p>
-  const min = Math.min(...values) - 0.5,
-    max = Math.max(...values) + 0.5,
-    length = samples[samples.length - 1].distanceM
-  const x = (distance: number) => 48 + (distance / Math.max(1, length)) * 580
-  const y = (value: number) => 160 - ((value - min) / Math.max(1, max - min)) * 132
-  const path = (field: 'groundElevation' | 'formationElevation' | 'invertElevation' | 'crownElevation') => {
-    let pen = false
-    return samples
-      .map((s) => {
-        const v = s[field]
-        if (v === null || !Number.isFinite(v)) {
-          pen = false
-          return ''
-        }
-        const command = pen ? 'L' : 'M'
-        pen = true
-        return `${command}${x(s.distanceM)},${y(v)}`
-      })
-      .join(' ')
+const LONG_SECTION = { width: 650, height: 230, left: 56, right: 22, top: 22, bottom: 44 }
+const LONG_SECTION_COLORS = {
+  ground: '#a07845',
+  surface: '#d97706',
+  barrel: '#2563eb',
+  minimumCover: '#e11d48',
+  fill: '#d97706',
+}
+
+/**
+ * The culvert's own long section along its barrel, left inlet to right outlet: ground, the road's
+ * design surface and fill over the barrel, the barrel, the manual's minimum-cover line and the
+ * least-cover point. Every figure is the engine's (`CulvertAnalysis`) or the manual's
+ * (`requiredCoverM`); the geometry is `culvertLongSection.ts`.
+ */
+function CulvertProfile({
+  culvert,
+  design,
+  stations,
+}: {
+  culvert: CulvertAnalysis
+  design?: Culvert
+  stations: readonly RoadStation[]
+}) {
+  // The analysed sections either side of the culvert's station.
+  let before: RoadStation | undefined, after: RoadStation | undefined
+  for (const s of stations) {
+    if (s.chainage <= culvert.chainage && (!before || s.chainage > before.chainage)) before = s
+    if (s.chainage >= culvert.chainage && (!after || s.chainage < after.chainage)) after = s
   }
+  const bracket = [...new Set([before, after].filter((s): s is RoadStation => !!s))]
+  const required = design ? requiredCoverM(design) : null
+  const drawing = culvertLongSection(culvert, bracket, required ?? 0)
+  if (!drawing) return <p className="text-xs text-muted-foreground">No sampled culvert profile.</p>
+  const { width, height, left, right, top, bottom } = LONG_SECTION
+  const plotWidth = width - left - right,
+    plotHeight = height - top - bottom
+  const x = (distance: number) => left + (distance / Math.max(1e-6, drawing.lengthM)) * plotWidth
+  const y = (value: number) => top + plotHeight - ((value - drawing.minM) / (drawing.maxM - drawing.minM)) * plotHeight
+  const exaggeration = plotHeight / (drawing.maxM - drawing.minM) / (plotWidth / Math.max(1e-6, drawing.lengthM))
+  const barrel = drawing.invert.map((run, i) => bandPath(drawing.crown[i] ?? [], run, x, y)).join(' ')
+  const fall = drawing.fall
+  const fallText = !fall
+    ? 'Fall not known: enter both inverts'
+    : fall.oneIn === null
+      ? 'Level barrel'
+      : `${fall.falls ? 'Falls' : 'Rises'} ${fixed(Math.abs(fall.percent), 1)} % · 1 in ${fixed(fall.oneIn, 0)}`
+  const ticks = [drawing.minM, (drawing.minM + drawing.maxM) / 2, drawing.maxM]
+  const least = drawing.leastCover
   return (
     <div className={insetBox()} data-testid="culvert-profile">
-      <p className="text-xs font-medium">{culvert.name} · along-barrel profile</p>
-      <svg viewBox="0 0 650 195" className="w-full" role="img" aria-label={`Culvert profile for ${culvert.name}`}>
-        <path d="M48 20V160H628" fill="none" stroke="#94a3b8" />
-        {(['groundElevation', 'formationElevation', 'invertElevation', 'crownElevation'] as const).map(
-          (field, index) => (
-            <path
-              key={field}
-              d={path(field)}
-              stroke={['#a07845', '#d97706', '#2563eb', '#2563eb'][index]}
-              strokeWidth={index === 0 ? 2 : 3}
-              strokeDasharray={index === 3 ? '4 3' : undefined}
-              fill="none"
-            />
-          ),
+      <p className="text-xs font-medium">
+        {culvert.name} · along-barrel profile · {fallText}
+      </p>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full"
+        role="img"
+        aria-label={`Culvert profile for ${culvert.name}`}
+      >
+        <path
+          d={`M${left} ${top}V${top + plotHeight}H${left + plotWidth}`}
+          fill="none"
+          stroke="hsl(var(--muted-foreground))"
+          opacity={0.6}
+        />
+        {drawing.fill.map((run, i) => (
+          <path
+            key={`fill-${i}`}
+            d={bandPath(run.top, run.bottom, x, y)}
+            fill={LONG_SECTION_COLORS.fill}
+            opacity={0.14}
+          />
+        ))}
+        <path d={runsPath(drawing.ground, x, y)} stroke={LONG_SECTION_COLORS.ground} strokeWidth={2} fill="none" />
+        <path d={runsPath(drawing.surface, x, y)} stroke={LONG_SECTION_COLORS.surface} strokeWidth={1.2} fill="none" />
+        <path d={runsPath(drawing.formation, x, y)} stroke={LONG_SECTION_COLORS.surface} strokeWidth={3} fill="none" />
+        {barrel && <path d={barrel} fill={LONG_SECTION_COLORS.barrel} opacity={0.22} />}
+        <path d={runsPath(drawing.invert, x, y)} stroke={LONG_SECTION_COLORS.barrel} strokeWidth={2} fill="none" />
+        <path d={runsPath(drawing.crown, x, y)} stroke={LONG_SECTION_COLORS.barrel} strokeWidth={1.4} fill="none" />
+        {required !== null && (
+          <path
+            d={runsPath(drawing.minimumCover, x, y)}
+            stroke={LONG_SECTION_COLORS.minimumCover}
+            strokeWidth={1.2}
+            strokeDasharray="5 3"
+            fill="none"
+          >
+            <title>Crown plus the manual's minimum cover of {fixed(required, 2)} m (EM 3.5.5.2, 5.8.6)</title>
+          </path>
         )}
-        <g fontSize="11" fill="currentColor">
-          <text x="2" y="30">
-            {fmt(max)} m
-          </text>
-          <text x="2" y="160">
-            {fmt(min)} m
-          </text>
-          <text x="48" y="180">
+        {least && (
+          <g data-testid="culvert-least-cover">
+            <line
+              x1={x(least.distanceM)}
+              x2={x(least.distanceM)}
+              y1={y(least.crownM)}
+              y2={y(least.formationM)}
+              stroke="hsl(var(--foreground))"
+              strokeWidth={1.2}
+            />
+            <circle cx={x(least.distanceM)} cy={y(least.formationM)} r={3} fill="hsl(var(--foreground))" />
+            <text
+              x={x(least.distanceM) + (x(least.distanceM) > left + plotWidth - 120 ? -5 : 5)}
+              y={y(least.formationM) - 6}
+              textAnchor={x(least.distanceM) > left + plotWidth - 120 ? 'end' : 'start'}
+              fontSize="10.5"
+              fill="currentColor"
+              stroke="hsl(var(--background))"
+              strokeWidth={3}
+              paintOrder="stroke"
+            >
+              Least cover {fixed(least.coverM, 2)} m{required !== null ? ` · needs ${fixed(required, 2)} m` : ''}
+            </text>
+          </g>
+        )}
+        <g fontSize="10.5" fill="currentColor">
+          {ticks.map((value) => (
+            <text key={value} x={left - 4} y={y(value) + 3} textAnchor="end">
+              {fixed(value, 1)}
+            </text>
+          ))}
+          <text x={left} y={height - 26}>
             Left inlet · 0 m
           </text>
-          <text x="628" y="180" textAnchor="end">
-            Right outlet · {fmt(length)} m
+          <text x={left} y={height - 12}>
+            Invert {drawing.inlet.invertM === null ? 'not entered' : `${fixed(drawing.inlet.invertM, 2)} m`}
+          </text>
+          <text x={left + plotWidth} y={height - 26} textAnchor="end">
+            Right outlet · {fixed(drawing.lengthM, 1)} m
+          </text>
+          <text x={left + plotWidth} y={height - 12} textAnchor="end">
+            Invert {drawing.outlet.invertM === null ? 'not entered' : `${fixed(drawing.outlet.invertM, 2)} m`}
+          </text>
+          <text x={left + plotWidth / 2} y={height - 12} textAnchor="middle" opacity={0.75}>
+            Vertical ×{fixed(exaggeration, exaggeration < 10 ? 1 : 0)}
           </text>
         </g>
       </svg>
       <p className="text-2xs text-muted-foreground">
-        Brown: original ground · orange: sampled formation · blue: invert / crown. Pipe lengths and elevations follow
-        the recorded structure geometry.
+        Brown: ground (gaps where terrain is missing) · thin orange: the road's design surface at{' '}
+        {formatRoadStation(culvert.chainage)}, read across the barrel · thick orange: the formation the cover is
+        measured to · blue: the barrel, invert to crown · dashed red: crown plus the manual's minimum cover, over the
+        formation. Elevations follow the recorded structure geometry.
       </p>
     </div>
   )
@@ -438,7 +522,11 @@ export function EngineeringSummary({
                 </EngineeringTable>
                 {selectedCulvert && (
                   <div className="mt-2 space-y-2">
-                    <CulvertProfile culvert={selectedCulvert} />
+                    <CulvertProfile
+                      culvert={selectedCulvert}
+                      design={alignment?.engineering?.culverts.find((c) => c.id === selectedCulvert.id)}
+                      stations={analysis.stations}
+                    />
                     {selectedCulvert.warnings.map((warning) => (
                       <p key={warning} className="text-xs text-warning">
                         {warning}

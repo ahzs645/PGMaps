@@ -10,10 +10,12 @@
  * Derived and pure: it never edits the design. The editor, Review, the report and the CSV all read
  * these rows, so a figure cannot differ between them. Free of DOM and network access.
  */
+import type { BankfullReading } from './naturalChannel'
 import type { CostPlace } from '../costPlaces/places'
 import { CROSSING_STRUCTURES } from '../crossingPlan'
 import type { DrainageEvidence } from '../drainageEvidence'
 import { labelStation } from '../roadStationing'
+import { templateAt } from '../templates'
 import type { Alignment, Coordinate, Culvert, RoadAnalysis } from '../types'
 import {
   APPRAISAL_TREATMENT_LABELS,
@@ -26,12 +28,20 @@ import {
 } from './culvertAppraisal'
 import {
   culvertChecks,
+  culvertHeadwaterFor,
   requiredCoverM,
   type CulvertCheckResult,
   type CulvertFlowCheck,
   type CulvertRun,
 } from './culvertChecks'
 import { classifyCulvert, type CulvertClass } from './culvertClass'
+import {
+  culvertEndDepths,
+  outletHeadwaterRead,
+  templateSurfacingM,
+  type CulvertEndDepths,
+  type CulvertHeadwater,
+} from './culvertHeadwater'
 import {
   CULVERT_SHAPES,
   culvertBarrels,
@@ -58,6 +68,10 @@ export interface CulvertScheduleRow {
   skewDegrees: number
   /** Fall from inlet to outlet, %; null without both inverts. */
   fallPercent: number | null
+  /** The same fall as "1 in X": horizontal span over the drop. Null without a falling pipe. */
+  fallOneIn: number | null
+  /** Ground less the invert at each end, and the road surface over the centreline less the invert there, m. */
+  depthToInvert: CulvertEndDepths
   inletInvertM: number | null
   outletInvertM: number | null
   /** Barrel ends on the ground; null for a culvert the calculation left out. */
@@ -66,6 +80,11 @@ export interface CulvertScheduleRow {
   coverM: number | null
   requiredCoverM: number
   flow: CulvertFlowCheck | null
+  /**
+   * Inlet- and outlet-control headwater, the governing control, freeboard to the road over the barrel
+   * and the suggested stock size (`culvertHeadwater.ts`). The checks judge them; these are the figures.
+   */
+  headwater: CulvertHeadwater
   cost: {
     /** The estimate's installed cost for this culvert, CAD; null for a culvert the calculation left out. */
     installedCad: number | null
@@ -97,11 +116,17 @@ export interface CulvertSchedule {
 }
 
 export interface CulvertScheduleInput {
-  alignment: Pick<Alignment, 'engineering'>
+  /** The road; with its `template`, the surfacing over the subgrade lifts the subgrade to the road surface. */
+  alignment: Pick<Alignment, 'engineering'> & Partial<Alignment>
   analysis: Pick<RoadAnalysis, 'engineering' | 'stations' | 'crossingEstimate'> | null | undefined
   /** The project's cost location; undefined reads the default manual and says so. */
   place: CostPlace | undefined
   drainage?: { record?: DrainageEvidence; stale: boolean }
+  /**
+   * Each stream culvert's channel by culvert id (`culvertChannels`): the recorded width and any
+   * terrain reading. Omitted, the schedule prints no channel checks, exactly as before.
+   */
+  channels?: ReadonlyMap<string, { recordedWidthM: number | null; reading: BankfullReading | null }>
 }
 
 function flowChecks(record: DrainageEvidence | undefined): Map<string, CulvertFlowCheck> {
@@ -121,9 +146,26 @@ function flowChecks(record: DrainageEvidence | undefined): Map<string, CulvertFl
         adequate: p.adequate === true,
         slope: p.slope,
         slopeAssumed: p.slopeAssumed === true,
+        ...(typeof p.tcMin === 'number' && typeof p.intensityMmPerHr === 'number'
+          ? {
+              timing: {
+                tcMin: p.tcMin,
+                intensityMmPerHr: p.intensityMmPerHr,
+                returnPeriodYears: typeof p.returnPeriodYears === 'number' ? p.returnPeriodYears : null,
+                idf: typeof p.idf === 'string' ? p.idf : 'IDF curve',
+              },
+            }
+          : {}),
       })
   }
   return checks
+}
+
+/** The thinner side's surfacing at `chainage`, m; null where the road's template is not given. */
+function surfacingAt(alignment: CulvertScheduleInput['alignment'], chainage: number): number | null {
+  if (!alignment.template) return null
+  const template = templateAt(alignment as Alignment, chainage).template
+  return Math.min(templateSurfacingM(template, 'left'), templateSurfacingM(template, 'right'))
 }
 
 /** The road's design grade at the calculated station nearest `chainage`, %. */
@@ -135,7 +177,13 @@ function roadGradeAt(stations: RoadAnalysis['stations'] | undefined, chainage: n
   return nearest.gradePercent
 }
 
-export function buildCulvertSchedule({ alignment, analysis, place, drainage }: CulvertScheduleInput): CulvertSchedule {
+export function buildCulvertSchedule({
+  alignment,
+  analysis,
+  place,
+  drainage,
+  channels,
+}: CulvertScheduleInput): CulvertSchedule {
   const record = drainage?.record
   const state: CulvertSchedule['drainage'] = !record ? 'not-run' : drainage?.stale ? 'stale' : 'current'
   const flows = state === 'current' ? flowChecks(record) : new Map<string, CulvertFlowCheck>()
@@ -174,14 +222,31 @@ export function buildCulvertSchedule({ alignment, analysis, place, drainage }: C
     const embeddedStructure = crossingRecord?.structure === 'embedded-culvert'
     const shape = culvertShapeOf(culvert)
     const known = culvert.inletInvertM !== null && culvert.outletInvertM !== null
-    const checks = culvertChecks({
+    const surfacingM = result ? surfacingAt(alignment, culvert.chainage) : null
+    const checkInput = {
       culvert,
       analysis: result,
       roadGradePercent: roadGradeAt(analysis?.stations, culvert.chainage),
-      drainage: { state, check: flow ?? undefined, rainfallMmPerHr: record?.settings?.rainfallMmPerHr },
+      drainage: {
+        state,
+        check: flow ?? undefined,
+        rainfallMmPerHr: record?.settings?.rainfallMmPerHr,
+        manningN: record?.settings?.manningN,
+      },
+      surfacingM,
       embeddedStructure,
       adjacentRun: runBeside(culvert),
-    })
+      ...(channels?.has(culvert.id)
+        ? {
+            channel: {
+              ...channels.get(culvert.id)!,
+              major: classifyCulvert(culvert, flow?.designFlowM3s ?? null).major ?? undefined,
+            },
+          }
+        : {}),
+    }
+    const checks = culvertChecks(checkInput)
+    const fallPercent = known ? ((culvert.inletInvertM! - culvert.outletInvertM!) / culvert.lengthM) * 100 : null
     const evidence: string[] = [
       known ? 'Both inverts entered' : 'Inverts not entered',
       flow
@@ -208,7 +273,9 @@ export function buildCulvertSchedule({ alignment, analysis, place, drainage }: C
       spanLengthM: culvert.lengthM,
       barrelLengthM: result?.barrelLengthM ?? null,
       skewDegrees: culvert.skewDegrees,
-      fallPercent: known ? ((culvert.inletInvertM! - culvert.outletInvertM!) / culvert.lengthM) * 100 : null,
+      fallPercent,
+      fallOneIn: fallPercent !== null && fallPercent > 0 ? 100 / fallPercent : null,
+      depthToInvert: culvertEndDepths(result?.profile, culvert.lengthM, surfacingM),
       inletInvertM: culvert.inletInvertM,
       outletInvertM: culvert.outletInvertM,
       inlet: result?.start ?? null,
@@ -216,6 +283,7 @@ export function buildCulvertSchedule({ alignment, analysis, place, drainage }: C
       coverM: result?.coverM ?? null,
       requiredCoverM: requiredCoverM(culvert),
       flow,
+      headwater: culvertHeadwaterFor(checkInput),
       cost: {
         installedCad: result?.installedCost ?? null,
         replacedByCrossingRecord: replaced,
@@ -278,6 +346,26 @@ const csvCell = (value: unknown) => {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 
+/** Outlet control's headwater as the checks read it: full flow from 0.75D up, the backwater profile below. */
+function outletRead(h: CulvertHeadwater) {
+  if (!h.outlet) return null
+  const read = outletHeadwaterRead(h.outlet)
+  return read && read !== 'steep' ? read : null
+}
+
+/** How outlet control was read: `full flow`, `backwater`, `steep barrel` (the outlet does not control), or blank. */
+function outletMethodText(h: CulvertHeadwater): string {
+  if (!h.outlet) return ''
+  const read = outletHeadwaterRead(h.outlet)
+  return read === 'steep'
+    ? 'steep barrel'
+    : read === null
+      ? ''
+      : read.method === 'backwater'
+        ? 'backwater'
+        : 'full flow'
+}
+
 export const CULVERT_SCHEDULE_COLUMNS = [
   'station',
   'station_m',
@@ -314,6 +402,21 @@ export const CULVERT_SCHEDULE_COLUMNS = [
   'checks_not_met',
   'checks_not_assessed',
   'evidence',
+  // Added after the original columns so none of those moves.
+  'fall_one_in',
+  'inlet_depth_to_invert_m',
+  'outlet_depth_to_invert_m',
+  'road_surface_over_invert_m',
+  'inlet_control_hw_m',
+  'outlet_control_hw_m',
+  'outlet_control_method',
+  'governing_control',
+  'governing_hw_m',
+  'governing_hw_over_d',
+  'headwater_elevation_m',
+  'road_surface_low_m',
+  'freeboard_m',
+  'suggested_diameter_m',
 ] as const
 
 /**
@@ -365,12 +468,66 @@ export function culvertScheduleCsv(schedule: CulvertSchedule): string {
         failing('not-met'),
         failing('not-assessed'),
         row.evidence.join('; '),
+        row.fallOneIn,
+        row.depthToInvert.inletM,
+        row.depthToInvert.outletM,
+        row.depthToInvert.roadM,
+        row.headwater.inlet?.headwaterM,
+        outletRead(row.headwater)?.headwaterM,
+        outletMethodText(row.headwater),
+        row.headwater.governing?.control ?? 'not determined',
+        row.headwater.governing?.headwaterM,
+        row.headwater.governing?.hwOverD,
+        row.headwater.elevationM,
+        row.headwater.road?.lowestSurfaceM,
+        row.headwater.freeboardM,
+        row.headwater.suggested?.diameterM,
       ]
         .map(csvCell)
         .join(','),
     )
   }
   return lines.join('\n') + '\n'
+}
+
+const trim = (value: number, digits = 2) => String(Number(value.toFixed(digits)))
+
+/** "1 in 40" for a fall of 2.5 %: whole numbers from 1 in 10, one decimal below. */
+export const fallOneInText = (oneIn: number) => `1 in ${trim(oneIn, oneIn >= 10 ? 0 : 1)}`
+
+/**
+ * One line of the row's hydraulic figures, for the editor and the report: fall, depth to invert,
+ * the headwater by each control, freeboard and the suggested size. Empty where none is known.
+ */
+export function culvertHydraulicsText(row: CulvertScheduleRow): string {
+  const parts: string[] = []
+  if (row.fallOneIn !== null && row.fallPercent !== null)
+    parts.push(`Falls ${fallOneInText(row.fallOneIn)} (${trim(row.fallPercent)}%)`)
+  const d = row.depthToInvert
+  const depths = [
+    d.inletM === null ? '' : `inlet ${trim(d.inletM)} m`,
+    d.outletM === null ? '' : `outlet ${trim(d.outletM)} m`,
+    d.roadM === null ? '' : `road ${trim(d.roadM)} m`,
+  ].filter(Boolean)
+  if (depths.length) parts.push(`depth to invert: ${depths.join(', ')}`)
+  const h = row.headwater
+  if (h.inlet || h.outlet)
+    parts.push(
+      `headwater: inlet control ${h.inlet ? `${trim(h.inlet.headwaterM)} m` : 'not worked out'}, outlet control ${
+        !h.outlet
+          ? 'not worked out'
+          : outletMethodText(h) === 'steep barrel'
+            ? 'does not apply (steep barrel)'
+            : outletRead(h)
+              ? `${trim(outletRead(h)!.headwaterM)} m${outletMethodText(h) === 'backwater' ? ' by backwater' : ''}${h.outlet.tailwaterKnown ? '' : ' (tailwater not known)'}`
+              : 'not worked out'
+      }${h.governing ? `; ${h.governing.control} control governs` : ''}`,
+    )
+  if (h.freeboardM !== null) parts.push(`freeboard ${trim(h.freeboardM)} m`)
+  if (h.suggested) parts.push(`suggested by headwater: Ø ${trim(h.suggested.diameterM * 1000, 0)} mm`)
+  if (!parts.length) return ''
+  const text = parts.join('; ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 const escapeHtml = (value: unknown) =>
@@ -403,7 +560,8 @@ export function culvertScheduleReportHtml(schedule: CulvertSchedule): string {
         ...notMet.map((check) => `${check.label}: ${check.result}`),
         open.length ? `Not assessed: ${open.map((check) => check.label.toLowerCase()).join('; ')}` : '',
       ].filter(Boolean)
-      return `<tr><td>${escapeHtml(labelStation(row.chainage))}</td><td style="text-align:left">${escapeHtml(row.name)}<br><span class="muted">${escapeHtml(row.purpose === 'stream' ? 'Stream' : 'Cross-drain')}</span></td><td style="text-align:left">${escapeHtml(row.sizeText)} × ${escapeHtml((row.barrelLengthM ?? row.spanLengthM).toFixed(1))} m${row.materialLabel ? `<br><span class="muted">${escapeHtml(row.materialLabel)}</span>` : ''}</td><td>${escapeHtml(cost)}</td><td style="text-align:left">${escapeHtml(row.appraisal?.summary ?? 'Not shown')}${row.appraisal ? `<br><span class="muted">${escapeHtml(row.appraisal.locator)}</span>` : ''}</td><td style="text-align:left">${design.length ? design.map(escapeHtml).join('<br>') : 'Checks met'}<br><span class="muted">${escapeHtml(row.evidence.join('; '))}</span></td></tr>`
+      const hydraulics = culvertHydraulicsText(row)
+      return `<tr><td>${escapeHtml(labelStation(row.chainage))}</td><td style="text-align:left">${escapeHtml(row.name)}<br><span class="muted">${escapeHtml(row.purpose === 'stream' ? 'Stream' : 'Cross-drain')}</span></td><td style="text-align:left">${escapeHtml(row.sizeText)} × ${escapeHtml((row.barrelLengthM ?? row.spanLengthM).toFixed(1))} m${row.materialLabel ? `<br><span class="muted">${escapeHtml(row.materialLabel)}</span>` : ''}</td><td>${escapeHtml(cost)}</td><td style="text-align:left">${escapeHtml(row.appraisal?.summary ?? 'Not shown')}${row.appraisal ? `<br><span class="muted">${escapeHtml(row.appraisal.locator)}</span>` : ''}</td><td style="text-align:left">${design.length ? design.map(escapeHtml).join('<br>') : 'Checks met'}${hydraulics ? `<br>${escapeHtml(hydraulics)}` : ''}<br><span class="muted">${escapeHtml(row.evidence.join('; '))}</span></td></tr>`
     })
     .join('')
   return `<h2>Culvert schedule</h2><p>${escapeHtml(basis)}</p><table><thead><tr><th>Station</th><th style="text-align:left">Culvert</th><th style="text-align:left">Size</th><th>Construction cost</th><th style="text-align:left">Appraisal treatment</th><th style="text-align:left">Design checks and evidence</th></tr></thead><tbody>${body}</tbody></table><p class="muted">Design checks follow BC’s Engineering Manual and Fish-stream Crossing Guidebook as screens; they are not a hydrotechnical or fish-passage design. ${escapeHtml(culvertTreatmentSummary(schedule))}.</p>`

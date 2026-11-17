@@ -52,6 +52,7 @@ const PROJECT_FIELDS: Partial<Record<keyof RoadProject, string>> = {
   cables: 'D-lines',
   profiles: 'Terrain profiles',
   surveyBooks: 'Survey books',
+  fieldReview: 'Field review',
   notes: 'Map notes',
   reference: 'Reference features',
   cutblockBuffers: 'Cutblock buffers',

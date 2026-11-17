@@ -25,6 +25,8 @@ import {
 } from './surfaceGrid'
 import type { Coordinate, Culvert, RoadAnalysis } from './types'
 import { parseDepressionPolicy, type DepressionPolicy } from './drainagePolicies'
+import { culvertTiming, type ConcentrationSettings, type CulvertTiming, type PathProfile } from './timeOfConcentration'
+import type { IdfCurve } from './idfCurve'
 
 /**
  * The grid a D8 direction array lies on: a dense grid needs only its width; a tiled grid (see
@@ -403,6 +405,39 @@ export function longestFlowPath(
   }
   return length
 }
+
+/**
+ * The longest flow path up from `outlet`, as distances from the outlet and the elevations of
+ * `values` along it: at each cell the upstream neighbour (one that drains to it) with the longest
+ * path is followed, the first in neighbour order on a tie. `lengths` is `longestFlowPath`.
+ * Neighbours only through `neighbourCells`, so a tiled grid walks as a dense one.
+ */
+export function flowPathProfile(
+  grid: SurfaceGrid,
+  next: Int32Array,
+  lengths: Float64Array,
+  values: ArrayLike<number>,
+  outlet: number,
+): PathProfile {
+  const distanceM = [0],
+    elevationM = [values[outlet]],
+    nb = new Int32Array(8)
+  for (let i = outlet, steps = 0; steps < next.length; steps++) {
+    neighbourCells(grid, i, nb)
+    let up = -1
+    for (let k = 0; k < 8; k++) {
+      const j = nb[k]
+      if (j >= 0 && next[j] === i && Number.isFinite(values[j]) && (up < 0 || lengths[j] > lengths[up])) up = j
+    }
+    if (up < 0) break
+    const [ux, uy] = cellCentre(grid, up),
+      [x, y] = cellCentre(grid, i)
+    distanceM.push(distanceM[distanceM.length - 1] + Math.hypot(ux - x, uy - y))
+    elevationM.push(values[up])
+    i = up
+  }
+  return { distanceM, elevationM }
+}
 export type StreamCollection = GeoJSON.FeatureCollection<GeoJSON.LineString, StreamProperties>
 
 interface StreamSegment {
@@ -605,6 +640,12 @@ export interface CulvertCheck {
   /** Smallest standard single round pipe that carries the peak at this slope and roughness. */
   minimumDiameterM: number | null
   adequate: boolean
+  /**
+   * The culvert's own time of concentration and IDF intensity, when the run reads intensity per
+   * culvert (`DrainageInput.concentration`); absent otherwise, and `designFlowM3s` then uses the
+   * one design intensity.
+   */
+  timing?: CulvertTiming
 }
 export interface SurfaceDrainage {
   streams: StreamCollection
@@ -654,10 +695,16 @@ export interface DrainageInput {
   lowPointMinAreaM2?: number
   /** Slope assumed when a culvert's inverts are missing or not falling. Default 0.02. */
   defaultSlope?: number
+  /**
+   * Read each culvert's intensity from `idf` at its own time of concentration (Kirpich on its
+   * longest flow path) instead of `rainfallMmPerHr`. Omitted: one intensity for every culvert.
+   */
+  concentration?: Pick<ConcentrationSettings, 'slopeMethod' | 'minimumTcMin'> & { idf: IdfCurve }
 }
 
 function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: string) {
   const {
+    surface,
     depth,
     directions: dirs,
     diagnostics: conditioning,
@@ -682,6 +729,8 @@ function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: stri
   return {
     dirs,
     next,
+    /** The routed (conditioned) elevations: the surface the flow paths run over. */
+    routed: surface.values,
     drainage: { streams, ponding, accumulation, depth, directions: dirs, conditioning } satisfies SurfaceDrainage,
   }
 }
@@ -689,7 +738,8 @@ function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: stri
 /**
  * Compare drainage on the existing ground and the design surface. A planning estimate, not a
  * hydrotechnical design: culvert flows are Rational-method peaks on D8 catchments at the given
- * storm intensity (no time of concentration), capacities are full-pipe Manning without inlet
+ * storm intensity, or, with `concentration`, at each culvert's IDF intensity at its Kirpich time
+ * of concentration (`timeOfConcentration.ts`); capacities are full-pipe Manning without inlet
  * or outlet control, headwater or debris allowance.
  *
  * - Crossings: each existing-ground stream cell flowing into the footprint is traced on the
@@ -946,6 +996,8 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
 
   // Culvert size check.
   const culvertChecks: CulvertCheck[] = []
+  const timingInput = input.concentration
+  let pathLengths: Float64Array | null = null
   for (const c of culverts) {
     const channel = channels.find((ch) => ch.id === c.id)
     if (!channel) {
@@ -953,14 +1005,34 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
       continue
     }
     let designArea = 0,
-      existingArea = 0
+      existingArea = 0,
+      outlet = -1
     for (const i of channel.barrel) {
+      if (outlet < 0 || accD[i] > designArea) outlet = i
       designArea = Math.max(designArea, accD[i])
       existingArea = Math.max(existingArea, accE[i])
     }
     const { slope, slopeAssumed } = culvertCapacitySlope(c, defaultSlope)
     const designAreaHa = designArea / 10_000
-    const designFlowM3s = rationalPeakFlow(input.runoffCoefficient, input.rainfallMmPerHr, designAreaHa)
+    // Per culvert: the IDF intensity at Tc on the longest flow path to the barrel cell that
+    // collects the design catchment, over the surface the flow was routed on.
+    let timing: CulvertTiming | undefined
+    if (timingInput && outlet >= 0) {
+      pathLengths ??= longestFlowPath(after.dirs, design, after.next)
+      timing = culvertTiming({
+        areaHa: designAreaHa,
+        pathLengthM: pathLengths[outlet],
+        profile: flowPathProfile(design, after.next, pathLengths, after.routed, outlet),
+        cellM: design.cellM,
+        settings: timingInput,
+        idf: timingInput.idf,
+      })
+    }
+    const designFlowM3s = rationalPeakFlow(
+      input.runoffCoefficient,
+      timing ? timing.intensityMmPerHr : input.rainfallMmPerHr,
+      designAreaHa,
+    )
     // A culvert with a shape, barrel count or material of its own is read through them; a plain
     // round pipe keeps the run's roughness and the figure it always had.
     const own = hasHydraulicOptions(c)
@@ -981,6 +1053,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
       diameterM: c.diameterM,
       minimumDiameterM: minimumDiameter(designFlowM3s, slope, culvertManningN(c, input.manningN).n),
       adequate: capacityM3s >= designFlowM3s,
+      ...(timing ? { timing } : {}),
     })
   }
 

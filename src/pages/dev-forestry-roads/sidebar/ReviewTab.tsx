@@ -27,6 +27,7 @@ import { isoDate } from '../projectIssue'
 import { CrossingRegisterList, ReadinessList } from '../ReadinessPanel'
 import { projectReadiness, type ReadinessRow } from '../readiness'
 import { HaulPanel } from '../HaulPanel'
+import { FieldReviewSection } from '../FieldReviewSection'
 
 /** The settings with the curvature correction applied, or back to report only (the field left out). */
 const withCurvatureCorrection = (settings: RoadSettings, apply: boolean): RoadSettings => {
@@ -134,6 +135,12 @@ export function ReviewTab(
           </Button>
         )}
       </RoadSection>
+      <FieldReviewSection
+        workspace={p.workspace}
+        register={register}
+        onFieldPackPdf={p.onFieldPackPdf}
+        onShowCulverts={p.onShowCulverts}
+      />
       <div ref={haul} className="scroll-mt-2" />
       <HaulPanel workspace={p.workspace} open={haulOpen} onOpenChange={setHaulOpen} />
       <div ref={standards} className="scroll-mt-2" />

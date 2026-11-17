@@ -85,6 +85,22 @@ describe('open forestry survey and geographic interchange', () => {
     // A cutblock polygon used to leave here as an excluded "avoid" area, and a line as a stream.
     expect(fc.features.every((f) => f.properties?.kind === undefined)).toBe(true)
   })
+  it("keeps a placemark's ExtendedData, id and time, in both Data and SimpleData forms", () => {
+    const fc = parseKml(
+      `<kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark id="obs-17"><name>C-03 culvert</name><description>Flowing</description><TimeStamp><when>2026-11-20T10:15:00-08:00</when></TimeStamp><ExtendedData><Data name="check_id"><value>C-03</value></Data><Data name="name"><value>shadowed</value></Data><SchemaData schemaUrl="#s"><SimpleData name="result">Flowing &amp; defined</SimpleData><SimpleData name='width_m'>1.4</SimpleData></SchemaData></ExtendedData><Point><coordinates>-122.8,53.9</coordinates></Point></Placemark></Document></kml>`,
+    )
+    expect(fc.features[0].properties).toEqual({
+      check_id: 'C-03',
+      kml_name: 'shadowed',
+      result: 'Flowing & defined',
+      width_m: '1.4',
+      name: 'C-03 culvert',
+      description: 'Flowing',
+      kmlId: 'obs-17',
+      timestamp: '2026-11-20T10:15:00-08:00',
+      source: 'KML geographic linework; altitude discarded',
+    })
+  })
   it('does not follow network links or XML entities and rejects unclosed or invalid shapes', () => {
     expect(() => parseKml('<!DOCTYPE kml><kml/>')).toThrow(/unsupported XML entities/)
     expect(() =>

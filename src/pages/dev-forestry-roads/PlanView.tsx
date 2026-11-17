@@ -107,6 +107,7 @@ import type { AreaSymbol, SheetSymbol } from '@/lib/mapSheet/symbols'
 import { cutblockBufferSymbol } from './cutblockBufferStyle'
 import { keepAttributionFolded } from '@/components/ui/map-attribution'
 import { CULVERTS_TOGETHER_M, CulvertCard } from './CulvertCard'
+import { culvertFlowArrow } from './culvertFlowArrow'
 import {
   PLAN_SHEET_LAYER_IDS,
   PLAN_SHEET_ROAD_HIT_LAYER_IDS,
@@ -902,8 +903,8 @@ function Layers(
   const structures = useMemo(
     () =>
       fc(
-        (props.terrainOnly ? [] : (analysis.engineering?.culverts ?? [])).map((culvert) =>
-          line([culvert.start, culvert.end], {
+        (props.terrainOnly ? [] : (analysis.engineering?.culverts ?? [])).flatMap((culvert) => {
+          const properties = {
             id: culvert.id,
             chainage: culvert.chainage,
             name: culvert.name,
@@ -911,8 +912,17 @@ function Layers(
             // Selection widens it (the layer's paint), so a selected culvert keeps its warning colour.
             color: culvert.warnings.length ? '#dc2626' : '#0284c7',
             selected: culvert.id === props.selectedCulvertId,
-          }),
-        ),
+          }
+          // The profile runs inlet (distance 0) to outlet; the arrow leaves the outlet.
+          const inlet = culvert.profile[0]?.coordinate ?? culvert.start,
+            outlet = culvert.profile[culvert.profile.length - 1]?.coordinate ?? culvert.end
+          return [
+            line([culvert.start, culvert.end], { ...properties, kind: 'barrel' }),
+            ...culvertFlowArrow(inlet, outlet, distance(inlet, outlet)).map((part) =>
+              line(part, { ...properties, kind: 'arrow' }),
+            ),
+          ]
+        }),
       ),
     [analysis, props.terrainOnly, props.selectedCulvertId],
   )
@@ -1315,6 +1325,7 @@ function Layers(
       id: 'road-structures',
       type: 'line',
       source: 'road-structures',
+      filter: ['==', ['get', 'kind'], 'barrel'],
       // Two thin lines either side of a gap, the pipe's walls across the road, as RoadEng draws a
       // culvert. Its name and size are in the card a click opens (CulvertCard.tsx).
       layout: { 'line-cap': 'butt' },
@@ -1323,6 +1334,15 @@ function Layers(
         'line-width': ['case', ['==', ['get', 'selected'], true], 2.5, 1.75],
         'line-gap-width': ['case', ['==', ['get', 'selected'], true], 6, 4],
       },
+    })
+    // The flow arrow out of each culvert's outlet (culvertFlowArrow.ts), a single line.
+    add({
+      id: 'road-structures-arrow',
+      type: 'line',
+      source: 'road-structures',
+      filter: ['==', ['get', 'kind'], 'arrow'],
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': ['get', 'color'], 'line-width': ['case', ['==', ['get', 'selected'], true], 2.5, 1.75] },
     })
     add({
       id: 'road-draft',
@@ -1637,6 +1657,7 @@ function Layers(
       'road-ticks',
       'road-cable',
       'road-structures',
+      'road-structures-arrow',
       'road-section',
       'road-draft',
       'road-sketch',

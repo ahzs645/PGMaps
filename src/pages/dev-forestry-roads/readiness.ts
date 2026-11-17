@@ -21,6 +21,7 @@ import { CONSTRAINT_LABELS, resolveConstraint } from './constraints'
 import { assessCostReadiness, type CostReadinessAssessment } from './costReadiness'
 import { buildCrossingRegister, type CrossingRegister } from './crossingRegister'
 import { buildCulvertSchedule } from './culverts/culvertSchedule'
+import { culvertChannels } from './culverts/culvertChannels'
 import {
   CROSSING_APPROACH_TANGENT_M,
   CROSSING_SKEW_SCREEN_DEG,
@@ -1617,13 +1618,18 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
   // Culverts against the Engineering Manual's own rules (`culverts/culvertChecks.ts`): the same
   // checks the culvert editor and the culvert schedule print. Capacity stays with the rows above.
   const CULVERT_RULES_JUDGED_ON =
-    'Cover, pipe gradient, embedment and inlet headwater by the Engineering Manual and Fish-stream Crossing Guidebook; major culverts named'
+    'Cover, pipe gradient, embedment, inlet and governing headwater and the road over it by the Engineering Manual, HDS-5 and the Fish-stream Crossing Guidebook; stream width ratio where a channel width is recorded; major culverts named'
   const culvertRule = { id: 'culvert-standards', group: 'water', check: 'Culverts meet the manual’s rules' } as const
   const scheduled = buildCulvertSchedule({
     alignment,
     analysis,
     place: undefined,
     drainage: input.drainage,
+    channels: culvertChannels({
+      culverts: alignment.engineering?.culverts ?? [],
+      crossings: analysis?.crossings,
+      context,
+    }),
   }).rows.filter((row) => row.cost.installedCad !== null)
   if (!scheduled.length)
     add({
@@ -1636,7 +1642,18 @@ function assessReadinessInChainage(input: ReadinessInput): ReadinessRow[] {
     })
   else {
     const judged = (row: (typeof scheduled)[number]) =>
-      row.checks.filter((check) => ['cover', 'gradient', 'embedment', 'headwater'].includes(check.id))
+      row.checks.filter((check) =>
+        [
+          'cover',
+          'gradient',
+          'embedment',
+          'headwater',
+          'governing-headwater',
+          'overtopping',
+          'bankfull-area',
+          'stream-width-ratio',
+        ].includes(check.id),
+      )
     const failing = scheduled.filter((row) => judged(row).some((check) => check.state === 'not-met'))
     const majors = scheduled.filter((row) => row.class.major)
     // Cover and gradient need both inverts; a culvert without them has not been checked at all.

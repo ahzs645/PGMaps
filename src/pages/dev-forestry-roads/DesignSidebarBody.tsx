@@ -121,6 +121,8 @@ export interface SidebarProps {
   onShowDrainage?: () => void
   onSelectRoad?: (id: string) => void
   onShowCulverts?: (chainage?: number) => void
+  /** Builds and downloads a field review issue's geospatial PDF from the plan map. */
+  onFieldPackPdf?: (issue: import('./fieldReview').FieldIssue) => void
   /** Opens the design vehicle's swept-path view. */
   onShowSwept?: () => void
   /** The swept-path result for the active road, reduced for the Review list; null when none was run. */
