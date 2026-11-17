@@ -1,7 +1,7 @@
 import { StationValue } from './roadStation'
 import { derivedRoadName } from './roadNames'
 import { ROAD_LIMIT_MESSAGE, roadLimitReached } from './roadLimits'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -15,6 +15,7 @@ import { formatRoadStation } from './Charts'
 import { RoadSection } from './SidebarParts'
 import { designProfileAt, nearestStation } from './engine'
 import { EMPTY_VERTICAL_STANDARDS, type VerticalControl, type VerticalStandards } from './verticalStandards'
+import { buildCrossingRegister, type CrossingRegisterRow } from './crossingRegister'
 import { curveLengthsForK } from './verticalTools'
 import {
   DEFAULT_VERTICAL_OPTIMIZATION,
@@ -31,7 +32,14 @@ import { addVerticalAlternative, snapshotActiveVerticalAlternative } from './ver
 const uid = () => crypto.randomUUID()
 
 /** Vertical standards, control points and the bulk curve tool, after the PVI list. */
-export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace }) {
+export function VerticalDesignControls({
+  workspace,
+  drainageStale = true,
+}: {
+  workspace: RoadWorkspace
+  /** Whether the saved drainage check no longer matches the road: its modelled crossings are then left out. */
+  drainageStale?: boolean
+}) {
   const { alignment, analysis, setStation, updateAlignment } = workspace
   // Range ends and control stations take the road's station names (`stationEntry.ts`).
   const stations = stationEntry(alignment.stationing, analysis.length)
@@ -194,6 +202,61 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
   }
   const checks = analysis.verticalChecks ?? []
   const designed = alignment.vertical.length > 1
+  // The crossings a minimum elevation can start from: the Review step's own register.
+  const projectContext = workspace.project.context
+  const drainageRecord = workspace.project.drainage?.records.find((record) => record.alignmentId === alignment.id)
+  const crossings = useMemo<CrossingRegisterRow[]>(() => {
+    try {
+      return buildCrossingRegister({
+        alignment,
+        analysis,
+        context: projectContext,
+        drainage: { record: drainageRecord, stale: drainageStale },
+      }).rows
+    } catch {
+      return []
+    }
+  }, [alignment, analysis, projectContext, drainageRecord, drainageStale])
+  // A minimum is started from a crossing with its station filled in; the level is the designer's to
+  // type and confirm. Nothing here reads it off the ground, the profile or the stream.
+  const [minimumDraft, setMinimumDraft] = useState<{
+    crossing: { id: string; name: string }
+    chainage: number
+    elevation: number | null
+  } | null>(null)
+  const profileHere = (chainage: number) => {
+    if (!designed) return null
+    try {
+      return designProfileAt(alignment, chainage)?.elevation ?? null
+    } catch {
+      return null
+    }
+  }
+  const addMinimum = () => {
+    if (!minimumDraft || minimumDraft.elevation === null) return
+    const draft = { ...minimumDraft, elevation: minimumDraft.elevation }
+    updateAlignment((a) => ({
+      ...a,
+      verticalControls: [
+        ...(a.verticalControls ?? []),
+        {
+          id: uid(),
+          chainage: draft.chainage,
+          elevation: draft.elevation,
+          toleranceAboveM: 0,
+          toleranceBelowM: 0,
+          gradePercent: null,
+          gradeTolerancePercent: 0,
+          bound: 'minimum' as const,
+          crossing: draft.crossing,
+        },
+      ].sort((x, y) => x.chainage - y.chainage),
+    }))
+    setMinimumDraft(null)
+    workspace.setNotice(
+      `Minimum elevation of ${draft.elevation.toFixed(2)} m set at ${draft.crossing.name} (${formatRoadStation(draft.chainage)}). The profile may run above it, never below.`,
+    )
+  }
   const standardCount =
     standards.gradeRanges.length +
     (standards.curvatureRanges?.length ?? 0) +
@@ -564,87 +627,105 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         help="Elevations and grades the profile must hold, each with a tolerance. Leave a target empty to check only the other."
       >
         <div className="space-y-2">
-          {controls.map((c, index) => (
-            <div key={c.id} className={insetBox()} data-vertical-control>
-              <div className="mb-1 flex items-center justify-between gap-1">
-                <button className="text-xs font-medium" onClick={() => setStation(c.chainage)}>
-                  Control {index + 1} · {formatRoadStation(c.chainage)}
-                </button>
-                <div className="flex items-center">
-                  <Button
-                    size="2xs"
-                    variant="ghost"
-                    className="px-1"
-                    title={
-                      designed
-                        ? 'Sets the elevation and grade from the designed profile at this station'
-                        : 'Sets the elevation from the ground at this station; the road has no designed profile to read a grade from'
-                    }
-                    onClick={() => readFromAlignment(c, index)}
-                  >
-                    Get from alignment
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-2xs"
-                    aria-label={`Remove control ${index + 1}`}
-                    onClick={() =>
-                      updateAlignment((a) => ({
-                        ...a,
-                        verticalControls: (a.verticalControls ?? []).filter((x) => x.id !== c.id),
-                      }))
-                    }
-                  >
-                    <Trash2 className="size-3" />
-                  </Button>
+          {controls.map((c, index) =>
+            c.bound === 'minimum' ? (
+              <MinimumControlCard
+                key={c.id}
+                control={c}
+                length={analysis.length}
+                entry={stations}
+                profileElevation={profileHere(c.chainage)}
+                onStation={() => setStation(c.chainage)}
+                onChange={(patch) => setControl(c.id, patch)}
+                onRemove={() =>
+                  updateAlignment((a) => ({
+                    ...a,
+                    verticalControls: (a.verticalControls ?? []).filter((x) => x.id !== c.id),
+                  }))
+                }
+              />
+            ) : (
+              <div key={c.id} className={insetBox()} data-vertical-control>
+                <div className="mb-1 flex items-center justify-between gap-1">
+                  <button className="text-xs font-medium" onClick={() => setStation(c.chainage)}>
+                    Control {index + 1} · {formatRoadStation(c.chainage)}
+                  </button>
+                  <div className="flex items-center">
+                    <Button
+                      size="2xs"
+                      variant="ghost"
+                      className="px-1"
+                      title={
+                        designed
+                          ? 'Sets the elevation and grade from the designed profile at this station'
+                          : 'Sets the elevation from the ground at this station; the road has no designed profile to read a grade from'
+                      }
+                      onClick={() => readFromAlignment(c, index)}
+                    >
+                      Get from alignment
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-2xs"
+                      aria-label={`Remove control ${index + 1}`}
+                      onClick={() =>
+                        updateAlignment((a) => ({
+                          ...a,
+                          verticalControls: (a.verticalControls ?? []).filter((x) => x.id !== c.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  <StationField
+                    entry={stations}
+                    keepLabel
+                    label="Station"
+                    value={c.chainage}
+                    min={0}
+                    max={Math.max(analysis.length, c.chainage)}
+                    step={1}
+                    onChange={(chainage) => setControl(c.id, { chainage })}
+                  />
+                  <OptionalNumberField
+                    label="Elevation"
+                    value={c.elevation}
+                    min={-12000}
+                    max={12000}
+                    onChange={(elevation) => setControl(c.id, { elevation })}
+                  />
+                  <OptionalNumberField
+                    label="Grade %"
+                    value={c.gradePercent}
+                    min={-100}
+                    max={100}
+                    onChange={(gradePercent) => setControl(c.id, { gradePercent })}
+                  />
+                  <NumberField
+                    label="Tol. above"
+                    value={c.toleranceAboveM}
+                    max={1000}
+                    onChange={(toleranceAboveM) => setControl(c.id, { toleranceAboveM })}
+                  />
+                  <NumberField
+                    label="Tol. below"
+                    value={c.toleranceBelowM}
+                    max={1000}
+                    onChange={(toleranceBelowM) => setControl(c.id, { toleranceBelowM })}
+                  />
+                  <NumberField
+                    label="Grade tol."
+                    value={c.gradeTolerancePercent}
+                    max={100}
+                    onChange={(gradeTolerancePercent) => setControl(c.id, { gradeTolerancePercent })}
+                  />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-1">
-                <StationField
-                  entry={stations}
-                  keepLabel
-                  label="Station"
-                  value={c.chainage}
-                  min={0}
-                  max={Math.max(analysis.length, c.chainage)}
-                  step={1}
-                  onChange={(chainage) => setControl(c.id, { chainage })}
-                />
-                <OptionalNumberField
-                  label="Elevation"
-                  value={c.elevation}
-                  min={-12000}
-                  max={12000}
-                  onChange={(elevation) => setControl(c.id, { elevation })}
-                />
-                <OptionalNumberField
-                  label="Grade %"
-                  value={c.gradePercent}
-                  min={-100}
-                  max={100}
-                  onChange={(gradePercent) => setControl(c.id, { gradePercent })}
-                />
-                <NumberField
-                  label="Tol. above"
-                  value={c.toleranceAboveM}
-                  max={1000}
-                  onChange={(toleranceAboveM) => setControl(c.id, { toleranceAboveM })}
-                />
-                <NumberField
-                  label="Tol. below"
-                  value={c.toleranceBelowM}
-                  max={1000}
-                  onChange={(toleranceBelowM) => setControl(c.id, { toleranceBelowM })}
-                />
-                <NumberField
-                  label="Grade tol."
-                  value={c.gradeTolerancePercent}
-                  max={100}
-                  onChange={(gradeTolerancePercent) => setControl(c.id, { gradeTolerancePercent })}
-                />
-              </div>
-            </div>
-          ))}
+            ),
+          )}
           <StationValue workspace={workspace}>
             {(station) => (
               <Button
@@ -676,6 +757,86 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
               </Button>
             )}
           </StationValue>
+          <div className={insetBox()} data-testid="road-minimum-crossing">
+            <div className="mb-1 flex items-center gap-1 text-xs font-medium">
+              Minimum elevation at crossing
+              <InfoTip label="About minimum elevations">
+                A one-sided control: the profile may run anywhere above the level, never below it. Start it from a
+                crossing in the register; the level is yours to enter, for example the culvert crown plus cover. The
+                profile search keeps to it, and Review checks it on the finished vertical curves.
+              </InfoTip>
+            </div>
+            {crossings.length === 0 ? (
+              <p className="text-2xs text-muted-foreground">
+                The crossing register lists no crossing on this road. Add stream lines or run the drainage check.
+              </p>
+            ) : (
+              <div className="space-y-1">
+                <RoadSelect
+                  ariaLabel="Crossing for a minimum elevation"
+                  placeholder="Choose a crossing"
+                  value={minimumDraft?.crossing.id ?? ''}
+                  options={crossings.map((row) => ({
+                    value: row.id,
+                    label: `${formatRoadStation(row.chainage)} · ${row.name}`,
+                  }))}
+                  onValueChange={(id) => {
+                    const row = crossings.find((r) => r.id === id)
+                    if (!row) return
+                    setMinimumDraft({
+                      crossing: { id: row.id, name: row.name },
+                      chainage: row.chainage,
+                      elevation: null,
+                    })
+                    setStation(row.chainage)
+                  }}
+                />
+                {minimumDraft && (
+                  <>
+                    <div className="grid grid-cols-2 gap-1">
+                      <StationField
+                        entry={stations}
+                        keepLabel
+                        label="Station"
+                        value={minimumDraft.chainage}
+                        min={0}
+                        max={Math.max(analysis.length, minimumDraft.chainage)}
+                        step={1}
+                        onChange={(chainage) => setMinimumDraft({ ...minimumDraft, chainage })}
+                      />
+                      <OptionalNumberField
+                        label="Minimum elevation"
+                        placeholder="enter"
+                        value={minimumDraft.elevation}
+                        min={-12000}
+                        max={12000}
+                        onChange={(elevation) => setMinimumDraft({ ...minimumDraft, elevation })}
+                      />
+                    </div>
+                    <MinimumReference
+                      ground={nearestStation(analysis.stations, minimumDraft.chainage)?.groundElevation ?? null}
+                      profile={profileHere(minimumDraft.chainage)}
+                    />
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={minimumDraft.elevation === null}
+                        title={minimumDraft.elevation === null ? 'Enter the minimum elevation first' : undefined}
+                        onClick={addMinimum}
+                      >
+                        <Plus className="mr-1 size-3" />
+                        Confirm minimum
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setMinimumDraft(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         {!designed && (standards.gradeRanges.length > 0 || controls.length > 0) && (
           <InlineAlert tone="warning">
@@ -702,5 +863,83 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         )}
       </RoadSection>
     </>
+  )
+}
+
+const metres = (value: number) => `${value.toFixed(2)} m`
+
+/** The ground and current profile at a station, shown for reference only: neither fills the minimum. */
+function MinimumReference({ ground, profile }: { ground: number | null; profile: number | null }) {
+  const parts = [
+    ground !== null && Number.isFinite(ground) ? `ground ${metres(ground)}` : 'no ground read',
+    profile !== null ? `profile ${metres(profile)}` : 'no designed profile',
+  ]
+  return <p className="text-2xs text-muted-foreground">Here now: {parts.join(' · ')}</p>
+}
+
+/** A minimum elevation control: its crossing, station and floor, and how the current profile stands to it. */
+function MinimumControlCard({
+  control,
+  length,
+  entry,
+  profileElevation,
+  onStation,
+  onChange,
+  onRemove,
+}: {
+  control: VerticalControl
+  length: number
+  entry: ReturnType<typeof stationEntry>
+  profileElevation: number | null
+  onStation: () => void
+  onChange: (patch: Partial<VerticalControl>) => void
+  onRemove: () => void
+}) {
+  const clearance =
+    profileElevation !== null && control.elevation !== null ? profileElevation - control.elevation : null
+  return (
+    <div className={insetBox()} data-vertical-control data-vertical-minimum>
+      <div className="mb-1 flex items-center justify-between gap-1">
+        <button className="text-left text-xs font-medium" onClick={onStation}>
+          Minimum · {control.crossing ? `${control.crossing.name} · ` : ''}
+          {formatRoadStation(control.chainage)}
+        </button>
+        <Button variant="ghost" size="icon-2xs" aria-label="Remove minimum elevation" onClick={onRemove}>
+          <Trash2 className="size-3" />
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 gap-1">
+        <StationField
+          entry={entry}
+          keepLabel
+          label="Station"
+          value={control.chainage}
+          min={0}
+          max={Math.max(length, control.chainage)}
+          step={1}
+          onChange={(chainage) => onChange({ chainage })}
+        />
+        <NumberField
+          label="Minimum elevation"
+          value={control.elevation ?? 0}
+          min={-12000}
+          max={12000}
+          updateOn="commit"
+          onChange={(elevation) => onChange({ elevation })}
+        />
+      </div>
+      <p
+        className={cn(
+          'mt-1 text-2xs',
+          clearance !== null && clearance < -1e-6 ? 'text-danger' : 'text-muted-foreground',
+        )}
+      >
+        {clearance === null
+          ? 'No designed profile to compare yet'
+          : clearance < -1e-6
+            ? `Profile ${metres(profileElevation!)}, ${metres(-clearance)} below the minimum`
+            : `Profile ${metres(profileElevation!)}, ${metres(clearance)} above the minimum`}
+      </p>
+    </div>
   )
 }

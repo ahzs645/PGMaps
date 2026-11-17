@@ -72,6 +72,7 @@ import type { RoadEngDsnOverrides } from './roadEngExport'
 import { snapshotActiveVerticalAlternative } from './verticalAlternatives'
 import { curvatureRuleAt, gradeWindowAt } from './verticalStandards'
 import type { Alignment, VerticalAlternative, VerticalControl, VerticalPoint, VerticalStandards } from './types'
+import { isMinimumControl, minimumControlName } from './verticalStandards'
 
 /** A RoadEng station at or past this is the end of the road (FLT_MAX in the samples). */
 export const ROADENG_OPT_END_STATION = 1e30
@@ -988,6 +989,15 @@ export function roadEngOptimizerOverrides(
           active: true,
         },
       ]
+  // RoadEng's control point holds a level with one tolerance either side; it has no field for a
+  // one-sided minimum, so a minimum control is left out of the design and named here.
+  for (const p of profiles) {
+    for (const c of p.controls.filter(isMinimumControl))
+      notes.push(
+        `${minimumControlName(c)}${p.name ? ` on the vertical alignment ${p.name}` : ''} is not written: RoadEng's control points hold a level with one tolerance either side and have no field for a minimum.`,
+      )
+    p.controls = p.controls.filter((c) => !isMinimumControl(c))
+  }
   if (!read && profiles.length === 1 && !profiles[0].standards && !profiles[0].controls.length)
     return { overrides: {}, notes }
 

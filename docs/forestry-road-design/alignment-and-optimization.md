@@ -29,6 +29,14 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 - **Vertical checks are on and clean.** Grade ranges, minimum K, curve and tangent lengths and
   control points are checked only when the road has two or more PVIs and at least one standard
   or control is set (`analyzeRoad` in `engine.ts`). An empty field is not checked.
+- **Crossings clear their minimum.** **Control points → Minimum elevation at crossing** starts a
+  one-sided control from a crossing in the register: the station is filled in from the crossing, and
+  the level stays empty until you type it and press **Confirm minimum**. The ground and the current
+  profile there are shown beside it for reference only; nothing fills the level from them, the
+  stream or a culvert. The profile chart draws a minimum as a bar with an arrow up, dragging or typing
+  a grade holds a PVI on it only from below (`gradeEdit.ts`), and Review judges it on the finished
+  curves. RoadEng's control points hold one tolerance either side and LandXML has no control field,
+  so neither file carries a minimum; each export notice names every minimum it left out.
 - **No "does not fit" or "overlaps" warnings.** A vertical curve that does not fit, or that
   overlaps its neighbour, is dropped and the sharp grade break is used instead.
 - **Ends meet what they connect to.** After an optimized profile, check the formation at both
@@ -347,6 +355,16 @@ with K = 0 and no curve length, not on its entered length.
   holding controls on the tangents only, and each control's PVI is then set where its curve passes
   through the control: with the curve length held that is one linear equation, solved exactly
   (`shaped`). Either way the result is read back through the engine before it is returned.
+- **A minimum elevation at a crossing is a floor.** A control with `bound: 'minimum'`
+  (`VerticalControl`, `verticalStandards.ts`) keeps the formation at or above its level and lets it
+  go anywhere higher; its tolerances do not apply. Its PVI's levels are the minimum itself, exactly as
+  entered, and the ladder around the ground (or around the minimum, where the ground is below it)
+  with every level under the minimum taken out. The curve at that PVI is held to the floor the same
+  way a target control is held to its band (`controlBand`), so a sag over a gully cannot drop the
+  finished line under it, and the result is read back through the engine like every other control.
+  The log reports what the line does there ("812.95 m, 0.55 m above the 812.40 m minimum"). On the
+  narrow gully in `verticalOptimizer.test.ts` the search fills over the gully well above a minimum
+  set a metre over its floor, where a ±0 target at the same level pins the line to it.
 - **Gaps in the terrain.** Ground under the centreline is read once, every 1 m. A PVI that the
   spacing puts on a gap slides to the nearest station with ground, up to half a spacing away, and
   the log counts it. If nothing that near has ground, the PVI stays and its levels are centred on

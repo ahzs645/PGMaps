@@ -285,6 +285,7 @@ import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/Desig
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
 import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
 import { projectProfileJunctions, withVerticalControl } from './dev-forestry-roads/profileJunctions'
+import { minimumControlExportNotes } from './dev-forestry-roads/verticalStandards'
 import { DEFAULT_DESIGN_STANDARDS, gradeRule } from './dev-forestry-roads/designStandards'
 import {
   applyJobStandardsToNewProject,
@@ -3863,6 +3864,9 @@ export default function DevForestryRoads({
               landXml({ name: safe.name, alignment, analysis, terrain: project.terrain, ...grid }),
               `${basename}.xml`,
               'application/xml',
+              ['Export downloaded.', ...minimumControlExportNotes(alignment.verticalControls, 'LandXML file')].join(
+                ' ',
+              ),
             )
           : text(stakeoutCsv({ alignment, analysis, ...grid }), `${basename}-stakeout.csv`, 'text/csv;charset=utf-8')
       }

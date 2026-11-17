@@ -635,3 +635,62 @@ describe('profile optimizer minimum curve and tangent lengths', () => {
     expect(curves.every((c) => c.valid)).toBe(true)
   })
 })
+
+describe('profile optimizer: minimum elevation at a crossing', () => {
+  /** A 6 m deep, steep-sided gully across the hillside at 300 m. */
+  const gully = (x: number) => -6 * Math.exp(-(((x - 300) / 14) ** 2))
+  const terrain = hillside((x) => gully(x))
+  const minimum = (elevation: number, patch: Partial<VerticalControl> = {}) =>
+    control({ chainage: 300, elevation, bound: 'minimum', crossing: { id: 'mapped:g', name: 'Gully' }, ...patch })
+
+  it('goes above a minimum where filling over the gully is cheaper, and never below it', () => {
+    const bottom = terrain.elevationAt(...offsetCoordinate(ORIGIN, 90, 300))
+    const floor = bottom + 1
+    const alignment = road(600, { verticalStandards: standards, verticalControls: [minimum(floor)] })
+    const result = optimizeVerticalProfile(alignment, 600, terrain, settings, { k: 4 })
+    const designed = { ...alignment, vertical: result.vertical }
+    const at = designProfileAt(designed, 300)!.elevation
+    // The cheapest line bridges the narrow gully well above its floor: a minimum, not a target.
+    expect(at).toBeGreaterThan(floor + 1)
+    expect(analyzeRoad(designed, terrain, settings).verticalChecks ?? []).toEqual([])
+    expect(result.report.controls).toEqual([
+      expect.objectContaining({ chainage: 300, elevation: floor, bound: 'minimum', achievedElevation: at }),
+    ])
+    expect(verticalOptimizationLog(result.report)).toEqual(
+      expect.arrayContaining([
+        {
+          label: 'Minimum at 0+300.0',
+          value: `${at.toFixed(2)} m, ${(at - floor).toFixed(2)} m above the ${floor.toFixed(2)} m minimum`,
+        },
+      ]),
+    )
+    // The same level as a target held to ±0 pins the line there instead.
+    const pinned = road(600, {
+      verticalStandards: standards,
+      verticalControls: [control({ chainage: 300, elevation: floor })],
+    })
+    const held = optimizeVerticalProfile(pinned, 600, terrain, settings, { k: 4 })
+    expect(designProfileAt({ ...pinned, vertical: held.vertical }, 300)!.elevation).toBeCloseTo(floor, 6)
+  }, 30_000)
+
+  it('lifts the line to a minimum above the cheap line, and holds it on the vertical curve at the crossing', () => {
+    // Well above the line the search would choose: the crossing needs fill, and the sag curve there
+    // must not drop the finished formation under the minimum.
+    const unconstrained = optimizeVerticalProfile(road(600, { verticalStandards: standards }), 600, terrain, settings, {
+      k: 8,
+    })
+    const free = designProfileAt({ ...road(600), vertical: unconstrained.vertical }, 300)!.elevation
+    const floor = free + 3
+    const alignment = road(600, { verticalStandards: standards, verticalControls: [minimum(floor)] })
+    const result = optimizeVerticalProfile(alignment, 600, terrain, settings, { k: 8 })
+    const designed = { ...alignment, vertical: result.vertical }
+    const at = designProfileAt(designed, 300)!.elevation
+    expect(at).toBeGreaterThanOrEqual(floor - 1e-6)
+    expect(at).toBeLessThan(floor + 1.5)
+    // The crossing sits inside an applied vertical curve, and the engine reads it there.
+    const curves = verticalCurveSummary(designed)
+    expect(curves.filter((c) => !c.valid)).toEqual([])
+    expect(curves.some((c) => c.valid && c.length > 0 && c.start <= 300 && c.end >= 300)).toBe(true)
+    expect(analyzeRoad(designed, terrain, settings).verticalChecks ?? []).toEqual([])
+  }, 30_000)
+})
