@@ -118,7 +118,15 @@ Never pick a control's map position automatically: a "sharpest nearby bend" pick
 
 ## 6. Compare in the visual-quality page
 
-The page can now find the camera itself: **Find the camera (all headings)** runs the same search in the browser (`src/pages/dev-forestry/wideOrientation.ts`), with the sun shown for both candidate headings. It does not do controls, regions or the near-ground pinning; use the bench for those, then **Use a matched camera…**.
+The page can now find the camera itself, with no road view needed, in the own photo's **Find the camera** panel:
+- **Find the camera (all headings):** the same skyline search, in the browser (`wideOrientation.ts`).
+- **Holds and a landmark:** angles held near a value, and a landmark picked at the photo's centre.
+- **Points paired in the photo and on the plan:** solved in closed form plus Levenberg–Marquardt (`controlPose.ts`),
+  with held-out errors in metres.
+- **Checks:** the photo laid on the plan, and a model view scored against the photo (`photoViews.ts`).
+
+It does not do control lines, region masks or reading features from mapped layers; use the bench for those, then
+**Use a matched camera…**.
 
 `/dev/forestry/visual-quality` can stand its road view at the matched camera:
 1. In step 2's Field photo panel, choose **Line up a photo of my own** and open the photo.

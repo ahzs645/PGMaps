@@ -880,11 +880,10 @@ export function useFieldPhoto({
     [own, loadOwnTerrain],
   )
 
-  /** Adds the map half of a pair to the pixel clicked in the photo. */
-  const addPairPoint = useCallback(
-    async (lng: number, lat: number) => {
-      if (!own || !pendingPixel || own.pose.lng === null || own.pose.lat === null) return
-      const pixel = pendingPixel
+  /** Pairs the pixel clicked in the photo with the spot clicked on the plan. */
+  const addPair = useCallback(
+    async (pixel: [number, number], lng: number, lat: number) => {
+      if (!own || own.pose.lng === null || own.pose.lat === null) return
       try {
         const terrain = await loadOwnTerrain(own.pose.lng, own.pose.lat, new AbortController().signal)
         const elevation = terrain.elevationAt(lng, lat)
@@ -896,7 +895,7 @@ export function useFieldPhoto({
         setToolsError(`Could not place that point: ${error instanceof Error ? error.message : String(error)}`)
       }
     },
-    [own, pendingPixel, loadOwnTerrain],
+    [own, loadOwnTerrain],
   )
 
   /** Solves the camera from the paired points, with the priors, and applies it to the photo. */
@@ -1327,7 +1326,7 @@ export function useFieldPhoto({
     pairs,
     pendingPixel,
     setPendingPixel,
-    addPairPoint,
+    addPair,
     removePair: (id: string) => setPairs((current) => current.filter((pair) => pair.id !== id)),
     clearPairs: () => {
       setPairs([])

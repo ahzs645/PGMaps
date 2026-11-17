@@ -1263,33 +1263,71 @@ street-level photo from Mapillary, or with a photo of your own.
   pitch to where they started. **Save this pose to the field record** writes
   the camera back to the record it came from (altitude as road-view ground
   plus eye height) and leaves its "I checked…" box unticked for the reviewer.
-- **Find the camera (all headings).** From an aircraft a phone's recorded
-  heading can be 50–140° out, so *Auto-align*'s ±3° search finds nothing or a
-  false match. This button, beside it while an own photo is compared, searches
-  heading, pitch and roll from the photo's skyline over every heading
-  (`wideOrientation.ts`, in a worker), the browser form of the photo-matching
-  bench's `orient.ts`:
-  - **Terrain.** The overlay's own terrain (zoom 11 to 25 km) is layered over a
-    zoom-9 ring out to 90 km, about 20 tiles. On test photos this found the
-    bench's camera to within 0.3° of heading and pitch.
-  - **Search.** A coarse search in angles first. Turning about the vertical
-    never changes a ray's elevation, so each pitch and roll is worked out once
-    and every heading is a shift along the horizon table. Then `fitSkyline`
-    refines at quarter-degree rolls, given only the horizon round the frame.
-    About 10 s on a desktop, 3× faster than the bench.
-  - **Pitch from the tilt sensor.** An iPhone's tilt sensor (Apple maker note,
-    `appleTilt` in `exifPose.ts`) narrows pitch to ±6° when it reads gravity
-    alone (|a| within 0.05 g).
-  - **What it reports.** The result says when another heading at least 15°
-    away fits about as well (**not settled**). It shows where the sun was
-    (from the GPS fix's UTC time) for the camera and for the runner-up, and
-    *Try it* swaps to the runner-up to compare. The pose fields are marked
-    *fitted to the skyline*.
+- **Find the camera.** A panel under the own photo's pose fields finds the
+  camera with no road view, so it works for a photo taken far from the
+  scene's road. It holds five tools, and every result can be checked with
+  the last two. The options follow functional specifications of Pic2Map and
+  QCALVIEW written under route A
+  (`docs/forestry-road-design/reference-repo-licensing-and-conversion.md`);
+  their code was not opened by the implementer.
+  - **Find the camera (all headings)** searches heading, pitch and roll from
+    the photo's skyline over every heading (`wideOrientation.ts`, in a
+    worker), the browser form of the photo-matching bench's `orient.ts`.
+    From an aircraft a phone's recorded heading can be 50–140° out, which
+    defeats *Auto-align*'s ±3° search.
+    - **Terrain:** zoom 11 to 25 km over a zoom-9 ring to 90 km, about 20
+      far tiles.
+    - **Search:** a coarse search in angles first. Turning about the
+      vertical never changes a ray's elevation, so each pitch and roll is
+      worked out once and every heading is a shift along a horizon table.
+      `fitSkyline` then refines, given only the horizon round the frame.
+    - **Pitch:** an iPhone's tilt sensor (Apple maker note, `appleTilt`)
+      narrows pitch to ±6° while it reads gravity alone.
+    - **Result:** says when another heading at least 15° away fits about as
+      well (**not settled**), and shows where the sun was (from the GPS
+      fix's UTC time) for the camera and for the runner-up. *Try it* swaps
+      to the runner-up.
+  - **Hold near a value.** Heading, pitch and roll can each be held near a
+    value within a tolerance, from the flight track, the tilt sensor or a
+    landmark. The search and the point solve keep them there, so a runner-up
+    outside the tolerance is never considered.
+  - **Landmark.** *Pick the spot at the photo's centre on the plan* sets
+    heading and pitch toward it (with Earth curvature) and holds them, ±20°
+    and ±5° by default.
+  - **Pair points.** Click a spot in the photo, then the same spot on the
+    plan: a road bend, a pond, a block corner. With the position known,
+    rotation follows from two pairs in closed form (Horn 1987). Then
+    Levenberg–Marquardt runs over position (held near the GPS, ±25 m across
+    and ±30 m up), angles (free or held) and the lens (held).
+    - **Accuracy:** each pair is left out in turn and measured with the
+      camera solved without it, in pixels and metres on the ground.
+    - **Warning:** a solved camera that rolls past 30° or moves far from the
+      GPS fix is flagged as probably mis-paired.
+    - **Plan marks:** the paired spots and the landmark are marked on the
+      plan.
+  - **Photo on the plan.** Lays the photo on the plan for the camera or the
+    runner-up (`photoViews.drapePhoto`). Each ground cell to 8 km is
+    coloured from the photo pixel it projects to; ground hidden by nearer
+    terrain (a depth buffer) is left clear. A wrong heading puts the
+    photographed roads, openings and lakes in the wrong place, and spreads
+    sky over the ground.
+  - **Model view.** Draws satellite imagery as the camera would see it
+    (`renderModelView`, a strip at a time) for the camera and the runner-up.
+    It scores each against the photo by brightness and edge correlation over
+    the ground (`modelAgreement`).
+  - **Tested on fourteen helicopter photos (November 2026):**
+    - **Agreement score:** it ranked the skyline's winner above its
+      runner-up on all five photos checked, three of them ambiguous. In the
+      browser, on a photo 70 km from the scene's road, it scored 0.30 for the
+      winner against −0.06 for the runner-up.
+    - **Point solve:** on the real terrain under three photos, with mapped
+      road and stream vertices as the pairs (pixels from the trusted camera
+      plus 2.5 px of noise), it recovered heading to 0.05–0.3° from the
+      phone's heading 85–146° out. Three pairs were enough, and held-out
+      errors were 1–40 m.
   - **HEIC.** Chrome and Firefox cannot show iPhone HEIC photos; opening one
     says so and asks for a JPEG with its location kept. Safari shows them.
     The tags (position, heading, lens, tilt, GPS time) are read from either.
-  - **A road nearby.** Like *Line up my photo*, it needs the scene's road
-    within 2 km of where the photo was taken.
 - **From the air, and matched cameras.** An own photo can carry an absolute
   altitude (`OwnPose.altitudeMeters`, metres above sea level): its GPS altitude
   when it was taken from the air, or the altitude of a **matched camera**.

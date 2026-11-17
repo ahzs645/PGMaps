@@ -2587,8 +2587,8 @@ function DevForestryVisuals() {
     if (!map) return
     const DRAPE = 'own-photo-drape',
       MARKS = 'own-photo-marks'
+    // isStyleLoaded() is false while tiles load; the style itself can take layers as soon as it exists.
     const apply = () => {
-      if (!map.isStyleLoaded()) return
       const source = map.getSource(DRAPE) as import('maplibre-gl').ImageSource | undefined
       if (!photoDrape) {
         if (map.getLayer(DRAPE)) map.removeLayer(DRAPE)
@@ -2624,10 +2624,19 @@ function DevForestryVisuals() {
         })
       }
     }
-    apply()
-    map.on('styledata', apply)
+    const safely = () => {
+      try {
+        apply()
+      } catch {
+        // The style is still being built: try again once the map is idle.
+        map.once('idle', safely)
+      }
+    }
+    safely()
+    map.on('styledata', safely)
     return () => {
-      map.off('styledata', apply)
+      map.off('styledata', safely)
+      map.off('idle', safely)
     }
   }, [photoDrape, photoMarks])
   // Show the whole laid photo when a new one arrives.

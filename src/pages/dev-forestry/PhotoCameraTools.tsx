@@ -175,7 +175,7 @@ function PairsPanel({
       ((event.clientY - box.top) / box.height) * own.height,
     ]
     photo.setPendingPixel(pixel)
-    onPickPoint?.(([lng, lat]) => void photo.addPairPoint(lng, lat))
+    onPickPoint?.(([lng, lat]) => void photo.addPair(pixel, lng, lat))
   }
   const rows = new Map(solve?.pairs.map((row) => [row.id, row]))
   return (
@@ -267,6 +267,15 @@ function PairsPanel({
           </Button>
         )}
       </div>
+      {solve &&
+        (Math.abs(solve.pose.roll) > 30 ||
+          Math.hypot(solve.shift.east, solve.shift.north) > 150 ||
+          Math.abs(solve.shift.up) > 100) && (
+          <InlineAlert tone="warning">
+            This camera looks wrong: it rolls {Math.round(solve.pose.roll)}° or moved far from the photo's GPS. Check
+            that each pair is the same spot in the photo and on the plan, and remove any that are not.
+          </InlineAlert>
+        )}
       {solve && (
         <p className="text-3xs leading-4 text-foreground" role="status">
           Solved from {solve.pairs.length} points
@@ -397,7 +406,7 @@ function CameraSearchPanel({ photo }: { photo: FieldPhotoState }) {
           variant="outline"
           size="xs"
           className="flex-1 text-2xs touch:h-10"
-          disabled={!photo.drawing || working}
+          disabled={working}
           onClick={() => void photo.findCamera()}
         >
           {working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}

@@ -193,6 +193,23 @@ the page's new search (`wideOrientation.ts`, in Node on the page's terrain: zoom
 - **HEIC.** Chromium cannot decode these files, but `exifr` read their GPS, heading, lens, tilt sensor and GPS time
   directly. The tilt sensor was within 0.5–3.6° of the fitted pitch while it read gravity alone.
 
+## Settling ambiguous cameras without the skyline (17 November 2026)
+
+Points paired in the photo and on the plan, priors and a landmark, the photo laid on the plan, and a model view with an
+agreement score were added to the page (see `docs/forestry-visual-quality.md`, Field photo). The options came from
+route-A specifications of Pic2Map and QCALVIEW.
+
+- **The point solve recovers the camera without the skyline.** It was tested on the real terrain under three photos.
+  The pairs were mapped road and stream vertices the trusted camera sees 0.8–7.7 km out, with pixels from that camera
+  plus 2.5 px of noise. Starting from the phone's heading, 85–146° out, it recovered heading to 0.05° on two photos
+  and 0.3° on the steepest-down one (pitch −22°). Three pairs were enough. Held-out errors were 1–40 m on the ground.
+- **The model view separates candidates.** On five photos its agreement with the photo (brightness plus edge
+  correlation) ranked the skyline's winner above the runner-up every time, including three ambiguous ones. On the
+  first, the margin was 0.30 against −0.06 in the browser.
+- **The photo laid on the plan shows a wrong camera.** At the runner-up heading of an ambiguous photo, photographed sky
+  lands on the ground behind the ridge.
+- **Not yet tested:** pairs a person clicks on these photos. The pairs above were generated, not read from the photos.
+
 ## Repeatable workflow (15 November 2026)
 
 The bench became a workflow for new photos:
