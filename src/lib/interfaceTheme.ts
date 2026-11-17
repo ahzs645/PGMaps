@@ -89,10 +89,17 @@ export const themePresets: Record<string, InterfaceTheme> = {
   },
 }
 
+const configuredPreset = import.meta.env.VITE_ROAD_DESIGN_THEME_PRESET?.trim()
+export const defaultInterfaceThemePresetName =
+  configuredPreset && Object.prototype.hasOwnProperty.call(themePresets, configuredPreset)
+    ? configuredPreset
+    : 'PGMaps default'
+const fallbackTheme = themePresets[defaultInterfaceThemePresetName]
+
 export function readInterfaceTheme(): InterfaceTheme {
   try {
     const saved: unknown = JSON.parse(window.localStorage.getItem(storageKey) ?? 'null')
-    if (!saved || typeof saved !== 'object') return defaultInterfaceTheme
+    if (!saved || typeof saved !== 'object') return fallbackTheme
     const { light, dark, radius } = saved as Record<string, unknown>
     const theme: InterfaceTheme = { light: {}, dark: {}, radius: null }
     for (const [mode, palette] of [
@@ -115,7 +122,7 @@ export function readInterfaceTheme(): InterfaceTheme {
       theme.radius = radius
     return theme
   } catch {
-    return defaultInterfaceTheme
+    return fallbackTheme
   }
 }
 

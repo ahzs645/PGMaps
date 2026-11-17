@@ -73,6 +73,10 @@ For example, under a subpath of another domain:
 ROAD_DESIGN_BASE=/tools/road-design/ npm run road-design:build
 ```
 
+Set `VITE_ROAD_DESIGN_THEME_PRESET=Coast` in the build environment to use Coast for browsers without
+a saved Appearance theme and as the target of **Reset theme**. The value matches an Appearance
+preset name. If it is unset or unrecognized, the default is **PGMaps default**.
+
 PGMaps itself sets none of these, so `src/pages/dev-forestry-roads/deployment.ts` falls back to
 PGMaps' own addresses (`/dev/forestry/road-design`, `/dev/forestry/block-sheets`). A page reads a
 deployment's address from `deployment.ts`, never a literal.

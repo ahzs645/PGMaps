@@ -10,6 +10,7 @@ import { StyledSelect } from '@/components/ui/styled-select'
 import { useTheme } from 'next-themes'
 import {
   defaultInterfaceTheme,
+  defaultInterfaceThemePresetName,
   exportThemeCss,
   interfaceThemeVariables,
   isCustomTheme,
@@ -301,7 +302,7 @@ export function AppearanceDialog({
         )}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3 sm:px-6">
           <div className="flex flex-wrap gap-1">
-            <Button size="sm" variant="ghost" onClick={() => applyPreset('PGMaps default')}>
+            <Button size="sm" variant="ghost" onClick={() => applyPreset(defaultInterfaceThemePresetName)}>
               <RotateCcw aria-hidden="true" />
               Reset theme
             </Button>
