@@ -34,6 +34,7 @@ import {
   type WorkspaceCommand,
 } from '@/components/interfaces/workspaceCommands'
 import { AccessLockup } from '@/components/interfaces/AccessLockup'
+import { ThemeModeButton } from '@/components/interfaces/ThemeModeButton'
 import { BrandingDialog } from '@/branding/BrandingDialog'
 import { useBranding } from '@/branding/useBranding'
 import { exportBrand } from '@/branding/store'
@@ -5528,6 +5529,7 @@ export default function DevForestryRoads({
               {/* A fixed slot: the mark coming and going never moves the tools beside it. */}
               <span className="lp-status-slot">{saveMark}</span>
               {interfaceSwitch('lg')}
+              <ThemeModeButton />
               {workflowHelp}
             </>
           )
