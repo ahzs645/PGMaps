@@ -2557,6 +2557,91 @@ function DevForestryVisuals() {
   if (fieldPhoto.match && (drive.playing || (!drive.active && !pendingPreview && analysis.state.status !== 'running')))
     fieldPhoto.setMatch(null)
   const photoLook = drive.active ? fieldPhoto.look : null
+  // The own photo laid on the plan for one candidate camera (Field photo → Find the camera), with its landmark and
+  // paired points: a check of the camera that needs neither the skyline nor the road view.
+  const photoDrape = fieldPhoto.photoDrape
+  const photoMarks = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: [
+        ...(fieldPhoto.landmark
+          ? [
+              {
+                type: 'Feature' as const,
+                properties: { kind: 'landmark' },
+                geometry: { type: 'Point' as const, coordinates: [fieldPhoto.landmark.lng, fieldPhoto.landmark.lat] },
+              },
+            ]
+          : []),
+        ...fieldPhoto.pairs.map((pair) => ({
+          type: 'Feature' as const,
+          properties: { kind: 'pair' },
+          geometry: { type: 'Point' as const, coordinates: [pair.lng, pair.lat] },
+        })),
+      ],
+    }),
+    [fieldPhoto.landmark, fieldPhoto.pairs],
+  )
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const DRAPE = 'own-photo-drape',
+      MARKS = 'own-photo-marks'
+    const apply = () => {
+      if (!map.isStyleLoaded()) return
+      const source = map.getSource(DRAPE) as import('maplibre-gl').ImageSource | undefined
+      if (!photoDrape) {
+        if (map.getLayer(DRAPE)) map.removeLayer(DRAPE)
+        if (source) map.removeSource(DRAPE)
+      } else {
+        const [w, s, e, n] = photoDrape.bounds
+        const coordinates: [[number, number], [number, number], [number, number], [number, number]] = [
+          [w, n],
+          [e, n],
+          [e, s],
+          [w, s],
+        ]
+        if (source) source.updateImage({ url: photoDrape.url, coordinates })
+        else {
+          map.addSource(DRAPE, { type: 'image', url: photoDrape.url, coordinates })
+          map.addLayer({ id: DRAPE, type: 'raster', source: DRAPE, paint: { 'raster-opacity': 0.85 } })
+        }
+      }
+      const marks = map.getSource(MARKS) as import('maplibre-gl').GeoJSONSource | undefined
+      if (marks) marks.setData(photoMarks)
+      else if (photoMarks.features.length) {
+        map.addSource(MARKS, { type: 'geojson', data: photoMarks })
+        map.addLayer({
+          id: MARKS,
+          type: 'circle',
+          source: MARKS,
+          paint: {
+            'circle-radius': 6,
+            'circle-color': ['match', ['get', 'kind'], 'landmark', '#f59e0b', '#2563eb'],
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 2,
+          },
+        })
+      }
+    }
+    apply()
+    map.on('styledata', apply)
+    return () => {
+      map.off('styledata', apply)
+    }
+  }, [photoDrape, photoMarks])
+  // Show the whole laid photo when a new one arrives.
+  useEffect(() => {
+    if (!photoDrape) return
+    const [w, s, e, n] = photoDrape.bounds
+    mapRef.current?.fitBounds(
+      [
+        [w, s],
+        [e, n],
+      ],
+      { padding: 40, duration: 600 },
+    )
+  }, [photoDrape])
   const [lookBearing, setLookBearing] = useState(0)
   const [viewerFov, setViewerFov] = useState(60)
   // The road view's viewer on the plan: the viewing station (the pose's ground position, never the

@@ -83,6 +83,35 @@ describe('camera search over every heading', () => {
     expect(searchOrientation({ pose: camera(0, 0, 0), profile, skyline: skyline.slice(0, 11) })).toBeNull()
   }, 60_000)
 
+  it('keeps each angle near its prior, so a landmark or flight track decides between candidates', () => {
+    const skyline = skylineOf(camera(165, -2, 3))
+    const near = searchOrientation({
+      pose: camera(0, 0, 0),
+      profile,
+      skyline,
+      priors: {
+        heading: { value: 160, tolerance: 20 },
+        pitch: { value: -2, tolerance: 3 },
+        roll: { value: 3, tolerance: 2 },
+      },
+    })!
+    expect(Math.abs(near.bearing - 165)).toBeLessThan(0.6)
+    const elsewhere = searchOrientation({
+      pose: camera(0, 0, 0),
+      profile,
+      skyline,
+      priors: {
+        heading: { value: 40, tolerance: 10 },
+        pitch: { value: -2, tolerance: 3 },
+        roll: { value: 3, tolerance: 2 },
+      },
+    })!
+    // Held to 30–50° (plus fitSkyline's ±3° nudge), the search cannot reach the true 165°.
+    expect(elsewhere.bearing).toBeGreaterThan(26)
+    expect(elsewhere.bearing).toBeLessThan(54)
+    expect(elsewhere.meanLoss).toBeGreaterThan(near.meanLoss * 3)
+  }, 60_000)
+
   it('keeps the horizon by azimuth, and slices it continuously across north', () => {
     const table = horizonTable([
       { azimuth: 359.96, elevation: 2, distanceMeters: 1 },

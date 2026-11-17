@@ -34,7 +34,24 @@ import {
 } from './mapillary'
 import { panoViewPose, projectToPhoto, reprojectEquirect, terrainSkyline, type PhotoPose } from './photoPose'
 import { fitSkyline, photoSkyline, terrainProfile, type ProfilePoint, type SkylineFit } from './skylineFit'
-import { sunCheck, type SunCheck, type WideSearchResult } from './wideOrientation'
+import { sunCheck, type SunCheck, type WideSearchInput, type WideSearchResult } from './wideOrientation'
+import {
+  landmarkAngles,
+  pairsNeeded,
+  solveFromControls,
+  type ControlPair,
+  type ControlSolveResult,
+  type UnknownSpec,
+} from './controlPose'
+import {
+  drapePhoto,
+  modelAgreement,
+  modelViewHeight,
+  renderModelView,
+  type Bounds,
+  type ImagerySampler,
+} from './photoViews'
+import { layeredSampler, loadImageryMosaic } from './imageryMosaic'
 import { runWideOrientation } from './wideOrientationClient'
 import { nearestPointOnLine } from './roadSnap'
 import type { ForestryScene } from './scene'
@@ -107,6 +124,20 @@ const TILT_G_TOLERANCE = 0.05
 const TILT_PITCH_SPAN = 6
 /** The photo's width while its skyline is read, as the photo-matching bench reads it. */
 const WIDE_WORK_WIDTH = 1050
+
+/** Each angle held near a value within a tolerance, degrees; absent is free. */
+export type CameraPriors = NonNullable<WideSearchInput['priors']>
+
+/** The photo laid on the plan for one camera (`photoViews.drapePhoto`), as an image the plan map draws. */
+export type PhotoDrape = {
+  url: string
+  bounds: Bounds
+  which: 'camera' | 'runner-up'
+  bearing: number
+  seenShare: number
+}
+
+export type ModelViewImage = { url: string; bearing: number; score: number }
 
 export type CameraSearch =
   | { status: 'idle' }
@@ -210,6 +241,22 @@ export function useFieldPhoto({
   const [skylineGround, setSkylineGround] = useState<{ id: string; source: ElevationSource } | null>(null)
   const abort = useRef<AbortController | null>(null)
   const [cameraSearch, setCameraSearch] = useState<CameraSearch>({ status: 'idle' })
+  const [priors, setPriors] = useState<CameraPriors>({})
+  const [landmark, setLandmark] = useState<{
+    lng: number
+    lat: number
+    elevation: number
+    bearing: number
+    pitch: number
+    distanceMeters: number
+  } | null>(null)
+  const [pairs, setPairs] = useState<ControlPair[]>([])
+  const [pendingPixel, setPendingPixel] = useState<[number, number] | null>(null)
+  const [controlSolve, setControlSolve] = useState<ControlSolveResult | null>(null)
+  const [photoDrape, setPhotoDrape] = useState<PhotoDrape | null>(null)
+  const [modelViews, setModelViews] = useState<Partial<Record<'camera' | 'runner-up', ModelViewImage>>>({})
+  const [toolsBusy, setToolsBusy] = useState<string | null>(null)
+  const [toolsError, setToolsError] = useState<string | null>(null)
   const cameraAbort = useRef<AbortController | null>(null)
   const wideHorizon = useRef<{ id: string; profile: ProfilePoint[] } | null>(null)
   const [alignment, setAlignment] = useState<{
@@ -631,43 +678,108 @@ export function useFieldPhoto({
   }, [image, own, match, drawing, skylineSource, panoFrame])
 
   /**
-   * Finds heading, pitch and roll from the photo's skyline over every heading (`wideOrientation.ts`, in a worker):
-   * for a photo from the air, or any photo whose recorded heading is not trusted. Position, altitude and lens stay.
+   * Terrain round the own photo for its camera tools: the zoom-11 mosaic to 25 km over a zoom-9 ring to 90 km, loaded
+   * once per spot. The tools need no road view, so they work for a photo taken far from the scene's road.
+   */
+  const ownTerrain = useRef<{ id: string; source: ElevationSource } | null>(null)
+  const loadOwnTerrain = useCallback(
+    async (lng: number, lat: number, signal: AbortSignal, onTiles?: (loaded: number, total: number) => void) => {
+      const id = `${lng.toFixed(3)},${lat.toFixed(3)}`
+      if (ownTerrain.current?.id === id) return ownTerrain.current.source
+      const rangeFor = (radius: number, maxZoom: number, maxTiles: number) => {
+        const degLat = radius / 110574
+        const degLng = radius / (111320 * Math.cos((lat * Math.PI) / 180))
+        const bounds: [number, number, number, number] = [lng - degLng, lat - degLat, lng + degLng, lat + degLat]
+        let zoom = maxZoom
+        let range = demTileRange(bounds, zoom)
+        while (range.tileCount > maxTiles && zoom > 4) range = demTileRange(bounds, --zoom)
+        return range
+      }
+      const nearRange = rangeFor(SKYLINE_RADIUS_METERS, SKYLINE_ZOOM, 160)
+      const farRange = rangeFor(WIDE_RADIUS_METERS, WIDE_MAX_ZOOM, WIDE_MAX_TILES)
+      const total = nearRange.tileCount + farRange.tileCount
+      let nearDone = 0,
+        farDone = 0
+      const [near, far] = await Promise.all([
+        loadElevationGrid({
+          range: nearRange,
+          signal,
+          concurrency: 4,
+          onProgress: (loaded) => onTiles?.((nearDone = loaded) + farDone, total),
+        }),
+        loadElevationGrid({
+          range: farRange,
+          signal,
+          concurrency: 2,
+          onProgress: (loaded) => onTiles?.(nearDone + (farDone = loaded), total),
+        }),
+      ])
+      const source: ElevationSource = {
+        elevationAt: (x, y) => {
+          const z = near.grid.elevationAt(x, y)
+          return Number.isFinite(z) ? z : far.grid.elevationAt(x, y)
+        },
+      }
+      ownTerrain.current = { id, source }
+      return source
+    },
+    [],
+  )
+  /** The own photo's camera in its own pixels (as displayed), standing on `terrain`. */
+  const ownCamera = (
+    current: OwnPhoto,
+    terrain: ElevationSource,
+    angles?: { bearing: number; pitch: number; roll: number },
+  ) => {
+    const lng = current.pose.lng!,
+      lat = current.pose.lat!
+    return ownPhotoPose(
+      { ...current.pose, lng, lat, ...angles },
+      terrain.elevationAt(lng, lat),
+      current.width,
+      current.height,
+    )
+  }
+  /** The own photo's pixels at the bench's working width, kept while the photo is open. */
+  const ownPixels = useRef<{ src: string; pixels: ImageData } | null>(null)
+  const readOwnPixels = async (current: OwnPhoto) => {
+    if (ownPixels.current?.src === current.src) return ownPixels.current.pixels
+    const picture = new Image()
+    picture.src = current.src
+    await picture.decode()
+    const width = Math.min(WIDE_WORK_WIDTH, picture.naturalWidth)
+    const height = Math.round((picture.naturalHeight * width) / picture.naturalWidth)
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d', { willReadFrequently: true })!
+    context.drawImage(picture, 0, 0, width, height)
+    const pixels = context.getImageData(0, 0, width, height)
+    ownPixels.current = { src: current.src, pixels }
+    return pixels
+  }
+
+  /**
+   * Finds heading, pitch and roll from the photo's skyline over every heading (`wideOrientation.ts`, in a worker),
+   * within the reviewer's priors: for a photo from the air, or any photo whose recorded heading is not trusted.
    */
   const findCamera = useCallback(async () => {
-    if (!own || !drawing || own.pose.lng === null || own.pose.lat === null) return
+    if (!own || own.pose.lng === null || own.pose.lat === null) return
     cameraAbort.current?.abort()
     const controller = new AbortController()
     cameraAbort.current = controller
     const t0 = performance.now()
-    const base = drawing.pose
     try {
       setCameraSearch({ status: 'working', stage: 'terrain', done: 0 })
+      const terrain = await loadOwnTerrain(own.pose.lng, own.pose.lat, controller.signal, (loaded, total) =>
+        setCameraSearch({ status: 'working', stage: 'terrain', done: loaded / total, tiles: { loaded, total } }),
+      )
+      const base = ownCamera(own, terrain)
       const { lng, lat, altitudeMeters } = base
       const id = `${lng.toFixed(4)},${lat.toFixed(4)},${Math.round(altitudeMeters)}`
       let profile = wideHorizon.current?.id === id ? wideHorizon.current.profile : null
       if (!profile) {
-        const degLat = WIDE_RADIUS_METERS / 110574
-        const degLng = WIDE_RADIUS_METERS / (111320 * Math.cos((lat * Math.PI) / 180))
-        const bounds: [number, number, number, number] = [lng - degLng, lat - degLat, lng + degLng, lat + degLat]
-        let zoom = WIDE_MAX_ZOOM
-        let range = demTileRange(bounds, zoom)
-        while (range.tileCount > WIDE_MAX_TILES && zoom > 4) range = demTileRange(bounds, --zoom)
-        const { grid } = await loadElevationGrid({
-          range,
-          signal: controller.signal,
-          concurrency: 6,
-          onProgress: (loaded, total) =>
-            setCameraSearch({ status: 'working', stage: 'terrain', done: loaded / total, tiles: { loaded, total } }),
-        })
-        const near = skylineSource
-        const layered: ElevationSource = {
-          elevationAt: (x, y) => {
-            const z = near?.elevationAt(x, y)
-            return z !== undefined && Number.isFinite(z) ? z : grid.elevationAt(x, y)
-          },
-        }
-        profile = terrainProfile({ lng, lat, altitudeMeters }, layered, {
+        profile = terrainProfile({ lng, lat, altitudeMeters }, terrain, {
           from: 0,
           to: 359.9,
           step: 0.1,
@@ -676,19 +788,9 @@ export function useFieldPhoto({
         wideHorizon.current = { id, profile }
       }
       setCameraSearch({ status: 'working', stage: 'photo', done: 0 })
-      const picture = new Image()
-      picture.src = own.src
-      await picture.decode()
-      const width = Math.min(WIDE_WORK_WIDTH, picture.naturalWidth)
-      const height = Math.round((picture.naturalHeight * width) / picture.naturalWidth)
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      const context = canvas.getContext('2d', { willReadFrequently: true })!
-      context.drawImage(picture, 0, 0, width, height)
-      const pixels = context.getImageData(0, 0, width, height)
-      const sx = base.width / width,
-        sy = base.height / height
+      const pixels = await readOwnPixels(own)
+      const sx = base.width / pixels.width,
+        sy = base.height / pixels.height
       const skyline = photoSkyline(pixels, 200).map((point) => (point ? { x: point.x * sx, y: point.y * sy } : null))
       const tilt = own.exif?.tilt
       const tiltOk = !!tilt && Math.abs(tilt.g - 1) <= TILT_G_TOLERANCE
@@ -700,7 +802,7 @@ export function useFieldPhoto({
           : [-20, 15]
       setCameraSearch({ status: 'working', stage: 'search', done: 0 })
       const result = await runWideOrientation(
-        { pose: { ...base, roll: 0 }, profile, skyline, pitchRange, rollRange: [-15, 15], headingSpan: 180 },
+        { pose: { ...base, roll: 0 }, profile, skyline, pitchRange, rollRange: [-15, 15], headingSpan: 180, priors },
         controller.signal,
         (done) => setCameraSearch({ status: 'working', stage: 'search', done }),
       )
@@ -708,7 +810,7 @@ export function useFieldPhoto({
       if (!result) {
         setCameraSearch({
           status: 'failed',
-          message: 'Too little open sky over distant terrain to search by. Line it up by hand.',
+          message: 'Too little open sky over distant terrain to search by. Pair points instead.',
         })
         return
       }
@@ -738,7 +840,227 @@ export function useFieldPhoto({
         message: `The camera search stopped: ${error instanceof Error ? error.message : String(error)}`,
       })
     }
-  }, [own, drawing, skylineSource])
+    // ownCamera and readOwnPixels read only refs and their arguments.
+  }, [own, priors, loadOwnTerrain])
+
+  /** Turns a spot picked on the plan at the photo's centre into heading and pitch, and holds them as priors. */
+  const pickLandmark = useCallback(
+    async (lng: number, lat: number) => {
+      if (!own || own.pose.lng === null || own.pose.lat === null) return
+      const controller = new AbortController()
+      setToolsBusy('Loading terrain…')
+      try {
+        const terrain = await loadOwnTerrain(own.pose.lng, own.pose.lat, controller.signal)
+        const elevation = terrain.elevationAt(lng, lat)
+        if (!Number.isFinite(elevation)) throw new Error('no terrain at that spot')
+        const look = landmarkAngles(ownCamera(own, terrain), { lng, lat, elevation })
+        setLandmark({ lng, lat, elevation, ...look })
+        setPriors((current) => ({
+          ...current,
+          heading: { value: look.bearing, tolerance: current.heading?.tolerance ?? 10 },
+          pitch: { value: look.pitch, tolerance: current.pitch?.tolerance ?? 5 },
+        }))
+        setOwn((current) =>
+          current
+            ? {
+                ...current,
+                pose: { ...current.pose, bearing: look.bearing, pitch: look.pitch },
+                sources: { ...current.sources, heading: 'landmark', pitch: 'landmark' },
+              }
+            : current,
+        )
+        setToolsError(null)
+      } catch (error) {
+        setToolsError(`Could not use that spot: ${error instanceof Error ? error.message : String(error)}`)
+      } finally {
+        setToolsBusy(null)
+      }
+    },
+
+    [own, loadOwnTerrain],
+  )
+
+  /** Adds the map half of a pair to the pixel clicked in the photo. */
+  const addPairPoint = useCallback(
+    async (lng: number, lat: number) => {
+      if (!own || !pendingPixel || own.pose.lng === null || own.pose.lat === null) return
+      const pixel = pendingPixel
+      try {
+        const terrain = await loadOwnTerrain(own.pose.lng, own.pose.lat, new AbortController().signal)
+        const elevation = terrain.elevationAt(lng, lat)
+        if (!Number.isFinite(elevation)) throw new Error('no terrain at that spot')
+        setPairs((current) => [...current, { id: `pair-${Date.now().toString(36)}`, pixel, lng, lat, elevation }])
+        setPendingPixel(null)
+        setToolsError(null)
+      } catch (error) {
+        setToolsError(`Could not place that point: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    },
+    [own, pendingPixel, loadOwnTerrain],
+  )
+
+  /** Solves the camera from the paired points, with the priors, and applies it to the photo. */
+  const solveFromPoints = useCallback(async () => {
+    if (!own || own.pose.lng === null || own.pose.lat === null) return
+    setToolsBusy('Solving from the points…')
+    try {
+      const terrain = await loadOwnTerrain(own.pose.lng, own.pose.lat, new AbortController().signal)
+      const start = { ...ownCamera(own, terrain), hfov: own.pose.hfov }
+      const angle = (key: 'heading' | 'pitch' | 'roll'): UnknownSpec =>
+        priors[key] ? { mode: 'prior', ...priors[key]! } : { mode: 'free' }
+      const known = own.sources.position === 'exif' || own.sources.position === 'record'
+      const result = solveFromControls({
+        start,
+        pairs,
+        unknowns: {
+          heading: angle('heading'),
+          pitch: angle('pitch'),
+          roll: angle('roll'),
+          // A picked position is a guess: free it, unless the photo's own fix or a record gave it.
+          ...(known ? {} : { east: { mode: 'free' }, north: { mode: 'free' } }),
+        },
+      })
+      if (!result) {
+        setToolsError(
+          `Pair at least ${pairsNeeded()} points: click a spot in the photo, then the same spot on the plan.`,
+        )
+        return
+      }
+      setControlSolve(result)
+      const airborne = own.pose.altitudeMeters !== null && own.pose.altitudeMeters !== undefined
+      setOwn((current) =>
+        current
+          ? {
+              ...current,
+              pose: {
+                ...current.pose,
+                lng: result.pose.lng,
+                lat: result.pose.lat,
+                bearing: result.pose.bearing,
+                pitch: result.pose.pitch,
+                roll: result.pose.roll,
+                ...(airborne
+                  ? { altitudeMeters: result.pose.altitudeMeters }
+                  : { eyeHeightMeters: Math.max(0.5, current.pose.eyeHeightMeters + result.shift.up) }),
+              },
+              sources: {
+                ...current.sources,
+                position: 'controls',
+                heading: 'controls',
+                pitch: 'controls',
+                roll: 'controls',
+              },
+            }
+          : current,
+      )
+      setToolsError(null)
+    } catch (error) {
+      setToolsError(`The solve stopped: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setToolsBusy(null)
+    }
+  }, [own, pairs, priors, loadOwnTerrain])
+
+  /** The angles of the camera to check: the photo's current one, or the skyline search's runner-up. */
+  const candidateAngles = (which: 'camera' | 'runner-up') =>
+    which === 'runner-up' && cameraSearch.status === 'done' && cameraSearch.result.runnerUp
+      ? cameraSearch.result.runnerUp
+      : own
+        ? { bearing: own.pose.bearing, pitch: own.pose.pitch, roll: own.pose.roll }
+        : null
+
+  /** Lays the photo on the plan for a camera: a wrong heading puts its roads and openings in the wrong place. */
+  const showOnMap = useCallback(
+    async (which: 'camera' | 'runner-up') => {
+      const angles = candidateAngles(which)
+      if (!own || !angles || own.pose.lng === null || own.pose.lat === null) return
+      setToolsBusy('Laying the photo on the map…')
+      try {
+        const terrain = await loadOwnTerrain(own.pose.lng, own.pose.lat, new AbortController().signal)
+        const pixels = await readOwnPixels(own)
+        const drape = drapePhoto(ownCamera(own, terrain, angles), terrain, pixels)
+        if (!drape) throw new Error('the camera sees no ground')
+        const canvas = document.createElement('canvas')
+        canvas.width = drape.width
+        canvas.height = drape.height
+        canvas
+          .getContext('2d')!
+          .putImageData(new ImageData(new Uint8ClampedArray(drape.data), drape.width, drape.height), 0, 0)
+        setPhotoDrape({
+          url: canvas.toDataURL('image/png'),
+          bounds: drape.bounds,
+          which,
+          bearing: angles.bearing,
+          seenShare: drape.seenShare,
+        })
+        setToolsError(null)
+      } catch (error) {
+        setToolsError(`Could not lay the photo on the map: ${error instanceof Error ? error.message : String(error)}`)
+      } finally {
+        setToolsBusy(null)
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [own, cameraSearch, loadOwnTerrain],
+  )
+
+  /** Satellite imagery seen from a camera, scored against the photo: ground texture where the skyline is useless. */
+  const imagery = useRef<{ id: string; sampler: ImagerySampler } | null>(null)
+  const renderModel = useCallback(
+    async (which: 'camera' | 'runner-up') => {
+      const angles = candidateAngles(which)
+      if (!own || !angles || own.pose.lng === null || own.pose.lat === null) return
+      const controller = new AbortController()
+      setToolsBusy('Loading imagery…')
+      try {
+        const { lng, lat } = { lng: own.pose.lng, lat: own.pose.lat }
+        const terrain = await loadOwnTerrain(lng, lat, controller.signal)
+        const id = `${lng.toFixed(3)},${lat.toFixed(3)}`
+        if (imagery.current?.id !== id) {
+          const box = (radius: number): [number, number, number, number] => {
+            const degLat = radius / 110574,
+              degLng = radius / (111320 * Math.cos((lat * Math.PI) / 180))
+            return [lng - degLng, lat - degLat, lng + degLng, lat + degLat]
+          }
+          const [near, middle, far] = await Promise.all([
+            loadImageryMosaic(box(6000), 14, controller.signal),
+            loadImageryMosaic(box(25000), 11, controller.signal),
+            loadImageryMosaic(box(WIDE_RADIUS_METERS), 9, controller.signal),
+          ])
+          imagery.current = { id, sampler: layeredSampler(near.sampler, middle.sampler, far.sampler) }
+        }
+        const pose = ownCamera(own, terrain, angles)
+        const width = 320
+        const height = modelViewHeight(pose, width)
+        const into = { width, height, data: new Uint8ClampedArray(width * height * 4) }
+        for (let from = 0; from < height; from += 12) {
+          setToolsBusy(`Drawing the model view… ${Math.round((from / height) * 100)}%`)
+          renderModelView(pose, terrain, imagery.current.sampler, width, WIDE_RADIUS_METERS, {
+            from,
+            to: from + 12,
+            into,
+          })
+          await new Promise((resolve) => setTimeout(resolve, 0))
+        }
+        const agreement = modelAgreement(await readOwnPixels(own), into)
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d')!.putImageData(new ImageData(into.data, width, height), 0, 0)
+        setModelViews((current) => ({
+          ...current,
+          [which]: { url: canvas.toDataURL('image/png'), bearing: angles.bearing, score: agreement.score },
+        }))
+        setToolsError(null)
+      } catch (error) {
+        setToolsError(`Could not draw the model view: ${error instanceof Error ? error.message : String(error)}`)
+      } finally {
+        setToolsBusy(null)
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [own, cameraSearch, loadOwnTerrain],
+  )
 
   /** Swaps to the search's runner-up heading, to compare it with the photo. */
   const tryRunnerUp = useCallback(() => {
@@ -803,6 +1125,14 @@ export function useFieldPhoto({
         setAlignment({ status: 'idle', fit: null, message: null })
         cameraAbort.current?.abort()
         setCameraSearch({ status: 'idle' })
+        setPriors({})
+        setLandmark(null)
+        setPairs([])
+        setPendingPixel(null)
+        setControlSolve(null)
+        setPhotoDrape(null)
+        setModelViews({})
+        setToolsError(null)
         setOwn({
           id: `own-${Date.now().toString(36)}`,
           name: file.name.slice(0, 200),
@@ -990,6 +1320,30 @@ export function useFieldPhoto({
     cameraSearch,
     findCamera,
     tryRunnerUp,
+    priors,
+    setPriors,
+    landmark,
+    pickLandmark,
+    pairs,
+    pendingPixel,
+    setPendingPixel,
+    addPairPoint,
+    removePair: (id: string) => setPairs((current) => current.filter((pair) => pair.id !== id)),
+    clearPairs: () => {
+      setPairs([])
+      setPendingPixel(null)
+      setControlSolve(null)
+    },
+    pairsNeeded: pairsNeeded(),
+    controlSolve,
+    solveFromPoints,
+    photoDrape,
+    showOnMap,
+    hideDrape: () => setPhotoDrape(null),
+    modelViews,
+    renderModel,
+    toolsBusy,
+    toolsError,
     cancelCameraSearch: () => {
       cameraAbort.current?.abort()
       setCameraSearch({ status: 'idle' })

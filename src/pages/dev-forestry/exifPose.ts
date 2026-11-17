@@ -30,7 +30,19 @@ export const DEFAULT_HORIZONTAL_FOV = 65
 export type HeadingReference = 'true' | 'magnetic' | 'unknown'
 
 /** Where a starting value came from, so the panel can say so beside it. */
-export type PoseSource = 'exif' | 'record' | 'road-view' | 'level' | 'default' | 'reviewer' | 'skyline' | 'matched'
+export type PoseSource =
+  | 'exif'
+  | 'record'
+  | 'road-view'
+  | 'level'
+  | 'default'
+  | 'reviewer'
+  | 'skyline'
+  | 'matched'
+  /** A spot picked on the plan at the photo's centre. */
+  | 'landmark'
+  /** Solved from points paired in the photo and on the plan. */
+  | 'controls'
 
 export type ExifReading = {
   position: { lng: number; lat: number } | null

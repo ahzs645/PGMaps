@@ -4,6 +4,7 @@ import { Camera, Crosshair, FileInput, ImagePlus, Loader2, Plane, Save, X } from
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { NullableNumberField, NumberField } from '@/components/ui/form-field'
+import { PhotoCameraTools } from './PhotoCameraTools'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 
 import type { FieldRecord } from './assessmentTools'
@@ -38,6 +39,8 @@ const SOURCE_TEXT: Record<PoseSource, string> = {
   reviewer: 'set by you',
   skyline: 'fitted to the skyline',
   matched: 'from the matched camera',
+  landmark: 'toward the spot picked at the photo’s centre',
+  controls: 'solved from the paired points',
 }
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
@@ -302,6 +305,7 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
               />
             )}
           </div>
+          <PhotoCameraTools photo={photo} onPickPoint={actions.onPickPoint} pickActive={actions.pickActive} />
           {hasAltitude && photo.ownEyeHeight !== null && photo.ownEyeHeight < 1 && (
             <InlineAlert tone="warning">
               This altitude is {Math.round(1 - photo.ownEyeHeight)} m below a metre over the road view’s ground there;

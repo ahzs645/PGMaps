@@ -44,6 +44,11 @@ export interface WideSearchInput {
   rollRange?: Range
   /** Half-width of the heading search round `pose.bearing`, degrees; 180 searches every heading. */
   headingSpan?: number
+  /**
+   * Keep each angle near a value within a tolerance, degrees: from a landmark clicked at the photo's centre, a flight
+   * track, or the tilt sensor. A prior narrows the search, so a runner-up outside it is never considered.
+   */
+  priors?: Partial<Record<'heading' | 'pitch' | 'roll', { value: number; tolerance: number }>>
   /** Called with the share of the coarse search done, 0–1. */
   onProgress?: (done: number) => void
   /** Returns true to stop early (cancelled); the search then returns null. */
@@ -94,10 +99,18 @@ export function horizonSlice(profile: readonly ProfilePoint[], bearing: number, 
 
 /** Searches every heading in `headingSpan` for the pose whose terrain horizon lies on the photo's skyline. */
 export function searchOrientation(input: WideSearchInput): WideSearchResult | null {
-  const { pose, profile, onProgress, cancelled } = input
-  const pitchRange = input.pitchRange ?? [-50, 10]
-  const rollRange = input.rollRange ?? [-15, 15]
-  const span = Math.min(180, Math.max(0, input.headingSpan ?? 180))
+  const { profile, onProgress, cancelled, priors } = input
+  const narrow = (range: Range, prior?: { value: number; tolerance: number }): Range => {
+    if (!prior) return range
+    const low = Math.max(range[0], prior.value - prior.tolerance),
+      high = Math.min(range[1], prior.value + prior.tolerance)
+    // A prior outside the range wins: the person's evidence over the default bounds.
+    return low <= high ? [low, high] : [prior.value - prior.tolerance, prior.value + prior.tolerance]
+  }
+  const pitchRange = narrow(input.pitchRange ?? [-50, 10], priors?.pitch)
+  const rollRange = narrow(input.rollRange ?? [-15, 15], priors?.roll)
+  const pose = priors?.heading ? { ...input.pose, bearing: priors.heading.value } : input.pose
+  const span = Math.min(180, Math.max(0, priors?.heading ? priors.heading.tolerance : (input.headingSpan ?? 180)))
   const skyline = input.skyline.filter((point): point is { x: number; y: number } => !!point)
   if (skyline.length < MIN_SKYLINE_COLUMNS) return null
   const horizon = horizonTable(profile)
@@ -107,7 +120,7 @@ export function searchOrientation(input: WideSearchInput): WideSearchResult | nu
   const ny = skyline.map((point) => (point.y - pose.height / 2) / pose.focalPx)
   const offset = new Float64Array(n),
     elevation = new Float64Array(n)
-  const headings = Math.round((2 * span) / 0.5)
+  const headings = Math.max(1, Math.round((2 * span) / 0.5))
   const sectors = Array.from({ length: 36 }, () => ({ bearing: Number.NaN, pitch: 0, roll: 0, loss: Infinity }))
   let coarse = { bearing: pose.bearing, pitch: 0, roll: 0, loss: Infinity }
   const rolls = Math.floor(rollRange[1] - rollRange[0]) + 1

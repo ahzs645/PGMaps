@@ -129,7 +129,7 @@ export function cameraAxes(pose: Pick<PhotoPose, 'bearing' | 'pitch' | 'roll'>):
 }
 
 /** East/north/up metres from the camera, with the drop of the earth's curve. */
-function localOffset(
+export function localOffset(
   pose: Pick<PhotoPose, 'lng' | 'lat' | 'altitudeMeters'>,
   lng: number,
   lat: number,
