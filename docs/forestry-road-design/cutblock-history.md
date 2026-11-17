@@ -30,7 +30,9 @@ route, a constructed road, permission to travel, or an earthworks saving.
 ## Historical harvest evidence
 
 The provincial source is [Harvested Areas of BC (Consolidated Cutblocks)](https://catalogue.data.gov.bc.ca/dataset/b1b647a6-f271-42e0-9cd0-89ec24bce9f7),
-through [the published ArcGIS layer](https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_vegetation/MapServer/4?f=pjson).
+through [layer 543 of the current BCGW service](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/543?f=pjson).
+The older `whse` view of this table held 10,000 records and no harvest after 2014;
+see [Which BC service](bc-access-discovery.md#which-bc-service).
 The adapter retains the unique `VCCB_SYSID`, `OPENING_ID` when available,
 `DATA_SOURCE`, source/published dates and retrieval time. Multipart source
 features become separate project polygons with stable part identifiers.

@@ -66,9 +66,9 @@ opening ID. For opening 60677 it makes three source requests:
 
 | Request | Filter and returned evidence | Coverage limit |
 | --- | --- | --- |
-| [RESULTS openings, layer 26](https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_vegetation/MapServer/26) | Exact `OPENING_ID = 60677`; reported opening and business identifiers | Up to 100 identity records; no road-use relationship inferred |
-| [FTEN cutblock polygons, layer 8](https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_tenure/MapServer/8) | Exact `OPENING_ID = 60677`; source attributes and WGS84 polygon geometry | Up to 25 polygon parts and 20,000 polygon vertices |
-| [FTEN road segment lines, layer 21](https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_tenure/MapServer/21) | Spatial intersection with the cutblock envelope buffered by approximately 1 km; forest file, road section, station limits, client and timber mark | Up to 250 road records/geometry parts; combined pilot geometry capped at 30,000 vertices |
+| [RESULTS openings, layer 442](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/442) | Exact `OPENING_ID = 60677`; reported opening and business identifiers | Up to 100 identity records; no road-use relationship inferred |
+| [FTEN cutblock polygons, layer 340](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/340) | Exact `OPENING_ID = 60677`; source attributes and WGS84 polygon geometry | Up to 25 polygon parts and 20,000 polygon vertices |
+| [FTEN road segment lines, layer 399](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/399) | Spatial intersection with the cutblock envelope buffered by approximately 1 km; forest file, road section, station limits, client and timber mark | Up to 250 road records/geometry parts; combined pilot geometry capped at 30,000 vertices |
 
 The road request is an envelope query, and returned source lines can extend beyond
 that envelope. The pilot separately measures separation from the actual cutblock

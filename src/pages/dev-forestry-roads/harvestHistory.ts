@@ -2,8 +2,8 @@
 import type { Bounds } from '@/lib/forestry/terrain/terrain'
 import type { ContextFeature } from './types'
 
-export const BC_HARVEST_SERVICE =
-  'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_vegetation/MapServer/4'
+/** Layer 543 of the current BCGW service. The older `whse` view holds 10,000 records and nothing harvested after 2014. */
+export const BC_HARVEST_SERVICE = 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/543'
 export const MAX_HARVEST_FEATURES = 500
 export const MAX_HARVEST_VERTICES = 50_000
 export const MAX_HARVEST_QUERY_SPAN = 0.3

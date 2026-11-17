@@ -198,6 +198,41 @@ commands creates a committed provincial data snapshot.
 JSON files and an `--output` path. It generates the attributed figure above using
 Matplotlib. It has no network access and does not infer missing relationships.
 
+## Which BC service
+
+Every live block, road and harvest source reads the province's current public map
+service, `mpcm/bcgwpub/MapServer`:
+
+| Source | Layer | Records on 17 November 2026 | Older `whse` view it replaced |
+| --- | --- | ---: | ---: |
+| [FTEN cutblock polygons](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/340) | 340 | 223,710 | 149,371 (`bcgw_pub_whse_forest_tenure` 8) |
+| [FTEN road segment lines](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/399) | 399 | 284,172 | 182,737 (`bcgw_pub_whse_forest_tenure` 21) |
+| [RESULTS openings](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/442) | 442 | 345,729 | 254,832 (`bcgw_pub_whse_forest_vegetation` 26) |
+| [Consolidated cutblocks](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/543) (harvest history) | 543 | 596,865 | 10,000 (`bcgw_pub_whse_forest_vegetation` 4) |
+
+The older views carry the same layer names and the same fields, so nothing in a
+response revealed that they were stale. Their counts did: the old cutblock layer's
+highest `CUT_BLOCK_SKEY` was 684,009 against 872,002 in the current one, so it
+missed every recent planned block. Searching cutblock `PRN024` (key 870485,
+licence N2E, permit A08, no opening ID) returned nothing; it is found now. The old
+harvest layer held no block harvested after 2014, so a scenario's harvest history
+showed no recent cutting at all. The current layers' counts match the
+[openmaps WFS](https://openmaps.gov.bc.ca/geo/pub/wfs) for the same tables.
+
+`accessHistorySources.test.ts` fails if a live source points at a
+`bcgw_pub_whse_forest_*` view again. Before moving a source to another service,
+compare it with the WFS for the same table:
+
+```sh
+L=https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/340
+curl -s "$L/query?f=json&where=1%3D1&returnCountOnly=true"
+curl -s "https://openmaps.gov.bc.ca/geo/pub/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=pub:WHSE_FOREST_TENURE.FTEN_CUT_BLOCK_POLY_SVW&resultType=hits" | grep -o 'numberMatched="[0-9]*"'
+```
+
+Projects saved before the change keep the request URLs they were made with; those
+URLs are provenance and are not re-run. The request links recorded below for
+9 November are the old view's, kept as made.
+
 ## Exact requests behind the case observations
 
 Each opening uses its own polygon-derived envelope. The links preserve the source
@@ -235,9 +270,9 @@ keeping the new retrieval date distinct from this observation.
 
 ### Source metadata
 
-- [FTEN cutblocks: fields and service](https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_tenure/MapServer/8)
-- [FTEN road segments: fields and service](https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_tenure/MapServer/21)
-- [RESULTS openings: fields and service](https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_vegetation/MapServer/26)
+- [FTEN cutblocks: fields and service](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/340)
+- [FTEN road segments: fields and service](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/399)
+- [RESULTS openings: fields and service](https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer/442)
 - [Ministry bridges/major culverts: public inventory fields](https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_tenure/MapServer/38)
 
 The FTEN and RESULTS example geometry is attributed to the Province of British

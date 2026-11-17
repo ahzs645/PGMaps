@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ACCESS_HISTORY_SOURCES,
+  BCGW_PUB,
   ACCESS_SOURCE_TIMEOUT_MS,
   blockIdentitySources,
   buildBcBlockIdentityQuery,
@@ -17,6 +18,10 @@ import {
 import { parseRoadEvidence, refreshedRoadEvidence, unreviewedRoadEvidence } from './existingRoadEvidence'
 import { importExistingRoads, parseBcExistingRoads } from './existingRoads'
 import { createAccessHistoryState, parseAccessHistoryState } from './accessHistory'
+import { BC_HARVEST_SERVICE } from './harvestHistory'
+
+/** Route mocks by the configured source, not a layer number, so a service move cannot silently misroute them. */
+const layer = (id: string) => `${ACCESS_HISTORY_SOURCES.find((source) => source.id === id)!.serviceUrl}/`
 
 // These are invented examples; no provincial source rows are bundled with the tests.
 const retrievedAt = '2026-11-08T12:00:00Z'
@@ -90,6 +95,24 @@ const bridge = (overrides: Record<string, unknown> = {}) => ({
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.useRealTimers()
+})
+
+describe('which BC service the live sources read', () => {
+  // The older whse/bcgw_pub_whse_forest_* views share layer names and fields with the current service but are
+  // stale partial copies (no PRN024, no harvest after 2014). See bc-access-discovery.md, "Which BC service".
+  it('reads every live block, road and harvest source from the current BCGW service', () => {
+    const live = [
+      ...ACCESS_HISTORY_SOURCES.filter((source) => source.use === 'bounded-live-query').map(
+        (source) => source.serviceUrl!,
+      ),
+      BC_HARVEST_SERVICE,
+    ]
+    expect(live).toHaveLength(4)
+    for (const url of live) {
+      expect(url.startsWith(`${BCGW_PUB}/`)).toBe(true)
+      expect(url).not.toMatch(/bcgw_pub_whse_forest_/)
+    }
+  })
 })
 
 describe('block administrative identity crosswalk', () => {
@@ -199,7 +222,8 @@ describe('block administrative identity crosswalk', () => {
   })
   it('loads both open datasets and surfaces a failure instead of substituting an empty source', async () => {
     const fetcher = vi.fn(
-      async (url: string) => new Response(JSON.stringify(collection([url.includes('/26/') ? result() : cutblock()]))),
+      async (url: string) =>
+        new Response(JSON.stringify(collection([url.includes(layer('results-opening')) ? result() : cutblock()]))),
     )
     vi.stubGlobal('fetch', fetcher)
     expect((await loadBcBlockIdentity('321')).matches).toHaveLength(1)
@@ -207,7 +231,7 @@ describe('block administrative identity crosswalk', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) =>
-        url.includes('/26/')
+        url.includes(layer('results-opening'))
           ? new Response('unavailable', { status: 503 })
           : new Response(JSON.stringify(collection([]))),
       ),
@@ -281,7 +305,7 @@ describe('bounded OGL road-segment source', () => {
     expect(() => parseBcRoadSegments({ ...collection([]), exceededTransferLimit: true })).toThrow(/truncated/)
     expect(() => buildBcRoadSegmentsQuery([-123, 53, -122, 54])).toThrow(/Zoom in/)
     const query = new URL(buildBcRoadSegmentsQuery([-122.8, 53.8, -122.7, 53.9]))
-    expect(query.pathname).toContain('/21/query')
+    expect(query.href.startsWith(`${layer('ften-road-segment')}query?`)).toBe(true)
     expect(query.searchParams.get('outFields')).toContain('ROAD_SECTION_ID,START_STATION,END_STATION')
     expect(query.searchParams.get('where')).toBe('1=1')
   })

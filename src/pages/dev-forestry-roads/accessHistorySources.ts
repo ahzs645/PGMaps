@@ -12,9 +12,13 @@ import {
 import { unreviewedRoadEvidence } from './existingRoadEvidence'
 import { importContextGeoJson } from './project'
 
-const FOREST_TENURE = 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_tenure/MapServer'
-const FOREST_VEGETATION =
-  'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_vegetation/MapServer'
+/**
+ * The province's current public BCGW map service. The older `whse/bcgw_pub_whse_forest_*` views carry the
+ * same layer names and fields but are stale partial copies: on 17 November 2026 their cutblock layer held
+ * 149,371 records (highest key 684,009) against 223,710 here and in the WFS, and missed recent planned
+ * blocks such as PRN024. See docs/forestry-road-design/bc-access-discovery.md, "Which BC service".
+ */
+export const BCGW_PUB = 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/mpcm/bcgwpub/MapServer'
 const catalogue = (id: string) => `https://catalogue.data.gov.bc.ca/dataset/${id}`
 export const MAX_BLOCK_IDENTITY_RECORDS = 100
 export const MAX_IDENTITY_RESPONSE_BYTES = 1024 * 1024
@@ -43,7 +47,7 @@ export const ACCESS_HISTORY_SOURCES: readonly AccessHistorySourceDefinition[] = 
     id: 'results-opening',
     name: 'RESULTS openings',
     catalogueUrl: catalogue('53a17fec-e9ad-4ac0-95e6-f5106a97e677'),
-    serviceUrl: `${FOREST_VEGETATION}/26`,
+    serviceUrl: `${BCGW_PUB}/442`,
     licence: 'Open Government Licence – British Columbia',
     access: 'public',
     use: 'bounded-live-query',
@@ -54,7 +58,7 @@ export const ACCESS_HISTORY_SOURCES: readonly AccessHistorySourceDefinition[] = 
     id: 'ften-cutblock',
     name: 'Forest Tenure Cutblock Polygons',
     catalogueUrl: catalogue('dfb8b498-fa4b-4286-b3ec-58db88aca1cf'),
-    serviceUrl: `${FOREST_TENURE}/8`,
+    serviceUrl: `${BCGW_PUB}/340`,
     licence: 'Open Government Licence – British Columbia',
     access: 'public',
     use: 'bounded-live-query',
@@ -65,7 +69,7 @@ export const ACCESS_HISTORY_SOURCES: readonly AccessHistorySourceDefinition[] = 
     id: 'ften-road-segment',
     name: 'Forest Tenure Road Segment Lines',
     catalogueUrl: catalogue('9e5bfa62-2339-445e-bf67-81657180c682'),
-    serviceUrl: `${FOREST_TENURE}/21`,
+    serviceUrl: `${BCGW_PUB}/399`,
     licence: 'Open Government Licence – British Columbia',
     access: 'public',
     use: 'bounded-live-query',

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createAccessHistoryState, parseAccessHistoryState } from './accessHistory'
 import {
+  ACCESS_HISTORY_SOURCES,
   buildBcOpeningFootprintQuery,
   loadBcOpeningFootprints,
   MAX_BC_OPENING_POLYGON_BYTES,
@@ -14,6 +15,9 @@ import {
   makeHistoricalSourceQuery,
 } from './bcAccessPilot'
 import type { HistoricalSourceQuery } from './accessHistoryTypes'
+
+/** Route mocks by the configured source, not a layer number, so a service move cannot silently misroute them. */
+const layer = (id: string) => `${ACCESS_HISTORY_SOURCES.find((source) => source.id === id)!.serviceUrl}/`
 
 // Entirely invented records and geometry; no ministry responses are checked into this fixture.
 const at = '2026-11-09T12:00:00Z'
@@ -87,9 +91,9 @@ const stub = (data: { results?: unknown; blocks?: unknown; roads?: unknown } = {
     async (url: string) =>
       new Response(
         JSON.stringify(
-          url.includes('/26/')
+          url.includes(layer('results-opening'))
             ? (data.results ?? collection([result()]))
-            : url.includes('/8/')
+            : url.includes(layer('ften-cutblock'))
               ? (data.blocks ?? collection([block()]))
               : (data.roads ?? collection([road()])),
         ),
@@ -185,7 +189,7 @@ describe('authoritative FTEN opening footprint', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) =>
-        url.includes('/8/')
+        url.includes(layer('ften-cutblock'))
           ? new Response('{}', { headers: { 'content-length': String(MAX_BC_OPENING_POLYGON_BYTES + 1) } })
           : new Response(JSON.stringify(collection([result()]))),
       ),
@@ -225,7 +229,7 @@ describe('bounded real BC pilot assembly', () => {
     ])
     expect(pilot.bounds![0]).toBeLessThan(-122.81)
     expect(pilot.bounds![2]).toBeGreaterThan(-122.8)
-    const requestedRoads = new URL(fetcher.mock.calls.find(([url]) => url.includes('/21/'))![0])
+    const requestedRoads = new URL(fetcher.mock.calls.find(([url]) => url.includes(layer('ften-road-segment')))![0])
     expect(requestedRoads.searchParams.get('geometry')).toBe(pilot.bounds!.join(','))
     expect(requestedRoads.searchParams.get('resultRecordCount')).toBe(String(BC_PILOT_MAX_ROADS + 1))
     expect(pilot.sources.some((source) => source.synthetic)).toBe(false)
@@ -278,9 +282,11 @@ describe('bounded real BC pilot assembly', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) =>
-        url.includes('/21/')
+        url.includes(layer('ften-road-segment'))
           ? new Response('{}', { status: 503 })
-          : new Response(JSON.stringify(url.includes('/26/') ? collection([result()]) : collection([block()]))),
+          : new Response(
+              JSON.stringify(url.includes(layer('results-opening')) ? collection([result()]) : collection([block()])),
+            ),
       ),
     )
     await expect(loadBcAccessPilot(openingId)).rejects.toThrow(/503/)
@@ -310,7 +316,7 @@ describe('bounded real BC pilot assembly', () => {
       ]),
     })
     await expect(loadBcAccessPilot(openingId)).rejects.toThrow(/Zoom in/)
-    expect(fetcher.mock.calls.every(([url]) => !url.includes('/21/'))).toBe(true)
+    expect(fetcher.mock.calls.every(([url]) => !url.includes(layer('ften-road-segment')))).toBe(true)
   })
   it('cancels a pending road phase and times out stalled first-phase sources without returning records', async () => {
     const controller = new AbortController()
@@ -318,11 +324,13 @@ describe('bounded real BC pilot assembly', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
-        if (url.includes('/21/')) {
+        if (url.includes(layer('ften-road-segment'))) {
           queueMicrotask(() => controller.abort(new DOMException('Cancel pilot test', 'AbortError')))
           return new Response(new ReadableStream({ cancel: cancelled }))
         }
-        return new Response(JSON.stringify(url.includes('/26/') ? collection([result()]) : collection([block()])))
+        return new Response(
+          JSON.stringify(url.includes(layer('results-opening')) ? collection([result()]) : collection([block()])),
+        )
       }),
     )
     await expect(loadBcAccessPilot(openingId, controller.signal)).rejects.toThrow('Cancel pilot test')
