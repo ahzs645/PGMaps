@@ -52,6 +52,19 @@ export type PanelId =
   | 'branding'
   | 'locator'
 
+/** Every panel a sheet can lay out, in the order the QGIS reader lists them. File readers keep only these. */
+export const SHEET_PANEL_IDS: readonly PanelId[] = [
+  'blockInfo',
+  'source',
+  'legend',
+  'roadTable',
+  'footer',
+  'comments',
+  'notes',
+  'branding',
+  'locator',
+]
+
 export interface SheetTemplate {
   id: string
   orientation: Orientation

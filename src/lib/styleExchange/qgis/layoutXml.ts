@@ -9,6 +9,7 @@
  */
 import {
   PAPER_SIZES,
+  SHEET_PANEL_IDS,
   SHEET_TEMPLATES,
   fontSize,
   resolveSheet,
@@ -47,7 +48,7 @@ export const LAYOUT_ITEM = {
   scalebar: 65646,
 } as const
 
-const PANEL_IDS: readonly PanelId[] = ['blockInfo', 'source', 'legend', 'roadTable', 'footer', 'comments', 'notes']
+const PANEL_IDS: readonly PanelId[] = SHEET_PANEL_IDS
 const NORTH_ARROW_SVG = ':/images/north_arrows/layout_default_north_arrow.svg'
 
 /** Fixed item ids, so the same layout always writes the same file. */

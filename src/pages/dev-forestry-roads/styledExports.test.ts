@@ -1,3 +1,4 @@
+import { SHEET_TEMPLATES } from '@/lib/mapSheet/layout'
 import { zipSync } from 'fflate'
 import initSqlJs, { type SqlJsStatic } from 'sql.js'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -61,13 +62,13 @@ const zip = (files: { path: string; content: string | Uint8Array }[]) =>
   )
 
 describe('styled GIS exports', () => {
-  it('writes the QGIS project with data, a style per layer and the four sheet layouts', async () => {
+  it('writes the QGIS project with data, a style per layer and every sheet layout', async () => {
     const { files } = await bundle('qgis-project')
     const paths = files.map((f) => f.path)
     expect(paths).toContain('Test-project.qgz')
     for (const id of ['context_lines', 'context_areas', 'road_centrelines', 'road_stations', 'road_culverts'])
       expect(paths).toEqual(expect.arrayContaining([`data/${id}.shp`, `data/${id}.qml`]))
-    expect(paths.filter((p) => p.startsWith('layouts/') && p.endsWith('.qpt'))).toHaveLength(4)
+    expect(paths.filter((p) => p.startsWith('layouts/') && p.endsWith('.qpt'))).toHaveLength(SHEET_TEMPLATES.length)
     expect(paths).toContain('README.txt')
   })
 
@@ -76,7 +77,7 @@ describe('styled GIS exports', () => {
     const paths = files.map((f) => f.path)
     expect(paths).toEqual(expect.arrayContaining(['road_centrelines.lyrx', 'data/road_centrelines.shp']))
     expect(paths.some((p) => p.endsWith('.mapx'))).toBe(true)
-    expect(paths.filter((p) => !p.includes('/') && p.endsWith('.pagx'))).toHaveLength(4)
+    expect(paths.filter((p) => !p.includes('/') && p.endsWith('.pagx'))).toHaveLength(SHEET_TEMPLATES.length)
     expect(paths.some((p) => p.startsWith('styles/') && p.endsWith('.stylx'))).toBe(true)
     const lyrx = JSON.parse(files.find((f) => f.path === 'road_centrelines.lyrx')!.content as string)
     expect(lyrx.layerDefinitions[0].featureTable.dataConnection.workspaceConnectionString).toBe('DATABASE=.\\data')

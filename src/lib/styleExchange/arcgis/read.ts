@@ -9,7 +9,14 @@
  * (github.com/Esri/cim-spec, v3). No DOM or network access.
  */
 import type { SqlJsStatic } from 'sql.js'
-import { PAPER_SIZES, type FractionRect, type PanelId, type PaperId, type SheetTemplate } from '@/lib/mapSheet/layout'
+import {
+  PAPER_SIZES,
+  SHEET_PANEL_IDS,
+  type FractionRect,
+  type PanelId,
+  type PaperId,
+  type SheetTemplate,
+} from '@/lib/mapSheet/layout'
 import type {
   ExchangeDiagnostic,
   ExchangeFormat,
@@ -571,7 +578,7 @@ function readLayers(ctx: Context, definitions: Json[], order?: unknown): StyledL
 // Layouts
 
 const UNIT_POINTS: Record<number, number> = { 109008: 72, 1025: 72 / 25.4, 1033: 72 / 2.54, 9001: 72 / 0.0254 }
-const PANEL_IDS: PanelId[] = ['blockInfo', 'source', 'legend', 'roadTable', 'footer', 'comments', 'notes']
+const PANEL_IDS: readonly PanelId[] = SHEET_PANEL_IDS
 
 const customOf = (element: Json) =>
   new Map(records(element.customProperties).map((entry) => [String(entry.key), String(entry.value)]))

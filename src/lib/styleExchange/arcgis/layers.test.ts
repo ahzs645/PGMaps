@@ -157,6 +157,19 @@ describe('ArcGIS Pro map and layout files', () => {
     const layout = { ...FIXTURE_LAYOUT, template, paper: paper as PaperId }
     const read = readArcgisFile('sheet.pagx', arcgisPagx(layout, FIXTURE_DOCUMENT).files[0].content)
     expect(read.layouts[0].paper).toBe(paper)
-    expect(read.layouts[0].template).toEqual(template)
+    // A layout file keeps page fractions to 4 decimals (0.09 mm on a 36-inch sheet), so each
+    // fraction comes back within 0.0001 of the template's.
+    const back = read.layouts[0].template!
+    const { neatline, title, frame, panels, ...rest } = back
+    expect(rest).toEqual({ id: template.id, orientation: template.orientation })
+    expect(panels.map(({ rect: _rect, ...panel }) => panel)).toEqual(
+      template.panels.map(({ rect: _rect, ...panel }) => panel),
+    )
+    const near = (got: readonly number[], want: readonly number[]) =>
+      got.forEach((v, i) => expect(Math.abs(v - want[i])).toBeLessThanOrEqual(1.0001e-4))
+    near(neatline, template.neatline)
+    near(title, template.title)
+    near(frame, template.frame)
+    panels.forEach((panel, i) => near(panel.rect, template.panels[i].rect))
   })
 })
