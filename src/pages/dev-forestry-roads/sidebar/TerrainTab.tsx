@@ -15,6 +15,7 @@ import { TerrainProfilesPanel } from '../TerrainProfilesPanel'
 import { SURFACES, TerrainImportField } from '../SharedRoadFields'
 import type { SidebarProps } from '../DesignSidebarBody'
 import { TerrainPreparationPanel } from '../TerrainPreparationPanel'
+import { PointCloudCropFields } from '../PointCloudCropFields'
 import { CutblockHistoryPanel } from '../CutblockHistoryPanel'
 import { AccessHistoryPanel } from '../AccessHistoryPanel'
 import { terrainDisplayName } from '../terrainName'
@@ -240,6 +241,14 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
             )}
             <TerrainImportField field="preserveCorridorM" {...p} />
             {p.pointCloud.surface === 'tin' && <TerrainImportField field="retainTin" {...p} />}
+            <PointCloudCropFields
+              pointCloud={p.pointCloud}
+              onPointCloud={p.onPointCloud}
+              onDrawArea={p.onDrawCropArea}
+              onImportArea={() => p.onFile('crop-area')}
+              lastCrop={p.lastCrop}
+              busy={busy}
+            />
           </div>
         </details>
       </RoadSection>

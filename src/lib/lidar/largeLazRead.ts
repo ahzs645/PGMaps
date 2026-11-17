@@ -19,7 +19,17 @@ export function readLargeLaz(
   file: File,
   plan: LargeLazPlan,
   selection: Selection,
-  { signal, onProgress }: { signal?: AbortSignal; onProgress?: (p: LargeLazProgress) => void } = {},
+  {
+    signal,
+    onProgress,
+    tooMany = (ceiling) =>
+      `This area holds more than ${ceiling.toLocaleString()} points, more than the browser can show at full detail. Zoom in further and try again.`,
+  }: {
+    signal?: AbortSignal
+    onProgress?: (p: LargeLazProgress) => void
+    /** The refusal once an area read holds more than twice its limit. */
+    tooMany?: (ceiling: number) => string
+  } = {},
 ): Promise<{ records: Uint8Array; count: number }> {
   signal?.throwIfAborted()
   const { header } = plan
@@ -72,12 +82,7 @@ export function readLargeLaz(
         kept += data.count
         finished++
         onProgress?.({ read, total: header.points, kept })
-        if (selection.kind === 'area' && kept > selection.limit * 2)
-          return fail(
-            Error(
-              `This area holds more than ${(selection.limit * 2).toLocaleString()} points, more than the browser can show at full detail. Zoom in further and try again.`,
-            ),
-          )
+        if (selection.kind === 'area' && kept > selection.limit * 2) return fail(Error(tooMany(selection.limit * 2)))
         if (finished === batches.length) {
           stop()
           const length = header.pointLength

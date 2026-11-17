@@ -1,5 +1,6 @@
 import type { CommandState, WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
 import type { WorkflowEditor } from '@/components/interfaces/workspaceLayouts'
+import type { PointCloudCropChoice } from './pointCloudCrop'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ClipboardCheck, HardHat, Mountain, Route, SlidersHorizontal } from 'lucide-react'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -23,6 +24,8 @@ export type FileKind =
   | 'project'
   | 'terrain'
   | 'breaklines'
+  /** A polygon file to crop the next point-cloud import to (`pointCloudCrop.ts`). */
+  | 'crop-area'
   /** Spatial files: road lines, the streams import, cutblocks and existing roads. */
   | 'alignment'
   | 'context'
@@ -37,6 +40,8 @@ export interface PointCloudChoice {
   surface: 'mean' | 'tin'
   preserveCorridorM?: number
   retainTin?: boolean
+  /** Crop the next point-cloud import (`pointCloudCrop.ts`); kept for this session only. */
+  crop?: PointCloudCropChoice
 }
 export interface RoadDrawing {
   /** A new road, or more points on the active one. */
@@ -74,6 +79,10 @@ export interface SidebarProps {
   /** Name of the loaded breakline file, used by the next TIN import. */
   breaklines: string | null
   onClearBreaklines: () => void
+  /** Draw the point-cloud crop area on the plan. */
+  onDrawCropArea?: () => void
+  /** What the last point-cloud import's crop kept. */
+  lastCrop?: string | null
   selectedPoint: string | null
   onPoint: (id: string | null) => void
   /** Registry commands the sidebar shows, with the workspace's own state and handlers. */

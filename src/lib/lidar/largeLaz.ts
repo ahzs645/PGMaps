@@ -5,9 +5,11 @@
  * A file too large to load whole (a BC 1:2,500 point cloud tile is 0.5–1 GB and 100–160 million points) is
  * read once and reduced to either an even overview of the whole tile or every point inside one area. The
  * result is written as an ordinary uncompressed LAS with the source's header, CRS records and point format,
- * small enough for the map's whole-file loader.
+ * small enough for the map's whole-file loader. Shared by Import & data (`src/pages/dev-lidar/imports/`)
+ * and the road designer's point-cloud import, which crops in the source CRS as it reads.
  */
-import { readPointCloudHeader, type PointCloudHeader, type Vlr } from '@/lib/lidar/lasHeader'
+import type { CropRegion } from './cropRegion'
+import { readPointCloudHeader, type PointCloudHeader, type Vlr } from './lasHeader'
 import {
   LASZIP_RECORD,
   LASZIP_USER,
@@ -15,8 +17,17 @@ import {
   parseLaszipVlr,
   readChunkTable,
   type LazChunk,
-} from '@/lib/lidar/lazChunkTable'
-import { checkAborted, type ImportFile } from './types'
+} from './lazChunkTable'
+
+/** A file read in slices: a `File`, or a test's stand-in. Never read whole. */
+export interface ChunkedFile {
+  name: string
+  size: number
+  slice(start?: number, end?: number): Blob
+}
+function checkAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw signal.reason ?? new DOMException('Import cancelled', 'AbortError')
+}
 
 /** Points kept for the whole-tile overview. The map's whole-file loader handles this many comfortably. */
 export const OVERVIEW_POINTS = 2_000_000
@@ -41,11 +52,23 @@ export interface LargeLazPlan {
 /** Native-CRS box: [minX, minY, maxX, maxY]. */
 export type NativeBox = [number, number, number, number]
 
-export type Selection = { kind: 'overview'; stride: number } | { kind: 'area'; box: NativeBox; limit: number }
+export type Selection =
+  | { kind: 'overview'; stride: number }
+  | {
+      kind: 'area'
+      box: NativeBox
+      limit: number
+      /**
+       * Keep only points inside this region or within `reachM` of it (`cropRegion.ts`), tested in the
+       * file's own CRS as each point is decoded; `box` should hold the region's reach.
+       */
+      region?: CropRegion
+      reachM?: number
+    }
 
 /** Read the header, VLRs and chunk table. Only metadata is read here, never point data. */
 export async function planLargeLaz(
-  file: ImportFile,
+  file: ChunkedFile,
   { epsg, crsRecords }: { epsg: number | null; crsRecords: Vlr[] },
   signal?: AbortSignal,
 ): Promise<LargeLazPlan> {

@@ -20,6 +20,8 @@ import {
   type VegetationEvidenceOutcome,
 } from './vegetationEvidence'
 import { readPointCloudHeader } from '@/lib/lidar/lasHeader'
+import { cropFootprint, type CropFootprint, type PointCloudCrop } from './pointCloudCrop'
+import { cropRegionTest } from '@/lib/lidar/cropRegion'
 import {
   classifyGround,
   groundSummary,
@@ -54,6 +56,13 @@ export interface PointCloudWorkerRequest {
    * (`vegetationEvidence.ts`) before the cloud is thinned. Only the grids come back.
    */
   vegetation?: boolean
+  /**
+   * Keep only the points in this area (`pointCloudCrop.ts`), dropped before thinning. Every file is
+   * decoded whole unless the page already read it cropped (`largeLaz*.ts`); vegetation evidence sees
+   * every return the worker is given. A `crop` message reports what
+   * was kept before the ground filter and the surface run.
+   */
+  crop?: PointCloudCrop
 }
 
 export interface SurfaceRequest {
@@ -86,6 +95,20 @@ export type PointCloudWorkerResponse =
   | { type: 'progress'; stage: PointCloudWorkerStage; done: number; total: number }
   /** The cloud's CRS: the header's, or for a LAZ without header keys, whitebox's `lidar_info`. */
   | { type: 'crs'; epsg: number | null; verticalEpsg: number | null }
+  /** With `crop`: what it kept, sent once every file is read and before classification and gridding. */
+  | {
+      type: 'crop'
+      total: number
+      inside: number
+      margin: number
+      kept: number
+      /** Points that go on to the surface: `kept` thinned to the point budget. */
+      points: number
+      /** Cells holding a kept point, margin included; in the cloud's CRS. */
+      footprint: CropFootprint
+      /** Cells holding a point inside the crop itself. */
+      insideFootprint: CropFootprint
+    }
   | {
       type: 'done'
       /** Without its point arrays when a surface was requested. */
@@ -121,6 +144,7 @@ async function run({
   surface: requested,
   askBreaklines,
   vegetation,
+  crop,
 }: PointCloudWorkerRequest) {
   const post = (message: PointCloudWorkerResponse, transfer: Transferable[] = []) =>
     scope.postMessage(message, transfer)
@@ -147,6 +171,7 @@ async function run({
           preserve,
           withIntensity: !!accumulator,
           beforeThin: accumulator ? (full) => addVegetationCloud(accumulator, full) : undefined,
+          ...(crop ? { crop } : {}),
         }),
         assumedEpsg,
       )
@@ -157,6 +182,27 @@ async function run({
       cloud = mergePointClouds(clouds, maxPoints, preserve)
     }
     const readMs = performance.now() - started
+    if (crop && cloud.crop) {
+      if (!cloud.count)
+        throw Error(
+          `None of the ${cloud.crop.total.toLocaleString('en-CA')} points read lies inside the crop. Check the area against the tile, or widen it.`,
+        )
+      const inside = cropRegionTest(crop)
+      const ix: number[] = [],
+        iy: number[] = []
+      for (let i = 0; i < cloud.count; i++)
+        if (inside(cloud.x[i], cloud.y[i])) {
+          ix.push(cloud.x[i])
+          iy.push(cloud.y[i])
+        }
+      post({
+        type: 'crop',
+        ...cloud.crop,
+        points: cloud.count,
+        footprint: cropFootprint(cloud.x, cloud.y),
+        insideFootprint: cropFootprint(ix, iy),
+      })
+    }
     let request = requested
     if (askBreaklines) {
       const replied = new Promise<Breakline[]>((resolve) => (answerBreaklines = resolve))

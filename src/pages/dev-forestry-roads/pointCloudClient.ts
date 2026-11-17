@@ -11,9 +11,12 @@ import type {
 import type { Breakline } from './tinSurface'
 
 export type PointCloudResult = Extract<PointCloudWorkerResponse, { type: 'done' }>
+export type PointCloudCropReport = Extract<PointCloudWorkerResponse, { type: 'crop' }>
 
 export interface RunPointCloudOptions extends Omit<PointCloudWorkerRequest, 'bytes' | 'askBreaklines'> {
   onProgress?: (stage: PointCloudWorkerStage, done: number, total: number) => void
+  /** With `crop`: what the crop kept, once every file is read and before the surface is built. */
+  onCrop?: (crop: PointCloudCropReport) => void
   signal?: AbortSignal
   /** Hand an ArrayBuffer input to the worker instead of copying it; it is detached afterwards. */
   transfer?: boolean
@@ -27,7 +30,7 @@ export interface RunPointCloudOptions extends Omit<PointCloudWorkerRequest, 'byt
 
 export async function runPointCloudWorker(
   input: Blob | ArrayBuffer | Uint8Array,
-  { onProgress, signal, transfer = false, breaklinesFor, ...request }: RunPointCloudOptions,
+  { onProgress, onCrop, signal, transfer = false, breaklinesFor, ...request }: RunPointCloudOptions,
 ): Promise<PointCloudResult> {
   signal?.throwIfAborted()
   let bytes: ArrayBuffer
@@ -49,6 +52,9 @@ export async function runPointCloudWorker(
     worker.onmessage = (event: MessageEvent<PointCloudWorkerResponse>) => {
       const message = event.data
       if (message.type === 'progress') return onProgress?.(message.stage, message.done, message.total)
+      if (message.type === 'crop') {
+        return onCrop?.(message)
+      }
       if (message.type === 'crs') {
         try {
           const reply: PointCloudBreaklinesReply = { type: 'breaklines', breaklines: breaklinesFor!(message.epsg) }

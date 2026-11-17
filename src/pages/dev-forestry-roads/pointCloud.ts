@@ -16,6 +16,7 @@ import { readPointCloudHeader, asBytes, type PointCloudHeader } from '@/lib/lida
 export { readPointCloudHeader, isLaz, type PointCloudHeader } from '@/lib/lidar/lasHeader'
 import { strategicPointIndices, type PointPreservation } from './terrainPreparation'
 import type { FullPointCloud } from './vegetationEvidence'
+import { applyCropMask, cropMask, type PointCloudCrop } from './pointCloudCrop'
 
 export interface PointCloud {
   x: Float64Array
@@ -36,6 +37,11 @@ export interface PointCloud {
   thinCellM: number | null
   /** Count retained at full density inside requested preservation regions. */
   preservedPoints?: number
+  /**
+   * With a crop: decoded points tested, those inside the crop, those kept only by the upslope
+   * margin. `sourceCount` stays the file's count; `count` is after crop and thinning.
+   */
+  crop?: { total: number; inside: number; margin: number; kept: number }
 }
 
 export interface GroundPointFilterParams {
@@ -245,11 +251,17 @@ export async function readPointCloud(
     preserve,
     withIntensity = false,
     beforeThin,
+    crop,
   }: {
     maxPoints?: number
     preserve?: PointPreservation
     withIntensity?: boolean
     beforeThin?: (cloud: FullPointCloud) => void
+    /**
+     * Drop points outside this area (`pointCloudCrop.ts`) after `beforeThin` and before thinning.
+     * The whole file is still decoded. A cloud with no point in the crop comes back empty.
+     */
+    crop?: PointCloudCrop
   } = {},
 ): Promise<PointCloud> {
   const bytes = asBytes(data)
@@ -294,9 +306,15 @@ export async function readPointCloud(
   const sourceCount = x.length
   if (!sourceCount) throw Error('The point cloud has no points.')
   beforeThin?.({ x, y, z, classification, intensity, pointSource })
+  let cropped: PointCloud['crop']
+  if (crop) {
+    const { mask, total, inside, margin, kept } = cropMask({ x, y, z, classification }, crop)
+    ;({ x, y, z, classification } = applyCropMask({ x, y, z, classification }, mask, kept))
+    cropped = { total, inside, margin, kept }
+  }
   let thinCellM: number | null = null
   let preservedPoints = 0
-  if (sourceCount > maxPoints) {
+  if (x.length > maxPoints) {
     const thinned = thinLowest({ x, y, z, classification }, maxPoints, preserve)
     ;({ x, y, z, classification } = thinned)
     thinCellM = thinned.cellM
@@ -316,6 +334,7 @@ export async function readPointCloud(
     sourceCount,
     thinCellM,
     preservedPoints,
+    ...(cropped ? { crop: cropped } : {}),
   }
 }
 
@@ -364,6 +383,22 @@ export function mergePointClouds(
     bounds: boundsOf(x, y, z),
     thinCellM,
     preservedPoints,
+    ...(clouds.some((c) => c.crop)
+      ? {
+          crop: clouds.reduce(
+            (sum, c) => {
+              const part = c.crop ?? { total: c.sourceCount, inside: c.sourceCount, margin: 0, kept: c.sourceCount }
+              return {
+                total: sum.total + part.total,
+                inside: sum.inside + part.inside,
+                margin: sum.margin + part.margin,
+                kept: sum.kept + part.kept,
+              }
+            },
+            { total: 0, inside: 0, margin: 0, kept: 0 },
+          ),
+        }
+      : {}),
   }
 }
 

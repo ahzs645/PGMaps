@@ -3,8 +3,9 @@
  * for. No DOM access; chunks arrive through `read`, so the unit tests run it on laz-perf's Node build.
  */
 import type { LazPerf } from 'laz-perf'
-import type { LazChunk } from '@/lib/lidar/lazChunkTable'
+import type { LazChunk } from './lazChunkTable'
 import type { Selection } from './largeLaz'
+import { cropRegionTest } from './cropRegion'
 
 export interface DecodeBatch {
   compressed: boolean
@@ -53,6 +54,10 @@ export async function decodeBatch(
     Math.floor((box[3] - offset[1]) / scale[1] + 1e-9),
   ]
   const stride = selection.kind === 'overview' ? selection.stride : 1
+  // A crop region is tested on the real coordinates, only for points already inside the box.
+  const region =
+    selection.kind === 'area' && selection.region ? cropRegionTest(selection.region, selection.reachM ?? 0) : null
+  const inRegion = (x: number, y: number) => !region || region(x * scale[0] + offset[0], y * scale[1] + offset[1])
   for (const chunk of batch.chunks) {
     const bytes = await read(chunk)
     if (bytes.byteLength !== chunk.bytes) throw Error('The file ended early. It may be truncated; download it again.')
@@ -63,7 +68,7 @@ export async function decodeBatch(
         if (ib) {
           const x = view.getInt32(p, true),
             y = view.getInt32(p + 4, true)
-          if (x < ib[0] || x > ib[2] || y < ib[1] || y > ib[3]) continue
+          if (x < ib[0] || x > ib[2] || y < ib[1] || y > ib[3] || !inRegion(x, y)) continue
         } else if ((chunk.firstPoint + i) % stride) continue
         keep(bytes, p)
       }
@@ -95,7 +100,7 @@ export async function decodeBatch(
         if (ib) {
           const x = ints[slot],
             y = ints[slot + 1]
-          if (x < ib[0] || x > ib[2] || y < ib[1] || y > ib[3]) continue
+          if (x < ib[0] || x > ib[2] || y < ib[1] || y > ib[3] || !inRegion(x, y)) continue
         } else if ((chunk.firstPoint + i) % stride) continue
         keep(heap, output)
       }

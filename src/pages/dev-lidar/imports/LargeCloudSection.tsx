@@ -3,7 +3,7 @@ import { SidebarSection } from '@/components/ui/map-panels'
 import { Button } from '@/components/ui/button'
 import { DEFAULT_LOCALE } from '@/lib/format'
 import { projectedViewBox, type MapView } from './coordinates'
-import { DETAIL_POINTS, clipBox, estimateArea, type LargeLazPlan, type NativeBox } from './largeLaz'
+import { DETAIL_POINTS, clipBox, estimateArea, type LargeLazPlan, type NativeBox } from '@/lib/lidar/largeLaz'
 
 export interface LargeCloud {
   file: File

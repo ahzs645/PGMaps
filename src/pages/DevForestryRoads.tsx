@@ -419,7 +419,7 @@ import {
 const uid = () => crypto.randomUUID()
 /** What each spatial picker is for; the reader asks about anything in the file outside it. */
 const SPATIAL_INTENTS: Record<
-  Exclude<FileKind, 'project' | 'terrain' | 'breaklines' | 'landxml' | 'roadeng'>,
+  Exclude<FileKind, 'project' | 'terrain' | 'breaklines' | 'crop-area' | 'landxml' | 'roadeng'>,
   ImportIntent
 > = {
   alignment: 'road',
@@ -584,6 +584,14 @@ export default function DevForestryRoads({
   const [verticalReference, setVerticalReference] = useState('')
   const [pointCloud, setPointCloud] = useState<PointCloudChoice>({ classify: 'auto', surface: 'mean' })
   const [breaklines, setBreaklines] = useState<{ name: string; data: unknown } | null>(null)
+  // What the last point-cloud import's crop kept: its footprint on the plan and its sentence.
+  const [cropFootprint, setCropFootprint] = useState<{
+    kept: Coordinate[][][]
+    inside: Coordinate[][][]
+    message: string
+  } | null>(null)
+  // The tiles of the last cropped import as their headers state them, and whether the crop reached each.
+  const [cropTiles, setCropTiles] = useState<Array<{ name: string; touches: boolean; ring: Coordinate[] }> | null>(null)
   const [detail, setDetail] = useState<DetailView>('section')
   // What the profile pane draws, remembered in this browser; display only, never in the project.
   const [profileView, setStoredProfileView] = useState<ProfileView>(() => {
@@ -772,8 +780,10 @@ export default function DevForestryRoads({
   const trace = useRoadTrace({ active: mode === 'trace', clicks: draft, source, terrain: project.terrain })
   const [terrainRoadOverlay, setTerrainRoadOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   const [terrainRoadsOverlay, setTerrainRoadsOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
-  // Drawing an area makes an avoidance area unless "Draw block" asked for a harvest block.
-  const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest' | 'drainage'>('avoid')
+  // Drawing an area makes an avoidance area unless "Draw block" asked for a harvest block, the
+  // existing-ground drainage asked for its area, or the point-cloud options asked for a crop area
+  // (kept in the import choice, never in the project).
+  const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest' | 'drainage' | 'crop'>('avoid')
   useEffect(() => {
     if (mode !== 'avoid') setPolygonKind('avoid')
   }, [mode])
@@ -782,7 +792,13 @@ export default function DevForestryRoads({
   const [accessMarks, setAccessMarks] = useState<AccessMark[] | null>(null)
   const [skidReachFeatures, setSkidReachFeatures] = useState<GeoJSON.Feature[] | null>(null)
   const drawnArea =
-    polygonKind === 'harvest' ? 'harvest block' : polygonKind === 'drainage' ? 'drainage area' : 'avoidance area'
+    polygonKind === 'harvest'
+      ? 'harvest block'
+      : polygonKind === 'drainage'
+        ? 'drainage area'
+        : polygonKind === 'crop'
+          ? 'point-cloud crop area'
+          : 'avoidance area'
   const [routePreviewState, setRoutePreviewState] = useState<{
     guide: Alignment
     source: TerrainSource
@@ -907,6 +923,37 @@ export default function DevForestryRoads({
               },
             ]
           : []),
+        // The point-cloud crop: the chosen area's outline, and what the last import's crop kept, filled.
+        ...(investigation ? [] : (pointCloud.crop?.areas ?? [])).map((ring) => ({
+          type: 'Feature' as const,
+          geometry: { type: 'LineString' as const, coordinates: [...ring, ring[0]] },
+          properties: { kind: 'point-cloud-crop', color: '#0d9488', label: 'Point-cloud crop area' },
+        })),
+        // Each tile's stated extent: ground past the margin there is still available for upstream
+        // catchments by widening the margin. Then what was kept (margin included), and inside the crop.
+        ...(investigation ? [] : (cropTiles ?? [])).map((tile) => ({
+          type: 'Feature' as const,
+          geometry: { type: 'LineString' as const, coordinates: tile.ring },
+          properties: {
+            kind: 'point-cloud-tile',
+            color: tile.touches ? '#0369a1' : '#94a3b8',
+            label: `${tile.name}: ${tile.touches ? 'reached by the crop' : 'not read'}`,
+          },
+        })),
+        ...(investigation || !cropFootprint
+          ? []
+          : [
+              ...cropFootprint.kept.map((polygon) => ({
+                type: 'Feature' as const,
+                geometry: { type: 'Polygon' as const, coordinates: polygon },
+                properties: { kind: 'point-cloud-kept', color: '#38bdf8', fill: true, label: cropFootprint.message },
+              })),
+              ...cropFootprint.inside.map((polygon) => ({
+                type: 'Feature' as const,
+                geometry: { type: 'Polygon' as const, coordinates: polygon },
+                properties: { kind: 'point-cloud-inside', color: '#0d9488', fill: true, label: 'Kept inside the crop' },
+              })),
+            ]),
       ],
     }),
     [
@@ -928,6 +975,9 @@ export default function DevForestryRoads({
       skidReachFeatures,
       investigation,
       project.cables,
+      pointCloud.crop?.areas,
+      cropFootprint,
+      cropTiles,
     ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
@@ -1948,8 +1998,16 @@ export default function DevForestryRoads({
         name: 'Drawn area',
         geometry: { type: 'Polygon', coordinates: [[...draft, draft[0]]] },
       })
+    } else if (mode === 'avoid' && polygonKind === 'crop') {
+      setPointCloud((choice) => ({
+        ...choice,
+        crop: { ...choice.crop, areas: [draft.map((p) => [p[0], p[1]] as [number, number])], areaName: 'Drawn area' },
+      }))
+      w.setNotice('The next point-cloud import keeps only the points inside the drawn area.')
     } else if (mode === 'stream' || mode === 'avoid') {
-      const kind = mode === 'avoid' ? (polygonKind === 'drainage' ? 'avoid' : polygonKind) : mode
+      // 'drainage' and 'crop' are handled above; an area drawn here is a constraint or a block.
+      const kind: 'stream' | 'harvest' | 'avoid' =
+        mode === 'avoid' ? (polygonKind === 'harvest' ? 'harvest' : 'avoid') : mode
       const feature = {
         id: uid(),
         name: `${kind === 'stream' ? 'Stream' : kind === 'harvest' ? 'Harvest block' : 'Avoidance area'} ${project.context.length + 1}`,
@@ -2884,6 +2942,11 @@ export default function DevForestryRoads({
           throw Error(
             'Choose one GeoTIFF, or one or more LAS/LAZ tiles. To join GeoTIFFs, use Prepare and combine terrain → Add GeoTIFFs to ground mosaic.',
           )
+        // A new import replaces the last one's crop drawing, cropped or not.
+        if (clouds.length) {
+          setCropFootprint(null)
+          setCropTiles(null)
+        }
         // Whatever the files do not state is asked for here, for this import only.
         const loaded = await importTerrainWithAnswers(
           (answers) =>
@@ -2898,6 +2961,8 @@ export default function DevForestryRoads({
                     breaklines: breaklines?.data,
                     signal,
                     onProgress: (message) => w.setBusy(`${label}: ${message}`),
+                    onTiles: setCropTiles,
+                    onCrop: ({ kept, inside, message }) => setCropFootprint({ kept, inside, message }),
                   })
                 : loadRaster(file, answers.verticalReference ?? '').then((raster) => ({ ...raster, summary: '' })),
           askTerrain,
@@ -2935,6 +3000,21 @@ export default function DevForestryRoads({
         setBreaklines({ name: `${file.name} (${lines.length} line${lines.length === 1 ? '' : 's'})`, data })
         w.setNotice(
           `${lines.length} breakline${lines.length === 1 ? '' : 's'} from ${file.name} will be used by the next LAS/LAZ TIN import.`,
+        )
+        return
+      } else if (fileKind.current === 'crop-area') {
+        if (file.size > 50_000_000) throw Error('Crop area file is too large; the limit is 50 MB.')
+        const { cropAreasFromFeatures, validateCrop } = await import('./dev-forestry-roads/pointCloudCrop')
+        const { areas, holes, skipped } = cropAreasFromFeatures((await readSpatialImport(file)).collection.features)
+        if (!areas.length) throw Error(`No polygons in ${file.name} to crop to. A crop area is a polygon.`)
+        // Checked here, in degrees, so a file over the limits is refused before an import is tried.
+        validateCrop({ polygons: areas })
+        setPointCloud((choice) => ({ ...choice, crop: { ...choice.crop, areas, areaName: file.name.slice(0, 120) } }))
+        w.setNotice(
+          `The next point-cloud import keeps only the points inside ${areas.length} area${areas.length === 1 ? '' : 's'} from ${file.name}` +
+            (holes ? `; ${holes} hole${holes === 1 ? ' is' : 's are'} not cut out` : '') +
+            (skipped ? `; ${skipped} line or point feature${skipped === 1 ? '' : 's'} left out` : '') +
+            '.',
         )
         return
       } else if (fileKind.current === 'landxml' || fileKind.current === 'roadeng') {
@@ -4714,7 +4794,7 @@ export default function DevForestryRoads({
           <Button size="xs" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
             {mode === 'extend'
               ? 'Finish extension'
-              : `Finish ${mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}`}
+              : `Finish ${mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : polygonKind === 'crop' ? 'crop area' : 'area') : mode}`}
           </Button>
         </>
       }
@@ -6428,6 +6508,8 @@ export default function DevForestryRoads({
                               onPointCloud={setPointCloud}
                               breaklines={breaklines?.name ?? null}
                               onClearBreaklines={() => setBreaklines(null)}
+                              onDrawCropArea={() => drawArea('crop')}
+                              lastCrop={cropFootprint?.message ?? null}
                               selectedPoint={selectedPoint}
                               onPoint={setSelectedPoint}
                               onProfile={selectProfile}

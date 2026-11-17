@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { createLazPerf } from 'laz-perf'
-import { readPointCloudHeader } from '@/lib/lidar/lasHeader'
-import { inspectLas, needsChunkedRead } from './las'
+import { readPointCloudHeader } from './lasHeader'
+import { inspectLas, needsChunkedRead } from '@/pages/dev-lidar/imports/las'
 import {
   clipBox,
   estimateArea,
