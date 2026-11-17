@@ -19,6 +19,7 @@ import {
   formatDrawingLabel,
   MAX_REPORT_CHAPTERS,
   parseRoadReportSettings,
+  PLAN_SHEET_FRAMING_LIMITS,
   REPORT_CHAPTER_KINDS,
   REPORT_COLUMNS,
   REPORT_PAPER_IDS,
@@ -28,6 +29,7 @@ import {
   type ChartIntervalStyle,
   type ChartPanel,
   type ChartsOptions,
+  type PlanSheetFraming,
   type ReportChapter,
   type ReportChapterKind,
   type ReportPaper,
@@ -375,6 +377,7 @@ function ChapterFields({
           }))}
         />
       )}
+      {chapter.kind === 'plan-profile' && <PlanSheetFramingFields chapter={chapter} onPatch={onPatch} />}
       {chapter.kind === 'schedule' && (
         <CheckboxGrid
           legend="Schedule columns"
@@ -391,6 +394,89 @@ function ChapterFields({
         />
       )}
     </div>
+  )
+}
+
+/**
+ * Framing set by hand for single plan sheets, for a switchback the automatic framing clips. Each
+ * applies to the sheet whose stations hold the one entered; an empty list keeps every sheet's
+ * automatic framing.
+ */
+function PlanSheetFramingFields({
+  chapter,
+  onPatch,
+}: {
+  chapter: ReportChapter
+  onPatch: (changes: Partial<ReportChapter>) => void
+}) {
+  const framings = chapter.planSheets ?? []
+  const { entries, moveM, turnDeg } = PLAN_SHEET_FRAMING_LIMITS
+  const write = (next: PlanSheetFraming[]) => onPatch({ planSheets: next.length ? next : undefined })
+  const set = (index: number, changes: Partial<PlanSheetFraming>) =>
+    write(framings.map((f, i) => (i === index ? { ...f, ...changes } : f)))
+  return (
+    <fieldset className="space-y-2" data-testid="plan-sheet-framing">
+      <legend className="mb-1 font-medium text-foreground">Plan sheet framing</legend>
+      <p className="text-muted-foreground">
+        Move or turn one sheet&rsquo;s plan where the automatic framing clips the road. The profile is not moved.
+      </p>
+      {framings.map((framing, index) => (
+        <div key={index} className="grid grid-cols-[repeat(4,minmax(0,1fr))_auto] items-end gap-2">
+          <NumberField
+            label="Sheet at station (m)"
+            value={framing.atM}
+            min={0}
+            max={100000}
+            step={10}
+            hint="Applies to the plan sheet whose stations include this one."
+            onChange={(atM) => set(index, { atM })}
+          />
+          <NumberField
+            label="Move right (m)"
+            value={framing.rightM ?? 0}
+            min={-moveM}
+            max={moveM}
+            step={5}
+            onChange={(rightM) => set(index, { rightM: rightM || undefined })}
+          />
+          <NumberField
+            label="Move up (m)"
+            value={framing.upM ?? 0}
+            min={-moveM}
+            max={moveM}
+            step={5}
+            onChange={(upM) => set(index, { upM: upM || undefined })}
+          />
+          <NumberField
+            label="Turn left (°)"
+            value={framing.turnDeg ?? 0}
+            min={-turnDeg}
+            max={turnDeg}
+            step={5}
+            onChange={(turn) => set(index, { turnDeg: turn || undefined })}
+          />
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            aria-label={`Remove the framing at ${framing.atM} m`}
+            title="Remove framing"
+            className="mb-1.5"
+            onClick={() => write(framings.filter((_, i) => i !== index))}
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button
+        size="field"
+        variant="outline"
+        disabled={framings.length >= entries}
+        onClick={() => write([...framings, { atM: chapter.startM ?? 0 }])}
+      >
+        <Plus className="size-3.5" />
+        Frame a sheet by hand
+      </Button>
+    </fieldset>
   )
 }
 

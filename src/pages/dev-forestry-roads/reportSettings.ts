@@ -49,7 +49,26 @@ export interface ReportChapter {
   columns: ReportColumn[]
   /** Profile, grade & mass haul chapters only. Absent reads as `DEFAULT_CHARTS_OPTIONS`. */
   charts?: ChartsOptions
+  /**
+   * Plan & profile chapters only: framing adjustments for single plan sheets, where the automatic
+   * framing clips a switchback. Absent (or empty) draws every sheet as the automatic framing does.
+   */
+  planSheets?: PlanSheetFraming[]
 }
+/**
+ * One plan sheet's framing, set by hand. It applies to the sheet whose station window holds `atM`
+ * (the first listed wins); the profile and mass haul on that sheet are not moved. `rightM` and `upM`
+ * move the plan's frame over the ground, along the sheet; `turnDeg` turns the drawing
+ * counter-clockwise from the automatic first-to-last-station alignment. A field left out is 0.
+ */
+export interface PlanSheetFraming {
+  atM: number
+  rightM?: number
+  upM?: number
+  turnDeg?: number
+}
+/** Limits of a plan sheet's framing (`docs/forestry-road-design/drawings-and-vertical-alternatives.md`). */
+export const PLAN_SHEET_FRAMING_LIMITS = { entries: 100, moveM: 5000, turnDeg: 180 } as const
 
 export {
   CHART_GRADE_RANGES,
@@ -209,6 +228,29 @@ export function formatDrawingLabel(
     },
   )
 }
+/** Plan sheet framings, written only when one is set, so an older file reads back unchanged. */
+function planSheetsField(raw: unknown): { planSheets?: PlanSheetFraming[] } {
+  if (raw === undefined) return {}
+  const { entries, moveM, turnDeg } = PLAN_SHEET_FRAMING_LIMITS
+  if (!Array.isArray(raw) || raw.length > entries) throw Error(`Use up to ${entries} plan sheet framings.`)
+  const framings = raw.map((entry): PlanSheetFraming => {
+    const f = record(entry, 'Plan sheet framing')
+    const atM = number(f.atM, 0, 100000, 'Plan sheet station')
+    const value = (key: 'rightM' | 'upM' | 'turnDeg', limit: number, label: string) =>
+      f[key] === undefined ? undefined : number(f[key], -limit, limit, label)
+    const rightM = value('rightM', moveM, 'Plan move right'),
+      upM = value('upM', moveM, 'Plan move up'),
+      turn = value('turnDeg', turnDeg, 'Plan turn')
+    // A field put back to 0 is left out, so a framing reads exactly as the automatic one.
+    return {
+      atM,
+      ...(rightM ? { rightM } : {}),
+      ...(upM ? { upM } : {}),
+      ...(turn ? { turnDeg: turn } : {}),
+    }
+  })
+  return framings.length ? { planSheets: framings } : {}
+}
 export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
   if (raw === undefined) return createRoadReportSettings()
   const r = record(raw, 'Report settings')
@@ -246,6 +288,7 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
       columns: [...c.columns] as ReportColumn[],
       // Written only when set, so a file saved before chart options existed reads back unchanged.
       ...(c.charts === undefined ? {} : { charts: parseChartsOptions(c.charts) }),
+      ...planSheetsField(c.planSheets),
     }
   })
   if (new Set(chapters.map((c) => c.id)).size !== chapters.length) throw Error('Report chapter IDs must be unique.')
