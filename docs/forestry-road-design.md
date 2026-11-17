@@ -146,6 +146,8 @@ records provenance, limits and the distinction between a ground-coverage check a
 cutting permit, timber mark and block ID. A block with no RESULTS opening ID has no
 study; **Design from this block** opens it, with nearby FTEN roads, as a design with no
 road yet, framed on the block ([guide](forestry-road-design/bc-access-discovery.md#search-behavior-you-can-rely-on)).
+**Check LiDAR** places each LidarBC flight over a result before, during or after its harvest, and
+**LiDAR test blocks** lists 22 screened real blocks to test on ([guide](forestry-road-design/lidar-test-blocks.md)).
 The scenario library also contains four
 checked real-record studies. These open in persisted **Access investigation** mode:
 the source map, block/road-record counts and evidence panel replace the engineering

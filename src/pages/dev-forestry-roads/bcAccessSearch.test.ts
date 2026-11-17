@@ -7,6 +7,7 @@ import {
   normalizeBcCutblockSearchFilters,
   parseBcCutblockSearch,
   searchBcCutblocks,
+  BC_CUTBLOCK_SEARCH_DEFAULT_LIMIT,
 } from './bcAccessSearch'
 
 // Invented identifiers and geometry; no provincial extract is a test fixture.
@@ -71,6 +72,17 @@ describe('bounded cutblock discovery', () => {
     expect(query.searchParams.has('maxAllowableOffset')).toBe(false)
     expect(query.searchParams.has('resultOffset')).toBe(false)
   })
+  it('accepts identifiers as BC records spell them: TFL timber marks with a slash, and a blank permit as none', () => {
+    expect(new URL(buildBcCutblockSearchQuery({ timberMark: '52/14f' })).searchParams.get('where')).toBe(
+      "TIMBER_MARK='52/14F'",
+    )
+    expect(normalizeBcCutblockSearchFilters({ forestFileId: 'TFL52', cuttingPermitId: ' ' })).toEqual({
+      forestFileId: 'TFL52',
+      limit: BC_CUTBLOCK_SEARCH_DEFAULT_LIMIT,
+    })
+    expect(() => normalizeBcCutblockSearchFilters({ timberMark: "52/14F'" })).toThrow()
+  })
+
   it('rejects free-form expressions, unsupported inputs, empty searches and broad or malformed extents before fetching', async () => {
     const fetcher = vi.fn()
     vi.stubGlobal('fetch', fetcher)

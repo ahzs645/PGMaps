@@ -346,6 +346,27 @@ describe('nearby road candidates', () => {
     )
     expect(() => nearbyRoadCandidates(detailed, [detailedRoad])).toThrow('Crop or simplify')
   })
+
+  it('measures a long road by its near part only, with the same distance, instead of spending the budget far away', () => {
+    const many = Array.from({ length: 1600 }, (_, i) => [
+      -122.01 + 0.001 * Math.cos((i / 1599) * Math.PI * 2),
+      53 + 0.001 * Math.sin((i / 1599) * Math.PI * 2),
+    ])
+    many[many.length - 1] = many[0]
+    const detailed: ContextFeature = { ...block, geometry: { type: 'Polygon', coordinates: [many] } }
+    // 1,600 vertices running 5 km east and back, then one short leg ending about 300 m from the block.
+    const far = Array.from({ length: 1600 }, (_, i) => [-121.9 + (i % 2) * 0.05, 53.05 + i * 0.00001])
+    const long = road('long', [...far, [-122.0, 53.0], [-122.0045, 53.0]])
+    const short = road('short', [
+      [-122.0, 53.0],
+      [-122.0045, 53.0],
+    ])
+    const [measured] = nearbyRoadCandidates(detailed, [long])
+    expect(measured.road.id).toBe('long')
+    expect(measured.distanceM).toBeCloseTo(nearbyRoadCandidates(detailed, [short])[0].distanceM, 6)
+    expect(measured.distanceM).toBeGreaterThan(250)
+    expect(measured.distanceM).toBeLessThan(450)
+  })
 })
 
 describe('harvest history training scenario', () => {

@@ -3,6 +3,8 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BcAccessDiscoveryPanel } from './BcAccessDiscoveryPanel'
 import * as searchSource from './bcAccessSearch'
+import * as lidarSource from './lidarAcquisitions'
+import { LIDAR_TEST_BLOCKS } from './lidarTestBlocks'
 import { Field } from './Controls'
 
 vi.mock('./Controls', async (importOriginal) => ({
@@ -295,5 +297,59 @@ describe('BC cutblock discovery', () => {
     await submit(without)
     expect(() => button(without, 'Design from cutblock TST001, record 870001')).toThrow(/Missing button/)
     expect(text(without.root)).not.toContain('You can still start a design')
+  })
+
+  it('checks LiDAR for one result on request and opens a LiDAR test block through the matching action', async () => {
+    vi.spyOn(searchSource, 'searchBcCutblocks').mockResolvedValue(result())
+    const lidar = vi.spyOn(lidarSource, 'findLidarAcquisitions').mockResolvedValue({
+      acquisitions: [
+        {
+          year: 2000,
+          products: ['dem20000'],
+          projects: ['Test'],
+          tiles: 1,
+          tilesByProduct: { dem20000: 1 },
+          partialLikely: false,
+        },
+        {
+          year: 2024,
+          flownFrom: '2024-07-14',
+          flownTo: '2024-07-14',
+          products: ['dem2500'],
+          projects: ['Test'],
+          tiles: 2,
+          tilesByProduct: { dem2500: 2 },
+          partialLikely: false,
+        },
+      ],
+      truncated: false,
+    })
+    const onOpenStudy = vi.fn<(_: string) => Promise<void>>().mockResolvedValue(undefined)
+    const onOpenPlannedBlock = vi.fn<(_: string) => Promise<void>>().mockResolvedValue(undefined)
+    let view!: ReactTestRenderer
+    await act(async () => {
+      view = create(createElement(BcAccessDiscoveryPanel, { onOpenStudy, onOpenPlannedBlock }))
+    })
+    views.push(view)
+    await enterOpening(view)
+    await submit(view)
+    expect(lidar).not.toHaveBeenCalled()
+    await act(async () => button(view, 'Check LiDAR for cutblock 2').props.onClick())
+    expect(lidar).toHaveBeenCalledExactlyOnceWith([-123, 54, -122.999, 54.001], fetch, expect.any(AbortSignal))
+    expect(text(view.root)).toContain(
+      '2000 Test (1:20,000 DEM, DEM about 604 MB to download) before harvest; 2024-07-14 Test (DEM, DEM about 13 MB to download) after harvest',
+    )
+
+    const study = LIDAR_TEST_BLOCKS.find((block) => block.openingId)!
+    const planned = LIDAR_TEST_BLOCKS.find((block) => block.cutblockSKey)!
+    const label = (block: typeof study) =>
+      `${block.licence}${block.cuttingPermit ? ` CP ${block.cuttingPermit}` : ''} · block ${block.block}`
+    await act(async () => button(view, `Open study for LiDAR test block ${label(study)}`).props.onClick())
+    expect(onOpenStudy).toHaveBeenCalledWith(study.openingId)
+    await act(async () => button(view, `Design from block for LiDAR test block ${label(planned)}`).props.onClick())
+    expect(onOpenPlannedBlock).toHaveBeenCalledWith(planned.cutblockSKey)
+
+    const { view: studyOnly } = await harness()
+    expect(button(studyOnly, `Design from block for LiDAR test block ${label(planned)}`).props.disabled).toBe(true)
   })
 })

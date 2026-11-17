@@ -11,6 +11,7 @@ import {
 } from './existingRoads'
 import { unreviewedRoadEvidence } from './existingRoadEvidence'
 import { importContextGeoJson } from './project'
+import { SOURCE_IDENTIFIER } from './sourceIdentifier'
 
 /**
  * The province's current public BCGW map service. The older `whse/bcgw_pub_whse_forest_*` views carry the
@@ -163,10 +164,10 @@ function object(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 function text(value: unknown, label: string): string | undefined {
-  if (value === undefined || value === null || value === '') return undefined
+  // A space-only value is how RESULTS reports a missing code (a cutting permit of ' ').
+  if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) return undefined
   if (
     typeof value !== 'string' ||
-    !value.trim() ||
     value.length > 500 ||
     Array.from(value).some((character) => character.charCodeAt(0) < 32)
   )
@@ -175,7 +176,7 @@ function text(value: unknown, label: string): string | undefined {
 }
 function code(value: unknown, label: string): string | undefined {
   const result = text(value, label)
-  if (result !== undefined && !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$/.test(result))
+  if (result !== undefined && !SOURCE_IDENTIFIER.test(result))
     throw Error(`Invalid ${label}; preserve the source identifier as text.`)
   return result
 }

@@ -1,6 +1,7 @@
 /** Discover a small, deterministic page of actual tenure cutblocks. No source geometry is saved by a search. */
 import { ACCESS_HISTORY_SOURCES, MAX_ACCESS_SOURCE_TIMEOUT_MS, requestBcAccessSourceJson } from './accessHistorySources'
 import type { RoadQueryBounds } from './existingRoads'
+import { SOURCE_IDENTIFIER } from './sourceIdentifier'
 
 export const BC_CUTBLOCK_SEARCH_DEFAULT_LIMIT = 25
 export const BC_CUTBLOCK_SEARCH_MAX_LIMIT = 50
@@ -107,9 +108,12 @@ function reportedOpening(
 }
 
 export function businessCode(value: unknown, label: string): string | undefined {
-  if (value === undefined || value === null || value === '') return undefined
-  if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$/.test(value.trim()))
-    throw Error(`${label} must be an identifier containing letters, numbers, dots, colons, underscores or hyphens.`)
+  // A blank or space-only value is how RESULTS reports a missing code (a cutting permit of ' ').
+  if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) return undefined
+  if (typeof value !== 'string' || !SOURCE_IDENTIFIER.test(value.trim()))
+    throw Error(
+      `${label} must be an identifier of letters and numbers, with dots, colons, underscores, hyphens, slashes or single spaces.`,
+    )
   return value.trim()
 }
 
@@ -145,6 +149,8 @@ export function normalizeBcCutblockSearchFilters(
   }
   for (const key of Object.keys(fieldNames) as (keyof typeof fieldNames)[]) {
     const value = businessCode(filters[key], key)
+    // Source records can hold a space (a road section `FIVA 9210`); a typed search term may not, so it stays one code.
+    if (value && /\s/.test(value)) throw Error(`${key} must be a single code without spaces.`)
     if (value) result[key] = value.toUpperCase()
   }
   if (filters.bounds !== undefined) {

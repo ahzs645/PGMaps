@@ -160,6 +160,9 @@ it on 17 November 2026 loaded the block and 32 FTEN road segment parts.
 FOM planned blocks and roads, and reconciling a FOM filing with its FTEN record,
 are not implemented.
 
+**Check LiDAR** and the **LiDAR test blocks** list are described in
+[LiDAR test blocks](lidar-test-blocks.md).
+
 **Saved studies:** search by project name or opening ID, and filter access studies
 versus road designs. Cards say block parts and context road records; designed
 alignments are counted separately.

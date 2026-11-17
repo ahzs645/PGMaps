@@ -15,10 +15,16 @@ import {
   parseBcRoadSegments,
   roadSegmentSources,
 } from './accessHistorySources'
-import { parseRoadEvidence, refreshedRoadEvidence, unreviewedRoadEvidence } from './existingRoadEvidence'
+import {
+  parseRoadEvidence,
+  parseRoadIdentifiers,
+  refreshedRoadEvidence,
+  unreviewedRoadEvidence,
+} from './existingRoadEvidence'
 import { importExistingRoads, parseBcExistingRoads } from './existingRoads'
 import { createAccessHistoryState, parseAccessHistoryState } from './accessHistory'
 import { BC_HARVEST_SERVICE } from './harvestHistory'
+import { SOURCE_IDENTIFIER } from './sourceIdentifier'
 
 /** Route mocks by the configured source, not a layer number, so a service move cannot silently misroute them. */
 const layer = (id: string) => `${ACCESS_HISTORY_SOURCES.find((source) => source.id === id)!.serviceUrl}/`
@@ -112,6 +118,19 @@ describe('which BC service the live sources read', () => {
       expect(url.startsWith(`${BCGW_PUB}/`)).toBe(true)
       expect(url).not.toMatch(/bcgw_pub_whse_forest_/)
     }
+  })
+})
+
+describe('identifiers as BC records spell them', () => {
+  it('keeps TFL timber marks, spaced road sections and blank permits, and still refuses quotes', () => {
+    for (const code of ['52/14F', '47/5BP', 'FIVA 9210', 'A18165', '12-007'])
+      expect(SOURCE_IDENTIFIER.test(code)).toBe(true)
+    for (const code of ["A1' OR 1=1", 'A  B', ' A', 'A ', '%', 'A*', '"A"'])
+      expect(SOURCE_IDENTIFIER.test(code)).toBe(false)
+    expect(parseRoadIdentifiers({ roadSectionId: 'FIVA 9210', timberMark: '52/14F' })).toEqual({
+      roadSectionId: 'FIVA 9210',
+      timberMark: '52/14F',
+    })
   })
 })
 

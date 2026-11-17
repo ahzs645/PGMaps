@@ -2,6 +2,7 @@ import type { ContextFeature, ExistingRoadEvidence, RoadLineOrigin } from './typ
 import { parseRoadNetworkEvidence } from './roadNetwork'
 import { parseRoadConditionObservations, parseRoadConditionPolicy } from './roadCondition'
 import { deactivatedRoadNeedsReview, parseRoadDeactivation } from './roadHistory'
+import { SOURCE_IDENTIFIER } from './sourceIdentifier'
 
 const ROAD_IDENTIFIER_FIELDS = ['forestFileId', 'roadSectionId', 'timberMark', 'clientNumber'] as const
 const ROAD_STATION_FIELDS = ['segmentStartStation', 'segmentEndStation'] as const
@@ -12,7 +13,7 @@ export function parseRoadIdentifiers(raw: Record<string, unknown>): Partial<Exis
   for (const key of ROAD_IDENTIFIER_FIELDS) {
     const value = raw[key]
     if (value === undefined) continue
-    if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$/.test(value))
+    if (typeof value !== 'string' || !SOURCE_IDENTIFIER.test(value))
       throw Error(`Invalid road evidence ${key}; retain the source identifier as text.`)
     result[key] = value
   }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { PencilRuler, Search, SquareArrowOutUpRight, X } from 'lucide-react'
+import { PencilRuler, Radar, Search, SquareArrowOutUpRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ListHeader, ListState } from '@/components/ui/result-list'
@@ -11,6 +11,14 @@ import {
   type BcCutblockSearchRecord,
   type BcCutblockSearchResult,
 } from './bcAccessSearch'
+import { findLidarAcquisitions, summarizeLidar, type LidarSummary } from './lidarAcquisitions'
+import {
+  LIDAR_TEST_BLOCKS,
+  LIDAR_TEST_BLOCKS_SCREENED,
+  LIDAR_TEST_CATEGORIES,
+  type LidarTestBlock,
+  type LidarTestCategory,
+} from './lidarTestBlocks'
 import { insetBox } from '@/components/ui/inset-box'
 import { cn } from '@/lib/utils'
 
@@ -128,16 +136,15 @@ function ActiveDiscoveryPanel({
       if (mounted.current) setOpeningId(null)
     }
   }
-  const openPlannedBlock = async (record: BcCutblockSearchRecord) => {
+  const openPlannedBlock = async (cutblockSKey: string, label: string) => {
     if (disabled || pendingOpen.current || !onOpenPlannedBlock) return
     pendingOpen.current = true
-    setBlockKey(record.cutblockSKey)
+    setBlockKey(cutblockSKey)
     setOpenError('')
     try {
-      await onOpenPlannedBlock(record.cutblockSKey)
+      await onOpenPlannedBlock(cutblockSKey)
     } catch (cause) {
-      if (mounted.current)
-        setOpenError(`Could not open cutblock ${record.cutBlockId ?? record.cutblockSKey}. ${errorMessage(cause)}`)
+      if (mounted.current) setOpenError(`Could not open cutblock ${label}. ${errorMessage(cause)}`)
     } finally {
       pendingOpen.current = false
       if (mounted.current) setBlockKey(null)
@@ -279,7 +286,11 @@ function ActiveDiscoveryPanel({
                         opening={openingId !== null && openingId === record.openingId}
                         onOpen={(id) => void openStudy(id)}
                         loadingBlock={blockKey !== null && blockKey === record.cutblockSKey}
-                        onOpenBlock={onOpenPlannedBlock ? () => void openPlannedBlock(record) : undefined}
+                        onOpenBlock={
+                          onOpenPlannedBlock
+                            ? () => void openPlannedBlock(record.cutblockSKey, record.cutBlockId ?? record.cutblockSKey)
+                            : undefined
+                        }
                       />
                     </li>
                   ))}
@@ -289,7 +300,145 @@ function ActiveDiscoveryPanel({
           </div>
         )}
       </ListState>
+      <LidarTestBlocks
+        disabled={blocked}
+        pendingOpening={openingId}
+        pendingBlock={blockKey}
+        onOpenStudy={(id) => void openStudy(id)}
+        onOpenBlock={
+          onOpenPlannedBlock ? (block) => void openPlannedBlock(block.cutblockSKey!, block.block) : undefined
+        }
+      />
     </section>
+  )
+}
+
+/** Real blocks with LiDAR flown at a useful time; each opens through the same study or design action as a result. */
+function LidarTestBlocks({
+  disabled,
+  pendingOpening,
+  pendingBlock,
+  onOpenStudy,
+  onOpenBlock,
+}: {
+  disabled: boolean
+  pendingOpening: string | null
+  pendingBlock: string | null
+  onOpenStudy: (openingId: string) => void
+  onOpenBlock?: (block: LidarTestBlock) => void
+}) {
+  const categories = Object.keys(LIDAR_TEST_CATEGORIES) as LidarTestCategory[]
+  return (
+    <details className={cn(insetBox({ padding: 'lg' }), 'min-w-0')} data-testid="lidar-test-blocks">
+      <summary className="cursor-pointer text-sm font-semibold">LiDAR test blocks</summary>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Real blocks whose LidarBC DEM tiles were flown at a useful time, screened {LIDAR_TEST_BLOCKS_SCREENED}. Opening
+        one reads its records live. Then load the LiDAR ground from Terrain → Load 1 m DEM → LidarBC; a listed tile is a
+        footprint, so that load reports whether it holds elevations over the block.
+      </p>
+      {categories.map((category) => {
+        const blocks = LIDAR_TEST_BLOCKS.filter((block) => block.category === category)
+        return (
+          <section key={category} className="mt-3 min-w-0" aria-label={LIDAR_TEST_CATEGORIES[category].title}>
+            <h4 className="text-xs font-semibold">{LIDAR_TEST_CATEGORIES[category].title}</h4>
+            <p className="text-xs text-muted-foreground">{LIDAR_TEST_CATEGORIES[category].use}</p>
+            <ul className="mt-1 divide-y">
+              {blocks.map((block) => {
+                const label = `${block.licence}${block.cuttingPermit ? ` CP ${block.cuttingPermit}` : ''} · block ${block.block}`
+                const canOpen = block.openingId ? true : !!onOpenBlock
+                const loading = block.openingId
+                  ? pendingOpening === block.openingId
+                  : pendingBlock !== null && pendingBlock === block.cutblockSKey
+                return (
+                  <li key={block.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <div className="break-words font-medium">
+                        {label} <span className="font-normal text-muted-foreground">({block.district})</span>
+                      </div>
+                      <div className="break-words text-muted-foreground">
+                        Harvest {block.harvest} · {block.lidar}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={disabled || !canOpen}
+                      aria-label={`${block.openingId ? 'Open study' : 'Design from block'} for LiDAR test block ${label}`}
+                      onClick={() =>
+                        block.openingId ? onOpenStudy(block.openingId) : onOpenBlock && onOpenBlock(block)
+                      }
+                    >
+                      {loading ? 'Opening…' : block.openingId ? 'Open study' : 'Design from block'}
+                    </Button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )
+      })}
+    </details>
+  )
+}
+
+/** The LidarBC flights over one result, read only when asked: one small index query per product. */
+function LidarCheck({ record }: { record: BcCutblockSearchRecord }) {
+  const [state, setState] = useState<
+    | { kind: 'idle' }
+    | { kind: 'loading' }
+    | { kind: 'done'; summary: LidarSummary; truncated: boolean }
+    | { kind: 'error'; message: string }
+  >({ kind: 'idle' })
+  const pending = useRef<AbortController | null>(null)
+  useEffect(() => () => pending.current?.abort(), [])
+  if (!record.bounds) return null
+  const bounds = record.bounds
+  const check = async () => {
+    pending.current?.abort()
+    const controller = new AbortController()
+    pending.current = controller
+    setState({ kind: 'loading' })
+    try {
+      const found = await findLidarAcquisitions(bounds, fetch, controller.signal)
+      if (controller.signal.aborted) return
+      setState({
+        kind: 'done',
+        summary: summarizeLidar(found.acquisitions, {
+          start: record.disturbanceStartDate,
+          end: record.disturbanceEndDate,
+        }),
+        truncated: found.truncated,
+      })
+    } catch (cause) {
+      if (!controller.signal.aborted) setState({ kind: 'error', message: errorMessage(cause) })
+    }
+  }
+  return (
+    <div className="min-w-0 space-y-1 text-xs" data-lidar-check={record.id}>
+      {state.kind === 'done' ? (
+        <p className="break-words">
+          <span className="font-medium">LidarBC: </span>
+          {state.summary.text}
+          {state.truncated ? ' The tile list was cut; open the block and use the LidarBC terrain source.' : ''}
+        </p>
+      ) : state.kind === 'error' ? (
+        <p className="break-words text-destructive">LiDAR not read. {state.message}</p>
+      ) : null}
+      {state.kind !== 'done' && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={state.kind === 'loading'}
+          aria-label={`Check LiDAR for cutblock ${record.cutBlockId ?? record.cutblockSKey}`}
+          onClick={() => void check()}
+        >
+          <Radar className="size-3.5" aria-hidden="true" />
+          {state.kind === 'loading' ? 'Checking LiDAR…' : 'Check LiDAR'}
+        </Button>
+      )}
+    </div>
   )
 }
 
@@ -341,6 +490,7 @@ function CutblockSearchRecord({
           </div>
         ))}
       </dl>
+      <LidarCheck record={record} />
       {!available && (
         <p className="text-xs text-muted-foreground">
           {record.openingId

@@ -504,6 +504,20 @@ export interface NearbyRoadCandidate {
   distanceM: number
 }
 /** All loaded candidates in range, sorted by footprint-to-line separation. A nearby line is not a connected or usable route. */
+function ringBox(ring: readonly Point[]): [number, number, number, number] {
+  let west = Infinity,
+    south = Infinity,
+    east = -Infinity,
+    north = -Infinity
+  for (const [x, y] of ring) {
+    west = Math.min(west, x)
+    east = Math.max(east, x)
+    south = Math.min(south, y)
+    north = Math.max(north, y)
+  }
+  return [west, south, east, north]
+}
+
 export function nearbyRoadCandidates(
   block: ContextFeature,
   context: readonly ContextFeature[],
@@ -551,9 +565,20 @@ export function nearbyRoadCandidates(
         distanceM = 0
         break
       }
+      // Only segments whose box comes within the search distance of the block's box can be near it; skipping the
+      // rest is exact and keeps a long road from spending the comparison budget kilometres away.
+      const box = ringBox(rings[0])
+      const near: number[] = []
+      for (let j = 1; j < line.length; j++) {
+        const c = line[j - 1],
+          d = line[j]
+        const gapX = Math.max(0, box[0] - Math.max(c[0], d[0]), Math.min(c[0], d[0]) - box[2])
+        const gapY = Math.max(0, box[1] - Math.max(c[1], d[1]), Math.min(c[1], d[1]) - box[3])
+        if (Math.hypot(gapX, gapY) <= maxDistanceM) near.push(j)
+      }
       for (const ring of rings)
         for (let i = 1; i < ring.length; i++)
-          for (let j = 1; j < line.length; j++) {
+          for (const j of near) {
             check()
             const a = ring[i - 1],
               b = ring[i],
