@@ -21,12 +21,13 @@ export interface GalleryVariant {
 /** Papers the gallery shows each preset on; each preset keeps its own orientation. */
 export const GALLERY_PAPERS: readonly PaperId[] = ['tabloid', 'letter', 'a3', 'a4']
 
-/** Each preset at every offered scale on tabloid, then on the other papers at its default scale. */
+/** Each preset at every offered scale on its default paper, then the other papers at its default scale. */
 export function galleryVariants(kind: SheetKind): GalleryVariant[] {
   const preset = SHEET_PRESETS[kind]
+  const nativePaper = preset.defaultPaper ?? 'tabloid'
   return [
-    ...SHEET_SCALES.map((scale) => ({ kind, paper: 'tabloid' as const, scale })),
-    ...GALLERY_PAPERS.filter((paper) => paper !== 'tabloid').map((paper) => ({
+    ...SHEET_SCALES.map((scale) => ({ kind, paper: nativePaper, scale })),
+    ...GALLERY_PAPERS.filter((paper) => paper !== nativePaper).map((paper) => ({
       kind,
       paper,
       scale: preset.defaultScale,

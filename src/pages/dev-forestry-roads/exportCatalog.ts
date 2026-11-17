@@ -218,7 +218,7 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     label: 'Block map sheet',
     extension: '.pdf',
     description:
-      'A printed block map: field layout, LiDAR slope, canopy height or hillshade, 1:50,000 access or imagery, with block information, legend and roads.',
+      'A printed block map with information, legend and roads. Choose field, LiDAR, access, imagery or Ministry-style operating plan layouts.',
   },
   {
     kind: 'dline-sheet-pdf',

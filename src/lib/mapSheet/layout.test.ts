@@ -6,6 +6,8 @@ import {
   fontSize,
   IMAGERY_PORTRAIT,
   LIDAR_SIDE_PANEL,
+  OPERATING_PLAN_SIDE_PANEL,
+  PAPER_SIZES,
   resolveSheet,
   SHEET_TEMPLATES,
 } from './layout'
@@ -28,7 +30,7 @@ describe('sheet layouts', () => {
 
   it('keeps the map, title and panels apart and on the page', () => {
     for (const template of SHEET_TEMPLATES)
-      for (const paper of ['tabloid', 'ansi-d', 'letter', 'a3', 'a4'] as const) {
+      for (const paper of Object.keys(PAPER_SIZES) as (keyof typeof PAPER_SIZES)[]) {
         const sheet = resolveSheet(template, paper)
         const inset = (r: { x: number; y: number; w: number; h: number }) => ({
           x: r.x + 0.5,
@@ -45,6 +47,17 @@ describe('sheet layouts', () => {
           expect(panel.rect.y + panel.rect.h).toBeLessThanOrEqual(sheet.height)
         }
       }
+  })
+
+  it('recreates the operating plan at its native 36 × 29 inch size', () => {
+    const sheet = resolveSheet(OPERATING_PLAN_SIDE_PANEL, '36x29')
+    expect(sheet.width).toBe(2592)
+    expect(sheet.height).toBe(2088)
+    expect(sheet.frame.x).toBeCloseTo(8.5, 3)
+    expect(sheet.frame.y).toBeCloseTo(13.824, 3)
+    expect(sheet.frame.w).toBeCloseTo(2173.222, 3)
+    expect(sheet.frame.h).toBeCloseTo(2055.057, 3)
+    expect(sheet.panels.find((panel) => panel.id === 'legend')?.rect.x).toBe(2191)
   })
 
   it('scales type with the page, never below 4.5 pt', () => {

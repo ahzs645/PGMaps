@@ -10,7 +10,7 @@ import {
 } from '@/lib/forestry/blockSheet/gallerySheets'
 import { SHEET_KINDS, SHEET_PRESETS } from '@/lib/forestry/blockSheet/sheets'
 import { downloadBlob } from '@/lib/download'
-import { PAPER_SIZES } from '@/lib/mapSheet/layout'
+import { PAPER_SIZES, paperSize } from '@/lib/mapSheet/layout'
 import { encodeSheetImages } from '@/lib/mapSheet/png'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import { formatScale } from '@/lib/mapSheet/scale'
@@ -76,7 +76,7 @@ function PresetCard({ variant }: { variant: GalleryVariant }) {
     }
   }
   const preset = SHEET_PRESETS[variant.kind]
-  const landscape = preset.template.orientation === 'landscape'
+  const { width, height } = paperSize(variant.paper, preset.template.orientation)
   const name = `${formatScale(variant.scale)} · ${PAPER_SIZES[variant.paper].label}`
   return (
     <figure
@@ -89,7 +89,7 @@ function PresetCard({ variant }: { variant: GalleryVariant }) {
     >
       <div
         className="flex items-center justify-center overflow-hidden rounded border bg-muted/40"
-        style={{ aspectRatio: landscape ? '17 / 11' : '11 / 17' }}
+        style={{ aspectRatio: `${width} / ${height}` }}
       >
         {preview ? (
           <img
@@ -120,7 +120,7 @@ function PresetCard({ variant }: { variant: GalleryVariant }) {
   )
 }
 
-/** Every preset at each offered scale on tabloid, then on letter, A3 and A4 at its default scale. */
+/** Every preset at each offered scale on its default paper, then the other papers at its default scale. */
 export function PresetGallery() {
   return (
     <div className="space-y-8">

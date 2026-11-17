@@ -375,6 +375,9 @@ export const ROAD_LABEL = { size: 6, color: '#ff0000' } as const
 /** Sheet chrome: the title and section bars, panel boxes and the road table header. */
 export const SHEET_CHROME = {
   barFill: '#ffd37f',
+  operatingPlanFill: '#ffffff',
+  locatorExtent: '#b91c1c',
+  locatorLine: '#6e6e6e',
   /** Black, not the reference sheets' white: white on #ffd37f is about 1.4:1. */
   barText: '#000000',
   line: '#000000',

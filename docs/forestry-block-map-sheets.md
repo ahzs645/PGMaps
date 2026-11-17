@@ -4,6 +4,8 @@ A block map sheet is a printed PDF of one harvest block: a map frame at a stated
 bar, block information, a legend that lists only what is drawn, a scale bar, a north arrow and a
 footer. Six presets reproduce the layout and symbology of a set of ArcGIS Pro block-map sheets
 (field layout, three LiDAR design sheets, a 1:50,000 access sheet and a portrait imagery sheet).
+An additional **Ministry-style Operating Plan** preset uses a measured 36 × 29-inch landscape
+layout with a white right-hand column, two-column legend and project locator.
 No licensee names or logos come with them; a user can add one logo of their own. It is kept in the browser's
 branding store (IndexedDB) and used by every sheet and report, never in a project file; without one, the brand
 selected in Branding supplies its logo.
@@ -30,6 +32,7 @@ generic and other tools can adopt it; see [Adopting it in another tool](#adoptin
 | Classed rasters          | `src/lib/forestry/blockSheet/classedRasters.ts`                         | None                                        |
 | Block facts, BCGS        | `src/lib/forestry/blockSheet/blockFacts.ts`, `bcgs.ts`                  | None                                        |
 | Sheet composer           | `src/lib/forestry/blockSheet/composeSheet.ts`, `prepareSheet.ts`        | None                                        |
+| Operating-plan panels    | `src/lib/forestry/blockSheet/operatingPlanPanels.ts`                    | None                                        |
 | Setup form               | `src/components/ui/map-sheet-setup.tsx`                                 | React                                       |
 | Road tool adapter        | `src/pages/dev-forestry-roads/blockSheet.ts`, `BlockSheetSetup.tsx`     | Loads capture and jsPDF on demand           |
 | Road plan sheet symbols  | `src/pages/dev-forestry-roads/planSheetSymbols.ts`, `PlanView.tsx`      | Module none; the plan adds the layers       |
@@ -59,7 +62,7 @@ generic and other tools can adopt it; see [Adopting it in another tool](#adoptin
 
 ## Sheet presets
 
-| Preset                        | Layout (tabloid, 1224 × 792 pt)                  | Default scale | Base                  | Contours    | Block outline            | Extras                           |
+| Preset                        | Layout (tabloid unless stated)                  | Default scale | Base                  | Contours    | Block outline            | Extras                           |
 | ----------------------------- | ------------------------------------------------ | ------------- | --------------------- | ----------- | ------------------------ | -------------------------------- |
 | Field Layout                  | Landscape, side panel (`FIELD_SIDE_PANEL`)       | 1:10,000      | White                 | 10 m, black | `#ffaa00` 2.5 on white 3 | Road Information table           |
 | LiDAR Design Slope            | Landscape, side panel (`LIDAR_SIDE_PANEL`)       | 1:10,000      | Slope classes         | 10 m, black | `#000000` 2.5 on white 3 | Source bar, class legend         |
@@ -67,6 +70,22 @@ generic and other tools can adopt it; see [Adopting it in another tool](#adoptin
 | LiDAR Design Hillshade        | Same                                             | 1:10,000      | Greyscale hillshade   | 10 m, black | Same                     | Source bar                       |
 | General Block Access 1:50,000 | Landscape, bottom panels (`ACCESS_BOTTOM_PANEL`) | 1:50,000      | White                 | 20 m, black | `#ffaa00` 2.5 on white 3 | Block Access Comments box        |
 | Field Ops Imagery             | Portrait, bottom panels (`IMAGERY_PORTRAIT`)     | 1:10,000      | Satellite imagery     | 10 m, white | `#ffaa00` 2.5 on white 3 | Ruled notes area, imagery credit |
+| Ministry-style Operating Plan | Landscape 36 × 29 in (`OPERATING_PLAN_SIDE_PANEL`) | 1:20,000 | White | 20 m, black | `#ffaa00` 2.5 on white 3 | White side column, two-column legend, locator |
+
+Selecting the operating plan starts at its native **2592 × 2088 pt (914.4 × 736.6 mm)** size;
+paper and scale can then be changed independently. The main frame is 2173.222 × 2055.057 pt,
+starting at (8.5, 13.824) pt. Its title prints the typed district, block, licence and permit;
+its logo slot uses only the user's own branding. The locator shows the loaded roads and blocks
+over 3.5 times the main frame's ground width, with the main extent outlined in red. It fetches no
+additional context. Its legend uses the same PGMaps symbols as the main map, only for features
+drawn there; it does not infer harvest years or recreate symbol-font glyphs from a source PDF.
+The layout is a visual export option: PDFs retain selectable text and vector paths, but do not
+contain georeferencing metadata. The north-up Web Mercator and centre-latitude scale rules above
+apply to this preset too.
+
+Synthetic gallery example at 1:5,000 on native paper (the default scale is 1:20,000):
+
+![Operating-plan layout drawn from synthetic terrain and features](assets/forestry-roads/operating-plan-synthetic.png)
 
 Letter, ANSI D (22 × 34 in), A3 and A4 use the same fractional layout. ANSI D is exactly twice
 tabloid, so it prints the tabloid sheet at `k` = 2 with four times the ground at a given scale; its

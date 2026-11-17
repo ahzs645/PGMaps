@@ -152,6 +152,23 @@ describe('road tool block sheet', () => {
     expect(STAMPED_EXPORTS).toContain('block-sheet-pdf')
   })
 
+  it('starts the operating plan on its native paper and keeps subsequent paper edits', () => {
+    const selected = changeBlockSheetSettings(DEFAULT_BLOCK_SHEET, {
+      ...DEFAULT_BLOCK_SHEET,
+      kind: 'operating-plan',
+    })
+    expect(selected).toMatchObject({ kind: 'operating-plan', paper: '36x29', scale: 20000 })
+    expect(parseBlockSheetSettings(JSON.parse(JSON.stringify(selected)))).toEqual(selected)
+    const resized = changeBlockSheetSettings(selected, { ...selected, paper: 'a3', scale: 'fit' })
+    expect(resized).toMatchObject({ paper: 'a3', scale: 'fit' })
+    // Existing presets still keep the chosen paper when switched to.
+    expect(changeBlockSheetSettings(resized, { ...resized, kind: 'field-layout' })).toMatchObject({
+      kind: 'field-layout',
+      paper: 'a3',
+      scale: 10000,
+    })
+  })
+
   it('builds a field layout sheet for the demo project', async () => {
     const p = project()
     const built = await buildBlockSheet({
