@@ -102,8 +102,24 @@ export async function fetchBecPolygons(
   signal?: AbortSignal,
 ): Promise<BecPolygon[]> {
   const response = await fetchFn(becQueryUrl(bounds), { signal })
-  if (!response.ok) throw new Error(`The BEC map could not be read (HTTP ${response.status}).`)
+  if (!response.ok) {
+    const reason = wfsExceptionReason(await response.text().catch(() => ''))
+    throw new Error(`The BEC map could not be read (HTTP ${response.status}${reason ? `: ${reason}` : ''}).`)
+  }
   return parseBecPolygons(await response.json())
+}
+
+/**
+ * What a GeoServer exception report says went wrong, in a reader's words where it is DataBC's own trouble. GeoServer
+ * answers a busy database with HTTP 400 and `HikariPool … Connection is not available`, which a bare status hides.
+ */
+export function wfsExceptionReason(body: string): string | null {
+  const text = /<ows:ExceptionText>([\s\S]*?)<\/ows:ExceptionText>/.exec(body)?.[1]?.trim()
+  if (!text) return null
+  if (/Connection is not available|Unable to obtain connection/i.test(text))
+    return "DataBC's server could not reach its database; try again later"
+  const first = text.split('\n')[0].replace(/^java\.lang\.\w+:\s*/, '')
+  return first.length > 160 ? `${first.slice(0, 157)}…` : first
 }
 
 export type SpeciesShare = { vriCode: string; fordrat: SpeciesCode | null; share: number }

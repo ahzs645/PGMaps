@@ -35,6 +35,7 @@ import { formatHa, formatKm, formatPct } from './measureFormat'
 import type { SavedDriveView } from './previewState'
 import type { AnalysisResult, TargetPolygon, Viewpoint } from './types'
 import { table2Range, type ViaAssessment, type ViaReview } from './via'
+import { viewBearing, type ViewOfInterest } from './viewsOfInterest'
 import {
   bearingDegrees,
   haversineMeters,
@@ -51,8 +52,13 @@ const pdfText = (value: string) => foldText(value).replace(/ {2,}/g, ' ')
 export const FIELD_BRIEF_LIMITS = { viewpoints: 6, images: 3, openings: 8 } as const
 
 export type BriefViewpoint = {
-  /** The checklist's key: `station:<viewpoint id>` for the road, `view:<saved view id>` for a saved view. */
+  /**
+   * The checklist's key: `station:<viewpoint id>` for the road, `voi:<view of interest id>` for a view of interest
+   * (answered in its row, and kept through a recapture), `view:<saved view id>` for a saved view of no planned view.
+   */
   key: string
+  /** The saved view whose screenshot shows this viewpoint: a saved view's own id, or a view of interest's capture. */
+  savedViewId?: string
   name: string
   /** "Assessment station · 1.25 km along Hwy 16", "Saved view", … */
   where: string
@@ -88,7 +94,10 @@ export type FieldBrief = {
   generatedAt: Date
 }
 
-export type BriefSavedView = Pick<SavedDriveView, 'id' | 'name' | 'positionMeters' | 'lookAtTargetId'> & {
+export type BriefSavedView = Pick<
+  SavedDriveView,
+  'id' | 'name' | 'positionMeters' | 'lookAtTargetId' | 'plannedViewId'
+> & {
   lookBearing?: number | null
   /** Saved on the road the scene has now; views saved where the reviewer stood elsewhere have no position here. */
   onThisRoad: boolean
@@ -108,11 +117,35 @@ export function formatBearing(bearing: number): string {
   return `${degrees}° (${COMPASS[Math.round(degrees / 45) % 8]})`
 }
 
+/** The checklist key a view of interest's answer is kept under, in its row and in the brief. */
+export function viewOfInterestCheckKey(viewId: string): string {
+  return `voi:${viewId}`
+}
+
+/**
+ * A view of interest's crew answer: its own, else one recorded on its capture before answers moved into the view's
+ * row (`view:<saved view id>`), so an earlier answer still reads.
+ */
+export function viewOfInterestCheck<T>(
+  answers: Readonly<Record<string, T>> | undefined,
+  viewId: string,
+  savedViews: ReadonlyArray<Pick<SavedDriveView, 'id' | 'plannedViewId'>>,
+): T | null {
+  if (!answers) return null
+  const own = answers[viewOfInterestCheckKey(viewId)]
+  if (own) return own
+  for (const saved of [...savedViews].reverse())
+    if (saved.plannedViewId === viewId && answers[`view:${saved.id}`]) return answers[`view:${saved.id}`]
+  return null
+}
+
 /**
  * The viewpoints the crew is asked to find: the road's assessment station (or
- * the viewpoint itself before a run), then each saved view on this road in the
- * order saved, then views saved elsewhere. The keys are what the checklist
- * stores answers under.
+ * the viewpoint itself before a run), then the block's views of interest, then
+ * each saved view of no planned view on this road in the order saved, then
+ * views saved elsewhere. Standing at a view of interest, the road is that
+ * view, so the station is not listed again; a view of interest's capture is
+ * the view itself. The keys are what the checklist stores answers under.
  */
 export function briefViewpoints(input: {
   viewpoint: Viewpoint
@@ -121,16 +154,34 @@ export function briefViewpoints(input: {
   /** A current run; null when there is none or it is stale. */
   result: AnalysisResult | null
   savedViews: ReadonlyArray<BriefSavedView>
+  /** The views of interest planned (`scene.viewsOfInterest`); those for another block are left out. */
+  viewsOfInterest?: ReadonlyArray<ViewOfInterest>
+  /** The view of interest the run stands at, if any. */
+  standingViewId?: string | null
 }): BriefViewpoint[] {
   const { viewpoint, block, result } = input
+  const planned = input.viewsOfInterest ?? []
+  const plannedIds = new Set(planned.map((view) => view.id))
+  const standing = input.standingViewId && plannedIds.has(input.standingViewId) ? input.standingViewId : null
   const coordinates = viewpoint.coordinates
   const roadName = viewpoint.name || 'the road'
   const centreOf = (target: TargetPolygon | null | undefined) => (target ? polygonInteriorPoint(target.geometry) : null)
   const blockCentre = centreOf(block)
   const faceBlock = (from: { lng: number; lat: number } | null) =>
     from && blockCentre ? bearingDegrees(from, blockCentre) : null
+  // A stand is a 30 m pullout centred on the place stood at (`stand-…`); the page forgets which view it was on a
+  // reload, so a planned view at its middle is read as stood at too.
+  const pulloutMiddle =
+    viewpoint.id.startsWith('stand-') && coordinates.length > 1
+      ? {
+          lng: (coordinates[0][0] + coordinates[coordinates.length - 1][0]) / 2,
+          lat: (coordinates[0][1] + coordinates[coordinates.length - 1][1]) / 2,
+        }
+      : null
+  const atPlannedView =
+    !!standing || (!!pulloutMiddle && planned.some((view) => haversineMeters(view, pulloutMiddle) <= 2))
   const out: BriefViewpoint[] = []
-  if (coordinates.length) {
+  if (coordinates.length && !atPlannedView) {
     const station = result?.stations[result.assessmentStationIndex] ?? null
     const corridor = viewpoint.mode === 'corridor' && coordinates.length > 1
     const location = station
@@ -150,8 +201,22 @@ export function briefViewpoints(input: {
       facing: faceBlock(location),
     })
   }
+  for (const view of planned) {
+    if (block && view.blockId !== block.id) continue
+    const target = input.targets.find((t) => t.id === view.blockId)
+    const capture = input.savedViews.filter((saved) => saved.plannedViewId === view.id).at(-1)
+    out.push({
+      key: viewOfInterestCheckKey(view.id),
+      ...(capture ? { savedViewId: capture.id } : {}),
+      name: view.name,
+      where: view.id === standing ? 'View of interest · assessing from here' : 'View of interest',
+      location: { lng: view.lng, lat: view.lat },
+      facing: viewBearing(view, centreOf(target)),
+    })
+  }
   const path = coordinates.length > 1 ? roadPath(coordinates) : null
-  const ordered = [...input.savedViews.filter((v) => v.onThisRoad), ...input.savedViews.filter((v) => !v.onThisRoad)]
+  const unplanned = input.savedViews.filter((v) => !(v.plannedViewId && plannedIds.has(v.plannedViewId)))
+  const ordered = [...unplanned.filter((v) => v.onThisRoad), ...unplanned.filter((v) => !v.onThisRoad)]
   for (const view of ordered) {
     const placed = view.onThisRoad && path ? roadPlacement(path, view.positionMeters) : null
     const location = placed ? { lng: placed.lng, lat: placed.lat } : null
@@ -159,6 +224,7 @@ export function briefViewpoints(input: {
     const targetCentre = centreOf(target)
     out.push({
       key: `view:${view.id}`,
+      savedViewId: view.id,
       name: view.name,
       where: placed
         ? `Saved view · ${formatKm(view.positionMeters)} along ${roadName}`
@@ -247,6 +313,8 @@ export function buildFieldBrief(input: {
   assessment: ViaAssessment | null
   review: ViaReview | null | undefined
   savedViews: ReadonlyArray<BriefSavedView>
+  viewsOfInterest?: ReadonlyArray<ViewOfInterest>
+  standingViewId?: string | null
   /** Screenshots taken at *Save viewpoint*, by saved view id. */
   images: Readonly<Record<string, NoteImage>>
   notes?: string[]
@@ -290,12 +358,14 @@ export function buildFieldBrief(input: {
     targets: input.targets,
     result,
     savedViews: input.savedViews,
+    viewsOfInterest: input.viewsOfInterest,
+    standingViewId: input.standingViewId,
   })
   const viewpoints = allViewpoints.slice(0, FIELD_BRIEF_LIMITS.viewpoints)
   // The screenshots, in the order the viewpoints are listed: the crew matches each to its row.
   const images = viewpoints
     .flatMap((point, index) => {
-      const image = point.key.startsWith('view:') ? input.images[point.key.slice(5)] : undefined
+      const image = point.savedViewId ? input.images[point.savedViewId] : undefined
       return image ? [{ ...image, caption: `${index + 1}. ${image.caption || point.name}` }] : []
     })
     .slice(0, FIELD_BRIEF_LIMITS.images)
@@ -305,7 +375,12 @@ export function buildFieldBrief(input: {
     blockName: block.name,
     stage,
     header,
-    viewpoints: viewpoints.map((point) => ({ ...point, check: checklist?.viewpoints[point.key] ?? null })),
+    viewpoints: viewpoints.map((point) => ({
+      ...point,
+      check: point.key.startsWith('voi:')
+        ? viewOfInterestCheck(checklist?.viewpoints, point.key.slice(4), input.savedViews)
+        : (checklist?.viewpoints[point.key] ?? null),
+    })),
     moreViewpoints: allViewpoints.length - viewpoints.length,
     images,
     prompts: briefPrompts({

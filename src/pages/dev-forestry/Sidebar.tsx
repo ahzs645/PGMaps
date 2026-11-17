@@ -3,7 +3,6 @@ import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import {
   CheckboxField,
   FORM_INPUT_CLASS,
-  FormField,
   NumberField as SharedNumberField,
   NullableNumberField,
   StyledSelect,
@@ -22,7 +21,6 @@ import {
   Play,
   Radar,
   Route,
-  SquareDashed,
   Trash2,
   Trees,
   X,
@@ -52,7 +50,7 @@ import { summariseUnits, type BcSensitivityUnit } from './bcVisualInventory'
 import { ResultsPanel } from './ResultsPanel'
 import { SubLandformFields } from './ReviewRecordFields'
 import { ROLE_COLORS, targetAreaHectares, type ForestryScene } from './scene'
-import { MAX_DEM_ZOOM, MIN_DEM_ZOOM, demResolutionMeters } from '@/lib/forestry/terrain/terrain'
+import { SimulationSettingsButton } from './SimulationSettings'
 import type { AnalysisSettings, HarvestSystem, TargetPolygon, TargetRole, Viewpoint } from './types'
 import type { TreeLook, TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
@@ -64,7 +62,6 @@ import { VIEWPOINT_CLEARING, type TreeFreeArea, type ViewpointClearingSetting } 
 import { polygonAreaMeters } from './visibility'
 import {
   AdjustmentFields,
-  FinalRatingFields,
   NumericalAssessmentSummary,
   OcularAssessmentFields,
   ViaHeadline,
@@ -265,31 +262,6 @@ function fieldTip(label: string, ...parts: ReactNode[]) {
   )
 }
 
-function Field({
-  label,
-  hint,
-  children,
-  group = false,
-}: {
-  label: string
-  /** Shown behind an (i) beside the label. */
-  hint?: ReactNode
-  children: ReactNode
-  group?: boolean
-}) {
-  return (
-    <FormField
-      label={label}
-      hintAction={fieldTip(label, hint)}
-      group={group}
-      contentClassName="block"
-      labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
-    >
-      {children}
-    </FormField>
-  )
-}
-
 function NumberField({
   label,
   hint,
@@ -408,9 +380,35 @@ const HARVEST_SYSTEMS: ReadonlyArray<{ id: HarvestSystem; label: string }> = [
   { id: 'partial', label: 'Partial cut' },
 ]
 
+/** How a block is cut, beside its role in the row's grid. */
+function HarvestSystemSelect({
+  target,
+  onChange,
+  className,
+}: {
+  target: TargetPolygon
+  onChange: (patch: Partial<TargetPolygon>) => void
+  className?: string
+}) {
+  return (
+    <StyledSelect
+      className={cn(SELECT_CLASS, className)}
+      value={target.harvestSystem ?? 'clearcut'}
+      onChange={(event) => onChange({ harvestSystem: event.target.value as HarvestSystem })}
+      aria-label={`Harvest system for ${target.name}`}
+    >
+      {HARVEST_SYSTEMS.map((entry) => (
+        <option key={entry.id} value={entry.id}>
+          {entry.label}
+        </option>
+      ))}
+    </StyledSelect>
+  )
+}
+
 /**
- * How a block is cut. Retention feeds Table 5; a partial cut is taken out of
- * the cleared-ground measurement and read from Table 6 instead (3.4.4).
+ * What a block's harvest system asks for beyond the system itself. Retention feeds Table 5; a partial cut is taken
+ * out of the cleared-ground measurement and read from Table 6 instead (3.4.4). A clearcut asks for nothing.
  */
 function BlockHarvestFields({
   target,
@@ -425,20 +423,9 @@ function BlockHarvestFields({
   onOpenPrescription?: () => void
 }) {
   const system = target.harvestSystem ?? 'clearcut'
+  if (system === 'clearcut') return null
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-      <StyledSelect
-        className={SELECT_CLASS}
-        value={system}
-        onChange={(event) => onChange({ harvestSystem: event.target.value as HarvestSystem })}
-        aria-label={`Harvest system for ${target.name}`}
-      >
-        {HARVEST_SYSTEMS.map((entry) => (
-          <option key={entry.id} value={entry.id}>
-            {entry.label}
-          </option>
-        ))}
-      </StyledSelect>
       {system === 'retention' && (
         <OptionalNumber
           label={`Stand retained in ${target.name}`}
@@ -469,7 +456,7 @@ function BlockHarvestFields({
           />
         </>
       )}
-      {system !== 'clearcut' && onOpenPrescription && (
+      {onOpenPrescription && (
         <div className="flex w-full items-center gap-1.5">
           <Button
             type="button"
@@ -514,6 +501,8 @@ export type ViaSidebarState = {
   review: ViaReview
   onReviewChange: (patch: Partial<ViaReview>) => void
   landformName: string | null
+  /** Step 2's views of interest: how many the export draws and how many are captured, for the headline. */
+  views?: { included: number; captured: number }
 }
 
 export type SidebarProps = {
@@ -607,13 +596,17 @@ export type SidebarProps = {
   visit: ReactNode
   /** Step 2: a street-level field photo to line the road view up with. */
   fieldPhoto?: ReactNode
+  /** Step 2: the assessment's photographs and evidence images (`ToolFieldPanel`), in *Field photos* under the line-up. */
+  fieldRecords?: ReactNode
   /** Step 2: the pre-layout field brief for the layout crew, and the crew's checklist answered back. */
   fieldBrief?: ReactNode
   /**
-   * Step 2's *Viewpoint type* for the road: false while a view of interest is stood at, whose row keeps its own type.
-   * Default true.
+   * Step 2's *Road viewpoint*, the road's own record beside the views' rows: its 3.2.1 type and, at a stand on it, the
+   * surveyed eye. False while a view of interest is stood at, whose row keeps both. Default true.
    */
   showViewpointType?: boolean
+  /** The surveyed eye at the road's stand (`StoodViewpointPanel`, bare), shown in *Road viewpoint*. */
+  roadStand?: ReactNode
   /** Step 3: which landform the run measures, and its green area. */
   landformScope: ReactNode
   /** Step 3: assessment masks and local terrain or canopy surfaces, a folded section of its own. */
@@ -630,8 +623,8 @@ export type SidebarProps = {
   designComparisons?: ReactNode
   /** Step 3, heading the Results: the previous run's verdict beside this one's (`runRevision.ts`). */
   runRevision?: ReactNode
-  /** Step 5: the VIA evidence package and workspace, a folded section of its own. */
-  evidence?: ReactNode
+  /** Step 5: opens Save & export on its Package entry, where the final rating is made. */
+  onOpenPackage?: () => void
   /** Step 2, under the views of interest: inventory viewpoints and rec sites near the block, which add to them. */
   viewpointFinder?: ReactNode
   /**
@@ -662,8 +655,6 @@ export type SidebarProps = {
   onAssessModeChange?: (mode: Viewpoint['mode']) => void
   /** Step 2, in the road view: the existing forest and regrowth records the timber is drawn from. */
   roadViewForest?: ReactNode
-  /** Step 5: the block's planning-note summary and Visuals paragraph. */
-  visualsParagraph?: ReactNode
 
   /** What the basemap said about the road and water, for the drive panel's clearing note. */
   roadClearing?: { roadClass: string | null; widthMeters: number; waterPolygons: number }
@@ -715,8 +706,10 @@ export function Sidebar({
   landformFinder,
   visit,
   fieldPhoto,
+  fieldRecords,
   fieldBrief,
   showViewpointType = true,
+  roadStand,
   landformScope,
   localSources,
   wildlifeTreePatches,
@@ -725,7 +718,7 @@ export function Sidebar({
   designReview,
   designComparisons,
   runRevision,
-  evidence,
+  onOpenPackage,
   viewpointFinder,
   viewsOfInterest,
   assessFromView,
@@ -733,7 +726,6 @@ export function Sidebar({
   assessMode,
   onAssessModeChange,
   roadViewForest,
-  visualsParagraph,
 }: SidebarProps) {
   // Which scale the threshold editor is showing. Purely a view concern — both
   // sets are always in the scene and both are always reported.
@@ -895,7 +887,7 @@ export function Sidebar({
           </Button>
         </div>
         <PlainRowDetail className="pl-[1.625rem] pt-0 pb-2.5">
-          {/* The objective is the long one, so it takes a line; role and VAC share the next. */}
+          {/* The objective is the long one, so it takes a line; role and harvest system (or VAC) share the next. */}
           <div className="grid grid-cols-2 gap-1.5">
             <StyledSelect
               className={cn(SELECT_CLASS, 'order-2 w-full')}
@@ -922,6 +914,13 @@ export function Sidebar({
                 </option>
               ))}
             </StyledSelect>
+            {target.role === 'block' && (
+              <HarvestSystemSelect
+                target={target}
+                onChange={(patch) => onTargetChange(target.id, patch)}
+                className="order-3 w-full"
+              />
+            )}
             {/* Visual absorption capability rates a landform's capacity
                       to hide alteration, so it only means anything on one. */}
             {target.role === 'landscape' && (
@@ -974,7 +973,10 @@ export function Sidebar({
   return (
     <MapSidebarShell
       title="Visual quality"
-      actions={<ForestryBackLink />}
+      back={<ForestryBackLink />}
+      actions={
+        <SimulationSettingsButton settings={settings} onSettingsChange={onSettingsChange} viewpoint={viewpoint} />
+      }
       className={MAP_SIDEBAR_CLASS}
       headerClassName="px-3 py-2.5"
       titleClassName="text-base"
@@ -987,6 +989,7 @@ export function Sidebar({
         statuses={via.statuses}
         onOpenStep={goToStep}
         activeStep={activeStep}
+        views={via.views}
         stage={{
           value: layoutStageOf(via.review),
           onChange: (layoutStage) => via.onReviewChange({ layoutStage }),
@@ -1060,7 +1063,7 @@ export function Sidebar({
           help="Where the assessment is made from: one spot, or a length of road driven end to end. Snap replaces a drawn line with the road the basemap says it traces."
         >
           <div className="space-y-2">
-            {(drawMode === 'corridor' || drawMode === 'spot') && setup}
+            {drawMode === 'spot' && setup}
             <SegmentedControl
               size="sm"
               label="Assess from"
@@ -1080,31 +1083,36 @@ export function Sidebar({
               assessFromView
             ) : (
               <>
-                <div className={cn('grid gap-1.5', viewpoint.mode === 'corridor' && 'grid-cols-2')}>
+                {/* The road is drawn with the plan map's *Draw the road* tool; a file comes in here. */}
+                {viewpoint.mode === 'spot' ? (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     className={GRID_BUTTON}
-                    onClick={() => onDrawModeChange(viewpoint.mode)}
+                    onClick={() => onDrawModeChange('spot')}
                   >
                     <Crosshair className="h-3.5 w-3.5" />
-                    {viewpoint.mode === 'spot' ? 'Place the viewpoint' : 'Draw the road'}
+                    Place the viewpoint
                   </Button>
-                  {viewpoint.mode === 'corridor' && (
-                    <FileButton
-                      label="Road file"
-                      accept=".zip,.geojson,.json"
-                      variant="outline"
-                      className={GRID_BUTTON}
-                      title="A road as GeoJSON or a zipped shapefile"
-                      onFiles={([file]) => onImportRoad(file)}
-                    >
-                      <FileUp className="h-3.5 w-3.5" />
-                      Import road
-                    </FileButton>
-                  )}
-                </div>
+                ) : (
+                  <FileButton
+                    label="Road file"
+                    accept=".zip,.geojson,.json"
+                    variant="outline"
+                    className={cn(GRID_BUTTON, 'w-full')}
+                    title="A road as GeoJSON or a zipped shapefile"
+                    onFiles={([file]) => onImportRoad(file)}
+                  >
+                    <FileUp className="h-3.5 w-3.5" />
+                    Import road
+                  </FileButton>
+                )}
+                {viewpoint.mode === 'corridor' && !hasViewpoint && (
+                  <p className="text-2xs text-muted-foreground">
+                    Draw it with the map&apos;s road tool, or import a file.
+                  </p>
+                )}
                 {hasViewpoint && (
                   <div
                     className={cn(
@@ -1244,36 +1252,25 @@ export function Sidebar({
           help="The proposed openings, traced on the map or imported as a zipped shapefile or GeoJSON. Each carries its objective and harvest system; retention feeds Table 5, and a partial cut is read from Table 6 rather than as cleared ground."
         >
           <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-1.5">
-              <Button
-                type="button"
-                variant={drawMode === 'block' ? 'default' : 'outline'}
-                size="sm"
-                className={GRID_BUTTON}
-                aria-pressed={drawMode === 'block'}
-                onClick={() => onDrawModeChange(drawMode === 'block' ? 'none' : 'block')}
-              >
-                <SquareDashed className="h-3.5 w-3.5" />
-                Draw block
-              </Button>
-              <FileButton
-                label="Cutblock or landform file"
-                accept=".zip,.geojson,.json"
-                variant="outline"
-                className={GRID_BUTTON}
-                title="Cutblocks or landforms as GeoJSON or a zipped shapefile"
-                onFiles={([file]) => onImportFile(file)}
-              >
-                <FileUp className="h-3.5 w-3.5" />
-                Import
-              </FileButton>
-            </div>
-            {drawMode === 'block' && setup}
+            {/* Blocks are drawn with the plan map's *Draw block* tool; files come in here. */}
+            <FileButton
+              label="Cutblock or landform file"
+              accept=".zip,.geojson,.json"
+              variant="outline"
+              className={cn(GRID_BUTTON, 'w-full')}
+              title="Cutblocks or landforms as GeoJSON or a zipped shapefile"
+              onFiles={([file]) => onImportFile(file)}
+            >
+              <FileUp className="h-3.5 w-3.5" />
+              Import
+            </FileButton>
             {importMessage && (
               <InlineAlert tone={importMessage.startsWith('Could not') ? 'error' : 'info'}>{importMessage}</InlineAlert>
             )}
             {blocks.length === 0 ? (
-              <p className="text-2xs text-muted-foreground">None yet. Draw one on the map or import a file.</p>
+              <p className="text-2xs text-muted-foreground">
+                None yet. Draw one with the map&apos;s block tool, or import a file.
+              </p>
             ) : (
               <ul className="space-y-1.5">{blocks.map(renderTarget)}</ul>
             )}
@@ -1416,7 +1413,7 @@ export function Sidebar({
 
       {/* Step 2 — 3.2: travel the road as a visitor would and record the views. */}
       <div {...stepPanelProps('visit')}>
-        <StepIntro id="visit" status={via.statuses.visit} summary={summaries.visit} />
+        <StepTitle id="visit" />
         {viewsOfInterest}
         {viewpointFinder}
         {/* The map's bar plays, saves and exits, and its View options hold how the view
@@ -1464,28 +1461,35 @@ export function Sidebar({
           </>
         )}
         {visit}
-        {fieldPhoto && (
+        {(fieldPhoto || fieldRecords) && (
           <ToolSection
-            title="Field photo"
-            summary="Mapillary or your own photo"
-            toggleProps={{ 'data-forestry-disclosure': 'field-photo' }}
-            help="Handbook 3.2 photographs each viewpoint and 3.3.4 checks the simulation against the photo. Line the road view up with a street-level photo from Mapillary, or with a photo of your own (read in this browser, never uploaded), and see whether the terrain and timber match."
+            title="Field photos"
+            summary={fieldPhoto ? 'Line up a photo · attachments' : 'Attachments'}
+            toggleProps={{ 'data-forestry-disclosure': 'field-records' }}
+            help="Handbook 3.2 photographs each viewpoint and 3.3.4 checks the simulation against the photo. On the road, line the road view up with a street-level photo from Mapillary or a photo of your own (read in this browser, never uploaded). Below, the assessment's photographs and evidence images: file each under a view of interest, whose row lists and adds them. They stay on this device and travel in the workspace export."
           >
-            {fieldPhoto}
+            <div className="space-y-3">
+              {fieldPhoto}
+              {fieldPhoto && fieldRecords && <div className="border-t border-border" aria-hidden="true" />}
+              {fieldRecords}
+            </div>
           </ToolSection>
         )}
         {showViewpointType && (
           <ToolSection
-            title="Viewpoint type"
-            help="Handbook 3.2.1: how important the viewpoint is, from how long the proposal stays in view at travel speed. Types 4 and 5 are land uses a terrain model cannot see. This is the road's: each view of interest keeps its own type in its row, under Viewpoint record."
+            title="Road viewpoint"
+            toggleProps={{ 'data-forestry-disclosure': 'road-viewpoint' }}
+            help="The road's own record, as each view of interest keeps its own in its row. Viewpoint type is handbook 3.2.1: how important the viewpoint is, from how long the proposal stays in view at travel speed; types 4 and 5 are land uses a terrain model cannot see. Standing at a spot on the road, a surveyed eye elevation stands the eye there instead of on the terrain model, for the road view, the run and the figures alike."
           >
-            <ViewpointTypeField
-              result={result}
-              review={via.review}
-              speedKmh={drive.speedKmh}
-              onChange={via.onReviewChange}
-              hideLabel
-            />
+            <div className="space-y-2">
+              <ViewpointTypeField
+                result={result}
+                review={via.review}
+                speedKmh={drive.speedKmh}
+                onChange={via.onReviewChange}
+              />
+              {roadStand}
+            </div>
           </ToolSection>
         )}
         {fieldBrief}
@@ -1493,7 +1497,7 @@ export function Sidebar({
 
       {/* Step 3 — 3.3: delineate the landform, review the design, simulate. */}
       <div {...stepPanelProps('design')}>
-        <StepIntro id="design" status={via.statuses.design} summary={summaries.design} />
+        <StepTitle id="design" />
         <ToolSection
           title="Run assumptions"
           help="Handbook 3.3.2: the proposal is measured against the landform it sits on, as it stands in the assessment year."
@@ -1589,169 +1593,7 @@ export function Sidebar({
             />
           </ToolSection>
         )}
-        <ToolSection
-          title="Simulation settings"
-          summary={`${formatMeasure(settings.observerHeightMeters, 'm')} eye · ${formatMeasure(settings.maxViewDistanceMeters / 1000, 'km', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} range`}
-          toggleProps={{ 'data-forestry-disclosure': 'simulation-settings' }}
-        >
-          <NumberField
-            label="Eye height above the road"
-            suffix="m"
-            value={settings.observerHeightMeters}
-            min={0}
-            max={100}
-            step={0.1}
-            hint="1.6 m is a person standing; raise it for a loaded truck cab or a lookout."
-            onChange={(value) => onSettingsChange({ ...settings, observerHeightMeters: value })}
-          />
-          {viewpoint.mode === 'corridor' && (
-            <NumberField
-              label="Distance between viewing stations"
-              suffix="m"
-              value={settings.stationSpacingMeters}
-              min={20}
-              max={2000}
-              step={10}
-              hint="Closer stations catch short windows through the trees at the cost of run time."
-              onChange={(value) => onSettingsChange({ ...settings, stationSpacingMeters: value })}
-            />
-          )}
-          <Field
-            label="Terrain detail"
-            hint={`${formatMeasure(demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, settings.demZoom), 'm', { maximumFractionDigits: 0 })} between elevation samples. Finer detail means many more tiles to fetch.`}
-          >
-            <StyledSelect
-              className={FORM_INPUT_CLASS}
-              value={settings.demZoom}
-              onChange={(event) => onSettingsChange({ ...settings, demZoom: Number(event.target.value) })}
-            >
-              {Array.from({ length: MAX_DEM_ZOOM - MIN_DEM_ZOOM + 1 }, (_, index) => {
-                const zoom = MIN_DEM_ZOOM + index
-                return (
-                  <option key={zoom} value={zoom}>
-                    Zoom {zoom} ·{' '}
-                    {formatMeasure(demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, zoom), 'm', {
-                      maximumFractionDigits: 0,
-                    })}
-                  </option>
-                )
-              })}
-            </StyledSelect>
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <NumberField
-              label="Max view distance"
-              suffix="km"
-              value={settings.maxViewDistanceMeters / 1000}
-              min={0.5}
-              max={40}
-              step={0.5}
-              onChange={(value) => onSettingsChange({ ...settings, maxViewDistanceMeters: value * 1000 })}
-            />
-            <NumberField
-              label="Target height"
-              suffix="m"
-              value={settings.targetOffsetMeters}
-              min={0}
-              max={60}
-              step={0.5}
-              onChange={(value) => onSettingsChange({ ...settings, targetOffsetMeters: value })}
-            />
-            <NumberField
-              label="Green-up age"
-              suffix="yr"
-              value={settings.greenUpAgeYears}
-              min={0}
-              max={100}
-              step={1}
-              onChange={(value) => onSettingsChange({ ...settings, greenUpAgeYears: value })}
-            />
-            <NumberField
-              label="Screening crown closure"
-              suffix="%"
-              value={settings.minCrownClosurePercent}
-              min={0}
-              max={100}
-              step={5}
-              onChange={(value) => onSettingsChange({ ...settings, minCrownClosurePercent: value })}
-            />
-          </div>
-          <div className="flex items-start gap-1">
-            <CheckboxField
-              className="flex-1"
-              label={<span className="text-2xs font-medium">Screen with standing timber</span>}
-              checked={settings.screeningEnabled}
-              onCheckedChange={(screeningEnabled) => onSettingsChange({ ...settings, screeningEnabled })}
-            />
-            <InfoTip label="About screening with standing timber">
-              Adds VRI rank-1&apos;s projected stand height to the ground along each sightline, so a block behind mature
-              timber reads as hidden. Openings and the proposal itself are treated as cleared. Full-landscape coverage,
-              and a slow query — it fetches every inventory polygon over the run&apos;s extent.
-            </InfoTip>
-          </div>
-          {settings.screeningEnabled && (
-            <NumberField
-              label="Timber cleared round the eye"
-              suffix="m"
-              value={settings.screeningEyeClearingMeters ?? 50}
-              min={0}
-              max={150}
-              step={10}
-              info="VRI stand polygons run over roads, beaches and shorelines, so without a clearing the eye stands inside a stand and sees nothing. In the November 2026 study 50 m restored most views; some roadside views needed 150 m. The screened figure is withheld when screening hides more than three quarters of the landform the bare ground shows."
-              onChange={(value) => onSettingsChange({ ...settings, screeningEyeClearingMeters: value })}
-            />
-          )}
-          <label className="flex items-center justify-between gap-2 text-xs">
-            <span className="flex items-center gap-1">
-              Perspective denominator
-              <InfoTip label="About the perspective denominator">
-                Non-vegetated out (the default) leaves rock, water and ice (VRI BCLCS level 1 N) out of the landform, as
-                a VIA's &ldquo;net of rock&rdquo; does; burns, shrub and herb stay in. Non-treed out uses the 1998
-                procedure's green (forested) portion, as the planimetric figure always does. In the November 2026 study
-                the non-vegetated rule moved the figure closer to the printed VIAs (case-balanced, 1.97 points for the
-                named VSU, 1.02 for the terrain landform).
-              </InfoTip>
-            </span>
-            <StyledSelect
-              aria-label="Perspective denominator"
-              className={SELECT_CLASS}
-              value={settings.perspectiveDenominator ?? 'non-vegetated-out'}
-              onChange={(event) =>
-                onSettingsChange({
-                  ...settings,
-                  perspectiveDenominator: event.target.value as NonNullable<AnalysisSettings['perspectiveDenominator']>,
-                })
-              }
-            >
-              <option value="non-vegetated-out">Non-vegetated out</option>
-              <option value="non-treed-out">Non-treed out (1998)</option>
-            </StyledSelect>
-          </label>
-          <div className="flex items-start gap-1">
-            <CheckboxField
-              className="flex-1"
-              label={<span className="text-2xs font-medium">Private land out of the landform</span>}
-              checked={settings.privateLandOutOfDenominator === true}
-              onCheckedChange={(privateLandOutOfDenominator) =>
-                onSettingsChange({ ...settings, privateLandOutOfDenominator })
-              }
-            />
-            <InfoTip label="About private land and the denominator">
-              VIAs print (landform − private land). With this on, private-land masks leave both denominators; their
-              timber still screens. Off, private land stays in the landform and only carries no alteration. Private land
-              comes from masks you draw or ParcelMap BC parcels you add in step 3.
-            </InfoTip>
-          </div>
-          <NumberField
-            label="Sample points per polygon"
-            value={settings.sampleBudget}
-            min={100}
-            max={20000}
-            step={100}
-            info="More points resolve the edges of a block and small openings on a large landform; the run warns when a proposal covers too few landform cells. The grid is coarsened automatically if a run would take too long."
-            onChange={(value) => onSettingsChange({ ...settings, sampleBudget: value })}
-          />
-        </ToolSection>
+        {/* Simulation settings are the header's settings icon (`SimulationSettingsButton`), right of the title. */}
         <ToolSection
           title="Planning thresholds"
           summary="Not the handbook’s Table 2"
@@ -1865,65 +1707,41 @@ export function Sidebar({
       <div {...stepPanelProps('rate')}>
         <StepIntro id="rate" status={via.statuses.rate} summary={summaries.rate} />
         {assessGroup && <AssessingFrom group={{ ...assessGroup, onUseEarlier: undefined }} />}
-        {assessment && (
-          <ToolSection
-            title="Final rating"
-            help="Handbook 3.5, Table 7: the ocular class and the adjusted figure, read against the objective's range. The ocular class decides where the two disagree."
-          >
-            <FinalRatingFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
-          </ToolSection>
-        )}
-        {visualsParagraph && (
-          <ToolSection
-            title="Planning note · Visuals"
-            help="The block summary and the Visuals paragraph, drafted from the run. The paragraph is yours to sign: the draft never overwrites what you write."
-          >
-            {visualsParagraph}
-          </ToolSection>
-        )}
-        {/* The files themselves are written from Save & export, which lists what goes into each. */}
+        {/* The rating, the Visuals paragraph and measures, and the evidence record are written where they are printed:
+          Save & export, the package's entry and each output's options. */}
         <ToolSection
-          title="Package"
-          help="Handbook 4.0: map, views, simulation, design analysis, and a summary per viewpoint. Save & export writes the block note, the FS1252 draft, the analysis sheet, the field brief, the worksheet and the evidence package, and lists what goes into each: the landform, the viewpoints and saved views with their settings, the blocks and the run. Field photographs, the final decision and the signature are still the reviewer's to add."
+          title="Rate and write up in Save & export"
+          help="Handbook 3.5 and 4.0. Save & export holds this step's work beside the files it goes into: the final rating and its rationale at the top of Package, the Visuals paragraph and visual measures in Block note, and the evidence record and checklist in VIA evidence package. What you write there is saved with the scene and printed in every output that uses it."
         >
-          <div className="grid grid-cols-2 gap-1.5">
-            <Button type="button" size="sm" className={GRID_BUTTON} onClick={() => onOpenExport('block-note')}>
-              <Download className="h-3.5 w-3.5" />
-              Save &amp; export…
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={GRID_BUTTON}
-              onClick={() => onOpenExport('fs1252')}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              FS1252 form…
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={GRID_BUTTON}
-              onClick={() => onOpenExport('analysis-sheet')}
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Analysis sheet…
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={GRID_BUTTON}
-              onClick={() => onOpenExport('scene')}
-            >
-              <Download className="h-3.5 w-3.5" />
-              Save the scene…
-            </Button>
+          <div className="space-y-2 text-xs">
+            {assessment && !assessment.rating && (
+              <p className="text-muted-foreground">
+                A final rating needs both measures: the run&apos;s figure and step 4&apos;s judgement.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                className={GRID_BUTTON}
+                onClick={() => (onOpenPackage ? onOpenPackage() : onOpenExport())}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Rate and package…
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={GRID_BUTTON}
+                onClick={() => onOpenExport('block-note')}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Visuals note…
+              </Button>
+            </div>
           </div>
         </ToolSection>
-        {evidence}
       </div>
 
       {/* Reading, not controls: kept folded under every step rather than inside one. */}
@@ -1969,6 +1787,18 @@ export function Sidebar({
  * The step's name and handbook section in one line, its purpose behind the (i).
  * The tab above already says which step this is; this says what it is for.
  */
+/**
+ * A step's name for its panel (`aria-labelledby`) where the step shows no intro line: its tab already names it, and
+ * the headline carries its progress.
+ */
+function StepTitle({ id }: { id: ViaStepId }) {
+  return (
+    <h2 id={`via-step-title-${id}`} className="sr-only">
+      {VIA_STEPS.find((step) => step.id === id)!.title}
+    </h2>
+  )
+}
+
 function StepIntro({ id, status, summary }: { id: ViaStepId; status: ViaStepStatus; summary: string }) {
   const step = VIA_STEPS.find((entry) => entry.id === id)!
   return (

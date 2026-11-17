@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
-import { MapMarker, MarkerContent } from '@/components/ui/map'
+import { MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { cn } from '@/lib/utils'
 
 import type { PlanShow } from './planLayers'
@@ -20,8 +21,9 @@ import {
 /**
  * The plan map's views of interest: each view's lens cone along its facing and a numbered point, the open one drawn
  * heavier; and the inventory arrows the views face along (and those the finder's open row would add, fainter). The
- * cones and arrows take no clicks. A point opens its row in step 2 (`onSelect`) and a view placed on the map can be
- * dragged (`onMove`); the page passes neither while the road view is open, when a plan click moves the road view, or
+ * cones and arrows take no clicks. A point opens its row in step 2 (`onSelect`) and a card to stand there
+ * (`onStand`), as an inventory viewpoint's does; a view placed on the map can be dragged (`onMove`). The page passes
+ * no `onSelect` or `onMove` while the road view is open, when a plan click moves the road view, and none of the three
  * while something else is being drawn or picked.
  */
 export function ViewsOfInterestLayers({
@@ -35,6 +37,7 @@ export function ViewsOfInterestLayers({
   onSelect,
   onMove,
   onTurn = null,
+  onStand = null,
   standingViewId = null,
 }: {
   views: readonly ViewOfInterest[]
@@ -48,6 +51,8 @@ export function ViewsOfInterestLayers({
   visible?: boolean
   onSelect: ((id: string) => void) | null
   onMove: ((id: string, point: { lng: number; lat: number }) => void) | null
+  /** Stands at a view (the capture's `standAt`): the click card's *Stand here*. Null while it cannot. */
+  onStand?: ((id: string) => void) | null
   /** Turns a view to a compass bearing: the open view's cone tip is a handle, as the road view's own is. */
   onTurn?: ((id: string, bearing: number) => void) | null
   /**
@@ -88,6 +93,18 @@ export function ViewsOfInterestLayers({
   const sources = useMemo(() => new Map(views.map((view) => [view.id, view.source.kind])), [views])
   // Views at one place share a marker ("2·3"); a click there opens each in turn.
   const markers = useMemo(() => groupMarks(plan.marks), [plan.marks])
+  // The view whose card is open: the one a click on its point chose.
+  const [cardId, setCardId] = useState<string | null>(null)
+  const card = useMemo(() => {
+    if (!cardId || !onStand || !viewsShown) return null
+    const mark = plan.marks.find((entry) => entry.id === cardId)
+    const view = views.find((entry) => entry.id === cardId)
+    if (!mark || !view) return null
+    const marker = markers.find((entry) => entry.marks.some((other) => other.id === cardId))
+    const blockMissing = !!view.blockId && !blocks.some((block) => block.id === view.blockId)
+    return { mark, view, at: marker ?? mark, blockMissing }
+  }, [cardId, onStand, viewsShown, plan.marks, views, markers, blocks])
+  const clickable = !!onSelect || !!onStand
   return (
     <>
       <MapFillLayer
@@ -118,6 +135,8 @@ export function ViewsOfInterestLayers({
           longitude={turning.tip.lng}
           latitude={turning.tip.lat}
           draggable
+          // Turning the view is the job now: its click card would only sit over the cone being turned.
+          onDragStart={() => setCardId(null)}
           onDragEnd={(point) => onTurn(turning.view.id, bearingBetween(turning.view, point))}
         >
           <MarkerContent>
@@ -144,10 +163,14 @@ export function ViewsOfInterestLayers({
               latitude={marker.lat}
               draggable={movable}
               onClick={
-                onSelect
+                clickable
                   ? (event) => {
                       event.stopPropagation()
-                      onSelect(nextMarkAt(marker))
+                      const id = onSelect
+                        ? nextMarkAt(marker)
+                        : (marker.marks.find((mark) => mark.id !== cardId)?.id ?? marker.id)
+                      onSelect?.(id)
+                      setCardId(id)
                     }
                   : undefined
               }
@@ -157,7 +180,7 @@ export function ViewsOfInterestLayers({
                 <span
                   role="img"
                   aria-label={`View${single ? '' : 's'} ${marker.label}: ${marker.marks.map((mark) => mark.name).join('; ')}`}
-                  title={`${names}${marker.included ? '' : ' (left out of exports)'}${movable ? ' · drag to move' : ''}${single ? '' : ' · click again for the next'}`}
+                  title={`${names}${marker.included ? '' : ' (left out of exports)'}${clickable ? ' · click to stand here' : ''}${movable ? ' · drag to move' : ''}${single ? '' : ' · click again for the next'}`}
                   data-testid="view-of-interest-marker"
                   data-view-id={marker.id}
                   data-view-ids={marker.marks.map((mark) => mark.id).join(' ')}
@@ -166,7 +189,7 @@ export function ViewsOfInterestLayers({
                     marker.open ? 'h-6 min-w-6 text-xs ring-2 ring-indigo-300' : 'h-5 min-w-5 text-2xs',
                     !single && 'px-1',
                     !marker.included && 'opacity-60',
-                    onSelect && 'cursor-pointer',
+                    clickable && 'cursor-pointer',
                   )}
                   style={{ backgroundColor: VIEW_OF_INTEREST_COLORS.view }}
                 >
@@ -176,6 +199,28 @@ export function ViewsOfInterestLayers({
             </MapMarker>
           )
         })}
+      {card && onStand && (
+        <MapPopup key={card.view.id} longitude={card.at.lng} latitude={card.at.lat} onClose={() => setCardId(null)}>
+          <MapPopupCard
+            className="w-48"
+            eyebrow={`View of interest ${card.mark.number}`}
+            title={card.view.name}
+            subtitle={card.blockMissing ? 'Its block is gone: choose another in its row.' : undefined}
+            onClose={() => setCardId(null)}
+            footerActions={[
+              {
+                label: 'Stand here',
+                primary: true,
+                disabled: card.blockMissing,
+                onClick: () => {
+                  setCardId(null)
+                  onStand(card.view.id)
+                },
+              },
+            ]}
+          />
+        </MapPopup>
+      )}
     </>
   )
 }

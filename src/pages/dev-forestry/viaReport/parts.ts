@@ -82,6 +82,8 @@ export type OfficeFields = Partial<
     | 'recommendedVqc'
     | 'sourceDocument'
     | 'evaluator'
+    | 'evaluatorDesignation'
+    | 'evaluatorOrganisation'
     | 'lakeManagementZone'
     | 'inventoryDate',
     string
@@ -258,6 +260,20 @@ export interface ReportPart {
 export const blank = (value: string | null | undefined) => (value && value.trim() ? value.trim() : null)
 export const officeRow = (ctx: ReportContext, key: keyof OfficeFields, label: string): FieldRow =>
   field(label, blank(ctx.office[key]), 'scene')
+/**
+ * The evaluator as a sign-off names them: "J. Smith, RPF #4521" and, with `organisation`, ", Northwood Forestry".
+ * Null without a name: a designation alone names nobody.
+ */
+export function preparerText(office: OfficeFields, organisation = false): string | null {
+  const name = blank(office.evaluator)
+  if (!name) return null
+  const designation = blank(office.evaluatorDesignation)
+  const own = organisation ? blank(office.evaluatorOrganisation) : null
+  return [designation ? `${name}, ${designation}` : name, own].filter(Boolean).join(', ')
+}
+/** The evaluator's row: name, designation and their own organisation, from the FS1252 office information. */
+export const preparerRow = (ctx: ReportContext, label: string): FieldRow =>
+  field(label, preparerText(ctx.office, true), 'scene')
 /**
  * The general location: the office field as given, else the named places the page read round the blocks
  * (`settingLocation`: "Paska Lake, 11.9 km north of Logan Lake"); blank, and to complete, when neither is there.
@@ -536,7 +552,7 @@ const cover: ReportPart = {
   build: (ctx) => {
     const rows = [
       officeRow(ctx, 'licensee', 'Prepared for'),
-      officeRow(ctx, 'evaluator', 'Prepared by'),
+      preparerRow(ctx, 'Prepared by'),
       officeRow(ctx, 'licence', 'Licence'),
       officeRow(ctx, 'cuttingPermit', 'Cutting permit'),
       field(
@@ -2218,7 +2234,7 @@ const signOff: ReportPart = {
   build: (ctx) => ({
     blocks: [
       heading('Sign-off'),
-      fields([officeRow(ctx, 'evaluator', 'Prepared by')]),
+      fields([preparerRow(ctx, 'Prepared by')]),
       {
         kind: 'choices',
         label: 'Certification:',
@@ -2707,7 +2723,7 @@ const eaMemo: ReportPart = {
         heading('Visual aesthetics memo'),
         fields([
           officeRow(ctx, 'licensee', 'Prepared for'),
-          officeRow(ctx, 'evaluator', 'Prepared by'),
+          preparerRow(ctx, 'Prepared by'),
           field('Date', ctx.date.toISOString().slice(0, 10), 'run'),
         ]),
         ...purpose.build(ctx).blocks.slice(1),

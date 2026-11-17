@@ -25,6 +25,7 @@ import {
   objectiveOf,
   generalLocationRow,
   officeRow,
+  preparerRow,
   paragraph,
   PRIVATE_LAND_NETTED,
   proposedBlocks,
@@ -267,7 +268,7 @@ const districtSummaryForm: ReportPart = {
         'scene',
       ),
       { ...blocksField(ctx), label: 'Block #' },
-      officeRow(ctx, 'evaluator', 'Completed by'),
+      preparerRow(ctx, 'Completed by'),
       field('Date', today(ctx), 'run'),
     ]
     toComplete.push(...missingFields(header))
@@ -775,7 +776,7 @@ const summaryBoxed: ReportPart = {
         source: 'reviewer',
       },
     ]
-    const rows = [officeRow(ctx, 'evaluator', 'Completed by'), field('Date completed', null, 'reviewer')]
+    const rows = [preparerRow(ctx, 'Completed by'), field('Date completed', null, 'reviewer')]
     return {
       blocks: [
         heading(`VIA Summary - ${projectLine(ctx)}`),
@@ -841,7 +842,7 @@ const certification2001: ReportPart = {
         : []),
       { name: 'Harvest simulations by viewpoint', attached: ctx.figures.length > 0 },
     ]
-    const rows = [officeRow(ctx, 'evaluator', 'Qualified registered professional responsible for VIA findings')]
+    const rows = [preparerRow(ctx, 'Qualified registered professional responsible for VIA findings')]
     const attached = attachments.filter((entry) => entry.attached).map((entry) => entry.name)
     return {
       blocks: [

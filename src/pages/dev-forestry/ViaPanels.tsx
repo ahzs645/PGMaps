@@ -111,6 +111,8 @@ type HeadlineProps = {
   activeStep?: ViaStepId
   /** Pre- or post-layout: what the whole assessment, and every report from it, is of. */
   stage?: { value: LayoutStage; onChange: (stage: LayoutStage) => void }
+  /** The views of interest the export draws (`isIncluded`) and how many are captured: step 2's progress. */
+  views?: { included: number; captured: number }
 }
 
 /**
@@ -126,6 +128,7 @@ export function ViaHeadline({
   onOpenStep,
   activeStep,
   stage,
+  views,
 }: HeadlineProps) {
   const next = VIA_STEPS.find((step) => statuses[step.id] === 'current') ?? null
   const rating = assessment?.rating ?? null
@@ -156,6 +159,13 @@ export function ViaHeadline({
         },
       ]
     : []
+  if (views && (assessment || views.included > 0))
+    stats.push({
+      label: 'Views captured',
+      value: views.included ? `${views.captured}/${views.included}` : '—',
+      note: !views.included ? 'none planned' : views.captured === views.included ? 'ready to export' : 'needs capture',
+      tone: views.included ? 'default' : 'muted',
+    })
 
   return (
     <section className="border-b border-border bg-background/95 p-3" aria-label="VIA headline result">
@@ -171,19 +181,21 @@ export function ViaHeadline({
               : 'Choose or draw the landform the proposal sits on to set its objective.'}
           </p>
         </div>
-        {rating ? (
-          <Badge tone={rating.tone} variant="solid" size="sm">
-            {rating.definitionAchieved
-              ? 'Definition achieved'
-              : rating.id === 'inconclusive'
-                ? 'On the boundary'
-                : 'Definition not achieved'}
-          </Badge>
-        ) : assessment?.numericalProvisional ? (
-          <Badge tone="warning" size="sm">
-            Provisional
-          </Badge>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1">
+          {rating ? (
+            <Badge tone={rating.tone} variant="solid" size="sm">
+              {rating.definitionAchieved
+                ? 'Definition achieved'
+                : rating.id === 'inconclusive'
+                  ? 'On the boundary'
+                  : 'Definition not achieved'}
+            </Badge>
+          ) : assessment?.numericalProvisional ? (
+            <Badge tone="warning" size="sm">
+              Provisional
+            </Badge>
+          ) : null}
+        </div>
       </div>
 
       {stage && (
@@ -218,7 +230,7 @@ export function ViaHeadline({
           className="mt-2"
           variant="tiles"
           size="sm"
-          columns={3}
+          columns={stats.length === 4 ? 4 : 3}
           // Tiles are cards: one step above the sidebar they sit on.
           items={stats.map((stat) => ({ ...stat, className: 'bg-card' }))}
         />

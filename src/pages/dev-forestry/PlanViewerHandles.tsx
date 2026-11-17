@@ -84,7 +84,7 @@ export function PlanViewerHandles({
 /**
  * While the road view is open, a plain click on the plan moves it there: the
  * page snaps the point to the road. A click on an inventory viewpoint or rec
- * site is left to that point's own handler (standing there), and nothing
+ * site is left to that point's own handler (its card to stand there), and nothing
  * happens while a drawing tool or a point pick owns the map's clicks.
  */
 export function PlanClickToMove({ onMove }: { onMove: ((point: { lng: number; lat: number }) => void) | null }) {

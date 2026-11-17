@@ -87,22 +87,24 @@ export function PreviewWorkflow(props: Props) {
       </section>
     )
   }
-  const showStatus = !props.active || props.analysis.status === 'error' || !!props.message || !!props.children
+  const showStatus = busy || props.analysis.status === 'error' || !!props.message || !!props.children
   return (
     <>
       {showStatus && (
         <section className="space-y-2 px-3 py-3" aria-label="Drive preview">
           {!props.active && (
             <div className="space-y-2">
-              <Button
-                size="sm"
-                className="w-full touch:h-10"
-                disabled={!!error || busy || props.drawMode !== 'none'}
-                onClick={props.onPreview}
-              >
-                {props.analysis.status === 'error' ? 'Retry' : busy ? 'Preparing the road view…' : 'Look from the road'}
-              </Button>
-              {error && <p className="text-xs text-muted-foreground">{error}</p>}
+              {/* The road view opens from the plan map's *Look from the road* tool; here, only a failed one's retry. */}
+              {props.analysis.status === 'error' && (
+                <Button
+                  size="sm"
+                  className="w-full touch:h-10"
+                  disabled={!!error || busy || props.drawMode !== 'none'}
+                  onClick={props.onPreview}
+                >
+                  Retry
+                </Button>
+              )}
               {busy && (
                 <InlineAlert loading>
                   <p>

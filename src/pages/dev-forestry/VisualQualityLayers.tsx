@@ -1,5 +1,7 @@
-import { useMemo, type ComponentProps } from 'react'
-import { MapMarker, MapScaleBar, MarkerContent } from '@/components/ui/map'
+import { useMemo, useState, type ComponentProps } from 'react'
+import { MapMarker, MapPopup, MapScaleBar, MarkerContent } from '@/components/ui/map'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { ViewshedOverlay, VIEWSHED_COLORS } from '@/features/terrain-viewshed'
 import { ROAD_VIEW_GUIDE_SOURCE } from './mapCapture'
@@ -48,7 +50,8 @@ import { ROLE_COLORS, type ForestryScene } from './scene'
 import type { DriveState } from './Sidebar'
 import type { AnalysisResult } from './types'
 import type { useRouteViewshed } from './useRouteViewshed'
-import type { ViewpointCandidate } from './viewpointInventory'
+import { viewpointCandidateSummary, type CandidateArrow, type ViewpointCandidate } from './viewpointInventory'
+import { compassPoint } from './visualsNarrative'
 import { EVQO_COLORS } from './visualsNarrative'
 
 type Collection = GeoJSON.FeatureCollection
@@ -157,7 +160,8 @@ export type SceneLayerData = {
   handleMapPoint: (point: [number, number]) => void
   finishDraft: () => void
   handleAdoptUnit: (id: string) => void
-  handleUseViewpoint: (candidate: ViewpointCandidate) => void
+  /** Stands at an inventory viewpoint, facing the block, or along one of its arrows when given. */
+  handleUseViewpoint: (candidate: ViewpointCandidate, arrow?: CandidateArrow | null) => void
   onInspectSample: (targetId: string, sampleIndex: number, stationIndex: number) => void
   /** A click on the plan's road line, while the road view can seek along it. */
   onRoadClick?: (lngLat: [number, number]) => void
@@ -291,6 +295,33 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     () => withoutHiddenFeatures(viewpointLayers.points, hidden, inventoryPointLegendKey),
     [viewpointLayers.points, hidden],
   )
+  // The inventory point whose card is open: a click chooses it, and the card's buttons stand there.
+  // A click on one of its arrows opens the same card, facing that arrow first and anchored where it was clicked.
+  const [viewpointCardOpen, setViewpointCardKey] = useState<{
+    key: string
+    arrowId?: string
+    at?: [number, number]
+    /** Where the point's own click landed, so the arrow under the same click stands aside. */
+    pointClick?: [number, number] | null
+  } | null>(null)
+  const viewpointCard =
+    !eye && showInventory && viewpointCardOpen
+      ? (viewpointCandidates.find((entry) => entry.key === viewpointCardOpen.key) ?? null)
+      : null
+  const arrowHoverHtml = (properties: Record<string, unknown>) => {
+    // An open card is the answer already: no tooltip over it.
+    if (viewpointCard) return null
+    const candidate = viewpointCandidates.find((entry) => entry.key === properties.viewpoint)
+    if (!candidate) return null
+    const bearing = Number(properties.bearing)
+    return mapTooltipHtml({
+      title: candidate.name,
+      subtitle: Number.isFinite(bearing)
+        ? `Inventory arrow · looks ${compassPoint(bearing)} (${bearing}°)`
+        : 'Inventory arrow',
+      footer: 'Click to stand here, facing along it',
+    })
+  }
   const planClues = useMemo(() => withoutHiddenFeatures(landformClues, hidden, clueLegendKey), [landformClues, hidden])
   const evqoCollection = evqoDisplay?.collection ?? EMPTY_COLLECTION
   const planEvqo = useMemo(() => withoutHiddenFeatures(evqoCollection, hidden, evqoLegendKey), [evqoCollection, hidden])
@@ -596,6 +627,27 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         lineColor={eye ? INVENTORY_COLORS.viewpoint : INVENTORY_COLORS.arrowOutline}
         lineWidth={eye ? (['case', ['==', ['get', 'faced'], 1], 3.5, 1.5] as never) : 0.8}
         lineOpacity={eye ? 0.95 : 0.8}
+        {...(eye
+          ? {}
+          : {
+              idProperty: 'id',
+              hoverHtml: arrowHoverHtml,
+              onFeatureClick: whenFree((_id: string, event: { lngLat: [number, number] | null }, properties) => {
+                const key = String(properties.viewpoint ?? '')
+                const arrowId = String(properties.arrowId ?? '')
+                if (!viewpointCandidates.some((entry) => entry.key === key)) return
+                // An arrow starts at its point, so one click can hit both: the point wins. The two layers' handlers run
+                // in no set order, so the arrow's waits for both and stands aside when the point took this click.
+                const at = event.lngLat
+                queueMicrotask(() =>
+                  setViewpointCardKey((current) =>
+                    current?.pointClick && at && current.pointClick[0] === at[0] && current.pointClick[1] === at[1]
+                      ? current
+                      : { key, arrowId, at: at ?? undefined },
+                  ),
+                )
+              }),
+            })}
       />
       {!eye && (
         <>
@@ -607,12 +659,37 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             strokeColor="#ffffff"
             strokeWidth={1.5}
             idProperty="id"
-            hoverHtml={viewpointHoverHtml}
-            onFeatureClick={whenFree((id) => {
-              const candidate = viewpointCandidates.find((entry) => entry.key === id)
-              if (candidate) handleUseViewpoint(candidate)
+            hoverHtml={viewpointCard ? noTooltip : viewpointHoverHtml}
+            onFeatureClick={whenFree((id: string, event: { lngLat: [number, number] | null }) => {
+              if (!viewpointCandidates.some((entry) => entry.key === id)) return
+              setViewpointCardKey({ key: String(id), pointClick: event.lngLat })
             })}
           />
+          {viewpointCard && (
+            <MapPopup
+              key={`${viewpointCard.key}:${viewpointCardOpen?.arrowId ?? ''}`}
+              longitude={viewpointCardOpen?.at?.[0] ?? viewpointCard.lng}
+              latitude={viewpointCardOpen?.at?.[1] ?? viewpointCard.lat}
+              offset={10}
+              onClose={() => setViewpointCardKey(null)}
+            >
+              <MapPopupCard
+                className="w-48"
+                eyebrow={viewpointCard.kind === 'rec-site' ? 'Recreation site' : 'VLI viewpoint'}
+                title={viewpointCard.name}
+                subtitle={viewpointCandidateSummary(viewpointCard).split(' · ').slice(1).join(' · ')}
+                onClose={() => setViewpointCardKey(null)}
+                footerActions={viewpointStandChoices(viewpointCard, viewpointCardOpen?.arrowId).map((choice) => ({
+                  label: choice.label,
+                  primary: choice.primary,
+                  onClick: () => {
+                    setViewpointCardKey(null)
+                    handleUseViewpoint(viewpointCard, choice.arrow)
+                  },
+                }))}
+              />
+            </MapPopup>
+          )}
           <MapCircleLayer
             data={planClues}
             // Up to 2,048 clues a landform, one per terrain sample: small and unringed until zoomed in, like the
@@ -878,4 +955,31 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       )}
     </>
   )
+}
+
+const noTooltip = () => null
+
+/**
+ * The stand choices an inventory point's card offers, the first leading. The clicked arrow leads, else the arrow that
+ * aims at the block, else the block itself; "facing the block" is left out when an arrow already does that, and every
+ * other arrow follows as a facing.
+ */
+export function viewpointStandChoices(
+  candidate: ViewpointCandidate,
+  clickedArrowId?: string,
+): Array<{ label: string; primary: boolean; arrow: CandidateArrow | null }> {
+  const numbered = candidate.arrows.map((arrow, index) => ({ arrow, number: index + 1 }))
+  const lead =
+    numbered.find(({ arrow }) => arrow.id === clickedArrowId) ?? numbered.find(({ arrow }) => arrow.aims) ?? null
+  const anyAims = numbered.some(({ arrow }) => arrow.aims)
+  const facing = (arrow: CandidateArrow) => `${compassPoint(arrow.bearing)}${arrow.aims ? ', at the block' : ''}`
+  return [
+    lead
+      ? { label: `Stand here, facing ${facing(lead.arrow)}`, primary: true, arrow: lead.arrow }
+      : { label: 'Stand here, facing the block', primary: true, arrow: null },
+    ...(lead && !anyAims ? [{ label: 'Face the block', primary: false, arrow: null }] : []),
+    ...numbered
+      .filter((entry) => entry !== lead)
+      .map(({ arrow, number }) => ({ label: `Arrow ${number}: ${facing(arrow)}`, primary: false, arrow })),
+  ]
 }

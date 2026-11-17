@@ -12,7 +12,6 @@ import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
-import { ToolSection } from '@/components/ui/tool-section'
 import { InfoTip } from '@/components/ui/info-tip'
 import { projectToPhoto, type PhotoPose } from './photoPose'
 import { maskAt } from './assessmentMasks'
@@ -49,7 +48,7 @@ type Props = {
 
 /**
  * Step 2's field records: the photographs and evidence images of the assessment, each filed under a view of
- * interest (its row lists and adds them). Viewpoints are the views of interest; the ones recorded here before them
+ * interest (its row lists and adds them). Shown in the sidebar's *Field photos* section, under the photo line-up. Viewpoints are the views of interest; the ones recorded here before them
  * are kept, for their photographs and runs, until listed with the views or removed.
  */
 export function ToolFieldPanel({
@@ -66,12 +65,7 @@ export function ToolFieldPanel({
   const [kind, setKind] = useState<FieldRecord['kind']>('photo')
   const [listError, setListError] = useState<string | null>(null)
   return (
-    <ToolSection
-      title="Field records"
-      summary={d.fields.length ? `${d.fields.length} attachment${d.fields.length === 1 ? '' : 's'}` : 'None yet'}
-      toggleProps={{ 'data-forestry-disclosure': 'field-records' }}
-      help="Photographs and evidence images for the assessment. File each under a view of interest: its row in Views of interest lists the photos filed under it and adds more. They stay on this device and travel in the workspace export."
-    >
+    <div className="space-y-2" role="group" aria-label="Field records">
       <div className="space-y-2">
         {earlier.length > 0 && (
           <div className="space-y-1.5" role="group" aria-label="Viewpoints recorded before the views of interest">
@@ -166,7 +160,7 @@ export function ToolFieldPanel({
         ))}
         {error && <InlineAlert tone="error">{error}</InlineAlert>}
       </div>
-    </ToolSection>
+    </div>
   )
 }
 

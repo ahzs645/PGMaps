@@ -7,7 +7,7 @@ import {
   NumberField,
 } from '@/components/ui/form-field'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ToolDisclosure, ToolSection } from '@/components/ui/tool-section'
+import { ToolSection } from '@/components/ui/tool-section'
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { formatMeasure } from '@/lib/format'
@@ -58,8 +58,6 @@ type Props = {
   onRun: (scene: ForestryScene) => void
   analysisRunning: boolean
   onImportScene: (scene: ForestryScene) => void
-  /** Opens Save & export on one of its outputs. */
-  onOpenExport?: (kind: 'evidence' | 'workspace') => void
   /** The views of interest as viewpoints (`plannedToolViews`): what runs and evidence are filed under. */
   plannedViews: ToolView[]
   /** Lists a view of interest at a photo's place and returns its id; null when it cannot. */
@@ -80,7 +78,6 @@ export function useAssessmentTools({
   onRun,
   analysisRunning,
   onImportScene,
-  onOpenExport,
   plannedViews,
   onAddViewAt,
   onListView,
@@ -339,20 +336,12 @@ export function useAssessmentTools({
     />
   )
   const design = (
-    <ToolSection
-      title="Design comparisons"
-      summary={
-        d.options.length
-          ? `${d.options.length} saved alternative${d.options.length === 1 ? '' : 's'}`
-          : 'Alternatives and diagnostics'
-      }
-      toggleProps={{ 'data-forestry-disclosure': 'design-comparisons' }}
-      help="Save design alternatives and compare them at a station, and run the diagnostics: the viewpoint and landform matrix, sampling and screening sensitivity, harvest scheduling and recovery, and a single sightline."
-    >
+    <>
       {message}
-      <ToolDisclosure
+      <ToolSection
+        summary=""
         toggleProps={{ 'data-forestry-disclosure': '' }}
-        label="Saved design alternatives"
+        title="Saved design alternatives"
         help="Alternatives supply proposed blocks and retained patches. Every run uses the same current landform, existing openings, surfaces, settings and station. Complete reviewer ratings separately in step 4."
         defaultOpen
       >
@@ -439,10 +428,11 @@ export function useAssessmentTools({
             Compare designs at current station
           </Button>
         </div>
-      </ToolDisclosure>
-      <ToolDisclosure
+      </ToolSection>
+      <ToolSection
+        summary=""
         toggleProps={{ 'data-forestry-disclosure': '' }}
-        label="Viewpoint and landform matrix"
+        title="Viewpoint and landform matrix"
         help={
           <>
             <span className="block">
@@ -494,10 +484,11 @@ export function useAssessmentTools({
             Run independent assessments
           </Button>
         </div>
-      </ToolDisclosure>
-      <ToolDisclosure
+      </ToolSection>
+      <ToolSection
+        summary=""
         toggleProps={{ 'data-forestry-disclosure': '' }}
-        label="Sampling and screening sensitivity"
+        title="Sampling and screening sensitivity"
         help="Compare finer area sampling, closer stations, eye height ±0.5 m, and screening toggled against the baseline. These comparisons reveal dependence on assumptions; they are not confidence intervals."
       >
         <div className="space-y-2 text-xs">
@@ -505,10 +496,11 @@ export function useAssessmentTools({
             Run sensitivity comparisons
           </Button>
         </div>
-      </ToolDisclosure>
-      <ToolDisclosure
+      </ToolSection>
+      <ToolSection
+        summary=""
         toggleProps={{ 'data-forestry-disclosure': '' }}
-        label="Harvest scheduling and recovery"
+        title="Harvest scheduling and recovery"
         help={
           <>
             <span className="block">
@@ -668,10 +660,11 @@ export function useAssessmentTools({
           </Button>
           <RecoveryTable runs={d.runs} kind="timeline" />
         </div>
-      </ToolDisclosure>
-      <ToolDisclosure
+      </ToolSection>
+      <ToolSection
+        summary=""
         toggleProps={{ 'data-forestry-disclosure': 'green-up-sensitivity' }}
-        label="Green-up age sensitivity"
+        title="Green-up age sensitivity"
         help={
           <>
             <span className="block">
@@ -697,11 +690,12 @@ export function useAssessmentTools({
           </Button>
           <RecoveryTable runs={d.runs} kind="greenup" />
         </div>
-      </ToolDisclosure>
+      </ToolSection>
       <DroughtRiskPanel landform={findSceneLandform(scene)} />
-      <ToolDisclosure
+      <ToolSection
+        summary=""
         toggleProps={{ 'data-forestry-disclosure': '' }}
-        label="Inspect a sightline"
+        title="Inspect a sightline"
         help="Click an analysis sample on the map, or select a sample and station below, to trace it through the numerical terrain and screening surface."
       >
         <div className="space-y-2 text-xs">
@@ -754,9 +748,14 @@ export function useAssessmentTools({
           </Button>
           {profile && <SightlineProfileChart profile={profile} />}
         </div>
-      </ToolDisclosure>
+      </ToolSection>
       {!!d.runs.length && (
-        <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Saved assessment results" defaultOpen>
+        <ToolSection
+          summary=""
+          toggleProps={{ 'data-forestry-disclosure': '' }}
+          title="Saved assessment results"
+          defaultOpen
+        >
           <div className="space-y-3 text-xs">
             {d.runs.map((r) => (
               <div key={r.id} className="space-y-1 border-b pb-3">
@@ -808,40 +807,26 @@ export function useAssessmentTools({
               available inventory and does not overwrite the stored result.
             </p>
           </div>
-        </ToolDisclosure>
+        </ToolSection>
       )}
-    </ToolSection>
+    </>
   )
+  // Save & export's *VIA evidence package* options: which viewpoint the record is for, recording the run, and the
+  // checklist of what the package still lacks. The package itself is written from that output.
   const report = (
-    <ToolSection
-      title="VIA evidence package"
-      summary={`${evidenceGaps(viewsDocument).length} evidence gap${evidenceGaps(viewsDocument).length === 1 ? '' : 's'}`}
-      toggleProps={{ 'data-forestry-disclosure': 'via-evidence' }}
-      help={
-        <>
-          Record after completing step 4. Attach photos, matching simulations, a topographic map and design annotations
-          in step 2. Use the road view’s existing image download for a simulation attachment.
-          <br />
-          The workspace JSON holds saved inputs, local rasters, hashes, results, judgments and resized attachments. It
-          is stored on this device in IndexedDB; save a backup (Save & export, Assessment workspace) before clearing
-          browser data. Imported results are historical records, not verified new calculations. This native VIA evidence
-          report is separate from the historical FS1252 form. The package's PDF and printable copy are written from Save
-          & export.
-        </>
-      }
-    >
-      <div className="space-y-3 text-xs">
-        {message}
-        <FormField label="Assessment evidence viewpoint">
-          <StyledSelect value={reportView} onChange={(e) => setReportView(e.target.value)}>
-            <option value="">Not linked</option>
-            {viewsDocument.views.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </StyledSelect>
-        </FormField>
+    <div className="space-y-3 text-xs" data-via-evidence="">
+      {message}
+      <FormField label="Assessment evidence viewpoint">
+        <StyledSelect value={reportView} onChange={(e) => setReportView(e.target.value)}>
+          <option value="">Not linked</option>
+          {viewsDocument.views.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </StyledSelect>
+      </FormField>
+      <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" disabled={busy || !result} onClick={() => perform(record)}>
           {openedRun ? 'Update reviewed assessment record' : 'Record current assessment'}
         </Button>
@@ -850,37 +835,30 @@ export function useAssessmentTools({
             Record next assessment separately
           </Button>
         )}
-        <ToolDisclosure
-          toggleProps={{ 'data-forestry-disclosure': '' }}
-          label={`Evidence checklist · ${evidenceGaps(viewsDocument).length} gaps`}
-          defaultOpen
-        >
-          <ul className="list-disc space-y-1 py-2 pl-4">
-            {evidenceGaps(viewsDocument).map((g) => (
-              <li key={g}>{g}</li>
-            ))}
-            {!evidenceGaps(viewsDocument).length && (
-              <li>Expected evidence categories present. Check content and adequacy.</li>
-            )}
-          </ul>
-        </ToolDisclosure>
-        <div className="flex flex-wrap items-center gap-2">
-          {onOpenExport && (
-            <Button size="sm" variant="outline" disabled={!loaded} onClick={() => onOpenExport('evidence')}>
-              Export the package…
-            </Button>
-          )}
-          <FileButton
-            label="Import assessment workspace"
-            accept=".json"
-            disabled={busy}
-            onFiles={([file]) => void importWorkspace(file)}
-          >
-            Import assessment workspace
-          </FileButton>
-        </div>
       </div>
-    </ToolSection>
+      <div>
+        <p className="font-medium text-foreground">Evidence checklist · {evidenceGaps(viewsDocument).length} gaps</p>
+        <ul className="list-disc space-y-1 py-1 pl-4">
+          {evidenceGaps(viewsDocument).map((g) => (
+            <li key={g}>{g}</li>
+          ))}
+          {!evidenceGaps(viewsDocument).length && (
+            <li>Expected evidence categories present. Check content and adequacy.</li>
+          )}
+        </ul>
+      </div>
+    </div>
+  )
+  // Save & export's *Assessment workspace* options: bringing a saved workspace back in.
+  const workspaceImport = (
+    <FileButton
+      label="Import assessment workspace"
+      accept=".json"
+      disabled={busy}
+      onFiles={([file]) => void importWorkspace(file)}
+    >
+      Import assessment workspace
+    </FileButton>
   )
   // Field-record photographs, for lining one up with the road view (Field photo), and a
   // confirmed camera written back to its record, unchecked until the reviewer ticks it there.
@@ -922,6 +900,7 @@ export function useAssessmentTools({
     field,
     design,
     report,
+    workspaceImport,
     evidence,
     revision,
     inspect,

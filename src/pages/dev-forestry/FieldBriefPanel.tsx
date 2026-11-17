@@ -1,13 +1,13 @@
 import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
+import { PersonInput } from '@/branding/PersonInput'
 
-import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TextButton } from '@/components/ui/text-button'
 import { ToolSection } from '@/components/ui/tool-section'
 
-import { briefOpenings, briefViewpoints, formatLatLng } from './fieldBrief'
+import { briefOpenings, briefViewpoints, formatLatLng, viewOfInterestCheck, viewOfInterestCheckKey } from './fieldBrief'
 import {
   FIELD_CHECK_LABELS,
   fieldChecklistProgress,
@@ -27,6 +27,7 @@ import type { SavedDriveView } from './previewState'
 import type { ForestryScene } from './scene'
 import type { AnalysisResult } from './types'
 import type { ViaReview } from './via'
+import type { ViewOfInterest } from './viewsOfInterest'
 
 /** Openings listed for the green-up check in the sidebar; the brief prints fewer. */
 const PANEL_OPENINGS = 12
@@ -49,8 +50,6 @@ function CheckRow({
   onAnswer: (answer: FieldCheckAnswer | null) => void
   onNote: (note: string) => void
 }) {
-  const labels = FIELD_CHECK_LABELS[group]
-  const stamp = stampText(entry)
   return (
     <li className="space-y-1 border-b border-border py-2 last:border-b-0" data-field-check={group}>
       <div className="min-w-0">
@@ -59,6 +58,29 @@ function CheckRow({
         </p>
         <p className="text-3xs leading-4 text-muted-foreground">{detail}</p>
       </div>
+      <CheckFields group={group} title={title} entry={entry} onAnswer={onAnswer} onNote={onNote} />
+    </li>
+  )
+}
+
+/** The answer buttons and note of one check, as a crew row and a view's own row both draw them. */
+function CheckFields({
+  group,
+  title,
+  entry,
+  onAnswer,
+  onNote,
+}: {
+  group: FieldCheckGroup
+  title: string
+  entry: FieldCheckEntry | null
+  onAnswer: (answer: FieldCheckAnswer | null) => void
+  onNote: (note: string) => void
+}) {
+  const labels = FIELD_CHECK_LABELS[group]
+  const stamp = stampText(entry)
+  return (
+    <>
       <SegmentedControl<Answer>
         size="sm"
         label={`${labels.question}: ${title}`}
@@ -78,8 +100,59 @@ function CheckRow({
         onChange={(event) => onNote(event.target.value)}
       />
       {stamp && <p className="text-3xs text-muted-foreground">Recorded {stamp}</p>}
-    </li>
+    </>
   )
+}
+
+/**
+ * A view of interest's crew check, in the view's own row: is it real and reachable. Kept under the view's id
+ * (`viewOfInterestCheckKey`), so a recapture keeps it; the crew checklist and the field brief read the same answer.
+ */
+export function viewFieldCheck({
+  view,
+  review,
+  onReviewChange,
+  savedViews,
+}: {
+  view: Pick<ViewOfInterest, 'id' | 'name'>
+  review: ViaReview
+  onReviewChange: (patch: Partial<ViaReview>) => void
+  savedViews: ReadonlyArray<Pick<SavedDriveView, 'id' | 'plannedViewId'>>
+}): { summary: string; node: ReactNode } {
+  const checklist = review.fieldChecklist ?? EMPTY_FIELD_CHECKLIST
+  const entry = viewOfInterestCheck(checklist.viewpoints, view.id, savedViews)
+  const labels = FIELD_CHECK_LABELS.viewpoints
+  const key = viewOfInterestCheckKey(view.id)
+  // An answer read from the view's earlier capture is written under the view's own key from the first edit.
+  const write = (patch: { answer?: FieldCheckAnswer | null; note?: string }) =>
+    onReviewChange({
+      fieldChecklist: updateFieldCheck(
+        checklist,
+        'viewpoints',
+        key,
+        { answer: entry?.answer ?? null, note: entry?.note ?? '', ...patch },
+        localIsoDate(new Date()),
+      ),
+    })
+  return {
+    summary: entry?.answer === 'yes' ? labels.yes : entry?.answer === 'no' ? labels.no : 'not checked',
+    node: (
+      <div className="space-y-1" data-field-check="view" data-view-check={view.id}>
+        <CheckFields
+          group="viewpoints"
+          title={view.name}
+          entry={entry}
+          onAnswer={(answer) => write({ answer })}
+          onNote={(note) => write({ note })}
+        />
+        {!checklist.checkedBy.trim() && (
+          <p className="text-3xs text-muted-foreground">
+            Stamped with the date and <em>Checked by</em> from step 2&apos;s crew checklist.
+          </p>
+        )}
+      </div>
+    ),
+  }
 }
 
 /** Opens the Field records section above and scrolls to it, where a visit's photos are added. */
@@ -99,7 +172,6 @@ function showFieldRecords() {
 export function FieldBriefPanel({
   scene,
   result,
-  stale,
   review,
   onReviewChange,
   selectedTargetId,
@@ -107,12 +179,12 @@ export function FieldBriefPanel({
   otherViews,
   blockId,
   onBlockId,
-  onOpenExport,
+  viewsOfInterest,
+  standingViewId,
 }: {
   scene: ForestryScene
   /** The current run; null when there is none or it is stale. */
   result: AnalysisResult | null
-  stale: boolean
   review: ViaReview
   onReviewChange: (patch: Partial<ViaReview>) => void
   selectedTargetId: string | null
@@ -123,8 +195,10 @@ export function FieldBriefPanel({
   /** The block the brief and checklist are for (shared with Save & export); the selected one when null. */
   blockId: string | null
   onBlockId: (id: string) => void
-  /** Opens Save & export on the field brief. */
-  onOpenExport?: () => void
+  /** The views of interest: each is answered in its own row, and only counted here. */
+  viewsOfInterest?: ReadonlyArray<ViewOfInterest>
+  /** The view of interest the run stands at: the road is that view, so its station is not listed again. */
+  standingViewId?: string | null
 }) {
   const blocks = useMemo(() => scene.targets.filter((target) => target.role === 'block'), [scene.targets])
   const block = useMemo(
@@ -145,11 +219,25 @@ export function FieldBriefPanel({
   )
   const viewpoints = useMemo(
     () =>
-      briefViewpoints({ viewpoint: scene.viewpoint, block, targets: scene.targets, result, savedViews: briefViews }),
-    [scene.viewpoint, block, scene.targets, result, briefViews],
+      briefViewpoints({
+        viewpoint: scene.viewpoint,
+        block,
+        targets: scene.targets,
+        result,
+        savedViews: briefViews,
+        viewsOfInterest,
+        standingViewId,
+      }),
+    [scene.viewpoint, block, scene.targets, result, briefViews, viewsOfInterest, standingViewId],
   )
+  // Views of interest are answered in their own rows; the rest (the road, saved views of no planned view) here.
+  const plannedPoints = viewpoints.filter((point) => point.key.startsWith('voi:'))
+  const listedPoints = viewpoints.filter((point) => !point.key.startsWith('voi:'))
   const openings = useMemo(() => briefOpenings(block, scene.targets), [block, scene.targets])
   const checklist = review.fieldChecklist ?? EMPTY_FIELD_CHECKLIST
+  const plannedAnswered = plannedPoints.filter(
+    (point) => viewOfInterestCheck(checklist.viewpoints, point.key.slice(4), briefViews)?.answer,
+  ).length
   const progress = fieldChecklistProgress(checklist, {
     viewpoints: viewpoints.map((point) => point.key),
     openings: openings.map((opening) => opening.id),
@@ -176,7 +264,7 @@ export function FieldBriefPanel({
           the block, landform and objective, each viewpoint with where to stand and which way to face, up to three saved
           views&apos; screenshots, the measured figure, what to look for, and this checklist with tick boxes. Record the
           crew&apos;s answers here; each is stamped with the name below and the date, and printed in the brief&apos;s
-          boxes. They are part of the review, so they never stale the run.
+          boxes. They are part of the review, so they never stale the run. Download the brief from Save &amp; export.
         </>
       }
     >
@@ -199,14 +287,6 @@ export function FieldBriefPanel({
                 ))}
               </StyledSelect>
             )}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" disabled={!onOpenExport} onClick={onOpenExport}>
-                Download the field brief…
-              </Button>
-              <span className="text-3xs text-muted-foreground">
-                {result ? '' : stale ? 'Run is out of date: the brief says so.' : 'Not run yet: the brief says so.'}
-              </span>
-            </div>
 
             <FormField
               label="Checked by"
@@ -216,21 +296,31 @@ export function FieldBriefPanel({
                 </InfoTip>
               }
             >
-              <input
+              <PersonInput
                 className={FORM_INPUT_CLASS}
                 value={checklist.checkedBy}
                 placeholder="Crew lead"
-                onChange={(event) =>
-                  onReviewChange({ fieldChecklist: { ...checklist, checkedBy: event.target.value.slice(0, 120) } })
+                maxLength={120}
+                onValueChange={(checkedBy) =>
+                  onReviewChange({ fieldChecklist: { ...checklist, checkedBy: checkedBy.slice(0, 120) } })
                 }
               />
             </FormField>
 
             <div>
               <p className="text-2xs font-semibold text-foreground">Each viewpoint is real and reachable</p>
-              {viewpoints.length ? (
+              {plannedPoints.length > 0 && (
+                <p className="py-1 text-2xs leading-4 text-muted-foreground" data-field-check-views="">
+                  {plannedPoints.length === 1
+                    ? 'The view of interest is'
+                    : `The ${plannedPoints.length} views of interest are`}{' '}
+                  checked in {plannedPoints.length === 1 ? 'its' : 'each'} row under <em>Views of interest</em> (
+                  {plannedAnswered} of {plannedPoints.length} answered).
+                </p>
+              )}
+              {listedPoints.length ? (
                 <ul aria-label="Viewpoints to ground-truth">
-                  {viewpoints.map((point) => (
+                  {listedPoints.map((point) => (
                     <CheckRow
                       key={point.key}
                       group="viewpoints"
@@ -245,7 +335,9 @@ export function FieldBriefPanel({
                   ))}
                 </ul>
               ) : (
-                <p className="text-2xs text-muted-foreground">No viewpoint yet: draw or import the road in step 1.</p>
+                !plannedPoints.length && (
+                  <p className="text-2xs text-muted-foreground">No viewpoint yet: draw or import the road in step 1.</p>
+                )
               )}
             </div>
 

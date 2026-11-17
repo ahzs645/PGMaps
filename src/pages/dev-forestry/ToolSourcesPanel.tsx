@@ -1,6 +1,6 @@
 import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
 import { useRef, useState } from 'react'
-import { ToolDisclosure, ToolSection } from '@/components/ui/tool-section'
+import { ToolSection, ToolSubsection } from '@/components/ui/tool-section'
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -83,9 +83,8 @@ export function ToolSourcesPanel({
       toggleProps={{ 'data-forestry-disclosure': 'masks-surfaces' }}
       help="Classify parts of the landform (natural non-green ground, private land, retained patches) and bring in a local terrain or canopy-height GeoTIFF in place of the AWS terrain."
     >
-      <ToolDisclosure
-        toggleProps={{ 'data-forestry-disclosure': '' }}
-        label="Classify assessment areas"
+      <ToolSubsection
+        title="Classify assessment areas"
         help={
           <>
             <span className="block">
@@ -187,10 +186,9 @@ export function ToolSourcesPanel({
             </div>
           ))}
         </div>
-      </ToolDisclosure>
-      <ToolDisclosure
-        toggleProps={{ 'data-forestry-disclosure': '' }}
-        label="Import terrain or canopy GeoTIFF"
+      </ToolSubsection>
+      <ToolSubsection
+        title="Import terrain or canopy GeoTIFF"
         help="Use a cropped, single-band, metre-valued GeoTIFF. Native cells and no-data are preserved. Supported coordinates: WGS84, Web Mercator, BC Albers and NAD83, NAD83(CSRS) or WGS84 UTM zones."
       >
         <div className="space-y-2 text-xs">
@@ -245,7 +243,7 @@ export function ToolSourcesPanel({
             </InlineAlert>
           )}
         </div>
-      </ToolDisclosure>
+      </ToolSubsection>
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
     </ToolSection>
   )

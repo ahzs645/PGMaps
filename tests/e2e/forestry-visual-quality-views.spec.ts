@@ -78,7 +78,7 @@ type LngLat = { lng: number; lat: number }
 
 /** The sample scene's Block A (`createSampleScene`): a box round this centre. */
 const BLOCK_A_CENTRE: LngLat = { lng: -122.5085, lat: 53.883 }
-/** Where the test places a view with *Add on the map*: about 2.6 km west-southwest of Block A. */
+/** Where the test places a view with the map's *Add a view of interest* tool: about 2.6 km west-southwest of Block A. */
 const MAP_VIEW: LngLat = { lng: -122.545, lat: 53.87 }
 /** The stubbed VLI viewpoint, about 2.8 km northwest of Block A. */
 const VLI_VIEWPOINT: LngLat = { lng: -122.54, lat: 53.9 }
@@ -323,11 +323,13 @@ const viewRow = (page: Page, name: string) =>
     .filter({ has: page.getByText(name, { exact: true }) })
 const captureState = (row: Locator) => row.locator('[data-capture-state]')
 
-/** Opens a view's row (its fields show only while it is open). */
-async function openViewRow(page: Page, name: string) {
+/** Opens a view's row on one of its tabs (its fields show only while it is open, a tab at a time). */
+async function openViewRow(page: Page, name: string, tab: 'View' | 'Record' | 'Field' | 'Report' = 'View') {
   const row = viewRow(page, name)
-  if (!(await row.getByText('Include in exports').isVisible())) await row.getByRole('button', { name }).click()
-  await expect(row.getByText('Include in exports')).toBeVisible()
+  const toggle = row.getByRole('button', { name }).first()
+  if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click()
+  await row.getByRole('button', { name: tab, exact: true }).click()
+  await expect(row.locator(`[data-view-tab="${tab.toLowerCase()}"]`)).toBeVisible()
   return row
 }
 
@@ -350,14 +352,15 @@ test('plans views of interest, captures them without driving and writes them thr
   const arrowOneName = `${VLI_NAME}, arrow 1`
   const arrowTwoName = `${VLI_NAME}, arrow 2`
 
-  await test.step('Add on the map places a view facing the block', async () => {
+  await test.step('The map tool places a view facing the block', async () => {
     await unfold(page, 'visit', 'views-of-interest')
-    const panel = page.locator('[data-via-panel="visit"]')
-    const add = panel.getByRole('button', { name: 'Add on the map' })
-    // The sample has two blocks; the view is for the first unless another is chosen.
-    await expect(panel.getByRole('combobox', { name: 'Block a new view is for' })).toHaveText('For Block A — west face')
+    const add = page.getByRole('button', { name: 'Add a view of interest', exact: true })
     await add.click()
-    await expect(panel.getByRole('button', { name: 'Placing…' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(add).toHaveAttribute('aria-pressed', 'true')
+    // The sample has two blocks; the view is for the first unless another is chosen in the tool's card.
+    await expect(
+      page.getByTestId('plan-tool-card').getByRole('combobox', { name: 'Block a new view is for' }),
+    ).toHaveText('For Block A — west face')
     await clickPlanAt(page, MAP_VIEW)
     // One click places one view and puts the plan's click mode down.
     await expect(add).toHaveAttribute('aria-pressed', 'false')
@@ -437,7 +440,7 @@ test('plans views of interest, captures them without driving and writes them thr
     await expectSelected(lensRow.getByRole('combobox', { name: 'Lens', exact: true }), '28')
     await expect(lensRow).toContainText('· 28 mm')
 
-    const leftOut = await openViewRow(page, mapViewName)
+    const leftOut = await openViewRow(page, mapViewName, 'Report')
     await leftOut.getByRole('checkbox', { name: 'Include in exports' }).uncheck()
     await expect(leftOut).toContainText('left out of exports')
     const mapViewId = await leftOut.getAttribute('data-view-of-interest')
@@ -466,7 +469,8 @@ test('plans views of interest, captures them without driving and writes them thr
     // The view left out of exports is not captured, and nothing included is left to capture.
     await expect(captureState(viewRow(page, mapViewName))).toHaveAttribute('data-capture-state', 'not-captured')
     await expect(panel.getByRole('button', { name: 'All captured' })).toBeDisabled()
-    await expect(panel.locator('[data-workflow-step="captured"]')).toContainText('2 of 2')
+    // The headline carries step 2's progress.
+    await expect(page.getByRole('region', { name: 'VIA headline result' })).toContainText('2/2')
   })
 
   await test.step("The summary's arrows stand at the planned views in turn", async () => {
@@ -593,7 +597,7 @@ test('drafts the VIA report without capturing, draws its pictures one group at a
   await test.step('A view of interest is captured', async () => {
     await unfold(page, 'visit', 'views-of-interest')
     const panel = page.locator('[data-via-panel="visit"]')
-    await panel.getByRole('button', { name: 'Add on the map' }).click()
+    await page.getByRole('button', { name: 'Add a view of interest', exact: true }).click()
     await clickPlanAt(page, MAP_VIEW)
     await expect(viewsList(page).locator('li[data-view-of-interest]')).toHaveCount(1)
     await panel.getByRole('button', { name: 'Capture 1 view' }).click()

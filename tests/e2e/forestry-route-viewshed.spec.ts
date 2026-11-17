@@ -29,17 +29,16 @@ async function setup(page: Page, fail = false) {
   const folded = identify.locator('[data-forestry-disclosure][aria-expanded="false"]')
   while (await folded.count()) await folded.first().click()
   await page.getByRole('button', { name: 'New site', exact: true }).click()
+  // The road is drawn with the plan map's own tool; its card counts the points.
   await page.getByRole('button', { name: 'Draw the road', exact: true }).click()
   const box = (await page.locator('.maplibregl-canvas').boundingBox())!
   await page.mouse.click(box.x + box.width * 0.45, box.y + box.height * 0.55)
-  await expect(identify.getByText(/1 points added/)).toBeVisible()
+  await expect(page.getByTestId('plan-tool-card').getByText(/1 point added/)).toBeVisible()
   await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.55)
   await expect(page.getByRole('button', { name: 'Finish drawing', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Finish drawing', exact: true }).click()
-  await page.locator('[data-via-step="visit"]').click()
-  // The route preview opens folded, with its state as the summary.
-  const routePreview = page.locator('[data-forestry-disclosure="route-preview"]')
-  if ((await routePreview.getAttribute('aria-expanded')) === 'false') await routePreview.click()
+  // The route preview is a plan map tool: its icon opens its card.
+  await page.getByRole('button', { name: 'Route preview', exact: true }).click()
   await page.getByRole('button', { name: 'Road viewshed', exact: true }).click()
   return host
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 
+import { PreparerProfileHostProvider, PreparerProfilePane, PreparerProfileRow } from '@/branding/PreparerProfile'
 import { Button } from '@/components/ui/button'
 import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { PanelDialog } from '@/components/ui/dialog-shell'
@@ -406,6 +407,8 @@ export function VisualsExportDialog({
   onRender,
   onReadInventory,
   packagePane,
+  viewsPane,
+  viewsSummary,
   drafts,
   onCapture,
   onCancelCapture,
@@ -438,6 +441,13 @@ export function VisualsExportDialog({
   onReadInventory?: () => void
   /** The package's choices (`ExportPackagePane`), shown under its own entry first in the list. Absent: no entry. */
   packagePane?: ReactNode
+  /**
+   * The views of interest (`ViewsOfInterestList`), under their own *Views* entry beside the package: each view's
+   * options and capture, edited where the files that draw them are written. Absent: no entry.
+   */
+  viewsPane?: ReactNode
+  /** The *Views* entry's subtitle ("2 planned · 1 of 2 captured"). */
+  viewsSummary?: string
   /** Outputs with a draft view (`OutputDraft`): the VIA report. */
   drafts?: Partial<Record<VisualsExport, OutputDraft>>
   /**
@@ -453,6 +463,10 @@ export function VisualsExportDialog({
   // The package's entry is open in place of an output's pane. The page mounts the dialog only while it is open, so
   // the first render takes `initialPackage` here: the open transition below never runs for that mount.
   const [packageOpen, setPackageOpen] = useState(open && initialPackage && !!packagePane)
+  // The views' entry is open in place of an output's pane (and of the package's).
+  const [viewsOpen, setViewsOpen] = useState(false)
+  // *Your details* are open in place of every other pane (`PreparerProfilePane`, kept mounted while the dialog is).
+  const [detailsOpen, setDetailsOpen] = useState(false)
   // Teal in the built-in theme; an Appearance theme's own selection colours under one.
   const themed = useInterfaceThemeApplied()
   const [view, setView] = useState<'contents' | 'draft' | 'preview'>('contents')
@@ -474,6 +488,8 @@ export function VisualsExportDialog({
     if (open) {
       setSelected(initialOutput)
       setPackageOpen(initialPackage && !!packagePane)
+      setDetailsOpen(false)
+      setViewsOpen(false)
       setView('contents')
       setStatus(null)
     }
@@ -687,7 +703,7 @@ export function VisualsExportDialog({
   )
 
   useEffect(() => {
-    if (!open || unavailable || shownView !== 'preview' || packageOpen) return
+    if (!open || unavailable || shownView !== 'preview' || packageOpen || viewsOpen || detailsOpen) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       let missing: string | null = null
@@ -723,10 +739,10 @@ export function VisualsExportDialog({
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [open, request, unavailable, shownView, packageOpen, prepare, writeFile])
+  }, [open, request, unavailable, shownView, packageOpen, viewsOpen, detailsOpen, prepare, writeFile])
   // The draft is laid out again whenever the output's content changes; it captures nothing, so it waits for nothing.
   useEffect(() => {
-    if (!open || unavailable || shownView !== 'draft' || packageOpen) return
+    if (!open || unavailable || shownView !== 'draft' || packageOpen || viewsOpen || detailsOpen) return
     let stopped = false
     const timer = window.setTimeout(() => {
       const draft = latestDrafts.current?.[request.kind]
@@ -747,7 +763,7 @@ export function VisualsExportDialog({
       stopped = true
       window.clearTimeout(timer)
     }
-  }, [open, request, unavailable, shownView, packageOpen])
+  }, [open, request, unavailable, shownView, packageOpen, viewsOpen, detailsOpen])
   // The last draft stays up while the next is laid out, so drawing a picture does not blank the page.
   const shownDraft = draftResult && (draftResult.request === request || draftResult.draft) ? draftResult : null
   /** Draws one picture group of the draft, after any file being written: both move the page's maps. */
@@ -783,6 +799,8 @@ export function VisualsExportDialog({
   const select = (kind: VisualsExport) => {
     setSelected(kind)
     setPackageOpen(false)
+    setViewsOpen(false)
+    setDetailsOpen(false)
     setStatus(null)
     // Stacked on a phone, the pane sits under the list; bring it up. Side by side this does nothing.
     requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
@@ -828,9 +846,24 @@ export function VisualsExportDialog({
 
   const openPackage = () => {
     setPackageOpen(true)
+    setViewsOpen(false)
+    setDetailsOpen(false)
     setStatus(null)
     requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
+  const openViews = () => {
+    setViewsOpen(true)
+    setPackageOpen(false)
+    setDetailsOpen(false)
+    setStatus(null)
+    requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+  }
+  const openDetails = () => {
+    setDetailsOpen(true)
+    setStatus(null)
+    requestAnimationFrame(() => detailsPane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+  }
+  const detailsPane = useRef<HTMLElement>(null)
   // The package's entry is the dialog's own; every other action is the page's.
   const act = (action: ExportAction) => (action.id === OPEN_PACKAGE_ACTION ? openPackage() : onAction?.(action))
   const capture = context.capture
@@ -852,240 +885,273 @@ export function VisualsExportDialog({
       bodyClassName="p-0 workspace-sm:p-0"
       contentProps={{ 'data-testid': 'visuals-export-dialog' }}
     >
-      {/* One column on a phone that never grows past the dialog: a long option or row text wraps or ellipsizes. */}
-      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] sm:h-full sm:min-h-[24rem] sm:grid-cols-[15rem_minmax(0,1fr)]">
-        <nav
-          aria-label="Files"
-          className="border-b border-border py-1 sm:min-h-0 sm:overflow-y-auto overscroll-none sm:border-b-0 sm:border-r"
-        >
-          {packagePane && (
-            <div>
-              <h3 className="px-3 pb-1 pt-3 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Chosen once
-              </h3>
-              <ResultRow
-                accent={themed ? 'theme' : 'teal'}
-                selected={packageOpen}
-                title="Package"
-                subtitle={packageSummary(context)}
-                className="py-2"
-                aria-label={`Package: ${packageSummary(context)}`}
-                onClick={openPackage}
-              />
-            </div>
-          )}
-          {GROUPS.map((group) => (
-            <div key={group}>
-              <h3 className="px-3 pb-1 pt-3 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {VISUALS_EXPORT_GROUP_LABELS[group]}
-              </h3>
-              {VISUALS_EXPORTS.filter((entry) => entry.group === group).map((entry) => {
-                const reason = exportUnavailable(entry.kind, context)
-                const shown = entry.formats.find((f) => f.id === formats[entry.kind]) ?? entry.formats[0]
-                return (
+      {/* The row and every output's *Edit your details* open the pane below, not a second modal. */}
+      <PreparerProfileHostProvider value={{ open: openDetails, shown: detailsOpen }}>
+        {/* One column on a phone that never grows past the dialog: a long option or row text wraps or ellipsizes. */}
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] sm:h-full sm:min-h-[24rem] sm:grid-cols-[15rem_minmax(0,1fr)]">
+          <nav
+            aria-label="Files"
+            className="border-b border-border py-1 sm:min-h-0 sm:overflow-y-auto overscroll-none sm:border-b-0 sm:border-r"
+          >
+            <PreparerProfileRow accent={themed ? 'theme' : 'teal'} portalContainer={portalContainer} />
+            {(packagePane || viewsPane) && (
+              <div>
+                <h3 className="px-3 pb-1 pt-3 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Chosen once
+                </h3>
+                {packagePane && (
                   <ResultRow
-                    key={entry.kind}
                     accent={themed ? 'theme' : 'teal'}
-                    selected={!packageOpen && entry.kind === item.kind}
-                    title={entry.label}
-                    subtitle={reason ?? undefined}
-                    trailing={<span className="text-3xs font-normal text-muted-foreground">{shown.extension}</span>}
-                    className={`py-2 ${reason ? '[&_span]:text-muted-foreground' : ''}`}
-                    aria-label={reason ? `${entry.label}, unavailable: ${reason}` : entry.label}
-                    onClick={() => select(entry.kind)}
+                    selected={packageOpen && !detailsOpen}
+                    title="Package"
+                    subtitle={packageSummary(context)}
+                    className="py-2"
+                    aria-label={`Package: ${packageSummary(context)}`}
+                    onClick={openPackage}
                   />
-                )
-              })}
-            </div>
-          ))}
-        </nav>
-        {packageOpen && packagePane ? (
-          <section ref={pane} aria-label="Package" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
-            <div className="min-w-0">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-sm font-semibold">Package</h3>
-                {drafts?.['via-report'] && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => {
-                      select('via-report')
-                      setView('draft')
-                    }}
-                  >
-                    See the report’s draft
-                  </Button>
+                )}
+                {viewsPane && (
+                  <ResultRow
+                    accent={themed ? 'theme' : 'teal'}
+                    selected={viewsOpen && !detailsOpen}
+                    title="Views"
+                    subtitle={viewsSummary}
+                    className="py-2"
+                    aria-label={viewsSummary ? `Views: ${viewsSummary}` : 'Views'}
+                    onClick={openViews}
+                  />
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Chosen once for every output: the recipe the VIA report and the VIA document follow, who draws the
-                figures, and the views that go in.
-              </p>
-            </div>
-            {captureRunning && (
-              <InlineAlert loading>
-                <span role="status">
-                  {capture.message ??
-                    `Capturing the views of interest${capture.total ? `, ${capture.done} of ${capture.total}` : ''}.`}
-                </span>
-                {cancelCapture}
-              </InlineAlert>
             )}
-            <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">{packagePane}</div>
-          </section>
-        ) : (
-          <section
-            ref={pane}
-            aria-label={`${item.label} export`}
-            className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold">
-                  {item.label} <span className="font-normal text-muted-foreground">{format.extension}</span>
+            {GROUPS.map((group) => (
+              <div key={group}>
+                <h3 className="px-3 pb-1 pt-3 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {VISUALS_EXPORT_GROUP_LABELS[group]}
                 </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
+                {VISUALS_EXPORTS.filter((entry) => entry.group === group).map((entry) => {
+                  const reason = exportUnavailable(entry.kind, context)
+                  const shown = entry.formats.find((f) => f.id === formats[entry.kind]) ?? entry.formats[0]
+                  return (
+                    <ResultRow
+                      key={entry.kind}
+                      accent={themed ? 'theme' : 'teal'}
+                      selected={!detailsOpen && !packageOpen && !viewsOpen && entry.kind === item.kind}
+                      title={entry.label}
+                      subtitle={reason ?? undefined}
+                      trailing={<span className="text-3xs font-normal text-muted-foreground">{shown.extension}</span>}
+                      className={`py-2 ${reason ? '[&_span]:text-muted-foreground' : ''}`}
+                      aria-label={reason ? `${entry.label}, unavailable: ${reason}` : entry.label}
+                      onClick={() => select(entry.kind)}
+                    />
+                  )
+                })}
               </div>
-              <Button
-                className="shrink-0"
-                disabled={!!unavailable || saving}
-                aria-label={`Download ${item.label}`}
-                onClick={() => void download()}
-              >
-                {saving ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                {item.group === 'files' ? 'Save' : 'Download'}
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <SegmentedControl
-                size="sm"
-                fullWidth={false}
-                label={`${item.label} view`}
-                value={shownView}
-                onChange={(next) => {
-                  // A download's line (saved, or why not) belongs to that download, not to the next view.
-                  setView(next)
-                  setStatus(null)
-                }}
-                options={[
-                  { value: 'contents' as const, label: 'What goes in' },
-                  ...(draftOf ? [{ value: 'draft' as const, label: 'Draft' }] : []),
-                  { value: 'preview' as const, label: 'Preview' },
-                ]}
-              />
-              {item.formats.length > 1 && (
+            ))}
+          </nav>
+          <PreparerProfilePane hidden={!detailsOpen} sectionRef={detailsPane} />
+          {detailsOpen ? null : viewsOpen && viewsPane ? (
+            <section ref={pane} aria-label="Views" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold">Views</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  The views of interest, as step 2 lists them: open a row for its facing, lens, record, field photos and
+                  whether it goes in the exports, and capture the ones the files still need.
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-x-clip sm:overflow-y-auto overscroll-none">{viewsPane}</div>
+            </section>
+          ) : packageOpen && packagePane ? (
+            <section ref={pane} aria-label="Package" className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5">
+              <div className="min-w-0">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-sm font-semibold">Package</h3>
+                  {drafts?.['via-report'] && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => {
+                        select('via-report')
+                        setView('draft')
+                      }}
+                    >
+                      See the report’s draft
+                    </Button>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Chosen once for every output: the recipe the VIA report and the VIA document follow, who draws the
+                  figures, and the views that go in.
+                </p>
+              </div>
+              {captureRunning && (
+                <InlineAlert loading>
+                  <span role="status">
+                    {capture.message ??
+                      `Capturing the views of interest${capture.total ? `, ${capture.done} of ${capture.total}` : ''}.`}
+                  </span>
+                  {cancelCapture}
+                </InlineAlert>
+              )}
+              <div className="min-h-0 flex-1 overflow-x-clip sm:overflow-y-auto overscroll-none">{packagePane}</div>
+            </section>
+          ) : (
+            <section
+              ref={pane}
+              aria-label={`${item.label} export`}
+              className="flex min-w-0 flex-col gap-3 p-3 sm:min-h-0 sm:p-5"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold">
+                    {item.label} <span className="font-normal text-muted-foreground">{format.extension}</span>
+                  </h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
+                </div>
+                <Button
+                  className="shrink-0"
+                  disabled={!!unavailable || saving}
+                  aria-label={`Download ${item.label}`}
+                  onClick={() => void download()}
+                >
+                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  {item.group === 'files' ? 'Save' : 'Download'}
+                </Button>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <SegmentedControl
                   size="sm"
                   fullWidth={false}
-                  label={`${item.label} format`}
-                  value={format.id}
-                  onChange={(id) => setFormats((current) => ({ ...current, [item.kind]: id }))}
-                  options={item.formats.map((entry) => ({ value: entry.id, label: entry.label }))}
+                  label={`${item.label} view`}
+                  value={shownView}
+                  onChange={(next) => {
+                    // A download's line (saved, or why not) belongs to that download, not to the next view.
+                    setView(next)
+                    setStatus(null)
+                  }}
+                  options={[
+                    { value: 'contents' as const, label: 'What goes in' },
+                    ...(draftOf ? [{ value: 'draft' as const, label: 'Draft' }] : []),
+                    { value: 'preview' as const, label: 'Preview' },
+                  ]}
                 />
-              )}
-            </div>
-            {status && (
-              <InlineAlert tone={status.tone === 'info' ? 'success' : status.tone}>
-                <span role="status">{status.text}</span>
-              </InlineAlert>
-            )}
-            {!unavailable && preparation.note && !(shownView === 'preview' && preparation.noteIsSkipped && current) && (
-              <InlineAlert
-                loading={
-                  context.autoRun.status === 'running' ||
-                  (USES_PACKAGE_VIEWS.has(item.kind) && captureRunning) ||
-                  (saving && preparation.landChecks) ||
-                  (preparation.render && context.renderer.running)
-                }
-              >
-                <span role="status">{preparation.note}</span>
-                {USES_PACKAGE_VIEWS.has(item.kind) && cancelCapture}
-              </InlineAlert>
-            )}
-            {unavailable && (
-              <p
-                role="status"
-                className="rounded-md border border-warning-border bg-warning-surface p-2 text-xs text-warning-foreground"
-              >
-                {unavailable}
-              </p>
-            )}
-            {/* Side by side the pane scrolls; stacked on a phone it flows with the dialog. */}
-            <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">
-              {shownView === 'draft' && !unavailable ? (
-                shownDraft?.draft ? (
-                  <ReportDraftView
-                    draft={shownDraft.draft}
-                    options={options[item.kind]}
-                    drawing={drawing}
-                    onDraw={(id) => void drawPicture(id)}
-                    drawError={drawError}
-                    startOnPages={request.format === 'pdf'}
-                    {...(draftOf?.pages ? { pages: () => latestDrafts.current![item.kind]!.pages!() } : {})}
-                    {...(draftOf?.edit
-                      ? {
-                          onEdit: (key, value, original) =>
-                            latestDrafts.current?.[item.kind]?.edit?.(key, value, original),
-                        }
-                      : {})}
+                {item.formats.length > 1 && (
+                  <SegmentedControl
+                    size="sm"
+                    fullWidth={false}
+                    label={`${item.label} format`}
+                    value={format.id}
+                    onChange={(id) => setFormats((current) => ({ ...current, [item.kind]: id }))}
+                    options={item.formats.map((entry) => ({ value: entry.id, label: entry.label }))}
                   />
-                ) : shownDraft?.error ? (
-                  <InlineAlert tone="error">{shownDraft.error}</InlineAlert>
-                ) : (
-                  <InlineAlert loading>Laying out the draft…</InlineAlert>
-                )
-              ) : shownView === 'contents' ? (
-                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 pb-2">
-                  {options[item.kind] && (
-                    <section className="space-y-1.5" aria-label="Options">
-                      <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Options</h4>
-                      {options[item.kind]}
-                    </section>
-                  )}
-                  {sections.map((section) => (
-                    <ContentsSection
-                      key={section.title}
-                      section={section}
-                      onGoToStep={onGoToStep}
-                      onAction={onAction || packagePane ? act : undefined}
-                    />
-                  ))}
-                </div>
-              ) : unavailable ? (
-                <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
-                  {unavailable}
-                </p>
-              ) : current?.preview ? (
-                <div className="flex h-full min-h-0 flex-col gap-2">
-                  {current.missing && <InlineAlert tone="warning">{current.missing}</InlineAlert>}
-                  <div className="min-h-0 flex-1">
-                    <PreviewView preview={current.preview} title={item.label} />
-                  </div>
-                </div>
-              ) : outdated?.preview && (outdated.request as { kind?: string }).kind === item.kind ? (
-                <div className="flex h-full min-h-0 flex-col gap-2">
-                  <InlineAlert loading>
-                    <span role="status">
-                      Out of date: the page changed while this was written. Writing it again, with the pictures already
-                      drawn kept.
-                    </span>
-                  </InlineAlert>
-                  <div className="min-h-0 flex-1">
-                    <PreviewView preview={outdated.preview} title={item.label} />
-                  </div>
-                </div>
-              ) : current?.error ? (
-                <InlineAlert tone="error">{current.error}</InlineAlert>
-              ) : (
-                <InlineAlert loading>
-                  {previewStage?.request === request ? previewStage.text : 'Preparing preview…'}
+                )}
+              </div>
+              {status && (
+                <InlineAlert tone={status.tone === 'info' ? 'success' : status.tone}>
+                  <span role="status">{status.text}</span>
                 </InlineAlert>
               )}
-            </div>
-          </section>
-        )}
-      </div>
+              {!unavailable &&
+                preparation.note &&
+                !(shownView === 'preview' && preparation.noteIsSkipped && current) && (
+                  <InlineAlert
+                    loading={
+                      context.autoRun.status === 'running' ||
+                      (USES_PACKAGE_VIEWS.has(item.kind) && captureRunning) ||
+                      (saving && preparation.landChecks) ||
+                      (preparation.render && context.renderer.running)
+                    }
+                  >
+                    <span role="status">{preparation.note}</span>
+                    {USES_PACKAGE_VIEWS.has(item.kind) && cancelCapture}
+                  </InlineAlert>
+                )}
+              {unavailable && (
+                <p
+                  role="status"
+                  className="rounded-md border border-warning-border bg-warning-surface p-2 text-xs text-warning-foreground"
+                >
+                  {unavailable}
+                </p>
+              )}
+              {/* Side by side the pane scrolls; stacked on a phone it flows with the dialog. */}
+              <div className="min-h-0 flex-1 overflow-x-clip sm:overflow-y-auto overscroll-none">
+                {shownView === 'draft' && !unavailable ? (
+                  shownDraft?.draft ? (
+                    <ReportDraftView
+                      draft={shownDraft.draft}
+                      options={options[item.kind]}
+                      drawing={drawing}
+                      onDraw={(id) => void drawPicture(id)}
+                      drawError={drawError}
+                      startOnPages={request.format === 'pdf'}
+                      {...(draftOf?.pages ? { pages: () => latestDrafts.current![item.kind]!.pages!() } : {})}
+                      {...(draftOf?.edit
+                        ? {
+                            onEdit: (key, value, original) =>
+                              latestDrafts.current?.[item.kind]?.edit?.(key, value, original),
+                          }
+                        : {})}
+                    />
+                  ) : shownDraft?.error ? (
+                    <InlineAlert tone="error">{shownDraft.error}</InlineAlert>
+                  ) : (
+                    <InlineAlert loading>Laying out the draft…</InlineAlert>
+                  )
+                ) : shownView === 'contents' ? (
+                  <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 pb-2">
+                    {options[item.kind] && (
+                      <section className="space-y-1.5" aria-label="Options">
+                        <h4 className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Options
+                        </h4>
+                        {options[item.kind]}
+                      </section>
+                    )}
+                    {sections.map((section) => (
+                      <ContentsSection
+                        key={section.title}
+                        section={section}
+                        onGoToStep={onGoToStep}
+                        onAction={onAction || packagePane ? act : undefined}
+                      />
+                    ))}
+                  </div>
+                ) : unavailable ? (
+                  <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
+                    {unavailable}
+                  </p>
+                ) : current?.preview ? (
+                  <div className="flex h-full min-h-0 flex-col gap-2">
+                    {current.missing && <InlineAlert tone="warning">{current.missing}</InlineAlert>}
+                    <div className="min-h-0 flex-1">
+                      <PreviewView preview={current.preview} title={item.label} />
+                    </div>
+                  </div>
+                ) : outdated?.preview && (outdated.request as { kind?: string }).kind === item.kind ? (
+                  <div className="flex h-full min-h-0 flex-col gap-2">
+                    <InlineAlert loading>
+                      <span role="status">
+                        Out of date: the page changed while this was written. Writing it again, with the pictures
+                        already drawn kept.
+                      </span>
+                    </InlineAlert>
+                    <div className="min-h-0 flex-1">
+                      <PreviewView preview={outdated.preview} title={item.label} />
+                    </div>
+                  </div>
+                ) : current?.error ? (
+                  <InlineAlert tone="error">{current.error}</InlineAlert>
+                ) : (
+                  <InlineAlert loading>
+                    {previewStage?.request === request ? previewStage.text : 'Preparing preview…'}
+                  </InlineAlert>
+                )}
+              </div>
+            </section>
+          )}
+        </div>
+      </PreparerProfileHostProvider>
     </PanelDialog>
   )
 }

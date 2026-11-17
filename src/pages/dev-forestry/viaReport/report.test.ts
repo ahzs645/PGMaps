@@ -7,6 +7,7 @@ import { designElementsMatrix, partialCutMatrix, table2Bar } from './matrices'
 import { flatBlocks, type ReportBlock } from './model'
 import {
   blockVisibilitySentences,
+  preparerText,
   rangeStanding,
   runConclusion,
   SUMMARY_QUESTIONS_2001,
@@ -231,6 +232,27 @@ describe('the templates the reference comparison found missing', () => {
     expect(all(findReportPart('purpose')!.build(ctx).blocks)).toContain(
       'This assessment tests whether Blocks X1 and X2 meet the Partial Retention (PR) objective established for Landform 1, as seen from 1 viewpoint.',
     )
+  })
+})
+
+describe('the preparer', () => {
+  it('prints the evaluator with their designation and own organisation, and leaves the seal to complete', () => {
+    const ctx = context('perspective-report-net-private', {
+      office: {
+        licensee: 'Client Ltd.',
+        evaluator: 'J. Smith',
+        evaluatorDesignation: 'RPF #4521',
+        evaluatorOrganisation: 'Northwood Forestry',
+      },
+    })
+    expect(preparerText(ctx.office, true)).toBe('J. Smith, RPF #4521, Northwood Forestry')
+    expect(preparerText({ evaluatorDesignation: 'RPF' })).toBeNull()
+    expect(all(findReportPart('sign-off')!.build(ctx).blocks)).toContain('J. Smith, RPF #4521, Northwood Forestry')
+    const certified = findReportPart('sign-off-certified')!.build(ctx)
+    expect(certified.toComplete).toEqual(['Prepared by: seal, signature and date'])
+    expect(all(certified.blocks)).toContain('RPF #4521')
+    const peer = findReportPart('sign-off-peer')!.build(context('perspective-report-net-private'))
+    expect(peer.toComplete).toContain('Prepared by: designation, seal, signature and date')
   })
 })
 

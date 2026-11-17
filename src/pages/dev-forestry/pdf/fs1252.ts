@@ -24,6 +24,9 @@ export type FormMetadata = {
   recommendedVqc?: string
   sourceDocument?: string
   evaluator?: string
+  /** Not on the FS1252: the evaluator's designation ("RPF #4521") and own organisation, which VIA reports print. */
+  evaluatorDesignation?: string
+  evaluatorOrganisation?: string
   /** Not on the FS1252: VIA reports read these (the district summary's inventory date and lake row). */
   lakeManagementZone?: string
   inventoryDate?: string

@@ -9,13 +9,29 @@ test.use({ serviceWorkers: 'block' })
 const routePath = '/dev/forestry/visual-quality'
 async function openScenario(page: Page) {
   const tile = await readFile(new URL('../fixtures/forestry-flat-800.png', import.meta.url))
-  await page.route('https://basemaps.cartocdn.com/**', route => route.fulfill({ json: { version: 8, sources: {}, layers: [] } }))
-  await page.route('**/elevation-tiles-prod/terrarium/**', route => route.fulfill({ contentType: 'image/png', body: tile }))
-  await page.route('**/WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY/ows**', route => route.fulfill({ json: { type: 'FeatureCollection', features: [], numberMatched: 0 } }))
-  await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/*/query**', route => route.fulfill({ json: { type: 'FeatureCollection', features: [] } }))
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.route('**/elevation-tiles-prod/terrarium/**', (route) =>
+    route.fulfill({ contentType: 'image/png', body: tile }),
+  )
+  await page.route('**/WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY/ows**', (route) =>
+    route.fulfill({ json: { type: 'FeatureCollection', features: [], numberMatched: 0 } }),
+  )
+  await page.route('**/bcgw_pub_whse_forest_vegetation/MapServer/*/query**', (route) =>
+    route.fulfill({ json: { type: 'FeatureCollection', features: [] } }),
+  )
   const input = demoInput()
-  const scene = { ...input, version: 1, viewpoint: { ...input.viewpoint, id: 'test-road', name: 'Integration test road' }, thresholds: DEFAULT_VISUAL_QUALITY_THRESHOLDS }
-  await page.addInitScript(scene => localStorage.setItem('pgmaps.forestry-visual-quality.v1', JSON.stringify(scene)), scene)
+  const scene = {
+    ...input,
+    version: 1,
+    viewpoint: { ...input.viewpoint, id: 'test-road', name: 'Integration test road' },
+    thresholds: DEFAULT_VISUAL_QUALITY_THRESHOLDS,
+  }
+  await page.addInitScript(
+    (scene) => localStorage.setItem('pgmaps.forestry-visual-quality.v1', JSON.stringify(scene)),
+    scene,
+  )
   await page.goto(routePath)
   // The handbook steps are tabs; the run is in step 3.
   await expect(page.locator('[data-via-step]')).toHaveCount(5)
@@ -34,14 +50,22 @@ async function cameraState(page: Page) {
       document.querySelector('[data-testid="visuals-road-view"] .maplibregl-map') ??
       document.querySelector('[data-testid="visuals-plan-map"] .maplibregl-map')
     if (!container) return null
-    const fiberKey = Object.keys(container).find(key => key.startsWith('__reactFiber$'))
+    const fiberKey = Object.keys(container).find((key) => key.startsWith('__reactFiber$'))
     if (!fiberKey) return null
     let node = (container as any)[fiberKey]
     for (let depth = 0; node && depth < 200; depth++, node = node.return) {
       let hook = node.memoizedState
       for (let count = 0; hook && count < 40; count++, hook = hook.next) {
         const map = hook.memoizedState?.current
-        if (typeof map?.queryTerrainElevation === 'function' && map.getContainer?.() === container) return { terrain: !!map.getTerrain(), pitch: map.getPitch(), zoom: map.getZoom(), bearing: map.getBearing(), maxPitch: map.getMaxPitch(), clamped: map.getCenterClampedToGround() }
+        if (typeof map?.queryTerrainElevation === 'function' && map.getContainer?.() === container)
+          return {
+            terrain: !!map.getTerrain(),
+            pitch: map.getPitch(),
+            zoom: map.getZoom(),
+            bearing: map.getBearing(),
+            maxPitch: map.getMaxPitch(),
+            clamped: map.getCenterClampedToGround(),
+          }
       }
     }
     return null
@@ -79,10 +103,8 @@ test('a scenario edit withholds stale PDF export until a new run', async ({ page
 test('PDF button downloads the historical template with embedded scenario record', async ({ page }) => {
   test.setTimeout(180_000)
   await openScenario(page)
-  await page.locator('[data-via-step="rate"]').click()
-  // Step 5 opens Save & export on the form, with its stations and office fields.
-  await page.getByRole('button', { name: 'FS1252 form…', exact: true }).click()
-  const dialog = page.getByTestId('visuals-export-dialog')
+  // Save & export's form, with its stations and office fields.
+  const dialog = await openVisualsExport(page, 'FS1252 form')
   await expect(dialog.getByRole('region', { name: 'FS1252 options' })).toBeVisible()
   await expect(dialog.getByRole('list', { name: 'Viewpoints in the PDF' })).toBeVisible()
   await dialog.getByText('FS1252 office information', { exact: true }).click()

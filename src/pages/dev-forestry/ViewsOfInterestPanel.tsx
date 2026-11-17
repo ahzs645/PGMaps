@@ -1,13 +1,20 @@
-import { Camera, Crosshair, Download, Footprints, History, Loader2, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Camera, Download, Footprints, History, Loader2, Trash2 } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { CheckboxField, FORM_INPUT_CLASS, NumberField, SelectField, StyledSelect } from '@/components/ui/form-field'
+import {
+  CheckboxField,
+  FORM_INPUT_CLASS,
+  FormField,
+  NumberField,
+  SelectField,
+  unitInside,
+} from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
-import { StepMarker, type StepStatus } from '@/components/ui/step-section'
+import { SegmentedControl, type SegmentedOption } from '@/components/ui/segmented-control'
 import { ToolSection } from '@/components/ui/tool-section'
 import { cn } from '@/lib/utils'
 
@@ -24,7 +31,6 @@ import {
   LENS_FOCAL_LENGTHS,
   needsCapture,
   lensLabel,
-  MAX_VIEWS_OF_INTEREST,
   normalizeBearing,
   orphanedViews,
   captureChangeText,
@@ -58,16 +64,12 @@ export type ViewsOfInterestPanelProps = {
   /** The view whose row is open, highlighted on the plan. */
   openViewId: string | null
   onOpenView: (id: string | null) => void
-  /** The plan's click mode for placing a view (the page's `drawMode === 'view'`). */
-  adding: boolean
-  onStartAdding: (blockId: string) => void
-  onCancelAdding: () => void
-  /** The block a new view is for unless the reviewer picks another: the selected block. */
-  defaultBlockId: string | null
+  /** A view is being placed with the plan map's tool (`drawMode === 'view'`): capture waits. */
+  placing?: boolean
   /** BC's viewpoint inventory as loaded in step 1, for a VLI view's arrows. */
   inventory: ViewpointInventory | null
-  /** Opens Save & export. */
-  onOpenExport: () => void
+  /** Opens Save & export. Absent (the list shown inside Save & export): no *Export…* button. */
+  onOpenExport?: () => void
   /** Brings a view into sight on the plan. */
   onShowView?: (view: ViewOfInterest) => void
   /** Extra control in the open row, such as the landform seen from the view. */
@@ -76,6 +78,8 @@ export type ViewsOfInterestPanelProps = {
   recordControl?: (view: ViewOfInterest) => ReactNode
   /** Whether the view is its block's (or the blocks') key viewpoint for the reports, in its open row. */
   keyControl?: (view: ViewOfInterest) => ReactNode
+  /** The layout crew's check that the view is real and reachable (`viewFieldCheck`), in its open row. */
+  fieldCheckControl?: (view: ViewOfInterest) => { summary: string; node: ReactNode } | null
   /** The field photographs linked to the view (`FieldRecord.viewId`), and adding one, in its open row. */
   photoControl?: (view: ViewOfInterest) => { count: number; node: ReactNode } | null
   /**
@@ -195,8 +199,6 @@ function GroupFields({
     <div className="space-y-1.5" data-view-group={lead.id}>
       <SelectField
         label="Step 4 assessed with"
-        labelClassName="text-2xs text-muted-foreground"
-        className={cn(FORM_INPUT_CLASS, 'py-1 text-xs')}
         aria-label={`Step 4 assessment of ${view.name}`}
         value={lead.id === view.id ? '' : lead.id}
         onValueChange={(value) => (value ? join(value) : leave())}
@@ -232,21 +234,41 @@ function GroupFields({
   )
 }
 
-/** A folded group in an open row, as the viewpoint record has always been. */
-function RowGroup({
+/** The eight compass points, short enough to sit in the bearing field beside its degree sign. */
+const COMPASS_SHORT = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
+
+/**
+ * An open row's tabs: what the view looks at, its Table 3 record, what the crew brought back, and how it is assessed
+ * and exported. One choice for the whole list, so going through several views stays on the same tab.
+ */
+type RowTab = 'view' | 'record' | 'field' | 'report'
+
+const ROW_TAB_LABELS: Record<RowTab, string> = { view: 'View', record: 'Record', field: 'Field', report: 'Report' }
+
+/** One tab's fields, kept mounted while another tab shows so a reading in progress is not lost. */
+function RowPanel({ tab, shown, children }: { tab: RowTab; shown: RowTab; children: ReactNode }) {
+  return (
+    <div className="space-y-2" data-view-tab={tab} hidden={tab !== shown}>
+      {children}
+    </div>
+  )
+}
+
+/** A titled part of a tab, with its state beside the title. */
+function RowPart({
   title,
   summary,
   children,
   ...props
-}: { title: string; summary: string; children: ReactNode } & Record<`data-${string}`, string>) {
+}: { title: string; summary?: string; children: ReactNode } & Record<`data-${string}`, string>) {
   return (
-    <details className="group rounded-md border border-border/60 bg-background/60 px-2 py-1.5" {...props}>
-      <summary className="cursor-pointer text-2xs font-medium text-foreground">
+    <section className="space-y-1.5" {...props}>
+      <p className="text-2xs font-medium text-foreground">
         {title}
-        <span className="ml-1 font-normal text-muted-foreground">· {summary}</span>
-      </summary>
-      <div className="pt-2">{children}</div>
-    </details>
+        {summary && <span className="ml-1 font-normal text-muted-foreground">· {summary}</span>}
+      </p>
+      {children}
+    </section>
   )
 }
 
@@ -259,8 +281,7 @@ function NameField({ view, onCommit }: { view: ViewOfInterest; onCommit: (name: 
     else setDraft(view.name)
   }
   return (
-    <label className="block space-y-1">
-      <span className="text-2xs text-muted-foreground">Name</span>
+    <FormField label="Name">
       <input
         type="text"
         className={FORM_INPUT_CLASS}
@@ -273,17 +294,52 @@ function NameField({ view, onCommit }: { view: ViewOfInterest; onCommit: (name: 
           if (event.key === 'Escape') setDraft(view.name)
         }}
       />
-    </label>
+    </FormField>
   )
 }
 
 /**
  * Step 2: the views of interest — where the assessment is looked at from, planned on the plan map before the road
- * view is ever opened. Views come from a click on the plan (*Add on the map*) or from step 1's *Viewpoints and rec
+ * view is ever opened. Views come from a click on the plan (the map's *Add a view of interest* tool, `ViewPlacementCard`) or from step 1's *Viewpoints and rec
  * sites* (*Add to views*); each is captured as a saved view without driving (`useViewCapture`), and Save & export
- * writes from those. The strip at the top is the workflow: blocks, views, captured, export.
+ * writes from those. How many are captured shows in the headline's *Views captured* tile.
  */
-export function ViewsOfInterestPanel({
+export function ViewsOfInterestPanel(props: ViewsOfInterestPanelProps) {
+  const { views, savedViews, hasFigure } = props
+  const included = views.filter(isIncluded)
+  const captured = included.filter((view) => viewCaptureState(view, savedViews, hasFigure) === 'captured').length
+  return (
+    <ToolSection
+      title="Views of interest"
+      toggleProps={{ 'data-forestry-disclosure': 'views-of-interest' }}
+      defaultOpen
+      summary={views.length ? `${views.length} planned · ${captured} of ${included.length} captured` : 'None planned'}
+      help={
+        <>
+          The places the block is looked at from, planned on the plan map before the road view is opened: place one with
+          the map&apos;s <em>Add a view of interest</em> tool, or add BC&apos;s inventory viewpoints and rec sites from
+          the list below (a viewpoint adds up to two of its arrows aimed at the block, else one view facing it). Each
+          view faces its block or a bearing, through a lens. Open a row for everything about that view: its record and
+          3.2.1 type, its field photos, whether it is a key viewpoint and, at the view you stand at, the surveyed eye
+          and the field photo to line up with. A view saved from the road view&apos;s bar is listed here too.
+          <br />
+          <em>Capture</em> stands at each view, runs the assessment there and saves the view as <em>Save viewpoint</em>{' '}
+          does, without your driving; Save &amp; export then writes from those saved views. A view changed since its
+          capture is captured again. The list travels with the scene but is a plan, not an input: editing it never
+          changes the run.
+        </>
+      }
+    >
+      <ViewsOfInterestList {...props} />
+    </ToolSection>
+  )
+}
+
+/**
+ * The views of interest themselves: one row a view, opened for everything about it, and capturing them. Step 2's
+ * section (`ViewsOfInterestPanel`) and Save & export's *Views* entry show this same list over the same page state.
+ */
+export function ViewsOfInterestList({
   views,
   onChange,
   blocks,
@@ -293,10 +349,7 @@ export function ViewsOfInterestPanel({
   capture,
   openViewId,
   onOpenView,
-  adding,
-  onStartAdding,
-  onCancelAdding,
-  defaultBlockId,
+  placing = false,
   inventory,
   onOpenExport,
   onShowView,
@@ -304,6 +357,7 @@ export function ViewsOfInterestPanel({
   recordControl,
   keyControl,
   photoControl,
+  fieldCheckControl,
   standingViewId = null,
   standingControl,
   onReopenSaved,
@@ -318,22 +372,16 @@ export function ViewsOfInterestPanel({
 }: ViewsOfInterestPanelProps) {
   const engine = !!renderer && renderer.id !== 'pgmaps'
   const blockById = useMemo(() => new Map(blocks.map((block) => [block.id, block])), [blocks])
-  const [addBlockChoice, setAddBlockChoice] = useState<string | null>(null)
-  const addBlockId =
-    (addBlockChoice && blockById.has(addBlockChoice) ? addBlockChoice : null) ??
-    (defaultBlockId && blockById.has(defaultBlockId) ? defaultBlockId : null) ??
-    blocks[0]?.id ??
-    null
   const orphans = useMemo(() => orphanedViews(views, targets), [views, targets])
   const states = useMemo(
     () => new Map(views.map((view) => [view.id, viewCaptureState(view, savedViews, hasFigure)])),
     [views, savedViews, hasFigure],
   )
   const included = views.filter(isIncluded)
-  const captured = included.filter((view) => states.get(view.id) === 'captured').length
   // A view saved without its analysis sheet is taken again with the rest.
   const toCapture = included.filter((view) => needsCapture(states.get(view.id) ?? 'not-captured'))
   const running = capture.state.status === 'running'
+  const [rowTab, setRowTab] = useState<RowTab>('view')
   // The last batch's word on each view: why it was not captured, or what its save is missing (`warning`). Several
   // can name one view (no sheet and no before render); they are read together.
   const failures = useMemo(() => {
@@ -348,16 +396,6 @@ export function ViewsOfInterestPanel({
     return byView
   }, [capture.state.failures])
 
-  // Escape puts the plan's click mode down, as it does a drawing.
-  useEffect(() => {
-    if (!adding) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancelAdding()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [adding, onCancelAdding])
-
   const update = (id: string, patch: Partial<ViewOfInterest>) =>
     onChange((current) => current.map((view) => (view.id === id ? { ...view, ...patch } : view)))
   const remove = (id: string) => {
@@ -371,109 +409,10 @@ export function ViewsOfInterestPanel({
     if (openViewId === id) onOpenView(null)
   }
 
-  const full = views.length >= MAX_VIEWS_OF_INTEREST
-  const steps: Array<{ label: string; value: string; status: StepStatus }> = [
-    { label: 'Blocks', value: String(blocks.length), status: blocks.length ? 'done' : 'current' },
-    {
-      label: 'Views',
-      value: String(views.length),
-      status: views.length ? 'done' : blocks.length ? 'current' : 'todo',
-    },
-    {
-      label: 'Captured',
-      value: `${captured} of ${included.length}`,
-      status: included.length && captured === included.length ? 'done' : included.length ? 'current' : 'todo',
-    },
-    {
-      label: 'Export',
-      value: 'Save & export',
-      status: included.length && captured === included.length ? 'current' : 'todo',
-    },
-  ]
-
   return (
-    <ToolSection
-      title="Views of interest"
-      toggleProps={{ 'data-forestry-disclosure': 'views-of-interest' }}
-      defaultOpen
-      summary={views.length ? `${views.length} planned · ${captured} of ${included.length} captured` : 'None planned'}
-      help={
-        <>
-          The places the block is looked at from, planned on the plan map before the road view is opened: click the
-          plan, or add BC&apos;s inventory viewpoints and rec sites from the list below (a viewpoint adds up to two of
-          its arrows aimed at the block, else one view facing it). Each view faces its block or a bearing, through a
-          lens. Open a row for everything about that view: its record and 3.2.1 type, its field photos, whether it is a
-          key viewpoint and, at the view you stand at, the surveyed eye and the field photo to line up with. A view
-          saved from the road view&apos;s bar is listed here too.
-          <br />
-          <em>Capture</em> stands at each view, runs the assessment there and saves the view as <em>Save viewpoint</em>{' '}
-          does, without your driving; Save &amp; export then writes from those saved views. A view changed since its
-          capture is captured again. The list travels with the scene but is a plan, not an input: editing it never
-          changes the run.
-        </>
-      }
-    >
-      <ol className="grid grid-cols-4 gap-1" aria-label="Views of interest: where you are">
-        {steps.map((step, index) => (
-          <li
-            key={step.label}
-            className="flex min-w-0 flex-col items-center gap-0.5 text-center"
-            data-workflow-step={step.label.toLowerCase()}
-          >
-            <StepMarker step={index + 1} status={step.status} className="h-5 w-5 text-3xs" />
-            <span className="text-2xs font-medium text-foreground">{step.label}</span>
-            <span className="truncate text-3xs tabular-nums text-muted-foreground">{step.value}</span>
-          </li>
-        ))}
-      </ol>
-
+    <div className="space-y-2">
       {!blocks.length && <p className="text-2xs text-muted-foreground">Import or draw a cutblock in step 1 first.</p>}
 
-      {blocks.length > 0 && (
-        <div className="flex items-center gap-1.5">
-          <Button
-            type="button"
-            variant={adding ? 'default' : 'outline'}
-            size="xs"
-            className="shrink-0"
-            aria-pressed={adding}
-            disabled={(!adding && full) || running || !addBlockId}
-            title={full ? `${MAX_VIEWS_OF_INTEREST} views is the most` : 'Click the plan where the view stands'}
-            onClick={() => (adding ? onCancelAdding() : addBlockId && onStartAdding(addBlockId))}
-          >
-            <Crosshair className="h-3.5 w-3.5" />
-            {adding ? 'Placing…' : 'Add on the map'}
-          </Button>
-          {blocks.length > 1 && (
-            <StyledSelect
-              aria-label="Block a new view is for"
-              className={cn(FORM_INPUT_CLASS, 'min-w-0 flex-1 py-1 text-xs')}
-              value={addBlockId ?? ''}
-              onValueChange={setAddBlockChoice}
-              disabled={adding}
-            >
-              {blocks.map((block) => (
-                <option key={block.id} value={block.id}>
-                  For {block.name}
-                </option>
-              ))}
-            </StyledSelect>
-          )}
-        </div>
-      )}
-      {adding && (
-        <InlineAlert tone="info">
-          <span className="flex items-center justify-between gap-2" role="status">
-            <span className="min-w-0">
-              Click the plan where the view stands, facing{' '}
-              {addBlockId ? (blockById.get(addBlockId)?.name ?? 'the block') : 'the block'}. Esc cancels.
-            </span>
-            <Button type="button" variant="outline" size="2xs" className="shrink-0" onClick={onCancelAdding}>
-              Cancel
-            </Button>
-          </span>
-        </InlineAlert>
-      )}
       {message && (
         <p className="text-2xs text-muted-foreground" role="status">
           {message}
@@ -482,7 +421,8 @@ export function ViewsOfInterestPanel({
 
       {views.length === 0 && blocks.length > 0 && (
         <p className="text-2xs text-muted-foreground">
-          No views yet. Add one on the map, or with <em>Add</em> on the viewpoints and rec sites below.
+          No views yet. Place one with the map&apos;s <em>Add a view of interest</em> tool, or with <em>Add</em> on the
+          viewpoints and rec sites below.
         </p>
       )}
 
@@ -509,6 +449,22 @@ export function ViewsOfInterestPanel({
             const missingLandform = orphans.missingLandform.includes(view.id)
             const standingHere = view.id === standingViewId
             const photos = open ? (photoControl?.(view) ?? null) : null
+            const fieldCheck = open ? (fieldCheckControl?.(view) ?? null) : null
+            const tabs: RowTab[] = [
+              'view',
+              ...(recordControl ? (['record'] as const) : []),
+              ...(photos || fieldCheck ? (['field'] as const) : []),
+              'report',
+            ]
+            const tab = tabs.includes(rowTab) ? rowTab : 'view'
+            // The bearing the view looks along now: typed when it faces a bearing, else read from its block or arrow.
+            const typedBearing = view.facing.kind === 'bearing' && !view.facing.arrowId
+            const bearingNow =
+              view.facing.kind === 'bearing'
+                ? view.facing.degrees
+                : open
+                  ? viewBearing(view, block ? blockCentre(block.geometry) : null)
+                  : null
             return (
               <li key={view.id} data-view-of-interest={view.id}>
                 <ResultRow
@@ -600,155 +556,6 @@ export function ViewsOfInterestPanel({
                         picture, and the files say so. Stand here to have {renderer!.label} draw it.
                       </p>
                     )}
-                    <NameField
-                      key={`${view.id}:${view.name}`}
-                      view={view}
-                      onCommit={(name) => {
-                        update(view.id, { name })
-                        onRenamed?.(view.name, name)
-                      }}
-                    />
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <SelectField
-                        label="Block"
-                        labelClassName="text-2xs text-muted-foreground"
-                        className={cn(FORM_INPUT_CLASS, 'py-1 text-xs')}
-                        value={view.blockId}
-                        placeholder="Choose a block"
-                        onValueChange={(blockId) => update(view.id, { blockId })}
-                      >
-                        {blocks.map((entry) => (
-                          <option key={entry.id} value={entry.id}>
-                            {entry.name}
-                          </option>
-                        ))}
-                      </SelectField>
-                      <SelectField
-                        label="Facing"
-                        labelClassName="text-2xs text-muted-foreground"
-                        className={cn(FORM_INPUT_CLASS, 'py-1 text-xs')}
-                        value={facingValue(view.facing)}
-                        onValueChange={(value) => {
-                          if (value === 'block') update(view.id, { facing: { kind: 'block' } })
-                          else if (value === 'bearing') {
-                            const now = viewBearing(view, block ? blockCentre(block.geometry) : null) ?? 0
-                            update(view.id, { facing: { kind: 'bearing', degrees: Math.round(now) % 360 } })
-                          } else {
-                            const arrowId = value.slice('arrow:'.length)
-                            const arrow = arrows.find((entry) => entry.id === arrowId)
-                            if (arrow)
-                              update(view.id, {
-                                facing: { kind: 'bearing', degrees: normalizeBearing(arrow.bearing), arrowId },
-                              })
-                          }
-                        }}
-                      >
-                        <option value="block">Face the block</option>
-                        <option value="bearing">A bearing</option>
-                        {arrows.map((arrow, arrowIndex) => (
-                          <option key={arrow.id} value={`arrow:${arrow.id}`}>
-                            {arrowLabel(arrow, arrowIndex)}
-                          </option>
-                        ))}
-                        {view.facing.kind === 'bearing' &&
-                          view.facing.arrowId &&
-                          !arrows.some(
-                            (arrow) => view.facing.kind === 'bearing' && arrow.id === view.facing.arrowId,
-                          ) && (
-                            <option value={`arrow:${view.facing.arrowId}`}>
-                              Inventory arrow · {Math.round(view.facing.degrees)}° (load the viewpoints below to see it)
-                            </option>
-                          )}
-                      </SelectField>
-                    </div>
-                    {view.facing.kind === 'bearing' && !view.facing.arrowId && (
-                      // Under Facing, in its column, labelled above like the fields round it.
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <span aria-hidden="true" />
-                        <NumberField
-                          label="Bearing from north"
-                          labelClassName="text-2xs text-muted-foreground"
-                          inputClassName={cn(FORM_INPUT_CLASS, 'min-w-0 flex-1 py-1 text-xs')}
-                          unit="°"
-                          min={0}
-                          max={359.9}
-                          updateOn="commit"
-                          value={view.facing.degrees}
-                          onValueChange={(degrees) =>
-                            update(view.id, { facing: { kind: 'bearing', degrees: normalizeBearing(degrees) } })
-                          }
-                        />
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <SelectField
-                        label="Lens"
-                        labelClassName="text-2xs text-muted-foreground"
-                        className={cn(FORM_INPUT_CLASS, 'py-1 text-xs')}
-                        value={String(view.focalMm)}
-                        onValueChange={(value) => update(view.id, { focalMm: Number(value) })}
-                      >
-                        {[
-                          ...LENS_FOCAL_LENGTHS,
-                          ...((LENS_FOCAL_LENGTHS as readonly number[]).includes(view.focalMm) ? [] : [view.focalMm]),
-                        ].map((focal) => (
-                          <option key={focal} value={String(focal)}>
-                            {lensLabel(focal)}
-                          </option>
-                        ))}
-                      </SelectField>
-                      <SelectField
-                        label="Framing"
-                        labelClassName="text-2xs text-muted-foreground"
-                        className={cn(FORM_INPUT_CLASS, 'py-1 text-xs')}
-                        value={view.framing}
-                        onValueChange={(value) =>
-                          update(view.id, { framing: value === 'single' ? 'single' : 'landform' })
-                        }
-                      >
-                        <option value="landform">Cover the landform</option>
-                        <option value="single">One frame along the facing</option>
-                      </SelectField>
-                    </div>
-                    {landformControl?.(view)}
-                    {standingHere && standingControl && (
-                      <section
-                        aria-label={`Where you stand at ${view.name}`}
-                        className="space-y-2 rounded-md border border-border/60 bg-background/60 px-2 py-1.5"
-                      >
-                        {standingControl(view)}
-                      </section>
-                    )}
-                    {recordControl && (
-                      <RowGroup title="Viewpoint record" summary="significance, type, why chosen, experience, duration">
-                        {recordControl(view)}
-                      </RowGroup>
-                    )}
-                    {photos && (
-                      <RowGroup
-                        title="Field photos"
-                        summary={photos.count ? `${photos.count} linked` : 'none linked'}
-                        data-view-photos={view.id}
-                      >
-                        {photos.node}
-                      </RowGroup>
-                    )}
-                    {keyControl?.(view)}
-                    {assessedGroups && (
-                      <GroupFields
-                        view={view}
-                        views={views}
-                        blocks={blocks}
-                        assessed={assessedGroups}
-                        onChange={onChange}
-                        onLeadChanged={onLeadChanged}
-                      />
-                    )}
-                    <CheckboxField
-                      label="Include in exports"
-                      checked={isIncluded(view)}
-                      onCheckedChange={(include) => update(view.id, { include: include ? undefined : false })}
-                    />
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Button
                         type="button"
@@ -796,6 +603,177 @@ export function ViewsOfInterestPanel({
                         Remove
                       </Button>
                     </div>
+                    <SegmentedControl
+                      label={`What to show of ${view.name}`}
+                      size="sm"
+                      value={tab}
+                      options={tabs.map(
+                        (entry): SegmentedOption<RowTab> => ({ value: entry, label: ROW_TAB_LABELS[entry] }),
+                      )}
+                      onChange={setRowTab}
+                    />
+                    <RowPanel tab="view" shown={tab}>
+                      <NameField
+                        key={`${view.id}:${view.name}`}
+                        view={view}
+                        onCommit={(name) => {
+                          update(view.id, { name })
+                          onRenamed?.(view.name, name)
+                        }}
+                      />
+                      <SelectField
+                        label="Block"
+                        value={view.blockId}
+                        placeholder="Choose a block"
+                        onValueChange={(blockId) => update(view.id, { blockId })}
+                      >
+                        {blocks.map((entry) => (
+                          <option key={entry.id} value={entry.id}>
+                            {entry.name}
+                          </option>
+                        ))}
+                      </SelectField>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <SelectField
+                          label="Facing"
+                          value={facingValue(view.facing)}
+                          onValueChange={(value) => {
+                            if (value === 'block') update(view.id, { facing: { kind: 'block' } })
+                            else if (value === 'bearing') {
+                              const now = viewBearing(view, block ? blockCentre(block.geometry) : null) ?? 0
+                              update(view.id, { facing: { kind: 'bearing', degrees: Math.round(now) % 360 } })
+                            } else {
+                              const arrowId = value.slice('arrow:'.length)
+                              const arrow = arrows.find((entry) => entry.id === arrowId)
+                              if (arrow)
+                                update(view.id, {
+                                  facing: { kind: 'bearing', degrees: normalizeBearing(arrow.bearing), arrowId },
+                                })
+                            }
+                          }}
+                        >
+                          <option value="block">Face the block</option>
+                          <option value="bearing">A bearing</option>
+                          {arrows.map((arrow, arrowIndex) => (
+                            <option key={arrow.id} value={`arrow:${arrow.id}`}>
+                              {arrowLabel(arrow, arrowIndex)}
+                            </option>
+                          ))}
+                          {view.facing.kind === 'bearing' &&
+                            view.facing.arrowId &&
+                            !arrows.some(
+                              (arrow) => view.facing.kind === 'bearing' && arrow.id === view.facing.arrowId,
+                            ) && (
+                              <option value={`arrow:${view.facing.arrowId}`}>
+                                Inventory arrow · {Math.round(view.facing.degrees)}° (load the viewpoints below to see
+                                it)
+                              </option>
+                            )}
+                        </SelectField>
+                        {/* Always in its place beside Facing: typed for a bearing, else the bearing the block or
+                            arrow gives, read only. */}
+                        <NumberField
+                          label="Bearing from north"
+                          unit={
+                            bearingNow === null
+                              ? '°'
+                              : `° ${COMPASS_SHORT[Math.round((((bearingNow % 360) + 360) % 360) / 45) % 8]}`
+                          }
+                          {...unitInside(FORM_INPUT_CLASS, { wide: true })}
+                          min={0}
+                          max={359.9}
+                          updateOn="commit"
+                          disabled={!typedBearing}
+                          title={
+                            typedBearing ? undefined : 'Set by the facing. Choose A bearing under Facing to type one.'
+                          }
+                          value={typedBearing ? (bearingNow ?? 0) : Math.round(bearingNow ?? 0) % 360}
+                          onValueChange={(degrees) =>
+                            update(view.id, { facing: { kind: 'bearing', degrees: normalizeBearing(degrees) } })
+                          }
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <SelectField
+                          label="Lens"
+                          value={String(view.focalMm)}
+                          onValueChange={(value) => update(view.id, { focalMm: Number(value) })}
+                        >
+                          {[
+                            ...LENS_FOCAL_LENGTHS,
+                            ...((LENS_FOCAL_LENGTHS as readonly number[]).includes(view.focalMm) ? [] : [view.focalMm]),
+                          ].map((focal) => (
+                            <option key={focal} value={String(focal)}>
+                              {lensLabel(focal)}
+                            </option>
+                          ))}
+                        </SelectField>
+                        <SelectField
+                          label="Framing"
+                          value={view.framing}
+                          onValueChange={(value) =>
+                            update(view.id, { framing: value === 'single' ? 'single' : 'landform' })
+                          }
+                        >
+                          <option value="landform">Cover the landform</option>
+                          <option value="single">One frame along the facing</option>
+                        </SelectField>
+                      </div>
+                      {landformControl?.(view)}
+                      {standingHere && standingControl && (
+                        <section
+                          aria-label={`Where you stand at ${view.name}`}
+                          className="space-y-2 rounded-md border border-border/60 bg-background/60 px-2 py-1.5"
+                        >
+                          {standingControl(view)}
+                        </section>
+                      )}
+                    </RowPanel>
+                    {recordControl && (
+                      <RowPanel tab="record" shown={tab}>
+                        {recordControl(view)}
+                      </RowPanel>
+                    )}
+                    {(photos || fieldCheck) && (
+                      <RowPanel tab="field" shown={tab}>
+                        {fieldCheck && (
+                          <RowPart
+                            title="Real and reachable"
+                            summary={fieldCheck.summary}
+                            data-view-field-check={view.id}
+                          >
+                            {fieldCheck.node}
+                          </RowPart>
+                        )}
+                        {photos && (
+                          <RowPart
+                            title="Field photos"
+                            summary={photos.count ? `${photos.count} linked` : 'none linked'}
+                            data-view-photos={view.id}
+                          >
+                            {photos.node}
+                          </RowPart>
+                        )}
+                      </RowPanel>
+                    )}
+                    <RowPanel tab="report" shown={tab}>
+                      <CheckboxField
+                        label="Include in exports"
+                        checked={isIncluded(view)}
+                        onCheckedChange={(include) => update(view.id, { include: include ? undefined : false })}
+                      />
+                      {keyControl?.(view)}
+                      {assessedGroups && (
+                        <GroupFields
+                          view={view}
+                          views={views}
+                          blocks={blocks}
+                          assessed={assessedGroups}
+                          onChange={onChange}
+                          onLeadChanged={onLeadChanged}
+                        />
+                      )}
+                    </RowPanel>
                   </ResultRowDetail>
                 )}
               </li>
@@ -831,11 +809,11 @@ export function ViewsOfInterestPanel({
       )}
 
       {views.length > 0 && (
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className={cn('grid gap-1.5', onOpenExport ? 'grid-cols-2' : 'grid-cols-1')}>
           <Button
             type="button"
             size="xs"
-            disabled={running || adding || toCapture.length === 0}
+            disabled={running || placing || toCapture.length === 0}
             title="Stand at each view, run and save it, without driving the road view"
             onClick={() => void capture.capture(toCapture.map((view) => view.id))}
           >
@@ -846,10 +824,12 @@ export function ViewsOfInterestPanel({
                 ? 'All captured'
                 : 'None included'}
           </Button>
-          <Button type="button" variant="outline" size="xs" disabled={running} onClick={onOpenExport}>
-            <Download className="h-3.5 w-3.5" />
-            Export…
-          </Button>
+          {onOpenExport && (
+            <Button type="button" variant="outline" size="xs" disabled={running} onClick={onOpenExport}>
+              <Download className="h-3.5 w-3.5" />
+              Export…
+            </Button>
+          )}
         </div>
       )}
       {views.length > 0 && renderer && (
@@ -889,6 +869,6 @@ export function ViewsOfInterestPanel({
           </InfoTip>
         </p>
       )}
-    </ToolSection>
+    </div>
   )
 }

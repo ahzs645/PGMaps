@@ -37,10 +37,10 @@ is typed survives switching.
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
 | 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site; each button's tooltip describes the scenario and lists what its scene holds, counted by `scenarioSummary.ts`); **Road or viewpoint** (*Assess from*: a view of interest, or a length of road drawn, imported or snapped); folded *Which roads see the block*; **Cutblocks** with their objective and harvest system; **Landform and objective** (folded *Sub-landforms* inside); folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
-| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; each row holds everything about that view: its record with significance and 3.2.1 type, its field photos, its key-viewpoint choice and, at the view stood at, the surveyed eye and the field photo line-up; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); **Saved views** (only saves not listed with the views); on the road only, folded *Where you stand*, *Field photo* and **Viewpoint type** (3.2.1); folded *Route preview* and *Field records* (attachments); folded *Field brief and crew checklist* |
-| 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces* and *Design comparisons* |
+| 2 · Visit the viewpoints | 3.2 | **Views of interest** (planned on the plan and captured without driving; each row holds everything about that view: its record with significance and 3.2.1 type, its field photos, the crew's *Real and reachable* check, its key-viewpoint choice and, at the view stood at, the surveyed eye and the field photo line-up; see **Views of interest** below) and under it *Add from viewpoints and rec sites*; *Look from the road*, and while in the road view the stand (folded *Block colours*, **Existing forest and regrowth**; how the view looks is the road view bar's *View options*, the timber it is drawn with its *Drawn timber* popover); **Saved views** (only saves not listed with the views); on the road only, **Road viewpoint** (its 3.2.1 type and, at a stand, the surveyed eye; a view keeps both in its row); folded *Field photos* (the road's photo line-up, then the attachments); folded *Field brief and crew checklist* (its file comes from *Save & export*) |
+| 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Wildlife tree patches** (draw one on the plan), **Results**, then folded *Planning thresholds*, *Masks and local surfaces*, the design alternatives and the diagnostics (each its own fold, never a fold inside a fold). *Simulation settings* are the settings icon right of the sidebar's title (`SimulationSettings.tsx`), compact rows grouped Viewer, Detail, Timber and Landform; every one is a run input |
 | 4 · Assess against the VQO | 3.4 | *Assessing from* (the group of views of interest the judgements are for; see **Step 4 per group of views** below), **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
-| 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **Package**: buttons that open *Save & export* on the block note, the FS1252 form, the analysis sheet or the scene; folded *VIA evidence package* (recording a run and the evidence checklist) |
+| 5 · Final rating and package | 3.5, 4.0 | **Rate and write up in Save & export**: *Rate and package…* opens the dialog's Package entry, whose top holds the **Final rating** (Table 7) and its rationale; *Visuals note…* opens **Block note**, whose options hold the Visuals paragraph and visual measures. The evidence record and checklist are *VIA evidence package*'s options, and *Import assessment workspace* is *Assessment workspace*'s |
 
 Under every step, after step 5, a folded **Resources** section holds reading
 rather than controls: links to the VIA Handbook and FPPR, the five FPPR s. 1.1
@@ -89,8 +89,23 @@ planned on the plan, captured by the page and written by *Save & export*
 without the reviewer driving. *Stand here* on a row opens the road view there
 for a look, and nothing else needs it.
 
-**Adding views.** *Add on the map* (with a *For* block chooser when the scene
-has several) takes the plan's next click as a view standing there and facing
+**Plan map tools.** The plan map's control stack, under *Measure*, holds the
+tools that act on a plan click (`PlanMapTools.tsx`): *Look from the road*,
+*Add a view of interest*, *Draw the road*, *Draw block*, *Draw a wildlife tree
+patch* and *Route preview*. *Look from the road* opens the road view on the
+scene's road; with no road yet it takes the next plan click as the basemap road
+under it (`pickBasemapRoad`, the roads `collectRoadsFromMap` reads) and opens
+there. The sidebar keeps the preparation's progress, Cancel and Retry. Each shows its card in the
+plan's top-left corner (`MapToolPanel`) with the drawing's Finish and Cancel,
+and Esc puts a drawing down. Importing a road or a cutblock file stays in step
+1's sidebar sections, and *Route preview*'s road viewshed stays on the plan
+after its card closes (a dot on its icon says so). Each icon names itself in a
+`HoverTip` bubble. Steps 2 and 3 show no intro line (their tabs name them), and
+the headline's *Views captured* tile carries step 2's progress.
+
+**Adding views.** The plan map's *Add a view of interest* tool (its icon in
+the map's controls, its card with a *For* block chooser when the scene has
+several; `PlanMapTools.tsx`) takes the plan's next click as a view standing there and facing
 the block (`viewAtPoint`); Esc cancels. *Add from viewpoints and rec sites*,
 directly under the list, adds inventory viewpoints for the block the finder is
 ranked for. Each row carries its own *Add* (*Add 2* when two arrows aim at the
@@ -148,7 +163,18 @@ saved at another place than the one stood at says that it keeps PGMaps' picture
 
 **Everything about one view is in its row.** What the reviewer fills in for a
 viewpoint is entered once, in that view's open row, never in a section of its own
-elsewhere in the steps:
+elsewhere in the steps. The open row starts with its actions (*Stand here*,
+*Capture*, *Reopen saved*, *Remove*) and shows one tab at a time: **View** (name,
+block, facing and bearing, lens, framing, the landform seen from it and, at the
+view stood at, what belongs to the place), **Record** (the Table 3 record),
+**Field** (*Real and reachable*, field photos) and **Report** (*Include in
+exports*, the key-viewpoint choice, *Step 4 assessed with*). The tab is one
+choice for the whole list (`rowTab`), so going through several views stays on
+the same tab, and every tab's panel stays mounted (`hidden`), so a landform
+reading is not lost on a switch. *Bearing from north* is always beside *Facing*:
+typed for *A bearing*, otherwise read only, showing the bearing the block or the
+arrow gives. An e2e test brings a tab forward with `openViewRow(page, name, tab)`.
+What each part holds:
 
 - *Viewpoint record*: the Table 3 fields (significance, why it was chosen,
   viewing experience, view duration) and the handbook 3.2.1 viewpoint type
@@ -416,10 +442,17 @@ is still the active one, and a capture puts it back afterwards.
 The workspace's toolbar has a **Save & export** button, laid out like the road
 designer's dialog (`VisualsExportDialog.tsx`, state and builders in
 `useVisualsExport.tsx`, the catalogue in `visualsExports.ts`, DOM-free). The
-sidebar keeps the work — the paragraph, the crew checklist, the step 4 record —
-and its buttons only open the dialog on an output (*Export the block note…*,
-*Download the field brief…*, *Save views…*, *Export the package…*, step 5's
-*Package*, the views of interest's *Export…*).
+dialog also holds step 5's work beside the file it goes into, so what a reviewer
+writes there is what the output prints: the final rating and rationale above the
+Package entry (`packageTop`), the Visuals paragraph and measures in the block
+note's options, the evidence record in the evidence package's, the workspace
+import in the workspace's (`panels`, `useVisualsExport`). The paragraph's panel
+stays mounted on the page and its DOM moves into the block note's slot
+(`MovableContent`), so its block choice, exclusions and EVQO read survive the
+dialog closing. The sidebar keeps the other steps' work — the crew checklist,
+the step 4 record — and its buttons only open the dialog on an output (*Save
+views…*, step 5's *Rate and package…* and *Visuals note…*, the views of
+interest's *Export…*).
 
 | Group | Output | Formats | Options in the dialog |
 | --- | --- | --- | --- |
@@ -1150,8 +1183,10 @@ drag the tip of the view cone to turn it, which sets `drive.lookBearing` exactly
 as facing an inventory arrow does (*Where to look* then reads "Turned on the
 map"). A plain click anywhere on the plan moves the road view to the nearest
 point on the road (`PlanClickToMove`), so you can look at one area, click the
-next and look again. A click on an inventory viewpoint or rec site still stands
-you there, and while the road view is open sample points and sensitivity units
+next and look again. A click on an inventory viewpoint, rec site or arrow still
+opens its card (an arrow clicked, or one aimed at the block, leads; *facing the
+block* is offered only when no arrow already does that), as a
+click on a view of interest's point opens its card with *Stand here*; and while the road view is open sample points and sensitivity units
 do not take plan clicks (inspecting a sample and adopting a unit are steps 1 and
 3's jobs). Drawing and point picks own the clicks while they run.
 
@@ -1200,7 +1235,9 @@ height (`terrainGroundElevationMeters` keeps the model's reading for the
 Viewpoint summary), and the fingerprint carries it only while it applies. The
 road view stands the eye there within 20 m of its point (`surveyedEyeAt`), the
 pose says so (`eyeSurveyed`), and the figure's camera block prints "(surveyed
-elevation)" on the position line; the observer height line is unchanged. At
+elevation)" on the position line; the observer height line is unchanged.
+Simulation settings shows it, read only, under *Eye height* while it applies,
+and points to where it is entered; it is never edited there. At
 Marblehead VP2 (Duncan Dam Scenic Viewpoint, printed 636 m) the Terrarium DEM
 reads 645.8 m at the printed position at z13–z15 (644.1 m at z12): about 10 m
 high, not low, on a gentle slope falling west toward the view (643 m 30 m west,
@@ -2495,7 +2532,7 @@ component is reduced to a no-op.
 
 ## The planning note's Visuals paragraph
 
-Step 5's **Planning note · Visuals** heads the block the way a BCTS block
+Save & export's **Block note** options (step 5's *Visuals note…*) head the block the way a BCTS block
 report does — block, licence, cutting permit and opening when the imported
 attributes carry them (`planningIds` in `shapeImport.ts`, any case of
 `BLOCK_ID`, `LICENCE_ID`, `PERMIT_ID`, `OPENING_ID`), its area, and the EVQO
@@ -2813,9 +2850,15 @@ written from:
 
 Like the paragraph it is a draft the reviewer signs: their list
 (`viaReview.visualMeasures`, one measure per line, up to 4,000 characters) is
-kept once written and never overwritten from the draft; *Use the draft
-measures* copies it in, and the draft stays beside it. Typed bullets and
-numbers are taken off (`measureItems`) because the files number the list.
+kept once written and never overwritten from the draft. The panel shows one
+list: the draft until the reviewer edits, removes or adds a measure, which
+copies the draft in with that change, and theirs from then on, saved with the
+scene and so with the project file. A measure that still reads as drafted keeps
+its basis line. *Reset to draft* clears the reviewer's list and shows the latest
+draft. The last measure cannot be removed, because an empty list reads as "not
+written" and would bring the draft back; a measure is one line, so line breaks
+typed into one are joined. Typed bullets and numbers are taken off
+(`measureItems`) because the files number the list.
 `viaReview` stays out of the scene fingerprint, so editing it never stales a run.
 
 ## Pre-layout VIA: the field brief and crew checklist
@@ -2842,9 +2885,11 @@ viewpoints — which saves a second trip to the field.
   landform's, else the block's), the measured figure X — or "Not yet run",
   "Withheld: the run is provisional", "Not current: the scene changed" — and
   the rating when there is one. Then the viewpoints to ground-truth: the
-  road's assessment station (or the road's start before a run), each saved
-  view on this road at its position along it, and views saved while standing
-  elsewhere (no position on this road), each with latitude/longitude, the
+  road's assessment station (or the road's start before a run; left out while
+  standing at a view of interest, whose 30 m pullout is that view), the
+  block's views of interest (a view's capture is the view, not a second row),
+  each other saved view on this road at its position along it, and views saved
+  while standing elsewhere (no position on this road), each with latitude/longitude, the
   bearing to face and *Reachable / Not reachable* tick boxes; up to three of
   the saved views' screenshots (taken at *Save viewpoint*), numbered as their
   rows. *What to look for* prompts strategic WTP placement, leave trees,
@@ -2856,8 +2901,12 @@ viewpoints — which saves a second trip to the field.
   `FIELD_BRIEF_LIMITS` (6 viewpoints, 3 images, 8 openings); a later page is
   added only if notes overflow.
 - **The checklist** (`viaReview.fieldChecklist`): per viewpoint (keys
-  `station:<viewpoint id>`, `view:<saved view id>`) and per opening (target
-  id) a yes/no and a note; one boundary note. Each answer is stamped with the
+  `station:<viewpoint id>`, `voi:<view of interest id>`, `view:<saved view
+  id>`) and per opening (target id) a yes/no and a note; a view of interest is
+  answered in its own row (*Real and reachable*, `viewFieldCheck`) and only
+  counted in this panel, keyed by the view so a recapture keeps it, and an
+  answer recorded on its capture before (`view:<saved view id>`) still reads
+  (`viewOfInterestCheck`); one boundary note. Each answer is stamped with the
   panel's *Checked by* and the local date (`updateFieldCheck`), and an entry
   with neither answer nor note is removed. Answers for viewpoints no longer
   listed are kept but not counted. Filled answers are printed in the brief's
@@ -2934,7 +2983,7 @@ terminating it per run. Re-profile against a production build
 ## The block note: Excel or PDF
 
 *Save & export* → **Block note** writes it as Excel or PDF (`blockNote.ts`) from
-the text step 5's *Planning note · Visuals* holds. Both carry the header (block, licence, permit, opening,
+the text its options hold. Both carry the header (block, licence, permit, opening,
 area, EVQO classes under the block), the viewpoint, the landform with its percent
 alteration in perspective view against its Table 2 range, the Visuals paragraph
 — the reviewer's, or the draft flagged "not yet reviewed" — the screenshot of
@@ -3497,6 +3546,15 @@ Tables 4, 5 and 7, the term tables, viewpoint significance, distance zones, and
 an environmental assessment's effect criteria. A mark comes from the run (X,
 the class a figure reads, the cut's cell) or from step 4; with neither, nothing
 is marked and the table says so.
+
+**The preparer is the office information's evaluator.** *Prepared by* and the
+sign-offs print the evaluator's name, designation ("RPF #4521") and own
+organisation (`preparerText`); *Licensee* is who the work is prepared for and
+never takes the evaluator's organisation. *Use my details*, in the FS1252
+office information and under the VIA report's options, copies Your details
+(the first row of Save & export) into those fields where they are blank. A
+designation fills the sign-off's designation line; the seal, signature and date
+stay to complete. The worksheet's *Evaluator* line prints the same name.
 
 **Nothing is invented.** Office fields come from the FS1252 office information;
 the reviewer's judgements from step 4 at the assessment station's view only;

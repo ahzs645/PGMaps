@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { ChevronDown, Sprout } from 'lucide-react'
+import { PersonInput } from '@/branding/PersonInput'
 import { FORM_INPUT_CLASS, FormField, NullableNumberField, StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
@@ -191,12 +192,12 @@ export function ExistingOpeningGreenUp({
                         />
                       </FormField>
                       <FormField label="Checked by" contentClassName={INLINE_FIELD}>
-                        <input
+                        <PersonInput
                           aria-label={`Field check observer for ${t.name}`}
                           className={cn(FORM_INPUT_CLASS, 'w-36')}
                           maxLength={FIELD_GREEN_UP_OBSERVER_MAX}
                           value={field.observedBy}
-                          onChange={(e) => setField(t, { observedBy: e.target.value })}
+                          onValueChange={(observedBy) => setField(t, { observedBy })}
                         />
                       </FormField>
                       <FormField label={`Field note for ${t.name}`} hideLabel>

@@ -9,6 +9,7 @@ import {
   landformSamples,
   landformStand,
   parseBecPolygons,
+  wfsExceptionReason,
 } from './droughtRisk'
 
 const dataset = parsePublishedCsv(
@@ -108,5 +109,21 @@ describe('drought risk to the landform’s standing timber', () => {
   it('samples a thin landform densely enough to read', () => {
     const points = landformSamples(box(0, 0, 0.05, 0.0005))
     expect(points.length).toBeGreaterThan(300)
+  })
+
+  it('names a busy DataBC database rather than a bare HTTP 400', () => {
+    const report = (text: string) =>
+      `<?xml version="1.0"?><ows:ExceptionReport><ows:Exception><ows:ExceptionText>${text}</ows:ExceptionText></ows:Exception></ows:ExceptionReport>`
+    expect(
+      wfsExceptionReason(
+        report(
+          'java.lang.RuntimeException: Unable to obtain connection: HikariPool idwprod1 - Connection is not available, request timed out after 500ms.',
+        ),
+      ),
+    ).toBe("DataBC's server could not reach its database; try again later")
+    expect(wfsExceptionReason(report('java.lang.IllegalArgumentException: Illegal property name: FOO'))).toBe(
+      'Illegal property name: FOO',
+    )
+    expect(wfsExceptionReason('not xml')).toBeNull()
   })
 })

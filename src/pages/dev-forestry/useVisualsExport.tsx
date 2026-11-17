@@ -2,7 +2,7 @@ import { groupIdForName } from './viewGroups'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { standFileSummary, standTreeCsv, standTreeGeoJson, type PrescribedStandFile } from './stand/standExport'
-import { LogoChooser } from '@/branding/LogoChooser'
+import { PrintedPreparer } from '@/branding/PreparerProfile'
 import { logoDataUrl } from '@/branding/model'
 import { brandedHtml } from '@/branding/presentation'
 import { exportBrand, printedLogo } from '@/branding/store'
@@ -30,7 +30,7 @@ import {
   type SavedFigure,
 } from './FigureSheetPanel'
 import { TIMBER_ABSENT, type TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
-import { FS1252_OFFICE_FIELDS, Fs1252Options, type Fs1252Choice } from './Fs1252Options'
+import { evaluatorFromProfile, FS1252_OFFICE_FIELDS, Fs1252Options, type Fs1252Choice } from './Fs1252Options'
 import {
   LAND_CHECK_CAVEAT,
   landCheckReportRows,
@@ -67,7 +67,7 @@ import { buildReportContext, type ReportView } from './viaReport/context'
 import { reportHtml, reportMarkdown } from './viaReport/html'
 import type { AssembledReport, ReportBlock, ReportFigure } from './viaReport/model'
 import { withRasterStandIns } from './reportDraftPages'
-import type { ReportImages } from './viaReport/parts'
+import { preparerText, type ReportImages } from './viaReport/parts'
 import type { ReportSetting } from './viaReport/setting'
 import {
   assembleReport,
@@ -105,6 +105,7 @@ import {
   type ExportAction,
   type ExportAutoRun,
   type VisualsExport,
+  VISUALS_EXPORTS,
 } from './visualsExports'
 
 export type ViewImage = NoteImage & {
@@ -278,6 +279,8 @@ export function useVisualsExport(input: {
   }
   briefBlockId: string | null
   onBriefBlockId: (id: string) => void
+  /** The view of interest the run stands at (`currentPlannedView`), for the field brief's viewpoints. */
+  standingViewId?: string | null
   /**
    * The VIA report's maps and extra pictures (overview, regional and location maps, before pictures, overhead
    * renders), captured from the page's maps while the report file is built and put back afterwards. Absent, the
@@ -323,6 +326,16 @@ export function useVisualsExport(input: {
    */
   capturedBefore?: CapturedBefore
   portalContainer?: HTMLElement | null
+  /**
+   * The reviewer's own work that an output prints, shown in that output's options above its own: step 5's Visuals
+   * paragraph and measures for the block note, the evidence record and checklist for the evidence package.
+   */
+  panels?: Partial<Record<VisualsExport, ReactNode>>
+  /** Shown at the top of the package's entry, for every output: the final rating and its rationale. */
+  packageTop?: ReactNode
+  /** The views of interest under the dialog's own *Views* entry (`ViewsOfInterestList`), with its subtitle. */
+  viewsPane?: ReactNode
+  viewsSummary?: string
 }) {
   const {
     scene,
@@ -641,6 +654,8 @@ export function useVisualsExport(input: {
     targets: scene.targets,
     result,
     savedViews: briefViews,
+    viewsOfInterest: plannedViews,
+    standingViewId: input.standingViewId,
   })
 
   const contextViews: ContextView[] = [
@@ -1414,6 +1429,8 @@ export function useVisualsExport(input: {
           assessment,
           review: scene.viaReview ?? {},
           savedViews: briefViews,
+          viewsOfInterest: plannedViews,
+          standingViewId: input.standingViewId,
           images,
           notes: [
             'A desk screening from terrain (AWS Open Data CDEM/SRTM) and drawn timber; confirm every viewpoint and figure in the field.',
@@ -1525,7 +1542,7 @@ export function useVisualsExport(input: {
                 resolved={resolved}
                 onChange={(patch) => setFigureChoice((current) => ({ ...current, ...patch }))}
               />
-              <LogoChooser />
+              <PrintedPreparer portalContainer={input.portalContainer} />
             </div>
           ),
         }
@@ -1554,7 +1571,16 @@ export function useVisualsExport(input: {
             </StyledSelect>
           </label>
         )}
-        <LogoChooser />
+        <PrintedPreparer
+          portalContainer={input.portalContainer}
+          preparer={{
+            printed: preparerText(scene.reportMetadata ?? {}, true) ?? '',
+            keptIn: 'FS1252 office information',
+            patch: evaluatorFromProfile(scene.reportMetadata ?? {}, branding.profile),
+            onApply: (patch) =>
+              setScene((current) => ({ ...current, reportMetadata: { ...current.reportMetadata, ...patch } })),
+          }}
+        />
       </div>
     ),
     // The package's recipe names the document's format, so the two agree; with none, the format is chosen here.
@@ -1724,14 +1750,34 @@ export function useVisualsExport(input: {
       initialPackage={input.opener.initialPackage}
       onOpenChange={setOpen}
       context={context}
-      options={options}
+      options={Object.fromEntries(
+        VISUALS_EXPORTS.map((entry) => entry.kind)
+          .filter((kind) => options[kind] || input.panels?.[kind])
+          .map((kind) => [
+            kind,
+            <div key={kind} className="space-y-3">
+              {input.panels?.[kind]}
+              {options[kind]}
+            </div>,
+          ]),
+      )}
       build={build}
       version={version}
       onGoToStep={onGoToStep}
       onAction={onAction}
       onRun={analysis.run}
       {...(input.visualInventory ? { onReadInventory: input.visualInventory.read } : {})}
-      packagePane={packagePane}
+      packagePane={
+        input.packageTop ? (
+          <div className="space-y-4">
+            {input.packageTop}
+            {packagePane}
+          </div>
+        ) : (
+          packagePane
+        )
+      }
+      {...(input.viewsPane ? { viewsPane: input.viewsPane, viewsSummary: input.viewsSummary } : {})}
       drafts={{
         'via-report': { build: buildDraft, draw: drawDraftPicture, pages: buildDraftPages, edit: editReportValue },
       }}

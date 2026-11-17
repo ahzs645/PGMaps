@@ -197,7 +197,6 @@ export function ViewpointRecordFields({
       <SelectField
         label="Significance"
         aria-label={`Significance of ${name}`}
-        className="w-full rounded-md border bg-background p-1"
         value={record.significance ?? ''}
         onChange={(event) =>
           change(name, { significance: (event.target.value || undefined) as ViewpointSignificance | undefined })
@@ -213,7 +212,6 @@ export function ViewpointRecordFields({
       <SelectField
         label="Viewpoint type (3.2.1)"
         aria-label={`Viewpoint type of ${name}`}
-        className="w-full rounded-md border bg-background p-1"
         value={record.type ? String(record.type) : ''}
         onChange={(event) =>
           change(name, { type: event.target.value ? (Number(event.target.value) as ViewpointTypeId) : undefined })

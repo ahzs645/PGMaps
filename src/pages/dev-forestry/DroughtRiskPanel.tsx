@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { SelectField } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { ToolDisclosure } from '@/components/ui/tool-section'
+import { ToolSection } from '@/components/ui/tool-section'
 import {
   PUBLISHED_PERIODS,
   PUBLISHED_SOURCE,
@@ -117,9 +117,9 @@ export function DroughtRiskPanel({ landform }: { landform: TargetPolygon | null 
     : 'Not read'
 
   return (
-    <ToolDisclosure
+    <ToolSection
       toggleProps={{ 'data-forestry-disclosure': 'drought-risk' }}
-      label="Drought risk to the standing timber"
+      title="Drought risk to the standing timber"
       summary={summary}
       help={
         <>
@@ -257,6 +257,6 @@ export function DroughtRiskPanel({ landform }: { landform: TargetPolygon | null 
           </>
         )}
       </div>
-    </ToolDisclosure>
+    </ToolSection>
   )
 }

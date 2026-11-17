@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button'
-import { ToolSection } from '@/components/ui/tool-section'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { NumericRangeField, type NumericRangeControlProps } from '@/components/ui/numeric-range-field'
@@ -33,7 +32,25 @@ const MODE_LABELS = { point: 'Current view', stretch: 'Whole stretch', travel: '
 const kmNumber = (metres: number) =>
   formatMeasure(metres / 1000, null, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-export function RouteViewshedPanel({
+/** The *Route preview* tool's one line: what it shows now. */
+export const routeViewshedSummary = (preview: RouteViewshed) =>
+  preview.enabled ? `On · ${MODE_LABELS[preview.mode]}` : 'Terrain seen from the road'
+
+export const ROUTE_VIEWSHED_HELP = (
+  <>
+    Terrain visibility along the road before any cutblock is assessed: red is ground in view, purple is terrain that did
+    not load. It reads AWS overview terrain only — no trees, buildings, cutblock percentages or VQO ratings. Current
+    view follows one road position (pause for a detailed view); Whole stretch joins the views from every sample on the
+    blue stretch; As you move keeps adding views as you scrub or drive, through the furthest point reached, and starts
+    again when the stretch, radius or eye height changes. Between samples a view is not guaranteed.
+  </>
+)
+
+/**
+ * The plan map's *Route preview* tool (its icon in the map controls), shown in its `MapToolPanel` card. The road
+ * viewshed stays on the map after the card closes; the toggle here turns it off.
+ */
+export function RouteViewshedControls({
   preview,
   driving,
   position,
@@ -50,23 +67,7 @@ export function RouteViewshedPanel({
 }) {
   const { analysis } = preview
   return (
-    <ToolSection
-      title="Route preview"
-      aria-label="Preliminary terrain preview"
-      className="text-xs"
-      summary={preview.enabled ? `On · ${MODE_LABELS[preview.mode]}` : 'Terrain seen from the road'}
-      toggleProps={{ 'data-forestry-disclosure': 'route-preview' }}
-      help={
-        <>
-          Terrain visibility along the road before any cutblock is assessed: red is ground in view, purple is terrain
-          that did not load. It reads AWS overview terrain only — no trees, buildings, cutblock percentages or VQO
-          ratings. Current view follows one road position (pause for a detailed view); Whole stretch joins the views
-          from every sample on the blue stretch; As you move keeps adding views as you scrub or drive, through the
-          furthest point reached, and starts again when the stretch, radius or eye height changes. Between samples a
-          view is not guaranteed.
-        </>
-      }
-    >
+    <div className="space-y-2 text-xs" aria-label="Preliminary terrain preview" role="group">
       <ToggleRow label="Road viewshed" active={preview.enabled} onClick={() => preview.setEnabled(!preview.enabled)} />
       {!preview.valid && <p>Draw or import a road with at least two distinct points.</p>}
       {preview.enabled && preview.valid && (
@@ -189,6 +190,6 @@ export function RouteViewshedPanel({
           )}
         </>
       )}
-    </ToolSection>
+    </div>
   )
 }

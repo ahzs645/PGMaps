@@ -2,10 +2,12 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { StyledSelect } from '@/components/ui/form-field'
 import { useRouteViewshed } from './dev-forestry/useRouteViewshed'
 import { EXPORT_TIMING_PREFIX, timed } from './dev-forestry/exportTiming'
-import { RouteViewshedPanel } from './dev-forestry/RouteViewshedPanel'
+import { RouteViewshedControls, routeViewshedSummary } from './dev-forestry/RouteViewshedPanel'
+import { PlanMapToolButtons, PlanMapToolCard, isPlanDrawTool } from './dev-forestry/PlanMapTools'
 import { visibilityOutline } from '@/features/terrain-viewshed'
 import { sampleAlongLine } from './dev-forestry/visibility'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -48,7 +50,7 @@ import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
 import { ToolSourcesPanel } from './dev-forestry/ToolSourcesPanel'
 import { WildlifeTreePatchPanel } from './dev-forestry/WildlifeTreePatchPanel'
-import { withDrawnMask } from './dev-forestry/assessmentMasks'
+import { MAX_ASSESSMENT_MASKS, withDrawnMask } from './dev-forestry/assessmentMasks'
 import { LandformDesignPanel } from './dev-forestry/LandformDesignPanel'
 import { LandformSuggestions } from './dev-forestry/LandformSuggestions'
 import {
@@ -184,6 +186,7 @@ import {
 } from './dev-forestry/basemapContext'
 import { reportSetting, type ReportSetting } from './dev-forestry/viaReport/setting'
 import { buildReport } from './dev-forestry/report'
+import { preparerText } from './dev-forestry/viaReport/parts'
 import { reverseRoadsToGeoJson, type ReverseRoadResult } from './dev-forestry/reverseViewshed'
 import {
   collectRoadsFromMap,
@@ -210,9 +213,10 @@ import {
   type ViewpointInventoryState,
 } from './dev-forestry/ViewpointFinderPanel'
 import { VisualsParagraphPanel, type BlockNoteParts } from './dev-forestry/VisualsParagraphPanel'
-import { FieldBriefPanel } from './dev-forestry/FieldBriefPanel'
+import { FieldBriefPanel, viewFieldCheck } from './dev-forestry/FieldBriefPanel'
 import { KeyViewpointFields, renamedViewpointRecords, ViewpointRecordFields } from './dev-forestry/ReviewRecordFields'
-import { viewpointTypeEstimate } from './dev-forestry/ViaPanels'
+import { FinalRatingFields, viewpointTypeEstimate } from './dev-forestry/ViaPanels'
+import { MovableContent } from '@/components/ui/movable-content'
 import { otherPlannedName } from './dev-forestry/viaDocument/resolve'
 import { DrawnTimberButton, OptionRow, RoadViewOptionsButton } from './dev-forestry/RoadViewOptions'
 import { useExportOpener, useVisualsExport, type BlockNoteChoices } from './dev-forestry/useVisualsExport'
@@ -336,8 +340,16 @@ import type { ReverseInput, TargetPolygon, Viewpoint } from './dev-forestry/type
 import { PlanMapLegend } from './dev-forestry/PlanMapLegend'
 import { PlanClickToMove, PlanViewerHandles } from './dev-forestry/PlanViewerHandles'
 import { ViewsOfInterestLayers } from './dev-forestry/ViewsOfInterestLayers'
-import { ViewsOfInterestPanel } from './dev-forestry/ViewsOfInterestPanel'
-import { addViews, handSaveLink, viewAtPoint, viewsForCandidate } from './dev-forestry/viewsOfInterest'
+import { ViewsOfInterestList, ViewsOfInterestPanel } from './dev-forestry/ViewsOfInterestPanel'
+import {
+  addViews,
+  handSaveLink,
+  isIncluded,
+  MAX_VIEWS_OF_INTEREST,
+  viewAtPoint,
+  viewCaptureState,
+  viewsForCandidate,
+} from './dev-forestry/viewsOfInterest'
 import {
   DEFAULT_VIEWPOINT_CLEARING,
   MAX_TREE_FREE_AREAS,
@@ -595,6 +607,10 @@ function DevForestryVisuals() {
   const assessOnPlaceRef = useRef(false)
   const [assessViewPending, setAssessViewPending] = useState<string | null>(null)
   const [assessAddBlockId, setAssessAddBlockId] = useState<string | null>(null)
+  // The plan map's tools (`PlanMapTools.tsx`): the block its *Add a view of interest* places for, and whether the
+  // route preview's card is open (the viewshed itself stays on the map once its card is closed).
+  const [viewAddBlockChoice, setViewAddBlockChoice] = useState<string | null>(null)
+  const [routePreviewOpen, setRoutePreviewOpen] = useState(false)
   // The shared measure tool (`map-measure.tsx`) on the plan map; drawing a shape puts it down.
   const measure = useMapSketch()
   const measuring = measure.state.mode !== 'idle'
@@ -909,7 +925,10 @@ function DevForestryVisuals() {
 
   const handleDrawModeChange = useCallback(
     (mode: DrawMode) => {
-      if (mode !== 'none') clearMeasure()
+      if (mode !== 'none') {
+        clearMeasure()
+        setRoutePreviewOpen(false)
+      }
       // A tree-free area is drawn on the plan while the road view stays open, to see the timber go.
       // So is a view of interest: placing one needs no road view, but need not close it either.
       setDrive((current) =>
@@ -1156,7 +1175,7 @@ function DevForestryVisuals() {
     [terrainCandidates, terrainCandidate],
   )
   // One click on the map for a tool that asked for a point (the landform's vantage).
-  const [mapPick, setMapPick] = useState<{ onPoint: (point: [number, number]) => void } | null>(null)
+  const [mapPick, setMapPick] = useState<{ onPoint: (point: [number, number]) => void; hint?: string } | null>(null)
   // A sidebar tool that asks for a point on the plan takes the click from the measure tool.
   if (mapPick && measuring) clearMeasure()
   const toggleMeasure = () => {
@@ -1165,9 +1184,15 @@ function DevForestryVisuals() {
       return
     }
     setMapPick(null)
+    setRoutePreviewOpen(false)
     startMeasure('line')
   }
   useMeasureKeys(measure, { active: measuring, onClose: clearMeasure })
+  /** Puts the plan tool's drawing or placement down (its card's Cancel, or Escape). */
+  const cancelPlanDraw = useCallback(() => {
+    assessOnPlaceRef.current = false
+    handleDrawModeChange('none')
+  }, [handleDrawModeChange])
   // Where "Find a landform from the terrain" reads from, marked on the plan.
   const [landformVantage, setLandformVantage] = useState<LandformVantagePoint | null>(null)
   // The bands of an adopted ridge-layer landform, kept while that landform is
@@ -1338,6 +1363,50 @@ function DevForestryVisuals() {
     )
   }, [scene.viewpoint.coordinates, setScene])
 
+  // The map's *Look from the road* with no road yet: the next plan click takes the basemap road nearest it as the
+  // road, and the road view opens once the scene has it (`lookOnRoad`).
+  const [lookOnRoad, setLookOnRoad] = useState(false)
+  const pickBasemapRoad = useCallback(
+    (point: [number, number]) => {
+      const map = mapRef.current
+      if (!map) return
+      const roads = collectRoadsFromMap(map)
+      const clicked = { lng: point[0], lat: point[1] }
+      // About 12 screen pixels at this zoom, and never less than 30 m.
+      const metresPerPixel = (156543.03392 * Math.cos((clicked.lat * Math.PI) / 180)) / 2 ** Math.max(0, map.getZoom())
+      const reach = Math.max(30, 12 * metresPerPixel)
+      let best: { road: (typeof roads)[number]; offset: number } | null = null
+      for (const road of roads) {
+        const near = nearestPointOnLine(road.coordinates, clicked)
+        if (near && near.offsetMeters <= reach && (!best || near.offsetMeters < best.offset))
+          best = { road, offset: near.offsetMeters }
+      }
+      if (!best) {
+        setPreviewMessage(
+          roads.length
+            ? 'No road under that click. Click on a road line, or zoom in until the road shows.'
+            : 'No roads drawn at this zoom. Zoom in until the road shows, then pick it.',
+        )
+        return
+      }
+      const road = best.road
+      setScene((current) => ({
+        ...current,
+        viewpoint: { ...current.viewpoint, name: road.name, mode: 'corridor', coordinates: road.coordinates },
+      }))
+      setPreviewMessage(
+        `Looking from ${road.name}: ${(lineLengthMeters(road.coordinates) / 1000).toFixed(2)} km of it as drawn in this view.`,
+      )
+      setLookOnRoad(true)
+    },
+    [setScene],
+  )
+  useEffect(() => {
+    if (!lookOnRoad) return
+    setLookOnRoad(false)
+    openPreview()
+  }, [lookOnRoad, openPreview])
+
   // The block the viewpoint inventory is read around: the selected one, else the first.
   const viewpointBlock =
     scene.targets.find((target) => target.id === selectedTargetId && target.role === 'block') ??
@@ -1501,6 +1570,10 @@ function DevForestryVisuals() {
   // Save & export: where it opens, the note's text from the Visuals panel, and the field brief's block.
   const exportOpener = useExportOpener()
   const [blockNoteParts, setBlockNoteParts] = useState<BlockNoteParts | null>(null)
+  // Where Save & export's block note shows the Visuals paragraph panel while that output is open.
+  const [noteSlot, setNoteSlot] = useState<HTMLDivElement | null>(null)
+  // Save & export's *Views* pane, while it is shown: the page renders the views list into it.
+  const [viewsSlot, setViewsSlot] = useState<HTMLDivElement | null>(null)
   const [briefBlockId, setBriefBlockId] = useState<string | null>(null)
   // Where the road view opens after a stand or a step back. Entering the view
   // resets position and facing unless they arrive as a view, as a saved one does.
@@ -1677,6 +1750,12 @@ function DevForestryVisuals() {
     [viewsOfInterest, viewpointBlock?.id],
   )
   const viewBlocks = useMemo(() => scene.targets.filter((target) => target.role === 'block'), [scene.targets])
+  // The block the map's *Add a view of interest* places for: the one chosen in its card, else the selected block.
+  const viewAddBlockId =
+    viewBlocks.find((block) => block.id === viewAddBlockChoice)?.id ??
+    viewBlocks.find((block) => block.id === selectedTargetId)?.id ??
+    viewBlocks[0]?.id ??
+    null
   const capturedViewSources = useMemo(
     () => [...shelvedViews.flatMap((entry) => entry.views), ...savedViews],
     [shelvedViews, savedViews],
@@ -1684,6 +1763,14 @@ function DevForestryVisuals() {
   // Whether a saved view has its analysis sheet: a planned view saved without one reads *Saved, no analysis sheet*
   // and is captured again (`viewCaptureState`).
   const savedViewHasFigure = useCallback((savedViewId: string) => !!viewImages[savedViewId]?.figure, [viewImages])
+  // Step 2's progress for the headline: the views the export draws, and how many of them are captured.
+  const viewsProgress = useMemo(() => {
+    const included = viewsOfInterest.filter(isIncluded)
+    const captured = included.filter(
+      (view) => viewCaptureState(view, capturedViewSources, savedViewHasFigure) === 'captured',
+    ).length
+    return { included: included.length, captured }
+  }, [viewsOfInterest, capturedViewSources, savedViewHasFigure])
   // The road view's lens (View options → *Lens*; a capture sets each planned view's): display only, never in the scene.
   const [roadViewLens, setRoadViewLens] = useState<number | null>(null)
   // Filled in on every render once `saveView` is defined, so each capture step reads the page as it is then.
@@ -1997,6 +2084,7 @@ function DevForestryVisuals() {
       generatedAt: new Date(),
       inventorySource: unit ? 'BC visual landscape inventory (DataBC)' : null,
       inventoryUnit: unit ? { polygonNumber: unit.polygonNumber, vsc: unit.vsc, scenicArea: unit.scenicArea } : null,
+      evaluator: preparerText(scene.reportMetadata ?? {}),
     })
     return {
       blob: new Blob([text], { type: 'text/markdown' }),
@@ -2403,6 +2491,7 @@ function DevForestryVisuals() {
     const data = viewpointInventory.data
     const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
     if (!data) return { points: empty, arrows: empty, screenings: empty }
+    const viewpointIds = new Set(data.viewpoints.map((viewpoint) => viewpoint.id))
     return {
       points: {
         type: 'FeatureCollection',
@@ -2425,20 +2514,24 @@ function DevForestryVisuals() {
           })),
         ],
       } satisfies GeoJSON.FeatureCollection,
+      // An arrow whose viewpoint was left out (typed ERROR by the inventory, or outside the area read) has nowhere to
+      // stand and points from no drawn point, so it is not drawn.
       arrows: {
         type: 'FeatureCollection',
-        features: data.arrows.map((arrow) => ({
-          type: 'Feature' as const,
-          id: `arrow:${arrow.id}`,
-          properties: {
+        features: data.arrows
+          .filter((arrow) => viewpointIds.has(arrow.viewpointId))
+          .map((arrow) => ({
+            type: 'Feature' as const,
             id: `arrow:${arrow.id}`,
-            arrowId: arrow.id,
-            viewpoint: `vli:${arrow.viewpointId}`,
-            size: arrow.size,
-            bearing: Math.round(arrow.bearing),
-          },
-          geometry: arrow.geometry,
-        })),
+            properties: {
+              id: `arrow:${arrow.id}`,
+              arrowId: arrow.id,
+              viewpoint: `vli:${arrow.viewpointId}`,
+              size: arrow.size,
+              bearing: Math.round(arrow.bearing),
+            },
+            geometry: arrow.geometry,
+          })),
       } satisfies GeoJSON.FeatureCollection,
       screenings: {
         type: 'FeatureCollection',
@@ -2478,7 +2571,11 @@ function DevForestryVisuals() {
       | undefined) ?? null
   const viewpointHoverHtml = useCallback((properties: Record<string, unknown>) => {
     const kind = properties.kind === 'rec-site' ? 'Recreation site' : 'VLI viewpoint'
-    return mapTooltipHtml({ title: String(properties.name ?? kind), subtitle: kind, footer: 'Click to stand here' })
+    return mapTooltipHtml({
+      title: String(properties.name ?? kind),
+      subtitle: kind,
+      footer: 'Click to choose where to face and stand',
+    })
   }, [])
   const reverseRoadCollection = useMemo(
     () => reverseRoadsToGeoJson(analysis.reverseState.result),
@@ -4824,7 +4921,6 @@ function DevForestryVisuals() {
       fitBounds(sceneBounds(next))
     },
     analysisRunning: analysis.state.status === 'running' || analysis.reverseState.status === 'running',
-    onOpenExport: exportOpener.openExport,
   })
   /** Everything in progress as one file (`projectFile.ts`), for Save & export's Project. */
   const buildProjectFile = async () => {
@@ -5474,6 +5570,7 @@ function DevForestryVisuals() {
       ready: !!eyeMapRef.current && !!previewTerrain.source,
     },
     briefBlockId: briefBlockId ?? selectedTargetId,
+    standingViewId: summaryView?.id ?? null,
     onBriefBlockId: setBriefBlockId,
     captureReportImages,
     captureBeforeRenders,
@@ -5484,6 +5581,28 @@ function DevForestryVisuals() {
     viewCapture,
     // Before renders a capture took where each view stands: the report pairs a view away from here from them.
     capturedBefore,
+    // Step 5's work, done where it is printed: the note and measures in the block note's options (the panel stays
+    // mounted on the page and moves into `noteSlot`, keeping its block, exclusions and EVQO read), the evidence record
+    // in the evidence package's, the workspace import in the workspace's, and the final rating above the package.
+    panels: {
+      'block-note': <div ref={setNoteSlot} data-visuals-paragraph-slot="" />,
+      evidence: tools.report,
+      workspace: tools.workspaceImport,
+    },
+    viewsPane: <div ref={setViewsSlot} data-views-slot="" />,
+    viewsSummary: viewsOfInterest.length
+      ? `${viewsOfInterest.length} planned · ${viewsProgress.captured} of ${viewsProgress.included} captured`
+      : 'None planned',
+    packageTop: viaAssessment ? (
+      <section className="space-y-1.5" aria-label="Final rating">
+        <h4 className="text-sm font-semibold">Final rating</h4>
+        <p className="text-xs text-muted-foreground">
+          Handbook 3.5, Table 7: the ocular class and the adjusted figure, read against the objective&apos;s range. The
+          rationale is printed in the FS1252 form, the VIA document and the VIA report.
+        </p>
+        <FinalRatingFields assessment={viaAssessment} review={viaReviewNow} onChange={updateViaReviewNow} />
+      </section>
+    ) : null,
   })
   const maskCollection: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
@@ -5847,6 +5966,132 @@ function DevForestryVisuals() {
       }}
     />
   )
+  // Step 2's section and Save & export's *Views* entry show one list over the same page state; the dialog's copy
+  // leaves out the Export button (it is the dialog) and what belongs to the road view stood at.
+  const renderViewsOfInterest = (Shown: typeof ViewsOfInterestPanel | typeof ViewsOfInterestList, inDialog = false) => (
+    <Shown
+      views={viewsOfInterest}
+      onChange={setViewsOfInterest}
+      blocks={viewBlocks}
+      targets={scene.targets}
+      savedViews={capturedViewSources}
+      hasFigure={savedViewHasFigure}
+      capture={viewCapture}
+      openViewId={openViewId}
+      onOpenView={setOpenViewId}
+      placing={drawMode === 'view'}
+      inventory={viewpointInventory.data}
+      onOpenExport={inDialog ? undefined : () => exportOpener.openExport()}
+      renderer={roadRendererInfo(exportOpener.figureRenderer)}
+      onChangeRenderer={exportOpener.openPackage}
+      capturedHere={(viewId) => savedViews.some((saved) => saved.plannedViewId === viewId)}
+      canReopenSaved={(viewId) => savedViews.some((saved) => saved.plannedViewId === viewId)}
+      onReopenSaved={(viewId) => {
+        const latest = savedViews.filter((saved) => saved.plannedViewId === viewId).at(-1)
+        if (latest) openPreview(latest)
+      }}
+      onShowView={(view) =>
+        mapRef.current?.flyTo({
+          center: [view.lng, view.lat],
+          zoom: Math.max(12, mapRef.current.getZoom()),
+        })
+      }
+      landformControl={renderViewLandform}
+      recordControl={(view) => (
+        <ViewpointRecordFields
+          name={view.name}
+          review={scene.viaReview ?? {}}
+          onReviewChange={updateViaReview}
+          // The run's 3.2.1 estimate belongs to the view it stands at, and to no other.
+          typeEstimate={view.id === summaryView?.id ? viewpointTypeEstimate(result, drive.speedKmh) : undefined}
+        />
+      )}
+      keyControl={(view) => {
+        const review = scene.viaReview ?? {}
+        const reportBlocks = viewBlocks.filter((block) => !otherPlannedName(block.name)).map((block) => block.name)
+        const own = viewBlocks.find((block) => block.id === view.blockId)?.name
+        // Its own block, and any block the review already gives it, so an earlier choice stays in sight.
+        const blocks = reportBlocks.filter(
+          (name) => name === own || review.keyViewpoints?.blocks?.[name]?.view === view.name,
+        )
+        if (!blocks.length && reportBlocks.length < 2) return null
+        return (
+          <KeyViewpointFields
+            name={view.name}
+            blocks={blocks}
+            group={reportBlocks.length > 1}
+            review={review}
+            onReviewChange={updateViaReview}
+          />
+        )
+      }}
+      fieldCheckControl={(view) =>
+        viewFieldCheck({
+          view,
+          review: scene.viaReview ?? {},
+          onReviewChange: updateViaReview,
+          savedViews: [...shelvedViews.flatMap((entry) => entry.views), ...savedViews],
+        })
+      }
+      photoControl={(view) => {
+        const filed = tools.fieldsFor(view.id)
+        return {
+          count: filed.length,
+          node: (
+            <div className="space-y-1.5">
+              {filed.map((record) => (
+                <TextButton
+                  key={record.id}
+                  className="block min-w-0 max-w-full truncate text-left text-2xs"
+                  onClick={() => tools.openField(record.id)}
+                >
+                  {record.name} · {record.kind}
+                </TextButton>
+              ))}
+              <FileButton
+                label={`Add a field photo of ${view.name}`}
+                accept="image/jpeg,image/png,image/webp"
+                size="2xs"
+                disabled={tools.fieldBusy}
+                onFiles={([file]) => tools.importField(file, 'photo', view.id)}
+              >
+                Add a field photo…
+              </FileButton>
+            </div>
+          ),
+        }
+      }}
+      assessedGroups={
+        new Set(
+          Object.entries(scene.viaReview?.stations ?? {}).flatMap(([id, record]) => (hasStep4(record) ? [id] : [])),
+        )
+      }
+      onLeadChanged={(from, to) => {
+        const moved = movedStation(sceneRef.current.viaReview, from, to)
+        if (moved) updateViaReview(moved)
+      }}
+      standingViewId={summaryView?.id ?? null}
+      standingControl={
+        inDialog
+          ? undefined
+          : () => (
+              <>
+                {stoodViewpointPanel(true)}
+                <div className="space-y-1.5 border-t border-border/60 pt-2">
+                  <p className="text-2xs font-medium text-foreground">Field photo</p>
+                  {fieldPhotoPanel}
+                </div>
+              </>
+            )
+      }
+      onRenamed={(from, to) => {
+        const moved = renamedViewpointRecords(sceneRef.current.viaReview ?? {}, from, to)
+        if (moved) updateViaReview(moved)
+      }}
+      message={viewsMessage}
+    />
+  )
+
   const sidebar = (
     <Sidebar
       via={{
@@ -5856,6 +6101,7 @@ function DevForestryVisuals() {
         review: viaReviewNow,
         onReviewChange: updateViaReviewNow,
         landformName: sceneLandform?.name ?? null,
+        views: viewsProgress,
       }}
       setup={<PreviewWorkflow part="setup" {...previewProps} />}
       landformFinder={
@@ -5908,32 +6154,6 @@ function DevForestryVisuals() {
       visit={
         <>
           <PreviewWorkflow part="visit" {...previewProps} />
-          {!summaryView && stoodViewpointPanel(false)}
-          <RouteViewshedPanel
-            preview={routeViewshed}
-            driving={drive.active}
-            position={drive.positionMeters}
-            onRetryTerrain={previewTerrain.retry}
-            onSeek={(distance) => updateDrive({ positionMeters: distance, playing: false })}
-            onDrive={() => {
-              routeViewshed.setEnabled(true)
-              updateDrive(
-                {
-                  active: true,
-                  playing: false,
-                  positionMeters:
-                    routeViewshed.mode === 'point'
-                      ? Math.min(drive.positionMeters, routeViewshed.length)
-                      : Math.max(
-                          routeViewshed.selected.from,
-                          Math.min(drive.positionMeters, routeViewshed.selected.to),
-                        ),
-                },
-                true,
-              )
-            }}
-          />
-          {tools.field}
           {tools.fieldDialog}
         </>
       }
@@ -5942,9 +6162,6 @@ function DevForestryVisuals() {
       wildlifeTreePatches={
         <WildlifeTreePatchPanel
           masks={scene.masks ?? []}
-          drawing={drawMode === 'wildlife-tree-patch'}
-          onDraw={(on) => handleDrawModeChange(on ? 'wildlife-tree-patch' : 'none')}
-          drawControls={<PreviewWorkflow part="setup" {...previewProps} />}
           onRemove={(id) =>
             setScene((current) => ({ ...current, masks: (current.masks ?? []).filter((mask) => mask.id !== id) }))
           }
@@ -6027,12 +6244,13 @@ function DevForestryVisuals() {
       }
       designComparisons={tools.design}
       fieldPhoto={summaryView ? undefined : fieldPhotoPanel}
+      fieldRecords={tools.field}
       showViewpointType={!summaryView}
+      roadStand={summaryView ? undefined : stoodViewpointPanel(true)}
       fieldBrief={
         <FieldBriefPanel
           scene={scene}
           result={result}
-          stale={isStale}
           review={scene.viaReview ?? {}}
           onReviewChange={updateViaReview}
           selectedTargetId={selectedTargetId}
@@ -6040,10 +6258,10 @@ function DevForestryVisuals() {
           otherViews={shelvedViews.flatMap((entry) => entry.views)}
           blockId={briefBlockId}
           onBlockId={setBriefBlockId}
-          onOpenExport={() => exportOpener.openExport('field-brief')}
+          viewsOfInterest={viewsOfInterest}
+          standingViewId={summaryView?.id ?? null}
         />
       }
-      evidence={tools.report}
       scene={scene}
       onViewpointChange={setViewpoint}
       onSettingsChange={(settings) => setScene((current) => ({ ...current, settings }))}
@@ -6175,144 +6393,7 @@ function DevForestryVisuals() {
           onHighlightArrows={highlightFinderArrows}
         />
       }
-      viewsOfInterest={
-        <ViewsOfInterestPanel
-          views={viewsOfInterest}
-          onChange={setViewsOfInterest}
-          blocks={viewBlocks}
-          targets={scene.targets}
-          savedViews={capturedViewSources}
-          hasFigure={savedViewHasFigure}
-          capture={viewCapture}
-          openViewId={openViewId}
-          onOpenView={setOpenViewId}
-          adding={drawMode === 'view'}
-          onStartAdding={(blockId) => {
-            viewPlacementBlockRef.current = blockId
-            setViewsMessage(null)
-            handleDrawModeChange('view')
-          }}
-          onCancelAdding={() => handleDrawModeChange('none')}
-          defaultBlockId={selectedTargetId}
-          inventory={viewpointInventory.data}
-          onOpenExport={() => exportOpener.openExport()}
-          renderer={roadRendererInfo(exportOpener.figureRenderer)}
-          onChangeRenderer={exportOpener.openPackage}
-          capturedHere={(viewId) => savedViews.some((saved) => saved.plannedViewId === viewId)}
-          canReopenSaved={(viewId) => savedViews.some((saved) => saved.plannedViewId === viewId)}
-          onReopenSaved={(viewId) => {
-            const latest = savedViews.filter((saved) => saved.plannedViewId === viewId).at(-1)
-            if (latest) openPreview(latest)
-          }}
-          onShowView={(view) =>
-            mapRef.current?.flyTo({
-              center: [view.lng, view.lat],
-              zoom: Math.max(12, mapRef.current.getZoom()),
-            })
-          }
-          landformControl={renderViewLandform}
-          recordControl={(view) => (
-            <ViewpointRecordFields
-              name={view.name}
-              review={scene.viaReview ?? {}}
-              onReviewChange={updateViaReview}
-              // The run's 3.2.1 estimate belongs to the view it stands at, and to no other.
-              typeEstimate={view.id === summaryView?.id ? viewpointTypeEstimate(result, drive.speedKmh) : undefined}
-            />
-          )}
-          keyControl={(view) => {
-            const review = scene.viaReview ?? {}
-            const reportBlocks = viewBlocks.filter((block) => !otherPlannedName(block.name)).map((block) => block.name)
-            const own = viewBlocks.find((block) => block.id === view.blockId)?.name
-            // Its own block, and any block the review already gives it, so an earlier choice stays in sight.
-            const blocks = reportBlocks.filter(
-              (name) => name === own || review.keyViewpoints?.blocks?.[name]?.view === view.name,
-            )
-            if (!blocks.length && reportBlocks.length < 2) return null
-            return (
-              <KeyViewpointFields
-                name={view.name}
-                blocks={blocks}
-                group={reportBlocks.length > 1}
-                review={review}
-                onReviewChange={updateViaReview}
-              />
-            )
-          }}
-          photoControl={(view) => {
-            const filed = tools.fieldsFor(view.id)
-            return {
-              count: filed.length,
-              node: (
-                <div className="space-y-1.5">
-                  {filed.map((record) => (
-                    <TextButton
-                      key={record.id}
-                      className="block min-w-0 max-w-full truncate text-left text-2xs"
-                      onClick={() => tools.openField(record.id)}
-                    >
-                      {record.name} · {record.kind}
-                    </TextButton>
-                  ))}
-                  <FileButton
-                    label={`Add a field photo of ${view.name}`}
-                    accept="image/jpeg,image/png,image/webp"
-                    size="2xs"
-                    disabled={tools.fieldBusy}
-                    onFiles={([file]) => tools.importField(file, 'photo', view.id)}
-                  >
-                    Add a field photo…
-                  </FileButton>
-                </div>
-              ),
-            }
-          }}
-          assessedGroups={
-            new Set(
-              Object.entries(scene.viaReview?.stations ?? {}).flatMap(([id, record]) => (hasStep4(record) ? [id] : [])),
-            )
-          }
-          onLeadChanged={(from, to) => {
-            const moved = movedStation(sceneRef.current.viaReview, from, to)
-            if (moved) updateViaReview(moved)
-          }}
-          standingViewId={summaryView?.id ?? null}
-          standingControl={() => (
-            <>
-              {stoodViewpointPanel(true)}
-              <div className="space-y-1.5 border-t border-border/60 pt-2">
-                <p className="text-2xs font-medium text-foreground">Field photo</p>
-                {fieldPhotoPanel}
-              </div>
-            </>
-          )}
-          onRenamed={(from, to) => {
-            const moved = renamedViewpointRecords(sceneRef.current.viaReview ?? {}, from, to)
-            if (moved) updateViaReview(moved)
-          }}
-          message={viewsMessage}
-        />
-      }
-      visualsParagraph={
-        <VisualsParagraphPanel
-          scene={scene}
-          result={result}
-          stale={isStale}
-          review={viaReviewNow}
-          onReviewChange={updateViaReviewNow}
-          selectedTargetId={selectedTargetId}
-          inventory={viewpointInventory.data}
-          otherViewpoints={inventoryFindings}
-          otherViewpointsBlockId={viewpointChecks.blockIds.length === 1 ? viewpointChecks.blockIds[0] : null}
-          captions={[...shelvedViews.flatMap((entry) => entry.views), ...savedViews].map((view) =>
-            view.name.endsWith('.') ? view.name : `${view.name}.`,
-          )}
-          landform={sceneLandform}
-          assessment={viaAssessment}
-          onParts={setBlockNoteParts}
-          onOpenExport={() => exportOpener.openExport('block-note')}
-        />
-      }
+      viewsOfInterest={renderViewsOfInterest(ViewsOfInterestPanel)}
       onUseRoad={handleUseRoad}
       selectedTargetId={selectedTargetId}
       onSelectTarget={setSelectedTargetId}
@@ -6335,6 +6416,7 @@ function DevForestryVisuals() {
       onClearScene={handleClearScene}
       onOpenProject={(file) => void openProjectFile(file)}
       onOpenExport={exportOpener.openExport}
+      onOpenPackage={exportOpener.openPackage}
       onAddRoadDisturbance={handleAddRoadDisturbance}
     />
   )
@@ -6403,6 +6485,26 @@ function DevForestryVisuals() {
           </Button>
         </div>
         {exportDialog}
+        {viewsSlot && createPortal(renderViewsOfInterest(ViewsOfInterestList, true), viewsSlot)}
+        <MovableContent target={noteSlot}>
+          <VisualsParagraphPanel
+            scene={scene}
+            result={result}
+            stale={isStale}
+            review={viaReviewNow}
+            onReviewChange={updateViaReviewNow}
+            selectedTargetId={selectedTargetId}
+            inventory={viewpointInventory.data}
+            otherViewpoints={inventoryFindings}
+            otherViewpointsBlockId={viewpointChecks.blockIds.length === 1 ? viewpointChecks.blockIds[0] : null}
+            captions={[...shelvedViews.flatMap((entry) => entry.views), ...savedViews].map((view) =>
+              view.name.endsWith('.') ? view.name : `${view.name}.`,
+            )}
+            landform={sceneLandform}
+            assessment={viaAssessment}
+            onParts={setBlockNoteParts}
+          />
+        </MovableContent>
         {prescriptionDialog}
         {backgroundRenders.tray}
         {reportMapOn && (
@@ -6442,7 +6544,7 @@ function DevForestryVisuals() {
                         zoom={9}
                         maxPitch={85}
                         controls={
-                          <MapControls position="top-right" showZoom showCompass showFullscreen>
+                          <MapControls position="top-right" showZoom showCompass>
                             <MapMeasureControl
                               active={measuring}
                               onToggle={toggleMeasure}
@@ -6452,6 +6554,65 @@ function DevForestryVisuals() {
                                   ? 'Measure · finish or cancel the drawing first'
                                   : 'Measure a distance, an area or a circle'
                               }
+                            />
+                            <PlanMapToolButtons
+                              drawMode={drawMode}
+                              routePreviewOpen={routePreviewOpen}
+                              routePreviewOn={routeViewshed.enabled}
+                              addViewDisabled={
+                                !viewBlocks.length
+                                  ? 'Add a view of interest · draw or import a cutblock first'
+                                  : viewsOfInterest.length >= MAX_VIEWS_OF_INTEREST
+                                    ? `Add a view of interest · ${MAX_VIEWS_OF_INTEREST} views is the most`
+                                    : viewCapture.state.status === 'running'
+                                      ? 'Add a view of interest · wait for the capture to finish'
+                                      : null
+                              }
+                              patchDisabled={
+                                (scene.masks ?? []).length >= MAX_ASSESSMENT_MASKS
+                                  ? `Draw a wildlife tree patch · the scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps`
+                                  : null
+                              }
+                              onDraw={(mode) => {
+                                if (mode === 'view') {
+                                  viewPlacementBlockRef.current = viewAddBlockId
+                                  assessOnPlaceRef.current = false
+                                  setViewsMessage(null)
+                                } else if (mode === 'none') assessOnPlaceRef.current = false
+                                handleDrawModeChange(mode)
+                              }}
+                              look={{
+                                open: drive.active,
+                                picking: !!mapPick?.hint && mapPick.onPoint === pickBasemapRoad,
+                                disabled: drive.active
+                                  ? 'The road view is open'
+                                  : pendingPreview
+                                    ? 'Preparing the road view…'
+                                    : null,
+                                onLook: () => {
+                                  if (mapPick?.onPoint === pickBasemapRoad) {
+                                    setMapPick(null)
+                                    return
+                                  }
+                                  const hasRoad =
+                                    scene.viewpoint.mode === 'corridor' && scene.viewpoint.coordinates.length >= 2
+                                  if (drawMode !== 'none') handleDrawModeChange('none')
+                                  setRoutePreviewOpen(false)
+                                  if (hasRoad) openPreview()
+                                  else
+                                    setMapPick({
+                                      onPoint: pickBasemapRoad,
+                                      hint: 'Click a road on the map to look from it',
+                                    })
+                                },
+                              }}
+                              onRoutePreview={(open) => {
+                                if (open) {
+                                  clearMeasure()
+                                  if (drawMode !== 'none') handleDrawModeChange('none')
+                                }
+                                setRoutePreviewOpen(open)
+                              }}
                             />
                             <MapLayersControl
                               basemaps={IMAGERY_BASEMAPS}
@@ -6532,6 +6693,11 @@ function DevForestryVisuals() {
                                   )
                               : null
                           }
+                          onStand={
+                            drawMode === 'none' && !mapPick && !measuring && !captureRunning
+                              ? (id) => viewCapture.standAt(id)
+                              : null
+                          }
                           standingViewId={drive.active ? (summaryView?.id ?? null) : null}
                         />
                         <MapSketch sketch={measure} testId="visuals-measure" />
@@ -6542,6 +6708,59 @@ function DevForestryVisuals() {
                             className="w-72 max-w-[calc(100%-4.5rem)] border-0 bg-transparent shadow-none backdrop-blur-none"
                           >
                             <MapMeasurePanel sketch={measure} onClose={clearMeasure} />
+                          </MapOverlay>
+                        )}
+                        {!measuring && (isPlanDrawTool(drawMode) || routePreviewOpen) && (
+                          <MapOverlay
+                            position="top-left"
+                            clearChrome
+                            className="max-h-[calc(100%-1rem)] w-80 max-w-[calc(100%-4.5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none"
+                          >
+                            <PlanMapToolCard
+                              drawMode={drawMode}
+                              pointCount={draftCoordinates.length}
+                              onFinish={finishDraft}
+                              onCancel={cancelPlanDraw}
+                              view={{
+                                blocks: viewBlocks,
+                                blockId: viewPlacementBlockRef.current ?? viewAddBlockId,
+                                onBlockId: (id) => {
+                                  setViewAddBlockChoice(id)
+                                  viewPlacementBlockRef.current = id
+                                },
+                                assessing: assessOnPlaceRef.current,
+                              }}
+                              routePreviewSummary={routeViewshedSummary(routeViewshed)}
+                              onCloseRoutePreview={() => setRoutePreviewOpen(false)}
+                              routePreview={
+                                routePreviewOpen && drawMode === 'none' ? (
+                                  <RouteViewshedControls
+                                    preview={routeViewshed}
+                                    driving={drive.active}
+                                    position={drive.positionMeters}
+                                    onRetryTerrain={previewTerrain.retry}
+                                    onSeek={(distance) => updateDrive({ positionMeters: distance, playing: false })}
+                                    onDrive={() => {
+                                      routeViewshed.setEnabled(true)
+                                      updateDrive(
+                                        {
+                                          active: true,
+                                          playing: false,
+                                          positionMeters:
+                                            routeViewshed.mode === 'point'
+                                              ? Math.min(drive.positionMeters, routeViewshed.length)
+                                              : Math.max(
+                                                  routeViewshed.selected.from,
+                                                  Math.min(drive.positionMeters, routeViewshed.selected.to),
+                                                ),
+                                        },
+                                        true,
+                                      )
+                                    }}
+                                  />
+                                ) : null
+                              }
+                            />
                           </MapOverlay>
                         )}
                         <PlanClickToMove
@@ -6572,7 +6791,7 @@ function DevForestryVisuals() {
                             }}
                           />
                         )}
-                        {drawMode !== 'none' && (
+                        {drawMode !== 'none' && !isPlanDrawTool(drawMode) && (
                           <MapOverlay
                             position="top-left"
                             clearChrome
@@ -6581,23 +6800,17 @@ function DevForestryVisuals() {
                             aria-label="Map drawing controls"
                           >
                             <p className="text-xs">
-                              {drawMode === 'view' ? (
-                                'Tap the map where the view of interest stands.'
-                              ) : (
-                                <>
-                                  Tap the map to trace the{' '}
-                                  {drawMode === 'corridor' ? 'road' : drawMode === 'spot' ? 'viewpoint' : 'polygon'}.{' '}
-                                  {draftCoordinates.length} points added.
-                                </>
-                              )}
+                              {drawMode === 'spot'
+                                ? 'Tap the map to drop the viewpoint.'
+                                : `Tap the map to trace the polygon. ${draftCoordinates.length} points added.`}
                             </p>
                             <div className="mt-2 flex gap-2">
-                              {drawMode !== 'spot' && drawMode !== 'view' && (
+                              {drawMode !== 'spot' && (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="touch:h-10"
-                                  disabled={draftCoordinates.length < (drawMode === 'corridor' ? 2 : 3)}
+                                  disabled={draftCoordinates.length < 3}
                                   onClick={finishDraft}
                                 >
                                   Finish drawing
@@ -6623,7 +6836,7 @@ function DevForestryVisuals() {
                             data-testid="map-pick-hint"
                           >
                             <Crosshair className="h-4 w-4 shrink-0 text-sky-600" aria-hidden="true" />
-                            <span className="text-xs">Click the map to pick the point</span>
+                            <span className="text-xs">{mapPick.hint ?? 'Click the map to pick the point'}</span>
                             <Button
                               variant="outline"
                               size="sm"
@@ -6664,7 +6877,7 @@ function DevForestryVisuals() {
                             showInventory && viewpointInventory.data
                               ? {
                                   viewpoints: viewpointInventory.data.viewpoints.length > 0,
-                                  arrows: viewpointInventory.data.arrows.length > 0,
+                                  arrows: viewpointLayers.arrows.features.length > 0,
                                   recSites: viewpointInventory.data.recSites.length > 0,
                                   screenings: viewpointInventory.data.screenings.length > 0,
                                 }
@@ -6678,7 +6891,7 @@ function DevForestryVisuals() {
                           viewsOfInterest={{
                             views: viewsOfInterest.length > 0,
                             arrows:
-                              !!viewpointInventory.data?.arrows.length &&
+                              viewpointLayers.arrows.features.length > 0 &&
                               (finderArrowIds.length > 0 ||
                                 viewsOfInterest.some(
                                   (view) => view.facing.kind === 'bearing' && !!view.facing.arrowId,
@@ -6706,7 +6919,7 @@ function DevForestryVisuals() {
                             zoom={14}
                             maxPitch={85}
                             controls={
-                              <MapControls position="top-right" showZoom showCompass showFullscreen>
+                              <MapControls position="top-right" showZoom showCompass>
                                 <MapLayersControl
                                   basemaps={IMAGERY_BASEMAPS}
                                   basemap={drive.imagery ? 'satellite' : 'map'}

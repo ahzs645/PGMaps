@@ -789,6 +789,7 @@ const signOffPeer: ReportPart = {
   sources: ['22'],
   build: (ctx) => {
     const preparer = blank(ctx.office.evaluator)
+    const designation = blank(ctx.office.evaluatorDesignation)
     return {
       blocks: [
         heading('Sign-off'),
@@ -797,7 +798,7 @@ const signOffPeer: ReportPart = {
           columns: ['', 'Prepared by', 'Peer reviewed by'],
           rows: [
             ['Name', preparer ?? '', ''],
-            ['Professional designation and seal', '', ''],
+            ['Professional designation and seal', designation ?? '', ''],
             ['Certification', CERTIFICATION_STATEMENTS.supervised, CERTIFICATION_STATEMENTS.reviewed],
             ['Signature', '', ''],
             ['Date', '', ''],
@@ -807,7 +808,7 @@ const signOffPeer: ReportPart = {
       ],
       toComplete: [
         ...(preparer ? [] : ['Prepared by: name']),
-        'Prepared by: designation, seal, signature and date',
+        designation ? 'Prepared by: seal, signature and date' : 'Prepared by: designation, seal, signature and date',
         'Peer reviewed by: name, designation, seal, signature and date',
       ],
     }
@@ -821,6 +822,7 @@ const signOffCertified: ReportPart = {
   sources: ['23'],
   build: (ctx) => {
     const preparer = blank(ctx.office.evaluator)
+    const designation = blank(ctx.office.evaluatorDesignation)
     return {
       blocks: [
         heading('Sign-off'),
@@ -828,13 +830,21 @@ const signOffCertified: ReportPart = {
           kind: 'fields',
           rows: [
             { label: 'Visual impact assessment prepared by', value: preparer, source: 'scene' },
-            { label: 'Professional designation and seal', value: null, source: 'reviewer' },
+            // The designation is the evaluator's entry; the seal is always applied by hand.
+            {
+              label: 'Professional designation and seal',
+              value: designation,
+              source: designation ? 'scene' : 'reviewer',
+            },
           ],
         },
         text(CERTIFICATION_STATEMENTS.supervised, 'fixed'),
         { kind: 'signature', lines: ['Signature', 'Date'] },
       ],
-      toComplete: [...(preparer ? [] : ['Prepared by: name']), 'Prepared by: designation, seal, signature and date'],
+      toComplete: [
+        ...(preparer ? [] : ['Prepared by: name']),
+        designation ? 'Prepared by: seal, signature and date' : 'Prepared by: designation, seal, signature and date',
+      ],
     }
   },
 }

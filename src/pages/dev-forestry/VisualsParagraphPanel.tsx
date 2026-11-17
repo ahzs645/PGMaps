@@ -1,5 +1,6 @@
 import { CheckboxField, FORM_INPUT_CLASS, StyledSelect } from '@/components/ui/form-field'
 import { formatMeasure, formatPercentValue } from '@/lib/format'
+import { Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -79,7 +80,6 @@ export function VisualsParagraphPanel({
   landform,
   assessment,
   onParts,
-  onOpenExport,
 }: {
   scene: ForestryScene
   /** The current run; null when there is none or it is stale. */
@@ -97,8 +97,6 @@ export function VisualsParagraphPanel({
   captions: ReadonlyArray<string>
   /** The note's text as it stands, for the block note in Save & export; null without a block. */
   onParts?: (parts: BlockNoteParts | null) => void
-  /** Opens Save & export on the block note. */
-  onOpenExport?: () => void
   landform: TargetPolygon | null
   /** Step 4's assessment against the landform, for the visual measures; null without a landform. */
   assessment?: ViaAssessment | null
@@ -382,72 +380,15 @@ export function VisualsParagraphPanel({
             drawn or imported in step 3 (in or within {MEASURE_NEAR_KM} of the block), the block's harvest system, the
             step-4 design ratings the design relies on (good or moderate edges, good force lines, character and
             position), the run's skyline check and road visibility. It always ends with a stop-work condition. Edit the
-            list: one measure per line. The block note numbers them.
+            list: change, remove or add a measure; your list is saved with the project, and Reset goes back to the
+            draft. The block note numbers them.
           </InfoTip>
         </div>
-        {measuresDraft && (
-          <ol className="space-y-1.5" aria-label="Draft measures">
-            {measuresDraft.measures.map((measure) => (
-              <li key={measure.id} className="rounded-md border border-border/60 p-2">
-                <p className="text-foreground">{measure.text}</p>
-                <p className="mt-0.5 text-3xs leading-4 text-muted-foreground">{measure.basis}</p>
-              </li>
-            ))}
-          </ol>
-        )}
-        <label className="block">
-          <span className="mb-1 block text-2xs font-medium text-muted-foreground">
-            Visual measures (yours, one per line)
-          </span>
-          <textarea
-            className={TEXTAREA_CLASS}
-            value={measures}
-            placeholder={measuresText}
-            onChange={(event) => onReviewChange({ visualMeasures: event.target.value })}
-          />
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={measures ? 'outline' : 'default'}
-            disabled={!measuresText || measures === measuresText}
-            onClick={() => onReviewChange({ visualMeasures: measuresText })}
-          >
-            {measures ? 'Replace with the draft measures' : 'Use the draft measures'}
-          </Button>
-          <CopyButton
-            text={measureItems(measures || measuresText)
-              .map((item, i) => `${i + 1}. ${item}`)
-              .join('\n')}
-            className={buttonVariants({ variant: 'outline', size: 'sm' })}
-            disabled={!(measures || measuresText)}
-          >
-            Copy measures
-          </CopyButton>
-        </div>
-        {measures && measuresText && measures !== measuresText && (
-          <p className="text-3xs text-muted-foreground">Your list is kept; the draft above follows the assessment.</p>
-        )}
-      </div>
-
-      <div
-        className="flex items-center justify-between gap-2 border-t border-border/60 pt-3"
-        aria-label="Block note export"
-      >
-        <p className="flex items-center gap-1 text-2xs font-medium text-muted-foreground">
-          Block note
-          <InfoTip label="About the block note">
-            The header above, the Visuals paragraph and the visual measures (yours, or the drafts marked as such), the
-            landform and its percent alteration, every saved view's screenshot with its caption — from every place you
-            stood — and a plan map of the block and viewpoint. Excel follows the planner's report: Visuals in column B,
-            the paragraph in C, the screenshots below, so the row pastes into their workbook. PDF puts the first view
-            large with the note beside it. Written from Save &amp; export, which lists what goes in.
-          </InfoTip>
-        </p>
-        <Button type="button" size="sm" variant="outline" disabled={!onOpenExport} onClick={onOpenExport}>
-          Export the block note…
-        </Button>
+        <MeasureList
+          draft={measuresDraft?.measures ?? []}
+          text={measures}
+          onTextChange={(text) => onReviewChange({ visualMeasures: text })}
+        />
       </div>
 
       {captions.length > 0 && (
@@ -467,6 +408,181 @@ export function VisualsParagraphPanel({
             ))}
           </ul>
         </div>
+      )}
+    </div>
+  )
+}
+
+/** One measure as stored: a single line, since the list is kept one measure per line. */
+function oneLine(text: string): string {
+  return text.replace(/\s*\r?\n\s*/g, ' ').trim()
+}
+
+/**
+ * The visual measures as one list. Until the reviewer changes anything it shows
+ * the draft, which follows the assessment; the first edit, removal or addition
+ * copies the draft into `viaReview.visualMeasures` (saved with the scene and the
+ * project file) and the list is the reviewer's from then on. *Reset to draft*
+ * clears it. The last measure cannot be removed: an empty list would read as
+ * "not written yet" and bring the draft back.
+ */
+function MeasureList({
+  draft,
+  text,
+  onTextChange,
+}: {
+  draft: ReadonlyArray<VisualMeasure>
+  /** The reviewer's list, one measure per line; '' while the draft stands. */
+  text: string
+  onTextChange: (text: string) => void
+}) {
+  const own = text.length > 0
+  const items = own ? measureItems(text) : draft.map((measure) => measure.text)
+  const basisFor = new Map(draft.map((measure) => [measure.text, measure.basis]))
+  const draftText = draft.map((measure) => measure.text).join('\n')
+  const [editing, setEditing] = useState<{ index: number; value: string } | null>(null)
+
+  const commit = (next: string[]) => {
+    const lines = next.map(oneLine).filter((line) => line.length > 0)
+    if (lines.length > 0) onTextChange(lines.join('\n'))
+  }
+  const save = () => {
+    if (!editing) return
+    const value = oneLine(editing.value)
+    const next = [...items]
+    if (editing.index >= next.length) {
+      if (value) next.push(value)
+    } else if (value) next[editing.index] = value
+    else next.splice(editing.index, 1)
+    setEditing(null)
+    if (next.join('\n') !== items.join('\n') || !own) commit(next)
+  }
+  const remove = (index: number) => {
+    setEditing(null)
+    commit(items.filter((_, i) => i !== index))
+  }
+
+  const rows = editing && editing.index >= items.length ? [...items, ''] : items
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-2xs font-medium text-muted-foreground">
+          {own ? 'Your measures' : 'Draft measures · edit any to make the list yours'}
+        </p>
+        {own && (
+          <Button
+            type="button"
+            size="2xs"
+            variant="ghost"
+            disabled={!draftText}
+            onClick={() => {
+              setEditing(null)
+              onTextChange('')
+            }}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset to draft
+          </Button>
+        )}
+      </div>
+      <ol className="space-y-1.5" aria-label={own ? 'Your measures' : 'Draft measures'}>
+        {rows.map((item, index) => {
+          const basis = basisFor.get(item)
+          const isEditing = editing?.index === index
+          return (
+            <li key={`${index}-${item}`} className={cn(insetBox(), 'border-border/60')}>
+              {isEditing ? (
+                <div className="space-y-1.5">
+                  <textarea
+                    className={`${FORM_INPUT_CLASS} min-h-16 leading-5`}
+                    aria-label={`Measure ${index + 1}`}
+                    autoFocus
+                    onFocus={(event) => {
+                      const end = event.currentTarget.value.length
+                      event.currentTarget.setSelectionRange(end, end)
+                    }}
+                    value={editing.value}
+                    onChange={(event) => setEditing({ index, value: event.target.value })}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault()
+                        save()
+                      } else if (event.key === 'Escape') {
+                        event.preventDefault()
+                        setEditing(null)
+                      }
+                    }}
+                  />
+                  <div className="flex gap-1.5">
+                    <Button type="button" size="2xs" onClick={save}>
+                      Save
+                    </Button>
+                    <Button type="button" size="2xs" variant="ghost" onClick={() => setEditing(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-1.5">
+                  <span className="w-4 shrink-0 text-muted-foreground">{index + 1}.</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-foreground">{item}</p>
+                    {basis ? (
+                      <p className="mt-0.5 text-3xs leading-4 text-muted-foreground">{basis}</p>
+                    ) : (
+                      <p className="mt-0.5 text-3xs leading-4 text-muted-foreground">Yours</p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon-2xs"
+                    variant="ghost"
+                    aria-label={`Edit measure ${index + 1}`}
+                    title="Edit"
+                    onClick={() => setEditing({ index, value: item })}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon-2xs"
+                    variant="ghost"
+                    aria-label={`Remove measure ${index + 1}`}
+                    title={items.length > 1 ? 'Remove' : 'The list keeps at least one measure'}
+                    disabled={items.length <= 1}
+                    onClick={() => remove(index)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ol>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={editing !== null}
+          onClick={() => setEditing({ index: items.length, value: '' })}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add a measure
+        </Button>
+        <CopyButton
+          text={items.map((item, i) => `${i + 1}. ${item}`).join('\n')}
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          disabled={items.length === 0}
+        >
+          Copy measures
+        </CopyButton>
+      </div>
+      {own && draftText && text !== draftText && (
+        <p className="text-3xs text-muted-foreground">
+          Your list is kept as the assessment changes; Reset to draft takes the latest draft.
+        </p>
       )}
     </div>
   )

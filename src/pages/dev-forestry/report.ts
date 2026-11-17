@@ -13,6 +13,8 @@ export type ReportInput = {
   generatedAt: Date
   inventorySource?: string | null
   inventoryUnit?: ReportInventoryUnit | null
+  /** The evaluator from the FS1252 office information ("J. Smith, RPF #4521"); blank prints a line to complete. */
+  evaluator?: string | null
 }
 const escape = (s: unknown) =>
   String(s ?? '')
@@ -27,6 +29,7 @@ export function buildReport({
   generatedAt,
   inventorySource,
   inventoryUnit,
+  evaluator,
 }: ReportInput): string {
   const landform = targets.find((t) => t.id === result.activeLandformId),
     quality = result.quality
@@ -79,7 +82,7 @@ export function buildReport({
     '2.2.4 Five design observations: force lines ______; natural character ______; edge treatments ______; distance ______; position ______.',
     '2.3.3 Roads/sidecast within openings d ______; retention e ______; design total f ______; Y=d+e+f ______; adjusted X*(1+0.14*Y) ______.',
     '2.3.4 Partial cutting: actual volume removed ______; actual mean residual-tree height ______; clearcut equivalent ______. PERCENT_CLEARCUT is not volume removed, and green-up height is not residual-tree height. Neither is substituted.',
-    '2.3.6 Final EE rating: ______. 2.3.7 Override and rationale: ______. Evaluator: ______. Signature: ______.',
+    `2.3.6 Final EE rating: ______. 2.3.7 Override and rationale: ______. Evaluator: ${evaluator?.trim() ? escape(evaluator.trim()) : '______'}. Signature: ______.`,
     '',
     '## Planimetric timber-supply context — not FS1252 numerical fields',
     '',

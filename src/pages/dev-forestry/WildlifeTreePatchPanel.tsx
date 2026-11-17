@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react'
-import { Trees, X } from 'lucide-react'
+import { X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { ToolSection } from '@/components/ui/tool-section'
@@ -11,7 +10,7 @@ import type { AssessmentMask } from './types'
 import { polygonAreaMeters } from './visibility'
 
 /**
- * Step 3: draw a wildlife tree patch on the plan map in one click. It becomes a
+ * Step 3: the wildlife tree patches, drawn with the plan map's own tool (`PlanMapTools.tsx`). It becomes a
  * `retained` assessment mask — kept green, out of the cleared ground and the
  * alteration — so the next run tests the crew's placement from the viewpoint.
  * The road view stays open while drawing, as for a tree-free area, so the
@@ -19,18 +18,10 @@ import { polygonAreaMeters } from './visibility'
  */
 export function WildlifeTreePatchPanel({
   masks,
-  drawing,
-  onDraw,
-  drawControls,
   onRemove,
   stale,
 }: {
   masks: ReadonlyArray<AssessmentMask>
-  /** A patch is being traced now. */
-  drawing: boolean
-  onDraw: (on: boolean) => void
-  /** The tracing prompt with Finish and Cancel, shown while drawing. */
-  drawControls: ReactNode
   onRemove: (id: string) => void
   /** The scene changed since the run: the patches are not in its figures yet. */
   stale: boolean
@@ -44,21 +35,12 @@ export function WildlifeTreePatchPanel({
       help={`A wildlife tree patch or other retention left standing in or beside the block, as the crew would place it. It is saved as a "${MASK_LABELS.retained}" mask: kept green, left out of the cleared ground and the percent alteration, and drawn standing in the road view. Run the simulation again to test the placement from the viewpoint; a patch the run samples with fewer than eight cells makes the result provisional, so raise the sample budget in Simulation settings for a small one. Patches also go into the visual measures in step 5.`}
     >
       <div className="space-y-1.5 text-xs">
-        <Button
-          type="button"
-          variant={drawing ? 'default' : 'outline'}
-          size="sm"
-          className="h-8 w-full text-xs touch:h-10"
-          aria-pressed={drawing}
-          disabled={!drawing && full}
-          onClick={() => onDraw(!drawing)}
-          title="Trace the patch on the plan map; the road view stays open"
-        >
-          <Trees className="h-3.5 w-3.5" />
-          {drawing ? 'Drawing on the plan…' : 'Draw a wildlife tree patch'}
-        </Button>
-        {drawing && drawControls}
-        {full && !drawing && (
+        {patches.length === 0 && !full && (
+          <p className="text-2xs text-muted-foreground">
+            None yet. Draw one with the map&apos;s wildlife tree patch tool; the road view stays open.
+          </p>
+        )}
+        {full && (
           <p className="text-2xs text-muted-foreground">
             The scene holds {MAX_ASSESSMENT_MASKS} masks, the most it keeps: remove one to draw another.
           </p>

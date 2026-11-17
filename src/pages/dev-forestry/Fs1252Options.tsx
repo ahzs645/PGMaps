@@ -8,6 +8,9 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
 import { TextButton } from '@/components/ui/text-button'
 import { ToolDisclosure } from '@/components/ui/tool-section'
+import { UseMyDetailsButton } from '@/branding/PreparerProfile'
+import { blanksFilledFromProfile, designationText, type PreparerProfile } from '@/branding/profile'
+import { useBranding } from '@/branding/useBranding'
 import { cn } from '@/lib/utils'
 
 import { formatKm, formatPct } from './measureFormat'
@@ -31,9 +34,23 @@ export const FS1252_OFFICE_FIELDS: ReadonlyArray<[keyof FormMetadata, string]> =
   ['sourceDocument', 'Objective source document'],
   ['evaluator', 'Prepared/evaluated by (optional)'],
   // Not printed on the FS1252; the VIA reports read them.
+  ['evaluatorDesignation', 'Evaluator’s designation, e.g. RPF #4521'],
+  ['evaluatorOrganisation', 'Evaluator’s organisation'],
   ['lakeManagementZone', 'Lake or landscape management zone (LMZ)'],
   ['inventoryDate', 'Visual landscape inventory date'],
 ]
+
+/**
+ * What *Use my details* writes into the office fields: the evaluator's name, designation and own organisation,
+ * each only where blank. Never the licensee, which is who the work is prepared for.
+ */
+export function evaluatorFromProfile(metadata: FormMetadata, profile: PreparerProfile | null) {
+  return blanksFilledFromProfile<'evaluator' | 'evaluatorDesignation' | 'evaluatorOrganisation'>(metadata, {
+    evaluator: profile?.name ?? '',
+    evaluatorDesignation: profile ? designationText(profile) : '',
+    evaluatorOrganisation: profile?.organisation ?? '',
+  })
+}
 
 const DESIGN_LABELS = [
   'Response to visual force lines',
@@ -72,6 +89,7 @@ export function Fs1252Options({
   metadata: FormMetadata
   onMetadata: (metadata: FormMetadata) => void
 }) {
+  const { profile } = useBranding()
   const [pick, setPick] = useState<number | null>(null)
   const [openStation, setOpenStation] = useState<number | null>(null)
   const { selected, reviews } = choice
@@ -269,6 +287,10 @@ export function Fs1252Options({
           Unknown fields stay blank. Export time is not a field-evaluation date. The signature and final EE decision are
           never auto-filled.
         </p>
+        <UseMyDetailsButton
+          patch={evaluatorFromProfile(metadata, profile)}
+          onApply={(patch) => onMetadata({ ...metadata, ...patch })}
+        />
         <div className="grid gap-2 sm:grid-cols-2">
           {FS1252_OFFICE_FIELDS.map(([key, label]) => (
             <FormField label={label} key={key}>

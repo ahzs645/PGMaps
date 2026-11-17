@@ -13,11 +13,14 @@ import {
   fieldBriefStrings,
   formatBearing,
   measuredText,
+  viewOfInterestCheck,
+  viewOfInterestCheckKey,
   type BriefSavedView,
 } from './fieldBrief'
 import { EMPTY_FIELD_CHECKLIST, updateBoundaryNote, updateFieldCheck } from './fieldChecklist'
 import type { AnalysisResult, TargetPolygon, Viewpoint } from './types'
 import { assessVia, type ViaAssessment } from './via'
+import type { ViewOfInterest } from './viewsOfInterest'
 
 /** A 16 × 9 grey-green JPEG (as in `blockNote.test.ts`). */
 const JPEG =
@@ -121,6 +124,64 @@ describe('field brief content', () => {
     expect(points[1].location!.lat).toBeCloseTo(53.99, 6)
     // A view saved where the reviewer stood elsewhere keeps its bearing but has no place on this road.
     expect(points[2]).toMatchObject({ location: null, facing: 200, where: 'Saved view at another viewpoint' })
+  })
+
+  it('lists a view of interest once, under its own key, and keeps its answer through a recapture', () => {
+    const planned: ViewOfInterest[] = [
+      {
+        id: 'voi-1',
+        name: 'Purden Lake north face',
+        source: { kind: 'map' },
+        lng: -122.0,
+        lat: 53.99,
+        blockId: 'CHU_26_1',
+        facing: { kind: 'bearing', degrees: 49 },
+        focalMm: 50,
+        framing: 'landform',
+      } as ViewOfInterest,
+      { id: 'voi-2', name: 'Elsewhere', blockId: 'other', lng: 0, lat: 0, facing: { kind: 'block' } } as ViewOfInterest,
+    ]
+    const capture: BriefSavedView = { ...views[0], id: 'cap-1', plannedViewId: 'voi-1' }
+    const savedViews = [capture, views[1]]
+    const points = briefViewpoints({ viewpoint: road, block, targets, result, savedViews, viewsOfInterest: planned })
+    // The view's capture is the view itself, and a view for another block is left out.
+    expect(points.map((point) => point.key)).toEqual(['station:road', 'voi:voi-1', 'view:v2'])
+    expect(points[1]).toMatchObject({ savedViewId: 'cap-1', facing: 49, location: { lng: -122.0, lat: 53.99 } })
+    // Standing at the view, the road is the view: its station is not listed again.
+    const standing = briefViewpoints({
+      viewpoint: road,
+      block,
+      targets,
+      result,
+      savedViews,
+      viewsOfInterest: planned,
+      standingViewId: 'voi-1',
+    })
+    expect(standing.map((point) => point.key)).toEqual(['voi:voi-1', 'view:v2'])
+    expect(standing[0].where).toBe('View of interest · assessing from here')
+    // After a reload the page no longer knows which view it stood at, but the stand's pullout is centred on it.
+    const pullout: Viewpoint = {
+      id: 'stand-voi-1',
+      name: 'Purden Lake north face',
+      mode: 'corridor',
+      coordinates: [
+        [-122.0002, 53.99],
+        [-121.9998, 53.99],
+      ],
+    }
+    expect(
+      briefViewpoints({ viewpoint: pullout, block, targets, result: null, savedViews, viewsOfInterest: planned }).map(
+        (point) => point.key,
+      ),
+    ).toEqual(['voi:voi-1', 'view:v2'])
+
+    // An answer recorded on an earlier capture still reads; the view's own answer wins once given.
+    const legacy = { 'view:cap-1': 'old' }
+    expect(viewOfInterestCheck(legacy, 'voi-1', savedViews)).toBe('old')
+    expect(viewOfInterestCheck({ ...legacy, [viewOfInterestCheckKey('voi-1')]: 'new' }, 'voi-1', savedViews)).toBe(
+      'new',
+    )
+    expect(viewOfInterestCheck(legacy, 'voi-1', [{ ...capture, id: 'cap-2' }])).toBeNull()
   })
 
   it('stands at the road before a run', () => {

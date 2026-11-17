@@ -2,7 +2,12 @@ import { readFile, writeFile } from 'node:fs/promises'
 import zlib from 'node:zlib'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { choose, expectSelected, optionLabels } from './styled-select'
-import { closeVisualsExport, downloadVisualsExport, openVisualsExport } from './visuals-export'
+import {
+  closeVisualsExport,
+  downloadVisualsExport,
+  openVisualsExport,
+  openVisualsExportPackage,
+} from './visuals-export'
 import { LAND_CHECKS } from '../../src/pages/dev-forestry/landStatusChecks'
 
 // Production-preview caching would serve around the stubbed sources below.
@@ -340,10 +345,14 @@ async function openViewOptions(page: Page) {
   return panel
 }
 
+/** Sets one of the run's inputs in the sidebar header's *Simulation settings* popover, then closes it. */
 async function setNumberField(page: Page, label: string, value: string) {
-  const field = page.locator('label', { hasText: label }).locator('input[type="number"]')
+  const toggle = page.getByRole('button', { name: 'Simulation settings', exact: true })
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
+  const field = page.getByTestId('simulation-settings').getByRole('spinbutton', { name: label, exact: true })
   await field.fill(value)
   await field.blur()
+  await toggle.click()
 }
 
 /**
@@ -499,9 +508,11 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('checkbox', { name: 'On the class boundary' }).check()
     await expect(rating).toHaveAttribute('data-via-rating', 'inconclusive')
 
-    // A rating with its rationale finishes step 5.
+    // A rating with its rationale finishes step 5; the rating is made at the top of Save & export's package.
+    const exportDialog = await openVisualsExportPackage(page)
+    await exportDialog.getByLabel('Rationale', { exact: true }).fill('Opening follows the hollow; skyline left intact.')
+    await closeVisualsExport(page)
     await showStep(page, 'rate')
-    await page.getByLabel('Rationale', { exact: true }).fill('Opening follows the hollow; skyline left intact.')
     await expect(page.locator('[data-via-panel="rate"] [data-step-status]')).toHaveAttribute('data-step-status', 'done')
 
     // The review is a record, not a run input: editing it must not stale the run.
@@ -1121,9 +1132,10 @@ test.describe('forestry visual quality', () => {
     await expect(handle).toHaveAttribute('aria-valuenow', '2')
     await showStep(page, 'identify')
     await page.getByRole('button', { name: 'New site', exact: true }).click()
+    // The road is drawn with the plan map's own tool; its card holds the drawing's controls.
     await page.getByRole('button', { name: 'Draw the road', exact: true }).click()
     await expect(handle).toHaveAttribute('aria-valuenow', '0')
-    const drawing = page.getByRole('region', { name: 'Map drawing controls' })
+    const drawing = page.getByTestId('plan-tool-card')
     await expect(drawing).toBeInViewport()
     await drawing.getByRole('button', { name: 'Cancel drawing' }).click()
     await expect(handle).toHaveAttribute('aria-valuenow', '2')
@@ -1375,8 +1387,11 @@ test.describe('forestry visual quality', () => {
     await page.goto(PAGE_PATH)
     await showStep(page, 'identify')
     await page.getByRole('button', { name: 'New site', exact: true }).click()
-    await showStep(page, 'visit')
-    await expect(page.getByRole('button', { name: 'Look from the road', exact: true })).toBeDisabled()
+    // With no road yet, the map's Look from the road asks for a road the basemap draws.
+    await page.getByRole('button', { name: 'Look from the road', exact: true }).click()
+    const pick = page.getByTestId('map-pick-hint')
+    await expect(pick).toContainText('Click a road on the map to look from it')
+    await pick.getByRole('button', { name: 'Cancel', exact: true }).click()
     const importGeometry = async (button: string, name: string, geometry: unknown) => {
       const chooser = page.waitForEvent('filechooser')
       await page.getByRole('button', { name: button, exact: true }).click()
@@ -1485,7 +1500,7 @@ test.describe('forestry visual quality', () => {
       await scroll.evaluate((element) => {
         element.scrollTop = element.scrollHeight
       })
-      await expect(page.getByRole('button', { name: 'Save the scene…' })).toBeInViewport()
+      await expect(page.getByRole('button', { name: 'Rate and package…' })).toBeInViewport()
     })
   }
 
@@ -1518,12 +1533,14 @@ const toolViews = (names: string[]) =>
     framing: 'landform',
   }))
 
-/** Opens a view of interest's row in step 2. */
-async function openViewRow(page: Page, name: string) {
+/** Opens a view of interest's row in step 2, on one of its tabs (its fields show a tab at a time). */
+async function openViewRow(page: Page, name: string, tab: 'View' | 'Record' | 'Field' | 'Report' = 'View') {
   await showStep(page, 'visit')
   const row = page.locator('li[data-view-of-interest]').filter({ hasText: name })
   const toggle = row.getByRole('button').first()
   if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click()
+  await row.getByRole('button', { name: tab, exact: true }).click()
+  await expect(row.locator(`[data-view-tab="${tab.toLowerCase()}"]`)).toBeVisible()
   return row
 }
 
@@ -1609,12 +1626,11 @@ test.describe('forestry assessment workspace tools', () => {
     })
     await expect(page.getByText(/Scenario estimate available · measured class/)).toHaveCount(2)
     // The view's record and its field photo are both in its row.
-    const row = await openViewRow(page, 'Public road turnout')
-    await row.locator('summary', { hasText: 'Viewpoint record' }).click()
+    const row = await openViewRow(page, 'Public road turnout', 'Record')
     await row
       .getByLabel('Why Public road turnout was chosen')
       .fill('Public stopping place with a clear view of the hillside.')
-    await row.locator('summary', { hasText: 'Field photos' }).click()
+    await openViewRow(page, 'Public road turnout', 'Field')
     await row
       .getByLabel('Add a field photo of Public road turnout', { exact: true })
       .setInputFiles({ name: 'field-reference.png', mimeType: 'image/png', buffer: FLAT_TILE })
@@ -1639,11 +1655,12 @@ test.describe('forestry assessment workspace tools', () => {
     await expect(
       page.getByRole('img', { name: 'Sightline profile: elevation in metres by distance from the viewing station' }),
     ).toBeVisible({ timeout: 60_000 })
-    await showStep(page, 'rate')
-    await choose(page.getByRole('combobox', { name: /^Assessment evidence viewpoint/ }), {
+    // The evidence record is made in Save & export, beside the package it goes into.
+    const evidence = await openVisualsExport(page, 'VIA evidence package')
+    await choose(evidence.getByRole('combobox', { name: /^Assessment evidence viewpoint/ }), {
       label: 'Public road turnout',
     })
-    await page.getByRole('button', { name: 'Record current assessment', exact: true }).click()
+    await evidence.getByRole('button', { name: 'Record current assessment', exact: true }).click()
     const workspace = await downloadVisualsExport(page, 'Assessment workspace'),
       body = JSON.parse(await readFile((await workspace.path())!, 'utf8'))
     expect(body.views[0].notes).toBe('Public stopping place with a clear view of the hillside.')
@@ -1665,20 +1682,20 @@ test.describe('forestry assessment workspace tools', () => {
     await page.reload()
     await openAllSteps(page)
     await expect(page.getByRole('button', { name: 'Remove Design A', exact: true })).toBeVisible()
-    const reopened = await openViewRow(page, 'Public road turnout')
-    await reopened.locator('summary', { hasText: 'Viewpoint record' }).click()
+    const reopened = await openViewRow(page, 'Public road turnout', 'Record')
     await expect(reopened.getByLabel('Why Public road turnout was chosen')).toHaveValue(
       'Public stopping place with a clear view of the hillside.',
     )
-    await reopened.locator('summary', { hasText: 'Field photos' }).click()
+    await openViewRow(page, 'Public road turnout', 'Field')
     await expect(reopened.getByText('field-reference.png · photo')).toBeVisible()
     // Import replaces records and restores the current scene, without treating stored summaries as new calculations.
-    await showStep(page, 'rate')
-    await page.getByLabel('Import assessment workspace', { exact: true }).setInputFiles({
+    const workspaceExport = await openVisualsExport(page, 'Assessment workspace')
+    await workspaceExport.getByLabel('Import assessment workspace', { exact: true }).setInputFiles({
       name: 'workspace.json',
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(body)),
     })
+    await openVisualsExport(page, 'VIA evidence package')
     await expect(page.getByRole('button', { name: 'Record current assessment', exact: true })).toBeDisabled()
   })
   test('imports local GeoTIFF terrain, survives reload and classifies retained patches', async ({ page }) => {
