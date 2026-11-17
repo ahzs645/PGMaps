@@ -130,6 +130,22 @@ block and facing) is skipped, and the list holds at most
 `MAX_VIEWS_OF_INTEREST` (12), the saved-view limit, so every planned view can
 be captured.
 
+**A photo viewpoint.** An own photo's accepted camera becomes a view of
+interest through *Make a viewpoint* (`viewFromAcceptedPhoto`), never a spot
+of its own: the view stands at the camera, faces its heading in one frame of
+its lens, assesses the block nearest the middle of the frame, and carries a
+`photo` link to the field record with the camera's altitude, pitch, roll and
+field of view. Its `source.kind` stays `'map'`, so an older PGMaps reads it as
+a plain view. Accepting the camera again brings the view up to it (same id,
+name, block, landform and grouping); a camera moved since it was accepted
+makes none. The link's altitude, pitch, roll and lens join `viewCaptureKey`,
+so a re-accepted camera stales the view's capture, and the capture takes the
+photo as its before picture (the *existing* picture of a before/after pair).
+Only the frames the reviewer chooses become views; the list still holds 12,
+and the rest stay evidence. Removing the photo unlinks the view and keeps it.
+Standing there is described under **Checking the view against a field
+photo**, *Standing at a photo viewpoint*.
+
 **Assess from a view (step 1).** A view of interest is the one way to put a
 viewpoint on the map. Step 1's *Road or viewpoint* reads *Assess from: A view |
 Length of road*. *A view* (`AssessFromView.tsx`) is a list of the views of
@@ -1369,40 +1385,158 @@ street-level photo from Mapillary, or with a photo of your own.
   camera is looking, with how far ahead or back it was taken; **Line up**
   jumps to it. It stays hidden while a photo is lined up.
 
-- **A photo of your own.** *Line up a photo of my own…* (under the Mapillary
-  part, and available without a Mapillary token) opens a window
-  (`OwnPhotoDialog.tsx`). It starts on a chooser: pick or drop a JPEG, PNG,
-  WebP or HEIC, read in the browser as an object URL — nothing is uploaded or
-  stored — or **Open** a *Field records* photograph (kind `photo`) from its
-  stored copy. With a photo open, the window holds the photo on the left and
-  three steps on the right, as tabs that each say what they rest on:
-  1. **Position**: what the EXIF gave (time, camera, GPS altitude, distance
-     from the road line), latitude and longitude typed or **Pick on the
-     plan**, *Taken from the air*, and the altitude or eye height.
-  2. **Direction**: heading, field of view, pitch and roll, each with where
-     it came from, and *Find it for me* (the camera tools below).
-  3. **Check**: the model view and the photo on the plan.
-  The footer states the camera as it stands and ends the job: *Line up in the
-  road view*, with the reason when the road view cannot stand there (a spot
-  more than 2 km off the road line still gets every camera tool). The step
-  states are one pure reading (`ownPhotoSteps.ts`, DOM-free, unit-tested): a
-  step being done says what the camera rests on, never that it is right; the
-  phone's own heading counts as still to find.
-  - **The sidebar keeps a summary** (`OwnFieldPhoto.tsx`): the photo's name,
-    the camera in one line, the three steps' states, *Open the camera* and
-    *Line up*. The window's open state and step live in `useFieldPhoto`, so
-    they outlive the panel that opened it.
-  - **Steps that need the plan hide the window.** Picking the spot, the
-    landmark or a paired point hides it while the plan's banner says what to
-    click, with the photo and the spot being paired shown small in the corner
-    over the sidebar; it comes back after the click or Cancel, where it was.
-    *Photo on the plan* closes it and leaves a *Back to the camera* card. The
-    spot the photo was taken from is marked on the plan.
-  - **The terrain's skyline is drawn on the photo** in the window (yellow,
-    dashed) for the camera as it stands, to 85 km, from the camera tools'
-    terrain: it follows every typed value and every tool's result, so a
-    camera can be judged against the ridgeline with no road view. *Draw the
-    terrain skyline on it* loads the terrain when no tool has yet.
+- **A photo of your own.** *Line up photos of my own…* (under the Mapillary
+  part, and available without a Mapillary token) opens one window
+  (`OwnPhotoDialog.tsx`) in three tabs: *Photos*, *Camera* and *Use*. Photos
+  are read in the browser; nothing is uploaded.
+  - **Photos** (`PhotoStrip.tsx`) takes many JPEG, PNG, WebP or HEIC files at
+    once, picked or dropped, and *Field records* photographs (kind `photo`)
+    from their stored copies. Each photo becomes a field record of kind
+    `photo` as it is read (`photoRecordFromOwn`, `photoRecords.ts`), so it
+    outlives a reload in the assessment tools' storage and the project file:
+    the record's image is a re-encoded JPEG, and the original bytes stay the
+    project attachment, linked by the record's id. A workspace holds at most
+    `MAX_FIELD_RECORDS` (24) records, and a set that would pass it is refused
+    before anything is read. Photos are grouped into **flights**
+    (`photoFlight.ts`: a gap over 5 minutes starts one) and ordered by the
+    camera clock where its time zone is recorded, else by GPS time: on the
+    test flight an iPhone's GPS stamp lagged the shutter by 0.5–22 s. Each
+    frame shows where the queue has it as a dot and in words.
+  - **The automatic queue** (`useFieldPhoto`, rules in `photoQueue.ts`) works
+    through the set one photo at a time, in time order, and can be paused,
+    resumed or cancelled: terrain round the photo, the 360° horizon, the
+    photo's skyline, the search over every heading, model views for the
+    winner and the runner-up, and the features check. It applies the winner
+    only while the heading is still the phone's, the road view's or a
+    default; it never overwrites a pose the reviewer set, typed or matched,
+    and never accepts one. Each frame ends *options ready* or *failed*, with
+    its reasons: *not settled*, *no skyline*, *outside terrain*, *cropped
+    lens*, *phone heading only*, *disagrees with frame N*. Far from the road
+    is a note, not a block. The horizon, the hit buffer, the model views and
+    the drape run in one worker (`photoWork.worker.ts`), never on the page's
+    thread.
+    - **Caches.** Terrain, imagery, horizons, pixels, read skylines, search
+      results, hit buffers and feature reads are kept in small
+      least-recently-used caches (`PhotoCache`), each held to a count and a
+      byte budget and keyed so a burst's frames share them: the horizon by
+      position to 4 decimal places and altitude to the metre, imagery by
+      place to about 100 m. A photo queued again with nothing changed
+      finishes from them.
+    - **Bursts.** A frame within 20 s and 500 m of an accepted frame
+      (`burstNeighbour`) is searched first round that frame's camera
+      (heading ±15°, pitch ±10°). A trustworthy narrow fit stands; an
+      ambiguous one runs the full search, because a held angle hides any
+      runner-up outside it.
+    - **Lenses.** `FocalLengthIn35mmFormat` already includes the iPhone's
+      digital zoom, so it is applied once. A photo whose decoded size differs
+      from the size its tags record was cropped after it was taken: it is
+      flagged *cropped*, and its search tries lenses from the tagged one down
+      to 40% of it (`lensRangeFor`), setting the one that fits best.
+  - **Camera** shows the active photo with what is drawn over it, the
+    **options card** (`PhotoOptionsCard.tsx`, `photoOptions.ts`) and the
+    comparison. The card has a row per candidate: the skyline's winner and
+    runner-up, the phone's heading (marked as possibly far out from an
+    aircraft), an accepted neighbouring frame's camera with its time gap, a
+    point solve and a matched camera. Each row gives heading, pitch and roll,
+    agreeing sky columns and their span, the model view's score beside its
+    thumbnail, and the sun; the rows are ranked by that evidence, and *Use*
+    makes one the camera. *Adjust* opens the hand tools (`PhotoAdjustPanel.tsx`):
+    where the photo was taken (typed or **Pick on the plan**, *Taken from the
+    air*, altitude or eye height), the angle and lens numbers with each
+    value's source and the declination, held angles, the search again near
+    this camera, the matched-camera file, paired points and drag-to-align.
+    - **Drag-to-align** (`SkylineDragHandles.tsx`, `skylineAlign.ts`): a
+      cross at the drawn skyline's middle moves it, and a handle at each side
+      turns it about the cross. While dragging, what is drawn follows as a
+      picture; on release the drag becomes heading, pitch and roll, set as the
+      reviewer's, and the search can refine it from there.
+    - **The paired-point table** (`PairedPointsTable.tsx`, `pairResiduals.ts`)
+      gives each pair's residual against the solved camera in pixels and in
+      metres on the ground, with each pair on or off. An off pair stays drawn
+      and measured as a check point: the solve never saw it. The reviewer's
+      click and the solved spot are drawn on the photo and on the plan, joined
+      by a line.
+  - **Use** (`PhotoAcceptPanel.tsx`) accepts the camera and links the photo
+    to its jobs (below).
+  - **The footer's primary action follows the photo's state**
+    (`ownPhotoTabs.ts`, DOM-free): *Add photos*, *Searching 3 of 14* with
+    Cancel, *Check this camera*, *Accept camera*, *Make a viewpoint*, *Stand
+    here*, then *Next photo*. A disabled one says why. The step states
+    (`ownPhotoSteps.ts`, DOM-free) say what a camera rests on, never that it
+    is right; the phone's own heading counts as still to find.
+  - **The sidebar keeps a summary** (`OwnFieldPhoto.tsx`): the set at a
+    glance (photos, flights, accepted, where the queue is), the active
+    photo's name, camera and state, the way back into the window, and *Stand
+    here*. The window's open state, tab and everything it works on live in
+    `useFieldPhoto`, so they outlive the window.
+  - **Steps that need the plan hide the window.** Picking the spot or a
+    paired point hides it while the plan's banner says what to click, with
+    the photo and the spot being paired small in the corner; it comes back
+    after the click or Cancel.
+  - **Layers on the photo** (`PhotoWithOverlays.tsx`, `photoLayers.ts`,
+    `photoOverlay.ts`, `photoOverlayDraw.ts`) are drawn in the photo's own
+    pixels, never through MapLibre, which cannot stand at an aircraft, forces
+    roll 0 and has no lens. The worker casts a ray from each pixel of a
+    525-pixel-wide copy to the ground (`photoHitBuffer.ts`) and keeps where
+    it lands, how far away and how high. A projected vertex is in sight when
+    it is no further than its pixel's hit × 1.03 plus one cell; hidden parts
+    are dotted. On by default: the skyline, proposed blocks, recent cutblocks
+    and openings, and lakes. Off: the landform, sensitivity units, EVQO,
+    private land, rock, sub-landform dividers and lines of force
+    (candidates: drawn, never adopted), streams, roads, VRI, inventory
+    viewpoints, views of interest, and the reading aids (a level line,
+    bearing ticks every 5°, distance contours at 1, 2, 5 and 10 km). Every
+    layer takes the figure style's or the block-sheet catalogue's symbol, so
+    the photo and the analysis sheet look the same, and labels go through
+    `labelOps`. Hovering a layer row tints the ground it covers in the photo.
+    The choices are kept in this browser.
+    - **Where the layers come from.** The scene's own (blocks, openings,
+      landform, private land, views of interest); the features check's
+      reads; and what the page holds (`photoPageFeatures.ts`): the scene's
+      visual inventory with the box it was read for, the terrain candidates
+      found in the landform, and the inventory viewpoints read round a block.
+      A photo whose ground lies outside the scene's read reads the visual
+      inventory and VRI for the ground its camera sees
+      (`usePhotoInventory.ts`), and only once such a layer is switched on.
+      A read that failed says *Not read* with its reason, never *None*, and
+      is never replaced by another.
+    - **Click the photo to read the map** (`photoPick.ts`): distance,
+      elevation, slope and aspect, and the block, opening, unit, stand or
+      lake under the pixel, tested with `preparePolygons`. Terrain only, for
+      the camera as it stands. A clicked spot can become a paired point.
+    - **The features check** (`photoFeatures.ts`) reads FWA lakes, rivers,
+      wetlands and streams, FTEN roads and consolidated cutblocks of the last
+      30 years live from DataBC's WFS, for the box of ground the camera sees
+      (`photoSeenBounds`), not the scene: from the air a photo looks many
+      kilometres past the scene's data. Lakes should sit on water, roads on
+      roads and recent cutblocks on clearings. Each source says what it read
+      or *Not read*, and *Read again for this camera* follows a moved camera.
+  - **The comparison** (`PhotoCompare.tsx`): the photo against the model view
+    for its camera at the same size, blinked (hold B) or swiped, with the
+    agreement score beside it as evidence. Only when the search is *not
+    settled* is a 2×2 shown: the photo, the model views for the camera and
+    for the runner-up, and their difference.
+  - **Accept** (`photoAcceptance.ts`, DOM-free) is the reviewer's, never
+    automatic. It is on only once the checks have been drawn for this exact
+    camera (within 0.5°, 5 m and 1 m of altitude), a point-solved camera's
+    held-out pairs land within 40 px of a 1,050-pixel-wide frame, a *not
+    settled* fit carries a written note, and initials are typed; otherwise
+    it says why. The acceptance goes on the photo's field record: who, when,
+    how the camera was found (skyline, points, matched, neighbour, phone or
+    typed), the pose, and the evidence (agreeing columns and span, settled
+    or not, the runner-up's heading and score, the model-view scores, the
+    sun, held-out metres, a neighbour's agreement). Moving the camera
+    afterwards lapses it, and the window says so.
+  - **Jobs.** One record holds the photo and its acceptance; every job is a
+    link to it, never a copy (`uses`): a viewpoint, the before image of a
+    pair, ground conditions (no accepted camera needed), a check of the drawn
+    forest, regrowth over time (evidence for a field green-up judgement,
+    never the check itself) and landform evidence. Removing a photo, from
+    the window or from *Field records*, removes its record and its original
+    and unlinks any view of interest made from it; the view stays.
+  - **The project file** keeps each value's source and the last skyline
+    search's summary beside the open photo's pose, so a reopened photo says
+    where its values came from.
   The starting pose (`exifPose.ts`, DOM-free, unit-tested) comes from the
   field record's camera first, then EXIF (read with `exifr`, already used by
   Field records), then the road view as it stands, then defaults:
@@ -1422,7 +1556,7 @@ street-level photo from Mapillary, or with a photo of your own.
     from the air** (phone GPS altitude over ground is too rough for eye level,
     and fine from a helicopter hundreds of metres up).
   Pitch and roll start level (EXIF records neither); eye height starts at the
-  settings' observer height. Every value is editable in its step — latitude
+  settings' observer height. Every value is editable behind *Adjust* — latitude
   and longitude typed or **Pick on the plan**, heading, pitch, roll, field of
   view and eye height — and each says where it came from. The road view's
   overlay adds narrower/wider
@@ -1431,11 +1565,13 @@ street-level photo from Mapillary, or with a photo of your own.
   pitch to where they started. **Save this pose to the field record** writes
   the camera back to the record it came from (altitude as road-view ground
   plus eye height) and leaves its "I checked…" box unticked for the reviewer.
-- **Find the camera.** The Direction step's *Find it for me* finds the
-  camera with no road view, so it works for a photo taken far from the
-  scene's road. It offers three ways (*Skyline search*, *Paired points*,
-  *Matched camera*) with *Hold an angle near a value* folded under the first
-  two, and every result can be checked in the Check step. The options follow functional specifications of Pic2Map and
+- **Find the camera.** The queue runs the skyline search by itself; *Adjust*
+  holds the ways to find the camera again by hand, with no road view, so they
+  work for a photo taken far from the scene's road: the skyline search
+  (*Search every heading*, *Search near this camera*), *Paired points* and
+  *Matched camera*, with *Hold an angle near a
+  value* folded under the first two. Every result is a row of the options
+  card and is checked like any other. The options follow functional specifications of Pic2Map and
   QCALVIEW written under route A
   (`docs/forestry-road-design/reference-repo-licensing-and-conversion.md`);
   their code was not opened by the implementer.
@@ -1475,13 +1611,13 @@ street-level photo from Mapillary, or with a photo of your own.
     - **Plan marks:** the paired spots and the landmark are marked on the
       plan.
   - **Photo on the plan.** Lays the photo on the plan for the camera or the
-    runner-up (`photoViews.drapePhoto`). Each ground cell to 8 km is
-    coloured from the photo pixel it projects to; ground hidden by nearer
-    terrain (a depth buffer) is left clear. A wrong heading puts the
-    photographed roads, openings and lakes in the wrong place, and spreads
-    sky over the ground.
+    runner-up (`photoViews.drapePhoto`, in the worker): each ground cell to
+    25 km is coloured from the photo pixel it projects to, and ground hidden
+    by nearer terrain is left out. A wrong heading puts the photographed
+    roads, openings and lakes in the wrong place, and spreads sky over the
+    ground. See **Photo on the plan** below.
   - **Model view.** Draws satellite imagery as the camera would see it
-    (`renderModelView`, a strip at a time) for the camera and the runner-up.
+    (`renderModelView`, in the worker) for the camera and the runner-up.
     It scores each against the photo by brightness and edge correlation over
     the ground (`modelAgreement`).
   - **Tested on fourteen helicopter photos (November 2026):**
@@ -1525,36 +1661,78 @@ street-level photo from Mapillary, or with a photo of your own.
       *not settled* reports.
 - **From the air, and matched cameras.** An own photo can carry an absolute
   altitude (`OwnPose.altitudeMeters`, metres above sea level): its GPS altitude
-  when it was taken from the air (the Position step's *Taken from the air*),
-  or the altitude of a **matched camera**. *Use a matched camera…* (Direction
-  → *Matched camera*) reads a case file of the photo-matching bench
+  when it was taken from the air (*Adjust* → *Taken from the air*), or the
+  altitude of a **matched camera**. *Use a matched camera…* (*Adjust* →
+  *Matched camera*) reads a case file of the photo-matching bench
   (`scripts/forestry/photo-matching/`, `matchedCamera.ts`, DOM-free and
-  unit-tested). From the air a phone's heading can be 50–140° out; the bench
-  fits heading, pitch and roll to the photo's skyline over all headings, and
-  can refine position against mapped features, so its camera replaces every
-  value, each marked *from the matched camera*, and becomes what Reset returns
-  to. The panel shows how the camera was found and its held-out accuracy, and
-  warns when the case was made for another photo, stands more than 300 m from
-  the photo's GPS fix, or carries a skyline fit the bench did not trust. The
-  eye then stands at the altitude: its height over the road view's ground
-  (`eyeHeightOver`, the same terrain the drive camera stands on) is shown
-  beside the altitude field and given to the road view, never below a metre.
-  The road view still walks at most 2 km off the road line, so draw the
-  scene's road or viewpoint near where the aircraft was.
-- **Standing off the road.** An own photo's eye stands on its recorded spot,
-  not the road line: the road view seeks to the nearest road point and
-  `DriveCamera`'s `standAt` holds the walker's offset on the photo's position
-  (the same walk as W A S D, which it overrides while compared). It refuses a
-  spot more than 2 km (`MAX_WALK_METERS`) from the road line or outside the
-  road view's loaded terrain. Red ground is still the nearest road station's
-  view. The Mapillary path is unchanged and still stands on the road line.
+  unit-tested), and the camera becomes a row of the options card. From the
+  air a phone's heading can be 50–140° out; the bench fits heading, pitch and
+  roll to the photo's skyline over all headings, and can refine position
+  against mapped features, so its camera replaces every value, each marked
+  *from the matched camera*. The panel shows how the camera was found and its
+  held-out accuracy, and warns when the case was made for another photo,
+  stands more than 300 m from the photo's GPS fix, or carries a skyline fit
+  the bench did not trust. Its height over the road view's ground
+  (`eyeHeightOver`, the terrain the drive camera stands on) is shown beside
+  the altitude, derived and never stored.
+- **Photo on the plan.** *Show on the plan, beside the photo* (Camera tab)
+  lays the active photo on the plan and closes the window; the photo then
+  docks to the right of the plan (`DockedPhotoPane.tsx`) for as long as it is
+  laid there and the window is closed, at up to half the plan pane's width
+  (its left edge resizes it). Closing the pane leaves the photo on the plan.
+  - **A component, not page code.** `PhotoDrapeLayer` draws the drape and
+    `PhotoCamerasLayer` the cameras, both mounted in plan mode, with the
+    legend's `photo:*` rows (`photo:drape`, `photo:footprint`,
+    `photo:camera`, `photo:track`, `photo:pair`). The plan never flies to
+    the drape by itself.
+  - **The card** (`PhotoDrapeCard.tsx`) switches between the camera's and the
+    runner-up's drape (blinking between them settles a *not settled*
+    result), between three looks (*Filled*; *Edges*, the photo's edges
+    draped in one colour so the imagery stays readable, the most telling
+    check from the air; *Footprint*, the frame's outline), sets the opacity,
+    and blinks to the imagery while B is held. Ground the frame covers but
+    nearer terrain hides is hatched, labelled as terrain only, not the run's
+    visibility. *Show the photo's ground* and *Back to the scene* move the
+    plan; *Take it off* removes the drape.
+  - **Live.** The drape follows the camera: redrawn coarse 200 ms after a
+    change, then in full once it has settled for 700 ms. Until then the card
+    says which heading it was drawn for and where the camera stands now.
+  - **Range.** The drape and the cone reach the frame's far hit, up to 25 km,
+    where the zoom-11 terrain round the photo stops.
+  - **Linked cursor** (`photoLinkedCursor.ts`): hovering the plan puts a
+    crosshair on the docked photo; hovering the photo puts a marker on the
+    plan. Hover takes no clicks.
+  - **Cameras and track.** Every open photo's camera is drawn with its cone
+    (the active photo's out to its frame's far hit), and each flight's
+    cameras are joined by a dashed track in time order. A click on a camera
+    opens that photo, except while the road view is open (a plan click moves
+    it there) or something else is being drawn or picked.
+- **Standing at a photo viewpoint.** An accepted camera becomes a view of
+  interest only through `viewFromAcceptedPhoto` (*Make a viewpoint*): see
+  **Views of interest**. *Stand here* stands the road view at that view, at
+  the photo's altitude (the stand's surveyed eye), with its heading, pitch
+  (through `horizonSafePitch`), roll and lens. There is no walk off the road
+  and no distance limit, so a photo taken far from the scene's road is stood
+  at all the same. A photo with an altitude widens the terrain the road view
+  loads to a wedge along its heading, its frame and 10° either side, out to
+  25 km (`photoStandReach`), within the road view's 128-tile budget: a wider
+  box is loaded at a coarser zoom, never as more tiles. A fixed look may
+  look down to 88° below the horizon, and keeps its roll. Red ground is
+  still the nearest road station's view. The Mapillary path is unchanged and
+  still stands on the road line.
 
 Limits: a Mapillary photo's eye stands on the road centreline, not the photo's recorded spot (the panel says how far apart they are, and refuses
-beyond 60 m); an own photo's lens is assumed distortion-free and uncropped; photo dates are the camera's clock and can be wrong (that image
+beyond 60 m); an own photo's lens is assumed distortion-free, and a cropped one's is searched between the tagged lens and 40% of it, not read; the layers on an own photo and a click's reading are terrain only, with no canopy; photo dates are the camera's clock and can be wrong (that image
 says January 2016 on a 2020 camera, in summer). Photos are CC BY-SA 4.0 and
 every view credits the photographer. The client token lives in `.env.local` as
 `VITE_MAPILLARY_TOKEN` — a client token is built for browsers. No client
 secret is used or needed.
+
+Still open for own photos (`docs/forestry-visual-quality-own-photo-redesign-2026-11-17.md`, section 6): the
+overlay is heavy with every layer on (about 1.8 MB against 155 KB for the usual layers); the own-photo panel
+leaves the sidebar while the road view stands at a viewpoint; saved figures of a photo view are level although
+the road view takes the photo's roll; the 2×2 comparison and a full paired-point solve have not been driven in
+a browser; and on the fourteen-photo flight only two photos settle on the skyline alone.
 
 ### Water and the road's class
 

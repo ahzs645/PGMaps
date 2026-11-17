@@ -103,7 +103,9 @@ export function MapToolPanel({
         </div>
       )}
       {actions && (
-        <footer className="flex items-center justify-end gap-1.5 border-t bg-muted/40 px-3 py-2">{actions}</footer>
+        <footer className="flex flex-wrap items-center justify-end gap-1.5 border-t bg-muted/40 px-3 py-2">
+          {actions}
+        </footer>
       )}
     </section>
   )

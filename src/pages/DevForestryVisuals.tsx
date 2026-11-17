@@ -75,6 +75,7 @@ import {
   standFacing,
   standPlace,
   viewLensHfov,
+  viewPhotoRecord,
   withoutPlannedView,
   type CaptureFacts,
 } from './dev-forestry/viewCapturePlan'
@@ -180,7 +181,20 @@ import { engineCaptureOptionsKey } from './dev-forestry/engineRenderOptions'
 import { beforeHarvestCells } from './dev-forestry/stand/beforeHarvestCells'
 import type { BasemapContext } from './dev-forestry/BasemapContextProbe'
 import { FieldPhotoPanel, PhotoOverlay, StreetPhotoInset } from './dev-forestry/FieldPhoto'
-import { useFieldPhoto } from './dev-forestry/useFieldPhoto'
+import { useFieldPhoto, type OwnPhotoRecordsBridge } from './dev-forestry/useFieldPhoto'
+import { PhotoDrapeLayer, type PhotoDrapeLook, type PlanPhotoDrape } from './dev-forestry/PhotoDrapeLayer'
+import { LinkedCursorMarker, PhotoCamerasLayer, type PlanPhotoCamera } from './dev-forestry/PhotoCamerasLayer'
+import { PhotoDrapeCard } from './dev-forestry/PhotoDrapeCard'
+import { DockedPhotoPane } from './dev-forestry/DockedPhotoPane'
+import { flightTracks } from './dev-forestry/photoCamerasGeometry'
+import { planPointToPhoto } from './dev-forestry/photoLinkedCursor'
+import {
+  candidateLineFeatures,
+  inventoryViewpointFeatures,
+  visualInventoryFeatures,
+  type PhotoPageFeatures,
+} from './dev-forestry/photoPageFeatures'
+import { searchSummaryFrom } from './dev-forestry/photoRecords'
 import type { MapillaryImage } from './dev-forestry/mapillary'
 import {
   clearingWidthForRoadClass,
@@ -360,7 +374,7 @@ import {
   treeFreeAreasToGeoJson,
   viewpointClearingArea,
 } from './dev-forestry/treeFreeAreas'
-import { standingPoint, surveyedEyeElevation } from './dev-forestry/viewpointStand'
+import { photoStandReach, standingPoint, surveyedEyeElevation, surveyedEyeFor } from './dev-forestry/viewpointStand'
 import { StoodViewpointPanel } from './dev-forestry/StoodViewpointPanel'
 import { DEFAULT_PLAN_SHOW, togglePlanLegendKey, type PlanBasemap, type PlanShow } from './dev-forestry/planLayers'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
@@ -496,6 +510,8 @@ type FigureAt = {
   lensHfov?: number
   /** A planned view's framing (`viewCapturePlan.ts`'s `figurePlanFor`): `single` is one frame of the lens. */
   framing?: 'landform' | 'single'
+  /** A photo viewpoint's pitch above the horizon: its single frame is centred on it. */
+  framePitch?: number | null
 }
 
 /** Where the reviewer stood before a capture of planned views (`useViewCapture`), to step back to afterwards. */
@@ -509,6 +525,26 @@ type ViewCaptureReturn = {
   lookAtTargetId: string | null
   lookBearing: number | null
   lens: number | null
+  /** The photo viewpoint stood at, when one was (`photoStand`): its look comes back with it. */
+  photoStand: PhotoStand | null
+}
+
+/**
+ * A photo viewpoint stood at (a view of interest with a `photo` link): the stand's viewpoint it holds for, the view
+ * and its record, the camera's place and altitude, and the heading, pitch (above the horizon), roll (positive raises
+ * the photo's right) and field across the road view holds.
+ */
+type PhotoStand = {
+  viewpointId: string
+  viewId: string
+  recordId: string
+  lng: number
+  lat: number
+  altitudeMeters: number | null
+  bearing: number
+  pitch: number
+  roll: number
+  hfov: number
 }
 
 /** Longest a background render waits for the road view and its terrain to come back (a reload after a run). */
@@ -627,14 +663,22 @@ function DevForestryVisuals() {
   const [projectTitle, setProjectTitle] = useState<string | null>(null)
   const [projectMessage, setProjectMessage] = useState<{ text: string; error?: boolean } | null>(null)
   const [projectAttachments, setProjectAttachments] = useState<ProjectAttachment[]>([])
-  const addProjectAttachments = useCallback((files: File[]) => {
+  // A photo's original names the field record it became (`recordId`), whichever of its two callers reports it first.
+  const addProjectAttachments = useCallback((files: File[], recordId: string | null = null) => {
     setProjectAttachments((current) => [
-      ...current,
+      ...current.map((entry) =>
+        recordId && !entry.recordId && files.some((file) => entry.blob === file) ? { ...entry, recordId } : entry,
+      ),
       ...files
         .filter((file) => !current.some((entry) => entry.blob === file))
-        .map((blob) => ({ name: blob.name, blob })),
+        .map((blob) => ({ name: blob.name, blob, ...(recordId ? { recordId } : {}) })),
     ])
   }, [])
+  /** Drops the original of a removed photo's record. */
+  const removeProjectAttachment = useCallback(
+    (recordId: string) => setProjectAttachments((current) => current.filter((entry) => entry.recordId !== recordId)),
+    [],
+  )
   const projectRequest = useRef(0)
   const [pendingPreview, setPendingPreview] = useState<{ key: string; view?: SavedDriveView } | null>(null)
   // Swapping viewpoints with the road view open keeps its map (WebGL context, style, tiles, terrain and
@@ -1513,6 +1557,10 @@ function DevForestryVisuals() {
     point: [number, number]
     landform?: { reviewer: string | null | undefined; set: string | null }
   } | null>(null)
+  // Standing at a photo viewpoint (a view of interest with a `photo` link): the eye stands at the photo's altitude
+  // (the stand's surveyed eye) and the road view holds the photo's heading, pitch, roll and lens. Tied to the stand's
+  // viewpoint: any other viewpoint (the road again, another view) ends it without being told.
+  const [photoStand, setPhotoStand] = useState<PhotoStand | null>(null)
   const [shelvedViews, setShelvedViews] = useState<Array<{ key: string; views: SavedDriveView[] }>>([])
   // Back to a design (or a road) whose views were shelved: they come back.
   useEffect(() => {
@@ -1650,8 +1698,11 @@ function DevForestryVisuals() {
       block: TargetPolygon,
       look: { lookAtTargetId: string | null; lookBearing: number | null },
       patch: Partial<ForestryScene> = {},
-      /** `roadView: false` runs the assessment from the place and leaves the road view closed. */
-      options: { roadView?: boolean } = {},
+      /**
+       * `roadView: false` runs the assessment from the place and leaves the road view closed. `surveyedEyeMeters`
+       * stands the eye at that elevation (a photo viewpoint's altitude): the stand's surveyed eye, a run input.
+       */
+      options: { roadView?: boolean; surveyedEyeMeters?: number | null } = {},
     ) => {
       const centre = polygonInteriorPoint(block.geometry)
       if (!centre) return null
@@ -1680,6 +1731,11 @@ function DevForestryVisuals() {
         mode: 'corridor',
         coordinates: pulloutThrough(place, centre),
       }
+      const surveyed =
+        options.surveyedEyeMeters !== undefined && options.surveyedEyeMeters !== null
+          ? surveyedEyeFor(viewpoint, options.surveyedEyeMeters)
+          : undefined
+      if (surveyed) viewpoint.surveyedEye = surveyed
       const nextKey = moveViewpoint(viewpoint, patch)
       setSnapMessage(null)
       if (options.roadView === false) {
@@ -2639,125 +2695,187 @@ function DevForestryVisuals() {
     [scene.targets, preliminaryDrive],
   )
   const preparePreview = drive.active || !!pendingPreview || !!result
-  const previewTerrain = useDriveTerrain(preparePreview, scene.viewpoint.coordinates, previewPolygons)
-  // A street-level field photo to line the road view up with (handbook 3.2, 3.3.4).
+  // The photo viewpoint stood at now; null once the viewpoint is anything else.
+  const photoStandNow = photoStand && scene.viewpoint.id === photoStand.viewpointId ? photoStand : null
+  // The road view's lens across: a photo viewpoint's own field, else View options → *Lens* (or a planned view's).
+  const roadViewHfov = photoStandNow?.hfov ?? (roadViewLens ? lensHfovDeg(roadViewLens) : null)
+  // A photo from the air looks kilometres past the road and its blocks: its road view loads the ground ahead of the
+  // camera as well, coarser within the same tile budget (`photoStandReach`, `driveTerrainRange`).
+  const photoReach = useMemo(
+    () =>
+      photoStandNow
+        ? photoStandReach(
+            { lng: photoStandNow.lng, lat: photoStandNow.lat },
+            { altitudeMeters: photoStandNow.altitudeMeters, hfov: photoStandNow.hfov },
+            photoStandNow.bearing,
+          )
+        : null,
+    [photoStandNow],
+  )
+  const previewTerrain = useDriveTerrain(preparePreview, scene.viewpoint.coordinates, previewPolygons, photoReach)
+  // The assessment tools' field records, as the photo set needs them: the tools are made further down, so the
+  // photo hook reads them through a ref filled once they exist.
+  const photoRecordsRef = useRef<OwnPhotoRecordsBridge | null>(null)
+  // A street-level field photo to line the road view up with (handbook 3.2, 3.3.4), and the reviewer's own photos,
+  // each a field record whose original is kept as a project attachment.
   const fieldPhoto = useFieldPhoto({
     scene,
     result,
     ground: previewTerrain.source,
     eyeHeightMeters: result?.settings.observerHeightMeters ?? 1.6,
+    records: photoRecordsRef,
+    onOriginalPhoto: (file, recordId) => addProjectAttachments([file], recordId),
+    onRemoveOriginal: removeProjectAttachment,
+    setViewsOfInterest,
+    // Standing at a view puts a pull-out in the scene's place; the road it was stood from is still the one assessed.
+    assessedRoad: (standing?.previous ?? scene.viewpoint).coordinates,
   })
   // The comparison holds the view on the photo's pose, so it ends when the
   // drive plays on or is closed.
   if (fieldPhoto.match && (drive.playing || (!drive.active && !pendingPreview && analysis.state.status !== 'running')))
     fieldPhoto.setMatch(null)
   const photoLook = drive.active ? fieldPhoto.look : null
-  // The own photo laid on the plan for one candidate camera (Field photo → Find the camera), with its landmark and
-  // paired points: a check of the camera that needs neither the skyline nor the road view.
-  const photoDrape = fieldPhoto.photoDrape
-  // Where the own photo was taken, marked while its window works with the plan (a spot picked, points paired).
-  const ownPhotoLng = fieldPhoto.own?.pose.lng ?? null
-  const ownPhotoLat = fieldPhoto.own?.pose.lat ?? null
-  const photoMarks = useMemo<GeoJSON.FeatureCollection>(
-    () => ({
-      type: 'FeatureCollection',
-      features: [
-        ...(ownPhotoLng !== null && ownPhotoLat !== null
+  // The own photo on the plan (`PhotoDrapeLayer`, `PhotoDrapeCard`): the hook keeps both candidates' drapes, live;
+  // how they look, how strongly, and the hold-to-blink are the card's, kept here. The plan never flies to the drape
+  // by itself: the card's *Show the photo's ground* and *Back to the scene* do.
+  const [drapeLook, setDrapeLook] = useState<PhotoDrapeLook>('filled')
+  const [drapeOpacity, setDrapeOpacity] = useState(0.85)
+  const [drapeBlink, setDrapeBlink] = useState(false)
+  const photoDrapes = fieldPhoto.drapes
+  const planDrapes = useMemo<PlanPhotoDrape[]>(
+    () =>
+      (['camera', 'runner-up'] as const).flatMap((which) => {
+        const drape = photoDrapes?.[which]
+        return drape
           ? [
               {
-                type: 'Feature' as const,
-                properties: { kind: 'camera' },
-                geometry: { type: 'Point' as const, coordinates: [ownPhotoLng, ownPhotoLat] },
+                id: which,
+                rgba: drape,
+                bounds: drape.bounds,
+                look: drapeLook,
+                footprint: drape.footprint,
+                hiddenMask: drape.hiddenMask,
               },
             ]
-          : []),
-        ...(fieldPhoto.landmark
-          ? [
-              {
-                type: 'Feature' as const,
-                properties: { kind: 'landmark' },
-                geometry: { type: 'Point' as const, coordinates: [fieldPhoto.landmark.lng, fieldPhoto.landmark.lat] },
-              },
-            ]
-          : []),
-        ...fieldPhoto.pairs.map((pair) => ({
-          type: 'Feature' as const,
-          properties: { kind: 'pair' },
-          geometry: { type: 'Point' as const, coordinates: [pair.lng, pair.lat] },
-        })),
-      ],
-    }),
-    [ownPhotoLng, ownPhotoLat, fieldPhoto.landmark, fieldPhoto.pairs],
+          : []
+      }),
+    [photoDrapes, drapeLook],
   )
+  const frontDrape = photoDrapes?.[fieldPhoto.drapeWhich] ?? null
+  // The heading the front candidate stands at now, for the card's "drawn for X°, now Y°".
+  const activeSearch = fieldPhoto.activeId ? fieldPhoto.workFor(fieldPhoto.activeId).search : null
+  const drapeCurrentBearing =
+    fieldPhoto.drapeWhich === 'camera'
+      ? (fieldPhoto.own?.pose.bearing ?? null)
+      : activeSearch?.status === 'done'
+        ? (activeSearch.result.runnerUp?.bearing ?? null)
+        : null
+  const drapeOnPlan = fieldPhoto.drapeShown && !!fieldPhoto.own
+  // Every own photo's camera on the plan, its cone out to the frame's far hit where the active drape gives it.
+  const ownPhotos = fieldPhoto.ownPhotos
+  const activePhotoId = fieldPhoto.activeId
+  const activeRange = photoDrapes?.camera?.rangeMeters ?? null
+  const planCameras = useMemo<PlanPhotoCamera[]>(
+    () =>
+      ownPhotos.flatMap((photo) =>
+        photo.pose.lng !== null && photo.pose.lat !== null
+          ? [
+              {
+                id: photo.id,
+                lng: photo.pose.lng,
+                lat: photo.pose.lat,
+                bearing: photo.pose.bearing,
+                hfov: photo.pose.hfov,
+                farMeters: photo.id === activePhotoId ? activeRange : null,
+                takenAtUtc: photo.takenAtUtc,
+                flightId: photo.flightId,
+              },
+            ]
+          : [],
+      ),
+    [ownPhotos, activePhotoId, activeRange],
+  )
+  const pairsOff = activePhotoId ? fieldPhoto.workFor(activePhotoId).pairsOff : undefined
+  const planPairs = useMemo(
+    () =>
+      fieldPhoto.pairs.map((pair) => ({
+        id: pair.id,
+        lng: pair.lng,
+        lat: pair.lat,
+        off: !!pairsOff?.includes(pair.id),
+      })),
+    [fieldPhoto.pairs, pairsOff],
+  )
+  const photoLandmark = fieldPhoto.landmark
+  const planReference = useMemo(
+    () => (photoLandmark ? { lng: photoLandmark.lng, lat: photoLandmark.lat } : null),
+    [photoLandmark],
+  )
+  const photoLegend = useMemo(
+    () =>
+      planCameras.length || (drapeOnPlan && planDrapes.length) || planPairs.length || planReference
+        ? {
+            drape: drapeOnPlan && planDrapes.length > 0 && drapeLook !== 'footprint',
+            footprint: drapeOnPlan && planDrapes.length > 0,
+            cameras: planCameras.length,
+            track: flightTracks(planCameras).some((track) => track.length > 1),
+            pairs: planPairs.length > 0 || !!planReference,
+          }
+        : null,
+    [planCameras, drapeOnPlan, planDrapes, drapeLook, planPairs, planReference],
+  )
+  // The photo docked beside the plan while it is on the plan and its window is closed: the window's *Show on the plan,
+  // beside the photo* lays the drape and closes the window, and the pane takes the photo over. Closing the pane leaves
+  // the drape where it is; it comes back the next time the window closes or another photo is laid.
+  const ownWindowOpen = fieldPhoto.ownDialog.open
+  const [photoDockClosed, setPhotoDockClosed] = useState(false)
+  useEffect(() => {
+    if (drapeOnPlan && !ownWindowOpen) setPhotoDockClosed(false)
+  }, [drapeOnPlan, activePhotoId, ownWindowOpen])
+  const photoDocked = drapeOnPlan && !photoDockClosed && !ownWindowOpen
+  // The linked cursor: the plan's cursor as a crosshair on the docked photo, the photo's cursor as a marker on the
+  // plan. Hover only; neither takes a click.
+  const [photoCursorPixel, setPhotoCursorPixel] = useState<{ x: number; y: number } | null>(null)
+  const [photoHoverGround, setPhotoHoverGround] = useState<{ lng: number; lat: number } | null>(null)
+  const linkedPose = fieldPhoto.activePose
+  const linkedHits =
+    fieldPhoto.hitBuffer && fieldPhoto.hitBuffer.poseKey === fieldPhoto.activePoseKey ? fieldPhoto.hitBuffer : null
+  const linkedGround = previewTerrain.source
   useEffect(() => {
     const map = mapRef.current
-    if (!map) return
-    const DRAPE = 'own-photo-drape',
-      MARKS = 'own-photo-marks'
-    // isStyleLoaded() is false while tiles load; the style itself can take layers as soon as it exists.
-    const apply = () => {
-      const source = map.getSource(DRAPE) as import('maplibre-gl').ImageSource | undefined
-      if (!photoDrape) {
-        if (map.getLayer(DRAPE)) map.removeLayer(DRAPE)
-        if (source) map.removeSource(DRAPE)
-      } else {
-        const [w, s, e, n] = photoDrape.bounds
-        const coordinates: [[number, number], [number, number], [number, number], [number, number]] = [
-          [w, n],
-          [e, n],
-          [e, s],
-          [w, s],
-        ]
-        if (source) source.updateImage({ url: photoDrape.url, coordinates })
-        else {
-          map.addSource(DRAPE, { type: 'image', url: photoDrape.url, coordinates })
-          map.addLayer({ id: DRAPE, type: 'raster', source: DRAPE, paint: { 'raster-opacity': 0.85 } })
-        }
-      }
-      const marks = map.getSource(MARKS) as import('maplibre-gl').GeoJSONSource | undefined
-      if (marks) marks.setData(photoMarks)
-      else if (photoMarks.features.length) {
-        map.addSource(MARKS, { type: 'geojson', data: photoMarks })
-        map.addLayer({
-          id: MARKS,
-          type: 'circle',
-          source: MARKS,
-          paint: {
-            'circle-radius': 6,
-            'circle-color': ['match', ['get', 'kind'], 'landmark', '#f59e0b', 'camera', '#111827', '#2563eb'],
-            'circle-stroke-color': '#ffffff',
-            'circle-stroke-width': 2,
-          },
-        })
-      }
+    if (!map || !photoDocked || !linkedPose) {
+      setPhotoCursorPixel(null)
+      return
     }
-    const safely = () => {
-      try {
-        apply()
-      } catch {
-        // The style is still being built: try again once the map is idle.
-        map.once('idle', safely)
-      }
+    let frame = 0
+    let last: { lng: number; lat: number } | null = null
+    const update = () => {
+      frame = 0
+      const point = last ? planPointToPhoto(linkedPose, last.lng, last.lat, linkedGround, linkedHits) : null
+      setPhotoCursorPixel((current) =>
+        !point
+          ? null
+          : current && Math.abs(current.x - point.x) < 0.5 && Math.abs(current.y - point.y) < 0.5
+            ? current
+            : { x: point.x, y: point.y },
+      )
     }
-    safely()
-    map.on('styledata', safely)
+    const move = (event: import('maplibre-gl').MapMouseEvent) => {
+      last = { lng: event.lngLat.lng, lat: event.lngLat.lat }
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+    const out = () => {
+      last = null
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+    map.on('mousemove', move)
+    map.on('mouseout', out)
     return () => {
-      map.off('styledata', safely)
-      map.off('idle', safely)
+      map.off('mousemove', move)
+      map.off('mouseout', out)
+      if (frame) cancelAnimationFrame(frame)
     }
-  }, [photoDrape, photoMarks])
-  // Show the whole laid photo when a new one arrives.
-  useEffect(() => {
-    if (!photoDrape) return
-    const [w, s, e, n] = photoDrape.bounds
-    mapRef.current?.fitBounds(
-      [
-        [w, s],
-        [e, n],
-      ],
-      { padding: 40, duration: 600 },
-    )
-  }, [photoDrape])
+  }, [photoDocked, linkedPose, linkedHits, linkedGround])
   const [lookBearing, setLookBearing] = useState(0)
   const [viewerFov, setViewerFov] = useState(60)
   // The road view's viewer on the plan: the viewing station (the pose's ground position, never the
@@ -2786,23 +2904,29 @@ function DevForestryVisuals() {
       harvestPhase: 'before',
     })
   }
-  // The reviewer's own photo: the road view seeks to the nearest road point and
-  // DriveCamera's `standAt` stands the eye on the photo's spot, off the road if need be.
-  const lineUpOwnPhoto = (at: { lng: number; lat: number }) => {
-    const onRoad = nearestPointOnLine(scene.viewpoint.coordinates, at)
-    if (!fieldPhoto.own || !onRoad) return
-    if (!fieldPhoto.match) fieldPhoto.startOwnMatch()
-    openPreview({
-      id: 'field-photo',
-      name: 'Field photo',
-      positionMeters: onRoad.distanceAlongMeters,
-      lookAtTargetId: null,
-      yaw: 0,
-      tilt: 0,
-      treeHeightMeters: drive.treeHeightMeters,
-      roadClearWidthMeters: drive.roadClearWidthMeters,
-      harvestPhase: 'before',
-    })
+  // The reviewer's own photo is stood at as a view of interest (*Make a viewpoint*, then *Stand here*): the eye at
+  // its altitude with its heading, pitch, roll and lens (`photoStand`), never a spot of its own off the road. The view
+  // is made (or brought up to the accepted camera) first; a photo that cannot make one is stood at through the view
+  // it already has, else the reason is said.
+  const [photoStandPending, setPhotoStandPending] = useState<string | null>(null)
+  useEffect(() => {
+    if (!photoStandPending || !viewsOfInterest.some((view) => view.id === photoStandPending)) return
+    setPhotoStandPending(null)
+    viewCapture.standAt(photoStandPending)
+  }, [photoStandPending, viewsOfInterest, viewCapture])
+  /** Returns why it could not stand there, for the control the reviewer clicked to say; null when it did. */
+  const lineUpOwnPhoto = (): string | null => {
+    const own = fieldPhoto.own
+    if (!own) return 'No photo is open.'
+    const made = fieldPhoto.makeViewpoint(own.id)
+    if (made.ok) {
+      setPhotoStandPending(made.viewId)
+      return null
+    }
+    const linked = viewsOfInterest.find((view) => view.photo?.recordId === own.id)
+    if (!linked) return made.reason
+    viewCapture.standAt(linked.id)
+    return null
   }
   const liveForest = useForestHistory(
     preparePreview && !preliminaryDrive && drive.existingForest,
@@ -3358,9 +3482,11 @@ function DevForestryVisuals() {
   const figureClasses = useMemo(() => classPassLayers(figureClassInput), [figureClassInput])
   // Terrain candidates a figure style can draw: sub-landform dividers at the VSU boundaries in the
   // landform, and lines of force from the road view's DEM. Designer aids: never adopted, never a figure.
+  // An own photo can draw both on itself (*Layers on the photo*), so they are found while one is open too.
   const figurePreset = findFigurePreset(drive.figureStyle)
-  const wantsDividers = !!figurePreset?.symbols.subLandform
-  const wantsForces = !!(figurePreset?.symbols.forceConvex || figurePreset?.symbols.forceConcave)
+  const ownPhotoOpen = fieldPhoto.ownPhotos.length > 0
+  const wantsDividers = !!figurePreset?.symbols.subLandform || ownPhotoOpen
+  const wantsForces = !!(figurePreset?.symbols.forceConvex || figurePreset?.symbols.forceConcave) || ownPhotoOpen
   const figureLines = useMemo(() => {
     const lines: Array<{ role: 'subLandform' | 'forceConvex' | 'forceConcave'; points: [number, number][] }> = []
     if (!sceneLandform) return lines
@@ -3403,6 +3529,47 @@ function DevForestryVisuals() {
     }
     return lines
   }, [sceneLandform, wantsDividers, wantsForces, inventory.units, scene.viewpoint.coordinates, previewTerrain.source])
+  // What the page holds for the layers an own photo cannot read itself (`photoPageFeatures.ts`): the scene's visual
+  // inventory with the box it was read for, the terrain candidates and the inventory's viewpoints round a block. VRI
+  // and rock are left to the photo's own read: the run's VRI is cut to the scene and its rock to the landform. A photo
+  // seeing ground past the scene's read reads the inventory for that ground itself, once its layer is on.
+  const photoPageFeatures = useMemo<PhotoPageFeatures>(() => {
+    const out: PhotoPageFeatures = {}
+    const box = sceneInventoryKey
+      ? (sceneInventoryKey.split(',').map(Number) as [number, number, number, number])
+      : null
+    if (sceneInventory.status === 'ready' && sceneInventory.units) {
+      const units = visualInventoryFeatures(sceneInventory.units)
+      out.sensitivityUnits = { status: 'ready', features: units.sensitivityUnits, covers: box }
+      out.evqo = { status: 'ready', features: units.evqo, covers: box }
+    } else if (sceneInventory.status === 'loading') {
+      out.sensitivityUnits = out.evqo = { status: 'loading', covers: box }
+    } else if (sceneInventory.status === 'error') {
+      const message = sceneInventory.error ?? 'the visual landscape inventory did not answer'
+      out.sensitivityUnits = out.evqo = { status: 'failed', covers: box, message }
+    }
+    if (sceneLandform) {
+      const lines = candidateLineFeatures(figureLines)
+      const note = "Found in the scene's landform only"
+      out.subLandforms = { status: 'ready', features: lines.subLandforms, covers: null, note }
+      out.linesOfForce = { status: 'ready', features: lines.linesOfForce, covers: null, note }
+    }
+    if (viewpointInventory.status === 'ready' && viewpointInventory.data)
+      out.inventoryViewpoints = {
+        status: 'ready',
+        features: inventoryViewpointFeatures(viewpointInventory.data.viewpoints),
+        covers: null,
+        note: 'Read round the block chosen',
+      }
+    else if (viewpointInventory.status === 'loading') out.inventoryViewpoints = { status: 'loading', covers: null }
+    else if (viewpointInventory.status === 'error')
+      out.inventoryViewpoints = {
+        status: 'failed',
+        covers: null,
+        message: viewpointInventory.error ?? 'the viewpoint inventory did not answer',
+      }
+    return out
+  }, [sceneInventoryKey, sceneInventory, sceneLandform, figureLines, viewpointInventory])
   const figureStyleData = useMemo<FigureStyleData>(() => {
     if (!drive.figureStyle) return {}
     const multi = (geometries: ReadonlyArray<GeoJSON.Polygon | GeoJSON.MultiPolygon>): GeoJSON.FeatureCollection => ({
@@ -4417,8 +4584,15 @@ function DevForestryVisuals() {
     // and, where a field photo is lined up, the photo itself; then the class pass of the same camera
     // for its VIA figure (FigureSheetPanel).
     const map = eyeMapRef.current
-    // The lens the view is saved with: the planned view's, else the road view's own when one is set.
-    const lensHfov = planned?.lensHfov ?? (roadViewLens ? lensHfovDeg(roadViewLens) : undefined)
+    // The lens the view is saved with: the planned view's, else the road view's own when one is set (a photo
+    // viewpoint's field across while one is stood at).
+    const lensHfov = planned?.lensHfov ?? roadViewHfov ?? undefined
+    // Standing at a photo viewpoint, the view saved is that view's: the photo is its *existing* picture (the before of
+    // a before/after pair, `reportPairs.ts`), and its single frame is centred on the photo's pitch.
+    const savedFor = planned?.plannedViewId ?? (hand && hand.kind !== 'none' ? hand.view.id : null)
+    const atPhoto = photoStandNow && savedFor === photoStandNow.viewId ? photoStandNow : null
+    const photoView = atPhoto ? viewsOfInterest.find((entry) => entry.id === atPhoto.viewId) : null
+    const photoRecord = photoView ? viewPhotoRecord(photoView, tools.photoRecords) : null
     let finished: Promise<ViewSaveOutcome> = Promise.resolve({ viewId: view.id })
     if (map) {
       const caption = `${view.name}.`
@@ -4426,7 +4600,7 @@ function DevForestryVisuals() {
       const bearing = ((Math.round(map.getBearing()) % 360) + 360) % 360
       const photo = fieldPhoto.match && fieldPhoto.image?.thumbUrl ? fieldPhoto.image : null
       const ownPhoto = fieldPhoto.match && !photo ? fieldPhoto.own : null
-      const photoUrl = photo?.thumbUrl ?? ownPhoto?.src
+      const photoUrl = photo?.thumbUrl ?? ownPhoto?.src ?? photoRecord?.image
       const photoCapture = photoUrl ? captureImageUrl(photoUrl) : null
       const viewpoint: Omit<ViewpointPage, 'simulation'> = {
         title: view.name,
@@ -4441,7 +4615,12 @@ function DevForestryVisuals() {
             value: `${(view.positionMeters / 1000).toFixed(2)} km along ${scene.viewpoint.name || 'the road'}`,
           },
           { label: 'Facing', value: `${bearing}°, tilt ${Math.round(view.tilt)}°` },
-          { label: 'Eye height', value: `${result?.settings.observerHeightMeters ?? '—'} m above the road` },
+          atPhoto && atPhoto.altitudeMeters !== null
+            ? {
+                label: 'Eye height',
+                value: `${Math.round(atPhoto.altitudeMeters)} m above sea level, the photo's camera`,
+              }
+            : { label: 'Eye height', value: `${result?.settings.observerHeightMeters ?? '—'} m above the road` },
           {
             label: 'Lens',
             value: lensHfov
@@ -4469,6 +4648,7 @@ function DevForestryVisuals() {
         photoHfov: photoLook && !planned ? fieldPhoto.viewHfov : null,
         ...(lensHfov ? { lensHfov } : {}),
         ...(planned ? { framing: planned.framing } : {}),
+        ...(atPhoto ? { framePitch: atPhoto.pitch } : {}),
         // The frame and landform it is saved with: an earlier view keeps its own after the viewpoint changes.
         figureFrame: scene.figureFrame ?? null,
         landform: sceneLandform
@@ -4494,10 +4674,17 @@ function DevForestryVisuals() {
         if (photoCapture) {
           void photoCapture.then((image) => {
             if (!image) return
-            const takenOn = photo?.capturedAt?.slice(0, 10) ?? ownPhoto?.exif?.takenAt?.slice(0, 10) ?? null
+            const takenOn =
+              photo?.capturedAt?.slice(0, 10) ??
+              ownPhoto?.exif?.takenAt?.slice(0, 10) ??
+              photoRecord?.takenAtUtc?.slice(0, 10) ??
+              photoRecord?.captured?.slice(0, 10) ??
+              null
             const caption = photo
               ? `Mapillary ${takenOn ?? 'photo'}${photo.creator ? ` by ${photo.creator}` : ''}, facing ${Math.round(photo.bearing)}°.`
-              : `${ownPhoto?.name ?? 'Field photo'}, facing ${Math.round(ownPhoto?.pose.bearing ?? bearing)}°.`
+              : photoRecord && atPhoto
+                ? `${photoRecord.name}, facing ${Math.round(atPhoto.bearing)}°${atPhoto.altitudeMeters !== null ? ` from ${Math.round(atPhoto.altitudeMeters)} m above sea level` : ''}.`
+                : `${ownPhoto?.name ?? 'Field photo'}, facing ${Math.round(ownPhoto?.pose.bearing ?? bearing)}°.`
             setViewImages((current) => {
               const entry = current[view.id]
               return entry
@@ -4568,6 +4755,27 @@ function DevForestryVisuals() {
     )
     return finished
   }
+  /** What standing at a view holds the road view to when it is a photo viewpoint; null for any other view. */
+  const photoStandFor = (view: ViewOfInterest, viewpointId: string, block: TargetPolygon): PhotoStand | null => {
+    const photo = view.photo
+    if (!photo) return null
+    const centre = view.facing.kind === 'bearing' ? null : polygonInteriorPoint(block.geometry)
+    const bearing =
+      view.facing.kind === 'bearing' ? view.facing.degrees : centre ? bearingDegrees(view, centre) : Number.NaN
+    if (!Number.isFinite(bearing)) return null
+    return {
+      viewpointId,
+      viewId: view.id,
+      recordId: photo.recordId,
+      lng: view.lng,
+      lat: view.lat,
+      altitudeMeters: photo.altitudeMeters,
+      bearing,
+      pitch: photo.pitch,
+      roll: photo.roll,
+      hfov: viewLensHfov(view),
+    }
+  }
   // What a capture of planned views (`useViewCapture`) reads and does, rebuilt on every render so each step of a
   // batch acts on the page as it is then (its closures hold this render's scene, run and saved views).
   viewCaptureHostRef.current = {
@@ -4589,7 +4797,8 @@ function DevForestryVisuals() {
         poseBearing: pose ? wrapBearing(pose.bearing) : null,
         blockBearing: pose && lookAtTarget && drive.lookAtTargetId ? bearingDegrees(pose, lookAtTarget) : null,
         lensMm: roadViewLens,
-        // A lined-up field photo's lens holds the road view while it is compared (`DriveCamera`).
+        // A lined-up field photo's lens holds the road view while it is compared (`DriveCamera`); a photo
+        // viewpoint's is its own field across, not its rounded focal length's.
         lensApplied:
           !photoLook &&
           lensApplied(
@@ -4601,6 +4810,7 @@ function DevForestryVisuals() {
                   height: canvas.clientHeight,
                 }
               : null,
+            photoStandNow?.hfov ?? null,
           ),
       }
     },
@@ -4617,17 +4827,23 @@ function DevForestryVisuals() {
       // A view with no landform of its own reads the landform the reviewer chose: the one active when a batch
       // started, or, standing at views one after another, the one active before the first view's was made active.
       const base = captureBaseLandform.current ?? (standing?.landform ? { id: standing.landform.reviewer } : null)
+      const place = { ...standPlace(view, candidate?.name), lng: view.lng, lat: view.lat }
+      // A photo viewpoint stands the eye at the photo's altitude (the stand's surveyed eye, so the run stands there
+      // too), not the 2 km walk off a road.
       const nextKey = standAtPlace(
-        { ...standPlace(view, candidate?.name), lng: view.lng, lat: view.lat },
+        place,
         block,
         standFacing(view),
         view.landformId ? { activeLandformId: view.landformId } : base ? { activeLandformId: base.id } : {},
-        options,
+        { ...options, surveyedEyeMeters: view.photo?.altitudeMeters ?? null },
       )
+      setPhotoStand(nextKey ? photoStandFor(view, `stand-${place.key}`, block) : null)
       return nextKey ? { key: nextKey } : { error: 'Its block has no centre to face.' }
     },
     face: (view) => {
       setRoadViewLens(view.focalMm)
+      const block = scene.targets.find((target) => target.id === view.blockId && target.role === 'block')
+      setPhotoStand(block ? photoStandFor(view, sceneRef.current.viewpoint.id, block) : null)
       updateDrive({ ...standFacing(view), playing: false })
     },
     save: (view) =>
@@ -4671,11 +4887,13 @@ function DevForestryVisuals() {
         lookAtTargetId: drive.lookAtTargetId,
         lookBearing: drive.lookBearing,
         lens: roadViewLens,
+        photoStand,
       }
     },
     restore: (back) => {
       captureBaseLandform.current = null
       setRoadViewLens(back.lens)
+      setPhotoStand(back.photoStand)
       const nextKey = moveViewpoint(back.viewpoint, { activeLandformId: back.activeLandformId })
       setStanding(back.standing)
       if (back.roadViewOpen) {
@@ -4921,7 +5139,9 @@ function DevForestryVisuals() {
     return view.id
   }
   const tools = useAssessmentTools({
-    onOriginalPhoto: (file) => addProjectAttachments([file]),
+    onOriginalPhoto: (file, recordId) => addProjectAttachments([file], recordId),
+    // A photo record goes through the photo set, so its original and any view's link to it go with it.
+    onRemovePhoto: (id) => fieldPhoto.removePhoto(id),
     plannedViews,
     onAddViewAt: (point, name) => listViewAt(point, name),
     onListView: (earlier) => {
@@ -4958,23 +5178,50 @@ function DevForestryVisuals() {
     },
     analysisRunning: analysis.state.status === 'running' || analysis.reverseState.status === 'running',
   })
+  // The photo set's way to the field records (`useFieldPhoto`'s `records`), filled now the tools exist.
+  photoRecordsRef.current = {
+    fieldCount: tools.fieldCount,
+    addPhotoRecords: tools.addPhotoRecords,
+    updateFieldRecord: tools.updateFieldRecord,
+    setPhotoJob: tools.setPhotoJob,
+    removeFieldRecord: tools.removeFieldRecord,
+    getRecord: tools.fieldRecord,
+  }
   /** Everything in progress as one archive, for Save & export's Project. */
   const buildProjectFile = async () => {
-    // Start reading the local object URL before a photo change can revoke it.
-    const own = fieldPhoto.own
-    const photo = own
-      ? (own.original
+    // Every own photo in the set, the open one first: its original, pose, record, where each value came from and its
+    // last search. Start reading local object URLs before a photo change can revoke them.
+    const open = fieldPhoto.own
+    const setPhotos = [...(open ? [open] : []), ...fieldPhoto.ownPhotos.filter((entry) => entry.id !== open?.id)]
+    const photos = Promise.all(
+      setPhotos.map((own) =>
+        (own.original
           ? Promise.resolve(own.original)
           : fetch(own.src).then((response) => {
-              if (!response.ok) throw new Error('The open field photo could not be read.')
+              if (!response.ok) throw new Error(`The field photo ${own.name} could not be read.`)
               return response.blob()
             })
-        ).then((blob) => ({ name: own.name, blob, pose: own.pose, recordId: own.recordId }))
-      : Promise.resolve(null)
-    const [{ writeProjectArchive }, { PROJECT_FILE_EXTENSION }, openPhoto] = await Promise.all([
+        ).then((blob) => {
+          const work = fieldPhoto.workFor(own.id)
+          const search = work.search
+          return {
+            name: own.name,
+            blob,
+            pose: own.pose,
+            recordId: own.recordId,
+            sources: own.sources,
+            search:
+              search.status === 'done'
+                ? searchSummaryFrom(search.result, [work.modelViews.camera, work.modelViews['runner-up']])
+                : (own.savedSearch ?? null),
+          }
+        }),
+      ),
+    )
+    const [{ writeProjectArchive }, { PROJECT_FILE_EXTENSION }, ownPhotos] = await Promise.all([
       import('./dev-forestry/projectArchive'),
       import('./dev-forestry/projectFile'),
-      photo,
+      photos,
     ])
     const blob = await writeProjectArchive(
       {
@@ -4987,7 +5234,12 @@ function DevForestryVisuals() {
         workspace: tools.evidence.storedWorkspaceJson(),
         pkg: { renderer: exportOpener.figureRenderer, recipeId: exportOpener.packageRecipeId },
       },
-      { title: projectTitle, attachments: projectAttachments, photo: openPhoto },
+      {
+        title: projectTitle,
+        attachments: projectAttachments,
+        photo: open ? (ownPhotos[0] ?? null) : null,
+        photos: open ? ownPhotos.slice(1) : ownPhotos,
+      },
     )
     const name =
       (projectTitle ?? scene.targets.find((target) => target.role === 'block')?.name)
@@ -5044,10 +5296,17 @@ function DevForestryVisuals() {
         tools.restoreWorkspace(null)
         workspaceNote = ` The assessment workspace was not read: ${error instanceof Error ? error.message : 'it is not a workspace'}.`
       }
-      if (media.photo) {
-        const { blob, name, pose, recordId } = media.photo
-        void fieldPhoto.openOwnFile(new File([blob], name), null, { pose, recordId, blob })
-      }
+      // Every own photo the project kept comes back into the set, the one that was open active. Their acceptances and
+      // jobs live on their field records, which the workspace restored above (`getRecord`).
+      const keptPhotos = [...(media.photo ? [media.photo] : []), ...(media.photos ?? [])]
+      if (keptPhotos.length)
+        void fieldPhoto.openSavedPhotos(
+          keptPhotos.map(({ blob, name, pose, recordId, sources, search }) => ({
+            file: new File([blob], name),
+            saved: { pose, recordId, blob, sources, search },
+          })),
+          media.photo?.recordId ?? null,
+        )
       setProjectMessage({ text: projectOpenedLine(file.name, summary) + workspaceNote })
       window.setTimeout(() => fitBounds(sceneBounds(state.scene)), 50)
     } catch (error) {
@@ -5581,6 +5840,11 @@ function DevForestryVisuals() {
 
   const exportDialog = useVisualsExport({
     opener: exportOpener,
+    ownPhotos: {
+      count: fieldPhoto.ownPhotos.length,
+      accepted: fieldPhoto.ownPhotos.filter((photo) => fieldPhoto.acceptanceState(photo.id) === 'accepted').length,
+      flights: fieldPhoto.ownFlights.length,
+    },
     prescribedStands,
     scene,
     setScene,
@@ -6004,6 +6268,7 @@ function DevForestryVisuals() {
         onPickPoint: (onPoint, hint) => setMapPick(onPoint ? { onPoint, hint } : null),
         pickActive: !!mapPick,
         onSaveToRecord: tools.updateFieldRecord,
+        pageFeatures: photoPageFeatures,
       }}
     />
   )
@@ -6043,6 +6308,10 @@ function DevForestryVisuals() {
     <Shown
       views={viewsOfInterest}
       onChange={setViewsOfInterest}
+      photoOf={(view) => {
+        const record = viewPhotoRecord(view, tools.photoRecords)
+        return { name: record?.name ?? 'Photo no longer in the workspace', thumbUrl: record?.image ?? null }
+      }}
       blocks={viewBlocks}
       targets={scene.targets}
       savedViews={capturedViewSources}
@@ -6623,370 +6892,448 @@ function DevForestryVisuals() {
               map: (
                 <TilePane title="Map" actions={paneClose('map')}>
                   {() => (
-                    <div className="relative min-h-0 flex-1 overflow-hidden rounded-md" data-testid="visuals-plan-map">
-                      <Map
-                        ref={mapRef}
-                        center={PG_CENTER}
-                        zoom={9}
-                        maxPitch={85}
-                        controls={
-                          <MapControls position="top-right" showZoom showCompass>
-                            <MapMeasureControl
-                              active={measuring}
-                              onToggle={toggleMeasure}
-                              disabled={drawMode !== 'none'}
-                              title={
-                                drawMode !== 'none'
-                                  ? 'Measure · finish or cancel the drawing first'
-                                  : 'Measure a distance, an area or a circle'
-                              }
-                            />
-                            <PlanMapToolButtons
-                              drawMode={drawMode}
-                              routePreviewOpen={routePreviewOpen}
-                              routePreviewOn={routeViewshed.enabled}
-                              addViewDisabled={
-                                !viewBlocks.length
-                                  ? 'Add a view of interest · draw or import a cutblock first'
-                                  : viewsOfInterest.length >= MAX_VIEWS_OF_INTEREST
-                                    ? `Add a view of interest · ${MAX_VIEWS_OF_INTEREST} views is the most`
-                                    : viewCapture.state.status === 'running'
-                                      ? 'Add a view of interest · wait for the capture to finish'
-                                      : null
-                              }
-                              patchDisabled={
-                                (scene.masks ?? []).length >= MAX_ASSESSMENT_MASKS
-                                  ? `Draw a wildlife tree patch · the scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps`
-                                  : null
-                              }
-                              onDraw={(mode) => {
-                                if (mode === 'view') {
-                                  viewPlacementBlockRef.current = viewAddBlockId
-                                  assessOnPlaceRef.current = false
-                                  setViewsMessage(null)
-                                } else if (mode === 'none') assessOnPlaceRef.current = false
-                                handleDrawModeChange(mode)
-                              }}
-                              look={{
-                                open: drive.active,
-                                picking: !!mapPick?.hint && mapPick.onPoint === pickBasemapRoad,
-                                disabled: drive.active
-                                  ? 'The road view is open'
-                                  : pendingPreview
-                                    ? 'Preparing the road view…'
-                                    : null,
-                                onLook: () => {
-                                  if (mapPick?.onPoint === pickBasemapRoad) {
-                                    setMapPick(null)
-                                    return
-                                  }
-                                  const hasRoad =
-                                    scene.viewpoint.mode === 'corridor' && scene.viewpoint.coordinates.length >= 2
-                                  if (drawMode !== 'none') handleDrawModeChange('none')
-                                  setRoutePreviewOpen(false)
-                                  if (hasRoad) openPreview()
-                                  else
-                                    setMapPick({
-                                      onPoint: pickBasemapRoad,
-                                      hint: 'Click a road on the map to look from it',
-                                    })
-                                },
-                              }}
-                              onRoutePreview={(open) => {
-                                if (open) {
-                                  clearMeasure()
-                                  if (drawMode !== 'none') handleDrawModeChange('none')
-                                }
-                                setRoutePreviewOpen(open)
-                              }}
-                            />
-                            <MapLayersControl
-                              basemaps={IMAGERY_BASEMAPS}
-                              basemap={planShow.basemap}
-                              onBasemapChange={(value: PlanBasemap) =>
-                                setPlanShow((current) => ({ ...current, basemap: value }))
-                              }
-                              overlays={[
-                                {
-                                  id: 'hillshade',
-                                  label: 'Hillshade',
-                                  checked: planShow.hillshade,
-                                  onCheckedChange: (checked) =>
-                                    setPlanShow((current) => ({ ...current, hillshade: checked })),
-                                },
-                                {
-                                  id: 'evqo',
-                                  label: 'Established VQO polygons',
-                                  description: !planShow.evqo
-                                    ? 'BC visual landscape inventory'
-                                    : !evqoCurrent
-                                      ? 'Loading…'
-                                      : evqoCurrent.error
-                                        ? `Unavailable: ${evqoCurrent.error}`
-                                        : evqoCurrent.collection.features.length
-                                          ? `${evqoCurrent.collection.features.length} polygons around the scene`
-                                          : 'None established around the scene',
-                                  checked: planShow.evqo,
-                                  onCheckedChange: (checked) =>
-                                    setPlanShow((current) => ({ ...current, evqo: checked })),
-                                },
-                              ]}
-                            />
-                          </MapControls>
-                        }
-                        deferResize={table.deferResize}
+                    // The photo docks beside the plan while it is laid on it (`DockedPhotoPane`).
+                    <div className="flex min-h-0 min-w-0 flex-1 gap-1">
+                      <div
+                        className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-md"
+                        data-testid="visuals-plan-map"
                       >
-                        <MapTableBridge table={table} />
-                        <TerrainSupport
-                          terrain={false}
-                          exaggeration={1}
-                          hillshade={planLook.hillshade}
-                          hillshadeIntensity={0.45}
-                        />
-                        <VisualQualityLayers mode="plan" data={layerData} />
-                        <MapViewerCone viewer={planViewer} />
-                        {/* Planned views of interest; their points take clicks only while nothing else owns the plan's. */}
-                        <ViewsOfInterestLayers
-                          views={viewsOfInterest}
-                          blocks={viewBlocks}
-                          openViewId={openViewId}
-                          arrows={viewpointLayers.arrows}
-                          previewArrowIds={finderArrowIds}
-                          hidden={planLook.hidden}
-                          visible
-                          onSelect={
-                            !drive.active && drawMode === 'none' && !mapPick && !measuring ? setOpenViewId : null
+                        <Map
+                          ref={mapRef}
+                          center={PG_CENTER}
+                          zoom={9}
+                          maxPitch={85}
+                          controls={
+                            <MapControls position="top-right" showZoom showCompass>
+                              <MapMeasureControl
+                                active={measuring}
+                                onToggle={toggleMeasure}
+                                disabled={drawMode !== 'none'}
+                                title={
+                                  drawMode !== 'none'
+                                    ? 'Measure · finish or cancel the drawing first'
+                                    : 'Measure a distance, an area or a circle'
+                                }
+                              />
+                              <PlanMapToolButtons
+                                drawMode={drawMode}
+                                routePreviewOpen={routePreviewOpen}
+                                routePreviewOn={routeViewshed.enabled}
+                                addViewDisabled={
+                                  !viewBlocks.length
+                                    ? 'Add a view of interest · draw or import a cutblock first'
+                                    : viewsOfInterest.length >= MAX_VIEWS_OF_INTEREST
+                                      ? `Add a view of interest · ${MAX_VIEWS_OF_INTEREST} views is the most`
+                                      : viewCapture.state.status === 'running'
+                                        ? 'Add a view of interest · wait for the capture to finish'
+                                        : null
+                                }
+                                patchDisabled={
+                                  (scene.masks ?? []).length >= MAX_ASSESSMENT_MASKS
+                                    ? `Draw a wildlife tree patch · the scene holds ${MAX_ASSESSMENT_MASKS} masks, the most it keeps`
+                                    : null
+                                }
+                                onDraw={(mode) => {
+                                  if (mode === 'view') {
+                                    viewPlacementBlockRef.current = viewAddBlockId
+                                    assessOnPlaceRef.current = false
+                                    setViewsMessage(null)
+                                  } else if (mode === 'none') assessOnPlaceRef.current = false
+                                  handleDrawModeChange(mode)
+                                }}
+                                look={{
+                                  open: drive.active,
+                                  picking: !!mapPick?.hint && mapPick.onPoint === pickBasemapRoad,
+                                  disabled: drive.active
+                                    ? 'The road view is open'
+                                    : pendingPreview
+                                      ? 'Preparing the road view…'
+                                      : null,
+                                  onLook: () => {
+                                    if (mapPick?.onPoint === pickBasemapRoad) {
+                                      setMapPick(null)
+                                      return
+                                    }
+                                    const hasRoad =
+                                      scene.viewpoint.mode === 'corridor' && scene.viewpoint.coordinates.length >= 2
+                                    if (drawMode !== 'none') handleDrawModeChange('none')
+                                    setRoutePreviewOpen(false)
+                                    if (hasRoad) openPreview()
+                                    else
+                                      setMapPick({
+                                        onPoint: pickBasemapRoad,
+                                        hint: 'Click a road on the map to look from it',
+                                      })
+                                  },
+                                }}
+                                onRoutePreview={(open) => {
+                                  if (open) {
+                                    clearMeasure()
+                                    if (drawMode !== 'none') handleDrawModeChange('none')
+                                  }
+                                  setRoutePreviewOpen(open)
+                                }}
+                              />
+                              <MapLayersControl
+                                basemaps={IMAGERY_BASEMAPS}
+                                basemap={planShow.basemap}
+                                onBasemapChange={(value: PlanBasemap) =>
+                                  setPlanShow((current) => ({ ...current, basemap: value }))
+                                }
+                                overlays={[
+                                  {
+                                    id: 'hillshade',
+                                    label: 'Hillshade',
+                                    checked: planShow.hillshade,
+                                    onCheckedChange: (checked) =>
+                                      setPlanShow((current) => ({ ...current, hillshade: checked })),
+                                  },
+                                  {
+                                    id: 'evqo',
+                                    label: 'Established VQO polygons',
+                                    description: !planShow.evqo
+                                      ? 'BC visual landscape inventory'
+                                      : !evqoCurrent
+                                        ? 'Loading…'
+                                        : evqoCurrent.error
+                                          ? `Unavailable: ${evqoCurrent.error}`
+                                          : evqoCurrent.collection.features.length
+                                            ? `${evqoCurrent.collection.features.length} polygons around the scene`
+                                            : 'None established around the scene',
+                                    checked: planShow.evqo,
+                                    onCheckedChange: (checked) =>
+                                      setPlanShow((current) => ({ ...current, evqo: checked })),
+                                  },
+                                ]}
+                              />
+                            </MapControls>
                           }
-                          onMove={
-                            !drive.active && drawMode === 'none' && !mapPick && !measuring
-                              ? (id, point) =>
+                          deferResize={table.deferResize}
+                        >
+                          <MapTableBridge table={table} />
+                          <TerrainSupport
+                            terrain={false}
+                            exaggeration={1}
+                            hillshade={planLook.hillshade}
+                            hillshadeIntensity={0.45}
+                          />
+                          <VisualQualityLayers mode="plan" data={layerData} />
+                          <MapViewerCone viewer={planViewer} />
+                          {/* The own photos: the active one laid on the ground, every camera with its view, the
+                            flight's track, the paired points; and the docked photo's cursor on the plan. */}
+                          <PhotoDrapeLayer
+                            drapes={planDrapes}
+                            active={fieldPhoto.drapeWhich}
+                            opacity={drapeOpacity}
+                            blink={drapeBlink}
+                            visible={drapeOnPlan}
+                            hidden={planLook.hidden}
+                            basemap={planLook.basemap}
+                          />
+                          <PhotoCamerasLayer
+                            cameras={planCameras}
+                            activeId={activePhotoId}
+                            pairs={planPairs}
+                            reference={planReference}
+                            hidden={planLook.hidden}
+                            onOpen={
+                              !drive.active && drawMode === 'none' && !mapPick && !measuring
+                                ? (id) => {
+                                    fieldPhoto.selectOwnPhoto(id)
+                                    fieldPhoto.openOwnDialog()
+                                  }
+                                : null
+                            }
+                          />
+                          <LinkedCursorMarker point={photoDocked ? photoHoverGround : null} />
+                          {drapeOnPlan && planDrapes.length > 0 && drawMode === 'none' && !mapPick && (
+                            <MapOverlay position="top-left" clearChrome className="w-72 max-w-[calc(100%-4rem)]">
+                              <PhotoDrapeCard
+                                candidates={planDrapes.map((drape) => ({
+                                  id: drape.id,
+                                  label: drape.id === 'camera' ? 'Camera found' : 'Runner-up',
+                                }))}
+                                activeId={fieldPhoto.drapeWhich}
+                                onActiveChange={(id) =>
+                                  fieldPhoto.setDrapeWhich(id === 'runner-up' ? 'runner-up' : 'camera')
+                                }
+                                look={drapeLook}
+                                onLookChange={setDrapeLook}
+                                opacity={drapeOpacity}
+                                onOpacityChange={setDrapeOpacity}
+                                blink={drapeBlink}
+                                onBlinkChange={setDrapeBlink}
+                                drawnForBearing={fieldPhoto.drapeDrawnFor}
+                                currentBearing={drapeCurrentBearing}
+                                busy={fieldPhoto.drapeBusy}
+                                onShowGround={() => {
+                                  if (frontDrape) fitBounds(frontDrape.bounds, 15)
+                                }}
+                                onBackToScene={() => fitBounds(sceneBounds(scene))}
+                                onRemove={() => {
+                                  setDrapeBlink(false)
+                                  fieldPhoto.hideDrape()
+                                }}
+                              />
+                            </MapOverlay>
+                          )}
+                          {/* Planned views of interest; their points take clicks only while nothing else owns the plan's. */}
+                          <ViewsOfInterestLayers
+                            views={viewsOfInterest}
+                            blocks={viewBlocks}
+                            openViewId={openViewId}
+                            arrows={viewpointLayers.arrows}
+                            previewArrowIds={finderArrowIds}
+                            hidden={planLook.hidden}
+                            visible
+                            onSelect={
+                              !drive.active && drawMode === 'none' && !mapPick && !measuring ? setOpenViewId : null
+                            }
+                            onMove={
+                              !drive.active && drawMode === 'none' && !mapPick && !measuring
+                                ? (id, point) =>
+                                    setViewsOfInterest((views) =>
+                                      views.map((view) =>
+                                        view.id === id ? { ...view, lng: point.lng, lat: point.lat } : view,
+                                      ),
+                                    )
+                                : null
+                            }
+                            onTurn={
+                              drawMode === 'none' && !mapPick && !measuring
+                                ? (id, bearing) =>
+                                    setViewsOfInterest((views) =>
+                                      views.map((view) =>
+                                        view.id === id
+                                          ? { ...view, facing: { kind: 'bearing', degrees: Math.round(bearing) % 360 } }
+                                          : view,
+                                      ),
+                                    )
+                                : null
+                            }
+                            onStand={
+                              drawMode === 'none' && !mapPick && !measuring && !captureRunning
+                                ? (id) => viewCapture.standAt(id)
+                                : null
+                            }
+                            standingViewId={drive.active ? (summaryView?.id ?? null) : null}
+                          />
+                          <MapSketch sketch={measure} testId="visuals-measure" />
+                          {measuring && (
+                            <MapOverlay
+                              position="top-left"
+                              clearChrome
+                              className="w-72 max-w-[calc(100%-4.5rem)] border-0 bg-transparent shadow-none backdrop-blur-none"
+                            >
+                              <MapMeasurePanel sketch={measure} onClose={clearMeasure} />
+                            </MapOverlay>
+                          )}
+                          {!measuring && (isPlanDrawTool(drawMode) || routePreviewOpen) && (
+                            <MapOverlay
+                              position="top-left"
+                              clearChrome
+                              className="max-h-[calc(100%-1rem)] w-80 max-w-[calc(100%-4.5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none"
+                            >
+                              <PlanMapToolCard
+                                drawMode={drawMode}
+                                pointCount={draftCoordinates.length}
+                                onFinish={finishDraft}
+                                onCancel={cancelPlanDraw}
+                                view={{
+                                  blocks: viewBlocks,
+                                  blockId: viewPlacementBlockRef.current ?? viewAddBlockId,
+                                  onBlockId: (id) => {
+                                    setViewAddBlockChoice(id)
+                                    viewPlacementBlockRef.current = id
+                                  },
+                                  assessing: assessOnPlaceRef.current,
+                                }}
+                                routePreviewSummary={routeViewshedSummary(routeViewshed)}
+                                onCloseRoutePreview={() => setRoutePreviewOpen(false)}
+                                routePreview={
+                                  routePreviewOpen && drawMode === 'none' ? (
+                                    <RouteViewshedControls
+                                      preview={routeViewshed}
+                                      driving={drive.active}
+                                      position={drive.positionMeters}
+                                      onRetryTerrain={previewTerrain.retry}
+                                      onSeek={(distance) => updateDrive({ positionMeters: distance, playing: false })}
+                                      onDrive={() => {
+                                        routeViewshed.setEnabled(true)
+                                        updateDrive(
+                                          {
+                                            active: true,
+                                            playing: false,
+                                            positionMeters:
+                                              routeViewshed.mode === 'point'
+                                                ? Math.min(drive.positionMeters, routeViewshed.length)
+                                                : Math.max(
+                                                    routeViewshed.selected.from,
+                                                    Math.min(drive.positionMeters, routeViewshed.selected.to),
+                                                  ),
+                                          },
+                                          true,
+                                        )
+                                      }}
+                                    />
+                                  ) : null
+                                }
+                              />
+                            </MapOverlay>
+                          )}
+                          <PlanClickToMove
+                            onMove={
+                              drive.active && seekFromPlan && drawMode === 'none' && !mapPick && !measuring
+                                ? (point) => seekFromPlan([point.lng, point.lat])
+                                : null
+                            }
+                          />
+                          {drive.active && cameraEye && !preliminaryDrive && (
+                            <PlanViewerHandles
+                              eye={cameraEye}
+                              bearing={lookBearing}
+                              onMove={seekFromPlan ? (point) => seekFromPlan([point.lng, point.lat]) : null}
+                              onLook={(bearing) => {
+                                const degrees = Math.round(bearing) % 360
+                                updateDrive({ lookAtTargetId: null, lookBearing: degrees })
+                                // Standing at a planned view, the road view is that view: turning it turns the view.
+                                const standingAt = summaryView
+                                if (standingAt)
                                   setViewsOfInterest((views) =>
                                     views.map((view) =>
-                                      view.id === id ? { ...view, lng: point.lng, lat: point.lat } : view,
-                                    ),
-                                  )
-                              : null
-                          }
-                          onTurn={
-                            drawMode === 'none' && !mapPick && !measuring
-                              ? (id, bearing) =>
-                                  setViewsOfInterest((views) =>
-                                    views.map((view) =>
-                                      view.id === id
-                                        ? { ...view, facing: { kind: 'bearing', degrees: Math.round(bearing) % 360 } }
+                                      view.id === standingAt.id
+                                        ? { ...view, facing: { kind: 'bearing', degrees } }
                                         : view,
                                     ),
                                   )
-                              : null
-                          }
-                          onStand={
-                            drawMode === 'none' && !mapPick && !measuring && !captureRunning
-                              ? (id) => viewCapture.standAt(id)
-                              : null
-                          }
-                          standingViewId={drive.active ? (summaryView?.id ?? null) : null}
-                        />
-                        <MapSketch sketch={measure} testId="visuals-measure" />
-                        {measuring && (
-                          <MapOverlay
-                            position="top-left"
-                            clearChrome
-                            className="w-72 max-w-[calc(100%-4.5rem)] border-0 bg-transparent shadow-none backdrop-blur-none"
-                          >
-                            <MapMeasurePanel sketch={measure} onClose={clearMeasure} />
-                          </MapOverlay>
-                        )}
-                        {!measuring && (isPlanDrawTool(drawMode) || routePreviewOpen) && (
-                          <MapOverlay
-                            position="top-left"
-                            clearChrome
-                            className="max-h-[calc(100%-1rem)] w-80 max-w-[calc(100%-4.5rem)] overflow-y-auto overscroll-none border-0 bg-transparent shadow-none backdrop-blur-none"
-                          >
-                            <PlanMapToolCard
-                              drawMode={drawMode}
-                              pointCount={draftCoordinates.length}
-                              onFinish={finishDraft}
-                              onCancel={cancelPlanDraw}
-                              view={{
-                                blocks: viewBlocks,
-                                blockId: viewPlacementBlockRef.current ?? viewAddBlockId,
-                                onBlockId: (id) => {
-                                  setViewAddBlockChoice(id)
-                                  viewPlacementBlockRef.current = id
-                                },
-                                assessing: assessOnPlaceRef.current,
                               }}
-                              routePreviewSummary={routeViewshedSummary(routeViewshed)}
-                              onCloseRoutePreview={() => setRoutePreviewOpen(false)}
-                              routePreview={
-                                routePreviewOpen && drawMode === 'none' ? (
-                                  <RouteViewshedControls
-                                    preview={routeViewshed}
-                                    driving={drive.active}
-                                    position={drive.positionMeters}
-                                    onRetryTerrain={previewTerrain.retry}
-                                    onSeek={(distance) => updateDrive({ positionMeters: distance, playing: false })}
-                                    onDrive={() => {
-                                      routeViewshed.setEnabled(true)
-                                      updateDrive(
-                                        {
-                                          active: true,
-                                          playing: false,
-                                          positionMeters:
-                                            routeViewshed.mode === 'point'
-                                              ? Math.min(drive.positionMeters, routeViewshed.length)
-                                              : Math.max(
-                                                  routeViewshed.selected.from,
-                                                  Math.min(drive.positionMeters, routeViewshed.selected.to),
-                                                ),
-                                        },
-                                        true,
-                                      )
-                                    }}
-                                  />
-                                ) : null
-                              }
                             />
-                          </MapOverlay>
-                        )}
-                        <PlanClickToMove
-                          onMove={
-                            drive.active && seekFromPlan && drawMode === 'none' && !mapPick && !measuring
-                              ? (point) => seekFromPlan([point.lng, point.lat])
-                              : null
-                          }
-                        />
-                        {drive.active && cameraEye && !preliminaryDrive && (
-                          <PlanViewerHandles
-                            eye={cameraEye}
-                            bearing={lookBearing}
-                            onMove={seekFromPlan ? (point) => seekFromPlan([point.lng, point.lat]) : null}
-                            onLook={(bearing) => {
-                              const degrees = Math.round(bearing) % 360
-                              updateDrive({ lookAtTargetId: null, lookBearing: degrees })
-                              // Standing at a planned view, the road view is that view: turning it turns the view.
-                              const standingAt = summaryView
-                              if (standingAt)
-                                setViewsOfInterest((views) =>
-                                  views.map((view) =>
-                                    view.id === standingAt.id
-                                      ? { ...view, facing: { kind: 'bearing', degrees } }
-                                      : view,
-                                  ),
-                                )
-                            }}
-                          />
-                        )}
-                        {drawMode !== 'none' && !isPlanDrawTool(drawMode) && (
-                          <MapOverlay
-                            position="top-left"
-                            clearChrome
-                            className="right-14 p-3 md:hidden"
-                            role="region"
-                            aria-label="Map drawing controls"
-                          >
-                            <p className="text-xs">
-                              {drawMode === 'spot'
-                                ? 'Tap the map to drop the viewpoint.'
-                                : `Tap the map to trace the polygon. ${draftCoordinates.length} points added.`}
-                            </p>
-                            <div className="mt-2 flex gap-2">
-                              {drawMode !== 'spot' && (
+                          )}
+                          {drawMode !== 'none' && !isPlanDrawTool(drawMode) && (
+                            <MapOverlay
+                              position="top-left"
+                              clearChrome
+                              className="right-14 p-3 md:hidden"
+                              role="region"
+                              aria-label="Map drawing controls"
+                            >
+                              <p className="text-xs">
+                                {drawMode === 'spot'
+                                  ? 'Tap the map to drop the viewpoint.'
+                                  : `Tap the map to trace the polygon. ${draftCoordinates.length} points added.`}
+                              </p>
+                              <div className="mt-2 flex gap-2">
+                                {drawMode !== 'spot' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="touch:h-10"
+                                    disabled={draftCoordinates.length < 3}
+                                    onClick={finishDraft}
+                                  >
+                                    Finish drawing
+                                  </Button>
+                                )}
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="touch:h-10"
-                                  disabled={draftCoordinates.length < 3}
-                                  onClick={finishDraft}
+                                  onClick={() => handleDrawModeChange('none')}
                                 >
-                                  Finish drawing
+                                  Cancel drawing
                                 </Button>
-                              )}
+                              </div>
+                            </MapOverlay>
+                          )}
+                          {mapPick && drawMode === 'none' && (
+                            <MapOverlay
+                              position="top-left"
+                              clearChrome
+                              className="flex items-center gap-2 px-3 py-2"
+                              role="status"
+                              data-testid="map-pick-hint"
+                            >
+                              <Crosshair className="h-4 w-4 shrink-0 text-sky-600" aria-hidden="true" />
+                              <span className="text-xs">{mapPick.hint ?? 'Click the map to pick the point'}</span>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="touch:h-10"
-                                onClick={() => handleDrawModeChange('none')}
+                                className="h-7 px-2 text-2xs touch:h-10"
+                                onClick={() => setMapPick(null)}
                               >
-                                Cancel drawing
+                                Cancel
                               </Button>
-                            </div>
-                          </MapOverlay>
-                        )}
-                        {mapPick && drawMode === 'none' && (
-                          <MapOverlay
-                            position="top-left"
-                            clearChrome
-                            className="flex items-center gap-2 px-3 py-2"
-                            role="status"
-                            data-testid="map-pick-hint"
-                          >
-                            <Crosshair className="h-4 w-4 shrink-0 text-sky-600" aria-hidden="true" />
-                            <span className="text-xs">{mapPick.hint ?? 'Click the map to pick the point'}</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-2xs touch:h-10"
-                              onClick={() => setMapPick(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </MapOverlay>
-                        )}
-                      </Map>
-                      {
-                        <PlanMapLegend
-                          collapsed={legendCollapsed}
-                          onCollapsedChange={(collapsed) => setLegendChoice({ shared: mapSharesScreen, collapsed })}
-                          blocks={{
-                            count: blockCollection.features.length,
-                            customColors: scene.targets.some(
-                              (target) => target.role === 'block' && !!target.displayColor,
-                            ),
-                          }}
-                          landform={landscapeCollection.features.length > 0}
-                          existingOpenings={harvestedCollection.features.length > 0}
-                          road={scene.viewpoint.coordinates.length ? scene.viewpoint.mode : null}
-                          run={!!result}
-                          reverseRoads={reverseRoadCollection.features.length > 0}
-                          sensitivityUnits={
-                            showInventory ? [...new Set(inventory.units.map((unit) => unit.objectiveId ?? null))] : []
-                          }
-                          terrainCandidates={[
-                            ...new Set(terrainCandidates.map((candidate) => candidate.method ?? 'facing')),
-                          ]}
-                          otherRidgeLayers={ridgeLayerCollection.features.some(
-                            (feature) => feature.properties?.own === 0,
+                            </MapOverlay>
                           )}
-                          landformClues={landformClues.features.length > 0}
-                          inventory={
-                            showInventory && viewpointInventory.data
-                              ? {
-                                  viewpoints: viewpointInventory.data.viewpoints.length > 0,
-                                  arrows: viewpointLayers.arrows.features.length > 0,
-                                  recSites: viewpointInventory.data.recSites.length > 0,
-                                  screenings: viewpointInventory.data.screenings.length > 0,
-                                }
-                              : null
-                          }
-                          masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
-                          treeFreeAreas={(scene.treeFreeAreas ?? []).length > 0 || !!viewpointClearing}
-                          standTrees={standTreeCollection.features.length > 0}
-                          standStrip={standStripCollection.features.length > 0}
-                          evqo={planEvqoCodes}
-                          viewsOfInterest={{
-                            views: viewsOfInterest.length > 0,
-                            arrows:
-                              viewpointLayers.arrows.features.length > 0 &&
-                              (finderArrowIds.length > 0 ||
-                                viewsOfInterest.some(
-                                  (view) => view.facing.kind === 'bearing' && !!view.facing.arrowId,
-                                )),
+                        </Map>
+                        {
+                          <PlanMapLegend
+                            collapsed={legendCollapsed}
+                            onCollapsedChange={(collapsed) => setLegendChoice({ shared: mapSharesScreen, collapsed })}
+                            blocks={{
+                              count: blockCollection.features.length,
+                              customColors: scene.targets.some(
+                                (target) => target.role === 'block' && !!target.displayColor,
+                              ),
+                            }}
+                            landform={landscapeCollection.features.length > 0}
+                            existingOpenings={harvestedCollection.features.length > 0}
+                            road={scene.viewpoint.coordinates.length ? scene.viewpoint.mode : null}
+                            run={!!result}
+                            reverseRoads={reverseRoadCollection.features.length > 0}
+                            sensitivityUnits={
+                              showInventory ? [...new Set(inventory.units.map((unit) => unit.objectiveId ?? null))] : []
+                            }
+                            terrainCandidates={[
+                              ...new Set(terrainCandidates.map((candidate) => candidate.method ?? 'facing')),
+                            ]}
+                            otherRidgeLayers={ridgeLayerCollection.features.some(
+                              (feature) => feature.properties?.own === 0,
+                            )}
+                            landformClues={landformClues.features.length > 0}
+                            inventory={
+                              showInventory && viewpointInventory.data
+                                ? {
+                                    viewpoints: viewpointInventory.data.viewpoints.length > 0,
+                                    arrows: viewpointLayers.arrows.features.length > 0,
+                                    recSites: viewpointInventory.data.recSites.length > 0,
+                                    screenings: viewpointInventory.data.screenings.length > 0,
+                                  }
+                                : null
+                            }
+                            masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
+                            treeFreeAreas={(scene.treeFreeAreas ?? []).length > 0 || !!viewpointClearing}
+                            standTrees={standTreeCollection.features.length > 0}
+                            standStrip={standStripCollection.features.length > 0}
+                            evqo={planEvqoCodes}
+                            viewsOfInterest={{
+                              views: viewsOfInterest.length > 0,
+                              arrows:
+                                viewpointLayers.arrows.features.length > 0 &&
+                                (finderArrowIds.length > 0 ||
+                                  viewsOfInterest.some(
+                                    (view) => view.facing.kind === 'bearing' && !!view.facing.arrowId,
+                                  )),
+                            }}
+                            photo={photoLegend}
+                            hidden={planShow.hidden}
+                            onToggle={(key) => setPlanShow((current) => togglePlanLegendKey(current, key))}
+                          />
+                        }
+                      </div>
+                      {photoDocked && (
+                        <DockedPhotoPane
+                          photo={fieldPhoto}
+                          cursorPixel={photoCursorPixel}
+                          onHoverGround={setPhotoHoverGround}
+                          onClose={() => {
+                            setPhotoDockClosed(true)
+                            setPhotoHoverGround(null)
                           }}
-                          hidden={planShow.hidden}
-                          onToggle={(key) => setPlanShow((current) => togglePlanLegendKey(current, key))}
+                          onOpenWindow={() => fieldPhoto.openOwnDialog()}
+                          pageFeatures={photoPageFeatures}
                         />
-                      }
+                      )}
                     </div>
                   )}
                 </TilePane>
@@ -7209,9 +7556,18 @@ function DevForestryVisuals() {
                                     onSeek={(distance) => updateDrive({ positionMeters: distance, playing: false })}
                                     speedKmh={drive.speedKmh}
                                     onSpeedChange={(speedKmh) => updateDrive({ speedKmh })}
-                                    fixedLook={photoLook}
+                                    fixedLook={
+                                      photoLook ??
+                                      (photoStandNow
+                                        ? {
+                                            bearing: photoStandNow.bearing,
+                                            pitch: photoStandNow.pitch,
+                                            roll: photoStandNow.roll,
+                                          }
+                                        : null)
+                                    }
                                     verticalFovDegrees={photoLook ? fieldPhoto.viewFov : null}
-                                    horizontalFovDegrees={roadViewLens ? lensHfovDeg(roadViewLens) : null}
+                                    horizontalFovDegrees={roadViewHfov}
                                     standAt={photoLook ? fieldPhoto.standAt : null}
                                     elevation={previewTerrain.source}
                                     active={drive.active}

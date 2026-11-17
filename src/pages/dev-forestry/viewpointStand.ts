@@ -9,9 +9,10 @@
  *
  * Kept free of DOM and network access.
  */
+import type { Bounds } from '@/lib/forestry/terrain/terrain'
 import type { SurveyedEye, Viewpoint } from './types'
 import { haversineMeters, lineLengthMeters } from './visibility'
-import { roadPath, roadPlacement } from './driveMath'
+import { pointAlongBearing, roadPath, roadPlacement } from './driveMath'
 
 /**
  * The longest viewpoint still stood at rather than driven: twice `PULLOUT_METERS`, the road view's
@@ -84,4 +85,42 @@ export function parseSurveyedEye(raw: unknown): SurveyedEye | undefined {
   if (typeof value.lng !== 'number' || typeof value.lat !== 'number') return undefined
   if (!(Math.abs(value.lng) <= 180) || !(Math.abs(value.lat) <= 85)) return undefined
   return { elevationMeters: value.elevationMeters, lng: value.lng, lat: value.lat }
+}
+
+/**
+ * How far a photo viewpoint taken from the air loads ground ahead of its eye, metres: as far as the photo is laid on
+ * the plan (25 km, where the terrain the drape reads stops). From 1,200 m looking 6° down the frame's middle lands
+ * about 11 km out and its upper part, where the scene often is, further still.
+ */
+export const PHOTO_STAND_REACH_METERS = 25_000
+
+/** Degrees either side of the frame the reach also covers, so a nudge of the heading stays on loaded ground. */
+export const PHOTO_STAND_REACH_MARGIN_DEGREES = 10
+
+/**
+ * The ground a photo viewpoint's road view loads besides the road's and the blocks': a wedge from the eye along the
+ * photo's heading, the frame's width plus `PHOTO_STAND_REACH_MARGIN_DEGREES` either side, out to `reachMeters`, as
+ * west, south, east, north. Null for a photo with no altitude, which stands at eye height and sees what the road
+ * view already loads. The road view keeps its tile budget: a wider box is loaded at a coarser zoom, never more tiles.
+ */
+export function photoStandReach(
+  eye: { lng: number; lat: number },
+  photo: { altitudeMeters: number | null; hfov: number },
+  bearing: number,
+  reachMeters = PHOTO_STAND_REACH_METERS,
+): Bounds | null {
+  if (photo.altitudeMeters === null || !Number.isFinite(photo.altitudeMeters)) return null
+  if (![eye.lng, eye.lat, bearing, photo.hfov, reachMeters].every(Number.isFinite) || reachMeters <= 0) return null
+  const half = Math.min(180, Math.max(0, photo.hfov) / 2 + PHOTO_STAND_REACH_MARGIN_DEGREES)
+  const bounds: Bounds = [eye.lng, eye.lat, eye.lng, eye.lat]
+  // Every 5° across the wedge and its two edges: the arc's bulge sets the box where the heading is not on an axis.
+  const steps = Math.max(2, Math.ceil((2 * half) / 5))
+  for (let i = 0; i <= steps; i++) {
+    const point = pointAlongBearing(eye, bearing - half + (2 * half * i) / steps, reachMeters)
+    bounds[0] = Math.min(bounds[0], point.lng)
+    bounds[1] = Math.min(bounds[1], point.lat)
+    bounds[2] = Math.max(bounds[2], point.lng)
+    bounds[3] = Math.max(bounds[3], point.lat)
+  }
+  return bounds
 }

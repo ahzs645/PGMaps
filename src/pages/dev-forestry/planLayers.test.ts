@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_PLAN_SHOW,
   maskLegendKey,
+  photoLegendKey,
+  photoLegendRows,
   sampleLegendKey,
   togglePlanLegendKey,
   unitLegendKey,
@@ -42,6 +44,41 @@ describe('plan legend switches', () => {
     expect(maskLegendKey({ kind: 'something else' })).toBe('mask:retained')
     expect(unitLegendKey({ objectiveId: 'modification' })).toBe('unit:modification')
     expect(unitLegendKey({ objectiveId: '' })).toBe('unit:none')
+  })
+})
+
+describe('own photo legend rows', () => {
+  it('lists a row only for what the plan draws, the drape first with its opacity and terrain-only note', () => {
+    expect(photoLegendRows({ drape: false, footprint: false, cameras: 0, track: false, pairs: false })).toEqual([])
+    const rows = photoLegendRows({ drape: true, footprint: true, cameras: 14, track: true, pairs: true })
+    expect(rows.map((row) => row.key)).toEqual([
+      'photo:drape',
+      'photo:footprint',
+      'photo:camera',
+      'photo:track',
+      'photo:pair',
+    ])
+    expect(rows[0]).toMatchObject({ opacity: true })
+    expect(rows[0].note).toMatch(/terrain only, not the run's visibility/)
+    expect(rows[2].label).toBe('Photo cameras · their views')
+    expect(photoLegendRows({ drape: false, footprint: true, cameras: 1, track: false, pairs: false })[1].label).toBe(
+      'Photo camera · its view',
+    )
+  })
+
+  it('names every photo feature by its row, and hides it with the row', () => {
+    expect(photoLegendKey({ kind: 'cone' })).toBe('photo:camera')
+    expect(photoLegendKey({ kind: 'eye' })).toBe('photo:camera')
+    expect(photoLegendKey({ kind: 'track' })).toBe('photo:track')
+    expect(photoLegendKey({ kind: 'residual' })).toBe('photo:pair')
+    expect(photoLegendKey({ kind: 'reference' })).toBe('photo:pair')
+    expect(photoLegendKey({ kind: 'footprint' })).toBe('photo:footprint')
+    const marks: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [point({ kind: 'eye' }), point({ kind: 'pair' }), point({ kind: 'track' })],
+    }
+    const show = togglePlanLegendKey(DEFAULT_PLAN_SHOW, 'photo:pair')
+    expect(withoutHiddenFeatures(marks, show.hidden, photoLegendKey).features).toHaveLength(2)
   })
 })
 

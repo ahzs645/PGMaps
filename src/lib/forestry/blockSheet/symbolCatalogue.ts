@@ -89,6 +89,17 @@ export interface CatalogueEntry {
 const WHITE = '#ffffff'
 const BLACK = '#000000'
 const HALO = { color: WHITE, width: 1 }
+/**
+ * An own photo on the plan: its edges and footprint one bright magenta, which reads over dark timber, pale clearings
+ * and blue water alike and no other plan layer uses; its cameras and flight track near-black, apart from the road
+ * view's red viewer and the views' indigo.
+ */
+const PHOTO_EDGE = '#ff1fd2'
+/** Near-black: the cameras and track on the plan, and the halo under the skyline on the photo. */
+const PHOTO_DARK = '#111827'
+const PHOTO_CAMERA = PHOTO_DARK
+const PHOTO_PAIR = '#2563eb'
+const PHOTO_REFERENCE = '#f59e0b'
 
 const stroke = (color: string, width: number, more: Partial<LineLayer> = {}): LineLayer => ({ color, width, ...more })
 const line = (label: string, layers: LineLayer[], markers?: LineMarker[]): LineSymbol => ({
@@ -152,6 +163,16 @@ const classEntries = (): CatalogueEntry[] => [
     }),
   ),
 ]
+
+/**
+ * The terrain skyline over an own photo: the photo's own magenta, dashed so the photographed ridge shows between the
+ * dashes, on a dashed dark halo so it reads on sky and on forest. Not the viewpoint yellow it had, which read as a
+ * cutblock's, nor white, which is the level line's.
+ */
+const PHOTO_SKYLINE = line('Terrain skyline', [
+  stroke(PHOTO_DARK, 2.6, { dash: [6, 3.6], opacity: 0.5, cap: 'butt', join: 'round' }),
+  stroke(PHOTO_EDGE, 1.4, { dash: [6, 3.6], cap: 'butt', join: 'round' }),
+])
 
 export const SYMBOL_CATALOGUE: readonly CatalogueEntry[] = [
   ...classEntries(),
@@ -1238,6 +1259,161 @@ export const SYMBOL_CATALOGUE: readonly CatalogueEntry[] = [
     symbol: VIA_FIGURE_MAP.viewWedge,
     spec: 'PGMaps: fill #2bb59a at 0.7, white 0.6 outline (a VIA figure page’s location map)',
     data: { source: 'The saved view’s bearing and horizontal field, out past the farthest block in it' },
+    background: '#4b5d3a',
+  },
+  // Drawn over an own photo (`photoLayers.ts`, `photoOverlay.ts`): over a photograph, so each carries a dark or light
+  // halo that keeps it readable on sky and on forest.
+  {
+    id: 'photo-skyline',
+    group: 'pgmaps',
+    symbol: PHOTO_SKYLINE,
+    spec: `PGMaps: ${PHOTO_EDGE} 1.4 dashed 6/3.6 over a ${PHOTO_DARK} 2.6 halo at 0.5: the photo's own colour, apart from the cutblocks' yellow and the level line's white`,
+    data: { source: "The terrain's skyline for the photo's camera as it stands" },
+    background: '#6b8fb3',
+  },
+  {
+    id: 'photo-level-line',
+    group: 'pgmaps',
+    symbol: line('Level line', [stroke('#1f2937', 2.2, { opacity: 0.55 }), stroke(WHITE, 0.9, { dash: [5, 3] })]),
+    spec: 'PGMaps: white 0.9 dashed 5/3 over a #1f2937 2.2 halo at 0.55',
+    data: { source: "The eye's own height out from the camera, with the earth's curve" },
+    background: '#6b8fb3',
+  },
+  {
+    id: 'photo-bearing-tick',
+    group: 'pgmaps',
+    symbol: line('Bearing tick', [stroke('#1f2937', 2.2, { opacity: 0.55 }), stroke(WHITE, 0.9, { cap: 'butt' })]),
+    spec: 'PGMaps: white 0.9 over a #1f2937 2.2 halo at 0.55, a tick every 5°, labelled every 10°',
+    data: { source: 'Compass bearings through the photo’s camera' },
+    background: '#6b8fb3',
+  },
+  {
+    id: 'photo-distance-contour',
+    group: 'pgmaps',
+    symbol: line('Distance contour', [
+      stroke('#1f2937', 2, { opacity: 0.45 }),
+      stroke('#7dd3fc', 0.9, { dash: [2, 2], cap: 'round' }),
+    ]),
+    spec: 'PGMaps: #7dd3fc 0.9 dotted 2/2 over a #1f2937 2.0 halo at 0.45; 1, 2, 5 and 10 km',
+    data: { source: 'Distance along each pixel’s ray to the ground it meets (the photo’s hit buffer)' },
+    background: '#4b5d3a',
+  },
+  // An own photo on the plan map (`PhotoDrapeLayer`, `PhotoCamerasLayer`, `photoPlanStyle.ts`).
+  {
+    id: 'photo-drape',
+    group: 'pgmaps',
+    symbol: area('Photo laid on the ground', {
+      fill: '#94a3b8',
+      fillOpacity: 0.6,
+      outline: [{ color: PHOTO_EDGE, width: 0.75 }],
+    }),
+    spec: `PGMaps: swatch only (#94a3b8 at 0.6, ${PHOTO_EDGE} 0.75 edge); the drape itself is the photo's own pixels`,
+    data: { source: 'The photo laid on the terrain through its camera' },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-hidden-ground',
+    group: 'pgmaps',
+    symbol: area('Hidden by terrain (terrain only)', {
+      hatches: [{ angleDeg: 45, spacing: 4, stroke: { color: '#1e293b', width: 0.6, opacity: 0.55 } }],
+    }),
+    spec: 'PGMaps: #1e293b 0.6 hatch at 45°, 4 apart, 0.55: ground in the frame that nearer terrain hides',
+    data: { source: "The drape's hidden cells: terrain only, never the run's visibility" },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-edges',
+    group: 'pgmaps',
+    symbol: { kind: 'class', label: 'Photo edges', color: PHOTO_EDGE, opacity: 1 },
+    spec: `PGMaps: ${PHOTO_EDGE} opaque: the photo's edges draped in one colour, the imagery under them readable`,
+    data: { source: 'Edges found in the photo, laid on the terrain through its camera' },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-footprint',
+    group: 'pgmaps',
+    symbol: line('Photo footprint', [stroke(PHOTO_EDGE, 1.5, { join: 'round', cap: 'round' })]),
+    spec: `PGMaps: ${PHOTO_EDGE} 1.5`,
+    data: { source: "The frame on the ground, traced from the photo's edge rays" },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-other-footprint',
+    group: 'pgmaps',
+    symbol: line('Other candidate footprint', [stroke(PHOTO_EDGE, 1, { dash: [3, 2.5], opacity: 0.8, join: 'round' })]),
+    spec: `PGMaps: ${PHOTO_EDGE} 1 dashed 3/2.5 at 0.8`,
+    data: { source: "The other candidate camera's frame on the ground" },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-camera',
+    group: 'pgmaps',
+    symbol: {
+      kind: 'point',
+      label: 'Photo camera',
+      icon: 'dot',
+      size: 7,
+      color: PHOTO_CAMERA,
+      halo: { color: WHITE, width: 1.5 },
+    },
+    spec: `PGMaps: ${PHOTO_CAMERA} dot 7 with a white 1.5 halo`,
+    data: { source: "Each own photo's camera position" },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-cone',
+    group: 'pgmaps',
+    symbol: area('Photo view', {
+      fill: PHOTO_CAMERA,
+      fillOpacity: 0.08,
+      outline: [{ color: PHOTO_CAMERA, width: 0.75, opacity: 0.6 }],
+    }),
+    spec: `PGMaps: ${PHOTO_CAMERA} at 0.08, its edge 0.75 at 0.6; out to the frame's far hit`,
+    data: { source: "Each own photo's heading and field across" },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-flight-track',
+    group: 'pgmaps',
+    // A white casing under the dashes: the track crosses dark timber and the cameras' own dark cones.
+    symbol: line('Flight track', [
+      stroke(WHITE, 3.5, { opacity: 0.85, join: 'round', cap: 'round' }),
+      stroke(PHOTO_CAMERA, 1.75, { dash: [3, 2], join: 'round', cap: 'butt' }),
+    ]),
+    spec: `PGMaps: ${PHOTO_CAMERA} 1.75 dashed 3/2 over a white 3.5 casing at 0.85, one line a flight`,
+    data: { source: 'Own photos with a time, joined in time order' },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-pair',
+    group: 'pgmaps',
+    symbol: { kind: 'point', label: 'Paired point', icon: 'dot', size: 7, color: PHOTO_PAIR },
+    spec: `PGMaps: ${PHOTO_PAIR} dot 7`,
+    data: { source: 'A spot paired in the photo and on the plan' },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-pair-residual',
+    group: 'pgmaps',
+    symbol: line('Paired point residual', [stroke(PHOTO_PAIR, 0.75, { dash: [2, 1.5] })]),
+    spec: `PGMaps: ${PHOTO_PAIR} 0.75 dashed 2/1.5`,
+    data: { source: "Where the solved camera puts a paired point's photo pixel" },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-reference',
+    group: 'pgmaps',
+    symbol: { kind: 'point', label: 'Reference point', icon: 'dot', size: 7, color: PHOTO_REFERENCE },
+    spec: `PGMaps: ${PHOTO_REFERENCE} dot 7`,
+    data: { source: 'A spot picked on the plan at the photo’s centre' },
+    background: '#4b5d3a',
+  },
+  {
+    id: 'photo-cursor',
+    group: 'pgmaps',
+    symbol: line('Photo cursor', [stroke(WHITE, 2.5), stroke(PHOTO_EDGE, 1.25)]),
+    spec: `PGMaps: ${PHOTO_EDGE} 1.25 over a white 2.5 casing`,
+    data: { source: 'The plan end of the photo and plan linked cursor' },
     background: '#4b5d3a',
   },
 ]

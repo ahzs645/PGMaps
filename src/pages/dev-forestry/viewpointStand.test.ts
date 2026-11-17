@@ -14,6 +14,8 @@ import {
 } from './treeFreeAreas'
 import { PULLOUT_METERS, pulloutThrough } from './viewpointInventory'
 import {
+  PHOTO_STAND_REACH_METERS,
+  photoStandReach,
   STOOD_AT_MAX_LENGTH_METERS,
   SURVEYED_EYE_REACH_METERS,
   parseSurveyedEye,
@@ -237,5 +239,36 @@ describe('clearing private land', () => {
     expect(parseScene(JSON.parse(serializeScene(plain)))!.clearPrivateLand).toBeUndefined()
     expect(sceneFingerprint(cleared)).toBe(sceneFingerprint(plain))
     expect(JSON.stringify(buildSceneInput(cleared))).toBe(JSON.stringify(buildSceneInput(plain)))
+  })
+})
+
+describe('a photo viewpoint', () => {
+  // A made-up place; nothing here is a real photo's.
+  const EYE = { lng: -123.2, lat: 54.1 }
+  const BLOCK_CENTRE = { lng: -123.05, lat: 54.12 }
+
+  it('stands the eye at the photo’s altitude through the stand’s pullout', () => {
+    const viewpoint = { mode: 'corridor' as const, coordinates: pulloutThrough(EYE, BLOCK_CENTRE) }
+    const surveyedEye = surveyedEyeFor(viewpoint, 1240)!
+    expect(haversineMeters(surveyedEye, EYE)).toBeLessThan(0.01)
+    expect(surveyedEyeElevation({ ...viewpoint, surveyedEye })).toBe(1240)
+    // The road view stands there while the walker keeps to the pullout.
+    expect(surveyedEyeAt(surveyedEye, EYE)).toBe(1240)
+  })
+
+  it('loads ground ahead of an aerial camera, not round a ground one', () => {
+    expect(photoStandReach(EYE, { altitudeMeters: null, hfov: 50 }, 90)).toBeNull()
+    const reach = photoStandReach(EYE, { altitudeMeters: 1200, hfov: 50 }, 90)!
+    const [west, south, east, north] = reach
+    // Facing east: from the eye out to the reach, and as wide as the frame and its margins.
+    expect(west).toBeCloseTo(EYE.lng, 9)
+    const far = haversineMeters(EYE, { lng: east, lat: EYE.lat })
+    expect(far).toBeGreaterThan(PHOTO_STAND_REACH_METERS * 0.995)
+    expect(far).toBeLessThan(PHOTO_STAND_REACH_METERS * 1.005)
+    const across = haversineMeters({ lng: EYE.lng, lat: south }, { lng: EYE.lng, lat: north })
+    // Half-angle 35°: 2 × 25 km × sin 35° ≈ 28.7 km.
+    expect(across).toBeGreaterThan(28_000)
+    expect(across).toBeLessThan(29_500)
+    expect(photoStandReach(EYE, { altitudeMeters: 1200, hfov: Number.NaN }, 90)).toBeNull()
   })
 })

@@ -237,6 +237,11 @@ export type FramingAt = {
   framing?: 'landform' | 'single'
   /** The camera's bearing when saved: the facing a single frame is centred on. */
   pose: { bearing: number } | null
+  /**
+   * A photo viewpoint's pitch, degrees above the horizon: its single frame is centred on it, as the photo was, rather
+   * than placed by the landform's foot.
+   */
+  framePitch?: number | null
 }
 
 /**
@@ -250,7 +255,8 @@ export function figurePlanFor(
   figureFrame: FigureFrame | null,
 ): FramingPlan | null {
   const lens = at.photoHfov ?? at.lensHfov ?? HFOV_50_MM
-  if (at.framing === 'single' && at.pose) return planSingleFrame(normalizeBearing(at.pose.bearing), lens, extent)
+  if (at.framing === 'single' && at.pose)
+    return planSingleFrame(normalizeBearing(at.pose.bearing), lens, extent, at.framePitch ?? null)
   if (figureFrame) return planFixedFraming(figureFrame, extent)
   return extent ? planFraming(extent, { lensHfovDeg: lens }) : null
 }
@@ -263,9 +269,16 @@ export const SINGLE_FRAME_ASPECT = 3 / 2
  * foot about a third of the way up when it is known (`planFixedFraming` keeps it there too), else level. Never tiled:
  * a wide lens is one rectilinear frame, not a panorama.
  */
-export function planSingleFrame(bearingDeg: number, lensHfovDeg: number, extent: AngularExtent | null): FramingPlan {
+export function planSingleFrame(
+  bearingDeg: number,
+  lensHfovDeg: number,
+  extent: AngularExtent | null,
+  /** Centre the frame on this pitch (a photo viewpoint's), degrees above the horizon. */
+  pitchDeg: number | null = null,
+): FramingPlan {
   const vfov = verticalFovFromHorizontal(lensHfovDeg, SINGLE_FRAME_ASPECT, 1)
-  const pitch = extent ? extent.elBottomDeg - vfov * 0.3 + vfov / 2 : 0
+  const pitch =
+    pitchDeg !== null && Number.isFinite(pitchDeg) ? pitchDeg : extent ? extent.elBottomDeg - vfov * 0.3 + vfov / 2 : 0
   const top = pitch + vfov / 2
   const bottom = pitch - vfov / 2
   const shares = extent
@@ -281,19 +294,42 @@ export function planSingleFrame(bearingDeg: number, lensHfovDeg: number, extent:
   }
 }
 
-/** A planned view's lens as the horizontal field a figure records. */
-export const viewLensHfov = (view: Pick<ViewOfInterest, 'focalMm'>) => lensHfovDeg(view.focalMm)
+/**
+ * A planned view's lens as the horizontal field a figure records: a photo viewpoint's own field across (its
+ * `focalMm` is rounded to a tenth of a millimetre, and a frame that is not 3:2 has no exact focal length), else its
+ * focal length's.
+ */
+export const viewLensHfov = (view: Pick<ViewOfInterest, 'focalMm' | 'photo'>) =>
+  view.photo && Number.isFinite(view.photo.hfov) && view.photo.hfov > 0 ? view.photo.hfov : lensHfovDeg(view.focalMm)
 
 /**
  * Whether the eye map's vertical field is the lens's across its canvas now (`DriveCamera`'s `horizontalFovDegrees`).
- * No lens set reads as applied: the road view keeps MapLibre's own field.
+ * No lens set reads as applied: the road view keeps MapLibre's own field. `hfovDeg`, when given, is the field the
+ * road view was asked for in place of the focal length's (a photo viewpoint's, `viewLensHfov`).
  */
 export function lensApplied(
   lensMm: number | null,
   eye: { verticalFovDeg: number; width: number; height: number } | null,
+  hfovDeg: number | null = null,
 ): boolean {
-  if (lensMm === null) return true
+  if (lensMm === null && hfovDeg === null) return true
   if (!eye || eye.width <= 0 || eye.height <= 0) return false
-  const wanted = verticalFovFromHorizontal(lensHfovDeg(lensMm), eye.width, eye.height)
+  const wanted = verticalFovFromHorizontal(hfovDeg ?? lensHfovDeg(lensMm!), eye.width, eye.height)
   return Math.abs(eye.verticalFovDeg - wanted) < 0.05
+}
+
+/**
+ * The field photo a photo viewpoint's capture takes as its before picture: the record its photo link names, while
+ * that record is still listed and holds an image. Null for any other view. The photo is the *existing* picture of a
+ * before/after pair (`reportPairs.ts`); the before-harvest render is still taken for the with-timber figure, which a
+ * photograph's framing cannot give.
+ */
+export function viewPhotoRecord<R extends { id: string; kind: string; image: string }>(
+  view: Pick<ViewOfInterest, 'photo'>,
+  records: readonly R[],
+): R | null {
+  const recordId = view.photo?.recordId
+  if (!recordId) return null
+  const record = records.find((entry) => entry.id === recordId)
+  return record && record.kind === 'photo' && record.image ? record : null
 }

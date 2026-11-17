@@ -45,6 +45,11 @@ type Props = {
   onUseView: (viewpoint: Viewpoint) => void
   /** Lists an earlier spot viewpoint with the views of interest, under its own id; null when it cannot be. */
   onListView?: (view: ToolView) => string | null
+  /**
+   * Removes a photo record through the own-photo set (`useFieldPhoto`'s `removePhoto`), which also drops its original
+   * and any view of interest's link to it; without it a photo goes like any other record.
+   */
+  onRemovePhoto?: (id: string) => void
 }
 
 /**
@@ -62,6 +67,7 @@ export function ToolFieldPanel({
   error,
   onUseView,
   onListView,
+  onRemovePhoto,
 }: Props) {
   const [kind, setKind] = useState<FieldRecord['kind']>('photo')
   const [listError, setListError] = useState<string | null>(null)
@@ -152,7 +158,9 @@ export function ToolFieldPanel({
               size="sm"
               variant="ghost"
               onClick={() =>
-                onChange((current) => ({ ...current, fields: current.fields.filter((x) => x.id !== f.id) }))
+                f.kind === 'photo' && onRemovePhoto
+                  ? onRemovePhoto(f.id)
+                  : onChange((current) => ({ ...current, fields: current.fields.filter((x) => x.id !== f.id) }))
               }
             >
               Remove {f.name}

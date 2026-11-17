@@ -112,6 +112,33 @@ describe('camera search over every heading', () => {
     expect(elsewhere.meanLoss).toBeGreaterThan(near.meanLoss * 3)
   }, 60_000)
 
+  it('finds the lens of a cropped photo within the range it is given', () => {
+    const lens =
+      (hfov: number) =>
+      (pose: PhotoPose): PhotoPose => ({
+        ...pose,
+        focalPx: pose.width / (2 * Math.tan((hfov * Math.PI) / 360)),
+      })
+    const truth = lens(40)(camera(165, -2, 0))
+    const skyline = skylineOf(truth)
+    const steps: number[] = []
+    const found = searchOrientation({
+      pose: lens(60)(camera(150, 0, 0)),
+      profile,
+      skyline,
+      headingSpan: 30,
+      pitchRange: [-4, 0],
+      rollRange: [-1, 1],
+      hfovRange: [30, 60],
+      onProgress: (done) => steps.push(done),
+    })!
+    expect(found.hfov).toBeDefined()
+    expect(Math.abs(found.hfov! - 40)).toBeLessThanOrEqual(2.5)
+    expect(Math.abs(((found.bearing - 165 + 540) % 360) - 180)).toBeLessThan(1)
+    expect(steps[steps.length - 1]).toBeCloseTo(1, 6)
+    expect(steps.every((done, i) => i === 0 || done >= steps[i - 1])).toBe(true)
+  }, 60_000)
+
   it('keeps the horizon by azimuth, and slices it continuously across north', () => {
     const table = horizonTable([
       { azimuth: 359.96, elevation: 2, distanceMeters: 1 },

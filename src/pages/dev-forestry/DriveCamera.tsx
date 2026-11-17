@@ -23,6 +23,7 @@ import {
   walkStep,
   type DriveLookAt,
   type DriveStation,
+  type FixedLook,
   type WalkOffset,
 } from './driveMath'
 export type { DriveLookAt, DriveStation } from './driveMath'
@@ -66,8 +67,8 @@ type Props = {
   onExit?: () => void
   /** Starts playback from the map, where the sidebar's own control is behind the phone sheet. */
   onPlay?: () => void
-  /** Hold the view on a field photo's bearing and pitch; see `DriveOptions.fixedLook`. */
-  fixedLook?: { bearing: number; pitch: number } | null
+  /** Hold the view on a field photo's bearing, pitch and roll; see `DriveOptions.fixedLook`. */
+  fixedLook?: FixedLook | null
   /** Match a photo's lens while comparing against it; MapLibre's own default otherwise. */
   verticalFovDegrees?: number | null
   /**

@@ -124,42 +124,128 @@ export interface Drape extends Rgba {
   cellMeters: number
   /** Share of the cells in the frame that the camera sees. */
   seenShare: number
+  /**
+   * One byte a cell: 1 where the cell is in the frame but nearer ground hides it, so the plan can hatch it apart from
+   * ground out of frame. Both are transparent in `data`. Terrain only, not the run's visibility.
+   */
+  hiddenMask: Uint8Array
+  /**
+   * The frame on the ground as [lng, lat], in order round the frame (top edge left to right, then down the right, back
+   * along the bottom and up the left), not closed: where each edge ray meets the ground, or the range along its
+   * azimuth where it meets none.
+   */
+  footprint: Array<[number, number]>
+  /** How far out the drape reaches, metres over the ground: the frame's furthest edge hit, or the cap. */
+  rangeMeters: number
+}
+
+/** The furthest a drape reaches: the zoom-11 terrain the photo tools load stops at 25 km. */
+export const DRAPE_MAX_METERS = 25000
+/** Edge rays per side of the frame, for the footprint and the drape's extent. */
+const FOOTPRINT_EDGE_RAYS = 24
+/** The share of the photo's pixels an edge drape takes as edges, its strongest; thickening by a pixel about triples it. */
+const EDGE_SHARE = 0.06
+
+export type DrapeOptions = {
+  /** The range cap, metres over the ground; default `DRAPE_MAX_METERS`. The range itself comes from the frame. */
+  maxMeters?: number
+  /** The most cells the raster holds; cells grow to fit the range. */
+  maxCells?: number
+  /**
+   * Drape the photo's edges in one colour instead of its pixels, so imagery under it stays readable. The colour comes
+   * from the caller's symbol; `share` is the share of the photo's pixels drawn as edges (its strongest).
+   */
+  edges?: { rgb: readonly [number, number, number]; share?: number } | null
+}
+
+/**
+ * Where the photo's strong edges are: Sobel on luminance, at the photo's own pixels, thickened by a pixel so a cell
+ * coarser than a pixel still finds them. 1 where an edge is, among the strongest `share` of the photo's pixels.
+ */
+export function photoEdges(photo: Rgba, share = EDGE_SHARE): Uint8Array {
+  const { width: W, height: H, data } = photo
+  const strong = new Uint8Array(W * H)
+  if (W < 3 || H < 3) return strong
+  const L = new Float32Array(W * H)
+  for (let k = 0; k < W * H; k++) L[k] = 0.3 * data[k * 4] + 0.59 * data[k * 4 + 1] + 0.11 * data[k * 4 + 2]
+  const magnitude = new Float32Array(W * H)
+  // A histogram finds the cut without sorting a million values; |gx| + |gy| on 8-bit luminance stays under 2,040.
+  const BINS = 2048
+  const histogram = new Uint32Array(BINS)
+  for (let y = 1; y < H - 1; y++)
+    for (let x = 1; x < W - 1; x++) {
+      const k = y * W + x
+      const gx = L[k - W + 1] + 2 * L[k + 1] + L[k + W + 1] - L[k - W - 1] - 2 * L[k - 1] - L[k + W - 1]
+      const gy = L[k + W - 1] + 2 * L[k + W] + L[k + W + 1] - L[k - W - 1] - 2 * L[k - W] - L[k - W + 1]
+      const m = Math.abs(gx) + Math.abs(gy)
+      magnitude[k] = m
+      histogram[Math.min(BINS - 1, Math.floor(m))]++
+    }
+  const keep = Math.max(1, Math.round((W - 2) * (H - 2) * share))
+  let cut = BINS - 1
+  for (let seen = 0; cut > 0; cut--) {
+    seen += histogram[cut]
+    if (seen >= keep) break
+  }
+  const threshold = Math.max(1, cut)
+  for (let y = 1; y < H - 1; y++)
+    for (let x = 1; x < W - 1; x++) {
+      const k = y * W + x
+      if (magnitude[k] < threshold) continue
+      strong[k] = strong[k - 1] = strong[k + 1] = strong[k - W] = strong[k + W] = 1
+    }
+  return strong
 }
 
 /**
  * The photo laid on the map for one camera: a north-up raster, each cell coloured from the photo pixel it projects to,
- * transparent where the cell is out of frame or hidden by nearer ground. `photo` may be smaller than the pose's frame.
+ * transparent where the cell is out of frame or hidden by nearer ground (`hiddenMask` tells the two apart). `photo` may
+ * be smaller than the pose's frame.
+ *
+ * Its range comes from the frame: as far as the furthest ray round the frame's edge meets the ground, capped at
+ * `maxMeters` when any edge ray meets none (sky, or ground past the cap). From 1,200 m at −6° the frame's centre lands
+ * about 11 km out, so a fixed 8 km left its upper half bare.
  */
 export function drapePhoto(
   pose: PhotoPose,
   source: ElevationSource,
   photo: Rgba,
-  { maxMeters = 8000, maxCells = 250_000 }: { maxMeters?: number; maxCells?: number } = {},
+  { maxMeters = DRAPE_MAX_METERS, maxCells = 250_000, edges = null }: DrapeOptions = {},
 ): Drape | null {
   const mx = metresPerDegreeLng(pose.lat)
-  // Footprint: where rays round the frame's edge reach the ground, or the range limit along their azimuth.
-  const xs = [0],
-    ys = [0]
-  const edge = 24
-  for (let i = 0; i <= edge; i++)
-    for (const [u, v] of [
-      [(i / edge) * pose.width, 0],
-      [(i / edge) * pose.width, pose.height],
-      [0, (i / edge) * pose.height],
-      [pose.width, (i / edge) * pose.height],
-    ]) {
-      const hit = castRay(pose, source, u, v, maxMeters)
-      if (hit) {
-        xs.push((hit.lng - pose.lng) * mx)
-        ys.push((hit.lat - pose.lat) * METRES_PER_DEGREE_LAT)
-      } else {
-        const d = rayThrough(pose, u, v)
-        const h = Math.hypot(d[0], d[1]) || 1
-        xs.push((d[0] / h) * maxMeters)
-        ys.push((d[1] / h) * maxMeters)
-      }
+  // Footprint: where rays round the frame's edge reach the ground, in order round the frame.
+  const ring: Array<[number, number]> = []
+  for (let side = 0; side < 4; side++)
+    for (let i = 0; i < FOOTPRINT_EDGE_RAYS; i++) {
+      const f = i / FOOTPRINT_EDGE_RAYS
+      ring.push(
+        side === 0
+          ? [f * pose.width, 0]
+          : side === 1
+            ? [pose.width, f * pose.height]
+            : side === 2
+              ? [(1 - f) * pose.width, pose.height]
+              : [0, (1 - f) * pose.height],
+      )
     }
-  const clamp = (v: number) => Math.max(-maxMeters, Math.min(maxMeters, v))
+  const reached = ring.map(([u, v]) => {
+    const hit = castRay(pose, source, u, v, maxMeters)
+    return hit
+      ? { east: (hit.lng - pose.lng) * mx, north: (hit.lat - pose.lat) * METRES_PER_DEGREE_LAT, ground: true }
+      : (() => {
+          const d = rayThrough(pose, u, v)
+          const h = Math.hypot(d[0], d[1]) || 1
+          return { east: d[0] / h, north: d[1] / h, ground: false }
+        })()
+  })
+  const rangeMeters = reached.every((point) => point.ground)
+    ? Math.min(maxMeters, Math.max(...reached.map((point) => Math.hypot(point.east, point.north))))
+    : maxMeters
+  // A ray that met no ground stands at the range along its azimuth.
+  const xs = reached.map((point) => (point.ground ? point.east : point.east * rangeMeters)),
+    ys = reached.map((point) => (point.ground ? point.north : point.north * rangeMeters))
+  const footprint = xs.map((x, i): [number, number] => [pose.lng + x / mx, pose.lat + ys[i] / METRES_PER_DEGREE_LAT])
+  const clamp = (v: number) => Math.max(-rangeMeters, Math.min(rangeMeters, v))
   const west = clamp(Math.min(...xs)),
     east = clamp(Math.max(...xs)),
     south = clamp(Math.min(...ys)),
@@ -192,8 +278,10 @@ export function drapePhoto(
       if (q.depth < zbuffer[zi]) zbuffer[zi] = q.depth
     }
   const data = new Uint8ClampedArray(width * height * 4)
+  const hiddenMask = new Uint8Array(width * height)
   const sx = photo.width / pose.width,
     sy = photo.height / pose.height
+  const edgeMap = edges ? photoEdges(photo, edges.share) : null
   let inFrame = 0,
     seen = 0
   for (let cell = 0; cell < width * height; cell++) {
@@ -205,15 +293,25 @@ export function drapePhoto(
       depth = cellPixel[k + 2]
     // Hidden when something nearer covers its photo pixel: tolerance grows with distance and the cell's own size.
     const nearest = zbuffer[Math.floor(y / 2) * zw + Math.floor(x / 2)]
-    if (depth > nearest * 1.03 + 2 * cellMeters) continue
+    if (depth > nearest * 1.03 + 2 * cellMeters) {
+      hiddenMask[cell] = 1
+      continue
+    }
     seen++
     const px = Math.min(photo.width - 1, Math.floor(x * sx)),
       py = Math.min(photo.height - 1, Math.floor(y * sy))
     const i = (py * photo.width + px) * 4,
       o = cell * 4
-    data[o] = photo.data[i]
-    data[o + 1] = photo.data[i + 1]
-    data[o + 2] = photo.data[i + 2]
+    if (edges && edgeMap) {
+      if (!edgeMap[py * photo.width + px]) continue
+      data[o] = edges.rgb[0]
+      data[o + 1] = edges.rgb[1]
+      data[o + 2] = edges.rgb[2]
+    } else {
+      data[o] = photo.data[i]
+      data[o + 1] = photo.data[i + 1]
+      data[o + 2] = photo.data[i + 2]
+    }
     data[o + 3] = 255
   }
   return {
@@ -228,6 +326,9 @@ export function drapePhoto(
     ],
     cellMeters,
     seenShare: inFrame ? seen / inFrame : 0,
+    hiddenMask,
+    footprint,
+    rangeMeters,
   }
 }
 

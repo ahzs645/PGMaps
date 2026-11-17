@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Camera, Check, CircleAlert, ImagePlus, Loader2, SlidersHorizontal, X } from 'lucide-react'
 
@@ -8,6 +9,8 @@ import type { FieldRecord } from './assessmentTools'
 import type { RoadViewPose } from './exifPose'
 import { OwnPhotoDialog, lineUpBlocked, ownCameraLine, readOwnPhotoSteps } from './OwnPhotoDialog'
 import { OWN_PHOTO_STEPS } from './ownPhotoSteps'
+import { PHOTO_STATUS_TEXT } from './photoOptions'
+import type { PhotoPageFeatures } from './photoPageFeatures'
 import type { FieldPhotoState } from './useFieldPhoto'
 
 /** What the page does with an own photo: stand the road view there, pick its spot, save its pose. */
@@ -19,19 +22,45 @@ export type OwnPhotoActions = {
   roadView: RoadViewPose | null
   /** False while the scene cannot open a road view at all. */
   canLineUp: boolean
-  /** Stands the road view at `at` and holds it on the photo's pose. */
-  onLineUp: (at: { lng: number; lat: number }) => void
+  /**
+   * Stands the road view at the photo's viewpoint (made from its accepted camera first when needed). Returns why it
+   * could not, for the place the reviewer clicked to say; null when it stood there.
+   */
+  onLineUp: (at: { lng: number; lat: number }) => string | null
   /** Asks the plan map for one click, with what its banner should say; null cancels. */
   onPickPoint?: (onPoint: ((point: [number, number]) => void) | null, hint?: string) => void
   pickActive?: boolean
   /** Writes the confirmed camera back to the field record it came from. */
   onSaveToRecord?: (recordId: string, patch: Partial<FieldRecord>) => void
+  /** What the page holds for the layers the photo cannot read itself (`photoPageFeatures.ts`). */
+  pageFeatures?: PhotoPageFeatures
+}
+
+/** "14 photos · 2 flights · 3 accepted": the set at a glance. */
+export function ownSetLine(photo: Pick<FieldPhotoState, 'ownPhotos' | 'ownFlights' | 'acceptanceState'>): string {
+  const count = photo.ownPhotos.length
+  const flights = photo.ownFlights.length
+  const accepted = photo.ownPhotos.filter((entry) => photo.acceptanceState(entry.id) === 'accepted').length
+  const parts = [`${count} photo${count === 1 ? '' : 's'}`]
+  if (flights) parts.push(`${flights} flight${flights === 1 ? '' : 's'}`)
+  parts.push(`${accepted} accepted`)
+  return parts.join(' · ')
+}
+
+/** Where the automatic queue is, in a few words; null while it has nothing to do. */
+export function ownQueueLine(queue: FieldPhotoState['queue']): string | null {
+  if (queue.running && queue.position) return `Searching ${queue.position} of ${queue.total}…`
+  const waiting = queue.entries.filter((entry) => entry.status === 'queued').length
+  if (waiting && queue.paused) return `Paused: ${waiting} waiting`
+  if (waiting) return `${waiting} waiting`
+  return null
 }
 
 /**
- * The reviewer's own photo in the sidebar (handbook 3.3.4): a button that opens its window, and, once a photo is
- * open, a summary of where its line-up stands with the two things done from here: opening the window again and
- * standing the road view at the photo. Everything else is in the window (`OwnPhotoDialog`).
+ * The reviewer's own photos in the sidebar (handbook 3.3.4): a button that opens their window, and, once photos are
+ * open, the set at a glance (how many, in how many flights, how many accepted, where the queue is) and a summary of
+ * where the active photo's line-up stands, with the two things done from here: opening the window again and standing
+ * the road view at the photo. Everything else is in the window (`OwnPhotoDialog`).
  */
 export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; actions: OwnPhotoActions }) {
   const { own, ownStatus } = photo
@@ -39,20 +68,41 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
   const reading = readOwnPhotoSteps(photo)
   const blocked = own ? lineUpBlocked(photo, actions.canLineUp) : null
   const drape = photo.photoDrape
+  const count = photo.ownPhotos.length
+  const queueLine = ownQueueLine(photo.queue)
+  const activeEntry = own ? photo.queue.entries.find((entry) => entry.recordId === own.id) : undefined
+  // Why the last *Line up* could not stand there, said under the button; another photo starts clean.
+  const [refusal, setRefusal] = useState<{ id: string; text: string } | null>(null)
+  const refused = own && refusal?.id === own.id ? refusal.text : null
+  const setRefused = (text: string | null) => setRefusal(own && text ? { id: own.id, text } : null)
   return (
     <div className="space-y-2" aria-label="Your own photo">
-      <p className="text-2xs font-semibold tracking-wide text-muted-foreground uppercase">Your own photo</p>
+      <p className="text-2xs font-semibold tracking-wide text-muted-foreground uppercase">
+        {count > 1 ? 'Your own photos' : 'Your own photo'}
+      </p>
       {!own && (
         <Button
           type="button"
           variant="outline"
           size="sm"
           className="w-full touch:h-10"
-          onClick={() => photo.openOwnDialog('position')}
+          onClick={() => photo.openOwnDialog('photos')}
         >
           {ownStatus.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-          Line up a photo of my own…
+          {count ? `Open my photos (${count})…` : 'Line up photos of my own…'}
         </Button>
+      )}
+      {count > 0 && (
+        <p className="text-3xs leading-4 text-muted-foreground tabular-nums" aria-label="Own photo set">
+          {ownSetLine(photo)}
+          {queueLine && (
+            <>
+              {' · '}
+              {photo.queue.running && <Loader2 className="mr-0.5 inline h-3 w-3 animate-spin" aria-hidden />}
+              {queueLine}
+            </>
+          )}
+        </p>
       )}
       {!own && !photo.ownDialog.open && ownStatus.error && <InlineAlert tone="error">{ownStatus.error}</InlineAlert>}
       {own && reading && (
@@ -62,13 +112,19 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{own.name}</p>
               <p className="text-3xs leading-4 text-muted-foreground tabular-nums">{ownCameraLine(own)}</p>
+              {activeEntry && (
+                <p className="text-3xs leading-4 text-muted-foreground">
+                  {count > 1 && own.frameIndex !== null ? `Frame ${own.frameIndex + 1}: ` : ''}
+                  {PHOTO_STATUS_TEXT[activeEntry.status]}
+                </p>
+              )}
             </div>
             <Button
               type="button"
               variant="ghost"
               size="icon-xs"
               className="shrink-0"
-              aria-label="Close my photo"
+              aria-label={count > 1 ? 'Close my photos' : 'Close my photo'}
               onClick={photo.clear}
             >
               <X className="h-4 w-4" />
@@ -109,7 +165,7 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
               onClick={() => photo.openOwnDialog(reading.next === 'line-up' ? undefined : reading.next)}
             >
               <SlidersHorizontal className="h-4 w-4" />
-              Open the camera
+              {count > 1 ? 'Open' : 'Open the camera'}
             </Button>
             <Button
               type="button"
@@ -118,14 +174,18 @@ export function OwnFieldPhoto({ photo, actions }: { photo: FieldPhotoState; acti
               disabled={!!blocked}
               onClick={() => {
                 if (own.pose.lng !== null && own.pose.lat !== null)
-                  actions.onLineUp({ lng: own.pose.lng, lat: own.pose.lat })
+                  setRefused(actions.onLineUp({ lng: own.pose.lng, lat: own.pose.lat }))
               }}
             >
               <Camera className="h-4 w-4" />
               {comparing ? 'Stand there again' : 'Line up'}
             </Button>
           </div>
-          {blocked && <p className="text-3xs leading-4 text-muted-foreground">{blocked}</p>}
+          {(blocked ?? refused) && (
+            <p className="text-3xs leading-4 text-muted-foreground" role="status">
+              {blocked ?? refused}
+            </p>
+          )}
         </div>
       )}
       {photo.ownDialog.open && <OwnPhotoDialog photo={photo} actions={actions} />}

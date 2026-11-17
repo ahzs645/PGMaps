@@ -1278,6 +1278,12 @@ export const ARROWS_NO_OUTLINES: ViaStylePreset = {
   ],
 }
 
+/**
+ * The figure style used when none is chosen: the road view's, an analysis sheet's and anything drawn over an own photo
+ * with the sheet's look. One id, here, so the photo and the sheet cannot drift apart.
+ */
+export const DEFAULT_FIGURE_STYLE = ANALYSIS_SHEET_MAGENTA.id
+
 export const VIA_STYLE_PRESETS: readonly ViaStylePreset[] = [
   ANALYSIS_SHEET_MAGENTA,
   ANALYSIS_SHEET_ORANGE,

@@ -5,6 +5,9 @@ import { parseProject, PROJECT_FORMAT, projectOpenedLine, serializeProject, type
 import { emptyProjectMedia, openProjectArchive, writeProjectArchive } from './projectArchive'
 import type { SavedDriveView } from './previewState'
 import { createEmptyScene } from './scene'
+import { emptyTools, parseTools, serializeTools } from './assessmentTools'
+import { linkPhotoJob, photoRecordFromOwn, withFlights, type OwnSearchSummary } from './photoRecords'
+import type { OwnPoseSources } from './exifPose'
 
 const PIXEL = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2Q=='
 const view = (id: string, name: string): SavedDriveView => ({
@@ -151,6 +154,112 @@ describe('the project ZIP', () => {
     expect(read.media.photo?.blob).toBe(read.media.attachments[0].blob)
     expect(await read.media.photo?.blob.arrayBuffer()).toEqual(await original.arrayBuffer())
     expect(await read.media.attachments[1].blob.text()).toBe('source bytes')
+  })
+
+  it('keeps every own photo’s record, acceptance, uses and original, and the open photo’s sources and search', async () => {
+    const pose = {
+      lng: -121,
+      lat: 53,
+      bearing: 73,
+      roll: 2,
+      pitch: -6,
+      hfov: 50,
+      eyeHeightMeters: 1.6,
+      altitudeMeters: 1200,
+    }
+    const sources: OwnPoseSources = {
+      position: 'exif',
+      heading: 'skyline',
+      pitch: 'skyline',
+      roll: 'skyline',
+      fov: 'exif',
+      eyeHeight: 'exif',
+    }
+    const make = (id: string) =>
+      photoRecordFromOwn({
+        id,
+        name: `${id}.HEIC`,
+        image: { dataUrl: PIXEL, width: 4, height: 3 },
+        exif: null,
+        pose,
+        sources,
+      })
+    const accepted = linkPhotoJob(
+      {
+        ...make('field-1'),
+        takenAtUtc: '2026-07-01T14:03:00.000Z',
+        acceptance: {
+          acceptedBy: 'AB',
+          acceptedAt: '2026-11-17T10:00:00.000Z',
+          method: 'skyline',
+          pose: { lng: -121, lat: 53, altitudeMeters: 1200, bearing: 73, pitch: -6, roll: 2, hfov: 50 },
+          evidence: { skyColumns: 300, settled: true },
+          note: '',
+        },
+      },
+      'viewpoint',
+      'voi-1',
+    )
+    const fields = withFlights([accepted, { ...make('field-2'), takenAtUtc: '2026-07-01T14:03:03.000Z' }])
+    const written = state()
+    written.workspace = serializeTools({ ...emptyTools(), fields })
+    const originals = [new Blob([new Uint8Array([1, 1])]), new Blob([new Uint8Array([2, 2])])]
+    const search: OwnSearchSummary = {
+      bearing: 73,
+      pitch: -6,
+      roll: 2,
+      columns: 300,
+      agreeing: 270,
+      agreement: 0.9,
+      span: 0.8,
+      medianErrorPx: 2,
+      meanLoss: 0.2,
+      trustworthy: true,
+      ambiguous: false,
+      runnerUp: { bearing: 250, pitch: -4, roll: 0, meanLoss: 0.7 },
+      modelScore: 0.8,
+      runnerUpModelScore: null,
+    }
+    const blob = await writeProjectArchive(written, {
+      title: null,
+      attachments: [
+        { name: 'field-1.HEIC', blob: originals[0], recordId: 'field-1' },
+        { name: 'field-2.HEIC', blob: originals[1], recordId: 'field-2' },
+      ],
+      photo: { name: 'field-1.HEIC', blob: originals[0], pose, recordId: 'field-1', sources, search },
+      // The rest of the set comes back too, each with its own pose.
+      photos: [{ name: 'field-2.HEIC', blob: originals[1], pose: { ...pose, bearing: 80 }, recordId: 'field-2' }],
+    })
+    const read = await openProjectArchive(blob)
+    expect(read.summary.dropped).toEqual([])
+    expect(parseTools(JSON.parse(read.state.workspace!)).fields).toEqual(fields)
+    expect(read.media.attachments.map((a) => a.recordId)).toEqual(['field-1', 'field-2'])
+    expect(await read.media.attachments[1].blob.arrayBuffer()).toEqual(await originals[1].arrayBuffer())
+    expect(read.media.photo).toMatchObject({ recordId: 'field-1', pose, sources, search })
+    expect(read.media.photo?.blob).toBe(read.media.attachments[0].blob)
+    expect(read.media.photos).toHaveLength(1)
+    expect(read.media.photos?.[0]).toMatchObject({ recordId: 'field-2', pose: { ...pose, bearing: 80 }, sources: null })
+    expect(read.media.photos?.[0].blob).toBe(read.media.attachments[1].blob)
+    // Rasters, terrain and drawings are not in the file: they are made again from the pose.
+    const entries = unzipSync(new Uint8Array(await blob.arrayBuffer()))
+    expect(Object.keys(entries).filter((path) => path.startsWith('photos/open/'))).toEqual([])
+  })
+
+  it('opens a photo saved before its sources were kept, and leaves out sources that do not read', async () => {
+    const pose = { lng: -121, lat: 53, bearing: 73, roll: 0, pitch: 0, hfov: 50, eyeHeightMeters: 1.6 }
+    const original = new Blob([new Uint8Array([9])])
+    const older = await writeProjectArchive(state(), {
+      title: null,
+      attachments: [],
+      photo: { name: 'a.jpg', blob: original, pose, recordId: null },
+    })
+    expect((await openProjectArchive(older)).media.photo).toMatchObject({ sources: null, search: null, recordId: null })
+    const entries = unzipSync(new Uint8Array(await older.arrayBuffer()))
+    const manifest = JSON.parse(strFromU8(entries['archive.json']))
+    manifest.photo.sources = { position: 'exif', heading: 'a guess' }
+    entries['archive.json'] = new TextEncoder().encode(JSON.stringify(manifest))
+    const odd = await openProjectArchive(new Blob([zipSync(entries) as BlobPart]))
+    expect(odd.media.photo).toMatchObject({ sources: null, pose })
   })
 
   it('opens earlier project JSON and reports an incomplete ZIP', async () => {

@@ -16,7 +16,11 @@ import {
   viewCaptureState,
   needsCapture,
   viewsForCandidate,
+  viewFromAcceptedPhoto,
+  focalForHfov,
+  type ViewOfInterest,
 } from './viewsOfInterest'
+import type { PhotoAcceptance } from './photoAcceptance'
 import { sceneFingerprint } from './sceneInput'
 import { createSampleScene, parseScene, serializeScene } from './scene'
 
@@ -93,6 +97,18 @@ describe('the list', () => {
     const views = viewsForCandidate(candidate([80, 100]), block)
     const other = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
     expect(groupByPlace([...views, other]).map((group) => group.length)).toEqual([2, 1])
+  })
+  it('keeps an aircraft photo’s view apart from a ground view over the same spot', () => {
+    const ground = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
+    const photo = { recordId: 'field-1', altitudeMeters: 1200, pitch: -6, roll: 0, hfov: 54 }
+    const air = { ...ground, id: 'air', photo }
+    const sameAir = { ...ground, id: 'air-2', photo: { ...photo, recordId: 'field-2' } }
+    const higher = { ...ground, id: 'air-3', photo: { ...photo, altitudeMeters: 1500 } }
+    expect(groupByPlace([ground, air, sameAir, higher]).map((group) => group.map((view) => view.id))).toEqual([
+      [ground.id],
+      ['air', 'air-2'],
+      ['air-3'],
+    ])
   })
   it('faces the block from where it stands', () => {
     const view = viewAtPoint({ lng: -122.65, lat: 53.905 }, block, [])
@@ -246,5 +262,107 @@ describe('a view saved by hand from the road view', () => {
     }))
     const link = handSaveLink({ ...base, views: full, pose: { ...eye, bearing: toBlock } })
     expect(link).toEqual({ kind: 'none', reason: expect.stringContaining(`hold ${MAX_VIEWS_OF_INTEREST}`) })
+  })
+})
+
+describe('a view made from an accepted photo', () => {
+  // A camera 1,200 m up, about 3 km west of Block A, looking east and down at it.
+  const acceptance = (patch: Partial<PhotoAcceptance['pose']> = {}): PhotoAcceptance => ({
+    acceptedBy: 'AB',
+    acceptedAt: '2026-11-17T10:00:00Z',
+    method: 'skyline',
+    pose: { lng: -122.65, lat: 53.905, altitudeMeters: 1200, bearing: 92, pitch: -6, roll: 1.5, hfov: 54.4, ...patch },
+    evidence: { settled: true },
+    note: '',
+  })
+  const other = { ...block, id: 'block-2', name: 'Block B', geometry: { ...block.geometry } }
+  // Block B lies well north of the camera, out of an east-looking frame.
+  other.geometry = {
+    type: 'Polygon',
+    coordinates: [block.geometry.coordinates[0].map(([lng, lat]) => [lng - 0.05, lat + 0.1])],
+  }
+  const scene = (views: ViewOfInterest[] = []) => ({
+    targets: [
+      { ...other, role: 'block' },
+      { ...block, role: 'block' },
+    ],
+    viewsOfInterest: views,
+  })
+  const record = { id: 'field-1', name: 'IMG_0412.HEIC', acceptance: acceptance() }
+
+  it('stands at the camera, faces its heading with one frame of its lens, and links the photo', () => {
+    const made = viewFromAcceptedPhoto(record, scene())
+    expect(made.kind).toBe('add')
+    const view = (made as { view: ViewOfInterest }).view
+    expect(view).toMatchObject({
+      name: 'Photo IMG_0412, toward Block A',
+      source: { kind: 'map' },
+      lng: -122.65,
+      lat: 53.905,
+      blockId: 'block-1',
+      facing: { kind: 'bearing', degrees: 92 },
+      framing: 'single',
+      photo: { recordId: 'field-1', altitudeMeters: 1200, pitch: -6, roll: 1.5, hfov: 54.4 },
+    })
+    expect(lensHfovDeg(view.focalMm)).toBeCloseTo(54.4, 1)
+    expect(focalForHfov(lensHfovDeg(35))).toBeCloseTo(35, 6)
+    // A view stood at an altitude reads back with its photo, and an older reader's parts are all still there.
+    expect(parseViewsOfInterest(JSON.parse(JSON.stringify([view])))).toEqual([view])
+  })
+
+  it('moves the view that already holds the photo, keeping its id, name and block', () => {
+    const first = (viewFromAcceptedPhoto(record, scene()) as { view: ViewOfInterest }).view
+    const listed = { ...first, name: 'Helicopter view' }
+    const again = viewFromAcceptedPhoto(
+      { ...record, acceptance: acceptance({ bearing: 95, pitch: -8 }) },
+      scene([listed]),
+    )
+    expect(again.kind).toBe('update')
+    expect((again as { view: ViewOfInterest }).view).toMatchObject({
+      id: first.id,
+      name: 'Helicopter view',
+      facing: { kind: 'bearing', degrees: 95 },
+      photo: { pitch: -8 },
+    })
+  })
+
+  it('refuses a camera not accepted, moved since, with no cutblock, or a full list', () => {
+    expect(viewFromAcceptedPhoto({ ...record, acceptance: null }, scene())).toMatchObject({ kind: 'none' })
+    const moved = viewFromAcceptedPhoto(record, scene(), { ...acceptance().pose, bearing: 93 })
+    expect(moved).toEqual({
+      kind: 'none',
+      reason: 'The camera has moved since it was accepted: check it and accept it again.',
+    })
+    expect(viewFromAcceptedPhoto(record, scene(), acceptance().pose).kind).toBe('add')
+    expect(viewFromAcceptedPhoto(record, { targets: [] })).toMatchObject({ kind: 'none' })
+    const full = Array.from({ length: MAX_VIEWS_OF_INTEREST }, (_, i) =>
+      viewAtPoint({ lng: -122.7 - i * 0.01, lat: 53.9 }, block, []),
+    )
+    const refused = viewFromAcceptedPhoto(record, scene(full))
+    expect(refused).toMatchObject({ kind: 'none' })
+    expect((refused as { reason: string }).reason).toContain(`hold ${MAX_VIEWS_OF_INTEREST}`)
+  })
+
+  it('needs capturing again when the photo camera moves, and keeps every other view’s key', () => {
+    const plain = viewAtPoint({ lng: -122.7, lat: 53.9 }, block, [])
+    // The key a capture of a view without a photo was saved under before photos joined it.
+    expect(viewCaptureKey(plain)).toBe(JSON.stringify([-122.7, 53.9, 'block-1', 'block', 50, 'landform', null]))
+    const view = (viewFromAcceptedPhoto(record, scene()) as { view: ViewOfInterest }).view
+    const saved = [{ id: 's1', plannedViewId: view.id, plannedKey: viewCaptureKey(view) }]
+    expect(viewCaptureState(view, saved)).toBe('captured')
+    const higher = { ...view, photo: { ...view.photo!, altitudeMeters: 1250, roll: 0 } }
+    expect(viewCaptureState(higher, saved)).toBe('outdated')
+    expect(captureKeyChanges(higher, saved)).toEqual(['altitude', 'roll'])
+    // A view given a photo after it was captured names the photo camera's parts as changed.
+    const plainSaved = [{ id: 's2', plannedViewId: plain.id, plannedKey: viewCaptureKey(plain) }]
+    const linked = { ...plain, photo: view.photo }
+    expect(captureKeyChanges(linked, plainSaved)).toEqual(['altitude', 'pitch', 'roll', 'lens'])
+  })
+
+  it('keeps a view whose photo link does not read, without the link', () => {
+    const view = (viewFromAcceptedPhoto(record, scene()) as { view: ViewOfInterest }).view
+    const [read] = parseViewsOfInterest([{ ...view, photo: { recordId: 'field-1', pitch: 'down' } }])
+    expect(read.photo).toBeUndefined()
+    expect(read.facing).toEqual(view.facing)
   })
 })

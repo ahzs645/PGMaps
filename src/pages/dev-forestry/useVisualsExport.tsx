@@ -237,6 +237,8 @@ export function useVisualsExport(input: {
     blocker: string | null
     run: () => void
   }
+  /** The own photos open in the set, for the project file's *What goes in*. Absent: none. */
+  ownPhotos?: { count: number; accepted: number; flights: number }
   /** The land status checks the summary cards read (`useLandChecks`). */
   landChecks: { states: Partial<Record<LandCheckId, LandCheckState>>; unchecked: string | null }
   /**
@@ -756,6 +758,7 @@ export function useVisualsExport(input: {
       screenshots: briefViews.filter((view) => images[view.id]).length,
     },
     evidence,
+    ownPhotos: input.ownPhotos,
     roadViewReady: input.scenePackage.ready,
     prescribedStands: standFileSummary(input.prescribedStands),
     officeFieldCount: FS1252_OFFICE_FIELDS.length,

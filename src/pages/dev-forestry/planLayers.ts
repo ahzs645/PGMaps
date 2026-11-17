@@ -1,4 +1,6 @@
 import type { ImageryBasemap } from '@/components/ui/map-satellite-imagery'
+
+import type { PhotoPlanSymbolId } from './photoPlanStyle'
 import type { AssessmentMaskKind } from './types'
 import type { EvqoCode } from './visualsNarrative'
 import type { VisualQualityClassId } from './vqo'
@@ -46,6 +48,14 @@ export type PlanLegendKey =
   | 'view-of-interest'
   /** The inventory arrows the planned views face along, and those the finder's open row would add. */
   | 'view-arrow'
+  | PhotoLegendKey
+
+/**
+ * An own photo on the plan (`PhotoDrapeLayer`, `PhotoCamerasLayer`): the photo laid on the ground, its frame's
+ * footprint, the cameras with their cones, the flight track and the paired points. Never in the project file
+ * (it rebuilds from the pose) and never on a report map (those are captured on their own hidden map).
+ */
+export type PhotoLegendKey = 'photo:drape' | 'photo:footprint' | 'photo:camera' | 'photo:track' | 'photo:pair'
 
 export type LandformCluePosition = 'ridge' | 'hollow' | 'other'
 
@@ -128,4 +138,74 @@ export function standTreeLegendKey(properties: Record<string, unknown>): PlanLeg
     : properties.status === 'protected'
       ? 'stand:protected'
       : 'stand:kept'
+}
+
+/** What of an own photo the plan draws now, for its legend rows. */
+export type PhotoLegendShown = {
+  /** A drape is laid (any look but footprint only). */
+  drape: boolean
+  /** A footprint is outlined. */
+  footprint: boolean
+  /** Cameras drawn; the cones and points share one row. */
+  cameras: number
+  /** A flight track is drawn (two or more timed cameras of one flight). */
+  track: boolean
+  /** Paired or reference points are drawn. */
+  pairs: boolean
+}
+
+export type PhotoLegendRow = {
+  key: PhotoLegendKey
+  label: string
+  /** The `PHOTO_PLAN_SYMBOLS` entry its swatch draws. */
+  symbol: PhotoPlanSymbolId
+  /** A second line under the row. */
+  note?: string
+  /** The row carries the drape's opacity under it (the legend's rows are buttons and cannot hold a control). */
+  opacity?: true
+}
+
+/**
+ * The photo's legend rows, in the order the plan draws them. The drape's row says that its hatch is terrain
+ * only, so it is never read as the run's visibility.
+ */
+export function photoLegendRows(shown: PhotoLegendShown): PhotoLegendRow[] {
+  const rows: PhotoLegendRow[] = []
+  if (shown.drape)
+    rows.push({
+      key: 'photo:drape',
+      label: 'Photo laid on the ground',
+      symbol: 'drape',
+      note: "Hatched: hidden by terrain only, not the run's visibility",
+      opacity: true,
+    })
+  if (shown.footprint) rows.push({ key: 'photo:footprint', label: "Photo's footprint", symbol: 'footprint' })
+  if (shown.cameras > 0)
+    rows.push({
+      key: 'photo:camera',
+      label: shown.cameras > 1 ? 'Photo cameras · their views' : 'Photo camera · its view',
+      symbol: 'camera',
+    })
+  if (shown.track) rows.push({ key: 'photo:track', label: 'Flight track, in time order', symbol: 'track' })
+  if (shown.pairs) rows.push({ key: 'photo:pair', label: 'Paired or reference point', symbol: 'pair' })
+  return rows
+}
+
+/** A photo feature's legend row, by the `kind` the photo layers give it. */
+export function photoLegendKey(properties: Record<string, unknown>): PhotoLegendKey {
+  switch (properties.kind) {
+    case 'cone':
+    case 'eye':
+      return 'photo:camera'
+    case 'track':
+      return 'photo:track'
+    case 'pair':
+    case 'residual':
+    case 'reference':
+      return 'photo:pair'
+    case 'footprint':
+      return 'photo:footprint'
+    default:
+      return 'photo:drape'
+  }
 }

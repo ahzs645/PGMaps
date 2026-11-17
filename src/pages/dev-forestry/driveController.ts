@@ -12,6 +12,8 @@ import {
   type WalkOffset,
   horizonSafePitch,
   offsetPosition,
+  fixedLookRotation,
+  type FixedLook,
 } from './driveMath'
 import { surveyedEyeAt } from './viewpointStand'
 import type { SurveyedEye } from './types'
@@ -45,10 +47,11 @@ export type DriveOptions = {
   tilt: number
   /**
    * Hold the view on a fixed bearing and pitch (degrees above the horizon)
-   * instead of looking along the road — a field photo's pose. Yaw and tilt
-   * still apply on top, so the view can be nudged into line.
+   * instead of looking along the road — a field photo's pose, with its roll
+   * when it has one (a photo viewpoint's). Yaw and tilt still apply on top, so
+   * the view can be nudged into line.
    */
-  fixedLook?: { bearing: number; pitch: number } | null
+  fixedLook?: FixedLook | null
   /**
    * Stepped off the road while paused: the eye stands this far east and north
    * of the road position, on the same fixed ground mosaic. Playback ignores it.
@@ -254,11 +257,10 @@ export class DriveController {
       Number.isFinite(afterGround)
         ? (Math.atan2(afterGround - beforeGround, ahead.span) * 180) / Math.PI
         : 0
-    const desired = options.fixedLook
-      ? {
-          bearing: (((options.fixedLook.bearing + options.yaw) % 360) + 360) % 360,
-          pitch: Math.max(40, Math.min(110, 90 + options.fixedLook.pitch + options.tilt)),
-        }
+    // A fixed look reaches further down than a road look (a photo from the air) and keeps its roll.
+    const fixed = options.fixedLook ? fixedLookRotation(options.fixedLook, options.yaw, options.tilt) : null
+    const desired = fixed
+      ? { bearing: fixed.bearing, pitch: fixed.pitch }
       : viewRotation(
           placement,
           eye,
@@ -279,6 +281,7 @@ export class DriveController {
           }
         : desired
     this.rotation = rotation
+    const roll = fixed?.roll ?? 0
     // The canvas size is part of the pose: after a resize the same zoom stands the camera somewhere else. Going
     // fullscreen once put it 29 m behind the station, with the stems behind the station drawn in front of it. The
     // field of view is too, for the same reason: a lens change (View options → Lens, a field photo) keeps the zoom.
@@ -289,6 +292,7 @@ export class DriveController {
       eye,
       rotation.bearing,
       rotation.pitch,
+      roll,
       canvas?.clientWidth,
       canvas?.clientHeight,
       this.map.getVerticalFieldOfView?.(),
@@ -305,9 +309,11 @@ export class DriveController {
       }
       const pitch = horizonSafePitch(rotation.pitch)
       const targetElevation = eye + Math.tan(((pitch - 90) * Math.PI) / 180) * metres
+      // Roll is passed every time, never left out: an omitted roll reaches `jumpTo` as undefined and leaves the
+      // transform's matrices null from then on. It turns the camera about its own axis, so the eye stays put.
       const camera = this.map.calculateCameraOptionsFromTo
-        ? { ...this.map.calculateCameraOptionsFromTo(placement, eye, target, targetElevation), roll: 0 }
-        : this.map.calculateCameraOptionsFromCameraLngLatAltRotation(placement, eye, rotation.bearing, pitch, 0)
+        ? { ...this.map.calculateCameraOptionsFromTo(placement, eye, target, targetElevation), roll }
+        : this.map.calculateCameraOptionsFromCameraLngLatAltRotation(placement, eye, rotation.bearing, pitch, roll)
       if (!finiteCamera(camera)) {
         this.setStatus('invalid-camera', options)
         return

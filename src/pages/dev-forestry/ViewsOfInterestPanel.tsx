@@ -111,12 +111,32 @@ export type ViewsOfInterestPanelProps = {
    * (`renderJobFor`); the rest keep PGMaps' picture.
    */
   capturedHere?: (viewId: string) => boolean
+  /**
+   * A photo viewpoint's photo (`ViewOfInterest.photo`): its record's name and image, for the row's thumbnail; the
+   * image is null when the record is no longer in the workspace.
+   */
+  photoOf?: (view: ViewOfInterest) => { name: string; thumbUrl: string | null } | null
 }
 
 const SOURCE_LABELS: Record<ViewOfInterest['source']['kind'], string> = {
   map: 'Picked on the map',
   vli: 'VLI viewpoint',
   'rec-site': 'Rec site',
+}
+
+/**
+ * Where a view came from, in the row's words: a photo viewpoint is an aerial photo when its camera has an altitude
+ * (taken from the air), else a field photo; every other view by its source.
+ */
+export function viewSourceLabel(view: Pick<ViewOfInterest, 'source' | 'photo'>): string {
+  if (view.photo) {
+    const tilt = Math.round(view.photo.pitch)
+    const look = tilt < 0 ? `${-tilt}° down` : tilt > 0 ? `${tilt}° up` : 'level'
+    return view.photo.altitudeMeters !== null
+      ? `Aerial photo · ${Math.round(view.photo.altitudeMeters)} m · ${look}`
+      : `Field photo · ${look}`
+  }
+  return SOURCE_LABELS[view.source.kind]
 }
 
 const CAPTURE_LABELS: Record<ViewCaptureState, string> = {
@@ -369,6 +389,7 @@ export function ViewsOfInterestList({
   renderer,
   onChangeRenderer,
   capturedHere,
+  photoOf,
 }: ViewsOfInterestPanelProps) {
   const engine = !!renderer && renderer.id !== 'pgmaps'
   const blockById = useMemo(() => new Map(blocks.map((block) => [block.id, block])), [blocks])
@@ -448,6 +469,7 @@ export function ViewsOfInterestList({
             const missingBlock = orphans.missingBlock.includes(view.id)
             const missingLandform = orphans.missingLandform.includes(view.id)
             const standingHere = view.id === standingViewId
+            const photo = view.photo ? (photoOf?.(view) ?? null) : null
             const photos = open ? (photoControl?.(view) ?? null) : null
             const fieldCheck = open ? (fieldCheckControl?.(view) ?? null) : null
             const tabs: RowTab[] = [
@@ -486,11 +508,25 @@ export function ViewsOfInterestList({
                       {index + 1}
                     </span>
                   }
-                  title={<span className="text-xs">{view.name}</span>}
+                  title={
+                    photo?.thumbUrl ? (
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <img
+                          src={photo.thumbUrl}
+                          alt=""
+                          className="h-6 w-9 shrink-0 rounded-sm object-cover"
+                          data-view-photo-thumb=""
+                        />
+                        <span className="min-w-0 truncate text-xs">{view.name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs">{view.name}</span>
+                    )
+                  }
                   subtitle={
                     <span className="whitespace-normal text-3xs leading-4">
-                      {SOURCE_LABELS[view.source.kind]} · {block?.name ?? 'block missing'} ·{' '}
-                      {facingSummary(view, arrows)} · {view.focalMm} mm
+                      {viewSourceLabel(view)} · {block?.name ?? 'block missing'} · {facingSummary(view, arrows)} ·{' '}
+                      {view.focalMm} mm
                       {isIncluded(view) ? '' : ' · left out of exports'}
                       {assessedGroups && groupLeadOf(view, views).id !== view.id
                         ? ` · assessed with ${groupLeadOf(view, views).name}`
@@ -697,6 +733,9 @@ export function ViewsOfInterestList({
                         <SelectField
                           label="Lens"
                           value={String(view.focalMm)}
+                          // A photo viewpoint keeps its photo's lens: the camera is changed by accepting it again.
+                          disabled={!!view.photo}
+                          title={view.photo ? 'The photo’s lens: accept its camera again to change it.' : undefined}
                           onValueChange={(value) => update(view.id, { focalMm: Number(value) })}
                         >
                           {[

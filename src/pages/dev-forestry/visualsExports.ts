@@ -407,6 +407,8 @@ export type ExportContext = {
   /** The field brief's block, by name and id (views of interest planned for another block are left out), and its counts. */
   brief: { block: string | null; blockId?: string | null; viewpoints: number; screenshots: number }
   evidence: { loaded: boolean; gaps: string[]; views: number; runs: number; fields: number }
+  /** The own photos open in the set, which the project file keeps with their originals. Absent: none open. */
+  ownPhotos?: { count: number; accepted: number; flights: number }
   /** The road view is open with its terrain loaded, so the 3D scene can be written. */
   roadViewReady: boolean
   /** The Castor constraint as the current run gives it (`castorConstraint.ts`), or why it cannot be written yet. */
@@ -1355,6 +1357,22 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
         settingsSection(ctx),
         reviewSection(ctx),
         {
+          title: 'Own photos',
+          rows: ctx.ownPhotos
+            ? [
+                {
+                  label: 'Photos',
+                  value: `${ctx.ownPhotos.count}${ctx.ownPhotos.flights > 1 ? ` in ${ctx.ownPhotos.flights} flights` : ''}, ${ctx.ownPhotos.accepted} accepted`,
+                },
+                {
+                  label: 'With each',
+                  value: 'The original, its camera and where each value came from, its last search; reopened together',
+                },
+              ]
+            : undefined,
+          empty: 'No own photos open.',
+        },
+        {
           title: 'Workspace and package',
           rows: [
             { label: 'Recorded assessments', value: String(ctx.evidence.runs) },
@@ -1495,6 +1513,7 @@ export type ContextInput = {
   /** `screenshots`: the views with a screenshot the brief takes; absent, every view with one. */
   brief: { blockId: string | null; viewpoints: number; screenshots?: number }
   evidence: { loaded: boolean; gaps: string[]; counts: { views: number; runs: number; fields: number } }
+  ownPhotos?: ExportContext['ownPhotos']
   roadViewReady: boolean
   /** Absent: no block has a stand prescription. */
   prescribedStands?: Row[]
@@ -1684,6 +1703,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
       screenshots: Math.min(3, input.brief.screenshots ?? input.views.filter((view) => view.screenshot).length),
     },
     evidence: { loaded: input.evidence.loaded, gaps: input.evidence.gaps, ...input.evidence.counts },
+    ...(input.ownPhotos?.count ? { ownPhotos: input.ownPhotos } : {}),
     roadViewReady: input.roadViewReady,
     prescribedStands: input.prescribedStands ?? [],
     castor: {

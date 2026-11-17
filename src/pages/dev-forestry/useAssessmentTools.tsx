@@ -33,6 +33,7 @@ import {
   timelineScene,
   withPlannedViews,
   type FieldRecord,
+  type PhotoJob,
   type ToolJob,
   type ToolRun,
   type ToolsDocument,
@@ -49,6 +50,7 @@ import { RecoveryTable } from './RecoveryTable'
 import { greenUpSensitiveSentence } from './recoverySummary'
 import { DroughtRiskPanel } from './DroughtRiskPanel'
 import { findSceneLandform, sceneFingerprint } from './sceneInput'
+import { fieldRecordRoom, linkPhotoJob, unlinkPhotoJob, withFlights } from './photoRecords'
 
 type Props = {
   scene: ForestryScene
@@ -58,14 +60,19 @@ type Props = {
   onRun: (scene: ForestryScene) => void
   analysisRunning: boolean
   onImportScene: (scene: ForestryScene) => void
-  onOriginalPhoto: (file: File) => void
+  /** A photo's original bytes, kept as a project attachment beside the field record it became. */
+  onOriginalPhoto: (file: File, recordId: string) => void
   /** The views of interest as viewpoints (`plannedToolViews`): what runs and evidence are filed under. */
   plannedViews: ToolView[]
   /** Lists a view of interest at a photo's place and returns its id; null when it cannot. */
   onAddViewAt?: (point: { lng: number; lat: number }, name: string) => string | null
   /** Lists a viewpoint recorded before the views of interest with them, under its own id; null when it cannot. */
   onListView?: (view: ToolView) => string | null
+  /** Removes a photo record with its original and any view's link to it (`useFieldPhoto`'s `removePhoto`). */
+  onRemovePhoto?: (id: string) => void
 }
+/** The record's camera: changing any of them unchecks its alignment. */
+const CAMERA_FIELDS: ReadonlyArray<keyof FieldRecord> = ['lng', 'lat', 'altitude', 'bearing', 'pitch', 'roll', 'hfov']
 /** A loaded curve's span, for its option label: ages covered and the height it reaches. */
 const curveReach = (c: LibraryCurve) =>
   `ages ${c.points[0].age}–${c.points[c.points.length - 1].age}, ${c.points[c.points.length - 1].height.toFixed(1)} m`
@@ -83,6 +90,7 @@ export function useAssessmentTools({
   plannedViews,
   onAddViewAt,
   onListView,
+  onRemovePhoto,
 }: Props) {
   const [d, setDocument] = useState<ToolsDocument>(emptyTools),
     [loaded, setLoaded] = useState(false),
@@ -284,8 +292,9 @@ export function useAssessmentTools({
   const busy = !loaded || runner.running || analysisRunning
   /** Imports an image as an attachment, filed under `viewId` when that is a viewpoint, and opens it. */
   const importField = async (file: File, kind: FieldRecord['kind'], viewId: string | null = null) => {
-    if (documentRef.current.fields.length >= 24) {
-      setFieldError('The workspace holds at most 24 attachments.')
+    const full = fieldRecordRoom(documentRef.current.fields.length, 1)
+    if (full) {
+      setFieldError(full)
       return
     }
     setFieldBusy(true)
@@ -295,10 +304,11 @@ export function useAssessmentTools({
       const f = await importFieldImage(file, kind, viewId)
       if (generation !== workspaceGeneration.current) return
       const latest = documentRef.current
-      if (latest.fields.length >= 24) throw new Error('The workspace holds at most 24 attachments.')
+      const over = fieldRecordRoom(latest.fields.length, 1)
+      if (over) throw new Error(over)
       if (!withPlannedViews(latest, plannedRef.current).views.some((v) => v.id === f.viewId)) f.viewId = null
-      change({ ...latest, fields: [...latest.fields, f] })
-      if (kind === 'photo') onOriginalPhoto(file)
+      change({ ...latest, fields: withFlights([...latest.fields, f]) })
+      if (kind === 'photo') onOriginalPhoto(file, f.id)
       setSelectedField(f.id)
     } catch (e) {
       setFieldError(e instanceof Error ? e.message : String(e))
@@ -318,6 +328,7 @@ export function useAssessmentTools({
           busy={fieldBusy || busy}
           error={fieldError}
           onUseView={onUseView}
+          onRemovePhoto={onRemovePhoto}
           onListView={
             onListView &&
             ((view) => {
@@ -871,14 +882,53 @@ export function useAssessmentTools({
   // Field-record photographs, for lining one up with the road view (Field photo), and a
   // confirmed camera written back to its record, unchecked until the reviewer ticks it there.
   const photoRecords = useMemo(() => d.fields.filter((f) => f.kind === 'photo'), [d.fields])
+  // A changed camera is unchecked again until the reviewer ticks it; an acceptance, a job or a note leaves it be.
   const updateFieldRecord = useCallback(
     (id: string, patch: Partial<FieldRecord>) =>
       change((current) => ({
         ...current,
-        fields: current.fields.map((f) => (f.id === id ? { ...f, ...patch, alignmentChecked: false } : f)),
+        fields: current.fields.map((f) =>
+          f.id === id
+            ? { ...f, ...patch, ...(CAMERA_FIELDS.some((key) => key in patch) ? { alignmentChecked: false } : {}) }
+            : f,
+        ),
       })),
     [change],
   )
+  /**
+   * Adds own photos opened in the photo window as field records (`photoRecordFromOwn`), grouped into flights. Returns
+   * why they do not fit, adding none, or null once added.
+   */
+  const addPhotoRecords = useCallback(
+    (records: FieldRecord[]): string | null => {
+      const fresh = records.filter((r) => !documentRef.current.fields.some((f) => f.id === r.id))
+      const full = fieldRecordRoom(documentRef.current.fields.length, fresh.length)
+      if (full) return full
+      if (fresh.length) change((current) => ({ ...current, fields: withFlights([...current.fields, ...fresh]) }))
+      return null
+    },
+    [change],
+  )
+  /** Links a photo to a job (`on`) or takes it off one; `targetId` names the view, block or opening it is for. */
+  const setPhotoJob = useCallback(
+    (recordId: string, job: PhotoJob, on: boolean, targetId: string | null = null) =>
+      change((current) => ({
+        ...current,
+        fields: current.fields.map((f) =>
+          f.id !== recordId ? f : on ? linkPhotoJob(f, job, targetId) : unlinkPhotoJob(f, job, targetId),
+        ),
+      })),
+    [change],
+  )
+  /** Removes a field record, as its row's *Remove* does; the page drops its attachment and any view's link to it. */
+  const removeFieldRecord = useCallback(
+    (id: string) => change((current) => ({ ...current, fields: current.fields.filter((f) => f.id !== id) })),
+    [change],
+  )
+  /** How many field records the workspace holds now, read when asked: the photo window checks room before reading. */
+  const fieldCount = useCallback(() => documentRef.current.fields.length, [])
+  /** A field record as held now, read through the ref so a workspace restored this tick is already there. */
+  const fieldRecord = useCallback((id: string) => documentRef.current.fields.find((f) => f.id === id) ?? null, [])
   const revision = revisionReadout ? <RunRevisionReadout readout={revisionReadout} /> : null
   /** The package and the workspace backup for Save & export, written from the stored document. */
   const evidence = {
@@ -919,6 +969,11 @@ export function useAssessmentTools({
     running: runner.running,
     photoRecords,
     updateFieldRecord,
+    addPhotoRecords,
+    setPhotoJob,
+    removeFieldRecord,
+    fieldCount,
+    fieldRecord,
     fieldDialog,
     /** The attachments filed under a viewpoint, for its row. */
     fieldsFor: (viewId: string) => d.fields.filter((f) => f.viewId === viewId),

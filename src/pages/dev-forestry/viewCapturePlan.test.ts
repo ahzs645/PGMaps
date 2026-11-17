@@ -13,6 +13,8 @@ import {
   planCapture,
   standFacing,
   standPlace,
+  viewLensHfov,
+  viewPhotoRecord,
   waitFailure,
   withoutPlannedView,
   type CaptureFacts,
@@ -187,5 +189,45 @@ describe('framing a saved view with its lens', () => {
     const fixed = figurePlanFor({ photoHfov: null, lensHfov: 60, pose }, extent, { bearingDeg: 90, spanDeg: 30 })!
     expect(fixed.totalHfovDeg).toBeCloseTo(30, 6)
     expect(figurePlanFor({ photoHfov: null, pose }, null, null)).toBeNull()
+  })
+})
+
+describe('a photo viewpoint’s capture', () => {
+  const photoView = view('voi-photo', {
+    source: { kind: 'map' },
+    focalMm: 36.1,
+    framing: 'single',
+    facing: { kind: 'bearing', degrees: 120 },
+    photo: { recordId: 'field-1', altitudeMeters: 1200, pitch: -6, roll: 1.5, hfov: 52.3 },
+  })
+
+  it('takes the photo’s own field across, not its rounded focal length’s', () => {
+    expect(viewLensHfov(photoView)).toBe(52.3)
+    expect(viewLensHfov(view('plain', { focalMm: 35 }))).toBeCloseTo(lensHfovDeg(35), 9)
+    const vertical = verticalFovFromHorizontal(52.3, 1200, 800)
+    expect(lensApplied(36.1, { verticalFovDeg: vertical, width: 1200, height: 800 }, 52.3)).toBe(true)
+    expect(lensApplied(36.1, { verticalFovDeg: vertical, width: 1200, height: 800 })).toBe(false)
+  })
+
+  it('centres its single frame on the photo’s pitch', () => {
+    const plan = figurePlanFor(
+      { photoHfov: null, lensHfov: 52.3, framing: 'single', pose: { bearing: 120 }, framePitch: -6 },
+      null,
+      null,
+    )!
+    expect(plan.frames[0].pitchDeg).toBe(-6)
+    expect(plan.frames[0].bearingDeg).toBe(120)
+    expect(planSingleFrame(120, 52.3, null).frames[0].pitchDeg).toBe(0)
+  })
+
+  it('takes the linked record’s photo as its before picture', () => {
+    const records = [
+      { id: 'field-1', kind: 'photo', image: 'data:image/jpeg;base64,AA==' },
+      { id: 'field-2', kind: 'map', image: 'data:image/png;base64,AA==' },
+    ]
+    expect(viewPhotoRecord(photoView, records)?.id).toBe('field-1')
+    expect(viewPhotoRecord(view('plain'), records)).toBeNull()
+    expect(viewPhotoRecord({ photo: { ...photoView.photo!, recordId: 'field-2' } }, records)).toBeNull()
+    expect(viewPhotoRecord(photoView, [])).toBeNull()
   })
 })

@@ -156,6 +156,35 @@ export function horizonSafePitch(pitch: number): number {
   return Math.abs(pitch - 90) < HORIZON_MARGIN_DEGREES ? 90 - HORIZON_MARGIN_DEGREES : pitch
 }
 
+/**
+ * The lowest map pitch a fixed look may take, degrees (0 looks straight down). A road-level look keeps
+ * `viewRotation`'s 40° (50° below the horizon), but a photo from the air can look further down than that; a pitch of
+ * exactly 0 would put the camera's 40 m target infinitely far below it, so it stops just short.
+ */
+export const FIXED_LOOK_MIN_PITCH = 2
+
+/** A fixed look: a photo's heading, its pitch in degrees above the horizon and its roll (positive raises its right). */
+export type FixedLook = { bearing: number; pitch: number; roll?: number }
+
+/**
+ * The camera's bearing, map pitch and map roll for a fixed look with the reviewer's yaw and tilt on top. The roll is
+ * MapLibre's: it turns the picture counter-clockwise for a positive value (its matrix rotates camera space by −roll
+ * with y down), which is what a camera turned with its right side lowered sees. A photo's roll raises its right side,
+ * so the map's is its negative (`mapRollForPhoto`).
+ */
+export function fixedLookRotation(look: FixedLook, yaw: number, tilt: number) {
+  return {
+    bearing: (((look.bearing + yaw) % 360) + 360) % 360,
+    pitch: Math.max(FIXED_LOOK_MIN_PITCH, Math.min(110, 90 + look.pitch + tilt)),
+    roll: mapRollForPhoto(look.roll ?? 0),
+  }
+}
+
+/** MapLibre's roll for a photo's roll: opposite in sign (see `fixedLookRotation`). Never −0. */
+export function mapRollForPhoto(roll: number): number {
+  return Number.isFinite(roll) && roll !== 0 ? -roll : 0
+}
+
 /** Preview travel speeds, not inferred posted road limits. */
 export const DRIVE_SPEEDS_KMH = [5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
 

@@ -4,6 +4,7 @@ import { showablePhoto } from '@/lib/heic/heicDecodeClient'
 import { MAX_RASTER_CELLS, parseRasters, rasterProjection } from '@/lib/forestry/terrain/localRaster'
 import type { LocalRaster } from './types'
 import type { FieldRecord } from './assessmentTools'
+import { takenAtUtc as photoTakenAtFromTags } from './photoFlight'
 
 export async function importFieldImage(
   file: File,
@@ -20,20 +21,7 @@ export async function importFieldImage(
   }
   // A HEIC photo is decoded here where the browser cannot show it; its tags came from the file itself, above.
   const shown = await showablePhoto(file)
-  const bitmap = await createImageBitmap(shown.blob),
-    factor = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height)),
-    canvas = document.createElement('canvas')
-  canvas.width = Math.round(bitmap.width * factor)
-  canvas.height = Math.round(bitmap.height * factor)
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    bitmap.close()
-    throw new Error('Image decoding is unavailable.')
-  }
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  bitmap.close()
+  const { dataUrl, width, height } = await fieldImageFromBlob(shown.blob)
   const num = (key: string) =>
     typeof meta[key] === 'number' && Number.isFinite(meta[key]) ? (meta[key] as number) : null
   const date =
@@ -41,14 +29,16 @@ export async function importFieldImage(
       ? `${meta.DateTimeOriginal.getFullYear()}-${String(meta.DateTimeOriginal.getMonth() + 1).padStart(2, '0')}-${String(meta.DateTimeOriginal.getDate()).padStart(2, '0')}`
       : ''
   const focal35 = num('FocalLengthIn35mmFormat') ?? num('FocalLengthIn35mmFilm')
+  // The GPS fix's time, else the zoned or bare camera clock, as the own-photo window reads it.
+  const takenAtUtc = kind === 'photo' ? (photoTakenAtFromTags(meta)?.iso ?? null) : null
   return {
     id: createId('field'),
     name: file.name.slice(0, 200),
     viewId,
     kind,
-    image: canvas.toDataURL('image/jpeg', 0.82),
-    width: canvas.width,
-    height: canvas.height,
+    image: dataUrl,
+    width,
+    height,
     captured: date,
     notes: '',
     lng: num('longitude'),
@@ -65,17 +55,40 @@ export async function importFieldImage(
     roll: 0,
     hfov:
       focal35 && focal35 > 0
-        ? (2 *
-            Math.atan((Math.hypot(36, 24) * canvas.width) / Math.hypot(canvas.width, canvas.height) / (2 * focal35)) *
-            180) /
-          Math.PI
+        ? (2 * Math.atan((Math.hypot(36, 24) * width) / Math.hypot(width, height) / (2 * focal35)) * 180) / Math.PI
         : null,
     focalMm: num('FocalLength'),
     focal35Mm: focal35,
     originalName: file.name,
     alignmentChecked: false,
     annotations: [],
+    ...(takenAtUtc ? { takenAtUtc } : {}),
   }
+}
+
+/** The longest side of a field record's image, pixels: the record shows the photo; its original keeps the detail. */
+const FIELD_IMAGE_MAX_PX = 1600
+
+/**
+ * A photo the browser can show (a JPEG or PNG, or a HEIC already decoded by `showablePhoto`) re-encoded as a field
+ * record's image: a JPEG at most `FIELD_IMAGE_MAX_PX` on its longer side, on white.
+ */
+export async function fieldImageFromBlob(blob: Blob): Promise<{ dataUrl: string; width: number; height: number }> {
+  const bitmap = await createImageBitmap(blob),
+    factor = Math.min(1, FIELD_IMAGE_MAX_PX / Math.max(bitmap.width, bitmap.height)),
+    canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * factor)
+  canvas.height = Math.round(bitmap.height * factor)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    bitmap.close()
+    throw new Error('Image decoding is unavailable.')
+  }
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  return { dataUrl: canvas.toDataURL('image/jpeg', 0.82), width: canvas.width, height: canvas.height }
 }
 
 export async function importLocalRaster(

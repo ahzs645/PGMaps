@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ownPhotoSteps, type OwnPhotoStepsInput } from './ownPhotoSteps'
+import { ACCEPTANCE_ANGLE_DEGREES } from './photoAcceptance'
 
 const base: OwnPhotoStepsInput = {
   position: 'exif',
@@ -87,5 +88,13 @@ describe('ownPhotoSteps', () => {
     expect(moved.next).toBe('check')
     // Across north: 359.8° and 0.1° are 0.3° apart.
     expect(ownPhotoSteps({ ...settled, bearing: 0.1, checkedBearings: [359.8] }).steps.check.state).toBe('done')
+  })
+
+  it('holds a check to the acceptance’s own tolerance, so a done check is one Accept takes', () => {
+    const settled: OwnPhotoStepsInput = { ...base, heading: 'skyline', search: { trustworthy: true, ambiguous: false } }
+    const at = (gap: number) =>
+      ownPhotoSteps({ ...settled, checkedBearings: [settled.bearing + gap] }).steps.check.state
+    expect(at(ACCEPTANCE_ANGLE_DEGREES)).toBe('done')
+    expect(at(ACCEPTANCE_ANGLE_DEGREES + 0.01)).toBe('todo')
   })
 })

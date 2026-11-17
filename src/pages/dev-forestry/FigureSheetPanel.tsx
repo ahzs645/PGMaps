@@ -19,7 +19,12 @@ import {
   type PartialCutNote,
 } from '@/lib/forestry/viaFigure/composeFigure'
 import { sceneSheetRule, type AlterationRule, type SceneDenominator } from '@/lib/forestry/viaFigure/alteration'
-import { findPreset, VIA_STYLE_PRESETS, type ViaStylePreset } from '@/lib/forestry/viaFigure/presets'
+import {
+  DEFAULT_FIGURE_STYLE,
+  findPreset,
+  VIA_STYLE_PRESETS,
+  type ViaStylePreset,
+} from '@/lib/forestry/viaFigure/presets'
 import { TIMBER_ABSENT, timberScreenedClasses, type TimberMeasure } from '@/lib/forestry/viaFigure/timberScreen'
 import type { CameraInfo } from '@/lib/forestry/viaFigure/cameraInfo'
 import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
@@ -173,8 +178,8 @@ function shiftCallout<T extends { anchor: [number, number] }>(
 
 export type FigureView = { id: string; name: string; image: (NoteImage & { figure?: SavedFigure }) | undefined }
 
-/** The default style when the road view has none chosen. */
-export const DEFAULT_FIGURE_STYLE = 'analysis-sheet-magenta'
+/** The default style when the road view has none chosen; it lives with the presets. */
+export { DEFAULT_FIGURE_STYLE }
 /** PNG pixels per point: 2 is 144 pixels an inch. */
 const PNG_PIXELS_PER_POINT = 2
 

@@ -21,6 +21,8 @@ import {
   type PolygonGeometry,
 } from './visibility'
 import { ARROW_AIM_DEGREES, type CandidateArrow, type ViewpointCandidate } from './viewpointInventory'
+import { acceptanceLapsed, type AcceptancePose } from './photoAcceptance'
+import type { FieldRecord } from './assessmentTools'
 
 /** Where a view stands: picked on the map, or one of BC's inventory viewpoints or rec sites. */
 export type ViewOfInterestSource =
@@ -70,6 +72,31 @@ export type ViewOfInterest = {
    * block from the same perspective. Absent: the view is assessed on its own (or leads its group).
    */
   assessedWith?: string
+  /**
+   * The photo this view was made from (`viewFromAcceptedPhoto`): its field record and the accepted camera's altitude,
+   * tilt, roll and lens, which a map view does not otherwise hold. The view's place and facing are the camera's.
+   */
+  photo?: ViewOfInterestPhoto | null
+}
+
+/**
+ * A view's photo link. The source stays `map`: `parseViewsOfInterest` drops a kind it does not know, so a `photo`
+ * kind would make an older PGMaps lose the whole view. Read by one, the view is an ordinary map view at the camera's
+ * place facing its heading, at eye level with its own lens; the link is left out (it copies only the fields it
+ * knows), and its capture key, which carries the photo camera, no longer matches, so it reads as needing capture
+ * rather than passing a ground-level capture off as the photo's.
+ */
+export type ViewOfInterestPhoto = {
+  /** The photo's field record (`FieldRecord.id`), which holds its bytes and its acceptance. */
+  recordId: string
+  /** Metres above sea level; null for a camera standing at eye height over the ground. */
+  altitudeMeters: number | null
+  /** Degrees above the horizon. */
+  pitch: number
+  /** Degrees; positive raises the photo's right side. */
+  roll: number
+  /** Degrees across the photo's width. */
+  hfov: number
 }
 
 /** The lenses offered: 50 mm is the reference sheets' lens (39.6° across), the default. */
@@ -85,6 +112,11 @@ export const DEFAULT_ARROWS_PER_VIEWPOINT = 2
 /** The horizontal field of a full-frame-equivalent focal length, degrees. */
 export function lensHfovDeg(focalMm: number): number {
   return (2 * Math.atan(HALF_FRAME_MM / focalMm) * 180) / Math.PI
+}
+
+/** The full-frame-equivalent focal length of a field across, millimetres: `lensHfovDeg`'s inverse. */
+export function focalForHfov(hfovDeg: number): number {
+  return HALF_FRAME_MM / Math.tan((hfovDeg * Math.PI) / 360)
 }
 
 /** "50 mm · 39.6° across". */
@@ -228,26 +260,42 @@ function sameView(a: ViewOfInterest, b: ViewOfInterest): boolean {
  * include flag are left out, so renaming a view or leaving it out of an export keeps its capture.
  */
 export function viewCaptureKey(view: ViewOfInterest): string {
+  const tenth = (value: number) => Math.round(value * 10) / 10
   return JSON.stringify([
     Math.round(view.lng * 1e6) / 1e6,
     Math.round(view.lat * 1e6) / 1e6,
     view.blockId,
-    view.facing.kind === 'bearing' ? Math.round(view.facing.degrees * 10) / 10 : 'block',
+    view.facing.kind === 'bearing' ? tenth(view.facing.degrees) : 'block',
     view.focalMm,
     view.framing,
     view.landformId ?? null,
+    // A photo's camera only when the view has one, so every other view keeps the key its captures were saved under.
+    ...(view.photo
+      ? [
+          view.photo.altitudeMeters === null ? null : tenth(view.photo.altitudeMeters),
+          tenth(view.photo.pitch),
+          tenth(view.photo.roll),
+          tenth(view.photo.hfov),
+        ]
+      : []),
   ])
 }
 
-/** The views standing at one place, in list order: one stand and one run serve them all. */
+/**
+ * The views standing at one place, in list order: one stand and one run serve them all. A photo viewpoint's eye is at
+ * the photo's altitude, so it shares a stand only with views at that same eye: a ground view and an aircraft photo
+ * over the same spot are different stands, and grouped they would save the photo's view from the ground.
+ */
 export function groupByPlace(views: readonly ViewOfInterest[]): ViewOfInterest[][] {
   const groups: ViewOfInterest[][] = []
+  const eyeOf = (view: ViewOfInterest) => view.photo?.altitudeMeters ?? null
   for (const view of views) {
     const group = groups.find(
       (entry) =>
         haversineMeters(entry[0], view) <= 1 &&
         entry[0].blockId === view.blockId &&
-        (entry[0].landformId ?? null) === (view.landformId ?? null),
+        (entry[0].landformId ?? null) === (view.landformId ?? null) &&
+        eyeOf(entry[0]) === eyeOf(view),
     )
     if (group) group.push(view)
     else groups.push([view])
@@ -287,7 +335,19 @@ export function viewCaptureState(
 }
 
 /** What a capture key records, in `viewCaptureKey`'s order, as a reviewer names it. */
-const CAPTURE_KEY_PARTS = ['place', 'place', 'block', 'facing', 'lens', 'framing', 'landform'] as const
+const CAPTURE_KEY_PARTS = [
+  'place',
+  'place',
+  'block',
+  'facing',
+  'lens',
+  'framing',
+  'landform',
+  'altitude',
+  'pitch',
+  'roll',
+  'lens',
+] as const
 export type CaptureKeyPart = (typeof CAPTURE_KEY_PARTS)[number]
 
 /**
@@ -306,12 +366,15 @@ export function captureKeyChanges(view: ViewOfInterest, savedViews: ReadonlyArra
     return []
   }
   const now = JSON.parse(key) as unknown[]
-  if (!Array.isArray(before) || before.length !== now.length) return []
+  if (!Array.isArray(before) || before.length > CAPTURE_KEY_PARTS.length) return []
+  // A photo's camera lengthens the key: a part one key lacks reads as changed (a photo linked or unlinked).
   const changed: CaptureKeyPart[] = []
-  now.forEach((value, index) => {
+  for (let index = 0; index < Math.max(now.length, before.length); index += 1) {
     const part = CAPTURE_KEY_PARTS[index]
-    if (part && JSON.stringify(value) !== JSON.stringify(before[index]) && !changed.includes(part)) changed.push(part)
-  })
+    const was = index < before.length ? JSON.stringify(before[index]) : undefined
+    const is = index < now.length ? JSON.stringify(now[index]) : undefined
+    if (part && was !== is && !changed.includes(part)) changed.push(part)
+  }
   return changed
 }
 
@@ -357,6 +420,8 @@ export function parseViewsOfInterest(raw: unknown): ViewOfInterest[] {
     if (!parsedFacing) continue
     const focalMm =
       finite(value.focalMm) && value.focalMm >= 10 && value.focalMm <= 300 ? value.focalMm : DEFAULT_FOCAL_MM
+    // A photo link that does not read is dropped and the view kept: it stands where the photo was, facing its way.
+    const photo = parseViewPhoto(value.photo)
     views.push({
       id: value.id,
       name: value.name,
@@ -372,10 +437,24 @@ export function parseViewsOfInterest(raw: unknown): ViewOfInterest[] {
       ...(typeof value.assessedWith === 'string' && value.assessedWith !== value.id
         ? { assessedWith: value.assessedWith }
         : {}),
+      ...(photo ? { photo } : {}),
     })
     if (views.length >= MAX_VIEWS_OF_INTEREST) break
   }
   return views
+}
+
+function parseViewPhoto(raw: unknown): ViewOfInterestPhoto | null {
+  const p = raw as Record<string, unknown> | null | undefined
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return null
+  const finite = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x)
+  if (typeof p.recordId !== 'string' || !p.recordId || p.recordId.length > 200) return null
+  if (!finite(p.pitch) || !finite(p.roll) || !finite(p.hfov)) return null
+  if (Math.abs(p.pitch) > 90 || Math.abs(p.roll) > 180 || p.hfov < 3 || p.hfov > 150) return null
+  // The range a surveyed eye and an accepted camera take.
+  const altitude = p.altitudeMeters ?? null
+  if (altitude !== null && (!finite(altitude) || altitude < -500 || altitude > 9000)) return null
+  return { recordId: p.recordId, altitudeMeters: altitude, pitch: p.pitch, roll: p.roll, hfov: p.hfov }
 }
 
 /**
@@ -470,4 +549,69 @@ export function handSaveLink(input: {
       reason: `The views of interest hold ${MAX_VIEWS_OF_INTEREST}: remove one to list this view with them.`,
     }
   return { kind: 'add', view }
+}
+
+/**
+ * The view of interest an accepted photo camera makes (doc proposal §2.7, *A photo viewpoint*): standing at the
+ * camera, facing its heading, one frame of its lens, with the photo linked for its altitude, tilt, roll and lens. It
+ * assesses the block nearest the middle of the frame. `update` when a view already holds this photo (the view keeps
+ * its id, name, block, landform and grouping; its camera follows the acceptance), `add` for a new one, `none` with the
+ * reason: no acceptance, a camera moved since it was accepted (`current`), no cutblock, or a full list. Only the frames
+ * the reviewer chooses become views; the rest stay evidence.
+ */
+export function viewFromAcceptedPhoto(
+  record: Pick<FieldRecord, 'id' | 'name' | 'acceptance'>,
+  scene: {
+    targets: ReadonlyArray<{ id: string; name: string; role: string; geometry: PolygonGeometry }>
+    viewsOfInterest?: readonly ViewOfInterest[]
+  },
+  /** The photo's camera as it stands now, when the page has it open. */
+  current?: AcceptancePose | null,
+): HandSaveLink {
+  const acceptance = record.acceptance
+  if (!acceptance)
+    return { kind: 'none', reason: 'Accept the photo’s camera first: only an accepted camera becomes a viewpoint.' }
+  if (current && acceptanceLapsed(acceptance, current))
+    return { kind: 'none', reason: 'The camera has moved since it was accepted: check it and accept it again.' }
+  const views = scene.viewsOfInterest ?? []
+  const { pose } = acceptance
+  const turned = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
+  const blocks = scene.targets.flatMap((target) => {
+    const centre = target.role === 'block' ? blockCentre(target.geometry) : null
+    return centre ? [{ target, offset: turned(bearingDegrees(pose, centre), pose.bearing) }] : []
+  })
+  const existing = views.find((view) => view.photo?.recordId === record.id)
+  const kept = existing && blocks.find((entry) => entry.target.id === existing.blockId)
+  // The block nearest the middle of the frame; with none in frame, still the nearest the heading, for the reviewer to
+  // re-point.
+  const chosen = kept ?? [...blocks].sort((a, b) => a.offset - b.offset)[0]
+  if (!chosen)
+    return { kind: 'none', reason: 'A view of interest is for a cutblock: add one to list this photo’s view.' }
+  const camera = {
+    lng: pose.lng,
+    lat: pose.lat,
+    blockId: chosen.target.id,
+    facing: { kind: 'bearing' as const, degrees: normalizeBearing(Math.round(pose.bearing * 10) / 10) },
+    // The view's lens is the photo's field across: the photo link keeps the exact field for a frame that is not 3:2.
+    focalMm: Math.min(300, Math.max(10, Math.round(focalForHfov(pose.hfov) * 10) / 10)),
+    framing: 'single' as const,
+    photo: {
+      recordId: record.id,
+      altitudeMeters: pose.altitudeMeters,
+      pitch: pose.pitch,
+      roll: pose.roll,
+      hfov: pose.hfov,
+    },
+  }
+  if (existing) return { kind: 'update', view: { ...existing, ...camera } }
+  if (views.length >= MAX_VIEWS_OF_INTEREST)
+    return {
+      kind: 'none',
+      reason: `The views of interest hold ${MAX_VIEWS_OF_INTEREST}: remove one to list this photo’s view. The photo stays evidence.`,
+    }
+  const base = `Photo ${record.name.replace(/\.[^.]+$/, '') || 'view'}, toward ${chosen.target.name}`
+  const taken = new Set(views.map((view) => view.name))
+  let name = base
+  for (let n = 2; taken.has(name); n += 1) name = `${base} (${n})`
+  return { kind: 'add', view: { id: createViewOfInterestId(), name, source: { kind: 'map' }, ...camera } }
 }

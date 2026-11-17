@@ -1,8 +1,10 @@
 /**
- * Satellite imagery round a camera as one RGBA mosaic, for drawing the map into a photo (`photoViews.ts`). The tiles
- * are the plan's own (`SATELLITE_TILES`, Esri World Imagery), which allow cross-origin reads.
+ * Satellite imagery round a camera as one RGBA mosaic, for drawing the map into a photo (`photoViews.ts`) on the
+ * page's thread or the photo worker's (`layer`). The tiles are the plan's own (`SATELLITE_TILES`, Esri World
+ * Imagery), which allow cross-origin reads.
  */
 import { SATELLITE_TILES } from '@/components/ui/map-satellite-imagery'
+import type { ImageryLayer } from './photoWork'
 import { mosaicSampler, tileXY, type ImagerySampler } from './photoViews'
 
 /** The most tiles one mosaic fetches; past it the zoom drops. */
@@ -12,7 +14,7 @@ export async function loadImageryMosaic(
   bounds: [number, number, number, number],
   maxZoom: number,
   signal?: AbortSignal,
-): Promise<{ sampler: ImagerySampler; zoom: number; tiles: number }> {
+): Promise<{ sampler: ImagerySampler; zoom: number; tiles: number; layer: ImageryLayer }> {
   let zoom = maxZoom
   const range = (z: number) => {
     const [x0, y0] = tileXY(bounds[0], bounds[3], z),
@@ -48,7 +50,16 @@ export async function loadImageryMosaic(
   }
   await Promise.all(Array.from({ length: 6 }, worker))
   const image = context.getImageData(0, 0, canvas.width, canvas.height)
-  return { sampler: mosaicSampler(image, zoom, r.minX, r.minY), zoom, tiles: jobs.length }
+  // The same pixels as a layer the photo worker can take (`renderPhotoModelView`): its sampler is made there.
+  const layer: ImageryLayer = {
+    zoom,
+    minX: r.minX,
+    minY: r.minY,
+    width: image.width,
+    height: image.height,
+    data: image.data,
+  }
+  return { sampler: mosaicSampler(image, zoom, r.minX, r.minY), zoom, tiles: jobs.length, layer }
 }
 
 /** Near imagery first, then a coarser ring for distant ground. */

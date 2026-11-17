@@ -3,10 +3,42 @@ import { loadPreviewTerrain } from './previewTerrainCache'
 import { demTileRange, type Bounds, type ElevationSource } from '@/lib/forestry/terrain/terrain'
 import { haversineMeters, polygonBounds, type PolygonGeometry } from './visibility'
 
+/** Most decoded tiles one road view mosaic holds (~32 MB). */
+export const DRIVE_TERRAIN_MAX_TILES = 128
+/** The finest and coarsest zooms the mosaic is loaded at. */
+export const DRIVE_TERRAIN_ZOOMS = { finest: 14, coarsest: 10 } as const
+
+/**
+ * The tiles the road view loads: the road and blocks' box, widened by `reach` when given (a photo viewpoint's wedge,
+ * `photoStandReach`), at the finest zoom that keeps within `DRIVE_TERRAIN_MAX_TILES`. A wider reach costs detail,
+ * never more tiles; finer near-road data is not fabricated.
+ */
+export function driveTerrainRange(bounds: Bounds, reach: Bounds | null = null) {
+  const box: Bounds = reach
+    ? [
+        Math.min(bounds[0], reach[0]),
+        Math.min(bounds[1], reach[1]),
+        Math.max(bounds[2], reach[2]),
+        Math.max(bounds[3], reach[3]),
+      ]
+    : bounds
+  let zoom: number = DRIVE_TERRAIN_ZOOMS.finest
+  let range = demTileRange(box, zoom, 1000)
+  while (range.tileCount > DRIVE_TERRAIN_MAX_TILES && zoom > DRIVE_TERRAIN_ZOOMS.coarsest)
+    range = demTileRange(box, --zoom, 1000)
+  return { zoom, range, tooLarge: range.tileCount > DRIVE_TERRAIN_MAX_TILES }
+}
+
 /** A bounded, fixed DEM mosaic is loaded before growing trees. Camera movement
  * cannot change a stem's elevation or turn an unloaded tile into sea level.
- * Fetching the whole route also warms the browser's terrain cache ahead of travel. */
-export function useDriveTerrain(active: boolean, road: number[][], polygons: PolygonGeometry[]) {
+ * Fetching the whole route also warms the browser's terrain cache ahead of travel.
+ * `reach` widens what is loaded for a photo viewpoint taken from the air (`photoStandReach`). */
+export function useDriveTerrain(
+  active: boolean,
+  road: number[][],
+  polygons: PolygonGeometry[],
+  reach: Bounds | null = null,
+) {
   const [attempt, setAttempt] = useState(0)
   const retry = useCallback(() => setAttempt((value) => value + 1), [])
   const extent = useMemo(() => {
@@ -31,15 +63,15 @@ export function useDriveTerrain(active: boolean, road: number[][], polygons: Pol
     )
     return { bounds, radius: Math.min(20000, radius) }
   }, [road, polygons])
+  // Compared by value: a new array with the same box must not reload the mosaic.
+  const reachKey = reach ? reach.join(',') : ''
   const request = useMemo(() => {
     if (!active || !extent) return null
-    // Include roadside foreground and the full assessment hillside. At most
-    // 128 decoded tiles (~32 MB); finer near-road data is not fabricated.
-    let zoom = 14
-    let range = demTileRange(extent.bounds, zoom, 1000)
-    while (range.tileCount > 128 && zoom > 10) range = demTileRange(extent.bounds, --zoom, 1000)
-    return { extent, range, attempt, tooLarge: range.tileCount > 128 }
-  }, [active, extent, attempt])
+    // Include roadside foreground and the full assessment hillside, and a photo viewpoint's view.
+    const reachBox = reachKey ? (reachKey.split(',').map(Number) as Bounds) : null
+    const { range, tooLarge } = driveTerrainRange(extent.bounds, reachBox)
+    return { extent, range, attempt, tooLarge }
+  }, [active, extent, attempt, reachKey])
   const [state, setState] = useState<{
     request: typeof request
     extent?: typeof extent

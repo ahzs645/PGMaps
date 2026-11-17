@@ -22,7 +22,8 @@ import {
   VIEW_OF_INTEREST_COLORS,
   VISIBLE_COLOR,
 } from './planMapStyle'
-import type { PlanLegendKey } from './planLayers'
+import { PhotoLegendSection } from './PhotoLegendSection'
+import { photoLegendRows, type PhotoLegendShown, type PlanLegendKey } from './planLayers'
 import { ROLE_COLORS } from './scene'
 import type { AssessmentMaskKind } from './types'
 import { EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
@@ -159,6 +160,8 @@ export type PlanMapLegendProps = {
   evqo: ReadonlyArray<EvqoCode>
   /** Views of interest drawn (`ViewsOfInterestLayers`), and the inventory arrows they or the finder's row face along. */
   viewsOfInterest?: { views: boolean; arrows: boolean }
+  /** What of the own photos the plan draws now (`PhotoDrapeLayer`, `PhotoCamerasLayer`); absent: none. */
+  photo?: PhotoLegendShown | null
   /** Rows switched off; with `onToggle`, every row is a button that hides its layer. */
   hidden?: ReadonlySet<PlanLegendKey>
   onToggle?: (key: PlanLegendKey) => void
@@ -181,6 +184,7 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
     props.sensitivityUnits.length > 0 ||
     (inventory && (inventory.viewpoints || inventory.arrows || inventory.recSites || inventory.screenings))
   const evqo = EVQO_ORDER.filter((code) => props.evqo.includes(code))
+  const photoRows = props.photo ? photoLegendRows(props.photo).length : 0
   if (
     !blocks.count &&
     !landform &&
@@ -193,7 +197,8 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
     !props.treeFreeAreas &&
     !props.standTrees &&
     !props.viewsOfInterest?.views &&
-    !props.viewsOfInterest?.arrows
+    !props.viewsOfInterest?.arrows &&
+    !photoRows
   )
     return null
   const toggles = props.onToggle ? { hidden: props.hidden ?? new Set<PlanLegendKey>(), onToggle: props.onToggle } : null
@@ -331,6 +336,14 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
                 />
               )}
             </MapLegendSection>
+          )}
+
+          {props.photo && photoRows > 0 && (
+            <PhotoLegendSection
+              shown={props.photo}
+              hidden={toggles?.hidden ?? new Set<PlanLegendKey>()}
+              onToggle={toggles?.onToggle}
+            />
           )}
 
           {terrain && (

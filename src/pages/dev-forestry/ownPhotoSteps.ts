@@ -10,6 +10,7 @@
  * Free of DOM and network access.
  */
 import type { PoseSource } from './exifPose'
+import { ACCEPTANCE_ANGLE_DEGREES } from './photoAcceptance'
 
 export type OwnPhotoStep = 'position' | 'direction' | 'check'
 
@@ -45,8 +46,8 @@ export interface OwnPhotoStepsInput {
   checkedBearings: number[]
 }
 
-/** A check made for a camera within this many degrees still speaks for it. */
-const CHECK_BEARING_TOLERANCE = 0.5
+/** A check made for a camera within this many degrees still speaks for it: the acceptance's own tolerance. */
+const CHECK_BEARING_TOLERANCE = ACCEPTANCE_ANGLE_DEGREES
 
 const headingGap = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
 

@@ -12,6 +12,7 @@ import type { PolygonGeometry } from './visibility'
 import { heightCurveProblem, MAX_LIBRARY_CURVES, type LibraryCurve } from './castorCurves'
 import { greenUpReading } from './greenUp'
 import { runHeadline, type HeadlineScale } from './runRevision'
+import { parsePhotoAcceptance, type PhotoAcceptance } from './photoAcceptance'
 
 export const MAX_TOOL_JOBS = 12
 export type ToolOption = { id: string; name: string; scene: ForestryScene }
@@ -95,7 +96,27 @@ export type FieldRecord = {
   originalName: string
   alignmentChecked: boolean
   annotations: Array<{ x: number; y: number; label: string }>
+  /**
+   * The photos taken on one flight or walk share this (`withFlights`, `photoRecords.ts`): a gap over five minutes
+   * starts another. Absent on records made before photos were grouped.
+   */
+  flightId?: string | null
+  /** When the photo was taken, ISO with the time: the GPS fix's (UTC, ends in Z), else the camera clock's (no zone). */
+  takenAtUtc?: string | null
+  /** The photo's place in its flight, in time order, from 0. */
+  frameIndex?: number | null
+  /** The reviewer's acceptance of the photo's camera (`photoAcceptance.ts`); absent or null until accepted. */
+  acceptance?: PhotoAcceptance | null
+  /** What the photo is evidence for: each a link to a view, a block or an opening, never a copy of the photo. */
+  uses?: Array<{ job: PhotoJob; targetId?: string | null }>
 }
+/** The jobs one photo can do (doc proposal §2.7): a view's photo, a before image, ground conditions, and so on. */
+export type PhotoJob = 'viewpoint' | 'before' | 'ground' | 'drawn-check' | 'regrowth' | 'landform'
+export const PHOTO_JOBS: readonly PhotoJob[] = ['viewpoint', 'before', 'ground', 'drawn-check', 'regrowth', 'landform']
+/** The attachments one workspace holds: photos, simulations, maps and designs together. */
+export const MAX_FIELD_RECORDS = 24
+/** Jobs kept on one photo: every job against a handful of targets. */
+const MAX_PHOTO_USES = 48
 export type RunSummary = Pick<
   AnalysisResult,
   | 'perspectiveByStation'
@@ -167,7 +188,7 @@ export function parseTools(raw: unknown): ToolsDocument {
     !Array.isArray(d.runs) ||
     d.options.length > 12 ||
     d.views.length > MAX_TOOL_VIEWS ||
-    d.fields.length > 24 ||
+    d.fields.length > MAX_FIELD_RECORDS ||
     d.runs.length > MAX_TOOL_JOBS
   )
     throw new Error('Invalid assessment tools document or too many records.')
@@ -263,7 +284,7 @@ export function parseTools(raw: unknown): ToolsDocument {
       (f.verticalReference !== undefined && typeof f.verticalReference !== 'string')
     )
       throw new Error('Invalid field observation.')
-    return f
+    return { ...f, ...photoFields(f) }
   })
   const options = d.options.map((v) => {
     identity(v)
@@ -321,6 +342,47 @@ export function parseTools(raw: unknown): ToolsDocument {
     curveLibrary,
     blockCurves,
   }
+}
+/**
+ * A field record's photo fields, checked. A malformed flight, time or frame number throws like any other bad value.
+ * An acceptance that does not read is left out, so the photo reads as not accepted (the safe side) rather than the
+ * workspace failing to load; a job this PGMaps does not know (a newer one's) is left out the same way.
+ */
+function photoFields(f: FieldRecord): Partial<FieldRecord> {
+  const raw = f as Partial<Record<'flightId' | 'takenAtUtc' | 'frameIndex' | 'acceptance' | 'uses', unknown>>
+  const out: Partial<FieldRecord> = {}
+  if (raw.flightId != null) {
+    if (typeof raw.flightId !== 'string' || !raw.flightId || raw.flightId.length > 200)
+      throw new Error('A field photo’s flight is invalid.')
+    out.flightId = raw.flightId
+  }
+  if (raw.takenAtUtc != null) {
+    if (
+      typeof raw.takenAtUtc !== 'string' ||
+      raw.takenAtUtc.length > 40 ||
+      !Number.isFinite(Date.parse(raw.takenAtUtc))
+    )
+      throw new Error('A field photo’s time is invalid.')
+    out.takenAtUtc = raw.takenAtUtc
+  }
+  if (raw.frameIndex != null) {
+    if (!Number.isInteger(raw.frameIndex) || (raw.frameIndex as number) < 0 || (raw.frameIndex as number) > 10_000)
+      throw new Error('A field photo’s place in its flight is invalid.')
+    out.frameIndex = raw.frameIndex as number
+  }
+  if (raw.acceptance != null) out.acceptance = parsePhotoAcceptance(raw.acceptance)
+  if (raw.uses !== undefined) {
+    if (!Array.isArray(raw.uses) || raw.uses.length > MAX_PHOTO_USES)
+      throw new Error('A field photo’s uses are invalid.')
+    out.uses = raw.uses.flatMap((use) => {
+      const u = use as { job?: unknown; targetId?: unknown } | null
+      if (!u || !(PHOTO_JOBS as readonly unknown[]).includes(u.job)) return []
+      if (u.targetId != null && (typeof u.targetId !== 'string' || u.targetId.length > 200))
+        throw new Error('A field photo’s use names an invalid target.')
+      return [{ job: u.job as PhotoJob, ...(u.targetId != null ? { targetId: u.targetId as string } : {}) }]
+    })
+  }
+  return out
 }
 function parseCurveLibrary(raw: unknown): LibraryCurve[] {
   if (raw === undefined) return []

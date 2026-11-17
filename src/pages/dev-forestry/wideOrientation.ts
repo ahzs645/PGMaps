@@ -49,6 +49,13 @@ export interface WideSearchInput {
    * track, or the tilt sensor. A prior narrows the search, so a runner-up outside it is never considered.
    */
   priors?: Partial<Record<'heading' | 'pitch' | 'roll', { value: number; tolerance: number }>>
+  /**
+   * The field of view across the photo, degrees, when its lens is not known: a photo cropped after it was taken has
+   * at most the tagged lens (`lensCheck`, `photoFlight.ts`). The search then tries lenses across the range
+   * (`LENS_STEP_DEGREES` apart, at most `MAX_LENS_STEPS`) and keeps the one whose skyline fits best; `pose.focalPx`
+   * is not used.
+   */
+  hfovRange?: Range
   /** Called with the share of the coarse search done, 0–1. */
   onProgress?: (done: number) => void
   /** Returns true to stop early (cancelled); the search then returns null. */
@@ -69,7 +76,14 @@ export interface WideSearchResult {
   ambiguous: boolean
   /** `fitSkyline` trusts the fit and no clearly different heading fits about as well. */
   trustworthy: boolean
+  /** The lens the fit was found at, degrees across: only when `hfovRange` was searched. */
+  hfov?: number
 }
+
+/** Lenses tried across an `hfovRange`, this many degrees apart … */
+export const LENS_STEP_DEGREES = 3
+/** … and never more than this many: each is a whole search. */
+export const MAX_LENS_STEPS = 7
 
 const wrap = (degrees: number) => ((degrees % 360) + 360) % 360
 
@@ -97,8 +111,38 @@ export function horizonSlice(profile: readonly ProfilePoint[], bearing: number, 
   })
 }
 
-/** Searches every heading in `headingSpan` for the pose whose terrain horizon lies on the photo's skyline. */
+/**
+ * Searches every heading in `headingSpan` for the pose whose terrain horizon lies on the photo's skyline; across a
+ * range of lenses too when `hfovRange` is given.
+ */
 export function searchOrientation(input: WideSearchInput): WideSearchResult | null {
+  const range = input.hfovRange
+  if (!range) return searchAtLens(input)
+  const lo = Math.max(3, Math.min(range[0], range[1])),
+    hi = Math.min(150, Math.max(range[0], range[1]))
+  const steps = hi - lo < 1e-6 ? 1 : Math.min(MAX_LENS_STEPS, Math.ceil((hi - lo) / LENS_STEP_DEGREES) + 1)
+  let best: WideSearchResult | null = null
+  for (let k = 0; k < steps; k++) {
+    const hfov = steps === 1 ? (lo + hi) / 2 : lo + ((hi - lo) * k) / (steps - 1)
+    const focalPx = input.pose.width / (2 * Math.tan((hfov * RAD) / 2))
+    const found = searchAtLens({
+      ...input,
+      pose: { ...input.pose, focalPx },
+      onProgress: input.onProgress && ((done) => input.onProgress!((k + done) / steps)),
+    })
+    if (input.cancelled?.()) return null
+    // The lens whose skyline the fine fit holds best, as the fine fit itself chooses a roll; then the coarser loss.
+    const score = (result: WideSearchResult) => result.fit.agreeing * result.fit.agreement
+    if (
+      found &&
+      (!best || score(found) > score(best) || (score(found) === score(best) && found.meanLoss < best.meanLoss))
+    )
+      best = { ...found, hfov }
+  }
+  return best
+}
+
+function searchAtLens(input: WideSearchInput): WideSearchResult | null {
   const { profile, onProgress, cancelled, priors } = input
   const narrow = (range: Range, prior?: { value: number; tolerance: number }): Range => {
     if (!prior) return range

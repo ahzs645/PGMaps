@@ -176,3 +176,38 @@ describe('distance haze', () => {
       expect(rings.features[i].properties!.innerMeters).toBeCloseTo(rings.features[i - 1].properties!.outerMeters, 6)
   })
 })
+
+describe('a photo viewpoint’s fixed look', () => {
+  it('reaches the camera with its roll and a pitch steeper than a road look', () => {
+    const { map } = fakeMap()
+    const jumps: Array<{ pitch?: number; roll?: number }> = []
+    map.jumpTo = (camera) => jumps.push(camera)
+    const controller = new DriveController(map, ROAD, [], GROUND)
+    controller.start(0)
+    controller.tick(0, options({ fixedLook: { bearing: 30, pitch: -60, roll: 4 } }))
+    const last = jumps[jumps.length - 1]
+    expect(last.pitch).toBeCloseTo(30, 9)
+    // MapLibre's roll is the photo's, opposite in sign, and always given (never left undefined).
+    expect(last.roll).toBe(-4)
+  })
+
+  it('places the camera again when only the roll changes', () => {
+    const { map, placed } = fakeMap()
+    const controller = new DriveController(map, ROAD, [], GROUND)
+    controller.start(0)
+    controller.tick(0, options({ fixedLook: { bearing: 30, pitch: -6, roll: 0 } }))
+    const before = placed.length
+    controller.tick(16, options({ fixedLook: { bearing: 30, pitch: -6, roll: 2 } }))
+    expect(placed.length).toBe(before + 1)
+  })
+
+  it('keeps an explicit roll of 0 on a road look', () => {
+    const { map } = fakeMap()
+    const jumps: Array<{ roll?: number }> = []
+    map.jumpTo = (camera) => jumps.push(camera)
+    const controller = new DriveController(map, ROAD, [], GROUND)
+    controller.start(0)
+    controller.tick(0, options())
+    expect(jumps[jumps.length - 1].roll).toBe(0)
+  })
+})

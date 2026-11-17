@@ -1,6 +1,7 @@
 /** The portable project: project.json plus ordinary files for photographs, captures and supporting evidence. */
 import { unzip, zip, type Unzipped, type Zippable } from 'fflate'
-import type { OwnPose } from './exifPose'
+import type { OwnPose, OwnPoseSources } from './exifPose'
+import { parseOwnPoseSources, parseOwnSearchSummary, type OwnSearchSummary } from './photoRecords'
 import {
   fromBase64,
   MAX_PROJECT_FILE_BYTES,
@@ -11,10 +12,27 @@ import {
   type ProjectState,
 } from './projectFile'
 
-export type ProjectAttachment = { name: string; blob: Blob }
-export type ProjectPhoto = ProjectAttachment & { pose: OwnPose; recordId: string | null }
-export type ProjectMedia = { title: string | null; attachments: ProjectAttachment[]; photo: ProjectPhoto | null }
-export const emptyProjectMedia = (): ProjectMedia => ({ title: null, attachments: [], photo: null })
+/** A file kept with the project; an own photo's original names the field record it belongs to. */
+export type ProjectAttachment = { name: string; blob: Blob; recordId?: string | null }
+/**
+ * The photo open in the own-photo window: its original, its pose, the record it is, where each pose value came from
+ * and the last skyline search's summary. Not its rasters, terrain or drawings: those are made again from the pose.
+ */
+export type ProjectPhoto = ProjectAttachment & {
+  pose: OwnPose
+  recordId: string | null
+  sources?: OwnPoseSources | null
+  search?: OwnSearchSummary | null
+}
+export type ProjectMedia = {
+  title: string | null
+  attachments: ProjectAttachment[]
+  /** The photo open in the window when the project was saved. */
+  photo: ProjectPhoto | null
+  /** The other own photos open in the set, each with its own pose, sources and search; absent or empty: none. */
+  photos?: ProjectPhoto[]
+}
+export const emptyProjectMedia = (): ProjectMedia => ({ title: null, attachments: [], photo: null, photos: [] })
 
 const MANIFEST = 'archive.json'
 const PROJECT = 'project.json'
@@ -90,9 +108,28 @@ type ArchiveManifest = {
   format: 'pgmaps-visual-quality-zip'
   version: 1
   title: string | null
-  attachments: Array<{ name: string; path: string }>
-  photo: { name: string; path: string; pose: OwnPose; recordId: string | null } | null
+  /**
+   * `recordId` and the photo's `sources` and `search` came after version 1 and are optional: a PGMaps that does not
+   * know them reads the rest as before, so the manifest's version stays 1.
+   */
+  attachments: Array<{ name: string; path: string; recordId?: string }>
+  photo: ArchivePhoto | null
+  /**
+   * The rest of the own-photo set. Came after version 1 and is optional: an older PGMaps reopens the open photo alone,
+   * as before.
+   */
+  photos?: ArchivePhoto[]
 }
+type ArchivePhoto = {
+  name: string
+  path: string
+  pose: OwnPose
+  recordId: string | null
+  sources?: OwnPoseSources
+  search?: OwnSearchSummary
+}
+/** The most own photos a project carries: the workspace's field records hold no more. */
+const MAX_PROJECT_PHOTOS = 24
 
 export async function writeProjectArchive(
   state: ProjectState,
@@ -146,18 +183,33 @@ export async function writeProjectArchive(
     checkBytes(total + file.blob.size)
     put(path, new Uint8Array(await file.blob.arrayBuffer()), /\.(txt|md|csv|json|geojson)$/i.test(name) ? 6 : 0)
     attachmentPaths.set(file.blob, path)
-    manifest.attachments.push({ name, path })
+    manifest.attachments.push({ name, path, ...(file.recordId ? { recordId: file.recordId } : {}) })
   }
-  if (media.photo) {
-    const { name, pose, recordId, blob } = media.photo
-    if (blob.size > MAX_PHOTO_BYTES) throw new Error('The open field photo exceeds 25 MB.')
-    const attached = attachmentPaths.get(blob)
-    const path = attached ?? 'photos/open/' + projectAttachmentName(name)
-    if (!attached) {
+  // A photo's original is usually already an attachment (its field record's): the manifest points at that copy.
+  const writePhoto = async (photo: ProjectPhoto): Promise<ArchivePhoto> => {
+    const { name, pose, recordId, blob, sources, search } = photo
+    if (blob.size > MAX_PHOTO_BYTES) throw new Error(`The field photo ${name} exceeds 25 MB.`)
+    let path = attachmentPaths.get(blob)
+    if (!path) {
+      path = `photos/open/${attachmentPaths.size + 1}/${projectAttachmentName(name)}`
       checkBytes(total + blob.size)
       put(path, new Uint8Array(await blob.arrayBuffer()))
+      attachmentPaths.set(blob, path)
     }
-    manifest.photo = { name: projectAttachmentName(name), path, pose, recordId }
+    return {
+      name: projectAttachmentName(name),
+      path,
+      pose,
+      recordId,
+      ...(sources ? { sources } : {}),
+      ...(search ? { search } : {}),
+    }
+  }
+  if (media.photo) manifest.photo = await writePhoto(media.photo)
+  const others = (media.photos ?? []).filter((photo) => photo !== media.photo).slice(0, MAX_PROJECT_PHOTOS)
+  if (others.length) {
+    manifest.photos = []
+    for (const photo of others) manifest.photos.push(await writePhoto(photo))
   }
   const encoder = new TextEncoder()
   put(PROJECT, encoder.encode(JSON.stringify(doc)), 6)
@@ -230,7 +282,10 @@ export async function openProjectArchive(file: Blob) {
   })
 
   const blobs = new Map<string, Blob>()
-  const attachment = (asset: { path: string; name: string }, folders: string[]): ProjectAttachment => {
+  const attachment = (
+    asset: { path: string; name: string; recordId?: unknown },
+    folders: string[],
+  ): ProjectAttachment => {
     if (
       typeof asset?.name !== 'string' ||
       typeof asset.path !== 'string' ||
@@ -239,20 +294,35 @@ export async function openProjectArchive(file: Blob) {
       throw new Error('The project contains an invalid attachment reference.')
     const blob = blobs.get(asset.path) ?? new Blob([entry(asset.path) as BlobPart])
     blobs.set(asset.path, blob)
-    return { name: projectAttachmentName(asset.name), blob }
+    const recordId = typeof asset.recordId === 'string' && asset.recordId ? asset.recordId.slice(0, 200) : null
+    return { name: projectAttachmentName(asset.name), blob, ...(recordId ? { recordId } : {}) }
   }
   const attachments = manifest.attachments.map((asset) => attachment(asset, ['attachments/']))
-  let photo: ProjectPhoto | null = null
-  if (manifest.photo) {
-    const asset = attachment(manifest.photo, ['photos/open/', 'attachments/'])
-    const { pose, recordId } = manifest.photo
+  const readPhoto = (entry: ArchivePhoto): ProjectPhoto => {
+    const asset = attachment(entry, ['photos/open/', 'attachments/'])
+    const { pose, recordId, sources, search } = entry
     if (asset.blob.size > MAX_PHOTO_BYTES || !validPose(pose))
       throw new Error('The project contains an invalid field photo or camera.')
-    photo = { ...asset, pose, recordId: typeof recordId === 'string' ? recordId.slice(0, 200) : null }
+    // Sources or a search that do not read are left out: the photo opens with the sources its EXIF gives
+    // (`ownSourcesOnReopen`) and no search, as from an older file.
+    return {
+      ...asset,
+      pose,
+      recordId: typeof recordId === 'string' ? recordId.slice(0, 200) : null,
+      sources: sources === undefined ? null : parseOwnPoseSources(sources),
+      search: search === undefined ? null : parseOwnSearchSummary(search),
+    }
   }
+  const photo = manifest.photo ? readPhoto(manifest.photo) : null
+  const photos = Array.isArray(manifest.photos) ? manifest.photos.slice(0, MAX_PROJECT_PHOTOS).map(readPhoto) : []
   return {
     ...project,
-    media: { title: typeof manifest.title === 'string' ? manifest.title.slice(0, 200) : null, attachments, photo },
+    media: {
+      title: typeof manifest.title === 'string' ? manifest.title.slice(0, 200) : null,
+      attachments,
+      photo,
+      photos,
+    },
   }
 }
 

@@ -12,7 +12,7 @@ import {
   Search,
   X,
 } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { CheckboxField, FORM_INPUT_CLASS, FormField } from '@/components/ui/form-field'
@@ -24,11 +24,16 @@ import { Slider } from '@/components/ui/slider'
 import { ExternalLink } from '@/components/ui/text-button'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { formatDate } from '@/lib/format'
+import type { StrokeStyle } from '@/lib/mapSheet/drawOps'
+import { symbolKeyColor } from '@/lib/mapSheet/symbols'
+import { DEFAULT_FIGURE_STYLE } from '@/lib/forestry/viaFigure/presets'
 import { cn } from '@/lib/utils'
 
 import { photoNearDrive } from './mapillary'
 import { formatKm } from './measureFormat'
 import { OwnFieldPhoto, type OwnPhotoActions } from './OwnFieldPhoto'
+import { photoLayerSymbol, photoStrokes, photoSymbolScale, roleSymbol } from './photoLayers'
+import { pathData, photoOverlay } from './photoOverlay'
 import type { FieldPhotoState } from './useFieldPhoto'
 
 function Credit({ photo }: { photo: { creator: string | null; pageUrl: string } }) {
@@ -256,6 +261,9 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
   const frameWidth = drawing?.pose.width ?? image?.width ?? own!.width
   const frameHeight = drawing?.pose.height ?? image?.height ?? own!.height
   const src = image ? image.thumbUrl : own!.src
+  // From the air, "seen" dots are the nearest road station's sight 1.5 m up, not the aircraft's: leave them out.
+  const airborne = !!own && own.pose.altitudeMeters !== null && own.pose.altitudeMeters !== undefined
+  const k = photoSymbolScale(frameWidth)
   return (
     <>
       <div ref={frame} className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -275,20 +283,16 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
               preserveAspectRatio="none"
             >
               {drawing.skyline.length > 1 && (
-                <polyline
-                  points={drawing.skyline.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ')}
-                  fill="none"
-                  stroke="#facc15"
-                  strokeWidth={frameWidth / 400}
-                  strokeDasharray={`${frameWidth / 120} ${frameWidth / 200}`}
+                <StrokedPath
+                  d={pathData(drawing.skyline.map((point) => [point.x, point.y]))}
+                  strokes={photoStrokes(photoLayerSymbol('skyline'), k)}
                 />
               )}
-              {drawing.visibleDots.map((dot, index) => (
-                <circle key={index} cx={dot.x} cy={dot.y} r={frameWidth / 700} fill="#ef4444" opacity={0.8} />
-              ))}
-              {drawing.outlines.map((path, index) => (
-                <path key={index} d={path} fill="none" stroke="#f97316" strokeWidth={frameWidth / 350} />
-              ))}
+              {!airborne &&
+                drawing.visibleDots.map((dot, index) => (
+                  <circle key={index} cx={dot.x} cy={dot.y} r={frameWidth / 700} fill={SEEN_DOT_COLOR} opacity={0.8} />
+                ))}
+              <BlockOutlines photo={photo} drawing={drawing} k={k} />
             </svg>
           )}
         </div>
@@ -450,8 +454,11 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           {match.nudge.bearing || match.nudge.pitch
             ? `Nudged ${match.nudge.bearing >= 0 ? '+' : ''}${match.nudge.bearing.toFixed(1)}° heading, ${match.nudge.pitch >= 0 ? '+' : ''}${match.nudge.pitch.toFixed(2)}° pitch. `
             : ''}
-          Yellow: terrain skyline{photo.skylineReady ? ' to 25 km' : ' (loading terrain…)'}. Orange: cutblock outline,
-          hidden parts included. Red: block ground this station sees.
+          Dashed: terrain skyline{photo.skylineReady ? ' to 25 km' : ' (loading terrain…)'}. Outline: proposed block,
+          dotted where nearer ground hides it{photo.hitBuffer ? '' : ' (hidden parts not told apart yet)'}.
+          {airborne
+            ? ' The seen-ground dots are left out: they are the road station’s sight, not the aircraft’s.'
+            : ' Dots: block ground this station sees.'}
         </p>
         <p className="text-3xs text-muted-foreground">
           {image ? (
@@ -465,6 +472,69 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
       </div>
     </>
   )
+}
+
+/** The colour of the block ground a road station sees: the figure styles' area of alteration. */
+const SEEN_DOT_COLOR = symbolKeyColor(roleSymbol('areaOfAlteration', DEFAULT_FIGURE_STYLE))
+
+/** One path drawn with a symbol's strokes, bottom first. */
+function StrokedPath({ d, strokes }: { d: string; strokes: StrokeStyle[] }) {
+  return strokes.map((stroke, index) => (
+    <path
+      key={index}
+      d={d}
+      fill="none"
+      stroke={stroke.color}
+      strokeWidth={stroke.width}
+      strokeDasharray={stroke.dash?.join(' ')}
+      strokeLinecap={stroke.cap}
+      strokeLinejoin={stroke.join}
+      strokeOpacity={stroke.opacity}
+    />
+  ))
+}
+
+/**
+ * The proposed blocks' outlines in the proposed-block symbol, with their hidden parts dotted where the own photo's hit
+ * buffer says nearer ground hides them; drawn whole, as the comparison always has, until it is ready.
+ */
+function BlockOutlines({
+  photo,
+  drawing,
+  k,
+}: {
+  photo: FieldPhotoState
+  drawing: NonNullable<FieldPhotoState['drawing']>
+  k: number
+}) {
+  const symbol = photoLayerSymbol('proposedBlocks', {}, DEFAULT_FIGURE_STYLE)
+  const pose = photo.activePose
+  const buffer = photo.hitBuffer
+  const ground = photo.ownTerrain
+  const usable =
+    !!photo.own &&
+    !!pose &&
+    !!buffer &&
+    !!ground &&
+    buffer.poseKey === photo.activePoseKey &&
+    pose.width === drawing.pose.width &&
+    pose.height === drawing.pose.height
+  const blocks = photo.ownScene.targets
+  const runs = useMemo(() => {
+    if (!usable) return null
+    const features = blocks
+      .filter((target) => target.role === 'block')
+      .map((target) => ({ layer: 'proposedBlocks', id: target.id, geometry: target.geometry }))
+    return photoOverlay(pose!, buffer!, features, { ground: ground! })
+  }, [usable, pose, buffer, ground, blocks])
+  if (!runs)
+    return drawing.outlines.map((path, index) => <StrokedPath key={index} d={path} strokes={photoStrokes(symbol, k)} />)
+  return runs.flatMap((feature, index) => [
+    ...feature.hidden.map((d, j) => (
+      <StrokedPath key={`h${index}-${j}`} d={d} strokes={photoStrokes(symbol, k, true)} />
+    )),
+    ...feature.visible.map((d, j) => <StrokedPath key={`v${index}-${j}`} d={d} strokes={photoStrokes(symbol, k)} />),
+  ])
 }
 
 /**
