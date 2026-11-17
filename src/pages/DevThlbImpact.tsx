@@ -106,7 +106,7 @@ export default function DevThlbImpact() {
       title="THLB impact"
       subtitle="Harvestable hectares within proposed areas"
       icon={TreePine}
-      actions={<ForestryBackLink />}
+      back={<ForestryBackLink />}
       density="compact"
       className={MAP_SIDEBAR_CLASS}
     >

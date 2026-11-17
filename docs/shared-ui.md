@@ -243,7 +243,9 @@ and `onChange(event)` with `event.target.value` and `name`, or
 first option, as a native select does). The menu is the Radix one from `AppSelect`,
 layered at `z-workspace-popover` so it opens above dialogs and fullscreen panes;
 past `SEARCHABLE_FROM` (10) options it becomes a combobox with a filter box, and
-`searchable` forces either way. `multiple` or a `size` above 1 renders a real
+`searchable` forces either way. Typing a letter on a closed dropdown opens it on
+the first matching option (the filter box takes the letter in the searchable
+form) and Enter picks it; it never changes the value unseen. `multiple` or a `size` above 1 renders a real
 `<select>`. `AppSelect`'s `triggerTutorialId` (`RoadSelect`'s `tutorialId`) puts a live
 lesson's anchor (`data-tutorial-id`) on the trigger itself
 ([live lessons](forestry-road-design/live-lessons.md)).
@@ -297,6 +299,9 @@ current value unless `blankValue="zero"`; nullable blank input stays `null`.
 default, and untouched blur does not emit a rounded value. Road adapters request
 `precision={6}` and `stepMode="increment"` to retain their existing edit/keyboard
 convention. Other numeric fields keep native arrow-key step alignment by default.
+A unit drawn beside the box narrows it; in a grid of fields put the unit inside
+the box with `{...unitInside()}` (`src/components/ui/form-field.tsx`), which keeps
+the box its column's width and hides the browser's spinner under the unit.
 
 `NumericRangeField` (`numeric-range-field.tsx`) shares the label, numeric
 `onChange`, value/unit readout and description for a range. Supply `display` for
@@ -521,6 +526,30 @@ track grows to the longest cell in any column.
   with "Data from …", source link, `footerActions`, `footerStart`, Close.
   `RecordEmptyState` when the record has nothing to show.
 - `PanelDialog`: settings, pickers and libraries (optional footer).
+
+## Your details and person fields
+
+- **Your details** (`src/branding/PreparerProfile.tsx`, model `profile.ts`) are who prepares sheets and
+  reports: name, designation, registration number, own organisation, contact, and the printed logo. They are
+  kept in this browser's `pgmaps-branding` IndexedDB beside the logo, never in a project or scene file. Every
+  Save & export file list opens them from its first row, `PreparerProfileRow`.
+- One form, two shells: `PreparerProfilePane` is the form as a pane beside a file list, and
+  `PreparerProfileDialog` the same form as a modal. A dialog with a file list wraps its body in
+  `PreparerProfileHostProvider` and keeps the pane mounted (hidden while another row is shown, so an unsaved
+  edit survives); the row and every *Edit your details* link inside it then select the pane. With no host they
+  open the modal, so a page outside Save & export gets it with no extra wiring. Never stack the modal over
+  Save & export, and Save stays explicit in both: the details are shared by every tool in this browser.
+- A record copies them only on a click: `UseMyDetailsButton` with `blanksFilledFromProfile`, which fills the
+  record's blank fields and never replaces one it already holds. A document prints the record, so it prints
+  the same whoever's browser opens the project. Seal, signature and date are never filled.
+- A field that names a person (*Checked by*, *Assessor*, *Reviewer*) is `PersonInput`
+  (`src/branding/PersonInput.tsx`): a plain text box with *Use mine* under it, or *Use mine instead* when it
+  holds someone else's name. Never a field that fills itself from the profile.
+- An output's options show what it prints with `PrintedPreparer`: the record's preparer line, *Use my
+  details* and the logo, with a link to Your details. The logo is changed there, once, for every sheet and
+  report; never put a second logo control in a page. A logo may be a PNG, JPEG or SVG (`LOGO_FILE_ACCEPT`,
+  `LOGO_FILE_TYPES_TEXT`); an SVG is drawn once into a PNG with its longer side at 1,200 px (`svgLogo.ts`), so
+  every printer keeps reading a PNG or JPEG.
 
 ## Workspaces and engineering data
 
@@ -783,6 +812,12 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   tool's fields and readouts (`ReadoutGrid`) as children; a `status` line; and `actions` in a
   footer with the primary action last. Don't put a tool's live state in a banner above the map
   or repeat it in a sidebar with a second Finish button. The host positions the card.
+  A panel whose state must outlive the place that shows it (a dialog pane mounted only while
+  open) renders once through `MovableContent` (`movable-content.tsx`) and is moved into the
+  pane's slot, rather than mounted in the pane.
+  A tool started from the map's control stack is a `MapToolToggle` (`map-tool-toggle.tsx`,
+  the button `MapMeasureControl` is built on): pressed while its card is open, with `on` for
+  an effect that stays on the map after the card closes.
 - Overlays: `MapOverlay` (`position`). Pass `clearChrome` rather than writing
   your own `calc(…)` offsets: it keeps clear of the phone toolbar above, the
   bottom sheet, safe area and timeline below, and the corner controls and

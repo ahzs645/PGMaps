@@ -11,11 +11,11 @@ import { useEffect, useRef } from 'react'
 import { Circle, Pentagon, Redo2, Ruler, Spline, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MapToolPanel } from '@/components/ui/map-tool-panel'
+import { MapToolToggle } from '@/components/ui/map-tool-toggle'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import type { MapSketchController } from '@/components/ui/map-sketch'
 import { formatSketchArea, formatSketchDistance, type SketchShape, type SketchStats } from '@/lib/geo/mapSketch'
-import { cn } from '@/lib/utils'
 
 export const MEASURE_SHAPES: ReadonlyArray<{ value: SketchShape; label: string; icon: typeof Ruler }> = [
   { value: 'line', label: 'Distance', icon: Spline },
@@ -177,21 +177,6 @@ export function MapMeasureControl({
   title?: string
 }) {
   return (
-    <div className="overflow-hidden rounded-md border border-border bg-background shadow-sm">
-      <button
-        type="button"
-        aria-label="Measure"
-        aria-pressed={active}
-        title={title}
-        disabled={disabled}
-        onClick={onToggle}
-        className={cn(
-          'flex size-11 items-center justify-center transition-colors hover:bg-accent disabled:opacity-50 dark:hover:bg-accent/40 workspace-desktop:size-8',
-          active && 'bg-accent text-accent-foreground dark:bg-accent/40',
-        )}
-      >
-        <Ruler className="size-4" />
-      </button>
-    </div>
+    <MapToolToggle icon={Ruler} label="Measure" active={active} onToggle={onToggle} disabled={disabled} title={title} />
   )
 }

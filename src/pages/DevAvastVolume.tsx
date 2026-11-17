@@ -595,7 +595,7 @@ export default function DevAvastVolume() {
       title="AVAST volume"
       subtitle="Planning volume for candidate blocks"
       icon={Layers}
-      actions={<ForestryBackLink />}
+      back={<ForestryBackLink />}
       density="compact"
       className={MAP_SIDEBAR_CLASS}
     >

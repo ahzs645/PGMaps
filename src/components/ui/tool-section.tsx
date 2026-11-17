@@ -117,3 +117,34 @@ export function ToolDisclosure({ contentClassName, help, actions, ...props }: To
     />
   )
 }
+
+/**
+ * A titled group inside a `ToolSection` that never folds: a hairline, a small heading with its (i), and the content
+ * below. Use it rather than a `ToolDisclosure` when the section itself already folds, so a reader never opens a fold to
+ * find another fold inside it.
+ */
+export function ToolSubsection({
+  title,
+  help,
+  children,
+  className,
+}: {
+  title: string
+  /** The group's explanation, behind an (i) beside its heading. */
+  help?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <section
+      className={cn('space-y-2 border-t border-border/60 pt-2.5 first:border-t-0 first:pt-0', className)}
+      aria-label={title}
+    >
+      <h3 className="flex items-center gap-1 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+        {help && <InfoTip label={`About ${title.toLowerCase()}`}>{help}</InfoTip>}
+      </h3>
+      {children}
+    </section>
+  )
+}

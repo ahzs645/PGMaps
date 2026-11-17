@@ -18,8 +18,9 @@ const GAP = 6,
   MARGIN = 8
 /** How long the pointer rests on a `HoverTip`'s control before its bubble opens. */
 const HOVER_DELAY_MS = 350
+/** Above the overlay scrollbar's thumb (`.overlay-scrollbar`, z-index 2147483000), which is drawn over every scroller. */
 const BUBBLE_CLASS =
-  'geo-motion-popover fixed z-[2000] block w-72 max-w-[calc(100vw-16px)] whitespace-normal rounded-lg border bg-popover p-3 text-left text-xs font-normal leading-5 text-popover-foreground shadow-lg'
+  'geo-motion-popover fixed z-[2147483100] block w-72 max-w-[calc(100vw-16px)] whitespace-normal rounded-lg border bg-popover p-3 text-left text-xs font-normal leading-5 text-popover-foreground shadow-lg'
 
 /** Puts a bubble under its anchor, or above it without room below, inside the window. */
 function placeBubble(anchor: DOMRect, panel: HTMLElement) {

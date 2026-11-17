@@ -100,7 +100,7 @@ export default function DevCcissSuitability() {
       title="CCISS suitability"
       subtitle="Tile trace · numeric reference lookup"
       icon={Sprout}
-      actions={<ForestryBackLink />}
+      back={<ForestryBackLink />}
       density="compact"
       className={MAP_SIDEBAR_CLASS}
     >

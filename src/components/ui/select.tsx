@@ -231,6 +231,49 @@ const workspaceSelectContentClass = 'z-workspace-popover text-base md:text-xs'
 
 const EMPTY_SELECT_VALUE = '__app_select_empty__'
 
+/** A key that types a character into a closed dropdown's search: printable, no command modifier. */
+const isTypeaheadKey = (event: React.KeyboardEvent) =>
+  event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
+
+/**
+ * Typing on a closed dropdown opens it on the first option the letters match, so Enter picks it,
+ * rather than changing the value unseen as Radix's closed typeahead does. The letters typed before
+ * the menu takes focus are handed to its own typeahead once it has, so "he" typed quickly still
+ * finds "Height".
+ */
+function useOpenOnType(open: boolean, setOpen: (open: boolean) => void) {
+  const contentRef = React.useRef<HTMLDivElement>(null)
+  const pending = React.useRef('')
+  React.useEffect(() => {
+    if (!open || !pending.current) return
+    let frame = 0
+    let tries = 0
+    const deliver = () => {
+      const content = contentRef.current
+      const target = document.activeElement
+      if (content && target instanceof HTMLElement && content.contains(target)) {
+        const text = pending.current
+        pending.current = ''
+        for (const key of text) target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+        return
+      }
+      if (++tries < 30) frame = requestAnimationFrame(deliver)
+      else pending.current = ''
+    }
+    frame = requestAnimationFrame(deliver)
+    return () => cancelAnimationFrame(frame)
+  }, [open])
+  const onKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (open || !isTypeaheadKey(event)) return
+    // A space opens the menu as usual, unless it continues letters already typed.
+    if (event.key === ' ' && !pending.current) return
+    event.preventDefault()
+    pending.current += event.key
+    setOpen(true)
+  }
+  return { contentRef, onKeyDown }
+}
+
 /**
  * What a list of options draws, as a key: equal keys draw the same menu. Null when a label is not
  * plain text, which only the option list itself can stand for.
@@ -369,6 +412,8 @@ function PlainSelect({
     [],
   )
   const menu = useHeldOptions(options, contentClassName)
+  const [open, setOpen] = React.useState(false)
+  const { contentRef, onKeyDown: openOnType } = useOpenOnType(open, setOpen)
   const content = React.useMemo(() => {
     const item = ({ option, index }: { option: SelectOption; index: number }) => (
       <SelectItem
@@ -382,7 +427,7 @@ function PlainSelect({
       </SelectItem>
     )
     return (
-      <SelectContent className={menu.contentClassName}>
+      <SelectContent ref={contentRef} className={menu.contentClassName}>
         {groupRuns(menu.options.map((option, index) => ({ option, index }))).map((run, runIndex) =>
           run.group === undefined ? (
             run.entries.map(item)
@@ -395,10 +440,18 @@ function PlainSelect({
         )}
       </SelectContent>
     )
-  }, [menu.options, menu.contentClassName])
+  }, [menu.options, menu.contentClassName, contentRef])
 
   return (
-    <Select value={radixValue} onValueChange={change} disabled={disabled} name={name} required={required}>
+    <Select
+      value={radixValue}
+      onValueChange={change}
+      open={open}
+      onOpenChange={setOpen}
+      disabled={disabled}
+      name={name}
+      required={required}
+    >
       <Trigger
         ref={triggerRef}
         id={id}
@@ -413,6 +466,7 @@ function PlainSelect({
         })}
         data-value={value}
         data-select-trigger=""
+        onKeyDown={openOnType}
       >
         <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
       </Trigger>
@@ -500,9 +554,16 @@ function SearchableSelect({
           data-value={value}
           data-select-trigger=""
           onKeyDown={(event) => {
-            if (!open && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+            if (open) return
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
               event.preventDefault()
               changeOpen(true)
+            } else if (isTypeaheadKey(event) && event.key !== ' ') {
+              // Typing on the closed dropdown starts the search with that letter; Enter picks the first match.
+              event.preventDefault()
+              changeOpen(true)
+              setQuery(event.key)
+              combobox.resetActive()
             }
           }}
           className={cn(

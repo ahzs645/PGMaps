@@ -1378,7 +1378,7 @@ function TableRow<TRow>({
         <div
           role="cell"
           className={cn(
-            'sticky left-0 z-[1] flex items-center px-3 py-2 text-muted-foreground tabular-nums',
+            'sticky left-0 z-[1] flex items-center px-3 text-muted-foreground tabular-nums',
             pinnedBackground,
           )}
         >
@@ -1395,7 +1395,7 @@ function TableRow<TRow>({
             role="cell"
             style={columnIndex === 0 ? { left: pinnedLeft } : undefined}
             className={cn(
-              'flex min-w-0 items-center px-3 py-2',
+              'flex min-w-0 items-center px-3',
               type === 'numeric' && 'justify-end tabular-nums',
               columnIndex === 0 && cn('sticky z-[1] border-r border-border', pinnedBackground),
               column.widthClassName,

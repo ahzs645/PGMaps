@@ -1,3 +1,4 @@
+import { LOGO_FILE_ACCEPT, LOGO_FILE_TYPES_TEXT } from '@/branding/logoFile'
 import { FileButton } from '@/components/ui/file-button'
 import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -172,7 +173,7 @@ export function MapSheetSetup({
         <div className="flex flex-wrap items-center gap-2">
           <FileButton
             label="Choose a logo image"
-            accept="image/png,image/jpeg"
+            accept={LOGO_FILE_ACCEPT}
             onFiles={(files) => onLogo(files[0] ?? null)}
           >
             {logoName ? 'Replace logo' : 'Add logo'}
@@ -186,8 +187,8 @@ export function MapSheetSetup({
             </>
           )}
           <InfoTip label="About the logo">
-            A PNG or JPEG printed in the footer's logo box. It is kept in this browser for every sheet and report, and
-            is not saved in the project file.
+            {LOGO_FILE_TYPES_TEXT}, printed in the footer's logo box. An SVG is kept as a sharp PNG drawn from it. It is
+            kept in this browser for every sheet and report, and is not saved in the project file.
           </InfoTip>
         </div>
       )}
