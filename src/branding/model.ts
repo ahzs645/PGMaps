@@ -251,7 +251,8 @@ export function parseBrandSettings(input: unknown): BrandSettings {
 }
 
 /**
- * The user's own logo for printed sheets and reports: a PNG or JPEG kept in this browser's branding store (IndexedDB),
+ * The user's own logo for printed sheets and reports: a PNG or JPEG (an added SVG is kept as a PNG drawn from it,
+ * `readLogoFile`) in this browser's branding store (IndexedDB),
  * never in a project or scene file. It takes precedence over a selected brand's logo.
  */
 export type UploadedLogo = { name: string; format: 'PNG' | 'JPEG'; dataUrl: string; width: number; height: number }

@@ -2,12 +2,12 @@ import { useState } from 'react'
 
 import { FileButton } from '@/components/ui/file-button'
 
-import { readLogoFile } from './logoFile'
+import { LOGO_FILE_ACCEPT, LOGO_FILE_TYPES_TEXT, readLogoFile } from './logoFile'
 import { printedLogo, saveUploadedLogo } from './store'
 import { useBranding } from './useBranding'
 
 /**
- * The logo printed sheets and reports carry: the user's own PNG or JPEG, kept in this browser's branding store, or
+ * The logo printed sheets and reports carry: the user's own PNG, JPEG or SVG (kept as a PNG drawn from it), kept in this browser's branding store, or
  * else the brand chosen in Branding. Adding one here adds it for every sheet and report; it never goes in a project
  * or scene file.
  */
@@ -23,11 +23,7 @@ export function LogoChooser() {
   return (
     <div className="grid gap-1 text-xs">
       <div className="flex flex-wrap items-center gap-2">
-        <FileButton
-          label="Choose a logo image"
-          accept="image/png,image/jpeg"
-          onFiles={(files) => keep(files[0] ?? null)}
-        >
+        <FileButton label="Choose a logo image" accept={LOGO_FILE_ACCEPT} onFiles={(files) => keep(files[0] ?? null)}>
           {branding.logo ? 'Replace logo' : 'Add logo'}
         </FileButton>
         {branding.logo && (
@@ -35,6 +31,9 @@ export function LogoChooser() {
             Remove
           </button>
         )}
+        <span className="text-muted-foreground" data-testid="logo-file-types">
+          {LOGO_FILE_TYPES_TEXT}
+        </span>
       </div>
       <p className="text-muted-foreground">
         {chosen?.source === 'uploaded'

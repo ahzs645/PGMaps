@@ -1,5 +1,6 @@
 import type { jsPDF } from 'jspdf'
-import { pdfFontProblem, type ExportBrand } from './model'
+import { pdfFontProblem, type ExportBrand, type UploadedLogo } from './model'
+import { fitLogoBox } from './presentation'
 
 export type PdfBrandFonts = { body: string; heading: string; custom: boolean }
 export function configurePdfBrand(pdf: jsPDF, selected?: ExportBrand): PdfBrandFonts {
@@ -61,4 +62,26 @@ export async function drawPdfBrandLogo(
   } finally {
     host.remove()
   }
+}
+
+/**
+ * The printed logo (`printedLogo`): the user's own image fitted in the box, else the selected brand's artwork.
+ * Returns whether a logo was drawn.
+ */
+export async function drawPdfPrintedLogo(
+  pdf: jsPDF,
+  selected: ExportBrand | undefined,
+  uploaded: UploadedLogo | null | undefined,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): Promise<boolean> {
+  if (uploaded) {
+    const box = fitLogoBox(uploaded, x, y, width, height)
+    pdf.addImage(uploaded.dataUrl, uploaded.format, box.x, box.y, box.width, box.height)
+    return true
+  }
+  await drawPdfBrandLogo(pdf, selected, x, y, width, height)
+  return !!selected
 }

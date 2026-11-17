@@ -1,4 +1,4 @@
-import { logoDataUrl, type BrandFace, type BrandRecord, type ExportBrand } from './model'
+import { logoDataUrl, type BrandFace, type BrandRecord, type ExportBrand, type UploadedLogo } from './model'
 
 export const escapeHtml = (value: string) =>
   value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
@@ -83,7 +83,45 @@ export function brandVariables(brand: BrandRecord, typography: boolean, help = f
   return result
 }
 
-export function brandHeader(brand: BrandRecord) {
+/** The user's logo scaled to fit a box, kept to its own proportions and set at the box's left and middle. */
+export function fitLogoBox(
+  logo: Pick<UploadedLogo, 'width' | 'height'>,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const scale = Math.min(width / logo.width, height / logo.height)
+  const w = logo.width * scale,
+    h = logo.height * scale
+  return { x, y: y + (height - h) / 2, width: w, height: h }
+}
+
+/** The user's own logo as an SVG image in a box (`printedLogo`'s first choice). */
+export function uploadedLogoSvg(logo: UploadedLogo, x: number, y: number, width: number, height: number) {
+  const box = fitLogoBox(logo, x, y, width, height)
+  return `<image data-brand-logo href="${logo.dataUrl}" x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" preserveAspectRatio="xMinYMid meet"/>`
+}
+
+/** The printed logo in an SVG box: the user's own, else the brand's artwork, else nothing. */
+export function printedLogoSvg(
+  brand: BrandRecord | undefined,
+  uploaded: UploadedLogo | null | undefined,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  unitsPerMm = 96 / 25.4,
+) {
+  if (uploaded) return uploadedLogoSvg(uploaded, x, y, width, height)
+  return brand ? brandLogoSvg(brand, x, y, width, height, unitsPerMm) : ''
+}
+
+const uploadedHeader = (logo: UploadedLogo) =>
+  `<header data-brand-header style="margin-bottom:1rem"><img alt="${escapeHtml(logo.name)}" src="${logo.dataUrl}" style="display:block;width:40mm;max-width:100%;height:auto;object-fit:contain"></header>`
+
+export function brandHeader(brand: BrandRecord, uploaded?: UploadedLogo | null) {
+  if (uploaded) return uploadedHeader(uploaded)
   const profile = brand.profile,
     logo = profile.logos.primary
   const minimum = Math.max(profile.identity?.minimumLogoWidthMm ?? 0, 32)
@@ -116,9 +154,19 @@ export function brandLogoSvg(
 }
 
 /** Snapshot the chosen brand in each downloaded HTML file; later preference changes cannot restyle it. */
-export function brandedHtml(html: string, selected?: ExportBrand) {
-  if (!selected) return html
+export function brandedHtml(html: string, selected?: ExportBrand, uploaded?: UploadedLogo | null) {
   if (html.includes('id="pgmaps-export-brand"')) return html
+  // The user's own logo alone: a header at the top of a document, nothing on drawing sheets (their title
+  // blocks carry it). The page's colours and type stay its own.
+  if (!selected)
+    return uploaded && !html.includes('<section class="sheet">') && !html.includes('data-brand-header')
+      ? html
+          .replace(
+            /(<meta[^>]+http-equiv="Content-Security-Policy"[^>]+content=")([^"]*)"/,
+            (_match, prefix, csp: string) => prefix + csp + (csp.includes('img-src') ? '' : '; img-src data:') + '"',
+          )
+          .replace('<body>', '<body>' + uploadedHeader(uploaded))
+      : html
   const { brand, typography } = selected,
     p = brand.profile
   const css = `${typography ? fontCss(brand) : ''}\n:root{${Object.entries(brandVariables(brand, typography))
@@ -142,7 +190,7 @@ export function brandedHtml(html: string, selected?: ExportBrand) {
       '</head>',
       `<style id="pgmaps-export-brand">${css}</style><script id="pgmaps-brand-snapshot" type="application/json">${snapshot}</script></head>`,
     )
-    .replace('<body>', '<body>' + (sheets ? '' : brandHeader(brand)))
+    .replace('<body>', '<body>' + (sheets ? '' : brandHeader(brand, uploaded)))
     .replace(/(<(?:div|p)[^>]*class="eyebrow"[^>]*>)DDC Access/g, (_match, prefix) => prefix + escapeHtml(p.name))
     .replace(
       /(<text\b[^>]*data-brand-name[^>]*>)DDC Access(<\/text>)/g,
