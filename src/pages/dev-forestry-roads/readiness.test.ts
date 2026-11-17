@@ -224,7 +224,7 @@ describe('assessReadiness: what the walkthrough found ticked or missing', () => 
     expect(assess({ settings: { minRadius: 30 } }).row('curve-radius').state).toBe('met')
   })
 
-  it('does not call drainage checked while cross-drain sites and modelled streams have no culvert', () => {
+  it('judges cross-drain candidates and modelled streams as separate rows', () => {
     const drainage = {
       stale: false,
       record: drainageRecord(
@@ -236,42 +236,63 @@ describe('assessReadiness: what the walkthrough found ticked or missing', () => 
       ),
     }
     const { row } = assess({ drainage })
-    expect(row('drainage')).toMatchObject({
+    expect(row('ditch-relief')).toMatchObject({
       state: 'attention',
       severity: 'limit',
-      result: '22 cross-drain sites have no culvert and 2 modelled streams have no culvert',
+      result: '22 cross-drain candidates have no culvert',
+      action: { target: 'drainage' },
     })
-    expect(row('drainage').measured).toContain('809 m² new ponding')
-    expect(row('drainage').action).toMatchObject({ target: 'drainage' })
+    expect(row('ditch-relief').measured).toContain('809 m² new ponding')
+    expect(row('stream-crossings')).toMatchObject({
+      state: 'attention',
+      severity: 'limit',
+      result: '2 modelled streams have no culvert',
+      action: { target: 'drainage' },
+    })
+  })
+
+  it('prints modelled culvert capacity as evidence, never as the rule', () => {
+    const { row } = assess({
+      drainage: { stale: false, record: drainageRecord([], { undersized: 1, culverts: 3 }) },
+    })
+    for (const id of ['ditch-relief', 'stream-crossings']) {
+      expect(row(id).state).toBe('met')
+      expect(row(id).measured).toContain('Evidence: 1 of 3 culverts below the modelled peak')
+    }
+    expect(row('stream-crossings').judgedOn).toMatch(/capacity is evidence, not the rule/)
   })
 
   it('reads cross-drain candidates on coarse terrain as a screen, never a finding or a pass', () => {
     const coarse = (summary: Partial<DrainageEvidence['summary']>) =>
-      assess({ drainage: { stale: false, record: drainageRecord([], summary, [], 22.4) } }).row('drainage')
+      assess({ drainage: { stale: false, record: drainageRecord([], summary, [], 22.4) } })
     // 211 candidates on 22 m cells are not 211 missing culverts.
-    expect(coarse({ lowPoints: 211 })).toMatchObject({
+    expect(coarse({ lowPoints: 211 }).row('ditch-relief')).toMatchObject({
       state: 'not-assessed',
-      result: 'Cross-drain sites need terrain of 2 m cells or finer',
+      result: 'Cross-drain candidates need terrain of 2 m cells or finer',
     })
-    expect(coarse({ lowPoints: 211 }).measured).toContain('211 cross-drain candidates (screening on 22 m cells)')
-    // Nor does a coarse run with none read as drained.
-    expect(coarse({}).state).toBe('not-assessed')
+    expect(coarse({ lowPoints: 211 }).row('ditch-relief').measured).toContain(
+      '211 cross-drain candidates without a culvert (screening on 22 m cells)',
+    )
+    // Nor does a coarse run with none read as relieved.
+    expect(coarse({}).row('ditch-relief').state).toBe('not-assessed')
     // A stream finding still stands on coarse terrain.
-    expect(coarse({ lowPoints: 5, undersized: 1, culverts: 1 })).toMatchObject({
+    expect(coarse({ lowPoints: 5, redirected: 1 }).row('stream-crossings')).toMatchObject({
       state: 'attention',
-      result: '1 culvert is undersized',
+      result: '1 stream is carried along the road',
     })
   })
 
   it('never reads an unrun or out-of-date drainage check as met', () => {
-    expect(assess().row('drainage')).toMatchObject({
-      state: 'not-assessed',
-      result: 'The drainage check has not been run',
-    })
-    const stale = assess({ drainage: { stale: true, record: drainageRecord([]) } })
-    expect(stale.row('drainage')).toMatchObject({ state: 'not-assessed', result: 'The drainage check is out of date' })
-    const clean = assess({ drainage: { stale: false, record: drainageRecord([]) } })
-    expect(clean.row('drainage').state).toBe('met')
+    for (const id of ['ditch-relief', 'stream-crossings']) {
+      expect(assess().row(id)).toMatchObject({
+        state: 'not-assessed',
+        result: 'The drainage check has not been run',
+      })
+      const stale = assess({ drainage: { stale: true, record: drainageRecord([]) } })
+      expect(stale.row(id)).toMatchObject({ state: 'not-assessed', result: 'The drainage check is out of date' })
+      const clean = assess({ drainage: { stale: false, record: drainageRecord([]) } })
+      expect(clean.row(id).state).toBe('met')
+    }
   })
 
   it('does not accept a default, unsized culvert as the structure at a stream crossing', () => {
@@ -511,6 +532,20 @@ describe('assessReadiness: limits and states', () => {
     expect(row('vehicle-fit').state).toBe('not-assessed')
     expect(row('constraints').state).toBe('not-assessed')
     expect(row('standards')).toMatchObject({ state: 'attention', severity: 'todo' })
+  })
+
+  it('reads the manual’s spacing table only once the ditch soil’s erosion hazard is entered', () => {
+    expect(assess().row('cross-drain-guidance')).toMatchObject({
+      state: 'not-assessed',
+      result: 'The ditch soil’s erosion hazard is not entered',
+      action: { target: 'cross-drain-guide' },
+    })
+    const high = assess({ standards: { ditchErosionHazard: 'high' } }).row('cross-drain-guidance')
+    expect(high.judgedOn).toContain('EM 3.5.5.6, Table 3-14, p. 180')
+    expect(high.measured).toMatch(/^high erosion hazard/)
+    expect(['met', 'attention']).toContain(high.state)
+    // The guidance never touches the job's own spacing limit.
+    expect(assess({ standards: { ditchErosionHazard: 'high' } }).row('cross-drain-spacing').state).toBe('not-assessed')
   })
 
   it('judges clearing width, cross-drain spacing and K once their limits are entered', () => {
@@ -1064,8 +1099,10 @@ describe('assessReadiness: a check that was not made never reads as met', () => 
       'stream-class': 'not-assessed',
       'crossing-approach': 'not-assessed',
       'riparian-areas': 'not-assessed',
-      drainage: 'not-assessed',
+      'ditch-relief': 'not-assessed',
+      'stream-crossings': 'not-assessed',
       'cross-drain-spacing': 'not-assessed',
+      'cross-drain-guidance': 'not-assessed',
       'culvert-standards': 'not-assessed',
       constraints: 'not-assessed',
       'structure-costs': 'not-assessed',

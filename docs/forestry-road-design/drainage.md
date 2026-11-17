@@ -399,9 +399,10 @@ nothing merged. Now a low point needs four cells of flow and outlets join into 4
 3.6 km block road that is 75 outlets in 30 sites; one site on a sidehill stretch joins 24
 outlets over 728 m, which says that stretch needs several cross-drains, not one.
 
-On such terrain the panel marks the list "Screening only" and Review reads the row as not
-assessed rather than counting the candidates as missing culverts; it is never met either.
-Stream crossings and pipe sizes are still reported and can still flag the row. Load LiDAR or
+On such terrain the panel marks the list "Screening only" and Review reads **Cross-drain
+candidates relieved** as not assessed rather than counting the candidates as missing culverts; it
+is never met either. **Modelled streams cross the road in a culvert** is a row of its own and still
+flags a stream without a culvert; pipe sizes are printed beside both rows as evidence, not the rule. Load LiDAR or
 another bare-earth DEM of 2 m or finer before placing cross-drains.
 
 ## RoadEng culverts from a traverse

@@ -27,6 +27,7 @@ import { isoDate } from '../projectIssue'
 import { CrossingRegisterList, ReadinessList } from '../ReadinessPanel'
 import { projectReadiness, type ReadinessRow } from '../readiness'
 import { HaulPanel } from '../HaulPanel'
+import { CrossDrainGuideSection } from '../CrossDrainGuideSection'
 
 /** The settings with the curvature correction applied, or back to report only (the field left out). */
 const withCurvatureCorrection = (settings: RoadSettings, apply: boolean): RoadSettings => {
@@ -52,6 +53,8 @@ export function ReviewTab(
   const [ratesOpen, setRatesOpen] = useState(false)
   const [standardsOpen, setStandardsOpen] = useState(false)
   const [haulOpen, setHaulOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const guide = useRef<HTMLDivElement>(null)
   const haul = useRef<HTMLDivElement>(null)
   const rates = useRef<HTMLDivElement>(null)
   const standards = useRef<HTMLDivElement>(null)
@@ -70,6 +73,9 @@ export function ReviewTab(
       case 'haul-destination':
         setHaulOpen(true)
         return reveal(haul)
+      case 'cross-drain-guide':
+        setGuideOpen(true)
+        return reveal(guide)
       case 'terrain':
       case 'streams':
       case 'constraints':
@@ -134,6 +140,8 @@ export function ReviewTab(
           </Button>
         )}
       </RoadSection>
+      <div ref={guide} className="scroll-mt-2" />
+      <CrossDrainGuideSection workspace={p.workspace} open={guideOpen} onOpenChange={setGuideOpen} />
       <div ref={haul} className="scroll-mt-2" />
       <HaulPanel workspace={p.workspace} open={haulOpen} onOpenChange={setHaulOpen} />
       <div ref={standards} className="scroll-mt-2" />

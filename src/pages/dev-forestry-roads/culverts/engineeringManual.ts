@@ -60,10 +60,11 @@ export const CROSS_DRAIN_SKEW = {
 export type DitchErosionHazard = 'slight' | 'moderate' | 'high'
 
 /**
- * Maximum cross-drain spacing between established watercourses, m, by road gradient and the erosion
- * hazard of the ditch soil (more than half of it by type). The manual's classes share their
+ * Maximum cross-drain spacing between established watercourses, m, by the road gradient at the
+ * cross-drain and the erosion hazard of the ditch soil (more than half of it by type). The table is
+ * printed as Table 3-14; the text around it calls it Table 3-15. The manual's classes share their
  * boundaries (3, 6, 9, 12%) without saying which class a boundary takes; `crossDrainSpacingM` gives
- * a boundary to the steeper class, the shorter spacing.
+ * a gradient on a boundary the shorter spacing of the two classes.
  */
 export const CROSS_DRAIN_SPACING = {
   /** Upper road gradient of each row, %; the last row is 12% and over. */
@@ -83,16 +84,68 @@ export const CROSS_DRAIN_SPACING = {
   ],
   /** Over 12% on high-hazard soil the manual also asks for a rock-lined ditch. */
   rockLineDitchAbovePercent: 12,
-  locator: 'EM 3.5.5.6, cross-drain spacing table, p. 180',
+  locator: 'EM 3.5.5.6, Table 3-14, p. 180',
 } as const
 
-/** The manual's maximum cross-drain spacing for a road gradient, m, for each erosion hazard class. */
-export function crossDrainSpacingM(roadGradePercent: number): Record<DitchErosionHazard, number> {
+/** The grade rows' labels as the table prints them. */
+export const CROSS_DRAIN_GRADE_ROWS = ['0–3%', '3–6%', '6–9%', '9–12%', '12%+'] as const
+
+export interface CrossDrainPlacementItem {
+  id: string
+  label: string
+  /** The workspace finds these on the road; the rest are the designer's to check on the ground. */
+  detected?: boolean
+}
+
+/**
+ * Where §3.5.5.6 asks for more than the table: the spacing it asks to be reduced, the places a
+ * cross-drain goes whatever the spacing, and the line between a cross-drain and a stream crossing.
+ * `detected` names what the workspace can find on the road itself; the rest is the designer's to
+ * check on the ground.
+ */
+export const CROSS_DRAIN_PLACEMENT = {
+  /** "The designer must reduce spacing below the table value where any of the following conditions apply." */
+  reduceSpacingAt: [
+    { id: 'junction', label: 'Road junctions, where flow from intersecting ditches accumulates' },
+    { id: 'steep-uphill', label: 'Steep uphill side slopes, where seepage and runoff are elevated' },
+    { id: 'seepage-in-cut', label: 'Seepage or piping in cuts' },
+    { id: 'switchback', label: 'Switchbacks: spacing by site, not the table', detected: true },
+  ] as ReadonlyArray<CrossDrainPlacementItem>,
+  reduceLocator: 'EM 3.5.5.6, p. 180',
+  /** "Cross drain culverts must be located at the following positions regardless of the calculated spacing interval." */
+  requiredAt: [
+    { id: 'top-of-steep', label: 'The top of steep sections of road' },
+    { id: 'seepage', label: 'Seepage zones' },
+    { id: 'low-point', label: 'Low points in the road profile', detected: true },
+    { id: 'bedrock', label: 'Where ditchline bedrock approaches finished grade' },
+    { id: 'cut-instability', label: 'Immediately before cut slope instability' },
+    { id: 'through-cut', label: 'Before large through cuts' },
+  ] as ReadonlyArray<CrossDrainPlacementItem>,
+  requiredLocator: 'EM 3.5.5.6, pp. 180-181',
+  /** Cross drains relieve the ditch; a defined watercourse is a stream crossing (EM 3.5.5.2 to 3.5.5.5). */
+  watercourses: 'Cross drains do not substitute for a stream crossing structure where a defined channel meets the road',
+  watercoursesLocator: 'EM 3.5.5.6, pp. 179-180',
+} as const
+
+/** The table row of a road gradient: a gradient on a class boundary takes the steeper row. */
+export function crossDrainGradeRow(roadGradePercent: number): number {
   const grade = Math.abs(roadGradePercent)
-  // A gradient on a class boundary takes the steeper class.
-  let row = CROSS_DRAIN_SPACING.gradeUpToPercent.findIndex((upper) => grade < upper)
-  if (row < 0) row = CROSS_DRAIN_SPACING.gradeUpToPercent.length - 1
-  const [slight, moderate, high] = CROSS_DRAIN_SPACING.spacingM[row]
+  const row = CROSS_DRAIN_SPACING.gradeUpToPercent.findIndex((upper) => grade < upper)
+  return row < 0 ? CROSS_DRAIN_SPACING.gradeUpToPercent.length - 1 : row
+}
+
+/**
+ * The manual's maximum cross-drain spacing for a road gradient, m, for each erosion hazard class. On
+ * a class boundary each class takes the shorter spacing of the two rows: at 12% on high-hazard soil
+ * that is the 9–12% row's 75 m, not the 12%+ row's 100 m.
+ */
+export function crossDrainSpacingM(roadGradePercent: number): Record<DitchErosionHazard, number> {
+  const row = crossDrainGradeRow(roadGradePercent)
+  const grade = Math.abs(roadGradePercent)
+  const boundary = row > 0 && Math.abs(grade - CROSS_DRAIN_SPACING.gradeUpToPercent[row - 1]) < 1e-9
+  const [slight, moderate, high] = CROSS_DRAIN_SPACING.spacingM[row].map((value, i) =>
+    boundary ? Math.min(value, CROSS_DRAIN_SPACING.spacingM[row - 1][i]) : value,
+  )
   return { slight, moderate, high }
 }
 

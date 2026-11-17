@@ -104,7 +104,7 @@ three years apart. The line turns amber and Review's row needs attention.
 | Cover                    | Stream culvert: the greater of 600 mm and half the diameter. Cross-drain: the greater of 300 mm and half | EM 3.5.5.2 p. 171; EM 5.8.6 p. 244      | Not assessed: an invert missing         |
 | Gradient                 | Stream culvert at most 10 %. Cross-drain at least 1 %. Over 3 %: "consider outlet protection" is added | EM 3.5.5.2 p. 171; EM 5.8.6 p. 244      | Not assessed: an invert missing         |
 | Skew (cross-drains)      | 3° for each 1 % of road grade over 3 %, to 45°. A note: the suggestion beside the entered skew         | EM 3.5.5.6 p. 181                       | Not assessed: road grade unknown        |
-| Run to the next culvert  | A note: the longer run beside the culvert, against the spacing table for all three soil classes        | EM 3.5.5.6 p. 180                       | Not assessed: road grade unknown        |
+| Run to the next culvert  | A note: the longer run beside the culvert, against the spacing table for all three soil classes        | EM 3.5.5.6, Table 3-14, p. 180          | Not assessed: road grade unknown        |
 | Stock size               | A note when a round diameter is not in Table 3-13 (400 to 1800 mm)                                     | EM Table 3-13 p. 166                    | —                                       |
 | Capacity                 | Barrel-full Manning capacity of every barrel together at least the modelled peak                       | Drainage check                          | Not assessed: no current check; embedded |
 | Inlet headwater          | Headwater depth over diameter at most 1.0 at the modelled peak                                         | EM 3.5.5.1.3 pp. 167-169                | Not assessed: no current check; not a round pipe; embedded |
@@ -112,16 +112,19 @@ three years apart. The line turns amber and Review's row needs attention.
 | Design flood             | A note: Q100 for a permanent culvert, Q10 for one on site three years or less                          | FPPR s. 74; EM 3.5.4.3.2                | —                                       |
 
 Review's **Culverts meet the manual's rules** row judges cover, gradient, embedment and inlet
-headwater, and names major culverts. Capacity stays with Review's crossing and drainage rows.
+headwater, and names major culverts. Capacity stays with Review's crossing rows; the drainage
+rows (**Cross-drain candidates relieved**, **Modelled streams cross the road in a culvert**) print
+the modelled capacity as evidence only.
 
 - **Cover is the manual's rule, not the entered minimum.** The engine's own warning still uses the
   culvert's _required cover_ field; a 1.8 m stream pipe with 0.75 m of cover clears an entered
   0.6 m and fails the manual's 0.9 m. Cover is measured from the top of the pipe to the subgrade.
-- **Spacing is a note** because the manual's maximum depends on the ditch soil's erosion hazard,
-  which the project does not hold. The road grade used is the steepest design grade in the run. A
-  grade on a class boundary (3, 6, 9, 12 %) takes the steeper class, the shorter spacing; the
-  manual does not say which. Review's **Cross-drain spacing** row still judges the single limit in
-  the road standards.
+- **Spacing is a note** on each culvert, against all three soil classes at the steepest design grade
+  in the run. The road's own reading by soil class, band by band, is the
+  [cross-drain spacing guide](#cross-drain-spacing-guide). A grade on a class boundary (3, 6, 9,
+  12 %) takes the shorter spacing of the two rows; the manual does not say which. Review's
+  **Cross-drain spacing within the limit** row still judges the single limit in the road
+  standards.
 - **The design flood is a note** because the drainage check uses one storm intensity for every
   culvert. Nothing checks that it is the Q100 or Q10 storm.
 
@@ -146,6 +149,49 @@ behind those nomographs, FHWA HDS-5's inlet-control design equations
   nomograph and 0.87 here, and the 1200 mm trial fails, as it does there
   (`culvertModules.test.ts`). **Confirm the coefficients against HDS-5 before relying on a
   headwater figure for anything but a screen.**
+
+## Cross-drain spacing guide
+
+**Review → Cross-drain spacing guide** reads the Engineering Manual's cross-drain spacing table
+along the active road (`culverts/crossDrainSpacing.ts`, data in `CROSS_DRAIN_SPACING` and
+`CROSS_DRAIN_PLACEMENT`, `culverts/engineeringManual.ts`). It is BC guidance beside the design: it
+places no culvert and never changes the road standards' own spacing limit.
+
+- **The ditch soil's erosion hazard is your entry**, by the soil type making up more than half of
+  the ditch (slight: hardpan, rock, coarse gravels; moderate: fine gravels; high: sands, silts,
+  clays). It is never read from the terrain, and is saved as `standards.ditchErosionHazard`. A
+  project without it, every project saved before it existed included, calculates as before, and
+  Review's **Cross-drain spacing within the manual's table** row reads not assessed.
+- **Each run between culverts, and from each road end, is held to the shortest limit of any grade
+  band it passes through.** The manual reads the grade at the cross-drain, and a run can hold a
+  cross-drain anywhere along it. Reading the steepest grade alone picks the wrong limit where the
+  table rises with grade: on high-hazard soil 9–12 % allows 75 m and over 12 % 100 m with a
+  rock-lined ditch, so a run of 10 % then 14 % is held to 75 m. The guide names the band that
+  governs and, where it differs, what the steepest grade alone would read.
+- **Grades are the design grades at the calculated stations.** Each interval is split at its middle,
+  each half taking its own station's grade, so no grade is invented between two that were
+  calculated. A run with part of its length ungraded is *not determined* unless the graded part
+  already puts it over.
+- **Placed by site.** Sag low points in the profile (`curvePoints`) and switchbacks (a curve turning
+  `SWITCHBACK_TURN_DEG` or more, the route search's own hairpin angle) are listed in their run: the
+  manual puts a cross-drain at a low point whatever the spacing, and asks for spacing by site at a
+  switchback. Neither decides the row. Junctions, steep uphill slopes, seepage, ditchline bedrock,
+  cut slope instability and through cuts are listed for the designer to check on the ground.
+- **Cross-drains are not stream crossings.** A defined watercourse is designed as a crossing
+  (EM 3.5.5.2 to 3.5.5.5); Review judges modelled streams in their own row.
+- **For the batch preview**, `crossDrainStretchGuidance` reads any one stretch (start, end, stations,
+  hazard) the same way.
+
+| Rule                                   | What is held                                                                                       | Source                        |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Maximum spacing between watercourses   | 0–3, 3–6, 6–9, 9–12 and 12+ % by slight, moderate and high hazard; over 12 % on high: rock-line the ditch | EM 3.5.5.6, Table 3-14, p. 180 |
+| Spacing reduced below the table        | Junctions, steep uphill side slopes, seepage or piping in cuts, switchbacks (by site)              | EM 3.5.5.6, p. 180            |
+| Cross-drain whatever the spacing       | Top of steep sections, seepage zones, low points, ditchline bedrock, before cut instability, before large through cuts | EM 3.5.5.6, pp. 180-181 |
+| Cross-drain or stream crossing         | A defined channel is a stream crossing, not a cross-drain                                          | EM 3.5.5.6, pp. 179-180       |
+
+Provenance: read on 17 November 2026 from the Engineering Manual, 25 May 2026 edition. The table is
+printed as Table 3-14; the text around it calls it Table 3-15. The table prints its rows with shared
+boundaries (3, 6, 9, 12 %) and does not say which row a boundary takes.
 
 ## Shape, barrels, material and the other optional fields
 
@@ -222,6 +268,8 @@ culverts and haul_ section.
 | Inlet-control equation ranges         | Unsubmerged to 3.5, submerged from 4.0, a straight line between | `INLET_CONTROL`          |
 | Same-station culverts in the plan card | Within 2 m along the road          | `CULVERTS_TOGETHER_M`                                |
 | 3D barrel drawn as a line             | Opening under 5 px across           | `BARREL_MIN_OPENING_PX`                              |
+| Switchback in the spacing guide       | A curve turning 110° or more        | `SWITCHBACK_TURN_DEG`, `crossDrainSpacing.ts`        |
+| Curves read as one turn               | Tangent between them under 20 m     | `SWITCHBACK_JOIN_M`, `crossDrainSpacing.ts`          |
 
 These bounds keep inputs sane and state the manuals' thresholds; they are not design tolerances.
 
@@ -234,6 +282,8 @@ These bounds keep inputs sane and state the manuals' thresholds; they are not de
   culvert. The Coast manual's rule for it was not read.
 - **"No cost location is set: the Interior manual is shown by default."** Set the cost location in
   the cost dialog.
+- **Review's spacing-guide row is "not assessed".** Enter the ditch soil's erosion hazard in
+  Review → Cross-drain spacing guide.
 - **Capacity and headwater "not assessed" on every culvert.** No drainage check, or the check is
   out of date since the road, a culvert or the terrain changed. Run it again.
 - **Cover fails here but the engine shows no cover warning.** The entered _required cover_ is

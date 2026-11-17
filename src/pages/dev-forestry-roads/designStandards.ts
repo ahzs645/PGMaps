@@ -10,6 +10,7 @@
 import { isCalendarDate } from './projectIssue'
 import { parseAssumedEquipment, type AssumedEquipment } from './quantitySchedule'
 import type { Alignment, RoadSettings, RoadStation } from './types'
+import { CROSS_DRAIN_SPACING, type DitchErosionHazard } from './culverts/engineeringManual'
 
 export interface DesignStandards {
   /**
@@ -31,6 +32,12 @@ export interface DesignStandards {
   maxClearingWidthM: number | null
   /** Longest run of road the job allows between drainage structures. */
   maxCrossDrainSpacingM: number | null
+  /**
+   * Erosion hazard of the ditch soil, by the soil type making up more than half of it (Engineering
+   * Manual §3.5.5.6, Table 3-14). The designer's entry, never inferred; absent is not entered, and
+   * Review then leaves the manual's spacing guidance not assessed.
+   */
+  ditchErosionHazard?: DitchErosionHazard
   /** Where the limits come from: a road class, a permit condition, a company standard. */
   source?: string
   /** Date a person confirmed the record (YYYY-MM-DD). Absent while the limits are the starting values. */
@@ -80,6 +87,12 @@ const shortText = (value: unknown, label: string, max: number) => {
   return value
 }
 
+const erosionHazard = (value: unknown): DitchErosionHazard => {
+  const hazard = CROSS_DRAIN_SPACING.hazards.find((h) => h.value === value)
+  if (!hazard) throw Error('Ditch soil erosion hazard must be slight, moderate or high.')
+  return hazard.value
+}
+
 /** Reads a saved record. Anything unusable is refused rather than read as a limit. */
 export function parseDesignStandards(raw: unknown): DesignStandards {
   const r = object(raw)
@@ -117,6 +130,9 @@ export function parseDesignStandards(raw: unknown): DesignStandards {
     ),
     maxClearingWidthM: optional(r.maxClearingWidthM, 'Clearing width', STANDARD_LIMITS.clearingWidthM),
     maxCrossDrainSpacingM: optional(r.maxCrossDrainSpacingM, 'Cross-drain spacing', STANDARD_LIMITS.crossDrainSpacingM),
+    ...(r.ditchErosionHazard === undefined || r.ditchErosionHazard === null
+      ? {}
+      : { ditchErosionHazard: erosionHazard(r.ditchErosionHazard) }),
     ...(r.source === undefined || r.source === '' ? {} : { source: shortText(r.source, 'Standards source', 500) }),
     ...(r.confirmedOn === undefined ? {} : { confirmedOn: String(r.confirmedOn) }),
     ...(r.equipment === undefined ? {} : { equipment: parseAssumedEquipment(r.equipment) }),
