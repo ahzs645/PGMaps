@@ -20,6 +20,8 @@ export type RoadExport =
   | 'block-sheet-pdf'
   | 'dline-sheet-pdf'
   | 'landxml'
+  | 'subgrade-landxml'
+  | 'finished-surface-landxml'
   | 'roadeng'
   | 'roadeng-project'
   | 'dxf'
@@ -131,6 +133,9 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   plotbook: 'refuse',
   'plotbook-pdf': 'refuse',
   landxml: 'refuse',
+  // Design surfaces built from the calculated sections, read by CAD and machine control.
+  'subgrade-landxml': 'refuse',
+  'finished-surface-landxml': 'refuse',
   roadeng: 'refuse',
   'roadeng-project': 'refuse',
   dxf: 'refuse',
@@ -327,6 +332,22 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     description: 'Horizontal and vertical alignment with cross-sections and superelevation, for civil design software.',
   },
   {
+    kind: 'subgrade-landxml',
+    group: 'survey',
+    label: 'Subgrade surface',
+    extension: '.xml',
+    description:
+      'The subgrade as a LandXML TIN with its faces and outer boundary, joined section to section and broken where a section is incomplete, for CAD and machine control.',
+  },
+  {
+    kind: 'finished-surface-landxml',
+    group: 'survey',
+    label: 'Finished surface',
+    extension: '.xml',
+    description:
+      'The top of the surfacing across the running surface and the subgrade beyond it, as a LandXML TIN with its faces and outer boundary, broken where a section is incomplete.',
+  },
+  {
     kind: 'roadeng',
     group: 'survey',
     label: 'RoadEng design',
@@ -475,6 +496,8 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
       'report-package',
       'estimate-pdf',
       'landxml',
+      'subgrade-landxml',
+      'finished-surface-landxml',
       'roadeng',
       'roadeng-project',
       'dxf',
