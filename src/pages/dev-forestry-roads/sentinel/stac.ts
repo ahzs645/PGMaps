@@ -42,8 +42,9 @@ export type SentinelScene = {
   epsg: number
   /** The tile footprint in degrees, when the item gives one. */
   bbox: LonLatBounds | null
-  assets: { visual: string; red: string; nir: string; scl: string }
-  scaling: { red: BandScaling; nir: BandScaling }
+  /** `swir16` (B11) and `swir22` (B12) are 20 m and present only when the item lists them. */
+  assets: { visual: string; red: string; nir: string; scl: string; swir16?: string; swir22?: string }
+  scaling: { red: BandScaling; nir: BandScaling; swir16?: BandScaling; swir22?: BandScaling }
 }
 
 export type DateRange = { from: string; to: string }
@@ -118,7 +119,10 @@ function href(asset: StacAsset | undefined): string | null {
   return typeof asset?.href === 'string' && /^https:\/\//.test(asset.href) ? asset.href : null
 }
 
-/** One item as a scene, or null when it lacks a date, a UTM CRS or one of the four COGs. */
+/**
+ * One item as a scene, or null when it lacks a date, a UTM CRS or one of the four COGs. The SWIR
+ * bands are optional: a scene without them still draws true colour and NDVI.
+ */
 export function parseSentinelItem(item: StacItem): SentinelScene | null {
   const properties = item.properties ?? {}
   const datetime = properties.datetime
@@ -134,7 +138,7 @@ export function parseSentinelItem(item: StacItem): SentinelScene | null {
   const box = Array.isArray(item.bbox) && item.bbox.length === 4 && item.bbox.every(finite) ? item.bbox : null
   const cloud = properties['eo:cloud_cover']
   const offsetApplied = properties['earthsearch:boa_offset_applied'] === true
-  return {
+  const scene: SentinelScene = {
     id: item.id,
     datetime,
     date: datetime.slice(0, 10),
@@ -144,6 +148,13 @@ export function parseSentinelItem(item: StacItem): SentinelScene | null {
     assets: { visual, red, nir, scl },
     scaling: { red: scaling(assets.red, offsetApplied), nir: scaling(assets.nir, offsetApplied) },
   }
+  for (const band of ['swir16', 'swir22'] as const) {
+    const url = href(assets[band])
+    if (!url) continue
+    scene.assets[band] = url
+    scene.scaling[band] = scaling(assets[band], offsetApplied)
+  }
+  return scene
 }
 
 const contains = (outer: LonLatBounds | null, inner: LonLatBounds) =>

@@ -37,7 +37,8 @@ export interface RasterReader {
 export const utmZone = (lon: number) => Math.max(1, Math.min(60, Math.floor((lon + 180) / 6) + 1))
 export const utmEpsg = (zone: number) => 32600 + zone
 
-function utm(epsg: number) {
+/** WGS84 degrees to and from a WGS84 / UTM north zone's metres. */
+export function utm(epsg: number) {
   const zone = epsg - 32600
   if (zone < 1 || zone > 60) throw new SentinelError('zones', `EPSG:${epsg} is not a WGS84 / UTM north zone.`)
   return proj4('EPSG:4326', `+proj=utm +zone=${zone} +datum=WGS84 +units=m +no_defs`)

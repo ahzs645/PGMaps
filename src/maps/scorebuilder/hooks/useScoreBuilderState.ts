@@ -13,7 +13,14 @@ import {
 } from '../lib/shareState'
 import { encodeCustomMetricRecipes, encodeCustomMetricWeights, getQuickIndexLabPresetKey } from '../lib/urlState'
 import { encodeWalkabilitySurfaceTuning, type WalkabilitySurfaceTuning } from '../lib/walkabilitySurface'
-import { LAB_URL_PARAMS, isOnLabPath, rememberLabStudyArea, type ScoreLabKind } from '../lib/labs'
+import {
+  LAB_URL_PARAMS,
+  isOnLabPath,
+  rememberLabStudyArea,
+  type CorrelateClusterVariable,
+  type CorrelateVisStyle,
+  type ScoreLabKind,
+} from '../lib/labs'
 import type {
   ScoreDataSource,
   ScoreFilterKey,
@@ -110,7 +117,12 @@ export function buildScoreBuilderSearchParams(
     params.set(LAB_URL_PARAMS.correlateMetricX, state.correlateMetricX)
     params.set(LAB_URL_PARAMS.correlateMetricY, state.correlateMetricY)
     params.set(LAB_URL_PARAMS.correlateVisStyle, state.correlateVisStyle)
+    if (state.correlateVisStyle === 'clusters' || state.correlateClusterVariable !== 'y') {
+      params.set(LAB_URL_PARAMS.correlateClusterVariable, state.correlateClusterVariable)
+    }
   }
+  if (lab !== 'correlate' && state.clusterMap) params.set(LAB_URL_PARAMS.clusterMap, 'clusters')
+  if (state.clusterFdr) params.set(LAB_URL_PARAMS.clusterFdr, '1')
   return params
 }
 
@@ -425,8 +437,17 @@ export function useScoreBuilderState(lab: ScoreLabKind = 'index') {
   const setCorrelateMetricY = useCallback((metric: ScoreMetricKey) => {
     dispatch({ type: 'setCorrelateMetricY', metric, allNetworks: allNetworksRef.current })
   }, [])
-  const setCorrelateVisStyle = useCallback((style: 'bivariate' | 'residual') => {
+  const setCorrelateVisStyle = useCallback((style: CorrelateVisStyle) => {
     dispatch({ type: 'setCorrelateVisStyle', style })
+  }, [])
+  const setCorrelateClusterVariable = useCallback((variable: CorrelateClusterVariable) => {
+    dispatch({ type: 'setCorrelateClusterVariable', variable })
+  }, [])
+  const setClusterMap = useCallback((on: boolean) => {
+    dispatch({ type: 'setClusterMap', on })
+  }, [])
+  const setClusterFdr = useCallback((on: boolean) => {
+    dispatch({ type: 'setClusterFdr', on })
   }, [])
   const applyCorrelatePair = useCallback((metricX: ScoreMetricKey, metricY: ScoreMetricKey) => {
     dispatch({ type: 'applyCorrelatePair', metricX, metricY, allNetworks: allNetworksRef.current })
@@ -552,6 +573,9 @@ export function useScoreBuilderState(lab: ScoreLabKind = 'index') {
     setCorrelateMetricX,
     setCorrelateMetricY,
     setCorrelateVisStyle,
+    setCorrelateClusterVariable,
+    setClusterMap,
+    setClusterFdr,
     applyCorrelatePair,
     toggleScoreFilter,
     setMethodSettings,

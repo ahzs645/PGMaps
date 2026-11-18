@@ -8,7 +8,10 @@ import {
   SENTINEL_RECENT_DAYS,
 } from './limits'
 import { defaultPair, defaultScene, type RatedScene } from './sceneChoice'
-import { firstSeenLabel, ndviChange, ndviChangeRgba, ndviRgba, ndviValues, trueColourRgba } from './render'
+import { firstSeenLabel, trueColourRgba } from './render'
+import { indexChange, indexChangeRgba, indexRgba, indexValues, SENTINEL_INDICES, type SentinelIndex } from './indices'
+import { readIndexBands } from './resample'
+import { useSentinelAreaSeries, type SentinelArea } from './useSentinelAreaSeries'
 import {
   recentRange,
   sentinelCredit,
@@ -30,7 +33,13 @@ import {
   type SceneWindow,
 } from './window'
 
-export type SentinelMode = 'true-colour' | 'ndvi' | 'change'
+/** True colour, one index on one scene, or an index's change between two scenes. */
+export type SentinelMode = 'true-colour' | SentinelIndex | `${SentinelIndex}-change`
+
+export const isChangeMode = (mode: SentinelMode): mode is `${SentinelIndex}-change` => mode.endsWith('-change')
+/** The index a mode draws; true colour has none. */
+export const modeIndex = (mode: SentinelMode): SentinelIndex | null =>
+  mode === 'true-colour' ? null : (mode.replace('-change', '') as SentinelIndex)
 /** Which scenes a search lists: the last two years, or one year's June–September season. */
 export type SentinelRange = 'recent' | number
 
@@ -45,8 +54,10 @@ export type SentinelImage = {
 }
 
 export type ChangeSummary = {
+  index: SentinelIndex
   label: string
-  clearedHa: number
+  /** Ground whose index fell by at least the index's counted drop. */
+  changedHa: number
   comparedShare: number
 }
 
@@ -104,6 +115,7 @@ export function useSentinel2({
   const [imageFailure, setImageFailure] = useState<Failure | null>(null)
   const [imageRevision, setImageRevision] = useState(0)
   const [change, setChange] = useState<ChangeSummary | null>(null)
+  const [area, setArea] = useState<SentinelArea | null>(null)
   const cache = useRef(new Map<string, { promise: Promise<RasterBands>; signal: AbortSignal; complete: boolean }>())
 
   /**
@@ -246,7 +258,8 @@ export function useSentinel2({
 
   useEffect(() => {
     if (!visible || !stableBounds || terrainProblem) return
-    if (mode === 'change' ? !pairReady : !sceneReady) return
+    const comparing = isChangeMode(mode)
+    if (comparing ? !pairReady : !sceneReady) return
     const shown = lookup.current(sceneId),
       before = lookup.current(pair.before),
       after = lookup.current(pair.after)
@@ -256,7 +269,10 @@ export function useSentinel2({
     setImageFailure(null)
     ;(async () => {
       try {
-        if (mode === 'change') {
+        const cached = { read: (href: string, request: RasterRequest) => read(href, request, signal) }
+        if (comparing) {
+          const index = modeIndex(mode)!
+          const spec = SENTINEL_INDICES[index]
           const [a, b] = [before!, after!].sort((x, y) => x.datetime.localeCompare(y.datetime))
           if (a.id === b.id) throw new SentinelError('no-scene', 'Pick two different scenes to compare.')
           if (a.epsg !== b.epsg)
@@ -265,21 +281,25 @@ export function useSentinel2({
               `The two scenes come from tiles in different UTM zones (EPSG:${a.epsg} and EPSG:${b.epsg}), so their pixels do not line up. Pick two scenes from the same tile.`,
             )
           const window = sceneWindow(stableBounds, a.epsg)
-          const ndvi = async (scene: SentinelScene) => {
-            const [red, nir, scl] = await Promise.all(
-              [scene.assets.red, scene.assets.nir, scene.assets.scl].map((href) => read(href, window, signal)),
-            )
-            return ndviValues({ red: red.bands[0], nir: nir.bands[0], scl: scl.bands[0] }, scene.scaling)
-          }
-          const [earlier, later] = await Promise.all([ndvi(a), ndvi(b)])
-          const result = ndviChange(earlier, later)
+          const values = async (scene: SentinelScene) =>
+            indexValues(index, await readIndexBands(scene, index, window, cached, signal), scene.scaling)
+          const [earlier, later] = await Promise.all([values(a), values(b)])
+          const result = indexChange(earlier, later, spec.drop)
           if (signal.aborted) return
           setChange({
+            index,
             label: firstSeenLabel(a.date, b.date),
-            clearedHa: (result.cleared * window.pixelM * window.pixelM) / 10_000,
+            changedHa: (result.changed * window.pixelM * window.pixelM) / 10_000,
             comparedShare: result.compared / (window.width * window.height),
           })
-          setImage(drawn(window, ndviChangeRgba(result.delta), [a.date, b.date], `change|${a.id}|${b.id}|${boundsKey}`))
+          setImage(
+            drawn(
+              window,
+              indexChangeRgba(result.delta, spec.changeStops, spec.drop, spec.quiet),
+              [a.date, b.date],
+              `${mode}|${a.id}|${b.id}|${boundsKey}`,
+            ),
+          )
         } else {
           const scene = shown!
           const window = sceneWindow(stableBounds, scene.epsg)
@@ -288,10 +308,9 @@ export function useSentinel2({
             const bands = await read(scene.assets.visual, window, signal)
             rgba = trueColourRgba(bands.bands, window.width, window.height)
           } else {
-            const [red, nir, scl] = await Promise.all(
-              [scene.assets.red, scene.assets.nir, scene.assets.scl].map((href) => read(href, window, signal)),
-            )
-            rgba = ndviRgba(ndviValues({ red: red.bands[0], nir: nir.bands[0], scl: scl.bands[0] }, scene.scaling))
+            const index = modeIndex(mode)!
+            const bands = await readIndexBands(scene, index, window, cached, signal)
+            rgba = indexRgba(indexValues(index, bands, scene.scaling), SENTINEL_INDICES[index].stops)
           }
           if (signal.aborted) return
           setChange(null)
@@ -336,6 +355,17 @@ export function useSentinel2({
       ),
     [known, scenes],
   )
+  // The area series reads the scenes the panel offers once the list is rated, so a rating landing
+  // does not restart it.
+  const seriesIndex = modeIndex(mode) ?? 'ndvi'
+  const series = useSentinelAreaSeries({
+    visible: visible && !terrainProblem && !searching && !searchFailure,
+    area,
+    scenes: pickable,
+    index: seriesIndex,
+    reader,
+    keep: isChangeMode(mode) ? [pair.before, pair.after] : [sceneId],
+  })
   return {
     range,
     setRange,
@@ -350,7 +380,10 @@ export function useSentinel2({
     setPair,
     image: shownImage,
     imageLoading: visible && imageLoading,
-    change: shownImage && mode === 'change' ? change : null,
+    change: shownImage && isChangeMode(mode) ? change : null,
+    area,
+    setArea,
+    series,
     failure,
     retry,
     credit: shownImage ? sentinelCredit(shownImage.dates) : null,

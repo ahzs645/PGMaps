@@ -328,6 +328,16 @@ forestry plot fingerprint). `StackedShareBar` splits one bar into coloured
 segments, e.g. a recorded species mixture. A gradient legend with more than two
 labels is `MapGradientLegendItem ticks={…}`.
 
+`ValueHistogram` (`value-histogram.tsx`) draws a histogram from `histogram()`
+(`src/lib/histogram.ts`, DOM-free and unit-tested): equal-width bins over a
+`domain` (a fixed one compares readings on the same bins), a value on a break in
+the bin above, the top edge in the last bin. Values outside the domain and NaN or
+masked values are counted as below, above and missing and stated under the axis,
+never folded into a bar or read as zero. Bars take `bg-primary` unless the page
+passes `barColor` (a map's own ramp, which, like a legend's colours, stays fixed
+under a theme); `markers` draw a mean (`strong`) or a threshold (`muted`). The
+Sentinel-2 area series in the road designer is the first user.
+
 ## Copy actions
 
 Use `CopyButton` (`copy-button.tsx`) or `useClipboardText`

@@ -27,7 +27,7 @@ import {
 import { Map, MapControls, MapLayersControl, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { IMAGERY_BASEMAPS, SatelliteImagery, useStoredImageryBasemap } from '@/components/ui/map-satellite-imagery'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
-import { MapSketchLayers } from '@/components/ui/map-sketch'
+import { MapSketchDraft, MapSketchLayers } from '@/components/ui/map-sketch'
 import { canFinishSketch, nearFirstVertex } from '@/lib/geo/mapSketch'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
@@ -110,6 +110,7 @@ import { Sentinel2Layer } from './sentinel/Sentinel2Layer'
 import { Sentinel2Panel } from './sentinel/Sentinel2Panel'
 import { useSentinel2 } from './sentinel/useSentinel2'
 import { useSentinelViewport } from './sentinel/useSentinelViewport'
+import { areaFromFeature, useSentinelAreaDrawing } from './sentinel/useSentinelAreaDrawing'
 import { RegionalDemLayer } from './RegionalDemLayer'
 import { RegionalContourLayer } from './RegionalContourLayer'
 import { HrdemReliefLayer } from './HrdemReliefLayer'
@@ -2907,6 +2908,11 @@ export function PlanView(input: PlanProps) {
     onStation: props.onStation,
     onTypeStation: props.onTypeStation,
   })
+  // A Sentinel-2 area is drawn with the shared sketch; the plan's own clicks stand aside meanwhile.
+  const sentinelArea = useSentinelAreaDrawing({
+    canStart: !tools.tool && !noteTool && !props.pourPointPicking && ['inspect', 'edit'].includes(props.mode),
+    onArea: sentinel.setArea,
+  })
   const pickNoteTool = (tool: NoteTool) => {
     if (tool && roadDrawing) props.onMode?.('inspect')
     if (tool && !notesVisible) setNotesVisible(true)
@@ -3136,6 +3142,28 @@ export function PlanView(input: PlanProps) {
             />
           )}
           {showSentinel && !plane && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
+          {showSentinel && !plane && sentinel.area && (
+            <MapLineLayer
+              data={{
+                type: 'FeatureCollection',
+                features: [{ type: 'Feature', properties: {}, geometry: sentinel.area.geometry }],
+              }}
+              color="#2563eb"
+              width={2}
+              dashArray={[2, 1.5]}
+              interactive={false}
+            />
+          )}
+          {showSentinel && !plane && sentinelArea.draft && (
+            <MapSketchDraft
+              shape="polygon"
+              points={sentinelArea.draft}
+              onAdd={sentinelArea.add}
+              onFinish={sentinelArea.finish}
+              color="#2563eb"
+              testId="road-sentinel2-sketch"
+            />
+          )}
           <Layers
             {...props}
             legendSlot={legendSlot}
@@ -3177,7 +3205,7 @@ export function PlanView(input: PlanProps) {
             referenceStyles={props.project.referenceStyles}
             referenceSymbols={referenceSymbols}
             noteTool={noteTool}
-            planToolActive={!!tools.tool}
+            planToolActive={!!tools.tool || !!sentinelArea.draft}
             roadColour={tools.roadColour}
             refusedEdit={!!previewRefusal}
           />
@@ -3288,6 +3316,16 @@ export function PlanView(input: PlanProps) {
                       props.onContextSelect?.(cutblock)
                     }
                   : undefined
+              }
+              onSentinelSeries={
+                plane || !areaFromFeature(cutblock)
+                  ? undefined
+                  : () => {
+                      setCutblockCard(null)
+                      sentinelArea.drawing.cancel()
+                      sentinel.setArea(areaFromFeature(cutblock))
+                      setShowSentinel(true)
+                    }
               }
             />
           )}
@@ -3538,7 +3576,11 @@ export function PlanView(input: PlanProps) {
                 state={sentinel}
                 paused={sentinelView.paused}
                 moving={sentinelView.moving}
-                onClose={() => setShowSentinel(false)}
+                onClose={() => {
+                  sentinelArea.drawing.cancel()
+                  setShowSentinel(false)
+                }}
+                drawing={sentinelArea.drawing}
               />
             )}
           </div>

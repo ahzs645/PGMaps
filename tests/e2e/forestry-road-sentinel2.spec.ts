@@ -51,6 +51,11 @@ const files: Record<string, Buffer> = {
   [`${LATER}/B08.tif`]: tiff((c, r) => [cleared(c, r) ? 80 : 200]),
   [`${EARLIER}/SCL.tif`]: tiff(() => [4]),
   [`${LATER}/SCL.tif`]: tiff(() => [4]),
+  // SWIR rises where the ground is cleared, so NBR and NDMI fall there.
+  [`${EARLIER}/B11.tif`]: tiff(() => [100]),
+  [`${LATER}/B11.tif`]: tiff((c, r) => [cleared(c, r) ? 150 : 100]),
+  [`${EARLIER}/B12.tif`]: tiff(() => [80]),
+  [`${LATER}/B12.tif`]: tiff((c, r) => [cleared(c, r) ? 120 : 80]),
 }
 
 const item = (id: string, datetime: string, cloud: number) => ({
@@ -64,6 +69,8 @@ const item = (id: string, datetime: string, cloud: number) => ({
       ['red', 'B04'],
       ['nir', 'B08'],
       ['scl', 'SCL'],
+      ['swir16', 'B11'],
+      ['swir22', 'B12'],
     ].map(([key, band]) => [
       key,
       { href: `${COGS}/${id}/${band}.tif`, 'raster:bands': [{ scale: 0.0001, offset: -0.1 }] },
@@ -198,11 +205,63 @@ test('Sentinel-2 imagery: the ribbon toggle adds the layer under the road, lists
     .poll(async () => (await imagery(page))?.credit)
     .toBe('Contains modified Copernicus Sentinel data 2019, 2025')
 
+  // dNBR reads the 20 m SWIR band onto the same window and dates the burn or clearing the same way.
+  await choose(panel.getByRole('combobox', { name: 'Sentinel-2 display' }), 'dNBR (burn)')
+  await expect(page.getByTestId('road-sentinel2-change')).toContainText(
+    /Burned or cleared on \d+(\.\d)? ha: first seen between 2019-08-14 and 2025-08-20 \(snow gap\) \(Sentinel-2\)/,
+  )
+
   // Off again from the same command: the layer and its credit leave the map.
   await command.click()
   await expect(command).toHaveAttribute('aria-pressed', 'false')
   await expect(panel).toBeHidden()
   await expect.poll(async () => (await imagery(page))?.layer).toBe(false)
+  expect(errors).toEqual([])
+})
+
+test('Sentinel-2 area series: a drawn area charts the index through time, brackets the fall and draws its histogram', async ({
+  page,
+}) => {
+  const errors = await open(page, { failing: false })
+  await toggleFromRibbon(page)
+  const panel = page.getByTestId('road-sentinel2-panel')
+  await expect(panel.getByRole('list', { name: 'Sentinel-2 scenes' }).getByRole('listitem')).toHaveCount(2)
+  await expect.poll(async () => (await imagery(page))?.layer).toBe(true)
+
+  await panel.getByRole('button', { name: 'Draw area', exact: true }).click()
+  const plan = (await page.getByTestId('road-plan-view').boundingBox())!
+  const [cx, cy] = [plan.x + plan.width * 0.4, plan.y + plan.height * 0.55]
+  for (const [dx, dy] of [
+    [-40, -40],
+    [40, -40],
+    [40, 40],
+    [-40, 40],
+  ])
+    await page.mouse.click(cx + dx, cy + dy)
+  await expect(page.getByTestId('road-sentinel2-sketch-vertex')).toHaveCount(4)
+  // The first point closes the area.
+  await page.mouse.click(cx - 40, cy - 40)
+
+  const area = page.getByTestId('road-sentinel2-area')
+  await expect(area.getByTestId('road-sentinel2-area-name')).toContainText(/Drawn area · \d+(\.\d)? ha · NDVI/)
+  await expect(area.getByRole('group', { name: /Mean NDVI over Drawn area in 2 clear scenes/ })).toBeVisible()
+  await expect(area.getByTestId('road-sentinel2-series-drop')).toContainText(
+    /NDVI fell \d\.\d\d: first seen between 2019-08-14 and 2025-08-20 \(snow gap\) \(Sentinel-2\)/,
+  )
+  // The selected (newest) scene's histogram: every clear pixel inside the area is cleared ground.
+  const histogram = area.getByTestId('road-sentinel2-histogram')
+  await expect(histogram.getByRole('img')).toHaveAttribute(
+    'aria-label',
+    /NDVI in Drawn area on 2025-08-20: [1-9]\d* pixels from -0\.40 to 1\.00; mean -0\.20/,
+  )
+
+  // The series follows the display's index.
+  await choose(panel.getByRole('combobox', { name: 'Sentinel-2 display' }), 'NDMI')
+  await expect(area.getByTestId('road-sentinel2-area-name')).toContainText('NDMI')
+  await expect(area.getByTestId('road-sentinel2-series-drop')).toContainText(/NDMI fell \d\.\d\d: first seen between/)
+
+  await area.getByRole('button', { name: 'Clear the Sentinel-2 area' }).click()
+  await expect(area.getByRole('button', { name: 'Draw area', exact: true })).toBeVisible()
   expect(errors).toEqual([])
 })
 

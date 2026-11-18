@@ -3,12 +3,31 @@ import { FlipHorizontal } from 'lucide-react'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { EmptyHint } from '@/components/ui/result-list'
 import { AppSelect } from '@/components/ui/select'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import { SCORE_METRICS_BY_CATEGORY } from '../constants'
 import { METRIC_CATEGORY_LABELS, type ScoreMetricKey } from '../types'
 import { formatMetricValue, getMetricLabel, isMetricAvailableOnBoundary } from '../lib/metrics'
 import { describeAssociation, type CorrelationResult, type MetricCorrelation } from '../lib/correlation'
+import type { CorrelateVisStyle } from '../lib/labs'
+import type { GlobalMoranResult } from '../lib/spatialAutocorrelation'
+import { describeResidualPattern } from '../lib/spatialPatternView'
+
+const MAP_STYLE_OPTIONS = [
+  { value: 'bivariate', label: 'Bivariate' },
+  { value: 'residual', label: 'Residual' },
+  { value: 'clusters', label: 'Clusters' },
+] as const satisfies ReadonlyArray<{ value: CorrelateVisStyle; label: string }>
+
+const MAP_STYLE_NOTES: Record<CorrelateVisStyle, string> = {
+  bivariate:
+    'Each region is colored by its (X tertile, Y tertile) cell in the 3x3 grid. Top-right of the grid = high on both.',
+  residual:
+    'Each region is colored by its residual from a least-squares line of Y on X. Red = above the line; blue = below. Color tops out at the 90th percentile so outliers do not wash out the rest.',
+  clusters:
+    'Each region is colored by its local Moran cluster: where high or low values of the chosen variable sit together, or a region differs from its neighbours. Choose the variable under Spatial pattern.',
+}
 
 interface CorrelateTabProps {
   className?: string
@@ -16,9 +35,10 @@ interface CorrelateTabProps {
   metricY: ScoreMetricKey
   onMetricXChange: (metric: ScoreMetricKey) => void
   onMetricYChange: (metric: ScoreMetricKey) => void
-  visStyle: 'bivariate' | 'residual'
-  onVisStyleChange: (style: 'bivariate' | 'residual') => void
+  visStyle: CorrelateVisStyle
+  onVisStyleChange: (style: CorrelateVisStyle) => void
   result: CorrelationResult
+  residualPattern: GlobalMoranResult | null
   topPairs: MetricCorrelation[]
   onApplyTopPair: (metricX: ScoreMetricKey, metricY: ScoreMetricKey) => void
   boundarySource: BoundarySource
@@ -36,6 +56,7 @@ export function CorrelateTab({
   visStyle,
   onVisStyleChange,
   result,
+  residualPattern,
   topPairs,
   onApplyTopPair,
   boundarySource,
@@ -104,40 +125,17 @@ export function CorrelateTab({
       </div>
 
       <div className="rounded-lg border border-border p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold uppercase text-muted-foreground">Map style</span>
-          <div className="inline-flex overflow-hidden rounded border border-input">
-            <button
-              type="button"
-              onClick={() => onVisStyleChange('bivariate')}
-              className={cn(
-                'px-2 py-1 text-xs font-medium transition-colors',
-                visStyle === 'bivariate'
-                  ? 'bg-cyan-500 text-white'
-                  : 'bg-background text-muted-foreground hover:bg-accent',
-              )}
-            >
-              Bivariate
-            </button>
-            <button
-              type="button"
-              onClick={() => onVisStyleChange('residual')}
-              className={cn(
-                'px-2 py-1 text-xs font-medium transition-colors',
-                visStyle === 'residual'
-                  ? 'bg-cyan-500 text-white'
-                  : 'bg-background text-muted-foreground hover:bg-accent',
-              )}
-            >
-              Residual
-            </button>
-          </div>
+        <div className="mb-2 space-y-1.5">
+          <div className="text-xs font-semibold uppercase text-muted-foreground">Map style</div>
+          <SegmentedControl
+            label="Map style"
+            size="sm"
+            value={visStyle}
+            onChange={onVisStyleChange}
+            options={MAP_STYLE_OPTIONS}
+          />
         </div>
-        <div className="text-xs leading-snug text-muted-foreground">
-          {visStyle === 'bivariate'
-            ? 'Each region is colored by its (X tertile, Y tertile) cell in the 3x3 grid. Top-right of the grid = high on both.'
-            : 'Each region is colored by its residual from a least-squares line of Y on X. Red = above the line; blue = below. Color tops out at the 90th percentile so outliers do not wash out the rest.'}
-        </div>
+        <div className="text-xs leading-snug text-muted-foreground">{MAP_STYLE_NOTES[visStyle]}</div>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -158,6 +156,19 @@ export function CorrelateTab({
         <InlineAlert tone="info" className="leading-snug">
           {association.note}
         </InlineAlert>
+      )}
+      {residualPattern && (
+        <div data-residual-moran="true">
+          <InlineAlert
+            tone={
+              residualPattern.pPermutation <= 0.05 && residualPattern.I > residualPattern.expected ? 'warning' : 'info'
+            }
+            className="leading-snug"
+          >
+            {describeResidualPattern(residualPattern)} PGMaps-derived: computed here from neighbouring regions&apos;
+            residuals.
+          </InlineAlert>
+        </div>
       )}
 
       <CorrelationScatter

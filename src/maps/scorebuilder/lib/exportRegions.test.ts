@@ -47,4 +47,22 @@ describe('scoredRegionsCsv', () => {
   it('has no score columns for a lens lab', () => {
     expect(scoredRegionsCsv([region], { ...base, includeScores: false })).not.toContain('Rank')
   })
+
+  it('carries the cluster columns only when it is handed them', () => {
+    const withId = { ...region, region: { ...region.region, id: 'r1' } } as unknown as ScoredBoundaryRegion
+    const other = { ...region, region: { ...region.region, id: 'r2', name: 'Hart' } } as unknown as ScoredBoundaryRegion
+    expect(scoredRegionsCsv([withId], { ...base, includeScores: false })).not.toContain('Moran')
+    const csv = scoredRegionsCsv([withId, other], {
+      ...base,
+      includeScores: false,
+      clusters: {
+        variableLabel: 'Park Density',
+        values: new Map([['r1', { cluster: 'HH', localI: 1.234567, p: 0.004 }]]),
+      },
+    })
+    expect(csv).toContain('"Cluster of Park Density (PGMaps local Moran)"')
+    expect(csv).toContain('"High among high","1.2346","0.004"')
+    // A drawn region the run left out reads as not analysed, with blank figures.
+    expect(csv).toContain('"Not analysed","",""')
+  })
 })

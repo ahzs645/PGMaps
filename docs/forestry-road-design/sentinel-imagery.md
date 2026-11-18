@@ -2,14 +2,21 @@
 
 **View → Map layers → Sentinel-2 imagery** (also a row in the plan's **Map settings**, and found by
 **Find tools**) draws Copernicus Sentinel-2 imagery over the current map view, under every engineering
-layer. Its card on the plan lists recent scenes and switches between three displays:
+layer. Its card on the plan lists recent scenes and switches between seven displays:
 
 - **True colour**: the scene's TCI image as published.
-- **NDVI**: (NIR − red) ÷ (NIR + red) from bands B08 and B04, on reflectance, with cloud, cloud
-  shadow, snow and no-data pixels left clear.
-- **NDVI change**: the later scene's NDVI minus the earlier one's. A drop of
-  `SENTINEL_CLEARING_NDVI_DROP` or more is drawn as a clearing and reported as
-  "Clearing on _n_ ha: first seen between _earlier date_ and _later date_ (Sentinel-2)".
+- **NDVI**: (NIR − red) ÷ (NIR + red) from bands B08 and B04, for green cover.
+- **NBR**: (NIR − SWIR2) ÷ (NIR + SWIR2) from bands B08 and B12, for burned ground.
+- **NDMI**: (NIR − SWIR1) ÷ (NIR + SWIR1) from bands B08 and B11, for moisture: drought and beetle
+  red attack.
+- **NDVI change**, **dNBR (burn)** and **NDMI change**: the later scene's index minus the earlier
+  one's. A fall of the index's counted drop or more (table below) is reported as
+  "Clearing / Burned or cleared / Drier on _n_ ha: first seen between _earlier date_ and _later
+  date_ (Sentinel-2)". dNBR is the earlier NBR minus the later, as Key & Benson define it.
+
+Every index is computed on reflectance, with cloud, cloud shadow, snow and no-data pixels left
+clear (`indices.ts`). Below the display, **Area series** reads the chosen index through time over
+one area and draws a histogram of it for the selected scene (see [Area series](#area-series)).
 
 The code is in `src/pages/dev-forestry-roads/sentinel/`.
 
@@ -36,14 +43,24 @@ The code is in `src/pages/dev-forestry-roads/sentinel/`.
 - Scenes: Element 84 Earth Search, `POST https://earth-search.aws.element84.com/v1/search`,
   collection `sentinel-2-l2a` (`SENTINEL_STAC_SEARCH_URL`, `SENTINEL_COLLECTION`). No key; the
   API sends `Access-Control-Allow-Origin: *`.
-- Pixels: the item's `visual` (TCI), `red` (B04), `nir` (B08) and `scl` (scene classification)
-  Cloud-Optimized GeoTIFFs in the AWS `sentinel-cogs` bucket, read by byte range through
-  geotiff.js (`cogReader.ts`). Only the window over the map view is fetched.
+- Pixels: the item's `visual` (TCI), `red` (B04), `nir` (B08), `swir16` (B11), `swir22` (B12) and
+  `scl` (scene classification) Cloud-Optimized GeoTIFFs in the AWS `sentinel-cogs` bucket, read by
+  byte range through geotiff.js (`cogReader.ts`). Only the window over the map view is fetched. An
+  item without the SWIR assets still draws true colour and NDVI; NBR and NDMI then say which band
+  the scene lacks.
+- B11, B12 and the scene classification are 20 m. On a 10 m window they are read on their own
+  20 m grid, over the 20 m pixels that hold the window, and each 10 m pixel takes the 20 m pixel
+  its centre falls in: nearest neighbour, the same pixels for the same window every time
+  (`resample.ts`). Handing geotiff the 10 m box instead rounds it to whole 20 m pixels and
+  stretches the result, which moved a band by up to 10 m. On a window of 20 m pixels or coarser
+  every band is read on the window directly. NBR uses B08 (10 m) rather than B8A (20 m): the NIR
+  pixels stay 10 m, and the SWIR is a 2 × 2 block of them.
 - Reflectance is DN × `scale` + `offset` from the item's `raster:bands`. Earth Search has already
   removed the −0.1 offset of processing baseline 04.00 and later from the pixels
   (`earthsearch:boa_offset_applied: true`) while still listing it, so the offset is applied only
-  when that flag is absent or false (`stac.ts`). Applying it twice read September 2025 conifer
-  near Prince George at zero red reflectance and NDVI 1 everywhere.
+  when that flag is absent or false (`stac.ts`), for the SWIR bands as for red and NIR. Applying it
+  twice read September 2025 conifer near Prince George at zero red reflectance and NDVI 1
+  everywhere.
 - Clear ground is scene classification 4–7 (vegetation, not vegetated, water, unclassified).
   "Clear" in the list is that share of the window's covered pixels; "covers" appears when the tile
   holds less than the whole window.
@@ -75,6 +92,56 @@ The read window is the visible map's bounds projected into the scene's UTM zone,
 image in its own UTM grid, the way imported backgrounds are. A window longer than
 `SENTINEL_MAX_WINDOW_PX` pixels at 10 m reads 20, 40… m pixels from the COG's overviews.
 
+## Area series
+
+The **Area series** part of the card reads one index through time over one area and charts it.
+
+- **The area.** Click a cutblock on the plan and choose **Sentinel-2 series** on its card, or
+  **Draw area** on the Sentinel-2 card and click the polygon's points with the shared sketch
+  (`map-sketch.tsx`; the first point or a double-click closes it, Escape cancels, Backspace takes
+  a point back). While it is drawing, the plan's own clicks stand aside. The area is kept for this
+  map session only and never written into the project. Areas up to `SENTINEL_AREA_MAX_KM` across.
+- **The scenes.** The scenes the card offers: this list and those kept from earlier years searched
+  over this view, at most `SENTINEL_SERIES_MAX_SCENES`, spread evenly over time with the oldest and
+  newest kept and the scene the card shows (or both of a change pair) always included
+  (`thinScenes`). Pick a year, then another, to reach back. A year's list is its 12 newest summer
+  scenes, so it seldom reaches back past mid-August: a bracket across two years runs from that
+  year's late summer. Each scene reads only the area's window, on the 10 m grid of its own UTM zone, `SENTINEL_READ_CONCURRENCY` reads at a
+  time; moving the map, a new area or a new display cancels the reads in flight. A scene read once
+  for an area and index is kept for the session and not read again; a failed read is.
+- **The value.** The mean of the index over the clear pixels whose centres lie inside the area
+  (`areaSeries.ts`). A scene whose tile covers less than `SENTINEL_SERIES_MIN_COVERAGE` of the area,
+  or with less than `SENTINEL_SERIES_MIN_CLEAR_SHARE` of the covered area clear, is a gap with its
+  reason (tile edge, cloud, a missing band, a failed read), never a zero. Gaps are listed under the
+  chart and break nothing: the line runs between clear scenes.
+- **The fall.** Every pair of consecutive clear scenes is a candidate bracket. Its fall is the
+  median of all clear scenes before it minus the median of all clear scenes after it, and it
+  counts when that reaches the index's counted drop and the pair itself falls. Of those, the pair
+  that itself falls furthest (the smaller of its own fall and the level fall, since every split
+  near a step shows much the same level fall) is drawn red and labelled with the same "first seen between … and …"
+  as the change view, with "(snow gap)" over November–April (`findDrop`). The bracket is the two
+  clear scenes on either side; a gap between them makes it wider, never narrower. When only one
+  clear scene follows, the card says so: the level after is that one scene.
+- **Why levels, not one pair.** Haze, wildfire smoke and thin cloud often pass the scene
+  classification as clear. Read live on 18 November 2026, a 10 ha unharvested stand near Prince
+  George held NDVI 0.73–0.82 through August–September 2019 and 2025, except 3 and 6 September 2025
+  (0.38 and 0.28, both "clear"), back to 0.82 by the 16th. A scene-to-scene rule dated a clearing
+  there. Falls the level comes back from are left out and counted as "short dips" (`shortDips`).
+  The other way round, NBR over the 2021 Lytton Creek fire fell 0.245 between the last 2020 scene
+  and the first clear 2021 one, under the 0.27 counted drop, while the levels fell 0.295 (median
+  0.129 before, −0.166 after); the level rule finds it.
+- **The histogram.** For the selected scene (the later scene in a change view), the index's
+  distribution inside the area over a fixed range per index, `SENTINEL_HISTOGRAM_BINS` bins,
+  coloured by the display's own ramp, with the mean marked. It is the shared `ValueHistogram`
+  (`src/components/ui/value-histogram.tsx`, binning in `src/lib/histogram.ts`).
+- The chart is the toolkit's `LineBandChart`, not `TimeSeriesChart`: the latter's navigator takes
+  a fifth of the card's height and draws every series on one shared row set, so the fall could not
+  be drawn as its own segment across a gap.
+
+Like the rest of the layer, the series is evidence only: never a constraint, never a route-search
+input and not proof of a road. A fall says the ground changed between two dates; NDVI and NDMI
+also move with season and leaf colour, and a short spur cannot be told apart from its block.
+
 ## Limits and budgets
 
 | Limit                           | Value                     | Enforced in                                                             | When exceeded                                          |
@@ -98,6 +165,13 @@ image in its own UTM grid, the way imported backgrounds are. A window longer tha
 | Rating reads at once            | 4                         | `limits.ts` `SENTINEL_LIST_CONCURRENCY`                                 | —                                                      |
 | Default scene: clear / coverage | 80 % / 95 % of the window | `limits.ts` `SENTINEL_MIN_CLEAR_SHARE`, `SENTINEL_MIN_COVERAGE`         | Falls back to the clearest scene                       |
 | Clearing                        | NDVI drop of 0.2 or more  | `limits.ts` `SENTINEL_CLEARING_NDVI_DROP`                               | Smaller changes drawn faintly, not counted             |
+| Burned or cleared (dNBR)        | 0.27 or more              | `limits.ts` `SENTINEL_BURN_DNBR`                                        | Key & Benson low severity (0.1–0.27) drawn faintly, not counted |
+| dNBR drawn at all               | 0.1 (unburned below)      | `limits.ts` `SENTINEL_DNBR_UNBURNED`                                    | Clear                                                  |
+| Drier (NDMI)                    | drop of 0.15 or more      | `limits.ts` `SENTINEL_DRYING_NDMI_DROP`                                 | Smaller changes drawn faintly, not counted             |
+| Area series size                | 10 km a side              | `limits.ts` `SENTINEL_AREA_MAX_KM`                                      | "The area spans … km; a Sentinel-2 series reads at most 10 km", no read |
+| Area series scenes              | 12                        | `limits.ts` `SENTINEL_SERIES_MAX_SCENES`                                | Thinned evenly over time, both ends kept               |
+| Series gap: clear / cover       | under 80 % / 95 % of the area | `limits.ts` `SENTINEL_SERIES_MIN_CLEAR_SHARE`, `SENTINEL_SERIES_MIN_COVERAGE` | Gap with its reason, never a value                     |
+| Histogram bins                  | 40                        | `limits.ts` `SENTINEL_HISTOGRAM_BINS`                                   | —                                                      |
 | Request time                    | 30 s per search or read   | `limits.ts` `SENTINEL_REQUEST_TIMEOUT_MS`                               | "… took longer than 30 s", with Retry                  |
 | Band windows kept in memory     | 8                         | `limits.ts` `SENTINEL_BAND_CACHE_ENTRIES`                               | Older windows read again                               |
 | UTM zones                       | 7–11 (EPSG:32607–32611)   | `limits.ts` `SENTINEL_BC_UTM_ZONES`                                     | "The terrain is outside British Columbia's …", no read |
@@ -116,6 +190,8 @@ Every failure says why on the card, and the ones a retry can fix offer **Retry**
 | A COG cannot be read                 | "A Sentinel-2 image could not be read from the AWS archive.", Retry                                  |
 | Change pair from different UTM zones | "The two scenes come from tiles in different UTM zones …"                                            |
 | Change pair is one scene             | "Pick two different scenes to compare."                                                              |
+| Scene lists no SWIR band             | "The … scene lists no SWIR (B12) band, which NBR needs." In a series, a gap with that reason         |
+| Area too wide for a series           | "The area spans … km; a Sentinel-2 series reads at most 10 km."                                      |
 
 ## Map order
 
@@ -129,7 +205,8 @@ layer, never through a `styles` swap, so `setStyle` never runs.
 - Unit tests (`sentinel/*.test.ts`) run on a recorded Earth Search response
   (`stacSearch.fixture.json`) and on small GeoTIFFs written in memory; they need no network.
 - `tests/e2e/forestry-road-sentinel2.spec.ts` stubs the search and the COGs and checks the layer is
-  added to the map, the scene list renders, and the change view prints an interval.
+  added to the map, the scene list renders, the NDVI change and dNBR views print an interval, and a
+  drawn area's series brackets the stubbed clearing and draws its histogram.
 
 Catalogue and band caches are local to this map session. There is no polling or automatic failure retry. HTTP 429 without Retry-After holds new searches for 60 s; HTTP 503 without it keeps the normal 5 s spacing. Successful decoded bands survive cancellation of their originating effect. The public Earth Search service promises no guaranteed service: these application limits are conservative client budgets, not a published provider quota.
 

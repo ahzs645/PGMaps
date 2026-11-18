@@ -1,4 +1,4 @@
-import { MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
 import { HEALTHYPLAN_EQUITY_PRIORITY_RAMP } from '@/lib/healthyplan'
 import { toWalkabilityMiLegendBands, useWalkabilityMiBands } from '@/maps/pgdata/walkabilityMiBands'
@@ -6,6 +6,8 @@ import { SCORE_METRICS, type ScorePaletteProfile } from '../constants'
 import type { CorrelationResult } from '../lib/correlation'
 import { BIVARIATE_3X3_PALETTE, RESIDUAL_GRADIENT } from '../lib/correlationColors'
 import type { ScoreSpread } from '../lib/scoreSummaries'
+import type { CorrelateVisStyle } from '../lib/labs'
+import { CLUSTER_COLORS, CLUSTER_LABELS, CLUSTER_MAP_CLASSES, type ClusterMapClass } from '../lib/spatialPatternView'
 import type { ScoreMethodSettings, ScoreMetricKey } from '../types'
 import { formatMetricValue, formatRegionCount } from '../lib/metrics'
 import type { BcEnviroScreenMapView } from '../lib/bcEnviroScreenMapView'
@@ -15,8 +17,10 @@ interface ScoreBuilderMapLegendProps {
   correlateMode: boolean
   correlateMetricX: ScoreMetricKey
   correlateMetricY: ScoreMetricKey
-  correlateVisStyle: 'bivariate' | 'residual'
+  correlateVisStyle: CorrelateVisStyle
   correlationResult: CorrelationResult
+  /** Set while the map shows local Moran clusters; it replaces every other legend. */
+  clusterLegend?: ClusterLegend | null
   densityMode: boolean
   densityMetric: ScoreMetricKey
   densityRange: { min: number; max: number } | undefined
@@ -63,6 +67,7 @@ export function ScoreBuilderMapLegend({
   lowCoverageExcludedCount = 0,
   bcEnviroScreenMapView = null,
   sensorDataDate = null,
+  clusterLegend = null,
 }: ScoreBuilderMapLegendProps) {
   const walkabilityBands = showWalkabilitySourceSurface || canUseWalkabilitySourceSurface
   // Same resolved MI bands the raster paints with, so a regenerated grid moves
@@ -71,31 +76,36 @@ export function ScoreBuilderMapLegend({
   const metricLabel = (key: ScoreMetricKey) => SCORE_METRICS.find((metric) => metric.key === key)?.shortLabel ?? key
   const healthyPlan = methodSettings.aggregation === 'healthyPlanPairwisePriority'
 
-  const { title, description } = correlateMode
-    ? {
-        title: correlateVisStyle === 'bivariate' ? 'Bivariate map' : 'Residual map',
-        description: `${metricLabel(correlateMetricY)} vs ${metricLabel(correlateMetricX)}`,
-      }
-    : densityMode
-      ? { title: 'Density', description: metricLabel(densityMetric) }
-      : bcEnviroScreenMapView
-        ? { title: bcEnviroScreenMapView.label, description: undefined }
-        : walkabilityBands
-          ? {
-              title: 'Walkability MI',
-              description: showWalkabilitySourceSurface ? 'Citywide source grid' : 'Boundary bands',
-            }
-          : healthyPlan
-            ? { title: 'HealthyPlan priority', description: 'Vulnerability > 5, benefit < 6' }
-            : {
-                title: scorePaletteProfile.label,
-                description: methodSettings.mapColorScale === 'absolute' ? 'Fixed 0–100 scale' : 'Current score range',
+  const { title, description } = clusterLegend
+    ? { title: 'Local Moran clusters', description: clusterLegend.variableLabel }
+    : correlateMode
+      ? {
+          title: correlateVisStyle === 'bivariate' ? 'Bivariate map' : 'Residual map',
+          description: `${metricLabel(correlateMetricY)} vs ${metricLabel(correlateMetricX)}`,
+        }
+      : densityMode
+        ? { title: 'Density', description: metricLabel(densityMetric) }
+        : bcEnviroScreenMapView
+          ? { title: bcEnviroScreenMapView.label, description: undefined }
+          : walkabilityBands
+            ? {
+                title: 'Walkability MI',
+                description: showWalkabilitySourceSurface ? 'Citywide source grid' : 'Boundary bands',
               }
+            : healthyPlan
+              ? { title: 'HealthyPlan priority', description: 'Vulnerability > 5, benefit < 6' }
+              : {
+                  title: scorePaletteProfile.label,
+                  description:
+                    methodSettings.mapColorScale === 'absolute' ? 'Fixed 0–100 scale' : 'Current score range',
+                }
 
   return (
     // Collapsed on phones, where the expanded panel covers much of the map.
     <MapLegendPanel title={title} description={description} width="sm" collapsible defaultCollapsed="mobile">
-      {correlateMode ? (
+      {clusterLegend ? (
+        <ClusterMapLegend legend={clusterLegend} />
+      ) : correlateMode ? (
         <CorrelationMapLegend visStyle={correlateVisStyle} result={correlationResult} />
       ) : densityMode ? (
         <DensityMapLegend metric={densityMetric} range={densityRange} />
@@ -155,7 +165,34 @@ export function ScoreBuilderMapLegend({
   )
 }
 
-function CorrelationMapLegend({ visStyle, result }: { visStyle: 'bivariate' | 'residual'; result: CorrelationResult }) {
+export interface ClusterLegend {
+  variableLabel: string
+  counts: Record<ClusterMapClass, number>
+  fdr: boolean
+}
+
+function ClusterMapLegend({ legend }: { legend: ClusterLegend }) {
+  return (
+    <>
+      <div className="space-y-0.5 text-xs">
+        {CLUSTER_MAP_CLASSES.filter((cluster) => cluster !== 'none' || legend.counts.none > 0).map((cluster) => (
+          <LegendItem
+            key={cluster}
+            color={CLUSTER_COLORS[cluster]}
+            swatchShape="square"
+            label={CLUSTER_LABELS[cluster]}
+            value={String(legend.counts[cluster])}
+          />
+        ))}
+      </div>
+      <div className="mt-2 text-xs text-muted-foreground">
+        PGMaps-derived · {legend.fdr ? '5% false discovery rate' : 'p ≤ 0.05'}
+      </div>
+    </>
+  )
+}
+
+function CorrelationMapLegend({ visStyle, result }: { visStyle: CorrelateVisStyle; result: CorrelationResult }) {
   const stats = result.stats
   return (
     <>
