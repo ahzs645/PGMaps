@@ -7,8 +7,8 @@
  * A coarse search in angles first: each skyline column is a ray, scored against the terrain's horizon at the ray's
  * azimuth (sky below the bare ridge weighted 3×, each column's loss capped at 1°). Turning the camera about the
  * vertical changes a ray's azimuth but never its elevation angle, so for each pitch and roll the rays are worked out
- * once and every heading is then a shift along the horizon table. Then `fitSkyline`, unchanged, refines heading and
- * pitch at rolls a quarter degree apart round the coarse roll, given only the horizon round the frame.
+ * once and every heading is then a shift along the horizon table. The strongest distinct headings are refined
+ * equally, then checked against the bare-terrain and canopy band in the image.
  *
  * Free of DOM and network access: the horizon profile and the photo's skyline are passed in.
  */
@@ -19,6 +19,8 @@ const RAD = Math.PI / 180
 /** Horizon table spacing, degrees of azimuth. */
 export const HORIZON_STEP = 0.1
 const SLOTS = Math.round(360 / HORIZON_STEP)
+const HEADING_STEP = 0.5
+const HEADING_SLOTS = HEADING_STEP / HORIZON_STEP
 /**
  * A runner-up heading this close in mean loss per column (degrees) fits about as well: the camera is ambiguous.
  * Provisional, as in the bench, from four cases (November 2026): right cameras had gaps of 0.138° and 0.144°.
@@ -62,16 +64,20 @@ export interface WideSearchInput {
   cancelled?: () => boolean
 }
 
-export interface WideSearchResult {
+type SkylineCandidate = {
   bearing: number
   pitch: number
   roll: number
+  /** Refined angular loss per column, in degrees. */
+  meanLoss: number
+  hfov?: number
+}
+
+export interface WideSearchResult extends SkylineCandidate {
   fit: SkylineFit
   columns: number
-  /** Coarse loss per column (degrees) of the best pose. */
-  meanLoss: number
   /** The best heading at least `RUNNER_UP_MIN_DEGREES` away, with its pitch and roll. */
-  runnerUp: { bearing: number; pitch: number; roll: number; meanLoss: number } | null
+  runnerUp: SkylineCandidate | null
   /** Another heading fits about as well: check both before trusting either. */
   ambiguous: boolean
   /** `fitSkyline` trusts the fit and no clearly different heading fits about as well. */
@@ -86,6 +92,12 @@ export const LENS_STEP_DEGREES = 3
 export const MAX_LENS_STEPS = 7
 
 const wrap = (degrees: number) => ((degrees % 360) + 360) % 360
+const headingGap = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
+
+function withRunnerUp(best: WideSearchResult, runnerUp: SkylineCandidate | null): WideSearchResult {
+  const ambiguous = !!runnerUp && runnerUp.meanLoss - best.meanLoss < AMBIGUOUS_LOSS_GAP
+  return { ...best, runnerUp, ambiguous, trustworthy: best.fit.trustworthy && !ambiguous }
+}
 
 /** The horizon's elevation angle per `HORIZON_STEP` of azimuth; NaN where the profile has no terrain. */
 export function horizonTable(profile: readonly ProfilePoint[]): Float64Array {
@@ -121,7 +133,7 @@ export function searchOrientation(input: WideSearchInput): WideSearchResult | nu
   const lo = Math.max(3, Math.min(range[0], range[1])),
     hi = Math.min(150, Math.max(range[0], range[1]))
   const steps = hi - lo < 1e-6 ? 1 : Math.min(MAX_LENS_STEPS, Math.ceil((hi - lo) / LENS_STEP_DEGREES) + 1)
-  let best: WideSearchResult | null = null
+  const results: WideSearchResult[] = []
   for (let k = 0; k < steps; k++) {
     const hfov = steps === 1 ? (lo + hi) / 2 : lo + ((hi - lo) * k) / (steps - 1)
     const focalPx = input.pose.width / (2 * Math.tan((hfov * RAD) / 2))
@@ -131,15 +143,26 @@ export function searchOrientation(input: WideSearchInput): WideSearchResult | nu
       onProgress: input.onProgress && ((done) => input.onProgress!((k + done) / steps)),
     })
     if (input.cancelled?.()) return null
-    // The lens whose skyline the fine fit holds best, as the fine fit itself chooses a roll; then the coarser loss.
-    const score = (result: WideSearchResult) => result.fit.agreeing * result.fit.agreement
-    if (
-      found &&
-      (!best || score(found) > score(best) || (score(found) === score(best) && found.meanLoss < best.meanLoss))
-    )
-      best = { ...found, hfov }
+    if (found)
+      results.push({
+        ...found,
+        hfov,
+        runnerUp: found.runnerUp && { ...found.runnerUp, hfov },
+      })
   }
-  return best
+  // Each lens has its own competitors. Keep a different heading even when it
+  // comes from a lens other than the winner's.
+  const best = results.sort((a, b) => a.meanLoss - b.meanLoss)[0]
+  if (!best) return null
+  const runnerUp =
+    results
+      .flatMap(({ bearing, pitch, roll, meanLoss, hfov, runnerUp }) => [
+        { bearing, pitch, roll, meanLoss, hfov },
+        ...(runnerUp ? [runnerUp] : []),
+      ])
+      .filter((candidate) => headingGap(candidate.bearing, best.bearing) >= RUNNER_UP_MIN_DEGREES)
+      .sort((a, b) => a.meanLoss - b.meanLoss)[0] ?? null
+  return withRunnerUp(best, runnerUp)
 }
 
 function searchAtLens(input: WideSearchInput): WideSearchResult | null {
@@ -162,74 +185,96 @@ function searchAtLens(input: WideSearchInput): WideSearchResult | null {
   // Each column's direction in camera space: right and down offsets on a unit focal plane.
   const nx = skyline.map((point) => (point.x - pose.width / 2) / pose.focalPx)
   const ny = skyline.map((point) => (point.y - pose.height / 2) / pose.focalPx)
-  const offset = new Float64Array(n),
-    elevation = new Float64Array(n)
-  const headings = Math.max(1, Math.round((2 * span) / 0.5))
-  const sectors = Array.from({ length: 36 }, () => ({ bearing: Number.NaN, pitch: 0, roll: 0, loss: Infinity }))
-  let coarse = { bearing: pose.bearing, pitch: 0, roll: 0, loss: Infinity }
-  const rolls = Math.floor(rollRange[1] - rollRange[0]) + 1
-  for (let r = 0; r < rolls; r++) {
-    const roll = rollRange[0] + r
-    for (let pitch = pitchRange[0]; pitch <= pitchRange[1] + 1e-9; pitch += 0.5) {
+  const offset = new Float64Array(n)
+  const elevation = new Float64Array(n)
+  const slots = new Int32Array(n)
+  const halfSteps = Math.floor(span / HEADING_STEP)
+  const headings = Array.from({ length: 2 * halfSteps + (span < 180 ? 1 : 0) }, (_, i) => ({
+    bearing: wrap(pose.bearing + (i - halfSteps) * HEADING_STEP),
+    pitch: 0,
+    roll: 0,
+    meanLoss: Infinity,
+  }))
+  const rays = (pitch: number, roll: number) => {
+    // At heading zero, so every heading uses the same rays shifted round the horizon.
+    const { right, down, forward } = cameraAxes({ bearing: 0, pitch, roll })
+    for (let i = 0; i < n; i++) {
+      const east = forward[0] + nx[i] * right[0] + ny[i] * down[0]
+      const north = forward[1] + nx[i] * right[1] + ny[i] * down[1]
+      const up = forward[2] + nx[i] * right[2] + ny[i] * down[2]
+      offset[i] = Math.atan2(east, north) / RAD
+      elevation[i] = Math.atan2(up, Math.hypot(east, north)) / RAD
+    }
+  }
+  const columnLoss = (i: number, slot: number) => {
+    const d = elevation[i] - horizon[slot % SLOTS]
+    return Number.isNaN(d) ? 1 : Math.min(1, d < 0 ? -3 * d : d)
+  }
+  const regularSteps = (range: Range, step: number) =>
+    Array.from({ length: Math.ceil((range[1] - range[0]) / step) + 1 }, (_, i) =>
+      Math.min(range[1], range[0] + i * step),
+    )
+  const rolls = regularSteps(rollRange, 1)
+  const pitches = regularSteps(pitchRange, 0.5)
+  for (const [r, roll] of rolls.entries()) {
+    for (const pitch of pitches) {
       if (cancelled?.()) return null
-      // The rays at heading 0: azimuth offset and elevation angle per column, independent of heading.
-      const { right, down, forward } = cameraAxes({ bearing: 0, pitch, roll })
-      for (let i = 0; i < n; i++) {
-        const e = forward[0] + nx[i] * right[0] + ny[i] * down[0],
-          north = forward[1] + nx[i] * right[1] + ny[i] * down[1],
-          up = forward[2] + nx[i] * right[2] + ny[i] * down[2]
-        offset[i] = Math.atan2(e, north) / RAD
-        elevation[i] = Math.atan2(up, Math.hypot(e, north)) / RAD
-      }
-      for (let h = 0; h < headings; h++) {
-        const bearing = pose.bearing - span + h * 0.5
-        const heading = wrap(bearing)
-        const sector = sectors[Math.floor(heading / 10) % 36]
+      rays(pitch, roll)
+      for (let i = 0; i < n; i++) slots[i] = Math.round((headings[0].bearing + offset[i]) / HORIZON_STEP) + SLOTS
+      headings.forEach((heading, h) => {
         let loss = 0
-        for (let i = 0; i < n; i++) {
-          const t = horizon[Math.round(wrap(heading + offset[i]) / HORIZON_STEP) % SLOTS]
-          if (Number.isNaN(t)) loss += 1
-          else {
-            const d = elevation[i] - t
-            loss += Math.min(1, d < 0 ? -3 * d : d)
-          }
-          if (loss >= sector.loss) break
+        for (let i = 0; i < n && loss < heading.meanLoss; i++) loss += columnLoss(i, slots[i] + h * HEADING_SLOTS)
+        if (loss < heading.meanLoss) Object.assign(heading, { pitch, roll, meanLoss: loss })
+      })
+    }
+    onProgress?.((r + 1) / rolls.length)
+  }
+  headings.forEach((heading) => {
+    heading.meanLoss /= n
+  })
+  headings.sort((a, b) => a.meanLoss - b.meanLoss)
+  if (!Number.isFinite(headings[0].meanLoss)) return null
+
+  const refine = (candidate: SkylineCandidate, allowed: (bearing: number) => boolean): SkylineCandidate => {
+    let best = candidate
+    const near = (value: number, range: Range, margin: number, step: number) =>
+      regularSteps([Math.max(range[0], value - margin), Math.min(range[1], value + margin)], step)
+    const bearings = regularSteps([candidate.bearing - 0.5, candidate.bearing + 0.5], HORIZON_STEP).filter(
+      (bearing) => headingGap(wrap(bearing), wrap(pose.bearing)) <= span + 1e-9 && allowed(wrap(bearing)),
+    )
+    for (const roll of near(candidate.roll, rollRange, 0.75, 0.25)) {
+      for (const pitch of near(candidate.pitch, pitchRange, 0.4, 0.1)) {
+        rays(pitch, roll)
+        for (const bearing of bearings) {
+          let loss = 0
+          for (let i = 0; i < n; i++) loss += columnLoss(i, Math.round((bearing + offset[i]) / HORIZON_STEP) + SLOTS)
+          const meanLoss = loss / n
+          if (meanLoss < best.meanLoss) best = { bearing: wrap(bearing), pitch, roll, meanLoss }
         }
-        if (loss < sector.loss) Object.assign(sector, { bearing: heading, pitch, roll, loss })
-        if (loss < coarse.loss) coarse = { bearing, pitch, roll, loss }
       }
     }
-    onProgress?.((r + 1) / rolls)
+    return best
   }
-  if (!Number.isFinite(coarse.loss)) return null
-  const best = wrap(coarse.bearing)
-  const apart = (bearing: number) => Math.abs(((bearing - best + 540) % 360) - 180) >= RUNNER_UP_MIN_DEGREES
-  const runner = sectors.filter((s) => Number.isFinite(s.loss) && apart(s.bearing)).sort((a, b) => a.loss - b.loss)[0]
-  const meanLoss = coarse.loss / n
-  const runnerUp = runner
-    ? { bearing: runner.bearing, pitch: runner.pitch, roll: runner.roll, meanLoss: runner.loss / n }
-    : null
-  // Fine: fitSkyline (heading and pitch) at quarter-degree rolls round the coarse roll. It projects every horizon
-  // point it is given, so it gets the slice round the frame: its ±3° nudge never reaches past the margin.
-  const slice = horizonSlice(profile, coarse.bearing, frameHalfDiagonal(pose) + FINE_MARGIN_DEGREES)
-  let found: { bearing: number; pitch: number; roll: number; fit: SkylineFit } | null = null
-  for (let roll = coarse.roll - 1; roll <= coarse.roll + 1 + 1e-9; roll += 0.25) {
-    if (cancelled?.()) return null
-    const fit = fitSkyline({ ...pose, bearing: coarse.bearing, pitch: coarse.pitch, roll }, slice, input.skyline)
-    if (!fit) continue
-    const score = fit.agreeing * fit.agreement
-    const bestScore = found ? found.fit.agreeing * found.fit.agreement : -Infinity
-    if (!found || score > bestScore || (score === bestScore && fit.medianErrorPx < found.fit.medianErrorPx))
-      found = {
-        bearing: wrap(coarse.bearing + fit.nudge.bearing),
-        pitch: coarse.pitch + fit.nudge.pitch,
-        roll,
-        fit,
-      }
-  }
-  if (!found) return null
-  const ambiguous = !!runnerUp && runnerUp.meanLoss - meanLoss < AMBIGUOUS_LOSS_GAP
-  return { ...found, columns: n, meanLoss, runnerUp, ambiguous, trustworthy: found.fit.trustworthy && !ambiguous }
+  let best = refine(headings[0], () => true)
+  const apart = (bearing: number) => headingGap(bearing, best.bearing) >= RUNNER_UP_MIN_DEGREES
+  const runner = headings.find((heading) => apart(heading.bearing))
+  let runnerUp = runner ? refine(runner, apart) : null
+  if (runnerUp && runnerUp.meanLoss < best.meanLoss) [best, runnerUp] = [runnerUp, best]
+  if (cancelled?.()) return null
+  const slice = horizonSlice(profile, best.bearing, frameHalfDiagonal(pose) + FINE_MARGIN_DEGREES)
+  const fit = fitSkyline({ ...pose, ...best }, slice, input.skyline, { bearingRange: 0, pitchRange: 0 })
+  if (!fit) return null
+  return withRunnerUp(
+    {
+      ...best,
+      fit,
+      columns: n,
+      runnerUp: null,
+      ambiguous: false,
+      trustworthy: false,
+    },
+    runnerUp,
+  )
 }
 
 /** Sun azimuth (degrees from true north) and elevation at a UTC instant; NOAA's low-precision formulae. */

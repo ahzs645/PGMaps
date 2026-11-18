@@ -54,7 +54,10 @@ describe('photoOptions', () => {
     const rows = photoOptions({
       base,
       search: { result: search(), sun: { best: sun({ inFrame: true, relativeBearing: 3 }), runnerUp: null } },
-      modelScores: { camera: { bearing: 139.2, score: 0.3 }, 'runner-up': { bearing: 312, score: -0.06 } },
+      modelScores: [
+        { pose: { ...base, ...search() }, score: 0.3 },
+        { pose: { ...base, ...search().runnerUp! }, score: -0.06 },
+      ],
       phone: { bearing: 3, reference: 'true', airborne: true },
     })
     expect(rows.map((row) => row.kind)).toEqual(['winner', 'runner-up', 'phone'])
@@ -81,7 +84,10 @@ describe('photoOptions', () => {
     const rows = photoOptions({
       base,
       search: { result: search({ ambiguous: true, trustworthy: false }) },
-      modelScores: { camera: { bearing: 139.2, score: 0.05 }, 'runner-up': { bearing: 312, score: 0.25 } },
+      modelScores: [
+        { pose: { ...base, ...search() }, score: 0.05 },
+        { pose: { ...base, ...search().runnerUp! }, score: 0.25 },
+      ],
     })
     const winner = rows.find((row) => row.kind === 'winner')!
     expect(winner.evidence.settled).toBe(false)
@@ -91,6 +97,22 @@ describe('photoOptions', () => {
     ])
     // Still above the runner-up: the ranking never crosses a tier on the model view alone.
     expect(rows[0].kind).toBe('winner')
+  })
+
+  it('retains an alternate lens and ignores scores from the same heading with a different camera', () => {
+    const result = search({ hfov: 41, runnerUp: { ...search().runnerUp!, hfov: 29 } })
+    const rows = photoOptions({
+      base,
+      search: { result },
+      modelScores: [
+        { pose: { ...base, ...result, pitch: result.pitch + 5 }, score: 0.95 },
+        { pose: { ...base, ...result, hfov: 35 }, score: 0.8 },
+        { pose: { ...base, ...result, lng: base.lng + 0.01 }, score: 0.5 },
+        { pose: { ...base, ...result.runnerUp!, hfov: 29 }, score: 0.3 },
+      ],
+    })
+    expect(rows[0].evidence.modelScore).toBeNull()
+    expect(rows[1]).toMatchObject({ pose: { hfov: 29 }, evidence: { modelScore: 0.3 } })
   })
 
   it('ranks a checked point solve and a trustworthy winner above a neighbour, and the phone last', () => {

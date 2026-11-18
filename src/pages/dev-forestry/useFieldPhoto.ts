@@ -22,6 +22,17 @@ import {
   type RoadViewPose,
 } from './exifPose'
 import type { MatchedCamera } from './matchedCamera'
+import { comparePhotoCameras, type CombinedSettings } from './photoCombinedSearch'
+import { openPhotoFeatureMatcher } from './photoFeatureClient'
+import {
+  compareFlightProposals,
+  currentFlightProposal,
+  flightAnchor,
+  planFlightMatches,
+  type FlightCameraProposal,
+  type FlightMatchFrame,
+  type FlightMatchProgress,
+} from './photoFlightMatching'
 import type { OwnPhotoPlace } from './ownPhotoTabs'
 import {
   fetchMapillaryImage,
@@ -65,7 +76,13 @@ import { visibleProposalCentre } from './vqe'
 import { PhotoCache } from './photoCache'
 import { photoPoseKey, type HitBuffer } from './photoHitBuffer'
 import { photoTerrainSpec, terrainSpecKey, type ImageryLayer, type PhotoTerrainSpec } from './photoWork'
-import { castPhotoHits, drapePhotoOffThread, photoHorizon, renderPhotoModelView } from './photoWorkClient'
+import {
+  castPhotoHits,
+  drapePhotoOffThread,
+  photoHorizon,
+  renderPhotoModelView,
+  transferPhotoCamera,
+} from './photoWorkClient'
 import { photoSeenBounds, readPhotoFeatures, type Box, type PhotoFeatureReads } from './photoFeatures'
 import {
   acceptanceLapsed,
@@ -104,7 +121,6 @@ import {
   horizonKey,
   imageryKey,
   lensRangeFor,
-  narrowSearchSettles,
   nextInQueue,
   photoFlights,
   photoQueueStatus,
@@ -240,8 +256,17 @@ export type OwnPhotoDrape = Drape & {
   full: boolean
 }
 
-/** A model view: the imagery seen from a camera, scored against the photo, and the camera it was drawn for. */
-export type ModelViewImage = { url: string; bearing: number; score: number; pose?: AcceptancePose; poseKey?: string }
+export type PhotoModelViewKind = 'camera' | 'winner' | 'runner-up'
+
+/** The model image, its ground imagery coverage and the camera that drew it. */
+export type ModelViewImage = {
+  url: string
+  bearing: number
+  score: number
+  coverage: number
+  pose: AcceptancePose
+  poseKey: string
+}
 
 /** A narrow search's fit round a burst neighbour's camera, with its agreement with that camera. */
 export type NarrowFit = {
@@ -271,16 +296,12 @@ export type CameraSearch =
       /** The recorded heading's error against the found one, degrees; null without a recorded heading. */
       recordedOffBy: number | null
       seconds: number
-      /** The accepted burst neighbour the search started round, and whether its narrow search stood alone. */
+      /** An accepted burst neighbour used as a separate hint before the full search. */
       neighbour?: {
         id: string
         name: string
         gapSeconds: number
-        narrowStood: boolean
-        /**
-         * The narrow search's fit when it did not stand alone but agreed with the neighbour's camera
-         * (`narrowAgreement`): evidence beside the full search, which alone settles a fit.
-         */
+        /** A narrow fit that agrees with the neighbour's camera (`narrowAgreement`). */
         narrow?: NarrowFit | null
       } | null
     }
@@ -304,7 +325,8 @@ type Landmark = {
 /** Everything worked out for one photo, kept by its id so a photo keeps its tools while another is active. */
 export type OwnPhotoWork = {
   search: CameraSearch
-  modelViews: Partial<Record<'camera' | 'runner-up', ModelViewImage>>
+  modelViews: Partial<Record<PhotoModelViewKind, ModelViewImage>>
+  previewModel?: ModelViewImage
   /** Every camera check images (model views, a full drape) were drawn for, the newest last. */
   checked: AcceptancePose[]
   features: OwnPhotoFeatures | null
@@ -316,6 +338,7 @@ export type OwnPhotoWork = {
   /** Paired points the reviewer left out of the solve: still drawn, as check points. Absent: all are in. */
   pairsOff?: string[]
   controlSolve: ControlSolveResult | null
+  flightProposals?: FlightCameraProposal[]
 }
 
 const EMPTY_WORK: OwnPhotoWork = Object.freeze({
@@ -408,6 +431,16 @@ const acceptancePoseOf = (
         roll: angles?.roll ?? photo.pose.roll,
         hfov: angles?.hfov ?? photo.pose.hfov,
       }
+
+const flightFrameOf = (photo: OwnPhoto): FlightMatchFrame => ({
+  id: photo.id,
+  name: photo.name,
+  flightId: photo.flightId,
+  takenAtUtc: photo.takenAtUtc,
+  pose: acceptancePoseOf(photo),
+  acceptance: photo.acceptance,
+  eyeHeightMeters: photo.pose.eyeHeightMeters,
+})
 
 /** The terrain tiles round a photo's place, finest first. */
 const specOf = (photo: { pose: { lng: number | null; lat: number | null } }): PhotoTerrainSpec =>
@@ -518,6 +551,9 @@ export function useFieldPhoto({
   const [photos, setPhotos] = useState<OwnPhoto[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [work, setWork] = useState<Record<string, OwnPhotoWork>>({})
+  const [flightMatchProgress, setFlightMatchProgress] = useState<FlightMatchProgress | null>(null)
+  const flightMatchAbort = useRef<AbortController | null>(null)
+  useEffect(() => () => flightMatchAbort.current?.abort(), [])
   const [queueRun, setQueueRun] = useState<QueueRun>({ pending: [], running: null, paused: false, cancelled: false })
   const photosRef = useRef(photos)
   photosRef.current = photos
@@ -1304,8 +1340,8 @@ export function useFieldPhoto({
 
   /**
    * Finds a photo's camera from its skyline: terrain, the 360° horizon (in the worker), the photo's skyline, then the
-   * search, first round an accepted burst neighbour's camera when asked and one is near, and over every heading when
-   * that does not settle. `setPose` applies the winner. Null when it stopped, with the reason kept on the photo.
+   * search. A pass round an accepted burst neighbour supplies context for the full search.
+   * `setPose` applies the winner. A stopped search keeps its reason on the photo.
    */
   const searchStage = async (
     id: string,
@@ -1404,8 +1440,6 @@ export function useFieldPhoto({
       }))
     patchWork(id, (current) => ({ ...current, search: { status: 'working', stage: 'search', done: 0 } }))
     const neighbour = neighbourFirst ? neighbourOf(photo) : null
-    let found: WideSearchResult | null = null
-    let narrowStood = false
     let narrowFit: NarrowFit | null = null
     if (neighbour) {
       const narrow = await runSearch(
@@ -1417,24 +1451,27 @@ export function useFieldPhoto({
         signal,
         progress(0, 0.2),
       )
-      narrowStood = narrowSearchSettles(narrow)
-      if (narrowStood) found = narrow
-      else {
-        const agrees = narrowAgreement(narrow, neighbour.photo.pose.bearing)
-        if (narrow && agrees)
-          narrowFit = {
-            bearing: narrow.bearing,
-            pitch: narrow.pitch,
-            roll: narrow.roll,
-            ...(narrow.hfov !== undefined ? { hfov: narrow.hfov } : {}),
-            ...agrees,
-            skyColumns: narrow.fit.agreeing,
-            skySpanShare: narrow.fit.span,
-          }
-      }
+      const agrees = narrowAgreement(narrow, neighbour.photo.pose.bearing)
+      if (narrow && agrees)
+        narrowFit = {
+          bearing: narrow.bearing,
+          pitch: narrow.pitch,
+          roll: narrow.roll,
+          ...(narrow.hfov !== undefined ? { hfov: narrow.hfov } : {}),
+          ...agrees,
+          skyColumns: narrow.fit.agreeing,
+          skySpanShare: narrow.fit.span,
+        }
     }
-    if (!found)
-      found = await runSearch(photo, base, profile, skyline, searchPriors, signal, progress(neighbour ? 0.2 : 0, 0.8))
+    const found = await runSearch(
+      photo,
+      base,
+      profile,
+      skyline,
+      searchPriors,
+      signal,
+      neighbour ? progress(0.2, 0.8) : progress(0, 1),
+    )
     signal.throwIfAborted()
     if (!found)
       return stop('Too little open sky over distant terrain to search by. Pair points instead.', {
@@ -1444,16 +1481,13 @@ export function useFieldPhoto({
       })
     const result = found
     const utc = utcOf(photo)
-    const at = (angles: { bearing: number; pitch: number; roll: number }) => sunCheck({ ...base, ...angles }, utc!)
+    const at = (angles: { bearing: number; pitch: number; roll: number; hfov?: number }) =>
+      sunCheck(cameraOf(photo, terrain, angles), utc!)
     const recorded = photo.exif?.heading?.degrees ?? null
     const notes: string[] = []
     if (lifted !== null)
       notes.push(
         `Taken from the air: its GPS altitude is ${Math.round(lifted - groundMeters)} m above the ground, so the eye stands at ${Math.round(lifted)} m.`,
-      )
-    if (neighbour && narrowStood)
-      notes.push(
-        `Found round ${neighbour.photo.name}’s camera (${Math.abs(Math.round(neighbour.gapSeconds))} s ${neighbour.gapSeconds < 0 ? 'before' : 'after'}); the all-headings search was not needed.`,
       )
     if (photo.lens?.cropped && result.hfov !== undefined)
       notes.push(`Cropped: the lens that fits best is ${result.hfov.toFixed(0)}° across.`)
@@ -1470,7 +1504,6 @@ export function useFieldPhoto({
               id: neighbour.photo.id,
               name: neighbour.photo.name,
               gapSeconds: neighbour.gapSeconds,
-              narrowStood,
               narrow: narrowFit,
             }
           : null,
@@ -1481,9 +1514,11 @@ export function useFieldPhoto({
       patchPhoto(id, (current) => {
         if (
           setPose === 'if-automatic' &&
-          (!queueMaySetPose(current.sources.heading) ||
+          (!queueMaySetPose(current.sources, result.hfov !== undefined) ||
             current.pose.lng !== photo.pose.lng ||
             current.pose.lat !== photo.pose.lat ||
+            current.pose.eyeHeightMeters !== photo.pose.eyeHeightMeters ||
+            current.pose.hfov !== photo.pose.hfov ||
             (current.pose.altitudeMeters ?? null) !== (photo.pose.altitudeMeters ?? null))
         )
           return current
@@ -1514,11 +1549,11 @@ export function useFieldPhoto({
    */
   const drawModelView = async (
     id: string,
-    which: 'camera' | 'runner-up',
+    which: PhotoModelViewKind,
     angles: { bearing: number; pitch: number; roll: number; hfov?: number },
     signal: AbortSignal,
     onProgress?: (done: number) => void,
-    { check = true }: { check?: boolean } = {},
+    { check = true, preview = false }: { check?: boolean; preview?: boolean } = {},
   ) => {
     const photo = photoById(id)
     if (!photo || !positioned(photo)) return null
@@ -1534,25 +1569,32 @@ export function useFieldPhoto({
         terrain: specOf(photo),
         imagery: { key: imageryKey(photo.pose.lng, photo.pose.lat), value: layers },
         photo: { key: photo.src, value: pixels },
-        width: MODEL_VIEW_WIDTH,
+        width: preview ? 180 : MODEL_VIEW_WIDTH,
         maxMeters: WIDE_RADIUS_METERS,
       },
       signal,
       (_, done) => onProgress?.(done),
     )
+    if (signal.aborted) return null
     const checkedPose = acceptancePoseOf(photo, { ...angles, hfov: angles.hfov ?? photo.pose.hfov })!
     const view: ModelViewImage = {
       url: rgbaDataUrl(drawn),
       bearing: pose.bearing,
-      score: agreement ? agreement.score : Number.NaN,
+      score: agreement?.score ?? Number.NaN,
+      coverage: agreement?.coverage ?? 0,
       pose: checkedPose,
       poseKey: photoPoseKey(pose),
     }
-    patchWork(id, (current) => ({
-      ...current,
-      modelViews: { ...current.modelViews, [which]: view },
-      checked: check ? withCheckedPose(current.checked, checkedPose) : current.checked,
-    }))
+    patchWork(id, (current) =>
+      preview
+        ? { ...current, previewModel: view }
+        : {
+            ...current,
+            modelViews: { ...current.modelViews, [which]: view },
+            checked:
+              check && Number.isFinite(view.score) ? withCheckedPose(current.checked, checkedPose) : current.checked,
+          },
+    )
     return view
   }
 
@@ -1611,11 +1653,18 @@ export function useFieldPhoto({
       const { result } = stage
       const winner = { bearing: result.bearing, pitch: result.pitch, roll: result.roll, hfov: result.hfov }
       try {
-        await drawModelView(id, 'camera', winner, signal, undefined, { check: false })
+        await drawModelView(id, 'winner', winner, signal, undefined, { check: false })
         if (result.runnerUp)
-          await drawModelView(id, 'runner-up', { ...result.runnerUp, hfov: result.hfov }, signal, undefined, {
-            check: false,
-          })
+          await drawModelView(
+            id,
+            'runner-up',
+            { ...result.runnerUp, hfov: result.runnerUp.hfov ?? result.hfov },
+            signal,
+            undefined,
+            {
+              check: false,
+            },
+          )
       } catch (error) {
         if (aborted(signal)) throw error
         addNote(id, `The model views were not drawn: ${reason(error)}`)
@@ -1672,6 +1721,159 @@ export function useFieldPhoto({
   // ---------------------------------------------------------------------------------------------------------------
   // The options card, acceptance and the photo's jobs.
 
+  const runFlightMatch = async (flightId: string) => {
+    if (flightMatchAbort.current) return
+    const group = photosRef.current.filter((photo) => photo.flightId === flightId)
+    const byId = new Map(group.map((photo) => [photo.id, photo]))
+    const frames = group.map(flightFrameOf)
+    const { pairs } = planFlightMatches(frames, flightId)
+    if (!pairs.length) return
+    const controller = new AbortController()
+    const { signal } = controller
+    flightMatchAbort.current = controller
+    let progress: FlightMatchProgress = {
+      flightId,
+      phase: 'matching',
+      total: pairs.length,
+      attempted: 0,
+      overlapping: 0,
+      failed: 0,
+    }
+    const publish = (patch: Partial<FlightMatchProgress>) => {
+      progress = { ...progress, ...patch }
+      if (flightMatchAbort.current === controller) setFlightMatchProgress(progress)
+    }
+    publish({})
+    const sent = new Set<string>()
+    const proposals = new Map<string, FlightCameraProposal[]>()
+    let matcher: ReturnType<typeof openPhotoFeatureMatcher> | null = null
+    try {
+      matcher = openPhotoFeatureMatcher(signal)
+      for (const { referenceId, targetId } of pairs) {
+        signal.throwIfAborted()
+        const reference = byId.get(referenceId)!
+        const target = byId.get(targetId)!
+        const accepted = flightAnchor(flightFrameOf(reference))!
+        const targetPose = acceptancePoseOf(target)!
+        publish({ targetName: target.name })
+        try {
+          const [refPixels, targetPixels] = await Promise.all([readPixels(reference), readPixels(target)])
+          const requestFrame = (photo: OwnPhoto, pixels: ImageData) => ({
+            key: photo.id,
+            pixels: sent.has(photo.id) ? undefined : pixels,
+          })
+          const overlap = await matcher.match({
+            reference: requestFrame(reference, refPixels),
+            target: requestFrame(target, targetPixels),
+            focalRatio: Math.tan((accepted.pose.hfov * Math.PI) / 360) / Math.tan((targetPose.hfov * Math.PI) / 360),
+          })
+          sent.add(referenceId)
+          sent.add(targetId)
+          if (!overlap.matches.length) continue
+          progress = { ...progress, overlapping: progress.overlapping + 1 }
+          const frame = (photo: OwnPhoto, pose: AcceptancePose, { width, height }: ImageData) => ({
+            pose,
+            width,
+            height,
+            eyeHeightMeters: photo.pose.eyeHeightMeters,
+          })
+          const { transfer, relative, airborne } = await transferPhotoCamera(
+            {
+              reference: frame(reference, accepted.pose, refPixels),
+              target: {
+                ...frame(target, targetPose, targetPixels),
+                gpsAltitudeMeters:
+                  target.sources.eyeHeight === 'default'
+                    ? (target.exif?.altitudeMeters ?? target.recordAltitudeMeters)
+                    : null,
+              },
+              matches: overlap.matches,
+              terrain: specOf({ pose: accepted.pose }),
+            },
+            signal,
+          )
+          const terrain = transfer.status === 'candidate' && transfer.pose ? transfer : null
+          const solved = terrain?.pose ?? relative?.pose
+          const held = terrain ? (terrain.model === 'adjusted' ? terrain.adjusted : terrain.fixed) : relative
+          if (!solved || !held) continue
+          const { lng, lat, altitudeMeters, bearing, pitch, roll, hfov } = solved
+          const proposal: FlightCameraProposal = {
+            referenceId,
+            referenceName: reference.name,
+            acceptedAt: accepted.acceptedAt,
+            referencePose: accepted.pose,
+            referenceEyeHeight: reference.pose.eyeHeightMeters,
+            pose: {
+              lng,
+              lat,
+              altitudeMeters: airborne ? altitudeMeters : null,
+              bearing,
+              pitch,
+              roll,
+              hfov,
+            },
+            basis: terrain ? 'terrain' : 'image',
+            matches: overlap.matches.length,
+            controls: terrain?.controls ?? relative!.controls,
+            medianPx: held.medianPx,
+            p90Px: held.p90Px,
+          }
+          const list = proposals.get(targetId) ?? []
+          list.push(proposal)
+          proposals.set(targetId, list)
+        } catch (error) {
+          signal.throwIfAborted()
+          progress = { ...progress, failed: progress.failed + 1, message: reason(error) }
+        } finally {
+          if (!signal.aborted) publish({ attempted: progress.attempted + 1 })
+        }
+      }
+      signal.throwIfAborted()
+      if (progress.failed === progress.total) {
+        publish({ phase: 'failed' })
+        return
+      }
+      const livePhotos = new Map(photosRef.current.map((photo) => [photo.id, photo]))
+      const live = new Map([...livePhotos.values()].map((photo) => [photo.id, flightFrameOf(photo)]))
+      setWork((current) => {
+        const next = { ...current }
+        for (const original of frames) {
+          const target = live.get(original.id)
+          const autoLifted =
+            original.pose?.altitudeMeters === null &&
+            byId.get(original.id)?.sources.eyeHeight === 'default' &&
+            livePhotos.get(original.id)?.sources.eyeHeight === 'exif'
+          if (
+            target?.flightId !== flightId ||
+            flightAnchor(target) ||
+            !original.pose ||
+            !target.pose ||
+            target.eyeHeightMeters !== original.eyeHeightMeters ||
+            !sameCamera(original.pose, {
+              ...target.pose,
+              altitudeMeters: autoLifted ? original.pose.altitudeMeters : target.pose.altitudeMeters,
+              bearing: original.pose.bearing,
+              pitch: original.pose.pitch,
+              roll: original.pose.roll,
+            })
+          )
+            continue
+          const options = (proposals.get(original.id) ?? [])
+            .filter((proposal) => currentFlightProposal(proposal, live.get(proposal.referenceId), flightId))
+            .sort(compareFlightProposals)
+          next[original.id] = { ...(current[original.id] ?? EMPTY_WORK), flightProposals: options.slice(0, 3) }
+        }
+        return next
+      })
+      publish({ phase: 'done' })
+    } catch (error) {
+      publish(signal.aborted ? { phase: 'cancelled' } : { phase: 'failed', message: reason(error) })
+    } finally {
+      matcher?.close()
+      if (flightMatchAbort.current === controller) flightMatchAbort.current = null
+    }
+  }
+
   /** The candidate cameras for a photo (`photoOptions`), ranked by the evidence behind each. */
   const optionsFor = useCallback(
     (id: string): PhotoOption[] => {
@@ -1705,11 +1907,8 @@ export function useFieldPhoto({
           hfov: photo.pose.hfov,
         },
         search: search ? { result: search.result, sun: search.sun } : null,
-        modelScores: Object.fromEntries(
-          (['camera', 'runner-up'] as const).flatMap((which) => {
-            const view = w.modelViews[which]
-            return view && Number.isFinite(view.score) ? [[which, { bearing: view.bearing, score: view.score }]] : []
-          }),
+        modelScores: Object.values(w.modelViews).flatMap((view) =>
+          Number.isFinite(view.score) ? [{ pose: view.pose, score: view.score }] : [],
         ),
         phone: heading
           ? {
@@ -1753,12 +1952,50 @@ export function useFieldPhoto({
             }
           : null,
         matched: matched && photo.matched ? { camera: matched, checks: photo.matched.checks } : null,
+        flightProposals: w.flightProposals?.filter((proposal) => {
+          const reference = photos.find((entry) => entry.id === proposal.referenceId)
+          return currentFlightProposal(proposal, reference && flightFrameOf(reference), photo.flightId)
+        }),
       }
       return photoOptions(input)
     },
     // neighbourOf reads the photos through their ref, which `photos` keeps current.
     [photos, work],
   )
+
+  /** Compare several cameras without moving or checking the active camera. */
+  const runCombinedCameraSearch = async (
+    id: string,
+    settings: CombinedSettings,
+    signal: AbortSignal,
+    onProgress: (message: string) => void,
+  ) => {
+    const target = photoById(id)
+    const current = target && acceptancePoseOf(target)
+    if (!target || !current || !positioned(target)) throw Error('Set an approximate camera position first.')
+    onProgress('Loading terrain and imagery…')
+    const { lng, lat } = current
+    const [terrain, pixels, imagery] = await Promise.all([
+      loadOwnTerrain(lng, lat, signal),
+      readPixels(target),
+      imageryLayers(lng, lat, signal).catch(() => []),
+    ])
+    signal.throwIfAborted()
+    return comparePhotoCameras({
+      settings,
+      current,
+      options: optionsFor(id),
+      overlapP90: target.matched?.camera?.overlapP90Px ?? null,
+      photoWidth: target.width,
+      eyeHeightMeters: target.pose.eyeHeightMeters,
+      terrain,
+      terrainSpec: specOf(target),
+      pixels,
+      imagery,
+      signal,
+      onProgress,
+    })
+  }
 
   /** Uses an options row: the photo's camera becomes that row's, each value marked as found that way. */
   const useOption = useCallback(
@@ -1775,12 +2012,12 @@ export function useFieldPhoto({
             bearing: row.pose.bearing,
             pitch: row.pose.pitch,
             roll: row.pose.roll,
+            hfov: clampFov(row.pose.hfov),
             ...(moves
               ? {
                   lng: row.pose.lng,
                   lat: row.pose.lat,
-                  hfov: clampFov(row.pose.hfov),
-                  ...(row.pose.altitudeMeters !== null ? { altitudeMeters: row.pose.altitudeMeters } : {}),
+                  altitudeMeters: row.pose.altitudeMeters,
                 }
               : {}),
           },
@@ -1790,6 +2027,7 @@ export function useFieldPhoto({
             pitch: sources.pitch,
             roll: sources.roll,
             ...(moves ? { position: sources.position!, fov: sources.position!, eyeHeight: sources.position! } : {}),
+            ...(!moves && photo.pose.hfov !== row.pose.hfov ? { fov: sources.heading } : {}),
           },
           chosen: { rowId: row.id, kind: row.kind, pose: row.pose, evidence: row.evidence },
         }
@@ -2374,13 +2612,14 @@ export function useFieldPhoto({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [own, pairs, activeWork.pairsOff, priors, loadOwnTerrain, patchWork, patchPhoto])
 
-  /** The angles of the camera to check: the photo's current one, or the skyline search's runner-up. */
-  const candidateAngles = (which: 'camera' | 'runner-up') =>
-    which === 'runner-up' && cameraSearch.status === 'done' && cameraSearch.result.runnerUp
-      ? cameraSearch.result.runnerUp
-      : own
-        ? { bearing: own.pose.bearing, pitch: own.pose.pitch, roll: own.pose.roll }
-        : null
+  /** The angles and lens of the current camera or a skyline candidate. */
+  const candidateAngles = (which: PhotoModelViewKind) => {
+    if (which === 'camera') return own?.pose ?? null
+    if (cameraSearch.status !== 'done') return null
+    const result = cameraSearch.result
+    const candidate = which === 'winner' ? result : result.runnerUp
+    return candidate && { ...candidate, hfov: candidate.hfov ?? result.hfov }
+  }
 
   // ---------------------------------------------------------------------------------------------------------------
   // The photo on the plan: both candidates at once, redrawn as the camera moves.
@@ -2415,7 +2654,12 @@ export function useFieldPhoto({
       signal,
     )
     if (!drape) return null
-    const checked = acceptancePoseOf(photo, { bearing: pose.bearing, pitch: pose.pitch, roll: pose.roll })!
+    const checked = acceptancePoseOf(photo, {
+      bearing: pose.bearing,
+      pitch: pose.pitch,
+      roll: pose.roll,
+      hfov: (Math.atan(pose.width / (2 * pose.focalPx)) * 360) / Math.PI,
+    })!
     const kept: OwnPhotoDrape = {
       ...drape,
       which,
@@ -2433,7 +2677,7 @@ export function useFieldPhoto({
   /** The cameras the plan shows the photo for while it is shown: the camera as it stands and the runner-up. */
   const drapeTargets = useMemo(() => {
     if (!drapeView.shown || !own || !ownSkylineTerrain || !positioned(own)) return []
-    const runnerUp = cameraSearch.status === 'done' ? cameraSearch.result.runnerUp : null
+    const runnerUp = candidateAngles('runner-up')
     const targets: Array<{ which: 'camera' | 'runner-up'; pose: PhotoPose }> = [
       { which: 'camera', pose: ownCamera(own, ownSkylineTerrain) },
     ]
@@ -2527,14 +2771,18 @@ export function useFieldPhoto({
 
   /** Satellite imagery seen from a camera, scored against the photo: ground texture where the skyline is useless. */
   const renderModel = useCallback(
-    async (which: 'camera' | 'runner-up') => {
-      const angles = candidateAngles(which)
-      if (!own || !angles || !positioned(own)) return
+    async (which: PhotoModelViewKind | 'both candidates') => {
+      if (!own || !positioned(own)) return
       setToolsBusy('Loading imagery…')
       try {
-        await drawModelView(own.id, which, angles, new AbortController().signal, (done) =>
-          setToolsBusy(`Drawing the model view… ${Math.round(done * 100)}%`),
-        )
+        const views = which === 'both candidates' ? (['winner', 'runner-up'] as const) : [which]
+        for (const view of views) {
+          const angles = candidateAngles(view)
+          if (angles)
+            await drawModelView(own.id, view, angles, new AbortController().signal, (done) =>
+              setToolsBusy(`Drawing the model view… ${Math.round(done * 100)}%`),
+            )
+        }
         setToolsError(null)
       } catch (error) {
         setToolsError(`Could not draw the model view: ${reason(error)}`)
@@ -2544,6 +2792,19 @@ export function useFieldPhoto({
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [own, cameraSearch],
+  )
+
+  /** Draw a smaller live view for fine tuning without recording a reviewer check. */
+  const previewCamera = useCallback(
+    async (id: string, signal: AbortSignal) => {
+      const current = photoById(id)
+      if (!current || !positioned(current)) return
+      const { bearing, pitch, roll } = current.pose
+      await drawModelView(id, 'camera', { bearing, pitch, roll }, signal, undefined, { preview: true })
+    },
+    // The draw reads the photo by ID. Its worker, caches and work updater are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loadOwnTerrain, patchWork],
   )
 
   /** Reads the features again for the active photo's camera as it stands. */
@@ -2560,42 +2821,6 @@ export function useFieldPhoto({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [own])
-
-  /** Swaps to the search's runner-up heading, to compare it with the photo. */
-  const tryRunnerUp = useCallback(() => {
-    if (!own || cameraSearch.status !== 'done' || !cameraSearch.result.runnerUp) return
-    const id = own.id
-    const { result } = cameraSearch
-    const runnerUp = result.runnerUp!
-    patchPhoto(id, (current) => ({
-      ...current,
-      pose: { ...current.pose, bearing: runnerUp.bearing, pitch: runnerUp.pitch, roll: runnerUp.roll },
-    }))
-    patchWork(id, (current) => ({
-      ...current,
-      search: {
-        ...cameraSearch,
-        result: {
-          ...result,
-          bearing: runnerUp.bearing,
-          pitch: runnerUp.pitch,
-          roll: runnerUp.roll,
-          meanLoss: runnerUp.meanLoss,
-          runnerUp: { bearing: result.bearing, pitch: result.pitch, roll: result.roll, meanLoss: result.meanLoss },
-        },
-        sun:
-          cameraSearch.sun && cameraSearch.sun.runnerUp
-            ? { best: cameraSearch.sun.runnerUp, runnerUp: cameraSearch.sun.best }
-            : cameraSearch.sun,
-        recordedOffBy:
-          cameraSearch.recordedOffBy === null
-            ? null
-            : ((cameraSearch.recordedOffBy + result.bearing - runnerUp.bearing + 540) % 360) - 180,
-      },
-      // The model views are keyed by "the camera" and "the runner-up", which have just swapped.
-      modelViews: { camera: current.modelViews['runner-up'], 'runner-up': current.modelViews.camera },
-    }))
-  }, [own, cameraSearch, patchPhoto, patchWork])
 
   // ---------------------------------------------------------------------------------------------------------------
   // The hit buffer for the active photo's camera, for what is drawn over the photo.
@@ -2688,14 +2913,20 @@ export function useFieldPhoto({
     [setOwn],
   )
 
+  const restoreCamera = useCallback(
+    (id: string, startingCamera: Pick<OwnPhoto, 'pose' | 'sources' | 'chosen'>) => {
+      patchPhoto(id, (current) => ({ ...current, ...startingCamera }))
+    },
+    [patchPhoto],
+  )
+
   /**
    * A camera matched by the photo-matching bench: its position, altitude, heading, pitch, roll and lens, each marked
    * as matched. It also becomes the pose Reset returns to.
    */
   const applyMatchedCamera = useCallback(
-    (camera: MatchedCamera, fileName: string, checks: string[]) => {
-      setOwn((current) => {
-        if (!current) return current
+    (id: string, camera: MatchedCamera, fileName: string, checks: string[]) => {
+      patchPhoto(id, (current) => {
         const pose: OwnPose = {
           ...current.pose,
           lng: camera.lng,
@@ -2719,6 +2950,7 @@ export function useFieldPhoto({
           pose,
           sources,
           start: { pose, sources },
+          chosen: null,
           matched: {
             fileName: fileName.slice(0, 200),
             method: camera.method,
@@ -2730,7 +2962,7 @@ export function useFieldPhoto({
         }
       })
     },
-    [setOwn],
+    [patchPhoto],
   )
 
   /** A photo taken from the air: the eye stands at its GPS altitude (on), or back at the ground plus eye height. */
@@ -2839,6 +3071,7 @@ export function useFieldPhoto({
         checked: w.checked,
         search: w.search.status,
         found: w.found,
+        hasMatchedOption: options.some((option) => option.kind === 'matched'),
       })
       const notes = [...(w.found?.notes ?? [])]
       if (w.found?.stopped) notes.unshift(w.found.stopped)
@@ -2887,7 +3120,6 @@ export function useFieldPhoto({
     autoAlign,
     cameraSearch,
     findCamera,
-    tryRunnerUp,
     priors,
     setPriors,
     landmark,
@@ -2924,6 +3156,8 @@ export function useFieldPhoto({
     hideDrape,
     modelViews,
     renderModel,
+    previewCamera,
+    restoreCamera,
     toolsBusy,
     toolsError,
     cancelCameraSearch: () => {
@@ -2998,6 +3232,10 @@ export function useFieldPhoto({
       abort.current?.abort()
       cameraAbort.current?.abort()
       queueAbort.current?.abort()
+      const match = flightMatchAbort.current
+      flightMatchAbort.current = null
+      match?.abort()
+      setFlightMatchProgress(null)
       for (const url of objectUrls.current.values()) URL.revokeObjectURL(url)
       objectUrls.current.clear()
       caches.pixels.clear()
@@ -3056,6 +3294,11 @@ export function useFieldPhoto({
 
     // ---- Options, checks and acceptance ----
     optionsFor,
+    runCombinedCameraSearch,
+    flightMatchProgress,
+    flightMatchFrames: ownPhotos.map(flightFrameOf),
+    runFlightMatch,
+    cancelFlightMatch: () => flightMatchAbort.current?.abort(),
     useOption,
     /** `useOption` under a name that is not read as a React hook where it is called from a click. */
     chooseOption: useOption,

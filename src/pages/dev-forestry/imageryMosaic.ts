@@ -27,8 +27,6 @@ export async function loadImageryMosaic(
     rows = r.maxY - r.minY + 1
   const canvas = new OffscreenCanvas(cols * 256, rows * 256)
   const context = canvas.getContext('2d', { willReadFrequently: true })!
-  context.fillStyle = '#5a5a5a'
-  context.fillRect(0, 0, canvas.width, canvas.height)
   const jobs: Array<[number, number]> = []
   for (let y = r.minY; y <= r.maxY; y++) for (let x = r.minX; x <= r.maxX; x++) jobs.push([x, y])
   let next = 0
@@ -44,7 +42,7 @@ export async function loadImageryMosaic(
         bitmap.close()
       } catch (error) {
         if (signal?.aborted) throw error
-        // A missing tile stays grey.
+        // A missing tile stays transparent, so a coarser layer can fill it.
       }
     }
   }

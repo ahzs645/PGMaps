@@ -27,10 +27,12 @@ export type MatchedCamera = {
   hfov: number
   /** How the bench found it, as it recorded it ("skyline", "solve (skyline + controls; held hfov)"). */
   method: string
-  /** The bench's verdict on the skyline fit; null when the file does not say. */
+  /** Whether the bench marked the camera as trustworthy; null when the file does not say. */
   trusted: boolean | null
   /** Held-out error of each control group, metres across the view at its distance. */
   heldOut: Array<{ name: string; metres: number }>
+  /** Relative transfer error at 1,050 px in the bench, when the correspondence fit measured it. */
+  overlapP90Px?: number
   /** The photo file the case was made for, by name only. */
   photoName: string | null
 }
@@ -65,6 +67,10 @@ export function parseMatchedCamera(text: string): MatchedCamera {
   const results = record(root.results)
   const orientation = record(results?.orientation)
   const solve = record(results?.solve)
+  const overlap = record(results?.overlap)
+  const transfer = overlap?.model === 'fixed' || overlap?.model === 'adjusted' ? record(overlap[overlap.model]) : null
+  const overlapP90Px =
+    pose.source === 'photo-overlap' && finite(transfer?.p90Px) && transfer.p90Px >= 0 ? transfer.p90Px : undefined
   const groups = Array.isArray(solve?.groups) ? solve.groups : []
   const heldOut = groups.flatMap((group) => {
     const g = record(group)
@@ -81,8 +87,14 @@ export function parseMatchedCamera(text: string): MatchedCamera {
     roll,
     hfov,
     method: typeof pose.source === 'string' ? pose.source.slice(0, 120) : 'not stated',
-    trusted: typeof orientation?.trustworthy === 'boolean' ? orientation.trustworthy : null,
+    trusted:
+      pose.source === 'photo-overlap' || pose.source === 'review-candidate'
+        ? false
+        : typeof orientation?.trustworthy === 'boolean'
+          ? orientation.trustworthy
+          : null,
     heldOut,
+    ...(overlapP90Px != null ? { overlapP90Px } : {}),
     photoName: photo ? photo.slice(0, 200) : null,
   }
 }
@@ -100,13 +112,17 @@ export const MATCHED_CAMERA_MAX_SHIFT_METERS = 300
 
 const stem = (name: string) => name.replace(/\.[^.]+$/, '').toLowerCase()
 
+export function matchedCameraNamesPhoto(camera: MatchedCamera, name: string): boolean {
+  return camera.photoName !== null && stem(camera.photoName) === stem(name)
+}
+
 /** What the reviewer should know before trusting a matched camera on this photo; empty when nothing stands out. */
 export function matchedCameraChecks(
   camera: MatchedCamera,
   photo: { name: string; gpsPosition: { lng: number; lat: number } | null },
 ): string[] {
   const out: string[] = []
-  if (camera.photoName && stem(camera.photoName) !== stem(photo.name))
+  if (camera.photoName && !matchedCameraNamesPhoto(camera, photo.name))
     out.push(`This camera was matched for ${camera.photoName}, not ${photo.name}.`)
   if (photo.gpsPosition) {
     const shift = metresBetween(camera, photo.gpsPosition)
@@ -115,7 +131,11 @@ export function matchedCameraChecks(
         `The camera stands ${Math.round(shift)} m from this photo’s GPS position; a matched camera usually moves tens of metres.`,
       )
   }
-  if (camera.trusted === false)
+  if (camera.method === 'photo-overlap')
+    out.push('This camera came from an overlapping photo. Check independent landmarks before accepting it.')
+  else if (camera.method === 'review-candidate')
+    out.push('This is a starting camera from photo review. Compare landmarks before accepting it.')
+  else if (camera.trusted === false)
     out.push('The bench did not trust this camera’s skyline fit (too few columns, or another heading fits as well).')
   return out
 }

@@ -102,6 +102,95 @@ node --import tsx scripts/forestry/photo-matching/crop.ts case.json x y w h [--z
    It prints each proposal's area, its share in sight (terrain only, no canopy), its distance and its share of the frame. These are figures about the photo, not a VIA percent alteration.
 - **`crop.ts`** (a helper) writes a zoomed crop with a grid labelled in working-frame pixels, for reading skyline traces, region corners and control points exactly.
 
+## Experimental camera transfer from overlapping photos
+
+Give the bench two cases from the same flight. The reference needs a camera pose.
+Install OpenCV in a Python environment (for example, `python3 -m pip install opencv-python-headless` in a venv).
+Set `PHOTO_MATCH_PYTHON` to that environment's interpreter if it differs from `python3`.
+
+```sh
+node --import tsx scripts/forestry/photo-matching/overlap.ts /path/reference.json /path/target.json
+node --import tsx scripts/forestry/photo-matching/overlap.ts /path/reference.json /path/target.json --reviewed-reference --candidate /path/target-overlap.json
+```
+
+The first command compares the target's starting camera, a rotation fit at the
+starting GPS fix, and a fit with bounded position adjustments. The target can
+start with a skyline pose or with GPS and lens metadata. Reciprocal SIFT matches
+are screened with image geometry, spread across both images, and projected onto
+the DEM through the reference camera. The fitter leaves out whole parts of the
+overlapping image, keeps the lens fixed, and reports median and 90th-percentile
+pixel errors at 1,050 px width. Explicit target `controls.points` with
+`lngLat` are checked separately and never enter the fit. A null error means
+the model could not predict a visible point or a held-out fit failed.
+
+After inspecting the reference against mapped features, use the second command
+to write a new provisional case beside the photos. Run `check.ts` on that case
+and inspect the model and mapped features. The visual-quality page reads it
+through **Camera → Adjust → Use a matched camera** and flags it for independent
+landmark review before acceptance.
+
+### Archive experiment
+
+A sweep of 91 possible pairs from 14 helicopter photos found three strong
+overlaps. SIFT retained more correspondences than ORB on two of those pairs.
+Testing both skyline hypotheses in both directions gave 12 terrain-transfer
+trials. Three directions across two pairs passed the spatial hold-out checks.
+Allowing bounded GPS adjustment reduced median held-out error from 4.0–19.7 px
+at the starting GPS position to 1.8–4.4 px. Wider initial rejection thresholds
+of 24 and 36 px did not bring in the third pair, so the bench uses 12 px.
+
+The only photo that passed the earlier skyline check had no strong overlap.
+The ground matches in the successful trials came from provisional reference
+poses. Independent satellite previews gave mixed support, although one proposed
+camera clearly put the prominent clearing closer to where it appears in the
+photo. The tests establish relative alignment on those overlaps, while absolute
+geographic accuracy still needs independently identified landmarks.
+
+Run the synthetic geometry tests with
+`node --import tsx --test scripts/forestry/photo-matching/lib/overlap.test.ts`.
+
+### Compare an archive's results
+
+Run the image geometry check on all pairs of upright 1,050 px working frames.
+Select `sift`, `rootsift`, `contrast-rootsift`, `multiscale-rootsift` or `orb`
+with `--method` here or with `--descriptor` on `overlap.ts`. Multiscale
+RootSIFT tries larger and smaller working frames and uses a looser ratio test
+with a minimum spread in both frames. Review the resulting image links before
+using them for a terrain fit.
+
+```sh
+python3 scripts/forestry/photo-matching/lib/overlap_features.py --all-pairs --method contrast-rootsift /path/to/frames/*.jpg
+node --import tsx scripts/forestry/photo-matching/scorecard.ts /path/to/results.json
+```
+
+Put one entry per photo in the results array, including photos with no solution.
+Use `passed`, `ambiguous`, `weak` or `unmeasured` for `skyline`. For a selected
+provisional overlap candidate, copy `medianPx` and `p90Px` from the selected
+model's (`fixed` or `adjusted`) hold-out results into `overlap`. Record each
+mapped checkpoint as a `landmarks` entry with its feature `group` and `errorPx`
+at 1,050 px width. Use `null` for a failed projection. Include only landmarks
+excluded from the camera fit.
+
+```json
+[
+  {
+    "id": "photo-a",
+    "skyline": "ambiguous",
+    "overlap": { "medianPx": 2.1, "p90Px": 6.1 },
+    "landmarks": [
+      { "group": "road bend", "errorPx": 8 },
+      { "group": "shoreline tip", "errorPx": 10 },
+      { "group": "pond edge", "errorPx": 6 }
+    ]
+  },
+  { "id": "photo-b", "skyline": "weak" }
+]
+```
+
+Review coverage counts both skyline passes and overlap candidates once per photo.
+Read the [14-photo scorecard](../../../docs/research/photo-alignment-scorecard-2026-11-17.md)
+for the benchmark and related projects.
+
 ## In the visual-quality page
 
 `/dev/forestry/visual-quality` reads a case file directly: open the photo with *Line up a photo of my own* in step 2's Field photo panel, then *Use a matched camera…* and pick the case file. The road view then stands at the matched position and altitude, facing the matched heading, pitch and roll, with the photo laid over it (`src/pages/dev-forestry/matchedCamera.ts`).

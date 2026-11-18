@@ -10,8 +10,9 @@
  */
 import type { HeadingReference } from './exifPose'
 import type { MatchedCamera } from './matchedCamera'
+import type { FlightCameraProposal } from './photoFlightMatching'
 import type { AcceptanceEvidence, AcceptancePose } from './photoAcceptance'
-import { POINTS_REFERENCE_WIDTH, pointsHeldOutLimit, wrapHeading } from './photoAcceptance'
+import { POINTS_REFERENCE_WIDTH, pointsHeldOutLimit, sameCamera, wrapHeading } from './photoAcceptance'
 import type { SunCheck, WideSearchResult } from './wideOrientation'
 
 /** Two cameras within this many degrees of heading agree; past it a neighbour's ±15° prior would not hold the other. */
@@ -39,6 +40,7 @@ export type PhotoOption = {
   pose: AcceptancePose
   evidence: AcceptanceEvidence
   warnings: string[]
+  overlap?: Pick<FlightCameraProposal, 'basis' | 'matches' | 'controls' | 'medianPx' | 'p90Px'>
 }
 
 export interface PhotoOptionsInput {
@@ -50,7 +52,7 @@ export interface PhotoOptionsInput {
     sun?: { best: SunCheck; runnerUp: SunCheck | null } | null
   } | null
   /** Model-view scores (`modelAgreement`), for the cameras they were drawn for. */
-  modelScores?: Partial<Record<'camera' | 'runner-up', { bearing: number; score: number }>>
+  modelScores?: ReadonlyArray<{ pose: AcceptancePose; score: number }>
   /** The phone's recorded heading, and the tilt sensor's pitch when it read gravity alone. */
   phone?: { bearing: number; reference: HeadingReference; pitch?: number | null; airborne: boolean } | null
   /** A burst neighbour's accepted camera. */
@@ -87,6 +89,7 @@ export interface PhotoOptionsInput {
   } | null
   /** A camera from the photo-matching bench's case file, with `matchedCameraChecks`. */
   matched?: { camera: MatchedCamera; checks: string[] } | null
+  flightProposals?: readonly FlightCameraProposal[]
 }
 
 const gap = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180)
@@ -101,11 +104,9 @@ export function sunNote(sun: SunCheck): string {
   return `sun out of frame, ${signed(sun.relativeBearing)}`
 }
 
-/** A model-view score for a heading, when one was drawn within half a degree of it. */
-function scoreFor(input: PhotoOptionsInput, bearing: number): number | null {
-  for (const view of [input.modelScores?.camera, input.modelScores?.['runner-up']])
-    if (view && gap(view.bearing, bearing) <= 0.5) return view.score
-  return null
+/** A score belongs to the camera that drew the view, including its position and lens. */
+function scoreFor(input: PhotoOptionsInput, pose: AcceptancePose): number | null {
+  return input.modelScores?.find((view) => sameCamera(view.pose, pose))?.score ?? null
 }
 
 /**
@@ -141,22 +142,23 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
   if (search) {
     const fit = search.fit
     const settled = search.trustworthy
-    const winnerScore = scoreFor(input, search.bearing)
+    const lens = search.hfov ?? base.hfov
+    const winnerPose = at(search, lens)
     const runner = search.runnerUp
-    const runnerScore = runner ? scoreFor(input, runner.bearing) : null
+    const runnerPose = runner ? at(runner, runner.hfov ?? lens) : null
+    const winnerScore = scoreFor(input, winnerPose)
+    const runnerScore = runnerPose ? scoreFor(input, runnerPose) : null
     const warnings: string[] = []
     if (search.ambiguous) warnings.push('not settled: another heading fits about as well')
     else if (!fit.trustworthy) warnings.push('the skyline fit is not trustworthy')
     if (winnerScore !== null && runnerScore !== null && runnerScore - winnerScore >= MODEL_SCORE_REVERSAL)
       warnings.push('the model view matches the runner-up better')
     const sun = input.search?.sun
-    // A cropped photo's search fits the lens too: both its cameras are drawn through the lens it fitted.
-    const lens = search.hfov ?? base.hfov
     rows.push({
       id: 'winner',
       kind: 'winner',
       label: 'Skyline: best fit',
-      pose: at(search, lens),
+      pose: winnerPose,
       evidence: {
         skyColumns: fit.agreeing,
         skySpanShare: fit.span,
@@ -171,7 +173,7 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
       tier: settled ? 0 : 1,
       score: winnerScore,
     })
-    if (runner) {
+    if (runner && runnerPose) {
       const runnerWarnings = [`${deg(gap(runner.bearing, search.bearing))} from the best fit`]
       if (winnerScore !== null && runnerScore !== null && winnerScore - runnerScore >= MODEL_SCORE_REVERSAL)
         runnerWarnings.push('the model view matches the best fit better')
@@ -179,7 +181,7 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
         id: 'runner-up',
         kind: 'runner-up',
         label: 'Skyline: runner-up',
-        pose: at(runner, lens),
+        pose: runnerPose,
         evidence: {
           settled: false,
           modelScore: runnerScore,
@@ -200,43 +202,46 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
         : 'the phone’s heading: often a few degrees out',
     ]
     if (phone.reference !== 'true') warnings.push('magnetic or unstated north: add the declination')
+    const pose = at({ bearing: phone.bearing, pitch: phone.pitch ?? 0, roll: 0 })
     rows.push({
       id: 'phone',
       kind: 'phone',
       label: 'Phone’s heading',
-      pose: at({ bearing: phone.bearing, pitch: phone.pitch ?? 0, roll: 0 }),
-      evidence: { modelScore: scoreFor(input, phone.bearing) },
+      pose,
+      evidence: { modelScore: scoreFor(input, pose) },
       warnings,
       tier: 3,
-      score: scoreFor(input, phone.bearing),
+      score: scoreFor(input, pose),
     })
   }
 
   if (input.neighbour) {
     const { neighbour } = input
     const when = `${Math.abs(Math.round(neighbour.gapSeconds))} s ${neighbour.gapSeconds < 0 ? 'before' : 'after'}`
+    const pose = at(neighbour.pose)
     rows.push({
       id: `neighbour:${neighbour.id}`,
       kind: 'neighbour',
       label: `${neighbour.label}’s camera (${when})`,
-      pose: at(neighbour.pose),
-      evidence: { neighbourId: neighbour.id, modelScore: scoreFor(input, neighbour.pose.bearing) },
+      pose,
+      evidence: { neighbourId: neighbour.id, modelScore: scoreFor(input, pose) },
       warnings: [`accepted for another frame, ${Math.round(neighbour.distanceMeters)} m away: the camera moved`],
       tier: 1,
-      score: scoreFor(input, neighbour.pose.bearing),
+      score: scoreFor(input, pose),
     })
   }
 
   const { narrow } = input
   // The narrow fit and the full search's winner are one camera: the agreement goes on the winner as evidence.
   const winnerRow = rows.find((row) => row.kind === 'winner')
-  const narrowIsWinner = !!narrow && !!winnerRow && gap(winnerRow.pose.bearing, narrow.pose.bearing) <= 0.5
-  if (narrow && !narrowIsWinner)
+  const narrowPose = narrow ? at(narrow.pose, narrow.pose.hfov ?? base.hfov) : null
+  const narrowIsWinner = !!narrowPose && !!winnerRow && sameCamera(winnerRow.pose, narrowPose)
+  if (narrow && narrowPose && !narrowIsWinner)
     rows.push({
       id: `narrow:${narrow.neighbourId}`,
       kind: 'neighbour',
       label: `Skyline round ${narrow.label}’s camera`,
-      pose: at(narrow.pose, narrow.pose.hfov ?? base.hfov),
+      pose: narrowPose,
       evidence: {
         skyColumns: narrow.skyColumns,
         skySpanShare: narrow.skySpanShare,
@@ -244,11 +249,11 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
         settled: false,
         neighbourId: narrow.neighbourId,
         neighbourAgreesDegrees: narrow.agreesDegrees,
-        modelScore: scoreFor(input, narrow.pose.bearing),
+        modelScore: scoreFor(input, narrowPose),
       },
       warnings: ['searched only round the neighbour’s heading: the all-headings search did not settle on it'],
       tier: 1,
-      score: scoreFor(input, narrow.pose.bearing),
+      score: scoreFor(input, narrowPose),
     })
 
   if (input.points) {
@@ -267,38 +272,65 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
       evidence: {
         heldOutMeters: points.heldOutMeters,
         worstPairPixels: points.worstPairPixels,
-        modelScore: scoreFor(input, points.pose.bearing),
+        modelScore: scoreFor(input, points.pose),
       },
       warnings,
       tier: warnings.length ? 1 : 0,
-      score: scoreFor(input, points.pose.bearing),
+      score: scoreFor(input, points.pose),
     })
   }
 
   if (input.matched) {
     const { camera, checks } = input.matched
     const worst = camera.heldOut.length ? Math.max(...camera.heldOut.map((g) => g.metres)) : null
+    const pose = {
+      lng: camera.lng,
+      lat: camera.lat,
+      altitudeMeters: camera.altitudeMeters,
+      bearing: camera.bearing,
+      pitch: camera.pitch,
+      roll: camera.roll,
+      hfov: camera.hfov,
+    }
     rows.push({
       id: 'matched',
       kind: 'matched',
       label: 'Matched camera',
-      pose: {
-        lng: camera.lng,
-        lat: camera.lat,
-        altitudeMeters: camera.altitudeMeters,
-        bearing: camera.bearing,
-        pitch: camera.pitch,
-        roll: camera.roll,
-        hfov: camera.hfov,
-      },
+      pose,
       evidence: {
         settled: camera.trusted ?? undefined,
         heldOutMeters: worst,
-        modelScore: scoreFor(input, camera.bearing),
+        modelScore: scoreFor(input, pose),
       },
       warnings: [...checks],
       tier: checks.length || camera.trusted === false ? 1 : 0,
-      score: scoreFor(input, camera.bearing),
+      score: scoreFor(input, pose),
+    })
+  }
+
+  for (const proposal of input.flightProposals ?? []) {
+    const { pose, basis, matches, controls, medianPx, p90Px } = proposal
+    rows.push({
+      id: `flight:${proposal.referenceId}`,
+      kind: 'matched',
+      label: `Flight match from ${proposal.referenceName}`,
+      pose,
+      overlap: { basis, matches, controls, medianPx, p90Px },
+      evidence: {
+        settled: false,
+        neighbourId: proposal.referenceId,
+        modelScore: scoreFor(input, pose),
+        overlapBasis: basis,
+        overlapP90Px: p90Px,
+        overlapMatches: matches,
+      },
+      warnings: [
+        basis === 'terrain'
+          ? 'Check shared landmarks before accepting this camera'
+          : 'Orientation from the two photos. GPS position still needs a map check',
+      ],
+      tier: 1,
+      score: scoreFor(input, pose),
     })
   }
 
@@ -306,7 +338,13 @@ export function photoOptions(input: PhotoOptionsInput): PhotoOption[] {
   const neighbourRow = rows.find((row) => row.kind === 'neighbour' && !row.id.startsWith('narrow:'))
   if (neighbourRow)
     for (const row of rows) {
-      if (row === neighbourRow || row.kind === 'phone' || row.kind === 'runner-up' || row.id.startsWith('narrow:'))
+      if (
+        row === neighbourRow ||
+        row.kind === 'phone' ||
+        row.kind === 'runner-up' ||
+        row.overlap ||
+        row.id.startsWith('narrow:')
+      )
         continue
       const off = gap(row.pose.bearing, neighbourRow.pose.bearing)
       row.evidence = { ...row.evidence, neighbourId: input.neighbour?.id ?? null, neighbourAgreesDegrees: off }

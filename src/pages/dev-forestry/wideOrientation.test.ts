@@ -31,8 +31,8 @@ const camera = (bearing: number, pitch: number, roll: number): PhotoPose => ({
 })
 
 /** The skyline a camera would photograph: the horizon projected, read column by column. */
-function skylineOf(pose: PhotoPose, columns = 200) {
-  const points = profile
+function skylineOf(pose: PhotoPose, columns = 200, horizon = profile) {
+  const points = horizon
     .map((point) => projectDirection(pose, point.azimuth, point.elevation))
     .filter((point): point is { x: number; y: number } => !!point && point.x > -50 && point.x < pose.width + 50)
     .sort((a, b) => a.x - b.x)
@@ -106,11 +106,40 @@ describe('camera search over every heading', () => {
         roll: { value: 3, tolerance: 2 },
       },
     })!
-    // Held to 30–50° (plus fitSkyline's ±3° nudge), the search cannot reach the true 165°.
-    expect(elsewhere.bearing).toBeGreaterThan(26)
-    expect(elsewhere.bearing).toBeLessThan(54)
+    expect(elsewhere.bearing).toBeGreaterThanOrEqual(30)
+    expect(elsewhere.bearing).toBeLessThanOrEqual(50)
     expect(elsewhere.meanLoss).toBeGreaterThan(near.meanLoss * 3)
   }, 60_000)
+
+  it('keeps a distinct runner-up on a repeated skyline, even when a narrow heading looks convincing', () => {
+    const repeated = profile.map((point) => ({ ...point, elevation: ridge(point.azimuth % 180) }))
+    const truth = camera(42.4, -2.1, 2.25)
+    const skyline = skylineOf(truth, 96, repeated)
+    const input = { pose: truth, profile: repeated, skyline, pitchRange: [-3, -1], rollRange: [1, 3] } as const
+    const narrow = searchOrientation({ ...input, headingSpan: 3 })!
+    const full = searchOrientation(input)!
+    expect(narrow.trustworthy).toBe(true)
+    expect(full.ambiguous).toBe(true)
+    expect(full.trustworthy).toBe(false)
+    expect(Math.abs(full.bearing - full.runnerUp!.bearing)).toBeCloseTo(180, 0)
+    expect(full.runnerUp!.meanLoss).toBeGreaterThanOrEqual(full.meanLoss)
+    expect(full.runnerUp!.meanLoss - full.meanLoss).toBeLessThan(0.01)
+  })
+
+  it('respects exact heading, pitch and roll holds through refinement across north', () => {
+    const truth = camera(359.75, -2.2, 2.2)
+    const found = searchOrientation({
+      pose: camera(0, 0, 0),
+      profile,
+      skyline: skylineOf(truth),
+      priors: {
+        heading: { value: -0.25, tolerance: 0 },
+        pitch: { value: -2.2, tolerance: 0 },
+        roll: { value: 2.2, tolerance: 0 },
+      },
+    })!
+    expect(found).toMatchObject({ bearing: 359.75, pitch: -2.2, roll: 2.2, runnerUp: null })
+  })
 
   it('finds the lens of a cropped photo within the range it is given', () => {
     const lens =
@@ -140,6 +169,39 @@ describe('camera search over every heading', () => {
     expect(steps[steps.length - 1]).toBeCloseTo(1, 6)
     expect(steps.every((done, i) => i === 0 || done >= steps[i - 1])).toBe(true)
   }, 120_000)
+
+  it('keeps a different heading that fits the skyline at a different field of view', () => {
+    const radians = Math.PI / 180
+    const poseWithLens = (bearing: number, hfov: number) => ({
+      ...camera(bearing, 0, 0),
+      focalPx: 525 / Math.tan((hfov * radians) / 2),
+    })
+    const terrain = profile.map((point) => {
+      const bearing = point.azimuth < 135 ? 45 : 225
+      const angle = ((point.azimuth - bearing + 540) % 360) - 180
+      if (Math.abs(angle) > 26) return { ...point, elevation: 4 }
+      const lens = Math.tan(((bearing === 45 ? 36 : 48) * radians) / 2)
+      const x = Math.tan(angle * radians) / lens
+      const shape = 0.06 + 0.04 * Math.sin(6 * x) + 0.035 * Math.cos(9 * x)
+      return { ...point, elevation: Math.atan(shape * lens * Math.cos(angle * radians)) / radians }
+    })
+    const truth = poseWithLens(45, 36)
+    const found = searchOrientation({
+      pose: truth,
+      profile: terrain,
+      skyline: skylineOf(truth, 96, terrain),
+      pitchRange: [0, 0],
+      rollRange: [0, 0],
+      hfovRange: [36, 48],
+    })!
+    expect(found.ambiguous).toBe(true)
+    expect(found.runnerUp).not.toBeNull()
+    const distinct = [found, found.runnerUp!].sort((a, b) => a.bearing - b.bearing)
+    expect(distinct[0].hfov).toBe(36)
+    expect(distinct[1].hfov).toBe(48)
+    expect(distinct[0].bearing).toBeCloseTo(45, 0)
+    expect(distinct[1].bearing).toBeCloseTo(225, 0)
+  })
 
   it('keeps the horizon by azimuth, and slices it continuously across north', () => {
     const table = horizonTable([

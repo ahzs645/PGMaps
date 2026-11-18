@@ -76,6 +76,20 @@ describe('matchedCameraChecks', () => {
       matchedCameraChecks(camera, { name: 'IMG_0001.JPEG', gpsPosition: { lng: -122.5003, lat: 54.1002 } }),
     ).toEqual([])
   })
+  it('keeps a transferred camera provisional even when the case says the skyline passed', () => {
+    const transferred = parseMatchedCamera(JSON.stringify({ ...CASE, pose: { ...CASE.pose, source: 'photo-overlap' } }))
+    expect(transferred.trusted).toBe(false)
+    expect(matchedCameraChecks(transferred, { name: 'IMG_0001.HEIC', gpsPosition: null })).toEqual([
+      'This camera came from an overlapping photo. Check independent landmarks before accepting it.',
+    ])
+  })
+  it('keeps a visually preferred camera provisional for the matching photo', () => {
+    const reviewed = parseMatchedCamera(JSON.stringify({ ...CASE, pose: { ...CASE.pose, source: 'review-candidate' } }))
+    expect(reviewed.trusted).toBe(false)
+    expect(matchedCameraChecks(reviewed, { name: 'img_0001.HEIC', gpsPosition: null })).toEqual([
+      'This is a starting camera from photo review. Compare landmarks before accepting it.',
+    ])
+  })
   it('flags another photo, a camera far from the GPS fix, and an untrusted fit', () => {
     const far = { lng: -122.5, lat: 54.1 + (MATCHED_CAMERA_MAX_SHIFT_METERS + 100) / 111195 }
     const untrusted = { ...camera, trusted: false }

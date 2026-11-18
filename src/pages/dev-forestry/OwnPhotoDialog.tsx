@@ -19,6 +19,7 @@ import {
   ArrowRight,
   Camera,
   Check,
+  Crosshair,
   Loader2,
   Map as MapIcon,
   MapPin,
@@ -42,6 +43,8 @@ import { sameCamera } from './photoAcceptance'
 import { PhotoAdjustPanel } from './PhotoAdjustPanel'
 import type { StartPlanPick } from './PhotoCameraTools'
 import { PhotoCompare } from './PhotoCompare'
+import { PhotoCombinedPanel } from './PhotoCombinedPanel'
+import { PhotoFlightMatchPanel } from './PhotoFlightMatchPanel'
 import { PhotoOptionsCard, ownAcceptancePose } from './PhotoOptionsCard'
 import { controlSolveSuspect } from './photoQueue'
 import { PhotoStrip, queueLine } from './PhotoStrip'
@@ -166,6 +169,12 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
       }
     : undefined
   const moveTo = (point: { lng: number; lat: number }) => photo.setOwnPose(point)
+  const needsLandmarks =
+    own?.pose.lng != null &&
+    own?.pose.lat != null &&
+    !!startPick &&
+    (options.some((option) => option.kind === 'winner' && option.evidence.settled === false) ||
+      photo.workFor(own.id).found?.skyline === false)
   const placePoint = (x: number, y: number) => {
     if (!startPick) return
     const pixel: [number, number] = [x, y]
@@ -184,8 +193,10 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
     // Counted once what is drawn over the photo has its hit buffer for this exact camera (`requestCheck`), never on
     // the click alone.
     photo.requestCheck(own.id)
-    const view = photo.workFor(own.id).modelViews.camera
-    if (!view || !photo.activePoseKey || view.poseKey !== photo.activePoseKey) void photo.renderModel('camera')
+    const hasModel =
+      !!photo.activePoseKey &&
+      Object.values(photo.workFor(own.id).modelViews).some((model) => model.poseKey === photo.activePoseKey)
+    if (!hasModel) void photo.renderModel('camera')
   }
   const accept = () => {
     if (!own) return
@@ -368,11 +379,40 @@ export function OwnPhotoDialog({ photo, actions }: { photo: FieldPhotoState; act
                     </Button>
                   }
                 />
-                <PhotoCompare photo={photo} />
+                <PhotoCompare
+                  key={own.id}
+                  photo={photo}
+                  active={tab === 'camera' && photo.ownDialog.open && !steppedAside}
+                />
               </div>
               <div className="min-w-0 space-y-4 text-sm">
                 {photo.ownStatus.error && <InlineAlert tone="error">{photo.ownStatus.error}</InlineAlert>}
+                {needsLandmarks && !options.some((option) => option.kind === 'points' && !option.warnings.length) && (
+                  <div className="space-y-2 rounded-md border border-border p-3">
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      Use landmarks to check the heading. Pick a distinct shoreline bend, road junction or peak in the
+                      photo and on the plan. Spread the pairs across the frame and use different distances.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="touch:h-10"
+                      aria-pressed={placing}
+                      onClick={() => {
+                        setAdjust(true)
+                        setAlign(false)
+                        setPlacing(!placing)
+                      }}
+                    >
+                      <Crosshair className="h-4 w-4" />
+                      {placing ? 'Cancel landmark pick' : 'Pair a landmark'}
+                    </Button>
+                  </div>
+                )}
+                {tab === 'camera' && <PhotoFlightMatchPanel photo={photo} />}
                 <PhotoOptionsCard photo={photo} onAdjust={() => setAdjust(true)} />
+                {tab === 'camera' && <PhotoCombinedPanel key={own.id} photo={photo} />}
                 <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
                   <p className="text-xs text-muted-foreground">
                     {checked

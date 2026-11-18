@@ -1496,14 +1496,14 @@ street-level photo from Mapillary, or with a photo of your own.
       finishes from them.
     - **Bursts.** A frame within 20 s and 500 m of an accepted frame
       (`burstNeighbour`) is searched first round that frame's camera
-      (heading ±15°, pitch ±10°). A trustworthy narrow fit stands; an
-      ambiguous one runs the full search, because a held angle hides any
-      runner-up outside it.
+      (heading ±15°, pitch ±10°). The result is shown as supporting evidence.
+      The queue still searches the full circle for competing ridges.
     - **Lenses.** `FocalLengthIn35mmFormat` already includes the iPhone's
       digital zoom, so it is applied once. A photo whose decoded size differs
       from the size its tags record was cropped after it was taken: it is
       flagged *cropped*, and its search tries lenses from the tagged one down
-      to 40% of it (`lensRangeFor`), setting the one that fits best.
+      to 40% of it (`lensRangeFor`). Each candidate keeps its own lens and a
+      competing heading can come from a different lens.
   - **Camera** shows the active photo with what is drawn over it, the
     **options card** (`PhotoOptionsCard.tsx`, `photoOptions.ts`) and the
     comparison. The card has a row per candidate: the skyline's winner and
@@ -1512,7 +1512,9 @@ street-level photo from Mapillary, or with a photo of your own.
     point solve and a matched camera. Each row gives heading, pitch and roll,
     agreeing sky columns and their span, the model view's score beside its
     thumbnail, and the sun; the rows are ranked by that evidence, and *Use*
-    makes one the camera. *Adjust* opens the hand tools (`PhotoAdjustPanel.tsx`):
+    makes one the camera. When the skyline is ambiguous or is too small to
+    fit, *Pair a landmark* starts matching the same point on the photo and
+    the plan. *Adjust* opens the hand tools (`PhotoAdjustPanel.tsx`):
     where the photo was taken (typed or **Pick on the plan**, *Taken from the
     air*, altitude or eye height), the angle and lens numbers with each
     value's source and the declination, held angles, the search again near
@@ -1585,9 +1587,11 @@ street-level photo from Mapillary, or with a photo of your own.
       or *Not read*, and *Read again for this camera* follows a moved camera.
   - **The comparison** (`PhotoCompare.tsx`): the photo against the model view
     for its camera at the same size, blinked (hold B) or swiped, with the
-    agreement score beside it as evidence. Only when the search is *not
-    settled* is a 2×2 shown: the photo, the model views for the camera and
-    for the runner-up, and their difference.
+    agreement score and imagery coverage beside it. For an ambiguous skyline,
+    *Compare skyline candidates* opens the photo, the best and runner-up
+    model views, and their difference. Both candidates stay available after
+    picking one. Use *Field photos* in *Visit* to reopen the comparison while
+    standing at a saved viewpoint.
   - **Accept** (`photoAcceptance.ts`, DOM-free) is the reviewer's, never
     automatic. It is on only once the checks have been drawn for this exact
     camera (within 0.5°, 5 m and 1 m of altitude), a point-solved camera's
@@ -1657,13 +1661,15 @@ street-level photo from Mapillary, or with a photo of your own.
     - **Search:** a coarse search in angles first. Turning about the
       vertical never changes a ray's elevation, so each pitch and roll is
       worked out once and every heading is a shift along a horizon table.
-      `fitSkyline` then refines, given only the horizon round the frame.
+      Both distinct headings receive the same finer search over heading,
+      pitch and roll. `fitSkyline` checks the best candidate against the
+      bare-ground and canopy lines.
     - **Pitch:** an iPhone's tilt sensor (Apple maker note, `appleTilt`)
       narrows pitch to ±6° while it reads gravity alone.
     - **Result:** says when another heading at least 15° away fits about as
       well (**not settled**), and shows where the sun was (from the GPS
-      fix's UTC time) for the camera and for the runner-up. *Try it* swaps
-      to the runner-up.
+      fix's UTC time) for both candidates. Select either candidate in the
+      camera options.
   - **Hold near a value.** Heading, pitch and roll can each be held near a
     value within a tolerance, from the flight track, the tilt sensor or a
     landmark. The search and the point solve keep them there, so a runner-up
@@ -1691,9 +1697,44 @@ street-level photo from Mapillary, or with a photo of your own.
   - **Model view.** Draws satellite imagery as the camera would see it
     (`renderModelView`, in the worker) for the camera and the runner-up.
     It scores each against the photo by brightness and edge correlation over
-    the ground (`modelAgreement`).
+    mapped ground (`modelAgreement`). Adjacent imagery pixels are blended
+    to reduce jagged edges. Missing tiles can fall back to coarser imagery. Areas without imagery and the terrain horizon contribute no edge
+    score, and a sparse model has no agreement score.
+    - **Fine-tune camera** sits beside the model view. The reviewer can
+      nudge heading, pitch, roll and field of view, or move the camera in
+      metres. Choose *Blend* to compare features overlaid or *Swipe* to
+      see both views. The small preview redraws after edits pause. *Restore
+      starting camera* returns to the pose and sources held when fine-tuning
+      opened. A preview alone does not record a camera check.
+  - **Match flight photos.** Check and accept one reference camera in the
+    *Use* tab, then choose *Find shared features* in the *Camera* tab. For each
+    unaccepted photo in the flight, the tool tries up to six accepted references
+    within 90 seconds and 1.5 km. A browser worker matches image features at
+    several scales. The camera must also pass a check on image regions held out
+    of the fit. The tool prefers a terrain-checked camera. It can also offer an
+    orientation from the two images with the target position kept at its starting
+    coordinates. *Adjust* opens the existing camera controls. Once a reviewer
+    checks and accepts the result, rerun to include it as a reference for more
+    photos. [Archive measurements and methods](research/photo-flight-matching-2026-11-17.md)
+  - **Combined camera search.** Compares ground appearance with available
+    skyline, paired points, and terrain-checked overlap from flight matching or the bench.
+    A weak skyline opens a coarse search around the photo's position. Turn
+    off *Use the skyline when visible* to compare ground cues alone. An
+    optional local Depth Anything model contributes relative depth on pixels
+    that show ground for every candidate. Model files download on demand and
+    the browser can cache them. The search offers starting cameras for visual
+    review and fine-tuning. Open a candidate's score to see the weighted
+    contributions, both depth correlations, and available held-out feature
+    error at a common image width. [Browser and archive
+    experiments](research/photo-combined-camera-2026-11-17.md)
   - **Tested on fourteen helicopter photos (November 2026):**
-    - **Agreement score:** it ranked the skyline's winner above its
+    - **Search replay:** With the same decoded skylines and live Terrarium
+      terrain profiles cached for both runs, the median CPU search fell from
+      12.7 s to 1.0 s on the test machine. Twelve frames had a competing
+      heading, one had too little bare-terrain agreement to settle, and one
+      met the skyline check. Camera accuracy needs independently paired
+      landmarks.
+    - **Original agreement score:** it ranked the skyline's winner above its
       runner-up on all five photos checked, three of them ambiguous. In the
       browser, on a photo 70 km from the scene's road, it scored 0.30 for the
       winner against −0.06 for the runner-up.
@@ -1744,7 +1785,9 @@ street-level photo from Mapillary, or with a photo of your own.
   *from the matched camera*. The panel shows how the camera was found and its
   held-out accuracy, and warns when the case was made for another photo,
   stands more than 300 m from the photo's GPS fix, or carries a skyline fit
-  the bench did not trust. Its height over the road view's ground
+  the bench did not trust. Select multiple named case files to supply starting
+  cameras to the matching open photos. Preferred candidates from photo review
+  remain provisional until checked. Its height over the road view's ground
   (`eyeHeightOver`, the terrain the drive camera stands on) is shown beside
   the altitude, derived and never stored.
 - **Photo on the plan.** *Show on the plan, beside the photo* (Camera tab)

@@ -275,11 +275,12 @@ export type OwnSearchSummary = {
   /** Share of the frame's width the agreeing columns span, 0–1. */
   span: number
   medianErrorPx: number
-  /** Coarse loss per column, degrees. */
+  /** Angular loss per column, degrees. */
   meanLoss: number
   trustworthy: boolean
   ambiguous: boolean
-  runnerUp: { bearing: number; pitch: number; roll: number; meanLoss: number } | null
+  runnerUp: WideSearchResult['runnerUp']
+  hfov?: number
   /** The model view's score for the winner and the runner-up, when one was drawn for that heading. */
   modelScore: number | null
   runnerUpModelScore: number | null
@@ -311,6 +312,7 @@ export function searchSummaryFrom(
     trustworthy: result.trustworthy,
     ambiguous: result.ambiguous,
     runnerUp: result.runnerUp ? { ...result.runnerUp } : null,
+    ...(result.hfov === undefined ? {} : { hfov: result.hfov }),
     modelScore: scoreAt(result.bearing),
     runnerUpModelScore: result.runnerUp ? scoreAt(result.runnerUp.bearing) : null,
   }
@@ -333,6 +335,7 @@ export function parseOwnSearchSummary(raw: unknown): OwnSearchSummary | null {
       pitch: r.pitch as number,
       roll: r.roll as number,
       meanLoss: r.meanLoss as number,
+      ...(finite(r.hfov) ? { hfov: r.hfov } : {}),
     }
   }
   const score = (value: unknown) => (finite(value) ? value : null)
@@ -349,6 +352,7 @@ export function parseOwnSearchSummary(raw: unknown): OwnSearchSummary | null {
     trustworthy: s.trustworthy,
     ambiguous: s.ambiguous,
     runnerUp,
+    ...(finite(s.hfov) ? { hfov: s.hfov } : {}),
     modelScore: score(s.modelScore),
     runnerUpModelScore: score(s.runnerUpModelScore),
   }

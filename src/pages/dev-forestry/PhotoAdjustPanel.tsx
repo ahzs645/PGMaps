@@ -14,7 +14,7 @@ import { CheckboxField, NullableNumberField, NumberField } from '@/components/ui
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 
 import type { PoseSource } from './exifPose'
-import { matchedCameraChecks, parseMatchedCamera } from './matchedCamera'
+import { matchedCameraChecks, matchedCameraNamesPhoto, parseMatchedCamera } from './matchedCamera'
 import { formatKm } from './measureFormat'
 import { PairedPointsTable } from './PairedPointsTable'
 import { HeldAngles, SkylineSearch, heldAngleCount, type StartPlanPick } from './PhotoCameraTools'
@@ -84,20 +84,41 @@ export function PhotoAdjustPanel({
 }) {
   const own = photo.own
   const [matchedError, setMatchedError] = useState<string | null>(null)
+  const [matchedNotice, setMatchedNotice] = useState<string | null>(null)
   if (!own || !photo.ownFov) return null
   const ownFov = photo.ownFov
   const placed = own.pose.lng !== null && own.pose.lat !== null
   const hasAltitude = own.pose.altitudeMeters !== null && own.pose.altitudeMeters !== undefined
   const fromAir = hasAltitude && own.sources.eyeHeight === 'exif'
-  const applyMatchedFile = async (file: File) => {
-    try {
-      const camera = parseMatchedCamera(await file.text())
-      const checks = matchedCameraChecks(camera, { name: own.name, gpsPosition: own.exif?.position ?? null })
-      setMatchedError(null)
-      photo.applyMatchedCamera(camera, file.name, checks)
-    } catch (error) {
-      setMatchedError(error instanceof Error ? error.message : String(error))
+  const applyMatchedFiles = async (files: File[]) => {
+    setMatchedError(null)
+    setMatchedNotice(null)
+    const parsed = await Promise.allSettled(files.map(async (file) => parseMatchedCamera(await file.text())))
+    const used = new Set<string>()
+    const errors: string[] = []
+    for (const [index, result] of parsed.entries()) {
+      const file = files[index]
+      if (result.status === 'rejected') {
+        errors.push(`${file.name} — ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`)
+        continue
+      }
+      const camera = result.value
+      const matching = photo.ownPhotos.filter((entry) => matchedCameraNamesPhoto(camera, entry.name))
+      const target = matching.length === 1 ? matching[0] : files.length === 1 ? own : null
+      if (!target || used.has(target.id)) {
+        errors.push(`${file.name} — select one camera file for each uniquely named open photo.`)
+        continue
+      }
+      const checks = matchedCameraChecks(camera, {
+        name: target.name,
+        gpsPosition: target.exif?.position ?? null,
+      })
+      photo.applyMatchedCamera(target.id, camera, file.name, checks)
+      used.add(target.id)
     }
+    if (errors.length) setMatchedError(errors.join(' '))
+    if (used.size)
+      setMatchedNotice(used.size === 1 ? 'Loaded one starting camera.' : `Loaded ${used.size} starting cameras.`)
   }
 
   return (
@@ -273,52 +294,56 @@ export function PhotoAdjustPanel({
           <Section title="Paired points">
             <PairedPointsTable photo={photo} placing={placing} onPlacing={onPlacing} canPick={!!startPick} />
           </Section>
-
-          <Section title="Matched camera">
-            <p className="text-xs leading-5 text-muted-foreground">
-              A case file from the photo-matching bench replaces every value: position, altitude, heading, pitch, roll
-              and lens.
-            </p>
-            <FileButton
-              label="Use a matched camera"
-              accept=".json,application/json"
-              size="sm"
-              className="touch:h-10"
-              onFiles={([file]) => {
-                if (file) void applyMatchedFile(file)
-              }}
-            >
-              <FileInput className="h-4 w-4" />
-              Use a matched camera…
-            </FileButton>
-            {matchedError && <InlineAlert tone="error">{matchedError}</InlineAlert>}
-            {own.matched && (
-              <div className="space-y-1" aria-label="Matched camera">
-                <KeyValueRows
-                  variant="divided"
-                  valueMaxWidth="max-w-[18rem]"
-                  rows={[
-                    { label: 'Matched camera', value: `${own.matched.fileName} · ${own.matched.method}` },
-                    {
-                      label: 'Held-out accuracy',
-                      value: own.matched.heldOut.length
-                        ? own.matched.heldOut.map((g) => `${g.name} ${Math.round(g.metres)} m`).join(', ')
-                        : 'not measured: skyline and GPS only',
-                    },
-                  ]}
-                />
-                {own.matched.checks.map((check) => (
-                  <InlineAlert key={check} tone="warning">
-                    {check}
-                  </InlineAlert>
-                ))}
-              </div>
-            )}
-          </Section>
         </>
       ) : (
-        <InlineAlert>Set where the photo was taken first: the tools below search the terrain round it.</InlineAlert>
+        <InlineAlert>Set where the photo was taken or load a matched camera below.</InlineAlert>
       )}
+      <Section title="Matched camera">
+        <p className="text-xs leading-5 text-muted-foreground">
+          Load case files for open photos. A case with a matching photo name supplies its starting camera.
+        </p>
+        <FileButton
+          label="Use a matched camera"
+          accept=".json,application/json"
+          multiple
+          size="sm"
+          className="touch:h-10"
+          onFiles={(files) => {
+            if (files.length) void applyMatchedFiles(files)
+          }}
+        >
+          <FileInput className="h-4 w-4" />
+          Use a matched camera…
+        </FileButton>
+        {matchedError && <InlineAlert tone="error">{matchedError}</InlineAlert>}
+        {matchedNotice && (
+          <p className="text-xs text-muted-foreground" role="status">
+            {matchedNotice}
+          </p>
+        )}
+        {own.matched && (
+          <div className="space-y-1" aria-label="Matched camera">
+            <KeyValueRows
+              variant="divided"
+              valueMaxWidth="max-w-[18rem]"
+              rows={[
+                { label: 'Matched camera', value: `${own.matched.fileName} · ${own.matched.method}` },
+                {
+                  label: 'Held-out accuracy',
+                  value: own.matched.heldOut.length
+                    ? own.matched.heldOut.map((g) => `${g.name} ${Math.round(g.metres)} m`).join(', ')
+                    : 'not measured',
+                },
+              ]}
+            />
+            {own.matched.checks.map((check) => (
+              <InlineAlert key={check} tone="warning">
+                {check}
+              </InlineAlert>
+            ))}
+          </div>
+        )}
+      </Section>
     </div>
   )
 }

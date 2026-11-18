@@ -91,7 +91,6 @@ export function castGroundRay(
 }
 
 const SKY: [number, number, number] = [170, 200, 235]
-const NO_IMAGERY: [number, number, number] = [90, 90, 90]
 const HAZE: [number, number, number] = [175, 190, 215]
 
 /**
@@ -112,16 +111,16 @@ export function renderModelView(
   for (let y = rows?.from ?? 0; y < Math.min(height, rows?.to ?? height); y++)
     for (let x = 0; x < width; x++) {
       const hit = castRay(pose, source, (x + 0.5) / scale, (y + 0.5) / scale, maxMeters)
-      let colour = SKY
-      if (hit) {
-        const sample = imagery(hit.lng, hit.lat) ?? NO_IMAGERY
-        const f = Math.min(0.6, hit.distanceMeters / maxMeters)
-        colour = [0, 1, 2].map((k) => sample[k] * (1 - f) + HAZE[k] * f) as [number, number, number]
-      }
+      const sample = hit ? imagery(hit.lng, hit.lat) : SKY
       const i = (y * width + x) * 4
-      data[i] = colour[0]
-      data[i + 1] = colour[1]
-      data[i + 2] = colour[2]
+      if (!sample) {
+        data.fill(0, i, i + 4)
+        continue
+      }
+      const haze = hit ? Math.min(0.6, hit.distanceMeters / maxMeters) : 0
+      data[i] = sample[0] * (1 - haze) + HAZE[0] * haze
+      data[i + 1] = sample[1] * (1 - haze) + HAZE[1] * haze
+      data[i + 2] = sample[2] * (1 - haze) + HAZE[2] * haze
       data[i + 3] = 255
     }
   return { width, height, data }
@@ -350,13 +349,41 @@ export function tileXY(lng: number, lat: number, zoom: number): [number, number]
 
 /** A sampler over a mosaic of 256-px tiles whose top-left tile is (minX, minY) at `zoom`. */
 export function mosaicSampler(mosaic: Rgba, zoom: number, minX: number, minY: number): ImagerySampler {
+  const { width, height, data } = mosaic
   return (lng, lat) => {
     const [tx, ty] = tileXY(lng, lat, zoom)
-    const px = Math.floor((tx - minX) * 256),
-      py = Math.floor((ty - minY) * 256)
-    if (px < 0 || py < 0 || px >= mosaic.width || py >= mosaic.height) return null
-    const i = (py * mosaic.width + px) * 4
-    return [mosaic.data[i], mosaic.data[i + 1], mosaic.data[i + 2]]
+    const x = (tx - minX) * 256
+    const y = (ty - minY) * 256
+    const px = Math.floor(x)
+    const py = Math.floor(y)
+    if (px < 0 || py < 0 || px >= width || py >= height) return null
+    const nearest = (py * width + px) * 4
+    if (!data[nearest + 3]) return null
+
+    // Tiles register colors at pixel centers. Blend adjacent pixels, but keep
+    // the local color next to missing data so empty tiles cannot tint the view.
+    const left = Math.floor(x - 0.5)
+    const top = Math.floor(y - 0.5)
+    const i = (top * width + left) * 4
+    const j = i + width * 4
+    if (
+      left < 0 ||
+      top < 0 ||
+      left + 1 >= width ||
+      top + 1 >= height ||
+      !data[i + 3] ||
+      !data[i + 7] ||
+      !data[j + 3] ||
+      !data[j + 7]
+    )
+      return [data[nearest], data[nearest + 1], data[nearest + 2]]
+
+    const fx = x - 0.5 - left
+    const fy = y - 0.5 - top
+    const blend = (channel: number) =>
+      (data[i + channel] * (1 - fx) + data[i + channel + 4] * fx) * (1 - fy) +
+      (data[j + channel] * (1 - fx) + data[j + channel + 4] * fx) * fy
+    return [blend(0), blend(1), blend(2)]
   }
 }
 
@@ -365,20 +392,38 @@ export const modelViewHeight = (pose: Pick<PhotoPose, 'width' | 'height'>, width
   Math.round(pose.height * (width / pose.width))
 
 /**
- * How well a candidate's model view matches the photo, over the ground the model shows: the correlation of their
- * brightness and of their edge strength, both resampled to the model's size. On fourteen helicopter photos (November
- * 2026) the sum ranked the skyline's winner above its runner-up on all five checked. It is evidence beside the
- * skyline and the sun, not a verdict: imagery is taken from above, in another season, and edges include the ridge.
+ * Texture agreement over ground with imagery. The edge term uses only pixels with
+ * ground imagery on both sides, so the terrain horizon and missing tiles do not
+ * contribute artificial edges. Insufficient samples leave the score unavailable.
  */
-export function modelAgreement(photo: Rgba, model: Rgba): { brightness: number; edges: number; score: number } {
+export function modelAgreement(
+  photo: Rgba,
+  model: Rgba,
+): {
+  brightness: number
+  edges: number
+  score: number
+  coverage: number
+} {
   const W = model.width,
     H = model.height
   const lum = (d: Uint8ClampedArray, i: number) => 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]
   const P = new Float64Array(W * H),
     M = new Float64Array(W * H),
     ground = new Uint8Array(W * H)
+  let mapped = 0
+  let unknown = 0
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
+      const k = y * W + x
+      const i = k * 4
+      if (!model.data[i + 3]) {
+        unknown++
+        continue
+      }
+      if (model.data[i] === SKY[0] && model.data[i + 1] === SKY[1] && model.data[i + 2] === SKY[2]) continue
+      ground[k] = 1
+      mapped++
       let sum = 0,
         count = 0
       const y0 = Math.floor((y * photo.height) / H),
@@ -390,11 +435,8 @@ export function modelAgreement(photo: Rgba, model: Rgba): { brightness: number; 
           sum += lum(photo.data, (yy * photo.width + xx) * 4)
           count++
         }
-      const k = y * W + x,
-        i = k * 4
       P[k] = sum / count
       M[k] = lum(model.data, i)
-      ground[k] = model.data[i] === SKY[0] && model.data[i + 1] === SKY[1] && model.data[i + 2] === SKY[2] ? 0 : 1
     }
   const a: number[] = [],
     b: number[] = [],
@@ -404,11 +446,14 @@ export function modelAgreement(photo: Rgba, model: Rgba): { brightness: number; 
     Math.hypot(A[y * W + x + 1] - A[y * W + x - 1], A[(y + 1) * W + x] - A[(y - 1) * W + x])
   for (let y = 1; y < H - 1; y++)
     for (let x = 1; x < W - 1; x++) {
-      if (!ground[y * W + x]) continue
-      a.push(P[y * W + x])
-      b.push(M[y * W + x])
-      ga.push(grad(P, x, y))
-      gb.push(grad(M, x, y))
+      const k = y * W + x
+      if (!ground[k]) continue
+      a.push(P[k])
+      b.push(M[k])
+      if (ground[k - 1] && ground[k + 1] && ground[k - W] && ground[k + W]) {
+        ga.push(grad(P, x, y))
+        gb.push(grad(M, x, y))
+      }
     }
   const correlation = (u: number[], v: number[]) => {
     const n = u.length
@@ -427,5 +472,7 @@ export function modelAgreement(photo: Rgba, model: Rgba): { brightness: number; 
   }
   const brightness = correlation(a, b),
     edges = correlation(ga, gb)
-  return { brightness, edges, score: brightness + edges }
+  const coverage = mapped / Math.max(1, mapped + unknown)
+  const usable = coverage >= 0.5 && ga.length >= Math.max(30, W * H * 0.05)
+  return { brightness, edges, score: usable ? brightness + edges : Number.NaN, coverage }
 }
