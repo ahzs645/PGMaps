@@ -114,7 +114,7 @@ function blockHtml(block: ReportBlock, draft: ReportDraft | false = false): stri
 }
 
 /** A section's first table or scale without its own title when the section's title bar already prints it. */
-function untitled(block: ReportBlock, sectionTitle: string): ReportBlock {
+export function untitled(block: ReportBlock, sectionTitle: string): ReportBlock {
   return (block.kind === 'matrix' || block.kind === 'scale') &&
     sectionTitle.toLowerCase().includes(block.title.toLowerCase())
     ? { ...block, title: '' }

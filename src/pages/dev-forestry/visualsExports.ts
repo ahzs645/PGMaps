@@ -121,6 +121,8 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
       'A whole report in a reference VIA’s structure, assembled from shared parts: cover, inventory, criteria, method, the scales and matrices with their readings marked, tables, calculations, the form or Appendix 1, discussion, sign-off and figures, with your logo.',
     formats: [
       PDF,
+      { id: 'docx', label: 'Word', extension: '.docx' },
+      { id: 'docx-pdf', label: 'PDF from the Word layout', extension: '.pdf' },
       { id: 'html', label: 'Printable HTML', extension: '.html' },
       { id: 'md', label: 'Markdown', extension: '.md' },
     ],
@@ -266,6 +268,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   png: 'image/png',
   svg: 'image/svg+xml',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   md: 'text/markdown',
   html: 'text/html',
   json: 'application/json',

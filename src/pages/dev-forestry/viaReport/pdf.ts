@@ -57,7 +57,7 @@ const BAR = hex('#167aca')
 const PANEL = hex('#e6e7e8')
 
 /** A colour over white at `alpha`. */
-const mix = (color: RGB, alpha: number, under: RGB = WHITE): RGB =>
+export const mix = (color: RGB, alpha: number, under: RGB = WHITE): RGB =>
   color.map((c, i) => Math.round(c * alpha + under[i] * (1 - alpha))) as unknown as RGB
 
 /** A CSS colour as RGB over white: `#rgb`, `#rrggbb`, with alpha, or `rgb()`/`rgba()`; anything else prints as ink. */
@@ -108,11 +108,11 @@ const WIDE: Style = { ...NORMAL, table: 6.75, tableLh: 8.4, pad: 2 }
 // ---------------------------------------------------------------------------------------------------------------------
 // Pages
 
-type PageKind = 'portrait' | 'landscape' | 'cover' | 'sheet' | 'sheetFull' | 'sheetPortrait' | 'figure'
+export type PageKind = 'portrait' | 'landscape' | 'cover' | 'sheet' | 'sheetFull' | 'sheetPortrait' | 'figure'
 type Paper = AssembledReport['layout']['paper']
 const PAPER: Record<Paper, [number, number]> = { letter: [612, 792], legal: [612, 1008] }
 
-interface PageSpec {
+export interface PageSpec {
   size: [number, number]
   /** Top, right, bottom, left. */
   margin: [number, number, number, number]
@@ -121,7 +121,7 @@ interface PageSpec {
 }
 
 /** Each page kind as `pageCss` and `FIGURES_CSS` print it. */
-function pageSpec(kind: PageKind, paper: Paper): PageSpec {
+export function pageSpec(kind: PageKind, paper: Paper): PageSpec {
   const [w, h] = PAPER[paper]
   const normal: PageSpec['margin'] = [16 * MM, 16 * MM, 18 * MM, 16 * MM]
   switch (kind) {
@@ -476,7 +476,7 @@ function emptyBox(f: Flow, r: Rect, text: string, size = 8.25) {
   }
 }
 
-const unreadable = (figure: ReportFigure) =>
+export const unreadable = (figure: ReportFigure) =>
   imageFormat(figure.dataUrl)
     ? `${figure.caption || figure.view}: the picture could not be read.`
     : `${figure.caption || figure.view}: the picture is not a PNG or JPEG and is not embedded.`
@@ -2026,7 +2026,7 @@ function drawBlock(f: Flow, block: ReportBlock) {
 // ---------------------------------------------------------------------------------------------------------------------
 // The report's pages (`reportHtml`)
 
-type Part =
+export type Part =
   | { type: 'block'; block: ReportBlock }
   /** A landscape page: a wide table or matrix, with the headings before it and the short text closing its section. */
   | { type: 'wide'; blocks: ReportBlock[] }
@@ -2037,7 +2037,7 @@ const sheetFigure = (block: ReportBlock | undefined): block is Block<'figure'> =
   block?.kind === 'figure' && !!block.figure && isSheet(block.figure)
 
 /** The body grouped as `reportHtml` groups it. */
-function bodyParts(blocks: readonly ReportBlock[]): Part[] {
+export function bodyParts(blocks: readonly ReportBlock[]): Part[] {
   const parts: Part[] = []
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i]
@@ -2092,7 +2092,7 @@ const figureLike = (part: Part | undefined) =>
   (part.block.kind === 'figure' || part.block.kind === 'mapFigure' || part.block.kind === 'figureGrid')
 
 /** Where the to-complete list goes (`completeAt`): before the run of figure pages the report ends on. */
-function completeAt(parts: readonly Part[]): number {
+export function completeAt(parts: readonly Part[]): number {
   let at = parts.length
   const figureWithFields = (i: number) =>
     figureLike(parts[i]) ||
@@ -2294,6 +2294,12 @@ function contents(
   return entries
 }
 
+/** The running header's one line: the title and the subtitle, a long subtitle cut to fit (`pageCss`). */
+export function runningHeader(report: Pick<AssembledReport, 'title' | 'subtitle'>): string {
+  const cut = report.subtitle.length > 60 ? `${report.subtitle.slice(0, 57).trimEnd()}…` : report.subtitle
+  return `${report.title} · ${cut}`.replace(/["\\]/g, '')
+}
+
 /**
  * The report as a PDF: the paper and pages `reportHtml` prints, drawn with the jsPDF module passed in. `compress`
  * deflates the page contents (on by default; the tests read the text of an uncompressed file).
@@ -2408,8 +2414,7 @@ export function reportPdf(
 
   // The running header and "Page n of N" on every page that prints them.
   const total = doc.kinds.length
-  const cut = report.subtitle.length > 60 ? `${report.subtitle.slice(0, 57).trimEnd()}…` : report.subtitle
-  const header = fold(`${report.title} · ${cut}`.replace(/["\\]/g, ''))
+  const header = fold(runningHeader(report))
   doc.kinds.forEach((kind, i) => {
     const spec = pageSpec(kind, paper)
     pdf.setPage(i + 1)

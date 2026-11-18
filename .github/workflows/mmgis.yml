@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/brandkit vendor/json-url vendor/bcdatamapper
+      - run: git submodule update --init --depth 1 packages/geo-toolkit vendor/brandkit vendor/json-url vendor/document-kit vendor/bcdatamapper
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -25,6 +25,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
+      - run: node scripts/ensure-document-kit.mjs
       - name: Check application types
         run: npx tsc -b
       - name: Check mission source

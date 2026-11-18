@@ -27,6 +27,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
+      - run: node scripts/ensure-document-kit.mjs
       - name: Check source selection, image tiles and project recovery
         run: npx vitest run src/pages/dev-view src/pages/dev-georeference
       - name: Build the application and browser workers

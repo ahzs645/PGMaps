@@ -104,6 +104,16 @@ describe('visual-quality exports', () => {
     for (const item of VISUALS_EXPORTS) expect(item.formats.length).toBeGreaterThan(0)
   })
 
+  it('offers the VIA report as Word and as a PDF from the Word layout, its own PDF still first', () => {
+    const report = VISUALS_EXPORTS.find((item) => item.kind === 'via-report')!
+    expect(report.formats.map((format) => format.id)).toEqual(['pdf', 'docx', 'docx-pdf', 'html', 'md'])
+    expect(report.formats.find((format) => format.id === 'docx')).toMatchObject({ label: 'Word', extension: '.docx' })
+    expect(report.formats.find((format) => format.id === 'docx-pdf')!.extension).toBe('.pdf')
+    // Every output's format ids are its own, once each.
+    for (const item of VISUALS_EXPORTS)
+      expect(new Set(item.formats.map((format) => format.id)).size, item.kind).toBe(item.formats.length)
+  })
+
   it('lists the block map sheet from the sheet as chosen, and waits for nothing before writing it', () => {
     const empty = buildExportContext(input(createEmptyScene()))
     expect(exportUnavailable('block-sheet', empty)).toMatch(/Add a cutblock/)

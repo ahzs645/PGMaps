@@ -28,6 +28,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
+      - run: node scripts/ensure-document-kit.mjs
       - run: node scripts/sync-bcdatamapper-data.mjs
       - run: npx tsc -b
       - run: npx eslint src/maps/nechako src/pages/DevNechako.tsx src/pages/DevNechakoPortal.tsx src/components/projects/ProjectBackButton.tsx src/maps/project-explorer/ProjectMapExplorer.tsx src/maps/project-explorer/ProjectExplorerSidebar.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/lib/nechakoConnection.ts src/lib/nechakoConnection.test.ts src/lib/mapImageCapture.ts src/lib/mapImageCapture.test.ts src/types/nechako-turf.d.ts
@@ -65,6 +66,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
+      - run: node scripts/ensure-document-kit.mjs
       - run: node scripts/sync-bcdatamapper-data.mjs
       - if: matrix.shard != 'hosted-admin'
         run: sudo apt-get update && sudo apt-get install -y gdal-bin

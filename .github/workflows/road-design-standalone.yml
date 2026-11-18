@@ -34,7 +34,7 @@ jobs:
         with:
           path: pgmaps
       # Only what the designer builds against; no scraper data.
-      - run: git submodule update --init packages/geo-toolkit vendor/brandkit vendor/json-url
+      - run: git submodule update --init packages/geo-toolkit vendor/brandkit vendor/json-url vendor/document-kit
         working-directory: pgmaps
       - uses: actions/setup-node@v4
         with:

@@ -22,3 +22,6 @@
 [submodule "vendor/threejs-worldgen"]
 	path = vendor/threejs-worldgen
 	url = https://github.com/ahzs645/threejs-worldgen.git
+[submodule "vendor/document-kit"]
+	path = vendor/document-kit
+	url = https://github.com/ahzs645/document-kit.git

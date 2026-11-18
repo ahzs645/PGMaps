@@ -513,7 +513,7 @@ interest's *Export…*).
 | | FS1252 form | PDF | Stations, each one's reviewer inputs, run diagnostics, office fields |
 | | Analysis sheet | PDF, PNG | Which of the package's views, figure style, label style, camera block, logo |
 | | VIA document | Markdown, JSON | The format, only while the package has no recipe |
-| | VIA report | PDF, Printable HTML, Markdown | The overview sheet's style when the recipe prints one; the maps' style; logo. A *Draft* view lays it out with stand-ins and draws its pictures one group at a time (**VIA reports**) |
+| | VIA report | PDF, Word, PDF from the Word layout, Printable HTML, Markdown | The overview sheet's style when the recipe prints one; the maps' style; logo. A *Draft* view lays it out with stand-ins and draws its pictures one group at a time (**VIA reports**) |
 | | Field brief | PDF | Block, when there are several (shared with step 2's checklist) |
 | | Block map sheet | PDF, SVG, PNG; a series as one PDF or a `.zip` | Sheet type, paper, scale, block, map style, the fields the sheet prints; one sheet per block, which blocks, order, file names; the mask outside the block; logo (below) |
 | | Worksheet | Markdown | — |
@@ -547,7 +547,9 @@ that step, *Change in Package* and *Rate in Package* open the package's entry.
 No part points at step 5, which only opens Save & export.
 **Preview** builds the file itself and shows it (a PDF in the browser's viewer,
 an image, HTML in a sandboxed frame, an Excel workbook as its sheets read back
-from the file by `workbookPreview.ts`, text); *Download* saves that same file. A
+from the file by `workbookPreview.ts`, a Word file as its pages laid out from
+the file by document-kit (`viaReportWord.ts`), text); *Download* saves that
+same file. A
 binary file that is none of these is read back from its own bytes as text
 (`exportFilePreview.ts`, DOM-free): a GeoPackage is reopened with SQLite and
 lists each layer with its feature count, columns, first rows and whether it has
@@ -4302,8 +4304,8 @@ measured on a photo-montage, and the reviewer's design judgements.
 ## VIA reports
 
 Save & export → **VIA report** writes a whole report, not only its figures, in
-the structure of a reference VIA (a PDF by default, printable HTML, or Markdown
-for review). A
+the structure of a reference VIA (a PDF by default, a Word file, a PDF laid
+out from that Word file, printable HTML, or Markdown for review). A
 report is a **recipe**: an ordered list of shared **parts**
 (`src/pages/dev-forestry/viaReport/recipes.ts`, `parts.ts`) and the VIA document
 format whose arithmetic, scale and wording the parts read. The reports share
@@ -4477,6 +4479,51 @@ printed logo as a PNG or JPEG (a brand's SVG rasterised, as the analysis sheet
 takes it). The printable HTML is still offered for the browser's own print
 (*Print / save as PDF*, with the page sizes in its CSS) and is unchanged; the
 draft is HTML only.
+
+**The Word file** (`viaReport/word.ts`, `reportDocx`) is the same
+`AssembledReport` written through document-kit (`docs/document-kit.md`), by the
+PDF's page rules read from the PDF's own helpers (`bodyParts`, `completeAt`,
+`pageSpec`, `runningHeader`, with `isWide`, `isSheet`, `imageLabel`,
+`scaleGeometry` and `untitled`): each page kind is a Word section, so the
+paper, the cover centred on its own page, the landscape pages for wide tables,
+the 11 × 17 analysis sheets with their calculation strips, the full-size map
+sheets, the letter-landscape figure pages, the running header and "Page n of
+N" are the PDF's. The report's sections are Word headings and the contents is
+Word's own, listing them and the to-complete list, with the pictures listed
+under it by name; Word fills its page numbers when it updates the file's
+fields. A value nobody gave prints as a rule to fill by hand, an unfilled
+sentence is left out, and the to-complete list and the report's last line
+close the text before the figure pages, as in the PDF. A reviewer's hand edit
+prints in its place with the reviewer as its source, and the last line counts
+it, as the PDF says it. The text is Arial; the file is dated the day it was
+written, so the same report writes the same bytes that day.
+
+What Word cannot draw takes the nearest honest form rather than being left out.
+A scale is a table: its bands across their own share of the axis
+(`scaleGeometry`'s positions), its ticks centred on their places, and the
+reading as ▼ in a column of its own with its label beside it; on the guide a
+red column through the class bars is the reading's line, and the form's
+arrowhead is ►. A matrix's marked cell is shaded, ruled in red and ticked; the
+alteration guide's grid keeps its class colours, letters and white rules between
+classes, its row axis named in the corner (Word sets no text upright), and its X
+in the cell nearest the reading, the reading's place between cells stated under
+the grid. Tick boxes and the marked cell's tick are small pictures drawn by
+`word.ts` (`encodePng`), because the open fonts carry no ballot box or check. A
+map's legend is coloured swatches in a line with its scale and "North up"
+under the picture. Block marks are named under their picture ("Blocks in this
+view, left to right…") rather than ringed in it, a panorama prints its picture
+whole rather than its band, and an inset label prints over its picture rather
+than in its corner. A picture that is not a PNG or JPEG prints the PDF's box
+saying so.
+
+**PDF from the Word layout** is that same Word file laid out to a PDF by the
+kit (`docxToPdf`), so it paginates as the Word file does. The layout draws
+Arial in Arimo, the kit's open stand-in, served by this build
+(`viaReportWordFonts.ts`) and fetched only when this format or the Word file's
+preview is asked for. The layout fills the contents' page numbers and centres
+the cover on its page, as Word does; anything it could not draw is said in the
+file's note. The PDF stays the
+default: this format is for a report that must page as its Word file does.
 
 **Maps, before pictures and overhead renders.** When a report is built, the page
 captures what its figure parts need (`reportMaps.ts` plans them, DOM-free;

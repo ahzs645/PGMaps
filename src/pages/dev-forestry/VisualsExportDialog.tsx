@@ -276,6 +276,8 @@ type Preview =
   | { type: 'text'; text: string; truncated: boolean }
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+/** `DOCX_TYPE` in `viaReportWord.ts`, which is only loaded with a Word file. */
+const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 async function previewOf(file: BuiltFile): Promise<Preview> {
   const type = file.blob.type
@@ -296,6 +298,11 @@ async function previewOf(file: BuiltFile): Promise<Preview> {
   if (type === XLSX_TYPE) {
     const [{ workbookPreviewHtml }, ExcelJS] = await Promise.all([import('./workbookPreview'), import('exceljs')])
     return { type: 'html', html: await workbookPreviewHtml(await file.blob.arrayBuffer(), ExcelJS) }
+  }
+  // A Word file is shown as its pages, laid out from the file itself by the kit, never as its zipped bytes.
+  if (type === DOCX_TYPE) {
+    const { viaReportWordPagesHtml } = await import('./viaReportWord')
+    return { type: 'html', html: await viaReportWordPagesHtml(new Uint8Array(await file.blob.arrayBuffer())) }
   }
   if (type === 'application/zip') {
     const { projectArchiveFileList } = await import('./projectArchive')

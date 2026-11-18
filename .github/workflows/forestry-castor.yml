@@ -68,6 +68,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
+      - run: node scripts/ensure-document-kit.mjs
       - name: Verify upstream sample, source checksums and independent SQL fixtures
         run: python scripts/forestry-castor/reference/generate.py --check
       - name: Validate the browser engine, input contracts and spatial exports

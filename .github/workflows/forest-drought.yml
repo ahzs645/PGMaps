@@ -27,6 +27,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
+      - run: node scripts/ensure-document-kit.mjs
       - name: Verify the pinned published dataset and attribution
         run: |
           node scripts/forest-drought/prepare-published.mjs --check

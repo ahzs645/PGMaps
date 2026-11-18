@@ -1469,9 +1469,24 @@ export function useVisualsExport(input: {
       import('@/branding/raster'),
       import('./viaReport/pdf'),
     ])
-    const raster = chosenLogo ? await printedLogoRaster(branding) : null
-    const logo = chosenLogo && raster?.kind === 'url' ? { name: chosenLogo.name, dataUrl: raster.url } : reportLogo()
-    return reportPdf(report, logo, jspdf, anchors ? { anchors } : {})
+    return reportPdf(report, await printedReportLogo(printedLogoRaster), jspdf, anchors ? { anchors } : {})
+  }
+  /** The logo as a printed file takes it: a PNG or JPEG, a brand's SVG logo rasterised. */
+  const printedReportLogo = async (raster: (typeof import('@/branding/raster'))['printedLogoRaster']) => {
+    const drawn = chosenLogo ? await raster(branding) : null
+    return chosenLogo && drawn?.kind === 'url' ? { name: chosenLogo.name, dataUrl: drawn.url } : reportLogo()
+  }
+  /**
+   * The report as a Word file (`viaReport/word.ts`), the same report the PDF draws, dated the day it was written so the
+   * same report writes the same bytes that day. The kit and the writer load with the file, never with the page.
+   */
+  const reportDocxBytes = async (report: AssembledReport) => {
+    const [{ printedLogoRaster }, { viaReportDocx }] = await Promise.all([
+      import('@/branding/raster'),
+      import('./viaReportWord'),
+    ])
+    const day = `${new Date().toISOString().slice(0, 10)}T00:00:00Z`
+    return viaReportDocx(report, await printedReportLogo(printedLogoRaster), day)
   }
   /**
    * The draft on the pages the PDF prints (`ReportDraftView`'s *Pages*): the file's own writer run on the draft's
@@ -1557,6 +1572,19 @@ export function useVisualsExport(input: {
         const { report } = await composeReport('file')
         const fileName = `forestry-via-report-${reportRecipe.id}`
         if (format === 'md') return textFile(reportMarkdown(report), `${fileName}.md`, 'text/markdown')
+        if (format === 'docx' || format === 'docx-pdf') {
+          const docx = await reportDocxBytes(report)
+          const { DOCX_TYPE, viaReportWordPdf } = await import('./viaReportWord')
+          if (format === 'docx')
+            return { blob: new Blob([docx as BlobPart], { type: DOCX_TYPE }), fileName: `${fileName}.docx` }
+          // The kit lays out the very Word file the Word format saves, so the two paginate alike.
+          const pdf = await viaReportWordPdf(docx)
+          return {
+            blob: new Blob([pdf.bytes as BlobPart], { type: 'application/pdf' }),
+            fileName: `${fileName}-word-layout.pdf`,
+            ...(pdf.notes ? { notes: pdf.notes } : {}),
+          }
+        }
         if (format === 'pdf')
           return {
             blob: new Blob([await reportPdfBytes(report)], { type: 'application/pdf' }),

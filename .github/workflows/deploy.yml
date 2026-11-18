@@ -38,6 +38,9 @@ jobs:
       # npm ci spends most of a minute rebuilding node_modules from the npm
       # cache. Restore the whole tree when the lockfile and Node version match.
       # node_modules/.cache is left out: it holds build caches, not packages.
+      # vendor/document-kit builds with its own tools from its own lockfile
+      # (scripts/ensure-document-kit.mjs, run by the prebuild), so its tree and
+      # lockfile are part of the entry too.
       - name: Restore installed dependencies
         id: node-modules
         uses: actions/cache@v4
@@ -45,8 +48,9 @@ jobs:
           path: |
             node_modules
             packages/*/node_modules
+            vendor/document-kit/node_modules
             !node_modules/.cache
-          key: ${{ runner.os }}-node-modules-v1-${{ hashFiles('.nvmrc', 'package-lock.json') }}
+          key: ${{ runner.os }}-node-modules-v2-${{ hashFiles('.nvmrc', 'package-lock.json', 'vendor/document-kit/package-lock.json') }}
 
       - if: steps.node-modules.outputs.cache-hit != 'true'
         run: npm ci
