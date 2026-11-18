@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, curveDesignAt, horizontalCurveSummary, offsetCoordinate } from './engine'
-import { bandStations, bandTextWidth, bandValueAnchor, MAX_BAND_VALUES, profileValueBands } from './profileBands'
+import {
+  bandStations,
+  bandTextWidth,
+  bandValueAnchor,
+  MAX_BAND_VALUES,
+  profileValueBands,
+  stakeRows,
+} from './profileBands'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import { roadSidehill } from './sectionSideSlope'
 import { sectionCrossfall } from './templates'
@@ -167,5 +174,36 @@ describe('placing a band value inside the plot', () => {
     expect(bandValueAnchor(300, width, 90, 600)).toEqual({ x: 300, anchor: 'middle' })
     // Near but not at an edge, the text starts where centring would have started it, if that is inside.
     expect(bandValueAnchor(100, width, 90, 600)).toEqual({ x: 92, anchor: 'start' })
+  })
+})
+
+describe('slope-stake and clearing rows', () => {
+  const station = (chainage: number, over: Partial<RoadStation> = {}) =>
+    ({ chainage, leftDaylightM: 6.24, rightDaylightM: 4.5, ...over }) as RoadStation
+
+  it('signs the left stake negative and reads an incomplete side as unknown', () => {
+    const rows = stakeRows([station(0), station(20, { rightDaylightM: null })], false)
+    expect(rows.map((r) => r.key)).toEqual(['stakeLeft', 'stakeRight'])
+    expect(rows[0].values.map((v) => v.text)).toEqual(['-6.2', '-6.2'])
+    expect(rows[1].values.map((v) => v.text)).toEqual(['4.5', '—'])
+  })
+
+  it('adds a clearing row only when asked, with unknown where a station has none', () => {
+    const rows = stakeRows([station(0, { clearingWidthM: 14.25 }), station(20)], true)
+    expect(rows.at(-1)?.key).toBe('clearing')
+    expect(rows.at(-1)?.values.map((v) => v.text)).toEqual(['14.3', '—'])
+  })
+
+  it('leaves the plot book’s bands as they were and adds the stakes on screen', () => {
+    const analysis = analyzeRoad(road(), { elevationAt: () => 800 }, DEFAULT_ROAD_SETTINGS)
+    const plain = profileValueBands(analysis, road(), { start: 0, end: analysis.length, minSpacingM: 50 })
+    const screen = profileValueBands(analysis, road(), {
+      start: 0,
+      end: analysis.length,
+      minSpacingM: 50,
+      stakes: true,
+    })
+    expect(plain.rows.some((r) => r.key === 'stakeLeft')).toBe(false)
+    expect(screen.rows.map((r) => r.key)).toEqual([...plain.rows.map((r) => r.key), 'stakeLeft', 'stakeRight'])
   })
 })

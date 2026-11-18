@@ -11,6 +11,7 @@ import {
   ProfileGradeTrouble,
   PviDragReadoutBox,
   pviReadoutBoxAt,
+  rotatedLabelSide,
   type ProfilePlotFrame,
 } from './ProfileOverlays'
 import { ProfileValueBands } from './ProfileValueBands'
@@ -519,4 +520,17 @@ describe('chart distance measurements', () => {
       if (expected.startsWith('Avg slope:')) expect(readout(root)).not.toContain('Avg ground slope:')
     },
   )
+})
+
+describe('rotated curve-point labels', () => {
+  const frame = { top: 20, bottom: 300 }
+  it('reads above when clear, below when a VC label is in the way, and not at all when both are blocked', () => {
+    expect(rotatedLabelSide(100, 200, 60, frame, [])).toBe('above')
+    const vcLabel = { left: 70, top: 150, right: 140, bottom: 162 }
+    expect(rotatedLabelSide(100, 200, 60, frame, [vcLabel])).toBe('below')
+    const under = { left: 90, top: 230, right: 110, bottom: 240 }
+    expect(rotatedLabelSide(100, 200, 60, frame, [vcLabel, under])).toBeNull()
+    // A label clear of every obstacle keeps its old place.
+    expect(rotatedLabelSide(300, 200, 60, frame, [vcLabel])).toBe('above')
+  })
 })

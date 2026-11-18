@@ -170,7 +170,12 @@ export function ChartMeasurementReadout({
           </Button>
         </div>
       ) : (
-        <span className="rounded-sm bg-background/80 px-1 text-3xs text-muted-foreground" title={CHART_MEASURE_HINT}>
+        // Shown only while the chart is pointed at or focused, and with no backing: a resting hint with a
+        // background sat over the plot and hid the line under it (a mass curve lost about 120 m).
+        <span
+          className="px-1 text-3xs text-muted-foreground opacity-0 transition-opacity group-focus-within/chart:opacity-100 group-hover/chart:opacity-100"
+          title={CHART_MEASURE_HINT}
+        >
           Shift-click two points to measure
         </span>
       )}

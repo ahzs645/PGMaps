@@ -194,7 +194,11 @@ function DesignRoadSections(p: SidebarProps & { full: boolean }) {
       <HorizontalPoints {...p} />
       <StationingPanel workspace={p.workspace} />
       <VerticalAlignment {...p} />
-      <VerticalDesignControls workspace={p.workspace} drainageStale={p.drainageStale} />
+      <VerticalDesignControls
+        workspace={p.workspace}
+        drainageStale={p.drainageStale}
+        onPreviewRefineBoxes={p.onPreviewRefineBoxes}
+      />
       <SightDistancePanel workspace={p.workspace} />
       <ProfileGeometryPanel workspace={p.workspace} />
       <SwitchbackTools

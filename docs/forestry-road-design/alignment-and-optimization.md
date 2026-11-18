@@ -87,10 +87,12 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 | Ground under the road         | at least 50 % of its length (`MIN_GROUND_SHARE`), read every 1 m  | `verticalOptimizer.ts` `GROUND_SAMPLE_M`             | Error before any search, naming the widest gap               |
 | Spacing PVI beside a control  | gives way within a fifth of the spacing, at least 5 m             | `verticalOptimizer.ts` `REQUIRED_CLEARANCE`          | That PVI is left out                                         |
 | Exact levels beside a control | 80 more than the ladder at one PVI (`MAX_EXACT_LEVELS`)           | `verticalOptimizer.ts`                               | Further levels are not added                                 |
-| Search ±, level step, K       | UI 0.5–30 m, 0.1–5 m, 0.1–1,000; K 0 or more in the search        | `VerticalDesignControls.tsx`, `verticalOptimizer.ts` | Field rejects the value; a negative or missing K is an error |
+| Below, above, level step, K   | UI 0.5–30 m, 0.1–5 m, 0.1–1,000; K 0 or more in the search        | `VerticalDesignControls.tsx`, `verticalOptimizer.ts` | Field rejects the value; a negative or missing K is an error |
+| Band limits in the search     | above 0 m each; `maxDepthM` (5 m) sets both when they are absent  | `verticalOptimizer.ts` `belowM`, `aboveM`            | Error                                                        |
+| Station range                 | at least two PVI spacings; inside the road; needs a profile       | `verticalOptimizer.ts` `resolveStationRange`         | Error naming the range and what it needs                     |
 | Level transitions             | 5,000,000 across all price runs (`maxTransitions`)                | `verticalOptimizer.ts`                               | Error: coarsen the level step, reduce depth or widen spacing |
 | Section solves                | 60,000 (`maxSectionSolves`)                                       | `verticalOptimizer.ts`                               | Error: widen spacing or coarsen the step                     |
-| Depth band between PVIs       | ± (search ± plus about four level steps); ±7 m at defaults        | `verticalOptimizer.ts` `rows`                        | Station priced as incomplete                                 |
+| Depth band between PVIs       | below and above, each plus about four level steps; 7 m by default | `verticalOptimizer.ts` `rowsBelow`, `rowsAbove`      | Station priced as incomplete                                 |
 | Incomplete-section penalty    | $5,000 per m (`incompletePenaltyPerM`)                            | `verticalOptimizer.ts`                               | Added to the search cost only                                |
 | Simplification                | 0.3 m, then 0.15 and 0.075 m; kept if cost rises at most 1 % + $1 | `verticalOptimizer.ts` `finish`, `SIMPLIFY_SHARES`   | Unsimplified line kept                                       |
 | Imbalance prices (total cost) | 0, 0.25, 0.5, 1, 2 × max(1, fill, borrow, waste rate)             | `verticalOptimizer.ts` `prices`                      | —                                                            |
@@ -100,7 +102,7 @@ The dynamic programme runs on the page's main thread in slices of about 12 ms
 shows a percentage and **Cancel** stops the run at the next slice. Reading the ground along the
 road is sliced too, every 250 readings (`GROUND_SLICE`): finding the ground beside each PVI by
 walking the road again held the page for 17 s on a 5 km road mostly off the terrain. It also stops at its
-level-transition budget. Its work grows rapidly with levels per PVI (2 × search ÷ step + 1), up
+level-transition budget. Its work grows rapidly with levels per PVI ((below + above) ÷ step + 1), up
 to five times over for **Total cost**. For each last-level pair and proposed next level, a sorted prefix query
 selects the cheapest predecessor that leaves enough tangent; it does not repeat the same
 transition for every nondominated history. Those histories are retained where their curve
@@ -162,7 +164,10 @@ each check stopped: grade, missing terrain, a blocked area or the corridor's edg
 
 **Horizontal curves** (the four-pane data pane, or **Stations** in the detail view) reviews the geometry actually fitted. Simple curves have BC/EC
 events; spiralled curves have TS/SC/CS/ST, with full deflection and length including both spirals.
-Each event selects the shared plan/profile/section station. The compact table expands to show
+Each event selects the shared plan/profile/section station. The plan labels each curve `C2 R=30.0`
+(its turn in the tooltip) and, once the whole curve is 90 px long on screen
+(`CURVE_POINT_LABEL_MIN_PX`, `PlanView.tsx`), each event with its station (`BC 0+453.2`); selecting
+one selects its station. The compact table expands to show
 inside/outside formation widths, inside formation radius, inside daylight radius, profile grade,
 curve widening and required/capped/actual crossfall. **Curve CSV** exports these same values,
 criteria, source provenance, missing-data status and screening assumptions.
@@ -319,6 +324,40 @@ with K = 0 and no curve length, not on its entered length.
 
 **Profile optimizer** (`verticalOptimizer.ts`):
 
+- **Below and above** (RoadEng's *Min. offset* and *Max. offset*) are separate limits under and over
+  the band centre: a PVI's levels run from the centre less **Below** to the centre plus **Above**
+  in level steps (`ladderBelow`, `ladderAbove`), so a road where fill is unwelcome can be held close
+  to the ground on top and still cut deep. Both default to 5 m, the old ± search, and a caller that
+  passes only `maxDepthM` gets it as both, so earlier runs and their tests are unchanged.
+- **Station range** (RoadEng's *Station Range*; a blank end is the road's own) searches only the
+  PVIs between its two stations and keeps the profile outside them as it is
+  (`resolveStationRange`). The ends are entered as stations (`stationEntry.ts`) and kept as
+  chainage. A road with no profile has nothing to keep and is refused, as is a range shorter than
+  two PVI spacings, or one starting before the profile's first PVI or ending after its last. A range
+  end that falls on a vertical curve the engine builds moves out to that curve's far end, so the
+  curve is searched with the range rather than cut in two, and the log says so. Each range end is
+  then a PVI held at the kept profile's level there (on one of its tangents), exactly as read; an
+  end at the road's own start or end keeps **Tie both ends to ground**. The search joins the
+  **level**, not the grade: where the new grade differs from the kept one, the end gets a vertical
+  curve sized from K like any other, which the search fits between the kept PVI's curve and the
+  next searched PVI (minimum tangent included) as it goes, so the only stretch of the kept profile
+  that moves is that curve's outer half. The log names each join, its two grades and how far its
+  curve reaches outside the range. The returned profile is the kept PVIs (ids, levels and curve
+  lengths untouched) with the searched line spliced between them, and it is read back through the
+  engine like every other result: a kept curve the join would squeeze, or a join curve that does
+  not fit, refuses the line. Checks the road already failed outside the range are not the run's to
+  answer; a new one there is. Joint plan/profile refinement does not take a range.
+- **The search band on the profile.** After a run the profile draws the band the search was free
+  to use over the stretch it searched, as RoadEng draws its vertical band: the band centre the run
+  used (the ground, read straight across a gap, or the profile it started from) less **Below** and
+  plus **Above**, at every station it priced (`report.band.line`, `searchBandSamples` in
+  `profileSearchBand.ts`), as a light green hatch bounded by dotted green lines behind the ground
+  and formation, with **Search band** in the legend. It is session only, never in the project file
+  (`profileSearchBand` and `setProfileSearchBand` on the workspace), and drawn only on the road and
+  profile the result went into while that profile and the terrain are the ones the run used
+  (`shownSearchBand`): an edit to the profile, another road or profile, or another terrain puts it
+  away. **Clear search band** under the profile removes it. The band bounds the PVIs; between them
+  the line may leave it, and stations far outside it are priced as incomplete (below).
 - **Search band centre** chooses ground or the current fitted design. The area tables use the same
   reference, so a design high above ground is not silently searched around ground instead.
   Levels remain on the entered discrete ladder. "Tie both ends to ground" means
@@ -398,7 +437,7 @@ with K = 0 and no curve length, not on its entered length.
   ends are left to remove, that trial line fails and the message names the grade break, the curve
   it needs and the tangent it has.
 - An unsatisfied or infeasible control rejects the candidate; no missed control is accepted.
-- Between PVIs, a station more than about the search ± plus four level steps from the selected band reference is
+- Between PVIs, a station more than about **Below** (under it) or **Above** (over it) plus four level steps from the selected band reference is
   priced as incomplete at $5,000 per m. Deep fills over a gully between PVIs are discouraged,
   not costed.
 - **Cut and fill** minimizes cut × cut rate + fill × fill rate only. Surfacing and clearing are
@@ -766,12 +805,49 @@ generation disabled. Missing prices, permissions, capacity or connectivity remai
 base estimate replaces an unpriced network ledger. Adoption recomputes the final trial and saves
 the normal `FullCostReviewRecord`.
 
-| Limit                                                       | Enforcing constant or validation                         | Behavior                                             |
-| ----------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------- |
-| 12 interior horizontal controls                             | `jointOptimizer.ts`, `MAX_JOINT_MOVABLE_POINTS`          | Reject; simplify/split first                         |
-| 32 evaluations, UI 20                                       | `MAX_JOINT_EVALUATIONS`, `JointOptimizationControls.tsx` | Return best checked trial with budget-limited notice |
-| Plan step 0.1–100 m; 1–5 rounds                             | `refinePlanAndProfile`                                   | Reject invalid input                                 |
-| 100 curvature ranges; 500 combined PVI/control/range events | `project.ts` parser; `verticalOptimizer.ts` marks        | Reject rather than discard constraints               |
+### Movement limits
+
+The section's **Movement limits** follow RoadEng's Horizontal Optimization dialog. Every one is a
+session setting of the controls, never stored on the project, and with all of them at their
+defaults the search runs exactly as it did before they existed (`jointOptimizer.test.ts` pins it).
+
+- **Points that may move**: a tick per interior control, all ticked by default. An unticked control
+  is never moved, by any trial. Endpoints are always fixed. The 12-control limit counts ticked
+  controls only, so a longer road can be refined a stretch at a time.
+- **Across limit** and **Along limit**: a box round each control's starting place, oriented with
+  the road (the across axis is square to the chord between the control's neighbours as they were
+  when the run started; RoadEng's *Orient grid*). Blank is no limit, the default: the step schedule
+  alone then bounds a move, at most step × (2 − 2^(1 − rounds)) from the start. A trial that would
+  leave the box is shortened along its own direction to the box edge, and one with less than
+  `MIN_BOXED_MOVE_M` left is not tried, so no checked trial ever lies outside its box. A north-up
+  box (RoadEng's grid left unoriented) is not offered.
+- **Move across the road only** (RoadEng's *Perp. only*), on by default: each round tries each
+  control either side, square to its current neighbours' chord. Off, each round then also tries it
+  forward and back along that chord, and the along limit applies. With it on, a neighbour that has
+  already moved turns the chord, so a control can drift a little along the road; the along limit is
+  not applied to that drift.
+- **Time limit** (RoadEng's maximum time; the evaluation budget is its maximum iterations): blank
+  for none. Once it has passed, the search stops before its next trial and returns the best trial
+  checked so far with the budget-limited notice, saying the time limit was reached. The start and
+  its profile-only redesign are always checked first. Cancel still abandons the run at once.
+
+While the section is open, and while a run is going, the plan draws each ticked control's box
+(`movementBoxes`, `movementBoxFeatures`): solid where a limit is set, dashed at the schedule's
+reach where none is (a limit wider than that reach is drawn at the reach, which is as far as the
+search can go), and a small grey cross on each unticked control. After a run they stay round
+the road the run started from, so the adopted road's controls can be seen inside them. They are
+drawn only and take no clicks or hover.
+
+| Limit                                                       | Enforcing constant or validation                         | Behavior                                                  |
+| ----------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------- |
+| 12 ticked (moving) interior horizontal controls             | `jointOptimizer.ts`, `MAX_JOINT_MOVABLE_POINTS`          | Reject; untick, simplify or split first                   |
+| At least one ticked interior control                        | `refinePlanAndProfile`                                   | Reject                                                    |
+| 32 evaluations, UI 20                                       | `MAX_JOINT_EVALUATIONS`, `JointOptimizationControls.tsx` | Return best checked trial with budget-limited notice      |
+| Time limit 1–3600 s, blank for none                         | `MAX_JOINT_SECONDS`                                      | Return best checked trial; notice says time limit reached |
+| Plan step 0.1–100 m; 1–5 rounds                             | `refinePlanAndProfile`                                   | Reject invalid input                                      |
+| Across and along limits 0–500 m, blank for none             | `MAX_JOINT_BOX_M`                                        | Reject invalid input                                      |
+| A move shortened to its box edge with under 0.05 m left     | `jointOptimizer.ts`, `MIN_BOXED_MOVE_M`                  | Not tried                                                 |
+| 100 curvature ranges; 500 combined PVI/control/range events | `project.ts` parser; `verticalOptimizer.ts` marks        | Reject rather than discard constraints                    |
 
 The coordinate-descent search halves its plan step each round and never claims a global optimum.
 Profile section/transition budgets still apply to each trial. Cancellation abandons the run without

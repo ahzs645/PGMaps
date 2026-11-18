@@ -7,9 +7,18 @@ import { createDemoProject, demoTerrain } from './terrain'
 import type { RoadProject, TerrainSource } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
-vi.mock('./jointOptimizer', () => ({ refinePlanAndProfile: vi.fn() }))
+vi.mock('./jointOptimizer', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./jointOptimizer')>()),
+  refinePlanAndProfile: vi.fn(),
+}))
 vi.mock('./SidebarParts', () => ({
-  RoadSection: ({ children }: { children: ReactNode }) => createElement('section', {}, children),
+  RoadSection: ({ children, onOpenChange }: { children: ReactNode; onOpenChange?: (open: boolean) => void }) =>
+    createElement(
+      'section',
+      {},
+      createElement('button', { type: 'button', onClick: () => onOpenChange?.(true) }, 'Open section'),
+      children,
+    ),
 }))
 
 const BUSY = 'Refining plan and profile…'
@@ -29,11 +38,12 @@ function result(project: RoadProject): JointOptimizationResult {
     score: 10_000,
     evaluations: [{ points: structuredClone(project.alignments[0].points), score: 10_000, blockers: [] }],
     budgetLimited: false,
+    timeLimited: false,
     objective: 'engineering',
   }
 }
 
-function harness() {
+function harness(onPreviewBoxes?: (boxes: GeoJSON.FeatureCollection | null) => void) {
   let renderer: ReactTestRenderer | undefined
   let autoRender = true
   const state = {
@@ -75,6 +85,7 @@ function harness() {
         alignment: state.project.alignments.find((road) => road.id === state.project.activeAlignmentId)!,
         referenceSurfaces: {},
       } as unknown as RoadWorkspace,
+      onPreviewBoxes,
     })
   return {
     state,
@@ -89,6 +100,7 @@ function harness() {
     pauseRendering: () => {
       autoRender = false
     },
+    renderer: () => renderer!,
     click: () =>
       renderer!.root
         .findAllByType('button')
@@ -104,16 +116,25 @@ function harness() {
 
 let view: ReturnType<typeof harness> | undefined
 
-async function mounted() {
-  view = harness()
+async function mounted(onPreviewBoxes?: (boxes: GeoJSON.FeatureCollection | null) => void) {
+  view = harness(onPreviewBoxes)
   await act(async () => view!.mount())
   return view
 }
 
-beforeEach(() => vi.mocked(refinePlanAndProfile).mockReset())
+beforeEach(() => {
+  vi.mocked(refinePlanAndProfile).mockReset()
+  // The fields' (i) tips read the viewport and animate; this renderer has neither.
+  vi.stubGlobal('window', {
+    matchMedia: () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }),
+  })
+  vi.stubGlobal('requestAnimationFrame', () => 0)
+  vi.stubGlobal('cancelAnimationFrame', () => {})
+})
 afterEach(async () => {
   await act(async () => view?.unmount())
   view = undefined
+  vi.unstubAllGlobals()
 })
 
 describe('joint-refinement adoption ownership', () => {
@@ -304,5 +325,73 @@ describe('joint-refinement adoption ownership', () => {
     expect(refinePlanAndProfile).not.toHaveBeenCalled()
     expect(h.state.error).toContain('already has 20 road alternatives')
     expect(h.state.busy).toBe('')
+  })
+})
+
+describe('joint-refinement movement limits', () => {
+  /** A demo road with two interior controls, so one can be fixed and one left to move. */
+  async function withTwoInteriorPoints(onPreviewBoxes?: (boxes: GeoJSON.FeatureCollection | null) => void) {
+    const h = await mounted(onPreviewBoxes)
+    const project = h.state.project
+    const road = project.alignments.find((a) => a.id === project.activeAlignmentId)!
+    const [first, last] = [road.points[0].coordinate, road.points.at(-1)!.coordinate]
+    const mid = (t: number, side: number) =>
+      [first[0] + (last[0] - first[0]) * t + side * 1e-4, first[1] + (last[1] - first[1]) * t] as [number, number]
+    const points = [
+      road.points[0],
+      { id: 'p2', coordinate: mid(1 / 3, 1), radiusM: 30 },
+      { id: 'p3', coordinate: mid(2 / 3, -1), radiusM: 30 },
+      road.points.at(-1)!,
+    ]
+    await act(async () =>
+      h.replace({
+        project: { ...project, alignments: project.alignments.map((a) => (a === road ? { ...a, points } : a)) },
+      }),
+    )
+    return h
+  }
+  const checkbox = (h: ReturnType<typeof harness>, label: string) =>
+    h.renderer().root.find((n) => n.type === 'input' && n.props['aria-label'] === label)
+
+  it('passes the default limits, which leave the search as it was', async () => {
+    const h = await withTwoInteriorPoints()
+    vi.mocked(refinePlanAndProfile).mockReturnValueOnce(new Promise(() => {}))
+    await act(async () => h.click())
+    const options = vi.mocked(refinePlanAndProfile).mock.calls[0][4]!
+    expect(options.limits).toEqual({ fixedPointIds: [], acrossM: null, alongM: null, perpendicularOnly: true })
+    expect(options.maxSeconds).toBeNull()
+  })
+
+  it('sends an unticked point as fixed and moves along the road once that is on', async () => {
+    const h = await withTwoInteriorPoints()
+    await act(async () => checkbox(h, 'Point 2 may move').props.onChange({ target: { checked: false } }))
+    const acrossOnly = h.renderer().root.findAll((n) => n.props.label === 'Move across the road only')[0]
+    await act(async () => acrossOnly.props.onCheckedChange(false))
+    vi.mocked(refinePlanAndProfile).mockReturnValueOnce(new Promise(() => {}))
+    await act(async () => h.click())
+    const options = vi.mocked(refinePlanAndProfile).mock.calls[0][4]!
+    expect(options.limits).toMatchObject({ fixedPointIds: ['p2'], perpendicularOnly: false })
+  })
+
+  it('draws the boxes on the plan only while the section is open, and clears them on unmount', async () => {
+    const preview = vi.fn()
+    const h = await withTwoInteriorPoints(preview)
+    expect(preview).toHaveBeenLastCalledWith(null)
+    await act(async () =>
+      h
+        .renderer()
+        .root.findAllByType('button')
+        .find((b) => b.children.includes('Open section'))!
+        .props.onClick(),
+    )
+    const boxes = preview.mock.lastCall![0] as GeoJSON.FeatureCollection
+    expect(boxes.features.map((f) => f.properties!.role)).toEqual(['reach', 'reach'])
+    await act(async () => checkbox(h, 'Point 3 may move').props.onChange({ target: { checked: false } }))
+    expect((preview.mock.lastCall![0] as GeoJSON.FeatureCollection).features.map((f) => f.properties!.role)).toEqual([
+      'reach',
+      'fixed',
+    ])
+    await act(async () => h.unmount())
+    expect(preview).toHaveBeenLastCalledWith(null)
   })
 })

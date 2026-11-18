@@ -47,7 +47,17 @@ export function bandValueAnchor(
 /** A generous width for band text: digits and signs run about 0.6 em in the UI and print fonts. */
 export const bandTextWidth = (text: string, fontSize: number) => text.length * fontSize * 0.6
 
-export type ValueBandKey = 'ground' | 'design' | 'depth' | 'grade' | 'crossfallLeft' | 'crossfallRight' | 'sidehill'
+export type ValueBandKey =
+  | 'ground'
+  | 'design'
+  | 'depth'
+  | 'grade'
+  | 'crossfallLeft'
+  | 'crossfallRight'
+  | 'stakeLeft'
+  | 'stakeRight'
+  | 'clearing'
+  | 'sidehill'
 
 export interface BandValue {
   chainage: number
@@ -183,6 +193,7 @@ export function profileValueBands(
     minSpacingM,
     terrainOnly = false,
     sidehill,
+    stakes = false,
   }: {
     start: number
     end: number
@@ -193,6 +204,11 @@ export function profileValueBands(
      * Sidehill row; absent (the plot book), they are as before.
      */
     sidehill?: readonly StationSidehill[]
+    /**
+     * Add the slope-stake offsets each side and, where the road has one, the clearing width, after
+     * the crossfall rows (`stakeRows`). Off (the plot book), the bands are as before.
+     */
+    stakes?: boolean
   },
 ): ProfileValueBands {
   const stations = bandStations(analysis.stations, start, end, minSpacingM)
@@ -291,6 +307,13 @@ export function profileValueBands(
       }),
     })
   }
+  if (stakes)
+    rows.push(
+      ...stakeRows(
+        stations,
+        analysis.stations.some((s) => finite(s.clearingWidthM)),
+      ),
+    )
   rows.push(...sidehillRows)
   const { vertices, labels } = curvatureOf(alignment, start, end)
   return {
@@ -301,6 +324,40 @@ export function profileValueBands(
     curvatureLabels: labels,
     maxCurvaturePerKm: Math.max(0, ...vertices.map((v) => Math.abs(v.perKm))),
   }
+}
+
+/**
+ * Slope-stake offsets (where each batter meets the ground, RoadEng's L-Ssl/L-Ssr) as signed offsets,
+ * negative to the left looking up-station, and the clearing width when the road computes one. An
+ * incomplete section has no stake on that side, so it reads unknown rather than its template width.
+ */
+export function stakeRows(stations: readonly RoadStation[], clearing: boolean): ValueBandRow[] {
+  const offset = (s: RoadStation, side: 'left' | 'right'): BandValue => {
+    const daylight = side === 'left' ? s.leftDaylightM : s.rightDaylightM
+    if (!finite(daylight)) return unknown(s.chainage)
+    const value = side === 'left' ? -daylight : daylight
+    return { chainage: s.chainage, value, text: value.toFixed(1) }
+  }
+  const rows: ValueBandRow[] = (['left', 'right'] as const).map((side) => ({
+    key: side === 'left' ? 'stakeLeft' : 'stakeRight',
+    title: side === 'left' ? 'Stake L m' : 'Stake R m',
+    detail: `${side === 'left' ? 'Left' : 'Right'} slope stake: the offset from the centreline where the ${side} batter meets the ground (m), negative to the left looking up-station. — where the section is incomplete on that side.`,
+    values: stations.map((s) => offset(s, side)),
+  }))
+  // Decided over the whole road, not the window, so the row and the bands' height stay put while panning.
+  if (clearing)
+    rows.push({
+      key: 'clearing',
+      title: 'Clearing m',
+      detail:
+        'Clearing width across the road (m): the constructed catches plus any preparation margin. — where it is not computed.',
+      values: stations.map((s) =>
+        finite(s.clearingWidthM)
+          ? { chainage: s.chainage, value: s.clearingWidthM, text: s.clearingWidthM.toFixed(1) }
+          : unknown(s.chainage),
+      ),
+    })
+  return rows
 }
 
 /** The Sidehill row: magnitude and uphill side at the labelled stations, "lvl" on level ground. */

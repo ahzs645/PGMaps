@@ -250,6 +250,33 @@ disposal once. Network source/path selection retains the documented bounded deli
 heuristic; the exact fixed-road material solver does not turn that network heuristic into a global
 joint optimum over every route, pit and construction sequence.
 
+## Haul classes on the mass-haul diagram, and the haul diagram
+
+Once the haul plan is solved, the mass-haul diagram shades the area under its curve by haul class
+instead of surplus and deficit (`haulShading`, `haulDiagram.ts`). The curve's ordinate at a station is
+the net material crossing it, so each class of the movements that cross a stretch's middle in the
+curve's direction takes its own volume's share of the ordinate, from the zero line out. What no
+movement accounts for (a surplus or deficit with no site, carried on) is grey (**Not allocated**), so a
+few cubic metres hauled under a large unplaced surplus colour only their own height. An arrow on each run of the curve on one side of zero points the way
+material moves: up-station above zero, down-station below (`haulDirectionRuns`). Runs whose peak is
+under 4 % of the chart's height get no arrow.
+
+Under the chart, **Haul diagram** is RoadEng's Opti-Haul diagram (`haulDiagram`): every movement the
+plan made, from the station it is dug at to the station it is placed at, in the row of its haul class
+(sidecast in a row of its own), as thick as its volume, with an arrowhead where it is placed. Borrow
+and waste sites are marked at their access stations (◗ borrow, ◖ waste). Bands in one lane never
+overlap; a row stacks at most `HAUL_DIAGRAM_MAX_LANES` (6) lanes and folds the rest into its last lane,
+saying how many. The material list filters it to one material. Selecting a band selects its source
+station.
+
+The chart's key groups the curves and the haul classes, each class with its distance range and volume;
+the readouts under it are one line (the balance at the selected station and at the end, and what no
+site had room for). The same end balance, haul by class and unplaced volumes are offered as Road summary
+rows, hidden until chosen in its settings.
+
+Both read the plan's own movements and the curve the chart already draws. Neither feeds a quantity, a
+cost or an export, and neither appears for a plan that was not solved.
+
 ## What-if balance line
 
 **What-if balance line**, under the mass-haul diagram, puts a horizontal balance line on the
@@ -377,6 +404,7 @@ plan, the pit of last resort and fill by material on the page
 | Pit of last resort: priority penalty 100 × the largest per-m³ cost                                            | `LAST_RESORT_PRIORITY`                                                                        |
 | What-if balance line: 400 layers per loop plus one break at every vertex height; within the curve's own range | `BALANCE_LINE_LAYERS`, `balanceLevelRange`, `balanceLine.ts`                                  |
 | Mass Haul export: 400 layers per loop, as the balance line                                                    | `MASS_HAUL_LAYERS`, `massHaulItems`                                                           |
+| Haul diagram: 6 lanes a row, the rest folded into the last lane and counted; arrows on runs over 4 % of the chart | `HAUL_DIAGRAM_MAX_LANES`, `haulDiagram.ts`; `HaulDirectionArrows`, `Charts.tsx`              |
 | Softree CSV read: 100 MB / 2,000,000 rows; Areas file 500 code pairs a record                                 | `MAX_SOFTREE_CSV_BYTES`, `MAX_SOFTREE_CSV_ROWS`, `MAX_OPTIMAL_AREA_PAIRS`                     |
 | Optimal material descriptions: 50 characters                                                                  | `OPTIMAL_DESCRIPTION_CHARS`                                                                   |
 | Compare with RoadEng: 50 MB file; 400 rows drawn (the comparison CSV holds every row); agree within 0–50 %    | `MAX_COMPARE_FILE_BYTES`, `MAX_COMPARE_ROWS_SHOWN`, `MAX_COMPARE_RELATIVE_PERCENT`            |

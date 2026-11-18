@@ -15,6 +15,7 @@ import {
 } from './profileAnnotations'
 import { CURSOR_LINES_BELOW_PX, cursorOnLeft } from './ProfileEditing'
 import { formatStation } from './verticalStandards'
+import type { LabelBox } from './profileLabelLayout'
 import type { RoadStation } from './types'
 
 /** Where the profile's plot sits: station and elevation to pixels, and the plot's edges. */
@@ -98,6 +99,31 @@ export function ProfileGradeTrouble({
 }
 
 /**
+ * Which side of its mark a rotated curve-point label reads on: above when it fits under the plot's
+ * top and crosses no obstacle, else below when that fits, else null (the tooltip keeps it). The label
+ * runs `length` px up from 9 px above the mark, or down from 9 px below it, about 9 px wide.
+ */
+export function rotatedLabelSide(
+  x: number,
+  y: number,
+  length: number,
+  frame: Pick<ProfilePlotFrame, 'top' | 'bottom'>,
+  obstacles: readonly LabelBox[],
+): 'above' | 'below' | null {
+  const clear = (box: LabelBox) =>
+    !obstacles.some((o) => box.left < o.right && o.left < box.right && box.top < o.bottom && o.top < box.bottom)
+  const left = x - 6,
+    right = x + 4
+  const above: LabelBox = { left, right, top: y - 9 - length, bottom: y - 9 }
+  if (above.top >= frame.top && clear(above)) return 'above'
+  const below: LabelBox = { left, right, top: y + 9, bottom: y + 9 + length }
+  if (below.bottom <= frame.bottom && clear(below)) return 'below'
+  // Neither side clears a VC label: keep the old placement only when nothing is in the way of it.
+  if (!obstacles.length) return above.top >= frame.top ? 'above' : 'below'
+  return null
+}
+
+/**
  * BVC and EVC ticks, crest high (▲) and sag low (▼) points on the design line, each with a rotated
  * "name station · elevation" label. A sag with no culvert near it is red and says so. Labels thin
  * with zoom (a flagged sag first, curve ends last) so none overlaps; every marker's tooltip keeps the
@@ -109,6 +135,7 @@ export function ProfileCurvePoints({
   domain,
   onStation,
   plan,
+  obstacles = [],
 }: {
   points: readonly CurvePoint[]
   frame: ProfilePlotFrame
@@ -116,6 +143,11 @@ export function ProfileCurvePoints({
   onStation: (chainage: number) => void
   /** Which markers and labels the profile has room for (`planProfileMarks`); else thinned here alone. */
   plan?: { markers: ReadonlySet<string>; curveLabels: ReadonlySet<string>; crowded?: boolean }
+  /**
+   * Screen boxes a rotated label must not cross, such as the "VC 40 K=9.5" labels over the PVIs: a
+   * label goes below the line when above would cross one, and is left to its tooltip when both would.
+   */
+  obstacles?: readonly LabelBox[]
 }) {
   const visible = points.filter((p) => inView(p.chainage, domain))
   if (!visible.length) return null
@@ -144,9 +176,9 @@ export function ProfileCurvePoints({
             ? '#7c3aed'
             : '#0f766e'
         const text = plan?.crowded ? curvePointShortLabel(point) : curvePointLabel(point)
-        const length = text.length * CHAR_PX
-        // Above the line when the label fits under the plot's top, else below it.
-        const above = y - 9 - length >= frame.top
+        const side = labelled.has(point.id) ? rotatedLabelSide(x, y, text.length * CHAR_PX, frame, obstacles) : null
+        // Above the line when the label fits under the plot's top and clears the VC labels, else below.
+        const above = side !== 'below'
         const labelY = above ? y - 9 : y + 9
         const interactive = point.kind === 'high' || point.kind === 'low'
         return (
@@ -182,7 +214,7 @@ export function ProfileCurvePoints({
             ) : (
               <line x1={x} x2={x} y1={y - 5} y2={y + 5} stroke={color} strokeWidth={1.6} />
             )}
-            {labelled.has(point.id) && (
+            {side !== null && (
               <text
                 x={x + 3}
                 y={labelY}

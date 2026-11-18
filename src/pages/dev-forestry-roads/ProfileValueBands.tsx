@@ -21,10 +21,14 @@ const SUPER_PX = 34
 const plotLeft = (width: number) => (width < 380 ? 48 : 58)
 const PLOT_RIGHT = 16
 /**
- * Three rows (ground, ground grade, sidehill) on a terrain profile; seven and the curvature diagram on
- * a road.
+ * Three rows (ground, ground grade, sidehill) on a terrain profile. On a road: nine (the seven
+ * elevation, depth, grade, crossfall and sidehill rows plus both slope stakes), a tenth for the
+ * clearing width when the road computes one, and the curvature and superelevation diagrams.
  */
-const bandsHeight = (terrainOnly: boolean) => (terrainOnly ? 3 * ROW_PX : 7 * ROW_PX + CURVATURE_PX + SUPER_PX) + 2
+const bandsHeight = (terrainOnly: boolean, clearing: boolean) =>
+  (terrainOnly ? 3 * ROW_PX : (clearing ? 10 : 9) * ROW_PX + CURVATURE_PX + SUPER_PX) + 2
+const hasClearing = (analysis: RoadAnalysis) =>
+  analysis.stations.some((s) => typeof s.clearingWidthM === 'number' && Number.isFinite(s.clearingWidthM))
 
 /** The sidehill strip's fill by class: none on gentle ground, rising tints, then amber and red. */
 const SIDEHILL_FILL: Record<SidehillClass, string | null> = {
@@ -95,7 +99,7 @@ export function ProfileValueBands({
   if (!(analysis.length > 0) || !(end > start)) return null
   return (
     <div data-testid="road-profile-value-bands" data-range-start={start} data-range-end={end}>
-      <SizedChart height={bandsHeight(terrainOnly)}>
+      <SizedChart height={bandsHeight(terrainOnly, hasClearing(analysis))}>
         {(width) => (
           <ValueBandsSvg
             width={width}
@@ -140,12 +144,15 @@ function ValueBandsSvg({
   // Every station's sidehill once per analysis; panning and zooming only re-window it.
   const sidehill = useMemo(() => roadSidehill(analysis.stations), [analysis.stations])
   const bands = useMemo(
-    () => profileValueBands(analysis, alignment, { start, end, minSpacingM, terrainOnly, sidehill }),
+    () => profileValueBands(analysis, alignment, { start, end, minSpacingM, terrainOnly, sidehill, stakes: true }),
     [analysis, alignment, start, end, minSpacingM, terrainOnly, sidehill],
   )
   const x = (chainage: number) => left + ((chainage - start) / Math.max(1e-9, end - start)) * plotWidth
   const showCurvature = !terrainOnly
-  const height = bandsHeight(terrainOnly)
+  const height = bandsHeight(
+    terrainOnly,
+    bands.rows.some((row) => row.key === 'clearing'),
+  )
   const chainages = bands.stations.map((s) => s.chainage)
   const step = (event: KeyboardEvent<SVGSVGElement>) => {
     const forward = event.key === 'ArrowRight',

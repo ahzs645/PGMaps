@@ -28,6 +28,7 @@ import { parseProject } from './project'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import { JointOptimizationControls } from './JointOptimizationControls'
 import { addVerticalAlternative, snapshotActiveVerticalAlternative } from './verticalAlternatives'
+import { profileSearchBand } from './profileSearchBand'
 
 const uid = () => crypto.randomUUID()
 
@@ -35,10 +36,13 @@ const uid = () => crypto.randomUUID()
 export function VerticalDesignControls({
   workspace,
   drainageStale = true,
+  onPreviewRefineBoxes,
 }: {
   workspace: RoadWorkspace
   /** Whether the saved drainage check no longer matches the road: its modelled crossings are then left out. */
   drainageStale?: boolean
+  /** Joint refinement's movement boxes for the plan; null clears them. */
+  onPreviewRefineBoxes?: (boxes: GeoJSON.FeatureCollection | null) => void
 }) {
   const { alignment, analysis, setStation, updateAlignment } = workspace
   // Range ends and control stations take the road's station names (`stationEntry.ts`).
@@ -49,12 +53,19 @@ export function VerticalDesignControls({
   const [resultTarget, setResultTarget] = useState<'road' | 'vertical'>('road')
   const [search, setSearch] = useState({
     pviSpacingM: DEFAULT_VERTICAL_OPTIMIZATION.pviSpacingM,
-    maxDepthM: DEFAULT_VERTICAL_OPTIMIZATION.maxDepthM,
+    // RoadEng's Min. and Max. offset around the band centre.
+    belowM: DEFAULT_VERTICAL_OPTIMIZATION.maxDepthM,
+    aboveM: DEFAULT_VERTICAL_OPTIMIZATION.maxDepthM,
     levelStepM: DEFAULT_VERTICAL_OPTIMIZATION.levelStepM,
     tieEndsToGround: true,
     objective: 'earthwork' as 'earthwork' | 'total',
     bandCenter: 'ground' as 'ground' | 'design',
   })
+  // RoadEng's Station Range, in chainage, for the road it was entered on; blank ends are the road's ends.
+  const [rangeEntry, setRangeEntry] = useState<{ roadId: string; from: number | null; to: number | null } | null>(null)
+  const searchRange = rangeEntry?.roadId === alignment.id ? rangeEntry : null
+  const setSearchRange = (patch: { from?: number | null; to?: number | null }) =>
+    setRangeEntry({ roadId: alignment.id, from: searchRange?.from ?? null, to: searchRange?.to ?? null, ...patch })
   // The last run's record, shown under the button for the road or profile it produced.
   const [log, setLog] = useState<{ roadId: string; profileId?: string; report: VerticalOptimizationReport } | null>(
     null,
@@ -88,6 +99,10 @@ export function VerticalDesignControls({
         {
           ...search,
           k,
+          stationRange:
+            searchRange && (searchRange.from !== null || searchRange.to !== null)
+              ? { from: searchRange.from ?? 0, to: searchRange.to ?? analysis.length }
+              : null,
           context: project.context,
           referenceSurfaces: workspace.referenceSurfaces,
           verticalReference: project.terrain.verticalReference,
@@ -142,6 +157,8 @@ export function VerticalDesignControls({
         }),
       )
       setLog({ roadId: candidate.id, profileId: candidate.activeVerticalAlternativeId, report: result.report })
+      // The band the run searched, drawn on the result's profile until it or the terrain changes.
+      workspace.setProfileSearchBand(profileSearchBand(result.report, candidate, source))
       const money = (n: number) => `$${Math.round(n).toLocaleString('en-CA')}`
       const { notes } = result.report
       workspace.setNotice(
@@ -530,7 +547,7 @@ export function VerticalDesignControls({
             Set every curve from K
           </Button>
         </div>
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-2 gap-1">
           <NumberField
             label="PVI spacing (m)"
             value={search.pviSpacingM}
@@ -540,18 +557,50 @@ export function VerticalDesignControls({
             onChange={(pviSpacingM) => setSearch((x) => ({ ...x, pviSpacingM }))}
           />
           <NumberField
-            label="Search ± (m)"
-            value={search.maxDepthM}
-            min={0.5}
-            max={30}
-            onChange={(maxDepthM) => setSearch((x) => ({ ...x, maxDepthM }))}
-          />
-          <NumberField
             label="Level step (m)"
             value={search.levelStepM}
             min={0.1}
             max={5}
             onChange={(levelStepM) => setSearch((x) => ({ ...x, levelStepM }))}
+          />
+          <NumberField
+            label="Below (m)"
+            hint="The search band: how far below and above its centre (the ground, or the current design) a PVI may go, as RoadEng's Min. and Max. offset. Below limits cut, Above limits fill. After a run the profile draws the band, dotted green, over the stretch searched."
+            value={search.belowM}
+            min={0.5}
+            max={30}
+            onChange={(belowM) => setSearch((x) => ({ ...x, belowM }))}
+          />
+          <NumberField
+            label="Above (m)"
+            value={search.aboveM}
+            min={0.5}
+            max={30}
+            onChange={(aboveM) => setSearch((x) => ({ ...x, aboveM }))}
+          />
+        </div>
+        <div
+          className={cn('mt-1 grid items-end gap-1', stations.named ? 'grid-cols-1' : 'grid-cols-2')}
+          data-testid="road-profile-search-range"
+        >
+          <OptionalStationField
+            entry={stations}
+            label="Range from"
+            placeholder="start"
+            hint="Search only between these stations and keep the profile outside them, as RoadEng's Station Range. Each end joins the kept profile at its level; where the grade changes there, a vertical curve rounds the join. Blank is the road's own end. At least two PVI spacings long."
+            value={searchRange?.from ?? null}
+            min={0}
+            max={analysis.length}
+            onChange={(from) => setSearchRange({ from })}
+          />
+          <OptionalStationField
+            entry={stations}
+            label="Range to"
+            placeholder="end"
+            value={searchRange?.to ?? null}
+            min={0}
+            max={analysis.length}
+            onChange={(to) => setSearchRange({ to })}
           />
         </div>
         <label className="mt-2 flex items-center justify-between gap-2 text-xs">
@@ -620,7 +669,11 @@ export function VerticalDesignControls({
           </div>
         )}
       </RoadSection>
-      <JointOptimizationControls workspace={workspace} profile={{ ...search, k }} />
+      <JointOptimizationControls
+        workspace={workspace}
+        profile={{ ...search, k }}
+        onPreviewBoxes={onPreviewRefineBoxes}
+      />
       <RoadSection
         title="Control points"
         summary={controls.length ? `${controls.length} set` : 'None set'}

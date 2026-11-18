@@ -22,6 +22,19 @@ export interface MetricSummaryItem extends StatItem {
   qualifier?: string
   value: string
   note: string
+  /**
+   * Where the row starts until someone chooses: `hidden` offers an extra measurement in the settings
+   * without taking room in the summary. Defaults to `value`.
+   */
+  defaultLevel?: MetricLevel
+}
+
+/** A row's level: the stored choice, else the row's own default, else its value. */
+export function metricLevel(
+  metric: Pick<MetricSummaryItem, 'key' | 'defaultLevel'>,
+  levels: Partial<Record<string, MetricLevel>>,
+): MetricLevel {
+  return levels[metric.key] ?? metric.defaultLevel ?? 'value'
 }
 
 /** A row's full name: its label and qualifier, as the settings, the tooltip and assistive technology read it. */
@@ -221,7 +234,7 @@ export function MetricSummary({
   const lower = title.toLowerCase()
   const pane = variant === 'pane'
   const collapsible = small && !pane
-  const shown = metrics.filter((metric) => preferences.metrics[metric.key] !== 'hidden')
+  const shown = metrics.filter((metric) => metricLevel(metric, preferences.metrics) !== 'hidden')
   if (!pane && (!preferences.visible || !shown.length)) return null
   return (
     <aside
@@ -278,7 +291,7 @@ export function MetricSummary({
           }}
         >
           {shown.map((metric) => {
-            const detailed = preferences.metrics[metric.key] === 'detailed'
+            const detailed = metricLevel(metric, preferences.metrics) === 'detailed'
             const name = metricName(metric)
             return (
               <dl
@@ -393,7 +406,7 @@ export function MetricSummarySettings({
   children,
 }: {
   title: string
-  metrics: Pick<MetricSummaryItem, 'key' | 'label' | 'qualifier'>[]
+  metrics: Pick<MetricSummaryItem, 'key' | 'label' | 'qualifier' | 'defaultLevel'>[]
   controls: MetricSummaryControls
   /** The row whose control takes focus first. */
   selected?: string
@@ -437,7 +450,7 @@ export function MetricSummarySettings({
             <MetricSummarySelect
               triggerRef={metric.key === selected ? initialControl : undefined}
               ariaLabel={`Display for ${metricName(metric)}`}
-              value={preferences.metrics[metric.key] ?? 'value'}
+              value={metricLevel(metric, preferences.metrics)}
               onValueChange={(value) => change({ metrics: { [metric.key]: value as MetricLevel } })}
               options={LEVELS}
             />
@@ -445,7 +458,7 @@ export function MetricSummarySettings({
         ))}
       </fieldset>
       {(preferences.visible || !visibility) &&
-        metrics.every((metric) => preferences.metrics[metric.key] === 'hidden') && (
+        metrics.every((metric) => metricLevel(metric, preferences.metrics) === 'hidden') && (
           <p role="status" className="mt-2 text-xs text-muted-foreground">
             All measurements are hidden. Select a value to show it in the summary.
           </p>

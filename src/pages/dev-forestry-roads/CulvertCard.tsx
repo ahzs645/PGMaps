@@ -1,5 +1,6 @@
 import { MapPopup } from '@/components/ui/map'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { MapPopupFit } from '@/components/ui/map-popup-fit'
 import { KeyValueRows } from '@/components/ui/map-panels'
 import { formatRoadStation } from './Charts'
 import { CULVERT_SHAPES, culvertBarrels, culvertPurposeOf, culvertShapeOf, culvertSpanM } from './culverts/culvertShape'
@@ -66,47 +67,50 @@ export function CulvertCard({
       closeOnClick={false}
       className="w-60"
     >
-      <MapPopupCard eyebrow={purpose} title={culvert.name} onClose={onClose} closeLabel="Close culvert details">
-        <div data-testid="road-culvert-card">
-          <KeyValueRows
-            variant="grid"
-            rows={rows.map(([label, value]) => ({ key: label, label, value }))}
-            valueClassName="tabular-nums"
-          />
-        </div>
-        {culvert.warnings.length > 0 && (
-          <ul className="space-y-0.5 text-2xs text-warning">
-            {culvert.warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        )}
-        {together.length > 0 && onPick && (
-          <div className="space-y-1 border-t pt-2" data-testid="road-culvert-card-together">
-            <div className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Also at this station
-            </div>
-            <ul className="space-y-0.5">
-              {together.map((other) => (
-                <li key={other.culvert.id}>
-                  <button
-                    type="button"
-                    className="flex w-full items-baseline justify-between gap-2 rounded-sm px-1 py-0.5 text-left hover:bg-accent"
-                    onClick={() => onPick(other.culvert.id)}
-                  >
-                    <span className={other.culvert.warnings.length ? 'text-warning' : undefined}>
-                      {other.culvert.name}
-                    </span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {other.design ? culvertOpeningLabel(other.design) : formatRoadStation(other.culvert.chainage)}
-                    </span>
-                  </button>
-                </li>
+      {/* Its warnings can make it taller than a short plan pane: it scrolls rather than running off the map. */}
+      <MapPopupFit>
+        <MapPopupCard eyebrow={purpose} title={culvert.name} onClose={onClose} closeLabel="Close culvert details">
+          <div data-testid="road-culvert-card">
+            <KeyValueRows
+              variant="grid"
+              rows={rows.map(([label, value]) => ({ key: label, label, value }))}
+              valueClassName="tabular-nums"
+            />
+          </div>
+          {culvert.warnings.length > 0 && (
+            <ul className="space-y-0.5 text-2xs text-warning">
+              {culvert.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
               ))}
             </ul>
-          </div>
-        )}
-      </MapPopupCard>
+          )}
+          {together.length > 0 && onPick && (
+            <div className="space-y-1 border-t pt-2" data-testid="road-culvert-card-together">
+              <div className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Also at this station
+              </div>
+              <ul className="space-y-0.5">
+                {together.map((other) => (
+                  <li key={other.culvert.id}>
+                    <button
+                      type="button"
+                      className="flex w-full items-baseline justify-between gap-2 rounded-sm px-1 py-0.5 text-left hover:bg-accent"
+                      onClick={() => onPick(other.culvert.id)}
+                    >
+                      <span className={other.culvert.warnings.length ? 'text-warning' : undefined}>
+                        {other.culvert.name}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        {other.design ? culvertOpeningLabel(other.design) : formatRoadStation(other.culvert.chainage)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </MapPopupCard>
+      </MapPopupFit>
     </MapPopup>
   )
 }

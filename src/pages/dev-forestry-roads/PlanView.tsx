@@ -169,6 +169,8 @@ const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
 }
 interface PlanProps {
   detailArea?: Coordinate[][] | null
+  /** Joint refinement's movement boxes (`movementBoxFeatures`): drawn only, never picked. */
+  refineBoxes?: GeoJSON.FeatureCollection | null
   /** A drawing tool's card (`MapToolPanel`), shown in the corner the plan tools use. */
   toolPanel?: ReactNode
   /** A tool's card in the plan's top-right corner, stacked with the Sentinel-2 card (existing-ground drainage). */
@@ -687,7 +689,8 @@ function Layers(
           ? [
               {
                 id: `curve-${index}`,
-                label: `${name} ${curve.direction === 'left' ? 'L' : 'R'} R=${curve.radius.toFixed(1)}`,
+                // RoadEng's plan label: name and radius. The turn's direction is in the title.
+                label: `${name} R=${curve.radius.toFixed(1)}`,
                 title: `Horizontal curve ${name}: ${curve.direction} turn, radius ${curve.radius.toFixed(1)} m, full deflection ${curve.deflectionDegrees.toFixed(1)}°, circular arc ${curve.length.toFixed(1)} m, full curve ${curve.fullLength.toFixed(1)} m; ${events}`,
                 at,
                 curve,
@@ -699,6 +702,29 @@ function Layers(
       return []
     }
   }, [props.alignment, props.terrainOnly, pixelMetres])
+  // Curve points (BC/EC, or TS/SC/CS/ST with spirals) labelled with their stations along the road, on
+  // the radius label's side, once the whole curve is long enough on screen for its labels not to touch.
+  const curvePointLabels = useMemo(
+    () =>
+      radiusLabels.flatMap(({ id, curve }) =>
+        pixelMetres !== null && curve.fullLength / pixelMetres >= CURVE_POINT_LABEL_MIN_PX
+          ? horizontalCurveEvents(curve).flatMap((event) => {
+              const at = placeOn(props.alignment, event.chainage)
+              return at
+                ? [
+                    {
+                      id: `${id}-${event.label}`,
+                      label: `${event.label} ${formatRoadStation(event.chainage)}`,
+                      at,
+                      event,
+                    },
+                  ]
+                : []
+            })
+          : [],
+      ),
+    [radiusLabels, pixelMetres, props.alignment],
+  )
   const allLines = useMemo(() => {
     if (investigation) return fc([])
     const colors = distinctRoadColors(props.project.alignments)
@@ -2288,6 +2314,29 @@ function Layers(
             </MapMarker>
           )
         })}
+      {props.showLabels &&
+        curvePointLabels.map(({ id, label, at, event }) => {
+          const [dx, dy] = labelOffset(at.bearing, view?.bearing ?? 0, label.length, -1)
+          return (
+            <MapMarker
+              key={`curve-point-${id}`}
+              longitude={at.coordinate[0]}
+              latitude={at.coordinate[1]}
+              offset={[dx, dy]}
+            >
+              <MarkerContent>
+                <button
+                  className="whitespace-nowrap rounded-sm bg-violet-50/85 px-1 text-3xs leading-4 tabular-nums text-violet-800"
+                  data-plan-curve-point={event.label}
+                  aria-label={`Inspect curve point ${event.label} at ${formatRoadStation(event.chainage)}`}
+                  onClick={() => props.onStation(event.chainage)}
+                >
+                  {label}
+                </button>
+              </MarkerContent>
+            </MapMarker>
+          )
+        })}
       {props.mode === 'edit' &&
         props.alignment.points.map((p, index, points) => {
           // A point closer than a handle's width to a neighbour shrinks to a dot, so a dense
@@ -2645,6 +2694,8 @@ const MIN_BEND_ROOM_RADII = 1
 const REFUSED_EDIT_COLOR = '#e11d48'
 /** Numbered handles are 28 px; closer than this to a neighbour, a point shows as a dot. */
 const MIN_HANDLE_SPACING_PX = 34
+/** On-screen length (px) a whole horizontal curve needs before its BC/EC labels show. */
+const CURVE_POINT_LABEL_MIN_PX = 90
 /** A handle moved less than this was a slip, so no point is added. */
 const MIN_BEND_DRAG_PX = 10
 /** How far inside its arc the selected point's curve handle is drawn, clear of the point's own handle. */
@@ -3134,6 +3185,30 @@ export function PlanView(input: PlanProps) {
               width={2}
               dashArray={[3, 2]}
             />
+          )}
+          {props.refineBoxes && (
+            <>
+              {/* A set limit is solid; the step schedule's reach and a fixed point's cross are dashed. */}
+              <MapLineLayer
+                interactive={false}
+                sourceKey="road-refine-boxes"
+                data={props.refineBoxes}
+                filter={['==', ['get', 'role'], 'box']}
+                color="#c026d3"
+                width={2}
+                opacity={0.9}
+              />
+              <MapLineLayer
+                interactive={false}
+                sourceKey="road-refine-reach"
+                data={props.refineBoxes}
+                filter={['!=', ['get', 'role'], 'box']}
+                color={['match', ['get', 'role'], 'fixed', '#64748b', '#c026d3']}
+                width={1.5}
+                opacity={0.8}
+                dashArray={[2, 2]}
+              />
+            </>
           )}
           {showSentinel && !plane && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
           <Layers

@@ -181,7 +181,7 @@ import { formatNumber } from '@/lib/format'
 import { roadSummaryMetrics } from './dev-forestry-roads/roadSummaryMetrics'
 import { parseRoadReportSettings } from './dev-forestry-roads/reportSettings'
 import { useSummaryPreferences } from './dev-forestry-roads/summaryPreferences'
-import { MetricSummaryLayout } from '@/components/ui/metric-summary'
+import { MetricSummaryLayout, metricLevel } from '@/components/ui/metric-summary'
 import { TilePaneClose } from '@/components/ui/tiled-workspace'
 import { ResizableSplit } from '@/components/ui/resizable-split'
 import { PanelCorner } from '@/components/ui/panel-corner'
@@ -287,6 +287,7 @@ import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/Desig
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
 import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
 import { projectProfileJunctions, withVerticalControl } from './dev-forestry-roads/profileJunctions'
+import { shownSearchBand } from './dev-forestry-roads/profileSearchBand'
 import { minimumControlExportNotes } from './dev-forestry-roads/verticalStandards'
 import { DEFAULT_DESIGN_STANDARDS, gradeRule } from './dev-forestry-roads/designStandards'
 import {
@@ -795,6 +796,8 @@ export default function DevForestryRoads({
   const [planPick, setPlanPick] = useState<{ prompt: string; onPick: (at: Coordinate) => void } | null>(null)
   const [accessMarks, setAccessMarks] = useState<AccessMark[] | null>(null)
   const [skidReachFeatures, setSkidReachFeatures] = useState<GeoJSON.Feature[] | null>(null)
+  // Joint refinement's movement boxes, drawn on the plan while its section is open or running.
+  const [refineBoxes, setRefineBoxes] = useState<GeoJSON.FeatureCollection | null>(null)
   const drawnArea =
     polygonKind === 'harvest'
       ? 'harvest block'
@@ -6611,6 +6614,7 @@ export default function DevForestryRoads({
                               onLoadFsrsNear={loadFsrsNear}
                               onPreviewAccessMarks={setAccessMarks}
                               onPreviewSkidReach={setSkidReachFeatures}
+                              onPreviewRefineBoxes={setRefineBoxes}
                               onDrawBlock={() => drawArea('harvest')}
                               onShowCompare={() => showDetailPane('compare')}
                               onShowDrainage={() => showDetailPane('drainage')}
@@ -6658,7 +6662,9 @@ export default function DevForestryRoads({
                     resize={
                       summaryAvailable &&
                       summaryControls.preferences.visible &&
-                      summaryMetrics.some((metric) => summaryControls.preferences.metrics[metric.key] !== 'hidden')
+                      summaryMetrics.some(
+                        (metric) => metricLevel(metric, summaryControls.preferences.metrics) !== 'hidden',
+                      )
                         ? {
                             storageKey: `pgmaps-road-summary:${active.id}:width`,
                             label: 'road summary',
@@ -6848,6 +6854,7 @@ export default function DevForestryRoads({
                                   hiddenReferenceLayers={hiddenLayerKeys}
                                   onReferenceVisibility={changeLayerVisibility}
                                   detailArea={detailBox}
+                                  refineBoxes={investigation ? null : refineBoxes}
                                   layersButton={
                                     <>
                                       <CommandButton
@@ -7092,6 +7099,12 @@ export default function DevForestryRoads({
                                           onSelectCulvert={selectCulvert}
                                           terrainOnly={!!terrainProfile}
                                           sight={sightBand}
+                                          searchBand={
+                                            terrainProfile
+                                              ? null
+                                              : shownSearchBand(w.profileSearchBand, displayedAlignment, source)
+                                          }
+                                          onClearSearchBand={() => w.setProfileSearchBand(null)}
                                           gradeLimits={profileGradeLimits}
                                           analysis={profileAnalysis}
                                           alignment={displayedAlignment}
