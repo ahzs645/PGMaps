@@ -5,6 +5,7 @@
  * otherwise freeze the map mid-drag.
  */
 
+import { loadRetainedTerrain, retainRun, replayRun } from './analysisReplay'
 import { analysisBounds, buildStations, computeAnalysis } from './analysis'
 import {
   fetchVegetationStands,
@@ -84,14 +85,22 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
       )
     : null
 
+  const retainedTiles = new Map<string, Uint8Array>()
   const { grid, missingTileCount } = localTerrain
     ? { grid: rasterSampler(localTerrain), missingTileCount: 0 }
-    : await loadElevationGrid({
-        range,
-        onProgress: (completed, total) => {
-          post({ type: 'progress', requestId, progress: { phase: 'terrain', completed, total } })
-        },
-      })
+    : request.retainFor
+      ? await loadRetainedTerrain(
+          range,
+          retainedTiles,
+          (completed, total) => post({ type: 'progress', requestId, progress: { phase: 'terrain', completed, total } }),
+          loadElevationGrid,
+        )
+      : await loadElevationGrid({
+          range,
+          onProgress: (completed, total) => {
+            post({ type: 'progress', requestId, progress: { phase: 'terrain', completed, total } })
+          },
+        })
 
   // Terrain the mosaic is missing never blocks a sightline, so a run built on
   // mostly-absent tiles would report everything as visible. A stray hole is
@@ -195,21 +204,31 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     }
   }
 
+  const terrain = {
+    tileCount: localTerrain ? 0 : range.tileCount,
+    missingTileCount,
+    resolutionMeters: localTerrain
+      ? localRasterResolution(localTerrain, stations[0].lat)
+      : demResolutionMeters(stations[0].lat, input.settings.demZoom),
+  }
+  const context = { vegetation, inspection: request.inspection, nonVegetatedGround: nonVegetatedAll }
   const result = computeAnalysis(
     grid,
     input,
-    {
-      tileCount: localTerrain ? 0 : range.tileCount,
-      missingTileCount,
-      resolutionMeters: localTerrain
-        ? localRasterResolution(localTerrain, stations[0].lat)
-        : demResolutionMeters(stations[0].lat, input.settings.demZoom),
-    },
+    terrain,
     (progress) => post({ type: 'progress', requestId, progress }),
     canopyStands,
     forestedGround,
-    { vegetation, inspection: request.inspection, nonVegetatedGround: nonVegetatedAll },
+    context,
   )
+  const archive = request.retainFor
+    ? await retainRun(
+        { input, terrain, range: localTerrain ? null : range, canopy: canopyStands, forested: forestedGround, context },
+        retainedTiles,
+        result,
+        request.retainFor,
+      )
+    : undefined
   if (nonVegetatedGround.length) result.nonVegetatedGround = nonVegetatedGround
   result.renderCover = renderCover
   if (sceneCover) result.sceneCover = sceneCover
@@ -234,7 +253,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     target.visibleDistances.buffer,
   ]) as Transferable[]
 
-  post({ type: 'result', requestId, result }, transfer)
+  post({ type: 'result', requestId, result, archive }, transfer)
 }
 
 /**
@@ -299,6 +318,12 @@ async function runReverse(request: Extract<AnalysisWorkerRequest, { type: 'rever
 
 workerScope.onmessage = (event: MessageEvent<AnalysisWorkerRequest>) => {
   const request = event.data
+  if (request?.type === 'replay') {
+    void replayRun(request.archive)
+      .then((replay) => post({ type: 'result', requestId: request.requestId, ...replay }))
+      .catch((e) => post({ type: 'error', requestId: request.requestId, message: String(e) }))
+    return
+  }
   if (request?.type === 'reverse') {
     runReverse(request).catch((error: unknown) => {
       post({

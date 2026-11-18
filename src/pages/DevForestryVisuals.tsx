@@ -52,7 +52,7 @@ import type { ProjectAttachment } from './dev-forestry/projectArchive'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
 import { ToolSourcesPanel } from './dev-forestry/ToolSourcesPanel'
 import { WildlifeTreePatchPanel } from './dev-forestry/WildlifeTreePatchPanel'
-import { MAX_ASSESSMENT_MASKS, withDrawnMask } from './dev-forestry/assessmentMasks'
+import { MAX_ASSESSMENT_MASKS, withDrawnMask, masksForLandform } from './dev-forestry/assessmentMasks'
 import { LandformDesignPanel } from './dev-forestry/LandformDesignPanel'
 import { LandformSuggestions } from './dev-forestry/LandformSuggestions'
 import {
@@ -505,7 +505,7 @@ type FigureAt = {
    */
   figureFrame?: FigureFrame | null
   /** The landform the view was saved against, which frames it and splits its class pass; absent as `figureFrame`. */
-  landform?: { geometry: PolygonGeometry; name: string; inventoryUnitId: string | null } | null
+  landform?: { id?: string; geometry: PolygonGeometry; name: string; inventoryUnitId: string | null } | null
   /** The lens the view was saved with (View options → *Lens*, or a planned view's), horizontal degrees. */
   lensHfov?: number
   /** A planned view's framing (`viewCapturePlan.ts`'s `figurePlanFor`): `single` is one frame of the lens. */
@@ -791,6 +791,10 @@ function DevForestryVisuals() {
       : null
   }, [scene])
   const sceneLandform = findSceneLandform(scene)
+  const assessmentMasks = useMemo(
+    () => masksForLandform(scene.masks, sceneLandform?.id),
+    [scene.masks, sceneLandform?.id],
+  )
   const updateViaReview = useCallback(
     (patch: Partial<ViaReview>) => {
       setScene((current) => ({ ...current, viaReview: { ...current.viaReview, ...patch } }))
@@ -2447,11 +2451,11 @@ function DevForestryVisuals() {
     return centre ? Math.round(bearingDegrees(standPoint, centre)) : null
   }, [standPoint, drive.lookBearing, drive.lookAtTargetId, scene.targets, selectedTargetId, sceneLandform])
   const privateLandClearing = useMemo(() => {
-    const lots = (scene.masks ?? []).filter((mask) => mask.kind === 'private')
+    const lots = assessmentMasks.filter((mask) => mask.kind === 'private')
     if (!lots.length) return null
     const hectares = lots.reduce((sum, mask) => sum + polygonAreaMeters(mask.geometry) / 10_000, 0)
     return { cleared: !!scene.clearPrivateLand, hectares }
-  }, [scene.masks, scene.clearPrivateLand])
+  }, [assessmentMasks, scene.clearPrivateLand])
   const viewpointClearing = useMemo(
     () => (standPoint ? viewpointClearingArea(standPoint, clearingFacing, viewpointClearingSetting) : null),
     [standPoint, clearingFacing, viewpointClearingSetting],
@@ -3039,7 +3043,7 @@ function DevForestryVisuals() {
     [regrowth.stands, inventory.stands, result?.renderStands, result?.renderCover],
   )
 
-  const clipAlteration = useMemo(() => assessmentAlterationClipper(scene.masks ?? []), [scene.masks])
+  const clipAlteration = useMemo(() => assessmentAlterationClipper(assessmentMasks), [assessmentMasks])
   const previewBlockCollection = useMemo(
     () =>
       targetsToGeoJson(
@@ -3072,7 +3076,7 @@ function DevForestryVisuals() {
         : null
     return [
       ...basemap.water,
-      ...(scene.masks ?? [])
+      ...assessmentMasks
         .filter((m) => m.kind === 'natural' || (scene.clearPrivateLand && m.kind === 'private'))
         .map((m) => m.geometry),
       ...(scene.treeFreeAreas ?? []).map((area) => area.geometry),
@@ -3084,7 +3088,7 @@ function DevForestryVisuals() {
   }, [
     drive.roadClearWidthMeters,
     scene.viewpoint,
-    scene.masks,
+    assessmentMasks,
     scene.clearPrivateLand,
     scene.treeFreeAreas,
     viewpointClearing,
@@ -3474,11 +3478,14 @@ function DevForestryVisuals() {
           (target) => target.role === 'harvested' && alterationWeight(target, year, scene.settings.greenUpAgeYears) > 0,
         )
         .map((target) => target.geometry),
-      privateLand: (scene.masks ?? []).filter((mask) => mask.kind === 'private').map((mask) => mask.geometry),
-      rock: result?.nonVegetatedGround ?? [],
-      retained: (scene.masks ?? []).filter((mask) => mask.kind === 'retained').map((mask) => mask.geometry),
+      privateLand: assessmentMasks.filter((mask) => mask.kind === 'private').map((mask) => mask.geometry),
+      rock: [
+        ...(result?.nonVegetatedGround ?? []),
+        ...assessmentMasks.filter((m) => m.mappedRock).map((m) => m.geometry),
+      ],
+      retained: assessmentMasks.filter((mask) => mask.kind === 'retained').map((mask) => mask.geometry),
     }
-  }, [scene.targets, scene.masks, scene.assessmentYear, scene.settings.greenUpAgeYears, sceneLandform, result])
+  }, [scene.targets, assessmentMasks, scene.assessmentYear, scene.settings.greenUpAgeYears, sceneLandform, result])
   const figureClasses = useMemo(() => classPassLayers(figureClassInput), [figureClassInput])
   // Terrain candidates a figure style can draw: sub-landform dividers at the VSU boundaries in the
   // landform, and lines of force from the road view's DEM. Designer aids: never adopted, never a figure.
@@ -4653,6 +4660,7 @@ function DevForestryVisuals() {
         figureFrame: scene.figureFrame ?? null,
         landform: sceneLandform
           ? {
+              id: sceneLandform.id,
               geometry: sceneLandform.geometry,
               name: sceneLandform.name,
               inventoryUnitId: sceneLandform.inventoryUnitId ?? null,
@@ -5138,7 +5146,72 @@ function DevForestryVisuals() {
     setViewsOfInterest(() => added.views)
     return view.id
   }
+  const referenceCaptures = useMemo(
+    () =>
+      capturedViewSources.flatMap((view) => {
+        const image = viewImages[view.id]
+        const figure = image?.figure
+        if (!figure || !view.plannedViewId || view.harvestPhase !== 'after' || figure.splitFailed) return []
+        const base = {
+          id: view.id,
+          name: view.name,
+          viewId: view.plannedViewId,
+          savedAt: Number.isFinite(new Date(image.savedAt).getTime())
+            ? new Date(image.savedAt).toISOString()
+            : 'Date unavailable',
+          renderer: figure.illustration?.renderer ?? 'PGMaps',
+          sightlinePercent: figure.sightlinePercent ?? null,
+          setup: JSON.stringify({
+            pose: image.figureAt?.pose,
+            frame: image.figureAt?.figureFrame,
+            lensHfov: image.figureAt?.lensHfov,
+            framing: image.figureAt?.framing,
+            design: view.designName,
+            plannedKey: view.plannedKey,
+          }),
+        }
+        const main = image.figureAt?.landform
+        // Older sheets kept the face's complete geometry and name before they also kept its ID.
+        const matches =
+          main && !main.id
+            ? scene.targets.filter(
+                (t) =>
+                  t.role === 'landscape' &&
+                  t.name === main.name &&
+                  JSON.stringify(t.geometry) === JSON.stringify(main.geometry),
+              )
+            : []
+        const mainId = main?.id || (matches.length === 1 ? matches[0].id : null)
+        return [
+          ...(main && mainId
+            ? [{ ...base, landformId: mainId, landform: main.name, readCounts: () => countClasses(figure.classes) }]
+            : []),
+          ...(figure.landforms ?? [])
+            .filter((l) => l.id !== mainId)
+            .map((l) => ({
+              ...base,
+              landformId: l.id,
+              landform: l.name,
+              readCounts: () => l.counts,
+            })),
+        ]
+      }),
+    [capturedViewSources, viewImages, scene.targets],
+  )
   const tools = useAssessmentTools({
+    referenceTerrain: previewTerrain.source,
+    referenceCaptures,
+    projectAttachments,
+    onAttachCase: (file) => addProjectAttachments([file]),
+    // The camera goes through the own photo window as a matched camera; the reviewer accepts it there.
+    onSaveSightlineArchive: () => exportOpener.openExport('sightline-archive'),
+    onLineUpInOwnPhoto: (recordId, camera, checks) => {
+      const record = tools.fieldRecord(recordId)
+      if (!record || record.kind !== 'photo') return
+      fieldPhoto.openOwnRecord(record, null)
+      fieldPhoto.applyMatchedCamera(camera, 'Reference measurements', checks)
+      fieldPhoto.openOwnDialog('camera')
+    },
     onOriginalPhoto: (file, recordId) => addProjectAttachments([file], recordId),
     // A photo record goes through the photo set, so its original and any view's link to it go with it.
     onRemovePhoto: (id) => fieldPhoto.removePhoto(id),
@@ -5536,7 +5609,7 @@ function DevForestryVisuals() {
       evqo: evqoCurrent && !evqoCurrent.error ? evqoCurrent.collection : null,
       road: scene.viewpoint.mode === 'corridor' ? (scene.viewpoint.coordinates as Array<[number, number]>) : null,
       viewpoints,
-      masks: scene.masks ?? [],
+      masks: assessmentMasks,
     })
     const sheetStyle = request.overviewSheet?.style ?? DEFAULT_OVERVIEW_SHEET_STYLE
     const wants = (group: 'maps' | 'before' | 'renders') => !request.only || !!request.only[group]
@@ -5846,6 +5919,7 @@ function DevForestryVisuals() {
       flights: fieldPhoto.ownFlights.length,
     },
     prescribedStands,
+    sightlineArchive: tools.sightlineArchive,
     scene,
     setScene,
     sceneKey: key ?? '',
@@ -6762,6 +6836,7 @@ function DevForestryVisuals() {
               <InlineAlert tone={projectMessage.error ? 'error' : 'info'}>{projectMessage.text}</InlineAlert>
             </div>
           )}
+          {tools.referencePanel}
           <ProjectAttachments
             title={projectTitle}
             files={projectAttachments}

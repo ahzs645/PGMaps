@@ -71,6 +71,8 @@ export type AssessmentMask = {
   id: string
   name: string
   kind: AssessmentMaskKind
+  landformId?: string
+  mappedRock?: boolean
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
   source: string
 }
@@ -299,13 +301,29 @@ export type ReverseInput = {
 export type AnalysisWorkerRequest =
   | {
       type: 'analyze'
+      retainFor?: {
+        rowId: string
+        viewId: string
+        landformId: string
+        selected?: Record<string, string>
+        origins?: Record<string, string>
+        stationMode?: string
+      }
       requestId: number
       input: AnalysisInput
       inspection?: { targetId: string; sampleIndex: number; stationIndex: number }
     }
+  | { type: 'replay'; requestId: number; archive: Blob }
   | { type: 'reverse'; requestId: number; input: ReverseInput }
 export type AnalysisWorkerResponse =
   | { type: 'progress'; requestId: number; progress: AnalysisProgress }
-  | { type: 'result'; requestId: number; result: AnalysisResult }
+  | {
+      type: 'result'
+      requestId: number
+      result: AnalysisResult
+      archive?: Blob
+      replayMatches?: boolean
+      replayRowId?: string
+    }
   | { type: 'reverse-result'; requestId: number; result: ReverseViewshedResult }
   | { type: 'error'; requestId: number; message: string }

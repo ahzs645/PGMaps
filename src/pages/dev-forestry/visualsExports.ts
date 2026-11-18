@@ -40,6 +40,7 @@ export type VisualsExport =
   | 'scene-package'
   | 'castor-constraint'
   | 'stand-trees'
+  | 'sightline-archive'
 
 export type VisualsExportGroup = 'documents' | 'files' | 'exchange'
 
@@ -141,6 +142,14 @@ export const VISUALS_EXPORTS: readonly VisualsExportItem[] = [
     description:
       'A ZIP you can reopen in step 1. Keeps the scene, review, workspace, photos, saved captures and project attachments together.',
     formats: [{ id: 'zip', label: 'Project ZIP', extension: '.pgvq.zip' }],
+  },
+  {
+    kind: 'sightline-archive',
+    group: 'files',
+    label: 'Sightline replay archive',
+    description:
+      'The last run retained in Reference measurements: its inputs, the terrain cells and inventory geometry it read, its figures and their checksums, to replay without a data service. Kept apart from the project, which never holds terrain or inventory.',
+    formats: [{ id: 'zip', label: 'Sightline ZIP', extension: '.sightline.zip' }],
   },
   {
     kind: 'scene',
@@ -424,6 +433,8 @@ export type ExportContext = {
   visualInventory?: { status: 'idle' | 'loading' | 'ready' | 'error'; error: string | null }
   /** Each prescribed block's trees in a line (`standFileSummary`); empty when no block has a prescription. */
   prescribedStands: Row[]
+  /** The run retained this session in Reference measurements; null until one is. */
+  sightlineArchive: { name: string; rowId: string; bytes: number } | null
   /** The land status checks (`landStatusChecks.ts`) as the block note would print them now. */
   landChecks: {
     include: boolean
@@ -752,6 +763,10 @@ export function exportUnavailable(kind: VisualsExport, ctx: ExportContext): stri
       return ctx.prescribedStands.length
         ? null
         : 'Give a retention or partial-cut block a stand prescription first (step 2, Prescribe trees…).'
+    case 'sightline-archive':
+      return ctx.sightlineArchive
+        ? null
+        : 'Retain a run first: Reference measurements → Numerical run and offline replay → Run and retain.'
   }
 }
 
@@ -1445,6 +1460,23 @@ export function exportContents(kind: VisualsExport, ctx: ExportContext): ExportS
           note: 'Diameters are a drawing assumption sized to VRI where it recorded a stand size. The trees are the ones the road view draws; nothing here is a run figure.',
         },
       ]
+    case 'sightline-archive': {
+      const a = ctx.sightlineArchive
+      return [
+        {
+          title: 'Retained run',
+          step: 'assess',
+          rows: a
+            ? [
+                { label: 'File', value: a.name },
+                { label: 'Reference row', value: a.rowId },
+                { label: 'Size', value: `${(a.bytes / 1_048_576).toFixed(1)} MB` },
+              ]
+            : [{ label: 'File', value: 'None retained yet' }],
+          note: 'Replay it from Numerical run and offline replay: the figures are checked against the checksums it carries.',
+        },
+      ]
+    }
     case 'castor-constraint': {
       const c = ctx.castor.constraint
       return [
@@ -1517,6 +1549,8 @@ export type ContextInput = {
   roadViewReady: boolean
   /** Absent: no block has a stand prescription. */
   prescribedStands?: Row[]
+  /** Absent: no run retained this session. */
+  sightlineArchive?: ExportContext['sightlineArchive']
   officeFieldCount: number
   autoRun: ExportAutoRun
   landChecks: ExportContext['landChecks']
@@ -1706,6 +1740,7 @@ export function buildExportContext(input: ContextInput): ExportContext {
     ...(input.ownPhotos?.count ? { ownPhotos: input.ownPhotos } : {}),
     roadViewReady: input.roadViewReady,
     prescribedStands: input.prescribedStands ?? [],
+    sightlineArchive: input.sightlineArchive ?? null,
     castor: {
       constraint: castorConstraint && {
         id: castorConstraint.id,

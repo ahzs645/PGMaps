@@ -1,3 +1,13 @@
+import type { ElevationSource } from '@/lib/forestry/terrain/terrain'
+import { adoptViewLandform } from './viewLandform'
+import { DEFAULT_VISUAL_QUALITY_CLASS_ID } from './vqo'
+import { withDrawnMask } from './assessmentMasks'
+import { treatmentTargets } from './referenceTreatment'
+import { chosenValues } from './referenceMeasurements'
+import type { ReferenceCapture } from './referenceComparison'
+import { ReferenceMeasurements } from './ReferenceMeasurementsPanel'
+import { importReferenceCase, mergeReferences, readReferenceCase } from './referenceMeasurements'
+import type { ProjectAttachment } from './projectArchive'
 import {
   CheckboxField,
   FORM_INPUT_CLASS,
@@ -49,10 +59,20 @@ import { readCastorHeightCurves, type LibraryCurve } from './castorCurves'
 import { RecoveryTable } from './RecoveryTable'
 import { greenUpSensitiveSentence } from './recoverySummary'
 import { DroughtRiskPanel } from './DroughtRiskPanel'
-import { findSceneLandform, sceneFingerprint } from './sceneInput'
+import type { PhotoInputs } from './ReferenceRegistration'
+import type { SightlineArchive } from './ReferenceRunPanel'
+import { buildSceneInput, findSceneLandform, sceneFingerprint } from './sceneInput'
 import { fieldRecordRoom, linkPhotoJob, unlinkPhotoJob, withFlights } from './photoRecords'
 
 type Props = {
+  referenceTerrain: ElevationSource | null
+  referenceCaptures: ReferenceCapture[]
+  projectAttachments: ProjectAttachment[]
+  onAttachCase: (file: File) => void
+  /** A sheet camera confirmed in Reference measurements, handed to the own photo window for that photo record. */
+  onLineUpInOwnPhoto: PhotoInputs['lineUpInOwnPhoto']
+  /** Opens Save & export on the sightline replay archive. */
+  onSaveSightlineArchive?: () => void
   scene: ForestryScene
   result: AnalysisResult | null
   currentStation: number
@@ -79,6 +99,12 @@ const curveReach = (c: LibraryCurve) =>
 const hectares = (value: number) => formatMeasure(value, 'ha', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export function useAssessmentTools({
+  referenceTerrain,
+  referenceCaptures,
+  projectAttachments,
+  onAttachCase,
+  onLineUpInOwnPhoto,
+  onSaveSightlineArchive,
   scene,
   result,
   currentStation,
@@ -92,6 +118,8 @@ export function useAssessmentTools({
   onListView,
   onRemovePhoto,
 }: Props) {
+  // The run retained in Reference measurements: this session only, saved through Save & export, never the project.
+  const [sightlineArchive, setSightlineArchive] = useState<SightlineArchive | null>(null)
   const [d, setDocument] = useState<ToolsDocument>(emptyTools),
     [loaded, setLoaded] = useState(false),
     [error, setError] = useState<string | null>(null)
@@ -226,6 +254,7 @@ export function useAssessmentTools({
       const listed = new Set((read.currentScene?.viewsOfInterest ?? []).map((view) => view.id))
       const parsed = { ...read, views: read.views.filter((view) => !listed.has(view.id)) }
       runner.cancel()
+      workspaceGeneration.current++
       change(parsed)
       if (parsed.currentScene) onImportScene(parsed.currentScene)
       setCurve(parsed.growthCurve.map((p) => `${p.age},${p.height}`).join('\n'))
@@ -958,6 +987,188 @@ export function useAssessmentTools({
   }
   return {
     restoreWorkspace,
+    sightlineArchive,
+    referencePanel: (
+      <ReferenceMeasurements
+        key={workspaceGeneration.current}
+        runActions={{
+          retain: setSightlineArchive,
+          retained: sightlineArchive,
+          onSaveArchive: onSaveSightlineArchive,
+          input: (row) => {
+            const v = viewsDocument.views.find((v) => v.id === row.viewId)
+            if (!v || !scene.targets.some((t) => t.id === row.landformId && t.role === 'landscape'))
+              throw Error('Choose an available view and mapped landform.')
+            return buildSceneInput({ ...scene, viewpoint: v.viewpoint, activeLandformId: row.landformId })
+          },
+        }}
+        rows={d.referenceMeasurements}
+        loaded={loaded}
+        captures={referenceCaptures}
+        photoInputs={{ ground: referenceTerrain, photos: d.fields, lineUpInOwnPhoto: onLineUpInOwnPhoto }}
+        geometry={{
+          blocks: scene.targets.filter((t) => t.role === 'block'),
+          onAdopt: (row, choice, role, blockId) => {
+            const chosen = chosenValues(row)
+            const source =
+              [
+                choice.source,
+                chosen.boundaryType,
+                chosen.boundaryDate,
+                ...(role === 'treatment'
+                  ? [
+                      chosen.residualStems && chosen.residualStems + ' residual stems/ha',
+                      chosen.treesRemoved && chosen.treesRemoved + '% of trees removed',
+                      chosen.volumeRemoved && chosen.volumeRemoved + '% of volume removed',
+                    ]
+                  : []),
+              ]
+                .filter(Boolean)
+                .join(' · ') + (chosenValues(row).studyDate ? ' · study ' + chosenValues(row).studyDate : '')
+            const target = {
+              id: createId(role),
+              name: choice.name,
+              role: 'landscape' as const,
+              geometry: choice.geometry,
+              source,
+              objectiveId: DEFAULT_VISUAL_QUALITY_CLASS_ID,
+              vac: null,
+              harvestYear: null,
+              clearcutPercent: null,
+            }
+            let next = scene
+            let landformId = row.landformId
+            if (role === 'landscape') {
+              next = adoptViewLandform(scene, row.viewId, target)
+              if (next === scene)
+                throw Error('List this workspace viewpoint in Views of interest before adopting its landform.')
+              landformId = next.viewsOfInterest!.find((v) => v.id === row.viewId)!.landformId!
+            } else if (role === 'block' || role === 'treatment') {
+              if (blockId === 'new' && role === 'block')
+                next = { ...scene, targets: [...scene.targets, { ...target, role: 'block' }] }
+              else {
+                const block = scene.targets.find((t) => t.id === blockId && t.role === 'block')
+                if (!block) throw Error('Select a proposal in the current scene.')
+                if (d.options.length >= 12)
+                  throw Error('The design library is full. Free a design slot to keep the previous boundary.')
+                const replacements =
+                  role === 'treatment'
+                    ? treatmentTargets(block, target, chosen)
+                    : [{ ...block, geometry: choice.geometry, source }]
+                change((current) => ({
+                  ...current,
+                  options: [
+                    ...current.options,
+                    {
+                      id: createId('option'),
+                      name: 'Before boundary change · ' + block.name,
+                      scene: structuredClone(scene),
+                    },
+                  ],
+                }))
+                next = {
+                  ...scene,
+                  targets: scene.targets.flatMap((t) => (t === block ? replacements : [t])),
+                }
+              }
+            } else {
+              const scoped = role === 'natural' || role === 'private' || role === 'rock'
+              if (scoped && !scene.targets.some((t) => t.id === row.landformId && t.role === 'landscape'))
+                throw Error('Choose the mapped landform for this exclusion.')
+              const kind = role === 'rock' ? 'natural' : role
+              if (
+                (scene.masks ?? []).some(
+                  (m) =>
+                    m.kind === kind &&
+                    !!m.mappedRock === (role === 'rock') &&
+                    m.landformId === (scoped ? row.landformId : undefined) &&
+                    JSON.stringify(m.geometry) === JSON.stringify(choice.geometry),
+                )
+              )
+                throw Error('This outline is already applied.')
+              next = {
+                ...scene,
+                masks: withDrawnMask(scene.masks ?? [], {
+                  id: target.id,
+                  name: choice.name,
+                  geometry: choice.geometry,
+                  source,
+                  kind,
+                  ...(scoped ? { landformId: row.landformId } : {}),
+                  ...(role === 'rock' ? { mappedRock: true } : {}),
+                }),
+              }
+            }
+            const field =
+              role === 'landscape'
+                ? 'outline'
+                : role === 'treatment'
+                  ? 'treatmentUnits'
+                  : role === 'block'
+                    ? 'proposal'
+                    : role === 'retained'
+                      ? 'retention'
+                      : 'exclusions'
+            change((current) => ({
+              ...current,
+              referenceMeasurements: current.referenceMeasurements.map((r) =>
+                r.id === row.id
+                  ? {
+                      ...r,
+                      landformId,
+                      corrections: {
+                        ...r.corrections,
+                        [field]: [chosenValues(r)[field], source + ' · ' + choice.name].filter(Boolean).join('\n'),
+                      },
+                      useSource: r.useSource?.filter((k) => k !== field),
+                    }
+                  : r,
+              ),
+            }))
+            onChange(next)
+          },
+        }}
+        onAdd={() => {
+          const id = createId('reviewer-row')
+          const row = { id, caseId: 'reviewer', viewId: '', landformId: '', printed: {}, corrections: {} }
+          change((current) => ({
+            ...current,
+            referenceMeasurements: mergeReferences(current.referenceMeasurements, [row]),
+          }))
+          return id
+        }}
+        views={viewsDocument.views}
+        landforms={scene.targets.filter((t) => t.role === 'landscape')}
+        attachments={projectAttachments}
+        onChange={(row) =>
+          change((current) => ({
+            ...current,
+            referenceMeasurements: current.referenceMeasurements.map((r) => (r.id === row.id ? row : r)),
+          }))
+        }
+        onImport={async (file) => {
+          const generation = workspaceGeneration.current
+          const rows = importReferenceCase(await readReferenceCase(file), {
+            views: viewsDocument.views,
+            landforms: scene.targets.filter((t) => t.role === 'landscape'),
+            attachments: projectAttachments.map((a) => a.name),
+          })
+          if (generation !== workspaceGeneration.current) return 'Workspace changed during import.'
+          const current = documentRef.current
+          const merged = mergeReferences(current.referenceMeasurements, rows)
+          const count = merged.length - current.referenceMeasurements.length
+          if (JSON.stringify(merged) !== JSON.stringify(current.referenceMeasurements)) {
+            change({ ...current, referenceMeasurements: merged })
+            if (file instanceof File && !projectAttachments.some((a) => a.blob === file)) onAttachCase(file)
+          }
+          return count
+            ? `Imported ${count} reference measurement${count === 1 ? '' : 's'}.`
+            : rows.length
+              ? 'Checked existing rows for additional source fields.'
+              : 'This case contains no reference measurements.'
+        }}
+      />
+    ),
     field,
     design,
     report,

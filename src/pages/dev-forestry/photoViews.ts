@@ -46,7 +46,16 @@ export function castRay(
   v: number,
   maxMeters = 60000,
 ): GroundHit | null {
-  const d = rayThrough(pose, u, v)
+  return castGroundRay(pose, source, rayThrough(pose, u, v), maxMeters)
+}
+
+/** The first terrain hit along an east/north/up unit ray from any calibrated image projection. */
+export function castGroundRay(
+  pose: Pick<PhotoPose, 'lng' | 'lat' | 'altitudeMeters'>,
+  source: ElevationSource,
+  d: readonly number[],
+  maxMeters = 60000,
+): GroundHit | null {
   const mx = metresPerDegreeLng(pose.lat)
   const at = (t: number) => {
     const east = d[0] * t,

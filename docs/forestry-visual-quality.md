@@ -638,15 +638,87 @@ for *Open saved preview*, *Assessment workspace* as the browser store's backup.
 Opening a project replaces what is on the map and the saved views without
 asking, as the *Start from* samples do.
 
-**Reviewing a historical VIA.** Start with the source report, figures and
-conversion notes under **Project attachments**. Selected evidence images also
-appear under **Visit → Field photos**. Before recalculating a reported
-percentage, check the mapped cutblocks and treatment against the study date,
-verify each viewpoint's position, bearing and lens, and confirm the visible
-landform and exclusions used on the original sheet. The reference measurements
-keep their reported units, denominator and method. A new PGMaps run records its
-own values. Save the reviewed copy with **Save & export → Project** to keep
-those sources with any new photos and captures.
+**Reviewing a historical VIA.** Open the project ZIP in **Step 1 → Start from**,
+then choose **Reference measurements**. Earlier converted projects import their
+attached `case.json` on open. A standalone case can be imported in the same
+dialog. Choose a viewpoint and landform to open its original sheet, inspect the
+transcribed measurements and enter corrections. Tab out of an edited field or
+press Enter to apply it. Clear **Use reviewer value** to use the transcription again. The alternative value and its evidence note remain available.
+
+Where each row was printed comes from the case file alone (`caseCitation`,
+`referenceMeasurements.ts`): a row's own `page` and `source`, else the case's
+`pages` (by viewpoint id, `table5` for Table 5 rows), `blockPages` (a Table 5
+row, by its block), `appendixPageOffset` (a sheet "Appendix A*n*" printed on page
+*n* + offset) and `originals` (the attached file for a viewpoint), else the one
+attachment named for the case's `doc`. The code keeps nothing about any real
+case, and real assessments, their names, block codes and figures never enter the
+repository: tests use made-up cases. A field a newer file adds is left out and
+named when the project opens, never the row or the workspace.
+
+The source arithmetic divides the transcribed numerator by the denominator the
+sheet used. A sheet that prints 12.4% for 25 cm² over 200 cm² recomputes to
+12.5%; deducting 40 cm² of rock gives a net area of 160 cm² and a separate
+calculation of 15.625%. The dialog keeps ocular ratings and incomplete operands
+as evidence. A percentage band appears only for an unambiguous match in the
+explicit ranges transcribed from the source. Study-wide statements and
+unlocated viewpoints can keep their source labels with the mapped links unassigned.
+
+A case can also carry separate Table 5 determinations by block or sub-landform.
+**Show all fields** exposes the sourced design, treatment, ocular, adjustment and
+rationale fields, including empty fields a reviewer can supply. **Review setup
+and calculation choices** selects the numerator and denominator. A new reviewer
+row can start with an empty transcription. Corrections, field-specific evidence
+and saved comparisons travel in **Save & export → Project**.
+
+- **Study geometry and registration** shows attached polygon candidates on a plan
+  map beside a source figure. Choose the landform for the linked view, a dated
+  proposal, a mapped treatment unit, or a mask. Replacing a proposal saves the
+  preceding design in the design library. Private, rock and natural exclusions
+  apply to their selected landform. Rock and private land can also be deducted
+  from the captured image denominator. A mapped unit splits the selected block
+  at its boundary. Residual stems per hectare, percentage of trees removed and
+  percentage of volume removed have separate fields. A partial cut uses its
+  documented volume removed and residual height: adopting a treatment unit
+  writes the block's harvest system, volume removed and residual height on the
+  reviewer's click, the one way besides *Use for Table 5/6* that those inputs
+  change, and it clears a stand prescription the unit replaces. Where several
+  candidates could be the block, the choice stays the reviewer's.
+- **Register an image and project a trace** links an attached image or field
+  photo to a row. Enter the camera station, absolute eye elevation, orientation,
+  projection and crop. The horizontal span applies to the selected crop.
+  The terrain skyline and mapped fit points can refine heading and pitch at the
+  supplied station. Held-out points display their own pixel errors. Review the
+  overlay, **Confirm sheet camera**, then project an outline or exclusion. Missing
+  terrain and range jumps leave gaps that must be resolved before adopting the
+  trace. Confirming the sheet camera is the row's own record and never accepts an
+  own photo: for a photo record, **Line up in the own photo window** hands the
+  camera to that window as a matched camera, where it is checked and accepted
+  through the same gate as any other (`acceptGate`). This dialog never writes a
+  photo's pose.
+- **Numerical run and offline replay** uses the selected viewpoint and landform.
+  Choose the workspace station or the confirmed sheet camera's station, and the
+  scene year or an assessment year override. **Run and retain inputs** keeps the
+  run's effective inputs, including terrain samples and inventory geometry, for
+  this session; save them from **Save & export → Sightline replay archive**. The
+  project never holds terrain, an inventory or the run, so the archive is its own
+  file. Replay takes this session's archive, a chosen `.sightline.zip`, or one an
+  earlier project attached, checks the SHA-256 hashes and recomputes the
+  numerical figures without a data service. The archived figures allow a reviewer
+  to detect a change in the calculation.
+- **Compare with a saved PGMaps figure** uses the class counts from a saved
+  after-harvest sheet for the linked view and mapped landform. The original
+  percentage, source calculation and selected comparison stay visible. Choose
+  the source and capture measurement bases and check framing, treatment and
+  exclusions. A percentage-point difference requires matching bases. The run's
+  sightline figure at capture is printed beside the pixel figure, never replaced
+  by it. A saved review keeps the selected values, source, counts, reviewer and
+  evidence hashes.
+- **Study exhibits** searches the figure catalogue by caption, document, page,
+  viewpoint or recorded date and opens the selected exhibit and its source.
+  **Visit → Views of interest** captures pending included views 1, 3, 6 or all 12
+  at a time (**Views per capture**). A saved project keeps completed captures so
+  the remaining views can be captured later; the plan holds no more views than can
+  be saved (`MAX_VIEWS_OF_INTEREST`).
 
 **Castor constraint** (`castorConstraint.ts`, DOM-free) writes the landform's
 objective as the cover constraint a timber supply model carries, for

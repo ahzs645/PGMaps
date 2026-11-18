@@ -1,4 +1,5 @@
 /** The tools' document and job builders are independent of React, DOM and network. */
+import { parseReferenceRows, type ReferenceRow } from './referenceMeasurements'
 import { parseScene, type ForestryScene } from './scene'
 import { findSceneLandform, sceneFingerprint } from './sceneInput'
 import { polygonAreaMeters } from './visibility'
@@ -23,6 +24,7 @@ export type ToolOption = { id: string; name: string; scene: ForestryScene }
  */
 export type ToolView = { id: string; name: string; viewpoint: Viewpoint; landformId: string | null; notes: string }
 
+/** At most this many viewpoints in a document: the twelve views of interest and twelve recorded before them. */
 /** At most this many viewpoints in a document: the twelve views of interest and twelve recorded before them. */
 export const MAX_TOOL_VIEWS = 24
 
@@ -165,6 +167,8 @@ export type ToolsDocument = {
   curveLibrary: LibraryCurve[]
   /** Block target ID → the library curve it grows on. A block not listed grows on the supplied curve. */
   blockCurves: Record<string, string>
+  /** Historical VIA rows under review (`referenceMeasurements.ts`): reviewer records, never a run input. */
+  referenceMeasurements: ReferenceRow[]
 }
 export const emptyTools = (): ToolsDocument => ({
   version: 1,
@@ -176,6 +180,7 @@ export const emptyTools = (): ToolsDocument => ({
   growthSource: '',
   curveLibrary: [],
   blockCurves: {},
+  referenceMeasurements: [],
 })
 export function parseTools(raw: unknown): ToolsDocument {
   const d = raw as ToolsDocument
@@ -341,6 +346,7 @@ export function parseTools(raw: unknown): ToolsDocument {
     growthSource: typeof d.growthSource === 'string' ? d.growthSource : '',
     curveLibrary,
     blockCurves,
+    referenceMeasurements: parseReferenceRows(d.referenceMeasurements),
   }
 }
 /**
