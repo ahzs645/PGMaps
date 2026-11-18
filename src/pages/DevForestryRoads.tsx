@@ -5385,7 +5385,8 @@ export default function DevForestryRoads({
   const onFlatPlane = project.terrain.epsg === LOCAL_PLANE_EPSG && !!project.terrain.localPlane
   const lockedReason = busyReason ?? (costPreview ? 'Close the cost preview first.' : undefined)
   const noRoadReason = noRoad ? 'Peg or sketch a road first.' : undefined
-  const onFlatPlane = project.terrain.epsg === LOCAL_PLANE_EPSG
+  // Imagery needs real coordinates: off on the flat plane, as `waybackTimelineAvailable` reads it.
+  const imageryOffMap = project.terrain.epsg === LOCAL_PLANE_EPSG
   const flatPlaneImageryReason = 'Place the project on the map first: imagery needs real coordinates.'
   const roadLimitReason = roadLimitReached ? `A project holds at most ${MAX_PROJECT_ROADS} roads.` : undefined
   const mappedReason = isMappedRoad(alignment)
@@ -5426,12 +5427,12 @@ export default function DevForestryRoads({
     waybackTimeline: {
       hidden: !ROAD_DESIGN_DEPLOYMENT.waybackTimeline,
       disabled: !waybackTimelineAvailable(project.terrain),
-      reason: onFlatPlane ? flatPlaneImageryReason : undefined,
+      reason: imageryOffMap ? flatPlaneImageryReason : undefined,
       pressed: planDisplay.showWayback,
     },
     sentinel2: {
-      disabled: onFlatPlane,
-      reason: onFlatPlane ? flatPlaneImageryReason : undefined,
+      disabled: imageryOffMap,
+      reason: imageryOffMap ? flatPlaneImageryReason : undefined,
       pressed: planDisplay.showSentinel,
     },
     earthworks: { hidden: !!terrainProfile, disabled: false, pressed: planDisplay.showEarthwork },
