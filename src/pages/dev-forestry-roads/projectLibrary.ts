@@ -1,6 +1,7 @@
 import type { RoadProject } from './types'
 import { isAccessInvestigation, mappedRoadRecordCount } from './investigationWorkspace'
 import { parseProject } from './project'
+import { keepStoragePersistent } from '../../lib/offline/persistentStorage'
 
 /**
  * Projects kept in this browser. Each project lives under `project:<id>` in the workspace's
@@ -118,6 +119,8 @@ export const readProject = (id: string) => withStore('readonly', (store) => get<
 /** Saves a project, makes it the one to reopen and returns the updated library. */
 export function writeProject(id: string, project: RoadProject, entries: readonly LibraryEntry[]) {
   const next = upsertEntry(entries, libraryEntry(id, project))
+  // A project kept only here must not be cleared with the browser's caches.
+  keepStoragePersistent()
   return withStore('readwrite', (store) => {
     store.put(project, `project:${id}`)
     store.put(next, 'library')

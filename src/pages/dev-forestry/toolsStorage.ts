@@ -1,6 +1,7 @@
 import type { ForestryScene } from './scene'
 import Dexie, { type Table } from 'dexie'
 import { emptyTools, parseTools, type ToolsDocument } from './assessmentTools'
+import { keepStoragePersistent } from '@/lib/offline/persistentStorage'
 
 /** A project attachment as kept between visits: its bytes, its name and the field record it is the original of. */
 export type StoredAttachment = { key: string; name: string; blob: Blob; recordId?: string | null }
@@ -54,6 +55,8 @@ export async function loadCurrentScene() {
   return (await db.scenes.get('current'))?.scene ?? null
 }
 export async function saveCurrentScene(scene: ForestryScene) {
+  // A scene and its photos kept only here must not be cleared with the browser's caches.
+  keepStoragePersistent()
   await db.scenes.put({ id: 'current', scene })
 }
 

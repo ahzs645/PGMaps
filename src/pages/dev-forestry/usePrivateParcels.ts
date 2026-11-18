@@ -8,6 +8,7 @@ import {
 } from './parcelMapPrivateLand'
 import type { AssessmentMask } from './types'
 import { polygonBounds, type PolygonGeometry } from './visibility'
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
 
 /** Margin round the landform the parcels are looked up in, degrees (about 1 km). */
 const SEARCH_MARGIN_DEGREES = 0.01
@@ -41,7 +42,7 @@ export function usePrivateParcels(
     try {
       const answer = await fetchPrivateParcels(
         [w - SEARCH_MARGIN_DEGREES, s - SEARCH_MARGIN_DEGREES, e + SEARCH_MARGIN_DEGREES, n + SEARCH_MARGIN_DEGREES],
-        fetch,
+        inventoryFetch,
       )
       setLookup({ status: 'ready', ...answer })
     } catch (error) {

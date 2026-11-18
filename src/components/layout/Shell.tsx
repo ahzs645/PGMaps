@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { NotificationProvider } from '@/components/ui/notification'
 import { AppUpdateNotice } from '@/updates/AppUpdateNotice'
 import { Navbar } from './Navbar'
+import { InventoryCopyNotice } from '@/components/ui/inventory-copy-notice'
 
 interface ShellProps {
   children: ReactNode
@@ -24,6 +25,7 @@ export function Shell({ children }: ShellProps) {
           {children}
         </main>
         <AppUpdateNotice />
+        <InventoryCopyNotice />
       </div>
     </NotificationProvider>
   )

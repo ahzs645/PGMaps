@@ -162,6 +162,7 @@ import { fieldImageFromBlob } from './toolImports'
 import { loadPhotoDepth, savePhotoDepth } from './toolsStorage'
 import { viewFromAcceptedPhoto, type ViewOfInterest } from './viewsOfInterest'
 import { demTileRange } from '@/lib/forestry/terrain/terrain'
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
 
 /** The lens a view cut from a 360° photo is given: about a phone's, in portrait terms. */
 const PANO_VIEW_FOV = 60
@@ -1704,7 +1705,7 @@ export function useFieldPhoto({
       const reads = bounds
         ? await caches.features.getOrCreate(
             featuresKey(bounds),
-            (shared) => readPhotoFeatures(bounds, (url, init) => fetch(url, init), { signal: shared }),
+            (shared) => readPhotoFeatures(bounds, inventoryFetch, { signal: shared }),
             signal,
           )
         : null

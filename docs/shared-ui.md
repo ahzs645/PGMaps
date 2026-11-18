@@ -532,6 +532,10 @@ track grows to the longest cell in any column.
   `RecordEmptyState` when the record has nothing to show.
 - `PanelDialog`: settings, pickers and libraries (optional footer).
 
+### Storage dialog
+
+`StorageDialog` (`storage-dialog.tsx`) is the one panel for what the site keeps in this browser: usage and protection, the offline tools, what can be cleared, and a person's own work. The navbar opens it as **Offline and storage**; a tool that wants its own entry point mounts the same component (`open`, `onOpenChange`, optional `trigger`) and never builds a second panel. It reads `STORE_CATALOGUE` (`src/lib/storage/siteStorage.ts`): a tool that starts keeping something adds an entry there and gets a row, a size and, for a `download`, a **Clear**. See `docs/app-updates-and-caching.md`, **Managing what is kept**.
+
 ## Your details and person fields
 
 - **Your details** (`src/branding/PreparerProfile.tsx`, model `profile.ts`) are who prepares sheets and

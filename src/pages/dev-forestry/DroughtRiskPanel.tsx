@@ -32,6 +32,7 @@ import { formatPct } from './measureFormat'
 import { digest } from './runRevision'
 import type { TargetPolygon } from './types'
 import { polygonBounds } from './visibility'
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
 
 const RISK_TONES: Record<RiskCode, BadgeTone> = { L: 'success', M: 'warning', H: 'orange', VH: 'danger' }
 const riskLabel = (code: RiskCode) => RISK_LEVELS.find((item) => item.code === code)?.label ?? code
@@ -78,7 +79,7 @@ export function DroughtRiskPanel({ landform }: { landform: TargetPolygon | null 
     const vegetationBounds = clampVegetationBounds(bounds)
     Promise.all([
       fetchVegetationStands(vegetationBounds, { signal: controller.signal }),
-      fetchBecPolygons(bounds, fetch, controller.signal),
+      fetchBecPolygons(bounds, inventoryFetch, controller.signal),
       dataset ?? loadPublishedDataset(controller.signal),
     ])
       .then(([vegetation, bec, table]) => {

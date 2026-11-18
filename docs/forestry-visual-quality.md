@@ -4817,7 +4817,8 @@ in `visualInventoryQuery.ts`), for the area asked about, at the recorded
 coordinates. The box goes in `CQL_FILTER`, longitude first, and at most 3,000
 polygons come back at once (reported as truncated past that). There is no stored
 copy and no fallback: when DataBC cannot be reached, each place says the
-inventory is unavailable and offers a retry.
+inventory is unavailable and offers a retry. The one exception is the reviewer's
+own choice, **Keep inventory copies**, below.
 
 Why there is no stored copy (checked 10–11 November 2026):
 
@@ -4874,6 +4875,36 @@ over the height of land that it never does.
 Imported shapefiles are reprojected through their `.prj` by shpjs. BC planning
 data usually arrives in BC Albers; without the projection file its coordinates
 land in the ocean off Africa, and the import reports the features as skipped.
+### Keep inventory copies
+
+*Offline and storage → Inventory copies* (off by default) lets the page work
+where DataBC cannot be reached, without bringing a snapshot back. With it on,
+every read the page makes of a BC inventory goes through `inventoryFetch`
+(`src/lib/offline/inventoryCopies.ts`; the rule is `keptReads.ts`, DOM-free):
+
+- a successful read is kept in this browser with the time it was read;
+- a read DataBC cannot answer (no connection, or a 5xx) is answered from the
+  copy of that **same request**, the same layer and the same box. Another area
+  has no copy and fails as before; a 4xx is DataBC refusing the question and is
+  never papered over; a cancelled read is never answered from a copy;
+- a result from a copy carries the copy's own time as its `retrievedAt`, never
+  the time it was used. The run's vegetation evidence and the scene's harvest
+  record also name their source "… · kept copy";
+- the page says so at once (`InventoryCopyNotice`, in the shell): how many reads
+  came from copies and the day the oldest was read.
+
+What this is not: it is not the bcdatamapper snapshot or any copy PGMaps ships.
+A kept copy is DataBC's own complete answer to the page's own request, from the
+WFS, at full resolution, so none of the three objections above applies to it.
+What it cannot be is current: an inventory changed since the copy was read is
+not seen, which is why its date goes wherever the read is reported.
+
+Off, nothing is kept and turning it off deletes every copy. The newest 400 reads
+are kept (`MAX_INVENTORY_COPIES`). Copies are this browser's: never in the scene,
+the project file or an export. A new reader of a BC inventory on this page takes
+`inventoryFetch` in place of `fetch`, or is handed it where it takes its fetch as
+an argument, and stamps its result with `readAtOf(response)`.
+
 
 ## Assessment workspace tools
 

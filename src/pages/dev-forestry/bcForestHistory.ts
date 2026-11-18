@@ -1,6 +1,8 @@
 /** Bounded live context for the driving preview; full/offline data belongs in bcdatamapper. */
 import { BC_VISUAL_SERVICE, clampQueryBounds } from './bcVisualInventory'
 import type { Bounds } from '@/lib/forestry/terrain/terrain'
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
+import { copyReadAt, oldestCopy } from '@/lib/offline/keptReads'
 import { FOREST_HISTORY_MAX_CELLS, type ForestHistoryRecord } from './regrowth'
 import type { PolygonGeometry } from './visibility'
 
@@ -99,7 +101,14 @@ export type ForestHistoryData = {
   /** Sources still loading; these are not evidence of an empty forest. */
   pendingSources?: HistoryKind[]
 }
-type CellResult = { records: ForestHistoryRecord[]; failure?: 'timeout' | 'error'; capped: boolean; time: number }
+type CellResult = {
+  records: ForestHistoryRecord[]
+  failure?: 'timeout' | 'error'
+  capped: boolean
+  time: number
+  /** When the kept copy this cell came from was read; null or absent for a live read. */
+  copyAt?: string | null
+}
 type LoadOptions = {
   onUpdate?: (data: ForestHistoryData) => void
   retryFailed?: boolean
@@ -148,7 +157,7 @@ async function fetchCell(url: string, kind: HistoryKind, signal: AbortSignal): P
       abort.abort()
     }, FOREST_HISTORY_TIMEOUT_MS)
     try {
-      const response = await fetch(url, { signal: abort.signal })
+      const response = await inventoryFetch(url, { signal: abort.signal })
       if (!response.ok) throw new Error(`service returned ${response.status}`)
       const payload = await response.json()
       if (payload.error || !Array.isArray(payload.features)) throw new Error('service returned an invalid response')
@@ -156,6 +165,7 @@ async function fetchCell(url: string, kind: HistoryKind, signal: AbortSignal): P
         records: parseForestHistory(payload, kind),
         capped: payload.exceededTransferLimit === true || payload.features.length >= FOREST_HISTORY_RECORD_CAP,
         time: Date.now(),
+        copyAt: copyReadAt(response),
       }
     } catch {
       failure = timedOut ? 'timeout' : 'error'
@@ -198,9 +208,11 @@ export function createForestHistoryLoader() {
       for (const kind of kinds)
         for (const cell of results.get(kind) ?? [])
           for (const r of cell.records) if (!records.has(r.id)) records.set(r.id, r)
+      // A cell answered from a kept copy dates the whole read by its oldest copy.
+      const copyAt = oldestCopy(kinds.flatMap((kind) => (results.get(kind) ?? []).map((cell) => cell.copyAt)))
       return {
         bounds,
-        retrievedAt: new Date().toISOString(),
+        retrievedAt: copyAt ?? new Date().toISOString(),
         records: [...records.values()],
         issues: [
           ...(clamped || options.truncated ? ['The route area exceeds the lookup limit; coverage is partial.'] : []),

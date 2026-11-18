@@ -7,6 +7,8 @@
  * viewpoint-specific assessment landform.
  */
 
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
+import { copyReadAt } from '@/lib/offline/keptReads'
 import type { CanopyStand } from './canopy'
 import type { PolygonGeometry } from './visibility'
 import type { VacRating, VisualQualityClassId } from './vqo'
@@ -266,6 +268,14 @@ export type InventoryQueryResult = {
   units: BcSensitivityUnit[]
   /** True when the service hit its record cap, so the area holds more. */
   truncated: boolean
+  /** Set when the service could not be reached and this is a kept copy: when that copy was read. */
+  copyReadAt?: string
+}
+
+/** `copyReadAt` for a result, only when its response was a kept copy. */
+function copyStamp(response: Response): { copyReadAt?: string } {
+  const at = copyReadAt(response)
+  return at ? { copyReadAt: at } : {}
 }
 
 /**
@@ -281,7 +291,7 @@ export async function fetchSensitivityUnits(
   options: InventoryQueryOptions & { signal?: AbortSignal } = {},
 ): Promise<InventoryQueryResult> {
   const url = buildInventoryQueryUrl(BC_VISUAL_LAYERS.sensitivityUnits, bounds, options)
-  const response = await fetch(url, { signal: options.signal })
+  const response = await inventoryFetch(url, { signal: options.signal })
   if (!response.ok) {
     throw new Error(`BC inventory service returned ${response.status} ${response.statusText}`)
   }
@@ -293,7 +303,7 @@ export async function fetchSensitivityUnits(
 
   const units = parseSensitivityUnits(payload)
   const maxRecords = options.maxRecords ?? MAX_RECORDS
-  return { units, truncated: units.length >= maxRecords }
+  return { units, truncated: units.length >= maxRecords, ...copyStamp(response) }
 }
 
 /** Counts worth showing after a lookup, since so much of the inventory is unrated. */
@@ -409,6 +419,8 @@ export function parseHarvestedAreas(payload: unknown): BcHarvestedArea[] {
 export type HarvestQueryResult = {
   areas: BcHarvestedArea[]
   truncated: boolean
+  /** Set when the service could not be reached and this is a kept copy: when that copy was read. */
+  copyReadAt?: string
 }
 
 /**
@@ -420,7 +432,7 @@ export async function fetchHarvestedAreas(
   bounds: Bounds,
   options: InventoryQueryOptions & { signal?: AbortSignal } = {},
 ): Promise<HarvestQueryResult> {
-  const response = await fetch(buildHarvestQueryUrl(bounds, options), { signal: options.signal })
+  const response = await inventoryFetch(buildHarvestQueryUrl(bounds, options), { signal: options.signal })
   if (!response.ok) {
     throw new Error(`BC harvest service returned ${response.status} ${response.statusText}`)
   }
@@ -431,7 +443,7 @@ export async function fetchHarvestedAreas(
 
   const areas = parseHarvestedAreas(payload)
   const maxRecords = options.maxRecords ?? MAX_RECORDS
-  return { areas, truncated: areas.length >= maxRecords }
+  return { areas, truncated: areas.length >= maxRecords, ...copyStamp(response) }
 }
 
 /** ArcGIS query URL for the stand heights that screen a sightline. */
@@ -496,7 +508,7 @@ export async function fetchCanopyStands(
   bounds: Bounds,
   options: InventoryQueryOptions & { signal?: AbortSignal } = {},
 ): Promise<{ stands: CanopyStand[]; truncated: boolean }> {
-  const response = await fetch(buildCanopyQueryUrl(bounds, options), { signal: options.signal })
+  const response = await inventoryFetch(buildCanopyQueryUrl(bounds, options), { signal: options.signal })
   if (!response.ok) {
     throw new Error(`BC vegetation inventory returned ${response.status} ${response.statusText}`)
   }
@@ -507,5 +519,5 @@ export async function fetchCanopyStands(
 
   const stands = parseCanopyStands(payload)
   const maxRecords = options.maxRecords ?? MAX_RECORDS
-  return { stands, truncated: stands.length >= maxRecords }
+  return { stands, truncated: stands.length >= maxRecords, ...copyStamp(response) }
 }

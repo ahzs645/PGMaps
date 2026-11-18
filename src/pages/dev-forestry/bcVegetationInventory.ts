@@ -30,6 +30,8 @@ import {
   MAX_VEGETATION_QUERY_DEGREES,
 } from '@/lib/forestry/bcVegetationWfs'
 import { fetchFirePerimeters, FIRE_READ_YEARS } from './bcWildfire'
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
+import { copyReadAt } from '@/lib/offline/keptReads'
 import {
   BURNT_RECENT_YEARS,
   coverSourceFromVri,
@@ -137,6 +139,8 @@ export type VegetationResult = {
   stands: VriStand[]
   /** True when the cap was hit, so the answer covers only part of the box. */
   truncated: boolean
+  /** Set when DataBC could not be reached and this is a kept copy: when that copy was read. */
+  copyReadAt?: string
 }
 
 const ROCKY_CODES = ROCKY_NON_VEG_TYPES.map((code) => `'${code}'`).join(',')
@@ -310,7 +314,7 @@ export async function fetchVegetationStands(
   options: VegetationQueryOptions & { signal?: AbortSignal } = {},
 ): Promise<VegetationResult> {
   const { signal, ...queryOptions } = options
-  const response = await fetch(vegetationQueryUrl(bounds, queryOptions), { signal })
+  const response = await inventoryFetch(vegetationQueryUrl(bounds, queryOptions), { signal })
   if (!response.ok) {
     throw new Error(`The BC vegetation inventory answered ${response.status}. Try a smaller view.`)
   }
@@ -320,7 +324,9 @@ export async function fetchVegetationStands(
   const exception = (payload as { exceptions?: unknown })?.exceptions
   if (exception) throw new Error('The BC vegetation inventory refused that query.')
 
-  return parseVegetationStands(payload, queryOptions.maxFeatures ?? MAX_VEGETATION_FEATURES)
+  const stands = parseVegetationStands(payload, queryOptions.maxFeatures ?? MAX_VEGETATION_FEATURES)
+  const copyAt = copyReadAt(response)
+  return copyAt ? { ...stands, copyReadAt: copyAt } : stands
 }
 
 /** Tile edge for a scene's ground cover read, degrees: about 13 km north–south, a few hundred kB of open ground. */
@@ -368,7 +374,7 @@ export async function fetchSceneCover(
   radiusMeters: number,
   {
     signal,
-    fetchImpl = fetch,
+    fetchImpl = inventoryFetch,
     tileDegrees = SCENE_COVER_TILE_DEGREES,
     maxTiles = MAX_SCENE_COVER_TILES,
     timeoutMs = 30_000,

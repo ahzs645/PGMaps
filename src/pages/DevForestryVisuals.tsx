@@ -423,6 +423,8 @@ import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-fores
 import { bearingDegrees, lineLengthMeters, polygonAreaMeters, polygonBounds } from './dev-forestry/visibility'
 
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+import { useOfflineTool } from '@/lib/offline/offlineTools'
+import { keptCopySource } from '@/lib/offline/keptReads'
 const NO_TARGETS: TargetPolygon[] = []
 const NO_CANDIDATES: ViewpointCandidate[] = []
 
@@ -632,6 +634,9 @@ function DevForestryVisuals() {
   useDocumentTitle('Visual quality · PGMaps')
   /** The 2D plan map; the eye-level road view has its own (`eyeMapRef`), mounted while it is open. */
   const mapRef = useRef<MapRef>(null)
+  // Opened once online, the page's code and everything it loads later stays available with no network.
+  // Its inventory reads still need one unless *Keep inventory copies* is on: docs/app-updates-and-caching.md.
+  useOfflineTool('visual-quality')
   const eyeMapRef = useRef<MapRef>(null)
   // The engine drawing the road view, while one is chosen and listening (`ExternalRoadRenderer`).
   const engineCaptureRef = useRef<EngineCaptureHandle | null>(null)
@@ -1142,8 +1147,9 @@ function DevForestryVisuals() {
         harvestInventory: {
           status: harvest.value.truncated ? 'partial' : 'complete',
           bounds,
-          source: HARVEST_SOURCE,
-          retrievedAt: new Date().toISOString(),
+          // A kept copy carries the day it was read, and says it is one.
+          source: harvest.value.copyReadAt ? keptCopySource(HARVEST_SOURCE) : HARVEST_SOURCE,
+          retrievedAt: harvest.value.copyReadAt ?? new Date().toISOString(),
         },
         targets: [
           ...kept,

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { LAND_CHECKS, landCheckBounds, runLandCheck, type LandCheckId, type LandCheckState } from './landStatusChecks'
 import type { TargetPolygon } from './types'
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
 
 /** Edits settle before the layers are read again: dragging a vertex is not nine queries a step. */
 const CHECK_DELAY_MS = 800
@@ -44,7 +45,7 @@ export function useLandChecks(blocks: readonly TargetPolygon[], landform: Target
     const timer = window.setTimeout(() => {
       setStates({ key, byId: Object.fromEntries(LAND_CHECKS.map((check) => [check.id, { status: 'loading' }])) })
       for (const check of LAND_CHECKS)
-        runLandCheck(check, bounds, input.blocks, input.landform, fetch, controller.signal)
+        runLandCheck(check, bounds, input.blocks, input.landform, inventoryFetch, controller.signal)
           .then((result) => ({ status: 'ready' as const, result }))
           .catch((error: unknown) => ({
             status: 'error' as const,

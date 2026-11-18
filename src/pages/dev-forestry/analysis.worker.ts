@@ -23,6 +23,7 @@ import { DEFAULT_REVERSE_SETTINGS, computeReverseViewshed } from './reverseViews
 import { MAX_DEM_TILES, demResolutionMeters, demTileRange } from '@/lib/forestry/terrain/terrain'
 import { polygonBounds, type PolygonGeometry } from './visibility'
 import type { AnalysisWorkerRequest, AnalysisWorkerResponse } from './types'
+import { keptCopySource } from '@/lib/offline/keptReads'
 
 const workerScope = globalThis as unknown as {
   onmessage: ((event: MessageEvent<AnalysisWorkerRequest>) => void) | null
@@ -140,8 +141,9 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
       vegetation = {
         status: !stands.length ? 'unavailable' : limited || missingHeights ? 'partial' : 'complete',
         bounds: queryBounds,
-        retrievedAt: new Date().toISOString(),
-        source: 'BC VRI rank-1 WFS',
+        // A kept copy carries the day it was read, and says it is one.
+        retrievedAt: response.copyReadAt ?? new Date().toISOString(),
+        source: response.copyReadAt ? keptCopySource('BC VRI rank-1 WFS') : 'BC VRI rank-1 WFS',
       }
       if (wantsGreenArea) {
         forestedGround = forestedGeometries(stands)

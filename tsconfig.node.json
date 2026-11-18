@@ -14,6 +14,8 @@
     "vite.road-design.config.ts",
     "scripts/remediation-dev-data.ts",
     "scripts/water-temp-dev-data.ts",
+    "scripts/offline-precache-plugin.ts",
+    "src/lib/offline/precacheManifest.ts",
     "src/maps/aqmap/server/**/*.ts",
     "src/types/shpjs.d.ts",
     "src/maps/aqmap/lib/smokeLayers.ts",

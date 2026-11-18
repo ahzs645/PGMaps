@@ -6,6 +6,7 @@
  * geometry in `SHAPE`. A perimeter is the fire's outer edge: unburnt islands inside it are not mapped, so the burnt
  * ground it gives is an upper bound. Display only. DOM-free; `fetch` is passed in.
  */
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
 import type { SceneFire } from './sceneCover'
 import type { PolygonGeometry } from './visibility'
 
@@ -93,7 +94,7 @@ export async function fetchFirePerimeters(
   sinceYear: number,
   {
     signal,
-    fetchImpl = fetch,
+    fetchImpl = inventoryFetch,
     timeoutMs = 30_000,
   }: { signal?: AbortSignal; fetchImpl?: typeof fetch; timeoutMs?: number } = {},
 ): Promise<{ fires: SceneFire[]; complete: Array<[number, number, number, number]>; note: string }> {

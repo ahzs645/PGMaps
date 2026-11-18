@@ -15,6 +15,7 @@ import {
   type GroupReserve,
 } from './resultsReserves'
 import type { AssessmentMask, TargetPolygon } from './types'
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
 
 type Lookup =
   | { status: 'idle' }
@@ -50,7 +51,7 @@ export function NetFootprintPanel({
     try {
       const { reserves, ftenBlocks } = await fetchBlockFootprints(
         blocks.map((block) => block.geometry),
-        fetch,
+        inventoryFetch,
       )
       setLookup({
         status: 'ready',

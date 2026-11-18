@@ -13,6 +13,7 @@ import {
   Trees,
   Sun,
   Moon,
+  HardDrive,
   Palette,
   ShieldAlert,
   Building2,
@@ -29,6 +30,7 @@ import { cn } from '@/lib/utils'
 import { MISC_TABS } from '@/maps/pgdata/miscDataTabs'
 import { PG_DATA_TABS } from '@/maps/pgdata/pgDataTabs'
 import { AppearanceDialog } from './AppearanceDialog'
+import { StorageDialog } from '@/components/ui/storage-dialog'
 
 const navLinks = [
   { path: '/', label: 'Home', icon: Map },
@@ -96,6 +98,7 @@ export function Navbar() {
   const isRoadDesignPage = ['/dev/forestry/road-design', '/dev/forestry/roads'].includes(location.pathname)
   const { resolvedTheme, setTheme } = useTheme()
   const [appearanceOpen, setAppearanceOpen] = useState(false)
+  const [storageOpen, setStorageOpen] = useState(false)
   const appearanceTriggerRef = useRef<HTMLButtonElement>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileSubmenu, setMobileSubmenu] = useState<'pgdata' | 'misc' | null>(null)
@@ -324,6 +327,17 @@ export function Navbar() {
                   <Palette className="h-5 w-5" />
                   Appearance
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeMobileMenu()
+                    setStorageOpen(true)
+                  }}
+                  className="flex w-full items-center gap-3 rounded-md px-4 py-3 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <HardDrive className="h-5 w-5" />
+                  Offline and storage
+                </button>
               </nav>
             )}
           </div>,
@@ -450,6 +464,17 @@ export function Navbar() {
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => setStorageOpen(true)}
+            aria-label="Offline and storage"
+            title="Offline and storage"
+            aria-haspopup="dialog"
+            className="hidden text-muted-foreground md:inline-flex"
+          >
+            <HardDrive className="h-5 w-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={toggleTheme}
             aria-label="Toggle theme"
             // On phones the theme switch lives in the menu so the floating row stays to search + info.
@@ -461,6 +486,8 @@ export function Navbar() {
       </div>
 
       {mobileMenu}
+      {/* Mounted only while open: it measures every store when it opens. */}
+      {storageOpen && <StorageDialog open onOpenChange={setStorageOpen} />}
       {appearanceOpen && (
         <AppearanceDialog
           onClose={() => setAppearanceOpen(false)}

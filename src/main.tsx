@@ -8,6 +8,7 @@ import './index.css'
 import { dataHostOrigins } from '@/lib/dataHosts'
 import { DATA_HOSTS } from '@/lib/dataUrl'
 import { initializeInterfaceTheme } from '@/lib/interfaceTheme'
+import { OFFLINE_REFRESH_DELAY_MS, refreshOfflineFiles } from '@/lib/offline/offlineTools'
 import { installOverlayScrollbars } from './lib/overlayScrollbars/install'
 
 initializeInterfaceTheme()
@@ -29,6 +30,10 @@ if ('serviceWorker' in navigator) {
           // Offline caching is optional; restricted browsers and failed updates
           // must not produce an unhandled rejection while the app is usable.
         })
+      // Bring what is held offline up to the build now deployed: the shell, and any tool opened
+      // on an earlier visit (`src/lib/offline/offlineTools.ts`). The worker only changes when
+      // `sw.js` does, so without this a new build's files would wait for the tool to be opened.
+      setTimeout(() => void refreshOfflineFiles(), OFFLINE_REFRESH_DELAY_MS)
     } else {
       void navigator.serviceWorker.getRegistrations().then((registrations) => {
         registrations.forEach((registration) => void registration.unregister())

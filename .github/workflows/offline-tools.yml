@@ -1,0 +1,59 @@
+name: Verify offline tools
+
+on:
+  # Feature suite: runs only when started by hand (Actions -> Run workflow,
+  # choosing the branch). Checks and the Pages build still run on every PR.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-tools-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - name: Build the application, its service worker and the offline file lists
+        run: npx vite build
+      - name: Install the standard Chromium test browser
+        run: npx playwright install --with-deps chromium
+      # The dev server registers no service worker, so the built site is served.
+      - name: Open each offline tool, cut the network and reload
+        run: |
+          npx vite preview --host 127.0.0.1 --port 42173 --strictPort > offline-tools-vite.log 2>&1 &
+          offline_vite_pid=$!
+          trap 'kill "$offline_vite_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:42173/ > /dev/null; then break; fi
+            if ! kill -0 "$offline_vite_pid" 2>/dev/null; then
+              cat offline-tools-vite.log
+              exit 1
+            fi
+            sleep 1
+          done
+          curl --silent --show-error --fail http://127.0.0.1:42173/offline-precache.json > /dev/null
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 PGMAPS_E2E_PRODUCTION=1 npx playwright test tests/e2e/offline-tools.spec.ts --project=chromium --workers=1 --reporter=line,html
+      - name: Keep browser acceptance evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: offline-tools-browser-results
+          path: |
+            test-results
+            playwright-report
+            offline-tools-vite.log
+          retention-days: 14

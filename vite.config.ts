@@ -7,6 +7,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { aqmapApiPlugin } from './src/maps/aqmap/server/aqmapApiPlugin'
 import { remediationDevDataPlugin } from './scripts/remediation-dev-data'
 import { waterTempDevDataPlugin } from './scripts/water-temp-dev-data'
+import { offlinePrecache } from './scripts/offline-precache-plugin'
 
 // Local review only: restricted EDI caches never enter public/ or the build.
 function earlyLearningDevDataPlugin(): Plugin {
@@ -75,6 +76,15 @@ function networkDevDataPlugin(): Plugin {
   }
 }
 
+/** Larger files a tool can reach (the terrain toolbox's WebAssembly) are cached on first use instead. */
+const OFFLINE_MAX_FILE_BYTES = 6 * 1024 * 1024
+/**
+ * What every page downloads before it draws: JavaScript and CSS reached statically from index.html.
+ * Measured 0.97 MB raw, 0.25 MB gzipped on 18 November 2026; the budget leaves room to grow, not to
+ * take in a mapping or PDF library.
+ */
+const SHELL_BUDGET = { rawBytes: 1.5 * 1024 * 1024, gzipBytes: 420 * 1024 }
+
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? '/',
   plugins: [
@@ -93,6 +103,23 @@ export default defineConfig({
     earlyLearningDevDataPlugin(),
     remediationDevDataPlugin(),
     waterTempDevDataPlugin(),
+    // The files the service worker keeps for offline use, and the shell's size budget
+    // (docs/app-updates-and-caching.md, **Offline tools**). A new offline tool is one group here
+    // and one `useOfflineTool` call in its page.
+    offlinePrecache({
+      groups: [
+        {
+          id: 'road-design',
+          roots: /^(ForestryRoadWorkspace|DevForestryRoads)-/,
+          // Read by address at run time (`scripts/road-design/manifest.mjs`, `PUBLIC`).
+          extras: ['workspace-layouts.json', 'brand/', 'interface-previews/'],
+        },
+        { id: 'visual-quality', roots: /^DevForestryVisuals-/ },
+      ],
+      maxFileBytes: OFFLINE_MAX_FILE_BYTES,
+      shellExtras: ['favicon.svg', 'manifest.json'],
+      shellBudget: SHELL_BUDGET,
+    }),
   ],
   resolve: {
     alias: [

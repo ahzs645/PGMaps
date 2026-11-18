@@ -35,6 +35,8 @@ import {
   type PolygonGeometry,
 } from './visibility'
 import { formatMeasure } from '@/lib/format'
+import { inventoryFetch } from '@/lib/offline/inventoryCopies'
+import { copyReadAt, oldestCopy } from '@/lib/offline/keptReads'
 
 import { compassPoint, lineToPolygonMeters } from './visualsNarrative'
 
@@ -578,12 +580,16 @@ export function roadsNearBlock(
 // ---------------------------------------------------------------------------
 // Network
 
-async function readLayer(layer: keyof typeof VIEWPOINT_LAYERS, bounds: Bounds, signal?: AbortSignal): Promise<unknown> {
-  const response = await fetch(viewpointLayerUrl(layer, bounds), { signal })
+async function readLayer(
+  layer: keyof typeof VIEWPOINT_LAYERS,
+  bounds: Bounds,
+  signal?: AbortSignal,
+): Promise<{ payload: unknown; copyAt: string | null }> {
+  const response = await inventoryFetch(viewpointLayerUrl(layer, bounds), { signal })
   if (!response.ok) throw new Error(`DataBC answered ${response.status}`)
   const payload: unknown = await response.json()
   if ((payload as { exceptions?: unknown })?.exceptions) throw new Error('DataBC refused the query')
-  return payload
+  return { payload, copyAt: copyReadAt(response) }
 }
 
 function truncatedPayload(payload: unknown): boolean {
@@ -602,8 +608,10 @@ export async function fetchViewpointInventory(bounds: Bounds, signal?: AbortSign
   signal?.throwIfAborted()
   const payload = (layer: keyof typeof VIEWPOINT_LAYERS) => {
     const result = settled[layers.indexOf(layer)]
-    return result.status === 'fulfilled' ? result.value : null
+    return result.status === 'fulfilled' ? result.value.payload : null
   }
+  // A layer answered from a kept copy dates the whole read by its oldest copy.
+  const copyAt = oldestCopy(settled.map((result) => (result.status === 'fulfilled' ? result.value.copyAt : null)))
   const { viewpoints, droppedErrors } = parseViewpoints(payload('viewpoints'))
   return {
     viewpoints,
@@ -618,7 +626,7 @@ export async function fetchViewpointInventory(bounds: Bounds, signal?: AbortSign
         ? [{ layer, message: result.reason instanceof Error ? result.reason.message : String(result.reason) }]
         : []
     }),
-    retrievedAt: new Date().toISOString(),
+    retrievedAt: copyAt ?? new Date().toISOString(),
     bounds: clampViewpointBounds(bounds),
     droppedErrorViewpoints: droppedErrors,
   }

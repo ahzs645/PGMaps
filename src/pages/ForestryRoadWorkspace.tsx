@@ -2,10 +2,13 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { loadWorkspaceLayouts, type WorkspaceLayout } from '../components/interfaces/workspaceLayouts'
 import { initialInterfaceId, readStoredInterface } from '../components/interfaces/interfacePreference'
 import { BrandScope } from '../branding/BrandScope'
+import { useOfflineTool } from '../lib/offline/offlineTools'
 
 const RoadDesign = lazy(() => import('./DevForestryRoads'))
 
 export default function ForestryRoadWorkspace() {
+  // Opened once online, the designer and everything it loads later stays available with no network.
+  useOfflineTool('road-design')
   return (
     <BrandScope>
       <div className="h-full pt-[calc(env(safe-area-inset-top)+var(--app-navbar-offset,4rem))] md:pt-0">
