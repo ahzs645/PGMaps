@@ -338,9 +338,12 @@ canvas,
    tinted bands beside the white sidebar and MapLibre's controls: a right-hand sidebar, the
    legend, the timeline, the phone's sheets (a feature's details, the table), and anything
    marked `data-map-chrome` (the table pane and its toggle, the status bar, the scale bar,
-   the loading pill, `MapOverlay` and a page's own floating toolbars). */
+   the loading pill, `MapOverlay` and a page's own floating toolbars), and everything the map draws
+   over itself (`.geo-map-chrome`: its zoom and basemap controls and a page's buttons on the map,
+   such as the road plan's fit buttons, which read page-tinted beside its white tool bar). */
 [data-interface-theme]
   :is(
+    .geo-map-chrome,
     [data-map-sidebar-wrapper],
     [data-map-right-sidebar],
     .geo-map-layout-toggle,
